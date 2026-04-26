@@ -28,12 +28,18 @@
       img.src = url;
     });
 
+    // macOS dock / Windows taskbar icons expect ~10% padding around
+    // the artwork — without it the seed mark looks oversized next
+    // to neighbouring app icons. Inset the SVG inside a transparent
+    // canvas instead of touching the source artwork.
     const size = 1024;
+    const padding = Math.round(size * 0.1);
+    const inner = size - padding * 2;
     const canvas = document.createElement("canvas");
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0, size, size);
+    ctx.drawImage(img, padding, padding, inner, inner);
     const dataUrl = canvas.toDataURL("image/png");
     await window.beginner.setIcon(dataUrl);
   } catch (err) {
