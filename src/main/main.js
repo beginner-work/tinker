@@ -106,6 +106,65 @@ app.on("window-all-closed", () => {
 ipcMain.handle("app:version", () => app.getVersion());
 ipcMain.handle("app:platform", () => process.platform);
 
+// ── LinkedIn plugin ─────────────────────────────────────────────────────
+//
+// Lets you write what's on your mind in the search bar and publish it as
+// a LinkedIn post with a fixed attribution line appended. Requires:
+//
+//   LINKEDIN_ACCESS_TOKEN  — OAuth access token with w_member_social scope
+//   LINKEDIN_AUTHOR_URN    — your member URN, e.g. "urn:li:person:abc123"
+
+const LINKEDIN_TAGLINE = "made by me, supported by beginner";
+
+ipcMain.handle("linkedin:post", async (_event, message) => {
+  if (typeof message !== "string" || !message.trim()) {
+    throw new Error("Post text is required");
+  }
+  const token = process.env.LINKEDIN_ACCESS_TOKEN;
+  const authorUrn = process.env.LINKEDIN_AUTHOR_URN;
+  if (!token || !authorUrn) {
+    const err = new Error(
+      "LINKEDIN_ACCESS_TOKEN and LINKEDIN_AUTHOR_URN must be set in your environment."
+    );
+    err.code = "MISSING_LINKEDIN_CREDS";
+    throw err;
+  }
+
+  const fullText = `${message.trim()}\n\n— ${LINKEDIN_TAGLINE}`;
+  const body = {
+    author: authorUrn,
+    lifecycleState: "PUBLISHED",
+    specificContent: {
+      "com.linkedin.ugc.ShareContent": {
+        shareCommentary: { text: fullText },
+        shareMediaCategory: "NONE",
+      },
+    },
+    visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
+  };
+
+  const res = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "X-Restli-Protocol-Version": "2.0.0",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`LinkedIn API error ${res.status}: ${errBody.slice(0, 240)}`);
+  }
+
+  const postUrn = res.headers.get("x-restli-id") || (await res.json()).id;
+  // x-restli-id looks like "urn:li:share:1234..."; the public URL form is
+  // https://www.linkedin.com/feed/update/<urn>/
+  const url = postUrn ? `https://www.linkedin.com/feed/update/${postUrn}/` : null;
+  return { ok: true, postUrn, url, posted: fullText };
+});
+
 ipcMain.handle("search:query", async (_event, query) => {
   if (typeof query !== "string" || !query.trim()) {
     throw new Error("Query is required");

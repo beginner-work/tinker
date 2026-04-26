@@ -84,11 +84,18 @@
           </svg>
           <h1 class="welcome__title">A new way to web</h1>
 
+          <div id="plugin-tabs" class="welcome__tabs" role="tablist" aria-label="What would you like to do">
+            <button type="button" class="welcome__tab" data-plugin="search" role="tab" aria-selected="true">Search</button>
+            <button type="button" class="welcome__tab" data-plugin="linkedin" role="tab" aria-selected="false">Post to LinkedIn</button>
+          </div>
+
           <form id="welcome-form" class="welcome__search" role="search">
-            <input id="welcome-input" type="text" inputmode="url" autocomplete="off" spellcheck="false"
+            <input id="welcome-input" type="text" inputmode="text" autocomplete="off" spellcheck="false"
                    placeholder="Where is your starting point today?" aria-label="Where is your starting point today?" />
-            <button type="submit" class="welcome__begin">Begin</button>
+            <button type="submit" id="welcome-submit" class="welcome__begin">Begin</button>
           </form>
+
+          <p id="welcome-status" class="welcome__status" hidden></p>
         </div>
       </section>
     </main>

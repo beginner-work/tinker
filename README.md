@@ -28,6 +28,29 @@ caching, so repeat queries skip the cold-start cost.
 If `ANTHROPIC_API_KEY` isn't set, the search pane shows a friendly
 error explaining how to fix it.
 
+## Plugins
+
+The welcome bar has a small mode toggle that switches between plugins.
+Each plugin owns its placeholder, button label, and submit handler;
+adding a new one is one entry in `src/renderer/renderer.js` plus a
+matching tab in `index.html`.
+
+### LinkedIn post
+
+Switch the welcome toggle to **Post to LinkedIn**, type what's on your
+mind, and hit **Post**. The post is published with the line
+
+> — made by me, supported by beginner
+
+appended on its own paragraph. Requires:
+
+```bash
+export LINKEDIN_ACCESS_TOKEN="..."     # OAuth token with w_member_social
+export LINKEDIN_AUTHOR_URN="urn:li:person:abc123"
+```
+
+The token is sent only to LinkedIn's API; nothing is written to disk.
+
 ## What's inside
 
 ```

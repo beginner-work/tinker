@@ -400,6 +400,52 @@ webview { border: 0; }
 .welcome__begin:hover { background: #4f46e5; }
 .welcome__begin:active { transform: scale(0.98); }
 
+/* Plugin selector — sits above the search bar */
+
+.welcome__tabs {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(45, 90, 61, 0.06);
+  gap: 2px;
+}
+
+.welcome__tab {
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.welcome__tab:hover { color: var(--color-foreground); }
+
+.welcome__tab[aria-selected="true"] {
+  background: var(--color-surface);
+  color: var(--color-forest);
+  box-shadow: 0 1px 2px rgba(45, 90, 61, 0.06);
+}
+
+.welcome__status {
+  margin: 0;
+  max-width: 520px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.welcome__status[data-state="ok"] { color: var(--color-forest); }
+.welcome__status[data-state="error"] { color: #b8425a; }
+.welcome__status[data-state="loading"] { color: var(--color-muted); }
+.welcome__status a {
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+  text-decoration-color: rgba(99, 102, 241, 0.4);
+  text-underline-offset: 3px;
+}
+
 /* ── Search pane ──────────────────────────────────────────────────────── */
 
 .stage > .search-pane {
