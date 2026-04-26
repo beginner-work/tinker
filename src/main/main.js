@@ -1,7 +1,12 @@
-const { app, BrowserWindow, session, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, session, ipcMain, shell, nativeImage } = require("electron");
 const path = require("path");
 
 const isDev = process.argv.includes("--dev");
+
+// Show "beginner" in the macOS menu bar / app menus instead of "Electron".
+// (Note: the dock label still comes from the bundle Info.plist when the app
+// is packaged. Setting it here covers the unpackaged dev case.)
+app.setName("beginner");
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -12,6 +17,11 @@ function createWindow() {
     backgroundColor: "#FFFDF7",
     title: "beginner",
     autoHideMenuBar: true,
+    // Drop the native title bar — our chrome paints the whole top.
+    // 'hiddenInset' keeps the macOS traffic lights but removes the bar;
+    // on Windows/Linux it falls back gracefully to a frameless window.
+    titleBarStyle: "hiddenInset",
+    trafficLightPosition: { x: 14, y: 16 },
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -65,3 +75,21 @@ app.on("window-all-closed", () => {
 
 ipcMain.handle("app:version", () => app.getVersion());
 ipcMain.handle("app:platform", () => process.platform);
+
+// Renderer renders the seed-mark SVG to a PNG data URL and hands it
+// here so we can set the dock / window icon. (nativeImage doesn't
+// read SVG, so we delegate the rasterization to the renderer.)
+ipcMain.handle("app:setIcon", (_event, dataUrl) => {
+  if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/png")) {
+    return false;
+  }
+  const img = nativeImage.createFromDataURL(dataUrl);
+  if (img.isEmpty()) return false;
+  if (process.platform === "darwin" && app.dock) {
+    app.dock.setIcon(img);
+  }
+  for (const w of BrowserWindow.getAllWindows()) {
+    w.setIcon(img);
+  }
+  return true;
+});

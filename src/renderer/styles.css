@@ -111,8 +111,11 @@ input:focus, button:focus { outline: none; }
 }
 
 .chrome__row--tabs {
+  /* Reserve room on the left for the macOS traffic-light buttons
+     that float into the chrome now that the title bar is hidden. */
   padding-top: 10px;
   padding-bottom: 0;
+  padding-left: 78px;
   gap: 4px;
 }
 
