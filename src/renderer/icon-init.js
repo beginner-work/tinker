@@ -1,8 +1,8 @@
-/* Renders the rainbow web mark to a PNG and hands it to the main
+/* Renders the rainbow globe mark to a PNG and hands it to the main
  * process so the OS dock / taskbar shows the desktop-app brand
  * icon instead of the default Electron logo. The mark is built
- * from the shared style dictionary in `tokens/rainbow-web.json`
- * (twin of beginner-work/beginner ui/src/tokens/rainbow-web.json),
+ * from the shared style dictionary in `tokens/rainbow-globe.json`
+ * (twin of beginner-work/beginner ui/src/tokens/rainbow-globe.json),
  * so any palette / geometry change there flows here automatically.
  *
  * Lives in the renderer because Electron's nativeImage doesn't read
@@ -10,14 +10,14 @@
 
 (async () => {
   if (!window.beginner || typeof window.beginner.setIcon !== "function") return;
-  if (!window.beginnerLogo || typeof window.beginnerLogo.buildRainbowWebSvg !== "function") {
-    console.warn("[beginner] rainbow-web helper not loaded");
+  if (!window.beginnerLogo || typeof window.beginnerLogo.buildRainbowGlobeSvg !== "function") {
+    console.warn("[beginner] rainbow-globe helper not loaded");
     return;
   }
 
   let svg;
   try {
-    svg = await window.beginnerLogo.buildRainbowWebSvg();
+    svg = await window.beginnerLogo.buildRainbowGlobeSvg();
   } catch (err) {
     console.warn("[beginner] icon init failed:", err);
     return;

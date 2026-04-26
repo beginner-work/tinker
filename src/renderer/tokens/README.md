@@ -19,6 +19,6 @@ fetch path works on desktop and mobile.
 
 | File | What it describes |
 |---|---|
-| `rainbow-web.json` | The pastel rainbow web mark used as the desktop browser's app icon. |
+| `rainbow-globe.json` | The pastel rainbow globe mark used as the desktop browser's app icon. |
 
 For the schema, see the upstream README in the beginner repo.

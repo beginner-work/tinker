@@ -1,0 +1,19 @@
+{
+  "$description": "Style dictionary for the rainbow globe mark — the desktop-app icon. A pastel wireframe globe rendered as overlapping ellipses (boundary, two latitudes, two meridians) tilted slightly off-axis to read as 3D. Shared verbatim with beginner-work/web at src/renderer/tokens/rainbow-globe.json. If you change anything here, update the web repo copy in the same commit (or the next one).",
+  "viewBox": "0 0 200 200",
+  "background": "#F5F3EF",
+  "cornerRadius": 44,
+  "rotation": -12,
+  "strokeWidth": 4,
+  "center": {
+    "color": "#2D5A3D",
+    "radius": 3
+  },
+  "lines": [
+    { "name": "boundary", "rx": 78, "ry": 78, "color": "#F9A8D4" },
+    { "name": "equator",  "rx": 78, "ry": 22, "color": "#FDBA74" },
+    { "name": "tropic",   "rx": 78, "ry": 52, "color": "#FDE68A" },
+    { "name": "meridian", "rx": 22, "ry": 78, "color": "#6EE7B7" },
+    { "name": "hour",     "rx": 52, "ry": 78, "color": "#7DD3FC" }
+  ]
+}
