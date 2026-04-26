@@ -1,2 +1,159 @@
 # web
-beginner's web browser 
+
+beginner's web browser — a quiet place to be on the web.
+
+A minimal desktop browser built on Electron. The chrome adopts the
+[beginner brand language](https://github.com/beginner-work/beginner/blob/main/BRAND.md)
+from the main repo: warm cream background, forest-green seed mark,
+Plus Jakarta Sans for display, Inter for body.
+
+## Run it
+
+```bash
+npm install
+export ANTHROPIC_API_KEY="sk-ant-..."   # required for search
+npm start
+```
+
+Use `npm run dev` to open with DevTools attached.
+
+## Search
+
+The address-bar / welcome-page search uses Claude Haiku 4.5 instead of
+a third-party engine. Queries are answered as short essays — three to
+five paragraphs of plain prose with embedded links to real sites you
+can click through to. The Anthropic system prompt is marked for prompt
+caching, so repeat queries skip the cold-start cost.
+
+If `ANTHROPIC_API_KEY` isn't set, the search pane shows a friendly
+error explaining how to fix it.
+
+## Plugins
+
+The welcome bar has a small mode toggle that switches between plugins.
+Each plugin owns its placeholder, button label, and submit handler;
+adding a new one is one entry in `src/renderer/renderer.js` plus a
+matching tab in `index.html`.
+
+### LinkedIn post
+
+Switch the welcome toggle to **Post to LinkedIn**, type what's on your
+mind, and hit **Post**. The post is published with the line
+
+> — made by me, supported by beginner
+
+appended on its own paragraph. Requires:
+
+```bash
+export LINKEDIN_ACCESS_TOKEN="..."     # OAuth token with w_member_social
+export LINKEDIN_AUTHOR_URN="urn:li:person:abc123"
+```
+
+The token is sent only to LinkedIn's API; nothing is written to disk.
+
+## Mobile (Capacitor)
+
+The same `src/renderer/` codebase ships as an iOS / Android app via
+[Capacitor](https://capacitorjs.com). One-time setup:
+
+```bash
+npm install
+npx cap add ios          # macOS + Xcode required
+npx cap add android      # Android Studio required
+npx cap sync
+```
+
+Then either open the native project in its IDE…
+
+```bash
+npm run mobile:open:ios
+npm run mobile:open:android
+```
+
+…or build and run on a connected device:
+
+```bash
+npm run mobile:run:ios
+npm run mobile:run:android
+```
+
+`capacitor.config.json` points the web layer at `src/renderer/` — no
+bundler, no build step. After editing renderer code, run
+`npm run mobile:sync` to copy the latest `src/renderer/` into the
+native projects.
+
+### How the platforms differ
+
+| | Electron desktop | Capacitor mobile / web |
+|---|---|---|
+| Tabs / sessions | Yes — left sidebar | Yes (collapsed rail on phones) |
+| In-app browsing | Native `<webview>` | External — opens in iOS/Android system browser via `@capacitor/browser` |
+| Search engine | IPC → main process → Anthropic SDK | Direct browser-side fetch with prompt caching |
+| LinkedIn post | IPC → main process | Direct browser-side fetch |
+| API key storage | `ANTHROPIC_API_KEY` / `LINKEDIN_*` env vars | `localStorage` (open the inspector and run `localStorage.setItem(...)`) |
+
+The `src/renderer/platform-mobile.js` shim detects the runtime —
+Electron preload short-circuits it; on Capacitor and on the plain
+web it polyfills the same `window.beginner.*` surface so the rest
+of the renderer code path is identical.
+
+### Setting keys on mobile
+
+For now, paste the keys into `localStorage` from the Capacitor
+WebView inspector (Safari Web Inspector on iOS, `chrome://inspect`
+on Android):
+
+```js
+localStorage.setItem("ANTHROPIC_API_KEY", "sk-ant-...");
+localStorage.setItem("LINKEDIN_ACCESS_TOKEN", "...");
+localStorage.setItem("LINKEDIN_AUTHOR_URN", "urn:li:person:...");
+```
+
+A proper in-app settings panel is on the list.
+
+## Style dictionary
+
+The desktop-app icon (the pastel rainbow web mark) is rendered from
+`src/renderer/tokens/rainbow-web.json` — a JSON design dictionary
+shared verbatim with the beginner UI repo at
+`ui/src/tokens/rainbow-web.json`. Both consumers read the same file:
+the beginner UI imports it directly into the `/logo` page; here, the
+renderer fetches it from `src/renderer/lib/rainbow-web.js`, which
+exposes `window.beginnerLogo.buildRainbowWebSvg()` for any consumer
+that wants the mark as an SVG string.
+
+Treat the beginner repo's copy as the source of truth — when you
+edit anything in either file, update the other in the same change
+set.
+
+## What's inside
+
+```
+web/
+├── src/
+│   ├── main/
+│   │   ├── main.js         # Electron main process — window, session, IPC
+│   │   └── preload.js      # contextBridge exposing the `beginner` API
+│   └── renderer/
+│       ├── index.html      # Browser chrome shell
+│       ├── styles.css      # Brand styling (adopted from beginner/ui)
+│       └── renderer.js     # Tabs, address bar, navigation
+└── package.json
+```
+
+The renderer is plain HTML/CSS/JS — no build step, no bundler. Each
+tab maps to either the welcome page (in-DOM) or an Electron
+`<webview>` mounted lazily on first navigation.
+
+## Shortcuts
+
+| Action | Shortcut |
+|--------|----------|
+| New tab | ⌘/Ctrl + T |
+| Close tab | ⌘/Ctrl + W |
+| Focus address bar | ⌘/Ctrl + L |
+| Reload | ⌘/Ctrl + R |
+| Close tab (mouse) | Middle-click the tab |
+
+The address bar accepts URLs, hostnames (`beginner.work`), and search
+queries (anything else falls through to Google).
