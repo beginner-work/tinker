@@ -111,6 +111,21 @@ localStorage.setItem("LINKEDIN_AUTHOR_URN", "urn:li:person:...");
 
 A proper in-app settings panel is on the list.
 
+## Style dictionary
+
+The desktop-app icon (the pastel rainbow web mark) is rendered from
+`src/renderer/tokens/rainbow-web.json` — a JSON design dictionary
+shared verbatim with the beginner UI repo at
+`ui/src/tokens/rainbow-web.json`. Both consumers read the same file:
+the beginner UI imports it directly into the `/logo` page; here, the
+renderer fetches it from `src/renderer/lib/rainbow-web.js`, which
+exposes `window.beginnerLogo.buildRainbowWebSvg()` for any consumer
+that wants the mark as an SVG string.
+
+Treat the beginner repo's copy as the source of truth — when you
+edit anything in either file, update the other in the same change
+set.
+
 ## What's inside
 
 ```
