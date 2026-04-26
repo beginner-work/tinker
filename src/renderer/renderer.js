@@ -13,8 +13,7 @@
   "use strict";
 
   const HOME_URL = "beginner://home";
-  const SEARCH_URL = (q) =>
-    `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+  const SEARCH_PREFIX = "beginner://search?q=";
 
   /** @type {Array<{id: string, url: string, title: string, loading: boolean, view: HTMLElement | null}>} */
   let sessions = [];
@@ -52,7 +51,36 @@
     if (text.startsWith("localhost") || /^localhost(:\d+)/.test(text)) {
       return "http://" + text;
     }
-    return SEARCH_URL(text);
+    return SEARCH_PREFIX + encodeURIComponent(text);
+  }
+
+  // ── Markdown rendering for search results ───────────────────────────
+  //
+  // Tiny renderer just for what Claude Haiku emits: paragraphs separated
+  // by blank lines, [label](url) links, **bold** and *italic*. We escape
+  // HTML first and only re-inject the tags we generate, so nothing in
+  // the model output reaches the DOM as raw HTML.
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+    );
+  }
+
+  function renderEssayHtml(markdown) {
+    const escaped = escapeHtml(markdown);
+    const linked = escaped.replace(
+      /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+      (_m, label, url) =>
+        `<a href="${url}" data-search-link="${url}">${label}</a>`
+    );
+    const bolded = linked.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    const italicised = bolded.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+    return italicised
+      .split(/\n{2,}/)
+      .map((p) => `<p>${p.replace(/\n/g, "<br>").trim()}</p>`)
+      .filter((p) => p !== "<p></p>")
+      .join("");
   }
 
   function hostnameOf(url) {
@@ -157,11 +185,14 @@
     if (url === HOME_URL) {
       session.url = HOME_URL;
       session.title = "New session";
-      if (session.view && session.view.parentNode) {
-        session.view.parentNode.removeChild(session.view);
-        session.view = null;
-      }
+      removeSessionView(session);
       render();
+      return;
+    }
+
+    if (url.startsWith(SEARCH_PREFIX)) {
+      const query = decodeURIComponent(url.substring(SEARCH_PREFIX.length));
+      showSearch(session, url, query);
       return;
     }
 
@@ -169,11 +200,114 @@
     if (!session.title || session.title === "New session") {
       session.title = hostnameOf(url) || url;
     }
+    // Switching to a webview from a non-webview view means the old pane
+    // (e.g. a search-pane) needs to come down before we mount the webview.
+    if (session.view && session.view.tagName.toLowerCase() !== "webview") {
+      removeSessionView(session);
+    }
     const wv = ensureWebview(session);
     if (wv.src !== url) {
       try { wv.loadURL(url); } catch { wv.src = url; }
     }
     render();
+  }
+
+  function removeSessionView(session) {
+    if (session.view && session.view.parentNode) {
+      session.view.parentNode.removeChild(session.view);
+    }
+    session.view = null;
+  }
+
+  // ── Search pane ─────────────────────────────────────────────────────
+
+  function showSearch(session, url, query) {
+    session.url = url;
+    session.title = query;
+    if (session.view && session.view.tagName.toLowerCase() !== "section") {
+      removeSessionView(session);
+    }
+    const pane = session.view || createSearchPane(session);
+    session.view = pane;
+    pane.dataset.query = query;
+    setSearchPaneState(pane, "loading", { query });
+    session.loading = true;
+    render();
+    setLoading(true);
+
+    window.beginner
+      .searchQuery(query)
+      .then((result) => {
+        session.loading = false;
+        if (session.id === activeId) setLoading(false);
+        const text = (result && result.text) || "";
+        setSearchPaneState(pane, "ready", { query, text });
+        renderSessions();
+      })
+      .catch((err) => {
+        session.loading = false;
+        if (session.id === activeId) setLoading(false);
+        setSearchPaneState(pane, "error", {
+          query,
+          message: err && err.message ? err.message : String(err),
+        });
+        renderSessions();
+      });
+  }
+
+  function createSearchPane(session) {
+    const pane = document.createElement("section");
+    pane.className = "search-pane";
+    pane.dataset.sessionId = session.id;
+    pane.innerHTML =
+      '<div class="search-pane__inner">' +
+      '<div class="search-pane__header">' +
+      '<span class="search-pane__crumb">Search</span>' +
+      '<h2 class="search-pane__query"></h2>' +
+      "</div>" +
+      '<div class="search-pane__body"></div>' +
+      "</div>";
+    pane.addEventListener("click", (e) => {
+      const a = e.target.closest("a[data-search-link]");
+      if (!a) return;
+      e.preventDefault();
+      const target = a.getAttribute("data-search-link");
+      if (target) newSession(target);
+    });
+    stage.appendChild(pane);
+    return pane;
+  }
+
+  function setSearchPaneState(pane, state, { query, text, message } = {}) {
+    pane.dataset.state = state;
+    const queryEl = pane.querySelector(".search-pane__query");
+    const body = pane.querySelector(".search-pane__body");
+    if (query !== undefined) queryEl.textContent = query;
+    if (state === "loading") {
+      body.innerHTML =
+        '<div class="search-pane__loading">' +
+        '<span class="thinking-dots" aria-hidden="true">' +
+        '<span class="thinking-dot"></span>' +
+        '<span class="thinking-dot"></span>' +
+        '<span class="thinking-dot"></span>' +
+        "</span>" +
+        '<span class="search-pane__loading-text">Reading the room…</span>' +
+        "</div>";
+    } else if (state === "ready") {
+      body.innerHTML =
+        '<article class="search-pane__essay">' +
+        renderEssayHtml(text || "") +
+        "</article>";
+    } else if (state === "error") {
+      body.innerHTML =
+        '<div class="search-pane__error">' +
+        '<p><strong>The search couldn\'t finish.</strong></p>' +
+        "<p>" +
+        escapeHtml(message || "Unknown error") +
+        "</p>" +
+        '<p class="search-pane__error-hint">Make sure <code>ANTHROPIC_API_KEY</code> is set in your environment, then restart beginner.</p>' +
+        "</div>";
+    }
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
@@ -209,6 +343,11 @@
           '<path d="M6 3.5 L6 12.2" stroke="#f5f3ef" stroke-width="1.4" stroke-linecap="round"/>' +
           '<path d="M6 7 C6 5.7 7 5 8.6 5 C10.5 5 11.4 6 11.4 7.6 C11.4 9.2 10.5 10.4 8.6 10.4 C7.2 10.4 6 9.6 6 8.6Z" stroke="#f5f3ef" stroke-width="1.4" fill="none"/>' +
           "</svg>";
+      } else if (session.url.startsWith(SEARCH_PREFIX)) {
+        icon.innerHTML =
+          '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+          '<circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.6" fill="none"/>' +
+          '<path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
       } else {
         icon.innerHTML =
           '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
@@ -253,10 +392,11 @@
 
   function renderNavState() {
     const session = getActive();
-    const wv = session && session.view;
+    const view = session && session.view;
+    const isWebview = view && view.tagName.toLowerCase() === "webview";
     const onHome = !session || session.url === HOME_URL;
-    navBack.disabled = onHome || !wv || !wv.canGoBack || !wv.canGoBack();
-    navForward.disabled = onHome || !wv || !wv.canGoForward || !wv.canGoForward();
+    navBack.disabled = onHome || !isWebview || !view.canGoBack || !view.canGoBack();
+    navForward.disabled = onHome || !isWebview || !view.canGoForward || !view.canGoForward();
     navReload.disabled = onHome;
   }
 
@@ -282,7 +422,13 @@
   });
   navReload.addEventListener("click", () => {
     const s = getActive();
-    if (s && s.view) s.view.reload();
+    if (!s || !s.view) return;
+    if (s.view.tagName.toLowerCase() === "webview") {
+      s.view.reload();
+    } else if (s.url.startsWith(SEARCH_PREFIX)) {
+      const query = decodeURIComponent(s.url.substring(SEARCH_PREFIX.length));
+      showSearch(s, s.url, query);
+    }
   });
   navHome.addEventListener("click", () => navigate(HOME_URL));
 
@@ -321,7 +467,13 @@
     } else if (e.key === "r" || e.key === "R") {
       e.preventDefault();
       const s = getActive();
-      if (s && s.view) s.view.reload();
+      if (!s || !s.view) return;
+      if (s.view.tagName.toLowerCase() === "webview") {
+        s.view.reload();
+      } else if (s.url.startsWith(SEARCH_PREFIX)) {
+        const query = decodeURIComponent(s.url.substring(SEARCH_PREFIX.length));
+        showSearch(s, s.url, query);
+      }
     } else if (e.key === "[") {
       const s = getActive();
       if (s && s.view && s.view.canGoBack()) {

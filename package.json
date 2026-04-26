@@ -12,6 +12,9 @@
   "author": "beginner",
   "license": "UNLICENSED",
   "private": true,
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.65.0"
+  },
   "devDependencies": {
     "electron": "^33.0.0",
     "eslint": "^9.0.0"

@@ -11,10 +11,22 @@ Plus Jakarta Sans for display, Inter for body.
 
 ```bash
 npm install
+export ANTHROPIC_API_KEY="sk-ant-..."   # required for search
 npm start
 ```
 
 Use `npm run dev` to open with DevTools attached.
+
+## Search
+
+The address-bar / welcome-page search uses Claude Haiku 4.5 instead of
+a third-party engine. Queries are answered as short essays — three to
+five paragraphs of plain prose with embedded links to real sites you
+can click through to. The Anthropic system prompt is marked for prompt
+caching, so repeat queries skip the cold-start cost.
+
+If `ANTHROPIC_API_KEY` isn't set, the search pane shows a friendly
+error explaining how to fix it.
 
 ## What's inside
 
