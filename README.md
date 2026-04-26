@@ -46,4 +46,4 @@ tab maps to either the welcome page (in-DOM) or an Electron
 | Close tab (mouse) | Middle-click the tab |
 
 The address bar accepts URLs, hostnames (`beginner.work`), and search
-queries (anything else falls through to DuckDuckGo).
+queries (anything else falls through to Google).

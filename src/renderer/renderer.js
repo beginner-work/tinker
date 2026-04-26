@@ -14,7 +14,7 @@
 
   const HOME_URL = "beginner://home";
   const SEARCH_URL = (q) =>
-    `https://duckduckgo.com/?q=${encodeURIComponent(q)}`;
+    `https://www.google.com/search?q=${encodeURIComponent(q)}`;
 
   /** @type {Array<{id: string, url: string, title: string, loading: boolean, view: HTMLElement | null}>} */
   let tabs = [];
