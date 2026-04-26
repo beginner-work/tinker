@@ -268,6 +268,18 @@
       return;
     }
 
+    // On Capacitor / plain web there's no <webview> tag — open the URL
+    // in the system browser overlay (or a new tab) and leave the
+    // current session on its previous view.
+    if (window.beginner && window.beginner.supportsWebview === false) {
+      if (typeof window.beginner.openExternal === "function") {
+        window.beginner.openExternal(url);
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+
     session.url = url;
     if (!session.title || session.title === "New session") {
       session.title = hostnameOf(url) || url;

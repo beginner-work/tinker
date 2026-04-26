@@ -100,6 +100,11 @@
       </section>
     </main>
 
+    <!-- Platform shim runs first. On Electron it short-circuits because
+         the preload has already installed window.beginner; on Capacitor
+         and on the plain web it fills in the same surface so the rest
+         of the renderer code path is identical. -->
+    <script src="./platform-mobile.js" defer></script>
     <script src="./icon-init.js" defer></script>
     <script src="./renderer.js" defer></script>
   </body>

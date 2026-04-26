@@ -51,6 +51,66 @@ export LINKEDIN_AUTHOR_URN="urn:li:person:abc123"
 
 The token is sent only to LinkedIn's API; nothing is written to disk.
 
+## Mobile (Capacitor)
+
+The same `src/renderer/` codebase ships as an iOS / Android app via
+[Capacitor](https://capacitorjs.com). One-time setup:
+
+```bash
+npm install
+npx cap add ios          # macOS + Xcode required
+npx cap add android      # Android Studio required
+npx cap sync
+```
+
+Then either open the native project in its IDE…
+
+```bash
+npm run mobile:open:ios
+npm run mobile:open:android
+```
+
+…or build and run on a connected device:
+
+```bash
+npm run mobile:run:ios
+npm run mobile:run:android
+```
+
+`capacitor.config.json` points the web layer at `src/renderer/` — no
+bundler, no build step. After editing renderer code, run
+`npm run mobile:sync` to copy the latest `src/renderer/` into the
+native projects.
+
+### How the platforms differ
+
+| | Electron desktop | Capacitor mobile / web |
+|---|---|---|
+| Tabs / sessions | Yes — left sidebar | Yes (collapsed rail on phones) |
+| In-app browsing | Native `<webview>` | External — opens in iOS/Android system browser via `@capacitor/browser` |
+| Search engine | IPC → main process → Anthropic SDK | Direct browser-side fetch with prompt caching |
+| LinkedIn post | IPC → main process | Direct browser-side fetch |
+| API key storage | `ANTHROPIC_API_KEY` / `LINKEDIN_*` env vars | `localStorage` (open the inspector and run `localStorage.setItem(...)`) |
+
+The `src/renderer/platform-mobile.js` shim detects the runtime —
+Electron preload short-circuits it; on Capacitor and on the plain
+web it polyfills the same `window.beginner.*` surface so the rest
+of the renderer code path is identical.
+
+### Setting keys on mobile
+
+For now, paste the keys into `localStorage` from the Capacitor
+WebView inspector (Safari Web Inspector on iOS, `chrome://inspect`
+on Android):
+
+```js
+localStorage.setItem("ANTHROPIC_API_KEY", "sk-ant-...");
+localStorage.setItem("LINKEDIN_ACCESS_TOKEN", "...");
+localStorage.setItem("LINKEDIN_AUTHOR_URN", "urn:li:person:...");
+```
+
+A proper in-app settings panel is on the list.
+
 ## What's inside
 
 ```
