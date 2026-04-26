@@ -1,0 +1,19 @@
+{
+  "name": "beginner-browser",
+  "version": "0.1.0",
+  "description": "beginner's web browser — a quiet place to be on the web",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "lint": "eslint src/"
+  },
+  "keywords": ["browser", "electron", "beginner"],
+  "author": "beginner",
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "eslint": "^9.0.0"
+  }
+}

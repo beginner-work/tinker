@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
+    <title>beginner</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="chrome" role="banner">
+      <div class="chrome__row chrome__row--tabs">
+        <div class="brand" title="beginner">
+          <!-- Inline seed mark — keeps brand visible without network -->
+          <svg viewBox="0 0 180 180" width="22" height="22" aria-hidden="true">
+            <rect width="180" height="180" rx="40" fill="#2d5a3d" />
+            <path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="14" stroke-linecap="round" />
+            <path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z"
+                  stroke="#f5f3ef" stroke-width="14" fill="none" stroke-linejoin="round" />
+            <path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a" />
+            <path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7" />
+          </svg>
+        </div>
+
+        <div id="tabs" class="tabs" role="tablist" aria-label="Open tabs"></div>
+
+        <button id="new-tab" class="icon-btn icon-btn--ghost" title="New tab" aria-label="New tab">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="chrome__row chrome__row--nav">
+        <div class="nav-group" role="group" aria-label="Navigation">
+          <button id="nav-back" class="icon-btn" title="Back" aria-label="Back" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+            </svg>
+          </button>
+          <button id="nav-forward" class="icon-btn" title="Forward" aria-label="Forward" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+            </svg>
+          </button>
+          <button id="nav-reload" class="icon-btn" title="Reload" aria-label="Reload">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 3-6.7L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+              <path d="M3 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+            </svg>
+          </button>
+          <button id="nav-home" class="icon-btn" title="Home" aria-label="Home">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path d="M3 11l9-8 9 8v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9z"
+                    stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none" />
+            </svg>
+          </button>
+        </div>
+
+        <form id="address-form" class="address" role="search">
+          <span id="address-icon" class="address__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="14" height="14">
+              <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none" />
+              <path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </span>
+          <input id="address" type="text" inputmode="url" autocomplete="off"
+                 spellcheck="false" placeholder="Search or type a link" aria-label="Address bar" />
+          <button type="button" id="address-clear" class="icon-btn icon-btn--ghost" aria-label="Clear" hidden>
+            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+          </button>
+        </form>
+
+        <div class="nav-group" role="group" aria-label="Bookmarks">
+          <button class="bookmark" data-url="https://beginner.work" title="beginner.work">
+            beginner.work
+          </button>
+        </div>
+      </div>
+
+      <div id="loadbar" class="loadbar" aria-hidden="true"><span></span></div>
+    </header>
+
+    <main class="stage" id="stage" role="main">
+      <!-- The Welcome page lives in the renderer; web pages render
+           into <webview> elements created per tab in renderer.js. -->
+      <section id="welcome" class="welcome" data-active>
+        <div class="welcome__inner">
+          <svg viewBox="0 0 180 180" width="64" height="64" class="welcome__mark" aria-hidden="true">
+            <rect width="180" height="180" rx="40" fill="#2d5a3d" />
+            <path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round" />
+            <path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z"
+                  stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round" />
+            <path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a" />
+            <path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7" />
+          </svg>
+          <h1 class="welcome__title">A new way to web</h1>
+          <p class="welcome__poem">
+            The old web is funded by consumerism.<br />
+            This one — by generosity.<br />
+            By the people who already love you,<br />
+            funding the work because they want it made.<br />
+            By you.
+          </p>
+
+          <form id="welcome-form" class="welcome__search" role="search">
+            <input id="welcome-input" type="text" inputmode="url" autocomplete="off" spellcheck="false"
+                   placeholder="Search or type a link" aria-label="Search or open a site" />
+            <button type="submit" class="welcome__go">Go &rarr;</button>
+          </form>
+
+          <div class="welcome__shelf" aria-label="Quick links">
+            <a class="shelf-tile shelf-tile--moss"  data-url="https://beginner.work">
+              <span class="shelf-tile__label">beginner</span>
+              <span class="shelf-tile__sub">your table, online</span>
+            </a>
+            <a class="shelf-tile shelf-tile--terra" data-url="https://beginner.work/marketplace">
+              <span class="shelf-tile__label">marketplace</span>
+              <span class="shelf-tile__sub">friends sharing offerings</span>
+            </a>
+            <a class="shelf-tile shelf-tile--gold"  data-url="https://beginner.work/community">
+              <span class="shelf-tile__label">community</span>
+              <span class="shelf-tile__sub">meetups & gatherings</span>
+            </a>
+            <a class="shelf-tile shelf-tile--sky"   data-url="https://duckduckgo.com">
+              <span class="shelf-tile__label">search</span>
+              <span class="shelf-tile__sub">a quieter way to find things</span>
+            </a>
+          </div>
+        </div>
+        <footer class="welcome__footer">
+          <span>&copy; 2026 beginner</span>
+          <span class="welcome__divider" aria-hidden="true">·</span>
+          <span>a quiet place to be on the web</span>
+        </footer>
+      </section>
+    </main>
+
+    <script src="./renderer.js" defer></script>
+  </body>
+</html>
