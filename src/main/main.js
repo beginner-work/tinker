@@ -4,10 +4,10 @@ const Anthropic = require("@anthropic-ai/sdk").default;
 
 const isDev = process.argv.includes("--dev");
 
-// Show "beginner" in the macOS menu bar / app menus instead of "Electron".
+// Show "tinker" in the macOS menu bar / app menus instead of "Electron".
 // (Note: the dock label still comes from the bundle Info.plist when the app
 // is packaged. Setting it here covers the unpackaged dev case.)
-app.setName("beginner");
+app.setName("tinker");
 
 // ── Search engine (Claude Haiku) ────────────────────────────────────────
 //
@@ -15,7 +15,7 @@ app.setName("beginner");
 // caching — after the first call the prefix is read from cache instead of
 // re-processed on every search.
 
-const SEARCH_SYSTEM_PROMPT = `You are the search engine for the beginner web browser — a quiet alternative to ad-driven search.
+const SEARCH_SYSTEM_PROMPT = `You are the search engine for the tinker web browser — a quiet alternative to ad-driven search.
 
 When you receive a query, write a calm, conversational answer in three to five short paragraphs that helps the reader understand the topic and where to go next. Embed Markdown links to specific, well-known websites — Wikipedia, official organisation sites, established publications, .gov pages — where the reader can read more or take action. Format links exactly as [label](https://example.com).
 
@@ -29,7 +29,7 @@ function getAnthropic() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     const err = new Error(
-      "ANTHROPIC_API_KEY is not set. Add it to your environment and restart beginner."
+      "ANTHROPIC_API_KEY is not set. Add it to your environment and restart tinker."
     );
     err.code = "MISSING_API_KEY";
     throw err;
@@ -45,7 +45,7 @@ function createWindow() {
     minWidth: 720,
     minHeight: 480,
     backgroundColor: "#FFFDF7",
-    title: "beginner",
+    title: "tinker",
     autoHideMenuBar: true,
     // Drop the native title bar — our chrome paints the whole top.
     // 'hiddenInset' keeps the macOS traffic lights but removes the bar;
@@ -79,7 +79,7 @@ function createWindow() {
 // Electron version and trips bot detection on some sites.
 function userAgent() {
   const chromeVersion = process.versions.chrome;
-  return `Mozilla/5.0 (${process.platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36 beginner-browser/${app.getVersion()}`;
+  return `Mozilla/5.0 (${process.platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36 tinker-browser/${app.getVersion()}`;
 }
 
 app.whenReady().then(() => {
@@ -114,7 +114,7 @@ ipcMain.handle("app:platform", () => process.platform);
 //   LINKEDIN_ACCESS_TOKEN  — OAuth access token with w_member_social scope
 //   LINKEDIN_AUTHOR_URN    — your member URN, e.g. "urn:li:person:abc123"
 
-const LINKEDIN_TAGLINE = "made by me, supported by beginner";
+const LINKEDIN_TAGLINE = "made by me, supported by tinker";
 
 ipcMain.handle("linkedin:post", async (_event, message) => {
   if (typeof message !== "string" || !message.trim()) {

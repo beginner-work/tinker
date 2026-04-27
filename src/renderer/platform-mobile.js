@@ -1,12 +1,12 @@
 /* Platform shim — runs on Capacitor (iOS/Android) and on plain web,
  * but stays out of the way when Electron's preload has already
- * installed window.beginner. Provides the same surface the renderer
+ * installed window.tinker. Provides the same surface the renderer
  * expects, backed by direct browser-side calls to Anthropic / LinkedIn
  * and (where available) the @capacitor/browser plugin for opening
  * external sites in the system browser overlay. */
 
 (function () {
-  if (window.beginner && typeof window.beginner.searchQuery === "function") {
+  if (window.tinker && typeof window.tinker.searchQuery === "function") {
     return; // Electron preload already wired things up.
   }
 
@@ -19,7 +19,7 @@
   // Same prompt the desktop main process uses. Kept in sync by hand —
   // the contract is the prompt, not the source location. If you change
   // it in src/main/main.js, change it here too.
-  const SEARCH_SYSTEM_PROMPT = `You are the search engine for the beginner web browser — a quiet alternative to ad-driven search.
+  const SEARCH_SYSTEM_PROMPT = `You are the search engine for the tinker web browser — a quiet alternative to ad-driven search.
 
 When you receive a query, write a calm, conversational answer in three to five short paragraphs that helps the reader understand the topic and where to go next. Embed Markdown links to specific, well-known websites — Wikipedia, official organisation sites, established publications, .gov pages — where the reader can read more or take action. Format links exactly as [label](https://example.com).
 
@@ -27,7 +27,7 @@ Voice: warm, plainspoken, calm. Address the reader as "you" where natural. No he
 
 Only include links to sources you'd actually recommend and that you are confident exist. Do not invent URLs. If you are uncertain about a specific URL, omit the link rather than guess. It is better to write a confident paragraph with no link than to fabricate one.`;
 
-  const LINKEDIN_TAGLINE = "made by me, supported by beginner";
+  const LINKEDIN_TAGLINE = "made by me, supported by tinker";
 
   async function searchQuery(query) {
     const apiKey = get("ANTHROPIC_API_KEY");
@@ -122,7 +122,7 @@ Only include links to sources you'd actually recommend and that you are confiden
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
-  window.beginner = {
+  window.tinker = {
     version: () => Promise.resolve("0.1.0-mobile"),
     platform: () => Promise.resolve(isCapacitor ? "capacitor" : "web"),
     setIcon: () => Promise.resolve(true),

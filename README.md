@@ -1,11 +1,10 @@
-# web
+# tinker
 
-beginner's web browser — a quiet place to be on the web.
+tinker — a quiet place to be on the web.
 
-A minimal desktop browser built on Electron. The chrome adopts the
-[beginner brand language](https://github.com/beginner-work/beginner/blob/main/BRAND.md)
-from the main repo: warm cream background, forest-green seed mark,
-Plus Jakarta Sans for display, Inter for body.
+A minimal desktop browser built on Electron. The chrome wears tinker's
+multi-colored globe mark on a warm cream background, with Plus Jakarta
+Sans for display and Inter for body.
 
 ## Run it
 
@@ -40,7 +39,7 @@ matching tab in `index.html`.
 Switch the welcome toggle to **Post to LinkedIn**, type what's on your
 mind, and hit **Post**. The post is published with the line
 
-> — made by me, supported by beginner
+> — made by me, supported by tinker
 
 appended on its own paragraph. Requires:
 
@@ -94,7 +93,7 @@ native projects.
 
 The `src/renderer/platform-mobile.js` shim detects the runtime —
 Electron preload short-circuits it; on Capacitor and on the plain
-web it polyfills the same `window.beginner.*` surface so the rest
+web it polyfills the same `window.tinker.*` surface so the rest
 of the renderer code path is identical.
 
 ### Setting keys on mobile
@@ -113,18 +112,11 @@ A proper in-app settings panel is on the list.
 
 ## Style dictionary
 
-The desktop-app icon (the pastel rainbow web mark) is rendered from
-`src/renderer/tokens/rainbow-web.json` — a JSON design dictionary
-shared verbatim with the beginner UI repo at
-`ui/src/tokens/rainbow-web.json`. Both consumers read the same file:
-the beginner UI imports it directly into the `/logo` page; here, the
-renderer fetches it from `src/renderer/lib/rainbow-web.js`, which
-exposes `window.beginnerLogo.buildRainbowWebSvg()` for any consumer
+The desktop-app icon (the multi-colored globe mark) is rendered from
+`src/renderer/tokens/rainbow-web.json` — a JSON design dictionary.
+The renderer fetches it via `src/renderer/lib/rainbow-web.js`, which
+exposes `window.tinkerLogo.buildRainbowWebSvg()` for any consumer
 that wants the mark as an SVG string.
-
-Treat the beginner repo's copy as the source of truth — when you
-edit anything in either file, update the other in the same change
-set.
 
 ## What's inside
 
@@ -133,10 +125,10 @@ web/
 ├── src/
 │   ├── main/
 │   │   ├── main.js         # Electron main process — window, session, IPC
-│   │   └── preload.js      # contextBridge exposing the `beginner` API
+│   │   └── preload.js      # contextBridge exposing the `tinker` API
 │   └── renderer/
 │       ├── index.html      # Browser chrome shell
-│       ├── styles.css      # Brand styling (adopted from beginner/ui)
+│       ├── styles.css      # Brand styling
 │       └── renderer.js     # Tabs, address bar, navigation
 └── package.json
 ```
@@ -155,5 +147,5 @@ tab maps to either the welcome page (in-DOM) or an Electron
 | Reload | ⌘/Ctrl + R |
 | Close tab (mouse) | Middle-click the tab |
 
-The address bar accepts URLs, hostnames (`beginner.work`), and search
-queries (anything else falls through to Google).
+The address bar accepts URLs, hostnames, and search queries
+(anything else falls through to Google).

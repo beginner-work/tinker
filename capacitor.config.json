@@ -1,6 +1,6 @@
 {
-  "appId": "co.beginner.browser",
-  "appName": "beginner",
+  "appId": "co.tinker.browser",
+  "appName": "tinker",
   "webDir": "src/renderer",
   "bundledWebRuntime": false,
   "ios": {

@@ -1,7 +1,7 @@
 {
-  "name": "beginner-browser",
+  "name": "tinker-browser",
   "version": "0.1.0",
-  "description": "beginner's web browser — a quiet place to be on the web",
+  "description": "tinker — a quiet place to be on the web",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
@@ -15,8 +15,8 @@
     "mobile:run:ios": "cap run ios",
     "mobile:run:android": "cap run android"
   },
-  "keywords": ["browser", "electron", "capacitor", "beginner"],
-  "author": "beginner",
+  "keywords": ["browser", "electron", "capacitor", "tinker"],
+  "author": "tinker",
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {

@@ -1,15 +1,8 @@
 # Style dictionary
 
-Vendored copy of the design tokens that originate in
-[beginner-work/beginner](https://github.com/beginner-work/beginner)
-under `ui/src/tokens/`. Treat the beginner repo's copy as the
-source of truth — when you edit anything here, update the upstream
-file in the same change set.
-
-```
-beginner-work/beginner   ui/src/tokens/<name>.json   ← canonical
-beginner-work/web        src/renderer/tokens/<name>.json   ← vendored
-```
+Design tokens for the tinker browser's brand marks. Each file
+describes a single mark; the renderer reads it via
+`src/renderer/lib/<name>.js` to build the SVG.
 
 Living inside `src/renderer/` means these files travel with both
 the Electron renderer and the Capacitor `webDir`, so the same
@@ -19,6 +12,4 @@ fetch path works on desktop and mobile.
 
 | File | What it describes |
 |---|---|
-| `rainbow-web.json` | The pastel rainbow web mark used as the desktop browser's app icon. |
-
-For the schema, see the upstream README in the beginner repo.
+| `rainbow-web.json` | The multi-colored globe used as tinker's app icon. |

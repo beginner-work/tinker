@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
-    <title>beginner</title>
+    <title>tinker</title>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" />
@@ -16,16 +16,18 @@
            can still move the frameless window. The traffic-light
            buttons sit inside this padding on macOS. -->
       <div class="sidebar__head">
-        <div class="sidebar__brand" title="beginner">
-          <svg viewBox="0 0 180 180" width="22" height="22" aria-hidden="true">
-            <rect width="180" height="180" rx="40" fill="#2d5a3d" />
-            <path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="14" stroke-linecap="round" />
-            <path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z"
-                  stroke="#f5f3ef" stroke-width="14" fill="none" stroke-linejoin="round" />
-            <path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a" />
-            <path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7" />
+        <div class="sidebar__brand" title="tinker">
+          <svg viewBox="0 0 200 200" width="22" height="22" aria-hidden="true" fill="none">
+            <rect width="200" height="200" rx="44" fill="#f5f3ef" />
+            <circle cx="100" cy="100" r="76" stroke="#2d5a3d" stroke-width="11" />
+            <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="11" stroke-linecap="round" />
+            <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="11" stroke-linecap="round" />
+            <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="11" stroke-linecap="round" />
+            <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="11" stroke-linecap="round" />
+            <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="11" />
+            <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="11" />
           </svg>
-          <span class="sidebar__name">beginner</span>
+          <span class="sidebar__name">tinker</span>
         </div>
       </div>
 
@@ -65,7 +67,7 @@
       <div id="sessions" class="sidebar__sessions" role="tablist" aria-label="Sessions"></div>
 
       <footer class="sidebar__footer">
-        <span>&copy; 2026 beginner</span>
+        <span>&copy; 2026 tinker</span>
       </footer>
 
       <div id="loadbar" class="loadbar" aria-hidden="true"><span></span></div>
@@ -74,13 +76,15 @@
     <main class="stage" id="stage" role="main">
       <section id="welcome" class="welcome" data-active>
         <div class="welcome__inner">
-          <svg viewBox="0 0 180 180" width="68" height="68" class="welcome__mark" aria-hidden="true">
-            <rect width="180" height="180" rx="40" fill="#2d5a3d" />
-            <path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round" />
-            <path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z"
-                  stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round" />
-            <path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a" />
-            <path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7" />
+          <svg viewBox="0 0 200 200" width="68" height="68" class="welcome__mark" aria-hidden="true" fill="none">
+            <rect width="200" height="200" rx="44" fill="#f5f3ef" />
+            <circle cx="100" cy="100" r="76" stroke="#2d5a3d" stroke-width="9" />
+            <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
+            <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
+            <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
+            <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
+            <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
+            <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
           </svg>
           <h1 class="welcome__title">A new way to web</h1>
 
@@ -101,7 +105,7 @@
     </main>
 
     <!-- Platform shim runs first. On Electron it short-circuits because
-         the preload has already installed window.beginner; on Capacitor
+         the preload has already installed window.tinker; on Capacitor
          and on the plain web it fills in the same surface so the rest
          of the renderer code path is identical. -->
     <script src="./platform-mobile.js" defer></script>

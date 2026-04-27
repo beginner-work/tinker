@@ -1,4 +1,4 @@
-/* beginner Web Browser — renderer
+/* tinker Web Browser — renderer
  *
  * Session + navigation logic. Each session is either:
  *   - the welcome page (a <section> already in the DOM), or
@@ -12,8 +12,8 @@
 (() => {
   "use strict";
 
-  const HOME_URL = "beginner://home";
-  const SEARCH_PREFIX = "beginner://search?q=";
+  const HOME_URL = "tinker://home";
+  const SEARCH_PREFIX = "tinker://search?q=";
 
   /** @type {Array<{id: string, url: string, title: string, loading: boolean, view: HTMLElement | null}>} */
   let sessions = [];
@@ -58,7 +58,7 @@
         setStatus("loading", "Posting to LinkedIn…");
         welcomeSubmit.disabled = true;
         try {
-          const result = await window.beginner.linkedinPost(text);
+          const result = await window.tinker.linkedinPost(text);
           welcomeInput.value = "";
           if (result && result.url) {
             setStatus(
@@ -115,7 +115,7 @@
   function resolveQuery(raw) {
     const text = raw.trim();
     if (!text) return null;
-    if (text === "home" || text === "beginner://home") return HOME_URL;
+    if (text === "home" || text === "tinker://home") return HOME_URL;
     if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(text)) return text;
     if (/^[a-z]+:/i.test(text)) return text;
     const looksLikeHost = /^[\w-]+(\.[\w-]+)+(\/.*)?$/i.test(text);
@@ -271,9 +271,9 @@
     // On Capacitor / plain web there's no <webview> tag — open the URL
     // in the system browser overlay (or a new tab) and leave the
     // current session on its previous view.
-    if (window.beginner && window.beginner.supportsWebview === false) {
-      if (typeof window.beginner.openExternal === "function") {
-        window.beginner.openExternal(url);
+    if (window.tinker && window.tinker.supportsWebview === false) {
+      if (typeof window.tinker.openExternal === "function") {
+        window.tinker.openExternal(url);
       } else {
         window.open(url, "_blank", "noopener,noreferrer");
       }
@@ -319,7 +319,7 @@
     render();
     setLoading(true);
 
-    window.beginner
+    window.tinker
       .searchQuery(query)
       .then((result) => {
         session.loading = false;
@@ -389,7 +389,7 @@
         "<p>" +
         escapeHtml(message || "Unknown error") +
         "</p>" +
-        '<p class="search-pane__error-hint">Make sure <code>ANTHROPIC_API_KEY</code> is set in your environment, then restart beginner.</p>' +
+        '<p class="search-pane__error-hint">Make sure <code>ANTHROPIC_API_KEY</code> is set in your environment, then restart tinker.</p>' +
         "</div>";
     }
   }
@@ -422,10 +422,11 @@
         icon.appendChild(sp);
       } else if (session.url === HOME_URL) {
         icon.innerHTML =
-          '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">' +
-          '<rect width="16" height="16" rx="3.5" fill="#2d5a3d"/>' +
-          '<path d="M6 3.5 L6 12.2" stroke="#f5f3ef" stroke-width="1.4" stroke-linecap="round"/>' +
-          '<path d="M6 7 C6 5.7 7 5 8.6 5 C10.5 5 11.4 6 11.4 7.6 C11.4 9.2 10.5 10.4 8.6 10.4 C7.2 10.4 6 9.6 6 8.6Z" stroke="#f5f3ef" stroke-width="1.4" fill="none"/>' +
+          '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none">' +
+          '<circle cx="8" cy="8" r="6" stroke="#2d5a3d" stroke-width="1.6"/>' +
+          '<line x1="2" y1="8" x2="14" y2="8" stroke="#fdba74" stroke-width="1.6" stroke-linecap="round"/>' +
+          '<line x1="8" y1="2" x2="8" y2="14" stroke="#6ee7b7" stroke-width="1.6" stroke-linecap="round"/>' +
+          '<ellipse cx="8" cy="8" rx="3" ry="6" stroke="#7dd3fc" stroke-width="1.6"/>' +
           "</svg>";
       } else if (session.url.startsWith(SEARCH_PREFIX)) {
         icon.innerHTML =
