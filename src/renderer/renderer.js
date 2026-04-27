@@ -1,6 +1,12 @@
 /* beginner Web Browser — renderer
  *
- * Session + navigation logic. Each session is either:
+ * Smart navigation: there are no search results. The reader describes a
+ * starting point on the welcome page; we ask Claude for the closest
+ * existing web page and land them on it. If it's not quite right they
+ * add more description in the describe-bar above the page, and we jump
+ * to a new page. The growing chain of descriptions is the session.
+ *
+ * Each session is either:
  *   - the welcome page (a <section> already in the DOM), or
  *   - a webview that we mount lazily inside the .stage element.
  *
@@ -13,9 +19,20 @@
   "use strict";
 
   const HOME_URL = "beginner://home";
-  const SEARCH_PREFIX = "beginner://search?q=";
 
-  /** @type {Array<{id: string, url: string, title: string, loading: boolean, view: HTMLElement | null}>} */
+  /**
+   * @type {Array<{
+   *   id: string,
+   *   url: string,
+   *   title: string,
+   *   loading: boolean,
+   *   view: HTMLElement | null,
+   *   descriptions: string[],
+   *   note: string,
+   *   resolving: boolean,
+   *   resolveError: string,
+   * }>}
+   */
   let sessions = [];
   let activeId = null;
 
@@ -48,7 +65,7 @@
       placeholder: "Where is your starting point today?",
       button: "Begin",
       onSubmit(text) {
-        navigate(text);
+        beginSmartNav(text);
       },
     },
     linkedin: {
@@ -111,48 +128,10 @@
 
   const getActive = () => sessions.find((s) => s.id === activeId) || null;
 
-  /** Decide if a string is a navigable URL or should be searched. */
-  function resolveQuery(raw) {
-    const text = raw.trim();
-    if (!text) return null;
-    if (text === "home" || text === "beginner://home") return HOME_URL;
-    if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(text)) return text;
-    if (/^[a-z]+:/i.test(text)) return text;
-    const looksLikeHost = /^[\w-]+(\.[\w-]+)+(\/.*)?$/i.test(text);
-    if (looksLikeHost) return "https://" + text;
-    if (text.startsWith("localhost") || /^localhost(:\d+)/.test(text)) {
-      return "http://" + text;
-    }
-    return SEARCH_PREFIX + encodeURIComponent(text);
-  }
-
-  // ── Markdown rendering for search results ───────────────────────────
-  //
-  // Tiny renderer just for what Claude Haiku emits: paragraphs separated
-  // by blank lines, [label](url) links, **bold** and *italic*. We escape
-  // HTML first and only re-inject the tags we generate, so nothing in
-  // the model output reaches the DOM as raw HTML.
-
   function escapeHtml(s) {
     return s.replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
     );
-  }
-
-  function renderEssayHtml(markdown) {
-    const escaped = escapeHtml(markdown);
-    const linked = escaped.replace(
-      /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-      (_m, label, url) =>
-        `<a href="${url}" data-search-link="${url}">${label}</a>`
-    );
-    const bolded = linked.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-    const italicised = bolded.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
-    return italicised
-      .split(/\n{2,}/)
-      .map((p) => `<p>${p.replace(/\n/g, "<br>").trim()}</p>`)
-      .filter((p) => p !== "<p></p>")
-      .join("");
   }
 
   function hostnameOf(url) {
@@ -166,18 +145,25 @@
 
   // ── Session CRUD ────────────────────────────────────────────────────
 
-  function newSession(url = HOME_URL, { activate = true } = {}) {
-    const session = {
+  function makeSession(url = HOME_URL) {
+    return {
       id: uid(),
       url,
       title: url === HOME_URL ? "New session" : hostnameOf(url) || url,
       loading: false,
       view: null,
+      descriptions: [],
+      note: "",
+      resolving: false,
+      resolveError: "",
     };
+  }
+
+  function newSession(url = HOME_URL, { activate = true } = {}) {
+    const session = makeSession(url);
     sessions.push(session);
     if (activate) activeId = session.id;
     render();
-    if (url !== HOME_URL) ensureWebview(session);
     return session;
   }
 
@@ -205,7 +191,10 @@
   // ── Webview management ──────────────────────────────────────────────
 
   function ensureWebview(session) {
-    if (session.view) return session.view;
+    if (session.view && session.view.tagName.toLowerCase() === "webview") {
+      return session.view;
+    }
+    if (session.view) removeSessionView(session);
     const wv = document.createElement("webview");
     wv.setAttribute("src", session.url);
     wv.setAttribute("allowpopups", "true");
@@ -237,8 +226,14 @@
       renderNavState();
     });
     wv.addEventListener("page-title-updated", (e) => {
-      session.title = e.title || hostnameOf(session.url) || "Untitled";
-      renderSessions();
+      // Don't overwrite the smart-nav title with the live page title —
+      // the breadcrumb in the describe-bar is what the reader described,
+      // not what the page calls itself. Only fall through when there's
+      // no smart-nav title yet (e.g. a directly-typed URL).
+      if (session.descriptions.length === 0) {
+        session.title = e.title || hostnameOf(session.url) || "Untitled";
+        renderSessions();
+      }
     });
     wv.addEventListener("did-fail-load", (e) => {
       // -3 == ABORTED (navigation cancelled, ignore)
@@ -248,47 +243,21 @@
     });
   }
 
-  function navigate(rawUrl) {
-    const url = resolveQuery(rawUrl);
-    if (!url) return;
-    const session = getActive();
-    if (!session) return;
-
-    if (url === HOME_URL) {
-      session.url = HOME_URL;
-      session.title = "New session";
-      removeSessionView(session);
-      render();
-      return;
-    }
-
-    if (url.startsWith(SEARCH_PREFIX)) {
-      const query = decodeURIComponent(url.substring(SEARCH_PREFIX.length));
-      showSearch(session, url, query);
-      return;
-    }
-
-    // On Capacitor / plain web there's no <webview> tag — open the URL
-    // in the system browser overlay (or a new tab) and leave the
-    // current session on its previous view.
+  function loadInWebview(session, url) {
     if (window.beginner && window.beginner.supportsWebview === false) {
+      // No <webview> on Capacitor / plain web. Hand the URL to the
+      // system browser overlay; the describe-bar stays in the app so
+      // the reader can keep refining without losing the chain.
       if (typeof window.beginner.openExternal === "function") {
         window.beginner.openExternal(url);
       } else {
         window.open(url, "_blank", "noopener,noreferrer");
       }
+      session.url = url;
+      render();
       return;
     }
-
     session.url = url;
-    if (!session.title || session.title === "New session") {
-      session.title = hostnameOf(url) || url;
-    }
-    // Switching to a webview from a non-webview view means the old pane
-    // (e.g. a search-pane) needs to come down before we mount the webview.
-    if (session.view && session.view.tagName.toLowerCase() !== "webview") {
-      removeSessionView(session);
-    }
     const wv = ensureWebview(session);
     if (wv.src !== url) {
       try { wv.loadURL(url); } catch { wv.src = url; }
@@ -303,95 +272,164 @@
     session.view = null;
   }
 
-  // ── Search pane ─────────────────────────────────────────────────────
+  // ── Smart navigation ────────────────────────────────────────────────
 
-  function showSearch(session, url, query) {
-    session.url = url;
-    session.title = query;
-    if (session.view && session.view.tagName.toLowerCase() !== "section") {
-      removeSessionView(session);
+  function beginSmartNav(description) {
+    const text = description.trim();
+    if (!text) return;
+    let session = getActive();
+    if (!session || session.descriptions.length > 0) {
+      // Already on a smart-nav journey — start a fresh session so we
+      // don't quietly fold this into the existing chain.
+      session = newSession(HOME_URL);
     }
-    const pane = session.view || createSearchPane(session);
-    session.view = pane;
-    pane.dataset.query = query;
-    setSearchPaneState(pane, "loading", { query });
-    session.loading = true;
-    render();
-    setLoading(true);
-
-    window.beginner
-      .searchQuery(query)
-      .then((result) => {
-        session.loading = false;
-        if (session.id === activeId) setLoading(false);
-        const text = (result && result.text) || "";
-        setSearchPaneState(pane, "ready", { query, text });
-        renderSessions();
-      })
-      .catch((err) => {
-        session.loading = false;
-        if (session.id === activeId) setLoading(false);
-        setSearchPaneState(pane, "error", {
-          query,
-          message: err && err.message ? err.message : String(err),
-        });
-        renderSessions();
+    session.descriptions = [text];
+    session.title = text;
+    setStatus("loading", "Reading the room…");
+    welcomeSubmit.disabled = true;
+    resolveAndJump(session)
+      .catch(() => {})
+      .finally(() => {
+        welcomeSubmit.disabled = false;
       });
   }
 
-  function createSearchPane(session) {
-    const pane = document.createElement("section");
-    pane.className = "search-pane";
-    pane.dataset.sessionId = session.id;
-    pane.innerHTML =
-      '<div class="search-pane__inner">' +
-      '<div class="search-pane__header">' +
-      '<span class="search-pane__crumb">Search</span>' +
-      '<h2 class="search-pane__query"></h2>' +
-      "</div>" +
-      '<div class="search-pane__body"></div>' +
-      "</div>";
-    pane.addEventListener("click", (e) => {
-      const a = e.target.closest("a[data-search-link]");
-      if (!a) return;
-      e.preventDefault();
-      const target = a.getAttribute("data-search-link");
-      if (target) newSession(target);
-    });
-    stage.appendChild(pane);
-    return pane;
+  function refineSmartNav(session, description) {
+    const text = description.trim();
+    if (!text) return;
+    session.descriptions = [...session.descriptions, text];
+    session.title = text;
+    resolveAndJump(session).catch(() => {});
   }
 
-  function setSearchPaneState(pane, state, { query, text, message } = {}) {
-    pane.dataset.state = state;
-    const queryEl = pane.querySelector(".search-pane__query");
-    const body = pane.querySelector(".search-pane__body");
-    if (query !== undefined) queryEl.textContent = query;
-    if (state === "loading") {
-      body.innerHTML =
-        '<div class="search-pane__loading">' +
-        '<span class="thinking-dots" aria-hidden="true">' +
-        '<span class="thinking-dot"></span>' +
-        '<span class="thinking-dot"></span>' +
-        '<span class="thinking-dot"></span>' +
-        "</span>" +
-        '<span class="search-pane__loading-text">Reading the room…</span>' +
-        "</div>";
-    } else if (state === "ready") {
-      body.innerHTML =
-        '<article class="search-pane__essay">' +
-        renderEssayHtml(text || "") +
-        "</article>";
-    } else if (state === "error") {
-      body.innerHTML =
-        '<div class="search-pane__error">' +
-        '<p><strong>The search couldn\'t finish.</strong></p>' +
-        "<p>" +
-        escapeHtml(message || "Unknown error") +
-        "</p>" +
-        '<p class="search-pane__error-hint">Make sure <code>ANTHROPIC_API_KEY</code> is set in your environment, then restart beginner.</p>' +
-        "</div>";
+  async function resolveAndJump(session) {
+    session.resolving = true;
+    session.resolveError = "";
+    session.loading = true;
+    if (session.id === activeId) setLoading(true);
+    render();
+
+    try {
+      const result = await window.beginner.navigateTo({
+        descriptions: session.descriptions,
+        currentUrl: /^https?:\/\//i.test(session.url) ? session.url : "",
+      });
+      session.resolving = false;
+      session.note = result.note || "";
+      if (result.title) session.title = result.title;
+      setStatus(null);
+      loadInWebview(session, result.url);
+    } catch (err) {
+      session.resolving = false;
+      session.loading = false;
+      if (session.id === activeId) setLoading(false);
+      const msg = err && err.message ? err.message : String(err);
+      session.resolveError = msg;
+      // Show the error on the welcome page if we never left it; on the
+      // describe-bar otherwise.
+      if (session.url === HOME_URL) {
+        setStatus("error", escapeHtml(msg));
+      }
+      render();
+      throw err;
     }
+  }
+
+  // ── Describe-bar ────────────────────────────────────────────────────
+
+  let describeBar = null;
+
+  function ensureDescribeBar() {
+    if (describeBar) return describeBar;
+    const bar = document.createElement("div");
+    bar.className = "describe-bar";
+    bar.id = "describe-bar";
+    bar.innerHTML =
+      '<div class="describe-bar__chain" aria-label="Description chain"></div>' +
+      '<form class="describe-bar__form">' +
+      '<input class="describe-bar__input" type="text" autocomplete="off" ' +
+      'spellcheck="false" placeholder="Describe further…" ' +
+      'aria-label="Describe further" />' +
+      '<button class="describe-bar__submit" type="submit" ' +
+      'aria-label="Jump">' +
+      '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+      '<path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ' +
+      'fill="none"/></svg>' +
+      "</button>" +
+      "</form>" +
+      '<p class="describe-bar__error" hidden></p>';
+    bar.querySelector(".describe-bar__form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const session = getActive();
+      if (!session || session.resolving) return;
+      const input = bar.querySelector(".describe-bar__input");
+      const v = input.value.trim();
+      if (!v) return;
+      input.value = "";
+      refineSmartNav(session, v);
+    });
+    document.body.appendChild(bar);
+    describeBar = bar;
+    return bar;
+  }
+
+  function renderDescribeBar() {
+    const session = getActive();
+    // Only show once we've actually landed on a page. While the first
+    // jump is still resolving the welcome page is still up and shows
+    // its own "Reading the room…" status — two loaders would be busy.
+    const showFor =
+      session && session.descriptions.length > 0 && session.url !== HOME_URL;
+    if (!showFor) {
+      if (describeBar) describeBar.hidden = true;
+      document.body.classList.remove("has-describe-bar");
+      return;
+    }
+    const bar = ensureDescribeBar();
+    bar.hidden = false;
+    document.body.classList.add("has-describe-bar");
+    bar.dataset.state = session.resolving
+      ? "resolving"
+      : session.resolveError
+      ? "error"
+      : "ready";
+
+    const chain = bar.querySelector(".describe-bar__chain");
+    chain.innerHTML = session.descriptions
+      .map(
+        (d, i) =>
+          (i > 0
+            ? '<span class="describe-bar__sep" aria-hidden="true">›</span>'
+            : "") +
+          `<span class="describe-bar__crumb">${escapeHtml(d)}</span>`
+      )
+      .join("");
+    if (session.resolving) {
+      chain.insertAdjacentHTML(
+        "beforeend",
+        '<span class="describe-bar__sep" aria-hidden="true">›</span>' +
+          '<span class="describe-bar__crumb describe-bar__crumb--resolving">' +
+          '<span class="thinking-dots" aria-hidden="true">' +
+          '<span class="thinking-dot"></span>' +
+          '<span class="thinking-dot"></span>' +
+          '<span class="thinking-dot"></span>' +
+          "</span>" +
+          "</span>"
+      );
+    }
+
+    const errEl = bar.querySelector(".describe-bar__error");
+    if (session.resolveError) {
+      errEl.hidden = false;
+      errEl.textContent = session.resolveError;
+    } else {
+      errEl.hidden = true;
+      errEl.textContent = "";
+    }
+
+    const input = bar.querySelector(".describe-bar__input");
+    input.disabled = !!session.resolving;
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
@@ -400,8 +438,9 @@
     renderSessions();
     renderStage();
     renderNavState();
+    renderDescribeBar();
     const active = getActive();
-    setLoading(active ? active.loading : false);
+    setLoading(active ? active.loading || active.resolving : false);
   }
 
   function renderSessions() {
@@ -412,11 +451,16 @@
       el.setAttribute("role", "tab");
       el.setAttribute("aria-selected", String(session.id === activeId));
       el.dataset.id = session.id;
-      el.title = session.url === HOME_URL ? "New session" : session.url;
+      el.title =
+        session.url === HOME_URL
+          ? "New session"
+          : session.descriptions.length > 0
+          ? session.descriptions.join(" › ")
+          : session.url;
 
       const icon = document.createElement("span");
       icon.className = "session__icon";
-      if (session.loading) {
+      if (session.loading || session.resolving) {
         const sp = document.createElement("span");
         sp.className = "session__spinner";
         icon.appendChild(sp);
@@ -427,11 +471,12 @@
           '<path d="M6 3.5 L6 12.2" stroke="#f5f3ef" stroke-width="1.4" stroke-linecap="round"/>' +
           '<path d="M6 7 C6 5.7 7 5 8.6 5 C10.5 5 11.4 6 11.4 7.6 C11.4 9.2 10.5 10.4 8.6 10.4 C7.2 10.4 6 9.6 6 8.6Z" stroke="#f5f3ef" stroke-width="1.4" fill="none"/>' +
           "</svg>";
-      } else if (session.url.startsWith(SEARCH_PREFIX)) {
+      } else if (session.descriptions.length > 0) {
+        // Smart-nav crumb glyph — a small arrow, distinct from the
+        // generic globe used for raw URL sessions.
         icon.innerHTML =
           '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
-          '<circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.6" fill="none"/>' +
-          '<path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+          '<path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
       } else {
         icon.innerHTML =
           '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
@@ -489,6 +534,22 @@
     else loadbar.removeAttribute("data-active");
   }
 
+  function goHome() {
+    const session = getActive();
+    if (!session) {
+      newSession(HOME_URL);
+      return;
+    }
+    session.url = HOME_URL;
+    session.title = "New session";
+    session.descriptions = [];
+    session.note = "";
+    session.resolveError = "";
+    removeSessionView(session);
+    render();
+    welcomeInput.focus();
+  }
+
   // ── Event wiring ────────────────────────────────────────────────────
 
   newSessionBtn.addEventListener("click", () => {
@@ -498,31 +559,24 @@
 
   navBack.addEventListener("click", () => {
     const s = getActive();
-    if (s && s.view && s.view.canGoBack()) s.view.goBack();
+    if (s && s.view && s.view.canGoBack && s.view.canGoBack()) s.view.goBack();
   });
   navForward.addEventListener("click", () => {
     const s = getActive();
-    if (s && s.view && s.view.canGoForward()) s.view.goForward();
+    if (s && s.view && s.view.canGoForward && s.view.canGoForward()) s.view.goForward();
   });
   navReload.addEventListener("click", () => {
     const s = getActive();
     if (!s || !s.view) return;
-    if (s.view.tagName.toLowerCase() === "webview") {
-      s.view.reload();
-    } else if (s.url.startsWith(SEARCH_PREFIX)) {
-      const query = decodeURIComponent(s.url.substring(SEARCH_PREFIX.length));
-      showSearch(s, s.url, query);
-    }
+    if (s.view.tagName.toLowerCase() === "webview") s.view.reload();
   });
-  navHome.addEventListener("click", () => navigate(HOME_URL));
+  navHome.addEventListener("click", goHome);
 
   welcomeForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const v = welcomeInput.value.trim();
     if (!v) return;
     const plugin = plugins[activePlugin] || plugins.search;
-    // Search clears immediately; LinkedIn keeps the text in case posting
-    // fails so the user doesn't lose what they typed.
     if (activePlugin === "search") {
       welcomeInput.value = "";
       setStatus(null);
@@ -542,12 +596,19 @@
     const target = e.target.closest("[data-url]");
     if (!target) return;
     e.preventDefault();
-    navigate(target.dataset.url);
+    const url = target.dataset.url;
+    if (!url) return;
+    if (url === HOME_URL) {
+      goHome();
+      return;
+    }
+    const session = getActive() || newSession(HOME_URL);
+    loadInWebview(session, url);
   });
 
   // Keyboard shortcuts: ⌘T / Ctrl+T new session, ⌘W / Ctrl+W close,
-  // ⌘L / Ctrl+L focus the welcome search, ⌘R / Ctrl+R reload,
-  // ⌘[ / ⌘] for back/forward.
+  // ⌘L / Ctrl+L focus the welcome / describe-bar input,
+  // ⌘R / Ctrl+R reload, ⌘[ / ⌘] for back/forward.
   document.addEventListener("keydown", (e) => {
     const mod = e.metaKey || e.ctrlKey;
     if (!mod) return;
@@ -560,27 +621,25 @@
       if (activeId) closeSession(activeId);
     } else if (e.key === "l" || e.key === "L") {
       e.preventDefault();
-      navigate(HOME_URL);
-      welcomeInput.focus();
+      const s = getActive();
+      if (s && s.url !== HOME_URL && s.descriptions.length > 0 && describeBar && !describeBar.hidden) {
+        describeBar.querySelector(".describe-bar__input").focus();
+      } else {
+        goHome();
+      }
     } else if (e.key === "r" || e.key === "R") {
       e.preventDefault();
       const s = getActive();
-      if (!s || !s.view) return;
-      if (s.view.tagName.toLowerCase() === "webview") {
-        s.view.reload();
-      } else if (s.url.startsWith(SEARCH_PREFIX)) {
-        const query = decodeURIComponent(s.url.substring(SEARCH_PREFIX.length));
-        showSearch(s, s.url, query);
-      }
+      if (s && s.view && s.view.tagName.toLowerCase() === "webview") s.view.reload();
     } else if (e.key === "[") {
       const s = getActive();
-      if (s && s.view && s.view.canGoBack()) {
+      if (s && s.view && s.view.canGoBack && s.view.canGoBack()) {
         e.preventDefault();
         s.view.goBack();
       }
     } else if (e.key === "]") {
       const s = getActive();
-      if (s && s.view && s.view.canGoForward()) {
+      if (s && s.view && s.view.canGoForward && s.view.canGoForward()) {
         e.preventDefault();
         s.view.goForward();
       }

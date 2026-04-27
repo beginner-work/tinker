@@ -453,93 +453,150 @@ webview { border: 0; }
   text-underline-offset: 3px;
 }
 
-/* ── Search pane ──────────────────────────────────────────────────────── */
+/* ── Describe-bar ─────────────────────────────────────────────────────── */
+/* The slim strip across the top of the stage that shows the description
+   chain (the session) and lets the reader add another line to jump to a
+   new page. Only visible when the active session has at least one
+   description. */
 
-.stage > .search-pane {
-  position: absolute;
-  inset: 0;
-  display: none;
-  background: var(--color-background);
-  overflow: auto;
-  padding: 56px 32px 64px;
+:root {
+  --describe-bar-height: 44px;
 }
 
-.stage > .search-pane[data-active] {
-  display: block;
-}
-
-.search-pane__inner {
-  max-width: 640px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.search-pane__header {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: 14px;
-}
-
-.search-pane__crumb {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-forest);
-}
-
-.search-pane__query {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--color-foreground);
-}
-
-.search-pane__essay {
-  font-family: var(--font-display);
-  font-size: 17px;
-  line-height: 1.7;
-  color: var(--color-foreground);
-}
-
-.search-pane__essay p {
-  margin: 0 0 1em;
-}
-
-.search-pane__essay a {
-  color: var(--color-accent-strong);
-  text-decoration: underline;
-  text-decoration-color: rgba(99, 102, 241, 0.4);
-  text-underline-offset: 3px;
-  transition: color 0.15s ease, text-decoration-color 0.15s ease;
-}
-
-.search-pane__essay a:hover {
-  color: #4f46e5;
-  text-decoration-color: var(--color-accent-strong);
-}
-
-.search-pane__essay strong { font-weight: 700; }
-.search-pane__essay em { font-style: italic; }
-
-.search-pane__loading {
+.describe-bar {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-width);
+  right: 0;
+  height: var(--describe-bar-height);
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 0;
-  color: var(--color-muted);
-  font-size: 14px;
+  padding: 0 14px;
+  background: rgba(247, 240, 227, 0.92);
+  backdrop-filter: saturate(160%) blur(10px);
+  -webkit-backdrop-filter: saturate(160%) blur(10px);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 10;
 }
+
+.describe-bar[hidden] { display: none; }
+
+body.has-describe-bar .stage > webview {
+  top: var(--describe-bar-height);
+}
+
+.describe-bar__chain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--color-muted);
+  mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 100%);
+}
+
+.describe-bar__crumb {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(45, 90, 61, 0.07);
+  color: var(--color-forest);
+  font-weight: 600;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 240px;
+}
+
+.describe-bar__crumb:last-of-type {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--color-accent-strong);
+}
+
+.describe-bar__crumb--resolving {
+  background: transparent;
+  padding: 3px 4px;
+}
+
+.describe-bar__sep {
+  flex-shrink: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.describe-bar__form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 2px 4px 2px 12px;
+  height: 32px;
+  width: 280px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.describe-bar__form:focus-within {
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16);
+}
+
+.describe-bar__input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.describe-bar__input::placeholder { color: var(--color-muted); }
+.describe-bar__input:disabled { opacity: 0.5; }
+
+.describe-bar__submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-accent-strong);
+  color: #fff;
+  flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.describe-bar__submit:hover { background: #4f46e5; }
+.describe-bar__submit:active { transform: scale(0.95); }
+
+.describe-bar__error {
+  position: absolute;
+  top: var(--describe-bar-height);
+  left: 16px;
+  right: 16px;
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fdf0eb;
+  border: 1px solid #f0d3c5;
+  font-size: 12.5px;
+  color: var(--color-foreground);
+}
+
+.describe-bar__error[hidden] { display: none; }
+
+/* Loading dots — also used inline inside the chain while resolving. */
 
 .thinking-dots {
   display: inline-flex;
   gap: 4px;
+  align-items: center;
 }
 
 .thinking-dot {
@@ -556,27 +613,6 @@ webview { border: 0; }
   0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
   40% { transform: translateY(-4px); opacity: 1; }
 }
-
-.search-pane__error {
-  padding: 16px 18px;
-  border-radius: 12px;
-  background: var(--color-terracotta-light, #fdf0eb);
-  border: 1px solid #f0d3c5;
-  color: var(--color-foreground);
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-.search-pane__error p { margin: 0 0 0.6em; }
-.search-pane__error p:last-child { margin: 0; }
-.search-pane__error code {
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 12.5px;
-  background: rgba(45, 42, 38, 0.06);
-  padding: 1px 5px;
-  border-radius: 4px;
-}
-.search-pane__error-hint { color: var(--color-muted); font-size: 13px; }
 
 /* ── Responsive ───────────────────────────────────────────────────────── */
 
@@ -605,7 +641,10 @@ webview { border: 0; }
   .welcome__tabs { font-size: 12px; }
   .welcome__search { height: 46px; padding-left: 14px; }
   .welcome__begin { height: 36px; padding: 0 16px; font-size: 13px; }
-  .stage > .search-pane {
-    padding: calc(env(safe-area-inset-top, 0px) + 24px) 18px 32px;
+  .describe-bar {
+    padding: 0 10px;
+    gap: 8px;
   }
+  .describe-bar__form { width: 180px; height: 30px; padding-left: 10px; }
+  .describe-bar__crumb { max-width: 140px; font-size: 11.5px; }
 }

@@ -6,7 +6,7 @@
  * external sites in the system browser overlay. */
 
 (function () {
-  if (window.beginner && typeof window.beginner.searchQuery === "function") {
+  if (window.beginner && typeof window.beginner.navigateTo === "function") {
     return; // Electron preload already wired things up.
   }
 
@@ -16,20 +16,64 @@
   const STORE = window.localStorage;
   const get = (k) => STORE.getItem(k) || "";
 
-  // Same prompt the desktop main process uses. Kept in sync by hand —
+  // Same prompt + tool the desktop main process uses. Kept in sync by hand —
   // the contract is the prompt, not the source location. If you change
   // it in src/main/main.js, change it here too.
-  const SEARCH_SYSTEM_PROMPT = `You are the search engine for the beginner web browser — a quiet alternative to ad-driven search.
+  const NAV_SYSTEM_PROMPT = `You are the smart-navigation engine for the beginner web browser — a quiet alternative to result-list search.
 
-When you receive a query, write a calm, conversational answer in three to five short paragraphs that helps the reader understand the topic and where to go next. Embed Markdown links to specific, well-known websites — Wikipedia, official organisation sites, established publications, .gov pages — where the reader can read more or take action. Format links exactly as [label](https://example.com).
+The reader hands you a description of where they want to be. You answer with one URL: the closest existing web page that matches what they said. There is no result list, no ranking, no snippet — the reader sees the page itself.
 
-Voice: warm, plainspoken, calm. Address the reader as "you" where natural. No headings, no bulleted lists — just flowing prose, with short paragraphs separated by blank lines.
+You will receive a description chain (oldest → newest). On the first jump the chain has one entry. When the reader refines, the chain grows; treat the most recent entry as the strongest signal and the older ones as the surrounding intent. You will also receive the URL the reader is currently on, when there is one — use it to understand what they're moving away from, not as a place to return to.
 
-Only include links to sources you'd actually recommend and that you are confident exist. Do not invent URLs. If you are uncertain about a specific URL, omit the link rather than guess. It is better to write a confident paragraph with no link than to fabricate one.`;
+Pick a real, canonical web page you are confident about: Wikipedia entries, official organisation sites, established publications, government pages, well-known reference works. Never invent a URL. If you can't pin down a specific page you trust, fall back to a canonical landing page (a homepage, a section index, a topic hub) you do trust — better a sturdy general page than a fabricated specific one.
+
+Always answer by calling the arrive_at_page tool. Do not write any prose outside the tool call.`;
+
+  const NAVIGATE_TOOL = {
+    name: "arrive_at_page",
+    description:
+      "Land the reader on a single existing web page that best matches their description chain.",
+    input_schema: {
+      type: "object",
+      required: ["url", "title", "note"],
+      properties: {
+        url: {
+          type: "string",
+          description: "Full https:// URL of a real, existing web page.",
+        },
+        title: {
+          type: "string",
+          description: "Three to six words naming what's at that URL.",
+        },
+        note: {
+          type: "string",
+          description:
+            "One calm, plainspoken sentence about what the reader will find there.",
+        },
+      },
+    },
+  };
+
+  function formatNavUserMessage({ descriptions, currentUrl }) {
+    const lines = ["Description chain (oldest → newest):"];
+    descriptions.forEach((d, i) => lines.push(`${i + 1}. ${d}`));
+    if (currentUrl && /^https?:\/\//i.test(currentUrl)) {
+      lines.push("", `Currently on: ${currentUrl}`);
+    }
+    return lines.join("\n");
+  }
 
   const LINKEDIN_TAGLINE = "made by me, supported by beginner";
 
-  async function searchQuery(query) {
+  async function navigateTo(input) {
+    const descriptions = Array.isArray(input && input.descriptions)
+      ? input.descriptions.map((d) => String(d || "").trim()).filter(Boolean)
+      : [];
+    if (descriptions.length === 0) {
+      throw new Error("A description is required");
+    }
+    const currentUrl = typeof input.currentUrl === "string" ? input.currentUrl : "";
+
     const apiKey = get("ANTHROPIC_API_KEY");
     if (!apiKey) {
       const e = new Error(
@@ -48,15 +92,22 @@ Only include links to sources you'd actually recommend and that you are confiden
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5",
-        max_tokens: 1024,
+        max_tokens: 512,
         system: [
           {
             type: "text",
-            text: SEARCH_SYSTEM_PROMPT,
+            text: NAV_SYSTEM_PROMPT,
             cache_control: { type: "ephemeral" },
           },
         ],
-        messages: [{ role: "user", content: query.trim() }],
+        tools: [NAVIGATE_TOOL],
+        tool_choice: { type: "tool", name: NAVIGATE_TOOL.name },
+        messages: [
+          {
+            role: "user",
+            content: formatNavUserMessage({ descriptions, currentUrl }),
+          },
+        ],
       }),
     });
     if (!res.ok) {
@@ -64,8 +115,18 @@ Only include links to sources you'd actually recommend and that you are confiden
       throw new Error(`Anthropic API ${res.status}: ${errBody.slice(0, 240)}`);
     }
     const data = await res.json();
-    const textBlock = (data.content || []).find((b) => b.type === "text");
-    return { text: textBlock ? textBlock.text : "", usage: data.usage };
+    const toolUse = (data.content || []).find(
+      (b) => b.type === "tool_use" && b.name === NAVIGATE_TOOL.name
+    );
+    if (!toolUse || !toolUse.input || !toolUse.input.url) {
+      throw new Error("Couldn't find a page that matches that description.");
+    }
+    return {
+      url: String(toolUse.input.url),
+      title: String(toolUse.input.title || ""),
+      note: String(toolUse.input.note || ""),
+      usage: data.usage,
+    };
   }
 
   async function linkedinPost(message) {
@@ -126,7 +187,7 @@ Only include links to sources you'd actually recommend and that you are confiden
     version: () => Promise.resolve("0.1.0-mobile"),
     platform: () => Promise.resolve(isCapacitor ? "capacitor" : "web"),
     setIcon: () => Promise.resolve(true),
-    searchQuery,
+    navigateTo,
     linkedinPost,
     openExternal,
     supportsWebview: false,

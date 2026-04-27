@@ -17,15 +17,22 @@ npm start
 
 Use `npm run dev` to open with DevTools attached.
 
-## Search
+## Smart navigation
 
-The address-bar / welcome-page search uses Claude Haiku 4.5 instead of
-a third-party engine. Queries are answered as short essays — three to
-five paragraphs of plain prose with embedded links to real sites you
-can click through to. The Anthropic system prompt is marked for prompt
-caching, so repeat queries skip the cold-start cost.
+There is no such thing as a search result. You describe a starting
+point on the welcome page, and beginner lands you on the closest
+existing web page that matches what you said — Wikipedia, an official
+site, a known publication. If the page isn't quite right you add a
+little more description in the slim **describe-bar** at the top of
+the session, and beginner jumps you to a new page. The growing chain
+of descriptions is a session.
 
-If `ANTHROPIC_API_KEY` isn't set, the search pane shows a friendly
+Under the hood, Claude Haiku 4.5 picks the URL via a forced tool call,
+so the response is always a single canonical page — no result list,
+no ranking, no snippet. The system prompt and tool definition are
+marked for prompt caching, so repeat jumps skip the cold-start cost.
+
+If `ANTHROPIC_API_KEY` isn't set, the describe-bar shows a friendly
 error explaining how to fix it.
 
 ## Plugins
@@ -88,7 +95,7 @@ native projects.
 |---|---|---|
 | Tabs / sessions | Yes — left sidebar | Yes (collapsed rail on phones) |
 | In-app browsing | Native `<webview>` | External — opens in iOS/Android system browser via `@capacitor/browser` |
-| Search engine | IPC → main process → Anthropic SDK | Direct browser-side fetch with prompt caching |
+| Smart navigation | IPC → main process → Anthropic SDK | Direct browser-side fetch with prompt caching |
 | LinkedIn post | IPC → main process | Direct browser-side fetch |
 | API key storage | `ANTHROPIC_API_KEY` / `LINKEDIN_*` env vars | `localStorage` (open the inspector and run `localStorage.setItem(...)`) |
 
@@ -155,5 +162,7 @@ tab maps to either the welcome page (in-DOM) or an Electron
 | Reload | ⌘/Ctrl + R |
 | Close tab (mouse) | Middle-click the tab |
 
-The address bar accepts URLs, hostnames (`beginner.work`), and search
-queries (anything else falls through to Google).
+The describe-bar at the top of each session takes plain-English
+descriptions — "the Wikipedia article on octopi", "Python tutorials
+for kids" — and jumps to the closest matching page. Refining the
+description jumps again.
