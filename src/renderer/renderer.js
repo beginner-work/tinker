@@ -45,7 +45,7 @@
 
   const plugins = {
     search: {
-      placeholder: "Where is your starting point today?",
+      placeholder: "Start a new web",
       button: "Begin",
       onSubmit(text) {
         navigate(text);
