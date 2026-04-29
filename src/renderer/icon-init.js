@@ -1,25 +1,24 @@
-/* Renders the rainbow web mark to a PNG and hands it to the main
- * process so the OS dock / taskbar shows the desktop-app brand
- * icon instead of the default Electron logo. The mark is built
- * from the shared style dictionary in `tokens/rainbow-web.json`
- * (twin of beginner-work/beginner ui/src/tokens/rainbow-web.json),
- * so any palette / geometry change there flows here automatically.
+/* Renders the globe mark to a PNG and hands it to the main process
+ * so the OS dock / taskbar shows the tinker brand icon instead of
+ * the default Electron logo. The mark is built from the shared
+ * style dictionary in `tokens/rainbow-web.json`, so any palette /
+ * geometry change there flows here automatically.
  *
  * Lives in the renderer because Electron's nativeImage doesn't read
  * SVG natively, but the renderer's <canvas> does. */
 
 (async () => {
-  if (!window.beginner || typeof window.beginner.setIcon !== "function") return;
-  if (!window.beginnerLogo || typeof window.beginnerLogo.buildRainbowWebSvg !== "function") {
-    console.warn("[beginner] rainbow-web helper not loaded");
+  if (!window.tinker || typeof window.tinker.setIcon !== "function") return;
+  if (!window.tinkerLogo || typeof window.tinkerLogo.buildRainbowWebSvg !== "function") {
+    console.warn("[tinker] globe helper not loaded");
     return;
   }
 
   let svg;
   try {
-    svg = await window.beginnerLogo.buildRainbowWebSvg();
+    svg = await window.tinkerLogo.buildRainbowWebSvg();
   } catch (err) {
-    console.warn("[beginner] icon init failed:", err);
+    console.warn("[tinker] icon init failed:", err);
     return;
   }
 
@@ -47,9 +46,9 @@
     const ctx = canvas.getContext("2d");
     ctx.drawImage(img, padding, padding, inner, inner);
     const dataUrl = canvas.toDataURL("image/png");
-    await window.beginner.setIcon(dataUrl);
+    await window.tinker.setIcon(dataUrl);
   } catch (err) {
-    console.warn("[beginner] icon init failed:", err);
+    console.warn("[tinker] icon init failed:", err);
   } finally {
     URL.revokeObjectURL(url);
   }

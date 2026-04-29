@@ -4,10 +4,10 @@ const Anthropic = require("@anthropic-ai/sdk").default;
 
 const isDev = process.argv.includes("--dev");
 
-// Show "beginner" in the macOS menu bar / app menus instead of "Electron".
+// Show "tinker" in the macOS menu bar / app menus instead of "Electron".
 // (Note: the dock label still comes from the bundle Info.plist when the app
 // is packaged. Setting it here covers the unpackaged dev case.)
-app.setName("beginner");
+app.setName("tinker");
 
 // ── Search engine (Claude Haiku) ────────────────────────────────────────
 //
@@ -15,7 +15,7 @@ app.setName("beginner");
 // caching — after the first call the prefix is read from cache instead of
 // re-processed on every search.
 
-const SEARCH_SYSTEM_PROMPT = `You are the search engine for the beginner web browser — a quiet alternative to ad-driven search.
+const SEARCH_SYSTEM_PROMPT = `You are the search engine for the tinker web browser — a quiet alternative to ad-driven search.
 
 When you receive a query, write a calm, conversational answer in three to five short paragraphs that helps the reader understand the topic and where to go next. Embed Markdown links to specific, well-known websites — Wikipedia, official organisation sites, established publications, .gov pages — where the reader can read more or take action. Format links exactly as [label](https://example.com).
 
@@ -29,7 +29,7 @@ function getAnthropic() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     const err = new Error(
-      "ANTHROPIC_API_KEY is not set. Add it to your environment and restart beginner."
+      "ANTHROPIC_API_KEY is not set. Add it to your environment and restart tinker."
     );
     err.code = "MISSING_API_KEY";
     throw err;
@@ -45,7 +45,7 @@ function createWindow() {
     minWidth: 720,
     minHeight: 480,
     backgroundColor: "#FFFDF7",
-    title: "beginner",
+    title: "tinker",
     autoHideMenuBar: true,
     // Drop the native title bar — our chrome paints the whole top.
     // 'hiddenInset' keeps the macOS traffic lights but removes the bar;
@@ -79,7 +79,7 @@ function createWindow() {
 // Electron version and trips bot detection on some sites.
 function userAgent() {
   const chromeVersion = process.versions.chrome;
-  return `Mozilla/5.0 (${process.platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36 beginner-browser/${app.getVersion()}`;
+  return `Mozilla/5.0 (${process.platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36 tinker-browser/${app.getVersion()}`;
 }
 
 app.whenReady().then(() => {
@@ -105,65 +105,6 @@ app.on("window-all-closed", () => {
 
 ipcMain.handle("app:version", () => app.getVersion());
 ipcMain.handle("app:platform", () => process.platform);
-
-// ── LinkedIn plugin ─────────────────────────────────────────────────────
-//
-// Lets you write what's on your mind in the search bar and publish it as
-// a LinkedIn post with a fixed attribution line appended. Requires:
-//
-//   LINKEDIN_ACCESS_TOKEN  — OAuth access token with w_member_social scope
-//   LINKEDIN_AUTHOR_URN    — your member URN, e.g. "urn:li:person:abc123"
-
-const LINKEDIN_TAGLINE = "made by me, supported by beginner";
-
-ipcMain.handle("linkedin:post", async (_event, message) => {
-  if (typeof message !== "string" || !message.trim()) {
-    throw new Error("Post text is required");
-  }
-  const token = process.env.LINKEDIN_ACCESS_TOKEN;
-  const authorUrn = process.env.LINKEDIN_AUTHOR_URN;
-  if (!token || !authorUrn) {
-    const err = new Error(
-      "LINKEDIN_ACCESS_TOKEN and LINKEDIN_AUTHOR_URN must be set in your environment."
-    );
-    err.code = "MISSING_LINKEDIN_CREDS";
-    throw err;
-  }
-
-  const fullText = `${message.trim()}\n\n— ${LINKEDIN_TAGLINE}`;
-  const body = {
-    author: authorUrn,
-    lifecycleState: "PUBLISHED",
-    specificContent: {
-      "com.linkedin.ugc.ShareContent": {
-        shareCommentary: { text: fullText },
-        shareMediaCategory: "NONE",
-      },
-    },
-    visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
-  };
-
-  const res = await fetch("https://api.linkedin.com/v2/ugcPosts", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      "X-Restli-Protocol-Version": "2.0.0",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const errBody = await res.text();
-    throw new Error(`LinkedIn API error ${res.status}: ${errBody.slice(0, 240)}`);
-  }
-
-  const postUrn = res.headers.get("x-restli-id") || (await res.json()).id;
-  // x-restli-id looks like "urn:li:share:1234..."; the public URL form is
-  // https://www.linkedin.com/feed/update/<urn>/
-  const url = postUrn ? `https://www.linkedin.com/feed/update/${postUrn}/` : null;
-  return { ok: true, postUrn, url, posted: fullText };
-});
 
 ipcMain.handle("search:query", async (_event, query) => {
   if (typeof query !== "string" || !query.trim()) {
