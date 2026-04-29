@@ -15,8 +15,10 @@
   const HOME_URL = "beginner://home";
   const SEARCH_PREFIX = "beginner://search?q=";
 
-  /** @type {Array<{id: string, url: string, title: string, loading: boolean, view: HTMLElement | null}>} */
+  /** @type {Array<{id: string, url: string, title: string, loading: boolean, view: HTMLElement | null, groupId: string}>} */
   let sessions = [];
+  /** @type {Array<{id: string, name: string, expanded: boolean}>} */
+  let groups = [];
   let activeId = null;
 
   // ── DOM refs ─────────────────────────────────────────────────────────
@@ -25,6 +27,7 @@
   const welcome = $("#welcome");
   const sessionsEl = $("#sessions");
   const newSessionBtn = $("#new-session");
+  const newGroupBtn = $("#new-group");
   const navBack = $("#nav-back");
   const navForward = $("#nav-forward");
   const navReload = $("#nav-reload");
@@ -108,8 +111,11 @@
   // ── Helpers ──────────────────────────────────────────────────────────
 
   const uid = () => "s_" + Math.random().toString(36).slice(2, 9);
+  const gid = () => "g_" + Math.random().toString(36).slice(2, 9);
 
   const getActive = () => sessions.find((s) => s.id === activeId) || null;
+  const getGroup = (id) => groups.find((g) => g.id === id) || null;
+  const defaultGroupId = () => (groups[0] ? groups[0].id : null);
 
   /** Decide if a string is a navigable URL or should be searched. */
   function resolveQuery(raw) {
@@ -164,15 +170,56 @@
     }
   }
 
+  // ── Group CRUD ──────────────────────────────────────────────────────
+
+  function newGroup(name) {
+    const trimmed = (name || "").trim();
+    if (!trimmed) return null;
+    const group = { id: gid(), name: trimmed, expanded: true };
+    groups.push(group);
+    renderSessions();
+    return group;
+  }
+
+  function renameGroup(id, name) {
+    const group = getGroup(id);
+    const trimmed = (name || "").trim();
+    if (!group || !trimmed) return;
+    group.name = trimmed;
+    renderSessions();
+  }
+
+  function deleteGroup(id) {
+    if (groups.length <= 1) return; // keep at least one group
+    const idx = groups.findIndex((g) => g.id === id);
+    if (idx === -1) return;
+    const fallbackId = (groups[idx - 1] || groups[idx + 1]).id;
+    for (const s of sessions) if (s.groupId === id) s.groupId = fallbackId;
+    groups.splice(idx, 1);
+    renderSessions();
+  }
+
+  function toggleGroup(id) {
+    const group = getGroup(id);
+    if (!group) return;
+    group.expanded = !group.expanded;
+    renderSessions();
+  }
+
   // ── Session CRUD ────────────────────────────────────────────────────
 
-  function newSession(url = HOME_URL, { activate = true } = {}) {
+  function newSession(url = HOME_URL, { activate = true, groupId } = {}) {
+    if (groups.length === 0) groups.push({ id: gid(), name: "General", expanded: true });
+    const targetGroupId = groupId && getGroup(groupId) ? groupId : defaultGroupId();
+    const targetGroup = getGroup(targetGroupId);
+    if (targetGroup && !targetGroup.expanded) targetGroup.expanded = true;
     const session = {
       id: uid(),
       url,
-      title: url === HOME_URL ? "New session" : hostnameOf(url) || url,
+      title: url === HOME_URL ? "New channel" : hostnameOf(url) || url,
       loading: false,
       view: null,
+      groupId: targetGroupId,
     };
     sessions.push(session);
     if (activate) activeId = session.id;
@@ -256,7 +303,7 @@
 
     if (url === HOME_URL) {
       session.url = HOME_URL;
-      session.title = "New session";
+      session.title = "New channel";
       removeSessionView(session);
       render();
       return;
@@ -281,7 +328,7 @@
     }
 
     session.url = url;
-    if (!session.title || session.title === "New session") {
+    if (!session.title || session.title === "New channel" || session.title === "New session") {
       session.title = hostnameOf(url) || url;
     }
     // Switching to a webview from a non-webview view means the old pane
@@ -406,62 +453,140 @@
 
   function renderSessions() {
     sessionsEl.innerHTML = "";
-    for (const session of sessions) {
-      const el = document.createElement("button");
-      el.className = "session";
-      el.setAttribute("role", "tab");
-      el.setAttribute("aria-selected", String(session.id === activeId));
-      el.dataset.id = session.id;
-      el.title = session.url === HOME_URL ? "New session" : session.url;
+    if (groups.length === 0) return;
 
-      const icon = document.createElement("span");
-      icon.className = "session__icon";
-      if (session.loading) {
-        const sp = document.createElement("span");
-        sp.className = "session__spinner";
-        icon.appendChild(sp);
-      } else if (session.url === HOME_URL) {
-        icon.innerHTML =
-          '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">' +
-          '<rect width="16" height="16" rx="3.5" fill="#2d5a3d"/>' +
-          '<path d="M6 3.5 L6 12.2" stroke="#f5f3ef" stroke-width="1.4" stroke-linecap="round"/>' +
-          '<path d="M6 7 C6 5.7 7 5 8.6 5 C10.5 5 11.4 6 11.4 7.6 C11.4 9.2 10.5 10.4 8.6 10.4 C7.2 10.4 6 9.6 6 8.6Z" stroke="#f5f3ef" stroke-width="1.4" fill="none"/>' +
-          "</svg>";
-      } else if (session.url.startsWith(SEARCH_PREFIX)) {
-        icon.innerHTML =
-          '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
-          '<circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.6" fill="none"/>' +
-          '<path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
-      } else {
-        icon.innerHTML =
-          '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
-          '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" fill="none"/>' +
-          '<path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>';
-      }
-
-      const title = document.createElement("span");
-      title.className = "session__title";
-      title.textContent = session.title || hostnameOf(session.url) || "Untitled";
-
-      const close = document.createElement("span");
-      close.className = "session__close";
-      close.setAttribute("role", "button");
-      close.setAttribute("aria-label", "Close session");
-      close.innerHTML =
-        '<svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">' +
-        '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-      close.addEventListener("click", (e) => {
-        e.stopPropagation();
-        closeSession(session.id);
-      });
-
-      el.append(icon, title, close);
-      el.addEventListener("click", () => selectSession(session.id));
-      el.addEventListener("auxclick", (e) => {
-        if (e.button === 1) closeSession(session.id);
-      });
-      sessionsEl.appendChild(el);
+    // Repair: any session pointing at a missing group falls back to the first.
+    const fallbackId = defaultGroupId();
+    for (const s of sessions) {
+      if (!getGroup(s.groupId)) s.groupId = fallbackId;
     }
+
+    for (const group of groups) {
+      sessionsEl.appendChild(renderGroup(group));
+      if (!group.expanded) continue;
+      const channels = sessions.filter((s) => s.groupId === group.id);
+      for (const session of channels) {
+        sessionsEl.appendChild(renderChannel(session));
+      }
+    }
+  }
+
+  function renderGroup(group) {
+    const header = document.createElement("div");
+    header.className = "group";
+    header.setAttribute("role", "treeitem");
+    header.setAttribute("aria-expanded", String(group.expanded));
+    header.dataset.groupId = group.id;
+
+    const chevron = document.createElement("span");
+    chevron.className = "group__chevron";
+    chevron.innerHTML =
+      '<svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true">' +
+      '<path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+
+    const name = document.createElement("span");
+    name.className = "group__name";
+    name.textContent = group.name;
+    name.title = "Double-click to rename";
+
+    const addBtn = document.createElement("span");
+    addBtn.className = "group__add";
+    addBtn.setAttribute("role", "button");
+    addBtn.setAttribute("aria-label", "New channel in " + group.name);
+    addBtn.title = "New channel";
+    addBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">' +
+      '<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    addBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      newSession(HOME_URL, { groupId: group.id });
+      welcomeInput.focus();
+    });
+
+    const removeBtn = document.createElement("span");
+    removeBtn.className = "group__remove";
+    removeBtn.setAttribute("role", "button");
+    removeBtn.setAttribute("aria-label", "Delete group " + group.name);
+    removeBtn.title = groups.length <= 1 ? "Can't delete the last group" : "Delete group";
+    removeBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">' +
+      '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    if (groups.length <= 1) removeBtn.classList.add("group__remove--disabled");
+    removeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (groups.length <= 1) return;
+      const channelsInGroup = sessions.filter((s) => s.groupId === group.id).length;
+      const message = channelsInGroup
+        ? `Delete group "${group.name}"? Its ${channelsInGroup} channel(s) will move to another group.`
+        : `Delete group "${group.name}"?`;
+      if (window.confirm(message)) deleteGroup(group.id);
+    });
+
+    header.append(chevron, name, addBtn, removeBtn);
+    header.addEventListener("click", () => toggleGroup(group.id));
+    name.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      const next = window.prompt("Rename group", group.name);
+      if (next != null) renameGroup(group.id, next);
+    });
+    return header;
+  }
+
+  function renderChannel(session) {
+    const el = document.createElement("button");
+    el.className = "session";
+    el.setAttribute("role", "tab");
+    el.setAttribute("aria-selected", String(session.id === activeId));
+    el.dataset.id = session.id;
+    el.title = session.url === HOME_URL ? "New channel" : session.url;
+
+    const icon = document.createElement("span");
+    icon.className = "session__icon";
+    if (session.loading) {
+      const sp = document.createElement("span");
+      sp.className = "session__spinner";
+      icon.appendChild(sp);
+    } else if (session.url === HOME_URL) {
+      icon.innerHTML =
+        '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">' +
+        '<rect width="16" height="16" rx="3.5" fill="#2d5a3d"/>' +
+        '<path d="M6 3.5 L6 12.2" stroke="#f5f3ef" stroke-width="1.4" stroke-linecap="round"/>' +
+        '<path d="M6 7 C6 5.7 7 5 8.6 5 C10.5 5 11.4 6 11.4 7.6 C11.4 9.2 10.5 10.4 8.6 10.4 C7.2 10.4 6 9.6 6 8.6Z" stroke="#f5f3ef" stroke-width="1.4" fill="none"/>' +
+        "</svg>";
+    } else if (session.url.startsWith(SEARCH_PREFIX)) {
+      icon.innerHTML =
+        '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+        '<circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.6" fill="none"/>' +
+        '<path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+    } else {
+      icon.innerHTML =
+        '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+        '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" fill="none"/>' +
+        '<path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>';
+    }
+
+    const title = document.createElement("span");
+    title.className = "session__title";
+    title.textContent = session.title || hostnameOf(session.url) || "Untitled";
+
+    const close = document.createElement("span");
+    close.className = "session__close";
+    close.setAttribute("role", "button");
+    close.setAttribute("aria-label", "Close channel");
+    close.innerHTML =
+      '<svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">' +
+      '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    close.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeSession(session.id);
+    });
+
+    el.append(icon, title, close);
+    el.addEventListener("click", () => selectSession(session.id));
+    el.addEventListener("auxclick", (e) => {
+      if (e.button === 1) closeSession(session.id);
+    });
+    return el;
   }
 
   function renderStage() {
@@ -492,8 +617,16 @@
   // ── Event wiring ────────────────────────────────────────────────────
 
   newSessionBtn.addEventListener("click", () => {
-    newSession(HOME_URL);
+    const active = getActive();
+    const targetGroupId = active ? active.groupId : defaultGroupId();
+    newSession(HOME_URL, { groupId: targetGroupId });
     welcomeInput.focus();
+  });
+
+  newGroupBtn.addEventListener("click", () => {
+    const name = window.prompt("Name your new group", "Group " + (groups.length + 1));
+    if (name == null) return;
+    newGroup(name);
   });
 
   navBack.addEventListener("click", () => {
@@ -589,6 +722,7 @@
 
   // ── Boot ────────────────────────────────────────────────────────────
 
+  groups.push({ id: gid(), name: "General", expanded: true });
   newSession(HOME_URL);
   welcomeInput.focus();
 })();
