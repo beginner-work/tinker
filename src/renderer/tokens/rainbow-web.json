@@ -9,7 +9,7 @@
     "cx": 100,
     "cy": 100,
     "radius": 76,
-    "color": "#2D5A3D"
+    "color": "#C8B6E2"
   },
   "latitudes": [
     { "name": "north-tropic", "offset": -38, "color": "#F9A8D4" },

@@ -423,7 +423,7 @@
       } else if (session.url === HOME_URL) {
         icon.innerHTML =
           '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none">' +
-          '<circle cx="8" cy="8" r="6" stroke="#2d5a3d" stroke-width="1.6"/>' +
+          '<circle cx="8" cy="8" r="6" stroke="#c8b6e2" stroke-width="1.6"/>' +
           '<line x1="2" y1="8" x2="14" y2="8" stroke="#fdba74" stroke-width="1.6" stroke-linecap="round"/>' +
           '<line x1="8" y1="2" x2="8" y2="14" stroke="#6ee7b7" stroke-width="1.6" stroke-linecap="round"/>' +
           '<ellipse cx="8" cy="8" rx="3" ry="6" stroke="#7dd3fc" stroke-width="1.6"/>' +
