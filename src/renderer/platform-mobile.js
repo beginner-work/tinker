@@ -1,8 +1,8 @@
 /* Platform shim — runs on Capacitor (iOS/Android) and on plain web,
  * but stays out of the way when Electron's preload has already
  * installed window.tinker. Provides the same surface the renderer
- * expects, backed by direct browser-side calls to Anthropic / LinkedIn
- * and (where available) the @capacitor/browser plugin for opening
+ * expects, backed by a direct browser-side call to Anthropic and
+ * (where available) the @capacitor/browser plugin for opening
  * external sites in the system browser overlay. */
 
 (function () {
@@ -26,8 +26,6 @@ When you receive a query, write a calm, conversational answer in three to five s
 Voice: warm, plainspoken, calm. Address the reader as "you" where natural. No headings, no bulleted lists — just flowing prose, with short paragraphs separated by blank lines.
 
 Only include links to sources you'd actually recommend and that you are confident exist. Do not invent URLs. If you are uncertain about a specific URL, omit the link rather than guess. It is better to write a confident paragraph with no link than to fabricate one.`;
-
-  const LINKEDIN_TAGLINE = "made by me, supported by tinker";
 
   async function searchQuery(query) {
     const apiKey = get("ANTHROPIC_API_KEY");
@@ -68,48 +66,6 @@ Only include links to sources you'd actually recommend and that you are confiden
     return { text: textBlock ? textBlock.text : "", usage: data.usage };
   }
 
-  async function linkedinPost(message) {
-    const token = get("LINKEDIN_ACCESS_TOKEN");
-    const author = get("LINKEDIN_AUTHOR_URN");
-    if (!token || !author) {
-      const e = new Error(
-        "LINKEDIN_ACCESS_TOKEN and LINKEDIN_AUTHOR_URN must be set in your settings."
-      );
-      e.code = "MISSING_LINKEDIN_CREDS";
-      throw e;
-    }
-    const fullText = `${message.trim()}\n\n— ${LINKEDIN_TAGLINE}`;
-    const body = {
-      author,
-      lifecycleState: "PUBLISHED",
-      specificContent: {
-        "com.linkedin.ugc.ShareContent": {
-          shareCommentary: { text: fullText },
-          shareMediaCategory: "NONE",
-        },
-      },
-      visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
-    };
-    const res = await fetch("https://api.linkedin.com/v2/ugcPosts", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        "X-Restli-Protocol-Version": "2.0.0",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const errBody = await res.text();
-      throw new Error(`LinkedIn API ${res.status}: ${errBody.slice(0, 240)}`);
-    }
-    const postUrn = res.headers.get("x-restli-id") || (await res.json()).id;
-    const url = postUrn
-      ? `https://www.linkedin.com/feed/update/${postUrn}/`
-      : null;
-    return { ok: true, postUrn, url, posted: fullText };
-  }
-
   async function openExternal(url) {
     if (isCapacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
       try {
@@ -127,7 +83,6 @@ Only include links to sources you'd actually recommend and that you are confiden
     platform: () => Promise.resolve(isCapacitor ? "capacitor" : "web"),
     setIcon: () => Promise.resolve(true),
     searchQuery,
-    linkedinPost,
     openExternal,
     supportsWebview: false,
     setSetting: (k, v) => {

@@ -32,78 +32,6 @@
   const loadbar = $("#loadbar");
   const welcomeForm = $("#welcome-form");
   const welcomeInput = $("#welcome-input");
-  const welcomeSubmit = $("#welcome-submit");
-  const welcomeStatus = $("#welcome-status");
-  const pluginTabs = $("#plugin-tabs");
-
-  // ── Plugin system ────────────────────────────────────────────────────
-  //
-  // The welcome bar dispatches to the active plugin. Each plugin owns
-  // its placeholder, button label, and onSubmit handler. Adding a new
-  // mode (e.g. "Send to Mastodon") means adding one entry here and a
-  // matching tab in index.html.
-
-  const plugins = {
-    search: {
-      placeholder: "Start a new web",
-      button: "Begin",
-      onSubmit(text) {
-        navigate(text);
-      },
-    },
-    linkedin: {
-      placeholder: "What's on your mind?",
-      button: "Post",
-      async onSubmit(text) {
-        setStatus("loading", "Posting to LinkedIn…");
-        welcomeSubmit.disabled = true;
-        try {
-          const result = await window.tinker.linkedinPost(text);
-          welcomeInput.value = "";
-          if (result && result.url) {
-            setStatus(
-              "ok",
-              `Posted. <a href="#" data-url="${escapeHtml(result.url)}">Open on LinkedIn &rarr;</a>`
-            );
-          } else {
-            setStatus("ok", "Posted to LinkedIn.");
-          }
-        } catch (err) {
-          const msg = err && err.message ? err.message : String(err);
-          setStatus("error", escapeHtml(msg));
-        } finally {
-          welcomeSubmit.disabled = false;
-        }
-      },
-    },
-  };
-
-  let activePlugin = "search";
-
-  function setActivePlugin(name) {
-    if (!plugins[name]) return;
-    activePlugin = name;
-    const p = plugins[name];
-    welcomeInput.placeholder = p.placeholder;
-    welcomeInput.setAttribute("aria-label", p.placeholder);
-    welcomeSubmit.textContent = p.button;
-    setStatus(null);
-    for (const btn of pluginTabs.querySelectorAll(".welcome__tab")) {
-      btn.setAttribute("aria-selected", String(btn.dataset.plugin === name));
-    }
-  }
-
-  function setStatus(state, html) {
-    if (!state) {
-      welcomeStatus.hidden = true;
-      welcomeStatus.innerHTML = "";
-      welcomeStatus.removeAttribute("data-state");
-      return;
-    }
-    welcomeStatus.hidden = false;
-    welcomeStatus.dataset.state = state;
-    welcomeStatus.innerHTML = html || "";
-  }
 
   // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -521,21 +449,8 @@
     e.preventDefault();
     const v = welcomeInput.value.trim();
     if (!v) return;
-    const plugin = plugins[activePlugin] || plugins.search;
-    // Search clears immediately; LinkedIn keeps the text in case posting
-    // fails so the user doesn't lose what they typed.
-    if (activePlugin === "search") {
-      welcomeInput.value = "";
-      setStatus(null);
-    }
-    plugin.onSubmit(v);
-  });
-
-  pluginTabs.addEventListener("click", (e) => {
-    const btn = e.target.closest(".welcome__tab");
-    if (!btn) return;
-    setActivePlugin(btn.dataset.plugin);
-    welcomeInput.focus();
+    welcomeInput.value = "";
+    navigate(v);
   });
 
   // Anything with [data-url] navigates the active session.

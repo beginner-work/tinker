@@ -27,29 +27,6 @@ caching, so repeat queries skip the cold-start cost.
 If `ANTHROPIC_API_KEY` isn't set, the search pane shows a friendly
 error explaining how to fix it.
 
-## Plugins
-
-The welcome bar has a small mode toggle that switches between plugins.
-Each plugin owns its placeholder, button label, and submit handler;
-adding a new one is one entry in `src/renderer/renderer.js` plus a
-matching tab in `index.html`.
-
-### LinkedIn post
-
-Switch the welcome toggle to **Post to LinkedIn**, type what's on your
-mind, and hit **Post**. The post is published with the line
-
-> — made by me, supported by tinker
-
-appended on its own paragraph. Requires:
-
-```bash
-export LINKEDIN_ACCESS_TOKEN="..."     # OAuth token with w_member_social
-export LINKEDIN_AUTHOR_URN="urn:li:person:abc123"
-```
-
-The token is sent only to LinkedIn's API; nothing is written to disk.
-
 ## Mobile (Capacitor)
 
 The same `src/renderer/` codebase ships as an iOS / Android app via
@@ -88,8 +65,7 @@ native projects.
 | Tabs / sessions | Yes — left sidebar | Yes (collapsed rail on phones) |
 | In-app browsing | Native `<webview>` | External — opens in iOS/Android system browser via `@capacitor/browser` |
 | Search engine | IPC → main process → Anthropic SDK | Direct browser-side fetch with prompt caching |
-| LinkedIn post | IPC → main process | Direct browser-side fetch |
-| API key storage | `ANTHROPIC_API_KEY` / `LINKEDIN_*` env vars | `localStorage` (open the inspector and run `localStorage.setItem(...)`) |
+| API key storage | `ANTHROPIC_API_KEY` env var | `localStorage` (open the inspector and run `localStorage.setItem(...)`) |
 
 The `src/renderer/platform-mobile.js` shim detects the runtime —
 Electron preload short-circuits it; on Capacitor and on the plain
@@ -98,14 +74,12 @@ of the renderer code path is identical.
 
 ### Setting keys on mobile
 
-For now, paste the keys into `localStorage` from the Capacitor
+For now, paste the key into `localStorage` from the Capacitor
 WebView inspector (Safari Web Inspector on iOS, `chrome://inspect`
 on Android):
 
 ```js
 localStorage.setItem("ANTHROPIC_API_KEY", "sk-ant-...");
-localStorage.setItem("LINKEDIN_ACCESS_TOKEN", "...");
-localStorage.setItem("LINKEDIN_AUTHOR_URN", "urn:li:person:...");
 ```
 
 A proper in-app settings panel is on the list.
