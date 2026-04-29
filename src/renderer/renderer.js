@@ -526,10 +526,112 @@
     header.addEventListener("click", () => toggleGroup(group.id));
     name.addEventListener("dblclick", (e) => {
       e.stopPropagation();
-      const next = window.prompt("Rename group", group.name);
-      if (next != null) renameGroup(group.id, next);
+      beginEditGroupName(group);
     });
+
+    // Drag-and-drop reordering of groups.
+    header.draggable = true;
+    header.addEventListener("dragstart", (e) => {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/x-beginner-group", group.id);
+      // Some browsers also require setData("text/plain") to start a drag.
+      e.dataTransfer.setData("text/plain", group.id);
+      header.classList.add("group--dragging");
+    });
+    header.addEventListener("dragend", () => {
+      header.classList.remove("group--dragging");
+      clearGroupDropMarkers();
+    });
+    header.addEventListener("dragover", (e) => {
+      if (!e.dataTransfer.types.includes("text/x-beginner-group")) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const rect = header.getBoundingClientRect();
+      const before = e.clientY - rect.top < rect.height / 2;
+      clearGroupDropMarkers();
+      header.classList.add(before ? "group--drop-before" : "group--drop-after");
+    });
+    header.addEventListener("dragleave", (e) => {
+      // Only clear when leaving the header entirely (not just entering a child).
+      if (e.relatedTarget && header.contains(e.relatedTarget)) return;
+      header.classList.remove("group--drop-before", "group--drop-after");
+    });
+    header.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const draggedId =
+        e.dataTransfer.getData("text/x-beginner-group") ||
+        e.dataTransfer.getData("text/plain");
+      clearGroupDropMarkers();
+      if (!draggedId || draggedId === group.id) return;
+      const fromIdx = groups.findIndex((g) => g.id === draggedId);
+      if (fromIdx === -1) return;
+      const rect = header.getBoundingClientRect();
+      const before = e.clientY - rect.top < rect.height / 2;
+      const [moved] = groups.splice(fromIdx, 1);
+      let insertAt = groups.findIndex((g) => g.id === group.id);
+      if (insertAt === -1) insertAt = groups.length;
+      if (!before) insertAt += 1;
+      groups.splice(insertAt, 0, moved);
+      renderSessions();
+    });
+
     return header;
+  }
+
+  function clearGroupDropMarkers() {
+    for (const el of sessionsEl.querySelectorAll(".group--drop-before, .group--drop-after")) {
+      el.classList.remove("group--drop-before", "group--drop-after");
+    }
+  }
+
+  function beginEditGroupName(group, { isNew = false } = {}) {
+    renderSessions();
+    const header = sessionsEl.querySelector(`.group[data-group-id="${group.id}"]`);
+    if (!header) return;
+    const nameEl = header.querySelector(".group__name");
+    if (!nameEl) return;
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "group__name-input";
+    input.value = isNew ? "" : group.name;
+    input.placeholder = "Group name";
+    input.spellcheck = false;
+    input.maxLength = 60;
+
+    let resolved = false;
+    const finish = (commit) => {
+      if (resolved) return;
+      resolved = true;
+      const next = input.value.trim();
+      if (commit && next) {
+        group.name = next;
+      } else if (isNew) {
+        const idx = groups.indexOf(group);
+        if (idx > -1) groups.splice(idx, 1);
+      }
+      renderSessions();
+    };
+
+    input.addEventListener("blur", () => finish(true));
+    input.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") {
+        e.preventDefault();
+        input.blur();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        finish(false);
+      }
+    });
+    input.addEventListener("click", (e) => e.stopPropagation());
+    input.addEventListener("dblclick", (e) => e.stopPropagation());
+    // Don't let the input start a parent drag while the user is editing.
+    input.addEventListener("mousedown", (e) => e.stopPropagation());
+
+    nameEl.replaceWith(input);
+    input.focus();
+    if (!isNew) input.select();
   }
 
   function renderChannel(session) {
@@ -624,9 +726,9 @@
   });
 
   newGroupBtn.addEventListener("click", () => {
-    const name = window.prompt("Name your new group", "Group " + (groups.length + 1));
-    if (name == null) return;
-    newGroup(name);
+    const group = { id: gid(), name: "", expanded: true };
+    groups.push(group);
+    beginEditGroupName(group, { isNew: true });
   });
 
   navBack.addEventListener("click", () => {

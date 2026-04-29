@@ -212,6 +212,42 @@ html.on-web .sidebar__head {
 
 .group:hover { background: rgba(255, 255, 255, 0.55); color: var(--color-foreground); }
 
+.group--dragging {
+  opacity: 0.4;
+}
+
+.group--drop-before {
+  box-shadow: inset 0 2px 0 0 var(--color-accent-strong);
+}
+
+.group--drop-after {
+  box-shadow: inset 0 -2px 0 0 var(--color-accent-strong);
+}
+
+.group__name-input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--color-accent-strong);
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+
+.group__name-input::placeholder {
+  color: var(--color-muted);
+  text-transform: none;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
 .group__chevron {
   width: 14px;
   height: 14px;
