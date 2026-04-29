@@ -345,10 +345,6 @@ webview { border: 0; }
   margin-top: -6vh;
 }
 
-.welcome__mark {
-  filter: drop-shadow(0 6px 14px rgba(45, 90, 61, 0.18));
-}
-
 .welcome__title {
   margin: 0;
   font-family: var(--font-display);
