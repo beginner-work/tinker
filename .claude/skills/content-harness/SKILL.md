@@ -19,17 +19,33 @@ If the user asks for something else (one-pager, blog post, sales email, etc.), t
 
 If the request is unambiguous ("build me a pitch deck for…"), skip the confirmation. Otherwise ask once via `AskUserQuestion` whether the user wants a full deck, a deck section, or to back out.
 
-### 2. Free-text intake (single chat message)
+### 2. Identity & ask intake (two `AskUserQuestion` calls)
 
-Ask the user, in plain text, for the inputs that don't fit a multiple-choice format. Bundle them in one message so the user can paste a single block back:
+The intake runs entirely through the question loader — no plain-text question dumps. Two batches, each a single `AskUserQuestion` call.
 
-- Company name + one-sentence mission
-- What you do, in plain language (1–2 sentences)
-- Current stage and 2–3 proof points (revenue, growth %, marquee logos, retention, patents, etc.)
-- Known investor or firm this deck is for (name + firm if known) — optional
-- Ask amount + intended use of funds
+**Batch 2A — Identity (4 questions, single call):**
 
-If they answer terse, ask **one** follow-up. Don't loop.
+| # | Header | Question | Options |
+|---|---|---|---|
+| 1 | `Company` | "What's the company name?" | "Use placeholder name" / "Help me brainstorm" — user picks Other to type the real name |
+| 2 | `Mission` | "One-sentence mission?" | "Use homepage tagline" / "Skip, draft later" — Other for the real mission |
+| 3 | `Plain pitch` | "What do you do, in plain language?" | "Use elevator pitch" / "Skip, infer later" — Other for the real sentence |
+| 4 | `Stage` | "Current stage?" | "Pre-revenue" / "Beta or pilots" / "Live + paying" / "Scaling (>$1M ARR)" |
+
+For Q1–Q3 the user will usually pick Other and type the answer. The two listed options exist so they can defer or use a placeholder without dropping into chat.
+
+**Batch 2B — Proof, target, ask (4 questions, single call):**
+
+| # | Header | Question | Options | multiSelect |
+|---|---|---|---|---|
+| 5 | `Proof types` | "Which proof point types do you have?" | "Revenue or growth" / "Marquee logo" / "Founder credentials" / "Patents or IP" | true |
+| 6 | `Target` | "Target investor relationship?" | "Specific firm/person" / "Archetype only" / "Cold outbound" / "Existing follow-on" | false |
+| 7 | `Ask` | "Ask amount?" | "<$500K" / "$500K–$2M" / "$2M–$5M" / "$5M+" | false |
+| 8 | `Use` | "Use of funds?" | "Hiring" / "Product / R&D" / "GTM / sales" / "Runway extension" | true |
+
+**One chat follow-up after Batch 2B (unavoidable):** ask the user to type the actual proof point specifics for each type checked in Q5 — e.g., "$240K ARR, 18% MoM, Stripe + Vercel logos." These can't be enumerated, so they're the only free-text pass in the workflow. Keep it to one short ask. If Q6 = "Specific firm/person" and the user didn't paste it via Other, ask the firm name in the same message.
+
+Skip any question whose answer the original request already gave you (e.g., user's first message named the company → don't ask Q1).
 
 ### 3. Decision intake (one `AskUserQuestion` call, four questions)
 
@@ -118,7 +134,7 @@ Standard slide order, then **front-load the slide that matches Q3** to position 
 | 9. Team | bios + why-us | move to slide 2/3 if Q3 = Team or archetype = Pre-seed |
 | 10. Ask | amount + use of funds | always close |
 
-Voice is non-negotiable across slides — pick it once and hold it. Proof points from the free-text intake should appear on every slide where the audience's top concern is in play.
+Voice is non-negotiable across slides — pick it once and hold it. Proof points from Batch 2B + the chat follow-up should appear on every slide where the audience's top concern is in play.
 
 ### 5. Generate the file
 
@@ -144,8 +160,9 @@ Stop there. Don't auto-iterate.
 
 ## Rules
 
-- **Always** use `AskUserQuestion` for the four decision points in step 3 *and* the follow-ups in step 3b — never inline them as a numbered list in chat. The point of the skill is the structured intake.
+- **Always** use `AskUserQuestion` for every step in 2, 3, and 3b — never inline a numbered list of questions in chat. The single chat-back allowed in step 2 (proof point specifics + firm name) is the only exception, because those values can't be enumerated.
 - The follow-up in step 3b is **conditional on** the answer in step 3 — pick the right row from each lookup table. Don't ask all the follow-ups for an axis; ask only the one for the chosen answer.
+- For step 3b's "Anchor" follow-up (Voice = Confident), supply the user's proof points from Batch 2B + chat follow-up as the options. If they gave none, skip F1 entirely.
 - **Never** invent brand details. If the user didn't give you a proof point, leave the slide skeletal and flag it with `[needs: …]` rather than fabricating numbers or logos.
 - **Never** generate the deck before step 3b completes (or before step 3 if all four axes opted out of follow-ups, which should be rare).
 - Keep the deck file as the single source of truth — edit it in place on iteration, don't fork copies.
@@ -155,8 +172,9 @@ Stop there. Don't auto-iterate.
 When adding a new type (sales narrative, board update, fundraise email):
 
 1. Add it under "Supported content types".
-2. Reuse step 2 (free-text intake) and step 3 Q1 (voice) as-is — these are content-agnostic.
-3. Replace step 3 Q2–Q4 with audience + depth questions appropriate to that type.
-4. Build a step 3b lookup table for each new question — one follow-up per option.
-5. Replace step 4 with a shape table for that type.
-6. Keep step 6 (four iteration moves) — it's the same loop.
+2. Reuse step 2 Batch 2A (identity) and step 3 Q1 (voice) as-is — these are content-agnostic.
+3. Rebuild step 2 Batch 2B around what *that* content type needs from the user (e.g., for a board update: reporting period, headline metric category, board's standing concerns).
+4. Replace step 3 Q2–Q4 with audience + depth questions appropriate to that type.
+5. Build a step 3b lookup table for each new question — one follow-up per option.
+6. Replace step 4 with a shape table for that type.
+7. Keep step 6 (four iteration moves) — it's the same loop.
