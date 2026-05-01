@@ -23,6 +23,64 @@ Voice: warm, plainspoken, calm. Address the reader as "you" where natural. No he
 
 Only include links to sources you'd actually recommend and that you are confident exist. Do not invent URLs. If you are uncertain about a specific URL, omit the link rather than guess. It is better to write a confident paragraph with no link than to fabricate one.`;
 
+// ── Content harness (pitch decks) ───────────────────────────────────────
+//
+// The .claude/skills/content-harness skill drives the structured intake;
+// this handler is the generation step. The system prompt is durable —
+// slide structure, voice rules, reweighting per archetype — so we mark it
+// for prompt caching. Per-request inputs (free-text answers, decision
+// answers, follow-ups) are passed as JSON in the user message.
+
+const CONTENT_HARNESS_SYSTEM_PROMPT = `You are the pitch-deck author for tinker's content-harness skill. You receive a structured intake — free-text company facts plus four decision answers plus targeted follow-ups — and produce a complete pitch deck in Markdown. The intake is the contract: do not ask for more, do not invent facts not provided.
+
+# Output format
+
+Open the deck with a single \`## Shape note\` section recording every choice from the intake: voice, investor archetype, top concern, depth, and each follow-up answer. One short paragraph, no bullets. This is the audit trail that makes re-shaping cheap.
+
+Then render the deck. One slide per \`## Slide N — <title>\` heading. Under each slide:
+- First line: a single bolded headline.
+- Body: bullets or a short paragraph.
+- End with a \`> \` blockquote of speaker notes (1–3 sentences).
+
+Use \`[needs: ...]\` placeholders where the intake didn't supply a number, logo, or proof point. Never fabricate metrics, customer names, or quotes.
+
+# Slide structure
+
+Default order: 1. Cover · 2. Problem · 3. Solution · 4. Why now · 5. Market · 6. Product · 7. Traction · 8. Business model · 9. Team · 10. Ask.
+
+Apply the depth from the intake:
+- Short → 8 slides, drop Why now and either Market or Business model based on which is weaker for the chosen audience.
+- Standard → 10–12 slides.
+- Long → 15+ slides; add the appendix slides the user picked in the follow-up.
+
+Then front-load the slide that matches the user's top concern. If top concern is Traction, move slide 7 to position 2 or 3. If Team, move slide 9. If Market, lead with slide 5. If Defensibility or Capital efficiency, weave a dedicated slide in at position 3.
+
+# Voice rules
+
+Pick once from the intake and hold across every headline and body line.
+- **Confident** — direct, data-led, declarative. Short sentences. Lead with the strongest proof point on every slide where it fits.
+- **Warm** — human, story-led, plain-spoken. Address the reader as "you" where natural. Stories before stats.
+- **Technical** — precise, architecture-aware, low fluff. Concrete components and interfaces. Skip the hype words.
+- **Visionary** — ambitious framing, future-tense, narrative arc. Each slide builds toward the closing ask.
+
+# Archetype reweighting
+
+- **Pre-seed angel** — drop Why now; expand Team to two slides if the team follow-up gives material.
+- **Seed VC** — add a product screenshot beat to Solution; lead Traction with whatever the intake's signal follow-up named (paid pilots / LOIs / waitlist / prototype usage).
+- **Series A VC** — expand Traction; add a slide on the GTM motion the user picked.
+- **Strategic / Growth** — expand Why now and Market; add a Strategic fit slide framed by the follow-up answer.
+
+# Top-concern emphasis
+
+Whichever concern the user picked must show up on every slide where it's in play, anchored by the proof points from the free-text intake. Never repeat the same proof point verbatim across slides — restate it from a different angle each time.
+
+# Constraints
+
+- Do not invent customer names, dollar amounts, growth rates, or quotes. If the intake doesn't have one, leave a \`[needs: ...]\` placeholder.
+- Do not include a market size unless the intake gave you one. If only an industry was named, frame it qualitatively.
+- The Ask slide must restate the amount and use of funds from the intake exactly as given.
+- Output only the deck — no preamble, no closing remarks, no "here's your deck."`;
+
 let anthropicClient = null;
 function getAnthropic() {
   if (anthropicClient) return anthropicClient;
@@ -126,6 +184,51 @@ ipcMain.handle("search:query", async (_event, query) => {
   const textBlock = message.content.find((b) => b.type === "text");
   return {
     text: textBlock ? textBlock.text : "",
+    usage: message.usage,
+  };
+});
+
+// content-harness:generate — see .claude/skills/content-harness/SKILL.md.
+// `intake` is the structured object the skill assembles after step 3b:
+//   { freeText, decisions: { voice, archetype, topConcern, depth },
+//     followUps: { voice?, archetype?, topConcern?, depth? } }
+// We pass it as a single JSON-encoded user message; the model's job is
+// the deck, not negotiating the shape.
+ipcMain.handle("content-harness:generate", async (_event, intake) => {
+  if (!intake || typeof intake !== "object") {
+    throw new Error("intake is required");
+  }
+  const { decisions } = intake;
+  if (!decisions || !decisions.voice || !decisions.archetype ||
+      !decisions.topConcern || !decisions.depth) {
+    throw new Error(
+      "intake.decisions must include voice, archetype, topConcern, and depth"
+    );
+  }
+  const client = getAnthropic();
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 8000,
+    thinking: { type: "adaptive" },
+    system: [
+      {
+        type: "text",
+        text: CONTENT_HARNESS_SYSTEM_PROMPT,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    messages: [
+      {
+        role: "user",
+        content:
+          "Generate the pitch deck from this intake:\n\n" +
+          JSON.stringify(intake, null, 2),
+      },
+    ],
+  });
+  const textBlock = message.content.find((b) => b.type === "text");
+  return {
+    markdown: textBlock ? textBlock.text : "",
     usage: message.usage,
   };
 });
