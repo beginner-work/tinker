@@ -14,6 +14,13 @@
 
   const HOME_URL = "tinker://home";
   const SEARCH_PREFIX = "tinker://search?q=";
+  const PITCH_URL = "tinker://pitch-deck";
+
+  // First message we seed into the conversation so the model opens with
+  // Phase 1 question 1 instead of waiting for the founder to introduce
+  // themselves. Treated as a synthetic user turn — never shown.
+  const PITCH_KICKOFF =
+    "Start the pitch-deck onboarding. Greet me warmly in one short sentence, then ask Phase 1 question 1.";
 
   /** @type {Array<{id: string, url: string, title: string, loading: boolean, view: HTMLElement | null}>} */
   let sessions = [];
@@ -44,6 +51,9 @@
     const text = raw.trim();
     if (!text) return null;
     if (text === "home" || text === "tinker://home") return HOME_URL;
+    if (text === "pitch deck" || text === "pitch" || text === PITCH_URL) {
+      return PITCH_URL;
+    }
     if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(text)) return text;
     if (/^[a-z]+:/i.test(text)) return text;
     const looksLikeHost = /^[\w-]+(\.[\w-]+)+(\/.*)?$/i.test(text);
@@ -196,6 +206,11 @@
       return;
     }
 
+    if (url === PITCH_URL) {
+      showPitchDeck(session);
+      return;
+    }
+
     // On Capacitor / plain web there's no <webview> tag — open the URL
     // in the system browser overlay (or a new tab) and leave the
     // current session on its previous view.
@@ -322,6 +337,265 @@
     }
   }
 
+  // ── Pitch-deck pane ─────────────────────────────────────────────────
+  //
+  // Multi-turn chat UI for the pitch-deck onboarding skill. Each session
+  // owns its own messages array (Anthropic content-block shape), its DOM
+  // pane, and its in-flight state. The model can call save_pitch_deck;
+  // when it does, we render an inline deck card and feed back a tool
+  // result so the conversation can continue with iteration prompts.
+
+  function showPitchDeck(session) {
+    session.url = PITCH_URL;
+    session.title = "Pitch deck";
+    if (session.view && !session.view.classList.contains("pitch-pane")) {
+      removeSessionView(session);
+    }
+    if (!session.view) {
+      const pane = createPitchPane(session);
+      session.view = pane;
+      stage.appendChild(pane);
+    }
+    render();
+    pitchTextarea(session.view).focus();
+
+    // Kick off the first turn if this is a fresh session.
+    if (!session.pitch || session.pitch.messages.length === 0) {
+      session.pitch = {
+        messages: [],
+        sending: false,
+        deck: null,
+      };
+      sendPitchTurn(session, PITCH_KICKOFF, { hidden: true });
+    }
+  }
+
+  function createPitchPane(session) {
+    const pane = document.createElement("section");
+    pane.className = "pitch-pane";
+    pane.dataset.sessionId = session.id;
+    pane.innerHTML =
+      '<div class="pitch-pane__head">' +
+      '<span class="pitch-pane__crumb">Onboarding</span>' +
+      '<h2 class="pitch-pane__title">Build a pitch deck</h2>' +
+      '<p class="pitch-pane__sub">A guided interview. Talk about your idea like you would to a friend.</p>' +
+      "</div>" +
+      '<div class="pitch-pane__scroll" data-role="scroll">' +
+      '<div class="pitch-pane__messages" data-role="messages"></div>' +
+      "</div>" +
+      '<form class="pitch-pane__compose" data-role="compose">' +
+      '<div class="pitch-pane__compose-inner">' +
+      '<textarea class="pitch-pane__textarea" data-role="textarea" rows="1" ' +
+      'placeholder="Reply…" aria-label="Reply"></textarea>' +
+      '<button type="submit" class="pitch-pane__send" data-role="send" disabled>Send</button>' +
+      "</div>" +
+      "</form>";
+
+    const textarea = pane.querySelector('[data-role="textarea"]');
+    const send = pane.querySelector('[data-role="send"]');
+    const compose = pane.querySelector('[data-role="compose"]');
+
+    const sync = () => {
+      const v = textarea.value.trim();
+      send.disabled = !v || (session.pitch && session.pitch.sending);
+      // Auto-grow up to the CSS max-height.
+      textarea.style.height = "auto";
+      textarea.style.height = Math.min(textarea.scrollHeight, 180) + "px";
+    };
+    textarea.addEventListener("input", sync);
+    textarea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        compose.requestSubmit();
+      }
+    });
+
+    compose.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const v = textarea.value.trim();
+      if (!v || session.pitch.sending) return;
+      textarea.value = "";
+      sync();
+      sendPitchTurn(session, v);
+    });
+
+    return pane;
+  }
+
+  function pitchTextarea(pane) { return pane.querySelector('[data-role="textarea"]'); }
+  function pitchSend(pane) { return pane.querySelector('[data-role="send"]'); }
+  function pitchMessages(pane) { return pane.querySelector('[data-role="messages"]'); }
+  function pitchScroll(pane) { return pane.querySelector('[data-role="scroll"]'); }
+
+  function pitchAppend(pane, el) {
+    pitchMessages(pane).appendChild(el);
+    const scroll = pitchScroll(pane);
+    scroll.scrollTop = scroll.scrollHeight;
+  }
+
+  function pitchBubble(role, text) {
+    const div = document.createElement("div");
+    div.className = "pitch-msg pitch-msg--" + role;
+    div.textContent = text;
+    return div;
+  }
+
+  function pitchLoading() {
+    const div = document.createElement("div");
+    div.className = "pitch-msg pitch-msg--assistant";
+    div.innerHTML =
+      '<span class="pitch-msg__loading">' +
+      '<span class="thinking-dots" aria-hidden="true">' +
+      '<span class="thinking-dot"></span>' +
+      '<span class="thinking-dot"></span>' +
+      '<span class="thinking-dot"></span>' +
+      "</span>" +
+      "<span>Thinking…</span>" +
+      "</span>";
+    return div;
+  }
+
+  function pitchError(message) {
+    const div = document.createElement("div");
+    div.className = "pitch-pane__error";
+    div.innerHTML =
+      "<strong>Couldn't reach Claude.</strong> " +
+      escapeHtml(message || "Unknown error");
+    return div;
+  }
+
+  function setPitchSending(session, sending) {
+    session.pitch.sending = sending;
+    if (session.id === activeId) setLoading(sending);
+    session.loading = sending;
+    renderSessions();
+    if (session.view) {
+      pitchSend(session.view).disabled =
+        sending || !pitchTextarea(session.view).value.trim();
+      pitchTextarea(session.view).disabled = sending;
+    }
+  }
+
+  // Send a turn: append the user message (visible unless hidden), call
+  // the API, render the assistant's text and any tool-use cards, then
+  // — if a tool was used — feed the tool_result back as a follow-up
+  // call so the model can give its closing line.
+  async function sendPitchTurn(session, userText, opts = {}) {
+    const { hidden = false } = opts;
+    const pane = session.view;
+    if (!pane) return;
+
+    // Append the user turn to the conversation. Hidden turns (the
+    // kickoff) still go into messages but skip the bubble.
+    session.pitch.messages.push({
+      role: "user",
+      content: [{ type: "text", text: userText }],
+    });
+    if (!hidden) pitchAppend(pane, pitchBubble("user", userText));
+
+    setPitchSending(session, true);
+    const loadingEl = pitchLoading();
+    pitchAppend(pane, loadingEl);
+
+    try {
+      const response = await window.tinker.pitchDeckTurn(session.pitch.messages);
+      loadingEl.remove();
+
+      const assistantBlocks = response.content || [];
+      session.pitch.messages.push({ role: "assistant", content: assistantBlocks });
+
+      const toolUses = [];
+      for (const block of assistantBlocks) {
+        if (block.type === "text" && block.text.trim()) {
+          pitchAppend(pane, pitchBubble("assistant", block.text));
+        } else if (block.type === "tool_use" && block.name === "save_pitch_deck") {
+          toolUses.push(block);
+          renderDeckCard(session, block);
+        }
+      }
+
+      // If the model called a tool, send tool_result(s) back in one user
+      // turn and ask Claude to wrap up. Without this the conversation
+      // stalls in tool_use mid-turn.
+      if (toolUses.length > 0) {
+        setPitchSending(session, false);
+        const results = toolUses.map((t) => ({
+          type: "tool_result",
+          tool_use_id: t.id,
+          content: "Deck saved. Show the spoken summary in chat now.",
+        }));
+        session.pitch.messages.push({ role: "user", content: results });
+
+        setPitchSending(session, true);
+        const followUpLoading = pitchLoading();
+        pitchAppend(pane, followUpLoading);
+        const followUp = await window.tinker.pitchDeckTurn(session.pitch.messages);
+        followUpLoading.remove();
+        session.pitch.messages.push({ role: "assistant", content: followUp.content || [] });
+        for (const block of followUp.content || []) {
+          if (block.type === "text" && block.text.trim()) {
+            pitchAppend(pane, pitchBubble("assistant", block.text));
+          }
+        }
+      }
+    } catch (err) {
+      loadingEl.remove();
+      pitchAppend(pane, pitchError(err && err.message ? err.message : String(err)));
+      // Roll back the user turn we optimistically appended so the
+      // founder can resend without duplicating it in the history.
+      session.pitch.messages.pop();
+    } finally {
+      setPitchSending(session, false);
+    }
+  }
+
+  function renderDeckCard(session, toolUseBlock) {
+    const input = toolUseBlock.input || {};
+    const markdown = typeof input.markdown === "string" ? input.markdown : "";
+    const summary = typeof input.summary === "string" ? input.summary : "";
+    session.pitch.deck = { markdown, summary };
+
+    const card = document.createElement("div");
+    card.className = "pitch-deck-card";
+    card.innerHTML =
+      '<div class="pitch-deck-card__crumb">Pitch deck ready</div>' +
+      '<div class="pitch-deck-card__title">Your deck — review and save</div>' +
+      '<div class="pitch-deck-card__summary"></div>' +
+      '<div class="pitch-deck-card__actions">' +
+      '<button type="button" class="pitch-deck-card__btn pitch-deck-card__btn--primary" data-act="copy">Copy markdown</button>' +
+      '<button type="button" class="pitch-deck-card__btn" data-act="download">Download .md</button>' +
+      '<button type="button" class="pitch-deck-card__btn" data-act="toggle">Show full deck</button>' +
+      "</div>" +
+      '<pre class="pitch-deck-card__preview" hidden></pre>';
+    card.querySelector(".pitch-deck-card__summary").textContent = summary;
+    card.querySelector(".pitch-deck-card__preview").textContent = markdown;
+
+    card.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-act]");
+      if (!btn) return;
+      const act = btn.dataset.act;
+      const preview = card.querySelector(".pitch-deck-card__preview");
+      if (act === "copy") {
+        navigator.clipboard.writeText(markdown).then(
+          () => { btn.textContent = "Copied"; setTimeout(() => { btn.textContent = "Copy markdown"; }, 1400); },
+          () => { btn.textContent = "Copy failed"; }
+        );
+      } else if (act === "download") {
+        const blob = new Blob([markdown], { type: "text/markdown" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "pitch-deck.md";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } else if (act === "toggle") {
+        preview.hidden = !preview.hidden;
+        btn.textContent = preview.hidden ? "Show full deck" : "Hide full deck";
+      }
+    });
+
+    pitchAppend(session.view, card);
+  }
+
   // ── Rendering ───────────────────────────────────────────────────────
 
   function render() {
@@ -361,6 +635,12 @@
           '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
           '<circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.6" fill="none"/>' +
           '<path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+      } else if (session.url === PITCH_URL) {
+        icon.innerHTML =
+          '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none">' +
+          '<rect x="4" y="5" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/>' +
+          '<path d="M9 21h6M12 17v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+          '<path d="M8 10l2.5 2.5L14 9l2 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       } else {
         icon.innerHTML =
           '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
@@ -408,9 +688,13 @@
     const view = session && session.view;
     const isWebview = view && view.tagName.toLowerCase() === "webview";
     const onHome = !session || session.url === HOME_URL;
+    const onPitch = session && session.url === PITCH_URL;
     navBack.disabled = onHome || !isWebview || !view.canGoBack || !view.canGoBack();
     navForward.disabled = onHome || !isWebview || !view.canGoForward || !view.canGoForward();
-    navReload.disabled = onHome;
+    // Reload is meaningful for webviews and the search pane (re-runs the
+    // query). The pitch pane has no reload behaviour — closing the
+    // session is the way to start a new interview.
+    navReload.disabled = onHome || onPitch;
   }
 
   function setLoading(active) {
