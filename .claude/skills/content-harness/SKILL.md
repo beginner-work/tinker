@@ -46,45 +46,86 @@ For Q1–Q3 the user will usually pick Other and type the answer. The two listed
 
 Skip any question whose answer the original request already gave you (e.g., user's first message named the company → don't ask Q1).
 
-**Batch 2C — Ask sizing diagnostic (4 questions, single call):**
+**Batch 2C — Ask sizing diagnostic (three sub-batches + one conditional follow-up):**
 
-The skill **never** asks the founder to pick a dollar range directly. Instead, ask the four inputs that let you compute a defensible ask, then propose it.
+The skill **never** asks the founder to pick a dollar range directly. Instead, decompose burn and runway into their components, gather them, then compute the ask.
+
+**Batch 2C-1 — Framing (4 questions, single call):**
 
 | # | Header | Question | Options | multiSelect |
 |---|---|---|---|---|
-| 8 | `Runway` | "How many months of runway should this raise buy?" | "12 months (bridge)" / "18 months (standard)" / "24 months (milestone buffer)" / "36 months (deep tech / hardware)" | false |
-| 9 | `Burn` | "Planned post-raise monthly burn?" | "<$50K (solo / 2-person)" / "$50K–$150K (3–8 person)" / "$150K–$400K (10–20 + infra)" / "$400K+ (20+ or capex)" | false |
-| 10 | `Milestone` | "What does the next round need to see?" | "Product–market fit signal" / "Revenue scale ($1M+ ARR)" / "Path to profitability" / "Next-stage metrics" | false |
+| 8 | `Milestone` | "What does the next round need to see?" | "PMF signal" / "Revenue scale" / "Path to profitability" / "Next-stage metrics" | false |
+| 9 | `Time to ms` | "How long to hit that milestone?" | "6 mo" / "12 mo" / "18 mo" / "24 mo" | false |
+| 10 | `Buffer` | "Post-milestone fundraise buffer?" | "3 mo (lean)" / "6 mo (typical)" / "9 mo (cautious)" / "12 mo (long horizon)" | false |
 | 11 | `Use` | "Use of funds?" | "Hiring" / "Product / R&D" / "GTM / sales" / "Runway extension" | true |
 
-**Compute the proposed ask** from Batch 2C answers using these bucket midpoints and a 15% buffer:
+**Batch 2C-2 — Burn math (4 questions, single call):**
 
-```
-burn midpoint × runway months × 1.15 = base
-range = round(base × 0.9)  to  round(base × 1.15), nearest $250K
-```
+Decomposing burn into team size + hires + comp band + non-personnel produces a tighter monthly burn estimate than a single bucketed picker.
 
-| Burn bucket | Midpoint |
+| # | Header | Question | Options | multiSelect |
+|---|---|---|---|---|
+| 12 | `Team` | "Current team size (FTEs)?" | "Solo" / "Pair (2)" / "Small (3–5)" / "Larger (6+)" | false |
+| 13 | `Hires` | "Hires planned over runway?" | "0" / "1–2" / "3–5" / "6+" | false |
+| 14 | `Comp band` | "Avg fully-loaded annual comp per FTE?" | "<$120K (low-cost geo)" / "$120–180K (US non-coastal)" / "$180–250K (SF / NYC)" / "$250K+ (senior-heavy)" | false |
+| 15 | `Other burn` | "Non-personnel monthly burn (infra, tools, legal, marketing)?" | "<$5K (lean)" / "$5–15K (typical SaaS)" / "$15–50K (capex / large infra)" / "$50K+ (heavy)" | false |
+
+**Batch 2C-3 — Milestone target (1 question, conditional on Q8):**
+
+Pick the row matching the milestone chosen in Q8. This pins down what "milestone hit" actually means — without it the deck's slide-7 traction story has no target.
+
+| If Q8 = | Header | Question | Options |
+|---|---|---|---|
+| PMF signal | `PMF metric` | "Which PMF signal counts?" | "Retention plateau" / "DAU/MAU threshold" / "NPS > 50" / "Activation rate" |
+| Revenue scale | `ARR target` | "ARR target by milestone?" | "$500K" / "$1M" / "$3M" / "$5M+" |
+| Path to profitability | `Profit target` | "Profit target?" | "Break-even" / "10% net margin" / "20% net margin" / "Cash positive" |
+| Next-stage metrics | `Stage metric` | "Which metric defines the next round?" | "Series A pace" / "Series B metrics" / "IPO-track" / "Custom (Other)" |
+
+**Compute the proposed ask** from Batches 2C-1 and 2C-2.
+
+Bucket midpoints:
+
+| Field | Buckets → midpoints |
 |---|---|
-| <$50K | $30K |
-| $50K–$150K | $100K |
-| $150K–$400K | $275K |
-| $400K+ | $500K |
+| Team | Solo=1 / Pair=2 / Small=4 / Larger=8 |
+| Hires | 0 / 1.5 / 4 / 8 |
+| Comp | $100K / $150K / $215K / $275K |
+| Other burn | $2.5K / $10K / $32.5K / $75K |
+| Time | 6 / 12 / 18 / 24 |
+| Buffer | 3 / 6 / 9 / 12 |
 
-Worked example: burn $50K–$150K, runway 18 months → $100K × 18 × 1.15 = $2.07M → range **$1.75M–$2.5M**.
+Calculation (linear-ramp assumption — half the planned hires are present on average):
 
-**Sanity-check the milestone against runway + stage** before proposing:
-- Milestone = "Path to profitability" with runway < 24 months and stage = pre-revenue → misaligned. Surface it: offer to extend runway to 24 months or pick a different milestone.
-- Milestone = "Revenue scale ($1M+ ARR)" with stage = pre-revenue and runway = 12 months → misaligned. Same offer.
-- If aligned, proceed.
+```
+effective_FTE = team + 0.5 × hires
+monthly_burn  = effective_FTE × (comp / 12) + other_burn
+runway_months = time_to_ms + buffer
+base_ask      = monthly_burn × runway_months × 1.15
+range         = round(base × 0.90) to round(base × 1.10), nearest $250K
+```
+
+The 1.15 coefficient is the milestone-risk buffer; the ±10% range is the input-precision buffer (tighter than the previous ±15% because each input is now finer).
+
+Worked example: team=Small (4), hires=3–5 (4), comp=$180–250K (215), other=$5–15K (10), time=12 mo, buffer=6 mo.
+- effective FTE = 4 + 0.5 × 4 = 6
+- monthly burn = 6 × ($215K / 12) + $10K = $107.5K + $10K = **$117.5K**
+- runway = 12 + 6 = **18 mo**
+- base = $117.5K × 18 × 1.15 = **$2.43M**
+- range = $2.19M – $2.67M → **$2.25M – $2.75M**
+
+**Sanity checks** before proposing:
+- Q8 = "Path to profitability" + Q9 ≤ 12 mo + stage = pre-revenue → misaligned. Surface and offer to extend Q9 or pick a different milestone.
+- Q8 = "Revenue scale" + 2C-3 ARR target ≥ $3M + stage = pre-revenue + Q9 ≤ 12 mo → misaligned. Same offer.
+- 2C-1 Q11 (Use) = {Hiring} only + Q13 (Hires) = 0 → contradiction. Surface and ask which is wrong.
+- monthly_burn × Q9 (time-to-milestone alone, no buffer) > implied "Raised" answer from Batch 2B Q7 → the founder hasn't accounted for prior burn; flag it but don't block.
 
 **Batch 2D — Confirm the proposed ask (1 question, single call):**
 
 | # | Header | Question | Options | multiSelect |
 |---|---|---|---|---|
-| 12 | `Confirm ask` | "Proposed ask: $X.X–$Y.Y M for an N-month runway. Use this?" | "Yes, use this range" / "Adjust higher" / "Adjust lower" — Other for a specific number | false |
+| 16 | `Confirm ask` | "Proposed ask: $X.X–$Y.Y M for an N-month runway (M-month milestone + B-month buffer). Use this?" | "Yes, use this range" / "Adjust higher" / "Adjust lower" — Other for a specific number | false |
 
-If user picks "Adjust higher" or "Adjust lower," nudge by one buffer step (±15%) and re-confirm once. If they keep adjusting, ask them to type the exact number via Other and stop nudging.
+If the user picks "Adjust higher" or "Adjust lower," nudge by one input-precision step (±10%) and re-confirm once. If they keep adjusting, ask them to type the exact number via Other and stop nudging.
 
 ### 3. Decision intake (one `AskUserQuestion` call, four questions)
 
@@ -184,7 +225,7 @@ Write the deck to `pitch-deck.md` in the working directory. Format:
 - Body as bullets or short paragraph
 - Speaker notes as a `> ` blockquote at the end of each slide
 
-Open the file with a one-paragraph **Shape note** at the top recording every choice: voice, archetype, top concern, depth, each follow-up answer from step 3b, and the confirmed ask range from Batch 2D (with the runway/burn/milestone inputs that produced it). This is the audit trail that makes re-shaping cheap and the ask defensible.
+Open the file with a one-paragraph **Shape note** at the top recording every choice: voice, archetype, top concern, depth, each follow-up answer from step 3b, and the confirmed ask range from Batch 2D. The ask line should also list its inputs — team / hires / comp / other-burn / time-to-milestone / buffer / specific milestone target — so a reader can re-derive the number. This is the audit trail that makes re-shaping cheap and the ask defensible to skeptical investors.
 
 ### 6. Offer iteration
 
@@ -200,8 +241,8 @@ Stop there. Don't auto-iterate.
 ## Rules
 
 - **Always** use `AskUserQuestion` for every step in 2, 3, and 3b — never inline a numbered list of questions in chat. The single chat-back allowed in step 2 (proof point specifics + firm name) is the only exception, because those values can't be enumerated.
-- **Never** ask the founder to pick a dollar ask range directly. Run Batch 2C (runway / burn / milestone / use of funds), compute a range, and confirm it via Batch 2D. The whole point of breaking out 2C is that founders often don't know what to ask for — the skill helps them figure it out.
-- Always run the milestone-vs-runway sanity check in step 2C before proposing the ask. A misaligned milestone means the deck will under-promise or over-promise.
+- **Never** ask the founder to pick a dollar ask range directly. Run Batches 2C-1, 2C-2, and the conditional 2C-3 in order, compute a range from the components, and confirm it via Batch 2D. Founders often don't know what to ask for — the skill helps them figure it out by decomposing the question into components they *can* answer.
+- Always run the four sanity checks in step 2C (milestone-vs-runway, ARR-vs-stage, hiring-vs-use, prior-burn) before proposing the ask. A misaligned input means the deck will under- or over-promise.
 - The follow-up in step 3b is **conditional on** the answer in step 3 — pick the right row from each lookup table. Don't ask all the follow-ups for an axis; ask only the one for the chosen answer.
 - For step 3b's "Anchor" follow-up (Voice = Confident), supply the user's proof points from Batch 2B + chat follow-up as the options. If they gave none, skip F1 entirely.
 - **Never** invent brand details. If the user didn't give you a proof point, leave the slide skeletal and flag it with `[needs: …]` rather than fabricating numbers or logos.
