@@ -34,18 +34,57 @@ The intake runs entirely through the question loader — no plain-text question 
 
 For Q1–Q3 the user will usually pick Other and type the answer. The two listed options exist so they can defer or use a placeholder without dropping into chat.
 
-**Batch 2B — Proof, target, ask (4 questions, single call):**
+**Batch 2B — Proof + audience context (3 questions, single call):**
 
 | # | Header | Question | Options | multiSelect |
 |---|---|---|---|---|
 | 5 | `Proof types` | "Which proof point types do you have?" | "Revenue or growth" / "Marquee logo" / "Founder credentials" / "Patents or IP" | true |
 | 6 | `Target` | "Target investor relationship?" | "Specific firm/person" / "Archetype only" / "Cold outbound" / "Existing follow-on" | false |
-| 7 | `Ask` | "Ask amount?" | "<$500K" / "$500K–$2M" / "$2M–$5M" / "$5M+" | false |
-| 8 | `Use` | "Use of funds?" | "Hiring" / "Product / R&D" / "GTM / sales" / "Runway extension" | true |
+| 7 | `Raised` | "How much have you raised to date?" | "Pre-funding" / "<$500K (F&F / pre-seed)" / "$500K–$2M (seed)" / "$2M+ (priced round)" | false |
 
 **One chat follow-up after Batch 2B (unavoidable):** ask the user to type the actual proof point specifics for each type checked in Q5 — e.g., "$240K ARR, 18% MoM, Stripe + Vercel logos." These can't be enumerated, so they're the only free-text pass in the workflow. Keep it to one short ask. If Q6 = "Specific firm/person" and the user didn't paste it via Other, ask the firm name in the same message.
 
 Skip any question whose answer the original request already gave you (e.g., user's first message named the company → don't ask Q1).
+
+**Batch 2C — Ask sizing diagnostic (4 questions, single call):**
+
+The skill **never** asks the founder to pick a dollar range directly. Instead, ask the four inputs that let you compute a defensible ask, then propose it.
+
+| # | Header | Question | Options | multiSelect |
+|---|---|---|---|---|
+| 8 | `Runway` | "How many months of runway should this raise buy?" | "12 months (bridge)" / "18 months (standard)" / "24 months (milestone buffer)" / "36 months (deep tech / hardware)" | false |
+| 9 | `Burn` | "Planned post-raise monthly burn?" | "<$50K (solo / 2-person)" / "$50K–$150K (3–8 person)" / "$150K–$400K (10–20 + infra)" / "$400K+ (20+ or capex)" | false |
+| 10 | `Milestone` | "What does the next round need to see?" | "Product–market fit signal" / "Revenue scale ($1M+ ARR)" / "Path to profitability" / "Next-stage metrics" | false |
+| 11 | `Use` | "Use of funds?" | "Hiring" / "Product / R&D" / "GTM / sales" / "Runway extension" | true |
+
+**Compute the proposed ask** from Batch 2C answers using these bucket midpoints and a 15% buffer:
+
+```
+burn midpoint × runway months × 1.15 = base
+range = round(base × 0.9)  to  round(base × 1.15), nearest $250K
+```
+
+| Burn bucket | Midpoint |
+|---|---|
+| <$50K | $30K |
+| $50K–$150K | $100K |
+| $150K–$400K | $275K |
+| $400K+ | $500K |
+
+Worked example: burn $50K–$150K, runway 18 months → $100K × 18 × 1.15 = $2.07M → range **$1.75M–$2.5M**.
+
+**Sanity-check the milestone against runway + stage** before proposing:
+- Milestone = "Path to profitability" with runway < 24 months and stage = pre-revenue → misaligned. Surface it: offer to extend runway to 24 months or pick a different milestone.
+- Milestone = "Revenue scale ($1M+ ARR)" with stage = pre-revenue and runway = 12 months → misaligned. Same offer.
+- If aligned, proceed.
+
+**Batch 2D — Confirm the proposed ask (1 question, single call):**
+
+| # | Header | Question | Options | multiSelect |
+|---|---|---|---|---|
+| 12 | `Confirm ask` | "Proposed ask: $X.X–$Y.Y M for an N-month runway. Use this?" | "Yes, use this range" / "Adjust higher" / "Adjust lower" — Other for a specific number | false |
+
+If user picks "Adjust higher" or "Adjust lower," nudge by one buffer step (±15%) and re-confirm once. If they keep adjusting, ask them to type the exact number via Other and stop nudging.
 
 ### 3. Decision intake (one `AskUserQuestion` call, four questions)
 
@@ -145,7 +184,7 @@ Write the deck to `pitch-deck.md` in the working directory. Format:
 - Body as bullets or short paragraph
 - Speaker notes as a `> ` blockquote at the end of each slide
 
-Open the file with a one-paragraph **Shape note** at the top recording every choice: voice, archetype, top concern, depth, and each follow-up answer from step 3b. This is the audit trail that makes re-shaping cheap.
+Open the file with a one-paragraph **Shape note** at the top recording every choice: voice, archetype, top concern, depth, each follow-up answer from step 3b, and the confirmed ask range from Batch 2D (with the runway/burn/milestone inputs that produced it). This is the audit trail that makes re-shaping cheap and the ask defensible.
 
 ### 6. Offer iteration
 
@@ -161,6 +200,8 @@ Stop there. Don't auto-iterate.
 ## Rules
 
 - **Always** use `AskUserQuestion` for every step in 2, 3, and 3b — never inline a numbered list of questions in chat. The single chat-back allowed in step 2 (proof point specifics + firm name) is the only exception, because those values can't be enumerated.
+- **Never** ask the founder to pick a dollar ask range directly. Run Batch 2C (runway / burn / milestone / use of funds), compute a range, and confirm it via Batch 2D. The whole point of breaking out 2C is that founders often don't know what to ask for — the skill helps them figure it out.
+- Always run the milestone-vs-runway sanity check in step 2C before proposing the ask. A misaligned milestone means the deck will under-promise or over-promise.
 - The follow-up in step 3b is **conditional on** the answer in step 3 — pick the right row from each lookup table. Don't ask all the follow-ups for an axis; ask only the one for the chosen answer.
 - For step 3b's "Anchor" follow-up (Voice = Confident), supply the user's proof points from Batch 2B + chat follow-up as the options. If they gave none, skip F1 entirely.
 - **Never** invent brand details. If the user didn't give you a proof point, leave the slide skeletal and flag it with `[needs: …]` rather than fabricating numbers or logos.
