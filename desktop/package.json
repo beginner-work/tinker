@@ -1,7 +1,7 @@
 {
-  "name": "tinker-chat",
+  "name": "tinker",
   "version": "0.1.0",
-  "description": "tinker chat — a desktop client for the shared Claude API",
+  "description": "tinker — a quiet desktop client",
   "main": "out/main/index.js",
   "author": "tinker",
   "license": "UNLICENSED",

@@ -35,7 +35,7 @@ export function Login({ onSuccess, onSwitchToSignup }: Props) {
         Welcome back
       </h1>
       <p className="text-sm text-muted">
-        Sign in to keep chatting with Claude through the shared key.
+        Sign in to pick up where you left off.
       </p>
 
       <form onSubmit={submit} className="mt-6 flex flex-col gap-4">

@@ -500,7 +500,7 @@ function StepCard({ step, total }: { step: Step; total: number }) {
 
       <div>
         <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-accent">
-          Claude responds
+          Reply
         </div>
         <div className="font-display text-[16.5px] leading-[1.7] text-foreground">
           {paragraphs.length === 0 && step.streaming ? (

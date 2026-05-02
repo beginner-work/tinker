@@ -50,11 +50,8 @@ export function Signup({ onSuccess, onSwitchToLogin }: Props) {
       <h1 className="font-display text-3xl font-bold tracking-tight">
         Create your account
       </h1>
-      <p className="text-sm text-muted">
-        Sign up to chat with Claude through the shared API key.
-      </p>
 
-      <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
+      <form onSubmit={submit} className="mt-8 flex flex-col gap-4">
         <div>
           <label className="label" htmlFor="signup-email">Email</label>
           <input

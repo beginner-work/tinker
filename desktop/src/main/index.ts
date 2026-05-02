@@ -5,7 +5,7 @@ import { join } from "path";
 const isDev = !app.isPackaged;
 
 // Display name in macOS menu bar.
-app.setName("tinker chat");
+app.setName("tinker");
 
 // Encrypted token sits at <userData>/auth.bin. safeStorage encrypts with the
 // OS keychain (Keychain on macOS, DPAPI on Windows, libsecret on Linux). We
@@ -42,7 +42,9 @@ function eraseToken(): void {
 }
 
 function backendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:4000";
+  // Production backend lives at beginner.work. Override with BACKEND_URL
+  // (e.g. http://localhost:4000) when developing against a local server.
+  return process.env.BACKEND_URL || "https://beginner.work";
 }
 
 function createWindow(): void {
@@ -52,7 +54,7 @@ function createWindow(): void {
     minWidth: 720,
     minHeight: 480,
     backgroundColor: "#FFFDF7",
-    title: "tinker chat",
+    title: "tinker",
     autoHideMenuBar: true,
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 14, y: 16 },

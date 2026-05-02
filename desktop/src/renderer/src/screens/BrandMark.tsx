@@ -20,7 +20,7 @@ export function BrandMark() {
         <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" strokeWidth="11" />
       </svg>
       <span className="font-display text-base font-bold tracking-tight">
-        tinker chat
+        tinker
       </span>
     </div>
   );

@@ -1,21 +1,27 @@
-# tinker chat
+# tinker (desktop)
 
-Desktop Claude chat client built on **electron-vite + React + TypeScript +
-Tailwind**. Talks to the shared-key backend over HTTPS — JWT in
-`Authorization`, streaming `/claude/chat` responses parsed as SSE.
+A quiet desktop client built on **electron-vite + React + TypeScript +
+Tailwind**. Talks to a backend over HTTPS — JWT in `Authorization`,
+streaming responses parsed as Server-Sent Events.
 
 The renderer is sandboxed with context isolation on and Node integration
 off. The only IPC surface is `window.api` for token storage (encrypted
-via Electron's `safeStorage`, which uses the OS keychain) and the backend
-URL.
+via Electron's `safeStorage`, which uses the OS keychain) and the
+backend URL.
 
 ## Run it
 
 ```bash
 cd desktop
 npm install
-export BACKEND_URL="http://localhost:4000"   # default if unset
 npm run dev
+```
+
+By default the app talks to **`https://beginner.work`**. Override with
+`BACKEND_URL` when developing against a local server:
+
+```bash
+BACKEND_URL=http://localhost:4000 npm run dev
 ```
 
 `npm run dev` opens DevTools alongside the window and serves the renderer
@@ -43,42 +49,41 @@ src/
     └── src/
         ├── App.tsx          routes Login | Signup | Chat
         ├── lib/
-        │   ├── api.ts       signup, login, streamChat (SSE)
+        │   ├── api.ts       signup, login, streaming reply
         │   ├── jwt.ts       decode-only `exp` check
         │   └── storage.ts   window.api wrapper
-        └── screens/         Login, Signup, Chat
+        └── screens/         Login, Signup, Chat, BrandMark
 ```
 
 ### Auth & storage
 
 JWT is encrypted with `safeStorage.encryptString` and written to
 `<userData>/auth.bin`. On launch we decrypt, decode the `exp`, and skip
-to **Chat** if it's still valid. Anything else routes to **Login**. The
-client only reads `exp` from the payload — it never trusts the contents
-of the JWT.
+to the journey screen if it's still valid. Anything else routes to
+**Login**. The client only reads `exp` from the payload — it never
+trusts the contents of the JWT.
 
-### SSE streaming
+### Streaming replies
 
-`streamChat` uses `fetch()` (not `EventSource` — `EventSource` can't send
-custom `Authorization` headers). It branches on response status:
+The reply API uses `fetch()` (not `EventSource` — `EventSource` can't
+send custom `Authorization` headers). It branches on response status:
 
 - **200** → reads `response.body` as a stream, splits on `\n\n`, parses
-  each `event: <type>\ndata: <json>` block, and:
-  - emits `delta.text` from `content_block_delta` where
-    `delta.type === "text_delta"`
-  - emits `delta.thinking` (rendered in a collapsible "thinking" area)
-    from `thinking_delta`
-  - surfaces mid-stream `event: error\ndata: { message }` inline
+  each `event: <type>\ndata: <json>` block, emits visible text deltas
+  as they arrive, and folds optional reasoning traces into a
+  collapsible block.
 - **401** → clears the token and routes back to Login
 - **429** → shows "Daily limit reached, resets at &lt;local time&gt;"
 - **503** → shows "Server misconfigured — contact admin."
 - **400** → shows the error message inline
 
+Mid-stream upstream failures arrive as an `event: error` event and
+surface inline without crashing the journey.
+
 ### What's intentionally missing
 
-- **Persistence.** Conversations live in renderer state only — they
-  vanish on quit. The backend is fully stateless (every request sends
-  the full history), so persistence is purely a client concern. Marked
-  with `TODO(persistence)` in `src/renderer/src/screens/Chat.tsx`.
-- **Model picker, file attachments, settings, auto-update.** Out of
-  scope for v1.
+- **Persistence.** Journeys live in renderer state only — they vanish
+  on quit. The backend is fully stateless (every request sends the full
+  history), so persistence is purely a client concern. Marked with
+  `TODO(persistence)` in `src/renderer/src/screens/Chat.tsx`.
+- **Settings, attachments, auto-update.** Out of scope for v1.

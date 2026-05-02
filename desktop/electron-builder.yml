@@ -1,5 +1,5 @@
 appId: co.tinker.chat
-productName: tinker chat
+productName: tinker
 directories:
   buildResources: build
   output: dist
