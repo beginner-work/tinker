@@ -103,7 +103,20 @@ For each one they pick, run Phase 3 once and produce a separate version.
 
 The answer is about *their* life, not yours. It's why they would believe this works for them — and it shapes the closing line of the version you write.
 
-After Q5, you may ask **one** short open-ended follow-up in plain chat if a beat still feels thin — for example: *"What's the one moment from the last year you'd reach for to make this real for them?"* — but only one. Don't pile on questions.
+### Q6 — Why that shift happens
+
+> Why would that shift actually happen? What's the thing about putting work on this page that makes it possible?
+
+| Option | Description |
+|---|---|
+| Money-backing sorts real support from noise | You finally see who really supports you, because real support shows up as money — any amount. The people who only ever passive-aggressively comment stop mattering once you can see them next to actual receipts. |
+| The page makes the value of your time visible | Prices, terms, what you're open to. Casual requests either come with money attached or stop coming. |
+| Support stops extracting your time | The page lets people fund or buy instead of book, so the way to back you doesn't cost you hours. |
+| Your offerings define a structural "no" | Everything not on the page is a no — and the no is structural, not personal. There's nowhere for passive aggression to land. |
+
+This answer is the mechanism. It's the reason the conviction moment happens. The draft must use this exact reasoning when it explains why the thing works in this person's life — never invent a different mechanism, never lift one from the deck.
+
+After Q6, you may ask **one** short open-ended follow-up in plain chat if a beat still feels thin — for example: *"What's the one moment from the last year you'd reach for to make this real for them?"* — but only one. Don't pile on questions.
 
 ---
 
@@ -123,13 +136,16 @@ Each file is a single piece of running prose, **roughly 250–500 words**, struc
 - Anchor the opening to the **Q3 opening beat**.
 - Skip context the user told you in **Q4** the audience already has.
 - Anchor the **close** to the **Q5 conviction moment** whenever the listener could plausibly use the platform themselves. The narrative should end on the shift in *their* life, not on the founder's ask. If the listener can't be a user (pure investor, no maker side), fall back to the deck's line in the sand.
+- Anchor the **why-it-works paragraph** to the **Q6 mechanism**. When the draft explains why this thing causes the Q5 shift, use the user's exact reasoning from Q6. Do not invent a mechanism. Do not lift one from the deck. If you're tempted to write *"because the page makes them look first"* or *"because it cuts out the middleman"* and that wasn't the user's Q6 answer, stop — you're inventing.
 - Numbers and facts come **only** from `pitch-deck.md`. Never invent figures, customers, sources, or quotes. If the deck has `[NEEDS NUMBER: …]` placeholders, leave them out of the narrative entirely — don't substitute a guess.
+- **Don't lift emotional phrasing from the deck.** Lines like *"this was the only way I could find to make my own life work"* or *"founders aren't underfunded, they're un-met"* land in the deck because the deck builds the context around them. A coworker, family member, or friend doesn't have that context. Any vulnerable beat in the narrative must be grounded in something the listener already recognizes from their own life or from their history with the user — not phrased like the deck.
+- **Don't include funding-proof beats unless the listener cares.** The barber / $295 / who-funded-me-first material is for investors. A coworker, family member, or friend isn't deciding whether to fund you; including the proof reads as overselling. Only include it if the listener explicitly evaluates this kind of thing (e.g. they're a potential investor, named in Q1's "Other" or in follow-up).
 
 ### Tone targets per audience
 
-- **Coworker** — peer-to-peer, slightly professional, can name the mechanic directly, lands on what's different about the system.
-- **Family** — warmer, more "you-know-me", drops most numbers, lands on what funded means for the founder's life.
-- **Friend** — most vulnerable; says the part the deck almost says (*"this was the only way I could find to make my own life work"*) out loud.
+- **Coworker** — peer-to-peer, slightly professional, can name how it works directly, lands on what's different about the system.
+- **Family** — warmer, more "you-know-me", drops most numbers, lands on what being funded would mean for everyday life.
+- **Friend** — most personal. The vulnerable beat is grounded in shared history with this specific friend, not in a deck phrase. The close lands on the Q5 shift, with the Q6 mechanism doing the work of explaining why.
 
 ### After writing
 
