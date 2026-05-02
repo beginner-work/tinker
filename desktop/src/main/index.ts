@@ -1,4 +1,11 @@
-import { app, BrowserWindow, ipcMain, safeStorage, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  safeStorage,
+  session,
+  shell,
+} from "electron";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 
@@ -47,6 +54,57 @@ function backendUrl(): string {
   return process.env.BACKEND_URL || "https://beginner.work";
 }
 
+// CORS bypass for the configured backend.
+//
+// In dev the renderer loads from http://localhost:5173; in packaged builds
+// it loads from file://. Either way, fetches to https://beginner.work are
+// cross-origin and Chromium will preflight them. The backend opens CORS
+// (`app.use(cors())`), but Electron's renderer is fussier than a real
+// browser about preflight handling — and we'd rather not depend on the
+// server's CORS config being perfectly tuned for every Electron origin.
+//
+// So we intercept all responses from the backend in the main process and
+// inject permissive ACAO/ACAH/ACAM headers. We also force OPTIONS
+// preflight responses to 200 so the renderer proceeds even if the server
+// returns 4xx for the preflight. Side-stepping CORS is safe here because
+// the *only* code allowed to issue these requests is our own renderer
+// bundle (sandboxed, CSP-locked); there's no untrusted third-party
+// JavaScript that could exploit the loosened headers.
+function attachCorsBypass(): void {
+  const url = backendUrl();
+  let pattern: string;
+  try {
+    const u = new URL(url);
+    pattern = `${u.protocol}//${u.host}/*`;
+  } catch {
+    return;
+  }
+  session.defaultSession.webRequest.onHeadersReceived(
+    { urls: [pattern] },
+    (details, callback) => {
+      const headers: Record<string, string[]> = {};
+      for (const [k, v] of Object.entries(details.responseHeaders ?? {})) {
+        // Drop server-supplied CORS headers — we replace them below to
+        // avoid the "multiple Access-Control-Allow-Origin" browser error.
+        if (k.toLowerCase().startsWith("access-control-")) continue;
+        headers[k] = Array.isArray(v) ? v : [String(v)];
+      }
+      headers["Access-Control-Allow-Origin"] = ["*"];
+      headers["Access-Control-Allow-Headers"] = ["*"];
+      headers["Access-Control-Allow-Methods"] = ["GET, POST, OPTIONS"];
+      headers["Access-Control-Expose-Headers"] = ["*"];
+
+      const isPreflight = details.method === "OPTIONS";
+      const statusLine =
+        isPreflight && details.statusCode !== 200
+          ? "HTTP/1.1 200 OK"
+          : details.statusLine;
+
+      callback({ responseHeaders: headers, statusLine });
+    }
+  );
+}
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1180,
@@ -83,6 +141,8 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  attachCorsBypass();
+
   ipcMain.handle("auth:getToken", () => readToken());
   ipcMain.handle("auth:setToken", (_e, token: unknown) => {
     if (typeof token !== "string" || !token) {
