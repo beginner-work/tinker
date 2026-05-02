@@ -41,25 +41,25 @@ If a beat is missing from the deck, note it silently and skip it later. Don't as
 
 This is where the question loader does the work. Use the **AskUserQuestion** tool for the structured questions below. Send them in batches that make sense conversationally — never dump them all at once, but you may pair Q1+Q2 in a single call if it flows.
 
-**All user-facing question text and option labels must be in plain language.** The user knows nothing about business or pitching. No words like *founder*, *pitch*, *deck*, *mechanic*, *seed*, *traction*, *runway*, *platform-as-jargon*. The internal labels in headings (*Q3 — Opening beat*) are model-only — they don't appear to the user.
+**Voice rule for every user-facing question.** Ask like a friend who's curious about the user's life, not a form collecting requirements. Frame each question around the people in the user's life and how the user already lives — never around "the draft", "the audience", "the version we're producing." The user knows nothing about business or pitching. No words like *founder*, *pitch*, *deck*, *mechanic*, *seed*, *traction*, *runway*, *platform-as-jargon*, or *audience-as-marketing-term*. The internal labels in headings (*Q3 — Opening beat*) are model-only — they don't appear to the user.
 
-After each batch, briefly reflect what you heard ("Got it — version for a family member, you talk in short sentences, you usually start by showing them the thing.") so the user can correct before you start drafting.
+After each batch, briefly reflect what you heard, in the same warm voice ("Got it — your work has a coworker and a sibling already in its corner; when they ask, you usually keep it short and start with the small real thing that already happened."). Let them correct before you start drafting.
 
 ### Q1 — Audience (multiSelect)
 
-> Who are you talking to in this version? You can pick more than one.
+> Who generally appreciates your work? You can pick more than one.
 
 | Option | Description |
 |---|---|
-| Someone you work with | A peer at your job or in your line of work. They know what you can do, they don't know about this thing yet. |
-| A family member | Parent, sibling, relative. Cares about you, doesn't follow this kind of stuff. |
-| A close friend | Someone who's known you for years. They want the real version, not the polished one. |
+| Someone you work with | A peer at your job or in your line of work who already gets what you do. |
+| A family member | A parent, sibling, or relative who's in your corner. |
+| A close friend | Someone who's known you for years and roots for you. |
 
-If they pick more than one, run Phase 3 once per chosen audience.
+For each one they pick, run Phase 3 once and produce a separate version.
 
 ### Q2 — Vocabulary
 
-> When you talk to this person about what you're working on, which of these sounds most like the way you actually talk?
+> When that person asks how your work is going, how do you usually sound?
 
 | Option | Description |
 |---|---|
@@ -70,7 +70,7 @@ If they pick more than one, run Phase 3 once per chosen audience.
 
 ### Q3 — Opening beat
 
-> When this person asks "so what are you working on these days?", what's the first thing out of your mouth?
+> When that person says "so what are you up to these days?", what's the first thing that comes out of you?
 
 | Option | Description |
 |---|---|
@@ -81,24 +81,24 @@ If they pick more than one, run Phase 3 once per chosen audience.
 
 ### Q4 — Shared ground (multiSelect)
 
-> What does this person already know about you and what you're working on?
+> What does that person already get about you and your work?
 
 | Option | Description |
 |---|---|
 | What you do most days | They've heard you talk about your work — what you make, who you help. |
 | Why you stopped doing what you used to do | They know the personal reason you're on this road now. |
 | Roughly what you make or sell | They know the money side, at least loosely. |
-| Almost nothing | You'll be starting from scratch with them. |
+| Almost nothing yet | You'd be starting from scratch with them. |
 
 ### Q5 — Conviction moment
 
-> What's the one thing this person would have to see happen in their own life for them to actually believe this thing works?
+> What would have to happen in their life for them to feel like this thing is real?
 
 | Option | Description |
 |---|---|
 | Their inbox changes | Right now people text them "are you free Saturday?" or "can you do this for me?" After they put their work up, those messages turn into "here's $50, no strings, because I believe in what you're doing." |
-| Someone they already know puts money in | One of their own friends or family backs them within days of posting. |
-| They watch you make real money openly | They see you earning real dollars from real people, on the terms you posted, not behind closed doors. |
+| Someone they already know puts money in | A friend or family member of theirs backs them within days of them posting. |
+| They watch you make real money openly | They see you earning real dollars from real people, on the terms you posted, out in the open. |
 | A stranger pays for something they made | They put a small thing up and someone they've never met buys it. |
 
 The answer is about *their* life, not yours. It's why they would believe this works for them — and it shapes the closing line of the version you write.
