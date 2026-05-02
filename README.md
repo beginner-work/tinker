@@ -2,11 +2,12 @@
 
 tinker — a quiet place to be on the web.
 
-A minimal desktop browser built on Electron. The chrome wears tinker's
+A minimal desktop browser built on Electron, with mobile (Capacitor) and
+plain-web variants that share the same renderer. The chrome wears tinker's
 multi-colored globe mark on a warm cream background, with Plus Jakarta
 Sans for display and Inter for body.
 
-## Run it
+## Run it (desktop)
 
 ```bash
 npm install
@@ -15,6 +16,37 @@ npm start
 ```
 
 Use `npm run dev` to open with DevTools attached.
+
+## Run it (web)
+
+The same `src/renderer/` codebase ships as a hosted website — no build step.
+
+```bash
+npm install
+export TINKER_API_BASE="http://localhost:4000"   # the beginner API base
+npm run web                                      # serves http://localhost:5173
+```
+
+The web build doesn't ask for an Anthropic key. Instead it gates the app
+behind a phone/PIN sign-in: enter your phone, receive a 6-digit code,
+verify it. Sign-up and login share the same screen — if it's your first
+time, an account is created automatically.
+
+The flow is:
+
+1. The browser POSTs `/api/auth/phone/request` with the phone number.
+2. The web host (`src/web/server.js`) forwards it to the beginner API at
+   `${TINKER_API_BASE}/claude/auth/phone/request`. The API stores a 6-digit
+   PIN and (in dev) returns it in the response so it can be displayed.
+3. The browser POSTs `/api/auth/phone/verify` with `{ phone, pin }`. The
+   API issues a JWT scoped to a `ClaudeUser`. The browser stores it under
+   `tinker_jwt` in `localStorage`.
+4. Subsequent searches POST `/api/search` with the JWT; the host proxies to
+   the beginner API's `/claude/chat`, which streams from Anthropic on the
+   server side. The browser bundle never sees an Anthropic key.
+
+Sign out by clearing `tinker_jwt` (`window.tinkerAuth.signOut()` from the
+inspector, or `localStorage.removeItem("tinker_jwt")`).
 
 ## Search
 

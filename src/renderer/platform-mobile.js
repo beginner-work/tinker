@@ -11,6 +11,7 @@
   }
 
   const isCapacitor = !!window.Capacitor;
+  const isWeb = !isCapacitor;
   document.documentElement.classList.add(isCapacitor ? "on-capacitor" : "on-web");
 
   const STORE = window.localStorage;
@@ -27,7 +28,45 @@ Voice: warm, plainspoken, calm. Address the reader as "you" where natural. No he
 
 Only include links to sources you'd actually recommend and that you are confident exist. Do not invent URLs. If you are uncertain about a specific URL, omit the link rather than guess. It is better to write a confident paragraph with no link than to fabricate one.`;
 
-  async function searchQuery(query) {
+  // ── Web build: search via the JWT-backed proxy in src/web/server.js ──
+  //
+  // The plain-web host serves /api/search, which proxies to the beginner
+  // API's /claude/chat with the user's JWT (issued by the phone OTP flow
+  // implemented in auth.js). The model + system prompt live server-side
+  // so the browser bundle never sees an Anthropic key.
+
+  async function searchViaProxy(query) {
+    const token = get("tinker_jwt");
+    if (!token) {
+      const e = new Error("Sign in to search.");
+      e.code = "MISSING_TOKEN";
+      throw e;
+    }
+    const res = await fetch("/api/search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ query: query.trim() }),
+    });
+    if (res.status === 401) {
+      try { STORE.removeItem("tinker_jwt"); } catch { /* ignore */ }
+      window.location.reload();
+      throw new Error("Session expired — reloading to sign you in again.");
+    }
+    let data = null;
+    try { data = await res.json(); } catch { data = {}; }
+    if (!res.ok) {
+      const message = (data && data.error) || `Search failed (${res.status})`;
+      throw new Error(message);
+    }
+    return { text: data.text || "", usage: data.usage };
+  }
+
+  // ── Capacitor mobile: direct browser → Anthropic with key in storage ──
+
+  async function searchDirect(query) {
     const apiKey = get("ANTHROPIC_API_KEY");
     if (!apiKey) {
       const e = new Error(
@@ -65,6 +104,8 @@ Only include links to sources you'd actually recommend and that you are confiden
     const textBlock = (data.content || []).find((b) => b.type === "text");
     return { text: textBlock ? textBlock.text : "", usage: data.usage };
   }
+
+  const searchQuery = isWeb ? searchViaProxy : searchDirect;
 
   async function openExternal(url) {
     if (isCapacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {

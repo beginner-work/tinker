@@ -87,11 +87,67 @@
       </section>
     </main>
 
+    <!-- Phone/PIN auth gate. Hidden by default; auth.js shows it on the
+         web (when there is no JWT in localStorage) and stays out of the
+         way on Electron desktop. -->
+    <div id="auth-gate" class="auth-gate" hidden>
+      <div class="auth-gate__card">
+        <div class="auth-gate__brand">
+          <svg viewBox="0 0 200 200" width="36" height="36" aria-hidden="true" fill="none">
+            <rect width="200" height="200" rx="44" fill="#f5f3ef" />
+            <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="11" />
+            <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="11" stroke-linecap="round" />
+            <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="11" stroke-linecap="round" />
+            <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="11" stroke-linecap="round" />
+            <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="11" stroke-linecap="round" />
+            <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="11" />
+            <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="11" />
+          </svg>
+          <span>tinker</span>
+        </div>
+
+        <h1 class="auth-gate__title" data-step-title>Sign in to tinker</h1>
+        <p class="auth-gate__lede" data-step-lede>
+          Enter your phone number and we'll text you a six-digit code.
+        </p>
+
+        <form id="auth-phone-form" class="auth-gate__form" data-step="phone">
+          <label class="auth-gate__field">
+            <span class="auth-gate__field-label">Phone</span>
+            <div class="auth-gate__phone">
+              <span class="auth-gate__cc" aria-hidden="true">+1</span>
+              <input id="auth-phone-input" type="tel" inputmode="numeric" autocomplete="tel-national"
+                     placeholder="(555) 000-0000" maxlength="14" required />
+            </div>
+          </label>
+          <button type="submit" class="auth-gate__submit">Send code</button>
+        </form>
+
+        <form id="auth-pin-form" class="auth-gate__form" data-step="pin" hidden>
+          <label class="auth-gate__field">
+            <span class="auth-gate__field-label">Code</span>
+            <input id="auth-pin-input" type="text" inputmode="numeric" autocomplete="one-time-code"
+                   placeholder="123456" maxlength="6" pattern="\d{6}" required />
+          </label>
+          <button type="submit" class="auth-gate__submit">Verify &amp; continue</button>
+          <button type="button" id="auth-back" class="auth-gate__link">Use a different number</button>
+        </form>
+
+        <div id="auth-status" class="auth-gate__status" role="status" aria-live="polite"></div>
+
+        <p class="auth-gate__fineprint">
+          Sign-up and login share this one screen — if it's your first time, an
+          account is created automatically when you verify your number.
+        </p>
+      </div>
+    </div>
+
     <!-- Platform shim runs first. On Electron it short-circuits because
          the preload has already installed window.tinker; on Capacitor
          and on the plain web it fills in the same surface so the rest
          of the renderer code path is identical. -->
     <script src="./platform-mobile.js" defer></script>
+    <script src="./auth.js" defer></script>
     <script src="./lib/rainbow-web.js" defer></script>
     <script src="./icon-init.js" defer></script>
     <script src="./renderer.js" defer></script>
