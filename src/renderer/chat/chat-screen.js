@@ -1,201 +1,216 @@
-import { startChat, streamSse, ApiError } from "./api.js";
+// Onboarding feed screen — replaces the previous chat-thread implementation.
+//
+// Renders Claude's onboarding interview as a stack of cards: each card holds
+// one question, and once answered, the card locks and a new card streams in
+// below it. The composer is embedded in the active card so focus + scroll
+// position stays anchored where the user is acting.
+//
+// History is sent on every /claude/chat call (the backend is stateless). The
+// first user message is a hidden primer that orients Claude — it's part of the
+// API payload but never rendered as a card.
+//
+// TODO: persist history + cards across launches via main process.
 
-// Conversation = { id, title, messages: [{role, content}] }.
-// In-memory only for v1. TODO: persist via main process (sqlite or a JSON
-// file in app.getPath("userData")). The backend is stateless — every send
-// posts the full message history.
+import { startChat, streamSse } from "./api.js";
+
+const ONBOARDING_PRIMER = `You are tinker's onboarding interviewer. The user just opened tinker for the first time and you're getting to know them — what they're working on, what brought them here, what would make this app feel like theirs. Ask one warm, open question at a time. Acknowledge their previous answer briefly (one short sentence) before posing the next, but skip the acknowledgement on your very first question. Keep each turn short and unhurried — three sentences max, often one. After six to ten questions, when you have a sense of them, ask if they'd like to keep going or wrap up here. Don't introduce yourself in detail; let the questions do the work.
+
+Begin with your first question now — a single, open prompt that invites them in.`;
 
 export function mountChat({ token, user, onLogout, on401 }) {
-  const conversations = new Map();
-  let activeId = null;
-  let streaming = false;
+  // Conversation history sent verbatim to /claude/chat. The first user
+  // message is the hidden primer; everything after is real Q/A turns.
+  const history = [{ role: "user", content: ONBOARDING_PRIMER }];
   let abortController = null;
 
-  const listEl = document.getElementById("chat-list");
-  const threadEl = document.getElementById("chat-thread");
-  const titleEl = document.getElementById("chat-title");
-  const composer = document.getElementById("chat-composer");
-  const input = document.getElementById("chat-input");
-  const sendBtn = document.getElementById("chat-send");
-  const banner = document.getElementById("chat-banner");
-  const userLabel = document.getElementById("chat-user");
-  const newBtn = document.getElementById("chat-new");
-  const logoutBtn = document.getElementById("chat-logout");
+  const cardsEl = document.getElementById("feed-cards");
+  const bannerEl = document.getElementById("feed-banner");
+  const userEl = document.getElementById("feed-user");
+  const logoutBtn = document.getElementById("feed-logout");
+  const feedEl = document.querySelector(".feed");
 
-  userLabel.textContent = user?.email || "";
+  userEl.textContent = user?.email || "";
 
-  function newConversation() {
-    const id = `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-    conversations.set(id, { id, title: "New conversation", messages: [] });
-    activeId = id;
-    renderList();
-    renderThread();
-    input.focus();
-  }
-
-  function pickConversation(id) {
-    if (streaming) return;
-    activeId = id;
-    renderList();
-    renderThread();
-  }
-
-  function renderList() {
-    listEl.innerHTML = "";
-    for (const conv of conversations.values()) {
-      const item = document.createElement("button");
-      item.type = "button";
-      item.className = "chat-rail__item";
-      item.setAttribute("aria-selected", String(conv.id === activeId));
-      item.textContent = conv.title;
-      item.addEventListener("click", () => pickConversation(conv.id));
-      listEl.appendChild(item);
-    }
-  }
-
-  function renderThread() {
-    const conv = conversations.get(activeId);
-    titleEl.textContent = conv?.title || "New conversation";
-    threadEl.innerHTML = "";
-    if (!conv || conv.messages.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "chat-thread__empty";
-      empty.textContent = "Ask Claude anything to get started.";
-      threadEl.appendChild(empty);
-      return;
-    }
-    for (const m of conv.messages) {
-      threadEl.appendChild(renderMessage(m.role, contentToText(m.content)));
-    }
-    threadEl.scrollTop = threadEl.scrollHeight;
-  }
-
-  function renderMessage(role, text, { withCursor = false } = {}) {
-    const wrap = document.createElement("div");
-    wrap.className = `chat-msg chat-msg--${role}`;
-    const r = document.createElement("div");
-    r.className = "chat-msg__role";
-    r.textContent = role === "user" ? "You" : "Claude";
-    const body = document.createElement("div");
-    body.className = "chat-msg__body";
-    body.textContent = text;
-    if (withCursor) {
-      const cursor = document.createElement("span");
-      cursor.className = "chat-msg__cursor";
-      body.appendChild(cursor);
-    }
-    wrap.appendChild(r);
-    wrap.appendChild(body);
-    return wrap;
-  }
-
-  // Anthropic message content can be a string or an array of blocks. Our
-  // user messages are always strings; on receive, we accumulate text deltas
-  // into a string. This helper handles both for re-rendering existing messages.
-  function contentToText(content) {
-    if (typeof content === "string") return content;
-    if (Array.isArray(content)) {
-      return content
-        .filter((b) => b.type === "text")
-        .map((b) => b.text)
-        .join("");
-    }
-    return "";
-  }
+  logoutBtn.addEventListener("click", () => {
+    abortController?.abort();
+    onLogout();
+  });
 
   function setBanner(text, kind) {
     if (!text) {
-      banner.hidden = true;
-      banner.textContent = "";
-      banner.className = "chat-banner";
+      bannerEl.hidden = true;
+      bannerEl.textContent = "";
+      bannerEl.className = "feed-banner";
       return;
     }
-    banner.textContent = text;
-    banner.className = `chat-banner${kind ? ` chat-banner--${kind}` : ""}`;
-    banner.hidden = false;
+    bannerEl.textContent = text;
+    bannerEl.className = `feed-banner${kind ? ` feed-banner--${kind}` : ""}`;
+    bannerEl.hidden = false;
   }
 
-  function setComposerEnabled(enabled) {
-    streaming = !enabled;
-    input.disabled = !enabled;
-    sendBtn.disabled = !enabled;
+  function scrollToBottom() {
+    if (feedEl) feedEl.scrollTop = feedEl.scrollHeight;
   }
 
-  async function send(text) {
-    let conv = conversations.get(activeId);
-    if (!conv) {
-      newConversation();
-      conv = conversations.get(activeId);
+  function createCard(index) {
+    const card = document.createElement("article");
+    card.className = "feed-card";
+    card.dataset.state = "streaming";
+    card.dataset.index = String(index);
+
+    const num = document.createElement("div");
+    num.className = "feed-card__num";
+    num.textContent = String(index);
+
+    const q = document.createElement("div");
+    q.className = "feed-card__q";
+
+    // Streaming cursor — replaced with the final question text after the
+    // stream ends. Sits as the only child so we can prepend a text node.
+    const cursor = document.createElement("span");
+    cursor.className = "feed-card__cursor";
+    q.appendChild(cursor);
+
+    card.appendChild(num);
+    card.appendChild(q);
+    cardsEl.appendChild(card);
+
+    return { card, q };
+  }
+
+  function attachComposer(card) {
+    const form = document.createElement("form");
+    form.className = "feed-card__composer";
+
+    const textarea = document.createElement("textarea");
+    textarea.rows = 1;
+    textarea.placeholder = "Your answer…";
+    textarea.setAttribute("aria-label", "Your answer");
+
+    const button = document.createElement("button");
+    button.type = "submit";
+    button.className = "feed-card__send";
+    button.setAttribute("aria-label", "Send");
+    button.innerHTML =
+      '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
+      '<path d="M3 12l18-9-7 18-3-8-8-1z" stroke="currentColor" stroke-width="2"' +
+      ' stroke-linecap="round" stroke-linejoin="round" fill="none" /></svg>';
+
+    form.appendChild(textarea);
+    form.appendChild(button);
+    card.appendChild(form);
+
+    function autoResize() {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
     }
+    textarea.addEventListener("input", autoResize);
+    textarea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
 
-    conv.messages.push({ role: "user", content: text });
-    if (conv.title === "New conversation") {
-      conv.title = text.length > 36 ? `${text.slice(0, 36)}…` : text;
-    }
-    renderList();
-    renderThread();
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = textarea.value.trim();
+      if (!text) return;
+      submitAnswer(card, form, text);
+    });
 
-    // Append a streaming assistant message that we mutate as deltas arrive.
-    let assistantText = "";
-    const assistantBubble = renderMessage("assistant", "", { withCursor: true });
-    threadEl.appendChild(assistantBubble);
-    const bodyEl = assistantBubble.querySelector(".chat-msg__body");
-    threadEl.scrollTop = threadEl.scrollHeight;
+    // Defer focus so the new card has settled into layout before the
+    // textarea pulls focus (otherwise the scroll-into-view fights with it).
+    requestAnimationFrame(() => textarea.focus());
+  }
 
-    setComposerEnabled(false);
+  function lockCard(card, answerText) {
+    const composer = card.querySelector(".feed-card__composer");
+    composer?.remove();
+    const a = document.createElement("div");
+    a.className = "feed-card__a";
+    a.textContent = answerText;
+    card.appendChild(a);
+    card.dataset.state = "done";
+  }
+
+  function submitAnswer(card, form, text) {
+    const textarea = form.querySelector("textarea");
+    const button = form.querySelector("button");
+    textarea.disabled = true;
+    button.disabled = true;
+    lockCard(card, text);
+    history.push({ role: "user", content: text });
+    askNext();
+  }
+
+  // Question count = number of assistant turns we've recorded so far + 1
+  // for the one we're about to fetch. The hidden primer doesn't count.
+  function nextIndex() {
+    return history.filter((m) => m.role === "assistant").length + 1;
+  }
+
+  async function askNext() {
+    const { card, q } = createCard(nextIndex());
     setBanner(null);
+    scrollToBottom();
 
+    let qText = "";
     abortController = new AbortController();
+
     let res;
     try {
       res = await startChat({
         token,
-        messages: conv.messages.map((m) => ({ role: m.role, content: m.content })),
+        messages: history,
         signal: abortController.signal,
       });
     } catch (err) {
-      assistantBubble.remove();
+      card.remove();
       setBanner(`Network error: ${err.message}`);
-      setComposerEnabled(true);
       return;
     }
 
-    // Status branching per spec: only 200 is SSE; everything else is JSON.
     if (res.status === 200) {
       try {
         await streamSse(res, {
           onText: (delta) => {
-            assistantText += delta;
-            bodyEl.firstChild
-              ? (bodyEl.firstChild.nodeValue = assistantText)
-              : bodyEl.insertBefore(document.createTextNode(assistantText), bodyEl.firstChild);
-            threadEl.scrollTop = threadEl.scrollHeight;
+            qText += delta;
+            // Keep the cursor at the end while streaming. We mutate a
+            // single text node sitting before the cursor span instead of
+            // re-rendering the whole question on every delta.
+            let textNode = q.firstChild;
+            if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+              textNode = document.createTextNode("");
+              q.insertBefore(textNode, q.firstChild);
+            }
+            textNode.nodeValue = qText;
+            scrollToBottom();
           },
           onError: (err) => {
             setBanner(`Stream error: ${err.message}`);
           },
           onDone: () => {
-            // Strip the typing cursor.
-            const cur = bodyEl.querySelector(".chat-msg__cursor");
-            cur?.remove();
-            conv.messages.push({ role: "assistant", content: assistantText });
-            setComposerEnabled(true);
+            const cursor = q.querySelector(".feed-card__cursor");
+            cursor?.remove();
+            history.push({ role: "assistant", content: qText });
+            attachComposer(card);
+            scrollToBottom();
           },
         });
       } catch (err) {
         setBanner(`Stream interrupted: ${err.message}`);
-        setComposerEnabled(true);
       }
       return;
     }
 
-    // Non-200: JSON error envelope.
+    // Non-200: JSON error envelope. Pull the in-flight card so the feed
+    // doesn't end on a blank question.
     let body = {};
     try { body = await res.json(); } catch {}
-    assistantBubble.remove();
+    card.remove();
 
     if (res.status === 401) {
-      setComposerEnabled(true);
       on401();
       return;
     }
@@ -205,47 +220,15 @@ export function mountChat({ token, user, onLogout, on401 }) {
         ? when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
         : "later";
       setBanner(`Daily limit reached, resets at ${localTime}.`);
-      setComposerEnabled(true);
       return;
     }
     if (res.status === 503) {
       setBanner("Server misconfigured — contact admin.", "server");
-      setComposerEnabled(true);
       return;
     }
     setBanner(`Error ${res.status}: ${body.error || "unknown"}`);
-    setComposerEnabled(true);
   }
 
-  // ── Event wiring ──────────────────────────────────────────────────────────
-  composer.addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (streaming) return;
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = "";
-    autoResize();
-    send(text);
-  });
-
-  // Enter to send, Shift+Enter for newline. Multiline composer with auto-grow.
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      composer.requestSubmit();
-    }
-  });
-  input.addEventListener("input", autoResize);
-  function autoResize() {
-    input.style.height = "auto";
-    input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
-  }
-
-  newBtn.addEventListener("click", newConversation);
-  logoutBtn.addEventListener("click", () => {
-    abortController?.abort();
-    onLogout();
-  });
-
-  newConversation();
+  // Kick off the first question on mount.
+  askNext();
 }

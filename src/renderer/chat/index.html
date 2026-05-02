@@ -26,9 +26,9 @@
             <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="11" />
             <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="11" />
           </svg>
-          <h1>tinker chat</h1>
+          <h1>tinker</h1>
         </div>
-        <p class="auth-tagline">Talk to Claude through the central tinker key.</p>
+        <p class="auth-tagline">Sign in to start your onboarding feed.</p>
 
         <div class="auth-tabs" role="tablist">
           <button id="tab-login" class="auth-tab" role="tab" aria-selected="true">Log in</button>
@@ -55,46 +55,28 @@
       </div>
     </section>
 
-    <!-- ── Chat screen ── -->
-    <section id="screen-chat" class="chat-screen">
-      <aside class="chat-rail">
-        <div class="chat-rail__head">
-          <div class="chat-rail__brand">
-            <svg viewBox="0 0 200 200" width="22" height="22" aria-hidden="true" fill="none">
-              <rect width="200" height="200" rx="44" fill="#f5f3ef" />
-              <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="11" />
-              <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="11" stroke-linecap="round" />
-              <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="11" />
-              <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="11" />
-            </svg>
-            <span>tinker chat</span>
-          </div>
-          <button id="chat-new" type="button" class="chat-rail__new">+ New chat</button>
+    <!-- ── Feed screen (dynamic onboarding questions) ── -->
+    <section id="screen-chat" class="feed-screen">
+      <header class="feed-header">
+        <div class="feed-header__brand">
+          <svg viewBox="0 0 200 200" width="20" height="20" aria-hidden="true" fill="none">
+            <rect width="200" height="200" rx="44" fill="#f5f3ef" />
+            <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="11" />
+            <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="11" stroke-linecap="round" />
+            <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="11" />
+            <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="11" />
+          </svg>
+          <span class="feed-header__title">tinker</span>
+          <span class="feed-header__crumb">onboarding</span>
         </div>
-        <div class="chat-rail__label">Conversations</div>
-        <div id="chat-list" class="chat-rail__list"></div>
-        <div class="chat-rail__foot">
-          <span id="chat-user" class="chat-rail__user"></span>
-          <button id="chat-logout" type="button" class="chat-rail__logout">Log out</button>
+        <div class="feed-header__user">
+          <span id="feed-user" class="feed-header__email"></span>
+          <button id="feed-logout" type="button" class="feed-header__logout">Log out</button>
         </div>
-      </aside>
-
-      <main class="chat-main">
-        <header class="chat-main__head">
-          <div class="chat-main__title" id="chat-title">New conversation</div>
-        </header>
-        <div id="chat-thread" class="chat-thread" aria-live="polite"></div>
-        <p id="chat-banner" class="chat-banner" hidden></p>
-        <form id="chat-composer" class="chat-composer">
-          <textarea id="chat-input" rows="1" placeholder="Message Claude…"
-                    aria-label="Message Claude"></textarea>
-          <button id="chat-send" type="submit" class="chat-send" aria-label="Send">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-              <path d="M3 12l18-9-7 18-3-8-8-1z" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round" fill="none" />
-            </svg>
-          </button>
-        </form>
+      </header>
+      <main class="feed" aria-live="polite">
+        <div id="feed-cards" class="feed__cards"></div>
+        <p id="feed-banner" class="feed-banner" hidden></p>
       </main>
     </section>
 
