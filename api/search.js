@@ -2,7 +2,7 @@
  *
  * The clients (Electron desktop, Capacitor mobile, plain web) POST a
  * { query } here. The Anthropic API key is read from the server-side
- * env var ANTHROPIC_API_KEY and never leaves Vercel.
+ * env var ANTHROPIC_API_KEY_WEB and never leaves Vercel.
  *
  * Set the key in the Vercel project: Settings → Environment Variables.
  */
@@ -20,9 +20,9 @@ Only include links to sources you'd actually recommend and that you are confiden
 let client = null;
 function getClient() {
   if (client) return client;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY_WEB;
   if (!apiKey) {
-    const err = new Error("ANTHROPIC_API_KEY is not configured on the server");
+    const err = new Error("ANTHROPIC_API_KEY_WEB is not configured on the server");
     err.status = 500;
     throw err;
   }

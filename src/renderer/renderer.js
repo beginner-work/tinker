@@ -317,7 +317,7 @@
         "<p>" +
         escapeHtml(message || "Unknown error") +
         "</p>" +
-        '<p class="search-pane__error-hint">The search proxy couldn\'t be reached. Check your connection, or that <code>ANTHROPIC_API_KEY</code> is set in the Vercel project.</p>' +
+        '<p class="search-pane__error-hint">The search proxy couldn\'t be reached. Check your connection, or that <code>ANTHROPIC_API_KEY_WEB</code> is set in the Vercel project.</p>' +
         "</div>";
     }
   }

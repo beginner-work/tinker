@@ -16,11 +16,12 @@
   const STORE = window.localStorage;
   const get = (k) => STORE.getItem(k) || "";
 
-  // The Anthropic API key lives only on the Vercel server. The client
-  // POSTs { query } to /api/search and receives { text, usage } back.
-  // Override at runtime via localStorage.setItem("TINKER_SEARCH_ENDPOINT", …)
-  // when developing against `vercel dev`.
-  const DEFAULT_SEARCH_ENDPOINT = "https://YOUR-VERCEL-APP.vercel.app/api/search";
+  // The Anthropic API key lives only on the Vercel server (read from
+  // ANTHROPIC_API_KEY_WEB there). The client POSTs { query } to
+  // /api/search and receives { text, usage } back. Override at runtime
+  // via localStorage.setItem("TINKER_SEARCH_ENDPOINT", …) when developing
+  // against `vercel dev`.
+  const DEFAULT_SEARCH_ENDPOINT = "https://beginner.work/api/search";
 
   async function searchQuery(query) {
     const endpoint = get("TINKER_SEARCH_ENDPOINT") || DEFAULT_SEARCH_ENDPOINT;

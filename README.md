@@ -36,13 +36,20 @@ desktop, mobile, and web all hit the same endpoint and get back
 
 ### Deploying the proxy
 
+The function is deployed to `https://beginner.work/api/search` from the
+Vercel project for `beginner.work`. The Anthropic key is stored as the
+`ANTHROPIC_API_KEY_WEB` environment variable on that project — `api/search.js`
+reads it at request time.
+
+To redeploy or fork:
+
 1. Push this repo to a Vercel project (the function at `api/search.js`
    is auto-detected).
-2. In **Settings → Environment Variables**, add `ANTHROPIC_API_KEY` =
+2. In **Settings → Environment Variables**, add `ANTHROPIC_API_KEY_WEB` =
    `sk-ant-…` and redeploy.
-3. Replace the `YOUR-VERCEL-APP.vercel.app` placeholder in
-   `src/main/main.js` and `src/renderer/platform-mobile.js` with your
-   deployed URL.
+3. Update the `DEFAULT_SEARCH_ENDPOINT` constant in `src/main/main.js`
+   and `src/renderer/platform-mobile.js` if your domain differs from
+   `beginner.work`.
 
 ### Pointing at a local proxy during development
 

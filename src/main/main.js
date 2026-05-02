@@ -11,13 +11,13 @@ app.setName("tinker");
 // ── Search engine (Claude Haiku, via Vercel proxy) ──────────────────────
 //
 // The Anthropic API key lives only on the Vercel server (set as
-// ANTHROPIC_API_KEY in the project's environment variables). Both the
-// desktop and mobile clients POST { query } to /api/search and receive
-// { text, usage } back.
+// ANTHROPIC_API_KEY_WEB in the project's environment variables). Both
+// the desktop and mobile clients POST { query } to /api/search and
+// receive { text, usage } back.
 //
 // Override the endpoint at runtime with TINKER_SEARCH_ENDPOINT — useful
 // when pointing at a local `vercel dev` server during development.
-const DEFAULT_SEARCH_ENDPOINT = "https://YOUR-VERCEL-APP.vercel.app/api/search";
+const DEFAULT_SEARCH_ENDPOINT = "https://beginner.work/api/search";
 const SEARCH_ENDPOINT = process.env.TINKER_SEARCH_ENDPOINT || DEFAULT_SEARCH_ENDPOINT;
 
 function createWindow() {
