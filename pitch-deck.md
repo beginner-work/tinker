@@ -136,7 +136,7 @@ Founders never pay to list. **The platform earns when the founder earns.**
 **Founder side — abundant, magnetized by brand**
 - Solo and small-team builders priced out of conventional VC
 - Practitioners with real offerings: makers, coaches, tincture-blenders, writers, healers, niche software builders
-- Tens of millions globally, unserved by the current rails
+- Substack proved 4M+ practitioners would route their livelihood through one platform. [VERIFY] We're the funding layer for the same kind of person.
 
 **Investor side — the harder side, the side this raise serves**
 - Solo capital allocators, small family offices, angel practitioners — investors who already evaluate humans, not pattern-matched pitches
@@ -149,13 +149,11 @@ Founders never pay to list. **The platform earns when the founder earns.**
 
 # I am the use case.
 
-I sell hop tinctures. I coach careers. My barber gave me $100 because he believes in me, not because he read a deck. I have built this platform alone, in public, on a stack I chose for portability and dignity.
+I have built marketplaces and two-sided funding mechanics professionally before this — I know the unit economics, the trust failure modes, and where the rails break. [VERIFY: specific prior role / company]
 
-This is not a thesis I had and then went looking for users to validate. **This is the only way I could find to make my own life work** — and the discovery, working through it, that the same shape works for everyone built like me.
+I am also the use case. I sell hop tinctures. I coach careers. My barber gave me $100 because he believes in me, not because he read a deck. I built this platform alone, in public, on a stack I chose for portability and dignity.
 
 If you want to know whether the founder can run the platform, look at the platform. The founder did.
-
-*[Founder: tighten this in your own voice. The bones are right; the music should be yours.]*
 
 ---
 
