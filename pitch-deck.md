@@ -136,7 +136,7 @@ Founders never pay to list. **The platform earns when the founder earns.**
 **Founder side — abundant, magnetized by brand**
 - Solo and small-team builders priced out of conventional VC
 - Practitioners with real offerings: makers, coaches, tincture-blenders, writers, healers, niche software builders
-- Tens of millions globally, unserved by the current rails
+- `[NEEDS NUMBER: founder-side population — build bottoms-up from a defensible source, e.g. US sole-proprietor count × % in target categories × % seeking outside capital. Don't ship without arithmetic.]`
 
 **Investor side — the harder side, the side this raise serves**
 - Solo capital allocators, small family offices, angel practitioners — investors who already evaluate humans, not pattern-matched pitches
