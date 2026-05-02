@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-accent-strong: #6366f1;
+  }
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    font-family: theme("fontFamily.sans");
+    background: theme("colors.background");
+    color: theme("colors.foreground");
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background-color: rgba(123, 196, 122, 0.32);
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: theme("colors.border");
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #c9c2b6;
+  }
+}
+
+@layer components {
+  /* The frameless window needs a draggable region near the title bar.
+     Anything inside `.drag-region` becomes drag, except `.no-drag`. */
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white shadow-accent transition hover:bg-indigo-600 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-accent;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-full px-3 py-1.5 text-sm font-medium text-muted transition hover:bg-cream hover:text-foreground;
+  }
+  .field {
+    @apply w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-foreground shadow-soft transition focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/20;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-[0.06em] text-muted;
+  }
+
+  /* Typing-cursor on the streaming assistant message. */
+  .cursor-blink::after {
+    content: "▍";
+    margin-left: 2px;
+    animation: cursor-blink 1s steps(2, start) infinite;
+    color: theme("colors.accent.DEFAULT");
+  }
+  @keyframes cursor-blink {
+    to { visibility: hidden; }
+  }
+}
