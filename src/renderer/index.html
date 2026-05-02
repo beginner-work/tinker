@@ -89,11 +89,13 @@
 
     <!-- Phone/PIN auth gate. Hidden by default; auth.js shows it on the
          web (when there is no JWT in localStorage) and stays out of the
-         way on Electron desktop. -->
+         way on Electron desktop. The look mirrors the welcome page: a
+         pill-shaped input with an embedded pill submit button, floated
+         over the same warm cream + radial-gradient backdrop. -->
     <div id="auth-gate" class="auth-gate" hidden>
-      <div class="auth-gate__card">
-        <div class="auth-gate__brand">
-          <svg viewBox="0 0 200 200" width="36" height="36" aria-hidden="true" fill="none">
+      <div class="auth-gate__inner">
+        <div class="auth-gate__brand" aria-hidden="true">
+          <svg viewBox="0 0 200 200" width="48" height="48" fill="none">
             <rect width="200" height="200" rx="44" fill="#f5f3ef" />
             <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="11" />
             <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="11" stroke-linecap="round" />
@@ -103,41 +105,33 @@
             <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="11" />
             <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="11" />
           </svg>
-          <span>tinker</span>
         </div>
 
         <h1 class="auth-gate__title" data-step-title>Sign in to tinker</h1>
         <p class="auth-gate__lede" data-step-lede>
-          Enter your phone number and we'll text you a six-digit code.
+          Enter your phone — we'll text you a six-digit code.
         </p>
 
-        <form id="auth-phone-form" class="auth-gate__form" data-step="phone">
-          <label class="auth-gate__field">
-            <span class="auth-gate__field-label">Phone</span>
-            <div class="auth-gate__phone">
-              <span class="auth-gate__cc" aria-hidden="true">+1</span>
-              <input id="auth-phone-input" type="tel" inputmode="numeric" autocomplete="tel-national"
-                     placeholder="(555) 000-0000" maxlength="14" required />
-            </div>
-          </label>
-          <button type="submit" class="auth-gate__submit">Send code</button>
+        <form id="auth-phone-form" class="auth-gate__pill" data-step="phone" role="search">
+          <span class="auth-gate__cc" aria-hidden="true">+1</span>
+          <input id="auth-phone-input" type="tel" inputmode="numeric" autocomplete="tel-national"
+                 placeholder="(555) 000-0000" maxlength="14" aria-label="Phone number" required />
+          <button type="submit" class="auth-gate__begin">Send code</button>
         </form>
 
-        <form id="auth-pin-form" class="auth-gate__form" data-step="pin" hidden>
-          <label class="auth-gate__field">
-            <span class="auth-gate__field-label">Code</span>
-            <input id="auth-pin-input" type="text" inputmode="numeric" autocomplete="one-time-code"
-                   placeholder="123456" maxlength="6" pattern="\d{6}" required />
-          </label>
-          <button type="submit" class="auth-gate__submit">Verify &amp; continue</button>
-          <button type="button" id="auth-back" class="auth-gate__link">Use a different number</button>
+        <form id="auth-pin-form" class="auth-gate__pill auth-gate__pill--pin" data-step="pin" role="search" hidden>
+          <input id="auth-pin-input" type="text" inputmode="numeric" autocomplete="one-time-code"
+                 placeholder="000000" maxlength="6" pattern="\d{6}" aria-label="Six-digit code" required />
+          <button type="submit" class="auth-gate__begin">Verify</button>
         </form>
 
         <div id="auth-status" class="auth-gate__status" role="status" aria-live="polite"></div>
 
+        <button type="button" id="auth-back" class="auth-gate__link" hidden>← Use a different number</button>
+
         <p class="auth-gate__fineprint">
-          Sign-up and login share this one screen — if it's your first time, an
-          account is created automatically when you verify your number.
+          Sign-up and login share this screen — first-time users get an
+          account created automatically when they verify.
         </p>
       </div>
     </div>

@@ -81,14 +81,16 @@
     if (step === "pin") {
       phoneForm.hidden = true;
       pinForm.hidden = false;
+      backBtn.hidden = false;
       titleEl.textContent = "Enter your code";
-      ledeEl.innerHTML = `Sent to <strong>${formatPhone(phoneInput.value)}</strong>. The PIN expires in 10 minutes.`;
+      ledeEl.innerHTML = `Sent to <strong>${formatPhone(phoneInput.value)}</strong>. The code expires in 10 minutes.`;
       setTimeout(() => pinInput.focus(), 0);
     } else {
       pinForm.hidden = true;
       phoneForm.hidden = false;
+      backBtn.hidden = true;
       titleEl.textContent = "Sign in to tinker";
-      ledeEl.textContent = "Enter your phone number and we'll text you a six-digit code.";
+      ledeEl.textContent = "Enter your phone — we'll text you a six-digit code.";
       setTimeout(() => phoneInput.focus(), 0);
     }
   }
