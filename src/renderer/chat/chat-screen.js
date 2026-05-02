@@ -1,33 +1,76 @@
-// Onboarding feed screen — replaces the previous chat-thread implementation.
+// Onboarding flow for founders prepping a seed-investor pitch.
 //
-// Renders Claude's onboarding interview as a stack of cards: each card holds
-// one question, and once answered, the card locks and a new card streams in
-// below it. The composer is embedded in the active card so focus + scroll
-// position stays anchored where the user is acting.
+// Single focal question card (TikTok-ish — one at a time, no scrollback)
+// alongside a persistent "Your offering" pane (Instagram-ish — always
+// visible, refines as answers come in). Claude streams a structured
+// response per turn; we parse out <offering>...</offering> and
+// <question>...</question> tags live and route them to the right pane.
+// When Claude emits <done/>, the question card flips to a completion
+// state with a copy button for the final offering.
 //
-// History is sent on every /claude/chat call (the backend is stateless). The
-// first user message is a hidden primer that orients Claude — it's part of the
-// API payload but never rendered as a card.
+// History is sent on every /claude/chat call (backend is stateless).
+// The first user message is a hidden primer that sets the format and
+// the interviewer's brief — never rendered.
 //
-// TODO: persist history + cards across launches via main process.
+// TODO: persist history + offering across launches via main process.
 
 import { startChat, streamSse } from "./api.js";
 
-const ONBOARDING_PRIMER = `You are tinker's onboarding interviewer. The user just opened tinker for the first time and you're getting to know them — what they're working on, what brought them here, what would make this app feel like theirs. Ask one warm, open question at a time. Acknowledge their previous answer briefly (one short sentence) before posing the next, but skip the acknowledgement on your very first question. Keep each turn short and unhurried — three sentences max, often one. After six to ten questions, when you have a sense of them, ask if they'd like to keep going or wrap up here. Don't introduce yourself in detail; let the questions do the work.
+const PRIMER = `You are tinker's onboarding interviewer for founders preparing to describe their offering to potential seed investors. Your job is to extract, through warm one-question-at-a-time conversation, enough material to write a single clear paragraph that captures: what they're building, who it's for, the problem it solves, why now, why them, traction so far, and what they're seeking from a seeder.
 
-Begin with your first question now — a single, open prompt that invites them in.`;
+Respond in this exact format on every turn:
+
+<offering>
+[A current best one-paragraph description of their offering, in third person, suitable to show a seed investor. Refine and rewrite this every turn as you learn more. On the first turn you know nothing — write a brief placeholder noting you're getting to know them. Never invent facts; if you don't know something, leave it out or say so plainly.]
+</offering>
+
+<question>
+[Your next question. One warm, open prompt. Pick the gap most worth filling next from: what they're building, who it's for, the problem, why now, why them, traction, what they need. Three sentences max, often one.]
+</question>
+
+When the offering paragraph feels complete and specific (typically after six to ten questions, when you have enough material that a seeder could understand the bet), end your turn with this instead of <question>:
+
+<offering>
+[Final, polished paragraph]
+</offering>
+<done/>
+
+Begin now — the user hasn't said anything yet. Your first <offering> is a brief placeholder; your first <question> is an open invitation to describe what they're building or what they want to share with seeders.`;
+
+// Parse Claude's tagged output. Lenient about closing tags so partial
+// streams (e.g., <offering>blah blah, no </offering> yet) still surface
+// the visible content as it arrives.
+const TAG_OFFER = /<offering>([\s\S]*?)(?:<\/offering>|$)/;
+const TAG_QUESTION = /<question>([\s\S]*?)(?:<\/question>|$)/;
+const TAG_DONE = /<done\s*\/?>/;
+
+function parse(raw) {
+  const offer = (raw.match(TAG_OFFER) || [])[1] || "";
+  const question = (raw.match(TAG_QUESTION) || [])[1] || "";
+  return {
+    offering: offer.trim(),
+    question: question.trim(),
+    done: TAG_DONE.test(raw),
+  };
+}
 
 export function mountChat({ token, user, onLogout, on401 }) {
-  // Conversation history sent verbatim to /claude/chat. The first user
-  // message is the hidden primer; everything after is real Q/A turns.
-  const history = [{ role: "user", content: ONBOARDING_PRIMER }];
+  const history = [{ role: "user", content: PRIMER }];
   let abortController = null;
+  let turnCount = 0;
 
-  const cardsEl = document.getElementById("feed-cards");
-  const bannerEl = document.getElementById("feed-banner");
-  const userEl = document.getElementById("feed-user");
-  const logoutBtn = document.getElementById("feed-logout");
-  const feedEl = document.querySelector(".feed");
+  // DOM
+  const screenEl = document.getElementById("screen-chat");
+  const numEl = document.getElementById("work-num");
+  const qEl = document.getElementById("work-q");
+  const composerEl = document.getElementById("work-composer");
+  const inputEl = document.getElementById("work-input");
+  const sendBtn = document.getElementById("work-send");
+  const offeringEl = document.getElementById("work-offering");
+  const userEl = document.getElementById("work-user");
+  const logoutBtn = document.getElementById("work-logout");
+  const bannerEl = document.getElementById("work-banner");
+  const cardEl = document.querySelector(".work-question");
 
   userEl.textContent = user?.email || "";
 
@@ -36,126 +79,109 @@ export function mountChat({ token, user, onLogout, on401 }) {
     onLogout();
   });
 
+  composerEl.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = inputEl.value.trim();
+    if (!text) return;
+    submitAnswer(text);
+  });
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      composerEl.requestSubmit();
+    }
+  });
+  inputEl.addEventListener("input", autoResize);
+  function autoResize() {
+    inputEl.style.height = "auto";
+    inputEl.style.height = `${Math.min(inputEl.scrollHeight, 180)}px`;
+  }
+
   function setBanner(text, kind) {
     if (!text) {
       bannerEl.hidden = true;
       bannerEl.textContent = "";
-      bannerEl.className = "feed-banner";
+      bannerEl.className = "work-question__hint";
       return;
     }
     bannerEl.textContent = text;
-    bannerEl.className = `feed-banner${kind ? ` feed-banner--${kind}` : ""}`;
+    bannerEl.className = `work-question__hint${kind ? ` work-question__hint--${kind}` : ""}`;
     bannerEl.hidden = false;
   }
 
-  function scrollToBottom() {
-    if (feedEl) feedEl.scrollTop = feedEl.scrollHeight;
-  }
-
-  function createCard(index) {
-    const card = document.createElement("article");
-    card.className = "feed-card";
-    card.dataset.state = "streaming";
-    card.dataset.index = String(index);
-
-    const num = document.createElement("div");
-    num.className = "feed-card__num";
-    num.textContent = String(index);
-
-    const q = document.createElement("div");
-    q.className = "feed-card__q";
-
-    // Streaming cursor — replaced with the final question text after the
-    // stream ends. Sits as the only child so we can prepend a text node.
-    const cursor = document.createElement("span");
-    cursor.className = "feed-card__cursor";
-    q.appendChild(cursor);
-
-    card.appendChild(num);
-    card.appendChild(q);
-    cardsEl.appendChild(card);
-
-    return { card, q };
-  }
-
-  function attachComposer(card) {
-    const form = document.createElement("form");
-    form.className = "feed-card__composer";
-
-    const textarea = document.createElement("textarea");
-    textarea.rows = 1;
-    textarea.placeholder = "Your answer…";
-    textarea.setAttribute("aria-label", "Your answer");
-
-    const button = document.createElement("button");
-    button.type = "submit";
-    button.className = "feed-card__send";
-    button.setAttribute("aria-label", "Send");
-    button.innerHTML =
-      '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
-      '<path d="M3 12l18-9-7 18-3-8-8-1z" stroke="currentColor" stroke-width="2"' +
-      ' stroke-linecap="round" stroke-linejoin="round" fill="none" /></svg>';
-
-    form.appendChild(textarea);
-    form.appendChild(button);
-    card.appendChild(form);
-
-    function autoResize() {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
+  function setQuestion(text, { streaming } = {}) {
+    qEl.textContent = "";
+    if (text) qEl.appendChild(document.createTextNode(text));
+    if (streaming) {
+      const cursor = document.createElement("span");
+      cursor.className = "work-question__cursor";
+      qEl.appendChild(cursor);
     }
-    textarea.addEventListener("input", autoResize);
-    textarea.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        form.requestSubmit();
+  }
+
+  function setOffering(text) {
+    if (!text) return;
+    offeringEl.classList.remove("work-offer__placeholder");
+    offeringEl.textContent = text;
+  }
+
+  function setComposerEnabled(enabled) {
+    inputEl.disabled = !enabled;
+    sendBtn.disabled = !enabled;
+  }
+
+  function showDone(finalOffering) {
+    if (finalOffering) setOffering(finalOffering);
+
+    // Replace the question card body with a completion state. Keeps the
+    // offering pane intact next to it.
+    cardEl.innerHTML = "";
+    const wrap = document.createElement("div");
+    wrap.className = "work-done";
+    wrap.innerHTML =
+      '<div class="work-done__check" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M5 12l5 5 9-11" ' +
+      'stroke="currentColor" stroke-width="2.5" stroke-linecap="round" ' +
+      'stroke-linejoin="round" fill="none"/></svg></div>' +
+      '<h2 class="work-done__title">Your offering is ready.</h2>' +
+      '<p class="work-done__sub">Copy it out and share it with seeders.</p>' +
+      '<button class="work-done__copy" id="work-done-copy" type="button">Copy offering</button>';
+    cardEl.appendChild(wrap);
+
+    document.getElementById("work-done-copy").addEventListener("click", async (e) => {
+      const text = finalOffering || offeringEl.textContent || "";
+      try {
+        await navigator.clipboard.writeText(text);
+        e.target.textContent = "Copied";
+        setTimeout(() => { e.target.textContent = "Copy offering"; }, 1500);
+      } catch {
+        // Clipboard write can fail in some contexts; show inline fallback.
+        e.target.textContent = "Copy failed";
       }
     });
-
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const text = textarea.value.trim();
-      if (!text) return;
-      submitAnswer(card, form, text);
-    });
-
-    // Defer focus so the new card has settled into layout before the
-    // textarea pulls focus (otherwise the scroll-into-view fights with it).
-    requestAnimationFrame(() => textarea.focus());
   }
 
-  function lockCard(card, answerText) {
-    const composer = card.querySelector(".feed-card__composer");
-    composer?.remove();
-    const a = document.createElement("div");
-    a.className = "feed-card__a";
-    a.textContent = answerText;
-    card.appendChild(a);
-    card.dataset.state = "done";
-  }
-
-  function submitAnswer(card, form, text) {
-    const textarea = form.querySelector("textarea");
-    const button = form.querySelector("button");
-    textarea.disabled = true;
-    button.disabled = true;
-    lockCard(card, text);
+  function submitAnswer(text) {
     history.push({ role: "user", content: text });
-    askNext();
-  }
+    inputEl.value = "";
+    autoResize();
+    setComposerEnabled(false);
+    setBanner(null);
 
-  // Question count = number of assistant turns we've recorded so far + 1
-  // for the one we're about to fetch. The hidden primer doesn't count.
-  function nextIndex() {
-    return history.filter((m) => m.role === "assistant").length + 1;
+    // Animate the current card out, swap to streaming state, fetch next.
+    screenEl.dataset.phase = "advance";
+    setTimeout(() => {
+      screenEl.dataset.phase = "loading";
+      askNext();
+    }, 220);
   }
 
   async function askNext() {
-    const { card, q } = createCard(nextIndex());
-    setBanner(null);
-    scrollToBottom();
+    setQuestion("", { streaming: true });
+    numEl.textContent = String(turnCount + 1);
 
-    let qText = "";
+    let raw = "";
     abortController = new AbortController();
 
     let res;
@@ -166,8 +192,9 @@ export function mountChat({ token, user, onLogout, on401 }) {
         signal: abortController.signal,
       });
     } catch (err) {
-      card.remove();
       setBanner(`Network error: ${err.message}`);
+      setComposerEnabled(true);
+      screenEl.dataset.phase = "idle";
       return;
     }
 
@@ -175,40 +202,42 @@ export function mountChat({ token, user, onLogout, on401 }) {
       try {
         await streamSse(res, {
           onText: (delta) => {
-            qText += delta;
-            // Keep the cursor at the end while streaming. We mutate a
-            // single text node sitting before the cursor span instead of
-            // re-rendering the whole question on every delta.
-            let textNode = q.firstChild;
-            if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
-              textNode = document.createTextNode("");
-              q.insertBefore(textNode, q.firstChild);
-            }
-            textNode.nodeValue = qText;
-            scrollToBottom();
+            raw += delta;
+            const parsed = parse(raw);
+            if (parsed.offering) setOffering(parsed.offering);
+            if (parsed.question) setQuestion(parsed.question, { streaming: true });
           },
-          onError: (err) => {
-            setBanner(`Stream error: ${err.message}`);
-          },
+          onError: (err) => setBanner(`Stream error: ${err.message}`),
           onDone: () => {
-            const cursor = q.querySelector(".feed-card__cursor");
-            cursor?.remove();
-            history.push({ role: "assistant", content: qText });
-            attachComposer(card);
-            scrollToBottom();
+            turnCount++;
+            history.push({ role: "assistant", content: raw });
+            const parsed = parse(raw);
+            if (parsed.offering) setOffering(parsed.offering);
+
+            if (parsed.done) {
+              screenEl.dataset.phase = "done";
+              showDone(parsed.offering);
+              return;
+            }
+
+            setQuestion(parsed.question || "", { streaming: false });
+            setComposerEnabled(true);
+            screenEl.dataset.phase = "idle";
+            requestAnimationFrame(() => inputEl.focus());
           },
         });
       } catch (err) {
         setBanner(`Stream interrupted: ${err.message}`);
+        setComposerEnabled(true);
+        screenEl.dataset.phase = "idle";
       }
       return;
     }
 
-    // Non-200: JSON error envelope. Pull the in-flight card so the feed
-    // doesn't end on a blank question.
+    // Non-200 — JSON envelope per spec.
     let body = {};
     try { body = await res.json(); } catch {}
-    card.remove();
+    screenEl.dataset.phase = "idle";
 
     if (res.status === 401) {
       on401();
@@ -220,15 +249,19 @@ export function mountChat({ token, user, onLogout, on401 }) {
         ? when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
         : "later";
       setBanner(`Daily limit reached, resets at ${localTime}.`);
+      setComposerEnabled(true);
       return;
     }
     if (res.status === 503) {
       setBanner("Server misconfigured — contact admin.", "server");
+      setComposerEnabled(true);
       return;
     }
     setBanner(`Error ${res.status}: ${body.error || "unknown"}`);
+    setComposerEnabled(true);
   }
 
   // Kick off the first question on mount.
+  screenEl.dataset.phase = "loading";
   askNext();
 }

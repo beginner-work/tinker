@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http: https:; script-src 'self';" />
-    <title>tinker chat</title>
+    <title>tinker</title>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" />
@@ -28,7 +28,7 @@
           </svg>
           <h1>tinker</h1>
         </div>
-        <p class="auth-tagline">Sign in to start your onboarding feed.</p>
+        <p class="auth-tagline">Sign in to draft your offering for seeders.</p>
 
         <div class="auth-tabs" role="tablist">
           <button id="tab-login" class="auth-tab" role="tab" aria-selected="true">Log in</button>
@@ -55,10 +55,10 @@
       </div>
     </section>
 
-    <!-- ── Feed screen (dynamic onboarding questions) ── -->
-    <section id="screen-chat" class="feed-screen">
-      <header class="feed-header">
-        <div class="feed-header__brand">
+    <!-- ── Onboarding flow: focal question card + persistent offering pane ── -->
+    <section id="screen-chat" class="work-screen" data-phase="idle">
+      <header class="work-header">
+        <div class="work-header__brand">
           <svg viewBox="0 0 200 200" width="20" height="20" aria-hidden="true" fill="none">
             <rect width="200" height="200" rx="44" fill="#f5f3ef" />
             <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="11" />
@@ -66,17 +66,45 @@
             <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="11" />
             <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="11" />
           </svg>
-          <span class="feed-header__title">tinker</span>
-          <span class="feed-header__crumb">onboarding</span>
+          <span class="work-header__title">tinker</span>
+          <span class="work-header__crumb">for seeders</span>
         </div>
-        <div class="feed-header__user">
-          <span id="feed-user" class="feed-header__email"></span>
-          <button id="feed-logout" type="button" class="feed-header__logout">Log out</button>
+        <div class="work-header__user">
+          <span id="work-user" class="work-header__email"></span>
+          <button id="work-logout" type="button" class="work-header__logout">Log out</button>
         </div>
       </header>
-      <main class="feed" aria-live="polite">
-        <div id="feed-cards" class="feed__cards"></div>
-        <p id="feed-banner" class="feed-banner" hidden></p>
+
+      <main class="work">
+        <!-- Focal question card (one at a time, full focus). -->
+        <section class="work-question" aria-live="polite">
+          <div class="work-question__num" id="work-num">1</div>
+          <div class="work-question__text" id="work-q">
+            <span class="work-question__cursor"></span>
+          </div>
+          <form id="work-composer" class="work-question__composer">
+            <textarea id="work-input" rows="1" placeholder="Your answer…"
+                      aria-label="Your answer"></textarea>
+            <button id="work-send" type="submit" class="work-send" aria-label="Send">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <path d="M3 12l18-9-7 18-3-8-8-1z" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round" fill="none" />
+              </svg>
+            </button>
+          </form>
+          <p id="work-banner" class="work-question__hint" hidden></p>
+        </section>
+
+        <!-- Persistent offering pane (refines as answers arrive). -->
+        <aside class="work-offer" aria-live="polite">
+          <div class="work-offer__head">
+            <span class="work-offer__crumb">Your offering</span>
+            <span class="work-offer__sub">Refines as you answer</span>
+          </div>
+          <div id="work-offering" class="work-offer__body work-offer__placeholder">
+            Your draft will appear here as you answer.
+          </div>
+        </aside>
       </main>
     </section>
 
