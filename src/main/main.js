@@ -1,5 +1,6 @@
-const { app, BrowserWindow, session, ipcMain, shell, nativeImage } = require("electron");
+const { app, BrowserWindow, session, ipcMain, shell, nativeImage, safeStorage } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const Anthropic = require("@anthropic-ai/sdk").default;
 
 const isDev = process.argv.includes("--dev");
@@ -38,6 +39,108 @@ function getAnthropic() {
   return anthropicClient;
 }
 
+// ── Backend URL resolution ──────────────────────────────────────────────
+//
+// Order of precedence (first match wins):
+//   1. BACKEND_URL env var — explicit override; useful for QA / staging.
+//   2. dev or unpackaged build → http://localhost:4000
+//   3. TINKER_USE_VERCEL_PREVIEW=1 (+ VERCEL_TOKEN, VERCEL_PROJECT_ID) →
+//      latest READY preview deployment from the Vercel API. Resolved once
+//      at startup and cached for the session.
+//   4. production → https://beginner.work
+//
+// We resolve once at app-ready and cache the result so every IPC call
+// returns the same value (avoids a flicker between fetches).
+
+const PRODUCTION_URL = "https://beginner.work";
+let backendUrlCache = null;
+
+async function fetchLatestVercelPreview() {
+  const token = process.env.VERCEL_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  if (!token || !projectId) return null;
+  try {
+    const u = new URL("https://api.vercel.com/v6/deployments");
+    u.searchParams.set("projectId", projectId);
+    u.searchParams.set("state", "READY");
+    u.searchParams.set("target", "preview");
+    u.searchParams.set("limit", "1");
+    if (process.env.VERCEL_TEAM_ID) u.searchParams.set("teamId", process.env.VERCEL_TEAM_ID);
+    const res = await fetch(u, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const url = json.deployments?.[0]?.url;
+    return url ? `https://${url}` : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveBackendUrl() {
+  if (backendUrlCache) return backendUrlCache;
+  if (process.env.BACKEND_URL) {
+    backendUrlCache = process.env.BACKEND_URL;
+    return backendUrlCache;
+  }
+  if (isDev || !app.isPackaged) {
+    backendUrlCache = "http://localhost:4000";
+    return backendUrlCache;
+  }
+  if (process.env.TINKER_USE_VERCEL_PREVIEW === "1") {
+    const preview = await fetchLatestVercelPreview();
+    if (preview) {
+      backendUrlCache = preview;
+      return backendUrlCache;
+    }
+  }
+  backendUrlCache = PRODUCTION_URL;
+  return backendUrlCache;
+}
+
+// ── JWT storage (safeStorage) ───────────────────────────────────────────
+//
+// Encrypt the JWT bytes with the OS keychain (Keychain on mac, DPAPI on
+// Windows, libsecret on Linux) and write to a 0600 file in userData. If
+// the platform doesn't expose a keychain (e.g. headless Linux without
+// libsecret) we refuse to persist — better in-memory-only than plaintext
+// on disk.
+
+const TOKEN_FILE_NAME = "claude-token.bin";
+function tokenPath() {
+  return path.join(app.getPath("userData"), TOKEN_FILE_NAME);
+}
+
+function readToken() {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) return null;
+    const p = tokenPath();
+    if (!fs.existsSync(p)) return null;
+    const buf = fs.readFileSync(p);
+    return safeStorage.decryptString(buf);
+  } catch {
+    return null;
+  }
+}
+
+function writeToken(token) {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) return false;
+    if (typeof token !== "string" || !token) return false;
+    const enc = safeStorage.encryptString(token);
+    fs.writeFileSync(tokenPath(), enc, { mode: 0o600 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearToken() {
+  try { fs.unlinkSync(tokenPath()); } catch {}
+  return true;
+}
+
+// ── Windows ─────────────────────────────────────────────────────────────
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -47,9 +150,6 @@ function createWindow() {
     backgroundColor: "#FFFDF7",
     title: "tinker",
     autoHideMenuBar: true,
-    // Drop the native title bar — our chrome paints the whole top.
-    // 'hiddenInset' keeps the macOS traffic lights but removes the bar;
-    // on Windows/Linux it falls back gracefully to a frameless window.
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 14, y: 16 },
     webPreferences: {
@@ -75,6 +175,37 @@ function createWindow() {
   });
 }
 
+let chatWindow = null;
+function createChatWindow() {
+  if (chatWindow && !chatWindow.isDestroyed()) {
+    chatWindow.focus();
+    return chatWindow;
+  }
+  chatWindow = new BrowserWindow({
+    width: 1080,
+    height: 760,
+    minWidth: 640,
+    minHeight: 480,
+    backgroundColor: "#FFFDF7",
+    title: "tinker chat",
+    autoHideMenuBar: true,
+    titleBarStyle: "hiddenInset",
+    trafficLightPosition: { x: 14, y: 16 },
+    webPreferences: {
+      // Dedicated preload — exposes ONLY the auth + config surface.
+      // No webviewTag, no Anthropic client, no IPC for browser ops.
+      preload: path.join(__dirname, "preload-chat.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  chatWindow.loadFile(path.join(__dirname, "..", "renderer", "chat", "index.html"));
+  if (isDev) chatWindow.webContents.openDevTools({ mode: "detach" });
+  chatWindow.on("closed", () => { chatWindow = null; });
+  return chatWindow;
+}
+
 // Reasonable, modern UA string. The default Electron UA leaks the
 // Electron version and trips bot detection on some sites.
 function userAgent() {
@@ -82,7 +213,35 @@ function userAgent() {
   return `Mozilla/5.0 (${process.platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36 tinker-browser/${app.getVersion()}`;
 }
 
-app.whenReady().then(() => {
+// ── CORS workaround ─────────────────────────────────────────────────────
+//
+// Electron renderer pages loaded via loadFile run on the `file://` origin,
+// which some servers reject in CORS preflight even when `cors()` is wide
+// open. We sidestep this by rewriting the Origin header on requests that
+// target the resolved backend host: the server sees a stable, allow-listed
+// origin and the preflight succeeds. The renderer still uses fetch() and
+// streams response.body normally.
+async function installBackendCorsHook() {
+  const stableOrigin = "https://tinker.beginner.work";
+  let backendHost = null;
+  try {
+    backendHost = new URL(await resolveBackendUrl()).host;
+  } catch {}
+
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, cb) => {
+    try {
+      const target = new URL(details.url);
+      if (backendHost && target.host === backendHost) {
+        details.requestHeaders["Origin"] = stableOrigin;
+      }
+    } catch {}
+    cb({ requestHeaders: details.requestHeaders });
+  });
+}
+
+// ── App lifecycle ───────────────────────────────────────────────────────
+
+app.whenReady().then(async () => {
   session.defaultSession.setUserAgent(userAgent());
 
   // Permission prompts — for now allow clipboard / fullscreen by default,
@@ -91,6 +250,10 @@ app.whenReady().then(() => {
     const allowed = ["clipboard-read", "clipboard-sanitized-write", "fullscreen"];
     cb(allowed.includes(permission));
   });
+
+  // Resolve backend URL early so the CORS hook has a host to match against.
+  await resolveBackendUrl().catch(() => {});
+  await installBackendCorsHook();
 
   createWindow();
 
@@ -145,5 +308,16 @@ ipcMain.handle("app:setIcon", (_event, dataUrl) => {
   for (const w of BrowserWindow.getAllWindows()) {
     w.setIcon(img);
   }
+  return true;
+});
+
+// ── Chat-client IPC ─────────────────────────────────────────────────────
+
+ipcMain.handle("auth:getToken", () => readToken());
+ipcMain.handle("auth:setToken", (_e, token) => writeToken(token));
+ipcMain.handle("auth:clearToken", () => clearToken());
+ipcMain.handle("config:backendUrl", () => resolveBackendUrl());
+ipcMain.handle("chat:open", () => {
+  createChatWindow();
   return true;
 });
