@@ -39,69 +39,71 @@ If a beat is missing from the deck, note it silently and skip it later. Don't as
 
 ## Phase 2 — Tune (use AskUserQuestion)
 
-This is where the question loader does the work. Use the **AskUserQuestion** tool for the four structured questions below. Send them in batches that make sense conversationally — never dump all four at once, but you may pair Q1+Q2 in a single call if it flows.
+This is where the question loader does the work. Use the **AskUserQuestion** tool for the structured questions below. Send them in batches that make sense conversationally — never dump them all at once, but you may pair Q1+Q2 in a single call if it flows.
 
-After each batch, briefly reflect what you heard ("Got it — coworker version, plain and short, opens on the mechanic.") so the user can correct before you start drafting.
+**All user-facing question text and option labels must be in plain language.** The user knows nothing about business or pitching. No words like *founder*, *pitch*, *deck*, *mechanic*, *seed*, *traction*, *runway*, *platform-as-jargon*. The internal labels in headings (*Q3 — Opening beat*) are model-only — they don't appear to the user.
+
+After each batch, briefly reflect what you heard ("Got it — version for a family member, you talk in short sentences, you usually start by showing them the thing.") so the user can correct before you start drafting.
 
 ### Q1 — Audience (multiSelect)
 
-> Who is the version-of-the-pitch you want to draft right now?
+> Who are you talking to in this version? You can pick more than one.
 
 | Option | Description |
 |---|---|
-| A coworker | Peer at work or in your industry — knows your skill set, doesn't know this project. |
-| Family | A parent, sibling, or relative — cares about you, doesn't follow tech or business. |
-| A close friend | Someone who's known you for years — wants the real, vulnerable version. |
+| Someone you work with | A peer at your job or in your line of work. They know what you can do, they don't know about this thing yet. |
+| A family member | Parent, sibling, relative. Cares about you, doesn't follow this kind of stuff. |
+| A close friend | Someone who's known you for years. They want the real version, not the polished one. |
 
 If they pick more than one, run Phase 3 once per chosen audience.
 
 ### Q2 — Vocabulary
 
-> When you talk to [audience] about work, which of these sounds most like you?
+> When you talk to this person about what you're working on, which of these sounds most like the way you actually talk?
 
 | Option | Description |
 |---|---|
-| Plain and short | Short sentences, few abstractions. *"I'm building a thing where founders show their work."* |
-| Stories and analogies | Lead with a moment or comparison. *"You know how my barber gave me $100? It started there."* |
-| Honest and a little raw | Names the feeling first. *"I got tired of pretending in pitch meetings."* |
-| Excited and fast | High energy, lots of detail at once. *"OK so the thing is..."* |
+| Plain and short | Short sentences. No big words. *"I'm building a thing where people can show their work."* |
+| Through a story | You start with a moment. *"You know how my barber handed me a hundred bucks? It started there."* |
+| Honest about how it feels | You name the feeling first. *"I got tired of pretending in those meetings."* |
+| Excited and fast | Lots of energy, lots of detail at once. *"OK so here's the thing..."* |
 
 ### Q3 — Opening beat
 
-> When [audience] asks "so what are you working on?", how do you actually open?
+> When this person asks "so what are you working on these days?", what's the first thing out of your mouth?
 
 | Option | Description |
 |---|---|
-| The wound | Start with what's broken in the system. |
-| Yourself | Start with your own life — what you sell, what you do, who's already paid you. |
-| The mechanic | Start with what's different about how it works. |
-| The proof | Start with the smallest real thing that already happened. |
+| What's wrong out there | You start with what's broken. *"People with real ideas can't get money unless they pretend to be someone they're not."* |
+| Your own life | You start with you. *"I sell hop tinctures and coach careers, and I built a thing for people like me."* |
+| How it works | You jump straight to the way the thing is different. *"It's like a marketplace, except there's no meeting."* |
+| The small real thing already happening | You start with proof. *"My barber gave me a hundred dollars. That actually happened."* |
 
 ### Q4 — Shared ground (multiSelect)
 
-> What does [audience] already know about you and this work?
+> What does this person already know about you and what you're working on?
 
 | Option | Description |
 |---|---|
-| What you do day-to-day | They've heard you talk about your craft, products, or coaching. |
-| Why you left your old path | They know the personal reason behind this. |
-| The numbers | They know roughly what you make, sell, or are raising. |
-| Almost nothing | You'll need to set context from scratch. |
+| What you do most days | They've heard you talk about your work — what you make, who you help. |
+| Why you stopped doing what you used to do | They know the personal reason you're on this road now. |
+| Roughly what you make or sell | They know the money side, at least loosely. |
+| Almost nothing | You'll be starting from scratch with them. |
 
 ### Q5 — Conviction moment
 
-> What's the one shift this audience would need to see in their own life for the platform to feel real to them?
+> What's the one thing this person would have to see happen in their own life for them to actually believe this thing works?
 
 | Option | Description |
 |---|---|
-| Their inbox changes | Requests for their time or services start arriving as seed money instead — *"$50, no strings, because I believe in what you're building"* replaces *"are you free Saturday?"* |
-| Their close network seeds them | Someone they already know funds them within days of posting their offering. |
-| The founder earns in public | They watch you make real revenue on the platform, on the terms you posted. |
-| A stranger buys their thing | They put a small offering up and someone outside their circle pays for it. |
+| Their inbox changes | Right now people text them "are you free Saturday?" or "can you do this for me?" After they put their work up, those messages turn into "here's $50, no strings, because I believe in what you're doing." |
+| Someone they already know puts money in | One of their own friends or family backs them within days of posting. |
+| They watch you make real money openly | They see you earning real dollars from real people, on the terms you posted, not behind closed doors. |
+| A stranger pays for something they made | They put a small thing up and someone they've never met buys it. |
 
-The conviction moment is the listener's own life, not the founder's. It's the answer to *"why would they believe this works for them?"* and it shapes the close of the narrative.
+The answer is about *their* life, not yours. It's why they would believe this works for them — and it shapes the closing line of the version you write.
 
-After Q5, you may ask **one** short open-ended follow-up in plain chat if a beat still feels thin — for example: *"What's the one moment from the last year you'd reach for to make this real for them?"* — but only one. Don't pile on questions; the deck has already done most of the work.
+After Q5, you may ask **one** short open-ended follow-up in plain chat if a beat still feels thin — for example: *"What's the one moment from the last year you'd reach for to make this real for them?"* — but only one. Don't pile on questions.
 
 ---
 
