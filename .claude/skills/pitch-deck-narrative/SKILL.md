@@ -88,7 +88,20 @@ If they pick more than one, run Phase 3 once per chosen audience.
 | The numbers | They know roughly what you make, sell, or are raising. |
 | Almost nothing | You'll need to set context from scratch. |
 
-After Q4, you may ask **one** short open-ended follow-up in plain chat if a beat still feels thin — for example: *"What's the one moment from the last year you'd reach for to make this real for them?"* — but only one. Don't pile on questions; the deck has already done most of the work.
+### Q5 — Conviction moment
+
+> What's the one shift this audience would need to see in their own life for the platform to feel real to them?
+
+| Option | Description |
+|---|---|
+| Their inbox changes | Requests for their time or services start arriving as seed money instead — *"$50, no strings, because I believe in what you're building"* replaces *"are you free Saturday?"* |
+| Their close network seeds them | Someone they already know funds them within days of posting their offering. |
+| The founder earns in public | They watch you make real revenue on the platform, on the terms you posted. |
+| A stranger buys their thing | They put a small offering up and someone outside their circle pays for it. |
+
+The conviction moment is the listener's own life, not the founder's. It's the answer to *"why would they believe this works for them?"* and it shapes the close of the narrative.
+
+After Q5, you may ask **one** short open-ended follow-up in plain chat if a beat still feels thin — for example: *"What's the one moment from the last year you'd reach for to make this real for them?"* — but only one. Don't pile on questions; the deck has already done most of the work.
 
 ---
 
@@ -107,8 +120,8 @@ Each file is a single piece of running prose, **roughly 250–500 words**, struc
 - Anchor the tone to the **Q2 vocabulary** answer.
 - Anchor the opening to the **Q3 opening beat**.
 - Skip context the user told you in **Q4** the audience already has.
+- Anchor the **close** to the **Q5 conviction moment** whenever the listener could plausibly use the platform themselves. The narrative should end on the shift in *their* life, not on the founder's ask. If the listener can't be a user (pure investor, no maker side), fall back to the deck's line in the sand.
 - Numbers and facts come **only** from `pitch-deck.md`. Never invent figures, customers, sources, or quotes. If the deck has `[NEEDS NUMBER: …]` placeholders, leave them out of the narrative entirely — don't substitute a guess.
-- Keep the line in the sand. The closing beat of every narrative should land on what the founder won't do, or what funded means for them — the deck's emotional center, said in this audience's register.
 
 ### Tone targets per audience
 
