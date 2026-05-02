@@ -1,6 +1,5 @@
 const { app, BrowserWindow, session, ipcMain, shell, nativeImage } = require("electron");
 const path = require("path");
-const Anthropic = require("@anthropic-ai/sdk").default;
 
 const isDev = process.argv.includes("--dev");
 
@@ -9,34 +8,17 @@ const isDev = process.argv.includes("--dev");
 // is packaged. Setting it here covers the unpackaged dev case.)
 app.setName("tinker");
 
-// ── Search engine (Claude Haiku) ────────────────────────────────────────
+// ── Search engine (Claude Haiku, via Vercel proxy) ──────────────────────
 //
-// The system prompt is identical across queries, so we mark it for prompt
-// caching — after the first call the prefix is read from cache instead of
-// re-processed on every search.
-
-const SEARCH_SYSTEM_PROMPT = `You are the search engine for the tinker web browser — a quiet alternative to ad-driven search.
-
-When you receive a query, write a calm, conversational answer in three to five short paragraphs that helps the reader understand the topic and where to go next. Embed Markdown links to specific, well-known websites — Wikipedia, official organisation sites, established publications, .gov pages — where the reader can read more or take action. Format links exactly as [label](https://example.com).
-
-Voice: warm, plainspoken, calm. Address the reader as "you" where natural. No headings, no bulleted lists — just flowing prose, with short paragraphs separated by blank lines.
-
-Only include links to sources you'd actually recommend and that you are confident exist. Do not invent URLs. If you are uncertain about a specific URL, omit the link rather than guess. It is better to write a confident paragraph with no link than to fabricate one.`;
-
-let anthropicClient = null;
-function getAnthropic() {
-  if (anthropicClient) return anthropicClient;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    const err = new Error(
-      "ANTHROPIC_API_KEY is not set. Add it to your environment and restart tinker."
-    );
-    err.code = "MISSING_API_KEY";
-    throw err;
-  }
-  anthropicClient = new Anthropic({ apiKey });
-  return anthropicClient;
-}
+// The Anthropic API key lives only on the Vercel server (set as
+// ANTHROPIC_API_KEY in the project's environment variables). Both the
+// desktop and mobile clients POST { query } to /api/search and receive
+// { text, usage } back.
+//
+// Override the endpoint at runtime with TINKER_SEARCH_ENDPOINT — useful
+// when pointing at a local `vercel dev` server during development.
+const DEFAULT_SEARCH_ENDPOINT = "https://YOUR-VERCEL-APP.vercel.app/api/search";
+const SEARCH_ENDPOINT = process.env.TINKER_SEARCH_ENDPOINT || DEFAULT_SEARCH_ENDPOINT;
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -110,24 +92,17 @@ ipcMain.handle("search:query", async (_event, query) => {
   if (typeof query !== "string" || !query.trim()) {
     throw new Error("Query is required");
   }
-  const client = getAnthropic();
-  const message = await client.messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: 1024,
-    system: [
-      {
-        type: "text",
-        text: SEARCH_SYSTEM_PROMPT,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: [{ role: "user", content: query.trim() }],
+  const res = await fetch(SEARCH_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: query.trim() }),
   });
-  const textBlock = message.content.find((b) => b.type === "text");
-  return {
-    text: textBlock ? textBlock.text : "",
-    usage: message.usage,
-  };
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Search proxy ${res.status}: ${body.slice(0, 240)}`);
+  }
+  const data = await res.json();
+  return { text: data.text || "", usage: data.usage };
 });
 
 // Renderer renders the seed-mark SVG to a PNG data URL and hands it

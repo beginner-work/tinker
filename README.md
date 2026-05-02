@@ -10,11 +10,13 @@ Sans for display and Inter for body.
 
 ```bash
 npm install
-export ANTHROPIC_API_KEY="sk-ant-..."   # required for search
 npm start
 ```
 
 Use `npm run dev` to open with DevTools attached.
+
+The Anthropic API key lives on the server, not on your machine — see
+[Search proxy](#search-proxy) below.
 
 ## Search
 
@@ -24,8 +26,41 @@ five paragraphs of plain prose with embedded links to real sites you
 can click through to. The Anthropic system prompt is marked for prompt
 caching, so repeat queries skip the cold-start cost.
 
-If `ANTHROPIC_API_KEY` isn't set, the search pane shows a friendly
-error explaining how to fix it.
+## Search proxy
+
+Both the desktop and mobile clients POST `{ query }` to a tiny Vercel
+serverless function (`api/search.js`) that holds the Anthropic API key
+as a server-side env var. The key is never shipped to the client —
+desktop, mobile, and web all hit the same endpoint and get back
+`{ text, usage }`.
+
+### Deploying the proxy
+
+1. Push this repo to a Vercel project (the function at `api/search.js`
+   is auto-detected).
+2. In **Settings → Environment Variables**, add `ANTHROPIC_API_KEY` =
+   `sk-ant-…` and redeploy.
+3. Replace the `YOUR-VERCEL-APP.vercel.app` placeholder in
+   `src/main/main.js` and `src/renderer/platform-mobile.js` with your
+   deployed URL.
+
+### Pointing at a local proxy during development
+
+Run the function locally with `vercel dev`, then override the endpoint
+without editing source:
+
+```bash
+# Desktop
+TINKER_SEARCH_ENDPOINT="http://localhost:3000/api/search" npm start
+```
+
+```js
+// Mobile / web — from the WebView inspector
+localStorage.setItem("TINKER_SEARCH_ENDPOINT", "http://localhost:3000/api/search");
+```
+
+If the proxy is unreachable or the server-side key is missing, the
+search pane shows a friendly error explaining where to look.
 
 ## Mobile (Capacitor)
 
@@ -64,25 +99,13 @@ native projects.
 |---|---|---|
 | Tabs / sessions | Yes — left sidebar | Yes (collapsed rail on phones) |
 | In-app browsing | Native `<webview>` | External — opens in iOS/Android system browser via `@capacitor/browser` |
-| Search engine | IPC → main process → Anthropic SDK | Direct browser-side fetch with prompt caching |
-| API key storage | `ANTHROPIC_API_KEY` env var | `localStorage` (open the inspector and run `localStorage.setItem(...)`) |
+| Search engine | IPC → main process → Vercel proxy | Direct fetch to the same Vercel proxy |
+| API key storage | Server-side on Vercel — clients never see it | Server-side on Vercel — clients never see it |
 
 The `src/renderer/platform-mobile.js` shim detects the runtime —
 Electron preload short-circuits it; on Capacitor and on the plain
 web it polyfills the same `window.tinker.*` surface so the rest
 of the renderer code path is identical.
-
-### Setting keys on mobile
-
-For now, paste the key into `localStorage` from the Capacitor
-WebView inspector (Safari Web Inspector on iOS, `chrome://inspect`
-on Android):
-
-```js
-localStorage.setItem("ANTHROPIC_API_KEY", "sk-ant-...");
-```
-
-A proper in-app settings panel is on the list.
 
 ## Style dictionary
 
