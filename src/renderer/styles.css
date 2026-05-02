@@ -71,7 +71,7 @@ button {
 input { font: inherit; color: inherit; }
 input:focus, button:focus { outline: none; }
 
-/* ── Sidebar ───────────────────────────────────────────────────────────── */
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
 
 .sidebar {
   width: var(--sidebar-width);
@@ -126,7 +126,7 @@ html.on-web .sidebar__head {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 6px 12px 10px;
+  margin: 6px 12px 4px;
   padding: 9px 12px;
   border-radius: 10px;
   background: rgba(45, 90, 61, 0.06);
@@ -139,6 +139,24 @@ html.on-web .sidebar__head {
 
 .sidebar__new:hover { background: rgba(45, 90, 61, 0.10); }
 .sidebar__new:active { transform: scale(0.99); }
+
+.sidebar__chat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--color-accent-strong);
+  font-size: 13px;
+  font-weight: 600;
+  -webkit-app-region: no-drag;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.sidebar__chat:hover { background: rgba(99, 102, 241, 0.14); }
+.sidebar__chat:active { transform: scale(0.99); }
 
 .sidebar__label {
   padding: 6px 18px 4px;
@@ -166,7 +184,7 @@ html.on-web .sidebar__head {
   -webkit-app-region: no-drag;
 }
 
-/* ── Sessions ──────────────────────────────────────────────────────────── */
+/* ── Sessions ─────────────────────────────────────────────────────────────── */
 
 .session {
   display: flex;
@@ -246,7 +264,7 @@ html.on-web .sidebar__head {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Buttons ───────────────────────────────────────────────────────────── */
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
 
 .icon-btn {
   display: inline-flex;
@@ -264,7 +282,7 @@ html.on-web .sidebar__head {
 .icon-btn:active { transform: scale(0.96); }
 .icon-btn:disabled { color: #c9c2b6; cursor: default; background: transparent; }
 
-/* ── Loading bar ───────────────────────────────────────────────────────── */
+/* ── Loading bar ────────────────────────────────────────────────────────────── */
 
 .loadbar {
   position: absolute;
@@ -293,7 +311,7 @@ html.on-web .sidebar__head {
   100% { transform: translateX(380%); }
 }
 
-/* ── Stage / webviews ──────────────────────────────────────────────────── */
+/* ── Stage / webviews ─────────────────────────────────────────────────────────── */
 
 .stage {
   flex: 1;
@@ -318,7 +336,7 @@ html.on-web .sidebar__head {
 
 webview { border: 0; }
 
-/* ── Welcome page ──────────────────────────────────────────────────────── */
+/* ── Welcome page ───────────────────────────────────────────────────────────── */
 
 .welcome {
   flex-direction: column;
@@ -402,7 +420,7 @@ webview { border: 0; }
 .welcome__begin:hover { background: #4f46e5; }
 .welcome__begin:active { transform: scale(0.98); }
 
-/* ── Search pane ──────────────────────────────────────────────────────── */
+/* ── Search pane ──────────────────────────────────────────────────────────── */
 
 .stage > .search-pane {
   position: absolute;
@@ -527,7 +545,7 @@ webview { border: 0; }
 }
 .search-pane__error-hint { color: var(--color-muted); font-size: 13px; }
 
-/* ── Responsive ───────────────────────────────────────────────────────── */
+/* ── Responsive ───────────────────────────────────────────────────────────── */
 
 @media (max-width: 720px) {
   :root { --sidebar-width: 220px; }
@@ -541,12 +559,14 @@ webview { border: 0; }
   :root { --sidebar-width: 64px; }
   .sidebar__name,
   .sidebar__new span,
+  .sidebar__chat span,
   .sidebar__label,
   .sidebar__footer,
   .session__title,
   .session__close { display: none; }
   .sidebar__nav { padding: 6px 6px 4px; flex-wrap: wrap; gap: 0; }
-  .sidebar__new { margin: 4px 8px; padding: 8px; justify-content: center; }
+  .sidebar__new,
+  .sidebar__chat { margin: 4px 8px; padding: 8px; justify-content: center; }
   .session { padding: 8px; justify-content: center; }
   .welcome { padding: 16px; }
   .welcome__title { font-size: 26px; }

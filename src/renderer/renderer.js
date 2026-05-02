@@ -19,12 +19,13 @@
   let sessions = [];
   let activeId = null;
 
-  // ── DOM refs ─────────────────────────────────────────────────────────
+  // ── DOM refs ─────────────────────────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
   const stage = $("#stage");
   const welcome = $("#welcome");
   const sessionsEl = $("#sessions");
   const newSessionBtn = $("#new-session");
+  const openChatBtn = $("#open-chat");
   const navBack = $("#nav-back");
   const navForward = $("#nav-forward");
   const navReload = $("#nav-reload");
@@ -33,7 +34,7 @@
   const welcomeForm = $("#welcome-form");
   const welcomeInput = $("#welcome-input");
 
-  // ── Helpers ──────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
   const uid = () => "s_" + Math.random().toString(36).slice(2, 9);
 
@@ -54,7 +55,7 @@
     return SEARCH_PREFIX + encodeURIComponent(text);
   }
 
-  // ── Markdown rendering for search results ───────────────────────────
+  // ── Markdown rendering for search results ─────────────────────────────────────
   //
   // Tiny renderer just for what Claude Haiku emits: paragraphs separated
   // by blank lines, [label](url) links, **bold** and *italic*. We escape
@@ -92,7 +93,7 @@
     }
   }
 
-  // ── Session CRUD ────────────────────────────────────────────────────
+  // ── Session CRUD ───────────────────────────────────────────────────────────
 
   function newSession(url = HOME_URL, { activate = true } = {}) {
     const session = {
@@ -130,7 +131,7 @@
     render();
   }
 
-  // ── Webview management ──────────────────────────────────────────────
+  // ── Webview management ──────────────────────────────────────────────────────
 
   function ensureWebview(session) {
     if (session.view) return session.view;
@@ -231,7 +232,7 @@
     session.view = null;
   }
 
-  // ── Search pane ─────────────────────────────────────────────────────
+  // ── Search pane ────────────────────────────────────────────────────────────
 
   function showSearch(session, url, query) {
     session.url = url;
@@ -322,7 +323,7 @@
     }
   }
 
-  // ── Rendering ───────────────────────────────────────────────────────
+  // ── Rendering ──────────────────────────────────────────────────────────────
 
   function render() {
     renderSessions();
@@ -418,12 +419,26 @@
     else loadbar.removeAttribute("data-active");
   }
 
-  // ── Event wiring ────────────────────────────────────────────────────
+  // ── Event wiring ───────────────────────────────────────────────────────────
 
   newSessionBtn.addEventListener("click", () => {
     newSession(HOME_URL);
     welcomeInput.focus();
   });
+
+  // Open the Claude chat in its own window (separate preload, separate
+  // CSP). Available only in Electron — on Capacitor / web the bridge
+  // doesn't expose openChat, so the button is a no-op there.
+  if (openChatBtn) {
+    openChatBtn.addEventListener("click", () => {
+      if (window.tinker && typeof window.tinker.openChat === "function") {
+        window.tinker.openChat();
+      }
+    });
+    if (!(window.tinker && typeof window.tinker.openChat === "function")) {
+      openChatBtn.style.display = "none";
+    }
+  }
 
   navBack.addEventListener("click", () => {
     const s = getActive();
@@ -503,7 +518,7 @@
     }
   });
 
-  // ── Boot ────────────────────────────────────────────────────────────
+  // ── Boot ───────────────────────────────────────────────────────────────────
 
   newSession(HOME_URL);
   welcomeInput.focus();

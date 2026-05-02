@@ -1,0 +1,54 @@
+# electron-builder packaging config.
+#
+# Note: code signing / notarization is intentionally unconfigured — the
+# resulting builds are unsigned. Wire up CSC_LINK / CSC_KEY_PASSWORD (mac)
+# and certificateFile / certificatePassword (win) when ready to ship.
+# TODO: code signing.
+
+appId: work.beginner.tinker
+productName: tinker
+copyright: Copyright © 2026 tinker
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - "src/**/*"
+  - "package.json"
+  - "!**/{.git,.github,.vscode}/**"
+  - "!**/*.{md,log,DS_Store}"
+  - "!ios/**"
+  - "!android/**"
+
+asar: true
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  hardenedRuntime: false
+  gatekeeperAssess: false
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+
+dmg:
+  sign: false
