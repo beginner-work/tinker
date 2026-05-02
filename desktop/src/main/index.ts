@@ -49,9 +49,13 @@ function eraseToken(): void {
 }
 
 function backendUrl(): string {
-  // Production backend lives at beginner.work. Override with BACKEND_URL
-  // (e.g. http://localhost:4000) when developing against a local server.
-  return process.env.BACKEND_URL || "https://beginner.work";
+  // Production backend lives at www.beginner.work. We default to the www
+  // host directly because the apex (beginner.work) issues a 301 redirect
+  // to www, and Chromium refuses to follow redirects through a CORS
+  // preflight — the request would fail before our header injection runs.
+  // Override with BACKEND_URL (e.g. http://localhost:4000) when
+  // developing against a local server.
+  return process.env.BACKEND_URL || "https://www.beginner.work";
 }
 
 // CORS bypass for the configured backend.
@@ -72,15 +76,20 @@ function backendUrl(): string {
 // JavaScript that could exploit the loosened headers.
 function attachCorsBypass(): void {
   const url = backendUrl();
-  let pattern: string;
+  let patterns: string[];
   try {
     const u = new URL(url);
-    pattern = `${u.protocol}//${u.host}/*`;
+    // Cover both apex and www variants so a redirect (or a typo in
+    // BACKEND_URL) doesn't slip past the bypass.
+    const host = u.host;
+    const stripped = host.replace(/^www\./, "");
+    const hosts = new Set([host, stripped, `www.${stripped}`]);
+    patterns = [...hosts].map((h) => `${u.protocol}//${h}/*`);
   } catch {
     return;
   }
   session.defaultSession.webRequest.onHeadersReceived(
-    { urls: [pattern] },
+    { urls: patterns },
     (details, callback) => {
       const headers: Record<string, string[]> = {};
       for (const [k, v] of Object.entries(details.responseHeaders ?? {})) {
