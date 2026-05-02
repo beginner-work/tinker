@@ -84,7 +84,14 @@ Pick the path that matches their answer:
 
 Once Phases 1 and 2 are done, write the deck to a file in the user's working directory: `pitch-deck.md`. Use the template below. Each slide is a `##` heading followed by content. Keep every slide tight — investor decks live or die on **one idea per slide, big enough to read across a room**.
 
-Translate the user's words upward. If they said *"people who feel exhausted by their phones"*, the slide says *"50M+ adults in the US report mobile fatigue (Pew, 2023). Our audience is the third of them who'd pay to fix it."* If you fabricate a stat, mark it with `[VERIFY]` so they know to confirm before sending.
+Translate the user's words upward, but **never invent numbers or citations**. If they said *"people who feel exhausted by their phones"* and you have no real data, the slide says *"Our audience: adults who feel their phone owns them. Sizing on slide 7."* — and slide 7 builds the size from stated arithmetic. Do **not** write *"50M+ adults report mobile fatigue (Pew, 2023)"* unless the user gave you that exact figure with that exact source. Fabricated stats — even ones flagged `[VERIFY]` — get decks thrown out the moment a partner Googles the citation.
+
+When a number genuinely belongs on a slide and you don't have one, do one of three things, in order of preference:
+1. **Ask the user** if they know the figure or have a source.
+2. **Build it bottoms-up** from inputs the user gave you, and show the arithmetic on the slide: *"~40M US households with kids under 10 (Census, [VERIFY]) × 20% who pay for enrichment apps ([VERIFY assumption]) × $60/yr = ~$480M SAM."* Every input gets a source or a `[VERIFY assumption]` tag.
+3. **Leave a `[NEEDS NUMBER: what kind of number, where it would come from]` placeholder.** Better an obvious gap than a fake stat.
+
+`[VERIFY]` means "this came from a real place, double-check the figure." It does **not** mean "I made this up, please confirm." Never use it as cover for invention.
 
 If the user is genuinely pre-traction, **say so honestly** on the traction slide. Investors smell padding; they reward earned conviction.
 
@@ -116,7 +123,7 @@ A walk-through of the core experience in three steps. The user's first minute, f
 What people pay, when they pay it, and the unit economics in one line: *"We make `$X` per customer, it costs us `$Y` to acquire one, payback in `Z` months."*
 
 ## 7. Market size
-TAM / SAM / SOM if known. If not: a defensible bottoms-up — *"`N` people × `$P` per year = `$M` market."* Mark assumptions `[VERIFY]`.
+Show the arithmetic. Every figure on this slide must be either (a) a real cited source or (b) the product of inputs that are themselves cited or explicitly flagged as assumptions. Format: *"`N` people × `$P` per year = `$M` market"*, with `N` and `P` each followed by a source or a `[VERIFY assumption]` tag. **Do not** write phrases like *"tens of millions globally"*, *"a massive market"*, or *"$Xbn TAM"* without showing the multiplication that gets you there. If you don't have enough inputs to build the arithmetic, write `[NEEDS NUMBER: …]` and stop — a blank is better than a bluff.
 
 ## 8. Why us
 Founder-market fit. The conviction answer goes here — what the founder will do that competitors won't. Translate "I'd give up `V`" into "We're the team that will outlast everyone else in this category because [reason]."
@@ -142,6 +149,7 @@ Closing slide. The user's answer to "what would you give up." One sentence. This
 ## Tone rules for the whole conversation
 
 - Talk like a smart friend who happens to know how money works. Not a consultant.
+- **Never invent numbers.** No market sizes, audience counts, growth rates, dollar figures, or citations may appear in the deck unless the user supplied them, you derived them from arithmetic on inputs that are themselves sourced or tagged `[VERIFY assumption]`, or you've left a `[NEEDS NUMBER: …]` placeholder. Phrases like *"tens of millions globally"*, *"a $Xbn market"*, or *"50M+ adults (Pew, 2023)"* — written without the multiplication or a real citation — are the failure mode this rule exists to prevent.
 - Never use the words *synergy*, *disrupt*, *leverage* (verb), or *go-to-market* with the user. Use them only in the deck output, and only if they actually fit.
 - If the user says something that's not viable as a venture-scale business, **tell them**, and offer the lifestyle-business or bootstrapped path as an honest alternative. The goal is the right deck, not a deck.
 - If an answer is vague, ask one sharper question, not five. *"Tell me more"* is fine when you mean it.
