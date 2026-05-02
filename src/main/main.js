@@ -139,6 +139,48 @@ function clearToken() {
   return true;
 }
 
+// ── Onboarding state (encrypted, resumable across launches) ─────────────
+//
+// Stored as a single safeStorage-encrypted JSON blob in userData. Schema:
+//   { version, userId, history, offering, done, updatedAt }
+// The userId is the ClaudeUser id from the JWT — the renderer checks it
+// before restoring so a different user logging in doesn't see another
+// user's draft.
+
+const ONBOARDING_FILE_NAME = "onboarding.bin";
+function onboardingPath() {
+  return path.join(app.getPath("userData"), ONBOARDING_FILE_NAME);
+}
+
+function readOnboarding() {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) return null;
+    const p = onboardingPath();
+    if (!fs.existsSync(p)) return null;
+    const buf = fs.readFileSync(p);
+    return JSON.parse(safeStorage.decryptString(buf));
+  } catch {
+    return null;
+  }
+}
+
+function writeOnboarding(data) {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) return false;
+    if (!data || typeof data !== "object") return false;
+    const enc = safeStorage.encryptString(JSON.stringify(data));
+    fs.writeFileSync(onboardingPath(), enc, { mode: 0o600 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearOnboarding() {
+  try { fs.unlinkSync(onboardingPath()); } catch {}
+  return true;
+}
+
 // ── Windows ─────────────────────────────────────────────────────────────
 
 function createWindow() {
@@ -239,7 +281,7 @@ async function installBackendCorsHook() {
   });
 }
 
-// ── App lifecycle ───────────────────────────────────────────────────────
+// ── App lifecycle ─────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
   session.defaultSession.setUserAgent(userAgent());
@@ -316,6 +358,9 @@ ipcMain.handle("app:setIcon", (_event, dataUrl) => {
 ipcMain.handle("auth:getToken", () => readToken());
 ipcMain.handle("auth:setToken", (_e, token) => writeToken(token));
 ipcMain.handle("auth:clearToken", () => clearToken());
+ipcMain.handle("onboarding:get", () => readOnboarding());
+ipcMain.handle("onboarding:set", (_e, data) => writeOnboarding(data));
+ipcMain.handle("onboarding:clear", () => clearOnboarding());
 ipcMain.handle("config:backendUrl", () => resolveBackendUrl());
 ipcMain.handle("chat:open", () => {
   createChatWindow();

@@ -12,7 +12,9 @@
 // The first user message is a hidden primer that sets the format and
 // the interviewer's brief — never rendered.
 //
-// TODO: persist history + offering across launches via main process.
+// State persists across launches as an encrypted JSON blob in userData
+// (via safeStorage IPC). Restoration is gated on the JWT's claudeUserId
+// so a different user signing in on the same machine starts fresh.
 
 import { startChat, streamSse } from "./api.js";
 
@@ -35,7 +37,15 @@ When the offering paragraph feels complete and specific (typically after six to 
 </offering>
 <done/>
 
+If the user signals they want to wrap up early (anything like "I'm done", "that's all", "finalize"), produce one last polished <offering> and <done/> immediately, drawing on whatever you have.
+
 Begin now — the user hasn't said anything yet. Your first <offering> is a brief placeholder; your first <question> is an open invitation to describe what they're building or what they want to share with seeders.`;
+
+// User-side trigger when the "I'm done" button is pressed. Plain English so
+// even if the model drifts from the format, it understands the intent.
+const FINISH_REQUEST = "I'm done — please finalize my offering now and emit <done/>.";
+
+const SAVE_VERSION = 1;
 
 // Parse Claude's tagged output. Lenient about closing tags so partial
 // streams (e.g., <offering>blah blah, no </offering> yet) still surface
@@ -55,9 +65,12 @@ function parse(raw) {
 }
 
 export function mountChat({ token, user, onLogout, on401 }) {
+  const myUserId = user?.id || null;
   const history = [{ role: "user", content: PRIMER }];
+  let offering = "";
   let abortController = null;
   let turnCount = 0;
+  let isDone = false;
 
   // DOM
   const screenEl = document.getElementById("screen-chat");
@@ -66,6 +79,7 @@ export function mountChat({ token, user, onLogout, on401 }) {
   const composerEl = document.getElementById("work-composer");
   const inputEl = document.getElementById("work-input");
   const sendBtn = document.getElementById("work-send");
+  const finishBtn = document.getElementById("work-finish");
   const offeringEl = document.getElementById("work-offering");
   const userEl = document.getElementById("work-user");
   const logoutBtn = document.getElementById("work-logout");
@@ -98,6 +112,29 @@ export function mountChat({ token, user, onLogout, on401 }) {
     inputEl.style.height = `${Math.min(inputEl.scrollHeight, 180)}px`;
   }
 
+  if (finishBtn) {
+    finishBtn.addEventListener("click", () => {
+      if (finishBtn.disabled || isDone) return;
+      // Sends a synthetic answer that asks Claude to wrap up. Claude's
+      // primer already handles this case → expect <done/> in the response.
+      submitAnswer(FINISH_REQUEST, { hidden: true });
+    });
+  }
+
+  function persist() {
+    if (!myUserId) return;
+    window.api
+      .setOnboarding({
+        version: SAVE_VERSION,
+        userId: myUserId,
+        history,
+        offering,
+        done: isDone,
+        updatedAt: new Date().toISOString(),
+      })
+      .catch(() => {});
+  }
+
   function setBanner(text, kind) {
     if (!text) {
       bannerEl.hidden = true;
@@ -122,6 +159,7 @@ export function mountChat({ token, user, onLogout, on401 }) {
 
   function setOffering(text) {
     if (!text) return;
+    offering = text;
     offeringEl.classList.remove("work-offer__placeholder");
     offeringEl.textContent = text;
   }
@@ -129,9 +167,11 @@ export function mountChat({ token, user, onLogout, on401 }) {
   function setComposerEnabled(enabled) {
     inputEl.disabled = !enabled;
     sendBtn.disabled = !enabled;
+    if (finishBtn) finishBtn.disabled = !enabled;
   }
 
   function showDone(finalOffering) {
+    isDone = true;
     if (finalOffering) setOffering(finalOffering);
 
     // Replace the question card body with a completion state. Keeps the
@@ -146,25 +186,34 @@ export function mountChat({ token, user, onLogout, on401 }) {
       'stroke-linejoin="round" fill="none"/></svg></div>' +
       '<h2 class="work-done__title">Your offering is ready.</h2>' +
       '<p class="work-done__sub">Copy it out and share it with seeders.</p>' +
-      '<button class="work-done__copy" id="work-done-copy" type="button">Copy offering</button>';
+      '<div class="work-done__actions">' +
+      '<button class="work-done__copy" id="work-done-copy" type="button">Copy offering</button>' +
+      '<button class="work-done__restart" id="work-done-restart" type="button">Start over</button>' +
+      "</div>";
     cardEl.appendChild(wrap);
 
     document.getElementById("work-done-copy").addEventListener("click", async (e) => {
-      const text = finalOffering || offeringEl.textContent || "";
+      const text = offering || offeringEl.textContent || "";
       try {
         await navigator.clipboard.writeText(text);
         e.target.textContent = "Copied";
         setTimeout(() => { e.target.textContent = "Copy offering"; }, 1500);
       } catch {
-        // Clipboard write can fail in some contexts; show inline fallback.
         e.target.textContent = "Copy failed";
       }
     });
+
+    document.getElementById("work-done-restart").addEventListener("click", async () => {
+      await window.api.clearOnboarding().catch(() => {});
+      location.reload();
+    });
+
+    persist();
   }
 
-  function submitAnswer(text) {
+  function submitAnswer(text, { hidden = false } = {}) {
     history.push({ role: "user", content: text });
-    inputEl.value = "";
+    if (!hidden) inputEl.value = "";
     autoResize();
     setComposerEnabled(false);
     setBanner(null);
@@ -223,6 +272,7 @@ export function mountChat({ token, user, onLogout, on401 }) {
             setQuestion(parsed.question || "", { streaming: false });
             setComposerEnabled(true);
             screenEl.dataset.phase = "idle";
+            persist();
             requestAnimationFrame(() => inputEl.focus());
           },
         });
@@ -261,7 +311,50 @@ export function mountChat({ token, user, onLogout, on401 }) {
     setComposerEnabled(true);
   }
 
-  // Kick off the first question on mount.
-  screenEl.dataset.phase = "loading";
-  askNext();
+  // ── Boot: try to restore a saved session ─────────────────────────────
+  //
+  // If the saved session belongs to this user and isn't done, we replay
+  // history into memory, paint the last assistant turn (offering +
+  // question) and let the user pick up where they left off — no
+  // duplicate /claude/chat call.
+  async function boot() {
+    let saved = null;
+    try {
+      saved = await window.api.getOnboarding();
+    } catch {}
+
+    if (saved && saved.userId === myUserId && Array.isArray(saved.history) && saved.history.length > 1) {
+      history.length = 0;
+      history.push(...saved.history);
+      turnCount = saved.history.filter((m) => m.role === "assistant").length;
+      if (saved.offering) setOffering(saved.offering);
+
+      if (saved.done) {
+        screenEl.dataset.phase = "done";
+        showDone(saved.offering || "");
+        return;
+      }
+
+      // Render the most recent assistant question and re-enable composer.
+      const lastAssistant = [...history].reverse().find((m) => m.role === "assistant");
+      if (lastAssistant) {
+        const parsed = parse(lastAssistant.content);
+        setQuestion(parsed.question || "");
+        numEl.textContent = String(turnCount);
+        setComposerEnabled(true);
+        screenEl.dataset.phase = "idle";
+        requestAnimationFrame(() => inputEl.focus());
+        return;
+      }
+    } else if (saved && saved.userId && saved.userId !== myUserId) {
+      // Different user on the same machine — clear stale state.
+      window.api.clearOnboarding().catch(() => {});
+    }
+
+    // No usable saved session → kick off the first question.
+    screenEl.dataset.phase = "loading";
+    askNext();
+  }
+
+  boot();
 }
