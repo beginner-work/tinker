@@ -14,7 +14,7 @@
 
 ## 5. How it works — the founder walks in with a feeling and walks out with a page
 
-## 6. How it makes money — tiered subscription ($7 / $35 / $70-per-founder Studio) with API overage
+## 6. How it makes money — tiered subscription, $7 / $35 / $70-per-founder; enterprise offerings with API overage on top
 
 ## 7. Market size — SOM 3,000 paid founders (~$390K ARR Y1); SAM $1B-$5B through Studio; TAM $50B+ on $1T+ flow
 
