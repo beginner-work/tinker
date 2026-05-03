@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>beginner — pitch</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+    />
+    <style>
+      :root {
+        --bg-cream: #f5f3ef;
+        --ink: #1a1a1a;
+        --ink-soft: rgba(26, 26, 26, 0.55);
+
+        /* Pastel rainbow — joy and tropical heritage.
+           Verbatim from src/renderer/tokens/rainbow-web.json. */
+        --c-pink:     #f9a8d4;
+        --c-peach:    #fdba74;
+        --c-amber:    #fde68a;
+        --c-mint:     #6ee7b7;
+        --c-sky:      #7dd3fc;
+        --c-green:    #7bc47a;
+        --c-lavender: #c8b6e2;
+
+        --font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+        --font-sans:    "Inter", system-ui, -apple-system, sans-serif;
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      html, body {
+        height: 100%;
+        font-family: var(--font-sans);
+        color: var(--ink);
+        background: var(--bg-cream);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      body {
+        scroll-snap-type: y mandatory;
+        overflow-y: scroll;
+        scroll-behavior: smooth;
+      }
+
+      section.slide {
+        height: 100vh;
+        width: 100%;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 6rem clamp(2rem, 8vw, 8rem);
+        position: relative;
+      }
+
+      /* Color cycle. Cover and end are cream; slides 1–13 walk the rainbow. */
+      section.slide:nth-of-type(1)  { background: var(--bg-cream); }
+      section.slide:nth-of-type(2)  { background: var(--c-pink); }
+      section.slide:nth-of-type(3)  { background: var(--c-peach); }
+      section.slide:nth-of-type(4)  { background: var(--c-amber); }
+      section.slide:nth-of-type(5)  { background: var(--c-mint); }
+      section.slide:nth-of-type(6)  { background: var(--c-sky); }
+      section.slide:nth-of-type(7)  { background: var(--c-green); }
+      section.slide:nth-of-type(8)  { background: var(--c-lavender); }
+      section.slide:nth-of-type(9)  { background: var(--c-pink); }
+      section.slide:nth-of-type(10) { background: var(--c-peach); }
+      section.slide:nth-of-type(11) { background: var(--c-amber); }
+      section.slide:nth-of-type(12) { background: var(--c-mint); }
+      section.slide:nth-of-type(13) { background: var(--c-sky); }
+      section.slide:nth-of-type(14) { background: var(--c-green); }
+      section.slide:nth-of-type(15) { background: var(--bg-cream); }
+
+      .slide-num {
+        position: absolute;
+        top: 2.5rem;
+        right: clamp(2rem, 8vw, 8rem);
+        font-family: var(--font-sans);
+        font-weight: 600;
+        font-size: 0.875rem;
+        letter-spacing: 0.08em;
+        color: var(--ink-soft);
+      }
+
+      .slide-kicker {
+        font-family: var(--font-sans);
+        font-weight: 600;
+        font-size: clamp(0.875rem, 1.2vw, 1rem);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        margin-bottom: 2rem;
+      }
+
+      .slide-title {
+        font-family: var(--font-display);
+        font-weight: 800;
+        font-size: clamp(2rem, 4.5vw, 3.5rem);
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        max-width: 22ch;
+        color: var(--ink);
+      }
+
+      .cover, .end {
+        align-items: center;
+        text-align: center;
+        justify-content: center;
+      }
+
+      .cover .slide-tag {
+        font-family: var(--font-sans);
+        font-weight: 600;
+        font-size: clamp(0.875rem, 1.2vw, 1rem);
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        margin-bottom: 2.5rem;
+      }
+      .cover .slide-title {
+        font-size: clamp(4rem, 12vw, 9rem);
+        letter-spacing: -0.04em;
+        max-width: none;
+      }
+      .cover .slide-subtitle {
+        font-family: var(--font-display);
+        font-weight: 500;
+        font-size: clamp(1.125rem, 2vw, 1.5rem);
+        max-width: 28ch;
+        margin-top: 2rem;
+        color: var(--ink-soft);
+      }
+
+      .end .slide-title {
+        font-size: clamp(3rem, 8vw, 6rem);
+        max-width: none;
+      }
+      .end .slide-subtitle {
+        font-family: var(--font-display);
+        font-weight: 500;
+        font-size: clamp(1rem, 1.6vw, 1.25rem);
+        margin-top: 1.5rem;
+        color: var(--ink-soft);
+        max-width: 32ch;
+      }
+
+      @media (max-width: 768px) {
+        section.slide { padding: 4rem 1.5rem; }
+        .slide-num { top: 1.5rem; right: 1.5rem; }
+        .slide-title { font-size: clamp(1.75rem, 7vw, 2.75rem); }
+        .cover .slide-title { font-size: clamp(3.5rem, 18vw, 6rem); }
+      }
+
+      @media print {
+        body { scroll-snap-type: none; overflow: visible; }
+        section.slide { page-break-after: always; height: auto; min-height: 100vh; }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="slide cover">
+      <div class="slide-tag">Instagram for founders</div>
+      <h1 class="slide-title">beginner</h1>
+      <p class="slide-subtitle">Every founder is the chosen one for their craft.</p>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">01 / 13</div>
+      <div class="slide-kicker">The problem</div>
+      <h2 class="slide-title">The long tail of founders was considered a solved problem. Founders with real conviction can't get funded.</h2>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">02 / 13</div>
+      <div class="slide-kicker">The solution</div>
+      <h2 class="slide-title">beginner is Instagram for founders. A guided AI conversation that turns conviction into a page seeders read.</h2>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">03 / 13</div>
+      <div class="slide-kicker">Why now</div>
+      <h2 class="slide-title">AI funding is outpacing every other kind of funding. The unfunded side has no product.</h2>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">04 / 13</div>
+      <div class="slide-kicker">Who it's for</div>
+      <h2 class="slide-title">The visible-but-unfunded founder. First-timer with audience. Filipino-market non-profit CEO. Side-desk operator. Domain expert. Indie hacker.</h2>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">05 / 13</div>
+      <div class="slide-kicker">How it works</div>
+      <h2 class="slide-title">The founder walks in with a feeling. They walk out with a page.</h2>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">06 / 13</div>
+      <div class="slide-kicker">How it makes money</div>
+      <h2 class="slide-title">Tiered subscription. $7 / $35 / $70-per-founder Studio. API overage on top.</h2>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">07 / 13</div>
+      <div class="slide-kicker">Market size</div>
+      <h2 class="slide-title">SOM 3,000 paid founders (~$390K ARR Y1). SAM $1B–$5B through Studio. TAM $50B+ on $1T+ flow.</h2>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">08 / 13</div>
+      <div class="slide-kicker">Why us</div>
+      <h2 class="slide-title">Voice is the moat. Depth is the product. I'm hapa, AI-native, translating one truth across audiences my whole life. beginner inverts the system that cut depth at Affirm.</h2>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">09 / 13</div>
+      <div class="slide-kicker">Competition</div>
+      <h2 class="slide-title">The only entrant where one page serves both founder-to-seeder discovery and accelerator-to-applicant pipeline.</h2>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">10 / 13</div>
+      <div class="slide-kicker">Already real</div>
+      <h2 class="slide-title">A non-profit in San Diego, hosting events to help devs connect and understand their own businesses. beginner is the AI-scaled version.</h2>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">11 / 13</div>
+      <div class="slide-kicker">Team</div>
+      <h2 class="slide-title">Solo founder. Design partners: my wife (visible-but-unfunded founder) and my barber (a real seeder, in cash).</h2>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">12 / 13</div>
+      <div class="slide-kicker">The ask</div>
+      <h2 class="slide-title">$300K. San Diego, then San Francisco. 12 months. 3,000 paid founders. One named accelerator on Studio.</h2>
+    </section>
+
+    <section class="slide">
+      <div class="slide-num">13 / 13</div>
+      <div class="slide-kicker">The line in the sand</div>
+      <h2 class="slide-title">My personal runway is one month. If the seed doesn't close in 30 days, I step away.</h2>
+    </section>
+
+    <section class="slide end">
+      <h2 class="slide-title">beginner</h2>
+      <p class="slide-subtitle">Every founder is the chosen one for their craft.</p>
+    </section>
+  </body>
+</html>
