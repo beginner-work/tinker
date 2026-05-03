@@ -12,7 +12,7 @@
 
 ## 4. Who it's for — Filipino-market non-profit CEO; Latina spiritual guide and herbalist; Ex-software engineering manager, first time founder
 
-## 5. How it works — the founder walks in with a feeling and walks out with a page
+## 5. How it works — the founder walks in with a feeling, a follower, a customer; they walk out with a patron, a funding source, a seeder
 
 ## 6. How it makes money — tiered subscription, $7 / $35 / $70-per-founder; enterprise offerings with API overage on top
 
