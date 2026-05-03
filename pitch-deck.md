@@ -10,7 +10,7 @@
 
 ## 3. Why now — AI funding is outpacing every other kind of funding, and the unfunded side has no product
 
-## 4. Who it's for — solo founders and anyone with a small team: first-timer with audience, Filipino-market non-profit CEO, side-desk operator, domain expert, indie hacker
+## 4. Who it's for — First-timer with audience; Filipino-market non-profit CEO; Latina spiritual guide and herbalist; Hapa software engineering manager, ex public fintech
 
 ## 5. How it works — the founder walks in with a feeling and walks out with a page
 
