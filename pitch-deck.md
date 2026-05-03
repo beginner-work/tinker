@@ -1,6 +1,6 @@
 # beginner — every founder is the chosen one for their craft
 
-> Instagram for founders. Your work, described for the people who'd back you — not just buy from you.
+> Instagram for seeding the next unicorn. Your work, described for the people who'd back you — not just buy from you.
 
 ---
 
