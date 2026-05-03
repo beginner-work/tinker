@@ -21,7 +21,7 @@ session changes, update this file first, then update `eval.sh`'s
 | **Brand spirit — the room after they walk in** | Anointed — chosen-one-for-their-craft. Voice is the moat. |
 | **Brand palette** | Pastel rainbow as a statement of joy and tropical heritage (not pride). |
 | **What business you're in** | Founder tech — an AI-native vertical platform that turns conviction into a page seeders read. |
-| **How far you'd go** | Down to one month of personal runway. |
+| **How far you'd go** | Down to June 2026 of personal runway. |
 
 ## Phase 2 answers (branched follow-ups)
 
@@ -31,7 +31,7 @@ session changes, update this file first, then update `eval.sh`'s
 | **Audience at large** | Those who seek to further their worldview and stand strong in protecting indigenous culture. |
 | **Conviction moment for the audience** | They watch products get seeded into the platform — money moves openly, in front of them. |
 | **Mechanism** | The page describes the founder for *seeders*, not buyers. Pricing makes time visible; support that doesn't extract hours; structural no for everything off-page. |
-| **Line in the sand** | Founder runway is one month; if the seed doesn't close in 30 days, founder steps away. |
+| **Line in the sand** | Founder runway is June 2026; if the seed doesn't close in 30 days, founder steps away. |
 
 ---
 
@@ -41,7 +41,7 @@ The deck **must** contain (proves the founder's actual answers landed,
 not a generic VC template):
 
 - `$300K` — the ask and the take-home target
-- `one month` — the line-in-the-sand runway figure
+- `June 2026` — the line-in-the-sand runway figure
 - `San Diego` — the Year-1 beachhead
 - `San Francisco` — the Year-1 second city
 - `Filipino` — heritage marker on the audience side

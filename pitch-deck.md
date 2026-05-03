@@ -28,4 +28,4 @@
 
 ## 12. The ask — raising $300K to secure San Diego and open San Francisco in 12 months; 3,000 paid founders + one named accelerator on Enterprise by Y1
 
-## 13. The line in the sand — my personal runway is one month; if the seed doesn't close in 30 days, I step away
+## 13. The line in the sand — my personal runway is June 2026; if the seed doesn't close, I step away

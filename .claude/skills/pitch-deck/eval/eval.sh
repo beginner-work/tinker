@@ -26,7 +26,7 @@ fi
 # See fixture.md for the answers each one corresponds to.
 MUST_APPEAR=(
   '$300K'
-  'one month'
+  'June 2026'
   'San Diego'
   'San Francisco'
   'Filipino'
