@@ -4,7 +4,7 @@
 
 ---
 
-## 1. The problem — solo founders and small teams were considered a solved problem; founders with real conviction can't get funded
+## 1. The problem — solo founders and small teams were considered a solved problem; there are a lot of founders who don't come from a business background
 
 ## 2. The solution — beginner is Instagram for founders: a guided AI conversation that turns conviction into a page seeders read
 
