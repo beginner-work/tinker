@@ -158,3 +158,19 @@ Closing slide. The user's answer to "what would you give up." One sentence. This
 ## When the deck is done
 
 After writing `pitch-deck.md`, read it back to the user as a short summary (3–4 lines), point out any `[VERIFY]` stats they need to check, and ask: *"Want me to tighten any slide, or are we good?"*
+
+---
+
+## Eval — regression check against the canonical fixture
+
+This skill ships with a content-level eval at `eval/eval.sh`, fixture documented at `eval/fixture.md`. The fixture captures the canonical session — the answers that produced the reference `beginner` deck — and the eval asserts a freshly produced `pitch-deck.md` carries the right fingerprints (the founder's actual answers) and none of the banned jargon or fabricated-citation patterns this skill forbids.
+
+Run the eval after Phase 3 if the user wants a regression check, or whenever you change the skill itself:
+
+```sh
+bash .claude/skills/pitch-deck/eval/eval.sh path/to/pitch-deck.md
+```
+
+The eval exits 0 on pass and prints each missing or forbidden string on its own line on failure. It is **content-level**, not byte-level — LLM output varies, but the fingerprints (founder's name for the audience, ask amount, line-in-the-sand runway figure, banned-jargon screen) shouldn't.
+
+If a future canonical session has different answers, update `eval/fixture.md` first, then update the `MUST_APPEAR` and `MUST_NOT_APPEAR` arrays in `eval/eval.sh` to match.
