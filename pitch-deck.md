@@ -4,13 +4,13 @@
 
 ---
 
-## 1. The problem — the long tail of founders was considered a solved problem; founders with real conviction can't get funded
+## 1. The problem — solo founders and small teams were considered a solved problem; founders with real conviction can't get funded
 
 ## 2. The solution — beginner is Instagram for founders: a guided AI conversation that turns conviction into a page seeders read
 
 ## 3. Why now — AI funding is outpacing every other kind of funding, and the unfunded side has no product
 
-## 4. Who it's for — the visible-but-unfunded founder: first-timer with audience, Filipino-market non-profit CEO, side-desk operator, domain expert, indie hacker
+## 4. Who it's for — solo founders and anyone with a small team: first-timer with audience, Filipino-market non-profit CEO, side-desk operator, domain expert, indie hacker
 
 ## 5. How it works — the founder walks in with a feeling and walks out with a page
 
