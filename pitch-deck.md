@@ -6,7 +6,7 @@
 
 ## 1. The problem — solo founders and small teams were considered a solved problem; there are a lot of founders who don't come from a business background
 
-## 2. The solution — beginner is Instagram for founders: a guided AI conversation that turns conviction into a page seeders read
+## 2. The solution — beginner is a guided AI conversation that turns conviction into a page seeders read
 
 ## 3. Why now — AI funding is outpacing every other kind of funding, and the unfunded side has no product
 
