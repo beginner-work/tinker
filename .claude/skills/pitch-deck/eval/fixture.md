@@ -48,7 +48,6 @@ not a generic VC template):
 - `barber` — the named seeder persona
 - `Enterprise` — the high-LTV accelerator tier
 - `beginner` — the product name
-- `AI-native` — the business framing
 - `## 1. The problem` — slide-1 heading shape
 - `The line in the sand` — closing-slide title
 

@@ -18,7 +18,7 @@
 
 ## 7. Market size — SOM 3,000 paid founders (~$390K ARR Y1); SAM $1B-$5B through Enterprise; Cursor (~$30B) fails because it conflates job seekers with builders; Anthropic (~$400B) fails because it conflates builders with founders
 
-## 8. Why us — voice is the moat, depth is the product. I'm hapa, AI-native, translating one truth across audiences my whole life. At Affirm I was the depth in a system that needed scale; depth got cut. beginner thrives on the diversity of ideas because it's a payment network built on ideas.
+## 8. Why us — founders are the moat. I'm Filipino Irish (hapa) founder, translating one truth across businesses my whole life. Your worldview is fundable.
 
 ## 9. Competition — the only entrant where one page serves both founder-to-seeder discovery and accelerator-to-applicant pipeline
 

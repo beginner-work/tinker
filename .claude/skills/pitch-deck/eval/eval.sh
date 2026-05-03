@@ -33,7 +33,6 @@ MUST_APPEAR=(
   'barber'
   'Enterprise'
   'beginner'
-  'AI-native'
   '## 1. The problem'
   'The line in the sand'
 )
