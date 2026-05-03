@@ -16,7 +16,7 @@
 
 ## 6. How it makes money — tiered subscription, $7 / $35 / $70-per-founder; enterprise offerings with API overage on top
 
-## 7. Market size — SOM 3,000 paid founders (~$390K ARR Y1); SAM $1B-$5B through Enterprise; Cursor (~$10B) will fail, but their market size is a peek at the TAM potential; Anthropic (~$200B+) shows the ceiling
+## 7. Market size — SOM 3,000 paid founders (~$390K ARR Y1); SAM $1B-$5B through Enterprise; Cursor (~$30B) fails because it conflates job seekers with builders; Anthropic (~$400B) fails because it conflates builders with founders
 
 ## 8. Why us — voice is the moat, depth is the product. I'm hapa, AI-native, translating one truth across audiences my whole life. At Affirm I was the depth in a system that needed scale; depth got cut. beginner thrives on the diversity of ideas because it's a payment network built on ideas.
 
