@@ -1,4 +1,4 @@
-# beginner — every founder is the chosen one for their craft
+# beginner — Funding the Craft, Finding the Founder
 
 > Instagram for seeding the next unicorn. Your work, described for the people who'd back you — not just buy from you.
 
