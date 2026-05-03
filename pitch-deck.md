@@ -4,7 +4,7 @@
 
 ---
 
-## 1. The problem — solo founders and small teams were considered a solved problem; there are a lot of founders who don't come from a business background
+## 1. The problem — solo founders and small teams were considered a solved problem in payment networks: if they do grow, we'll capture the value; but you devalue your own network by following growth rather than creating it
 
 ## 2. The solution — beginner is a guided AI conversation that turns conviction into a page seeders read
 
