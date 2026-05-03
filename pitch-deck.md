@@ -10,7 +10,7 @@
 
 ## 3. Why now — AI funding is outpacing every other kind of funding, and the unfunded side has no product
 
-## 4. Who it's for — Filipino-market non-profit CEO; Latina spiritual guide and herbalist; Ex-software engineering manager, first time founder
+## 4. Who it's for — Latina spiritual guide and herbalist; Ex-software engineering manager, first time founder; Filipino-market non-profit CEO; Second time tech founder, aspiring men's health therapist
 
 ## 5. How it works — the founder walks in with a feeling, a follower, a customer; they walk out with a patron, a funding source, a seeder
 
