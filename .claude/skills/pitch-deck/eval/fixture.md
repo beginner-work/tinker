@@ -46,7 +46,7 @@ not a generic VC template):
 - `San Francisco` — the Year-1 second city
 - `Filipino` — heritage marker on the audience side
 - `barber` — the named seeder persona
-- `Studio` — the high-LTV accelerator tier
+- `Enterprise` — the high-LTV accelerator tier
 - `beginner` — the product name
 - `AI-native` — the business framing
 - `## 1. The problem` — slide-1 heading shape

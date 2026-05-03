@@ -31,7 +31,7 @@ MUST_APPEAR=(
   'San Francisco'
   'Filipino'
   'barber'
-  'Studio'
+  'Enterprise'
   'beginner'
   'AI-native'
   '## 1. The problem'

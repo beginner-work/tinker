@@ -16,7 +16,7 @@
 
 ## 6. How it makes money — tiered subscription, $7 / $35 / $70-per-founder; enterprise offerings with API overage on top
 
-## 7. Market size — SOM 3,000 paid founders (~$390K ARR Y1); SAM $1B-$5B through Studio; TAM $50B+ on $1T+ flow
+## 7. Market size — SOM 3,000 paid founders (~$390K ARR Y1); SAM $1B-$5B through Enterprise; TAM $50B+ on $1T+ flow
 
 ## 8. Why us — voice is the moat, depth is the product. I'm hapa, AI-native, translating one truth across audiences my whole life. At Affirm I was the depth in a system that needed scale; when going deeper into existing merchants stopped fitting the business, my role was eliminated. beginner inverts that — depth is the product, and AI is what finally makes depth scale.
 
@@ -26,6 +26,6 @@
 
 ## 11. Team — solo founder; design partners are my wife (visible-but-unfunded founder) and my barber (a real seeder, in cash)
 
-## 12. The ask — raising $300K to secure San Diego and open San Francisco in 12 months; 3,000 paid founders + one named accelerator on Studio by Y1
+## 12. The ask — raising $300K to secure San Diego and open San Francisco in 12 months; 3,000 paid founders + one named accelerator on Enterprise by Y1
 
 ## 13. The line in the sand — my personal runway is one month; if the seed doesn't close in 30 days, I step away
