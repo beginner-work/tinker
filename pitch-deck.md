@@ -18,7 +18,7 @@
 
 ## 7. Market size — SOM 3,000 paid founders (~$390K ARR Y1); SAM $1B-$5B through Enterprise; Cursor (~$30B) fails because it conflates job seekers with builders; Anthropic (~$400B) fails because it conflates builders with founders
 
-## 8. Why us — founders are the moat. I'm a Filipino Irish (hapa) founder. Worked on first generation education, science museums and research, fintech merchant onboarding.
+## 8. Why us — colorful founders are the moat. I'm a Filipino Irish (hapa) founder. Worked on first generation education, science museums and research, fintech merchant onboarding.
 
 ## 9. Competition — the only entrant where one page serves both founder-to-seeder discovery and accelerator-to-applicant pipeline
 
