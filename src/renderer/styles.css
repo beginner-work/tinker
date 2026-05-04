@@ -420,17 +420,120 @@ webview { border: 0; }
 
 /* ── Mood meter ───────────────────────────────────────────────────────── */
 /*
- * 4×8 grid borrowed from the How-We-Feel mood meter:
- *   columns 1–2 = unpleasant, columns 3–4 = pleasant
- *   rows 1–4    = high energy, rows 5–8    = low energy
- * Each chip's tone (deep / mid / light / soft) tracks how intense
- * the feeling is — deep at the corners, soft in the middle.
+ * Two-step browse, the way How-We-Feel does it:
+ *
+ *   1. `.quadrants` — four high-level tiles (2×2) for the energy ×
+ *      pleasantness combinations. Each one previews a few example
+ *      feelings so you can scan before drilling in.
+ *   2. `.feelings`  — the eight specific feelings in the picked
+ *      quadrant, plus a back button to return to step 1.
+ *
+ * Within a quadrant the tone (deep / mid / light / soft) tracks
+ * intensity, so the corners read as the most vivid feelings and
+ * the middle fades toward calm.
  */
+
+.mood-stage {
+  width: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.quadrants {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+.quadrant {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  padding: 22px 22px 20px;
+  min-height: 132px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.18s ease, filter 0.2s ease;
+  box-shadow: 0 1px 2px rgba(45, 42, 38, 0.06), 0 4px 14px rgba(45, 42, 38, 0.05);
+}
+
+.quadrant:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(45, 42, 38, 0.13);
+  filter: saturate(1.07);
+}
+
+.quadrant:active { transform: translateY(0); }
+
+.quadrant:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.55);
+  outline-offset: 3px;
+}
+
+.quadrant__title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.quadrant__hint {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  opacity: 0.86;
+  line-height: 1.4;
+}
+
+/* Quadrant gradients — same colour family as the chips, one tier
+   lighter so the tile feels welcoming rather than alarming. */
+.quadrant--red    { background: linear-gradient(135deg, #f08389, #de5d61); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.18); }
+.quadrant--yellow { background: linear-gradient(135deg, #f7c455, #efaa30); color: rgba(45,42,38,0.92); text-shadow: 0 1px 0 rgba(255,255,255,0.4); }
+.quadrant--blue   { background: linear-gradient(135deg, #7e9fd5, #5a7fc1); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.16); }
+.quadrant--green  { background: linear-gradient(135deg, #59ba8e, #3a9d72); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.15); }
+
+/* Step 2 — feelings within the picked quadrant. */
+.feelings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.mood-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px 6px 10px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
+}
+
+.mood-back:hover {
+  background: var(--color-cream);
+  color: var(--color-foreground);
+}
+
+.mood-back:active { transform: scale(0.98); }
 
 .mood-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 7px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
   width: 100%;
   -webkit-app-region: no-drag;
 }
@@ -626,6 +729,10 @@ webview { border: 0; }
   .welcome__title { font-size: 30px; }
   .welcome__search { height: 50px; }
   .welcome__begin { height: 40px; padding: 0 20px; }
+  .quadrant { min-height: 118px; padding: 18px 18px 16px; }
+  .quadrant__title { font-size: 16.5px; }
+  .quadrant__hint { font-size: 12px; }
+  .quadrants { gap: 8px; }
   .mood { height: 46px; font-size: 12.5px; }
   .mood-grid { gap: 6px; }
 }
@@ -648,8 +755,13 @@ webview { border: 0; }
   .welcome__inner { gap: 18px; }
   .welcome__search { height: 46px; padding-left: 14px; }
   .welcome__begin { height: 36px; padding: 0 16px; font-size: 13px; }
+  .quadrant { min-height: 104px; padding: 16px 16px 14px; border-radius: 16px; }
+  .quadrant__title { font-size: 15.5px; }
+  .quadrant__hint { font-size: 11.5px; line-height: 1.35; }
+  .quadrants { gap: 7px; }
   .mood { height: 42px; font-size: 12px; padding: 4px 4px; border-radius: 10px; }
   .mood-grid { gap: 5px; }
+  .mood-back { font-size: 12px; padding: 5px 12px 5px 8px; }
   .stage > .search-pane {
     padding: calc(env(safe-area-inset-top, 0px) + 24px) 18px 32px;
   }
