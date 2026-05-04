@@ -92,24 +92,39 @@ The renderer fetches it via `src/renderer/lib/rainbow-web.js`, which
 exposes `window.tinkerLogo.buildRainbowWebSvg()` for any consumer
 that wants the mark as an SVG string.
 
+## Threads
+
+A small Threads-style social pane lives at `tinker://threads`. Open it
+from the pill below the welcome search, by typing `threads` into the
+address bar, or with ⌘/Ctrl + L → `threads`. Posts, replies, likes,
+and reposts are stored in `localStorage` under `tinker.threads.v1`, so
+the feed survives restarts but doesn't talk to a server. A handful of
+seed posts ship with a fresh install so the page isn't empty.
+
+The pane mounts the same way the search pane does — as a `<section>`
+inside a session in the left sidebar, so you can keep a threads tab
+open alongside webviews and search results.
+
 ## What's inside
 
 ```
 web/
 ├── src/
 │   ├── main/
-│   │   ├── main.js         # Electron main process — window, session, IPC
-│   │   └── preload.js      # contextBridge exposing the `tinker` API
+│   │   ├── main.js          # Electron main process — window, session, IPC
+│   │   └── preload.js       # contextBridge exposing the `tinker` API
 │   └── renderer/
-│       ├── index.html      # Browser chrome shell
-│       ├── styles.css      # Brand styling
-│       └── renderer.js     # Tabs, address bar, navigation
+│       ├── index.html       # Browser chrome shell
+│       ├── styles.css       # Brand styling
+│       ├── renderer.js      # Tabs, address bar, navigation
+│       └── threads-pane.js  # tinker://threads — feed, compose, replies
 └── package.json
 ```
 
 The renderer is plain HTML/CSS/JS — no build step, no bundler. Each
-tab maps to either the welcome page (in-DOM) or an Electron
-`<webview>` mounted lazily on first navigation.
+tab maps to either the welcome page (in-DOM), the threads pane,
+a search pane, or an Electron `<webview>` mounted lazily on first
+navigation.
 
 ## Shortcuts
 

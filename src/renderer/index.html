@@ -83,6 +83,17 @@
                    placeholder="Start a new web" aria-label="Start a new web" />
             <button type="submit" id="welcome-submit" class="welcome__begin">Begin</button>
           </form>
+
+          <div class="welcome__shortcuts" role="group" aria-label="Quick links">
+            <button type="button" class="welcome__shortcut" data-url="tinker://threads" title="Open threads">
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                <path d="M16 8a4 4 0 0 0-8 0c0 2 1 3 2.5 4S13 13 13 14.5a2.5 2.5 0 1 1-5 0"
+                      fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.4" fill="none"/>
+              </svg>
+              <span>threads</span>
+            </button>
+          </div>
         </div>
       </section>
     </main>
@@ -94,6 +105,7 @@
     <script src="./platform-mobile.js" defer></script>
     <script src="./lib/rainbow-web.js" defer></script>
     <script src="./icon-init.js" defer></script>
+    <script src="./threads-pane.js" defer></script>
     <script src="./renderer.js" defer></script>
   </body>
 </html>

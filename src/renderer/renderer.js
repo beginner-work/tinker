@@ -14,6 +14,7 @@
 
   const HOME_URL = "tinker://home";
   const SEARCH_PREFIX = "tinker://search?q=";
+  const THREADS_URL = "tinker://threads";
 
   /** @type {Array<{id: string, url: string, title: string, loading: boolean, view: HTMLElement | null}>} */
   let sessions = [];
@@ -44,6 +45,7 @@
     const text = raw.trim();
     if (!text) return null;
     if (text === "home" || text === "tinker://home") return HOME_URL;
+    if (text === "threads" || text === "tinker://threads") return THREADS_URL;
     if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(text)) return text;
     if (/^[a-z]+:/i.test(text)) return text;
     const looksLikeHost = /^[\w-]+(\.[\w-]+)+(\/.*)?$/i.test(text);
@@ -94,18 +96,28 @@
 
   // ── Session CRUD ────────────────────────────────────────────────────
 
+  function titleForUrl(url) {
+    if (url === HOME_URL) return "New session";
+    if (url === THREADS_URL) return "threads";
+    return hostnameOf(url) || url;
+  }
+
   function newSession(url = HOME_URL, { activate = true } = {}) {
     const session = {
       id: uid(),
       url,
-      title: url === HOME_URL ? "New session" : hostnameOf(url) || url,
+      title: titleForUrl(url),
       loading: false,
       view: null,
     };
     sessions.push(session);
     if (activate) activeId = session.id;
     render();
-    if (url !== HOME_URL) ensureWebview(session);
+    if (url === THREADS_URL) {
+      showThreads(session);
+    } else if (url !== HOME_URL) {
+      ensureWebview(session);
+    }
     return session;
   }
 
@@ -196,6 +208,11 @@
       return;
     }
 
+    if (url === THREADS_URL) {
+      showThreads(session);
+      return;
+    }
+
     // On Capacitor / plain web there's no <webview> tag — open the URL
     // in the system browser overlay (or a new tab) and leave the
     // current session on its previous view.
@@ -229,6 +246,32 @@
       session.view.parentNode.removeChild(session.view);
     }
     session.view = null;
+  }
+
+  // ── Threads pane ────────────────────────────────────────────────────
+
+  function showThreads(session) {
+    session.url = THREADS_URL;
+    session.title = "threads";
+    if (session.view && !session.view.classList.contains("threads-pane")) {
+      removeSessionView(session);
+    }
+    if (!session.view) {
+      if (!window.tinkerThreads || typeof window.tinkerThreads.createPane !== "function") {
+        // Loaded as a deferred script — if the renderer somehow fired
+        // before threads-pane.js attached, fall back to home rather
+        // than throwing.
+        session.url = HOME_URL;
+        session.title = "New session";
+        render();
+        return;
+      }
+      const pane = window.tinkerThreads.createPane(stage);
+      pane.dataset.sessionId = session.id;
+      stage.appendChild(pane);
+      session.view = pane;
+    }
+    render();
   }
 
   // ── Search pane ─────────────────────────────────────────────────────
@@ -361,6 +404,12 @@
           '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
           '<circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.6" fill="none"/>' +
           '<path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+      } else if (session.url === THREADS_URL) {
+        icon.innerHTML =
+          '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+          '<path d="M16 8a4 4 0 0 0-8 0c0 2 1 3 2.5 4S13 13 13 14.5a2.5 2.5 0 1 1-5 0" ' +
+          'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+          '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.4" fill="none"/></svg>';
       } else {
         icon.innerHTML =
           '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
@@ -441,6 +490,9 @@
     } else if (s.url.startsWith(SEARCH_PREFIX)) {
       const query = decodeURIComponent(s.url.substring(SEARCH_PREFIX.length));
       showSearch(s, s.url, query);
+    } else if (s.url === THREADS_URL) {
+      removeSessionView(s);
+      showThreads(s);
     }
   });
   navHome.addEventListener("click", () => navigate(HOME_URL));
@@ -487,6 +539,9 @@
       } else if (s.url.startsWith(SEARCH_PREFIX)) {
         const query = decodeURIComponent(s.url.substring(SEARCH_PREFIX.length));
         showSearch(s, s.url, query);
+      } else if (s.url === THREADS_URL) {
+        removeSessionView(s);
+        showThreads(s);
       }
     } else if (e.key === "[") {
       const s = getActive();
