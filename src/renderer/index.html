@@ -81,10 +81,22 @@
             <p class="welcome__subtitle">Browse the words. Pick one that fits — we&rsquo;ll start a web there.</p>
           </header>
 
-          <!-- Mood meter — laid out as a 4x8 grid of feelings.
-               Top half is high energy, bottom half is low energy;
-               left half is unpleasant, right half is pleasant. -->
-          <div id="mood-grid" class="mood-grid" role="grid" aria-label="Feelings"></div>
+          <!-- Mood meter — starts at the four high-level quadrants,
+               then drills into specific feelings within the picked
+               quadrant. The two views are siblings; only one is shown
+               at a time. -->
+          <div id="mood-stage" class="mood-stage">
+            <div id="quadrants" class="quadrants" role="grid" aria-label="Feeling categories"></div>
+            <div id="feelings" class="feelings" hidden>
+              <button id="mood-back" class="mood-back" type="button" aria-label="Back to feeling categories">
+                <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+                  <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                </svg>
+                <span id="mood-back-label">Back</span>
+              </button>
+              <div id="mood-grid" class="mood-grid" role="grid" aria-label="Feelings"></div>
+            </div>
+          </div>
 
           <form id="welcome-form" class="welcome__search" role="search">
             <input id="welcome-input" type="text" inputmode="text" autocomplete="off" spellcheck="false"
