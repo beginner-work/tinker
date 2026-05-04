@@ -535,15 +535,36 @@ webview { border: 0; }
  */
 
 html.auth-gating, html.auth-gating body { overflow: hidden; }
+/* On phones, free up scrolling so the keyboard can't bury the submit
+ * button. The gate itself becomes the scroll container. */
+@media (max-width: 539px) {
+  html.auth-gating, html.auth-gating body { overflow: visible; }
+}
+
+/* ── Mobile baseline ──────────────────────────────────────────────────────
+ * Designed for a 320×568 portrait viewport with the soft keyboard up.
+ * The desktop layout layers on top via min-width media queries below. */
 
 .auth-gate {
   position: fixed;
   inset: 0;
   z-index: 1000;
+  /* dvh tracks the visible viewport — when iOS Safari's keyboard or
+   * URL bar reclaims space, the gate shrinks to fit instead of
+   * pushing the form off-screen. */
+  min-height: 100dvh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 24px;
+  /* Notch + home-indicator awareness on iPhones, with a comfortable
+   * base everywhere else. */
+  padding:
+    max(20px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(20px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background:
     radial-gradient(circle at 20% 12%, rgba(123, 196, 122, 0.10), transparent 42%),
     radial-gradient(circle at 88% 18%, rgba(165, 180, 252, 0.12), transparent 38%),
@@ -557,9 +578,8 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
-  /* Match the welcome page's optical centring. */
-  margin-top: -6vh;
+  gap: 14px;
+  padding-top: 4vh;
 }
 
 .auth-gate__brand {
@@ -568,10 +588,12 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   justify-content: center;
 }
 
+.auth-gate__brand svg { width: 44px; height: 44px; }
+
 .auth-gate__title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 38px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--color-foreground);
@@ -589,20 +611,28 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
 
 .auth-gate__lede strong { color: var(--color-foreground); font-weight: 600; }
 
+/* On mobile the pill becomes a small card holding a full-width input
+ * row and a full-width submit row beneath it. The inline-button pill
+ * gets restored at ≥540px below. */
 .auth-gate__pill {
   display: flex;
+  flex-wrap: wrap;
   width: 100%;
-  max-width: 520px;
-  height: 56px;
-  padding: 0 6px 0 20px;
-  border-radius: 999px;
+  padding: 8px;
+  gap: 8px;
+  border-radius: 24px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   align-items: center;
-  gap: 8px;
   box-shadow: var(--shadow-soft);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+
+/* The [hidden] attribute and .auth-gate__pill have the same specificity,
+ * so without this rule `display: flex` above wins the tie and the PIN
+ * form leaks through before the user has requested a code. */
+.auth-gate[hidden],
+.auth-gate__pill[hidden] { display: none !important; }
 
 .auth-gate__pill:focus-within {
   border-color: var(--color-accent-strong);
@@ -611,48 +641,49 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
 
 .auth-gate__cc {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--color-muted);
   flex-shrink: 0;
+  padding-left: 8px;
   letter-spacing: 0.01em;
 }
 
 .auth-gate__pill input {
-  flex: 1;
+  flex: 1 1 200px;
   min-width: 0;
+  height: 48px;
+  padding: 0 12px;
   background: transparent;
   border: none;
-  padding: 0;
-  font-size: 15px;
+  /* 16px is the iOS Safari floor — anything smaller triggers an
+   * unwanted zoom-on-focus on iPhones. */
+  font-size: 16px;
   color: var(--color-foreground);
 }
 
 .auth-gate__pill input::placeholder { color: var(--color-muted); }
 
-.auth-gate__pill--pin {
-  padding-left: 28px;
-}
-
 .auth-gate__pill--pin input {
+  flex-basis: 100%;
   font-feature-settings: "tnum";
-  font-size: 18px;
+  font-size: 22px;
   letter-spacing: 0.55em;
-  /* The trailing letter-spacing pushes glyphs left of optical centre;
-     pad a hair on the right so the placeholder looks centred. */
+  /* Trailing letter-spacing pushes glyphs left of optical centre;
+   * pad a hair on the right so the placeholder looks centred. */
   padding-right: 0.55em;
   text-align: center;
 }
 
 .auth-gate__begin {
-  height: 44px;
+  flex: 1 1 100%;
+  height: 52px;
   padding: 0 22px;
   border-radius: 999px;
   background: var(--color-accent-strong);
   color: #fff;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: 0.01em;
-  flex-shrink: 0;
   transition: background 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
   box-shadow: var(--shadow-purple);
 }
@@ -671,10 +702,12 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
 .auth-gate__status[data-kind="ok"]    { color: var(--color-forest); }
 
 .auth-gate__link {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-muted);
   background: transparent;
-  padding: 6px 10px;
+  /* WCAG 2.5.5 / Apple HIG: ≥44px tap target. */
+  min-height: 44px;
+  padding: 10px 14px;
   border-radius: 999px;
   transition: color 0.15s ease, background 0.15s ease;
 }
@@ -693,19 +726,51 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   text-align: center;
 }
 
-@media (max-width: 720px) {
-  .auth-gate__title { font-size: 30px; }
-  .auth-gate__pill { height: 50px; }
-  .auth-gate__begin { height: 40px; padding: 0 18px; }
+/* ── ≥540px: restore the inline-button pill ─────────────────────────────── */
+
+@media (min-width: 540px) {
+  .auth-gate { align-items: center; }
+  .auth-gate__inner {
+    gap: 18px;
+    padding-top: 0;
+    /* Match the welcome page's optical centring. */
+    margin-top: -6vh;
+  }
+  .auth-gate__brand svg { width: 48px; height: 48px; }
+  .auth-gate__title { font-size: 32px; }
+
+  .auth-gate__pill {
+    flex-wrap: nowrap;
+    max-width: 520px;
+    height: 56px;
+    padding: 0 6px 0 20px;
+    border-radius: 999px;
+  }
+  .auth-gate__cc { padding-left: 0; }
+  .auth-gate__pill input {
+    flex: 1 1 auto;
+    height: auto;
+    padding: 0;
+  }
+  .auth-gate__pill--pin { padding-left: 28px; }
+  .auth-gate__pill--pin input {
+    flex: 1 1 auto;
+    height: auto;
+    font-size: 18px;
+  }
+  .auth-gate__begin {
+    flex: 0 0 auto;
+    height: 44px;
+    padding: 0 22px;
+    font-size: 14px;
+  }
+  .auth-gate__link { min-height: auto; padding: 6px 10px; font-size: 13px; }
 }
 
-@media (max-width: 540px) {
-  .auth-gate { padding: 16px; }
-  .auth-gate__inner { gap: 14px; margin-top: 0; }
-  .auth-gate__title { font-size: 26px; }
-  .auth-gate__pill { height: 46px; padding-left: 14px; }
-  .auth-gate__pill--pin { padding-left: 18px; }
-  .auth-gate__begin { height: 36px; padding: 0 14px; font-size: 13px; }
+/* ── ≥720px: full desktop sizing ────────────────────────────────────────── */
+
+@media (min-width: 720px) {
+  .auth-gate__title { font-size: 38px; }
 }
 
 /* ── Responsive ───────────────────────────────────────────────────────── */
