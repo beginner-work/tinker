@@ -75,14 +75,24 @@
 
     <main class="stage" id="stage" role="main">
       <section id="welcome" class="welcome" data-active>
-        <div class="welcome__inner">
-          <h1 class="welcome__title">A new way to web</h1>
+        <div class="welcome__inner welcome__inner--gram">
+          <header class="welcome__head">
+            <div class="welcome__brand">
+              <h1 class="welcome__title">tinker · gram</h1>
+              <p class="welcome__sub">
+                Founders show their work. Investors read the disclosure. Founders
+                find other founders to actually work with.
+              </p>
+            </div>
 
-          <form id="welcome-form" class="welcome__search" role="search">
-            <input id="welcome-input" type="text" inputmode="text" autocomplete="off" spellcheck="false"
-                   placeholder="Start a new web" aria-label="Start a new web" />
-            <button type="submit" id="welcome-submit" class="welcome__begin">Begin</button>
-          </form>
+            <form id="welcome-form" class="welcome__search welcome__search--compact" role="search">
+              <input id="welcome-input" type="text" inputmode="text" autocomplete="off" spellcheck="false"
+                     placeholder="Search the web · @handle · ask a question" aria-label="Search the web or ask a question" />
+              <button type="submit" id="welcome-submit" class="welcome__begin">Go</button>
+            </form>
+          </header>
+
+          <div id="gram-host" class="welcome__gram-host"></div>
         </div>
       </section>
     </main>
@@ -94,6 +104,8 @@
     <script src="./platform-mobile.js" defer></script>
     <script src="./lib/rainbow-web.js" defer></script>
     <script src="./icon-init.js" defer></script>
+    <script src="./data/founders.js" defer></script>
+    <script src="./views/tinker-gram.js" defer></script>
     <script src="./renderer.js" defer></script>
   </body>
 </html>

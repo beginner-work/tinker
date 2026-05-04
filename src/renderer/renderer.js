@@ -505,6 +505,14 @@
 
   // ── Boot ────────────────────────────────────────────────────────────
 
+  // Mount the holistic founder-discovery surface (gram) inside the
+  // welcome screen. It owns its own state and rendering — we just
+  // give it a host element on first boot.
+  const gramHost = document.getElementById("gram-host");
+  if (gramHost && window.tinkerGram && typeof window.tinkerGram.mount === "function") {
+    window.tinkerGram.mount(gramHost);
+  }
+
   newSession(HOME_URL);
   welcomeInput.focus();
 })();
