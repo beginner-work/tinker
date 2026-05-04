@@ -338,11 +338,17 @@ webview { border: 0; }
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: 28px;
-  /* Pull the content slightly above optical centre so it doesn't
-     feel low-anchored on tall windows. */
-  margin-top: -6vh;
+  padding: 6vh 0 32px;
+}
+
+.welcome__title {
+  align-self: center;
+}
+
+.welcome__search {
+  align-self: center;
 }
 
 .welcome__title {
@@ -401,6 +407,171 @@ webview { border: 0; }
 
 .welcome__begin:hover { background: #4f46e5; }
 .welcome__begin:active { transform: scale(0.98); }
+
+/* ── Postings ─────────────────────────────────────────────────────────── */
+
+.postings {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.postings__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px;
+}
+
+.postings__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-foreground);
+}
+
+.postings__count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+  letter-spacing: 0.02em;
+}
+
+.postings__compose {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.postings__compose:focus-within {
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18), var(--shadow-soft);
+}
+
+.postings__input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  resize: vertical;
+  min-height: 64px;
+  max-height: 240px;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-foreground);
+}
+
+.postings__input::placeholder { color: var(--color-muted); }
+
+.postings__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.postings__remaining {
+  font-size: 12px;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.postings__post {
+  height: 34px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--color-accent-strong);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  transition: background 0.15s ease, transform 0.05s ease, opacity 0.15s ease;
+}
+
+.postings__post:hover:not(:disabled) { background: #4f46e5; }
+.postings__post:active:not(:disabled) { transform: scale(0.98); }
+.postings__post:disabled { opacity: 0.4; cursor: default; }
+
+.postings__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.postings__empty {
+  margin: 4px 4px 0;
+  font-size: 13px;
+  color: var(--color-muted);
+  text-align: center;
+  font-style: italic;
+}
+
+.posting {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: posting-in 0.18s ease-out;
+}
+
+@keyframes posting-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.posting__body {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-foreground);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.posting__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.posting__time {
+  font-size: 11.5px;
+  color: var(--color-muted);
+  letter-spacing: 0.01em;
+}
+
+.posting__delete {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-muted);
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.posting__delete:hover {
+  color: #b3534a;
+  background: rgba(179, 83, 74, 0.08);
+}
 
 /* ── Search pane ──────────────────────────────────────────────────────── */
 
@@ -550,8 +721,10 @@ webview { border: 0; }
   .session { padding: 8px; justify-content: center; }
   .welcome { padding: 16px; }
   .welcome__title { font-size: 26px; }
-  .welcome__inner { gap: 20px; margin-top: 0; }
+  .welcome__inner { gap: 20px; padding-top: 16px; }
   .welcome__search { height: 46px; padding-left: 14px; }
+  .postings__title { font-size: 16px; }
+  .postings__compose { padding: 12px; }
   .welcome__begin { height: 36px; padding: 0 16px; font-size: 13px; }
   .stage > .search-pane {
     padding: calc(env(safe-area-inset-top, 0px) + 24px) 18px 32px;
