@@ -15,6 +15,60 @@
   const HOME_URL = "tinker://home";
   const SEARCH_PREFIX = "tinker://search?q=";
 
+  /**
+   * Mood meter — 32 feelings laid out as a 4×8 grid, in the same shape
+   * the How-We-Feel mood meter uses: columns 1–2 are unpleasant,
+   * 3–4 are pleasant; rows 1–4 are high energy, 5–8 are low energy.
+   * Tone (deep/mid/light/soft) tracks intensity, so the corners read
+   * as the most vivid feelings and the centre fades toward calm.
+   *
+   * Picking one seeds a search around that feeling so Claude Haiku
+   * can write a short essay (with web links) that meets the person
+   * where they are.
+   */
+  const MOODS = [
+    // Row 1 — most intense
+    { word: "Enraged",      quadrant: "red",    shade: "deep"  },
+    { word: "Stressed",     quadrant: "red",    shade: "deep"  },
+    { word: "Ecstatic",     quadrant: "yellow", shade: "deep"  },
+    { word: "Surprised",    quadrant: "yellow", shade: "deep"  },
+    // Row 2
+    { word: "Anxious",      quadrant: "red",    shade: "mid"   },
+    { word: "Frustrated",   quadrant: "red",    shade: "mid"   },
+    { word: "Excited",      quadrant: "yellow", shade: "mid"   },
+    { word: "Hopeful",      quadrant: "yellow", shade: "mid"   },
+    // Row 3
+    { word: "Tense",        quadrant: "red",    shade: "light" },
+    { word: "Restless",     quadrant: "red",    shade: "light" },
+    { word: "Motivated",    quadrant: "yellow", shade: "light" },
+    { word: "Joyful",       quadrant: "yellow", shade: "light" },
+    // Row 4
+    { word: "Irritated",    quadrant: "red",    shade: "soft"  },
+    { word: "Worried",      quadrant: "red",    shade: "soft"  },
+    { word: "Curious",      quadrant: "yellow", shade: "soft"  },
+    { word: "Cheerful",     quadrant: "yellow", shade: "soft"  },
+    // Row 5 — into the low-energy half
+    { word: "Glum",         quadrant: "blue",   shade: "soft"  },
+    { word: "Disappointed", quadrant: "blue",   shade: "soft"  },
+    { word: "Calm",         quadrant: "green",  shade: "soft"  },
+    { word: "Content",      quadrant: "green",  shade: "soft"  },
+    // Row 6
+    { word: "Sad",          quadrant: "blue",   shade: "light" },
+    { word: "Lonely",       quadrant: "blue",   shade: "light" },
+    { word: "Peaceful",     quadrant: "green",  shade: "light" },
+    { word: "Grateful",     quadrant: "green",  shade: "light" },
+    // Row 7
+    { word: "Tired",        quadrant: "blue",   shade: "mid"   },
+    { word: "Bored",        quadrant: "blue",   shade: "mid"   },
+    { word: "Relaxed",      quadrant: "green",  shade: "mid"   },
+    { word: "Secure",       quadrant: "green",  shade: "mid"   },
+    // Row 8 — most subdued
+    { word: "Drained",      quadrant: "blue",   shade: "deep"  },
+    { word: "Hopeless",     quadrant: "blue",   shade: "deep"  },
+    { word: "Serene",       quadrant: "green",  shade: "deep"  },
+    { word: "Restful",      quadrant: "green",  shade: "deep"  },
+  ];
+
   /** @type {Array<{id: string, url: string, title: string, loading: boolean, view: HTMLElement | null}>} */
   let sessions = [];
   let activeId = null;
@@ -32,6 +86,7 @@
   const loadbar = $("#loadbar");
   const welcomeForm = $("#welcome-form");
   const welcomeInput = $("#welcome-input");
+  const moodGrid = $("#mood-grid");
 
   // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -418,6 +473,22 @@
     else loadbar.removeAttribute("data-active");
   }
 
+  function renderMoodGrid() {
+    if (!moodGrid) return;
+    moodGrid.innerHTML = "";
+    for (const mood of MOODS) {
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = `mood mood--${mood.quadrant} mood--${mood.shade}`;
+      tile.dataset.mood = mood.word.toLowerCase();
+      tile.setAttribute("role", "gridcell");
+      tile.setAttribute("aria-label", `Start a web from feeling ${mood.word.toLowerCase()}`);
+      tile.textContent = mood.word;
+      tile.addEventListener("click", () => navigate(`feeling ${mood.word.toLowerCase()}`));
+      moodGrid.appendChild(tile);
+    }
+  }
+
   // ── Event wiring ────────────────────────────────────────────────────
 
   newSessionBtn.addEventListener("click", () => {
@@ -505,6 +576,7 @@
 
   // ── Boot ────────────────────────────────────────────────────────────
 
+  renderMoodGrid();
   newSession(HOME_URL);
   welcomeInput.focus();
 })();
