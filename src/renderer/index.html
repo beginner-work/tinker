@@ -76,11 +76,19 @@
     <main class="stage" id="stage" role="main">
       <section id="welcome" class="welcome" data-active>
         <div class="welcome__inner">
-          <h1 class="welcome__title">A new way to web</h1>
+          <header class="welcome__header">
+            <h1 class="welcome__title">How are you feeling?</h1>
+            <p class="welcome__subtitle">Browse the words. Pick one that fits — we&rsquo;ll start a web there.</p>
+          </header>
+
+          <!-- Mood meter — laid out as a 4x8 grid of feelings.
+               Top half is high energy, bottom half is low energy;
+               left half is unpleasant, right half is pleasant. -->
+          <div id="mood-grid" class="mood-grid" role="grid" aria-label="Feelings"></div>
 
           <form id="welcome-form" class="welcome__search" role="search">
             <input id="welcome-input" type="text" inputmode="text" autocomplete="off" spellcheck="false"
-                   placeholder="Start a new web" aria-label="Start a new web" />
+                   placeholder="Or describe it in your own words" aria-label="Describe how you&rsquo;re feeling" />
             <button type="submit" id="welcome-submit" class="welcome__begin">Begin</button>
           </form>
         </div>
