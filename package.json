@@ -6,6 +6,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "web": "node src/web/server.js",
     "lint": "eslint src/",
     "mobile:sync": "cap sync",
     "mobile:add:ios": "cap add ios",
