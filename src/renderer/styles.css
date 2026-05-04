@@ -323,8 +323,11 @@ webview { border: 0; }
 .welcome {
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 24px;
+  /* `safe center` keeps content centred when it fits and aligns to the
+     start when it overflows, so the top of the mood meter is never
+     clipped on short windows. */
+  justify-content: safe center;
+  padding: max(32px, 5vh) 24px;
   overflow: auto;
   background:
     radial-gradient(circle at 20% 12%, rgba(123, 196, 122, 0.10), transparent 42%),
@@ -334,15 +337,19 @@ webview { border: 0; }
 }
 
 .welcome__inner {
-  max-width: 560px;
+  max-width: 600px;
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 28px;
-  /* Pull the content slightly above optical centre so it doesn't
-     feel low-anchored on tall windows. */
-  margin-top: -6vh;
+  gap: 22px;
+}
+
+.welcome__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
 .welcome__title {
@@ -353,6 +360,15 @@ webview { border: 0; }
   letter-spacing: -0.02em;
   color: var(--color-foreground);
   text-align: center;
+}
+
+.welcome__subtitle {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+  text-align: center;
+  max-width: 36ch;
 }
 
 .welcome__search {
@@ -401,6 +417,82 @@ webview { border: 0; }
 
 .welcome__begin:hover { background: #4f46e5; }
 .welcome__begin:active { transform: scale(0.98); }
+
+/* ── Mood meter ───────────────────────────────────────────────────────── */
+/*
+ * 4×8 grid borrowed from the How-We-Feel mood meter:
+ *   columns 1–2 = unpleasant, columns 3–4 = pleasant
+ *   rows 1–4    = high energy, rows 5–8    = low energy
+ * Each chip's tone (deep / mid / light / soft) tracks how intense
+ * the feeling is — deep at the corners, soft in the middle.
+ */
+
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+  width: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.mood {
+  appearance: none;
+  height: 50px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: rgba(45, 42, 38, 0.92);
+  text-align: center;
+  padding: 6px 6px;
+  box-shadow: 0 1px 2px rgba(45, 42, 38, 0.06);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.18s ease, filter 0.18s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.15;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.mood:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(45, 42, 38, 0.13);
+  filter: saturate(1.07);
+}
+
+.mood:active { transform: translateY(0); }
+
+.mood:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.55);
+  outline-offset: 2px;
+}
+
+/* Red — high energy, unpleasant */
+.mood--red.mood--deep   { background: linear-gradient(135deg, #c92f3f, #a8243a); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.18); }
+.mood--red.mood--mid    { background: linear-gradient(135deg, #e25b5e, #cd4548); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.15); }
+.mood--red.mood--light  { background: linear-gradient(135deg, #f08389, #e76e74); }
+.mood--red.mood--soft   { background: linear-gradient(135deg, #f8b1b6, #f29ba1); }
+
+/* Yellow — high energy, pleasant */
+.mood--yellow.mood--deep  { background: linear-gradient(135deg, #f29c34, #e58820); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.16); }
+.mood--yellow.mood--mid   { background: linear-gradient(135deg, #f6bd4a, #efaa30); }
+.mood--yellow.mood--light { background: linear-gradient(135deg, #fad668, #f5c850); }
+.mood--yellow.mood--soft  { background: linear-gradient(135deg, #fbe88a, #f9e07a); }
+
+/* Blue — low energy, unpleasant */
+.mood--blue.mood--deep   { background: linear-gradient(135deg, #2c4a86, #3a5fa0); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.18); }
+.mood--blue.mood--mid    { background: linear-gradient(135deg, #5a7fc1, #6e91d0); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.15); }
+.mood--blue.mood--light  { background: linear-gradient(135deg, #95b1dd, #a8bee2); }
+.mood--blue.mood--soft   { background: linear-gradient(135deg, #c2d3ec, #d2dbef); }
+
+/* Green — low energy, pleasant */
+.mood--green.mood--deep  { background: linear-gradient(135deg, #2d966a, #218453); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.18); }
+.mood--green.mood--mid   { background: linear-gradient(135deg, #4cb083, #3a9d72); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.13); }
+.mood--green.mood--light { background: linear-gradient(135deg, #87caa6, #74bf97); }
+.mood--green.mood--soft  { background: linear-gradient(135deg, #b6dec3, #aad4b8); }
 
 /* ── Search pane ──────────────────────────────────────────────────────── */
 
@@ -534,6 +626,8 @@ webview { border: 0; }
   .welcome__title { font-size: 30px; }
   .welcome__search { height: 50px; }
   .welcome__begin { height: 40px; padding: 0 20px; }
+  .mood { height: 46px; font-size: 12.5px; }
+  .mood-grid { gap: 6px; }
 }
 
 /* On phones — sidebar collapses to a slim rail, welcome takes the rest */
@@ -550,9 +644,12 @@ webview { border: 0; }
   .session { padding: 8px; justify-content: center; }
   .welcome { padding: 16px; }
   .welcome__title { font-size: 26px; }
-  .welcome__inner { gap: 20px; margin-top: 0; }
+  .welcome__subtitle { font-size: 13px; }
+  .welcome__inner { gap: 18px; }
   .welcome__search { height: 46px; padding-left: 14px; }
   .welcome__begin { height: 36px; padding: 0 16px; font-size: 13px; }
+  .mood { height: 42px; font-size: 12px; padding: 4px 4px; border-radius: 10px; }
+  .mood-grid { gap: 5px; }
   .stage > .search-pane {
     padding: calc(env(safe-area-inset-top, 0px) + 24px) 18px 32px;
   }
