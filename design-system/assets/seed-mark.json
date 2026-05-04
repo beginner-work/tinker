@@ -1,0 +1,49 @@
+{
+  "name": "beginner seed mark",
+  "metaphor": "lowercase b as a sprouting seedling — stem, bowl, leaf",
+  "viewBox": "0 0 180 180",
+  "plate": {
+    "fill": "#2d5a3d",
+    "cornerRadius": 40
+  },
+  "strokes": {
+    "color": "#f5f3ef",
+    "weight": {
+      "default": 10.5,
+      "small_<=40px": 14,
+      "tiny_<=29px": 18
+    },
+    "linecap": "round",
+    "linejoin": "round"
+  },
+  "stem": {
+    "from": [68, 38],
+    "to": [68, 138]
+  },
+  "bowl": {
+    "default": "M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z",
+    "tiny_<=29px": "M66 80 C66 64, 82 54, 102 54 C124 54, 136 70, 136 90 C136 110, 124 126, 102 126 C82 126, 66 116, 66 100Z"
+  },
+  "leaves": {
+    "primary": {
+      "fill": "#7bc47a",
+      "default": "M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z",
+      "small_<=40px": "M68 54 C66 42, 80 32, 94 38 C88 44, 74 50, 68 54Z"
+    },
+    "secondary": {
+      "fill": "#5aad58",
+      "opacity": 0.7,
+      "shownAtSizes": ">=32px",
+      "path": "M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z"
+    }
+  },
+  "wordmark": {
+    "text": "beginner",
+    "fontFamily": "Plus Jakarta Sans",
+    "fontWeight": 700,
+    "letterSpacing": "-0.5",
+    "case": "lowercase always",
+    "color_default": "#1a1a1a",
+    "color_inverted": "#f5f3ef"
+  }
+}

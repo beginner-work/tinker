@@ -1,0 +1,24 @@
+{
+  "$schema": "./schema.md",
+  "$description": "Style dictionary for the multi-colored globe mark — tinker's app identity. Thick strokes, no violet or indigo. Shared verbatim with the upstream UI repo at ui/src/tokens/rainbow-web.json; if you change anything here, update the upstream copy in the same commit.",
+  "viewBox": "0 0 200 200",
+  "background": "#F5F3EF",
+  "cornerRadius": 44,
+  "strokeWidth": 9,
+  "globe": {
+    "cx": 100,
+    "cy": 100,
+    "radius": 76,
+    "color": "#C8B6E2"
+  },
+  "latitudes": [
+    { "name": "north-tropic", "offset": -38, "color": "#F9A8D4" },
+    { "name": "equator",      "offset":   0, "color": "#FDBA74" },
+    { "name": "south-tropic", "offset":  38, "color": "#FDE68A" }
+  ],
+  "longitudes": [
+    { "name": "meridian-west", "rx": 52, "color": "#7BC47A" },
+    { "name": "meridian-mid",  "rx": 26, "color": "#7DD3FC" },
+    { "name": "meridian-east", "rx":  0, "color": "#6EE7B7" }
+  ]
+}
