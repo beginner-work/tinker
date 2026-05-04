@@ -14,6 +14,12 @@
 
   const HOME_URL = "tinker://home";
   const SEARCH_PREFIX = "tinker://search?q=";
+  const TINKER_RECORD_URL = "tinker://record";
+  const TINKER_TRAJECTORY_PREFIX = "tinker://trajectory/";
+
+  // Fake placeholder share URL for v1. The real publishing slice (v1.1)
+  // will swap this for a host that actually serves the trajectory page.
+  const SHARE_URL_BASE = "https://beginner-work.github.io/beginner/";
 
   /** @type {Array<{id: string, url: string, title: string, loading: boolean, view: HTMLElement | null}>} */
   let sessions = [];
@@ -32,6 +38,19 @@
   const loadbar = $("#loadbar");
   const welcomeForm = $("#welcome-form");
   const welcomeInput = $("#welcome-input");
+  const welcomeTinkerBtn = $("#welcome-tinker");
+
+  const tinkerSection = $("#tinker");
+  const tinkerRecordBtn = $("#tinker-record");
+  const tinkerRecorderEl = tinkerSection ? tinkerSection.querySelector(".tinker__recorder") : null;
+  const tinkerStatusText = $("#tinker-status-text");
+  const tinkerTimer = $("#tinker-timer");
+  const tinkerTranscript = $("#tinker-transcript");
+  const tinkerTranscriptBody = $("#tinker-transcript-body");
+  const tinkerErrorEl = $("#tinker-error");
+  const tinkerBackBtn = $("#tinker-back");
+  const trajectoryHost = $("#trajectory-host");
+  const trajectoryIframe = $("#trajectory-iframe");
 
   // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -44,6 +63,7 @@
     const text = raw.trim();
     if (!text) return null;
     if (text === "home" || text === "tinker://home") return HOME_URL;
+    if (text === "record" || text === TINKER_RECORD_URL) return TINKER_RECORD_URL;
     if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(text)) return text;
     if (/^[a-z]+:/i.test(text)) return text;
     const looksLikeHost = /^[\w-]+(\.[\w-]+)+(\/.*)?$/i.test(text);
@@ -52,6 +72,11 @@
       return "http://" + text;
     }
     return SEARCH_PREFIX + encodeURIComponent(text);
+  }
+
+  /** Random base36 slug for trajectory URLs. */
+  function newSlug() {
+    return Math.random().toString(36).slice(2, 10);
   }
 
   // ── Markdown rendering for search results ───────────────────────────
@@ -186,6 +211,27 @@
       session.url = HOME_URL;
       session.title = "New session";
       removeSessionView(session);
+      tinker.reset();
+      render();
+      return;
+    }
+
+    if (url === TINKER_RECORD_URL) {
+      session.url = TINKER_RECORD_URL;
+      session.title = "Talking…";
+      removeSessionView(session);
+      tinker.reset();
+      render();
+      return;
+    }
+
+    if (url.startsWith(TINKER_TRAJECTORY_PREFIX)) {
+      const slug = url.substring(TINKER_TRAJECTORY_PREFIX.length).replace(/^\/+|\/+$/g, "");
+      session.url = url;
+      session.title = "Your trajectory";
+      removeSessionView(session);
+      mountedTrajectorySlug = slug;
+      showTrajectory(slug);
       render();
       return;
     }
@@ -361,6 +407,12 @@
           '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
           '<circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.6" fill="none"/>' +
           '<path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+      } else if (session.url === TINKER_RECORD_URL || session.url.startsWith(TINKER_TRAJECTORY_PREFIX)) {
+        icon.innerHTML =
+          '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+          '<rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.6" fill="none"/>' +
+          '<path d="M5 11a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
+          '<line x1="12" y1="18" x2="12" y2="21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
       } else {
         icon.innerHTML =
           '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
@@ -393,12 +445,38 @@
     }
   }
 
+  // Slug currently mounted in the trajectory iframe, so switching
+  // between trajectory sessions re-mounts only when the slug actually
+  // changes (avoids a flash / re-fetch on every render).
+  let mountedTrajectorySlug = null;
+
   function renderStage() {
     const active = getActive();
-    welcome.toggleAttribute("data-active", !!active && active.url === HOME_URL);
+    const onHome = !!active && active.url === HOME_URL;
+    const onTinkerRecord = !!active && active.url === TINKER_RECORD_URL;
+    const onTrajectory = !!active && active.url.startsWith(TINKER_TRAJECTORY_PREFIX);
+
+    welcome.toggleAttribute("data-active", onHome);
+    if (tinkerSection) tinkerSection.toggleAttribute("data-active", onTinkerRecord);
+    if (trajectoryHost) trajectoryHost.toggleAttribute("data-active", onTrajectory);
+
+    if (onTrajectory) {
+      const slug = active.url
+        .substring(TINKER_TRAJECTORY_PREFIX.length)
+        .replace(/^\/+|\/+$/g, "");
+      if (slug && slug !== mountedTrajectorySlug) {
+        mountedTrajectorySlug = slug;
+        showTrajectory(slug);
+      }
+    }
+
     for (const session of sessions) {
       if (!session.view) continue;
-      const isActive = session.id === activeId && session.url !== HOME_URL;
+      const isActive =
+        session.id === activeId &&
+        session.url !== HOME_URL &&
+        session.url !== TINKER_RECORD_URL &&
+        !session.url.startsWith(TINKER_TRAJECTORY_PREFIX);
       session.view.toggleAttribute("data-active", isActive);
     }
   }
@@ -408,15 +486,378 @@
     const view = session && session.view;
     const isWebview = view && view.tagName.toLowerCase() === "webview";
     const onHome = !session || session.url === HOME_URL;
-    navBack.disabled = onHome || !isWebview || !view.canGoBack || !view.canGoBack();
-    navForward.disabled = onHome || !isWebview || !view.canGoForward || !view.canGoForward();
-    navReload.disabled = onHome;
+    const onTinker =
+      session &&
+      (session.url === TINKER_RECORD_URL || session.url.startsWith(TINKER_TRAJECTORY_PREFIX));
+    navBack.disabled = onHome || onTinker || !isWebview || !view.canGoBack || !view.canGoBack();
+    navForward.disabled = onHome || onTinker || !isWebview || !view.canGoForward || !view.canGoForward();
+    navReload.disabled = onHome || onTinker;
   }
 
   function setLoading(active) {
     if (active) loadbar.setAttribute("data-active", "");
     else loadbar.removeAttribute("data-active");
   }
+
+  // ── Tinker: voice capture → transcribe → organize → trajectory ──────
+  //
+  // State machine for the record screen. We record audio with
+  // MediaRecorder, send the bytes to Whisper via the main process,
+  // hand the transcript to Anthropic Haiku 4.5 (prompt-cached system
+  // prompt) which returns a JSON payload of *verbatim* quotes, then
+  // save the payload under a slug and navigate to the trajectory page.
+  //
+  // The hard line (product-spec §8): everything that lands on the
+  // trajectory page is the founder's own words. The model rearranges,
+  // never authors. This module never generates text on its own either.
+
+  const tinker = (() => {
+    let mediaStream = null;
+    let mediaRecorder = null;
+    let chunks = [];
+    let timerHandle = null;
+    let timerStart = 0;
+    let state = "idle"; // idle | recording | working | done | error
+
+    function setState(next) {
+      state = next;
+      if (tinkerRecorderEl) tinkerRecorderEl.dataset.state = next;
+    }
+
+    function setStatus(text) {
+      if (tinkerStatusText) tinkerStatusText.textContent = text;
+    }
+
+    function setError(message) {
+      if (!tinkerErrorEl) return;
+      if (!message) {
+        tinkerErrorEl.hidden = true;
+        tinkerErrorEl.textContent = "";
+        return;
+      }
+      tinkerErrorEl.hidden = false;
+      tinkerErrorEl.innerHTML =
+        '<strong>Something went wrong.</strong> ' +
+        '<span></span>' +
+        '<div style="margin-top:6px;color:var(--color-muted);font-size:13px;">Tap the record button to try again.</div>';
+      tinkerErrorEl.querySelector("span").textContent = message;
+    }
+
+    function showTranscript(text) {
+      if (!tinkerTranscript || !tinkerTranscriptBody) return;
+      if (!text) {
+        tinkerTranscript.hidden = true;
+        tinkerTranscriptBody.textContent = "";
+        return;
+      }
+      tinkerTranscript.hidden = false;
+      tinkerTranscriptBody.textContent = text;
+    }
+
+    function startTimer() {
+      timerStart = Date.now();
+      if (tinkerTimer) tinkerTimer.textContent = "00:00";
+      timerHandle = setInterval(() => {
+        const sec = Math.floor((Date.now() - timerStart) / 1000);
+        const m = String(Math.floor(sec / 60)).padStart(2, "0");
+        const s = String(sec % 60).padStart(2, "0");
+        if (tinkerTimer) tinkerTimer.textContent = `${m}:${s}`;
+      }, 250);
+    }
+
+    function stopTimer() {
+      if (timerHandle) clearInterval(timerHandle);
+      timerHandle = null;
+    }
+
+    function teardownStream() {
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        try { mediaRecorder.stop(); } catch { /* noop */ }
+      }
+      if (mediaStream) {
+        for (const track of mediaStream.getTracks()) track.stop();
+      }
+      mediaStream = null;
+      mediaRecorder = null;
+      chunks = [];
+    }
+
+    /** Reset to idle. Safe to call from anywhere. */
+    function reset() {
+      stopTimer();
+      teardownStream();
+      setState("idle");
+      setStatus("Tap to start.");
+      if (tinkerTimer) tinkerTimer.textContent = "00:00";
+      showTranscript("");
+      setError("");
+    }
+
+    async function start() {
+      if (state === "recording" || state === "working") return;
+      setError("");
+      showTranscript("");
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        setState("error");
+        setStatus("Microphone unavailable.");
+        setError(
+          (err && err.message) ||
+            "Could not access the microphone. Check your system permissions and try again."
+        );
+        return;
+      }
+
+      const mimeType = pickMimeType();
+      try {
+        mediaRecorder = mimeType
+          ? new MediaRecorder(mediaStream, { mimeType })
+          : new MediaRecorder(mediaStream);
+      } catch (err) {
+        teardownStream();
+        setState("error");
+        setStatus("Recorder unavailable.");
+        setError(
+          (err && err.message) || "Could not start the recorder on this device."
+        );
+        return;
+      }
+
+      chunks = [];
+      mediaRecorder.addEventListener("dataavailable", (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      });
+      mediaRecorder.addEventListener("stop", onRecordingStopped);
+      mediaRecorder.start();
+
+      setState("recording");
+      setStatus("Listening… tap again to stop.");
+      startTimer();
+    }
+
+    function stop() {
+      if (state !== "recording") return;
+      stopTimer();
+      try {
+        mediaRecorder && mediaRecorder.stop();
+      } catch (err) {
+        setState("error");
+        setStatus("Couldn't stop cleanly.");
+        setError((err && err.message) || String(err));
+      }
+    }
+
+    async function onRecordingStopped() {
+      const localChunks = chunks.slice();
+      const recorderMime = (mediaRecorder && mediaRecorder.mimeType) || "audio/webm";
+      // Stream tracks should be released as soon as recording is done so
+      // the browser drops the mic indicator.
+      if (mediaStream) {
+        for (const track of mediaStream.getTracks()) track.stop();
+        mediaStream = null;
+      }
+
+      if (localChunks.length === 0) {
+        reset();
+        setError("Nothing was recorded. Try again — speak for at least a few seconds.");
+        return;
+      }
+
+      setState("working");
+      setStatus("Transcribing your dump…");
+
+      let transcript = "";
+      try {
+        const blob = new Blob(localChunks, { type: recorderMime });
+        const audioBase64 = await blobToBase64(blob);
+        const result = await window.tinker.transcribeAudio({
+          audioBase64,
+          mimeType: recorderMime,
+        });
+        transcript = (result && result.text) || "";
+      } catch (err) {
+        setState("error");
+        setStatus("Transcription failed.");
+        setError(
+          (err && err.message) ||
+            "The transcription service didn't respond. Check OPENAI_API_KEY and try again."
+        );
+        return;
+      }
+
+      if (!transcript.trim()) {
+        setState("error");
+        setStatus("Nothing came back from the transcript.");
+        setError(
+          "We couldn't hear words in that recording. Try again — a little louder, or in a quieter room."
+        );
+        return;
+      }
+
+      showTranscript(transcript);
+      setStatus("Organizing your words…");
+
+      let payload = null;
+      try {
+        const result = await window.tinker.organizeTranscript(transcript);
+        payload = result && result.payload;
+      } catch (err) {
+        setState("error");
+        setStatus("Organize step failed.");
+        setError(
+          (err && err.message) ||
+            "Anthropic didn't respond. Check ANTHROPIC_API_KEY and try again."
+        );
+        return;
+      }
+
+      if (!payload || typeof payload !== "object") {
+        setState("error");
+        setStatus("The organizer returned nothing usable.");
+        setError("The model returned an empty payload. Try again.");
+        return;
+      }
+
+      const slug = newSlug();
+      const fullPayload = {
+        slug,
+        created_at: new Date().toISOString(),
+        transcript,
+        ...payload,
+      };
+      try {
+        await window.tinker.saveTrajectory(slug, fullPayload);
+      } catch (err) {
+        // Save failure shouldn't block rendering — the iframe payload
+        // is injected from memory, not read from disk. Surface it as a
+        // soft warning in the console.
+        console.warn("[tinker] saveTrajectory failed:", err);
+      }
+
+      setState("done");
+      setStatus("Here it is.");
+
+      // Hand the payload to the trajectory iframe via the parent-window
+      // bridge, then navigate the active session to its URL.
+      window.__tinkerPayload = fullPayload;
+      window.__tinkerShareUrl = SHARE_URL_BASE + slug;
+      navigate(TINKER_TRAJECTORY_PREFIX + slug);
+    }
+
+    function pickMimeType() {
+      if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) return null;
+      const candidates = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+        "audio/ogg;codecs=opus",
+      ];
+      for (const c of candidates) {
+        if (MediaRecorder.isTypeSupported(c)) return c;
+      }
+      return null;
+    }
+
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result || "";
+          const idx = result.indexOf(",");
+          resolve(idx >= 0 ? result.slice(idx + 1) : result);
+        };
+        reader.onerror = () => reject(reader.error || new Error("FileReader failed"));
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    function toggleRecord() {
+      if (state === "idle" || state === "error") {
+        start();
+      } else if (state === "recording") {
+        stop();
+      }
+      // working / done are pass-through.
+    }
+
+    return { reset, toggleRecord };
+  })();
+
+  // Mount the trajectory iframe with a stored or in-memory payload.
+  // The iframe page (templates/trajectory.html) reads
+  // window.parent.__tinkerPayload as soon as it loads, and also listens
+  // for postMessage updates after that.
+  function showTrajectory(slug) {
+    if (!trajectoryIframe || !slug) return;
+    const shareUrl = SHARE_URL_BASE + slug;
+    window.__tinkerShareUrl = shareUrl;
+
+    // If we have an in-memory payload from the just-completed dump, use it.
+    // Otherwise fall back to loading from disk by slug.
+    const inMemory =
+      window.__tinkerPayload && window.__tinkerPayload.slug === slug
+        ? window.__tinkerPayload
+        : null;
+
+    const post = (payload) => {
+      window.__tinkerPayload = payload;
+      try {
+        trajectoryIframe.contentWindow &&
+          trajectoryIframe.contentWindow.postMessage(
+            { type: "trajectory:payload", payload, shareUrl },
+            "*"
+          );
+      } catch { /* noop */ }
+    };
+
+    const onLoad = () => {
+      const payload = window.__tinkerPayload;
+      if (payload) post(payload);
+    };
+
+    // Reset src so navigating between trajectories actually re-renders.
+    // The slug param is just a cache-buster — the iframe reads the
+    // payload from window.parent.__tinkerPayload, not from the URL.
+    trajectoryIframe.removeEventListener("load", onLoad);
+    trajectoryIframe.addEventListener("load", onLoad);
+    trajectoryIframe.src = "./templates/trajectory.html?slug=" + encodeURIComponent(slug);
+
+    if (inMemory) {
+      // Already in memory — onLoad above will hand it over.
+      return;
+    }
+    // Pull from disk by slug. If absent, the empty state renders.
+    if (window.tinker && typeof window.tinker.loadTrajectory === "function") {
+      window.tinker
+        .loadTrajectory(slug)
+        .then((payload) => {
+          if (payload) {
+            window.__tinkerPayload = payload;
+            post(payload);
+          }
+        })
+        .catch((err) => {
+          console.warn("[tinker] loadTrajectory failed:", err);
+        });
+    }
+  }
+
+  // Listen for the iframe's "ready" handshake so we can hand it the
+  // payload even if it loads after we've set window.__tinkerPayload.
+  window.addEventListener("message", (e) => {
+    if (!e.data || e.data.type !== "trajectory:ready") return;
+    const payload = window.__tinkerPayload;
+    const shareUrl = window.__tinkerShareUrl;
+    if (!payload) return;
+    try {
+      e.source &&
+        e.source.postMessage(
+          { type: "trajectory:payload", payload, shareUrl },
+          "*"
+        );
+    } catch { /* noop */ }
+  });
 
   // ── Event wiring ────────────────────────────────────────────────────
 
@@ -452,6 +893,21 @@
     welcomeInput.value = "";
     navigate(v);
   });
+
+  if (welcomeTinkerBtn) {
+    welcomeTinkerBtn.addEventListener("click", () => navigate(TINKER_RECORD_URL));
+  }
+
+  if (tinkerRecordBtn) {
+    tinkerRecordBtn.addEventListener("click", () => tinker.toggleRecord());
+  }
+
+  if (tinkerBackBtn) {
+    tinkerBackBtn.addEventListener("click", () => {
+      tinker.reset();
+      navigate(HOME_URL);
+    });
+  }
 
   // Anything with [data-url] navigates the active session.
   document.addEventListener("click", (e) => {

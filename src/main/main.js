@@ -1,5 +1,6 @@
 const { app, BrowserWindow, session, ipcMain, shell, nativeImage } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const Anthropic = require("@anthropic-ai/sdk").default;
 
 const isDev = process.argv.includes("--dev");
@@ -23,6 +24,39 @@ Voice: warm, plainspoken, calm. Address the reader as "you" where natural. No he
 
 Only include links to sources you'd actually recommend and that you are confident exist. Do not invent URLs. If you are uncertain about a specific URL, omit the link rather than guess. It is better to write a confident paragraph with no link than to fabricate one.`;
 
+// ── Trajectory organize prompt ──────────────────────────────────────────
+//
+// The hard line (product-spec §8): AI organizes human input only.
+// No paraphrasing, no summarizing, no inventing language, no completing
+// thoughts, no choosing colors not stated, no titles or headers.
+// The model selects and arranges the founder's own words. Nothing more.
+
+const ORGANIZE_SYSTEM_PROMPT = `You are a strict slot-filler for the tinker trajectory page.
+
+You receive a raw transcript of a founder talking about an idea. You return JSON with exactly these slots, populated only with verbatim quotes from the transcript.
+
+You may NOT paraphrase. You may NOT summarize. You may NOT invent language. You may NOT complete partial thoughts. You may NOT invent colors. You may NOT generate titles or headers. You may only select and arrange the founder's own words.
+
+Schema:
+{
+  "start_feeling": string | null,
+  "idea_in_their_words": string | null,
+  "forward_feeling": string | null,
+  "quoted_lines": string[],
+  "chosen_colors": string[] | null
+}
+
+Slot rules:
+- "start_feeling": a single direct quote (one sentence or fragment) that captures how the founder felt at the start, near the beginning of the transcript.
+- "idea_in_their_words": one to three quoted lines (joined with a single newline) that articulate the idea itself.
+- "forward_feeling": a single direct quote that captures forward motion, hope, or where they're headed.
+- "quoted_lines": up to 5 additional verbatim quotes from elsewhere in the transcript that feel alive on their own. Empty array if none stand out.
+- "chosen_colors": ONLY if the founder explicitly named colors in the transcript (e.g. "I see this as warm orange"). Use the exact color words they said. Otherwise null.
+
+Every string in the output must be a contiguous substring of the transcript. If a slot can't be filled with a true quote, the slot is null (or [] for quoted_lines). It is better to leave a slot null than to bend a quote.
+
+Return ONLY the JSON object. No prose, no markdown fences, no commentary.`;
+
 let anthropicClient = null;
 function getAnthropic() {
   if (anthropicClient) return anthropicClient;
@@ -36,6 +70,26 @@ function getAnthropic() {
   }
   anthropicClient = new Anthropic({ apiKey });
   return anthropicClient;
+}
+
+// ── Trajectory storage ──────────────────────────────────────────────────
+//
+// Each dump is one JSON file under userData/trajectories/<slug>.json.
+// Local-only for v1 — the "share link" rendered on the page is a fake
+// placeholder string until the v1.1 publishing slice lands.
+
+function trajectoriesDir() {
+  const dir = path.join(app.getPath("userData"), "trajectories");
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function trajectoryPath(slug) {
+  // Defensive — slugs come from the renderer; allow only [a-z0-9-] up to 32 chars.
+  if (!/^[a-z0-9-]{1,32}$/.test(slug)) {
+    throw new Error("Invalid slug");
+  }
+  return path.join(trajectoriesDir(), slug + ".json");
 }
 
 function createWindow() {
@@ -85,10 +139,18 @@ function userAgent() {
 app.whenReady().then(() => {
   session.defaultSession.setUserAgent(userAgent());
 
-  // Permission prompts — for now allow clipboard / fullscreen by default,
-  // and deny camera/mic/notifications until we have a trust UI.
+  // Permission prompts — clipboard / fullscreen / microphone are allowed
+  // by default (mic is required for the tinker voice-capture surface);
+  // camera and notifications stay denied until we have a trust UI.
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => {
-    const allowed = ["clipboard-read", "clipboard-sanitized-write", "fullscreen"];
+    const allowed = [
+      "clipboard-read",
+      "clipboard-sanitized-write",
+      "fullscreen",
+      "media",
+      "microphone",
+      "audioCapture",
+    ];
     cb(allowed.includes(permission));
   });
 
@@ -128,6 +190,96 @@ ipcMain.handle("search:query", async (_event, query) => {
     text: textBlock ? textBlock.text : "",
     usage: message.usage,
   };
+});
+
+// ── Tinker: transcription ───────────────────────────────────────────────
+//
+// Whisper after-stop only (per build decision). Renderer records audio
+// via MediaRecorder, hands us the bytes + mimetype, we forward to the
+// OpenAI transcription endpoint and return the text.
+
+ipcMain.handle("tinker:transcribe", async (_event, payload) => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    const err = new Error(
+      "OPENAI_API_KEY is not set. Add it to your environment and restart tinker."
+    );
+    err.code = "MISSING_OPENAI_KEY";
+    throw err;
+  }
+  if (!payload || !payload.audioBase64) {
+    throw new Error("audioBase64 is required");
+  }
+  const mimeType = payload.mimeType || "audio/webm";
+  const ext = mimeType.includes("mp4") ? "mp4"
+    : mimeType.includes("mpeg") ? "mp3"
+    : mimeType.includes("wav") ? "wav"
+    : "webm";
+
+  const buf = Buffer.from(payload.audioBase64, "base64");
+  const blob = new Blob([buf], { type: mimeType });
+  const form = new FormData();
+  form.append("file", blob, `dump.${ext}`);
+  form.append("model", "whisper-1");
+  form.append("response_format", "json");
+
+  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Whisper ${res.status}: ${body.slice(0, 240)}`);
+  }
+  const data = await res.json();
+  return { text: (data && data.text) || "" };
+});
+
+// ── Tinker: organize transcript into trajectory payload ─────────────────
+
+ipcMain.handle("tinker:organize", async (_event, transcript) => {
+  if (typeof transcript !== "string" || !transcript.trim()) {
+    throw new Error("Transcript is required");
+  }
+  const client = getAnthropic();
+  const message = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 1024,
+    system: [
+      {
+        type: "text",
+        text: ORGANIZE_SYSTEM_PROMPT,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    messages: [{ role: "user", content: transcript.trim() }],
+  });
+  const textBlock = message.content.find((b) => b.type === "text");
+  const raw = textBlock ? textBlock.text.trim() : "";
+  let payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    // Strip a stray markdown fence if the model adds one.
+    const stripped = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "");
+    payload = JSON.parse(stripped);
+  }
+  return { payload, usage: message.usage };
+});
+
+// ── Tinker: save / load trajectory payload ──────────────────────────────
+
+ipcMain.handle("tinker:save", async (_event, slug, payload) => {
+  const file = trajectoryPath(slug);
+  fs.writeFileSync(file, JSON.stringify(payload, null, 2), "utf8");
+  return { slug, path: file };
+});
+
+ipcMain.handle("tinker:load", async (_event, slug) => {
+  const file = trajectoryPath(slug);
+  if (!fs.existsSync(file)) return null;
+  return JSON.parse(fs.readFileSync(file, "utf8"));
 });
 
 // Renderer renders the seed-mark SVG to a PNG data URL and hands it

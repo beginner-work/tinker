@@ -402,6 +402,279 @@ webview { border: 0; }
 .welcome__begin:hover { background: #4f46e5; }
 .welcome__begin:active { transform: scale(0.98); }
 
+.welcome__tinker {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 4px;
+  margin-top: -8px;
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 500;
+  background: transparent;
+  border-radius: 8px;
+  transition: color 0.15s ease, transform 0.05s ease;
+}
+
+.welcome__tinker:hover { color: var(--color-forest); }
+.welcome__tinker:active { transform: scale(0.99); }
+
+.welcome__tinker-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-leaf);
+  box-shadow: 0 0 0 3px rgba(123, 196, 122, 0.18);
+}
+
+/* ── Tinker capture screen ─────────────────────────────────────────────── */
+
+.stage > .tinker {
+  position: absolute;
+  inset: 0;
+  display: none;
+  background:
+    radial-gradient(circle at 22% 18%, rgba(123, 196, 122, 0.14), transparent 44%),
+    radial-gradient(circle at 80% 14%, rgba(165, 180, 252, 0.10), transparent 38%),
+    radial-gradient(circle at 50% 110%, rgba(253, 186, 116, 0.10), transparent 50%),
+    var(--color-background);
+  overflow: auto;
+}
+
+.stage > .tinker[data-active] { display: block; }
+
+.tinker__stage {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 32px 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+
+.tinker__head { text-align: center; }
+
+.tinker__title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-foreground);
+}
+
+.tinker__subtitle {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.tinker__recorder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 0 8px;
+}
+
+.tinker__record {
+  position: relative;
+  width: 136px;
+  height: 136px;
+  border-radius: 50%;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.05s ease;
+}
+
+.tinker__record:active { transform: scale(0.98); }
+
+.tinker__record-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(140deg, #fde68a 0%, #fdba74 35%, #f9a8d4 70%, #c8b6e2 100%);
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.18), 0 2px 6px rgba(45, 90, 61, 0.10);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.tinker__record-core {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 2px rgba(45, 42, 38, 0.06);
+  transition: width 0.2s ease, height 0.2s ease, border-radius 0.2s ease, background 0.2s ease;
+}
+
+.tinker__recorder[data-state="recording"] .tinker__record-ring {
+  animation: tinker-pulse 1.6s ease-in-out infinite;
+}
+
+.tinker__recorder[data-state="recording"] .tinker__record-core {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: #ef4444;
+}
+
+.tinker__recorder[data-state="working"] .tinker__record,
+.tinker__recorder[data-state="done"]   .tinker__record { pointer-events: none; opacity: 0.7; }
+
+.tinker__recorder[data-state="working"] .tinker__record-ring {
+  animation: spin 1.4s linear infinite;
+  background: conic-gradient(from 0deg, var(--color-leaf), var(--color-accent), var(--color-leaf));
+}
+
+@keyframes tinker-pulse {
+  0%, 100% { box-shadow: 0 12px 32px rgba(239, 68, 68, 0.20), 0 0 0 0 rgba(239, 68, 68, 0.30); }
+  50%      { box-shadow: 0 12px 36px rgba(239, 68, 68, 0.32), 0 0 0 18px rgba(239, 68, 68, 0); }
+}
+
+.tinker__status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.tinker__status-text {
+  font-size: 14px;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.tinker__timer {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  color: var(--color-muted);
+  letter-spacing: 0.04em;
+}
+
+.tinker__transcript {
+  width: 100%;
+  max-width: 560px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow-soft);
+}
+
+.tinker__transcript-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-forest);
+  margin-bottom: 8px;
+}
+
+.tinker__transcript-body {
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-foreground);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.tinker__error {
+  width: 100%;
+  max-width: 560px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #fdf0eb;
+  border: 1px solid #f0d3c5;
+  color: var(--color-foreground);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.tinker__error code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12.5px;
+  background: rgba(45, 42, 38, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.tinker__example {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.tinker__example-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.tinker__example-frame {
+  position: relative;
+  width: 100%;
+  height: 320px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
+  background: #111;
+}
+
+.tinker__example-iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.tinker__back {
+  margin-top: 4px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.tinker__back:hover {
+  color: var(--color-foreground);
+  background: rgba(45, 42, 38, 0.06);
+}
+
+/* ── Trajectory host (iframe wrapping the rendered template) ──────────── */
+
+.stage > .trajectory-host {
+  position: absolute;
+  inset: 0;
+  display: none;
+  background: #000;
+}
+
+.stage > .trajectory-host[data-active] { display: block; }
+
+.trajectory-host__iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
 /* ── Search pane ──────────────────────────────────────────────────────── */
 
 .stage > .search-pane {

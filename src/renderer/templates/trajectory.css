@@ -1,0 +1,275 @@
+/* tinker — trajectory page
+ *
+ * Spotify-Wrapped-shaped: full-bleed slides, big display type,
+ * one quote per slide, scroll-snap between slides. Fixed layout.
+ * Every word that lands here came from the founder's transcript.
+ * No paraphrase, no synthesis, no AI-authored copy.
+ *
+ * Color palette is fixed across slides for v1; the chosen_colors
+ * slot is reserved for a follow-up that swaps the per-slide accent.
+ */
+
+:root {
+  --bg-cover:   #1a1a1a;
+  --bg-start:   #2d5a3d;
+  --bg-idea:    #f7f0e3;
+  --bg-lines:   #fde68a;
+  --bg-forward: #c8b6e2;
+  --bg-close:   #f5f3ef;
+
+  --ink-dark:   #1a1a1a;
+  --ink-cream:  #f5f3ef;
+  --ink-muted-dark:  rgba(245, 243, 239, 0.62);
+  --ink-muted-light: rgba(26, 26, 26, 0.55);
+
+  --font-sans:    "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #000;
+}
+
+::selection { background: rgba(255, 255, 255, 0.25); }
+
+button { font: inherit; color: inherit; cursor: pointer; border: none; background: transparent; }
+button:focus { outline: none; }
+
+.trajectory {
+  height: 100vh;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+
+.slide {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 32px;
+  position: relative;
+}
+
+.slide__inner {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.slide__label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.78;
+}
+
+.slide__quote {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+}
+
+.slide__quote--big {
+  font-size: clamp(34px, 6vw, 64px);
+}
+
+.slide__quote--lines {
+  font-size: clamp(26px, 4.4vw, 44px);
+  line-height: 1.18;
+  letter-spacing: -0.018em;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.slide__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(22px, 3.4vw, 34px);
+  line-height: 1.2;
+  letter-spacing: -0.012em;
+}
+
+.slide__list li {
+  padding-left: 22px;
+  border-left: 4px solid currentColor;
+  opacity: 0.92;
+}
+
+/* ── Per-slide palettes ───────────────────────────────────────────────── */
+
+.slide--cover   { background: var(--bg-cover);   color: var(--ink-cream); }
+.slide--start   { background: var(--bg-start);   color: var(--ink-cream); }
+.slide--idea    { background: var(--bg-idea);    color: var(--ink-dark); }
+.slide--lines   { background: var(--bg-lines);   color: var(--ink-dark); }
+.slide--forward { background: var(--bg-forward); color: var(--ink-dark); }
+.slide--close   { background: var(--bg-close);   color: var(--ink-dark); }
+
+.slide--cover .slide__label,
+.slide--start .slide__label,
+.slide--forward .slide__label { opacity: 0.85; }
+
+/* ── Cover ────────────────────────────────────────────────────────────── */
+
+.cover__crumb {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.cover__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(40px, 7vw, 78px);
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+.cover__date {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+
+/* ── Close (share) ────────────────────────────────────────────────────── */
+
+.slide--close .slide__inner {
+  align-items: center;
+  text-align: center;
+}
+
+.close__mark { color: var(--ink-dark); opacity: 0.92; }
+
+.close__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(40px, 6vw, 64px);
+  letter-spacing: -0.02em;
+}
+
+.close__share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border: 1px solid #ede8e0;
+  border-radius: 999px;
+  padding: 6px 6px 6px 18px;
+  box-shadow: 0 6px 20px rgba(45, 90, 61, 0.08);
+}
+
+.close__url {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted-light);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  padding: 8px 0;
+  min-width: 0;
+}
+
+.close__url:focus { outline: none; }
+
+.close__copy {
+  height: 40px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: var(--ink-dark);
+  color: var(--ink-cream);
+  font-weight: 600;
+  font-size: 13.5px;
+  letter-spacing: 0.01em;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.close__copy:hover { background: #2d2a26; }
+.close__copy:active { transform: scale(0.98); }
+.close__copy[data-copied="1"] { background: var(--bg-start); }
+
+.close__byline {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted-light);
+}
+
+/* ── Empty state (organize call returned no usable quotes) ────────────── */
+
+.empty {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-close);
+  color: var(--ink-dark);
+  z-index: 10;
+}
+
+.empty__inner {
+  max-width: 480px;
+  padding: 24px 32px;
+  text-align: center;
+}
+
+.empty__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 32px;
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+}
+
+.empty__body {
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink-muted-light);
+  margin: 0;
+}
+
+/* ── Loading state (before payload arrives) ───────────────────────────── */
+
+.trajectory[data-state="loading"] .slide:not(.slide--cover) { visibility: hidden; }
+
+/* ── Embedded preview tweaks (when in the example iframe) ─────────────── */
+
+.embedded .slide { min-height: 100%; padding: 24px; }
+.embedded .cover__title { font-size: clamp(20px, 3.5vw, 32px); }
+.embedded .slide__quote--big { font-size: clamp(18px, 3vw, 28px); }
+.embedded .slide__quote--lines { font-size: clamp(15px, 2.4vw, 22px); }
+.embedded .slide__list { font-size: clamp(14px, 2vw, 20px); }
+.embedded .close__title { font-size: clamp(20px, 3.5vw, 32px); }
+.embedded .close__share { padding: 4px 4px 4px 12px; }
+.embedded .close__copy { height: 32px; padding: 0 14px; font-size: 12px; }

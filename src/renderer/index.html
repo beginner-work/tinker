@@ -83,7 +83,57 @@
                    placeholder="Start a new web" aria-label="Start a new web" />
             <button type="submit" id="welcome-submit" class="welcome__begin">Begin</button>
           </form>
+
+          <button type="button" id="welcome-tinker" class="welcome__tinker">
+            <span class="welcome__tinker-dot" aria-hidden="true"></span>
+            <span>Or talk an idea out →</span>
+          </button>
         </div>
+      </section>
+
+      <section id="tinker" class="tinker">
+        <div class="tinker__stage">
+          <div class="tinker__head">
+            <h1 class="tinker__title">Talk an idea out.</h1>
+            <p class="tinker__subtitle">We'll listen. You'll get a page back made of your own words.</p>
+          </div>
+
+          <div class="tinker__recorder" data-state="idle">
+            <button type="button" id="tinker-record" class="tinker__record" aria-label="Start recording">
+              <span class="tinker__record-ring" aria-hidden="true"></span>
+              <span class="tinker__record-core" aria-hidden="true"></span>
+            </button>
+            <div class="tinker__status">
+              <span id="tinker-status-text" class="tinker__status-text">Tap to start.</span>
+              <span id="tinker-timer" class="tinker__timer" aria-hidden="true">00:00</span>
+            </div>
+          </div>
+
+          <div class="tinker__transcript" id="tinker-transcript" hidden>
+            <div class="tinker__transcript-label">Transcript</div>
+            <div class="tinker__transcript-body" id="tinker-transcript-body"></div>
+          </div>
+
+          <div class="tinker__error" id="tinker-error" hidden></div>
+
+          <div class="tinker__example">
+            <div class="tinker__example-label">Here's the shape you'll get back · example</div>
+            <div class="tinker__example-frame">
+              <iframe class="tinker__example-iframe"
+                      src="./templates/trajectory.html?example=1"
+                      title="Example trajectory page"
+                      loading="lazy"></iframe>
+            </div>
+          </div>
+
+          <button type="button" id="tinker-back" class="tinker__back">← Back</button>
+        </div>
+      </section>
+
+      <section id="trajectory-host" class="trajectory-host">
+        <iframe id="trajectory-iframe" class="trajectory-host__iframe"
+                src="about:blank"
+                title="Your trajectory"></iframe>
       </section>
     </main>
 

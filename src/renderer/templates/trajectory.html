@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>your trajectory · tinker</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="./trajectory.css" />
+  </head>
+  <body>
+    <main id="trajectory" class="trajectory" data-state="loading">
+
+      <section class="slide slide--cover">
+        <div class="slide__inner">
+          <div class="cover__crumb">tinker · trajectory</div>
+          <h1 class="cover__title">where you started.<br/>where you are.<br/>where you're going.</h1>
+          <div class="cover__date" id="cover-date"></div>
+        </div>
+      </section>
+
+      <section class="slide slide--start" data-slot="start_feeling" hidden>
+        <div class="slide__inner">
+          <div class="slide__label">where you started this morning</div>
+          <blockquote class="slide__quote slide__quote--big" data-fill="start_feeling"></blockquote>
+        </div>
+      </section>
+
+      <section class="slide slide--idea" data-slot="idea_in_their_words" hidden>
+        <div class="slide__inner">
+          <div class="slide__label">the idea, in your words</div>
+          <div class="slide__quote slide__quote--lines" data-fill-lines="idea_in_their_words"></div>
+        </div>
+      </section>
+
+      <section class="slide slide--lines" data-slot="quoted_lines" hidden>
+        <div class="slide__inner">
+          <div class="slide__label">other things you said</div>
+          <ul class="slide__list" data-fill-list="quoted_lines"></ul>
+        </div>
+      </section>
+
+      <section class="slide slide--forward" data-slot="forward_feeling" hidden>
+        <div class="slide__inner">
+          <div class="slide__label">where you're going</div>
+          <blockquote class="slide__quote slide__quote--big" data-fill="forward_feeling"></blockquote>
+        </div>
+      </section>
+
+      <section class="slide slide--close">
+        <div class="slide__inner">
+          <div class="close__mark" aria-hidden="true">
+            <svg viewBox="0 0 200 200" width="64" height="64" fill="none">
+              <circle cx="100" cy="100" r="76" stroke="currentColor" stroke-width="9" />
+              <line x1="24" y1="100" x2="176" y2="100" stroke="currentColor" stroke-width="9" stroke-linecap="round" />
+              <line x1="100" y1="24" x2="100" y2="176" stroke="currentColor" stroke-width="9" stroke-linecap="round" />
+              <ellipse cx="100" cy="100" rx="26" ry="76" stroke="currentColor" stroke-width="9" />
+              <ellipse cx="100" cy="100" rx="52" ry="76" stroke="currentColor" stroke-width="9" />
+            </svg>
+          </div>
+          <div class="close__title">that's it.</div>
+          <div class="close__share">
+            <input type="text" id="share-url" class="close__url" readonly />
+            <button type="button" id="copy-link" class="close__copy">Copy link</button>
+          </div>
+          <div class="close__byline">tinker · made of your own words</div>
+        </div>
+      </section>
+
+      <div class="empty" id="empty" hidden>
+        <div class="empty__inner">
+          <div class="empty__title">nothing landed.</div>
+          <p class="empty__body">tinker only puts your own words on the page. Nothing in the recording came back as a quote we could place. Try again — speak a little longer, or in slightly fuller thoughts.</p>
+        </div>
+      </div>
+    </main>
+
+    <script src="./trajectory.js"></script>
+  </body>
+</html>
