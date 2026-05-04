@@ -16,11 +16,23 @@
   const SEARCH_PREFIX = "tinker://search?q=";
 
   /**
-   * Mood meter — 32 feelings laid out as a 4×8 grid, in the same shape
-   * the How-We-Feel mood meter uses: columns 1–2 are unpleasant,
-   * 3–4 are pleasant; rows 1–4 are high energy, 5–8 are low energy.
-   * Tone (deep/mid/light/soft) tracks intensity, so the corners read
-   * as the most vivid feelings and the centre fades toward calm.
+   * Quadrants — the four high-level feeling categories from the
+   * How-We-Feel mood meter. Pick one to drill into the eight specific
+   * feelings within it. The hint previews a few example words so you
+   * can scan the four tiles and recognise where to start.
+   */
+  const QUADRANTS = [
+    { id: "red",    title: "On edge", hint: "anxious · frustrated · stressed" },
+    { id: "yellow", title: "Lit up",  hint: "excited · joyful · hopeful" },
+    { id: "blue",   title: "Heavy",   hint: "sad · tired · lonely" },
+    { id: "green",  title: "At ease", hint: "calm · peaceful · grateful" },
+  ];
+
+  /**
+   * Mood meter — 32 feelings, eight per quadrant. Tone
+   * (deep/mid/light/soft) tracks intensity, so the loudest feelings
+   * sit at the top of each quadrant and the gentler ones at the
+   * bottom.
    *
    * Picking one seeds a search around that feeling so Claude Haiku
    * can write a short essay (with web links) that meets the person
@@ -72,6 +84,9 @@
   /** @type {Array<{id: string, url: string, title: string, loading: boolean, view: HTMLElement | null}>} */
   let sessions = [];
   let activeId = null;
+  /** Currently drilled-into quadrant on the welcome screen, or null
+   *  when the high-level four-quadrant view is showing. */
+  let selectedQuadrant = null;
 
   // ── DOM refs ─────────────────────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
@@ -86,7 +101,11 @@
   const loadbar = $("#loadbar");
   const welcomeForm = $("#welcome-form");
   const welcomeInput = $("#welcome-input");
+  const quadrantsEl = $("#quadrants");
+  const feelingsEl = $("#feelings");
   const moodGrid = $("#mood-grid");
+  const moodBack = $("#mood-back");
+  const moodBackLabel = $("#mood-back-label");
 
   // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -159,6 +178,7 @@
     };
     sessions.push(session);
     if (activate) activeId = session.id;
+    if (activate && url === HOME_URL) showQuadrants();
     render();
     if (url !== HOME_URL) ensureWebview(session);
     return session;
@@ -241,6 +261,7 @@
       session.url = HOME_URL;
       session.title = "New session";
       removeSessionView(session);
+      showQuadrants();
       render();
       return;
     }
@@ -473,10 +494,36 @@
     else loadbar.removeAttribute("data-active");
   }
 
+  function renderQuadrants() {
+    if (!quadrantsEl) return;
+    quadrantsEl.innerHTML = "";
+    for (const q of QUADRANTS) {
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = `quadrant quadrant--${q.id}`;
+      tile.dataset.quadrant = q.id;
+      tile.setAttribute("role", "gridcell");
+      tile.setAttribute("aria-label", `Open ${q.title} feelings`);
+
+      const title = document.createElement("span");
+      title.className = "quadrant__title";
+      title.textContent = q.title;
+
+      const hint = document.createElement("span");
+      hint.className = "quadrant__hint";
+      hint.textContent = q.hint;
+
+      tile.append(title, hint);
+      tile.addEventListener("click", () => showFeelings(q.id));
+      quadrantsEl.appendChild(tile);
+    }
+  }
+
   function renderMoodGrid() {
     if (!moodGrid) return;
     moodGrid.innerHTML = "";
     for (const mood of MOODS) {
+      if (selectedQuadrant && mood.quadrant !== selectedQuadrant) continue;
       const tile = document.createElement("button");
       tile.type = "button";
       tile.className = `mood mood--${mood.quadrant} mood--${mood.shade}`;
@@ -487,6 +534,24 @@
       tile.addEventListener("click", () => navigate(`feeling ${mood.word.toLowerCase()}`));
       moodGrid.appendChild(tile);
     }
+  }
+
+  function showFeelings(quadrantId) {
+    const quadrant = QUADRANTS.find((q) => q.id === quadrantId);
+    if (!quadrant || !quadrantsEl || !feelingsEl) return;
+    selectedQuadrant = quadrantId;
+    if (moodBackLabel) moodBackLabel.textContent = quadrant.title;
+    renderMoodGrid();
+    quadrantsEl.hidden = true;
+    feelingsEl.hidden = false;
+    if (moodBack) moodBack.focus();
+  }
+
+  function showQuadrants() {
+    if (!quadrantsEl || !feelingsEl) return;
+    selectedQuadrant = null;
+    feelingsEl.hidden = true;
+    quadrantsEl.hidden = false;
   }
 
   // ── Event wiring ────────────────────────────────────────────────────
@@ -515,6 +580,8 @@
     }
   });
   navHome.addEventListener("click", () => navigate(HOME_URL));
+
+  if (moodBack) moodBack.addEventListener("click", showQuadrants);
 
   welcomeForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -576,7 +643,7 @@
 
   // ── Boot ────────────────────────────────────────────────────────────
 
-  renderMoodGrid();
+  renderQuadrants();
   newSession(HOME_URL);
   welcomeInput.focus();
 })();
