@@ -23,6 +23,12 @@ If the user has more than one idea in flight (e.g. a browser app and a marketpla
 
 If `pitch-deck.md` exists in the working directory, read it first as background. The deck is *who and why*; the spec is *what actually ships*. Don't repeat the deck's content in the spec — refer to it. And don't let the deck constrain the spec: if the user wants to spec one slice of a bigger platform, that's the right move.
 
+### If an existing app shell exists
+
+If the working directory contains `README.md` and `src/` (or similar), the product likely lives **inside an existing shell**, not greenfield. Read the README first; skim `src/` to identify the structural primitives the new screen will inherit (tabs, sidebar, welcome page, address bar, modal stack, navigation rail — whatever the existing app provides). Note their file paths. The spec's section 4 will enumerate them by name. **Do this before Phase 1, not after** — the single most common skill failure is writing a spec for a greenfield product when the user is actually building inside an existing app, and the resulting spec drifts away from the existing shell into a "separate app bolted alongside" shape.
+
+If the user is genuinely greenfield, confirm in the first reflection: *"This is a brand-new app, not something living inside another app you already have — yes?"*
+
 ---
 
 ## Phase 1 — Foundation (the five broad questions)
@@ -82,6 +88,12 @@ After each batch, reflect what you heard in the same warm voice (*"Got it — th
 | A conversation | They talk to it, it talks back. |
 
 (Shapes the primary screen and the data model.)
+
+**Always-ask follow-up to Q2 (in plain chat).** If the user picked *A conversation* or *A tool that does the work*, the next question is:
+
+> *"In what shape — a chat (text area at the bottom, scroll thread climbs upward, like ChatGPT), an onboarding flow (one question at a time, big focus, progress indicator, paginated, like Typeform or Stripe's setup), a wizard (named steps with a Next button), or something else?"*
+
+Capture the answer verbatim. The chat-vs-onboarding-flow distinction is the difference between a ChatGPT clone and a guided experience — both are conversational, but the UI shapes are opposites. The spec's section 7 names the answer; section 9 names the anti-pattern.
 
 ### Q3 — First-time experience (singleSelect)
 
@@ -187,8 +199,9 @@ If the user answered "Nothing yet — pick before code," do **not** write this s
 
 Required content:
 - **Source of truth:** explicit path(s) or asset name(s) — e.g. `src/renderer/styles.css`, `src/renderer/tokens/rainbow-web.json`, *"the existing welcome page in `src/renderer/index.html`"*.
-- **Inherited primitives:** the buttons, typography, color tokens, container shapes the new screen must reuse. List them by name as they appear in the source.
-- **What the agent may NOT do:** introduce a new font, a color outside the tokens, a custom button visual, a new icon library, an animation library, or a CSS framework. List the temptations explicitly so the rule is enforceable, not vibes-based.
+- **Inherited visual primitives:** the buttons, typography, color tokens, container shapes the new screen must reuse. List them by name as they appear in the source.
+- **Inherited structural primitives:** the sidebar, tab/session model, address bar, navigation rail, modal pattern, welcome page — every UI primitive the new screen lives inside or alongside. Name the file paths (e.g. `src/renderer/renderer.js` for the tab model, `src/renderer/index.html` for the welcome surface). Inheriting visuals without inheriting structure produces specs that "feel like a separate app bolted onto the existing app." If the user is building inside an existing shell and structural inheritance isn't named, the spec is incomplete — return to Phase 1 and probe the shell.
+- **What the agent may NOT do:** introduce a new font, a color outside the tokens, a custom button visual, a new icon library, an animation library, a CSS framework, OR a new structural primitive (a new sidebar, a new tab model, a new welcome page, a new modal stack) when the host app already has one. List the temptations explicitly so the rule is enforceable, not vibes-based.
 
 ## 5. The first version
 **One screen, one flow, one outcome.** From Phase 1 Q3 and the contractor follow-up.
@@ -202,7 +215,7 @@ Required content:
 What the user sees on first open. From AskUserQuestion Q3. Walk through the first 30 seconds, step by step — what's on screen, what they tap, what they see next. Every visual element described here must reference the canon in section 4 by name (e.g. *"the existing primary button style"*, *"the cream surface from `styles.css`"*).
 
 ## 7. The shape of the product
-From AskUserQuestion Q2. One paragraph: page, feed, tool, space, or conversation — and what the primary surface looks like.
+From AskUserQuestion Q2 plus the always-ask follow-up. One paragraph: page, feed, tool, space, or conversation — AND, if conversation or tool, the **specific** shape (chat / onboarding flow / wizard / other). The chat-vs-onboarding-flow distinction is non-negotiable: name it explicitly here so the agent doesn't default to a chat layout when an onboarding flow was meant. Section 9 names the corresponding anti-pattern.
 
 ## 8. The loop (or: no loop)
 From AskUserQuestion Q1 + Q4. Either describe what brings the user back, or honestly state *"This is one-and-done; there is no return loop, and that's fine."* Don't fabricate a loop because products are "supposed to" have one.
@@ -243,8 +256,9 @@ Anything you couldn't nail down in the interview. List them as questions the use
 - If the user wants v1 to do six things, push back **once**: *"If we ship one of those next month and the rest later, which one?"* Honor the answer.
 - If the user describes a feature without a person attached, ask: *"Who's using that, and what does it feel like for them?"* — anchor every feature to a person.
 - If the user is genuinely pre-everything (no sketch, no screen, no draft), **say so honestly** in section 11. Don't pad the build sequence with placeholder steps.
-- **If the product lives inside an existing app, the new screen inherits — never invents.** Buttons, fonts, colors, containers, spacing all come from the host app's existing files. If the spec doesn't name the host app's visual canon (section 4), an agent reading the spec will design from scratch, and the founder will look at the result and say *"that's not my app."* The canon is the difference between "feels like mine" and "feels like a generic AI-shaped UI."
+- **If the product lives inside an existing app, the new screen inherits — never invents.** Buttons, fonts, colors, containers, spacing, AND structural primitives (sidebar, tabs, address bar, navigation, modals, welcome page) all come from the host app's existing files. Read `README.md` and a representative slice of `src/` first to understand the existing shell. The spec's section 4 must enumerate BOTH visual AND structural inheritance — visual without structural produces specs the agent treats as a new screen bolted onto the existing app, and the founder looks at the result and says *"that's not my app."* The canon is the difference between "feels like mine" and "feels like a generic AI-shaped UI."
 - **If the line includes a content principle (e.g. "no AI-written words"), turn it into an allowlist (section 9), not a vibe.** Principles get rationalized away by agents; explicit allowlists get checked. Force the spec to enumerate every visible string.
+- **Name the UI-shape anti-pattern, not just the aspiration.** If the user wants an onboarding flow, the spec must explicitly say *"not a chat layout — no persistent text area at the bottom, no message-thread scroll, no bubbles."* If the user wants a feed, the spec must say *"not a search-result list."* Aspirations get drifted away from; anti-patterns get followed. Without the negative form, an agent reading the spec defaults to a ChatGPT-shaped UI for anything conversational.
 - Celebrate clarity briefly and move on. *"That's the one. Keep going."*
 
 ## When the spec is done
