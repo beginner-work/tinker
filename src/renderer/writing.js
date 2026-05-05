@@ -157,6 +157,28 @@
     });
     card.appendChild(ta);
 
+    // "This is everything" — short-circuit the interview and stitch
+    // whatever the founder has typed so far. Available as soon as the
+    // founder has at least one answered turn (or has typed into the
+    // current textarea), so the very first screen with no input just
+    // hides it.
+    const endRow = document.createElement("div");
+    endRow.className = "writing-card__end";
+    const endBtn = document.createElement("button");
+    endBtn.type = "button";
+    endBtn.className = "writing-end";
+    endBtn.textContent = "This is everything →";
+    endBtn.addEventListener("click", () => endNow(question, ta.value));
+    endRow.appendChild(endBtn);
+    card.appendChild(endRow);
+    const updateEndVisibility = () => {
+      const hasPrior = (active.transcript || []).length > 0;
+      const hasNow = ta.value.trim().length > 0;
+      endBtn.disabled = !hasPrior && !hasNow;
+    };
+    ta.addEventListener("input", updateEndVisibility);
+    updateEndVisibility();
+
     nextBtn.textContent = "Next →";
     nextBtn.onclick = () => commitAnswer(question, ta.value);
 
@@ -350,12 +372,37 @@
     askNext().catch((err) => renderError(err));
   }
 
-  async function askNext() {
+  /** Founder pressed "This is everything" — capture any half-typed answer
+   *  and force the engine straight into stitch mode. */
+  function endNow(question, answer) {
+    if (!active) return;
+    const a = (answer || "").trim();
+    if (a) {
+      active.transcript = active.transcript || [];
+      active.transcript.push({ q: question, a });
+      if (active._scratch) delete active._scratch[question];
+      if (active.transcript.length === 1) {
+        active.title = firstSentence(a) || active.title;
+      }
+    }
+    if (!active.transcript || active.transcript.length === 0) {
+      // Nothing to stitch from — keep the question on screen.
+      return;
+    }
+    active.pending = null;
+    active.stitched = null;
+    active.currentStep = active.transcript.length;
+    persist();
+    renderLoading("Stitching your essay…");
+    askNext({ forceStitch: true }).catch((err) => renderError(err));
+  }
+
+  async function askNext({ forceStitch = false } = {}) {
     if (!active) return;
     if (!window.tinker || typeof window.tinker.callClaude !== "function") {
       throw new Error("Anthropic client unavailable. Reload the page.");
     }
-    const userMessage = buildUserMessage(active.transcript || []);
+    const userMessage = buildUserMessage(active.transcript || [], { forceStitch });
     const result = await window.tinker.callClaude({
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],
@@ -363,14 +410,15 @@
       maxTokens: 2048,
     });
     const parsed = parseClaude(result.text);
+    const stitchNow = (parsed.done && parsed.stitched_body) || forceStitch;
 
-    if (parsed.done && parsed.stitched_body) {
+    if (stitchNow) {
       // Hard verify: stitched body must use only words the founder typed.
       const corpus = (active.transcript || []).map((t) => t.a).join("\n\n");
-      const verified = verifyFounderOnly(parsed.stitched_body, active.transcript);
-      let body = parsed.stitched_body;
+      let body = parsed.stitched_body || "";
       let title = parsed.stitched_title || active.title || "Untitled";
-      if (!verified.ok) {
+      const verified = body ? verifyFounderOnly(body, active.transcript) : { ok: false };
+      if (!body || !verified.ok) {
         // Strict fallback: build the essay from the founder's raw answers
         // joined by paragraph breaks. Boring, but provably founder-only.
         body = (active.transcript || []).map((t) => t.a.trim()).filter(Boolean).join("\n\n");
@@ -393,7 +441,7 @@
     renderStep();
   }
 
-  function buildUserMessage(transcript) {
+  function buildUserMessage(transcript, { forceStitch = false } = {}) {
     if (!transcript || transcript.length === 0) {
       return "The founder just opened a new draft. Begin the interview.";
     }
@@ -403,7 +451,13 @@
       lines.push(`A${i + 1}: ${t.a}`);
       lines.push("");
     });
-    lines.push("Decide whether to ask another question or to stitch. Respond with the JSON object only.");
+    if (forceStitch) {
+      lines.push(
+        "The founder has signaled they are done — they pressed \"This is everything\". Skip any further questions and produce the stitched essay now. Set next_question to null, fill stitched_title and stitched_body using only the founder's typed words, and set done to true."
+      );
+    } else {
+      lines.push("Decide whether to ask another question or to stitch. Respond with the JSON object only.");
+    }
     return lines.join("\n");
   }
 
