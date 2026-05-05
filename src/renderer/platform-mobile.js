@@ -1,12 +1,13 @@
 /* Platform shim — runs on Capacitor (iOS/Android) and on plain web,
  * but stays out of the way when Electron's preload has already
- * installed window.tinker. Provides the same surface the renderer
- * expects, backed by a direct browser-side call to Anthropic and
- * (where available) the @capacitor/browser plugin for opening
- * external sites in the system browser overlay. */
+ * installed window.tinker. Exposes a uniform `window.tinker.*`
+ * surface that the renderer relies on. The Anthropic call path is
+ * direct browser→api.anthropic.com using a key stored in
+ * localStorage under ANTHROPIC_API_KEY — same pattern Capacitor
+ * already uses. */
 
 (function () {
-  if (window.tinker && typeof window.tinker.searchQuery === "function") {
+  if (window.tinker && typeof window.tinker.callClaude === "function") {
     return; // Electron preload already wired things up.
   }
 
@@ -17,63 +18,37 @@
   const STORE = window.localStorage;
   const get = (k) => STORE.getItem(k) || "";
 
-  // Same prompt the desktop main process uses. Kept in sync by hand —
-  // the contract is the prompt, not the source location. If you change
-  // it in src/main/main.js, change it here too.
-  const SEARCH_SYSTEM_PROMPT = `You are the search engine for the tinker web browser — a quiet alternative to ad-driven search.
-
-When you receive a query, write a calm, conversational answer in three to five short paragraphs that helps the reader understand the topic and where to go next. Embed Markdown links to specific, well-known websites — Wikipedia, official organisation sites, established publications, .gov pages — where the reader can read more or take action. Format links exactly as [label](https://example.com).
-
-Voice: warm, plainspoken, calm. Address the reader as "you" where natural. No headings, no bulleted lists — just flowing prose, with short paragraphs separated by blank lines.
-
-Only include links to sources you'd actually recommend and that you are confident exist. Do not invent URLs. If you are uncertain about a specific URL, omit the link rather than guess. It is better to write a confident paragraph with no link than to fabricate one.`;
-
-  // ── Web build: search via the JWT-backed proxy in src/web/server.js ──
-  //
-  // The plain-web host serves /api/search, which proxies to the beginner
-  // API's /claude/chat with the user's JWT (issued by the phone OTP flow
-  // implemented in auth.js). The model + system prompt live server-side
-  // so the browser bundle never sees an Anthropic key.
-
-  async function searchViaProxy(query) {
-    const token = get("tinker_jwt");
-    if (!token) {
-      const e = new Error("Sign in to search.");
-      e.code = "MISSING_TOKEN";
-      throw e;
-    }
-    const res = await fetch("/api/search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ query: query.trim() }),
-    });
-    if (res.status === 401) {
-      try { STORE.removeItem("tinker_jwt"); } catch { /* ignore */ }
-      window.location.reload();
-      throw new Error("Session expired — reloading to sign you in again.");
-    }
-    let data = null;
-    try { data = await res.json(); } catch { data = {}; }
-    if (!res.ok) {
-      const message = (data && data.error) || `Search failed (${res.status})`;
-      throw new Error(message);
-    }
-    return { text: data.text || "", usage: data.usage };
-  }
-
-  // ── Capacitor mobile: direct browser → Anthropic with key in storage ──
-
-  async function searchDirect(query) {
+  /** Direct browser → Anthropic Messages API call.
+   *
+   * Inputs:
+   *   { system, messages, model, maxTokens }
+   *
+   * The system prompt is always wrapped in a cache_control block so
+   * repeat turns within a draft skip the cold-start cost. */
+  async function callClaude({
+    system,
+    messages,
+    model = "claude-sonnet-4-6",
+    maxTokens = 2048,
+  } = {}) {
     const apiKey = get("ANTHROPIC_API_KEY");
     if (!apiKey) {
       const e = new Error(
-        "ANTHROPIC_API_KEY is not set. Open Settings to add it (or run localStorage.setItem from the inspector)."
+        "Set your Anthropic API key first. Open the browser inspector and run:\n" +
+        "  localStorage.setItem('ANTHROPIC_API_KEY', 'sk-ant-...')"
       );
       e.code = "MISSING_API_KEY";
       throw e;
+    }
+    const body = {
+      model,
+      max_tokens: maxTokens,
+      messages,
+    };
+    if (system) {
+      body.system = [
+        { type: "text", text: system, cache_control: { type: "ephemeral" } },
+      ];
     }
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -83,29 +58,16 @@ Only include links to sources you'd actually recommend and that you are confiden
         "anthropic-dangerous-direct-browser-access": "true",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 1024,
-        system: [
-          {
-            type: "text",
-            text: SEARCH_SYSTEM_PROMPT,
-            cache_control: { type: "ephemeral" },
-          },
-        ],
-        messages: [{ role: "user", content: query.trim() }],
-      }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const errBody = await res.text();
-      throw new Error(`Anthropic API ${res.status}: ${errBody.slice(0, 240)}`);
+      throw new Error(`Anthropic API ${res.status}: ${errBody.slice(0, 320)}`);
     }
     const data = await res.json();
     const textBlock = (data.content || []).find((b) => b.type === "text");
-    return { text: textBlock ? textBlock.text : "", usage: data.usage };
+    return { text: textBlock ? textBlock.text : "", usage: data.usage, raw: data };
   }
-
-  const searchQuery = isWeb ? searchViaProxy : searchDirect;
 
   async function openExternal(url) {
     if (isCapacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
@@ -113,17 +75,17 @@ Only include links to sources you'd actually recommend and that you are confiden
         await window.Capacitor.Plugins.Browser.open({ url });
         return;
       } catch {
-        // fall through to window.open
+        // fall through
       }
     }
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
   window.tinker = {
-    version: () => Promise.resolve("0.1.0-mobile"),
-    platform: () => Promise.resolve(isCapacitor ? "capacitor" : "web"),
+    version: () => Promise.resolve("0.1.0-tinker-v1"),
+    platform: () => Promise.resolve(isCapacitor ? "capacitor" : isWeb ? "web" : "unknown"),
     setIcon: () => Promise.resolve(true),
-    searchQuery,
+    callClaude,
     openExternal,
     supportsWebview: false,
     setSetting: (k, v) => {
@@ -131,5 +93,6 @@ Only include links to sources you'd actually recommend and that you are confiden
       return Promise.resolve(true);
     },
     getSetting: (k) => Promise.resolve(get(k)),
+    hasApiKey: () => !!get("ANTHROPIC_API_KEY"),
   };
 })();

@@ -1,13 +1,8 @@
 /* tinker — web host (static)
  *
- * Serves the renderer (the same files Electron and Capacitor load) over
- * plain HTTP. The auth + search endpoints live as Vercel serverless
- * functions under `api/*` and are NOT served by this host — use
- * `vercel dev` instead of `npm run web` when you need them locally.
- *
- * Everything under / is the static renderer bundle. There is no build
- * step — the same plain HTML/CSS/JS that runs inside Electron also runs
- * here.
+ * Serves the renderer (the same files Electron and Capacitor load) over HTTP.
+ * No build step, no proxy. The renderer talks to Anthropic directly using a
+ * key it reads from localStorage — see src/renderer/platform-mobile.js.
  */
 
 "use strict";
@@ -35,8 +30,6 @@ const MIME = {
 };
 
 function safeJoin(root, urlPath) {
-  // Strip query string + decode + normalize, then make sure the resolved
-  // path is still inside the renderer directory.
   const clean = decodeURIComponent(urlPath.split("?")[0]);
   const rel = clean === "/" ? "/index.html" : clean;
   const resolved = path.normalize(path.join(root, rel));
@@ -78,5 +71,4 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`tinker web → http://localhost:${PORT}`);
-  console.log("  (static only; run `vercel dev` for auth + search)");
 });
