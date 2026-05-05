@@ -510,29 +510,6 @@ html.on-web .sidebar__head {
 }
 .writing-input::placeholder { color: var(--color-muted); }
 
-.writing-card__end {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: -4px;
-}
-.writing-end {
-  background: transparent;
-  color: var(--color-muted);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-}
-.writing-end:hover:not(:disabled) {
-  color: var(--color-forest);
-  background: rgba(45, 90, 61, 0.06);
-  border-color: rgba(45, 90, 61, 0.18);
-}
-.writing-end:disabled { opacity: 0.4; cursor: default; }
-
 .writing-note {
   font-size: 13px;
   color: var(--color-muted);
@@ -582,25 +559,35 @@ html.on-web .sidebar__head {
 
 .writing__foot {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-end;
+  gap: 10px;
   padding: 16px 28px 22px;
   border-top: 1px solid rgba(237, 232, 224, 0.6);
 }
-.writing__back, .writing__next {
+.writing__end, .writing__next {
   height: 44px;
   padding: 0 22px;
   border-radius: 999px;
   font-weight: 600;
   font-size: 14px;
-  transition: background 0.15s ease, transform 0.05s ease;
+  transition: background 0.15s ease, transform 0.05s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.writing__back {
-  color: var(--color-muted);
-  background: transparent;
+/* "This is everything" — same pill shape and footer position as Next,
+ * but a soft outlined treatment so the two buttons don't fight. */
+.writing__end {
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
 }
-.writing__back:not(:disabled):hover { color: var(--color-foreground); background: rgba(45, 90, 61, 0.06); }
-.writing__back:disabled { opacity: 0.4; cursor: default; }
+.writing__end:not(:disabled):hover {
+  border-color: var(--color-accent-strong);
+  color: var(--color-accent-strong);
+  background: var(--color-accent-dim);
+}
+.writing__end:active { transform: scale(0.98); }
+.writing__end:disabled { opacity: 0.45; cursor: default; }
+.writing__end[hidden] { display: none; }
+
 .writing__next {
   background: var(--color-accent-strong);
   color: #fff;

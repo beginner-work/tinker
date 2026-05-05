@@ -45,7 +45,7 @@
   const stepEl = document.getElementById("writing-step");
   const closeBtn = document.getElementById("writing-close");
   const nextBtn = document.getElementById("writing-next");
-  const backBtn = document.getElementById("writing-back");
+  const endBtn = document.getElementById("writing-end");
 
   let active = null; // current draft
 
@@ -107,9 +107,10 @@
       ? "Review"
       : `Question ${Math.min(step + 1, Math.max(totalAsked, 1))}`;
 
-    backBtn.disabled = step === 0;
     nextBtn.hidden = false;
     nextBtn.disabled = false;
+    endBtn.hidden = false;
+    refreshEndButton();
 
     if (isReview) {
       renderReview();
@@ -122,6 +123,14 @@
       renderLoading("Asking the next question…");
       askNext().catch((err) => renderError(err));
     }
+  }
+
+  function refreshEndButton() {
+    if (!active) return;
+    const ta = stage.querySelector(".writing-input");
+    const hasPrior = (active.transcript || []).length > 0;
+    const hasNow = ta && ta.value.trim().length > 0;
+    endBtn.disabled = !hasPrior && !hasNow;
   }
 
   function renderPendingQuestion(question) {
@@ -144,6 +153,7 @@
     ta.addEventListener("input", () => {
       active._scratch = active._scratch || {};
       active._scratch[question] = ta.value;
+      refreshEndButton();
       // Debounce persistence so we don't write to localStorage on every keystroke.
       clearTimeout(scratchTimer);
       scratchTimer = setTimeout(() => persist(), 350);
@@ -157,30 +167,9 @@
     });
     card.appendChild(ta);
 
-    // "This is everything" — short-circuit the interview and stitch
-    // whatever the founder has typed so far. Available as soon as the
-    // founder has at least one answered turn (or has typed into the
-    // current textarea), so the very first screen with no input just
-    // hides it.
-    const endRow = document.createElement("div");
-    endRow.className = "writing-card__end";
-    const endBtn = document.createElement("button");
-    endBtn.type = "button";
-    endBtn.className = "writing-end";
-    endBtn.textContent = "This is everything →";
-    endBtn.addEventListener("click", () => endNow(question, ta.value));
-    endRow.appendChild(endBtn);
-    card.appendChild(endRow);
-    const updateEndVisibility = () => {
-      const hasPrior = (active.transcript || []).length > 0;
-      const hasNow = ta.value.trim().length > 0;
-      endBtn.disabled = !hasPrior && !hasNow;
-    };
-    ta.addEventListener("input", updateEndVisibility);
-    updateEndVisibility();
-
     nextBtn.textContent = "Next →";
     nextBtn.onclick = () => commitAnswer(question, ta.value);
+    endBtn.onclick = () => endNow(question, ta.value);
 
     swap(card);
     setTimeout(() => ta.focus(), 30);
@@ -219,6 +208,16 @@
       active.currentStep = idx + 1;
       persist();
       renderStep();
+    };
+    endBtn.onclick = () => {
+      // Capture the (possibly edited) text for this turn before stitching.
+      const next = ta.value.trim();
+      if (next && next !== turn.a) {
+        turn.a = next;
+        active.stitched = null;
+        persist();
+      }
+      endNow(null, "");
     };
 
     swap(card);
@@ -298,6 +297,7 @@
     card.appendChild(actions);
 
     nextBtn.hidden = true;
+    endBtn.hidden = true;
     swap(card);
 
     // Persist the editable title on blur.
@@ -321,6 +321,7 @@
       `</div>` +
       `<div class="writing-loading__text">${escapeHtml(text)}</div>`;
     nextBtn.disabled = true;
+    endBtn.disabled = true;
     swap(card);
   }
 
@@ -343,6 +344,7 @@
     retry.addEventListener("click", () => renderStep());
     card.appendChild(retry);
     nextBtn.hidden = true;
+    endBtn.hidden = true;
     swap(card);
   }
 
@@ -547,19 +549,13 @@
     }
   });
 
-  backBtn.addEventListener("click", () => {
-    if (!active) return;
-    if (active.currentStep > 0) {
-      active.currentStep -= 1;
-      persist();
-      renderStep();
-    }
-  });
-
   // Default Next click is wired per-card; if a render path forgot to
   // set onclick, fall through to "no-op".
   nextBtn.addEventListener("click", (e) => {
     if (!nextBtn.onclick) e.preventDefault();
+  });
+  endBtn.addEventListener("click", (e) => {
+    if (!endBtn.onclick) e.preventDefault();
   });
 
   function doPublish(reviewHead) {
