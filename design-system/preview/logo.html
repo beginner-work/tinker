@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Preview · Logo system</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 32px 40px; background: var(--color-background); color: var(--color-foreground); }
+  h2 { font-family: var(--font-display); font-size: 14px; font-weight: 700; letter-spacing: -0.005em; margin: 0 0 14px; color: var(--color-foreground); }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-muted); margin: 0 0 18px; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-end; margin-bottom: 36px; }
+  .tile { display: flex; flex-direction: column; gap: 10px; align-items: center; padding: 22px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; }
+  .tile.dark { background: var(--color-forest); }
+  .tile.dark .meta { color: rgba(245, 243, 239, 0.7); }
+  .meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--color-muted); }
+  .lockup { display: inline-flex; align-items: center; gap: 9px; padding: 10px 14px; border-radius: 10px; background: var(--color-parchment); }
+  .lockup .wm { font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: var(--color-ink); }
+  .stack-lockup { display: inline-flex; flex-direction: column; align-items: center; gap: 8px; }
+  .stack-lockup .wm-lg { font-family: var(--font-display); font-weight: 700; font-size: 36px; letter-spacing: -0.02em; color: var(--color-ink); line-height: 1; }
+  .wm-only { font-family: var(--font-display); font-weight: 700; font-size: 38px; letter-spacing: -0.02em; color: var(--color-ink); }
+  .divider { height: 1px; background: var(--color-border); margin: 14px 0 32px; }
+  .grid-sizes { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+  .size-tile { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .size-tile span { font-family: var(--font-mono); font-size: 10px; color: var(--color-muted); }
+</style>
+</head>
+<body>
+
+<p class="label">Brand mark · the seed</p>
+<h2>The lowercase “b” as a sprouting seedling — forest plate, cream strokes, leaf-green accent.</h2>
+<div class="row">
+  <div class="tile">
+    <img src="../assets/seed-mark.svg" alt="beginner seed mark" width="120" height="120" />
+    <span class="meta">seed-mark.svg · 180×180 viewBox</span>
+  </div>
+  <div class="tile dark">
+    <img src="../assets/seed-mark.svg" alt="beginner seed mark on green" width="120" height="120" />
+    <span class="meta">on forest #2d5a3d</span>
+  </div>
+  <div class="tile">
+    <img src="../assets/seed-mark-mono.svg" alt="beginner seed mark, mono" width="120" height="120" />
+    <span class="meta">seed-mark-mono.svg · ink plate</span>
+  </div>
+</div>
+
+<p class="label">Lockups</p>
+<div class="row">
+  <div class="tile">
+    <span class="lockup"><img src="../assets/seed-mark.svg" alt="" width="22" height="22" /><span class="wm">beginner</span></span>
+    <span class="meta">horizontal · sidebar / nav</span>
+  </div>
+  <div class="tile">
+    <span class="stack-lockup">
+      <img src="../assets/seed-mark.svg" alt="" width="56" height="56" />
+      <span class="wm-lg">beginner</span>
+    </span>
+    <span class="meta">stacked · home hero</span>
+  </div>
+  <div class="tile">
+    <span class="wm-only">beginner</span>
+    <span class="meta">wordmark only · footers</span>
+  </div>
+</div>
+
+<p class="label">Mark size ramp</p>
+<div class="grid-sizes">
+  <div class="size-tile"><img src="../assets/seed-mark.svg" alt="" width="20" height="20" /><span>20</span></div>
+  <div class="size-tile"><img src="../assets/seed-mark.svg" alt="" width="28" height="28" /><span>28</span></div>
+  <div class="size-tile"><img src="../assets/seed-mark.svg" alt="" width="40" height="40" /><span>40</span></div>
+  <div class="size-tile"><img src="../assets/seed-mark.svg" alt="" width="56" height="56" /><span>56</span></div>
+  <div class="size-tile"><img src="../assets/seed-mark.svg" alt="" width="80" height="80" /><span>80</span></div>
+  <div class="size-tile"><img src="../assets/seed-mark.svg" alt="" width="120" height="120" /><span>120</span></div>
+</div>
+
+<div class="divider"></div>
+
+<p class="label">Product mark · tinker browser</p>
+<h2>The rainbow-web globe — used <em>only</em> inside the tinker browser product. Not a brand mark.</h2>
+<div class="row">
+  <div class="tile">
+    <img src="../assets/rainbow-web.svg" alt="tinker rainbow-web mark" width="120" height="120" />
+    <span class="meta">rainbow-web.svg · product app icon</span>
+  </div>
+  <div class="tile">
+    <img src="../assets/rainbow-web-mono.svg" alt="tinker rainbow-web, mono" width="120" height="120" />
+    <span class="meta">rainbow-web-mono.svg</span>
+  </div>
+  <div class="tile">
+    <span class="lockup"><img src="../assets/rainbow-web.svg" alt="" width="22" height="22" /><span class="wm">tinker</span></span>
+    <span class="meta">in-product sidebar lockup</span>
+  </div>
+</div>
+
+</body>
+</html>

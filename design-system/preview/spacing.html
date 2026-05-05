@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Preview · Spacing</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-background); }
+  .scale { display: flex; align-items: flex-end; gap: 14px; height: 80px; }
+  .step { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .bar { width: 38px; background: var(--color-leaf); border-radius: 4px; }
+  .name { font-family: var(--font-display); font-weight: 700; font-size: 11px; color: var(--color-foreground); }
+  .val { font-family: var(--font-mono); font-size: 10px; color: var(--color-muted); }
+</style>
+</head>
+<body>
+<div class="scale">
+  <div class="step"><div class="bar" style="height: 4px;"></div><span class="name">1</span><span class="val">4</span></div>
+  <div class="step"><div class="bar" style="height: 6px;"></div><span class="name">2</span><span class="val">6</span></div>
+  <div class="step"><div class="bar" style="height: 8px;"></div><span class="name">3</span><span class="val">8</span></div>
+  <div class="step"><div class="bar" style="height: 12px;"></div><span class="name">4</span><span class="val">12</span></div>
+  <div class="step"><div class="bar" style="height: 16px;"></div><span class="name">5</span><span class="val">16</span></div>
+  <div class="step"><div class="bar" style="height: 24px;"></div><span class="name">6</span><span class="val">24</span></div>
+  <div class="step"><div class="bar" style="height: 32px;"></div><span class="name">7</span><span class="val">32</span></div>
+  <div class="step"><div class="bar" style="height: 48px;"></div><span class="name">8</span><span class="val">48</span></div>
+</div>
+</body>
+</html>

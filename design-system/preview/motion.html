@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Preview · Motion</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-background); font-family: var(--font-sans); display: flex; flex-direction: column; gap: 18px; }
+  .row { display: flex; align-items: center; gap: 16px; }
+  .lbl { width: 130px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-muted); }
+  .loadbar { position: relative; width: 240px; height: 2px; background: var(--color-border); border-radius: 2px; overflow: hidden; }
+  .loadbar span { display: block; height: 100%; width: 30%; background: linear-gradient(90deg, var(--color-leaf), var(--color-forest), var(--color-leaf)); animation: loadbar-slide 1.2s ease-in-out infinite; }
+  @keyframes loadbar-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(380%); } }
+  .dots { display: inline-flex; gap: 4px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent-strong); animation: bounce 1.2s ease-in-out infinite; }
+  .dot:nth-child(2) { animation-delay: 0.18s; }
+  .dot:nth-child(3) { animation-delay: 0.36s; }
+  @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.4; } 40% { transform: translateY(-4px); opacity: 1; } }
+  .spinner { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--color-border); border-top-color: var(--color-forest); animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .meta { font-family: var(--font-mono); font-size: 10px; color: var(--color-muted); }
+</style>
+</head>
+<body>
+  <div class="row"><span class="lbl">Loadbar</span><div class="loadbar"><span></span></div><span class="meta">1.2s ease-in-out · leaf→forest→leaf</span></div>
+  <div class="row"><span class="lbl">Thinking</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span><span class="meta">Reading the room…</span></div>
+  <div class="row"><span class="lbl">Spinner</span><span class="spinner"></span><span class="meta">0.7s linear · per-session loading</span></div>
+</body>
+</html>

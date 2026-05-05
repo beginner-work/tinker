@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Preview · Brand colors</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-background); display: flex; flex-direction: column; gap: 18px; }
+  .label { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-muted); margin: 0 0 -6px; }
+  .row { display: grid; gap: 10px; }
+  .row.core { grid-template-columns: repeat(5, 1fr); }
+  .row.rainbow { grid-template-columns: repeat(7, 1fr); }
+  .swatch {
+    border-radius: var(--radius-card);
+    padding: 11px 12px;
+    height: 84px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 1px solid var(--color-border);
+  }
+  .swatch.tint { border-color: var(--color-border); }
+  .name { font-family: var(--font-display); font-weight: 700; font-size: 12.5px; color: inherit; }
+  .hex { font-family: var(--font-mono); font-size: 10.5px; opacity: 0.78; }
+</style>
+</head>
+<body>
+
+<p class="label">Core · forest + indigo</p>
+<div class="row core">
+  <div class="swatch" style="background: var(--color-forest); color: #fff;">
+    <span class="name">Forest</span><span class="hex">#2d5a3d</span>
+  </div>
+  <div class="swatch" style="background: var(--color-sprout); color: #fff;">
+    <span class="name">Sprout</span><span class="hex">#5aad58</span>
+  </div>
+  <div class="swatch" style="background: var(--color-leaf); color: var(--color-ink);">
+    <span class="name">Leaf</span><span class="hex">#7bc47a</span>
+  </div>
+  <div class="swatch" style="background: var(--color-accent-strong); color: #fff;">
+    <span class="name">Indigo 500</span><span class="hex">#6366f1</span>
+  </div>
+  <div class="swatch" style="background: var(--color-accent); color: var(--color-ink);">
+    <span class="name">Indigo 300</span><span class="hex">#a5b4fc</span>
+  </div>
+</div>
+
+<p class="label">Pastel rainbow · expressive</p>
+<div class="row rainbow">
+  <div class="swatch" style="background: var(--color-rose); color: var(--color-ink);"><span class="name">Rose</span><span class="hex">#f9a8d4</span></div>
+  <div class="swatch" style="background: var(--color-peach); color: var(--color-ink);"><span class="name">Peach</span><span class="hex">#fdba74</span></div>
+  <div class="swatch" style="background: var(--color-amber); color: var(--color-ink);"><span class="name">Amber</span><span class="hex">#fde68a</span></div>
+  <div class="swatch" style="background: var(--color-mint); color: var(--color-ink);"><span class="name">Mint</span><span class="hex">#6ee7b7</span></div>
+  <div class="swatch" style="background: var(--color-sky); color: var(--color-ink);"><span class="name">Sky</span><span class="hex">#7dd3fc</span></div>
+  <div class="swatch" style="background: var(--color-indigo); color: var(--color-ink);"><span class="name">Indigo</span><span class="hex">#a5b4fc</span></div>
+  <div class="swatch" style="background: var(--color-violet); color: var(--color-ink);"><span class="name">Violet</span><span class="hex">#c4b5fd</span></div>
+</div>
+
+<p class="label">Rainbow tints · backgrounds</p>
+<div class="row rainbow">
+  <div class="swatch tint" style="background: var(--color-rose-light); color: var(--color-foreground);"><span class="name">Rose 50</span><span class="hex">#fdf2f8</span></div>
+  <div class="swatch tint" style="background: var(--color-peach-light); color: var(--color-foreground);"><span class="name">Peach 50</span><span class="hex">#fff7ed</span></div>
+  <div class="swatch tint" style="background: var(--color-amber-light); color: var(--color-foreground);"><span class="name">Amber 50</span><span class="hex">#fffbeb</span></div>
+  <div class="swatch tint" style="background: var(--color-mint-light); color: var(--color-foreground);"><span class="name">Mint 50</span><span class="hex">#ecfdf5</span></div>
+  <div class="swatch tint" style="background: var(--color-sky-light); color: var(--color-foreground);"><span class="name">Sky 50</span><span class="hex">#f0f9ff</span></div>
+  <div class="swatch tint" style="background: var(--color-indigo-light); color: var(--color-foreground);"><span class="name">Indigo 50</span><span class="hex">#eef2ff</span></div>
+  <div class="swatch tint" style="background: var(--color-violet-light); color: var(--color-foreground);"><span class="name">Violet 50</span><span class="hex">#f5f3ff</span></div>
+</div>
+
+</body>
+</html>

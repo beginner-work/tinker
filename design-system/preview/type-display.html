@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Preview · Display type</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-background); }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .row { display: flex; align-items: baseline; gap: 16px; }
+  .meta { width: 130px; flex-shrink: 0; font-family: var(--font-mono); font-size: 11px; color: var(--color-muted); }
+  .display-lg { font-family: var(--font-display); font-weight: 700; font-size: 38px; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-foreground); }
+  .display { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: -0.01em; color: var(--color-foreground); }
+  .essay { font-family: var(--font-display); font-size: 17px; line-height: 1.7; color: var(--color-foreground); max-width: 520px; }
+</style>
+</head>
+<body>
+<div class="stack">
+  <div class="row"><span class="meta">38 / 700 · -0.02em</span><span class="display-lg">A new way to web</span></div>
+  <div class="row"><span class="meta">22 / 700 · -0.01em</span><span class="display">Founders aren't underfunded.</span></div>
+  <div class="row"><span class="meta">17 / 400 · 1.7</span><span class="essay">Plus Jakarta Sans carries reading prose at 17px with generous leading. The search-result essay sets here.</span></div>
+</div>
+</body>
+</html>

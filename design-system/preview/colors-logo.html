@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Preview · Logo palette</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-background); display: flex; gap: 18px; align-items: center; }
+  .mark { width: 110px; height: 110px; flex-shrink: 0; }
+  .row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; flex: 1; }
+  .chip {
+    border-radius: var(--radius-icon);
+    padding: 8px 10px;
+    height: 90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: var(--color-ink);
+  }
+  .nm { font-family: var(--font-display); font-weight: 700; font-size: 11px; }
+  .hx { font-family: var(--font-mono); font-size: 10px; opacity: 0.78; }
+  .cap { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.6; }
+</style>
+</head>
+<body>
+<img src="../assets/rainbow-web.svg" class="mark" alt="tinker logo" />
+<div class="row">
+  <div class="chip" style="background: var(--logo-purple);"><span class="cap">Ring</span><span class="nm">Purple</span><span class="hx">#c8b6e2</span></div>
+  <div class="chip" style="background: var(--logo-pink);"><span class="cap">Lat 1</span><span class="nm">Pink</span><span class="hx">#f9a8d4</span></div>
+  <div class="chip" style="background: var(--logo-orange);"><span class="cap">Lat 2</span><span class="nm">Orange</span><span class="hx">#fdba74</span></div>
+  <div class="chip" style="background: var(--logo-yellow);"><span class="cap">Lat 3</span><span class="nm">Yellow</span><span class="hx">#fde68a</span></div>
+  <div class="chip" style="background: var(--logo-leaf);"><span class="cap">Long 1</span><span class="nm">Leaf</span><span class="hx">#7bc47a</span></div>
+  <div class="chip" style="background: var(--logo-sky);"><span class="cap">Long 2</span><span class="nm">Sky</span><span class="hx">#7dd3fc</span></div>
+  <div class="chip" style="background: var(--logo-mint);"><span class="cap">Long 3</span><span class="nm">Mint</span><span class="hx">#6ee7b7</span></div>
+</div>
+</body>
+</html>

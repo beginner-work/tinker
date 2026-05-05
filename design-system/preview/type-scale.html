@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Preview · Type families</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-background); color: var(--color-foreground); display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .card { background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: 18px; }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-muted); margin-bottom: 8px; }
+  .name { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: -0.01em; }
+  .specimen { font-size: 32px; line-height: 1.1; margin-top: 6px; letter-spacing: -0.01em; }
+  .display .specimen { font-family: var(--font-display); font-weight: 700; }
+  .body .specimen { font-family: var(--font-sans); font-weight: 600; }
+  .meta { font-family: var(--font-mono); font-size: 10px; color: var(--color-muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="card display">
+  <div class="label">Display</div>
+  <div class="name">Plus Jakarta Sans</div>
+  <div class="specimen">Aa Bb Gg 123</div>
+  <div class="meta">500 · 600 · 700 · 800</div>
+</div>
+<div class="card body">
+  <div class="label">Body</div>
+  <div class="name">Inter</div>
+  <div class="specimen">Aa Bb Gg 123</div>
+  <div class="meta">400 · 500 · 600 · 700</div>
+</div>
+</body>
+</html>

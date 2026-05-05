@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Preview · Body type</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-background); font-family: var(--font-sans); color: var(--color-foreground); }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; align-items: baseline; gap: 16px; }
+  .meta { width: 130px; flex-shrink: 0; font-family: var(--font-mono); font-size: 11px; color: var(--color-muted); }
+  .t-base { font-size: 15px; font-weight: 400; }
+  .t-body { font-size: 14px; font-weight: 400; }
+  .t-small { font-size: 13px; font-weight: 500; }
+  .t-micro { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-muted); }
+</style>
+</head>
+<body>
+<div class="stack">
+  <div class="row"><span class="meta">Inter · 15 / 400</span><span class="t-base">Search input — Start a new web</span></div>
+  <div class="row"><span class="meta">Inter · 14 / 400</span><span class="t-body">Body — primary UI text and prose at this size.</span></div>
+  <div class="row"><span class="meta">Inter · 13 / 500</span><span class="t-small">Sidebar session items, navigation rows.</span></div>
+  <div class="row"><span class="meta">Inter · 11 / 600</span><span class="t-micro">Sessions · Search · Footer</span></div>
+</div>
+</body>
+</html>

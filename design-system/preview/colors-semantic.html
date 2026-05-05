@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Preview · Text & semantic colors</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-background); }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .tile {
+    border-radius: var(--radius-card);
+    padding: 14px;
+    height: 92px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-alt);
+  }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-muted); }
+  .preview { font-family: var(--font-display); font-weight: 700; font-size: 18px; }
+  .hex { font-family: var(--font-mono); font-size: 11px; color: var(--color-muted); }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="tile">
+    <span class="label">Ink — wordmark</span>
+    <span class="preview" style="color: var(--color-ink);">tinker</span>
+    <span class="hex">#1a1a1a</span>
+  </div>
+  <div class="tile">
+    <span class="label">Foreground</span>
+    <span class="preview" style="color: var(--color-foreground);">Body text</span>
+    <span class="hex">#2d2a26</span>
+  </div>
+  <div class="tile">
+    <span class="label">Muted</span>
+    <span class="preview" style="color: var(--color-muted); font-weight: 500;">Secondary</span>
+    <span class="hex">#6f6a65</span>
+  </div>
+  <div class="tile" style="background: var(--color-error-bg); border-color: var(--color-error-border);">
+    <span class="label">Error tile</span>
+    <span class="preview" style="color: var(--color-foreground); font-size: 14px; font-weight: 600;">The search couldn't finish.</span>
+    <span class="hex">#fdf0eb / #f0d3c5</span>
+  </div>
+</div>
+</body>
+</html>
