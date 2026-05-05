@@ -11,8 +11,20 @@
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" />
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./design-tokens.css" />
+    <link rel="stylesheet" href="./mobile-drawer.css" />
   </head>
   <body>
+    <!-- Mobile drawer trigger — hidden on screens >540px via
+         mobile-drawer.css. Tapping it opens the sidebar over a
+         dimmed backdrop. -->
+    <button id="drawer-toggle" class="drawer-toggle" type="button"
+            aria-label="Open sidebar" aria-controls="sidebar" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+        <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      </svg>
+    </button>
+    <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
+
     <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sessions">
       <!-- The top of the sidebar is a window-drag region so users
            can still move the frameless window. The traffic-light
@@ -147,5 +159,6 @@
     <script src="./lib/rainbow-web.js" defer></script>
     <script src="./icon-init.js" defer></script>
     <script src="./renderer.js" defer></script>
+    <script src="./mobile-drawer.js" defer></script>
   </body>
 </html>
