@@ -2,11 +2,11 @@
 // Eval harness for the product-spec skill.
 // For each test case under cases/, builds a single-shot prompt that includes
 // SKILL.md plus a simulated set of user answers, calls the Anthropic API to
-// produce a product-spec.md, then runs assertions against the output.
+// produce a build-prompt.md, then runs assertions against the output.
 //
 // Run from repo root: `npm run eval:product-spec`
 // Requires: ANTHROPIC_API_KEY env var.
-// Optional: EVAL_DUMP_FAILURES=1 prints the full spec for any failed case.
+// Optional: EVAL_DUMP_FAILURES=1 prints the full build prompt for any failed case.
 // Optional: EVAL_MODEL=claude-... overrides the model.
 // Optional: EVAL_CASE=01-... runs a single case by filename prefix.
 
@@ -48,9 +48,11 @@ function buildPrompt(skillContent, testCase) {
     .map(([k, v]) => `  ${k}: ${Array.isArray(v) ? v.join(" | ") : v}`)
     .join("\n");
 
-  return `You are running the product-spec skill defined below. The user's situation, their answers to all questions, and any context files are provided. Run the skill as if you'd just finished Phase 1 and Phase 2 with the user — then write Phase 3's product-spec.md output.
+  return `You are running the product-spec skill defined below. The user's situation, their answers to all questions, and any context files are provided. Run the skill as if you'd just finished Phase 1 and Phase 2 with the user — then produce Phase 3's build-prompt.md output.
 
-Output ONLY the markdown of product-spec.md. No preamble, no closing remarks, no fenced code block wrapping. Start with "# ".
+The skill instructs you to organize the answers into an internal 13-section scaffold (do NOT write that scaffold), then synthesize the build prompt from it. Assume there is no prior build-prompt.md in the working directory, so the version is v0.100.
+
+Output ONLY the markdown of build-prompt.md. No preamble, no closing remarks, no fenced code block wrapping. Start with "# Build ".
 
 ==== SKILL ====
 ${skillContent}
@@ -70,7 +72,7 @@ ${phase2}
 ==== CONTEXT FILES (working directory) ====
 ${fixtures}
 
-Now produce product-spec.md. Begin with "# ".`;
+Now produce build-prompt.md. Begin with "# Build ".`;
 }
 
 async function runCase(testCase) {

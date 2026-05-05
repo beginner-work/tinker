@@ -1,11 +1,13 @@
 ---
 name: product-spec
-description: Build a buildable product spec through a guided interview, for users who have never shipped a product from 0 to 1. Translates a vague vision ("I want to make a thing for people like me") into one specific user, one moment of relief, one tiny first version that ships, and the line of features they'll deliberately not build. Uses the structured question tool (AskUserQuestion) for the narrowing phase. Use whenever the user wants to "spec my product", "figure out what to build first", "turn my idea into something I can actually start", "write a product spec", or describes a product idea in human terms and asks for help shaping it.
+description: Build a buildable product spec through a guided interview, for users who have never shipped a product from 0 to 1. Translates a vague vision ("I want to make a thing for people like me") into one specific user, one moment of relief, one tiny first version that ships, and the line of features they'll deliberately not build. Uses the structured question tool (AskUserQuestion) for the narrowing phase, and produces a versioned `build-prompt.md` as the canonical imperative output. Use whenever the user wants to "spec my product", "figure out what to build first", "turn my idea into something I can actually start", "write a product spec", or describes a product idea in human terms and asks for help shaping it.
 ---
 
 # Product Spec Harness
 
-A content harness for turning a 0-to-1 builder's idea into a buildable product spec through conversation. The user has likely never shipped a product before. They speak in dreams, vibes, and "wouldn't it be cool if". You translate that into the smallest concrete thing they can build next, written down clearly enough that they could hand it to a co-founder, a contractor, or themselves three weeks from now and not lose the plot.
+A content harness for turning a 0-to-1 builder's idea into a buildable build prompt through conversation. The user has likely never shipped a product before. They speak in dreams, vibes, and "wouldn't it be cool if". You translate that into the smallest concrete thing they can build next, written down clearly enough that they could hand it to a co-founder, a contractor, or themselves three weeks from now and not lose the plot.
+
+The canonical output of this skill is `build-prompt.md` — an imperative directive a build agent (or future you) executes. The descriptive product spec is internal scaffolding only; this repo's skills work off imperative programming, not descriptive docs. Skip the spec write by default.
 
 ## How to run the harness
 
@@ -17,15 +19,15 @@ Use the **AskUserQuestion** tool for the structured multiple-choice prompts in P
 
 ### One product per session
 
-If the user has more than one idea in flight (e.g. a browser app and a marketplace platform), ask up front: *"Which one are we speccing today? Pick one — we can do the other in a separate pass."* Don't try to spec two products in one run. The output is one `product-spec.md` per product.
+If the user has more than one idea in flight (e.g. a browser app and a marketplace platform), ask up front: *"Which one are we speccing today? Pick one — we can do the other in a separate pass."* Don't try to spec two products in one run. The output is one `build-prompt.md` per product.
 
 ### If a pitch deck exists
 
-If `pitch-deck.md` exists in the working directory, read it first as background. The deck is *who and why*; the spec is *what actually ships*. Don't repeat the deck's content in the spec — refer to it. And don't let the deck constrain the spec: if the user wants to spec one slice of a bigger platform, that's the right move.
+If `pitch-deck.md` exists in the working directory, read it first as background. The deck is *who and why*; the build prompt is *what actually ships*. Don't repeat the deck's content in the build prompt — refer to it. And don't let the deck constrain the build prompt: if the user wants to ship one slice of a bigger platform, that's the right move.
 
 ### If an existing app shell exists
 
-If the working directory contains `README.md` and `src/` (or similar), the product likely lives **inside an existing shell**, not greenfield. Read the README first; skim `src/` to identify the structural primitives the new screen will inherit (tabs, sidebar, welcome page, address bar, modal stack, navigation rail — whatever the existing app provides). Note their file paths. The spec's section 4 will enumerate them by name. **Do this before Phase 1, not after** — the single most common skill failure is writing a spec for a greenfield product when the user is actually building inside an existing app, and the resulting spec drifts away from the existing shell into a "separate app bolted alongside" shape.
+If the working directory contains `README.md` and `src/` (or similar), the product likely lives **inside an existing shell**, not greenfield. Read the README first; skim `src/` to identify the structural primitives the new screen will inherit (tabs, sidebar, welcome page, address bar, modal stack, navigation rail — whatever the existing app provides). Note their file paths. The build prompt's "Read first" and "Constraints" sections will enumerate them by name. **Do this before Phase 1, not after** — the single most common skill failure is producing a build prompt for a greenfield product when the user is actually building inside an existing app, and the resulting build drifts away from the existing shell into a "separate app bolted alongside" shape.
 
 If the user is genuinely greenfield, confirm in the first reflection: *"This is a brand-new app, not something living inside another app you already have — yes?"*
 
@@ -41,7 +43,7 @@ Ask in plain chat, before the five foundation questions:
 
 > *"Before we dig into the product itself: where does this run first — a website / PWA people open in a browser, a desktop app you install, a phone app, or all of the above from one codebase? If you're not sure, say 'web first.'"*
 
-Capture the answer verbatim. This shapes Phase 3 (the spec's section 5 names the platform target) and Phase 4 (the build prompt's phase plan branches on it). If the user says *all of the above from one codebase*, the build prompt will phase the work — web/PWA first, native shells after explicit approval. If single-target, no phasing.
+Capture the answer verbatim. This shapes the build prompt's phase plan. If the user says *all of the above from one codebase*, the build prompt will phase the work — web/PWA first, native shells after explicit approval. If single-target, no phasing.
 
 ### The five broad questions
 
@@ -85,7 +87,7 @@ After each batch, reflect what you heard in the same warm voice (*"Got it — th
 | Weekly-ish | A regular part of their week. |
 | Daily | They open it every day, sometimes more. |
 
-(Determines whether the spec needs a return loop, a notification system, a saved-state model, or none.)
+(Determines whether the build prompt needs a return loop, a notification system, a saved-state model, or none.)
 
 ### Q2 — Shape of the thing (singleSelect)
 
@@ -105,7 +107,7 @@ After each batch, reflect what you heard in the same warm voice (*"Got it — th
 
 > *"In what shape — a chat (text area at the bottom, scroll thread climbs upward, like ChatGPT), an onboarding flow (one question at a time, big focus, progress indicator, paginated, like Typeform or Stripe's setup), a wizard (named steps with a Next button), or something else?"*
 
-Capture the answer verbatim. The chat-vs-onboarding-flow distinction is the difference between a ChatGPT clone and a guided experience — both are conversational, but the UI shapes are opposites. The spec's section 7 names the answer; section 9 names the anti-pattern.
+Capture the answer verbatim. The chat-vs-onboarding-flow distinction is the difference between a ChatGPT clone and a guided experience — both are conversational, but the UI shapes are opposites. The build prompt's UI-shape constraint and anti-pattern are derived from the answer.
 
 ### Q3 — First-time experience (singleSelect)
 
@@ -166,7 +168,7 @@ Capture the answer verbatim. The chat-vs-onboarding-flow distinction is the diff
 | A specific reference | I have a reference product or screenshot whose feel I want to land in (e.g. Spotify Wrapped, Linear, a Figma). |
 | Nothing yet — pick before code | I haven't decided. Force me to pick before synthesis; do not let the agent invent. |
 
-(This is the question that prevents the most common 0-to-1 failure: the agent inventing a UI from scratch because the spec didn't tell it where to inherit from. If the user picks "Nothing yet," stop and force a decision before Phase 3.)
+(This is the question that prevents the most common 0-to-1 failure: the agent inventing a UI from scratch because the build prompt didn't tell it where to inherit from. If the user picks "Nothing yet," stop and force a decision before Phase 3.)
 
 After Q7, you may ask **one** plain-chat follow-up if a beat still feels thin — for example: *"What's the one thing you'd be crushed to see go wrong on launch day?"* — but only one. Don't pile on.
 
@@ -178,20 +180,22 @@ After Q7, you may ask **one** plain-chat follow-up if a beat still feels thin �
 
 ---
 
-## Phase 3 — Synthesis (write the spec)
+## Phase 3 — Synthesis (write the build prompt)
 
-Once Phases 1 and 2 are done, write the spec to `product-spec.md` in the user's working directory. Use the template below.
+Once Phases 1 and 2 are done, write `build-prompt.md` to the working directory. **This is the only required output of the skill.** Skills in this repo work off imperative programming — the build prompt is the imperative artifact a build agent (or future you) executes against. The descriptive product spec is **internal scaffolding only**: organize the user's answers into the 13-section structure below to think clearly, but do not write `product-spec.md` to disk unless the user explicitly asks (see "Optional: also write product-spec.md" below).
 
 Translate the user's words upward, but **never invent product details**. If they didn't tell you a screen exists, don't add it. If they didn't name a feature, don't list it. If a section needs information you don't have, leave a `[NEEDS INPUT: what to ask the founder]` placeholder. A blank with a clear question is better than a fabricated detail the user later has to refute.
 
 Especially: never invent users, personas, metrics, screens, or competitor names. Don't write *"power users will appreciate the keyboard shortcuts"* if the user never mentioned power users or shortcuts. Don't write *"50% of users will convert"* — there are no users yet. If a number genuinely belongs and you don't have one, leave `[NEEDS INPUT: …]`.
 
-If the user described something the smallest version cannot deliver, **say so** in the spec and offer a smaller cut. The goal is the right spec, not a flattering one.
+If the user described something the smallest version cannot deliver, **say so** in the build prompt's open-questions section and offer a smaller cut. The goal is the right build prompt, not a flattering one.
 
-### Spec template
+### Internal scaffold (do not write to disk)
+
+Before producing the build prompt, organize the user's answers into the 13-section scaffold below. Use it as a thinking aid only — `product-spec.md` is *not* an artifact this skill produces by default. Each section of the build prompt traces back to specific scaffold sections (mapped in "Filling the template" further down).
 
 ```markdown
-# [Product Name] — Product Spec
+# [Product Name] — Internal Scaffold
 
 > One sentence. The user's "moment of relief" answer compressed.
 
@@ -207,12 +211,12 @@ The smallest description of the product. Two or three sentences, plain language.
 ## 4. Visual canon (where the look comes from)
 **This section is non-negotiable for the agent.** From AskUserQuestion Q7. Name the source of visual truth — the existing app shell, the user's design tokens, a specific reference — and quote the exact paths or asset names the agent must inherit from. The agent does not invent buttons, fonts, colors, containers, spacing, or animation. If a visual decision isn't already made in the named source, the agent stops and asks the user before inventing.
 
-If the user answered "Nothing yet — pick before code," do **not** write this spec. Return to Phase 2 and force the decision.
+If the user answered "Nothing yet — pick before code," do **not** continue to the build prompt. Return to Phase 2 and force the decision.
 
 Required content:
 - **Source of truth:** explicit path(s) or asset name(s) — e.g. `src/renderer/styles.css`, `src/renderer/tokens/rainbow-web.json`, *"the existing welcome page in `src/renderer/index.html`"*.
 - **Inherited visual primitives:** the buttons, typography, color tokens, container shapes the new screen must reuse. List them by name as they appear in the source.
-- **Inherited structural primitives:** the sidebar, tab/session model, address bar, navigation rail, modal pattern, welcome page — every UI primitive the new screen lives inside or alongside. Name the file paths (e.g. `src/renderer/renderer.js` for the tab model, `src/renderer/index.html` for the welcome surface). Inheriting visuals without inheriting structure produces specs that "feel like a separate app bolted onto the existing app." If the user is building inside an existing shell and structural inheritance isn't named, the spec is incomplete — return to Phase 1 and probe the shell.
+- **Inherited structural primitives:** the sidebar, tab/session model, address bar, navigation rail, modal pattern, welcome page — every UI primitive the new screen lives inside or alongside. Name the file paths (e.g. `src/renderer/renderer.js` for the tab model, `src/renderer/index.html` for the welcome surface). Inheriting visuals without inheriting structure produces builds that "feel like a separate app bolted onto the existing app." If the user is building inside an existing shell and structural inheritance isn't named, the scaffold is incomplete — return to Phase 1 and probe the shell.
 - **What the agent may NOT do:** introduce a new font, a color outside the tokens, a custom button visual, a new icon library, an animation library, a CSS framework, OR a new structural primitive (a new sidebar, a new tab model, a new welcome page, a new modal stack) when the host app already has one. List the temptations explicitly so the rule is enforceable, not vibes-based.
 
 ## 5. The first version
@@ -244,7 +248,7 @@ From Phase 1 Q5. Three to five concrete bullets. The features you'll say no to e
 >
 > Anything outside (a) or (b) is a bug. Before the agent considers v1 done, it runs a check: walk every text node on the rendered page; verify each is either in the founder's transcript or in the allowlist. The check is a build step, not a vibe.
 
-Producing the allowlist is the agent's job during Phase 3 synthesis. Be exhaustive — include every literal string that should appear on the screen. If you don't know one, leave `[NEEDS INPUT: literal text for the X button]` rather than guessing.
+Producing the allowlist is the agent's job during Phase 3 synthesis. Be exhaustive — include every literal string that should appear on the screen. If you don't know one, leave `[NEEDS INPUT: literal text for the X button]` rather than guessing. The allowlist becomes a constraint in the build prompt.
 
 ## 10. The hard part
 From AskUserQuestion Q5 + Q6. Where the user expects this to break, and what they'd watch for to catch it early.
@@ -258,14 +262,6 @@ Two or three concrete signals — observable behavior, not vanity metrics. *"My 
 ## 13. Open questions
 Anything you couldn't nail down in the interview. List them as questions the user has to answer before the first line of code, not as TODOs.
 ```
-
----
-
-## Phase 4 — Build prompt
-
-Once `product-spec.md` is written and the user confirms it matches the thing in their head, write `build-prompt.md` to the working directory. This is what the founder hands to a build agent (or themselves three weeks later) to actually build the v1.
-
-The build prompt is generated **from** the spec — it doesn't add new content; it reframes the spec as instructions for an agent. Every section in the build prompt traces to a section in the spec. **Don't invent constraints, anti-patterns, or open questions that aren't in the spec.**
 
 ### Versioning
 
@@ -287,25 +283,25 @@ The version line goes near the top of the build prompt, right under the title.
 # Build [product name]
 
 > Version: v[N.M]
-> Generated by the product-spec skill from `product-spec.md`.
+> Generated by the product-spec skill.
 
-Build the v1 of [product name] as specified in `product-spec.md`. Read that spec first — this prompt is a build directive layered on top of it.
+Build the v1 of [product name] from this prompt. The user has already worked through a guided interview that distilled the idea into the structure below; this is the imperative form.
 
 ## Anti-patterns — do not repeat
 
-[For each anti-pattern in spec section 9 + the UI-shape anti-pattern from section 7:]
+[For each anti-pattern from scaffold section 9 + the UI-shape anti-pattern from scaffold section 7:]
 - **Don't [negative-form description].** [Why this fails — one sentence.]
 
 ## Read first
 
-[For each path in spec section 4 (visual + structural canon):]
+[For each path in scaffold section 4 (visual + structural canon):]
 - `[file path]` — [what it provides]
 
-Plus: `product-spec.md`, `README.md`, `package.json`.
+Plus: `README.md`, `package.json`.
 
 ## What you're building, in one paragraph
 
-[Spec section 3 — verbatim or compressed.]
+[Scaffold section 3 — verbatim or compressed.]
 
 ## Phase plan
 
@@ -318,7 +314,7 @@ Plus: `product-spec.md`, `README.md`, `package.json`.
 
 ## Build sequence
 
-[For each step in spec section 11:]
+[For each step in scaffold section 11:]
 
 [N]. **[Step title].** [Step content.]
 
@@ -327,36 +323,36 @@ Plus: `product-spec.md`, `README.md`, `package.json`.
 
 ## Constraints (non-negotiable)
 
-[From spec section 9 + section 4 + UI-shape anti-pattern:]
+[From scaffold section 9 + section 4 + UI-shape anti-pattern:]
 - **[Content principle in negative form]** (e.g., "AI never authors — no AI-written sentences").
-- **Not a [chat / blank canvas / etc.]** (the UI-shape anti-pattern from section 7).
-- **Inside the existing shell.** [Paths from section 4.]
-- [Other constraints derived from the spec.]
+- **Not a [chat / blank canvas / etc.]** (the UI-shape anti-pattern from scaffold section 7).
+- **Inside the existing shell.** [Paths from scaffold section 4.]
+- [Other constraints derived from the scaffold.]
 
 ## Open questions — ask the user, don't invent
 
-[From spec section 13.]
+[From scaffold section 13.]
 
 If you must move forward without an answer, mark `[NEEDS INPUT]` in a code comment and pick a sensible default.
 
 ## Done when
 
-[From spec section 12 + per-phase done-when checks.]
+[From scaffold section 12 + per-phase done-when checks.]
 
 Report back: a description of each major surface, plus any `[NEEDS INPUT]` decisions you marked.
 ```
 
 ### Filling the template
 
-For each placeholder above, pull content from the spec:
-- **Anti-patterns:** rewrite section 9 bullets and section 7's UI-shape constraint into negative form ("Don't build a chat layout with text area at the bottom.").
-- **Read first:** enumerate every file path mentioned in spec section 4 (visual + structural canon).
-- **What you're building:** section 3 of the spec, verbatim or tightened.
+For each placeholder above, pull content from the internal scaffold:
+- **Anti-patterns:** rewrite scaffold section 9 bullets and section 7's UI-shape constraint into negative form ("Don't build a chat layout with text area at the bottom.").
+- **Read first:** enumerate every file path mentioned in scaffold section 4 (visual + structural canon).
+- **What you're building:** scaffold section 3, verbatim or tightened.
 - **Phase plan:** branch on the platform-target answer captured in Phase 1 prelude.
-- **Build sequence:** section 11 of the spec, with checkpoints inserted at user-visible milestones (typically after the first surface ships).
-- **Constraints:** combine section 9 (the line) with section 4 (canon) and section 7 (UI shape).
-- **Open questions:** section 13 verbatim.
-- **Done when:** section 12, plus per-phase verification (e.g., "PWA done when `npm run web` opens the app and the welcome page is X").
+- **Build sequence:** scaffold section 11, with checkpoints inserted at user-visible milestones (typically after the first surface ships).
+- **Constraints:** combine scaffold section 9 (the line) with section 4 (canon) and section 7 (UI shape).
+- **Open questions:** scaffold section 13 verbatim.
+- **Done when:** scaffold section 12, plus per-phase verification (e.g., "PWA done when `npm run web` opens the app and the welcome page is X").
 
 ### When the build prompt is done
 
@@ -364,29 +360,35 @@ Read it back as a one-line summary: *"Build prompt v[N.M] is at `build-prompt.md
 
 If the user wants edits, edit the file in place — don't rewrite from scratch.
 
+### Optional: also write product-spec.md
+
+By default, do **not** write `product-spec.md`. The descriptive form lives only in your internal scaffold; the imperative form (`build-prompt.md`) is what's stored.
+
+If the user explicitly asks for the descriptive doc — *"can I see this as a spec too?"*, *"give me the full product spec"*, *"write the spec form"* — write `product-spec.md` to the working directory using the 13-section scaffold above, populated with the same content the build prompt was derived from. This is a snapshot, not a living artifact; the build prompt remains the canonical, versioned output.
+
 ---
 
 ## Tone rules for the whole conversation
 
 - Talk like a builder friend who's shipped a few things, not a product manager. Plain language always.
-- **Never invent product details, users, screens, features, or metrics.** Every concrete claim in `product-spec.md` traces to something the user said. If a section needs information you don't have, leave a `[NEEDS INPUT: …]` placeholder rather than filling it in.
+- **Never invent product details, users, screens, features, or metrics.** Every concrete claim in `build-prompt.md` traces to something the user said. If a section needs information you don't have, leave a `[NEEDS INPUT: …]` placeholder rather than filling it in.
 - Never use the words *MVP*, *retention*, *funnel*, *acquisition*, *PMF*, *flywheel*, *iterate*, *go-to-market* with the user. Translate silently.
 - If the user wants v1 to do six things, push back **once**: *"If we ship one of those next month and the rest later, which one?"* Honor the answer.
 - If the user describes a feature without a person attached, ask: *"Who's using that, and what does it feel like for them?"* — anchor every feature to a person.
-- If the user is genuinely pre-everything (no sketch, no screen, no draft), **say so honestly** in section 11. Don't pad the build sequence with placeholder steps.
-- **If the product lives inside an existing app, the new screen inherits — never invents.** Buttons, fonts, colors, containers, spacing, AND structural primitives (sidebar, tabs, address bar, navigation, modals, welcome page) all come from the host app's existing files. Read `README.md` and a representative slice of `src/` first to understand the existing shell. The spec's section 4 must enumerate BOTH visual AND structural inheritance — visual without structural produces specs the agent treats as a new screen bolted onto the existing app, and the founder looks at the result and says *"that's not my app."* The canon is the difference between "feels like mine" and "feels like a generic AI-shaped UI."
-- **If the line includes a content principle (e.g. "no AI-written words"), turn it into an allowlist (section 9), not a vibe.** Principles get rationalized away by agents; explicit allowlists get checked. Force the spec to enumerate every visible string.
-- **Name the UI-shape anti-pattern, not just the aspiration.** If the user wants an onboarding flow, the spec must explicitly say *"not a chat layout — no persistent text area at the bottom, no message-thread scroll, no bubbles."* If the user wants a feed, the spec must say *"not a search-result list."* Aspirations get drifted away from; anti-patterns get followed. Without the negative form, an agent reading the spec defaults to a ChatGPT-shaped UI for anything conversational.
+- If the user is genuinely pre-everything (no sketch, no screen, no draft), **say so honestly** in the build sequence. Don't pad it with placeholder steps.
+- **If the product lives inside an existing app, the new screen inherits — never invents.** Buttons, fonts, colors, containers, spacing, AND structural primitives (sidebar, tabs, address bar, navigation, modals, welcome page) all come from the host app's existing files. Read `README.md` and a representative slice of `src/` first to understand the existing shell. The build prompt's "Read first" and "Constraints" sections must enumerate BOTH visual AND structural inheritance by file path — visual without structural produces builds the agent treats as a new screen bolted onto the existing app, and the founder looks at the result and says *"that's not my app."* The canon is the difference between "feels like mine" and "feels like a generic AI-shaped UI."
+- **If the line includes a content principle (e.g. "no AI-written words"), turn it into an allowlist constraint, not a vibe.** Principles get rationalized away by agents; explicit allowlists get checked. Force the build prompt to enumerate every visible string in its constraints section.
+- **Name the UI-shape anti-pattern, not just the aspiration.** If the user wants an onboarding flow, the build prompt must explicitly say *"not a chat layout — no persistent text area at the bottom, no message-thread scroll, no bubbles."* If the user wants a feed, the build prompt must say *"not a search-result list."* Aspirations get drifted away from; anti-patterns get followed. Without the negative form, an agent reading the build prompt defaults to a ChatGPT-shaped UI for anything conversational.
 - Celebrate clarity briefly and move on. *"That's the one. Keep going."*
 
-## When the spec is done
+## When the build prompt is done
 
-After writing `product-spec.md`, read it back as a 4–5 line summary, point out any `[NEEDS INPUT: …]` placeholders the user needs to fill, and ask in plain chat: *"Does this match the thing you have in your head, or do we tighten anywhere?"*
+After writing `build-prompt.md`, read it back as a 4–5 line summary, point out any `[NEEDS INPUT: …]` placeholders the user needs to fill, and ask in plain chat: *"Does this match the thing you have in your head, or do we tighten anywhere?"*
 
 If they want edits, edit the file in place — don't rewrite from scratch unless they ask.
 
 ## Tools to use
 
-- **Read** — load `pitch-deck.md` if it exists, for background. Also load `README.md` and skim `src/` if they exist (so structural inheritance in spec section 4 is concrete). And load any prior `build-prompt.md` to read its current version, so Phase 4 can increment.
-- **AskUserQuestion** — Q1 through Q7 in Phase 2. This is the question loader; don't replace it with free-form chat for those seven. Q7 (visual canon) is the one most often skipped by accident — do not skip it; skipping it produces specs the agent treats as a greenfield design brief.
-- **Write** / **Edit** — produce and refine `product-spec.md` (Phase 3) and `build-prompt.md` (Phase 4).
+- **Read** — load `pitch-deck.md` if it exists, for background. Also load `README.md` and skim `src/` if they exist (so structural inheritance in the build prompt is concrete). And load any prior `build-prompt.md` to read its current version, so Phase 3 can increment.
+- **AskUserQuestion** — Q1 through Q7 in Phase 2. This is the question loader; don't replace it with free-form chat for those seven. Q7 (visual canon) is the one most often skipped by accident — do not skip it; skipping it produces builds the agent treats as a greenfield design brief.
+- **Write** / **Edit** — produce and refine `build-prompt.md` (Phase 3). Optionally `product-spec.md` if the user explicitly asks for the descriptive form.

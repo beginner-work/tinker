@@ -1,13 +1,19 @@
 # product-spec skill — evals
 
 Lightweight harness that runs the `product-spec` skill against a set of
-synthetic users and asserts properties of the resulting `product-spec.md`.
+synthetic users and asserts properties of the resulting `build-prompt.md`.
 
 The eval is **single-shot**: each case packages the skill content plus a
 simulated user's answers to every Phase 1 + Phase 2 question, sends it to
-Claude in one API call, captures the generated spec, and checks assertions
-against it. This is faster and more deterministic than replaying a multi-turn
-conversation, at the cost of not exercising the conversational flow itself.
+Claude in one API call, captures the generated build prompt, and checks
+assertions against it. This is faster and more deterministic than replaying
+a multi-turn conversation, at the cost of not exercising the conversational
+flow itself.
+
+The skill produces `build-prompt.md` as its canonical, versioned output.
+The descriptive 13-section spec is internal scaffolding — these evals do
+not check for `product-spec.md` because the skill no longer writes one by
+default.
 
 ## Run
 
@@ -22,7 +28,7 @@ Optional env vars:
 |---|---|
 | `EVAL_MODEL` | Override the model. Default: `claude-sonnet-4-6`. |
 | `EVAL_CASE` | Run only cases whose filename starts with this prefix (e.g. `EVAL_CASE=01`). |
-| `EVAL_DUMP_FAILURES=1` | After the run, print the full generated spec for any failed case. |
+| `EVAL_DUMP_FAILURES=1` | After the run, print the full generated build prompt for any failed case. |
 
 Exit code is `0` if all assertions pass, `1` if any fail, `2` for setup
 errors.
@@ -50,36 +56,41 @@ Each case file is a JSON object with:
 - `context_files` (optional) — names of files in `evals/fixtures/` to include
   as if they existed in the working directory (e.g. a fake `README.md`).
 - `assertions` — array of structural and content checks to run against the
-  generated spec.
+  generated build prompt.
 
 ## Assertion types
 
 | Type | Meaning |
 |---|---|
-| `contains` | Spec must contain the literal substring (case-sensitive). |
-| `contains_ci` | Spec must contain the substring (case-insensitive). |
-| `not_contains` | Spec must NOT contain the substring (case-sensitive). |
-| `not_contains_ci` | Spec must NOT contain the substring (case-insensitive). |
-| `regex` | Spec must match the regex (with optional `flags`). |
-| `regex_no_match` | Spec must NOT match the regex. |
-| `any_of` | Spec must contain at least one of `values` (case-insensitive). |
+| `contains` | Build prompt must contain the literal substring (case-sensitive). |
+| `contains_ci` | Build prompt must contain the substring (case-insensitive). |
+| `not_contains` | Build prompt must NOT contain the substring (case-sensitive). |
+| `not_contains_ci` | Build prompt must NOT contain the substring (case-insensitive). |
+| `regex` | Build prompt must match the regex (with optional `flags`). |
+| `regex_no_match` | Build prompt must NOT match the regex. |
+| `any_of` | Build prompt must contain at least one of `values` (case-insensitive). |
 
 ## What each case is testing
 
 - **01 — existing-shell-writer.** The product lives inside an existing
-  Electron + Capacitor browser. Tests: structural inheritance (section 4
-  references `src/renderer/`, sidebar/tabs/welcome page); UI-shape
-  specificity (section 7 says "onboarding flow"); UI-shape anti-pattern
-  ("not a chat"); allowlist for "no AI-written words"; jargon absence.
+  Electron + Capacitor browser. Tests: build prompt starts at `v0.100`;
+  Read first / Constraints reference `src/renderer/` paths and structural
+  primitives (sidebar / tabs / welcome page); UI-shape constraint says
+  "onboarding flow"; Anti-patterns section says "not a chat" in negative
+  form; allowlist constraint included; phase plan branches on
+  "all-from-one-codebase" → web/PWA Phase 1 + native Phase 2; jargon
+  absence.
 - **02 — content-principle-publisher.** Greenfield publishing tool with
-  a strict "no AI-written words" rule and a wizard UI. Tests: the
-  Visible-string allowlist subsection appears in section 9; section 7
-  names "wizard"; jargon absence.
+  a strict "no AI-written words" rule and a wizard UI. Tests: visible-
+  string allowlist appears in Constraints; allowlist references verbatim
+  user content; UI shape "wizard" named in Constraints; Anti-patterns
+  say "not a chat"; phase plan = single-phase web (no native phasing);
+  jargon absence.
 - **03 — one-and-done-namer.** A truly one-and-done tool with no return
   loop. The user picks "Nothing yet" for visual canon, which should
-  produce at least one `[NEEDS INPUT]` placeholder. Tests: section 8
-  honestly states no loop; spec does not fabricate recurring usage; spec
-  contains a `[NEEDS INPUT]`; jargon absence.
+  produce at least one `[NEEDS INPUT]` placeholder. Tests: build prompt
+  honestly states no loop; doesn't fabricate recurring usage; contains
+  `[NEEDS INPUT]`; jargon absence.
 
 ## Adding a case
 
@@ -99,3 +110,7 @@ Each case file is a JSON object with:
   exact phrasing isn't fixed).
 - The harness costs API tokens per run. Use `EVAL_CASE=NN` to iterate
   on a single case while debugging.
+- The version-increment mechanic isn't tested here (the harness assumes
+  no prior `build-prompt.md`, so every run produces `v0.100`). Test the
+  increment behavior manually by running the skill twice in a real
+  session.
