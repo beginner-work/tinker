@@ -81,14 +81,18 @@ html.on-web .sidebar__head {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding-left: 4px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 8px;
   -webkit-app-region: no-drag;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
+.sidebar__brand:hover { background: rgba(45, 90, 61, 0.06); }
 
 .sidebar__name {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 30px;
   letter-spacing: -0.01em;
   color: var(--color-ink);
 }
@@ -102,7 +106,7 @@ html.on-web .sidebar__head {
   border-radius: 10px;
   background: var(--color-accent-strong);
   color: #fff;
-  font-size: 13px;
+  font-size: 26px;
   font-weight: 600;
   -webkit-app-region: no-drag;
   box-shadow: var(--shadow-purple);
@@ -130,7 +134,7 @@ html.on-web .sidebar__head {
 
 .sidebar__label {
   padding: 6px 18px 4px;
-  font-size: 11px;
+  font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -148,7 +152,7 @@ html.on-web .sidebar__head {
 
 .sidebar__footer {
   padding: 8px 18px 14px;
-  font-size: 11px;
+  font-size: 22px;
   color: var(--color-muted);
   border-top: 1px solid rgba(237, 232, 224, 0.5);
   -webkit-app-region: no-drag;
@@ -165,7 +169,7 @@ html.on-web .sidebar__head {
   border-radius: 9px;
   background: transparent;
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: 26px;
   font-weight: 500;
   text-align: left;
   cursor: pointer;

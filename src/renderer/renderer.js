@@ -5,9 +5,9 @@
  *   - writing  (onboarding-shaped guided writing flow — see writing.js)
  *   - read     (an opened essay)
  *
- * The sidebar's "Drafts" list is the maker's in-progress essays. Each
+ * The sidebar's "Drafts" list is the founder's in-progress essays. Each
  * draft is a small object persisted to localStorage. Selecting a draft
- * opens the writing flow at the question the maker left off on.
+ * opens the writing flow at the question the founder left off on.
  *
  * State boundaries:
  *   - drafts     → localStorage["tinker.drafts.v1"]    (id, title, transcript, currentStep, …)
@@ -250,7 +250,6 @@
       const head = document.createElement("header");
       head.className = "feed-card__head";
       head.innerHTML =
-        `<div class="feed-card__avatar" aria-hidden="true"></div>` +
         `<div class="feed-card__author">${escapeHtml(essay.author)}</div>` +
         `<div class="feed-card__dot">·</div>` +
         `<div class="feed-card__when">${relTime(essay.createdAt)}</div>`;

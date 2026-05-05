@@ -1,9 +1,9 @@
 /* tinker — writing flow
  *
  * Onboarding-shaped guided writing: one question at a time, large input,
- * paginated, progress dots. NOT a chat. Claude asks questions; the maker
+ * paginated, progress dots. NOT a chat. Claude asks questions; the founder
  * answers in their own words; Claude stitches the answers into a single
- * essay using ONLY the maker's words. A review screen at the end with
+ * essay using ONLY the founder's words. A review screen at the end with
  * per-answer edit affordances and a publish button.
  *
  * Wire-up: renderer.js calls window.tinkerWriting.open(draft) when a
@@ -15,29 +15,29 @@
   "use strict";
 
   const SYSTEM_PROMPT = [
-    "You are an interviewer for tinker, a writing tool for makers.",
+    "You are an interviewer for tinker, a writing tool for founders.",
     "",
     "RULE 1 — INTERVIEW, DO NOT WRITE.",
-    "You ask one question at a time. You never invent prose for the maker. You never paraphrase, smooth, or improve their words. The essay is built from their typed answers, exactly as typed (you may join with paragraph breaks and trim leading/trailing whitespace, nothing else).",
+    "You ask one question at a time. You never invent prose for the founder. You never paraphrase, smooth, or improve their words. The essay is built from their typed answers, exactly as typed (you may join with paragraph breaks and trim leading/trailing whitespace, nothing else).",
     "",
     "RULE 2 — STITCH, DO NOT AUTHOR.",
-    "When you produce the stitched essay, every sentence must be a direct copy of words the maker has typed. You may concatenate the maker's answers in any order, drop redundant repetition, and break long answers into paragraphs. You may NOT add transition phrases, summary sentences, framing language, or any words the maker has not already typed. If you find yourself wanting to add a word, do not.",
+    "When you produce the stitched essay, every sentence must be a direct copy of words the founder has typed. You may concatenate the founder's answers in any order, drop redundant repetition, and break long answers into paragraphs. You may NOT add transition phrases, summary sentences, framing language, or any words the founder has not already typed. If you find yourself wanting to add a word, do not.",
     "",
     "RULE 3 — TITLE FROM THEIR WORDS.",
-    "If you provide a title, it must be a contiguous phrase the maker has typed. Pick the most evocative one. Do not invent a title.",
+    "If you provide a title, it must be a contiguous phrase the founder has typed. Pick the most evocative one. Do not invent a title.",
     "",
     "RULE 4 — KEEP IT SHORT.",
-    "Aim for between five and nine questions total. Stop when the maker has said enough. Each question should be specific and concrete — not 'tell me more' but 'what did her face do when she tasted it'.",
+    "Aim for between five and nine questions total. Stop when the founder has said enough. Each question should be specific and concrete — not 'tell me more' but 'what did her face do when she tasted it'.",
     "",
     "RULE 5 — RESPOND IN STRICT JSON.",
     "Always respond as a single JSON object, with exactly these keys:",
     '  { "next_question": string | null, "stitched_title": string | null, "stitched_body": string | null, "done": boolean }',
-    "If you have another question for the maker, set next_question and leave the stitched fields null and done false.",
-    "If the maker has answered enough, set next_question null, fill stitched_title and stitched_body with prose drawn ONLY from the maker's typed answers, and set done true.",
+    "If you have another question for the founder, set next_question and leave the stitched fields null and done false.",
+    "If the founder has answered enough, set next_question null, fill stitched_title and stitched_body with prose drawn ONLY from the founder's typed answers, and set done true.",
     "Never wrap the JSON in code fences. Never add explanations outside the JSON.",
   ].join("\n");
 
-  const SEED_QUESTION = "What are you here to figure out?";
+  const SEED_QUESTION = "What are you learning?";
 
   // ── DOM refs ─────────────────────────────────────────────────────────
   const stage = document.getElementById("writing-stage");
@@ -241,7 +241,7 @@
 
     const verifyNote = document.createElement("div");
     verifyNote.className = "writing-review__verify";
-    const verified = verifyMakerOnly(active.stitched.body, active.transcript);
+    const verified = verifyFounderOnly(active.stitched.body, active.transcript);
     if (verified.ok) {
       verifyNote.dataset.kind = "ok";
       verifyNote.textContent = "✓ Every word in this essay came from you. tinker did not author any of it.";
@@ -365,14 +365,14 @@
     const parsed = parseClaude(result.text);
 
     if (parsed.done && parsed.stitched_body) {
-      // Hard verify: stitched body must use only words the maker typed.
+      // Hard verify: stitched body must use only words the founder typed.
       const corpus = (active.transcript || []).map((t) => t.a).join("\n\n");
-      const verified = verifyMakerOnly(parsed.stitched_body, active.transcript);
+      const verified = verifyFounderOnly(parsed.stitched_body, active.transcript);
       let body = parsed.stitched_body;
       let title = parsed.stitched_title || active.title || "Untitled";
       if (!verified.ok) {
-        // Strict fallback: build the essay from the maker's raw answers
-        // joined by paragraph breaks. Boring, but provably maker-only.
+        // Strict fallback: build the essay from the founder's raw answers
+        // joined by paragraph breaks. Boring, but provably founder-only.
         body = (active.transcript || []).map((t) => t.a.trim()).filter(Boolean).join("\n\n");
         const titleVerified = phraseAppearsIn(title, corpus);
         if (!titleVerified) title = firstSentence(body) || "Untitled";
@@ -395,9 +395,9 @@
 
   function buildUserMessage(transcript) {
     if (!transcript || transcript.length === 0) {
-      return "The maker just opened a new draft. Begin the interview.";
+      return "The founder just opened a new draft. Begin the interview.";
     }
-    const lines = ["Conversation so far (the maker's answers are verbatim — do not paraphrase):", ""];
+    const lines = ["Conversation so far (the founder's answers are verbatim — do not paraphrase):", ""];
     transcript.forEach((t, i) => {
       lines.push(`Q${i + 1}: ${t.q}`);
       lines.push(`A${i + 1}: ${t.a}`);
@@ -428,25 +428,25 @@
     }
   }
 
-  // ── Maker-only verification ─────────────────────────────────────────
+  // ── Founder-only verification ─────────────────────────────────────────
   //
   // The strongest constraint in tinker: the published essay uses only
-  // words the maker has typed. We check this by tokenising both the
-  // stitched body and the maker's combined answers, then asserting
-  // every token in the body appears in the maker's corpus. We allow a
+  // words the founder has typed. We check this by tokenising both the
+  // stitched body and the founder's combined answers, then asserting
+  // every token in the body appears in the founder's corpus. We allow a
   // tiny stop-list of pure punctuation/whitespace and the words
   // "i" / "a" / "the" because the model often capitalises differently.
   //
   // This is intentionally strict and could false-positive on very
   // short answers. The fallback path (when verification fails) just
-  // joins the maker's raw answers with paragraph breaks.
+  // joins the founder's raw answers with paragraph breaks.
 
   function tokens(s) {
     return String(s || "")
       .toLowerCase()
       .match(/[a-z0-9'']+/g) || [];
   }
-  function verifyMakerOnly(stitched, transcript) {
+  function verifyFounderOnly(stitched, transcript) {
     const corpus = (transcript || []).map((t) => t.a).join(" ");
     const have = new Set(tokens(corpus));
     const need = tokens(stitched);
@@ -512,7 +512,7 @@
     if (!active || !active.stitched) return;
     if (typeof window.tinkerOnWritingPublish !== "function") return;
     // Final verification before publish.
-    const verified = verifyMakerOnly(active.stitched.body, active.transcript);
+    const verified = verifyFounderOnly(active.stitched.body, active.transcript);
     if (!verified.ok) {
       // Force the safe-fallback body.
       active.stitched.body = (active.transcript || []).map((t) => t.a.trim()).filter(Boolean).join("\n\n");

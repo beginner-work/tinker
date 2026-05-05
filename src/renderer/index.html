@@ -16,7 +16,7 @@
   <body>
     <aside class="sidebar" id="sidebar" role="navigation" aria-label="Drafts">
       <div class="sidebar__head">
-        <div class="sidebar__brand" title="tinker">
+        <button id="nav-home" class="sidebar__brand" type="button" title="Back to feed">
           <svg viewBox="0 0 200 200" width="22" height="22" aria-hidden="true" fill="none">
             <rect width="200" height="200" rx="44" fill="#f5f3ef" />
             <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="11" />
@@ -28,7 +28,7 @@
             <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="11" />
           </svg>
           <span class="sidebar__name">tinker</span>
-        </div>
+        </button>
       </div>
 
       <button id="new-session" class="sidebar__new" type="button">
@@ -41,14 +41,6 @@
       <div class="sidebar__label">Drafts</div>
       <div id="sessions" class="sidebar__sessions" role="tablist" aria-label="Drafts"></div>
 
-      <button id="nav-home" class="sidebar__home" type="button">
-        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-          <path d="M3 11l9-8 9 8v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9z"
-                stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none" />
-        </svg>
-        <span>Feed</span>
-      </button>
-
       <footer class="sidebar__footer">
         <span>&copy; 2026 tinker</span>
       </footer>
@@ -58,22 +50,22 @@
 
     <main class="stage" id="stage" role="main">
       <!-- LinkedIn-shaped feed: compact "start writing" entry up top,
-           then a vertical column of essay cards from other makers. -->
+           then a vertical column of essay cards from other founders. -->
       <section id="welcome" class="feed" data-active>
         <div class="feed__inner">
           <div class="composer" id="composer" role="button" tabindex="0"
-               aria-label="Start writing — what are you here to figure out?">
+               aria-label="Start writing — what are you learning?">
             <div class="composer__avatar" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22">
                 <circle cx="12" cy="9" r="4" fill="#c8b6e2"/>
                 <path d="M4 21c0-4 3.5-7 8-7s8 3 8 7" fill="#fde68a"/>
               </svg>
             </div>
-            <div class="composer__prompt">What are you here to figure out?</div>
+            <div class="composer__prompt">What are you learning?</div>
             <div class="composer__chip">Start writing</div>
           </div>
 
-          <div class="feed__label">From other makers</div>
+          <div class="feed__label">From other founders</div>
           <div id="feed-list" class="feed__list" role="feed"></div>
         </div>
       </section>
