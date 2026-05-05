@@ -1,0 +1,35 @@
+{
+  "name": "Publishing tool with a 'no AI-written words' content principle",
+  "user_idea": "A standalone web tool that helps founders publish their thinking. The user records a voice memo or types a paragraph; the tool produces a single-page essay rendered from a fixed template. Every word on the page must be the founder's own — AI rearranges, never invents. The tool produces a public URL.",
+  "platform_target": "Website / PWA",
+  "phase1": {
+    "q1_relief_moment": "The founder finishes their dump, sees the page, recognizes their own words on it, and posts the URL on Twitter — no editing, no second-guessing.",
+    "q2_yesterday": "They opened a Google Doc, started typing, got stuck, closed it. Then opened ChatGPT, dumped their thoughts, got back generic AI prose, copied it to Twitter, and felt embarrassed.",
+    "q3_one_tiny_thing": "Take a voice or text dump and produce a single-page essay rendered from a fixed template, populated entirely with the founder's own words, available at a unique URL.",
+    "q4_input_output": "Input: a voice memo or typed paragraph. Output: a unique URL to a templated single-page essay using only the founder's words.",
+    "q5_the_line": "No AI-written sentences anywhere on the page. No AI-generated images. No filler phrases AI adds to make it 'flow.' No auto-posting on the founder's behalf."
+  },
+  "phase2": {
+    "q1_how_often": "Weekly-ish",
+    "q2_shape": "A tool that does the work",
+    "q2_followup_specific_shape": "A wizard with named steps — Record / Review / Publish — with a Next button between each. Not a chat.",
+    "q3_first_time": "One question, asked of them",
+    "q4_brings_back": ["They have unfinished work in here"],
+    "q5_hardest_moment": "After their first win — they don't see why to come back",
+    "q6_failure_scared_of": "Nobody shows up",
+    "q7_visual_canon": "A specific reference — Spotify Wrapped style HTML/CSS template, clean type, one essay per page"
+  },
+  "assertions": [
+    { "type": "regex", "value": "^# ", "label": "Spec starts with a top-level heading" },
+    { "type": "contains", "value": "## 9. The line", "label": "Section 9 present" },
+    { "type": "any_of", "values": ["Visible-string allowlist", "visible string allowlist", "visible-string allow-list", "string allowlist"], "label": "Section 9 has the Visible-string allowlist subsection" },
+    { "type": "any_of", "values": ["verbatim quote", "founder's transcript", "founder's input", "founder's words", "user's transcript", "user's input"], "label": "Allowlist mechanic references verbatim user content" },
+    { "type": "any_of", "values": ["wizard", "named steps", "Next button"], "label": "Section 7 names the specific UI shape (wizard)" },
+    { "type": "any_of", "values": ["not a chat", "no chat"], "label": "Section 9 explicitly names 'not a chat' anti-pattern" },
+    { "type": "contains_ci", "value": "Platform", "label": "Section 5 mentions Platform target" },
+    { "type": "not_contains_ci", "value": "MVP", "label": "No 'MVP' jargon" },
+    { "type": "not_contains_ci", "value": "retention", "label": "No 'retention' jargon" },
+    { "type": "not_contains_ci", "value": "funnel", "label": "No 'funnel' jargon" },
+    { "type": "not_contains_ci", "value": "go-to-market", "label": "No 'go-to-market' jargon" }
+  ]
+}

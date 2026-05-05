@@ -7,6 +7,7 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "lint": "eslint src/",
+    "eval:product-spec": "node .claude/skills/product-spec/evals/run-evals.mjs",
     "mobile:sync": "cap sync",
     "mobile:add:ios": "cap add ios",
     "mobile:add:android": "cap add android",

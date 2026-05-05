@@ -1,0 +1,40 @@
+{
+  "name": "Writing tool inside an existing Electron + Capacitor browser",
+  "user_idea": "I have an existing Electron + Capacitor browser app called tinker. The repo has src/main/ (Electron main process, IPC) and src/renderer/ (the chrome — sidebar with tabs, address bar, welcome page, plain HTML/CSS/JS). I want to add a writing surface inside this existing shell: each writing session is a tab in the sidebar; the welcome page becomes a feed of others' essays with a 'Start writing' entry point at the top; clicking the entry point opens a guided writing flow where Claude asks questions and stitches the user's typed answers into prose using only the user's own words.",
+  "platform_target": "All of the above from one codebase, web-first",
+  "phase1": {
+    "q1_relief_moment": "The user finishes their writing flow, hits publish, looks at the URL of their essay and recognizes themselves on the page — every sentence is theirs, just rearranged. They paste the link into Twitter.",
+    "q2_yesterday": "They drafted in Notion (no audience), then chatted with ChatGPT (got back AI-shaped prose), then hand-edited the AI prose into their own voice for two hours, then posted on LinkedIn.",
+    "q3_one_tiny_thing": "Type answers to Claude's adaptive questions; Claude stitches them into prose that lives at a unique URL.",
+    "q4_input_output": "Input: the user's typed answers to Claude's questions. Output: a unique URL pointing at the stitched essay.",
+    "q5_the_line": "No AI-written sentences. No AI-generated images. No comments or likes in v1. No web search."
+  },
+  "phase2": {
+    "q1_how_often": "Daily",
+    "q2_shape": "A conversation",
+    "q2_followup_specific_shape": "An onboarding flow — one question at a time, full focus, big input, progress indicator, paginated, like Typeform or Stripe's setup. NOT a chat with text area at the bottom.",
+    "q3_first_time": "Someone else's work, beautifully — a feed of others' essays seeded so day one isn't blank, with a 'Start writing' entry point at the top.",
+    "q4_brings_back": ["They have unfinished work in here", "Something changed while they were gone"],
+    "q5_hardest_moment": "At the empty state — they don't know what to put in",
+    "q6_failure_scared_of": "People show up but bounce",
+    "q7_visual_canon": "The existing app I already have"
+  },
+  "assertions": [
+    { "type": "regex", "value": "^# ", "label": "Spec starts with a top-level heading" },
+    { "type": "contains", "value": "## 4. Visual canon", "label": "Section 4 present" },
+    { "type": "contains", "value": "## 5. The first version", "label": "Section 5 present" },
+    { "type": "contains", "value": "## 7. The shape of the product", "label": "Section 7 present" },
+    { "type": "contains", "value": "## 9. The line", "label": "Section 9 present" },
+    { "type": "contains_ci", "value": "Platform", "label": "Section 5 mentions Platform target" },
+    { "type": "any_of", "values": ["src/renderer/", "src/main/"], "label": "Section 4 references existing tinker file paths" },
+    { "type": "any_of", "values": ["sidebar", "tab", "tabs", "welcome page"], "label": "Section 4 names structural primitives" },
+    { "type": "contains_ci", "value": "onboarding flow", "label": "Section 7 names the specific UI shape (onboarding flow)" },
+    { "type": "any_of", "values": ["not a chat", "no chat", "no persistent text area", "no message-thread", "no message thread", "no scrolling message"], "label": "Anti-pattern: section 9 names 'not a chat' or equivalent" },
+    { "type": "any_of", "values": ["allowlist", "allow-list", "allow list"], "label": "Section 9 introduces the visible-string allowlist mechanic" },
+    { "type": "not_contains_ci", "value": "MVP", "label": "No 'MVP' jargon in user-facing output" },
+    { "type": "not_contains_ci", "value": "retention", "label": "No 'retention' jargon" },
+    { "type": "not_contains_ci", "value": "funnel", "label": "No 'funnel' jargon" },
+    { "type": "not_contains_ci", "value": "PMF", "label": "No 'PMF' jargon" },
+    { "type": "not_contains_ci", "value": "flywheel", "label": "No 'flywheel' jargon" }
+  ]
+}
