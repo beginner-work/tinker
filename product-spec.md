@@ -1,129 +1,147 @@
 # tinker — Product Spec
 
-> Voice in, postable link out. The post is the relief. The link is the brick toward funding.
+> A LinkedIn-shaped feed of essays, with a writing surface that feels like onboarding — not a chat. Claude interviews one question at a time, the maker types, the essay is stitched from the maker's own words and posted as a URL. Each draft is a tab in the existing tinker shell.
 
-*Background: see `pitch-deck.md` for the why and the broader marketplace mechanic. This spec is the first slice — the act of posting an idea — that proves the platform's mechanic on the founder themselves.*
+*Background: see `pitch-deck.md` for the broader marketplace mechanic. This spec is the first slice — the act of writing and posting an essay — that proves the platform on the maker themselves.*
 
 ---
 
 ## 1. The one user
 
-The first user is the founder. Specifically, the founder on a morning like this:
+The first user is the founder. Specifically, the maker on a morning like this:
 
-- Wakes up anxious because there's a funding application deadline.
-- Sits down at the desktop wanting to build, then realizes they don't know what the thing looks like yet.
-- Dumps everything they have. Comes up empty-handed.
-- Reaches outward — posts on LinkedIn hoping for a bite from someone who already believes in them.
-- Reaches inward — opens a skill helper to work through the idea methodically.
-- When the skill helper produces something real, they go build on top of it.
+- Wakes up with an idea pressing against the inside of their head.
+- Opens tinker. Sees the sidebar of drafts they've been carrying — some finished, some abandoned, some half-formed.
+- Starts a new draft. Claude asks the first question. The maker starts typing.
+- A few rounds in, the prose has shape. They publish. The URL is the brick.
 
-Today, three different tools hold three different motions: visibility (LinkedIn), building (desktop), thinking (skill helper). The founder is the connective tissue — anxious, on a deadline, holding it all.
+Today this motion is split across journaling apps (private), drafts in Notion (no audience), Twitter/LinkedIn (audience but no shape), and a chat with Claude (shape but nothing to post). The maker stitches it together by hand. tinker collapses it into one surface.
 
 ## 2. The one moment
 
-The founder finishes a voice dump. tinker hands back a link to a page that shows their trajectory — where they started this morning (anxious, scattered), where they are now (this idea, articulated in their own words), and a forward feeling-point they're moving toward. They look at the page and say *"that's it."*
+The maker has been pushing an idea around for days. They open tinker, hit `+`, get a fresh draft. Claude's first question is already in the margin. They type a paragraph. Claude asks the next question. After four or five rounds, they scroll up and read the stitched prose — every sentence is theirs, just rearranged. They recognize the idea on the page. They hit publish. A URL appears. They paste it into Twitter.
 
 The relief is twofold and simultaneous:
-- Posting the idea does what an emotional-processing app does for them — the act of speaking it and seeing it shaped is itself the calm.
-- The same post is a brick on the path to funding. It's visible, it's shareable, and it counts.
+- Writing it down does what a journaling app does — the act of articulating it is the calm.
+- The same essay is a brick on a public trajectory. It's visible, shareable, and counts.
 
 Nothing else they currently use does both at once.
 
 ## 3. What it does
 
-The founder talks. tinker transcribes, organizes their own words into a product-shaped structure, and renders that structure into a Spotify-Wrapped-style HTML/CSS page. The page has a unique URL the founder can post anywhere. Every word and every image on the page is the founder's. AI is the librarian; AI is never the author.
+The maker writes inside an onboarding-shaped flow. Claude reads what they've written and asks the next question — one at a time, full focus, paginated, with a progress indicator. The maker keeps writing. Claude stitches the answers into prose using only the maker's own words — never inventing a sentence, a header, or a phrase. When the maker is satisfied, they publish. The essay lives at a unique URL. Other makers' published essays live in the LinkedIn-shaped feed the writer launched from.
+
+AI is the interviewer; AI is never the author.
 
 ## 4. The first version
 
-**One screen. One flow. One outcome.**
+**One shell. One layout. One outcome.**
 
-- **Input:** A voice dump. The founder speaks freely about an idea — there is no form, no fields, no pre-prompt structure beyond a single open invitation.
-- **Output:** A unique URL. The page at that URL is a Spotify-Wrapped-shaped trajectory graphic, rendered in HTML/CSS from a fixed template, populated entirely with the founder's own transcribed words plus a small set of structured emotional waypoints (start, now, forward).
-- **The one screen it lives on:** A single record-and-talk surface inside the existing tinker shell (`src/renderer/`). It accepts voice, shows transcription as it lands, and on completion produces the link. `[NEEDS INPUT: should the screen show the trajectory page inline before producing the link, or hand back the link directly and let the founder click through?]`
+The existing tinker browser chrome stays — sidebar on the left, center column for content. The semantics change.
+
+- **Left sidebar:** Tabs are drafts. Each writing session is a tab. `+` starts a new draft. Drafts persist across sessions. Web tabs (opened by typing a URL into the address bar) still coexist in the same sidebar, but the default behavior of `+` is "new draft."
+- **Center column (default view):** A LinkedIn-shaped surface. At the top, a compact "Start writing" entry point — sized like LinkedIn's "Start a post" box: small enough to invite the next draft without dominating the page. Below it, a feed of other makers' published essays — cards, scrollable. `[NEEDS INPUT: feed source for v1 — chronological global, follower graph, curated set, invited cohort?]`
+- **The writing surface itself opens from that entry point** (or from clicking a draft tab in the sidebar) and feels like an **onboarding flow**, not a chat. One Claude question at a time, full focus, large input area, a progress indicator. The maker advances through questions; the stitched essay assembles behind the flow. At the end: a review screen and a publish button. `[NEEDS INPUT: visual transition — modal over the feed, full-screen takeover of the center column, slide-up panel, or other.]`
+- **Removed:** the Haiku search-essay surface. tinker is a writing tool, not a search tool. The address bar still accepts URLs for direct navigation, but typing a query no longer triggers a generated essay. `[NEEDS INPUT: confirm the address bar still navigates to URLs, or whether it gets repurposed entirely for the writer.]`
+- **Output:** A unique URL per published essay. The page at that URL renders the essay in tinker's own type system (Plus Jakarta Sans display, Inter body, cream background). `[NEEDS INPUT: URL shape — `tinker.app/handle/slug`, `tinker.app/essay/id`, or other.]`
 - **What's deliberately not in v1:**
-  1. No AI-written words anywhere on the trajectory page. AI rearranges the founder's own transcript; it never invents a sentence, a header, or a caption.
-  2. No AI-generated images. The trajectory graphic is HTML and CSS, full stop. Layouts come from a generic template; only the founder's content (words, chosen colors, optional uploaded images) varies.
-  3. No auto-posting on the founder's behalf. tinker hands back a link; the founder decides where it goes.
-  4. No filler, no hallucinations, no "AI completed your thought for you" features.
-  5. No marketplace mechanics in v1 — funding, investor disclosure, and the offerings storefront from the deck are deferred. v1 is just the post.
+  1. No AI-written sentences in the published essay. Claude rearranges the maker's own typing; never invents prose.
+  2. No comments, likes, or replies on others' essays in the feed. Reading is the only interaction.
+  3. No auto-posting to other platforms. tinker hands back a URL; the maker decides where it goes.
+  4. No web search as a feature. The Haiku essay-render surface is removed.
+  5. No marketplace mechanics — funding, investor disclosure, offerings storefront — deferred to later versions.
 
 ## 5. First-time experience
 
-`[NEEDS INPUT: confirm the exact first-screen choice — Phase 2 question I didn't get to.]`
+`[NEEDS INPUT: confirm the cold-start choice.]`
 
 Working assumption (overridable):
 
-The founder lands on the welcome page (the existing tinker chrome). One large prompt: *"What's the idea? Talk to me."* A single record button. No sign-up, no form, no choice of mode.
+The maker opens tinker. Sidebar is empty. Center column shows the LinkedIn-shaped surface — a compact "Start writing" entry point at the top, then a feed of two or three seeded essays from others below it (so day one isn't blank).
 
-They tap record. The transcript appears live as they speak. When they stop, tinker does its organizing work — visibly, not as a black box — and produces the link. They click through to see the trajectory page, recognize themselves on it, and the page gives them a Copy Link button.
+The maker clicks the entry point. The onboarding flow opens. Claude's first question is on screen, alone, full focus: *"What are you here to figure out?"* A large input. The maker types a paragraph and advances. Next question. Then the next. At the end, a review screen shows the stitched essay — every sentence theirs, just rearranged. A publish button. They click. A URL. They copy it. The flow closes. They land back on the feed with their new essay at the top.
 
 ## 6. The shape of the product
 
-A space they live in. Each voice dump produces a posted page; pages accumulate over time on the founder's profile (per the deck's offerings/profile mechanic). The primary surface is the record-and-talk screen — but the second surface, which arrives soon after v1, is the personal feed of past posts. v1 ships only the record-and-talk screen and the trajectory page. The feed is v2.
+A space they live in. The sidebar accumulates drafts; the feed accumulates others' essays. The maker's own published essays go to their profile `[NEEDS INPUT: where the maker sees their own published work — a separate sidebar section, a profile tab, or surfaced in the feed]`.
+
+The default view is LinkedIn-shaped: a feed in the center column, a "Start writing" entry point at the top of it. The writing surface is *not* always-on. It opens when summoned (entry-point click, draft-tab click, keyboard shortcut) and takes focus — onboarding-flow shape, one question at a time. When closed, the maker is back on the feed.
+
+The sidebar holds drafts the way a browser holds tabs. Each tab is one draft. Clicking a tab opens its onboarding flow exactly where the maker left off — the question they were on, the answers they'd given, the stitched prose so far.
 
 ## 7. The loop
 
-The founder returns whenever they have a new idea to dump and a new trajectory to post — likely daily during a build sprint, weekly otherwise. Two forces bring them back:
+The maker returns whenever they have a new idea — likely daily during a writing sprint, weekly otherwise. Two forces bring them back:
 
-- **Unfinished work compounds.** Each post is a brick. The growing wall of posts is itself a reason to come back — the founder is building a public trajectory, not just a single page.
-- **The act of posting is the relief.** The same way someone returns to a journaling app after a hard day, the founder returns to tinker to talk through what's next.
+- **Drafts compound.** The sidebar fills with in-flight ideas. Some get published; some sit. Either way, the wall of tabs is itself a reason to come back — there's something to finish.
+- **The act of writing is the relief.** The same way someone returns to a journaling app after a hard day, the maker returns to tinker to articulate what's on their mind.
 
-`[NEEDS INPUT: do posts on the founder's profile feel like a feed, a stack, or a single living trajectory page that updates? — Phase 2 shape question.]`
+Reading the feed is a secondary loop — when the maker doesn't have something to write, scrolling the feed exposes them to peers and seeds future drafts.
 
 ## 8. The line — what tinker won't do
 
 These are not absences. They are the product.
 
-- **AI organizes human input only.** No AI-written words, no AI-generated images, no AI-stitched fillers. Stitching, never authoring.
-- **The trajectory graphic is HTML and CSS.** A fixed template, like Spotify Wrapped. The founder's content fills it; the template never invents shape to flatter the content.
-- **No hallucinations, no synthesized quotes, no inferred feelings.** If the founder didn't say it, it doesn't appear on the page.
-- **No auto-posting.** tinker hands back a link; the founder posts.
+- **AI interviews; AI never authors.** No AI-written sentences in the published essay. Claude asks questions and rearranges the maker's own words. Stitching, never authoring.
+- **Not a chat.** The writing surface has no persistent text area at the bottom, no scrolling message thread. It's an onboarding-shaped guided flow — focused, paginated, one question at a time.
+- **No hallucinations, no synthesized quotes, no inferred feelings.** If the maker didn't type it, it doesn't appear in the essay.
+- **No auto-posting.** tinker hands back a URL; the maker posts.
+- **No web search as a feature.** tinker is a writing tool. The Haiku search-essay surface is removed.
+- **No social affordances in v1.** No comments, likes, or replies on others' essays. Reading is the only interaction.
 - **No pitch meetings.** Per the deck — the platform is the meeting. The post is the disclosure.
 
 ## 9. The hard part
 
-`[NEEDS INPUT: Phase 2 Q5 / Q6 — where do you expect this to break first, and which failure scares you most?]`
+`[NEEDS INPUT: where you expect this to break first, and which failure scares you most.]`
 
-Inferences from the morning routine you described:
+Inferences from the shape:
 
-- **The empty state is the morning's empty state.** "I dumped everything and still don't have anything" is the bug we have to design against. If a founder finishes their dump and the trajectory page lands empty or generic, the product fails on the very moment it claims to relieve.
-- **The transcript-to-spec organizing has to feel honest.** If the structured output reads as AI-flavored summary rather than the founder's own voice rearranged, the line in section 8 is broken in spirit even if it's intact in fact.
-- **The trajectory has to land visually on first try.** The "that's it" moment has no second take. If the page is wrong, the founder won't tweak; they'll close the tab.
+- **The onboarding shape is the make-or-break.** If the writing surface looks like a chatbot — text area at the bottom, message bubbles climbing up — the maker reads it as conversation and produces conversational text, not an essay. The flow has to feel like the product is shaping their writing with them, the way good onboarding shapes a user's account.
+- **The interview has to feel like a real interviewer.** If Claude's questions read as generic or formulaic, the maker stops trusting the surface. The questions must be specifically responsive to what the maker just typed.
+- **The stitching has to read as the maker's voice.** If the prose comes back AI-flavored — smoothed, summarized, paraphrased — the line in section 8 is broken in spirit even if it's intact in fact.
+- **The feed is a knife edge.** Done right, it inspires; done wrong, it intimidates the maker out of starting. The first three essays a new maker sees set the tone.
+- **Drafts as tabs has a tab-sprawl problem.** Browsers already let users accumulate forty open tabs they never close. Drafts will do the same. `[NEEDS INPUT: do drafts get archived, decay, or sit forever?]`
 
 ## 10. Build sequence
 
-This builds inside the existing tinker repo (`src/main/`, `src/renderer/`). It is not a new app.
+This builds inside the existing tinker repo (`src/main/`, `src/renderer/`). It is not a new app. The browser shell stays; the welcome page is rewritten.
 
-1. **Voice capture screen.** Add a new welcome-page mode to `src/renderer/`: a single full-bleed record button, a transcript area that fills in as the founder speaks. Use the platform's MediaRecorder API on Electron and `@capacitor/voice-recorder` (or equivalent) on Capacitor. `[NEEDS INPUT: confirm transcription service — Anthropic API if/when audio input lands, OpenAI Whisper, or a local model.]`
+1. **Remove the Haiku search-essay surface.** Strip the existing welcome-page query → essay flow from `src/renderer/`. Address bar still navigates URLs but no longer triggers generated essays.
 
-2. **Transcript-to-spec organizer.** A single Anthropic SDK call (Claude Sonnet or Haiku, prompt-cached system prompt) that takes the raw transcript and produces a structured JSON payload using only the founder's own words. The system prompt forbids inventing language; the schema has slots for: `start_feeling`, `idea_in_their_words`, `forward_feeling`, `quoted_lines[]`, `chosen_colors`, `optional_image_urls[]`. The model rearranges, never authors.
+2. **LinkedIn-shaped welcome page.** Replace the search surface with a feed-shaped center column: a compact "Start writing" entry point at the top, a feed of others' published essays below. Card-shaped entries; scroll the column. `[NEEDS INPUT: feed source and ordering for v1.]`
 
-3. **Trajectory page template.** A generic HTML/CSS Spotify-Wrapped-style template in `src/renderer/templates/trajectory.html` (or equivalent). Fixed layout. Reads the JSON payload from step 2. Renders the founder's quotes into the slots. No AI in this step — pure templating.
+3. **Drafts as tabs.** Repurpose the existing tab/session model in the sidebar so `+` opens a new draft tab by default. Each draft tab points at one in-progress essay. Persist drafts across sessions. `[NEEDS INPUT: local-only in v1, or already cloud-synced?]`
 
-4. **Link generation and storage.** Each completed dump produces a unique URL pointing at a stored payload. `[NEEDS INPUT: storage choice — local file, S3, Supabase, Postgres? — and whether v1 is local-only or already public-by-link.]`
+4. **Onboarding-shaped writing flow.** Clicking the entry point (or a draft tab) opens the writing flow. One Claude question at a time, full focus, large input, a progress indicator, a review screen at the end. The flow is paginated and stateful — leaving and reopening lands the maker exactly where they were. **It is explicitly not a chat:** no persistent text area, no message-thread scroll. `[NEEDS INPUT: visual transition — modal over the feed, full-screen takeover, slide-up panel — see section 4.]`
 
-5. **Copy Link surface.** On the rendered trajectory page, a Copy Link button. That's the v1 close.
+5. **The interview + stitching engine.** A single Anthropic SDK call (Claude Sonnet, prompt-cached system prompt) per turn. Inputs: the running transcript of the maker's typing plus prior questions. Outputs: (a) the next question, (b) the updated stitched prose, drawn only from the maker's own words. The system prompt forbids inventing language.
 
-Steps 1–5 are the v1. Steps 6+ — the founder profile feed, the marketplace mechanic, investor disclosure — are out of scope for this spec.
+6. **Publish action.** A publish button on the review screen generates a unique URL and persists the essay payload. The published page renders the essay in tinker's existing type system. The flow closes; the maker lands back on the feed with their new essay at the top. `[NEEDS INPUT: storage — local file, S3, Supabase, Postgres? — and whether v1 is local-only or already public-by-link.]`
+
+Steps 1–6 are v1. The marketplace mechanic, investor disclosure, and the offerings storefront from the deck are out of scope.
 
 ## 11. How you'll know it's working
 
-`[NEEDS INPUT: Phase 2 question I didn't ask — what would you watch for in week one to know to keep going?]`
+`[NEEDS INPUT: what you'd watch for in week one to know to keep going.]`
 
 Plausible signals to consider:
 
-- The founder (you) finish a voice dump, look at the trajectory page, and post the link without editing the page first.
-- A friend or peer clicks the link and reads to the bottom — observable from a single visit-duration metric on the page.
-- A second person — someone you didn't onboard by hand — uses tinker without messaging you for help.
-- A founder who used tinker mentions the *posting* as the calming part, unprompted.
+- The founder (you) finish a draft, publish it, and post the URL externally without editing the essay first.
+- A friend or peer clicks the URL and reads to the bottom — observable from a single visit-duration metric.
+- A second person — someone you didn't onboard by hand — opens tinker, starts a draft, and publishes one.
+- A maker who used tinker mentions the *writing* as the calming part, unprompted.
+- The sidebar of drafts grows over a week — meaning the loop is sticky, not single-shot.
 
 ## 12. Open questions
 
 Before the first line of code:
 
-1. What does the first screen look like the moment the founder lands — one prompt, blank canvas, or example trajectory? (Phase 2 Q3.)
-2. Does the founder see the trajectory page inline before getting the link, or does the link arrive first and the page lives at the URL? (Section 5.)
-3. Which transcription service? (Section 10, step 1.)
-4. What exact slots are on the trajectory template? — start feeling, articulated idea, forward feeling, plus what else? Quotes? Color picker? Optional image upload? (Section 10, step 2 + 3.)
-5. Where do posts live after they're created — local, public-by-link, on a profile? Is the profile feed v1 or v2? (Sections 6, 7, 10.)
-6. What would have to be true in week one for you to keep building? (Section 11.)
+1. Onboarding flow detail — one question per screen or grouped, advance manually or auto, progress indicator shape (steps, bar, percentage)? (Sections 4, 5, 10.)
+2. Visual transition for the writing flow — modal over the feed, full-screen takeover of the center column, slide-up panel, or other? (Sections 4, 6, 10.)
+3. Feed source for v1 — chronological global, follower graph, curated set, invited cohort? (Sections 4, 6, 10.)
+4. Address bar — still navigates URLs, or repurposed entirely? (Section 4.)
+5. URL shape for published essays — `/handle/slug`, `/essay/id`, or other? (Section 4.)
+6. Where the maker sees their own published essays — separate sidebar section, profile tab, or surfaced in the feed? (Section 6.)
+7. Draft lifecycle — archive, decay, or sit forever? (Section 9.)
+8. Storage — local-only in v1, or already cloud-synced and public-by-link? (Section 10.)
+9. What would have to be true in week one for you to keep building? (Section 11.)
