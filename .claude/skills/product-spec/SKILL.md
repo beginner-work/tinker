@@ -131,7 +131,20 @@ After each batch, reflect what you heard in the same warm voice (*"Got it — th
 | It works but doesn't scale | The first 10 are fine; the next 1,000 break it. |
 | You burn out before it lands | The build is bigger than you can carry. |
 
-After Q6, you may ask **one** plain-chat follow-up if a beat still feels thin — for example: *"What's the one thing you'd be crushed to see go wrong on launch day?"* — but only one. Don't pile on.
+### Q7 — Visual canon (singleSelect)
+
+> When the page renders for the first time, what should it look like? Where does the visual truth live?
+
+| Option | Description |
+|---|---|
+| The existing app I already have | Same chrome, same fonts, same colors, same buttons. The new screen is a sibling of what's already there, not a new design. |
+| My own design tokens / dictionary | I have brand tokens, a design dictionary, or a style file the agent should consume verbatim. |
+| A specific reference | I have a reference product or screenshot whose feel I want to land in (e.g. Spotify Wrapped, Linear, a Figma). |
+| Nothing yet — pick before code | I haven't decided. Force me to pick before synthesis; do not let the agent invent. |
+
+(This is the question that prevents the most common 0-to-1 failure: the agent inventing a UI from scratch because the spec didn't tell it where to inherit from. If the user picks "Nothing yet," stop and force a decision before Phase 3.)
+
+After Q7, you may ask **one** plain-chat follow-up if a beat still feels thin — for example: *"What's the one thing you'd be crushed to see go wrong on launch day?"* — but only one. Don't pile on.
 
 ### Always-ask follow-ups (in plain chat, not AskUserQuestion)
 
@@ -167,36 +180,56 @@ The single moment of relief. The thing the user feels that nothing else gives th
 ## 3. What it does
 The smallest description of the product. Two or three sentences, plain language. Anyone reading this should be able to picture what it is.
 
-## 4. The first version
+## 4. Visual canon (where the look comes from)
+**This section is non-negotiable for the agent.** From AskUserQuestion Q7. Name the source of visual truth — the existing app shell, the user's design tokens, a specific reference — and quote the exact paths or asset names the agent must inherit from. The agent does not invent buttons, fonts, colors, containers, spacing, or animation. If a visual decision isn't already made in the named source, the agent stops and asks the user before inventing.
+
+If the user answered "Nothing yet — pick before code," do **not** write this spec. Return to Phase 2 and force the decision.
+
+Required content:
+- **Source of truth:** explicit path(s) or asset name(s) — e.g. `src/renderer/styles.css`, `src/renderer/tokens/rainbow-web.json`, *"the existing welcome page in `src/renderer/index.html`"*.
+- **Inherited primitives:** the buttons, typography, color tokens, container shapes the new screen must reuse. List them by name as they appear in the source.
+- **What the agent may NOT do:** introduce a new font, a color outside the tokens, a custom button visual, a new icon library, an animation library, or a CSS framework. List the temptations explicitly so the rule is enforceable, not vibes-based.
+
+## 5. The first version
 **One screen, one flow, one outcome.** From Phase 1 Q3 and the contractor follow-up.
 
 - **Input:** what the user gives the product. (Phase 1 Q4.)
 - **Output:** what they walk away with. (Phase 1 Q4.)
-- **The one screen it lives on:** named, described in two sentences.
+- **The one screen it lives on:** named, described in two sentences, with explicit reference back to section 4's canon (e.g. *"sibling mode of the existing welcome page in `src/renderer/index.html`; reuses the warm cream surface and the existing nav chrome"*).
 - **What's deliberately not in v1:** at least three things the user explicitly cut. (From Phase 1 Q5 and any scope-cutting in Phase 2.)
 
-## 5. First-time experience
-What the user sees on first open. From AskUserQuestion Q3. Walk through the first 30 seconds, step by step — what's on screen, what they tap, what they see next.
+## 6. First-time experience
+What the user sees on first open. From AskUserQuestion Q3. Walk through the first 30 seconds, step by step — what's on screen, what they tap, what they see next. Every visual element described here must reference the canon in section 4 by name (e.g. *"the existing primary button style"*, *"the cream surface from `styles.css`"*).
 
-## 6. The shape of the product
+## 7. The shape of the product
 From AskUserQuestion Q2. One paragraph: page, feed, tool, space, or conversation — and what the primary surface looks like.
 
-## 7. The loop (or: no loop)
+## 8. The loop (or: no loop)
 From AskUserQuestion Q1 + Q4. Either describe what brings the user back, or honestly state *"This is one-and-done; there is no return loop, and that's fine."* Don't fabricate a loop because products are "supposed to" have one.
 
-## 8. The line — what this product won't do
+## 9. The line — what this product won't do
 From Phase 1 Q5. Three to five concrete bullets. The features you'll say no to even when a user asks. These are part of the product, not the absence of product.
 
-## 9. The hard part
+**If the user named "no AI-written content" or any similar principle, do not stop at the principle.** Make it operational. Add a sub-section titled *"Visible-string allowlist"* with this exact mechanic:
+
+> Every visible string on the rendered page must be one of:
+> - (a) a verbatim quote from the founder's transcript / input, OR
+> - (b) a fixed UI string from this allowlist: `[list every button label, header, microcopy string the page needs — derived from sections 5 and 6]`.
+>
+> Anything outside (a) or (b) is a bug. Before the agent considers v1 done, it runs a check: walk every text node on the rendered page; verify each is either in the founder's transcript or in the allowlist. The check is a build step, not a vibe.
+
+Producing the allowlist is the agent's job during Phase 3 synthesis. Be exhaustive — include every literal string that should appear on the screen. If you don't know one, leave `[NEEDS INPUT: literal text for the X button]` rather than guessing.
+
+## 10. The hard part
 From AskUserQuestion Q5 + Q6. Where the user expects this to break, and what they'd watch for to catch it early.
 
-## 10. Build sequence
-A numbered list — what to build first, second, third. Each item is **one screen or one capability**, never a vague phase like "core platform" or "infra". From the contractor follow-up + the v1 answer. If the user only gave you enough for step 1, list step 1 honestly and write `[NEEDS INPUT: what comes after the first screen ships]` for the rest.
+## 11. Build sequence
+A numbered list — what to build first, second, third. Each item is **one screen or one capability**, never a vague phase like "core platform" or "infra". From the contractor follow-up + the v1 answer. Each step that produces visible UI must reference section 4's canon and section 9's allowlist. If the user only gave you enough for step 1, list step 1 honestly and write `[NEEDS INPUT: what comes after the first screen ships]` for the rest.
 
-## 11. How you'll know it's working
+## 12. How you'll know it's working
 Two or three concrete signals — observable behavior, not vanity metrics. *"My barber sends his nephew."* *"Someone I don't know puts $20 in."* *"The third user finishes the form without messaging me."* If the user didn't give you signals, ask once; if still nothing, leave `[NEEDS INPUT: signals]`.
 
-## 12. Open questions
+## 13. Open questions
 Anything you couldn't nail down in the interview. List them as questions the user has to answer before the first line of code, not as TODOs.
 ```
 
@@ -209,7 +242,9 @@ Anything you couldn't nail down in the interview. List them as questions the use
 - Never use the words *MVP*, *retention*, *funnel*, *acquisition*, *PMF*, *flywheel*, *iterate*, *go-to-market* with the user. Translate silently.
 - If the user wants v1 to do six things, push back **once**: *"If we ship one of those next month and the rest later, which one?"* Honor the answer.
 - If the user describes a feature without a person attached, ask: *"Who's using that, and what does it feel like for them?"* — anchor every feature to a person.
-- If the user is genuinely pre-everything (no sketch, no screen, no draft), **say so honestly** in section 10. Don't pad the build sequence with placeholder steps.
+- If the user is genuinely pre-everything (no sketch, no screen, no draft), **say so honestly** in section 11. Don't pad the build sequence with placeholder steps.
+- **If the product lives inside an existing app, the new screen inherits — never invents.** Buttons, fonts, colors, containers, spacing all come from the host app's existing files. If the spec doesn't name the host app's visual canon (section 4), an agent reading the spec will design from scratch, and the founder will look at the result and say *"that's not my app."* The canon is the difference between "feels like mine" and "feels like a generic AI-shaped UI."
+- **If the line includes a content principle (e.g. "no AI-written words"), turn it into an allowlist (section 9), not a vibe.** Principles get rationalized away by agents; explicit allowlists get checked. Force the spec to enumerate every visible string.
 - Celebrate clarity briefly and move on. *"That's the one. Keep going."*
 
 ## When the spec is done
@@ -221,5 +256,5 @@ If they want edits, edit the file in place — don't rewrite from scratch unless
 ## Tools to use
 
 - **Read** — load `pitch-deck.md` if it exists, for background.
-- **AskUserQuestion** — Q1 through Q6 in Phase 2. This is the question loader; don't replace it with free-form chat for those six.
+- **AskUserQuestion** — Q1 through Q7 in Phase 2. This is the question loader; don't replace it with free-form chat for those seven. Q7 (visual canon) is the one most often skipped by accident — do not skip it; skipping it produces specs the agent treats as a greenfield design brief.
 - **Write** / **Edit** — produce and refine `product-spec.md`.
