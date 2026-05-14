@@ -1,7 +1,12 @@
 # LaunchDarkly + Vercel Edge Config setup
 
-The signup gate now reads flags from **Vercel Edge Config** (a KV
-store at the edge) instead of streaming from LaunchDarkly directly.
+> **Status:** Future migration. This PR keeps the Node SDK approach
+> (with `await client.flush()` workaround for the serverless flush
+> race). The Edge SDK + Edge Config swap lands in a separate PR
+> later, once the dashboard wiring below is done.
+
+When the signup gate reads flags from **Vercel Edge Config** (a KV
+store at the edge) instead of streaming from LaunchDarkly directly,
 LD pushes flag updates into the Edge Config automatically via an
 integration; the verify function reads them in sub-millisecond time
 and flushes eval events through Vercel's `waitUntil` so they reach
