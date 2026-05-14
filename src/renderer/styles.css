@@ -33,6 +33,11 @@
 html, body {
   margin: 0;
   height: 100vh;
+  /* Dynamic viewport height matches the *actually visible* area on
+     iOS standalone PWAs, where 100vh otherwise resolves to the
+     largest viewport (home-indicator area included) and the welcome
+     form ends up sitting below the visual centre on initial load. */
+  height: 100dvh;
   overflow: hidden;
   font-family: var(--font-sans);
   color: var(--color-foreground);
@@ -62,6 +67,7 @@ input:focus, button:focus, textarea:focus { outline: none; }
   width: var(--sidebar-width);
   flex-shrink: 0;
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--color-background);
