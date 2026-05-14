@@ -186,6 +186,14 @@ html.on-web .sidebar__top {
   display: flex;
   gap: 8px;
   width: 100%;
+  /* Cap form width at 88% of the inner column AND a 380px ceiling so
+     the input + Start button stop spanning the full available width.
+     With the section's clamp padding outside this, total visual margin
+     from the screen edge ends up roughly 56-72px on mobile — matches
+     the breathing room of the auth-gate pill. */
+  max-width: min(380px, 88%);
+  margin-left: auto;
+  margin-right: auto;
   margin-top: 6px;
 }
 .welcome__input {
