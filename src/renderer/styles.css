@@ -104,34 +104,6 @@ html.on-web .sidebar__top {
   color: var(--color-foreground);
 }
 
-.sidebar__top-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  -webkit-app-region: no-drag;
-}
-
-/* Compose + add-location icon buttons. Plain icon, no text — matches
-   the channel-list density of the home rows beneath. */
-.sidebar__icon-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 0;
-  background: transparent;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--color-muted);
-  transition: background 0.12s ease, color 0.12s ease, transform 0.06s ease;
-}
-.sidebar__icon-btn:hover {
-  background: var(--color-hover);
-  color: var(--color-foreground);
-}
-.sidebar__icon-btn:active { transform: scale(0.94); }
-
 .sidebar__footer {
   padding: 10px 12px 14px;
   font-size: 13px;
@@ -236,6 +208,76 @@ html.on-web .sidebar__top {
   color: var(--color-muted);
   line-height: 1.5;
 }
+
+/* Previous-location pills below the question/form. The pill is the
+   primary "start here" affordance — the input below is the secondary
+   path for naming a brand-new place. Each pill reads as a real button:
+   filled, lifted on hover, with a quieter × tucked in for removal. */
+.welcome__pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+  max-width: min(520px, 96%);
+}
+.welcome__pills[hidden] { display: none; }
+.welcome-pill {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-alt);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.12s ease, background 0.12s ease,
+              box-shadow 0.16s ease, transform 0.08s ease;
+}
+.welcome-pill:hover {
+  border-color: var(--color-accent-strong);
+  background: var(--color-accent-dim);
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.12);
+  transform: translateY(-1px);
+}
+.welcome-pill:focus-within {
+  border-color: var(--color-accent-strong);
+  box-shadow: var(--focus-ring);
+}
+.welcome-pill:active { transform: translateY(0); }
+.welcome-pill__name {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 11px 6px 11px 18px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-foreground);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.005em;
+}
+.welcome-pill__name:focus { outline: none; }
+.welcome-pill:hover .welcome-pill__name { color: var(--color-accent-strong); }
+.welcome-pill__remove {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0 14px 0 8px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.welcome-pill__remove:hover {
+  color: #c2410c;
+  background: var(--color-error-bg);
+}
+.welcome-pill__remove:focus { outline: none; }
 
 @media (max-width: 540px) {
   /* Horizontal + vertical padding handled by the clamp() on .welcome
@@ -925,88 +967,6 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   line-height: 1.55;
   color: var(--color-muted);
   text-align: center;
-}
-
-/* ── Welcome card (first-sign-in modal) ──────────────────────────── */
-.welcome-card {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-/* The class rule above sets display:flex, which outranks the HTML
-   `hidden` attribute's default display:none. Without this explicit
-   override, setting card.hidden = true from JS doesn't actually hide
-   anything — that was the 'dismiss button doesn't work' bug. */
-.welcome-card[hidden] { display: none; }
-.welcome-card__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(45, 42, 38, 0.45);
-  backdrop-filter: blur(3px);
-  cursor: pointer;
-}
-.welcome-card__panel {
-  position: relative;
-  z-index: 1;  /* keep above the absolutely-positioned backdrop sibling */
-  width: 100%;
-  max-width: 440px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 18px;
-  box-shadow: 0 24px 80px rgba(45, 42, 38, 0.25);
-  padding: 28px 26px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  animation: welcome-card-in 0.22s ease;
-}
-@keyframes welcome-card-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-.welcome-card__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
-  color: var(--color-foreground);
-}
-.welcome-card__body {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--color-foreground);
-}
-.welcome-card__sig {
-  margin: 0;
-  font-size: 14px;
-  font-style: italic;
-  color: var(--color-muted);
-}
-.welcome-card__btn {
-  margin-top: 6px;
-  padding: 12px 18px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--color-accent-strong);
-  color: #fff;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.06s ease;
-}
-.welcome-card__btn:hover { background: #4f46e5; }
-.welcome-card__btn:active { transform: scale(0.98); }
-.welcome-card__btn:focus-visible {
-  outline: 3px solid rgba(99, 102, 241, 0.35);
-  outline-offset: 3px;
 }
 
 @media (min-width: 540px) {

@@ -19,6 +19,7 @@
   "use strict";
 
   const STORAGE_KEY = "tinker.locations.v1";
+  const STORAGE_HIDDEN = "tinker.locations.hidden.v1";
   const STORAGE_DRAFTS = "tinker.drafts.v1";
   const STORAGE_ESSAYS = "tinker.essays.v1";
 
@@ -32,40 +33,36 @@
   function save(list) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch { /* ignore */ }
   }
+  function loadHidden() {
+    try {
+      const raw = localStorage.getItem(STORAGE_HIDDEN);
+      const arr = raw ? JSON.parse(raw) : [];
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch { return new Set(); }
+  }
+  function saveHidden(set) {
+    try { localStorage.setItem(STORAGE_HIDDEN, JSON.stringify(Array.from(set))); } catch { /* ignore */ }
+  }
   function nextId() { return "loc_" + Math.random().toString(36).slice(2, 10); }
 
   let explicit = load();
+  let hidden = loadHidden();
 
-  // Preview-only seed. The four default locations appear automatically
-  // on Vercel preview deployments + local dev so the founder can poke
-  // at the app without typing places in first. Production deploys (the
-  // live custom domain) stay empty — invited testers add their own
-  // places via the welcome prompt or the sidebar + button.
-  //
-  // Guard with an init flag so deleting a default doesn't make it
-  // re-appear on the next reload.
-  const DEFAULTS_KEY = "tinker.locations_initialized.v1";
-  const DEFAULTS = ["Provecho", "Industrious", "Living room", "Bedroom"];
-  function isPreviewEnv() {
+  // One-time purge for browsers that received the four preview-seed
+  // defaults ("Provecho", "Industrious", "Living room", "Bedroom") on
+  // past visits. Gated on the old init flag so it only touches clients
+  // that actually got seeded.
+  (function purgeOldSeedDefaults() {
     try {
-      const h = (typeof location !== "undefined" && location.hostname) || "";
-      if (h === "localhost" || h === "127.0.0.1") return true;
-      if (h.endsWith(".vercel.app")) return true;
-      return false;
-    } catch { return false; }
-  }
-  (function seedDefaultsOnce() {
-    try {
-      if (!isPreviewEnv()) return;
-      if (localStorage.getItem(DEFAULTS_KEY)) return;
-      if (explicit.length === 0) {
-        const now = Date.now();
-        for (const name of DEFAULTS) {
-          explicit.push({ id: "loc_" + Math.random().toString(36).slice(2, 10), name, createdAt: now });
-        }
+      const FLAG = "tinker.locations_initialized.v1";
+      if (!localStorage.getItem(FLAG)) return;
+      const seeded = new Set(["provecho", "industrious", "living room", "bedroom"]);
+      const next = explicit.filter((e) => !seeded.has(String(e.name || "").trim().toLowerCase()));
+      if (next.length !== explicit.length) {
+        explicit = next;
         save(explicit);
       }
-      localStorage.setItem(DEFAULTS_KEY, "1");
+      localStorage.removeItem(FLAG);
     } catch { /* ignore */ }
   })();
 
@@ -142,7 +139,11 @@
       if (t.merchant) touch(t.merchant, when, "transaction");
     }
 
-    return Array.from(map.values());
+    // Drop any location the user has explicitly removed (tombstoned).
+    // Filtering here — after the merge — means a removed name stays
+    // hidden even when it's still referenced by past drafts, essays,
+    // or transactions.
+    return Array.from(map.values()).filter((e) => !hidden.has(e.key));
   }
 
   function extractDraftContent(draft) {
@@ -224,6 +225,12 @@
     const trimmed = String(name || "").trim();
     if (!trimmed) return;
     const key = normalize(trimmed);
+    // If the user previously removed this location, untombstone it —
+    // they've explicitly opted back in by typing the name again.
+    if (hidden.has(key)) {
+      hidden.delete(key);
+      saveHidden(hidden);
+    }
     // Skip if already in the explicit list (same normalized form).
     if (explicit.some((e) => normalize(e.name) === key)) {
       notify();
@@ -234,10 +241,26 @@
     notify();
   }
 
+  function removeLocation(name) {
+    const key = normalize(name);
+    if (!key) return;
+    const before = explicit.length;
+    explicit = explicit.filter((e) => normalize(e.name) !== key);
+    if (explicit.length !== before) save(explicit);
+    // Tombstone so the location stays hidden even when it's still
+    // referenced by past drafts, essays, or transactions.
+    if (!hidden.has(key)) {
+      hidden.add(key);
+      saveHidden(hidden);
+    }
+    notify();
+  }
+
   // ── Public API ──────────────────────────────────────────────────────
   window.tinkerLocations = {
     list: listMerged,
     add: addLocation,
+    remove: removeLocation,
     subscribe(fn) { subscribers.add(fn); return () => subscribers.delete(fn); },
     openAddModal,
   };
