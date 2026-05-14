@@ -83,5 +83,12 @@
   .writing__top, .read__top {
     padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
     padding-left: 64px;
+    /* Reserve enough vertical room that body content always starts below
+     * the 44px+12px-top hamburger, even if the row's content collapses. */
+    min-height: calc(env(safe-area-inset-top, 0px) + 56px);
+    box-sizing: border-box;
   }
+  /* Belt-and-suspenders: indent the review crumb and title past the
+   * hamburger's right edge so they can't visually sit under it. */
+  .writing-review__head { padding-left: 52px; }
 }
