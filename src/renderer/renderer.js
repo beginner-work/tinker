@@ -34,6 +34,7 @@
   const readUrl = $("#read-url");
   const readBody = $("#read-body");
   const readClose = $("#read-close");
+  const readDelete = $("#read-delete");
 
   // ── Storage helpers ──────────────────────────────────────────────────
   const uid = () => "d_" + Math.random().toString(36).slice(2, 10);
@@ -65,6 +66,7 @@
   let drafts = loadDrafts();
   let essays = loadEssays();
   let activeId = null; // current draft id, or null when on the feed/read view
+  let readingEssayId = null; // currently opened essay in the read view, or null
 
   // Expose so writing.js can mutate the active draft's state.
   const store = {
@@ -85,6 +87,15 @@
       saveDrafts(drafts);
       if (activeId === id) showFeed();
       renderSidebar();
+    },
+    deleteEssay(id) {
+      const essay = essays.find((e) => e.id === id);
+      if (!essay) return null;
+      essays = essays.filter((e) => e.id !== id);
+      saveEssays(essays);
+      if (readingEssayId === id) showFeed();
+      renderHome();
+      return essay;
     },
     publish(draft, stitched) {
       const slug = slugify(draft.title || stitched.title || "untitled") + "-" + draft.id.slice(2, 6);
@@ -172,6 +183,7 @@
     writingView.hidden = true;
     readView.hidden = true;
     activeId = null;
+    readingEssayId = null;
     renderSidebar();
     renderHome();
     // Drop focus onto the welcome question so the founder can just
@@ -189,6 +201,7 @@
     writingView.hidden = true;
     readView.hidden = false;
     activeId = null;
+    readingEssayId = essay.id;
     renderSidebar();
     readUrl.textContent = essay.url;
     readBody.innerHTML =
@@ -277,6 +290,17 @@
   }
 
   readClose.addEventListener("click", () => showFeed());
+
+  if (readDelete) {
+    readDelete.addEventListener("click", () => {
+      if (!readingEssayId) return;
+      const essay = essays.find((e) => e.id === readingEssayId);
+      if (!essay) return;
+      if (confirm(`Delete "${essay.title || "Untitled"}"? This can't be undone.`)) {
+        store.deleteEssay(essay.id);
+      }
+    });
+  }
 
   // Tell writing.js how to ask the renderer to do things.
   window.tinkerOnWritingClose = () => closeActiveDraft();
