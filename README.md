@@ -20,30 +20,51 @@ Use `npm run dev` to open with DevTools attached.
 ## Run it (web)
 
 The same `src/renderer/` codebase ships as a hosted website — no build step.
+The web build is phone-OTP-gated via [Stytch](https://stytch.com); search
+runs through a Vercel function that holds the Anthropic key.
+
+For local dev with the auth flow, use Vercel's local emulator instead of
+the plain static host:
 
 ```bash
 npm install
-export TINKER_API_BASE="http://localhost:4000"   # the beginner API base
-npm run web                                      # serves http://localhost:5173
+npx vercel link     # one-time; pick beginner-work / tinker
+npx vercel env pull # pulls STYTCH_PROJECT_ID, STYTCH_SECRET, ANTHROPIC_API_KEY
+npx vercel dev      # serves http://localhost:3000 with /api/* functions
+```
+
+For static-only browsing (no auth, no search) you can still run the bundled
+host:
+
+```bash
+npm run web         # serves http://localhost:5173 (static only)
 ```
 
 The web build doesn't ask for an Anthropic key. Instead it gates the app
 behind a phone/PIN sign-in: enter your phone, receive a 6-digit code,
-verify it. Sign-up and login share the same screen — if it's your first
-time, an account is created automatically.
+verify it. Sign-up and login share the same screen — first-time users get
+a Stytch user created automatically when they verify.
 
 The flow is:
 
 1. The browser POSTs `/api/auth/phone/request` with the phone number.
-2. The web host (`src/web/server.js`) forwards it to the beginner API at
-   `${TINKER_API_BASE}/claude/auth/phone/request`. The API stores a 6-digit
-   PIN and (in dev) returns it in the response so it can be displayed.
-3. The browser POSTs `/api/auth/phone/verify` with `{ phone, pin }`. The
-   API issues a JWT scoped to a `ClaudeUser`. The browser stores it under
-   `tinker_jwt` in `localStorage`.
-4. Subsequent searches POST `/api/search` with the JWT; the host proxies to
-   the beginner API's `/claude/chat`, which streams from Anthropic on the
-   server side. The browser bundle never sees an Anthropic key.
+2. The Vercel function calls Stytch's `otps/sms/login_or_create` with
+   project credentials and returns the `phone_id` to the browser.
+3. The browser POSTs `/api/auth/phone/verify` with `{ phone_id, pin }`. The
+   function calls Stytch's `otps/authenticate` with a 30-day session
+   duration and returns the Stytch `session_jwt` as `token`. The browser
+   stores it under `tinker_jwt` in `localStorage`.
+4. Subsequent searches POST `/api/search` with the JWT as a Bearer token;
+   the function verifies the JWT against Stytch's JWKS, then calls
+   Claude Haiku 4.5 with the server-side Anthropic key. The browser
+   bundle never sees the Anthropic key.
+
+Required Vercel env vars (set per environment — Production = `project-live-*`
+creds, Preview = `project-test-*` creds):
+
+- `STYTCH_PROJECT_ID`
+- `STYTCH_SECRET`
+- `ANTHROPIC_API_KEY`
 
 Sign out by clearing `tinker_jwt` (`window.tinkerAuth.signOut()` from the
 inspector, or `localStorage.removeItem("tinker_jwt")`).
