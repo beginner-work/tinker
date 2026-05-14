@@ -1,60 +1,68 @@
-/* Thin LaunchDarkly wrapper for the signup gate.
+/* LaunchDarkly Edge SDK + Vercel Edge Config wrapper for the
+ * signup-enabled gate.
  *
- * Reads LAUNCHDARKLY_SDK_KEY from Vercel env (set per-environment so
- * Preview deployments hit the LD Test environment and Production hits
- * the LD Production environment). Exposes one helper: canSignUp().
+ * How this differs from the Node SDK approach:
+ *   - Flag state lives in Vercel Edge Config (a KV store at the edge).
+ *     The LD ↔ Vercel integration writes flag changes there
+ *     automatically. Reads are sub-millisecond.
+ *   - No streaming connection from the function to LD — eliminates
+ *     cold-start latency, eliminates the "function dies before
+ *     init finishes" failure mode.
+ *   - Eval events still flush to LD's Insights, but via Vercel's
+ *     waitUntil() so they run AFTER the response goes back to the
+ *     user. The verify endpoint returns at full speed; the events
+ *     trickle out behind it.
  *
- * Behaviour:
- *  - Key not set      → returns true (fail open in dev / before the
- *                       env var is configured).
- *  - SDK eval error   → returns false (fail closed so an LD outage
- *                       doesn't accidentally bless every signup).
- *  - Normal evaluation → variation("signup-enabled", …, defaultFalse).
+ * Required env vars (Vercel → Project Settings → Environment Variables):
+ *   - EDGE_CONFIG                  (auto-set by Vercel when an Edge
+ *                                   Config is linked to the project)
+ *   - LAUNCHDARKLY_CLIENT_SIDE_ID  (paste the 24-char hex from LD →
+ *                                   Account Settings → Projects →
+ *                                   your env → Client-side IDs;
+ *                                   different rows for Preview vs
+ *                                   Production)
  *
- * Client init is lazy + memoised across warm invocations of the same
- * Vercel function instance, so cold-start pays the ~200-500ms config
- * download once, then subsequent calls are local.
+ * The flag (signup-enabled) must be marked "Available on client-side
+ * SDKs" in LD for the Edge SDK to read it. That checkbox is already
+ * on per the LD dashboard.
  */
 
 "use strict";
 
-let LD;
-let ldRequireError = null;
+let LD, edgeConfig, waitUntil;
+let loadError = null;
+
 try {
-  LD = require("@launchdarkly/node-server-sdk");
+  LD = require("@launchdarkly/vercel-server-sdk");
+  edgeConfig = require("@vercel/edge-config");
+  // @vercel/functions is optional — if absent we fall back to a
+  // capped inline await for the flush.
+  try { waitUntil = require("@vercel/functions").waitUntil; } catch { waitUntil = null; }
 } catch (err) {
-  LD = null;
-  ldRequireError = err && err.message;
-  // Surfaces in Vercel function logs on cold start if the install
-  // step skipped this dependency.
-  console.error("[launchdarkly] SDK require failed:", ldRequireError);
+  loadError = err && err.message;
+  console.error("[launchdarkly] Edge SDK require failed:", loadError);
 }
 
 let clientPromise = null;
 
 function getClient() {
   if (clientPromise) return clientPromise;
-  if (!LD) {
+  if (!LD || !edgeConfig) {
     clientPromise = Promise.resolve(null);
     return clientPromise;
   }
-  const key = process.env.LAUNCHDARKLY_SDK_KEY;
-  if (!key) {
+  const clientSideId = process.env.LAUNCHDARKLY_CLIENT_SIDE_ID;
+  const edgeConfigConnection = process.env.EDGE_CONFIG;
+  if (!clientSideId || !edgeConfigConnection) {
     clientPromise = Promise.resolve(null);
     return clientPromise;
   }
-  const c = LD.init(key, {
-    // Keep the in-process event buffer modest — the only thing we eval
-    // is the signup gate, so we don't need a huge capacity.
-    capacity: 100,
-    flushInterval: 5,
-  });
-  clientPromise = c.waitForInitialization({ timeout: 5 })
+  const edgeClient = edgeConfig.createClient(edgeConfigConnection);
+  const c = LD.init(clientSideId, edgeClient);
+  clientPromise = c.waitForInitialization()
     .then(() => c)
     .catch((err) => {
-      console.error("[launchdarkly] initialisation failed:", err && err.message);
-      // Reset so a later invocation can retry instead of being stuck
-      // on the failed promise forever.
+      console.error("[launchdarkly] Edge SDK init failed:", err && err.message);
       clientPromise = null;
       return null;
     });
@@ -62,27 +70,30 @@ function getClient() {
 }
 
 async function canSignUp(stytchUserId, phone) {
-  const keyPresent = !!process.env.LAUNCHDARKLY_SDK_KEY;
-  const sdkLoaded = !!LD;
-  // Single-line breadcrumb on every call so Vercel function logs make
-  // the path obvious when debugging "why isn't my flag evaluating".
+  const haveCsid = !!process.env.LAUNCHDARKLY_CLIENT_SIDE_ID;
+  const haveEdge = !!process.env.EDGE_CONFIG;
   console.log("[launchdarkly] canSignUp", JSON.stringify({
     phone: phone || null,
     userId: stytchUserId || null,
-    keyPresent,
-    sdkLoaded,
-    requireError: ldRequireError,
+    haveCsid,
+    haveEdge,
+    sdkLoaded: !!LD,
+    loadError,
   }));
 
-  if (!keyPresent) {
-    console.log("[launchdarkly] fail-open: LAUNCHDARKLY_SDK_KEY not visible to the function");
+  // Fail open during transition / if Edge Config isn't linked yet.
+  // Once both env vars are set on Vercel, this branch stops firing.
+  if (!haveCsid || !haveEdge) {
+    console.log("[launchdarkly] fail-open: Edge Config or client-side ID not visible to the function");
     return true;
   }
+
   const client = await getClient();
   if (!client) {
     console.error("[launchdarkly] fail-closed: getClient returned null (SDK missing or init failed)");
     return false;
   }
+
   try {
     const ctx = {
       kind: "user",
@@ -91,20 +102,22 @@ async function canSignUp(stytchUserId, phone) {
     if (phone) ctx.phone = phone;
     const allowed = await client.variation("signup-enabled", ctx, false);
     console.log("[launchdarkly] evaluated signup-enabled:", { ctx, allowed });
-    // CRITICAL on Vercel / serverless: explicitly flush the analytics
-    // events buffer before the function returns. The SDK is designed
-    // for long-running servers where flushInterval (default 5s) ticks
-    // naturally. Serverless functions return in ~50ms — the buffer
-    // never gets flushed and evals don't reach LD's Insights tab.
-    // Wait at most ~1.5s so a slow LD events endpoint doesn't hold
-    // the user's verify request open.
-    try {
+
+    // Flush analytics events. With Vercel's waitUntil() this runs
+    // AFTER the response returns — zero user-visible latency. Fallback
+    // path (no @vercel/functions installed) awaits inline with a 1.5s
+    // ceiling so a slow LD events endpoint doesn't hold the verify
+    // request open.
+    const flushPromise = client.flush().catch((e) =>
+      console.error("[launchdarkly] flush failed:", e && e.message)
+    );
+    if (waitUntil) {
+      waitUntil(flushPromise);
+    } else {
       await Promise.race([
-        client.flush(),
+        flushPromise,
         new Promise((resolve) => setTimeout(resolve, 1500)),
       ]);
-    } catch (e) {
-      console.error("[launchdarkly] flush failed:", e && e.message);
     }
     return !!allowed;
   } catch (err) {
