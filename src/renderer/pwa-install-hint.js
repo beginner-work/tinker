@@ -64,6 +64,22 @@
     setTimeout(() => { el.remove(); }, 360);
   }
 
+  function nudgeUrlBar() {
+    // iOS Safari only minimizes its bottom URL bar when the page is
+    // scrollable AND a scroll has happened. The app body uses
+    // `overflow: hidden; height: 100vh` so the document isn't normally
+    // scrollable. Flip in a class so CSS can open up a 1px-tall scroll
+    // area, then nudge the scroll position. Once the bar collapses the
+    // pill can extend down to where the three-dots was, wrapping the
+    // bottom-right corner like the iPhone's Dynamic Island wraps the
+    // camera.
+    document.documentElement.classList.add("collapse-safari-bar");
+    requestAnimationFrame(() => {
+      try { window.scrollTo({ top: 1, left: 0, behavior: "instant" }); }
+      catch { window.scrollTo(0, 1); }
+    });
+  }
+
   function init() {
     if (isWrappedRuntime()) return;
     if (!isIosSafari()) return;
@@ -72,6 +88,8 @@
 
     const el = document.getElementById("pwa-hint");
     if (!el) return;
+
+    nudgeUrlBar();
 
     // If the user signs in / out, we don't want to fight the auth gate —
     // wait until it's hidden before announcing ourselves.
