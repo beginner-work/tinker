@@ -403,7 +403,10 @@
       }
       section.appendChild(head);
 
-      for (const loc of group.items) section.appendChild(renderCard(loc));
+      const sectionCtx = key === PENDING
+        ? null
+        : { categoryKey: key, categoryName: state.taxonomy[key]?.name || key };
+      for (const loc of group.items) section.appendChild(renderCard(loc, sectionCtx));
       mountEl.appendChild(section);
     }
 
@@ -432,7 +435,7 @@
   // and (when one exists) the title of the most recent writing
   // produced at this location stacked below. The "last used" line is
   // gone — the writing title carries that signal more usefully.
-  function renderCard(loc) {
+  function renderCard(loc, sectionCtx) {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "home-card";
@@ -452,19 +455,26 @@
         subline +
       `</span>`;
 
-    card.addEventListener("click", () => openLocation(loc));
+    card.addEventListener("click", () => openLocation(loc, sectionCtx));
     return card;
   }
 
-  // Tap routing: if a writing piece already exists at this location,
-  // open it (read view for essays, resume for drafts). Otherwise spin
-  // up a fresh session anchored at the location.
-  function openLocation(loc) {
-    const w = loc.latestWriting;
-    if (w && w.type === "essay" && typeof window.tinkerOpenEssay === "function") {
-      window.tinkerOpenEssay(w.id);
-      return;
+  // Tap routing: if the location is grouped under a real category and
+  // has any published writing, open that category's feed. Otherwise
+  // fall through to resume an in-progress draft, or spawn a fresh
+  // session anchored at the location.
+  function openLocation(loc, sectionCtx) {
+    if (sectionCtx && sectionCtx.categoryKey) {
+      const feedEssays = essaysInCategory(sectionCtx.categoryKey);
+      if (feedEssays.length && typeof window.tinkerOpenCategoryFeed === "function") {
+        window.tinkerOpenCategoryFeed({
+          title: sectionCtx.categoryName,
+          essays: feedEssays,
+        });
+        return;
+      }
     }
+    const w = loc.latestWriting;
     if (w && w.type === "draft" && typeof window.tinkerResumeDraft === "function") {
       window.tinkerResumeDraft(w.id);
       return;
@@ -474,5 +484,59 @@
     }
   }
 
-  window.tinkerHeatmap = { render };
+  // Find every published essay whose location belongs to `categoryKey`
+  // anywhere in its taxonomy paths. Most-recent first.
+  function essaysInCategory(categoryKey) {
+    if (!categoryKey) return [];
+    const state = loadState();
+    let allEssays;
+    try {
+      allEssays = JSON.parse(localStorage.getItem("tinker.essays.v1") || "[]");
+    } catch { return []; }
+    if (!Array.isArray(allEssays)) return [];
+    const out = [];
+    for (const essay of allEssays) {
+      if (!essay || !essay.location) continue;
+      const locKey = normCat(essay.location);
+      const stored = state.locations[locKey];
+      if (!stored || !Array.isArray(stored.paths)) continue;
+      const inCategory = stored.paths.some((p) =>
+        Array.isArray(p) && p[p.length - 1] === categoryKey
+      );
+      if (inCategory) out.push(essay);
+    }
+    out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return out;
+  }
+
+  // Resolve an essay → category feed. Used by renderer's publish flow
+  // and by tinkerOpenEssay so deep links land on the category page
+  // rather than a single-essay view.
+  function openForEssay(essay) {
+    if (!essay) return;
+    if (typeof window.tinkerOpenCategoryFeed !== "function") return;
+    if (essay.location) {
+      const state = loadState();
+      const stored = state.locations[normCat(essay.location)];
+      if (stored && Array.isArray(stored.paths) && stored.paths.length) {
+        const leaf = stored.paths[0][stored.paths[0].length - 1];
+        const cat = state.taxonomy[leaf];
+        if (cat) {
+          window.tinkerOpenCategoryFeed({
+            title: cat.name,
+            essays: essaysInCategory(leaf),
+          });
+          return;
+        }
+      }
+    }
+    // No category yet — show the single essay under the location name
+    // as a stand-in title until classification settles.
+    window.tinkerOpenCategoryFeed({
+      title: essay.location || essay.title || "",
+      essays: [essay],
+    });
+  }
+
+  window.tinkerHeatmap = { render, openForEssay };
 })();

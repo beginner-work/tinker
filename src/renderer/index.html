@@ -155,16 +155,12 @@
         </footer>
       </section>
 
-      <!-- Read-an-essay view: rendered when a feed card is opened. -->
+      <!-- Category feed view: rendered when a location card is opened.
+           Shows the founder's writing in that category, with the
+           category name as the page title. -->
       <section id="read" class="read" hidden>
         <header class="read__top">
-          <button id="read-close" class="read__close" type="button" aria-label="Back to feed">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-              <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            </svg>
-            <span>Feed</span>
-          </button>
-          <div class="read__url" id="read-url"></div>
+          <h1 class="read__category-title" id="read-category-title"></h1>
         </header>
         <article class="read__body" id="read-body"></article>
       </section>

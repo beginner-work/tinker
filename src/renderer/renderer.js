@@ -29,9 +29,8 @@
   const writingView = $("#writing");
   const readView = $("#read");
   const homeListEl = $("#home-list");
-  const readUrl = $("#read-url");
+  const readCategoryTitle = $("#read-category-title");
   const readBody = $("#read-body");
-  const readClose = $("#read-close");
 
   // ── Storage helpers ──────────────────────────────────────────────────
   const uid = () => "d_" + Math.random().toString(36).slice(2, 10);
@@ -106,7 +105,14 @@
       activeId = null;
       renderSidebar();
       renderHome();
-      showRead(essay);
+      // Route to the category feed for this essay's location. If the
+      // taxonomy hasn't classified it yet, fall back to a single-item
+      // feed titled by the location.
+      if (window.tinkerHeatmap && typeof window.tinkerHeatmap.openForEssay === "function") {
+        window.tinkerHeatmap.openForEssay(essay);
+      } else {
+        showCategoryFeed({ title: essay.location || essay.title || "", essays: [essay] });
+      }
       return essay;
     },
   };
@@ -182,19 +188,27 @@
     writingView.hidden = false;
     readView.hidden = true;
   }
-  function showRead(essay) {
+  function showCategoryFeed({ title, essays: feedEssays }) {
     feedView.removeAttribute("data-active");
     writingView.hidden = true;
     readView.hidden = false;
     activeId = null;
     renderSidebar();
-    readUrl.textContent = essay.url;
-    readBody.innerHTML =
-      `<header class="read__head">` +
-        `<div class="read__author">${escapeHtml(essay.author)}</div>` +
-        `<h1 class="read__title">${escapeHtml(essay.title)}</h1>` +
-      `</header>` +
-      paragraphs(essay.body);
+    if (readCategoryTitle) readCategoryTitle.textContent = title || "";
+    const items = Array.isArray(feedEssays) ? feedEssays : [];
+    if (!items.length) {
+      readBody.innerHTML = `<p class="read__empty">Nothing written here yet.</p>`;
+      return;
+    }
+    readBody.innerHTML = items.map((essay) =>
+      `<article class="read__essay">` +
+        `<header class="read__head">` +
+          `<div class="read__author">${escapeHtml(essay.author || "")}</div>` +
+          `<h1 class="read__title">${escapeHtml(essay.title || "")}</h1>` +
+        `</header>` +
+        paragraphs(essay.body || "") +
+      `</article>`
+    ).join("");
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
@@ -317,8 +331,6 @@
     });
   }
 
-  readClose.addEventListener("click", () => showFeed());
-
   // Tell writing.js how to ask the renderer to do things.
   window.tinkerOnWritingClose = () => closeActiveDraft();
   window.tinkerOnWritingPublish = (draft, stitched) => store.publish(draft, stitched);
@@ -334,8 +346,14 @@
   // instead of always spawning a new session.
   window.tinkerOpenEssay = (essayId) => {
     const essay = essays.find((e) => e.id === essayId);
-    if (essay) showRead(essay);
+    if (!essay) return;
+    if (window.tinkerHeatmap && typeof window.tinkerHeatmap.openForEssay === "function") {
+      window.tinkerHeatmap.openForEssay(essay);
+    } else {
+      showCategoryFeed({ title: essay.location || essay.title || "", essays: [essay] });
+    }
   };
+  window.tinkerOpenCategoryFeed = showCategoryFeed;
   window.tinkerResumeDraft = (draftId) => openDraft(draftId);
 
   // Keyboard shortcuts. Cmd/Ctrl+T = new draft. Cmd/Ctrl+W = close
