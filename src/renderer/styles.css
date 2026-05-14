@@ -980,6 +980,11 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   justify-content: center;
   padding: 24px;
 }
+/* The class rule above sets display:flex, which outranks the HTML
+   `hidden` attribute's default display:none. Without this explicit
+   override, setting card.hidden = true from JS doesn't actually hide
+   anything — that was the 'dismiss button doesn't work' bug. */
+.welcome-card[hidden] { display: none; }
 .welcome-card__backdrop {
   position: absolute;
   inset: 0;
