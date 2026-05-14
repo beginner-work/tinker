@@ -64,22 +64,6 @@
     setTimeout(() => { el.remove(); }, 360);
   }
 
-  function nudgeUrlBar() {
-    // iOS Safari only minimizes its bottom URL bar when the page is
-    // scrollable AND a scroll has happened. The app body uses
-    // `overflow: hidden; height: 100vh` so the document isn't normally
-    // scrollable. Flip in a class so CSS can open up a 1px-tall scroll
-    // area, then nudge the scroll position. Once the bar collapses the
-    // pill can extend down to where the three-dots was, wrapping the
-    // bottom-right corner like the iPhone's Dynamic Island wraps the
-    // camera.
-    document.documentElement.classList.add("collapse-safari-bar");
-    requestAnimationFrame(() => {
-      try { window.scrollTo({ top: 1, left: 0, behavior: "instant" }); }
-      catch { window.scrollTo(0, 1); }
-    });
-  }
-
   function init() {
     if (isWrappedRuntime()) return;
     if (!isIosSafari()) return;
@@ -88,8 +72,6 @@
 
     const el = document.getElementById("pwa-hint");
     if (!el) return;
-
-    nudgeUrlBar();
 
     // If the user signs in / out, we don't want to fight the auth gate —
     // wait until it's hidden before announcing ourselves.
@@ -106,14 +88,8 @@
       setTimeout(() => show(el), SHOW_DELAY_MS);
     }
 
-    // The whole pill is the dismiss target — there's no close button.
+    // Tap (or Enter/Space — handled natively by <button>) dismisses.
     el.addEventListener("click", () => hide(el));
-    el.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        hide(el);
-      }
-    });
 
     // If the app gets installed mid-session (user follows the steps),
     // the display-mode media query flips. Drop the hint quietly without

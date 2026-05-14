@@ -203,41 +203,20 @@
       </div>
     </div>
 
-    <!-- iOS Safari "Add to Home Screen" coach mark. Hidden by default;
-         pwa-install-hint.js reveals it only on iOS Safari (mobile web,
-         not standalone, not Capacitor) and remembers dismissal. The
-         glass surface mirrors Safari's own toolbar. A narrow vertical
-         pill at the bottom-right corner — the app icon stacked above
-         a download glyph — treating the three-dots page menu like the
-         iPhone's camera that the pill unfurls around. Tap the pill
-         anywhere to dismiss. -->
-    <aside id="pwa-hint" class="pwa-hint" role="button" tabindex="0" aria-live="polite"
-           aria-label="Add tinker to your Home Screen">
-      <div class="pwa-hint__card">
-        <span class="pwa-hint__icon" aria-hidden="true">
-          <svg data-rainbow-logo viewBox="0 0 200 200" fill="none">
-            <rect width="200" height="200" rx="44" fill="#f5f3ef" />
-            <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
-            <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
-            <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
-            <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
-            <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
-            <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
-            <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
-          </svg>
-        </span>
-        <span class="pwa-hint__download" aria-hidden="true">
-          <svg viewBox="0 0 20 20" width="20" height="20" fill="none">
-            <path d="M10 3.5 V12.5 M5.5 8 L10 12.5 L14.5 8"
-                  stroke="currentColor" stroke-width="1.8"
-                  stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M4.5 15.5 H15.5"
-                  stroke="currentColor" stroke-width="1.8"
-                  stroke-linecap="round" />
-          </svg>
-        </span>
-      </div>
-    </aside>
+    <!-- iOS Safari "Add to Home Screen" install button. Hidden by
+         default; pwa-install-hint.js reveals it only on iOS Safari
+         (mobile web, not standalone, not Capacitor) and remembers
+         dismissal. Mirrors the drawer-toggle's chip styling but
+         anchored to the bottom-right so it sits directly above
+         Safari's three-dots on every iPhone size. -->
+    <button id="pwa-hint" class="pwa-hint" type="button" aria-label="Install tinker">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+        <path d="M12 4 V15 M7 11 L12 16 L17 11"
+              stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M5 20 H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      </svg>
+    </button>
 
     <!-- Platform shim runs first. -->
     <script src="./platform-mobile.js" defer></script>
