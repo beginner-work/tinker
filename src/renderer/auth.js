@@ -17,6 +17,7 @@
 
   const TOKEN_KEY = "tinker_jwt";
   const PHONE_KEY = "tinker_phone";
+  const PHONE_ID_KEY = "tinker_phone_id";
 
   // ── Platform detection ───────────────────────────────────────────────
   //
@@ -126,11 +127,11 @@
     setStatus("Sending code…", "info");
     try {
       const data = await postJson("/api/auth/phone/request", { phone: digits });
-      try { localStorage.setItem(PHONE_KEY, digits); } catch { /* ignore */ }
-      const note = data.devPin
-        ? ` (dev PIN: ${data.devPin})`
-        : "";
-      setStatus(`Code sent.${note}`, "info");
+      try {
+        localStorage.setItem(PHONE_KEY, digits);
+        if (data.phone_id) localStorage.setItem(PHONE_ID_KEY, data.phone_id);
+      } catch { /* ignore */ }
+      setStatus("Code sent.", "info");
       showStep("pin");
     } catch (err) {
       setStatus(err.message, "error");
@@ -139,10 +140,15 @@
 
   pinForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const phone = (() => {
-      try { return localStorage.getItem(PHONE_KEY) || phoneInput.value.replace(/\D/g, ""); }
-      catch { return phoneInput.value.replace(/\D/g, ""); }
+    const phoneId = (() => {
+      try { return localStorage.getItem(PHONE_ID_KEY) || ""; }
+      catch { return ""; }
     })();
+    if (!phoneId) {
+      setStatus("Session expired — request a new code.", "error");
+      showStep("phone");
+      return;
+    }
     const pin = pinInput.value.replace(/\D/g, "");
     if (pin.length !== 6) {
       setStatus("Enter the 6-digit code you received.", "error");
@@ -150,8 +156,9 @@
     }
     setStatus("Verifying…", "info");
     try {
-      const data = await postJson("/api/auth/phone/verify", { phone, pin });
+      const data = await postJson("/api/auth/phone/verify", { phone_id: phoneId, pin });
       auth.token = data.token;
+      try { localStorage.removeItem(PHONE_ID_KEY); } catch { /* ignore */ }
       setStatus(data.isNew ? "Welcome to tinker!" : "Welcome back.", "ok");
       // Brief beat so the success message lands, then drop the gate.
       setTimeout(() => {

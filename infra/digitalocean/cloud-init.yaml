@@ -1,0 +1,85 @@
+#cloud-config
+# DigitalOcean cloud-init for a personal Claude Code box.
+#
+# Paste this into the "User Data" field when creating a droplet, OR pass
+# `--user-data-file infra/digitalocean/cloud-init.yaml` to `doctl compute
+# droplet create`. The droplet's SSH key (added via the DO console) is what
+# you use to log in — this file does NOT bake any keys or secrets into the
+# image.
+#
+# After first boot: ssh tinker@<droplet-ip>, then follow the README to
+# `claude login`, `vercel login`, and `doctl auth init`.
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - build-essential
+  - ca-certificates
+  - curl
+  - git
+  - gnupg
+  - jq
+  - tmux
+  - ufw
+  - unattended-upgrades
+
+users:
+  - name: tinker
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys: []
+    # cloud-init also copies the root SSH keys (the ones you attached to the
+    # droplet in the DO console) to this user automatically.
+
+write_files:
+  - path: /etc/profile.d/tinker-paths.sh
+    permissions: "0644"
+    content: |
+      # Make global npm bin and ~/.local/bin available to login shells.
+      export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+
+  - path: /home/tinker/.tmux.conf
+    owner: tinker:tinker
+    permissions: "0644"
+    content: |
+      set -g mouse on
+      set -g history-limit 50000
+      set -g default-terminal "screen-256color"
+      set -g status-style bg=colour234,fg=colour250
+
+runcmd:
+  # Node 20 LTS from NodeSource.
+  - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  - apt-get install -y nodejs
+
+  # Global CLIs the Stytch -> Vercel workflow needs.
+  - npm install -g @anthropic-ai/claude-code vercel
+
+  # doctl — DigitalOcean CLI, useful for managing this very droplet.
+  - |
+    DOCTL_VERSION=1.111.0
+    curl -fsSL "https://github.com/digitalocean/doctl/releases/download/v${DOCTL_VERSION}/doctl-${DOCTL_VERSION}-linux-amd64.tar.gz" \
+      | tar -xz -C /usr/local/bin doctl
+    chmod +x /usr/local/bin/doctl
+
+  # Lock the box down: only SSH inbound.
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow OpenSSH
+  - ufw --force enable
+
+  # Automatic security updates.
+  - dpkg-reconfigure -f noninteractive unattended-upgrades
+
+  # Friendly motd.
+  - |
+    cat > /etc/motd <<'EOF'
+
+    tinker dev box — Claude Code, vercel, doctl preinstalled.
+    First time? See web/infra/digitalocean/README.md for auth steps.
+
+    EOF
+
+final_message: "tinker box ready in $UPTIME seconds. SSH as tinker@<ip>."
