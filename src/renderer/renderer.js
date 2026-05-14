@@ -24,13 +24,11 @@
   // ── DOM refs ─────────────────────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
   const sessionsEl = $("#sessions"); // legacy mount; null after the sidebar restructure
-  const newSessionBtn = $("#new-session");
   const navHome = $("#nav-home");
   const feedView = $("#welcome");
   const writingView = $("#writing");
   const readView = $("#read");
   const homeListEl = $("#home-list");
-  const homeAddBtn = $("#home-add");
   const readUrl = $("#read-url");
   const readBody = $("#read-body");
   const readClose = $("#read-close");
@@ -239,16 +237,7 @@
   }
 
   // ── Wire up ─────────────────────────────────────────────────────────
-  newSessionBtn.addEventListener("click", () => newDraft());
   navHome.addEventListener("click", () => showFeed());
-
-  if (homeAddBtn) {
-    homeAddBtn.addEventListener("click", () => {
-      if (window.tinkerLocations && typeof window.tinkerLocations.openAddModal === "function") {
-        window.tinkerLocations.openAddModal();
-      }
-    });
-  }
 
   // Welcome screen prompt: "What's the name of the place you are at?".
   // On submit: register the place as a location (so it persists in

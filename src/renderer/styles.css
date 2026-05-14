@@ -104,34 +104,6 @@ html.on-web .sidebar__top {
   color: var(--color-foreground);
 }
 
-.sidebar__top-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  -webkit-app-region: no-drag;
-}
-
-/* Compose + add-location icon buttons. Plain icon, no text — matches
-   the channel-list density of the home rows beneath. */
-.sidebar__icon-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 0;
-  background: transparent;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--color-muted);
-  transition: background 0.12s ease, color 0.12s ease, transform 0.06s ease;
-}
-.sidebar__icon-btn:hover {
-  background: var(--color-hover);
-  color: var(--color-foreground);
-}
-.sidebar__icon-btn:active { transform: scale(0.94); }
-
 .sidebar__footer {
   padding: 10px 12px 14px;
   font-size: 13px;
