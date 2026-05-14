@@ -117,10 +117,16 @@
 
   // ── Classifier ─────────────────────────────────────────────────────
   let classifying = false;
+  // In-memory backoff so a failing classifier (e.g. missing server-side
+  // API key, expired JWT) doesn't fire on every re-render. Cleared by a
+  // page reload, which is enough recovery in practice.
+  let classifyCooldownUntil = 0;
+  const CLASSIFY_RETRY_MS = 60_000;
 
   async function classifyUncategorized(items, state) {
     if (classifying) return;
     if (!items.length) return;
+    if (Date.now() < classifyCooldownUntil) return;
     if (!window.tinker || typeof window.tinker.callClaude !== "function") return;
 
     classifying = true;
@@ -259,18 +265,15 @@
       }
 
       saveState(state);
-    } catch {
-      // Network / parse failure — assign everything to Unsorted so the
-      // UI settles instead of spinning. Founder can prompt a retry by
-      // adding more writing (changes the fingerprint).
-      ensureUnsorted(state);
-      for (const loc of items) {
-        state.locations[loc.key] = {
-          paths: [[UNSORTED_KEY]],
-          fp: fingerprintContent(loc.contentSnippets || []),
-        };
-      }
-      saveState(state);
+    } catch (err) {
+      // Network / parse / upstream failure. Don't persist a placement —
+      // the items stay in the PENDING bucket so a future render retries
+      // once the underlying issue (missing API key, expired JWT, transient
+      // 5xx) clears. Persisting UNSORTED here used to freeze classification
+      // permanently because the fingerprint matched on every subsequent
+      // render. Backoff to avoid hammering the API while it's still down.
+      classifyCooldownUntil = Date.now() + CLASSIFY_RETRY_MS;
+      try { console.error("[tinker] location classification failed:", err); } catch { /* ignore */ }
     } finally {
       classifying = false;
       const mount = document.getElementById("home-list");
