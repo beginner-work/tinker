@@ -143,8 +143,8 @@ html.pwa-hint-visible .feed {
    * the instructions stay visible behind any popover Safari spawns
    * from below. `dvh` resizes with the URL bar so the rule is
    * stable across expanded/minimized chrome states. */
-  min-height: 60vh;
-  min-height: 60dvh;
+  min-height: 80vh;
+  min-height: 80dvh;
 }
 
 /* Modifier: anchor the sheet to the TOP of the viewport instead of
