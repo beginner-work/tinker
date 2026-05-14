@@ -91,6 +91,21 @@ async function canSignUp(stytchUserId, phone) {
     if (phone) ctx.phone = phone;
     const allowed = await client.variation("signup-enabled", ctx, false);
     console.log("[launchdarkly] evaluated signup-enabled:", { ctx, allowed });
+    // CRITICAL on Vercel / serverless: explicitly flush the analytics
+    // events buffer before the function returns. The SDK is designed
+    // for long-running servers where flushInterval (default 5s) ticks
+    // naturally. Serverless functions return in ~50ms — the buffer
+    // never gets flushed and evals don't reach LD's Insights tab.
+    // Wait at most ~1.5s so a slow LD events endpoint doesn't hold
+    // the user's verify request open.
+    try {
+      await Promise.race([
+        client.flush(),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
+    } catch (e) {
+      console.error("[launchdarkly] flush failed:", e && e.message);
+    }
     return !!allowed;
   } catch (err) {
     console.error("[launchdarkly] evaluation threw:", err && err.message);
