@@ -88,13 +88,19 @@ html.on-web .sidebar__top {
   align-items: center;
   gap: 9px;
   padding: 4px 6px 4px 4px;
-  border-radius: 8px;
+  border-radius: 10px;
   -webkit-app-region: no-drag;
   cursor: pointer;
-  transition: background 0.15s ease;
   min-width: 0;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px) url(#liquid-glass) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 0;
+  box-shadow: none;
+  transition: background 0.2s ease, transform 0.15s ease;
 }
-.sidebar__brand:hover { background: var(--color-hover); }
+.sidebar__brand:hover { background: rgba(255, 255, 255, 0.16); }
+.sidebar__brand:active { transform: scale(0.985); }
 
 .sidebar__name {
   font-family: var(--font-display);
@@ -190,6 +196,7 @@ html.on-web .sidebar__top {
   opacity: 0.85;
   margin-bottom: 4px;
 }
+.welcome__logo svg rect { display: none; }
 .welcome__question {
   margin: 0;
   font-family: var(--font-display);
