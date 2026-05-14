@@ -1,29 +1,28 @@
-/* pwa-install-hint.css — Safari "Add to Home Screen" install affordance.
+/* pwa-install-hint.css — install banner + bottom-sheet, re-implemented.
  *
- * Modeled on iOS App Store smart banners: a slim banner pinned to the
- * top of the viewport with the app icon, name, a one-line tagline,
- * an "Install" pill, and a dismiss X. Tapping Install reveals a
- * bottom-sheet modal with the three-step iOS Safari instructions
- * (mirroring the Progressier pattern). Tapping the X dismisses and
- * remembers the choice; installing the PWA mid-session removes
- * everything silently via the standalone media query.
+ * Re-implementation goals, after iterating on the previous version
+ * left a persistent hairline "transit shadow" under the banner that
+ * removing borders, matching backgrounds, switching transform → top,
+ * and matching theme-color all failed to clear:
  *
- * Shown only on iOS Safari (mobile web, not standalone, not
- * Capacitor). On wider viewports both pieces are hidden by the
- * 541px breakpoint guard at the bottom.
+ *   1. No transforms. WebKit promotes any transformed element to its
+ *      own compositing layer and renders a subtle anti-aliased shadow
+ *      at the layer boundary — the suspected cause of the darkness.
+ *   2. No opacity / visibility transitions. Same reason.
+ *   3. No box-shadows, no border-bottoms, no backdrop-filters.
+ *   4. Show/hide via the `hidden` attribute only. The browser toggles
+ *      `display: none` ↔ default with no animation, no layer churn.
+ *
+ * If a darkness still appears at the banner's bottom under this
+ * minimal version, the cause is structural (iOS scroll-edge or
+ * status-bar separator) rather than anything our CSS is asking for.
  */
 
-/* ── Top banner ────────────────────────────────────────────────────── */
+/* ── Banner ────────────────────────────────────────────────────────── */
 
 .pwa-hint {
   position: fixed;
-  /* Hidden by sitting fully above the viewport. We animate `top`
-   * rather than `transform: translateY(-100%)` because the transform
-   * promotes the banner to its own compositing layer in WebKit,
-   * which Safari then renders with a hairline shadow at the layer
-   * boundary — the "darkness" beneath the bar. Plain `top` paints
-   * in the document layer, no boundary artifact. */
-  top: -120px;
+  top: 0;
   left: 0;
   right: 0;
   z-index: 75;
@@ -35,10 +34,7 @@
   padding-left: calc(env(safe-area-inset-left, 0px) + 12px);
   padding-right: calc(env(safe-area-inset-right, 0px) + 12px);
   background: var(--color-surface, #ffffff);
-  transition: top 0.32s cubic-bezier(0.2, 0.85, 0.3, 1);
 }
-
-.pwa-hint[data-visible] { top: 0; }
 
 .pwa-hint__icon {
   flex-shrink: 0;
@@ -84,10 +80,8 @@
   border: 0;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s ease, transform 0.05s ease;
 }
-.pwa-hint__action:hover { background: var(--color-accent-press, #4f46e5); }
-.pwa-hint__action:active { transform: scale(0.96); }
+.pwa-hint__action:active { background: var(--color-accent-press, #4f46e5); }
 
 .pwa-hint__dismiss {
   flex-shrink: 0;
@@ -101,14 +95,11 @@
   color: var(--color-muted, #6f6a65);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
 }
-.pwa-hint__dismiss:hover { background: var(--color-border, #ede8e0); color: var(--color-foreground, #2d2a26); }
-.pwa-hint__dismiss:active { transform: scale(0.94); }
+.pwa-hint__dismiss:active { background: var(--color-border, #ede8e0); }
 
-/* Push the hamburger toggle and the welcome content down so they
- * don't sit underneath the banner. The visible-banner state is
- * carried as a class on <html> by the JS. */
+/* Shift the hamburger drawer-toggle and welcome content down so they
+ * don't sit beneath the banner. Class on <html> tracks visibility. */
 html.pwa-hint-visible .drawer-toggle {
   top: calc(env(safe-area-inset-top, 0px) + 12px + 64px);
 }
@@ -116,7 +107,7 @@ html.pwa-hint-visible .feed {
   padding-top: calc(env(safe-area-inset-top, 0px) + 80px + 64px);
 }
 
-/* ── Bottom-sheet instructions ─────────────────────────────────────── */
+/* ── Bottom-sheet ──────────────────────────────────────────────────── */
 
 .pwa-hint-sheet {
   position: fixed;
@@ -124,20 +115,12 @@ html.pwa-hint-visible .feed {
   z-index: 100;
   display: flex;
   align-items: flex-end;
-  pointer-events: none;
 }
-
 .pwa-hint-sheet__backdrop {
   position: absolute;
   inset: 0;
   background: rgba(20, 24, 40, 0.45);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
-  opacity: 0;
-  transition: opacity 0.24s ease;
-  pointer-events: none;
 }
-
 .pwa-hint-sheet__panel {
   position: relative;
   width: 100%;
@@ -146,15 +129,7 @@ html.pwa-hint-visible .feed {
   background: var(--color-surface, #ffffff);
   border-radius: 20px 20px 0 0;
   padding: 18px 18px calc(env(safe-area-inset-bottom, 0px) + 22px);
-  transform: translateY(100%);
-  transition: transform 0.32s cubic-bezier(0.2, 0.85, 0.3, 1);
-  pointer-events: auto;
-  box-shadow: 0 -8px 28px rgba(20, 24, 40, 0.18);
 }
-
-.pwa-hint-sheet[data-visible] { pointer-events: auto; }
-.pwa-hint-sheet[data-visible] .pwa-hint-sheet__backdrop { opacity: 1; pointer-events: auto; }
-.pwa-hint-sheet[data-visible] .pwa-hint-sheet__panel { transform: translateY(0); }
 
 .pwa-hint-sheet__header {
   display: flex;
@@ -182,8 +157,7 @@ html.pwa-hint-visible .feed {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.pwa-hint-sheet__close:hover { background: var(--color-surface-alt, #fff9f0); color: var(--color-foreground, #2d2a26); }
-.pwa-hint-sheet__close:active { transform: scale(0.94); }
+.pwa-hint-sheet__close:active { background: var(--color-surface-alt, #fff9f0); color: var(--color-foreground, #2d2a26); }
 
 .pwa-hint-sheet__app {
   display: flex;

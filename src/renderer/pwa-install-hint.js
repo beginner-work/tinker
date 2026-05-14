@@ -1,17 +1,22 @@
-/* pwa-install-hint.js — App-Store-style install banner + bottom-sheet
- * instructions for adding tinker to the iOS Home Screen.
+/* pwa-install-hint.js — iOS Safari install banner + bottom-sheet,
+ * re-implemented as a minimal show/hide via the `hidden` attribute.
  *
- * Banner is shown only on iOS Safari (mobile web, not standalone,
- * not Capacitor). Tapping Install opens the bottom-sheet with the
- * three-step Safari flow. Tapping the banner's X dismisses it and
- * remembers the choice in localStorage. Installing the PWA
- * mid-session flips the display-mode media query and the whole
- * thing is removed silently.
+ * No transforms, no transitions, no theme-color juggling, no
+ * compositing-layer hints. The browser toggles `display: none`
+ * ↔ default for both elements; iOS Safari renders them in its
+ * normal document paint layer with no transit-shadow artifacts.
+ *
+ * Banner shows when all of: iOS Safari (mobile web, not Chrome /
+ * Firefox / etc. on iOS), not running standalone, not inside
+ * Capacitor / Electron, not previously dismissed. Tap Install →
+ * open the instructions sheet. Tap X → dismiss (persisted in
+ * localStorage). Installing the PWA mid-session flips the
+ * display-mode media query and the whole thing disappears.
  */
 
 (function () {
   const STORAGE_KEY = "tinker_pwa_hint_dismissed";
-  const SHOW_DELAY_MS = 1200;
+  const SHOW_DELAY_MS = 800;
 
   function isIosSafari() {
     const ua = navigator.userAgent || "";
@@ -36,114 +41,77 @@
     return false;
   }
 
-  function alreadyDismissed() {
+  function dismissed() {
     try { return !!localStorage.getItem(STORAGE_KEY); } catch { return false; }
   }
-
   function markDismissed() {
     try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch { /* private mode */ }
-  }
-
-  // iOS Safari tints the system status bar to match <meta theme-color>
-  // and draws a subtle separator where the tint meets content of a
-  // different color. The banner is white but the document's
-  // theme-color is the cream brand value, so a hairline scrim
-  // appears under the status bar (and visually right at the banner's
-  // bottom in some renderings). Match theme-color to the banner
-  // while it's up, restore the brand value once it's gone.
-  const THEME_DEFAULT = "#F5F3EF";
-  const THEME_BANNER = "#ffffff";
-  function setThemeColor(color) {
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", color);
-  }
-
-  function showBanner(banner) {
-    banner.hidden = false;
-    document.documentElement.classList.add("pwa-hint-visible");
-    setThemeColor(THEME_BANNER);
-    requestAnimationFrame(() => { banner.dataset.visible = ""; });
-  }
-
-  function hideBanner(banner, sheet, { remember = true } = {}) {
-    delete banner.dataset.visible;
-    document.documentElement.classList.remove("pwa-hint-visible");
-    setThemeColor(THEME_DEFAULT);
-    if (remember) markDismissed();
-    setTimeout(() => {
-      banner.remove();
-      if (sheet) sheet.remove();
-    }, 360);
-  }
-
-  function openSheet(sheet) {
-    sheet.hidden = false;
-    // Two rAFs so the initial hidden→visible transform animates.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      sheet.dataset.visible = "";
-    }));
-  }
-
-  function closeSheet(sheet) {
-    delete sheet.dataset.visible;
-    setTimeout(() => { sheet.hidden = true; }, 320);
   }
 
   function init() {
     if (isWrappedRuntime()) return;
     if (!isIosSafari()) return;
     if (isStandalone()) return;
-    if (alreadyDismissed()) return;
+    if (dismissed()) return;
 
     const banner = document.getElementById("pwa-hint");
     const sheet = document.getElementById("pwa-hint-sheet");
     if (!banner) return;
 
-    // Fill in the live hostname so the sheet matches the deploy.
     if (sheet) {
       const hostEl = sheet.querySelector("[data-pwa-host]");
       if (hostEl) hostEl.textContent = window.location.hostname;
     }
 
-    // Wait for the auth gate before showing — we don't want to fight
-    // the sign-in screen for the user's attention.
-    const authGate = document.getElementById("auth-gate");
-    if (authGate && !authGate.hidden) {
+    function showBanner() {
+      banner.hidden = false;
+      document.documentElement.classList.add("pwa-hint-visible");
+    }
+    function hideAll({ remember = true } = {}) {
+      banner.hidden = true;
+      if (sheet) sheet.hidden = true;
+      document.documentElement.classList.remove("pwa-hint-visible");
+      if (remember) markDismissed();
+    }
+    function openSheet() { if (sheet) sheet.hidden = false; }
+    function closeSheet() { if (sheet) sheet.hidden = true; }
+
+    // Wait for the auth gate to drop before announcing ourselves so
+    // we don't fight the sign-in flow for attention.
+    const gate = document.getElementById("auth-gate");
+    if (gate && !gate.hidden) {
       const obs = new MutationObserver(() => {
-        if (authGate.hidden) {
+        if (gate.hidden) {
           obs.disconnect();
-          setTimeout(() => showBanner(banner), SHOW_DELAY_MS);
+          setTimeout(showBanner, SHOW_DELAY_MS);
         }
       });
-      obs.observe(authGate, { attributes: true, attributeFilter: ["hidden"] });
+      obs.observe(gate, { attributes: true, attributeFilter: ["hidden"] });
     } else {
-      setTimeout(() => showBanner(banner), SHOW_DELAY_MS);
+      setTimeout(showBanner, SHOW_DELAY_MS);
     }
 
-    // Banner buttons — Install opens the sheet, X dismisses everything.
     banner.addEventListener("click", (e) => {
       const action = e.target.closest("[data-pwa-action]");
       if (!action) return;
       const kind = action.dataset.pwaAction;
-      if (kind === "install" && sheet) openSheet(sheet);
-      else if (kind === "dismiss") hideBanner(banner, sheet);
+      if (kind === "install") openSheet();
+      else if (kind === "dismiss") hideAll();
     });
 
-    // Sheet — backdrop or close button shuts it; the banner stays.
     if (sheet) {
       sheet.addEventListener("click", (e) => {
         const action = e.target.closest("[data-pwa-action]");
-        if (action && action.dataset.pwaAction === "close-sheet") closeSheet(sheet);
+        if (action && action.dataset.pwaAction === "close-sheet") closeSheet();
       });
-      // Escape closes the sheet (matters on iPad with hardware keyboards).
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && "visible" in sheet.dataset) closeSheet(sheet);
+        if (e.key === "Escape" && !sheet.hidden) closeSheet();
       });
     }
 
-    // Auto-disappear when the PWA gets installed mid-session.
+    // Auto-disappear if the user installs mid-session.
     const mq = window.matchMedia("(display-mode: standalone)");
-    const onChange = () => { if (mq.matches) hideBanner(banner, sheet, { remember: false }); };
+    const onChange = () => { if (mq.matches) hideAll({ remember: false }); };
     if (mq.addEventListener) mq.addEventListener("change", onChange);
     else if (mq.addListener) mq.addListener(onChange);
   }
