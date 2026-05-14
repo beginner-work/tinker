@@ -841,16 +841,6 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
 .auth-gate__brand { display: flex; align-items: center; justify-content: center; }
 .auth-gate__brand svg { width: 44px; height: 44px; }
 
-.auth-gate__invite {
-  margin: 0 0 4px;
-  text-align: center;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-
 .auth-gate__title {
   margin: 0;
   font-family: var(--font-display);
