@@ -56,19 +56,6 @@
           </svg>
           <span class="sidebar__name">tinker</span>
         </button>
-        <div class="sidebar__top-actions">
-          <button id="new-session" class="sidebar__icon-btn" type="button" aria-label="Start a new draft" title="Start a new draft">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-              <path d="M14 4l6 6-10 10H4v-6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-              <path d="M13 5l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-          </button>
-          <button id="home-add" class="sidebar__icon-btn" type="button" aria-label="Add a location" title="Add a location">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
-        </div>
       </header>
 
       <div id="home-list" class="home-list" aria-live="polite"></div>
@@ -104,7 +91,7 @@
                    autocomplete="off" spellcheck="false" maxlength="120" />
             <button type="submit" class="welcome__submit">Start →</button>
           </form>
-          <p class="welcome__hint">Or pick a place from the sidebar.</p>
+          <div id="welcome-pills" class="welcome__pills" aria-label="Previous locations" hidden></div>
         </div>
       </section>
 
@@ -195,23 +182,6 @@
       </div>
     </div>
 
-    <!-- First-sign-in welcome card. Shown once per device after the
-         tester finishes phone-OTP; suppressed thereafter via
-         localStorage["tinker.welcomed.v1"]. Personal framing, no
-         "beta" badge. -->
-    <div id="welcome-card" class="welcome-card" hidden
-         role="dialog" aria-modal="true" aria-labelledby="welcome-card-title">
-      <div class="welcome-card__backdrop" data-welcome-dismiss></div>
-      <div class="welcome-card__panel">
-        <h2 id="welcome-card-title" class="welcome-card__title">you're inside tinker.</h2>
-        <p class="welcome-card__body">
-          If you ever notice a bug, just text me.
-        </p>
-        <p class="welcome-card__sig">— Tyler</p>
-        <button type="button" class="welcome-card__btn" data-welcome-dismiss>tinker</button>
-      </div>
-    </div>
-
     <!-- Platform shim runs first. -->
     <script src="./platform-mobile.js" defer></script>
     <script src="./auth.js" defer></script>
@@ -219,7 +189,6 @@
     <script src="./icon-init.js" defer></script>
     <script src="./writing.js" defer></script>
     <script src="./renderer.js" defer></script>
-    <script src="./welcome-card.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
   </body>
 </html>
