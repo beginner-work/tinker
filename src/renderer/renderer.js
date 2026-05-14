@@ -29,9 +29,7 @@
   const writingView = $("#writing");
   const readView = $("#read");
   const homeListEl = $("#home-list");
-  const readUrl = $("#read-url");
   const readBody = $("#read-body");
-  const readClose = $("#read-close");
 
   // ── Storage helpers ──────────────────────────────────────────────────
   const uid = () => "d_" + Math.random().toString(36).slice(2, 10);
@@ -188,7 +186,6 @@
     readView.hidden = false;
     activeId = null;
     renderSidebar();
-    readUrl.textContent = essay.url;
     readBody.innerHTML =
       `<header class="read__head">` +
         `<div class="read__author">${escapeHtml(essay.author)}</div>` +
@@ -316,8 +313,6 @@
       renderWelcomePills();
     });
   }
-
-  readClose.addEventListener("click", () => showFeed());
 
   // Tell writing.js how to ask the renderer to do things.
   window.tinkerOnWritingClose = () => closeActiveDraft();
