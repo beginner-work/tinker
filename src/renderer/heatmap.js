@@ -326,7 +326,6 @@
     mountEl.innerHTML = "";
 
     if (locations.length === 0) {
-      mountEl.appendChild(renderEmpty());
       return { all: 0 };
     }
 
@@ -427,16 +426,6 @@
     const topName = state.taxonomy[path[0]]?.name || path[0];
     const leafName = path.length > 1 ? (state.taxonomy[path[path.length - 1]]?.name || path[path.length - 1]) : "";
     return leafName ? `${topName}${leafName}` : topName;
-  }
-
-  function renderEmpty() {
-    const empty = document.createElement("div");
-    empty.className = "home-list__empty";
-    empty.innerHTML = `
-      <p class="home-list__empty-title">No locations yet.</p>
-      <p class="home-list__empty-sub">Tap the <strong>+</strong> above to add a place you reflect from. Claude will sort each one into a category once you've written there — and the categories will grow with you.</p>
-    `;
-    return empty;
   }
 
   // Layout the row as a Slack-style channel: avatar + name on top,
