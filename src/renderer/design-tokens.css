@@ -1,0 +1,80 @@
+/* Design system tokens for the tinker renderer.
+ *
+ * Mirrors design-system/colors_and_type.css. Loaded after styles.css
+ * in index.html so it extends the production :root block without
+ * disturbing it. Keep in sync with the design-system bundle.
+ */
+
+:root {
+  /* Action accent — extension */
+  --color-accent-press: #4f46e5;
+
+  /* Pastel rainbow — beginner brand expressive palette. */
+  --color-rose:         #f9a8d4;   --color-rose-light:    #fdf2f8;
+  --color-peach:        #fdba74;   --color-peach-light:   #fff7ed;
+  --color-amber:        #fde68a;   --color-amber-light:   #fffbeb;
+  --color-mint:         #6ee7b7;   --color-mint-light:    #ecfdf5;
+  --color-sky:          #7dd3fc;   --color-sky-light:     #f0f9ff;
+  --color-indigo:       #a5b4fc;   --color-indigo-light:  #eef2ff;
+  --color-violet:       #c4b5fd;   --color-violet-light:  #f5f3ff;
+
+  /* Rainbow-web logo aliases */
+  --logo-pink:          #f9a8d4;
+  --logo-orange:        #fdba74;
+  --logo-yellow:        #fde68a;
+  --logo-leaf:          #7bc47a;
+  --logo-sky:           #7dd3fc;
+  --logo-mint:          #6ee7b7;
+  --logo-purple:        #c8b6e2;
+
+  /* Semantic */
+  --color-error-bg:     #fdf0eb;
+  --color-error-border: #f0d3c5;
+  --color-terracotta-light: #fdf0eb;
+  --color-selection:    rgba(123, 196, 122, 0.32);
+
+  /* Mono font */
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Type scale */
+  --text-display-lg: 38px;
+  --text-display:    22px;
+  --text-essay:      17px;
+  --text-base:       15px;
+  --text-body:       14px;
+  --text-small:      13px;
+  --text-micro:      11px;
+
+  --leading-tight: 1.1;
+  --leading-snug:  1.3;
+  --leading-body:  1.55;
+  --leading-prose: 1.7;
+
+  --tracking-display: -0.02em;
+  --tracking-tight:   -0.01em;
+  --tracking-normal:   0;
+  --tracking-label:    0.06em;
+  --tracking-crumb:    0.08em;
+
+  /* Radii */
+  --radius-pill:      999px;
+  --radius-card:       12px;
+  --radius-button:     10px;
+  --radius-chip:        9px;
+  --radius-icon:        8px;
+  --radius-logo-tile:  44px;
+
+  /* Shadow + focus extensions */
+  --shadow-card: 0 1px 2px rgba(45, 90, 61, 0.04);
+  --focus-ring:  0 0 0 4px rgba(99, 102, 241, 0.18);
+
+  /* Spacing */
+  --space-1:  4px;
+  --space-2:  6px;
+  --space-3:  8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+}

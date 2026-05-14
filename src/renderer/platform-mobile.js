@@ -1,12 +1,15 @@
 /* Platform shim — runs on Capacitor (iOS/Android) and on plain web,
  * but stays out of the way when Electron's preload has already
- * installed window.tinker. Provides the same surface the renderer
- * expects, backed by a direct browser-side call to Anthropic and
- * (where available) the @capacitor/browser plugin for opening
- * external sites in the system browser overlay. */
+ * installed window.tinker. Exposes the same window.tinker.* surface
+ * the renderer relies on.
+ *
+ * In this deployment the browser does NOT hold an Anthropic key —
+ * every Claude call is proxied through /api/claude/converse on the
+ * Vercel serverless layer, gated by the phone/PIN JWT. The shim
+ * forwards the founder's `tinker_jwt` Bearer token on each request. */
 
 (function () {
-  if (window.tinker && typeof window.tinker.searchQuery === "function") {
+  if (window.tinker && typeof window.tinker.callClaude === "function") {
     return; // Electron preload already wired things up.
   }
 
@@ -17,95 +20,49 @@
   const STORE = window.localStorage;
   const get = (k) => STORE.getItem(k) || "";
 
-  // Same prompt the desktop main process uses. Kept in sync by hand —
-  // the contract is the prompt, not the source location. If you change
-  // it in src/main/main.js, change it here too.
-  const SEARCH_SYSTEM_PROMPT = `You are the search engine for the tinker web browser — a quiet alternative to ad-driven search.
-
-When you receive a query, write a calm, conversational answer in three to five short paragraphs that helps the reader understand the topic and where to go next. Embed Markdown links to specific, well-known websites — Wikipedia, official organisation sites, established publications, .gov pages — where the reader can read more or take action. Format links exactly as [label](https://example.com).
-
-Voice: warm, plainspoken, calm. Address the reader as "you" where natural. No headings, no bulleted lists — just flowing prose, with short paragraphs separated by blank lines.
-
-Only include links to sources you'd actually recommend and that you are confident exist. Do not invent URLs. If you are uncertain about a specific URL, omit the link rather than guess. It is better to write a confident paragraph with no link than to fabricate one.`;
-
-  // ── Web build: search via the JWT-backed proxy in src/web/server.js ──
-  //
-  // The plain-web host serves /api/search, which proxies to the beginner
-  // API's /claude/chat with the user's JWT (issued by the phone OTP flow
-  // implemented in auth.js). The model + system prompt live server-side
-  // so the browser bundle never sees an Anthropic key.
-
-  async function searchViaProxy(query) {
+  /** Proxied Claude call — server-side keys, JWT-gated.
+   *
+   *   { system, messages, model, maxTokens } → { text, usage }
+   *
+   * Always uses the prompt-cached system block on the server. The
+   * browser bundle never sees an Anthropic key. */
+  async function callClaude({ system, messages, model, maxTokens } = {}) {
     const token = get("tinker_jwt");
     if (!token) {
-      const e = new Error("Sign in to search.");
+      const e = new Error("Sign in to write.");
       e.code = "MISSING_TOKEN";
       throw e;
     }
-    const res = await fetch("/api/search", {
+    const body = { messages };
+    if (system) body.system = system;
+    if (model) body.model = model;
+    if (maxTokens) body.max_tokens = maxTokens;
+
+    const res = await fetch("/api/claude/converse", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ query: query.trim() }),
+      body: JSON.stringify(body),
     });
+
     if (res.status === 401) {
       try { STORE.removeItem("tinker_jwt"); } catch { /* ignore */ }
-      window.location.reload();
-      throw new Error("Session expired — reloading to sign you in again.");
+      const e = new Error("Session expired — sign in again.");
+      e.code = "SESSION_EXPIRED";
+      // Drop the renderer back into the auth gate.
+      setTimeout(() => window.location.reload(), 100);
+      throw e;
     }
     let data = null;
     try { data = await res.json(); } catch { data = {}; }
     if (!res.ok) {
-      const message = (data && data.error) || `Search failed (${res.status})`;
+      const message = (data && (data.error || data.detail)) || `Claude call failed (${res.status})`;
       throw new Error(message);
     }
-    return { text: data.text || "", usage: data.usage };
+    return { text: data.text || "", usage: data.usage, model: data.model };
   }
-
-  // ── Capacitor mobile: direct browser → Anthropic with key in storage ──
-
-  async function searchDirect(query) {
-    const apiKey = get("ANTHROPIC_API_KEY");
-    if (!apiKey) {
-      const e = new Error(
-        "ANTHROPIC_API_KEY is not set. Open Settings to add it (or run localStorage.setItem from the inspector)."
-      );
-      e.code = "MISSING_API_KEY";
-      throw e;
-    }
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 1024,
-        system: [
-          {
-            type: "text",
-            text: SEARCH_SYSTEM_PROMPT,
-            cache_control: { type: "ephemeral" },
-          },
-        ],
-        messages: [{ role: "user", content: query.trim() }],
-      }),
-    });
-    if (!res.ok) {
-      const errBody = await res.text();
-      throw new Error(`Anthropic API ${res.status}: ${errBody.slice(0, 240)}`);
-    }
-    const data = await res.json();
-    const textBlock = (data.content || []).find((b) => b.type === "text");
-    return { text: textBlock ? textBlock.text : "", usage: data.usage };
-  }
-
-  const searchQuery = isWeb ? searchViaProxy : searchDirect;
 
   async function openExternal(url) {
     if (isCapacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
@@ -113,17 +70,17 @@ Only include links to sources you'd actually recommend and that you are confiden
         await window.Capacitor.Plugins.Browser.open({ url });
         return;
       } catch {
-        // fall through to window.open
+        // fall through
       }
     }
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
   window.tinker = {
-    version: () => Promise.resolve("0.1.0-mobile"),
-    platform: () => Promise.resolve(isCapacitor ? "capacitor" : "web"),
+    version: () => Promise.resolve("0.1.0-tinker-v1"),
+    platform: () => Promise.resolve(isCapacitor ? "capacitor" : isWeb ? "web" : "unknown"),
     setIcon: () => Promise.resolve(true),
-    searchQuery,
+    callClaude,
     openExternal,
     supportsWebview: false,
     setSetting: (k, v) => {

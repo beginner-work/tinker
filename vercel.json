@@ -3,6 +3,14 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "outputDirectory": "src/renderer",
-  "installCommand": "echo 'skip install — static PWA, no build deps used at deploy time'",
-  "buildCommand": "echo 'no build step — files in src/renderer are served as-is'"
+  "installCommand": "echo 'skip install — static PWA + dependency-free Vercel functions'",
+  "buildCommand": "echo 'no build step — files in src/renderer are served as-is'",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+      ]
+    }
+  ]
 }

@@ -3,10 +3,12 @@
  * Body: { phone: "5551234567" }
  * Reply: { phone_id, isNew }
  *
- * Triggers a Stytch SMS OTP and returns the phone_id the client needs to
- * pass back on verify. We do NOT echo a dev-mode PIN — the previous flow
- * had one because the upstream beginner API minted PINs itself; Stytch
- * sends real SMS even with test creds, so there's nothing to dev-bypass.
+ * Triggers a Stytch SMS OTP and returns the phone_id the client needs
+ * to pass back on verify. No allowlist gate — anyone with the URL who
+ * completes phone-OTP is in. The URL is not advertised, the page is
+ * noindex, and Stytch is the actual authentication boundary. If a
+ * stranger ever shows up in the Stytch user list we'll hear about it
+ * and add a gate then.
  */
 
 "use strict";

@@ -1,510 +1,321 @@
-/* tinker Web Browser — renderer
+/* tinker — renderer chrome
  *
- * Session + navigation logic. Each session is either:
- *   - the welcome page (a <section> already in the DOM), or
- *   - a webview that we mount lazily inside the .stage element.
+ * Coordinates three views inside the centre column:
+ *   - feed     (welcome page, LinkedIn-shaped column of essay cards)
+ *   - writing  (onboarding-shaped guided writing flow — see writing.js)
+ *   - read     (an opened essay)
  *
- * State lives in a plain `sessions` array. The DOM is rebuilt from
- * state via `render()`; webviews persist between renders so navigation
- * history isn't lost when sessions are reordered or selection changes.
+ * The sidebar's "Drafts" list is the founder's in-progress essays. Each
+ * draft is a small object persisted to localStorage. Selecting a draft
+ * opens the writing flow at the question the founder left off on.
+ *
+ * State boundaries:
+ *   - drafts     → localStorage["tinker.drafts.v1"]    (id, title, transcript, currentStep, …)
+ *   - essays     → localStorage["tinker.essays.v1"]    (published; rendered in the feed)
+ *   - activeId   → which draft (if any) is currently open
  */
 
 (() => {
   "use strict";
 
-  const HOME_URL = "tinker://home";
-  const SEARCH_PREFIX = "tinker://search?q=";
-
-  /** @type {Array<{id: string, url: string, title: string, loading: boolean, view: HTMLElement | null}>} */
-  let sessions = [];
-  let activeId = null;
+  const STORAGE_DRAFTS = "tinker.drafts.v1";
+  const STORAGE_ESSAYS = "tinker.essays.v1";
 
   // ── DOM refs ─────────────────────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
-  const stage = $("#stage");
-  const welcome = $("#welcome");
-  const sessionsEl = $("#sessions");
+  const sessionsEl = $("#sessions"); // legacy mount; null after the sidebar restructure
   const newSessionBtn = $("#new-session");
-  const navBack = $("#nav-back");
-  const navForward = $("#nav-forward");
-  const navReload = $("#nav-reload");
   const navHome = $("#nav-home");
-  const loadbar = $("#loadbar");
-  const welcomeForm = $("#welcome-form");
-  const welcomeInput = $("#welcome-input");
+  const feedView = $("#welcome");
+  const writingView = $("#writing");
+  const readView = $("#read");
+  const homeListEl = $("#home-list");
+  const homeAddBtn = $("#home-add");
+  const readUrl = $("#read-url");
+  const readBody = $("#read-body");
+  const readClose = $("#read-close");
 
-  // ── Helpers ──────────────────────────────────────────────────────────
+  // ── Storage helpers ──────────────────────────────────────────────────
+  const uid = () => "d_" + Math.random().toString(36).slice(2, 10);
 
-  const uid = () => "s_" + Math.random().toString(36).slice(2, 9);
-
-  const getActive = () => sessions.find((s) => s.id === activeId) || null;
-
-  /** Decide if a string is a navigable URL or should be searched. */
-  function resolveQuery(raw) {
-    const text = raw.trim();
-    if (!text) return null;
-    if (text === "home" || text === "tinker://home") return HOME_URL;
-    if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(text)) return text;
-    if (/^[a-z]+:/i.test(text)) return text;
-    const looksLikeHost = /^[\w-]+(\.[\w-]+)+(\/.*)?$/i.test(text);
-    if (looksLikeHost) return "https://" + text;
-    if (text.startsWith("localhost") || /^localhost(:\d+)/.test(text)) {
-      return "http://" + text;
-    }
-    return SEARCH_PREFIX + encodeURIComponent(text);
+  function loadDrafts() {
+    try {
+      const raw = localStorage.getItem(STORAGE_DRAFTS);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+  function saveDrafts(drafts) {
+    try { localStorage.setItem(STORAGE_DRAFTS, JSON.stringify(drafts)); } catch { /* ignore */ }
+  }
+  function loadEssays() {
+    try {
+      const raw = localStorage.getItem(STORAGE_ESSAYS);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+  function saveEssays(essays) {
+    try { localStorage.setItem(STORAGE_ESSAYS, JSON.stringify(essays)); } catch { /* ignore */ }
   }
 
-  // ── Markdown rendering for search results ───────────────────────────
-  //
-  // Tiny renderer just for what Claude Haiku emits: paragraphs separated
-  // by blank lines, [label](url) links, **bold** and *italic*. We escape
-  // HTML first and only re-inject the tags we generate, so nothing in
-  // the model output reaches the DOM as raw HTML.
+  // ── State ────────────────────────────────────────────────────────────
+  let drafts = loadDrafts();
+  let essays = loadEssays();
+  let activeId = null; // current draft id, or null when on the feed/read view
+
+  // Expose so writing.js can mutate the active draft's state.
+  const store = {
+    get drafts() { return drafts; },
+    get essays() { return essays; },
+    getDraft(id) { return drafts.find((d) => d.id === id) || null; },
+    getActive() { return drafts.find((d) => d.id === activeId) || null; },
+    updateDraft(id, patch) {
+      const idx = drafts.findIndex((d) => d.id === id);
+      if (idx === -1) return null;
+      drafts[idx] = { ...drafts[idx], ...patch, updatedAt: Date.now() };
+      saveDrafts(drafts);
+      renderSidebar();
+      return drafts[idx];
+    },
+    deleteDraft(id) {
+      drafts = drafts.filter((d) => d.id !== id);
+      saveDrafts(drafts);
+      if (activeId === id) showFeed();
+      renderSidebar();
+    },
+    publish(draft, stitched) {
+      const slug = slugify(draft.title || stitched.title || "untitled") + "-" + draft.id.slice(2, 6);
+      const essay = {
+        id: "e_" + Math.random().toString(36).slice(2, 10),
+        slug,
+        author: stitched.author || "you",
+        title: stitched.title || draft.title || "Untitled",
+        body: stitched.body || "",
+        createdAt: Date.now(),
+        url: `/${stitched.author || "you"}/${slug}`,
+        sourceDraft: draft.id,
+        // Carry location through so the home list's vector classifier
+        // can keep reading the writing content after publish.
+        location: draft.location || null,
+      };
+      essays = [essay, ...essays];
+      saveEssays(essays);
+      drafts = drafts.filter((d) => d.id !== draft.id);
+      saveDrafts(drafts);
+      activeId = null;
+      renderSidebar();
+      renderHome();
+      showRead(essay);
+      return essay;
+    },
+  };
+  window.tinkerStore = store;
+
+  function slugify(s) {
+    return (s || "untitled")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .slice(0, 48) || "untitled";
+  }
+
+  // ── Drafts as sidebar tabs ──────────────────────────────────────────
+  function newDraft({ activate = true, preset = null } = {}) {
+    const draft = {
+      id: uid(),
+      title: "Untitled draft",
+      transcript: [],         // [{ q: string, a: string }, …]
+      currentStep: 0,         // index into transcript (cursor)
+      stitched: null,         // last computed { title, body } from the engine
+      pending: null,          // last asked but not-yet-answered question
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    if (preset && typeof preset === "object") {
+      // Pre-set the scene fields. writing.js' renderLocationPrompt
+      // checks `active.location === undefined`, so once we assign
+      // a string (or null) the prompt is skipped and the founder
+      // jumps straight into the mood-tuned first question.
+      if (preset.location !== undefined) draft.location = preset.location || null;
+      if (preset.facing !== undefined) draft.facing = preset.facing || null;
+      if (preset.lastPurchased !== undefined) draft.lastPurchased = preset.lastPurchased || null;
+    }
+    drafts.unshift(draft);
+    saveDrafts(drafts);
+    renderSidebar();
+    if (activate) openDraft(draft.id);
+    return draft;
+  }
+
+  function openDraft(id) {
+    const draft = store.getDraft(id);
+    if (!draft) return;
+    activeId = id;
+    renderSidebar();
+    showWriting();
+    if (window.tinkerWriting) window.tinkerWriting.open(draft);
+  }
+
+  function closeActiveDraft() {
+    activeId = null;
+    renderSidebar();
+    showFeed();
+  }
+
+  // ── Views ───────────────────────────────────────────────────────────
+  function showFeed() {
+    feedView.setAttribute("data-active", "");
+    writingView.hidden = true;
+    readView.hidden = true;
+    activeId = null;
+    renderSidebar();
+    renderHome();
+    // Drop focus onto the welcome question so the founder can just
+    // type the place they're at and hit Enter.
+    const inputEl = document.getElementById("welcome-input");
+    if (inputEl) setTimeout(() => { inputEl.focus(); inputEl.select(); }, 30);
+  }
+  function showWriting() {
+    feedView.removeAttribute("data-active");
+    writingView.hidden = false;
+    readView.hidden = true;
+  }
+  function showRead(essay) {
+    feedView.removeAttribute("data-active");
+    writingView.hidden = true;
+    readView.hidden = false;
+    activeId = null;
+    renderSidebar();
+    readUrl.textContent = essay.url;
+    readBody.innerHTML =
+      `<header class="read__head">` +
+        `<div class="read__author">${escapeHtml(essay.author)}</div>` +
+        `<h1 class="read__title">${escapeHtml(essay.title)}</h1>` +
+      `</header>` +
+      paragraphs(essay.body);
+  }
+
+  // ── Rendering ───────────────────────────────────────────────────────
+  // Sidebar's drafts+essays list is gone — locations now own the sidebar
+  // (see #home-list). Each location card surfaces the latest writing
+  // produced there. Kept as a no-op so existing call sites compile.
+  function renderSidebar() {
+    if (!sessionsEl) return;
+    sessionsEl.innerHTML = "";
+  }
+
+  function renderHome() {
+    if (!homeListEl) return;
+    if (window.tinkerHeatmap && typeof window.tinkerHeatmap.render === "function") {
+      window.tinkerHeatmap.render(homeListEl);
+    }
+  }
 
   function escapeHtml(s) {
-    return s.replace(/[&<>"']/g, (c) =>
+    return String(s || "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
     );
   }
 
-  function renderEssayHtml(markdown) {
-    const escaped = escapeHtml(markdown);
-    const linked = escaped.replace(
-      /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-      (_m, label, url) =>
-        `<a href="${url}" data-search-link="${url}">${label}</a>`
-    );
-    const bolded = linked.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-    const italicised = bolded.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
-    return italicised
+  function paragraphs(body) {
+    return String(body || "")
       .split(/\n{2,}/)
-      .map((p) => `<p>${p.replace(/\n/g, "<br>").trim()}</p>`)
+      .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
       .filter((p) => p !== "<p></p>")
       .join("");
   }
-
-  function hostnameOf(url) {
-    if (!url || url === HOME_URL) return "";
-    try {
-      return new URL(url).hostname.replace(/^www\./, "");
-    } catch {
-      return "";
-    }
+  function relTime(ts) {
+    const diff = (Date.now() - ts) / 1000;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+    if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}d`;
+    const d = new Date(ts);
+    return `${d.getMonth() + 1}/${d.getDate()}`;
   }
 
-  // ── Session CRUD ────────────────────────────────────────────────────
+  // ── Wire up ─────────────────────────────────────────────────────────
+  newSessionBtn.addEventListener("click", () => newDraft());
+  navHome.addEventListener("click", () => showFeed());
 
-  function newSession(url = HOME_URL, { activate = true } = {}) {
-    const session = {
-      id: uid(),
-      url,
-      title: url === HOME_URL ? "New session" : hostnameOf(url) || url,
-      loading: false,
-      view: null,
-    };
-    sessions.push(session);
-    if (activate) activeId = session.id;
-    render();
-    if (url !== HOME_URL) ensureWebview(session);
-    return session;
-  }
-
-  function closeSession(id) {
-    const idx = sessions.findIndex((s) => s.id === id);
-    if (idx === -1) return;
-    const [removed] = sessions.splice(idx, 1);
-    if (removed.view && removed.view.parentNode) {
-      removed.view.parentNode.removeChild(removed.view);
-    }
-    if (activeId === id) {
-      const next = sessions[idx] || sessions[idx - 1];
-      activeId = next ? next.id : null;
-    }
-    if (sessions.length === 0) newSession(HOME_URL);
-    else render();
-  }
-
-  function selectSession(id) {
-    if (activeId === id) return;
-    activeId = id;
-    render();
-  }
-
-  // ── Webview management ──────────────────────────────────────────────
-
-  function ensureWebview(session) {
-    if (session.view) return session.view;
-    const wv = document.createElement("webview");
-    wv.setAttribute("src", session.url);
-    wv.setAttribute("allowpopups", "true");
-    wv.dataset.sessionId = session.id;
-    wireWebviewEvents(session, wv);
-    stage.appendChild(wv);
-    session.view = wv;
-    return wv;
-  }
-
-  function wireWebviewEvents(session, wv) {
-    wv.addEventListener("did-start-loading", () => {
-      session.loading = true;
-      if (session.id === activeId) setLoading(true);
-      renderSessions();
-    });
-    wv.addEventListener("did-stop-loading", () => {
-      session.loading = false;
-      if (session.id === activeId) setLoading(false);
-      renderSessions();
-      renderNavState();
-    });
-    wv.addEventListener("did-navigate", (e) => {
-      session.url = e.url;
-      renderNavState();
-    });
-    wv.addEventListener("did-navigate-in-page", (e) => {
-      session.url = e.url;
-      renderNavState();
-    });
-    wv.addEventListener("page-title-updated", (e) => {
-      session.title = e.title || hostnameOf(session.url) || "Untitled";
-      renderSessions();
-    });
-    wv.addEventListener("did-fail-load", (e) => {
-      // -3 == ABORTED (navigation cancelled, ignore)
-      if (e.errorCode === -3) return;
-      session.loading = false;
-      if (session.id === activeId) setLoading(false);
-    });
-  }
-
-  function navigate(rawUrl) {
-    const url = resolveQuery(rawUrl);
-    if (!url) return;
-    const session = getActive();
-    if (!session) return;
-
-    if (url === HOME_URL) {
-      session.url = HOME_URL;
-      session.title = "New session";
-      removeSessionView(session);
-      render();
-      return;
-    }
-
-    if (url.startsWith(SEARCH_PREFIX)) {
-      const query = decodeURIComponent(url.substring(SEARCH_PREFIX.length));
-      showSearch(session, url, query);
-      return;
-    }
-
-    // On Capacitor / plain web there's no <webview> tag — open the URL
-    // in the system browser overlay (or a new tab) and leave the
-    // current session on its previous view.
-    if (window.tinker && window.tinker.supportsWebview === false) {
-      if (typeof window.tinker.openExternal === "function") {
-        window.tinker.openExternal(url);
-      } else {
-        window.open(url, "_blank", "noopener,noreferrer");
+  if (homeAddBtn) {
+    homeAddBtn.addEventListener("click", () => {
+      if (window.tinkerLocations && typeof window.tinkerLocations.openAddModal === "function") {
+        window.tinkerLocations.openAddModal();
       }
-      return;
-    }
-
-    session.url = url;
-    if (!session.title || session.title === "New session") {
-      session.title = hostnameOf(url) || url;
-    }
-    // Switching to a webview from a non-webview view means the old pane
-    // (e.g. a search-pane) needs to come down before we mount the webview.
-    if (session.view && session.view.tagName.toLowerCase() !== "webview") {
-      removeSessionView(session);
-    }
-    const wv = ensureWebview(session);
-    if (wv.src !== url) {
-      try { wv.loadURL(url); } catch { wv.src = url; }
-    }
-    render();
+    });
   }
 
-  function removeSessionView(session) {
-    if (session.view && session.view.parentNode) {
-      session.view.parentNode.removeChild(session.view);
-    }
-    session.view = null;
-  }
-
-  // ── Search pane ─────────────────────────────────────────────────────
-
-  function showSearch(session, url, query) {
-    session.url = url;
-    session.title = query;
-    if (session.view && session.view.tagName.toLowerCase() !== "section") {
-      removeSessionView(session);
-    }
-    const pane = session.view || createSearchPane(session);
-    session.view = pane;
-    pane.dataset.query = query;
-    setSearchPaneState(pane, "loading", { query });
-    session.loading = true;
-    render();
-    setLoading(true);
-
-    window.tinker
-      .searchQuery(query)
-      .then((result) => {
-        session.loading = false;
-        if (session.id === activeId) setLoading(false);
-        const text = (result && result.text) || "";
-        setSearchPaneState(pane, "ready", { query, text });
-        renderSessions();
-      })
-      .catch((err) => {
-        session.loading = false;
-        if (session.id === activeId) setLoading(false);
-        setSearchPaneState(pane, "error", {
-          query,
-          message: err && err.message ? err.message : String(err),
-        });
-        renderSessions();
-      });
-  }
-
-  function createSearchPane(session) {
-    const pane = document.createElement("section");
-    pane.className = "search-pane";
-    pane.dataset.sessionId = session.id;
-    pane.innerHTML =
-      '<div class="search-pane__inner">' +
-      '<div class="search-pane__header">' +
-      '<span class="search-pane__crumb">Search</span>' +
-      '<h2 class="search-pane__query"></h2>' +
-      "</div>" +
-      '<div class="search-pane__body"></div>' +
-      "</div>";
-    pane.addEventListener("click", (e) => {
-      const a = e.target.closest("a[data-search-link]");
-      if (!a) return;
+  // Welcome screen prompt: "What's the name of the place you are at?".
+  // On submit: register the place as a location (so it persists in
+  // the sidebar) and spawn a writing session anchored there. Empty
+  // submissions just re-focus the input.
+  const welcomeForm = document.getElementById("welcome-form");
+  const welcomeInput = document.getElementById("welcome-input");
+  if (welcomeForm && welcomeInput) {
+    welcomeForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      const target = a.getAttribute("data-search-link");
-      if (target) newSession(target);
-    });
-    stage.appendChild(pane);
-    return pane;
-  }
-
-  function setSearchPaneState(pane, state, { query, text, message } = {}) {
-    pane.dataset.state = state;
-    const queryEl = pane.querySelector(".search-pane__query");
-    const body = pane.querySelector(".search-pane__body");
-    if (query !== undefined) queryEl.textContent = query;
-    if (state === "loading") {
-      body.innerHTML =
-        '<div class="search-pane__loading">' +
-        '<span class="thinking-dots" aria-hidden="true">' +
-        '<span class="thinking-dot"></span>' +
-        '<span class="thinking-dot"></span>' +
-        '<span class="thinking-dot"></span>' +
-        "</span>" +
-        '<span class="search-pane__loading-text">Reading the room…</span>' +
-        "</div>";
-    } else if (state === "ready") {
-      body.innerHTML =
-        '<article class="search-pane__essay">' +
-        renderEssayHtml(text || "") +
-        "</article>";
-    } else if (state === "error") {
-      body.innerHTML =
-        '<div class="search-pane__error">' +
-        '<p><strong>The search couldn\'t finish.</strong></p>' +
-        "<p>" +
-        escapeHtml(message || "Unknown error") +
-        "</p>" +
-        '<p class="search-pane__error-hint">Make sure <code>ANTHROPIC_API_KEY</code> is set in your environment, then restart tinker.</p>' +
-        "</div>";
-    }
-  }
-
-  // ── Rendering ───────────────────────────────────────────────────────
-
-  function render() {
-    renderSessions();
-    renderStage();
-    renderNavState();
-    const active = getActive();
-    setLoading(active ? active.loading : false);
-  }
-
-  function renderSessions() {
-    sessionsEl.innerHTML = "";
-    for (const session of sessions) {
-      const el = document.createElement("button");
-      el.className = "session";
-      el.setAttribute("role", "tab");
-      el.setAttribute("aria-selected", String(session.id === activeId));
-      el.dataset.id = session.id;
-      el.title = session.url === HOME_URL ? "New session" : session.url;
-
-      const icon = document.createElement("span");
-      icon.className = "session__icon";
-      if (session.loading) {
-        const sp = document.createElement("span");
-        sp.className = "session__spinner";
-        icon.appendChild(sp);
-      } else if (session.url === HOME_URL) {
-        icon.innerHTML =
-          '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none">' +
-          '<circle cx="8" cy="8" r="6" stroke="#c8b6e2" stroke-width="1.6"/>' +
-          '<line x1="2" y1="8" x2="14" y2="8" stroke="#fdba74" stroke-width="1.6" stroke-linecap="round"/>' +
-          '<line x1="8" y1="2" x2="8" y2="14" stroke="#6ee7b7" stroke-width="1.6" stroke-linecap="round"/>' +
-          '<ellipse cx="8" cy="8" rx="3" ry="6" stroke="#7dd3fc" stroke-width="1.6"/>' +
-          "</svg>";
-      } else if (session.url.startsWith(SEARCH_PREFIX)) {
-        icon.innerHTML =
-          '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
-          '<circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.6" fill="none"/>' +
-          '<path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
-      } else {
-        icon.innerHTML =
-          '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
-          '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" fill="none"/>' +
-          '<path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>';
+      const name = welcomeInput.value.trim();
+      if (!name) { welcomeInput.focus(); return; }
+      if (window.tinkerLocations && typeof window.tinkerLocations.add === "function") {
+        window.tinkerLocations.add(name);
       }
-
-      const title = document.createElement("span");
-      title.className = "session__title";
-      title.textContent = session.title || hostnameOf(session.url) || "Untitled";
-
-      const close = document.createElement("span");
-      close.className = "session__close";
-      close.setAttribute("role", "button");
-      close.setAttribute("aria-label", "Close session");
-      close.innerHTML =
-        '<svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">' +
-        '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-      close.addEventListener("click", (e) => {
-        e.stopPropagation();
-        closeSession(session.id);
-      });
-
-      el.append(icon, title, close);
-      el.addEventListener("click", () => selectSession(session.id));
-      el.addEventListener("auxclick", (e) => {
-        if (e.button === 1) closeSession(session.id);
-      });
-      sessionsEl.appendChild(el);
-    }
+      welcomeInput.value = "";
+      if (typeof window.tinkerNewSession === "function") {
+        window.tinkerNewSession({ location: name });
+      }
+    });
   }
 
-  function renderStage() {
-    const active = getActive();
-    welcome.toggleAttribute("data-active", !!active && active.url === HOME_URL);
-    for (const session of sessions) {
-      if (!session.view) continue;
-      const isActive = session.id === activeId && session.url !== HOME_URL;
-      session.view.toggleAttribute("data-active", isActive);
-    }
+  // Re-render the home list whenever locations change.
+  if (window.tinkerLocations && typeof window.tinkerLocations.subscribe === "function") {
+    window.tinkerLocations.subscribe(() => renderHome());
   }
 
-  function renderNavState() {
-    const session = getActive();
-    const view = session && session.view;
-    const isWebview = view && view.tagName.toLowerCase() === "webview";
-    const onHome = !session || session.url === HOME_URL;
-    navBack.disabled = onHome || !isWebview || !view.canGoBack || !view.canGoBack();
-    navForward.disabled = onHome || !isWebview || !view.canGoForward || !view.canGoForward();
-    navReload.disabled = onHome;
-  }
+  readClose.addEventListener("click", () => showFeed());
 
-  function setLoading(active) {
-    if (active) loadbar.setAttribute("data-active", "");
-    else loadbar.removeAttribute("data-active");
-  }
+  // Tell writing.js how to ask the renderer to do things.
+  window.tinkerOnWritingClose = () => closeActiveDraft();
+  window.tinkerOnWritingPublish = (draft, stitched) => store.publish(draft, stitched);
+  window.tinkerOnDraftChange = (draftId, patch) => store.updateDraft(draftId, patch);
 
-  // ── Event wiring ────────────────────────────────────────────────────
+  // Used by the location list in the sidebar: open a fresh draft
+  // pre-filled with scene context so the founder jumps straight into
+  // mood-tuned reflection.
+  window.tinkerNewSession = (preset) => newDraft({ activate: true, preset: preset || null });
 
-  newSessionBtn.addEventListener("click", () => {
-    newSession(HOME_URL);
-    welcomeInput.focus();
-  });
+  // Used by the location list when a card already carries a published
+  // essay or an in-progress draft — tap routes to the right surface
+  // instead of always spawning a new session.
+  window.tinkerOpenEssay = (essayId) => {
+    const essay = essays.find((e) => e.id === essayId);
+    if (essay) showRead(essay);
+  };
+  window.tinkerResumeDraft = (draftId) => openDraft(draftId);
 
-  navBack.addEventListener("click", () => {
-    const s = getActive();
-    if (s && s.view && s.view.canGoBack()) s.view.goBack();
-  });
-  navForward.addEventListener("click", () => {
-    const s = getActive();
-    if (s && s.view && s.view.canGoForward()) s.view.goForward();
-  });
-  navReload.addEventListener("click", () => {
-    const s = getActive();
-    if (!s || !s.view) return;
-    if (s.view.tagName.toLowerCase() === "webview") {
-      s.view.reload();
-    } else if (s.url.startsWith(SEARCH_PREFIX)) {
-      const query = decodeURIComponent(s.url.substring(SEARCH_PREFIX.length));
-      showSearch(s, s.url, query);
-    }
-  });
-  navHome.addEventListener("click", () => navigate(HOME_URL));
-
-  welcomeForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const v = welcomeInput.value.trim();
-    if (!v) return;
-    welcomeInput.value = "";
-    navigate(v);
-  });
-
-  // Anything with [data-url] navigates the active session.
-  document.addEventListener("click", (e) => {
-    const target = e.target.closest("[data-url]");
-    if (!target) return;
-    e.preventDefault();
-    navigate(target.dataset.url);
-  });
-
-  // Keyboard shortcuts: ⌘T / Ctrl+T new session, ⌘W / Ctrl+W close,
-  // ⌘L / Ctrl+L focus the welcome search, ⌘R / Ctrl+R reload,
-  // ⌘[ / ⌘] for back/forward.
+  // Keyboard shortcuts. Cmd/Ctrl+T = new draft. Cmd/Ctrl+W = close
+  // (delete) the current draft. The address-bar shortcut is gone — there
+  // is no address bar in v1; [NEEDS INPUT] confirm that's the right call.
   document.addEventListener("keydown", (e) => {
     const mod = e.metaKey || e.ctrlKey;
     if (!mod) return;
     if (e.key === "t" || e.key === "T") {
       e.preventDefault();
-      newSession(HOME_URL);
-      welcomeInput.focus();
+      newDraft();
     } else if (e.key === "w" || e.key === "W") {
+      if (!activeId) return;
       e.preventDefault();
-      if (activeId) closeSession(activeId);
-    } else if (e.key === "l" || e.key === "L") {
-      e.preventDefault();
-      navigate(HOME_URL);
-      welcomeInput.focus();
-    } else if (e.key === "r" || e.key === "R") {
-      e.preventDefault();
-      const s = getActive();
-      if (!s || !s.view) return;
-      if (s.view.tagName.toLowerCase() === "webview") {
-        s.view.reload();
-      } else if (s.url.startsWith(SEARCH_PREFIX)) {
-        const query = decodeURIComponent(s.url.substring(SEARCH_PREFIX.length));
-        showSearch(s, s.url, query);
-      }
-    } else if (e.key === "[") {
-      const s = getActive();
-      if (s && s.view && s.view.canGoBack()) {
-        e.preventDefault();
-        s.view.goBack();
-      }
-    } else if (e.key === "]") {
-      const s = getActive();
-      if (s && s.view && s.view.canGoForward()) {
-        e.preventDefault();
-        s.view.goForward();
-      }
+      const d = store.getActive();
+      if (d && confirm(`Delete "${d.title || "Untitled draft"}"?`)) store.deleteDraft(d.id);
     }
   });
 
   // ── Boot ────────────────────────────────────────────────────────────
-
-  newSession(HOME_URL);
-  welcomeInput.focus();
+  renderSidebar();
+  renderHome();
+  showFeed();
 })();
