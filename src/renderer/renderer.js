@@ -239,7 +239,7 @@
   // ── Wire up ─────────────────────────────────────────────────────────
   navHome.addEventListener("click", () => showFeed());
 
-  // Welcome screen prompt: "What's the name of the place you are at?".
+  // Welcome screen prompt: "Where are you?".
   // On submit: register the place as a location (so it persists in
   // the sidebar) and spawn a writing session anchored there. Empty
   // submissions just re-focus the input.
