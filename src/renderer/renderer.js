@@ -23,14 +23,14 @@
 
   // ── DOM refs ─────────────────────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
-  const sessionsEl = $("#sessions");
+  const sessionsEl = $("#sessions"); // legacy mount; null after the sidebar restructure
   const newSessionBtn = $("#new-session");
   const navHome = $("#nav-home");
-  const composer = $("#composer");
   const feedView = $("#welcome");
   const writingView = $("#writing");
   const readView = $("#read");
-  const feedListEl = $("#feed-list");
+  const homeListEl = $("#home-list");
+  const homeAddBtn = $("#home-add");
   const readUrl = $("#read-url");
   const readBody = $("#read-body");
   const readClose = $("#read-close");
@@ -97,6 +97,9 @@
         createdAt: Date.now(),
         url: `/${stitched.author || "you"}/${slug}`,
         sourceDraft: draft.id,
+        // Carry location through so the home list's vector classifier
+        // can keep reading the writing content after publish.
+        location: draft.location || null,
       };
       essays = [essay, ...essays];
       saveEssays(essays);
@@ -104,7 +107,7 @@
       saveDrafts(drafts);
       activeId = null;
       renderSidebar();
-      renderFeed();
+      renderHome();
       showRead(essay);
       return essay;
     },
@@ -121,7 +124,7 @@
   }
 
   // ── Drafts as sidebar tabs ──────────────────────────────────────────
-  function newDraft({ activate = true } = {}) {
+  function newDraft({ activate = true, preset = null } = {}) {
     const draft = {
       id: uid(),
       title: "Untitled draft",
@@ -132,6 +135,15 @@
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
+    if (preset && typeof preset === "object") {
+      // Pre-set the scene fields. writing.js' renderLocationPrompt
+      // checks `active.location === undefined`, so once we assign
+      // a string (or null) the prompt is skipped and the founder
+      // jumps straight into the mood-tuned first question.
+      if (preset.location !== undefined) draft.location = preset.location || null;
+      if (preset.facing !== undefined) draft.facing = preset.facing || null;
+      if (preset.lastPurchased !== undefined) draft.lastPurchased = preset.lastPurchased || null;
+    }
     drafts.unshift(draft);
     saveDrafts(drafts);
     renderSidebar();
@@ -161,7 +173,11 @@
     readView.hidden = true;
     activeId = null;
     renderSidebar();
-    renderFeed();
+    renderHome();
+    // Drop focus onto the welcome question so the founder can just
+    // type the place they're at and hit Enter.
+    const inputEl = document.getElementById("welcome-input");
+    if (inputEl) setTimeout(() => { inputEl.focus(); inputEl.select(); }, 30);
   }
   function showWriting() {
     feedView.removeAttribute("data-active");
@@ -184,98 +200,18 @@
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
+  // Sidebar's drafts+essays list is gone — locations now own the sidebar
+  // (see #home-list). Each location card surfaces the latest writing
+  // produced there. Kept as a no-op so existing call sites compile.
   function renderSidebar() {
+    if (!sessionsEl) return;
     sessionsEl.innerHTML = "";
-    if (drafts.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "session__empty";
-      empty.textContent = "No drafts yet.";
-      sessionsEl.appendChild(empty);
-      return;
-    }
-    for (const draft of drafts) {
-      const el = document.createElement("button");
-      el.className = "session";
-      el.setAttribute("role", "tab");
-      el.setAttribute("aria-selected", String(draft.id === activeId));
-      el.dataset.id = draft.id;
-      el.title = draft.title;
-
-      const icon = document.createElement("span");
-      icon.className = "session__icon";
-      icon.innerHTML =
-        '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none">' +
-        '<path d="M3 13V3h7l3 3v7H3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>' +
-        '<path d="M10 3v3h3" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
-
-      const title = document.createElement("span");
-      title.className = "session__title";
-      title.textContent = draft.title || "Untitled draft";
-
-      const close = document.createElement("span");
-      close.className = "session__close";
-      close.setAttribute("role", "button");
-      close.setAttribute("aria-label", "Delete draft");
-      close.innerHTML =
-        '<svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">' +
-        '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-      close.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (!confirm(`Delete "${draft.title || "Untitled draft"}"?`)) return;
-        store.deleteDraft(draft.id);
-      });
-
-      el.append(icon, title, close);
-      el.addEventListener("click", () => openDraft(draft.id));
-      sessionsEl.appendChild(el);
-    }
   }
 
-  function renderFeed() {
-    feedListEl.innerHTML = "";
-    const all = [...essays, ...sampleEssays()];
-    if (all.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "feed__empty";
-      empty.textContent = "Nothing in the feed yet.";
-      feedListEl.appendChild(empty);
-      return;
-    }
-    for (const essay of all) {
-      const card = document.createElement("article");
-      card.className = "feed-card";
-      card.tabIndex = 0;
-      card.setAttribute("role", "button");
-
-      const head = document.createElement("header");
-      head.className = "feed-card__head";
-      head.innerHTML =
-        `<div class="feed-card__author">${escapeHtml(essay.author)}</div>` +
-        `<div class="feed-card__dot">·</div>` +
-        `<div class="feed-card__when">${relTime(essay.createdAt)}</div>`;
-      card.appendChild(head);
-
-      const title = document.createElement("h3");
-      title.className = "feed-card__title";
-      title.textContent = essay.title;
-      card.appendChild(title);
-
-      const preview = document.createElement("div");
-      preview.className = "feed-card__preview";
-      preview.innerHTML = previewParagraphs(essay.body);
-      card.appendChild(preview);
-
-      const more = document.createElement("div");
-      more.className = "feed-card__more";
-      more.textContent = "Read more →";
-      card.appendChild(more);
-
-      const open = () => showRead(essay);
-      card.addEventListener("click", open);
-      card.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
-      });
-      feedListEl.appendChild(card);
+  function renderHome() {
+    if (!homeListEl) return;
+    if (window.tinkerHeatmap && typeof window.tinkerHeatmap.render === "function") {
+      window.tinkerHeatmap.render(homeListEl);
     }
   }
 
@@ -292,11 +228,6 @@
       .filter((p) => p !== "<p></p>")
       .join("");
   }
-  function previewParagraphs(body) {
-    const paras = String(body || "").split(/\n{2,}/).slice(0, 2);
-    return paras.map((p) => `<p>${escapeHtml(p.trim())}</p>`).join("");
-  }
-
   function relTime(ts) {
     const diff = (Date.now() - ts) / 1000;
     if (diff < 60) return "just now";
@@ -307,81 +238,78 @@
     return `${d.getMonth() + 1}/${d.getDate()}`;
   }
 
-  // Hard-coded sample feed so day one isn't blank.
-  // [NEEDS INPUT] feed source for v1: chronological global, follower
-  // graph, curated set? Hard-coded samples are fine for the prototype.
-  function sampleEssays() {
-    return [
-      {
-        id: "sample_oxymel",
-        slug: "what-an-oxymel-taught-me",
-        author: "mara",
-        title: "What an oxymel taught me about asking for money",
-        body:
-          "I made my first oxymel for a friend who was sick. She took a sip and her face changed. That was the moment I knew I had something.\n\n" +
-          "I sold the next batch for fifteen dollars a bottle. I still feel weird about it. Fifteen dollars feels like a lot for a small jar of vinegar and honey, even when I know what went into it.\n\n" +
-          "What I am learning is that the price is not the ask. The ask is, do you trust me. Once someone trusts you, fifteen dollars stops being the question.",
-        createdAt: Date.now() - 1000 * 60 * 60 * 6,
-        url: "/mara/what-an-oxymel-taught-me",
-      },
-      {
-        id: "sample_couch",
-        slug: "the-couch-is-the-competition",
-        author: "leo",
-        title: "The couch is the competition",
-        body:
-          "I have a thing I want to make. I have had it for two years. The thing I keep doing instead is sitting on the couch.\n\n" +
-          "Nobody is stopping me. There is no boss, no client, no deadline. The thing that wins, every single night, is the couch.\n\n" +
-          "I used to think this was a discipline problem. I think now it is a beginning problem. The couch is not asking me to start. The thing is. So I sit with the easier of the two.",
-        createdAt: Date.now() - 1000 * 60 * 60 * 28,
-        url: "/leo/the-couch-is-the-competition",
-      },
-      {
-        id: "sample_first",
-        slug: "the-first-stranger",
-        author: "isla",
-        title: "The first stranger who paid me",
-        body:
-          "Her name was Diane. She found me through a friend of a friend. She paid me eighty dollars to lead a sound healing.\n\n" +
-          "I had done this maybe forty times for free. The forty-first time, with money on the table, I almost cancelled. I told my partner I was going to make up an excuse.\n\n" +
-          "He said, you are not better or worse than you were last week. You are just being paid for it now. He was right. I led the session. Diane cried. She booked again the next month.",
-        createdAt: Date.now() - 1000 * 60 * 60 * 50,
-        url: "/isla/the-first-stranger",
-      },
-      {
-        id: "sample_kitchen",
-        slug: "saturday-morning-kitchen",
-        author: "ben",
-        title: "Saturday morning, kitchen",
-        body:
-          "I told myself I would do it before the kids were up. I made coffee. I sat down. I opened the laptop. The cursor blinked.\n\n" +
-          "I did not write anything. I cleaned the counter. I refilled the kettle. I checked my phone. The kids woke up.\n\n" +
-          "Next Saturday I am going to write the first sentence before the coffee. That is the rule.",
-        createdAt: Date.now() - 1000 * 60 * 60 * 96,
-        url: "/ben/saturday-morning-kitchen",
-      },
-      {
-        id: "sample_market",
-        slug: "the-farmers-market-thing",
-        author: "rin",
-        title: "The farmer's market thing",
-        body:
-          "At the farmer's market, the vendor hands you a sample. You taste it. You buy it or you don't. There is no checkout flow. There is no credit card. There is a small piece of bread on a wooden board.\n\n" +
-          "I keep thinking about that. The whole internet is built like a checkout flow. The farmer's market is built like a sample table. I would rather build the sample table.",
-        createdAt: Date.now() - 1000 * 60 * 60 * 120,
-        url: "/rin/the-farmers-market-thing",
-      },
-    ];
-  }
-
   // ── Wire up ─────────────────────────────────────────────────────────
   newSessionBtn.addEventListener("click", () => newDraft());
   navHome.addEventListener("click", () => showFeed());
 
-  composer.addEventListener("click", () => newDraft());
-  composer.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); newDraft(); }
-  });
+  if (homeAddBtn) {
+    homeAddBtn.addEventListener("click", () => {
+      if (window.tinkerLocations && typeof window.tinkerLocations.openAddModal === "function") {
+        window.tinkerLocations.openAddModal();
+      }
+    });
+  }
+
+  // Welcome screen prompt: "What's the name of the place you are at?".
+  // On submit: register the place as a location (so it persists in
+  // the sidebar) and spawn a writing session anchored there. Empty
+  // submissions just re-focus the input.
+  const welcomeForm = document.getElementById("welcome-form");
+  const welcomeInput = document.getElementById("welcome-input");
+  if (welcomeForm && welcomeInput) {
+    welcomeForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = welcomeInput.value.trim();
+      if (!name) { welcomeInput.focus(); return; }
+      if (window.tinkerLocations && typeof window.tinkerLocations.add === "function") {
+        window.tinkerLocations.add(name);
+      }
+      welcomeInput.value = "";
+      if (typeof window.tinkerNewSession === "function") {
+        window.tinkerNewSession({ location: name });
+      }
+    });
+  }
+
+  // Demo mode toggle (sidebar footer). State persisted to localStorage
+  // so the founder's choice survives reloads. ON adds _demo-tagged
+  // locations + transactions; OFF removes only those tagged items,
+  // leaving any real data the founder added alone.
+  const DEMO_KEY = "tinker.demo_mode.v1";
+  const demoToggleBtn = document.getElementById("demo-toggle");
+  function readDemoState() {
+    try { return localStorage.getItem(DEMO_KEY) === "1"; } catch { return false; }
+  }
+  function writeDemoState(on) {
+    try { localStorage.setItem(DEMO_KEY, on ? "1" : "0"); } catch { /* ignore */ }
+  }
+  function reflectDemoState(on) {
+    if (!demoToggleBtn) return;
+    demoToggleBtn.setAttribute("aria-checked", on ? "true" : "false");
+    demoToggleBtn.classList.toggle("demo-toggle--on", on);
+  }
+  if (demoToggleBtn) {
+    reflectDemoState(readDemoState());
+    demoToggleBtn.addEventListener("click", () => {
+      const next = !readDemoState();
+      writeDemoState(next);
+      reflectDemoState(next);
+      if (next) {
+        if (window.tinkerLocations && typeof window.tinkerLocations.seed === "function") {
+          window.tinkerLocations.seed();
+        }
+      } else {
+        if (window.tinkerLocations && typeof window.tinkerLocations.clearDemoData === "function") {
+          window.tinkerLocations.clearDemoData();
+        }
+      }
+    });
+  }
+
+  // Re-render the home list whenever locations change.
+  if (window.tinkerLocations && typeof window.tinkerLocations.subscribe === "function") {
+    window.tinkerLocations.subscribe(() => renderHome());
+  }
 
   readClose.addEventListener("click", () => showFeed());
 
@@ -389,6 +317,20 @@
   window.tinkerOnWritingClose = () => closeActiveDraft();
   window.tinkerOnWritingPublish = (draft, stitched) => store.publish(draft, stitched);
   window.tinkerOnDraftChange = (draftId, patch) => store.updateDraft(draftId, patch);
+
+  // Used by the location list in the sidebar: open a fresh draft
+  // pre-filled with scene context so the founder jumps straight into
+  // mood-tuned reflection.
+  window.tinkerNewSession = (preset) => newDraft({ activate: true, preset: preset || null });
+
+  // Used by the location list when a card already carries a published
+  // essay or an in-progress draft — tap routes to the right surface
+  // instead of always spawning a new session.
+  window.tinkerOpenEssay = (essayId) => {
+    const essay = essays.find((e) => e.id === essayId);
+    if (essay) showRead(essay);
+  };
+  window.tinkerResumeDraft = (draftId) => openDraft(draftId);
 
   // Keyboard shortcuts. Cmd/Ctrl+T = new draft. Cmd/Ctrl+W = close
   // (delete) the current draft. The address-bar shortcut is gone — there
@@ -409,6 +351,6 @@
 
   // ── Boot ────────────────────────────────────────────────────────────
   renderSidebar();
-  renderFeed();
+  renderHome();
   showFeed();
 })();

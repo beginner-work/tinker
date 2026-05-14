@@ -1,10 +1,12 @@
 /* Platform shim — runs on Capacitor (iOS/Android) and on plain web,
  * but stays out of the way when Electron's preload has already
- * installed window.tinker. Exposes a uniform `window.tinker.*`
- * surface that the renderer relies on. The Anthropic call path is
- * direct browser→api.anthropic.com using a key stored in
- * localStorage under ANTHROPIC_API_KEY — same pattern Capacitor
- * already uses. */
+ * installed window.tinker. Exposes the same window.tinker.* surface
+ * the renderer relies on.
+ *
+ * In this deployment the browser does NOT hold an Anthropic key —
+ * every Claude call is proxied through /api/claude/converse on the
+ * Vercel serverless layer, gated by the phone/PIN JWT. The shim
+ * forwards the founder's `tinker_jwt` Bearer token on each request. */
 
 (function () {
   if (window.tinker && typeof window.tinker.callClaude === "function") {
@@ -18,55 +20,48 @@
   const STORE = window.localStorage;
   const get = (k) => STORE.getItem(k) || "";
 
-  /** Direct browser → Anthropic Messages API call.
+  /** Proxied Claude call — server-side keys, JWT-gated.
    *
-   * Inputs:
-   *   { system, messages, model, maxTokens }
+   *   { system, messages, model, maxTokens } → { text, usage }
    *
-   * The system prompt is always wrapped in a cache_control block so
-   * repeat turns within a draft skip the cold-start cost. */
-  async function callClaude({
-    system,
-    messages,
-    model = "claude-sonnet-4-6",
-    maxTokens = 2048,
-  } = {}) {
-    const apiKey = get("ANTHROPIC_API_KEY");
-    if (!apiKey) {
-      const e = new Error(
-        "Set your Anthropic API key first. Open the browser inspector and run:\n" +
-        "  localStorage.setItem('ANTHROPIC_API_KEY', 'sk-ant-...')"
-      );
-      e.code = "MISSING_API_KEY";
+   * Always uses the prompt-cached system block on the server. The
+   * browser bundle never sees an Anthropic key. */
+  async function callClaude({ system, messages, model, maxTokens } = {}) {
+    const token = get("tinker_jwt");
+    if (!token) {
+      const e = new Error("Sign in to write.");
+      e.code = "MISSING_TOKEN";
       throw e;
     }
-    const body = {
-      model,
-      max_tokens: maxTokens,
-      messages,
-    };
-    if (system) {
-      body.system = [
-        { type: "text", text: system, cache_control: { type: "ephemeral" } },
-      ];
-    }
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const body = { messages };
+    if (system) body.system = system;
+    if (model) body.model = model;
+    if (maxTokens) body.max_tokens = maxTokens;
+
+    const res = await fetch("/api/claude/converse", {
       method: "POST",
       headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
         "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(body),
     });
-    if (!res.ok) {
-      const errBody = await res.text();
-      throw new Error(`Anthropic API ${res.status}: ${errBody.slice(0, 320)}`);
+
+    if (res.status === 401) {
+      try { STORE.removeItem("tinker_jwt"); } catch { /* ignore */ }
+      const e = new Error("Session expired — sign in again.");
+      e.code = "SESSION_EXPIRED";
+      // Drop the renderer back into the auth gate.
+      setTimeout(() => window.location.reload(), 100);
+      throw e;
     }
-    const data = await res.json();
-    const textBlock = (data.content || []).find((b) => b.type === "text");
-    return { text: textBlock ? textBlock.text : "", usage: data.usage, raw: data };
+    let data = null;
+    try { data = await res.json(); } catch { data = {}; }
+    if (!res.ok) {
+      const message = (data && (data.error || data.detail)) || `Claude call failed (${res.status})`;
+      throw new Error(message);
+    }
+    return { text: data.text || "", usage: data.usage, model: data.model };
   }
 
   async function openExternal(url) {
@@ -93,6 +88,5 @@
       return Promise.resolve(true);
     },
     getSetting: (k) => Promise.resolve(get(k)),
-    hasApiKey: () => !!get("ANTHROPIC_API_KEY"),
   };
 })();

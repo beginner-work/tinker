@@ -26,8 +26,10 @@
     "RULE 3 — TITLE FROM THEIR WORDS.",
     "If you provide a title, it must be a contiguous phrase the founder has typed. Pick the most evocative one. Do not invent a title.",
     "",
-    "RULE 4 — KEEP IT SHORT.",
-    "Aim for between five and nine questions total. Stop when the founder has said enough. Each question should be specific and concrete — not 'tell me more' but 'what did her face do when she tasted it'.",
+    "RULE 4 — KEEP IT SHORT, AND PURSUE LEARNINGS.",
+    "Aim for between five and nine questions total. Stop when the founder has said enough. Every question must pursue what the founder is learning — patterns they're noticing, ideas that are clicking or breaking, things they didn't expect, what's getting clearer or murkier, what's contradicting prior thinking. Be specific and concrete: not 'tell me more', not 'how did that make you feel', but questions that probe at what the founder is figuring out.",
+    "Every question MUST contain the word 'learning' or one close synonym from this list: discovering, noticing, figuring out, realising, understanding, picking up, working out, coming to see, finding out, recognising. Vary the synonym across questions — don't repeat the same one verbatim. Pick the form that best fits the mood of the place.",
+    "Do NOT ask about feelings, emotions, or moods. Do NOT ask 'how did that make you feel'. Do NOT psychoanalyse. Stay on the learning — what they are coming to understand. The founder's emotional state is not the subject.",
     "",
     "RULE 5 — RESPOND IN STRICT JSON.",
     "Always respond as a single JSON object, with exactly these keys:",
@@ -35,6 +37,15 @@
     "If you have another question for the founder, set next_question and leave the stitched fields null and done false.",
     "If the founder has answered enough, set next_question null, fill stitched_title and stitched_body with prose drawn ONLY from the founder's typed answers, and set done true.",
     "Never wrap the JSON in code fences. Never add explanations outside the JSON.",
+    "",
+    "RULE 6 — LET PLACE, CIRCUMSTANCE, AND RECENT PURCHASE SET THE MOOD.",
+    "If the user message provides a location ('Where the founder is right now: ...'), what they are facing ('What the founder is facing: ...'), and/or what they last purchased ('What the founder last purchased: ...'), let those shape the mood, cadence, and word choice of your questions. Match the texture of where they are, the weight of what's in front of them, and the residue of what they just bought. A recent purchase is a small window into how the founder lives and works — use it as one. Do NOT assume what they are learning from any of these — never lead, never name their facing or their last purchase back to them as a fact.",
+    "",
+    "RULE 7 — RE-ANCHOR ON LEARNING WHEN THE FOUNDER PULLS AWAY.",
+    "Watch the founder's recent answers. If they go terse (one-line, fragmented, monosyllabic), stressed (frustrated, scattered, deflective, 'I don't know', cursing), or otherwise drift from the question, your next question should bring them back to the underlying intent: what they are learning. Phrase it gently — either restate 'What are you learning?' in mood-matched words, or ask it more plainly (e.g. 'What is it you're learning, really?') if a softer touch isn't landing. Stay open and uncritical. Don't comment on their tone; just re-anchor.",
+    "",
+    "RULE 8 — TRANSACTIONS AS A MIRROR FOR FOUNDER IDENTITY.",
+    "If the user message includes 'Recent transactions:', treat those rows as concrete moments the founder can reflect on. The goal is NOT bookkeeping, taxes, deductions, or 'ordinary and necessary' classification — those are not the subject. The goal is helping the founder see themselves as a founder, as a person, and as a highly skilled individual claiming an area as their business. When the location, what they're facing, or the conversation so far overlaps with one or more rows (e.g. grocery store + grocery transactions), your question may ground in those specifics — surfacing what the founder is learning about how the way they spend connects to how they work, where the line between personal and business genuinely blurs (and what they're learning by noticing). Use the data as a mirror, not advice. Do NOT lecture about money or taxes. Do NOT moralise.",
   ].join("\n");
 
   const SEED_QUESTION = "What are you learning?";
@@ -53,17 +64,16 @@
   window.tinkerWriting = {
     open(draft) {
       active = draft;
-      // First-time open: seed the first question.
-      if ((draft.transcript || []).length === 0 && !draft.pending) {
-        active.pending = SEED_QUESTION;
-        persist();
+      // Pre-prompt: location capture (Instagram tag-style) before the
+      // question flow. `location` is undefined on a fresh draft; once the
+      // founder commits or skips it becomes a string or null and never
+      // re-prompts. The location is metadata, not part of the transcript,
+      // so it doesn't affect stitching or founder-only verification.
+      if (active.location === undefined) {
+        renderLocationPrompt();
+        return;
       }
-      // currentStep clamped against transcript length (+ pending question).
-      const maxStep = (active.transcript || []).length + (active.pending ? 1 : 0);
-      if (active.currentStep == null || active.currentStep > maxStep) {
-        active.currentStep = maxStep;
-      }
-      renderStep();
+      seedAndRenderInterview();
     },
   };
 
@@ -75,6 +85,9 @@
       pending: active.pending,
       stitched: active.stitched,
       title: active.title,
+      location: active.location,
+      facing: active.facing,
+      lastPurchased: active.lastPurchased,
       _scratch: active._scratch,
       ...(extraPatch || {}),
     };
@@ -83,7 +96,189 @@
     }
   }
 
+  function seedAndRenderInterview() {
+    // First-time seed with scene context (place and/or what they're
+    // facing): ask Claude to mood the canonical "What are you
+    // learning?" to fit. Failures and no-context cases fall through to
+    // the canonical seed.
+    if ((active.transcript || []).length === 0 && !active.pending && (active.location || active.facing || active.lastPurchased)) {
+      const draftId = active.id;
+      renderLoading("Setting the scene…");
+      moodSeedQuestion(active.location, active.facing, active.lastPurchased)
+        .then((q) => {
+          if (!active || active.id !== draftId) return;
+          applySeed(q);
+        })
+        .catch(() => {
+          if (!active || active.id !== draftId) return;
+          applySeed(SEED_QUESTION);
+        });
+      return;
+    }
+    if ((active.transcript || []).length === 0 && !active.pending) {
+      active.pending = SEED_QUESTION;
+      persist();
+    }
+    const maxStep = (active.transcript || []).length + (active.pending ? 1 : 0);
+    if (active.currentStep == null || active.currentStep > maxStep) {
+      active.currentStep = maxStep;
+    }
+    renderStep();
+  }
+
+  function applySeed(question) {
+    active.pending = question;
+    persist();
+    const maxStep = (active.transcript || []).length + 1;
+    if (active.currentStep == null || active.currentStep > maxStep) {
+      active.currentStep = maxStep;
+    }
+    renderStep();
+  }
+
+  async function moodSeedQuestion(location, facing, lastPurchased) {
+    if (!window.tinker || typeof window.tinker.callClaude !== "function") {
+      throw new Error("Anthropic client unavailable.");
+    }
+    const system = [
+      "You design the opening question for tinker, a quiet writing tool for founders.",
+      "The founder will write about what they are learning right now. Your job is to take",
+      "the canonical opening — 'What are you learning?' — and tune its mood, cadence, and",
+      "word choice to fit the scene the founder has set: where they are physically, what",
+      "they're facing, the last thing they purchased, and any recent transactions they've connected.",
+      "Keep the underlying intent intact: the founder is being asked what they are learning.",
+      "Do not change that intent.",
+      "",
+      "Constraints:",
+      "- 6 to 16 words.",
+      "- Single open-ended question, ending with a question mark.",
+      "- MUST contain the word 'learning' or one close synonym (discovering, noticing, figuring out, realising, understanding, picking up, working out, coming to see, finding out, recognising). Pick the form that fits the mood of the scene.",
+      "- Do NOT assume what the founder is learning. Do NOT lead.",
+      "- Match the texture of the place AND the weight of what they're facing AND the residue of what they just bought. If transactions overlap with any of those (e.g. grocery store + grocery rows, or a recent purchase that connects), you may ground the question in that overlap — but stay open, not advisory.",
+      "- Output ONLY the question. No quotes, no preamble, no trailing notes.",
+    ].join("\n");
+    const ctxLines = [];
+    if (location) ctxLines.push(`Where the founder is right now: ${location}`);
+    if (facing) ctxLines.push(`What the founder is facing: ${facing}`);
+    if (lastPurchased) ctxLines.push(`What the founder last purchased: ${lastPurchased}`);
+    const txLines = buildTransactionsContext();
+    if (txLines.length) {
+      if (ctxLines.length) ctxLines.push("");
+      ctxLines.push("Recent transactions:");
+      ctxLines.push(...txLines);
+    }
+    const result = await window.tinker.callClaude({
+      system,
+      messages: [{ role: "user", content: ctxLines.join("\n") }],
+      model: "claude-sonnet-4-6",
+      maxTokens: 80,
+    });
+    let text = (result.text || "").trim();
+    // Strip wrapping quotes Claude sometimes adds.
+    text = text.replace(/^["'“‘]+|["'”’]+$/g, "").trim();
+    if (!text) throw new Error("Empty mood question.");
+    if (text.length > 200) text = text.slice(0, 200);
+    return text;
+  }
+
   // ── Render ──────────────────────────────────────────────────────────
+  function renderLocationPrompt() {
+    const card = document.createElement("div");
+    card.className = "writing-card writing-card--location";
+
+    const head = document.createElement("h2");
+    head.className = "writing-question writing-location__title";
+    head.textContent = "Where have you been and where are you going?";
+    card.appendChild(head);
+
+    const whereLabel = document.createElement("label");
+    whereLabel.className = "writing-location__label";
+    whereLabel.innerHTML =
+      `<span class="writing-location__pin" aria-hidden="true">📍</span>` +
+      `<span>Where are you, physically?</span>`;
+    card.appendChild(whereLabel);
+
+    const whereInput = document.createElement("input");
+    whereInput.type = "text";
+    whereInput.className = "writing-input writing-location__input";
+    whereInput.placeholder = "A coffee shop, your kitchen, the back porch…";
+    whereInput.autocomplete = "off";
+    whereInput.spellcheck = false;
+    card.appendChild(whereInput);
+
+    const facingLabel = document.createElement("label");
+    facingLabel.className = "writing-location__label";
+    facingLabel.textContent = "What are you facing?";
+    card.appendChild(facingLabel);
+
+    const facingInput = document.createElement("input");
+    facingInput.type = "text";
+    facingInput.className = "writing-input writing-location__input";
+    facingInput.placeholder = "A delayed launch. A hard call coming. Just the morning…";
+    facingInput.autocomplete = "off";
+    facingInput.spellcheck = false;
+    card.appendChild(facingInput);
+
+    const lastLabel = document.createElement("label");
+    lastLabel.className = "writing-location__label";
+    lastLabel.textContent = "Can you recall the last thing you purchased?";
+    card.appendChild(lastLabel);
+
+    const lastInput = document.createElement("input");
+    lastInput.type = "text";
+    lastInput.className = "writing-input writing-location__input";
+    lastInput.placeholder = "A coffee, a book, an Uber, a subscription renewal…";
+    lastInput.autocomplete = "off";
+    lastInput.spellcheck = false;
+    card.appendChild(lastInput);
+
+    const skip = document.createElement("button");
+    skip.type = "button";
+    skip.className = "writing-location__skip";
+    skip.textContent = "Skip for now";
+    skip.addEventListener("click", () => {
+      active.location = null;
+      active.facing = null;
+      active.lastPurchased = null;
+      persist();
+      seedAndRenderInterview();
+    });
+    card.appendChild(skip);
+
+    // The location pre-prompt sits outside the question flow, so progress
+    // dots and the step counter aren't meaningful here.
+    progressEl.innerHTML = "";
+    stepEl.textContent = "Set the scene";
+
+    endBtn.hidden = true;
+    nextBtn.hidden = false;
+    nextBtn.disabled = false;
+    nextBtn.textContent = "Continue →";
+    nextBtn.onclick = () => {
+      const wv = whereInput.value.trim();
+      const fv = facingInput.value.trim();
+      const lv = lastInput.value.trim();
+      active.location = wv || null;
+      active.facing = fv || null;
+      active.lastPurchased = lv || null;
+      persist();
+      seedAndRenderInterview();
+    };
+
+    [whereInput, facingInput, lastInput].forEach((inputEl) => {
+      inputEl.addEventListener("keydown", (e) => {
+        // Single-line inputs: Enter advances.
+        if (e.key === "Enter") {
+          e.preventDefault();
+          nextBtn.click();
+        }
+      });
+    });
+
+    swap(card);
+    setTimeout(() => whereInput.focus(), 30);
+  }
+
   function renderStep() {
     if (!active) return;
     const transcript = active.transcript || [];
@@ -136,6 +331,29 @@
   function renderPendingQuestion(question) {
     const card = document.createElement("div");
     card.className = "writing-card";
+
+    if (active.location || active.facing || active.lastPurchased) {
+      const recall = document.createElement("div");
+      recall.className = "writing-recall";
+      const parts = [];
+      if (active.location) {
+        parts.push(
+          `<div class="writing-recall__line"><span class="writing-recall__pin" aria-hidden="true">📍</span><span class="writing-recall__text">${escapeHtml(active.location)}</span></div>`
+        );
+      }
+      if (active.facing) {
+        parts.push(
+          `<div class="writing-recall__line"><span class="writing-recall__label">facing</span><span class="writing-recall__text">${escapeHtml(active.facing)}</span></div>`
+        );
+      }
+      if (active.lastPurchased) {
+        parts.push(
+          `<div class="writing-recall__line"><span class="writing-recall__label">purchased</span><span class="writing-recall__text">${escapeHtml(active.lastPurchased)}</span></div>`
+        );
+      }
+      recall.innerHTML = parts.join("");
+      card.appendChild(recall);
+    }
 
     const q = document.createElement("h2");
     q.className = "writing-question";
@@ -234,66 +452,32 @@
       `<h2 class="writing-review__title" contenteditable="true" spellcheck="false">${escapeHtml(active.stitched.title || "Untitled")}</h2>`;
     card.appendChild(head);
 
-    // Per-answer revisit affordance: a list of all answers, click to
-    // jump back and edit. Editing forces a re-stitch.
-    const answers = document.createElement("div");
-    answers.className = "writing-review__answers";
-    (active.transcript || []).forEach((turn, idx) => {
-      const item = document.createElement("button");
-      item.className = "writing-review__answer";
-      item.type = "button";
-      item.innerHTML =
-        `<div class="writing-review__answer-q">${escapeHtml(turn.q)}</div>` +
-        `<div class="writing-review__answer-a">${escapeHtml(truncate(turn.a, 220))}</div>` +
-        `<div class="writing-review__answer-edit">Edit</div>`;
-      item.addEventListener("click", () => {
-        active.currentStep = idx;
-        persist();
-        renderStep();
-      });
-      answers.appendChild(item);
+    const body = document.createElement("textarea");
+    body.className = "writing-input writing-review__essay-input";
+    body.value = active.stitched.body || "";
+    body.spellcheck = true;
+    body.rows = 16;
+    let saveTimer;
+    body.addEventListener("input", () => {
+      if (!active || !active.stitched) return;
+      active.stitched.body = body.value;
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => persist(), 350);
     });
-    card.appendChild(answers);
-
-    const body = document.createElement("article");
-    body.className = "writing-review__essay";
-    body.innerHTML = paragraphs(active.stitched.body || "");
     card.appendChild(body);
-
-    const verifyNote = document.createElement("div");
-    verifyNote.className = "writing-review__verify";
-    const verified = verifyFounderOnly(active.stitched.body, active.transcript);
-    if (verified.ok) {
-      verifyNote.dataset.kind = "ok";
-      verifyNote.textContent = "✓ Every word in this essay came from you. tinker did not author any of it.";
-    } else {
-      verifyNote.dataset.kind = "warn";
-      verifyNote.innerHTML =
-        `<strong>Heads up:</strong> tinker tried to invent some words (` +
-        escapeHtml(verified.foreign.slice(0, 8).join(", ")) +
-        `…). Re-stitching now to remove them.`;
-      // Re-stitch on the next tick so the warning is visible.
-      setTimeout(() => askNext().catch((err) => renderError(err)), 200);
-    }
-    card.appendChild(verifyNote);
 
     const actions = document.createElement("div");
     actions.className = "writing-review__actions";
-    const restitch = document.createElement("button");
-    restitch.type = "button";
-    restitch.className = "writing-action";
-    restitch.textContent = "Re-stitch";
-    restitch.addEventListener("click", () => {
-      active.stitched = null;
-      persist();
-      renderStep();
-    });
     const publish = document.createElement("button");
     publish.type = "button";
     publish.className = "writing-action writing-action--primary";
     publish.textContent = "Publish";
-    publish.addEventListener("click", () => doPublish(head));
-    actions.append(restitch, publish);
+    publish.addEventListener("click", () => {
+      // Flush any pending debounced edits into the model before publish.
+      if (active && active.stitched) active.stitched.body = body.value;
+      doPublish(head);
+    });
+    actions.append(publish);
     card.appendChild(actions);
 
     nextBtn.hidden = true;
@@ -443,11 +627,45 @@
     renderStep();
   }
 
+  function buildTransactionsContext() {
+    const api = window.tinkerTransactions;
+    if (!api || typeof api.list !== "function") return [];
+    const all = api.list();
+    if (!all.length) return [];
+    // Cap at the 25 most recent so we don't blow context budget. Render
+    // oldest-first so Claude sees a chronological run.
+    const recent = all.slice(0, 25).reverse();
+    return recent.map((t) => {
+      const v = Number(t.amount);
+      const amt = Number.isFinite(v) ? `${v < 0 ? "-" : "+"}$${Math.abs(v).toFixed(2)}` : "";
+      const cat = t.category ? ` [${t.category}]` : "";
+      return `- ${t.date} ${t.merchant} ${amt}${cat}`;
+    });
+  }
+
   function buildUserMessage(transcript, { forceStitch = false } = {}) {
-    if (!transcript || transcript.length === 0) {
-      return "The founder just opened a new draft. Begin the interview.";
+    const lines = [];
+    if (active && active.location) {
+      lines.push(`Where the founder is right now: ${active.location}`);
     }
-    const lines = ["Conversation so far (the founder's answers are verbatim — do not paraphrase):", ""];
+    if (active && active.facing) {
+      lines.push(`What the founder is facing: ${active.facing}`);
+    }
+    if (active && active.lastPurchased) {
+      lines.push(`What the founder last purchased: ${active.lastPurchased}`);
+    }
+    const txLines = buildTransactionsContext();
+    if (txLines.length) {
+      if (lines.length) lines.push("");
+      lines.push("Recent transactions:");
+      lines.push(...txLines);
+    }
+    if (lines.length) lines.push("");
+    if (!transcript || transcript.length === 0) {
+      lines.push("The founder just opened a new draft. Begin the interview.");
+      return lines.join("\n");
+    }
+    lines.push("Conversation so far (the founder's answers are verbatim — do not paraphrase):", "");
     transcript.forEach((t, i) => {
       lines.push(`Q${i + 1}: ${t.q}`);
       lines.push(`A${i + 1}: ${t.a}`);
@@ -525,17 +743,6 @@
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
     );
   }
-  function paragraphs(body) {
-    return String(body || "")
-      .split(/\n{2,}/)
-      .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
-      .filter((p) => p !== "<p></p>")
-      .join("");
-  }
-  function truncate(s, n) {
-    s = String(s || "");
-    return s.length <= n ? s : s.slice(0, n - 1) + "…";
-  }
   function firstSentence(text) {
     const s = String(text || "").trim();
     const m = s.match(/^[^.!?\n]{1,80}[.!?]?/);
@@ -561,12 +768,6 @@
   function doPublish(reviewHead) {
     if (!active || !active.stitched) return;
     if (typeof window.tinkerOnWritingPublish !== "function") return;
-    // Final verification before publish.
-    const verified = verifyFounderOnly(active.stitched.body, active.transcript);
-    if (!verified.ok) {
-      // Force the safe-fallback body.
-      active.stitched.body = (active.transcript || []).map((t) => t.a.trim()).filter(Boolean).join("\n\n");
-    }
     const titleEl = reviewHead && reviewHead.querySelector(".writing-review__title");
     if (titleEl) {
       const t = titleEl.textContent.trim();

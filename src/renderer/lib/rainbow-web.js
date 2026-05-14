@@ -62,4 +62,34 @@
   window.tinkerLogo = window.tinkerLogo || {};
   window.tinkerLogo.tokens = loadTokens;
   window.tinkerLogo.buildRainbowWebSvg = buildRainbowWebSvg;
+
+  // Auto-mount: every <svg data-rainbow-logo> in the DOM gets its
+  // inner geometry rewritten from the canonical tokens. The inline
+  // copy in index.html acts as a paint-before-JS fallback; once the
+  // tokens load, the canonical body replaces it so any future palette
+  // or stroke-width change in rainbow-web.json flows in automatically.
+  // Same trick the upstream marketing site uses, so the home top bar
+  // and sidebar brand always match beginner.work.
+  async function mountRainbowLogos() {
+    const slots = document.querySelectorAll("svg[data-rainbow-logo]");
+    if (!slots.length) return;
+    let svgString;
+    try { svgString = await buildRainbowWebSvg(); } catch { return; }
+    const tmpl = document.createElement("div");
+    tmpl.innerHTML = svgString;
+    const source = tmpl.firstElementChild;
+    if (!source) return;
+    const inner = source.innerHTML;
+    const viewBox = source.getAttribute("viewBox");
+    for (const slot of slots) {
+      slot.setAttribute("viewBox", viewBox);
+      slot.setAttribute("fill", "none");
+      slot.innerHTML = inner;
+    }
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mountRainbowLogos, { once: true });
+  } else {
+    mountRainbowLogos();
+  }
 })();
