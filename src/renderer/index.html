@@ -195,23 +195,6 @@
       </div>
     </div>
 
-    <!-- First-sign-in welcome card. Shown once per device after the
-         tester finishes phone-OTP; suppressed thereafter via
-         localStorage["tinker.welcomed.v1"]. Personal framing, no
-         "beta" badge. -->
-    <div id="welcome-card" class="welcome-card" hidden
-         role="dialog" aria-modal="true" aria-labelledby="welcome-card-title">
-      <div class="welcome-card__backdrop" data-welcome-dismiss></div>
-      <div class="welcome-card__panel">
-        <h2 id="welcome-card-title" class="welcome-card__title">you're inside tinker.</h2>
-        <p class="welcome-card__body">
-          If you ever notice a bug, just text me.
-        </p>
-        <p class="welcome-card__sig">— Tyler</p>
-        <button type="button" class="welcome-card__btn" data-welcome-dismiss>tinker</button>
-      </div>
-    </div>
-
     <!-- Platform shim runs first. -->
     <script src="./platform-mobile.js" defer></script>
     <script src="./auth.js" defer></script>
@@ -219,7 +202,6 @@
     <script src="./icon-init.js" defer></script>
     <script src="./writing.js" defer></script>
     <script src="./renderer.js" defer></script>
-    <script src="./welcome-card.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
   </body>
 </html>
