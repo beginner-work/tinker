@@ -260,9 +260,61 @@
     });
   }
 
-  // Re-render the home list whenever locations change.
+  // Previous-location pills under the welcome question. Tap to start
+  // writing there; tap × to remove the location.
+  const welcomePillsEl = document.getElementById("welcome-pills");
+  function renderWelcomePills() {
+    if (!welcomePillsEl) return;
+    if (!window.tinkerLocations || typeof window.tinkerLocations.list !== "function") return;
+    const locs = window.tinkerLocations.list()
+      .slice()
+      .sort((a, b) => (b.lastUsed || 0) - (a.lastUsed || 0))
+      .slice(0, 12);
+    welcomePillsEl.innerHTML = "";
+    if (!locs.length) {
+      welcomePillsEl.hidden = true;
+      return;
+    }
+    welcomePillsEl.hidden = false;
+    for (const loc of locs) {
+      const pill = document.createElement("span");
+      pill.className = "welcome-pill";
+
+      const select = document.createElement("button");
+      select.type = "button";
+      select.className = "welcome-pill__name";
+      select.textContent = loc.name;
+      select.addEventListener("click", () => {
+        if (typeof window.tinkerNewSession === "function") {
+          window.tinkerNewSession({ location: loc.name });
+        }
+      });
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "welcome-pill__remove";
+      remove.setAttribute("aria-label", `Remove ${loc.name}`);
+      remove.textContent = "×";
+      remove.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (window.tinkerLocations && typeof window.tinkerLocations.remove === "function") {
+          window.tinkerLocations.remove(loc.name);
+        }
+      });
+
+      pill.appendChild(select);
+      pill.appendChild(remove);
+      welcomePillsEl.appendChild(pill);
+    }
+  }
+  renderWelcomePills();
+
+  // Re-render the home list + welcome pills whenever locations change.
   if (window.tinkerLocations && typeof window.tinkerLocations.subscribe === "function") {
-    window.tinkerLocations.subscribe(() => renderHome());
+    window.tinkerLocations.subscribe(() => {
+      renderHome();
+      renderWelcomePills();
+    });
   }
 
   readClose.addEventListener("click", () => showFeed());

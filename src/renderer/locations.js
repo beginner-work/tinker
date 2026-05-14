@@ -19,6 +19,7 @@
   "use strict";
 
   const STORAGE_KEY = "tinker.locations.v1";
+  const STORAGE_HIDDEN = "tinker.locations.hidden.v1";
   const STORAGE_DRAFTS = "tinker.drafts.v1";
   const STORAGE_ESSAYS = "tinker.essays.v1";
 
@@ -32,9 +33,20 @@
   function save(list) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch { /* ignore */ }
   }
+  function loadHidden() {
+    try {
+      const raw = localStorage.getItem(STORAGE_HIDDEN);
+      const arr = raw ? JSON.parse(raw) : [];
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch { return new Set(); }
+  }
+  function saveHidden(set) {
+    try { localStorage.setItem(STORAGE_HIDDEN, JSON.stringify(Array.from(set))); } catch { /* ignore */ }
+  }
   function nextId() { return "loc_" + Math.random().toString(36).slice(2, 10); }
 
   let explicit = load();
+  let hidden = loadHidden();
 
   // One-time purge for browsers that received the four preview-seed
   // defaults ("Provecho", "Industrious", "Living room", "Bedroom") on
@@ -127,7 +139,11 @@
       if (t.merchant) touch(t.merchant, when, "transaction");
     }
 
-    return Array.from(map.values());
+    // Drop any location the user has explicitly removed (tombstoned).
+    // Filtering here — after the merge — means a removed name stays
+    // hidden even when it's still referenced by past drafts, essays,
+    // or transactions.
+    return Array.from(map.values()).filter((e) => !hidden.has(e.key));
   }
 
   function extractDraftContent(draft) {
@@ -209,6 +225,12 @@
     const trimmed = String(name || "").trim();
     if (!trimmed) return;
     const key = normalize(trimmed);
+    // If the user previously removed this location, untombstone it —
+    // they've explicitly opted back in by typing the name again.
+    if (hidden.has(key)) {
+      hidden.delete(key);
+      saveHidden(hidden);
+    }
     // Skip if already in the explicit list (same normalized form).
     if (explicit.some((e) => normalize(e.name) === key)) {
       notify();
@@ -219,10 +241,26 @@
     notify();
   }
 
+  function removeLocation(name) {
+    const key = normalize(name);
+    if (!key) return;
+    const before = explicit.length;
+    explicit = explicit.filter((e) => normalize(e.name) !== key);
+    if (explicit.length !== before) save(explicit);
+    // Tombstone so the location stays hidden even when it's still
+    // referenced by past drafts, essays, or transactions.
+    if (!hidden.has(key)) {
+      hidden.add(key);
+      saveHidden(hidden);
+    }
+    notify();
+  }
+
   // ── Public API ──────────────────────────────────────────────────────
   window.tinkerLocations = {
     list: listMerged,
     add: addLocation,
+    remove: removeLocation,
     subscribe(fn) { subscribers.add(fn); return () => subscribers.delete(fn); },
     openAddModal,
   };

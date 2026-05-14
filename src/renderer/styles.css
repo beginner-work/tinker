@@ -209,6 +209,56 @@ html.on-web .sidebar__top {
   line-height: 1.5;
 }
 
+/* Previous-location pills below the question/form. Tap the name to
+   start writing there; tap × to remove. Sized to read as a quiet
+   shortcut row — not a primary action. */
+.welcome__pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+  max-width: min(420px, 92%);
+}
+.welcome__pills[hidden] { display: none; }
+.welcome-pill {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  overflow: hidden;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.welcome-pill:hover { border-color: var(--color-accent-strong); }
+.welcome-pill__name {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 6px 4px 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-foreground);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.welcome-pill__name:hover { color: var(--color-accent-strong); }
+.welcome-pill__remove {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0 10px 0 6px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+.welcome-pill__remove:hover { color: #c2410c; }
+
 @media (max-width: 540px) {
   /* Horizontal + vertical padding handled by the clamp() on .welcome
      so it scales the same across mobile and narrow-desktop widths.
