@@ -11,11 +11,20 @@
 
 .pwa-hint {
   position: fixed;
-  left: 50%;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
-  transform: translate(-50%, 16px);
+  /* Anchor to the bottom-right so the pill, the arrow, and the ring
+   * all naturally line up with the three-dots which sit at the right
+   * edge of Safari's bottom URL bar. The card hugs the right edge of
+   * the viewport with a small inset; the arrow ends just inside the
+   * bottom-right corner, pointing at the three-dots that sit just
+   * outside our viewport in Safari's chrome. */
+  /* env(safe-area-inset-bottom) on iOS Safari with the bottom URL
+   * bar already accounts for the bar + the home indicator, so a
+   * small constant offset is enough to sit just above the bar. */
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  transform: translateY(16px);
   z-index: 90;
-  width: min(360px, calc(100vw - 24px));
+  width: min(340px, calc(100vw - 24px));
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.32s ease, transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2);
@@ -23,7 +32,7 @@
 
 .pwa-hint[data-visible] {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: translateY(0);
   pointer-events: auto;
   /* Gentle float, like the Dynamic Island settling and breathing
    * around the camera. Layered on top of the static transform via a
@@ -175,14 +184,15 @@
 
 .pwa-hint__arrow {
   position: absolute;
-  /* The pill sits centered; the three-dots in iOS Safari sit on the
-   * right side of the URL bar. The arrow exits the pill from below
-   * and curves out and down to roughly that spot. Floats with the
-   * pill so the whole hint reads as one floating element. */
-  right: 26px;
-  bottom: -56px;
-  width: 84px;
-  height: 70px;
+  /* The pill is anchored to the bottom-right of the viewport; the
+   * three-dots in iOS Safari sit at the right edge of the URL bar
+   * just below the safe-area inset. The arrow hooks down-right from
+   * the pill so its tip lands at the very bottom-right corner of
+   * the visible viewport — right above the three-dots. */
+  right: -6px;
+  bottom: -10px;
+  width: 56px;
+  height: 50px;
   pointer-events: none;
   filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
   opacity: 0;
@@ -195,10 +205,13 @@
 
 .pwa-hint__ring {
   position: absolute;
-  right: 12px;
-  bottom: -64px;
-  width: 26px;
-  height: 26px;
+  /* Sits at the bottom-right corner of the visible viewport, just
+   * above where Safari's three-dots sit in the URL bar chrome. The
+   * pulse beats outward toward the three-dots below. */
+  right: -10px;
+  bottom: -14px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   pointer-events: none;
   background: radial-gradient(closest-side, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
@@ -226,10 +239,9 @@
 
 /* Honor reduced-motion: hold steady, no morph, no float, no pulse. */
 @media (prefers-reduced-motion: reduce) {
-  .pwa-hint { transition: opacity 0.2s ease; transform: translate(-50%, 0); }
+  .pwa-hint { transition: opacity 0.2s ease; transform: translateY(0); }
   .pwa-hint__card {
     width: 100%;
-    grid-template-columns: auto 1fr auto;
     animation: none;
   }
   .pwa-hint__icon,
