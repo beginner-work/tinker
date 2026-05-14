@@ -202,8 +202,9 @@
          pwa-install-hint.js reveals it only on iOS Safari (mobile web,
          not standalone, not Capacitor) and remembers dismissal. The
          glass surface is borrowed from Safari's own toolbar so it
-         reads as part of the chrome. The inline three-dots glyph in
-         the message mirrors Safari's page-menu button below. -->
+         reads as part of the chrome. The inline share glyph in the
+         message mirrors Safari's Share button — the first step in
+         the Add-to-Home-Screen flow. -->
     <aside id="pwa-hint" class="pwa-hint" role="dialog" aria-live="polite"
            aria-label="Add tinker to your Home Screen">
       <div class="pwa-hint__card">
@@ -223,8 +224,15 @@
           <div class="pwa-hint__title">Keep tinker one tap away</div>
           <div class="pwa-hint__steps">
             Tap
-            <span class="pwa-hint__dots" aria-label="three-dots menu">
-              <span></span><span></span><span></span>
+            <span class="pwa-hint__share" aria-label="Share button">
+              <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none">
+                <path d="M4.5 7.5 V12.5 H11.5 V7.5"
+                      stroke="currentColor" stroke-width="1.5"
+                      stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M8 2 V10 M5.5 4.5 L8 2 L10.5 4.5"
+                      stroke="currentColor" stroke-width="1.5"
+                      stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
             </span>
             <span class="pwa-hint__arrow-glyph" aria-hidden="true">→</span>
             Add to Home Screen

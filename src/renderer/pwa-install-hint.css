@@ -11,12 +11,15 @@
 
 .pwa-hint {
   position: fixed;
-  left: 50%;
+  /* Anchor to the bottom-left so the morph unfurls from that corner —
+   * the same corner where Safari's page-menu / share buttons live in
+   * the URL bar below. */
+  left: calc(env(safe-area-inset-left, 0px) + 12px);
   /* env(safe-area-inset-bottom) on iOS Safari with the bottom URL
    * bar already accounts for the bar + the home indicator, so a
    * small constant offset is enough to sit just above the bar. */
   bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-  transform: translate(-50%, 16px);
+  transform: translateY(16px);
   z-index: 90;
   width: min(340px, calc(100vw - 24px));
   pointer-events: none;
@@ -26,7 +29,7 @@
 
 .pwa-hint[data-visible] {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: translateY(0);
   pointer-events: auto;
 }
 
@@ -124,23 +127,18 @@
   gap: 6px;
   flex-wrap: wrap;
 }
-.pwa-hint__dots {
-  display: inline-grid;
-  grid-template-columns: repeat(3, 3px);
-  gap: 2px;
-  padding: 4px 6px;
+.pwa-hint__share {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(45, 90, 61, 0.08);
   vertical-align: middle;
+  color: var(--color-foreground, #2d2a26);
 }
-.pwa-hint__dots span {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.85;
-}
+.pwa-hint__share svg { display: block; }
 .pwa-hint__arrow-glyph {
   display: inline-block;
   font-weight: 700;
@@ -165,7 +163,7 @@
 
 /* Honor reduced-motion: hold the expanded pill steady, no morph, no float. */
 @media (prefers-reduced-motion: reduce) {
-  .pwa-hint { transition: opacity 0.2s ease; transform: translate(-50%, 0); }
+  .pwa-hint { transition: opacity 0.2s ease; transform: translateY(0); }
   .pwa-hint__card { width: 100%; animation: none; }
   .pwa-hint__icon,
   .pwa-hint__copy,
