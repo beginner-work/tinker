@@ -61,15 +61,15 @@
     if (sheet) {
       const hostEl = sheet.querySelector("[data-pwa-host]");
       if (hostEl) hostEl.textContent = window.location.hostname;
-      // Anchor the sheet to the top of the viewport. The previous
-      // attempt at detecting URL-bar edge via env(safe-area-inset-*)
-      // proved unreliable: iOS Safari doesn't consistently include
-      // the URL bar height in those insets across versions. Since
-      // the bottom URL bar is the iOS 15+ default for every iPhone
-      // size and the only place this banner ever shows is iOS
-      // Safari, always opening from the top keeps the chrome the
-      // user is about to tap unobstructed.
-      sheet.classList.add("pwa-hint-sheet--from-top");
+      // Sheet anchors to the bottom — same side as iOS Safari's URL
+      // bar (the default since iOS 15). Putting the instructions on
+      // the same side as the action means when the user taps Share
+      // and the iOS share sheet rises, it covers both the URL bar
+      // AND our instructions together; when the share sheet closes,
+      // the instructions are right where the user's attention was.
+      // Anchoring to the opposite side (top) leaves the instructions
+      // visible until the user taps Share, then hides them precisely
+      // when step 2 needs re-reading.
     }
 
     function showBanner() {
