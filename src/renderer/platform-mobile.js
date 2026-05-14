@@ -51,8 +51,13 @@
       try { STORE.removeItem("tinker_jwt"); } catch { /* ignore */ }
       const e = new Error("Session expired — sign in again.");
       e.code = "SESSION_EXPIRED";
-      // Drop the renderer back into the auth gate.
-      setTimeout(() => window.location.reload(), 100);
+      // Surface the auth gate in place instead of reloading the page.
+      // A reload mid-session reads as "I submitted something and got
+      // bounced to login", which is exactly the experience we want to
+      // avoid.
+      if (window.tinkerAuth && typeof window.tinkerAuth.showGate === "function") {
+        window.tinkerAuth.showGate();
+      }
       throw e;
     }
     let data = null;
