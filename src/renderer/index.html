@@ -6,6 +6,11 @@
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://vercel.live wss://ws-us3.pusher.com; script-src 'self' https://vercel.live; frame-src https://vercel.live;" />
     <title>tinker</title>
+    <!-- Belt + suspenders: this tag tells well-behaved crawlers not to
+         index the app; the X-Robots-Tag header in vercel.json catches
+         the rest (including agents that ignore meta robots). Together
+         they keep the private-beta surface off Google. -->
+    <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="apple-touch-icon" href="./favicon.svg" />
 
@@ -167,6 +172,8 @@
           </svg>
         </div>
 
+        <p class="auth-gate__invite">private &middot; invite only &middot; you're on the list.</p>
+
         <h1 class="auth-gate__title" data-step-title>Sign in to tinker</h1>
         <p class="auth-gate__lede" data-step-lede>
           Enter your phone — we'll text you a six-digit code.
@@ -196,6 +203,23 @@
       </div>
     </div>
 
+    <!-- First-sign-in welcome card. Shown once per device after the
+         tester finishes phone-OTP; suppressed thereafter via
+         localStorage["tinker.welcomed.v1"]. Personal framing, no
+         "beta" badge. -->
+    <div id="welcome-card" class="welcome-card" hidden
+         role="dialog" aria-modal="true" aria-labelledby="welcome-card-title">
+      <div class="welcome-card__backdrop" data-welcome-dismiss></div>
+      <div class="welcome-card__panel">
+        <h2 id="welcome-card-title" class="welcome-card__title">you're inside tinker.</h2>
+        <p class="welcome-card__body">
+          some things will move, some things will break. send me a note when they do — that's what this stretch is for.
+        </p>
+        <p class="welcome-card__sig">— Tyler</p>
+        <button type="button" class="welcome-card__btn" data-welcome-dismiss>Start writing →</button>
+      </div>
+    </div>
+
     <!-- Platform shim runs first. -->
     <script src="./platform-mobile.js" defer></script>
     <script src="./auth.js" defer></script>
@@ -203,6 +227,7 @@
     <script src="./icon-init.js" defer></script>
     <script src="./writing.js" defer></script>
     <script src="./renderer.js" defer></script>
+    <script src="./welcome-card.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
   </body>
 </html>
