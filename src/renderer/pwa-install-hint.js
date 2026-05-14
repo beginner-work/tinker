@@ -44,15 +44,31 @@
     try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch { /* private mode */ }
   }
 
+  // iOS Safari tints the system status bar to match <meta theme-color>
+  // and draws a subtle separator where the tint meets content of a
+  // different color. The banner is white but the document's
+  // theme-color is the cream brand value, so a hairline scrim
+  // appears under the status bar (and visually right at the banner's
+  // bottom in some renderings). Match theme-color to the banner
+  // while it's up, restore the brand value once it's gone.
+  const THEME_DEFAULT = "#F5F3EF";
+  const THEME_BANNER = "#ffffff";
+  function setThemeColor(color) {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", color);
+  }
+
   function showBanner(banner) {
     banner.hidden = false;
     document.documentElement.classList.add("pwa-hint-visible");
+    setThemeColor(THEME_BANNER);
     requestAnimationFrame(() => { banner.dataset.visible = ""; });
   }
 
   function hideBanner(banner, sheet, { remember = true } = {}) {
     delete banner.dataset.visible;
     document.documentElement.classList.remove("pwa-hint-visible");
+    setThemeColor(THEME_DEFAULT);
     if (remember) markDismissed();
     setTimeout(() => {
       banner.remove();
