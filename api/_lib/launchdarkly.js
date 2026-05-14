@@ -19,7 +19,16 @@
 "use strict";
 
 let LD;
-try { LD = require("@launchdarkly/node-server-sdk"); } catch { LD = null; }
+let ldRequireError = null;
+try {
+  LD = require("@launchdarkly/node-server-sdk");
+} catch (err) {
+  LD = null;
+  ldRequireError = err && err.message;
+  // Surfaces in Vercel function logs on cold start if the install
+  // step skipped this dependency.
+  console.error("[launchdarkly] SDK require failed:", ldRequireError);
+}
 
 let clientPromise = null;
 
@@ -53,14 +62,27 @@ function getClient() {
 }
 
 async function canSignUp(stytchUserId, phone) {
-  if (!process.env.LAUNCHDARKLY_SDK_KEY) {
-    // Not wired yet — let signups through so local + early-preview
-    // dev works without LD configured. Once the env var is set on
-    // Preview / Production, this branch stops firing.
+  const keyPresent = !!process.env.LAUNCHDARKLY_SDK_KEY;
+  const sdkLoaded = !!LD;
+  // Single-line breadcrumb on every call so Vercel function logs make
+  // the path obvious when debugging "why isn't my flag evaluating".
+  console.log("[launchdarkly] canSignUp", JSON.stringify({
+    phone: phone || null,
+    userId: stytchUserId || null,
+    keyPresent,
+    sdkLoaded,
+    requireError: ldRequireError,
+  }));
+
+  if (!keyPresent) {
+    console.log("[launchdarkly] fail-open: LAUNCHDARKLY_SDK_KEY not visible to the function");
     return true;
   }
   const client = await getClient();
-  if (!client) return false; // SDK missing or init failed → fail closed
+  if (!client) {
+    console.error("[launchdarkly] fail-closed: getClient returned null (SDK missing or init failed)");
+    return false;
+  }
   try {
     const ctx = {
       kind: "user",
@@ -68,9 +90,10 @@ async function canSignUp(stytchUserId, phone) {
     };
     if (phone) ctx.phone = phone;
     const allowed = await client.variation("signup-enabled", ctx, false);
+    console.log("[launchdarkly] evaluated signup-enabled:", { ctx, allowed });
     return !!allowed;
   } catch (err) {
-    console.error("[launchdarkly] evaluation failed:", err && err.message);
+    console.error("[launchdarkly] evaluation threw:", err && err.message);
     return false;
   }
 }
