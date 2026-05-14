@@ -195,7 +195,10 @@ html.on-web .sidebar__top {
   align-items: center;
   justify-content: center;
   min-height: 100%;
-  padding: 60px 24px;
+  /* Fluid padding so the form has real breathing room from the
+     viewport edges at any width — mobile, narrow desktop, and full
+     desktop all scale the same way without breakpoint overrides. */
+  padding: clamp(40px, 6vh, 64px) clamp(32px, 8vw, 64px);
   background: var(--color-background);
 }
 .welcome__inner {
@@ -268,7 +271,9 @@ html.on-web .sidebar__top {
 }
 
 @media (max-width: 540px) {
-  .welcome { padding: 40px 28px; }
+  /* Horizontal + vertical padding handled by the clamp() on .welcome
+     so it scales the same across mobile and narrow-desktop widths.
+     Only the layout + type knobs change here. */
   .welcome__question { font-size: 22px; }
   .welcome__form { flex-direction: column; gap: 10px; }
   .welcome__submit { width: 100%; height: 46px; }
