@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "outputDirectory": "src/renderer",
+  "installCommand": "echo 'skip install — static PWA, no build deps used at deploy time'",
+  "buildCommand": "echo 'no build step — files in src/renderer are served as-is'"
+}
