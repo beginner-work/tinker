@@ -60,7 +60,8 @@
   /* Restore the labels/text the rail mode hides — inside the drawer
    * we want the full desktop-style sidebar. */
   .sidebar__name,
-  .sidebar__footer { display: revert; }
+  .sidebar__footer,
+  .sidebar__account { display: revert; }
   .sidebar__top { padding: calc(env(safe-area-inset-top, 0px) + 12px) 14px 10px; }
 
   /* Backdrop stays in the DOM only to catch clicks-outside-the-drawer
