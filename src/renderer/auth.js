@@ -159,6 +159,10 @@
       const data = await postJson("/api/auth/phone/verify", { phone_id: phoneId, pin });
       auth.token = data.token;
       try { localStorage.removeItem(PHONE_ID_KEY); } catch { /* ignore */ }
+      // Let pwa-session.js fold the fresh JWT into the manifest's
+      // start_url so an immediate "Add to Home Screen" carries the
+      // session into the standalone PWA.
+      try { window.dispatchEvent(new CustomEvent("tinker:auth-changed")); } catch { /* ignore */ }
       setStatus(data.isNew ? "Welcome to tinker!" : "Welcome back.", "ok");
       // Brief beat so the success message lands, then drop the gate.
       setTimeout(() => {
