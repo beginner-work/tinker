@@ -36,17 +36,27 @@
 
   let explicit = load();
 
-  // First-run defaults — four real places, NOT marked as demo. They
-  // sit in "Awaiting your first session" until the founder taps one
-  // (which creates a draft, which marks the location as used, which
-  // triggers Claude to classify it into a growth vector).
+  // Preview-only seed. The four default locations appear automatically
+  // on Vercel preview deployments + local dev so the founder can poke
+  // at the app without typing places in first. Production deploys (the
+  // live custom domain) stay empty — invited testers add their own
+  // places via the welcome prompt or the sidebar + button.
   //
-  // Guard with an init flag so deleting them won't make them
+  // Guard with an init flag so deleting a default doesn't make it
   // re-appear on the next reload.
   const DEFAULTS_KEY = "tinker.locations_initialized.v1";
   const DEFAULTS = ["Provecho", "Industrious", "Living room", "Bedroom"];
+  function isPreviewEnv() {
+    try {
+      const h = (typeof location !== "undefined" && location.hostname) || "";
+      if (h === "localhost" || h === "127.0.0.1") return true;
+      if (h.endsWith(".vercel.app")) return true;
+      return false;
+    } catch { return false; }
+  }
   (function seedDefaultsOnce() {
     try {
+      if (!isPreviewEnv()) return;
       if (localStorage.getItem(DEFAULTS_KEY)) return;
       if (explicit.length === 0) {
         const now = Date.now();
@@ -224,56 +234,12 @@
     notify();
   }
 
-  // A handful of reflection-style locations alongside the transaction
-  // seed. Together they exercise all six growth vectors so the
-  // classifier has something to work with on first open.
-  function seedSynthetic() {
-    const samples = [
-      "Kitchen counter, 7am",
-      "Back porch at dusk",
-      "The studio",
-      "Cafe down the block",
-      "Saturday morning, before everyone wakes",
-    ];
-    const now = Date.now();
-    let changed = false;
-    for (const name of samples) {
-      const key = normalize(name);
-      if (!explicit.some((e) => normalize(e.name) === key)) {
-        explicit = [{ id: nextId(), name, createdAt: now, _demo: true }].concat(explicit);
-        changed = true;
-      }
-    }
-    if (changed) save(explicit);
-
-    // Delegate to the transactions module so merchants flow in too.
-    // Its notify() bubbles back here via the subscribe wired below.
-    if (window.tinkerTransactions && typeof window.tinkerTransactions.seed === "function") {
-      window.tinkerTransactions.seed();
-    } else if (changed) {
-      notify();
-    }
-  }
-
-  function clearDemoData() {
-    const before = explicit.length;
-    explicit = explicit.filter((e) => !e || !e._demo);
-    if (explicit.length !== before) save(explicit);
-    if (window.tinkerTransactions && typeof window.tinkerTransactions.clearDemoData === "function") {
-      window.tinkerTransactions.clearDemoData();
-    } else if (explicit.length !== before) {
-      notify();
-    }
-  }
-
   // ── Public API ──────────────────────────────────────────────────────
   window.tinkerLocations = {
     list: listMerged,
     add: addLocation,
     subscribe(fn) { subscribers.add(fn); return () => subscribers.delete(fn); },
     openAddModal,
-    seed: seedSynthetic,
-    clearDemoData,
   };
 
   // Re-emit when transactions change so the list reflects new merchants.

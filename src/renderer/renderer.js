@@ -271,41 +271,6 @@
     });
   }
 
-  // Demo mode toggle (sidebar footer). State persisted to localStorage
-  // so the founder's choice survives reloads. ON adds _demo-tagged
-  // locations + transactions; OFF removes only those tagged items,
-  // leaving any real data the founder added alone.
-  const DEMO_KEY = "tinker.demo_mode.v1";
-  const demoToggleBtn = document.getElementById("demo-toggle");
-  function readDemoState() {
-    try { return localStorage.getItem(DEMO_KEY) === "1"; } catch { return false; }
-  }
-  function writeDemoState(on) {
-    try { localStorage.setItem(DEMO_KEY, on ? "1" : "0"); } catch { /* ignore */ }
-  }
-  function reflectDemoState(on) {
-    if (!demoToggleBtn) return;
-    demoToggleBtn.setAttribute("aria-checked", on ? "true" : "false");
-    demoToggleBtn.classList.toggle("demo-toggle--on", on);
-  }
-  if (demoToggleBtn) {
-    reflectDemoState(readDemoState());
-    demoToggleBtn.addEventListener("click", () => {
-      const next = !readDemoState();
-      writeDemoState(next);
-      reflectDemoState(next);
-      if (next) {
-        if (window.tinkerLocations && typeof window.tinkerLocations.seed === "function") {
-          window.tinkerLocations.seed();
-        }
-      } else {
-        if (window.tinkerLocations && typeof window.tinkerLocations.clearDemoData === "function") {
-          window.tinkerLocations.clearDemoData();
-        }
-      }
-    });
-  }
-
   // Re-render the home list whenever locations change.
   if (window.tinkerLocations && typeof window.tinkerLocations.subscribe === "function") {
     window.tinkerLocations.subscribe(() => renderHome());
