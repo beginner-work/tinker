@@ -13,7 +13,6 @@
 "use strict";
 
 const { authenticateOtp } = require("../../_lib/stytch.js");
-const { canSignUp } = require("../../_lib/launchdarkly.js");
 
 function looksFreshlyCreated(stytchUser) {
   if (!stytchUser || typeof stytchUser.created_at !== "string") return false;
@@ -50,23 +49,6 @@ module.exports = async function handler(req, res) {
       res.status(502).json({ error: "Stytch returned no session token." });
       return;
     }
-
-    // Beta allowlist gate. Stytch has confirmed the OTP, but we only
-    // issue the session JWT if LaunchDarkly says this phone is on the
-    // signup-enabled list. The eval shows up under Flag → Insights in
-    // the LD dashboard, so it doubles as an audit trail of who hit
-    // the verify endpoint.
-    const phone = stytch.user && Array.isArray(stytch.user.phone_numbers)
-      && stytch.user.phone_numbers[0] && stytch.user.phone_numbers[0].phone_number;
-    const userId = stytch.user && stytch.user.user_id;
-    const allowed = await canSignUp(userId, phone);
-    if (!allowed) {
-      res.status(403).json({
-        error: "tinker is in private beta — your number isn't on the list yet. ping Tyler to add it.",
-      });
-      return;
-    }
-
     res.status(200).json({
       token: stytch.session_jwt,
       isNew: looksFreshlyCreated(stytch.user),
