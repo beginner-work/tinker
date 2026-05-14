@@ -101,4 +101,4 @@ async function authenticateOtp(phoneId, code) {
   });
 }
 
-module.exports = { readEnv, baseUrlFor, sendSmsOtp, authenticateOtp };
+module.exports = { readEnv, baseUrlFor, sendSmsOtp, authenticateOtp, toE164 };

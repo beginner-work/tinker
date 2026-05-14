@@ -86,6 +86,16 @@
       titleEl.textContent = "Enter your code";
       ledeEl.innerHTML = `Sent to <strong>${formatPhone(phoneInput.value)}</strong>. The code expires in 10 minutes.`;
       setTimeout(() => pinInput.focus(), 0);
+    } else if (step === "blocked") {
+      // Server returned 403 with { blocked: true } — phone isn't on
+      // the LaunchDarkly signup-enabled allowlist. Replace both forms
+      // with a quiet "not yet" message and leave the back button so
+      // the user can retry with a different number.
+      phoneForm.hidden = true;
+      pinForm.hidden = true;
+      backBtn.hidden = false;
+      titleEl.textContent = "Not yet";
+      ledeEl.innerHTML = "tinker is in private beta. your number isn't on the list yet — text Tyler if you'd like access.";
     } else {
       pinForm.hidden = true;
       phoneForm.hidden = false;
@@ -106,7 +116,10 @@
     try { data = await res.json(); } catch { data = {}; }
     if (!res.ok) {
       const msg = (data && data.error) || `Request failed (${res.status})`;
-      throw new Error(msg);
+      const err = new Error(msg);
+      err.status = res.status;
+      err.blocked = !!(data && data.blocked);
+      throw err;
     }
     return data;
   }
@@ -134,7 +147,16 @@
       setStatus("Code sent.", "info");
       showStep("pin");
     } catch (err) {
-      setStatus(err.message, "error");
+      // 403 with { blocked: true } means LD denied this phone. Route
+      // to the dedicated "not yet" view instead of showing a generic
+      // error inline above the form (which would invite a retry the
+      // server will reject again).
+      if (err.blocked || err.status === 403) {
+        setStatus("", "");
+        showStep("blocked");
+      } else {
+        setStatus(err.message, "error");
+      }
     }
   });
 
