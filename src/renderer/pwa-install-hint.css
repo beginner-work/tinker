@@ -136,42 +136,40 @@ html.pwa-hint-visible .feed {
   background: var(--color-surface, #ffffff);
   border-radius: 20px 20px 0 0;
   padding: 18px 18px calc(env(safe-area-inset-bottom, 0px) + 22px);
-  /* Flex column so the dancing globe can use margin-top: auto to
-   * float into the empty space below the instructions. */
-  display: flex;
-  flex-direction: column;
   /* Cover the full viewport from below; the panel's top edge
    * stays high above any popover Safari rises from the URL bar. */
   min-height: 95vh;
   min-height: 95dvh;
 }
 
-/* Dancing tinker globe in the white space below the steps,
- * anchored to the bottom-right corner of the panel — the same
- * corner Safari's three-dots sits in once the URL bar comes back.
- * The animation tilts and bounces toward that corner so the globe
- * reads as pointing at where the user is about to tap. */
+/* Tinker globe (rainbow wireframe, no backing tile) rolls along
+ * the bottom of the panel, looping from off the left edge to off
+ * the right edge. Anchored absolutely so the rest of the panel
+ * content can stack normally above it. */
 .pwa-hint-sheet__globe {
-  width: 120px;
-  height: 120px;
-  margin-top: auto;
-  margin-left: auto;
-  margin-right: 4px;
-  margin-bottom: 4px;
-  transform-origin: 70% 80%;
-  animation: pwaHintDance 1.6s cubic-bezier(0.4, 0.05, 0.4, 1) infinite;
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  width: 80px;
+  height: 80px;
+  pointer-events: none;
+  animation: pwaHintRoll 6s linear infinite;
 }
 .pwa-hint-sheet__globe svg { display: block; width: 100%; height: 100%; }
 
-@keyframes pwaHintDance {
-  0%, 100% { transform: rotate(6deg) translate(0, 0); }
-  25%      { transform: rotate(-4deg) translate(-3px, -6px); }
-  50%      { transform: rotate(18deg) translate(5px, 4px); }
-  75%      { transform: rotate(-4deg) translate(-3px, -6px); }
+@keyframes pwaHintRoll {
+  /* `left` animates from off-panel-left to off-panel-right; the
+   * matching rotation makes the rainbow strokes appear to spin
+   * with the direction of travel. ~720° over the crossing is a
+   * pleasant rolling cadence for an 80px circle on a 540px panel. */
+  0%   { left: -90px; transform: rotate(0deg); }
+  100% { left: 100%;  transform: rotate(720deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pwa-hint-sheet__globe { animation: none; transform: rotate(10deg); }
+  .pwa-hint-sheet__globe {
+    animation: none;
+    left: calc(100% - 96px);
+  }
 }
 
 /* Modifier: anchor the sheet to the TOP of the viewport instead of
