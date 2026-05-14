@@ -29,6 +29,11 @@
     <meta name="apple-mobile-web-app-title" content="tinker" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Wipes localStorage on Vercel previews + localhost only, so each
+         QA load starts from a clean slate. No-op on production. Loaded
+         first so it runs before auth.js / pwa-install-hint.js read
+         from storage. -->
+    <script src="./preview-reset.js" defer></script>
     <script src="./transactions.js" defer></script>
     <script src="./locations.js" defer></script>
     <script src="./heatmap.js" defer></script>
