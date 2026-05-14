@@ -209,55 +209,75 @@ html.on-web .sidebar__top {
   line-height: 1.5;
 }
 
-/* Previous-location pills below the question/form. Tap the name to
-   start writing there; tap × to remove. Sized to read as a quiet
-   shortcut row — not a primary action. */
+/* Previous-location pills below the question/form. The pill is the
+   primary "start here" affordance — the input below is the secondary
+   path for naming a brand-new place. Each pill reads as a real button:
+   filled, lifted on hover, with a quieter × tucked in for removal. */
 .welcome__pills {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
-  margin-top: 8px;
-  max-width: min(420px, 92%);
+  gap: 10px;
+  margin-top: 18px;
+  max-width: min(520px, 96%);
 }
 .welcome__pills[hidden] { display: none; }
 .welcome-pill {
   display: inline-flex;
   align-items: stretch;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-surface);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-alt);
   overflow: hidden;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.12s ease, background 0.12s ease,
+              box-shadow 0.16s ease, transform 0.08s ease;
 }
-.welcome-pill:hover { border-color: var(--color-accent-strong); }
+.welcome-pill:hover {
+  border-color: var(--color-accent-strong);
+  background: var(--color-accent-dim);
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.12);
+  transform: translateY(-1px);
+}
+.welcome-pill:focus-within {
+  border-color: var(--color-accent-strong);
+  box-shadow: var(--focus-ring);
+}
+.welcome-pill:active { transform: translateY(0); }
 .welcome-pill__name {
   appearance: none;
   border: 0;
   background: transparent;
-  padding: 6px 4px 6px 12px;
+  padding: 11px 6px 11px 18px;
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 500;
   color: var(--color-foreground);
   cursor: pointer;
   white-space: nowrap;
-  max-width: 220px;
+  max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.005em;
 }
-.welcome-pill__name:hover { color: var(--color-accent-strong); }
+.welcome-pill__name:focus { outline: none; }
+.welcome-pill:hover .welcome-pill__name { color: var(--color-accent-strong); }
 .welcome-pill__remove {
   appearance: none;
   border: 0;
   background: transparent;
-  padding: 0 10px 0 6px;
-  font-size: 16px;
+  padding: 0 14px 0 8px;
+  font-size: 18px;
   line-height: 1;
   color: var(--color-muted);
   cursor: pointer;
-  transition: color 0.12s ease;
+  transition: color 0.12s ease, background 0.12s ease;
 }
-.welcome-pill__remove:hover { color: #c2410c; }
+.welcome-pill__remove:hover {
+  color: #c2410c;
+  background: var(--color-error-bg);
+}
+.welcome-pill__remove:focus { outline: none; }
 
 @media (max-width: 540px) {
   /* Horizontal + vertical padding handled by the clamp() on .welcome
