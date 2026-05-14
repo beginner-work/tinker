@@ -151,10 +151,13 @@ html.on-web .sidebar__top {
   align-items: center;
   justify-content: center;
   min-height: 100%;
-  /* Fluid padding so the form has real breathing room from the
-     viewport edges at any width — mobile, narrow desktop, and full
-     desktop all scale the same way without breakpoint overrides. */
-  padding: clamp(40px, 6vh, 64px) clamp(32px, 8vw, 64px);
+  /* Fluid padding tuned so the form sits visually centred with the
+     same breathing room as the login pill on the auth-gate. The
+     auth-gate pill has 16px outer padding + 8px inner pill padding
+     before the input border — ~24px effective on mobile. Without a
+     pill wrapper here, we lean harder on outer padding (40px min on
+     small screens) to land in the same visual neighbourhood. */
+  padding: clamp(40px, 6vh, 64px) clamp(40px, 10vw, 96px);
   background: var(--color-background);
 }
 .welcome__inner {
