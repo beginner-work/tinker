@@ -36,36 +36,21 @@
 
   let explicit = load();
 
-  // Preview-only seed. The four default locations appear automatically
-  // on Vercel preview deployments + local dev so the founder can poke
-  // at the app without typing places in first. Production deploys (the
-  // live custom domain) stay empty — invited testers add their own
-  // places via the welcome prompt or the sidebar + button.
-  //
-  // Guard with an init flag so deleting a default doesn't make it
-  // re-appear on the next reload.
-  const DEFAULTS_KEY = "tinker.locations_initialized.v1";
-  const DEFAULTS = ["Provecho", "Industrious", "Living room", "Bedroom"];
-  function isPreviewEnv() {
+  // One-time purge for browsers that received the four preview-seed
+  // defaults ("Provecho", "Industrious", "Living room", "Bedroom") on
+  // past visits. Gated on the old init flag so it only touches clients
+  // that actually got seeded.
+  (function purgeOldSeedDefaults() {
     try {
-      const h = (typeof location !== "undefined" && location.hostname) || "";
-      if (h === "localhost" || h === "127.0.0.1") return true;
-      if (h.endsWith(".vercel.app")) return true;
-      return false;
-    } catch { return false; }
-  }
-  (function seedDefaultsOnce() {
-    try {
-      if (!isPreviewEnv()) return;
-      if (localStorage.getItem(DEFAULTS_KEY)) return;
-      if (explicit.length === 0) {
-        const now = Date.now();
-        for (const name of DEFAULTS) {
-          explicit.push({ id: "loc_" + Math.random().toString(36).slice(2, 10), name, createdAt: now });
-        }
+      const FLAG = "tinker.locations_initialized.v1";
+      if (!localStorage.getItem(FLAG)) return;
+      const seeded = new Set(["provecho", "industrious", "living room", "bedroom"]);
+      const next = explicit.filter((e) => !seeded.has(String(e.name || "").trim().toLowerCase()));
+      if (next.length !== explicit.length) {
+        explicit = next;
         save(explicit);
       }
-      localStorage.setItem(DEFAULTS_KEY, "1");
+      localStorage.removeItem(FLAG);
     } catch { /* ignore */ }
   })();
 
