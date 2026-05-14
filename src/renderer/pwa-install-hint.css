@@ -138,6 +138,18 @@ html.pwa-hint-visible .feed {
   padding: 18px 18px calc(env(safe-area-inset-bottom, 0px) + 22px);
 }
 
+/* Modifier: anchor the sheet to the TOP of the viewport instead of
+ * the bottom. Applied by JS when iOS Safari is configured with its
+ * URL bar at the bottom — putting the sheet on the opposite side
+ * keeps Safari's chrome unobstructed and avoids any visual
+ * collision with the URL pill. The rounded corners flip from top
+ * to bottom, and the safe-area padding moves to the top. */
+.pwa-hint-sheet--from-top { align-items: flex-start; }
+.pwa-hint-sheet--from-top .pwa-hint-sheet__panel {
+  border-radius: 0 0 20px 20px;
+  padding: calc(env(safe-area-inset-top, 0px) + 18px) 18px 22px;
+}
+
 .pwa-hint-sheet__header {
   display: flex;
   align-items: center;

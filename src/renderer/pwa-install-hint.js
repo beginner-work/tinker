@@ -48,6 +48,26 @@
     try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch { /* private mode */ }
   }
 
+  // Detect which edge of the screen iOS Safari's URL bar is anchored to.
+  // env(safe-area-inset-bottom) on an iPhone with bottom URL bar (the
+  // default since iOS 15) returns roughly URL_bar + home_indicator
+  // (~84px). With top URL bar (Single Tab setting) it's just the home
+  // indicator (~34px). If the bottom inset is meaningfully larger
+  // than the top inset, the URL bar lives at the bottom.
+  function urlBarAtBottom() {
+    const probe = document.createElement("div");
+    probe.style.cssText =
+      "position:absolute;visibility:hidden;width:0;height:0;" +
+      "padding-top:env(safe-area-inset-top,0px);" +
+      "padding-bottom:env(safe-area-inset-bottom,0px);";
+    document.body.appendChild(probe);
+    const cs = getComputedStyle(probe);
+    const top = parseFloat(cs.paddingTop) || 0;
+    const bottom = parseFloat(cs.paddingBottom) || 0;
+    probe.remove();
+    return bottom > top + 20;
+  }
+
   function init() {
     if (isWrappedRuntime()) return;
     if (!isIosSafari()) return;
@@ -61,6 +81,9 @@
     if (sheet) {
       const hostEl = sheet.querySelector("[data-pwa-host]");
       if (hostEl) hostEl.textContent = window.location.hostname;
+      // Sheet appears from the side opposite the URL bar so Safari's
+      // chrome stays uncovered.
+      if (urlBarAtBottom()) sheet.classList.add("pwa-hint-sheet--from-top");
     }
 
     function showBanner() {
@@ -100,10 +123,13 @@
     });
 
     if (sheet) {
-      sheet.addEventListener("click", (e) => {
-        const action = e.target.closest("[data-pwa-action]");
-        if (action && action.dataset.pwaAction === "close-sheet") closeSheet();
-      });
+      // Direct listeners on the dismiss targets — the previous
+      // delegated handler via e.target.closest() was unreliable on
+      // iOS Safari taps where the SVG path was the event target.
+      const closeBtn = sheet.querySelector(".pwa-hint-sheet__close");
+      const backdrop = sheet.querySelector(".pwa-hint-sheet__backdrop");
+      if (closeBtn) closeBtn.addEventListener("click", closeSheet);
+      if (backdrop) backdrop.addEventListener("click", closeSheet);
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && !sheet.hidden) closeSheet();
       });
