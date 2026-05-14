@@ -1,27 +1,24 @@
 /* pwa-install-hint.css — Safari "Add to Home Screen" coach mark.
  *
  * Shows only on iOS Safari (mobile web, not standalone, not Capacitor).
- * A light, glassy pill that hovers just above Safari's bottom URL
- * bar. It borrows the Dynamic Island's motion vocabulary — morphing
- * in from a small dot and then breathing in place — so the hint
- * reads as a floating piece of UI rather than a banner. An inline
- * three-dots glyph in the message mirrors Safari's own page-menu
- * button below, telling the user where to tap.
+ * A narrow vertical pill anchored to the bottom-right corner, just
+ * above Safari's three-dots page menu. It treats the three-dots like
+ * the iPhone's camera and unfurls vertically around it — collapsed
+ * to a small dot on entrance, then growing upward into a vertical
+ * capsule with the app icon stacked above a download icon. No text,
+ * no close button: the whole pill is tap-to-dismiss.
  */
 
 .pwa-hint {
   position: fixed;
-  /* Anchor to the bottom-left so the morph unfurls from that corner —
-   * the same corner where Safari's page-menu / share buttons live in
-   * the URL bar below. */
-  left: calc(env(safe-area-inset-left, 0px) + 12px);
-  /* env(safe-area-inset-bottom) on iOS Safari with the bottom URL
-   * bar already accounts for the bar + the home indicator, so a
+  /* Bottom-right of the viewport, hugging the same corner of the URL
+   * bar where Safari's three-dots sits. env(safe-area-inset-bottom)
+   * already accounts for the URL bar height + home indicator, so a
    * small constant offset is enough to sit just above the bar. */
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
   bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-  transform: translateY(16px);
+  transform: translateY(12px);
   z-index: 90;
-  width: min(340px, calc(100vw - 24px));
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.32s ease, transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2);
@@ -36,15 +33,16 @@
 .pwa-hint__card {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0;
-  padding: 12px 14px 12px 14px;
+  justify-content: space-around;
+  padding: 6px 0;
+  width: 48px;
   /* True pill — radius caps both ends so the entrance can morph from
-   * a small circle into the full pill without ever showing corners. */
+   * a small circle into the full capsule without showing corners. */
   border-radius: 999px;
   overflow: hidden;
   color: var(--color-foreground, #2d2a26);
-  white-space: nowrap;
 
   /* Liquid-glass surface — translucent white with heavy blur and a
    * faint inner highlight, mirroring the iOS Safari toolbar so the
@@ -55,37 +53,40 @@
   backdrop-filter: saturate(180%) blur(28px);
   border: 1px solid rgba(255, 255, 255, 0.7);
 
-  /* Morph entrance: collapsed pill → expanded pill, with content
-   * fading in once the shape settles. Float kicks in after. */
-  width: 32px;
+  /* Vertical morph entrance: a small circle at the bottom-right
+   * unfurls upward into the full vertical capsule. The bottom edge
+   * is anchored by `.pwa-hint`'s bottom positioning, so growing the
+   * height extends the pill UPWARD around the three-dots below. */
+  height: 36px;
+  cursor: pointer;
   animation: pwaHintMorph 0.7s cubic-bezier(0.25, 0.9, 0.35, 1.15) forwards,
              pwaHintFloat 4.2s ease-in-out 0.8s infinite;
 }
+
+.pwa-hint__card:active { transform: scale(0.96); }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .pwa-hint__card { background: rgba(255, 253, 247, 0.96); }
 }
 
 @keyframes pwaHintMorph {
-  0%   { width: 32px; }
-  55%  { width: 32px; }
-  100% { width: 100%; }
+  0%   { height: 36px; }
+  55%  { height: 36px; }
+  100% { height: 96px; }
 }
 
 @keyframes pwaHintFloat {
   0%, 100% { transform: translateY(0) scale(1); }
-  50%      { transform: translateY(-3px) scale(1.012); }
+  50%      { transform: translateY(-3px) scale(1.015); }
 }
 
-/* Content fades in after the pill has expanded. */
+/* Icons fade in once the pill has reached full height. */
 .pwa-hint__icon,
-.pwa-hint__copy,
-.pwa-hint__close {
+.pwa-hint__download {
   opacity: 0;
   animation: pwaHintReveal 0.32s ease 0.55s forwards;
 }
-.pwa-hint__copy { animation-delay: 0.62s; }
-.pwa-hint__close { animation-delay: 0.7s; }
+.pwa-hint__download { animation-delay: 0.64s; }
 
 @keyframes pwaHintReveal {
   from { opacity: 0; transform: translateY(2px); }
@@ -93,81 +94,50 @@
 }
 
 .pwa-hint__icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
-  margin-right: 10px;
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.55));
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  flex-shrink: 0;
 }
-.pwa-hint__icon svg { display: block; }
+.pwa-hint__icon svg { display: block; width: 100%; height: 100%; }
 
-.pwa-hint__copy {
-  flex: 1 1 auto;
-  min-width: 0;
-  line-height: var(--leading-snug, 1.3);
-  white-space: normal;
-}
-.pwa-hint__title {
-  font-family: var(--font-display, "Plus Jakarta Sans", system-ui, sans-serif);
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: var(--tracking-tight, -0.01em);
-  color: var(--color-foreground, #2d2a26);
-}
-.pwa-hint__steps {
-  margin-top: 2px;
-  font-size: 12px;
-  color: var(--color-muted, #6f6a65);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.pwa-hint__share {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 4px;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(45, 90, 61, 0.08);
-  vertical-align: middle;
-  color: var(--color-foreground, #2d2a26);
-}
-.pwa-hint__share svg { display: block; }
-.pwa-hint__arrow-glyph {
-  display: inline-block;
-  font-weight: 700;
-  color: var(--color-foreground, #2d2a26);
-}
-
-.pwa-hint__close {
-  width: 28px;
-  height: 28px;
-  margin-left: 8px;
+.pwa-hint__download {
+  position: relative;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
+  flex-shrink: 0;
+  color: var(--color-accent-strong, #6366f1);
+}
+.pwa-hint__download svg { display: block; position: relative; z-index: 1; }
+
+/* Subtle pulse behind the download glyph so the eye lands on the
+ * action. Sits behind the SVG via z-index. */
+.pwa-hint__download::after {
+  content: "";
+  position: absolute;
+  inset: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(45, 90, 61, 0.08);
-  color: var(--color-muted, #6f6a65);
-  transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
-  align-self: center;
+  background: radial-gradient(closest-side, rgba(99, 102, 241, 0.22), rgba(99, 102, 241, 0));
+  animation: pwaHintGlow 2.2s ease-in-out 1s infinite;
+  pointer-events: none;
 }
-.pwa-hint__close:hover { background: rgba(255, 255, 255, 0.85); color: var(--color-foreground, #2d2a26); }
-.pwa-hint__close:active { transform: scale(0.94); }
 
-/* Honor reduced-motion: hold the expanded pill steady, no morph, no float. */
+@keyframes pwaHintGlow {
+  0%, 100% { opacity: 0; transform: scale(0.7); }
+  50%      { opacity: 1; transform: scale(1.1); }
+}
+
+/* Honor reduced-motion: hold the expanded pill steady, no morph,
+ * no float, no pulse. */
 @media (prefers-reduced-motion: reduce) {
   .pwa-hint { transition: opacity 0.2s ease; transform: translateY(0); }
-  .pwa-hint__card { width: 100%; animation: none; }
+  .pwa-hint__card { height: 96px; animation: none; }
   .pwa-hint__icon,
-  .pwa-hint__copy,
-  .pwa-hint__close { opacity: 1; animation: none; }
+  .pwa-hint__download { opacity: 1; animation: none; }
+  .pwa-hint__download::after { animation: none; opacity: 0.6; transform: scale(1); }
 }
 
 /* The hint is mobile-only by definition (iOS Safari), so hide it on

@@ -88,8 +88,14 @@
       setTimeout(() => show(el), SHOW_DELAY_MS);
     }
 
-    const closeBtn = el.querySelector(".pwa-hint__close");
-    closeBtn && closeBtn.addEventListener("click", () => hide(el));
+    // The whole pill is the dismiss target — there's no close button.
+    el.addEventListener("click", () => hide(el));
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        hide(el);
+      }
+    });
 
     // If the app gets installed mid-session (user follows the steps),
     // the display-mode media query flips. Drop the hint quietly without
