@@ -202,8 +202,8 @@
          pwa-install-hint.js reveals it only on iOS Safari (mobile web,
          not standalone, not Capacitor) and remembers dismissal. The
          glass surface is borrowed from Safari's own toolbar so it
-         reads as part of the chrome, with a curved arrow + pulsing
-         ring that points down at the three-dots page menu. -->
+         reads as part of the chrome. The inline three-dots glyph in
+         the message mirrors Safari's page-menu button below. -->
     <aside id="pwa-hint" class="pwa-hint" role="dialog" aria-live="polite"
            aria-label="Add tinker to your Home Screen">
       <div class="pwa-hint__card">
@@ -236,17 +236,6 @@
           </svg>
         </button>
       </div>
-      <div class="pwa-hint__arrow" aria-hidden="true">
-        <svg viewBox="0 0 56 50">
-          <!-- Two stacked strokes: a darker outline underneath for
-               contrast on light Safari pages, a white stroke on top
-               that matches the pill. The path hooks from the right
-               side of the pill down toward the three-dots. -->
-          <path class="outline" d="M8 4 C 8 24, 22 36, 48 42 L 42 34 M 48 42 L 40 46" />
-          <path             d="M8 4 C 8 24, 22 36, 48 42 L 42 34 M 48 42 L 40 46" />
-        </svg>
-      </div>
-      <div class="pwa-hint__ring" aria-hidden="true"></div>
     </aside>
 
     <!-- Platform shim runs first. -->

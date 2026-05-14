@@ -1,28 +1,22 @@
 /* pwa-install-hint.css — Safari "Add to Home Screen" coach mark.
  *
  * Shows only on iOS Safari (mobile web, not standalone, not Capacitor).
- * The card borrows the Dynamic Island's vocabulary: a dark, glassy
- * pill that hovers over the page and floats with a gentle morphing
- * motion — expanding from a small dot to its full width on entrance,
- * then breathing in place. A curved arrow sweeps from the pill down
- * to the three-dots page menu in Safari's URL bar, with a pulsing
- * ring at the tip.
+ * A light, glassy pill that hovers just above Safari's bottom URL
+ * bar. It borrows the Dynamic Island's motion vocabulary — morphing
+ * in from a small dot and then breathing in place — so the hint
+ * reads as a floating piece of UI rather than a banner. An inline
+ * three-dots glyph in the message mirrors Safari's own page-menu
+ * button below, telling the user where to tap.
  */
 
 .pwa-hint {
   position: fixed;
-  /* Anchor to the bottom-right so the pill, the arrow, and the ring
-   * all naturally line up with the three-dots which sit at the right
-   * edge of Safari's bottom URL bar. The card hugs the right edge of
-   * the viewport with a small inset; the arrow ends just inside the
-   * bottom-right corner, pointing at the three-dots that sit just
-   * outside our viewport in Safari's chrome. */
+  left: 50%;
   /* env(safe-area-inset-bottom) on iOS Safari with the bottom URL
    * bar already accounts for the bar + the home indicator, so a
    * small constant offset is enough to sit just above the bar. */
-  right: calc(env(safe-area-inset-right, 0px) + 12px);
   bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-  transform: translateY(16px);
+  transform: translate(-50%, 16px);
   z-index: 90;
   width: min(340px, calc(100vw - 24px));
   pointer-events: none;
@@ -32,11 +26,8 @@
 
 .pwa-hint[data-visible] {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate(-50%, 0);
   pointer-events: auto;
-  /* Gentle float, like the Dynamic Island settling and breathing
-   * around the camera. Layered on top of the static transform via a
-   * nested animation on the inner card. */
 }
 
 .pwa-hint__card {
@@ -49,23 +40,22 @@
    * a small circle into the full pill without ever showing corners. */
   border-radius: 999px;
   overflow: hidden;
-  color: rgba(255, 255, 255, 0.96);
+  color: var(--color-foreground, #2d2a26);
   white-space: nowrap;
 
-  /* Dynamic-Island surface: near-black, lightly translucent, heavy
-   * blur so it reads as floating over content. The inner highlight
-   * gives the pill a faint specular edge like the real island. */
+  /* Liquid-glass surface — translucent white with heavy blur and a
+   * faint inner highlight, mirroring the iOS Safari toolbar so the
+   * pill reads as part of the chrome. */
   background:
-    radial-gradient(120% 200% at 50% -40%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 60%),
-    linear-gradient(180deg, rgba(18, 18, 22, 0.88), rgba(10, 10, 14, 0.92));
-  -webkit-backdrop-filter: saturate(150%) blur(22px);
-  backdrop-filter: saturate(150%) blur(22px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.66));
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+  backdrop-filter: saturate(180%) blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 0 0 1px rgba(0, 0, 0, 0.4),
-    0 20px 44px rgba(0, 0, 0, 0.32),
-    0 8px 16px rgba(0, 0, 0, 0.18);
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 0 0 1px rgba(45, 90, 61, 0.04),
+    0 18px 40px rgba(20, 24, 40, 0.18),
+    0 6px 14px rgba(20, 24, 40, 0.08);
 
   /* Morph entrance: collapsed pill → expanded pill, with content
    * fading in once the shape settles. Float kicks in after. */
@@ -75,9 +65,7 @@
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .pwa-hint__card {
-    background: linear-gradient(180deg, rgba(18, 18, 22, 0.96), rgba(10, 10, 14, 0.98));
-  }
+  .pwa-hint__card { background: rgba(255, 253, 247, 0.96); }
 }
 
 @keyframes pwaHintMorph {
@@ -114,9 +102,9 @@
   place-items: center;
   margin-right: 10px;
   background:
-    radial-gradient(120% 120% at 30% 20%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.55));
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 2px rgba(20, 24, 40, 0.08);
 }
 .pwa-hint__icon svg { display: block; }
 
@@ -131,12 +119,12 @@
   font-weight: 700;
   font-size: 14px;
   letter-spacing: var(--tracking-tight, -0.01em);
-  color: rgba(255, 255, 255, 0.98);
+  color: var(--color-foreground, #2d2a26);
 }
 .pwa-hint__steps {
   margin-top: 2px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-muted, #6f6a65);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -148,20 +136,21 @@
   gap: 2px;
   padding: 4px 6px;
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(45, 90, 61, 0.08);
   vertical-align: middle;
 }
 .pwa-hint__dots span {
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
+  background: currentColor;
+  opacity: 0.85;
 }
 .pwa-hint__arrow-glyph {
   display: inline-block;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--color-foreground, #2d2a26);
 }
 
 .pwa-hint__close {
@@ -171,87 +160,22 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(45, 90, 61, 0.08);
+  color: var(--color-muted, #6f6a65);
   transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
   align-self: center;
 }
-.pwa-hint__close:hover { background: rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 1); }
+.pwa-hint__close:hover { background: rgba(255, 255, 255, 0.85); color: var(--color-foreground, #2d2a26); }
 .pwa-hint__close:active { transform: scale(0.94); }
 
-/* ── Arrow: curved sweep + pulsing ring at the tip ───────────────── */
-
-.pwa-hint__arrow {
-  position: absolute;
-  /* The pill is anchored to the bottom-right of the viewport; the
-   * three-dots in iOS Safari sit at the right edge of the URL bar
-   * just below the safe-area inset. The arrow hooks down-right from
-   * the pill so its tip lands at the very bottom-right corner of
-   * the visible viewport — right above the three-dots. */
-  right: -6px;
-  bottom: -10px;
-  width: 56px;
-  height: 50px;
-  pointer-events: none;
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
-  opacity: 0;
-  animation: pwaHintReveal 0.36s ease 0.78s forwards,
-             pwaHintFloat 4.2s ease-in-out 0.8s infinite;
-}
-.pwa-hint__arrow svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.pwa-hint__arrow path { stroke: rgba(255, 255, 255, 0.98); stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.pwa-hint__arrow path.outline { stroke: rgba(0, 0, 0, 0.6); stroke-width: 5.5; }
-
-.pwa-hint__ring {
-  position: absolute;
-  /* Sits at the bottom-right corner of the visible viewport, just
-   * above where Safari's three-dots sit in the URL bar chrome. The
-   * pulse beats outward toward the three-dots below. */
-  right: -10px;
-  bottom: -14px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  pointer-events: none;
-  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
-  opacity: 0;
-  animation: pwaHintReveal 0.36s ease 0.85s forwards,
-             pwaHintFloat 4.2s ease-in-out 0.8s infinite;
-}
-.pwa-hint__ring::before,
-.pwa-hint__ring::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
-  animation: pwaHintPulse 1.8s cubic-bezier(0.2, 0.6, 0.2, 1) infinite;
-}
-.pwa-hint__ring::after { animation-delay: 0.9s; }
-
-@keyframes pwaHintPulse {
-  0%   { transform: scale(0.6); opacity: 0.9; }
-  70%  { transform: scale(1.6); opacity: 0; }
-  100% { transform: scale(1.6); opacity: 0; }
-}
-
-/* Honor reduced-motion: hold steady, no morph, no float, no pulse. */
+/* Honor reduced-motion: hold the expanded pill steady, no morph, no float. */
 @media (prefers-reduced-motion: reduce) {
-  .pwa-hint { transition: opacity 0.2s ease; transform: translateY(0); }
-  .pwa-hint__card {
-    width: 100%;
-    animation: none;
-  }
+  .pwa-hint { transition: opacity 0.2s ease; transform: translate(-50%, 0); }
+  .pwa-hint__card { width: 100%; animation: none; }
   .pwa-hint__icon,
   .pwa-hint__copy,
-  .pwa-hint__close,
-  .pwa-hint__arrow,
-  .pwa-hint__ring { opacity: 1; animation: none; }
-  .pwa-hint__ring::before,
-  .pwa-hint__ring::after { animation: none; transform: scale(1); opacity: 0.9; }
-  .pwa-hint__ring::after { display: none; }
+  .pwa-hint__close { opacity: 1; animation: none; }
 }
 
 /* The hint is mobile-only by definition (iOS Safari), so hide it on
