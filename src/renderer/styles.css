@@ -989,6 +989,7 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
 }
 .welcome-card__panel {
   position: relative;
+  z-index: 1;  /* keep above the absolutely-positioned backdrop sibling */
   width: 100%;
   max-width: 440px;
   background: var(--color-surface);

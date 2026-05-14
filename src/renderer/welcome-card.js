@@ -24,9 +24,13 @@
     try { localStorage.setItem(FLAG, "1"); } catch (e) { /* ignore */ }
   }
 
-  card.addEventListener("click", (e) => {
-    if (e.target.closest("[data-welcome-dismiss]")) dismiss();
-  });
+  // Direct handlers (not delegated through the card) so stacking-
+  // context surprises with the absolute-positioned backdrop can't
+  // swallow the click before it reaches the button.
+  const btn = card.querySelector(".welcome-card__btn");
+  const backdrop = card.querySelector(".welcome-card__backdrop");
+  if (btn) btn.addEventListener("click", dismiss);
+  if (backdrop) backdrop.addEventListener("click", dismiss);
   document.addEventListener("keydown", (e) => {
     if (!card.hidden && e.key === "Escape") dismiss();
   });
