@@ -468,6 +468,15 @@
 
     const actions = document.createElement("div");
     actions.className = "writing-review__actions";
+    const publishAnon = document.createElement("button");
+    publishAnon.type = "button";
+    publishAnon.className = "writing-action";
+    publishAnon.textContent = "Publish anonymous";
+    publishAnon.addEventListener("click", () => {
+      if (active && active.stitched) active.stitched.body = body.value;
+      doPublish(head, { author: "anonymous" });
+    });
+
     const publish = document.createElement("button");
     publish.type = "button";
     publish.className = "writing-action writing-action--primary";
@@ -477,7 +486,7 @@
       if (active && active.stitched) active.stitched.body = body.value;
       doPublish(head);
     });
-    actions.append(publish);
+    actions.append(publishAnon, publish);
     card.appendChild(actions);
 
     nextBtn.hidden = true;
@@ -765,7 +774,7 @@
     if (!endBtn.onclick) e.preventDefault();
   });
 
-  function doPublish(reviewHead) {
+  function doPublish(reviewHead, opts) {
     if (!active || !active.stitched) return;
     if (typeof window.tinkerOnWritingPublish !== "function") return;
     const titleEl = reviewHead && reviewHead.querySelector(".writing-review__title");
@@ -776,7 +785,7 @@
     window.tinkerOnWritingPublish(active, {
       title: active.stitched.title,
       body: active.stitched.body,
-      author: "you",
+      author: (opts && opts.author) || "you",
     });
     active = null;
   }
