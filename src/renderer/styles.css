@@ -118,7 +118,7 @@ html.on-web .sidebar__top {
 
 /* ── Welcome (empty state on main when no draft/read is active) ──── */
 
-.welcome {
+.stage > .welcome.feed[data-active] {
   display: flex;
   align-items: center;
   justify-content: center;
