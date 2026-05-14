@@ -48,26 +48,6 @@
     try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch { /* private mode */ }
   }
 
-  // Detect which edge of the screen iOS Safari's URL bar is anchored to.
-  // env(safe-area-inset-bottom) on an iPhone with bottom URL bar (the
-  // default since iOS 15) returns roughly URL_bar + home_indicator
-  // (~84px). With top URL bar (Single Tab setting) it's just the home
-  // indicator (~34px). If the bottom inset is meaningfully larger
-  // than the top inset, the URL bar lives at the bottom.
-  function urlBarAtBottom() {
-    const probe = document.createElement("div");
-    probe.style.cssText =
-      "position:absolute;visibility:hidden;width:0;height:0;" +
-      "padding-top:env(safe-area-inset-top,0px);" +
-      "padding-bottom:env(safe-area-inset-bottom,0px);";
-    document.body.appendChild(probe);
-    const cs = getComputedStyle(probe);
-    const top = parseFloat(cs.paddingTop) || 0;
-    const bottom = parseFloat(cs.paddingBottom) || 0;
-    probe.remove();
-    return bottom > top + 20;
-  }
-
   function init() {
     if (isWrappedRuntime()) return;
     if (!isIosSafari()) return;
@@ -81,9 +61,15 @@
     if (sheet) {
       const hostEl = sheet.querySelector("[data-pwa-host]");
       if (hostEl) hostEl.textContent = window.location.hostname;
-      // Sheet appears from the side opposite the URL bar so Safari's
-      // chrome stays uncovered.
-      if (urlBarAtBottom()) sheet.classList.add("pwa-hint-sheet--from-top");
+      // Anchor the sheet to the top of the viewport. The previous
+      // attempt at detecting URL-bar edge via env(safe-area-inset-*)
+      // proved unreliable: iOS Safari doesn't consistently include
+      // the URL bar height in those insets across versions. Since
+      // the bottom URL bar is the iOS 15+ default for every iPhone
+      // size and the only place this banner ever shows is iOS
+      // Safari, always opening from the top keeps the chrome the
+      // user is about to tap unobstructed.
+      sheet.classList.add("pwa-hint-sheet--from-top");
     }
 
     function showBanner() {
