@@ -433,8 +433,7 @@
     const empty = document.createElement("div");
     empty.className = "home-list__empty";
     empty.innerHTML = `
-      <p class="home-list__empty-title">No locations yet.</p>
-      <p class="home-list__empty-sub">Tap the <strong>+</strong> above to add a place you reflect from. Claude will sort each one into a category once you've written there — and the categories will grow with you.</p>
+      <p class="home-list__empty-title">New essays will appear here</p>
     `;
     return empty;
   }
