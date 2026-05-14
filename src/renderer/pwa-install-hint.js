@@ -1,31 +1,24 @@
-/* pwa-install-hint.js — show the "Add to Home Screen" coach mark on
- * iOS Safari. Only fires when:
- *   - the user is on iOS Safari (not Chrome/Firefox/etc. on iOS, not
- *     a non-Apple device, not Capacitor, not Electron),
- *   - the page is NOT already running standalone (i.e. they haven't
- *     installed the PWA yet),
- *   - they haven't dismissed the hint before.
+/* pwa-install-hint.js — App-Store-style install banner + bottom-sheet
+ * instructions for adding tinker to the iOS Home Screen.
  *
- * The hint is built lazily — when the conditions don't match nothing
- * is added to the DOM. The card itself lives in index.html so the
- * markup is reviewable; this file just wires visibility, dismissal,
- * and persistence.
+ * Banner is shown only on iOS Safari (mobile web, not standalone,
+ * not Capacitor). Tapping Install opens the bottom-sheet with the
+ * three-step Safari flow. Tapping the banner's X dismisses it and
+ * remembers the choice in localStorage. Installing the PWA
+ * mid-session flips the display-mode media query and the whole
+ * thing is removed silently.
  */
 
 (function () {
   const STORAGE_KEY = "tinker_pwa_hint_dismissed";
-  const SHOW_DELAY_MS = 1400; // let the page settle before sliding in.
+  const SHOW_DELAY_MS = 1200;
 
   function isIosSafari() {
     const ua = navigator.userAgent || "";
-    // iPad on iOS 13+ reports as Mac; cover both shapes.
     const isIosDevice =
       /iPhone|iPod|iPad/i.test(ua) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     if (!isIosDevice) return false;
-    // Filter out Chrome/Firefox/Edge/Opera/Brave/DuckDuckGo on iOS —
-    // they all wrap WebKit but don't expose Add-to-Home-Screen the
-    // same way through the page menu.
     if (/CriOS|FxiOS|EdgiOS|OPiOS|mercury|DuckDuckGo|GSA/i.test(ua)) return false;
     if (!/Safari/i.test(ua)) return false;
     return true;
@@ -33,14 +26,13 @@
 
   function isStandalone() {
     if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
-    // iOS Safari sets navigator.standalone when launched from Home Screen.
     if (window.navigator && window.navigator.standalone === true) return true;
     return false;
   }
 
   function isWrappedRuntime() {
     if (window.Capacitor) return true;
-    if (window.tinker && window.tinker.supportsWebview === true) return true; // Electron preload
+    if (window.tinker && window.tinker.supportsWebview === true) return true;
     return false;
   }
 
@@ -49,19 +41,36 @@
   }
 
   function markDismissed() {
-    try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch { /* private mode — fine, just won't persist */ }
+    try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch { /* private mode */ }
   }
 
-  function show(el) {
-    // rAF so the transition has a frame to work with.
-    requestAnimationFrame(() => { el.dataset.visible = ""; });
+  function showBanner(banner) {
+    banner.hidden = false;
+    document.documentElement.classList.add("pwa-hint-visible");
+    requestAnimationFrame(() => { banner.dataset.visible = ""; });
   }
 
-  function hide(el, { remember = true } = {}) {
-    delete el.dataset.visible;
+  function hideBanner(banner, sheet, { remember = true } = {}) {
+    delete banner.dataset.visible;
+    document.documentElement.classList.remove("pwa-hint-visible");
     if (remember) markDismissed();
-    // Remove from the DOM after the transition so it doesn't trap focus.
-    setTimeout(() => { el.remove(); }, 360);
+    setTimeout(() => {
+      banner.remove();
+      if (sheet) sheet.remove();
+    }, 360);
+  }
+
+  function openSheet(sheet) {
+    sheet.hidden = false;
+    // Two rAFs so the initial hidden→visible transform animates.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      sheet.dataset.visible = "";
+    }));
+  }
+
+  function closeSheet(sheet) {
+    delete sheet.dataset.visible;
+    setTimeout(() => { sheet.hidden = true; }, 320);
   }
 
   function init() {
@@ -70,32 +79,55 @@
     if (isStandalone()) return;
     if (alreadyDismissed()) return;
 
-    const el = document.getElementById("pwa-hint");
-    if (!el) return;
+    const banner = document.getElementById("pwa-hint");
+    const sheet = document.getElementById("pwa-hint-sheet");
+    if (!banner) return;
 
-    // If the user signs in / out, we don't want to fight the auth gate —
-    // wait until it's hidden before announcing ourselves.
+    // Fill in the live hostname so the sheet matches the deploy.
+    if (sheet) {
+      const hostEl = sheet.querySelector("[data-pwa-host]");
+      if (hostEl) hostEl.textContent = window.location.hostname;
+    }
+
+    // Wait for the auth gate before showing — we don't want to fight
+    // the sign-in screen for the user's attention.
     const authGate = document.getElementById("auth-gate");
     if (authGate && !authGate.hidden) {
       const obs = new MutationObserver(() => {
         if (authGate.hidden) {
           obs.disconnect();
-          setTimeout(() => show(el), SHOW_DELAY_MS);
+          setTimeout(() => showBanner(banner), SHOW_DELAY_MS);
         }
       });
       obs.observe(authGate, { attributes: true, attributeFilter: ["hidden"] });
     } else {
-      setTimeout(() => show(el), SHOW_DELAY_MS);
+      setTimeout(() => showBanner(banner), SHOW_DELAY_MS);
     }
 
-    // Tap (or Enter/Space — handled natively by <button>) dismisses.
-    el.addEventListener("click", () => hide(el));
+    // Banner buttons — Install opens the sheet, X dismisses everything.
+    banner.addEventListener("click", (e) => {
+      const action = e.target.closest("[data-pwa-action]");
+      if (!action) return;
+      const kind = action.dataset.pwaAction;
+      if (kind === "install" && sheet) openSheet(sheet);
+      else if (kind === "dismiss") hideBanner(banner, sheet);
+    });
 
-    // If the app gets installed mid-session (user follows the steps),
-    // the display-mode media query flips. Drop the hint quietly without
-    // recording a dismissal — they did the thing.
+    // Sheet — backdrop or close button shuts it; the banner stays.
+    if (sheet) {
+      sheet.addEventListener("click", (e) => {
+        const action = e.target.closest("[data-pwa-action]");
+        if (action && action.dataset.pwaAction === "close-sheet") closeSheet(sheet);
+      });
+      // Escape closes the sheet (matters on iPad with hardware keyboards).
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && "visible" in sheet.dataset) closeSheet(sheet);
+      });
+    }
+
+    // Auto-disappear when the PWA gets installed mid-session.
     const mq = window.matchMedia("(display-mode: standalone)");
-    const onChange = () => { if (mq.matches) hide(el, { remember: false }); };
+    const onChange = () => { if (mq.matches) hideBanner(banner, sheet, { remember: false }); };
     if (mq.addEventListener) mq.addEventListener("change", onChange);
     else if (mq.addListener) mq.addListener(onChange);
   }

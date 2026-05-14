@@ -1,56 +1,266 @@
-/* pwa-install-hint.css — Safari "Add to Home Screen" install button.
+/* pwa-install-hint.css — Safari "Add to Home Screen" install affordance.
  *
- * A small download button mirroring the side-nav drawer toggle: same
- * 44×44 rounded-square chip, same surface/border/shadow tokens, same
- * active-press feedback. Anchored to the bottom-right of the safe
- * area so it sits directly above Safari's three-dots in the URL bar
- * on every iPhone size — the safe-area inset handles the variation
- * automatically (375pt SE through 440pt Pro Max, portrait and
- * landscape, full or minimized URL bar).
+ * Modeled on iOS App Store smart banners: a slim banner pinned to the
+ * top of the viewport with the app icon, name, a one-line tagline,
+ * an "Install" pill, and a dismiss X. Tapping Install reveals a
+ * bottom-sheet modal with the three-step iOS Safari instructions
+ * (mirroring the Progressier pattern). Tapping the X dismisses and
+ * remembers the choice; installing the PWA mid-session removes
+ * everything silently via the standalone media query.
  *
- * Shows only on iOS Safari (mobile web, not standalone, not
- * Capacitor). Tap dismisses; if the user installs via Share → Add
- * to Home Screen the standalone media query flip removes it silently.
+ * Shown only on iOS Safari (mobile web, not standalone, not
+ * Capacitor). On wider viewports both pieces are hidden by the
+ * 541px breakpoint guard at the bottom.
  */
+
+/* ── Top banner ────────────────────────────────────────────────────── */
 
 .pwa-hint {
   position: fixed;
-  /* Mirror .drawer-toggle's inset (top/left → bottom/right). The
-   * safe-area-inset values are the OS's promise of "content placed
-   * here is visible above all chrome" — same on every iPhone size. */
-  right: calc(env(safe-area-inset-right, 0px) + 12px);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-  z-index: 70;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 75;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+  padding-left: calc(env(safe-area-inset-left, 0px) + 12px);
+  padding-right: calc(env(safe-area-inset-right, 0px) + 12px);
+  background: var(--color-surface, #ffffff);
+  border-bottom: 1px solid var(--color-border, #ede8e0);
+  transform: translateY(-100%);
+  transition: transform 0.32s cubic-bezier(0.2, 0.85, 0.3, 1);
+}
+
+.pwa-hint[data-visible] { transform: translateY(0); }
+
+.pwa-hint__icon {
+  flex-shrink: 0;
   width: 44px;
   height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   border-radius: 10px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-accent-strong, #6366f1);
-  box-shadow: var(--shadow-soft);
-  transition: background 0.15s ease, transform 0.05s ease, opacity 0.2s ease;
-  opacity: 0;
-  transform: translateY(6px);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.pwa-hint__icon svg { display: block; width: 100%; height: 100%; }
+
+.pwa-hint__copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.25;
+}
+.pwa-hint__title {
+  font-family: var(--font-display, "Plus Jakarta Sans", system-ui, sans-serif);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--color-foreground, #2d2a26);
+  letter-spacing: -0.01em;
+}
+.pwa-hint__subtitle {
+  margin-top: 1px;
+  font-size: 12.5px;
+  color: var(--color-muted, #6f6a65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pwa-hint__action {
+  flex-shrink: 0;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--color-accent-strong, #6366f1);
+  color: #ffffff;
+  border: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+.pwa-hint__action:hover { background: var(--color-accent-press, #4f46e5); }
+.pwa-hint__action:active { transform: scale(0.96); }
+
+.pwa-hint__dismiss {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface-alt, #fff9f0);
+  color: var(--color-muted, #6f6a65);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
+}
+.pwa-hint__dismiss:hover { background: var(--color-border, #ede8e0); color: var(--color-foreground, #2d2a26); }
+.pwa-hint__dismiss:active { transform: scale(0.94); }
+
+/* Push the hamburger toggle and the welcome content down so they
+ * don't sit underneath the banner. The visible-banner state is
+ * carried as a class on <html> by the JS. */
+html.pwa-hint-visible .drawer-toggle {
+  top: calc(env(safe-area-inset-top, 0px) + 12px + 64px);
+}
+html.pwa-hint-visible .feed {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 80px + 64px);
+}
+
+/* ── Bottom-sheet instructions ─────────────────────────────────────── */
+
+.pwa-hint-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
   pointer-events: none;
+}
+
+.pwa-hint-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 24, 40, 0.45);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 0.24s ease;
+  pointer-events: none;
+}
+
+.pwa-hint-sheet__panel {
+  position: relative;
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+  background: var(--color-surface, #ffffff);
+  border-radius: 20px 20px 0 0;
+  padding: 18px 18px calc(env(safe-area-inset-bottom, 0px) + 22px);
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.2, 0.85, 0.3, 1);
+  pointer-events: auto;
+  box-shadow: 0 -8px 28px rgba(20, 24, 40, 0.18);
+}
+
+.pwa-hint-sheet[data-visible] { pointer-events: auto; }
+.pwa-hint-sheet[data-visible] .pwa-hint-sheet__backdrop { opacity: 1; pointer-events: auto; }
+.pwa-hint-sheet[data-visible] .pwa-hint-sheet__panel { transform: translateY(0); }
+
+.pwa-hint-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.pwa-hint-sheet__title {
+  font-family: var(--font-display, "Plus Jakarta Sans", system-ui, sans-serif);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--color-foreground, #2d2a26);
+  margin: 0;
+}
+.pwa-hint-sheet__close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--color-muted, #6f6a65);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
+.pwa-hint-sheet__close:hover { background: var(--color-surface-alt, #fff9f0); color: var(--color-foreground, #2d2a26); }
+.pwa-hint-sheet__close:active { transform: scale(0.94); }
 
-.pwa-hint[data-visible] {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
+.pwa-hint-sheet__app {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--color-surface-alt, #fff9f0);
+  border: 1px solid var(--color-border, #ede8e0);
+  margin-bottom: 18px;
+}
+.pwa-hint-sheet__app-icon {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.pwa-hint-sheet__app-icon svg { display: block; width: 100%; height: 100%; }
+.pwa-hint-sheet__app-name {
+  font-family: var(--font-display, "Plus Jakarta Sans", system-ui, sans-serif);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--color-foreground, #2d2a26);
+  line-height: 1.2;
+}
+.pwa-hint-sheet__app-url {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--color-muted, #6f6a65);
+  word-break: break-all;
 }
 
-.pwa-hint:hover { background: var(--color-surface-alt); }
-.pwa-hint:active { transform: scale(0.96); }
-.pwa-hint svg { display: block; }
+.pwa-hint-sheet__steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pwa-hint-sheet__steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--color-foreground, #2d2a26);
+}
+.pwa-hint-sheet__num {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--color-muted, #6f6a65);
+  font-variant-numeric: tabular-nums;
+  width: 18px;
+  text-align: right;
+}
+.pwa-hint-sheet__step-text { flex: 1 1 auto; }
+
+.pwa-hint-sheet__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--color-surface-alt, #fff9f0);
+  border: 1px solid var(--color-border, #ede8e0);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-foreground, #2d2a26);
+  vertical-align: -3px;
+}
+.pwa-hint-sheet__chip svg { display: block; }
 
 /* The hint is mobile-only by definition (iOS Safari), so hide it on
  * any wider viewport defensively. */
 @media (min-width: 541px) {
-  .pwa-hint { display: none !important; }
+  .pwa-hint,
+  .pwa-hint-sheet { display: none !important; }
+  html.pwa-hint-visible .drawer-toggle { top: calc(env(safe-area-inset-top, 0px) + 12px); }
+  html.pwa-hint-visible .feed { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
 }
