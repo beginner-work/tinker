@@ -30,6 +30,12 @@
 
   const TAXONOMY_KEY = "tinker.taxonomy.v1";
   const UNSORTED_KEY = "unsorted";
+  // One-time purge flag for the legacy bug where classifier failures
+  // persisted UNSORTED with the live fingerprint and froze the location
+  // there forever. Once cleared per browser, future legitimate UNSORTED
+  // placements (from the path-validation fallback when Claude returns
+  // invalid paths) are left alone.
+  const UNSTUCK_FLAG_KEY = "tinker.taxonomy.unstuck_legacy.v1";
 
   function loadState() {
     try {
@@ -38,17 +44,28 @@
       const parsed = JSON.parse(raw);
       const taxonomy = (parsed && typeof parsed.taxonomy === "object" && parsed.taxonomy) || {};
       const rawLocations = (parsed && typeof parsed.locations === "object" && parsed.locations) || {};
+      const dropStuckUnsorted = !localStorage.getItem(UNSTUCK_FLAG_KEY);
       // Silent migration: older entries used { path: [...] } singular.
       // Wrap into { paths: [[...]] } so callers only need to handle
       // the new shape.
       const locations = {};
       for (const [k, v] of Object.entries(rawLocations)) {
         if (!v || typeof v !== "object") continue;
-        if (Array.isArray(v.paths) && v.paths.length) {
-          locations[k] = { paths: v.paths, fp: v.fp || null };
-        } else if (Array.isArray(v.path) && v.path.length) {
-          locations[k] = { paths: [v.path], fp: v.fp || null };
+        const rawPaths = Array.isArray(v.paths) && v.paths.length
+          ? v.paths
+          : (Array.isArray(v.path) && v.path.length ? [v.path] : null);
+        if (!rawPaths) continue;
+        if (dropStuckUnsorted) {
+          const onlyUnsorted = rawPaths.length === 1
+            && Array.isArray(rawPaths[0])
+            && rawPaths[0].length === 1
+            && rawPaths[0][0] === UNSORTED_KEY;
+          if (onlyUnsorted) continue;
         }
+        locations[k] = { paths: rawPaths, fp: v.fp || null };
+      }
+      if (dropStuckUnsorted) {
+        try { localStorage.setItem(UNSTUCK_FLAG_KEY, "1"); } catch { /* ignore */ }
       }
       return { taxonomy, locations };
     } catch { return { taxonomy: {}, locations: {} }; }
