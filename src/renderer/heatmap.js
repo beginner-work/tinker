@@ -161,7 +161,7 @@
         "Rules:",
         "- Strongly prefer A. Create new categories only when the writing genuinely doesn't fit.",
         "- Category names: 2-5 words, title case, identity-aware (e.g. 'Customer learning', 'Solo making', 'Operational chores'). Concrete, not generic.",
-        "- Descriptions: 8-15 words, observational, no advice tone.",
+        "- Descriptions: EXACTLY 4 words. Tight noun phrase, observational, no advice tone. Examples: 'Specific layout and structure', 'Time near real customers', 'Money out the door'. Never more than 4 words.",
         "- Max nesting depth is 2 (top + one sub). Never propose a 3-level path.",
         "- Don't return both [Top] and [Top, Child] for the same location — keep the more specific one only.",
         "",
@@ -282,9 +282,18 @@
     if (state.taxonomy[UNSORTED_KEY]) return;
     state.taxonomy[UNSORTED_KEY] = {
       name: "Unsorted",
-      description: "Not enough writing here yet to tell where this belongs.",
+      description: "Awaiting more writing here",
       parent: null,
     };
+  }
+
+  // Trim descriptions to four words at render time so legacy entries
+  // already in localStorage (Claude used to be asked for 8-15 words)
+  // line up with the new four-word format without a migration step.
+  function shortDescription(s) {
+    const words = String(s || "").trim().split(/\s+/).filter(Boolean);
+    if (words.length <= 4) return words.join(" ");
+    return words.slice(0, 4).join(" ");
   }
 
   // ── Rendering ──────────────────────────────────────────────────────
@@ -371,7 +380,7 @@
           .join("");
         head.innerHTML =
           `<h3 class="home-list__group${nested ? " home-list__group--nested" : ""}">${breadcrumb}</h3>` +
-          (leaf?.description ? `<p class="home-list__group-sub">${escapeHtml(leaf.description)}</p>` : "");
+          (leaf?.description ? `<p class="home-list__group-sub">${escapeHtml(shortDescription(leaf.description))}</p>` : "");
       }
       section.appendChild(head);
 
