@@ -43,8 +43,30 @@
   };
   window.tinkerAuth = auth;
 
+  // Decode the JWT payload and treat anything malformed or past `exp` as
+  // already invalid. Without this, a stale token in localStorage looks
+  // signed-in to auth.js — the gate stays hidden, the user lands on the
+  // welcome screen, types a location, and the first proxied Claude call
+  // 401s and bounces them back to sign-in. Login must be the first
+  // thing the user sees when login is needed at all.
+  function isValidJwt(token) {
+    if (!token || typeof token !== "string") return false;
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    let payload;
+    try {
+      let b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      while (b64.length % 4) b64 += "=";
+      payload = JSON.parse(atob(b64));
+    } catch { return false; }
+    if (typeof payload.exp !== "number") return true;
+    // Drop the token a beat before the server would 401 us so the gate
+    // appears here, on load, rather than after a Claude call reloads us.
+    return Math.floor(Date.now() / 1000) < payload.exp - 30;
+  }
+
   if (!isWebPlatform()) return;
-  if (auth.token) return; // Already signed in.
+  if (auth.token && !isValidJwt(auth.token)) auth.token = "";
 
   // ── DOM refs ─────────────────────────────────────────────────────────
 
@@ -59,10 +81,19 @@
   const titleEl = gate.querySelector("[data-step-title]");
   const ledeEl = gate.querySelector("[data-step-lede]");
 
-  gate.hidden = false;
-  // Lock background scroll while the gate is up.
-  document.documentElement.classList.add("auth-gating");
-  setTimeout(() => phoneInput.focus(), 0);
+  function showGate() {
+    gate.hidden = false;
+    document.documentElement.classList.add("auth-gating");
+    setTimeout(() => phoneInput.focus(), 0);
+  }
+
+  // Expose for mid-session reauth (platform-mobile.js calls this when a
+  // proxied request 401s, instead of reloading the page).
+  auth.showGate = showGate;
+
+  if (!auth.token) {
+    showGate();
+  }
 
   // ── Helpers ──────────────────────────────────────────────────────────
 
