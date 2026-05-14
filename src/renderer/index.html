@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./design-tokens.css" />
     <link rel="stylesheet" href="./mobile-drawer.css" />
+    <link rel="stylesheet" href="./pwa-install-hint.css" />
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" type="image/svg+xml" href="./icons/tinker-icon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/tinker-icon-192.png" />
@@ -197,6 +198,57 @@
       </div>
     </div>
 
+    <!-- iOS Safari "Add to Home Screen" coach mark. Hidden by default;
+         pwa-install-hint.js reveals it only on iOS Safari (mobile web,
+         not standalone, not Capacitor) and remembers dismissal. The
+         glass surface is borrowed from Safari's own toolbar so it
+         reads as part of the chrome, with a curved arrow + pulsing
+         ring that points down at the three-dots page menu. -->
+    <aside id="pwa-hint" class="pwa-hint" role="dialog" aria-live="polite"
+           aria-label="Add tinker to your Home Screen">
+      <div class="pwa-hint__card">
+        <span class="pwa-hint__icon" aria-hidden="true">
+          <svg data-rainbow-logo viewBox="0 0 200 200" width="24" height="24" fill="none">
+            <rect width="200" height="200" rx="44" fill="#f5f3ef" />
+            <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
+            <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
+            <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
+            <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
+            <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
+            <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
+            <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
+          </svg>
+        </span>
+        <div class="pwa-hint__copy">
+          <div class="pwa-hint__title">Keep tinker one tap away</div>
+          <div class="pwa-hint__steps">
+            Tap
+            <span class="pwa-hint__dots" aria-label="three-dots menu">
+              <span></span><span></span><span></span>
+            </span>
+            <span class="pwa-hint__arrow-glyph" aria-hidden="true">→</span>
+            Add to Home Screen
+          </div>
+        </div>
+        <button type="button" class="pwa-hint__close" aria-label="Dismiss">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+      <div class="pwa-hint__arrow" aria-hidden="true">
+        <svg viewBox="0 0 84 70">
+          <!-- Two stacked strokes: a darker outline underneath for
+               contrast on light Safari pages, a white stroke on top
+               that matches the glass card. The path sweeps from the
+               bottom-right of the card down to the three-dots area. -->
+          <path class="outline" d="M14 6 C 14 38, 36 50, 70 60 L 62 52 M 70 60 L 60 64" />
+          <path             d="M14 6 C 14 38, 36 50, 70 60 L 62 52 M 70 60 L 60 64" />
+        </svg>
+      </div>
+      <div class="pwa-hint__ring" aria-hidden="true"></div>
+    </aside>
+
     <!-- Platform shim runs first. -->
     <script src="./platform-mobile.js" defer></script>
     <script src="./auth.js" defer></script>
@@ -205,5 +257,6 @@
     <script src="./writing.js" defer></script>
     <script src="./renderer.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
+    <script src="./pwa-install-hint.js" defer></script>
   </body>
 </html>
