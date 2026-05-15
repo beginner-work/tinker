@@ -210,10 +210,13 @@ html.on-web .sidebar__top {
   width: 100%;
 }
 .welcome__logo {
-  opacity: 0.85;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
-.welcome__logo svg rect { display: none; }
+.welcome__logo-img {
+  display: block;
+  width: 144px;
+  height: auto;
+}
 .welcome__question {
   margin: 0;
   font-family: var(--font-display);

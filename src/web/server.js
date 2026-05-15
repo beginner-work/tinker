@@ -37,6 +37,16 @@ function safeJoin(root, urlPath) {
   return resolved;
 }
 
+function sendFile(filePath, stat, res) {
+  const type = MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream";
+  res.writeHead(200, {
+    "Content-Type": type,
+    "Content-Length": stat.size,
+    "Cache-Control": "no-cache",
+  });
+  fs.createReadStream(filePath).pipe(res);
+}
+
 function serveStatic(req, res) {
   const target = safeJoin(RENDERER_DIR, req.url);
   if (!target) {
@@ -45,18 +55,24 @@ function serveStatic(req, res) {
     return;
   }
   fs.stat(target, (err, stat) => {
-    if (err || !stat.isFile()) {
-      res.writeHead(404);
-      res.end("Not Found");
+    if (!err && stat.isFile()) {
+      sendFile(target, stat, res);
       return;
     }
-    const type = MIME[path.extname(target).toLowerCase()] || "application/octet-stream";
-    res.writeHead(200, {
-      "Content-Type": type,
-      "Content-Length": stat.size,
-      "Cache-Control": "no-cache",
-    });
-    fs.createReadStream(target).pipe(res);
+    if (!err && stat.isDirectory()) {
+      const indexed = path.join(target, "index.html");
+      fs.stat(indexed, (err2, stat2) => {
+        if (!err2 && stat2.isFile()) {
+          sendFile(indexed, stat2, res);
+          return;
+        }
+        res.writeHead(404);
+        res.end("Not Found");
+      });
+      return;
+    }
+    res.writeHead(404);
+    res.end("Not Found");
   });
 }
 
