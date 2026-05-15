@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'none';" />
+    <title>tinker — design system</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="./design-tokens.css" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #F5F3EF;
+        color: #1F2937;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        padding: var(--space-8) var(--space-6);
+        line-height: var(--leading-body);
+      }
+      .container { max-width: 880px; margin: 0 auto; }
+      h1 {
+        font-family: "Plus Jakarta Sans", Inter, sans-serif;
+        font-size: var(--text-display-lg);
+        font-weight: 800;
+        letter-spacing: var(--tracking-display);
+        line-height: var(--leading-tight);
+        margin: 0 0 var(--space-3);
+      }
+      .lede {
+        font-size: var(--text-essay);
+        color: #4B5563;
+        margin: 0 0 var(--space-8);
+        max-width: 60ch;
+      }
+      h2 {
+        font-family: "Plus Jakarta Sans", Inter, sans-serif;
+        font-size: var(--text-display);
+        font-weight: 700;
+        letter-spacing: var(--tracking-tight);
+        margin: var(--space-8) 0 var(--space-5);
+      }
+      .label {
+        font-size: var(--text-micro);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: var(--tracking-label);
+        color: #6B7280;
+        margin: 0 0 var(--space-4);
+      }
+      .mascot-card {
+        background: #FFFFFF;
+        border-radius: var(--radius-logo-tile);
+        box-shadow: var(--shadow-card);
+        padding: var(--space-7);
+        display: flex;
+        gap: var(--space-7);
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .mascot-card .lulu-hero { width: 220px; height: auto; flex: 0 0 auto; }
+      .mascot-card p {
+        font-size: var(--text-essay);
+        line-height: var(--leading-prose);
+        margin: 0;
+        max-width: 38ch;
+        color: #374151;
+      }
+      .lulu-sizes {
+        display: flex;
+        gap: var(--space-7);
+        align-items: flex-end;
+        flex-wrap: wrap;
+        margin-bottom: var(--space-5);
+      }
+      .lulu-sizes figure {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        align-items: center;
+      }
+      .lulu-sizes figcaption {
+        font-family: var(--font-mono);
+        font-size: var(--text-micro);
+        color: #6B7280;
+      }
+      .palette {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: var(--space-4);
+      }
+      .swatch {
+        border-radius: var(--radius-card);
+        overflow: hidden;
+        background: #FFFFFF;
+        box-shadow: var(--shadow-card);
+      }
+      .swatch .chip { height: 60px; }
+      .swatch .name {
+        padding: var(--space-3) var(--space-4) 0;
+        font-size: var(--text-small);
+        font-weight: 600;
+      }
+      .swatch .hex {
+        padding: 0 var(--space-4) var(--space-3);
+        font-family: var(--font-mono);
+        font-size: var(--text-micro);
+        color: #6B7280;
+      }
+      .type-stack > * { margin: 0 0 var(--space-4); }
+      .t-display {
+        font-family: "Plus Jakarta Sans", Inter, sans-serif;
+        font-weight: 800;
+        font-size: var(--text-display-lg);
+        letter-spacing: var(--tracking-display);
+        line-height: var(--leading-tight);
+      }
+      .t-heading {
+        font-family: "Plus Jakarta Sans", Inter, sans-serif;
+        font-weight: 700;
+        font-size: var(--text-display);
+        letter-spacing: var(--tracking-tight);
+        line-height: var(--leading-snug);
+      }
+      .t-essay { font-size: var(--text-essay); line-height: var(--leading-prose); }
+      .t-body  { font-size: var(--text-body); }
+      .t-micro {
+        font-size: var(--text-micro);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: var(--tracking-label);
+        color: #6B7280;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <h1>tinker design system</h1>
+      <p class="lede">Brand marks, color, and type used across the renderer.</p>
+
+      <h2>Mascot</h2>
+      <p class="label">Lulu, the gray dog</p>
+      <div class="mascot-card">
+        <img class="lulu-hero" src="./icons/lulu-logo.svg"
+             alt="Lulu, a friendly gray dog with floppy ears and a pink collar" />
+        <p>Lulu is tinker's mascot — a friendly gray dog with floppy ears and a pink collar. Use her where the product needs warmth and personality.</p>
+      </div>
+
+      <p class="label" style="margin-top: var(--space-7)">Scaling</p>
+      <div class="lulu-sizes">
+        <figure><img src="./icons/lulu-logo.svg" alt="" width="48"  /><figcaption>48</figcaption></figure>
+        <figure><img src="./icons/lulu-logo.svg" alt="" width="96"  /><figcaption>96</figcaption></figure>
+        <figure><img src="./icons/lulu-logo.svg" alt="" width="160" /><figcaption>160</figcaption></figure>
+        <figure><img src="./icons/lulu-logo.svg" alt="" width="240" /><figcaption>240</figcaption></figure>
+      </div>
+
+      <h2>Palette</h2>
+      <div class="palette">
+        <div class="swatch"><div class="chip" style="background:#F9A8D4"></div><div class="name">Rose</div>  <div class="hex">#F9A8D4</div></div>
+        <div class="swatch"><div class="chip" style="background:#FDBA74"></div><div class="name">Peach</div> <div class="hex">#FDBA74</div></div>
+        <div class="swatch"><div class="chip" style="background:#FDE68A"></div><div class="name">Amber</div> <div class="hex">#FDE68A</div></div>
+        <div class="swatch"><div class="chip" style="background:#6EE7B7"></div><div class="name">Mint</div>  <div class="hex">#6EE7B7</div></div>
+        <div class="swatch"><div class="chip" style="background:#7DD3FC"></div><div class="name">Sky</div>   <div class="hex">#7DD3FC</div></div>
+        <div class="swatch"><div class="chip" style="background:#A5B4FC"></div><div class="name">Indigo</div><div class="hex">#A5B4FC</div></div>
+        <div class="swatch"><div class="chip" style="background:#C4B5FD"></div><div class="name">Violet</div><div class="hex">#C4B5FD</div></div>
+      </div>
+
+      <h2>Type</h2>
+      <div class="type-stack">
+        <div class="t-display">Display 38 — Plus Jakarta Sans</div>
+        <div class="t-heading">Heading 22 — Plus Jakarta Sans</div>
+        <div class="t-essay">Essay 17 — Inter. The body voice for longer reads.</div>
+        <div class="t-body">Body 14 — Inter. UI copy.</div>
+        <div class="t-micro">Micro 11 — labels &amp; eyebrows</div>
+      </div>
+    </main>
+  </body>
+</html>
