@@ -152,17 +152,24 @@ html.pwa-hint-visible .category-feed__head {
   min-height: 95dvh;
 }
 
-/* Tinker globe (rainbow wireframe, no backing tile) rolls along
+/* Rolling pair: a pixel-art dog pushes the rainbow globe across
  * the bottom of the panel, looping from off the left edge to off
- * the right edge. Anchored absolutely so the rest of the panel
- * content can stack normally above it. */
-.pwa-hint-sheet__globe {
+ * the right edge. The wrapper handles horizontal travel; the
+ * globe spins in place inside it; the dog rides along at the
+ * wrapper's left edge. Anchored absolutely so the rest of the
+ * panel content can stack normally above it. */
+.pwa-hint-sheet__roller {
   position: absolute;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
   width: 80px;
   height: 80px;
   pointer-events: none;
   animation: pwaHintRoll 6s linear infinite;
+}
+.pwa-hint-sheet__globe {
+  position: absolute;
+  inset: 0;
+  animation: pwaHintSpin 6s linear infinite;
 }
 .pwa-hint-sheet__globe svg { display: block; width: 100%; height: 100%; }
 /* lib/rainbow-web.js re-mounts every [data-rainbow-logo] SVG on
@@ -173,20 +180,52 @@ html.pwa-hint-visible .category-feed__head {
  * presentation attribute. */
 .pwa-hint-sheet__globe svg rect { fill: transparent; }
 
+/* Pixel-art dog: sits just behind the globe (off the wrapper's
+ * left edge) so it reads as pushing the globe forward. Aligned to
+ * the wrapper bottom so the dog's paws land on the same baseline
+ * as the bottom of the globe circle. The small overlap into the
+ * globe lets the front paws touch the rim. */
+.pwa-hint-sheet__dog {
+  position: absolute;
+  right: 100%;
+  bottom: 0;
+  margin-right: -10px;
+  width: 56px;
+  height: 35px;
+  animation: pwaHintDogBob 0.5s steps(2) infinite;
+}
+.pwa-hint-sheet__dog svg { display: block; width: 100%; height: 100%; }
+
 @keyframes pwaHintRoll {
-  /* `left` animates from off-panel-left to off-panel-right; the
-   * matching rotation makes the rainbow strokes appear to spin
-   * with the direction of travel. ~720° over the crossing is a
-   * pleasant rolling cadence for an 80px circle on a 540px panel. */
-  0%   { left: -90px; transform: rotate(0deg); }
-  100% { left: 100%;  transform: rotate(720deg); }
+  /* `left` animates from off-panel-left to off-panel-right.
+   * Offset start by -90px so the globe is fully off-screen before
+   * the loop wraps; end at 100% so it has fully cleared the right
+   * edge. ~6s across a 540px panel is a leisurely rolling pace. */
+  0%   { left: -90px; }
+  100% { left: 100%; }
+}
+@keyframes pwaHintSpin {
+  /* Spin matched to the travel duration so the rainbow strokes
+   * appear to rotate with the direction of travel. ~720° over the
+   * crossing is a pleasant rolling cadence for an 80px circle. */
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(720deg); }
+}
+@keyframes pwaHintDogBob {
+  /* Two-frame steps() bob gives the dog a tiny up-down gait that
+   * reads as walking without the smooth-easing wobble of a
+   * sinusoidal animation. 1px is enough at the dog's pixel scale. */
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-1px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pwa-hint-sheet__globe {
+  .pwa-hint-sheet__roller {
     animation: none;
     left: calc(100% - 96px);
   }
+  .pwa-hint-sheet__globe,
+  .pwa-hint-sheet__dog { animation: none; }
   .pwa-hint-sheet--chrome .pwa-hint-sheet__panel { animation: none; }
 }
 
@@ -246,8 +285,8 @@ html.pwa-hint-visible .category-feed__head {
   order: 4;
   margin: 14px auto 0;
 }
-/* Globe rolls along the TOP edge instead of the bottom. */
-.pwa-hint-sheet--chrome .pwa-hint-sheet__globe {
+/* Dog-and-globe pair rolls along the TOP edge instead of the bottom. */
+.pwa-hint-sheet--chrome .pwa-hint-sheet__roller {
   top: calc(env(safe-area-inset-top, 0px) + 12px);
   bottom: auto;
 }

@@ -414,16 +414,118 @@
             </span>
           </li>
         </ol>
-        <div class="pwa-hint-sheet__globe" aria-hidden="true">
-          <svg data-rainbow-logo viewBox="0 0 200 200" fill="none">
-            <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
-            <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
-            <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
-            <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
-            <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
-            <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
-            <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
-          </svg>
+        <!-- Rolling pair: a pixel-art dog pushes the rainbow globe across
+             the edge of the panel. The wrapper handles the horizontal
+             travel; the globe spins in place inside it; the dog rides
+             along at the wrapper's left edge with a subtle two-frame
+             walking bob. -->
+        <div class="pwa-hint-sheet__roller" aria-hidden="true">
+          <div class="pwa-hint-sheet__dog">
+            <svg viewBox="0 0 32 20" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">
+              <!-- Light fluffy fur outline (curls + ears + tail tips) -->
+              <g fill="#cfccc6">
+                <rect x="25" y="1" width="4" height="1"/>
+                <rect x="24" y="2" width="6" height="1"/>
+                <rect x="23" y="3" width="1" height="1"/><rect x="29" y="3" width="2" height="1"/>
+                <rect x="22" y="4" width="2" height="1"/><rect x="30" y="4" width="2" height="1"/>
+                <rect x="8" y="4" width="1" height="1"/>
+                <rect x="22" y="5" width="1" height="1"/><rect x="31" y="5" width="1" height="1"/>
+                <rect x="7" y="5" width="1" height="1"/><rect x="9" y="5" width="1" height="1"/>
+                <rect x="22" y="6" width="1" height="1"/><rect x="31" y="6" width="1" height="1"/>
+                <rect x="6" y="6" width="1" height="1"/><rect x="9" y="6" width="1" height="1"/>
+                <rect x="22" y="7" width="1" height="1"/><rect x="31" y="7" width="1" height="1"/>
+                <rect x="5" y="7" width="1" height="1"/><rect x="9" y="7" width="1" height="1"/>
+                <rect x="4" y="8" width="1" height="1"/>
+                <rect x="4" y="9" width="1" height="1"/>
+              </g>
+              <!-- Main grey body -->
+              <g fill="#a8a5a0">
+                <rect x="25" y="3" width="4" height="1"/>
+                <rect x="24" y="4" width="6" height="1"/>
+                <rect x="8" y="5" width="1" height="1"/>
+                <rect x="23" y="5" width="8" height="1"/>
+                <rect x="7" y="6" width="2" height="1"/>
+                <rect x="23" y="6" width="2" height="1"/>
+                <rect x="6" y="7" width="3" height="1"/>
+                <rect x="23" y="7" width="1" height="1"/>
+                <rect x="5" y="8" width="4" height="1"/>
+                <rect x="9" y="8" width="16" height="1"/>
+                <rect x="5" y="9" width="20" height="1"/>
+                <rect x="5" y="10" width="22" height="1"/>
+                <rect x="5" y="11" width="22" height="1"/>
+                <rect x="6" y="12" width="20" height="1"/>
+                <rect x="6" y="13" width="20" height="1"/>
+                <rect x="6" y="14" width="20" height="1"/>
+                <rect x="7" y="15" width="2" height="1"/>
+                <rect x="11" y="15" width="2" height="1"/>
+                <rect x="17" y="15" width="2" height="1"/>
+                <rect x="22" y="15" width="2" height="1"/>
+                <rect x="7" y="16" width="2" height="1"/>
+                <rect x="11" y="16" width="2" height="1"/>
+                <rect x="17" y="16" width="2" height="1"/>
+                <rect x="22" y="16" width="2" height="1"/>
+                <rect x="7" y="17" width="2" height="1"/>
+                <rect x="11" y="17" width="2" height="1"/>
+                <rect x="17" y="17" width="2" height="1"/>
+                <rect x="22" y="17" width="2" height="1"/>
+              </g>
+              <!-- White-ish muzzle -->
+              <g fill="#ece7df">
+                <rect x="25" y="6" width="5" height="1"/>
+                <rect x="24" y="7" width="7" height="1"/>
+                <rect x="25" y="8" width="5" height="1"/>
+                <rect x="25" y="9" width="5" height="1"/>
+                <rect x="27" y="10" width="2" height="1"/>
+              </g>
+              <!-- Black harness strap, runs down the chest -->
+              <g fill="#1c1a18">
+                <rect x="17" y="10" width="2" height="1"/>
+                <rect x="17" y="11" width="2" height="1"/>
+                <rect x="17" y="12" width="2" height="1"/>
+                <rect x="17" y="13" width="2" height="1"/>
+              </g>
+              <!-- Purple bow tie, sits at the collar just under the chin -->
+              <g fill="#8e7ec9">
+                <rect x="21" y="10" width="1" height="1"/>
+                <rect x="23" y="10" width="1" height="1"/>
+                <rect x="21" y="11" width="3" height="1"/>
+                <rect x="21" y="12" width="1" height="1"/>
+                <rect x="23" y="12" width="1" height="1"/>
+              </g>
+              <!-- Darker purple knot at the centre of the bow -->
+              <g fill="#6b5cb0">
+                <rect x="22" y="11" width="1" height="1"/>
+              </g>
+              <!-- Red collar tag hanging beside the harness D-ring -->
+              <g fill="#c54848">
+                <rect x="19" y="13" width="1" height="1"/>
+              </g>
+              <!-- Dark paw tips -->
+              <g fill="#6f6c67">
+                <rect x="7" y="18" width="2" height="1"/>
+                <rect x="11" y="18" width="2" height="1"/>
+                <rect x="17" y="18" width="2" height="1"/>
+                <rect x="22" y="18" width="2" height="1"/>
+              </g>
+              <!-- Black eye + nose, drawn last so they sit on top of the muzzle -->
+              <g fill="#1c1a18">
+                <rect x="26" y="7" width="1" height="1"/>
+                <rect x="30" y="8" width="2" height="1"/>
+                <rect x="30" y="9" width="1" height="1"/>
+              </g>
+            </svg>
+          </div>
+          <div class="pwa-hint-sheet__globe">
+            <svg data-rainbow-logo viewBox="0 0 200 200" fill="none">
+              <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
+              <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
+              <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
+              <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
+              <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
+              <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
+              <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
+            </svg>
+          </div>
         </div>
       </div>
     </div>
