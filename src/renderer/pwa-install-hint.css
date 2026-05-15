@@ -222,9 +222,17 @@ html.pwa-hint-visible .read__top {
 }
 .pwa-hint-sheet--chrome .pwa-hint-sheet__steps--default { display: none; }
 .pwa-hint-sheet--chrome .pwa-hint-sheet__steps--chrome { display: flex; }
-/* Push the steps to the bottom of the panel. Header + app card stay
- * at the top below the rolling globe; the auto-margin eats the gap. */
-.pwa-hint-sheet--chrome .pwa-hint-sheet__steps--chrome { margin-top: auto; }
+/* Reorder so the app card stays at the top under the rolling globe
+ * while the "Install the app" title slides down to sit directly
+ * above the steps. The header's auto-margin eats the gap between
+ * the app card and the title-plus-steps cluster at the bottom. */
+.pwa-hint-sheet--chrome .pwa-hint-sheet__app    { order: 1; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__header {
+  order: 2;
+  margin-top: auto;
+  margin-bottom: 12px;
+}
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps--chrome { order: 3; }
 /* Globe rolls along the TOP edge instead of the bottom. */
 .pwa-hint-sheet--chrome .pwa-hint-sheet__globe {
   top: calc(env(safe-area-inset-top, 0px) + 12px);
