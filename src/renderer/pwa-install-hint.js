@@ -36,6 +36,10 @@
     return true;
   }
 
+  function isIosChrome() {
+    return /CriOS/i.test(navigator.userAgent || "");
+  }
+
   function isStandalone() {
     if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
     if (window.navigator && window.navigator.standalone === true) return true;
@@ -77,6 +81,14 @@
       // Anchoring to the opposite side (top) leaves the instructions
       // visible until the user taps Share, then hides them precisely
       // when step 2 needs re-reading.
+      //
+      // Chrome iOS is the exception: its three-dot menu lives at the
+      // top, the Share entry is one tap away (no URL-bar pre-tap), and
+      // "Add to Home Screen" sits under "View more" inside Share. The
+      // sheet pulls down from the top, ball rolls across the top, and
+      // the now-three steps (Share → View more → Add to Home Screen)
+      // sit at the bottom near the user's thumb.
+      if (isIosChrome()) sheet.classList.add("pwa-hint-sheet--chrome");
     }
 
     function showBanner() {

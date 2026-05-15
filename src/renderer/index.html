@@ -301,7 +301,7 @@
             <div class="pwa-hint-sheet__app-url" data-pwa-host></div>
           </div>
         </div>
-        <ol class="pwa-hint-sheet__steps">
+        <ol class="pwa-hint-sheet__steps pwa-hint-sheet__steps--default">
           <li>
             <span class="pwa-hint-sheet__num">1</span>
             <span class="pwa-hint-sheet__step-text">
@@ -346,6 +346,58 @@
                 View more
               </span>
               then
+              <span class="pwa-hint-sheet__chip" aria-label="Add to Home Screen">
+                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none">
+                  <rect x="2.5" y="2.5" width="11" height="11" rx="2.5"
+                        stroke="currentColor" stroke-width="1.4" />
+                  <path d="M8 5.5 V10.5 M5.5 8 H10.5"
+                        stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                </svg>
+                Add to Home Screen
+              </span>
+            </span>
+          </li>
+        </ol>
+        <!-- Chrome iOS variant: no URL-bar pre-tap (Chrome's three-dot
+             menu sits at the top by default, and Share is a direct
+             entry there). View more / Add to Home Screen split into
+             two beats so users don't miss the scroll inside Share. -->
+        <ol class="pwa-hint-sheet__steps pwa-hint-sheet__steps--chrome">
+          <li>
+            <span class="pwa-hint-sheet__num">1</span>
+            <span class="pwa-hint-sheet__step-text">
+              Tap
+              <span class="pwa-hint-sheet__chip" aria-label="Share">
+                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none">
+                  <path d="M8 2 V10 M5.5 4.5 L8 2 L10.5 4.5"
+                        stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M4.5 7.5 V12.5 H11.5 V7.5"
+                        stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Share
+              </span>
+            </span>
+          </li>
+          <li>
+            <span class="pwa-hint-sheet__num">2</span>
+            <span class="pwa-hint-sheet__step-text">
+              Tap
+              <span class="pwa-hint-sheet__chip" aria-label="View more">
+                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none">
+                  <path d="M4 6 L8 10 L12 6"
+                        stroke="currentColor" stroke-width="1.6"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                View more
+              </span>
+            </span>
+          </li>
+          <li>
+            <span class="pwa-hint-sheet__num">3</span>
+            <span class="pwa-hint-sheet__step-text">
+              Tap
               <span class="pwa-hint-sheet__chip" aria-label="Add to Home Screen">
                 <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none">
                   <rect x="2.5" y="2.5" width="11" height="11" rx="2.5"

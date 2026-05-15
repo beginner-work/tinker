@@ -184,6 +184,7 @@ html.pwa-hint-visible .read__top {
     animation: none;
     left: calc(100% - 96px);
   }
+  .pwa-hint-sheet--chrome .pwa-hint-sheet__panel { animation: none; }
 }
 
 /* Modifier: anchor the sheet to the TOP of the viewport instead of
@@ -196,6 +197,43 @@ html.pwa-hint-visible .read__top {
 .pwa-hint-sheet--from-top .pwa-hint-sheet__panel {
   border-radius: 0 0 20px 20px;
   padding: calc(env(safe-area-inset-top, 0px) + 18px) 18px 22px;
+}
+
+/* Modifier: Chrome iOS variant. The sheet pulls down from the top,
+ * the ball rolls across the top edge, and the steps slide to the
+ * bottom near the user's thumb. Both step lists are stacked in the
+ * DOM — show the chrome one, hide the default one. */
+.pwa-hint-sheet__steps--chrome { display: none; }
+.pwa-hint-sheet--chrome { align-items: flex-start; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__panel {
+  border-radius: 0 0 20px 20px;
+  /* Top padding leaves room for the rolling globe + a touch of
+   * breathing room before the header; bottom padding hugs the
+   * steps to the safe-area inset. */
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 104px) 18px
+    calc(env(safe-area-inset-bottom, 0px) + 22px);
+  display: flex;
+  flex-direction: column;
+  /* Replay the pull-down each time the sheet is shown. The browser
+   * restarts CSS animations when an element transitions out of
+   * `display: none`, which is how the sheet is shown/hidden. */
+  animation: pwaHintPullDown 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps--default { display: none; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps--chrome { display: flex; }
+/* Push the steps to the bottom of the panel. Header + app card stay
+ * at the top below the rolling globe; the auto-margin eats the gap. */
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps--chrome { margin-top: auto; }
+/* Globe rolls along the TOP edge instead of the bottom. */
+.pwa-hint-sheet--chrome .pwa-hint-sheet__globe {
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  bottom: auto;
+}
+
+@keyframes pwaHintPullDown {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
 }
 
 .pwa-hint-sheet__header {
