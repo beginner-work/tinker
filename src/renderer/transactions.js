@@ -110,6 +110,25 @@
     openAddModal() { openModal(); },
   };
 
+  // On Vercel preview deployments and local dev, preview-reset.js wipes
+  // localStorage on every load — which leaves the Receipts view empty
+  // and reviewers can't see the populated state. Auto-seed the
+  // production sample set so the preview reflects what shipped users
+  // actually see once they've added receipts. Inert on production
+  // hostnames; inert when the user already has transactions saved.
+  try {
+    const h = location.hostname;
+    const isPreview =
+      h.includes("-git-") ||
+      h === "localhost" ||
+      h === "127.0.0.1";
+    if (isPreview && txns.length === 0) {
+      txns = buildSeedSamples();
+      save(txns);
+      notify();
+    }
+  } catch { /* storage disabled — skip */ }
+
   // ── Parsing ─────────────────────────────────────────────────────────
   // Accept either a JSON array of {date, merchant, amount, category?} or
   // a CSV with a header row. CSV is intentionally minimal (no escaped
