@@ -242,21 +242,15 @@
       const card = document.createElement("button");
       card.type = "button";
       card.className = "category-feed__card";
-      const preview = essayPreview(essay.body);
+      const body = paragraphs(essay.body);
       card.innerHTML =
         `<span class="category-feed__card-author">${escapeHtml(essay.author || "you")}</span>` +
         `<h3 class="category-feed__card-title">${escapeHtml(essay.title || "Untitled")}</h3>` +
-        (preview ? `<p class="category-feed__card-preview">${escapeHtml(preview)}</p>` : "");
+        (body ? `<div class="category-feed__card-body">${body}</div>` : "");
       card.addEventListener("click", () => showRead(essay));
       categoryFeedList.appendChild(card);
     }
     return true;
-  }
-  function essayPreview(body) {
-    const trimmed = String(body || "").trim();
-    if (!trimmed) return "";
-    const firstPara = trimmed.split(/\n{2,}/)[0].replace(/\s+/g, " ").trim();
-    return firstPara.length > 160 ? firstPara.slice(0, 160).trimEnd() + "…" : firstPara;
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
