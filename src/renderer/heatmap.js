@@ -494,6 +494,17 @@
     return buildCategoryFeed(categoryKey, loadState());
   }
 
+  // Public-facing: leaf category key for a location name, or null when
+  // the location hasn't been classified yet. Used by the publish flow
+  // so a freshly published essay can land on its category feed.
+  function getCategoryKeyForLocation(locName) {
+    if (!locName) return null;
+    const state = loadState();
+    const stored = state.locations[normCat(locName)];
+    const path = stored && Array.isArray(stored.paths) && stored.paths[0];
+    return path && path.length ? path[path.length - 1] : null;
+  }
+
   function buildCategoryFeed(categoryKey, state) {
     const cat = state.taxonomy[categoryKey];
     if (!cat) return null;
@@ -527,5 +538,5 @@
     };
   }
 
-  window.tinkerHeatmap = { render, getCategoryFeed };
+  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForLocation };
 })();

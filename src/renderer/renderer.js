@@ -109,7 +109,15 @@
       activeId = null;
       renderSidebar();
       renderHome();
-      showRead(essay);
+      // Land on the location's category feed (now containing the
+      // just-published essay). For a brand-new location with no
+      // classification yet, fall through to the read view.
+      const leafKey = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryKeyForLocation === "function")
+        ? window.tinkerHeatmap.getCategoryKeyForLocation(essay.location)
+        : null;
+      if (!leafKey || !showCategoryFeed(leafKey)) {
+        showRead(essay);
+      }
       return essay;
     },
   };
