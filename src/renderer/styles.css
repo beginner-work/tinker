@@ -1171,9 +1171,10 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   gap: 10px;
 }
 .writing-location__pin {
-  font-size: 28px;
-  line-height: 1;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
+  display: block;
 }
 .writing-location__skip {
   align-self: flex-start;
@@ -1209,8 +1210,8 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   resize: none;
 }
 .writing-location__label .writing-location__pin {
-  font-size: 20px;
-  line-height: 1;
+  width: 20px;
+  height: 20px;
 }
 
 .writing-recall {
@@ -1230,10 +1231,11 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   gap: 8px;
 }
 .writing-recall__pin {
-  font-size: 16px;
-  line-height: 1.4;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
-  font-style: normal;
+  margin-top: 3px;
+  display: block;
 }
 .writing-recall__label {
   font-style: normal;
