@@ -1,31 +1,38 @@
-/* pwa-install-hint.js — iOS Safari install banner + bottom-sheet,
+/* pwa-install-hint.js — iOS install banner + bottom-sheet,
  * re-implemented as a minimal show/hide via the `hidden` attribute.
  *
  * No transforms, no transitions, no theme-color juggling, no
  * compositing-layer hints. The browser toggles `display: none`
- * ↔ default for both elements; iOS Safari renders them in its
+ * ↔ default for both elements; iOS renders them in its
  * normal document paint layer with no transit-shadow artifacts.
  *
- * Banner shows when all of: iOS Safari (mobile web, not Chrome /
- * Firefox / etc. on iOS), not running standalone, not inside
- * Capacitor / Electron, not previously dismissed. Tap Install →
- * open the instructions sheet. Tap X → dismiss (persisted in
- * localStorage). Installing the PWA mid-session flips the
- * display-mode media query and the whole thing disappears.
+ * Banner shows when all of: an iOS WebKit browser that exposes
+ * Add to Home Screen (Safari or Chrome — every iOS browser is
+ * WebKit-backed, but in-app webviews like DuckDuckGo / GSA hide
+ * the share-sheet entry, so those stay excluded), not running
+ * standalone, not inside Capacitor / Electron, not previously
+ * dismissed. Tap Install → open the instructions sheet. Tap X →
+ * dismiss (persisted in localStorage). Installing the PWA
+ * mid-session flips the display-mode media query and the whole
+ * thing disappears.
  */
 
 (function () {
   const STORAGE_KEY = "tinker_pwa_hint_dismissed";
   const SHOW_DELAY_MS = 800;
 
-  function isIosSafari() {
+  function isIosInstallableBrowser() {
     const ua = navigator.userAgent || "";
     const isIosDevice =
       /iPhone|iPod|iPad/i.test(ua) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     if (!isIosDevice) return false;
-    if (/CriOS|FxiOS|EdgiOS|OPiOS|mercury|DuckDuckGo|GSA/i.test(ua)) return false;
-    if (!/Safari/i.test(ua)) return false;
+    // In-app webviews (DuckDuckGo Privacy Browser, Google app) strip the
+    // share-sheet entry for Add to Home Screen, so the banner has nothing
+    // useful to point users at. Safari and Chrome iOS both expose it.
+    if (/FxiOS|EdgiOS|OPiOS|mercury|DuckDuckGo|GSA/i.test(ua)) return false;
+    // Safari sends "Safari", Chrome iOS sends "CriOS" — accept either.
+    if (!/Safari|CriOS/i.test(ua)) return false;
     return true;
   }
 
@@ -50,7 +57,7 @@
 
   function init() {
     if (isWrappedRuntime()) return;
-    if (!isIosSafari()) return;
+    if (!isIosInstallableBrowser()) return;
     if (isStandalone()) return;
     if (dismissed()) return;
 
