@@ -295,24 +295,21 @@
   // ── Wire up ─────────────────────────────────────────────────────────
   navHome.addEventListener("click", () => showFeed());
 
-  // Welcome screen prompt: randomly "Where are you?" or "Who are you?"
-  // on each load. The founder's typed answer still seeds the writing
-  // session's `location` anchor either way — the question is just a
-  // different door into the same flow.
+  // Welcome screen: the H1 is the standing line ("Everyone is a
+  // founder."), and the actual question rotates inside the input's
+  // placeholder on each load — sometimes "Where are you?", sometimes
+  // "Who are you?". Either way the typed answer seeds the writing
+  // session's `location` anchor; the placeholder is just a different
+  // door into the same flow.
   // On submit: register the answer as a location (so it persists in
   // the sidebar) and spawn a writing session anchored there. Empty
   // submissions just re-focus the input.
   const welcomeForm = document.getElementById("welcome-form");
   const welcomeInput = document.getElementById("welcome-input");
-  const welcomeQuestionEl = document.querySelector("#welcome .welcome__question");
-  if (welcomeQuestionEl && welcomeInput) {
-    const prompts = [
-      { q: "Where are you?", placeholder: "A coffee shop, your kitchen, the back porch…" },
-      { q: "Who are you?", placeholder: "A founder, a parent, a tinkerer…" },
-    ];
-    const pick = prompts[Math.floor(Math.random() * prompts.length)];
-    welcomeQuestionEl.textContent = pick.q;
-    welcomeInput.setAttribute("placeholder", pick.placeholder);
+  if (welcomeInput) {
+    const placeholders = ["Where are you?", "Who are you?"];
+    const pick = placeholders[Math.floor(Math.random() * placeholders.length)];
+    welcomeInput.setAttribute("placeholder", pick);
   }
   if (welcomeForm && welcomeInput) {
     welcomeForm.addEventListener("submit", (e) => {
