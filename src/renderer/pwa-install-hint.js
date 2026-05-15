@@ -18,8 +18,18 @@
  */
 
 (function () {
-  const STORAGE_KEY = "tinker_pwa_hint_dismissed";
+  // Key bumped from `tinker_pwa_hint_dismissed` so devices carrying a
+  // stale boolean-shaped dismissal from the old code start over and
+  // can re-see the banner. The value is now read as a TTL, not just
+  // an existence flag.
+  const STORAGE_KEY = "tinker_pwa_hint_dismissed_at";
   const SHOW_DELAY_MS = 800;
+  // Tapping X means "not now," not "never." The dismiss button sits
+  // 6px from the Install button on a 28px target — easy to fat-finger
+  // on iOS. Re-surface the prompt after two weeks so an accidental
+  // tap (or a deliberate dismissal from someone who later changes
+  // their mind) doesn't permanently retire the install path.
+  const DISMISS_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
   function isIosInstallableBrowser() {
     const ua = navigator.userAgent || "";
@@ -53,7 +63,13 @@
   }
 
   function dismissed() {
-    try { return !!localStorage.getItem(STORAGE_KEY); } catch { return false; }
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      const ts = Number(raw);
+      if (!Number.isFinite(ts)) return false;
+      return Date.now() - ts < DISMISS_TTL_MS;
+    } catch { return false; }
   }
   function markDismissed() {
     try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch { /* private mode */ }
