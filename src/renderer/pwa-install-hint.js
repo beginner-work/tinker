@@ -96,6 +96,13 @@
         const chromeList = sheet.querySelector(".pwa-hint-sheet__steps--chrome");
         if (defaultList) defaultList.hidden = true;
         if (chromeList) chromeList.hidden = false;
+        // Lift the URL display out of the app card so it can sit
+        // directly under the "Install the app" title at the bottom
+        // of the pull-down. Its row position is controlled by flex
+        // `order` in CSS (panel is flex-column in chrome mode).
+        const panelEl = sheet.querySelector(".pwa-hint-sheet__panel");
+        const urlEl = sheet.querySelector(".pwa-hint-sheet__app-url");
+        if (panelEl && urlEl) panelEl.appendChild(urlEl);
       }
     }
 
