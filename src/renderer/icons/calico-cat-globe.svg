@@ -1,6 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
   <!-- Pixel-art calico cat: a 25x27 sprite at 5px per cell, sitting
        and reaching its right paw out to bat the globe. -->
+  <style>
+    .paw {
+      transform-box: view-box;
+      transform-origin: 87.5px 127.5px;
+      animation: paw-wave 1.6s ease-in-out infinite;
+    }
+    @keyframes paw-wave {
+      0%, 100% { transform: rotate(-3deg); }
+      50%      { transform: rotate(11deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .paw { animation: none; }
+    }
+  </style>
   <g shape-rendering="crispEdges">
   <g fill="#2D2D2D">
     <rect x="15" y="32" width="5" height="5"/>
@@ -69,11 +83,6 @@
     <rect x="60" y="112" width="5" height="5"/>
     <rect x="65" y="112" width="5" height="5"/>
     <rect x="70" y="112" width="5" height="5"/>
-    <rect x="90" y="112" width="5" height="5"/>
-    <rect x="95" y="112" width="5" height="5"/>
-    <rect x="100" y="112" width="5" height="5"/>
-    <rect x="105" y="112" width="5" height="5"/>
-    <rect x="110" y="112" width="5" height="5"/>
     <rect x="15" y="117" width="5" height="5"/>
     <rect x="35" y="117" width="5" height="5"/>
     <rect x="40" y="117" width="5" height="5"/>
@@ -83,7 +92,6 @@
     <rect x="60" y="117" width="5" height="5"/>
     <rect x="65" y="117" width="5" height="5"/>
     <rect x="70" y="117" width="5" height="5"/>
-    <rect x="115" y="117" width="5" height="5"/>
     <rect x="15" y="122" width="5" height="5"/>
     <rect x="35" y="122" width="5" height="5"/>
     <rect x="40" y="122" width="5" height="5"/>
@@ -94,7 +102,6 @@
     <rect x="65" y="122" width="5" height="5"/>
     <rect x="70" y="122" width="5" height="5"/>
     <rect x="75" y="122" width="5" height="5"/>
-    <rect x="120" y="122" width="5" height="5"/>
     <rect x="15" y="127" width="5" height="5"/>
     <rect x="35" y="127" width="5" height="5"/>
     <rect x="40" y="127" width="5" height="5"/>
@@ -106,7 +113,6 @@
     <rect x="70" y="127" width="5" height="5"/>
     <rect x="75" y="127" width="5" height="5"/>
     <rect x="80" y="127" width="5" height="5"/>
-    <rect x="120" y="127" width="5" height="5"/>
     <rect x="15" y="132" width="5" height="5"/>
     <rect x="35" y="132" width="5" height="5"/>
     <rect x="40" y="132" width="5" height="5"/>
@@ -118,7 +124,6 @@
     <rect x="70" y="132" width="5" height="5"/>
     <rect x="75" y="132" width="5" height="5"/>
     <rect x="80" y="132" width="5" height="5"/>
-    <rect x="120" y="132" width="5" height="5"/>
     <rect x="15" y="137" width="5" height="5"/>
     <rect x="40" y="137" width="5" height="5"/>
     <rect x="45" y="137" width="5" height="5"/>
@@ -129,8 +134,6 @@
     <rect x="70" y="137" width="5" height="5"/>
     <rect x="75" y="137" width="5" height="5"/>
     <rect x="80" y="137" width="5" height="5"/>
-    <rect x="85" y="137" width="5" height="5"/>
-    <rect x="115" y="137" width="5" height="5"/>
     <rect x="15" y="142" width="5" height="5"/>
     <rect x="45" y="142" width="5" height="5"/>
     <rect x="50" y="142" width="5" height="5"/>
@@ -138,11 +141,6 @@
     <rect x="60" y="142" width="5" height="5"/>
     <rect x="65" y="142" width="5" height="5"/>
     <rect x="70" y="142" width="5" height="5"/>
-    <rect x="90" y="142" width="5" height="5"/>
-    <rect x="95" y="142" width="5" height="5"/>
-    <rect x="100" y="142" width="5" height="5"/>
-    <rect x="105" y="142" width="5" height="5"/>
-    <rect x="110" y="142" width="5" height="5"/>
     <rect x="15" y="147" width="5" height="5"/>
     <rect x="55" y="147" width="5" height="5"/>
     <rect x="60" y="147" width="5" height="5"/>
@@ -339,43 +337,17 @@
     <rect x="75" y="117" width="5" height="5"/>
     <rect x="80" y="117" width="5" height="5"/>
     <rect x="85" y="117" width="5" height="5"/>
-    <rect x="90" y="117" width="5" height="5"/>
-    <rect x="95" y="117" width="5" height="5"/>
-    <rect x="100" y="117" width="5" height="5"/>
-    <rect x="105" y="117" width="5" height="5"/>
-    <rect x="110" y="117" width="5" height="5"/>
     <rect x="20" y="122" width="5" height="5"/>
     <rect x="25" y="122" width="5" height="5"/>
     <rect x="30" y="122" width="5" height="5"/>
     <rect x="80" y="122" width="5" height="5"/>
     <rect x="85" y="122" width="5" height="5"/>
-    <rect x="90" y="122" width="5" height="5"/>
-    <rect x="95" y="122" width="5" height="5"/>
-    <rect x="100" y="122" width="5" height="5"/>
-    <rect x="105" y="122" width="5" height="5"/>
-    <rect x="110" y="122" width="5" height="5"/>
-    <rect x="115" y="122" width="5" height="5"/>
     <rect x="20" y="127" width="5" height="5"/>
     <rect x="25" y="127" width="5" height="5"/>
     <rect x="85" y="127" width="5" height="5"/>
-    <rect x="100" y="127" width="5" height="5"/>
-    <rect x="105" y="127" width="5" height="5"/>
-    <rect x="110" y="127" width="5" height="5"/>
-    <rect x="115" y="127" width="5" height="5"/>
     <rect x="20" y="132" width="5" height="5"/>
     <rect x="85" y="132" width="5" height="5"/>
-    <rect x="90" y="132" width="5" height="5"/>
-    <rect x="95" y="132" width="5" height="5"/>
-    <rect x="100" y="132" width="5" height="5"/>
-    <rect x="105" y="132" width="5" height="5"/>
-    <rect x="110" y="132" width="5" height="5"/>
-    <rect x="115" y="132" width="5" height="5"/>
     <rect x="20" y="137" width="5" height="5"/>
-    <rect x="90" y="137" width="5" height="5"/>
-    <rect x="95" y="137" width="5" height="5"/>
-    <rect x="100" y="137" width="5" height="5"/>
-    <rect x="105" y="137" width="5" height="5"/>
-    <rect x="110" y="137" width="5" height="5"/>
     <rect x="20" y="142" width="5" height="5"/>
     <rect x="40" y="142" width="5" height="5"/>
     <rect x="75" y="142" width="5" height="5"/>
@@ -430,8 +402,6 @@
     <rect x="15" y="77" width="5" height="5"/>
     <rect x="20" y="77" width="5" height="5"/>
     <rect x="30" y="127" width="5" height="5"/>
-    <rect x="90" y="127" width="5" height="5"/>
-    <rect x="95" y="127" width="5" height="5"/>
     <rect x="25" y="132" width="5" height="5"/>
     <rect x="30" y="132" width="5" height="5"/>
     <rect x="25" y="137" width="5" height="5"/>
@@ -447,6 +417,58 @@
     <rect x="20" y="47" width="5" height="5"/>
     <rect x="85" y="47" width="5" height="5"/>
     <rect x="55" y="77" width="5" height="5"/>
+  </g>
+  <g class="paw">
+    <g fill="#2D2D2D">
+      <rect x="90" y="112" width="5" height="5"/>
+      <rect x="95" y="112" width="5" height="5"/>
+      <rect x="100" y="112" width="5" height="5"/>
+      <rect x="105" y="112" width="5" height="5"/>
+      <rect x="110" y="112" width="5" height="5"/>
+      <rect x="115" y="117" width="5" height="5"/>
+      <rect x="120" y="122" width="5" height="5"/>
+      <rect x="120" y="127" width="5" height="5"/>
+      <rect x="120" y="132" width="5" height="5"/>
+      <rect x="85" y="137" width="5" height="5"/>
+      <rect x="115" y="137" width="5" height="5"/>
+      <rect x="90" y="142" width="5" height="5"/>
+      <rect x="95" y="142" width="5" height="5"/>
+      <rect x="100" y="142" width="5" height="5"/>
+      <rect x="105" y="142" width="5" height="5"/>
+      <rect x="110" y="142" width="5" height="5"/>
+    </g>
+    <g fill="#FFFFFF">
+      <rect x="90" y="117" width="5" height="5"/>
+      <rect x="95" y="117" width="5" height="5"/>
+      <rect x="100" y="117" width="5" height="5"/>
+      <rect x="105" y="117" width="5" height="5"/>
+      <rect x="110" y="117" width="5" height="5"/>
+      <rect x="90" y="122" width="5" height="5"/>
+      <rect x="95" y="122" width="5" height="5"/>
+      <rect x="100" y="122" width="5" height="5"/>
+      <rect x="105" y="122" width="5" height="5"/>
+      <rect x="110" y="122" width="5" height="5"/>
+      <rect x="115" y="122" width="5" height="5"/>
+      <rect x="100" y="127" width="5" height="5"/>
+      <rect x="105" y="127" width="5" height="5"/>
+      <rect x="110" y="127" width="5" height="5"/>
+      <rect x="115" y="127" width="5" height="5"/>
+      <rect x="90" y="132" width="5" height="5"/>
+      <rect x="95" y="132" width="5" height="5"/>
+      <rect x="100" y="132" width="5" height="5"/>
+      <rect x="105" y="132" width="5" height="5"/>
+      <rect x="110" y="132" width="5" height="5"/>
+      <rect x="115" y="132" width="5" height="5"/>
+      <rect x="90" y="137" width="5" height="5"/>
+      <rect x="95" y="137" width="5" height="5"/>
+      <rect x="100" y="137" width="5" height="5"/>
+      <rect x="105" y="137" width="5" height="5"/>
+      <rect x="110" y="137" width="5" height="5"/>
+    </g>
+    <g fill="#FDBA74">
+      <rect x="90" y="127" width="5" height="5"/>
+      <rect x="95" y="127" width="5" height="5"/>
+    </g>
   </g>
   </g>
 
