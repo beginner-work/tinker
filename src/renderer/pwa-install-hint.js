@@ -125,13 +125,14 @@
       }
     }
 
-    // Drag-up-to-close for Chrome iOS's pull-down sheet. Mirroring the
-    // metaphor of how the sheet entered (from the top): users push it
-    // back up to dismiss. Pass-through threshold is either distance
-    // (80px) or a quick flick (velocity above 0.5 px/ms). Tapping a
-    // button inside the panel is excluded so it can't accidentally
-    // trigger a drag.
-    function attachChromeDragToClose(sheetEl, onClose) {
+    // Drag-to-close for both sheet variants. The close gesture mirrors
+    // the metaphor of how the sheet entered: Chrome's pull-down sheet
+    // closes by dragging up (sign = -1); Safari's rise-from-bottom
+    // sheet closes by dragging down (sign = +1). Pass-through threshold
+    // is either distance (80px in the close direction) or a quick flick
+    // (velocity above 0.5 px/ms). Tapping a button inside the panel is
+    // excluded so a close-button tap can't accidentally trigger a drag.
+    function attachDragToClose(sheetEl, onClose, sign) {
       const panel = sheetEl.querySelector(".pwa-hint-sheet__panel");
       if (!panel) return;
       const DISMISS_DISTANCE = 80;
@@ -146,8 +147,8 @@
       panel.addEventListener("touchstart", (e) => {
         if (e.touches.length !== 1) return;
         if (e.target.closest("button, a")) return;
-        // Cancel the pull-down keyframe so our inline transform isn't
-        // overridden while the finger is down.
+        // Cancel any in-flight entrance keyframe so the inline
+        // transform isn't overridden while the finger is down.
         panel.style.animation = "none";
         panel.style.transition = "none";
         startY = e.touches[0].clientY;
@@ -158,9 +159,10 @@
 
       panel.addEventListener("touchmove", (e) => {
         if (!dragging) return;
-        // Clamp at 0: downward drags don't pull the panel further
-        // down, they snap it at rest.
-        currentY = Math.min(e.touches[0].clientY - startY, 0);
+        const dy = e.touches[0].clientY - startY;
+        // Clamp to the close direction; drags the other way snap at
+        // rest rather than pulling the panel further out of place.
+        currentY = sign < 0 ? Math.min(dy, 0) : Math.max(dy, 0);
         panel.style.transform = "translateY(" + currentY + "px)";
       }, { passive: true });
 
@@ -168,12 +170,14 @@
         if (!dragging) return;
         dragging = false;
         const elapsed = Math.max(Date.now() - startTime, 1);
-        const velocity = -currentY / elapsed;
+        const travelled = sign * currentY; // px travelled toward close
+        const velocity = travelled / elapsed;
         const shouldClose =
-          currentY <= -DISMISS_DISTANCE || velocity >= DISMISS_VELOCITY;
+          travelled >= DISMISS_DISTANCE || velocity >= DISMISS_VELOCITY;
         panel.style.transition = "transform " + SNAP_MS + "ms " + EASING;
         if (shouldClose) {
-          panel.style.transform = "translateY(-100%)";
+          // Slide the rest of the way off-screen in the close direction.
+          panel.style.transform = "translateY(" + (sign < 0 ? "-100%" : "100%") + ")";
           setTimeout(onClose, SNAP_MS);
         } else {
           panel.style.transform = "translateY(0)";
@@ -223,9 +227,10 @@
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && !sheet.hidden) closeSheet();
       });
-      if (sheet.classList.contains("pwa-hint-sheet--chrome")) {
-        attachChromeDragToClose(sheet, closeSheet);
-      }
+      // Chrome's pull-down sheet closes by dragging UP (sign -1);
+      // Safari's rise-from-bottom sheet closes by dragging DOWN (+1).
+      const dragSign = sheet.classList.contains("pwa-hint-sheet--chrome") ? -1 : 1;
+      attachDragToClose(sheet, closeSheet, dragSign);
     }
 
     // Auto-disappear if the user installs mid-session.
