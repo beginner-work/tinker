@@ -122,17 +122,105 @@
            sidebar. Once a location is tapped, #writing takes over. -->
       <section id="welcome" class="feed welcome" data-active>
         <div class="welcome__inner">
-          <div class="welcome__logo" aria-hidden="true">
-            <svg data-rainbow-logo viewBox="0 0 200 200" width="56" height="56" fill="none">
-              <rect width="200" height="200" rx="44" fill="#f5f3ef" />
-              <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
-              <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
-              <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
-              <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
-              <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
-              <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
-              <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
-            </svg>
+          <!-- Hero stack: rainbow globe balanced on the nose of a
+               pixel-art calico cat sitting underneath. The cat sprite
+               is drawn from a head-tilted-back front view (pink nose
+               at the very top, folded ears flanking, body+paws below)
+               so the globe rests directly on its snout. Wrapping both
+               in a flex column keeps them paired and centred above
+               the heading without disturbing the column layout. -->
+          <div class="welcome__hero" aria-hidden="true">
+            <div class="welcome__logo">
+              <svg data-rainbow-logo viewBox="0 0 200 200" width="56" height="56" fill="none">
+                <rect width="200" height="200" rx="44" fill="#f5f3ef" />
+                <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
+                <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
+                <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
+                <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
+                <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
+                <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
+                <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
+              </svg>
+            </div>
+            <div class="welcome__cat">
+              <svg viewBox="0 0 14 14" shape-rendering="crispEdges" fill="none">
+                <g fill="#2a2520">
+                  <rect x="4"  y="1" width="2" height="1" />
+                  <rect x="8"  y="1" width="2" height="1" />
+                  <rect x="3"  y="2" width="1" height="1" />
+                  <rect x="10" y="2" width="1" height="1" />
+                  <rect x="2"  y="3" width="1" height="1" />
+                  <rect x="11" y="3" width="1" height="1" />
+                  <rect x="1"  y="4" width="2" height="1" />
+                  <rect x="5"  y="4" width="1" height="1" />
+                  <rect x="8"  y="4" width="1" height="1" />
+                  <rect x="11" y="4" width="2" height="1" />
+                  <rect x="0"  y="5" width="1" height="1" />
+                  <rect x="2"  y="5" width="1" height="1" />
+                  <rect x="11" y="5" width="1" height="1" />
+                  <rect x="13" y="5" width="1" height="1" />
+                  <rect x="0"  y="6" width="1" height="1" />
+                  <rect x="3"  y="6" width="1" height="1" />
+                  <rect x="10" y="6" width="1" height="1" />
+                  <rect x="13" y="6" width="1" height="1" />
+                  <rect x="0"  y="7" width="1" height="1" />
+                  <rect x="4"  y="7" width="1" height="1" />
+                  <rect x="9"  y="7" width="1" height="1" />
+                  <rect x="13" y="7" width="1" height="1" />
+                  <rect x="1"  y="8" width="1" height="1" />
+                  <rect x="12" y="8" width="1" height="1" />
+                  <rect x="1"  y="9" width="1" height="1" />
+                  <rect x="12" y="9" width="1" height="1" />
+                  <rect x="1"  y="10" width="1" height="1" />
+                  <rect x="12" y="10" width="1" height="1" />
+                  <rect x="1"  y="11" width="1" height="1" />
+                  <rect x="12" y="11" width="1" height="1" />
+                  <rect x="1"  y="12" width="3" height="1" />
+                  <rect x="6"  y="12" width="2" height="1" />
+                  <rect x="10" y="12" width="3" height="1" />
+                  <rect x="2"  y="13" width="3" height="1" />
+                  <rect x="9"  y="13" width="3" height="1" />
+                </g>
+                <g fill="#f5efe6">
+                  <rect x="6"  y="1" width="2" height="1" />
+                  <rect x="5"  y="2" width="4" height="1" />
+                  <rect x="4"  y="3" width="1" height="1" />
+                  <rect x="5"  y="3" width="1" height="1" />
+                  <rect x="6"  y="3" width="3" height="1" />
+                  <rect x="10" y="3" width="1" height="1" />
+                  <rect x="3"  y="4" width="2" height="1" />
+                  <rect x="6"  y="4" width="2" height="1" />
+                  <rect x="9"  y="4" width="2" height="1" />
+                  <rect x="3"  y="5" width="8" height="1" />
+                  <rect x="1"  y="6" width="2" height="1" />
+                  <rect x="6"  y="6" width="4" height="1" />
+                  <rect x="11" y="6" width="2" height="1" />
+                  <rect x="1"  y="7" width="3" height="1" />
+                  <rect x="5"  y="7" width="4" height="1" />
+                  <rect x="10" y="7" width="3" height="1" />
+                  <rect x="2"  y="8" width="5" height="1" />
+                  <rect x="9"  y="8" width="3" height="1" />
+                  <rect x="2"  y="9" width="10" height="1" />
+                  <rect x="2"  y="10" width="3" height="1" />
+                  <rect x="7"  y="10" width="5" height="1" />
+                  <rect x="2"  y="11" width="10" height="1" />
+                  <rect x="4"  y="12" width="2" height="1" />
+                  <rect x="8"  y="12" width="2" height="1" />
+                </g>
+                <g fill="#d97a3c">
+                  <rect x="4"  y="2" width="1" height="1" />
+                  <rect x="9"  y="2" width="1" height="1" />
+                  <rect x="3"  y="3" width="1" height="1" />
+                  <rect x="9"  y="3" width="1" height="1" />
+                  <rect x="4"  y="6" width="2" height="1" />
+                  <rect x="5"  y="10" width="2" height="1" />
+                </g>
+                <rect x="7"  y="8" width="2" height="1" fill="#2a2520" />
+                <rect x="6"  y="0" width="2" height="1" fill="#e8a8a8" />
+                <rect x="1"  y="5" width="1" height="1" fill="#e8a8a8" />
+                <rect x="12" y="5" width="1" height="1" fill="#e8a8a8" />
+              </svg>
+            </div>
           </div>
           <h1 class="welcome__question">Where are you?</h1>
           <form id="welcome-form" class="welcome__form" autocomplete="off">
@@ -425,68 +513,69 @@
             <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
           </svg>
         </div>
-        <!-- Pixel-art Scottish fold cat that rolls alongside the globe,
-             reaching forward with a front paw to push it. Shares the
-             globe's timing/keyframes so the pair stays in lockstep,
-             with a static x-offset so the paw lines up with the
-             globe's lower-left edge. The folded ear (top-back of head)
-             is the breed signature. -->
+        <!-- Pixel-art calico cat (white + orange + black patches) in
+             profile, nudging the globe forward with its nose. The
+             nose pixels sit at the right edge of the sprite so they
+             line up flush with the globe's lower-left arc. Shares
+             the globe's crossing timing so the two travel in
+             lockstep across the panel. -->
         <div class="pwa-hint-sheet__cat" aria-hidden="true">
-          <svg viewBox="0 0 16 13" shape-rendering="crispEdges" fill="none">
-            <g fill="#3f3a36">
-              <rect x="10" y="0" width="2" height="1" />
-              <rect x="9"  y="1" width="1" height="1" />
-              <rect x="12" y="1" width="1" height="1" />
-              <rect x="7"  y="2" width="2" height="1" />
-              <rect x="13" y="2" width="1" height="1" />
-              <rect x="6"  y="3" width="1" height="1" />
-              <rect x="14" y="3" width="1" height="1" />
-              <rect x="5"  y="4" width="1" height="1" />
-              <rect x="15" y="4" width="1" height="1" />
-              <rect x="5"  y="5" width="1" height="1" />
-              <rect x="15" y="5" width="1" height="1" />
-              <rect x="5"  y="6" width="1" height="1" />
-              <rect x="14" y="6" width="1" height="1" />
-              <rect x="4"  y="7" width="1" height="1" />
+          <svg viewBox="0 0 16 11" shape-rendering="crispEdges" fill="none">
+            <!-- Dark outline + black calico patches + mouth. One
+                 fill handles every dark pixel so the silhouette
+                 reads as a single shape against the cream panel. -->
+            <g fill="#2a2520">
+              <rect x="11" y="0" width="2" height="1" />
+              <rect x="9"  y="1" width="5" height="1" />
+              <rect x="1"  y="2" width="2" height="1" />
+              <rect x="8"  y="2" width="1" height="1" />
+              <rect x="14" y="2" width="1" height="1" />
+              <rect x="0"  y="3" width="4" height="1" />
+              <rect x="7"  y="3" width="1" height="1" />
+              <rect x="15" y="3" width="1" height="1" />
+              <rect x="0"  y="4" width="1" height="1" />
+              <rect x="3"  y="4" width="4" height="1" />
+              <rect x="0"  y="5" width="1" height="1" />
+              <rect x="0"  y="6" width="1" height="1" />
+              <rect x="13" y="6" width="3" height="1" />
+              <rect x="1"  y="7" width="1" height="1" />
               <rect x="12" y="7" width="2" height="1" />
-              <rect x="3"  y="8" width="1" height="1" />
-              <rect x="5"  y="8" width="1" height="1" />
-              <rect x="9"  y="8" width="1" height="1" />
-              <rect x="12" y="8" width="2" height="1" />
-              <rect x="2"  y="9" width="1" height="1" />
-              <rect x="13" y="9" width="1" height="1" />
-              <rect x="1"  y="10" width="1" height="1" />
-              <rect x="14" y="10" width="1" height="1" />
-              <rect x="0"  y="11" width="1" height="1" />
-              <rect x="4"  y="11" width="2" height="1" />
-              <rect x="8"  y="11" width="2" height="1" />
-              <rect x="1"  y="12" width="3" height="1" />
-              <rect x="6"  y="12" width="2" height="1" />
-              <rect x="10" y="12" width="3" height="1" />
-              <rect x="14" y="12" width="2" height="1" />
-            </g>
-            <g fill="#b8aea2">
-              <rect x="10" y="1" width="2" height="1" />
-              <rect x="9"  y="2" width="4" height="1" />
-              <rect x="7"  y="3" width="7" height="1" />
-              <rect x="6"  y="4" width="9" height="1" />
-              <rect x="6"  y="5" width="2" height="1" />
-              <rect x="10" y="5" width="4" height="1" />
-              <rect x="6"  y="6" width="7" height="1" />
-              <rect x="5"  y="7" width="7" height="1" />
-              <rect x="4"  y="8" width="1" height="1" />
-              <rect x="6"  y="8" width="3" height="1" />
+              <rect x="1"  y="8" width="1" height="1" />
+              <rect x="3"  y="8" width="2" height="1" />
               <rect x="10" y="8" width="2" height="1" />
-              <rect x="3"  y="9" width="10" height="1" />
-              <rect x="2"  y="10" width="12" height="1" />
-              <rect x="1"  y="11" width="3" height="1" />
-              <rect x="6"  y="11" width="2" height="1" />
-              <rect x="10" y="11" width="6" height="1" />
+              <rect x="2"  y="9" width="4" height="1" />
+              <rect x="8"  y="9" width="3" height="1" />
+              <rect x="4"  y="10" width="2" height="1" />
+              <rect x="8"  y="10" width="2" height="1" />
             </g>
-            <rect x="8"  y="5" width="1" height="1" fill="#1a1612" />
-            <rect x="9"  y="5" width="1" height="1" fill="#ffffff" />
-            <rect x="14" y="5" width="1" height="1" fill="#d97870" />
-            <rect x="13" y="6" width="1" height="1" fill="#d97870" />
+            <!-- Cream/white calico base coat. -->
+            <g fill="#f5efe6">
+              <rect x="9"  y="2" width="5" height="1" />
+              <rect x="8"  y="3" width="7" height="1" />
+              <rect x="1"  y="4" width="2" height="1" />
+              <rect x="7"  y="4" width="3" height="1" />
+              <rect x="12" y="4" width="1" height="1" />
+              <rect x="3"  y="5" width="10" height="1" />
+              <rect x="1"  y="6" width="12" height="1" />
+              <rect x="2"  y="7" width="10" height="1" />
+              <rect x="2"  y="8" width="1" height="1" />
+              <rect x="5"  y="8" width="5" height="1" />
+              <rect x="6"  y="9" width="2" height="1" />
+            </g>
+            <!-- Orange (ginger) calico patches: one on the back,
+                 one across the cheek/snout. -->
+            <g fill="#d97a3c">
+              <rect x="13" y="4" width="2" height="1" />
+              <rect x="1"  y="5" width="2" height="1" />
+              <rect x="13" y="5" width="2" height="1" />
+            </g>
+            <!-- Pink nose at the right edge, the contact point with
+                 the globe. -->
+            <rect x="15" y="4" width="1" height="1" fill="#e8a8a8" />
+            <rect x="15" y="5" width="1" height="1" fill="#e8a8a8" />
+            <!-- Eye + highlight. -->
+            <rect x="10" y="4" width="1" height="1" fill="#1a1612" />
+            <rect x="11" y="4" width="1" height="1" fill="#ffffff" />
           </svg>
         </div>
       </div>

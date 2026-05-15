@@ -209,11 +209,41 @@ html.on-web .sidebar__top {
   max-width: 480px;
   width: 100%;
 }
+.welcome__hero {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 4px;
+}
+/* Inside the hero stack the logo's own bottom margin would push the
+ * cat away from the globe — the hero owns spacing now. */
+.welcome__hero .welcome__logo {
+  margin-bottom: 0;
+}
 .welcome__logo {
   opacity: 0.85;
   margin-bottom: 4px;
 }
 .welcome__logo svg rect { display: none; }
+/* Pixel-art calico cat (head tilted back, nose at the very top)
+ * tucked under the globe so the rainbow appears to balance on the
+ * cat's snout. The negative top margin overlaps the cat with the
+ * globe's empty padding row — the rainbow circle ends ~7px above
+ * the globe SVG's bottom edge, so an 8px tuck lands the nose just
+ * inside the visible arc. */
+.welcome__cat {
+  width: 42px;
+  height: 42px;
+  opacity: 0.85;
+  margin-top: -8px;
+}
+.welcome__cat svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
 .welcome__question {
   margin: 0;
   font-family: var(--font-display);

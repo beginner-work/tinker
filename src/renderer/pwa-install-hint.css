@@ -179,23 +179,23 @@ html.pwa-hint-visible .read__top {
   100% { left: 100%;  transform: rotate(720deg); }
 }
 
-/* Pixel-art Scottish fold cat pushing the globe. Sized smaller than
- * the globe so the cat appears to be at ground level, with its
- * extended front paw lining up with the globe's lower-left arc.
- * Crisp 1:1 pixel scaling preserves the chunky pixel-art look at
- * any device pixel ratio. */
+/* Pixel-art calico cat pushing the globe with its nose. Sized
+ * smaller than the globe so the cat sits at ground level with its
+ * snout reaching up into the globe's lower-left arc. Crisp 1:1
+ * pixel scaling preserves the chunky pixel-art look at any device
+ * pixel ratio. */
 .pwa-hint-sheet__cat {
   position: absolute;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
   width: 64px;
-  height: 52px;
+  height: 44px;
   pointer-events: none;
   /* Same 6s crossing as the globe so the pair never drifts apart.
    * The static x-offset lives inside the bob keyframes (any value
    * applied to `transform` here would be overwritten by the
-   * animation), parking the cat just to the left of the globe with
-   * a few pixels of paw overlap. The bob runs at a separate cadence
-   * to suggest a walking gait independent of the long crossing. */
+   * animation), parking the cat's nose flush against the globe's
+   * visible left edge. The bob runs at a separate cadence to
+   * suggest a walking gait independent of the long crossing. */
   animation:
     pwaHintCatRoll 6s linear infinite,
     pwaHintCatBob 600ms steps(2, jump-none) infinite;
@@ -213,12 +213,15 @@ html.pwa-hint-visible .read__top {
   100% { left: 100%; }
 }
 @keyframes pwaHintCatBob {
-  /* translateX keeps the cat ~56px left of the globe's `left`
-   * position throughout. translateY toggles between 0 and -1px to
-   * sell the walking gait without smearing the pixel grid. */
-  0%   { transform: translate(-56px, 0); }
-  50%  { transform: translate(-56px, -1px); }
-  100% { transform: translate(-56px, 0); }
+  /* translateX keeps the cat's nose pinned against the globe's
+   * visible edge throughout the crossing. The globe SVG's circle
+   * starts ~10px inside its 80px container, so a -54px offset
+   * puts the cat's right edge (where the nose sits) right at that
+   * curve. translateY toggles between 0 and -1px to sell the
+   * walking gait without smearing the pixel grid. */
+  0%   { transform: translate(-54px, 0); }
+  50%  { transform: translate(-54px, -1px); }
+  100% { transform: translate(-54px, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -229,7 +232,7 @@ html.pwa-hint-visible .read__top {
   .pwa-hint-sheet__cat {
     animation: none;
     left: calc(100% - 96px);
-    transform: translateX(-56px);
+    transform: translateX(-54px);
   }
   .pwa-hint-sheet--chrome .pwa-hint-sheet__panel { animation: none; }
 }
