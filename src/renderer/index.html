@@ -92,6 +92,21 @@
               <span class="sidebar__account-label">Receipts</span>
             </button>
           </li>
+          <!-- Share button: revealed by share.js only when the app is
+               running as an installed PWA (standalone) or inside a
+               wrapped runtime (Capacitor). Stays hidden in plain
+               browser tabs and on Electron desktop, where the OS
+               already exposes "Share Link" through the URL bar. -->
+          <li>
+            <button id="nav-share" type="button" class="sidebar__account-item" hidden>
+              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                <path d="M12 4v10M8.5 7.5L12 4l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6 12v7h12v-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="sidebar__account-label">Share tinker</span>
+              <span class="sidebar__account-flash" data-share-flash aria-live="polite"></span>
+            </button>
+          </li>
         </ul>
       </nav>
 
@@ -364,6 +379,7 @@
     <script src="./renderer.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
+    <script src="./share.js" defer></script>
     <script src="./update-banner.js" defer></script>
   </body>
 </html>
