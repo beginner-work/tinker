@@ -1,7 +1,11 @@
 // Web's slice of the schema. The canonical schema lives in the
 // beginner repo at api/prisma/schema.prisma; this file mirrors only
-// the one table the web Vercel functions touch directly. Both repos
+// the tables the web Vercel functions touch directly. Both repos
 // point at the same Postgres via DATABASE_URL.
+//
+// `Receipt` is owned by the beginner API (writes happen there); web
+// reads from it to surface the production list inside tinker. Keep
+// the columns in lockstep with beginner/api/prisma/schema.prisma.
 
 generator client {
   provider      = "prisma-client-js"
@@ -24,4 +28,15 @@ model TinkerUserData {
 
   @@id([userId, kind])
   @@index([userId])
+}
+
+model Receipt {
+  id            String   @id
+  date          String
+  maker         String
+  makerLocation String
+  customer      String
+  items         Json
+  acct          String
+  createdAt     DateTime @default(now())
 }
