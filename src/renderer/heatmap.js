@@ -310,10 +310,24 @@
   // Trim descriptions to four words at render time so legacy entries
   // already in localStorage (Claude used to be asked for 8-15 words)
   // line up with the new four-word format without a migration step.
+  // If the cut lands on a dangling function word ("Lessons about sharing and"),
+  // drop it so the subtitle reads as a complete phrase.
+  const TRAILING_STOP_WORDS = new Set([
+    "and", "or", "but", "nor", "yet", "so", "for",
+    "a", "an", "the",
+    "of", "in", "on", "at", "by", "to", "with", "from", "into", "onto", "about",
+    "as", "if", "than", "that", "which",
+    "my", "your", "our", "their", "his", "her", "its",
+  ]);
   function shortDescription(s) {
     const words = String(s || "").trim().split(/\s+/).filter(Boolean);
-    if (words.length <= 4) return words.join(" ");
-    return words.slice(0, 4).join(" ");
+    const truncated = words.slice(0, 4);
+    while (truncated.length > 1) {
+      const tail = truncated[truncated.length - 1].toLowerCase().replace(/[.,;:!?]+$/, "");
+      if (!TRAILING_STOP_WORDS.has(tail)) break;
+      truncated.pop();
+    }
+    return truncated.join(" ");
   }
 
   // ── Rendering ──────────────────────────────────────────────────────
