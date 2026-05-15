@@ -88,4 +88,5 @@
     padding-left: 64px;
   }
   .read__body { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
+  .category-feed__head { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
 }
