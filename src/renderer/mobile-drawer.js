@@ -32,7 +32,7 @@
 
   backdrop && backdrop.addEventListener('click', close);
 
-  // Auto-close after picking a location or tapping the brand — the
+  // Auto-close after picking a seed or tapping the brand — the
   // user wants the stage back.
   homeListEl && homeListEl.addEventListener('click', (e) => {
     if (isMobile() && e.target.closest('.home-card')) close();

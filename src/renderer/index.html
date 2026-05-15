@@ -40,7 +40,7 @@
          Add to Home Screen. Must run before auth.js. -->
     <script src="./pwa-session.js" defer></script>
     <script src="./transactions.js" defer></script>
-    <script src="./locations.js" defer></script>
+    <script src="./seeds.js" defer></script>
     <script src="./heatmap.js" defer></script>
   </head>
   <body>
@@ -61,7 +61,7 @@
     </button>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
-    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Locations">
+    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Seeds">
       <header class="sidebar__top">
         <button id="nav-home" class="sidebar__brand" type="button" title="Pick a place to start writing">
           <svg data-rainbow-logo viewBox="0 0 200 200" width="22" height="22" aria-hidden="true" fill="none">
@@ -119,7 +119,7 @@
 
     <main class="stage" id="stage" role="main">
       <!-- Default landing: a quiet empty state that points back at the
-           sidebar. Once a location is tapped, #writing takes over. -->
+           sidebar. Once a seed is tapped, #writing takes over. -->
       <section id="welcome" class="feed welcome" data-active>
         <div class="welcome__inner">
           <div class="welcome__logo" aria-hidden="true">
@@ -142,7 +142,7 @@
                    autocomplete="off" spellcheck="false" maxlength="120" />
             <button type="submit" class="welcome__submit">Start →</button>
           </form>
-          <div id="welcome-pills" class="welcome__pills" aria-label="Previous locations" hidden></div>
+          <div id="welcome-pills" class="welcome__pills" aria-label="Previous seeds" hidden></div>
         </div>
       </section>
 
@@ -176,8 +176,8 @@
         <article class="read__body" id="read-body"></article>
       </section>
 
-      <!-- Category feed view: rendered when a location is tapped — lists
-           every essay whose location belongs to the same category. -->
+      <!-- Category feed view: rendered when a seed is tapped — lists
+           every essay whose seed belongs to the same category. -->
       <section id="category-feed" class="category-feed" hidden>
         <header class="category-feed__head">
           <h1 class="category-feed__title" id="category-feed-title"></h1>
