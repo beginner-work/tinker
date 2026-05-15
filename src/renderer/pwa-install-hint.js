@@ -18,7 +18,9 @@
  */
 
 (function () {
-  const STORAGE_KEY = "tinker_pwa_hint_dismissed";
+  // v2 — bumped to clear dismissals stuck in production localStorage
+  // from accidental X-taps before the banner had a re-prompt cadence.
+  const STORAGE_KEY = "tinker_pwa_hint_dismissed_v2";
   const SHOW_DELAY_MS = 800;
 
   function isIosInstallableBrowser() {
