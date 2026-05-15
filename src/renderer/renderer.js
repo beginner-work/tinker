@@ -335,64 +335,10 @@
     });
   }
 
-  // Previous-seed pills under the welcome question. Tap to start
-  // writing there; tap × to remove the seed.
-  const welcomePillsEl = document.getElementById("welcome-pills");
-  function renderWelcomePills() {
-    if (!welcomePillsEl) return;
-    if (!window.tinkerSeeds || typeof window.tinkerSeeds.list !== "function") return;
-    const seeds = window.tinkerSeeds.list()
-      .slice()
-      .sort((a, b) => (b.lastUsed || 0) - (a.lastUsed || 0))
-      .slice(0, 12);
-    welcomePillsEl.innerHTML = "";
-    if (!seeds.length) {
-      welcomePillsEl.hidden = true;
-      return;
-    }
-    welcomePillsEl.hidden = false;
-    const colorFor = window.tinkerHeatmap && typeof window.tinkerHeatmap.colorFor === "function"
-      ? window.tinkerHeatmap.colorFor
-      : null;
-    for (const seed of seeds) {
-      const pill = document.createElement("span");
-      pill.className = "welcome-pill";
-      if (colorFor) pill.style.setProperty("--welcome-pill-bg", colorFor(seed.key));
-
-      const select = document.createElement("button");
-      select.type = "button";
-      select.className = "welcome-pill__name";
-      select.textContent = seed.name;
-      select.addEventListener("click", () => {
-        if (typeof window.tinkerNewSession === "function") {
-          window.tinkerNewSession({ seed: seed.name });
-        }
-      });
-
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "welcome-pill__remove";
-      remove.setAttribute("aria-label", `Remove ${seed.name}`);
-      remove.textContent = "×";
-      remove.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (window.tinkerSeeds && typeof window.tinkerSeeds.remove === "function") {
-          window.tinkerSeeds.remove(seed.name);
-        }
-      });
-
-      pill.appendChild(select);
-      pill.appendChild(remove);
-      welcomePillsEl.appendChild(pill);
-    }
-  }
-  renderWelcomePills();
-
-  // Re-render the home list + welcome pills whenever seeds change.
+  // Re-render the home list whenever seeds change.
   if (window.tinkerSeeds && typeof window.tinkerSeeds.subscribe === "function") {
     window.tinkerSeeds.subscribe(() => {
       renderHome();
-      renderWelcomePills();
     });
   }
 
