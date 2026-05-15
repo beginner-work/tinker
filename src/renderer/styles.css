@@ -806,13 +806,15 @@ html.on-web .sidebar__top {
 }
 
 .read__body {
+  width: 100%;
   max-width: 720px;
-  margin: 0 auto;
+  margin: 0;
   padding: 56px 32px 80px;
   font-family: var(--font-display);
   font-size: 18px;
   line-height: 1.75;
   color: var(--color-foreground);
+  text-align: left;
 }
 .read__head { margin-bottom: 24px; }
 .read__author {
