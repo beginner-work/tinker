@@ -227,8 +227,12 @@ html.on-web .sidebar__top {
 }
 /* Click into the input → the corner triangle blooms out to fill the
  * page and the pill-shaped form grows into the same large writing-input
- * box used by the rest of the writing flow. Reverts on blur. */
-.stage > .welcome.feed[data-active]:focus-within::before {
+ * box used by the rest of the writing flow. Reverts on blur. The bloom
+ * is gated on `data-bloom` (set by renderer.js on user pointer-down)
+ * rather than `:focus-within` so the auto-focus that happens whenever
+ * showFeed runs — including initial load — leaves the welcome page in
+ * its compact, un-bloomed state. */
+.stage > .welcome.feed[data-active][data-bloom]::before {
   width: 100%;
   height: 100%;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
@@ -349,22 +353,21 @@ html.on-web .sidebar__top {
   line-height: 1.5;
 }
 
-/* Focus-within bloom: when the founder clicks into the input, the
- * welcome layout grows into the writing-flow's question card — large
- * input box, pill-shaped Next-style submit — sitting on the indigo
- * wash created by the corner triangle filling the page. The form's
- * outer width and margins stay put so it doesn't shift sideways
- * during the transition; only the input grows and the submit drops
- * underneath. */
-.welcome:focus-within .welcome__logo { opacity: 0.4; }
-.welcome:focus-within .welcome__question,
-.welcome:focus-within .welcome__sub { color: #fff; }
-.welcome:focus-within .welcome__form {
+/* Bloom: when the founder clicks into the input, the welcome layout
+ * grows into the writing-flow's question card — large input box,
+ * pill-shaped Next-style submit — sitting on the indigo wash created
+ * by the corner triangle filling the page. The form's outer width
+ * and margins stay put so it doesn't shift sideways during the
+ * transition; only the input grows and the submit drops underneath. */
+.welcome[data-bloom] .welcome__logo { opacity: 0.4; }
+.welcome[data-bloom] .welcome__question,
+.welcome[data-bloom] .welcome__sub { color: #fff; }
+.welcome[data-bloom] .welcome__form {
   flex-direction: column;
   align-items: stretch;
   gap: 12px;
 }
-.welcome:focus-within .welcome__input {
+.welcome[data-bloom] .welcome__input {
   width: 100%;
   min-height: 220px;
   padding: 18px 20px;
@@ -372,18 +375,18 @@ html.on-web .sidebar__top {
   font-size: 17px;
   line-height: 1.65;
 }
-.welcome:focus-within .welcome__input:focus {
+.welcome[data-bloom] .welcome__input:focus {
   border-color: rgba(255, 255, 255, 0.45);
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.22);
 }
-.welcome:focus-within .welcome__submit {
+.welcome[data-bloom] .welcome__submit {
   align-self: flex-end;
   border-radius: 999px;
   background: #fff;
   color: var(--color-accent-strong);
   box-shadow: var(--shadow-purple);
 }
-.welcome:focus-within .welcome__submit:hover {
+.welcome[data-bloom] .welcome__submit:hover {
   background: rgba(255, 255, 255, 0.92);
 }
 

@@ -366,14 +366,24 @@
       }
     });
     // Clicking the Start button shouldn't blur the input mid-click —
-    // doing so collapses the :focus-within bloom and snaps the form
-    // back to row layout before the click registers, leaving the
-    // cursor over empty space. Holding focus on the input keeps the
-    // button where the founder pressed it.
+    // doing so collapses the bloom and snaps the form back to row
+    // layout before the click registers, leaving the cursor over
+    // empty space. Holding focus on the input keeps the button where
+    // the founder pressed it.
     const welcomeSubmit = welcomeForm.querySelector(".welcome__submit");
     if (welcomeSubmit) {
       welcomeSubmit.addEventListener("mousedown", (e) => e.preventDefault());
     }
+    // Bloom into the writing-flow format only on genuine user
+    // interaction. Programmatic focus (showFeed auto-focusing the
+    // input on initial load and on every return to the feed) leaves
+    // the welcome page in its compact, un-bloomed state.
+    welcomeInput.addEventListener("pointerdown", () => {
+      feedView.setAttribute("data-bloom", "");
+    });
+    welcomeInput.addEventListener("blur", () => {
+      feedView.removeAttribute("data-bloom");
+    });
   }
 
   // Re-render the home list whenever seeds change.
