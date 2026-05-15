@@ -33,7 +33,10 @@
       if (!res.ok) return null;
       const data = await res.json();
       if (!data || typeof data.version !== "string") return null;
-      return data.version;
+      return {
+        version: data.version,
+        summary: typeof data.summary === "string" && data.summary ? data.summary : "Bug fixes",
+      };
     } catch {
       return null;
     }
@@ -53,10 +56,10 @@
     let dismissedVersion = null;
     let inUpdateMode = false;
 
-    function enterUpdateMode(version) {
+    function enterUpdateMode(version, summary) {
       inUpdateMode = true;
       banner.dataset.mode = "update";
-      subtitle.textContent = "A new version is ready";
+      subtitle.textContent = summary || "Bug fixes";
       actionBtn.textContent = "Update";
       // Re-key the action attributes so pwa-install-hint.js's
       // delegated handler (looking for "install" / "dismiss") stops
@@ -93,13 +96,13 @@
       const current = await fetchVersion();
       if (!current) return;
       if (!baselineVersion) {
-        baselineVersion = current;
+        baselineVersion = current.version;
         return;
       }
-      if (current === baselineVersion) return;
-      if (current === dismissedVersion) return;
-      if (inUpdateMode && banner.dataset.updateVersion === current) return;
-      enterUpdateMode(current);
+      if (current.version === baselineVersion) return;
+      if (current.version === dismissedVersion) return;
+      if (inUpdateMode && banner.dataset.updateVersion === current.version) return;
+      enterUpdateMode(current.version, current.summary);
     }
 
     check();
