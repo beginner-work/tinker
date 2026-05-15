@@ -225,29 +225,22 @@ html.pwa-hint-visible .read__top {
 }
 .pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--default { display: none; }
 .pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--chrome { display: flex; }
-/* Reorder so the app card stays at the top under the rolling globe
- * while the "Install the app" title slides down to sit directly
- * above the steps. The header's auto-margin eats the gap between
- * the app card and the title-plus-steps cluster at the bottom.
- * The URL display is moved out of the app card by JS and slots in
- * between the title and the steps at order 3. */
-.pwa-hint-sheet--chrome .pwa-hint-sheet__app    { order: 1; }
+/* Reorder so the title heads up the bottom cluster, followed by the
+ * full app card (icon + name + URL) and then the steps. The header's
+ * auto-margin eats the gap above the cluster, leaving the rolling
+ * globe to play across the empty top half of the panel. */
 .pwa-hint-sheet--chrome .pwa-hint-sheet__header {
-  order: 2;
+  order: 1;
   margin-top: auto;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
 }
-.pwa-hint-sheet--chrome .pwa-hint-sheet__app-url {
-  order: 3;
-  margin-top: 0;
-  margin-bottom: 14px;
-}
-.pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--chrome { order: 4; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__app { order: 2; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--chrome { order: 3; }
 /* Grabber slides to the bottom edge — that's the floating edge for
  * a pull-down sheet, and the natural place to start the drag-up-to-
  * close gesture. */
 .pwa-hint-sheet--chrome .pwa-hint-sheet__grabber {
-  order: 5;
+  order: 4;
   margin: 14px auto 0;
 }
 /* Globe rolls along the TOP edge instead of the bottom. */
