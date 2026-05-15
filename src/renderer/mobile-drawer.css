@@ -83,8 +83,10 @@
    * hamburger doesn't overlap content. The toggle is 44px tall + 12px
    * top inset; we add another 24px of breathing room before content. */
   .feed { padding: calc(env(safe-area-inset-top, 0px) + 80px) 14px 56px; }
-  .writing__top, .read__top {
+  .writing__top {
     padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
     padding-left: 64px;
   }
+  .read__body { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
+  .category-feed__head { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
 }

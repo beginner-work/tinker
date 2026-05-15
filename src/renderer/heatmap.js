@@ -456,10 +456,23 @@
     return card;
   }
 
-  // Tap routing: if a writing piece already exists at this location,
-  // open it (read view for essays, resume for drafts). Otherwise spin
-  // up a fresh session anchored at the location.
+  // Tap routing: prefer the location's category feed (lists all essays
+  // sharing the same leaf category). Falls back to opening the in-
+  // progress draft, or spinning up a fresh session, when there's no
+  // category placement or no essays to show yet.
   function openLocation(loc) {
+    const state = loadState();
+    const stored = state.locations[loc.key];
+    const path = stored && Array.isArray(stored.paths) && stored.paths[0];
+    const leaf = path && path.length ? path[path.length - 1] : null;
+    if (leaf && state.taxonomy[leaf]) {
+      const feed = buildCategoryFeed(leaf, state);
+      if (feed && feed.essays.length && typeof window.tinkerShowCategoryFeed === "function") {
+        window.tinkerShowCategoryFeed(leaf);
+        return;
+      }
+    }
+
     const w = loc.latestWriting;
     if (w && w.type === "essay" && typeof window.tinkerOpenEssay === "function") {
       window.tinkerOpenEssay(w.id);
@@ -474,5 +487,56 @@
     }
   }
 
-  window.tinkerHeatmap = { render };
+  // Public-facing: gather every published essay whose location belongs
+  // to a path ending in `categoryKey`. Used by the category feed view
+  // in renderer.js.
+  function getCategoryFeed(categoryKey) {
+    return buildCategoryFeed(categoryKey, loadState());
+  }
+
+  // Public-facing: leaf category key for a location name, or null when
+  // the location hasn't been classified yet. Used by the publish flow
+  // so a freshly published essay can land on its category feed.
+  function getCategoryKeyForLocation(locName) {
+    if (!locName) return null;
+    const state = loadState();
+    const stored = state.locations[normCat(locName)];
+    const path = stored && Array.isArray(stored.paths) && stored.paths[0];
+    return path && path.length ? path[path.length - 1] : null;
+  }
+
+  function buildCategoryFeed(categoryKey, state) {
+    const cat = state.taxonomy[categoryKey];
+    if (!cat) return null;
+
+    let allEssays = [];
+    try {
+      const raw = localStorage.getItem("tinker.essays.v1");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) allEssays = parsed;
+      }
+    } catch { /* ignore */ }
+
+    const items = [];
+    for (const essay of allEssays) {
+      if (!essay || !essay.location) continue;
+      const locKey = normCat(essay.location);
+      const stored = state.locations[locKey];
+      if (!stored || !Array.isArray(stored.paths)) continue;
+      const matches = stored.paths.some((p) => Array.isArray(p) && p.length && p[p.length - 1] === categoryKey);
+      if (matches) items.push(essay);
+    }
+
+    items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    return {
+      key: categoryKey,
+      name: cat.name,
+      description: shortDescription(cat.description || ""),
+      essays: items,
+    };
+  }
+
+  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForLocation };
 })();

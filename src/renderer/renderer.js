@@ -29,9 +29,12 @@
   const writingView = $("#writing");
   const readView = $("#read");
   const homeListEl = $("#home-list");
-  const readUrl = $("#read-url");
   const readBody = $("#read-body");
-  const readClose = $("#read-close");
+  const categoryFeedView = $("#category-feed");
+  const categoryFeedTitle = $("#category-feed-title");
+  const categoryFeedSub = $("#category-feed-sub");
+  const categoryFeedList = $("#category-feed-list");
+  const categoryFeedEmpty = $("#category-feed-empty");
 
   // ── Storage helpers ──────────────────────────────────────────────────
   const uid = () => "d_" + Math.random().toString(36).slice(2, 10);
@@ -106,7 +109,15 @@
       activeId = null;
       renderSidebar();
       renderHome();
-      showRead(essay);
+      // Land on the location's category feed (now containing the
+      // just-published essay). For a brand-new location with no
+      // classification yet, fall through to the read view.
+      const leafKey = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryKeyForLocation === "function")
+        ? window.tinkerHeatmap.getCategoryKeyForLocation(essay.location)
+        : null;
+      if (!leafKey || !showCategoryFeed(leafKey)) {
+        showRead(essay);
+      }
       return essay;
     },
   };
@@ -169,6 +180,7 @@
     feedView.setAttribute("data-active", "");
     writingView.hidden = true;
     readView.hidden = true;
+    if (categoryFeedView) categoryFeedView.hidden = true;
     activeId = null;
     renderSidebar();
     renderHome();
@@ -181,20 +193,70 @@
     feedView.removeAttribute("data-active");
     writingView.hidden = false;
     readView.hidden = true;
+    if (categoryFeedView) categoryFeedView.hidden = true;
   }
   function showRead(essay) {
     feedView.removeAttribute("data-active");
     writingView.hidden = true;
     readView.hidden = false;
+    if (categoryFeedView) categoryFeedView.hidden = true;
     activeId = null;
     renderSidebar();
-    readUrl.textContent = essay.url;
     readBody.innerHTML =
       `<header class="read__head">` +
         `<div class="read__author">${escapeHtml(essay.author)}</div>` +
         `<h1 class="read__title">${escapeHtml(essay.title)}</h1>` +
       `</header>` +
       paragraphs(essay.body);
+  }
+  function showCategoryFeed(categoryKey) {
+    if (!categoryFeedView) return false;
+    const feed = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryFeed === "function")
+      ? window.tinkerHeatmap.getCategoryFeed(categoryKey)
+      : null;
+    if (!feed) return false;
+
+    feedView.removeAttribute("data-active");
+    writingView.hidden = true;
+    readView.hidden = true;
+    categoryFeedView.hidden = false;
+    activeId = null;
+    renderSidebar();
+
+    categoryFeedTitle.textContent = feed.name;
+    if (feed.description) {
+      categoryFeedSub.textContent = feed.description;
+      categoryFeedSub.hidden = false;
+    } else {
+      categoryFeedSub.textContent = "";
+      categoryFeedSub.hidden = true;
+    }
+
+    categoryFeedList.innerHTML = "";
+    if (!feed.essays.length) {
+      categoryFeedEmpty.hidden = false;
+      return true;
+    }
+    categoryFeedEmpty.hidden = true;
+    for (const essay of feed.essays) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "category-feed__card";
+      const preview = essayPreview(essay.body);
+      card.innerHTML =
+        `<span class="category-feed__card-author">${escapeHtml(essay.author || "you")}</span>` +
+        `<h3 class="category-feed__card-title">${escapeHtml(essay.title || "Untitled")}</h3>` +
+        (preview ? `<p class="category-feed__card-preview">${escapeHtml(preview)}</p>` : "");
+      card.addEventListener("click", () => showRead(essay));
+      categoryFeedList.appendChild(card);
+    }
+    return true;
+  }
+  function essayPreview(body) {
+    const trimmed = String(body || "").trim();
+    if (!trimmed) return "";
+    const firstPara = trimmed.split(/\n{2,}/)[0].replace(/\s+/g, " ").trim();
+    return firstPara.length > 160 ? firstPara.slice(0, 160).trimEnd() + "…" : firstPara;
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
@@ -317,8 +379,6 @@
     });
   }
 
-  readClose.addEventListener("click", () => showFeed());
-
   // Tell writing.js how to ask the renderer to do things.
   window.tinkerOnWritingClose = () => closeActiveDraft();
   window.tinkerOnWritingPublish = (draft, stitched) => store.publish(draft, stitched);
@@ -337,6 +397,7 @@
     if (essay) showRead(essay);
   };
   window.tinkerResumeDraft = (draftId) => openDraft(draftId);
+  window.tinkerShowCategoryFeed = (categoryKey) => showCategoryFeed(categoryKey);
 
   // Keyboard shortcuts. Cmd/Ctrl+T = new draft. Cmd/Ctrl+W = close
   // (delete) the current draft. The address-bar shortcut is gone — there
