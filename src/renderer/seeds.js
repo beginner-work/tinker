@@ -212,7 +212,9 @@
 
   function extractDraftContent(draft) {
     const parts = [];
+    if (draft.curiosity) parts.push(`Curious about: ${draft.curiosity}`);
     if (draft.facing) parts.push(`Facing: ${draft.facing}`);
+    if (draft.learning) parts.push(`Wants to learn: ${draft.learning}`);
     if (draft.lastPurchased) parts.push(`Last purchased: ${draft.lastPurchased}`);
     if (Array.isArray(draft.transcript)) {
       for (const turn of draft.transcript) {

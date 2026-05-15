@@ -39,7 +39,7 @@
     "Never wrap the JSON in code fences. Never add explanations outside the JSON.",
     "",
     "RULE 6 — LET PLACE, CIRCUMSTANCE, AND RECENT PURCHASE SET THE MOOD.",
-    "If the user message provides a seed ('Where the founder is right now: ...'), what they are facing ('What the founder is facing: ...'), and/or what they last purchased ('What the founder last purchased: ...'), let those shape the mood, cadence, and word choice of your questions. Match the texture of where they are, the weight of what's in front of them, and the residue of what they just bought. A recent purchase is a small window into how the founder lives and works — use it as one. Do NOT assume what they are learning from any of these — never lead, never name their facing or their last purchase back to them as a fact.",
+    "If the user message provides a seed ('Where the founder is right now: ...'), what they are facing ('What the founder is facing: ...'), what they're curious about ('What the founder is curious about: ...'), what they want to learn ('What the founder wants to learn: ...'), and/or what they last purchased ('What the founder last purchased: ...'), let those shape the mood, cadence, and word choice of your questions. Match the texture of where they are, the weight of what's in front of them, the pull of their curiosity, and the residue of what they just bought. A recent purchase is a small window into how the founder lives and works — use it as one. Do NOT assume what they are learning from any of these — never lead, never name their facing, their curiosity, or their last purchase back to them as a fact.",
     "",
     "RULE 7 — RE-ANCHOR ON LEARNING WHEN THE FOUNDER PULLS AWAY.",
     "Watch the founder's recent answers. If they go terse (one-line, fragmented, monosyllabic), stressed (frustrated, scattered, deflective, 'I don't know', cursing), or otherwise drift from the question, your next question should bring them back to the underlying intent: what they are learning. Phrase it gently — either restate 'What are you learning?' in mood-matched words, or ask it more plainly (e.g. 'What is it you're learning, really?') if a softer touch isn't landing. Stay open and uncritical. Don't comment on their tone; just re-anchor.",
@@ -88,6 +88,8 @@
       seed: active.seed,
       facing: active.facing,
       lastPurchased: active.lastPurchased,
+      curiosity: active.curiosity,
+      learning: active.learning,
       _scratch: active._scratch,
       ...(extraPatch || {}),
     };
@@ -101,10 +103,10 @@
     // facing): ask Claude to mood the canonical "What are you
     // learning?" to fit. Failures and no-context cases fall through to
     // the canonical seed.
-    if ((active.transcript || []).length === 0 && !active.pending && (active.seed || active.facing || active.lastPurchased)) {
+    if ((active.transcript || []).length === 0 && !active.pending && (active.seed || active.facing || active.lastPurchased || active.curiosity || active.learning)) {
       const draftId = active.id;
       renderLoading("Setting the scene…");
-      moodSeedQuestion(active.seed, active.facing, active.lastPurchased)
+      moodSeedQuestion(active.seed, active.facing, active.lastPurchased, active.curiosity, active.learning)
         .then((q) => {
           if (!active || active.id !== draftId) return;
           applySeed(q);
@@ -136,7 +138,7 @@
     renderStep();
   }
 
-  async function moodSeedQuestion(seed, facing, lastPurchased) {
+  async function moodSeedQuestion(seed, facing, lastPurchased, curiosity, learning) {
     if (!window.tinker || typeof window.tinker.callClaude !== "function") {
       throw new Error("Anthropic client unavailable.");
     }
@@ -144,8 +146,9 @@
       "You design the opening question for tinker, a quiet writing tool for founders.",
       "The founder will write about what they are learning right now. Your job is to take",
       "the canonical opening — 'What are you learning?' — and tune its mood, cadence, and",
-      "word choice to fit the scene the founder has set: where they are physically, what",
-      "they're facing, the last thing they purchased, and any recent transactions they've connected.",
+      "word choice to fit the scene the founder has set: what they're curious about, where",
+      "they are physically, what they're facing, what they want to learn, the last thing they",
+      "purchased, and any recent transactions they've connected.",
       "Keep the underlying intent intact: the founder is being asked what they are learning.",
       "Do not change that intent.",
       "",
@@ -158,8 +161,10 @@
       "- Output ONLY the question. No quotes, no preamble, no trailing notes.",
     ].join("\n");
     const ctxLines = [];
+    if (curiosity) ctxLines.push(`What the founder is curious about: ${curiosity}`);
     if (seed) ctxLines.push(`Where the founder is right now: ${seed}`);
     if (facing) ctxLines.push(`What the founder is facing: ${facing}`);
+    if (learning) ctxLines.push(`What the founder wants to learn: ${learning}`);
     if (lastPurchased) ctxLines.push(`What the founder last purchased: ${lastPurchased}`);
     const txLines = buildTransactionsContext();
     if (txLines.length) {
@@ -191,6 +196,19 @@
     head.textContent = "Where have you been and where are you going?";
     card.appendChild(head);
 
+    const curiosityLabel = document.createElement("label");
+    curiosityLabel.className = "writing-seed__label";
+    curiosityLabel.textContent = "What are you curious about?";
+    card.appendChild(curiosityLabel);
+
+    const curiosityInput = document.createElement("input");
+    curiosityInput.type = "text";
+    curiosityInput.className = "writing-input writing-seed__input";
+    curiosityInput.placeholder = "Fermentation, your mother’s photographs, climate…";
+    curiosityInput.autocomplete = "off";
+    curiosityInput.spellcheck = false;
+    card.appendChild(curiosityInput);
+
     const whereLabel = document.createElement("label");
     whereLabel.className = "writing-seed__label";
     whereLabel.innerHTML =
@@ -219,6 +237,19 @@
     facingInput.spellcheck = false;
     card.appendChild(facingInput);
 
+    const learningLabel = document.createElement("label");
+    learningLabel.className = "writing-seed__label";
+    learningLabel.textContent = "What do you want to learn?";
+    card.appendChild(learningLabel);
+
+    const learningInput = document.createElement("input");
+    learningInput.type = "text";
+    learningInput.className = "writing-input writing-seed__input";
+    learningInput.placeholder = "Why mornings feel slower, what your dog knows…";
+    learningInput.autocomplete = "off";
+    learningInput.spellcheck = false;
+    card.appendChild(learningInput);
+
     const lastLabel = document.createElement("label");
     lastLabel.className = "writing-seed__label";
     lastLabel.textContent = "Can you recall the last thing you purchased?";
@@ -240,6 +271,8 @@
       active.seed = null;
       active.facing = null;
       active.lastPurchased = null;
+      active.curiosity = null;
+      active.learning = null;
       persist();
       seedAndRenderInterview();
     });
@@ -255,17 +288,21 @@
     nextBtn.disabled = false;
     nextBtn.textContent = "Continue →";
     nextBtn.onclick = () => {
+      const cv = curiosityInput.value.trim();
       const wv = whereInput.value.trim();
       const fv = facingInput.value.trim();
+      const lnv = learningInput.value.trim();
       const lv = lastInput.value.trim();
+      active.curiosity = cv || null;
       active.seed = wv || null;
       active.facing = fv || null;
+      active.learning = lnv || null;
       active.lastPurchased = lv || null;
       persist();
       seedAndRenderInterview();
     };
 
-    [whereInput, facingInput, lastInput].forEach((inputEl) => {
+    [curiosityInput, whereInput, facingInput, learningInput, lastInput].forEach((inputEl) => {
       inputEl.addEventListener("keydown", (e) => {
         // Single-line inputs: Enter advances.
         if (e.key === "Enter") {
@@ -276,7 +313,7 @@
     });
 
     swap(card);
-    setTimeout(() => whereInput.focus(), 30);
+    setTimeout(() => curiosityInput.focus(), 30);
   }
 
   function renderStep() {
@@ -332,10 +369,15 @@
     const card = document.createElement("div");
     card.className = "writing-card";
 
-    if (active.seed || active.facing || active.lastPurchased) {
+    if (active.seed || active.facing || active.lastPurchased || active.curiosity || active.learning) {
       const recall = document.createElement("div");
       recall.className = "writing-recall";
       const parts = [];
+      if (active.curiosity) {
+        parts.push(
+          `<div class="writing-recall__line"><span class="writing-recall__label">curious</span><span class="writing-recall__text">${escapeHtml(active.curiosity)}</span></div>`
+        );
+      }
       if (active.seed) {
         parts.push(
           `<div class="writing-recall__line"><img class="writing-recall__pin" src="./icons/tinker-mark.svg" alt="" aria-hidden="true" /><span class="writing-recall__text">${escapeHtml(active.seed)}</span></div>`
@@ -344,6 +386,11 @@
       if (active.facing) {
         parts.push(
           `<div class="writing-recall__line"><span class="writing-recall__label">facing</span><span class="writing-recall__text">${escapeHtml(active.facing)}</span></div>`
+        );
+      }
+      if (active.learning) {
+        parts.push(
+          `<div class="writing-recall__line"><span class="writing-recall__label">learning</span><span class="writing-recall__text">${escapeHtml(active.learning)}</span></div>`
         );
       }
       if (active.lastPurchased) {
@@ -645,11 +692,17 @@
 
   function buildUserMessage(transcript, { forceStitch = false } = {}) {
     const lines = [];
+    if (active && active.curiosity) {
+      lines.push(`What the founder is curious about: ${active.curiosity}`);
+    }
     if (active && active.seed) {
       lines.push(`Where the founder is right now: ${active.seed}`);
     }
     if (active && active.facing) {
       lines.push(`What the founder is facing: ${active.facing}`);
+    }
+    if (active && active.learning) {
+      lines.push(`What the founder wants to learn: ${active.learning}`);
     }
     if (active && active.lastPurchased) {
       lines.push(`What the founder last purchased: ${active.lastPurchased}`);
