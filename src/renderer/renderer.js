@@ -98,9 +98,9 @@
         createdAt: Date.now(),
         url: `/${stitched.author || "you"}/${slug}`,
         sourceDraft: draft.id,
-        // Carry location through so the home list's vector classifier
+        // Carry seed through so the home list's vector classifier
         // can keep reading the writing content after publish.
-        location: draft.location || null,
+        seed: draft.seed || null,
       };
       essays = [essay, ...essays];
       saveEssays(essays);
@@ -109,11 +109,11 @@
       activeId = null;
       renderSidebar();
       renderHome();
-      // Land on the location's category feed (now containing the
-      // just-published essay). For a brand-new location with no
+      // Land on the seed's category feed (now containing the
+      // just-published essay). For a brand-new seed with no
       // classification yet, fall through to the read view.
-      const leafKey = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryKeyForLocation === "function")
-        ? window.tinkerHeatmap.getCategoryKeyForLocation(essay.location)
+      const leafKey = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryKeyForSeed === "function")
+        ? window.tinkerHeatmap.getCategoryKeyForSeed(essay.seed)
         : null;
       if (!leafKey || !showCategoryFeed(leafKey)) {
         showRead(essay);
@@ -145,11 +145,11 @@
       updatedAt: Date.now(),
     };
     if (preset && typeof preset === "object") {
-      // Pre-set the scene fields. writing.js' renderLocationPrompt
-      // checks `active.location === undefined`, so once we assign
+      // Pre-set the scene fields. writing.js' renderSeedPrompt
+      // checks `active.seed === undefined`, so once we assign
       // a string (or null) the prompt is skipped and the founder
       // jumps straight into the mood-tuned first question.
-      if (preset.location !== undefined) draft.location = preset.location || null;
+      if (preset.seed !== undefined) draft.seed = preset.seed || null;
       if (preset.facing !== undefined) draft.facing = preset.facing || null;
       if (preset.lastPurchased !== undefined) draft.lastPurchased = preset.lastPurchased || null;
     }
@@ -254,8 +254,8 @@
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
-  // Sidebar's drafts+essays list is gone — locations now own the sidebar
-  // (see #home-list). Each location card surfaces the latest writing
+  // Sidebar's drafts+essays list is gone — seeds now own the sidebar
+  // (see #home-list). Each seed card surfaces the latest writing
   // produced there. Kept as a no-op so existing call sites compile.
   function renderSidebar() {
     if (!sessionsEl) return;
@@ -296,7 +296,7 @@
   navHome.addEventListener("click", () => showFeed());
 
   // Welcome screen prompt: "Where are you?".
-  // On submit: register the place as a location (so it persists in
+  // On submit: register the place as a seed (so it persists in
   // the sidebar) and spawn a writing session anchored there. Empty
   // submissions just re-focus the input.
   const welcomeForm = document.getElementById("welcome-form");
@@ -306,28 +306,28 @@
       e.preventDefault();
       const name = welcomeInput.value.trim();
       if (!name) { welcomeInput.focus(); return; }
-      if (window.tinkerLocations && typeof window.tinkerLocations.add === "function") {
-        window.tinkerLocations.add(name);
+      if (window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
+        window.tinkerSeeds.add(name);
       }
       welcomeInput.value = "";
       if (typeof window.tinkerNewSession === "function") {
-        window.tinkerNewSession({ location: name });
+        window.tinkerNewSession({ seed: name });
       }
     });
   }
 
-  // Previous-location pills under the welcome question. Tap to start
-  // writing there; tap × to remove the location.
+  // Previous-seed pills under the welcome question. Tap to start
+  // writing there; tap × to remove the seed.
   const welcomePillsEl = document.getElementById("welcome-pills");
   function renderWelcomePills() {
     if (!welcomePillsEl) return;
-    if (!window.tinkerLocations || typeof window.tinkerLocations.list !== "function") return;
-    const locs = window.tinkerLocations.list()
+    if (!window.tinkerSeeds || typeof window.tinkerSeeds.list !== "function") return;
+    const seeds = window.tinkerSeeds.list()
       .slice()
       .sort((a, b) => (b.lastUsed || 0) - (a.lastUsed || 0))
       .slice(0, 12);
     welcomePillsEl.innerHTML = "";
-    if (!locs.length) {
+    if (!seeds.length) {
       welcomePillsEl.hidden = true;
       return;
     }
@@ -335,30 +335,30 @@
     const colorFor = window.tinkerHeatmap && typeof window.tinkerHeatmap.colorFor === "function"
       ? window.tinkerHeatmap.colorFor
       : null;
-    for (const loc of locs) {
+    for (const seed of seeds) {
       const pill = document.createElement("span");
       pill.className = "welcome-pill";
-      if (colorFor) pill.style.setProperty("--welcome-pill-bg", colorFor(loc.key));
+      if (colorFor) pill.style.setProperty("--welcome-pill-bg", colorFor(seed.key));
 
       const select = document.createElement("button");
       select.type = "button";
       select.className = "welcome-pill__name";
-      select.textContent = loc.name;
+      select.textContent = seed.name;
       select.addEventListener("click", () => {
         if (typeof window.tinkerNewSession === "function") {
-          window.tinkerNewSession({ location: loc.name });
+          window.tinkerNewSession({ seed: seed.name });
         }
       });
 
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "welcome-pill__remove";
-      remove.setAttribute("aria-label", `Remove ${loc.name}`);
+      remove.setAttribute("aria-label", `Remove ${seed.name}`);
       remove.textContent = "×";
       remove.addEventListener("click", (e) => {
         e.stopPropagation();
-        if (window.tinkerLocations && typeof window.tinkerLocations.remove === "function") {
-          window.tinkerLocations.remove(loc.name);
+        if (window.tinkerSeeds && typeof window.tinkerSeeds.remove === "function") {
+          window.tinkerSeeds.remove(seed.name);
         }
       });
 
@@ -369,9 +369,9 @@
   }
   renderWelcomePills();
 
-  // Re-render the home list + welcome pills whenever locations change.
-  if (window.tinkerLocations && typeof window.tinkerLocations.subscribe === "function") {
-    window.tinkerLocations.subscribe(() => {
+  // Re-render the home list + welcome pills whenever seeds change.
+  if (window.tinkerSeeds && typeof window.tinkerSeeds.subscribe === "function") {
+    window.tinkerSeeds.subscribe(() => {
       renderHome();
       renderWelcomePills();
     });
@@ -382,12 +382,12 @@
   window.tinkerOnWritingPublish = (draft, stitched) => store.publish(draft, stitched);
   window.tinkerOnDraftChange = (draftId, patch) => store.updateDraft(draftId, patch);
 
-  // Used by the location list in the sidebar: open a fresh draft
+  // Used by the seed list in the sidebar: open a fresh draft
   // pre-filled with scene context so the founder jumps straight into
   // mood-tuned reflection.
   window.tinkerNewSession = (preset) => newDraft({ activate: true, preset: preset || null });
 
-  // Used by the location list when a card already carries a published
+  // Used by the seed list when a card already carries a published
   // essay or an in-progress draft — tap routes to the right surface
   // instead of always spawning a new session.
   window.tinkerOpenEssay = (essayId) => {

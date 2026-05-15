@@ -1,27 +1,85 @@
-/* tinker — locations module
+/* tinker — seeds module
  *
- * A location is a place the founder reflects from (or wants to). It's
+ * A seed is a place the founder reflects from (or wants to). It's
  * a single string ("Kitchen counter", "Whole Foods", "the back porch
- * at 7am"). The home list shows the founder's previous locations as
+ * at 7am"). The home list shows the founder's previous seeds as
  * tappable cards; tapping spawns a writing session pre-filled with
- * that location.
+ * that seed.
  *
  * Sources merged in list():
  *  1. Explicitly added via the + button (stored in localStorage).
- *  2. Past draft.location values still in localStorage["tinker.drafts.v1"].
+ *  2. Past draft.seed values still in localStorage["tinker.drafts.v1"].
  *  3. Past transaction merchants from window.tinkerTransactions.
  *
- * Each location surfaces with usageCount + lastUsed so renderer can
+ * Each seed surfaces with usageCount + lastUsed so renderer can
  * sort and group by recency.
  */
 
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "tinker.locations.v1";
-  const STORAGE_HIDDEN = "tinker.locations.hidden.v1";
+  const STORAGE_KEY = "tinker.seeds.v1";
+  const STORAGE_HIDDEN = "tinker.seeds.hidden.v1";
   const STORAGE_DRAFTS = "tinker.drafts.v1";
   const STORAGE_ESSAYS = "tinker.essays.v1";
+  const STORAGE_TAXONOMY = "tinker.taxonomy.v1";
+
+  // One-time migration from the previous "location" naming. Runs before
+  // anything else reads from storage. Touches: seeds storage keys,
+  // draft.location → draft.seed, essay.location → essay.seed, and the
+  // taxonomy's inner `locations` map → `seeds`. Gated on a flag so it
+  // only fires once per browser.
+  (function migrateFromLocations() {
+    const FLAG = "tinker.seeds.migration.v1";
+    try {
+      if (localStorage.getItem(FLAG)) return;
+
+      const moveKey = (oldKey, newKey) => {
+        const v = localStorage.getItem(oldKey);
+        if (v === null) return;
+        if (localStorage.getItem(newKey) === null) {
+          localStorage.setItem(newKey, v);
+        }
+        localStorage.removeItem(oldKey);
+      };
+      moveKey("tinker.locations.v1", STORAGE_KEY);
+      moveKey("tinker.locations.hidden.v1", STORAGE_HIDDEN);
+
+      const renameField = (storageKey) => {
+        try {
+          const raw = localStorage.getItem(storageKey);
+          if (!raw) return;
+          const arr = JSON.parse(raw);
+          if (!Array.isArray(arr)) return;
+          let changed = false;
+          for (const item of arr) {
+            if (item && typeof item === "object" && "location" in item) {
+              if (!("seed" in item)) item.seed = item.location;
+              delete item.location;
+              changed = true;
+            }
+          }
+          if (changed) localStorage.setItem(storageKey, JSON.stringify(arr));
+        } catch { /* ignore */ }
+      };
+      renameField(STORAGE_DRAFTS);
+      renameField(STORAGE_ESSAYS);
+
+      try {
+        const raw = localStorage.getItem(STORAGE_TAXONOMY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object" && parsed.locations && !parsed.seeds) {
+            parsed.seeds = parsed.locations;
+            delete parsed.locations;
+            localStorage.setItem(STORAGE_TAXONOMY, JSON.stringify(parsed));
+          }
+        }
+      } catch { /* ignore */ }
+
+      localStorage.setItem(FLAG, "1");
+    } catch { /* ignore */ }
+  })();
 
   function load() {
     try {
@@ -43,7 +101,7 @@
   function saveHidden(set) {
     try { localStorage.setItem(STORAGE_HIDDEN, JSON.stringify(Array.from(set))); } catch { /* ignore */ }
   }
-  function nextId() { return "loc_" + Math.random().toString(36).slice(2, 10); }
+  function nextId() { return "seed_" + Math.random().toString(36).slice(2, 10); }
 
   let explicit = load();
   let hidden = loadHidden();
@@ -88,13 +146,13 @@
       e.sources.add(source);
       if (content) e.contentSnippets.push(content);
       // Track the most recent writing (essay or draft) anchored here.
-      // Sidebar cards show this title under the location name.
+      // Sidebar cards show this title under the seed name.
       if (writing && writing.title && (!e.latestWriting || (writing.time || 0) >= (e.latestWriting.time || 0))) {
         e.latestWriting = writing;
       }
     };
 
-    // Explicit locations
+    // Explicit seeds
     for (const e of explicit) touch(e.name, e.createdAt || 0, "manual");
 
     // Drafts in localStorage — also pull the writing content so the
@@ -103,12 +161,12 @@
       const drafts = JSON.parse(localStorage.getItem(STORAGE_DRAFTS) || "[]");
       if (Array.isArray(drafts)) {
         for (const d of drafts) {
-          if (d && d.location) {
+          if (d && d.seed) {
             const titleSource = (d.stitched && d.stitched.title) || (d.title && d.title !== "Untitled draft" ? d.title : null);
             const writing = titleSource
               ? { type: "draft", id: d.id, title: titleSource, time: d.updatedAt || d.createdAt || 0 }
               : null;
-            touch(d.location, d.updatedAt || d.createdAt || 0, "session", extractDraftContent(d), writing);
+            touch(d.seed, d.updatedAt || d.createdAt || 0, "session", extractDraftContent(d), writing);
           }
         }
       }
@@ -120,11 +178,11 @@
       const essays = JSON.parse(localStorage.getItem(STORAGE_ESSAYS) || "[]");
       if (Array.isArray(essays)) {
         for (const e of essays) {
-          if (e && e.location) {
+          if (e && e.seed) {
             const writing = e.title
               ? { type: "essay", id: e.id, slug: e.slug, title: e.title, time: e.createdAt || 0 }
               : null;
-            touch(e.location, e.createdAt || 0, "session", String(e.body || "").slice(0, 1500), writing);
+            touch(e.seed, e.createdAt || 0, "session", String(e.body || "").slice(0, 1500), writing);
           }
         }
       }
@@ -139,7 +197,7 @@
       if (t.merchant) touch(t.merchant, when, "transaction");
     }
 
-    // Drop any location the user has explicitly removed (tombstoned).
+    // Drop any seed the user has explicitly removed (tombstoned).
     // Filtering here — after the merge — means a removed name stays
     // hidden even when it's still referenced by past drafts, essays,
     // or transactions.
@@ -159,33 +217,33 @@
     return parts.filter(Boolean).join("\n").slice(0, 1500);
   }
 
-  // ── Add-location modal (light, tinker-styled) ────────────────────────
+  // ── Add-seed modal (light, tinker-styled) ────────────────────────
   let modal = null;
 
   function openAddModal() {
     if (modal) return;
     modal = document.createElement("div");
-    modal.className = "loc-modal";
+    modal.className = "seed-modal";
     modal.innerHTML = `
-      <div class="loc-modal__backdrop" data-close></div>
-      <div class="loc-modal__card" role="dialog" aria-modal="true" aria-labelledby="loc-modal-title">
-        <header class="loc-modal__head">
-          <h2 id="loc-modal-title" class="loc-modal__title">Add a location</h2>
-          <button type="button" class="loc-modal__close" data-close aria-label="Close">×</button>
+      <div class="seed-modal__backdrop" data-close></div>
+      <div class="seed-modal__card" role="dialog" aria-modal="true" aria-labelledby="seed-modal-title">
+        <header class="seed-modal__head">
+          <h2 id="seed-modal-title" class="seed-modal__title">Add a seed</h2>
+          <button type="button" class="seed-modal__close" data-close aria-label="Close">×</button>
         </header>
-        <p class="loc-modal__sub">A place you reflect from — a coffee shop, your kitchen, a moment in the day. Used to ground future writing sessions.</p>
-        <input type="text" id="loc-modal-input" class="loc-modal__input" placeholder="e.g. Kitchen counter, 7am" maxlength="120" autocomplete="off" spellcheck="false" />
-        <span class="loc-modal__msg" data-msg></span>
-        <div class="loc-modal__actions">
-          <button type="button" class="loc-modal__btn" data-close>Cancel</button>
-          <button type="button" class="loc-modal__btn loc-modal__btn--primary" data-action="add">Add location</button>
+        <p class="seed-modal__sub">A seed — a place you reflect from, a coffee shop, your kitchen, a moment in the day. Used to ground future writing sessions.</p>
+        <input type="text" id="seed-modal-input" class="seed-modal__input" placeholder="e.g. Kitchen counter, 7am" maxlength="120" autocomplete="off" spellcheck="false" />
+        <span class="seed-modal__msg" data-msg></span>
+        <div class="seed-modal__actions">
+          <button type="button" class="seed-modal__btn" data-close>Cancel</button>
+          <button type="button" class="seed-modal__btn seed-modal__btn--primary" data-action="add">Add seed</button>
         </div>
       </div>
     `;
     document.body.appendChild(modal);
-    document.documentElement.classList.add("loc-modal-open");
+    document.documentElement.classList.add("seed-modal-open");
 
-    const input = modal.querySelector("#loc-modal-input");
+    const input = modal.querySelector("#seed-modal-input");
     const msgEl = modal.querySelector("[data-msg]");
 
     modal.querySelectorAll("[data-close]").forEach((el) => {
@@ -196,12 +254,12 @@
     const commit = () => {
       const name = input.value.trim();
       if (!name) {
-        msgEl.textContent = "Type a location first.";
+        msgEl.textContent = "Type a seed first.";
         msgEl.dataset.kind = "err";
         input.focus();
         return;
       }
-      addLocation(name);
+      addSeed(name);
       closeModal();
     };
     modal.querySelector('[data-action="add"]').addEventListener("click", commit);
@@ -216,16 +274,16 @@
     if (!modal) return;
     modal.remove();
     modal = null;
-    document.documentElement.classList.remove("loc-modal-open");
+    document.documentElement.classList.remove("seed-modal-open");
     document.removeEventListener("keydown", escClose);
   }
   function escClose(e) { if (e.key === "Escape") closeModal(); }
 
-  function addLocation(name) {
+  function addSeed(name) {
     const trimmed = String(name || "").trim();
     if (!trimmed) return;
     const key = normalize(trimmed);
-    // If the user previously removed this location, untombstone it —
+    // If the user previously removed this seed, untombstone it —
     // they've explicitly opted back in by typing the name again.
     if (hidden.has(key)) {
       hidden.delete(key);
@@ -241,13 +299,13 @@
     notify();
   }
 
-  function removeLocation(name) {
+  function removeSeed(name) {
     const key = normalize(name);
     if (!key) return;
     const before = explicit.length;
     explicit = explicit.filter((e) => normalize(e.name) !== key);
     if (explicit.length !== before) save(explicit);
-    // Tombstone so the location stays hidden even when it's still
+    // Tombstone so the seed stays hidden even when it's still
     // referenced by past drafts, essays, or transactions.
     if (!hidden.has(key)) {
       hidden.add(key);
@@ -257,10 +315,10 @@
   }
 
   // ── Public API ──────────────────────────────────────────────────────
-  window.tinkerLocations = {
+  window.tinkerSeeds = {
     list: listMerged,
-    add: addLocation,
-    remove: removeLocation,
+    add: addSeed,
+    remove: removeSeed,
     subscribe(fn) { subscribers.add(fn); return () => subscribers.delete(fn); },
     openAddModal,
   };

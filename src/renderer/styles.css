@@ -62,7 +62,7 @@ input:focus, button:focus, textarea:focus { outline: none; }
 
 /* Sidebar now feels like the main screen — same background, same
    density. The parchment gradient is gone; the only separator is a
-   subtle right-border. The home-list (locations) lives here. */
+   subtle right-border. The home-list (seeds) lives here. */
 .sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
@@ -281,7 +281,7 @@ html.on-web .sidebar__top {
   line-height: 1.5;
 }
 
-/* Previous-location pills below the question/form. The pill is the
+/* Previous-seed pills below the question/form. The pill is the
    primary "start here" affordance — the input below is the secondary
    path for naming a brand-new place. Each pill reads as a real button:
    filled, lifted on hover, with a quieter × tucked in for removal. */
@@ -847,7 +847,7 @@ html.on-web .sidebar__top {
 }
 .read__body p { margin: 0 0 1em; }
 
-/* ── Category feed (location → category landing page) ───────────────── */
+/* ── Category feed (seed → category landing page) ───────────────── */
 .category-feed[hidden] { display: none !important; }
 .category-feed {
   display: flex;
@@ -1175,19 +1175,19 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   .category-feed__title { font-size: 28px; }
 }
 
-/* ── Location pre-prompt (Instagram tag-style head, regular textarea) ── */
-.writing-location__head {
+/* ── Seed pre-prompt (Instagram tag-style head, regular textarea) ── */
+.writing-seed__head {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.writing-location__pin {
+.writing-seed__pin {
   width: 28px;
   height: 28px;
   flex-shrink: 0;
   display: block;
 }
-.writing-location__skip {
+.writing-seed__skip {
   align-self: flex-start;
   background: none;
   border: 0;
@@ -1200,8 +1200,8 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.writing-location__skip:hover { color: var(--color-foreground); }
-.writing-location__label {
+.writing-seed__skip:hover { color: var(--color-foreground); }
+.writing-seed__label {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1212,7 +1212,7 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   color: var(--color-foreground);
   margin: 8px 0 -8px;
 }
-.writing-location__input {
+.writing-seed__input {
   min-height: 0;
   height: auto;
   padding: 14px 16px;
@@ -1220,7 +1220,7 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   line-height: 1.4;
   resize: none;
 }
-.writing-location__label .writing-location__pin {
+.writing-seed__label .writing-seed__pin {
   width: 20px;
   height: 20px;
 }
@@ -1429,12 +1429,12 @@ html.txn-modal-open { overflow: hidden; }
   .txn-modal__item-category { display: none; }
 }
 
-/* ── Home view (locations list) ──────────────────────────────────────
+/* ── Home view (seeds list) ──────────────────────────────────────────
  *
  * Light theme — tinker palette. Top bar pattern mirrors Claude Code
  * mobile (☰ on the left, title in the middle, + on the right) but
  * styled to fit the rest of the app. No filter chips on this view;
- * the list is a simple time-grouped feed of previous locations.
+ * the list is a simple time-grouped feed of previous seeds.
  */
 
 #welcome.feed[data-active] {
@@ -1534,7 +1534,7 @@ html.txn-modal-open { overflow: hidden; }
   0%, 100% { opacity: 0.55; }
   50%      { opacity: 0.9; }
 }
-/* Location card */
+/* Seed card */
 .home-card {
   display: grid;
   grid-template-columns: 22px 1fr;
@@ -1563,7 +1563,7 @@ html.txn-modal-open { overflow: hidden; }
   color: #2d2a26;
   flex-shrink: 0;
 }
-/* Body stacks the location name above the writing title (when one
+/* Body stacks the seed name above the writing title (when one
    exists). Single-line row when no writing is anchored yet. */
 .home-card__body {
   display: flex;
@@ -1597,8 +1597,8 @@ html.txn-modal-open { overflow: hidden; }
   color: var(--color-muted);
 }
 
-/* ── Add-location modal (light, tinker-styled) ──────────────────────── */
-.loc-modal {
+/* ── Add-seed modal (light, tinker-styled) ──────────────────────── */
+.seed-modal {
   position: fixed;
   inset: 0;
   z-index: 110;
@@ -1607,13 +1607,13 @@ html.txn-modal-open { overflow: hidden; }
   justify-content: center;
   padding: 24px;
 }
-.loc-modal__backdrop {
+.seed-modal__backdrop {
   position: absolute;
   inset: 0;
   background: rgba(45, 42, 38, 0.45);
   backdrop-filter: blur(2px);
 }
-.loc-modal__card {
+.seed-modal__card {
   position: relative;
   width: 100%;
   max-width: 440px;
@@ -1626,13 +1626,13 @@ html.txn-modal-open { overflow: hidden; }
   flex-direction: column;
   gap: 12px;
 }
-.loc-modal__head {
+.seed-modal__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
-.loc-modal__title {
+.seed-modal__title {
   margin: 0;
   font-family: var(--font-display);
   font-size: 20px;
@@ -1640,7 +1640,7 @@ html.txn-modal-open { overflow: hidden; }
   letter-spacing: -0.01em;
   color: var(--color-foreground);
 }
-.loc-modal__close {
+.seed-modal__close {
   background: none;
   border: 0;
   font-size: 24px;
@@ -1650,14 +1650,14 @@ html.txn-modal-open { overflow: hidden; }
   padding: 4px 8px;
   border-radius: 8px;
 }
-.loc-modal__close:hover { background: var(--color-hover); }
-.loc-modal__sub {
+.seed-modal__close:hover { background: var(--color-hover); }
+.seed-modal__sub {
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
   color: var(--color-muted);
 }
-.loc-modal__input {
+.seed-modal__input {
   width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--color-border);
@@ -1668,20 +1668,20 @@ html.txn-modal-open { overflow: hidden; }
   color: var(--color-foreground);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.loc-modal__input:focus {
+.seed-modal__input:focus {
   border-color: var(--color-accent-strong);
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
   outline: none;
 }
-.loc-modal__msg { font-size: 12px; min-height: 1em; }
-.loc-modal__msg[data-kind="err"] { color: #b03a2e; }
-.loc-modal__actions {
+.seed-modal__msg { font-size: 12px; min-height: 1em; }
+.seed-modal__msg[data-kind="err"] { color: #b03a2e; }
+.seed-modal__actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
 }
-.loc-modal__btn {
+.seed-modal__btn {
   padding: 9px 16px;
   border-radius: 999px;
   border: 1px solid var(--color-border);
@@ -1693,11 +1693,12 @@ html.txn-modal-open { overflow: hidden; }
   cursor: pointer;
   transition: background 0.12s ease;
 }
-.loc-modal__btn:hover { background: var(--color-border); }
-.loc-modal__btn--primary {
+.seed-modal__btn:hover { background: var(--color-border); }
+.seed-modal__btn--primary {
   background: var(--color-accent-strong);
   border-color: transparent;
   color: #fff;
 }
-.loc-modal__btn--primary:hover { background: #4f46e5; }
-html.loc-modal-open { overflow: hidden; }
+.seed-modal__btn--primary:hover { background: #4f46e5; }
+html.seed-modal-open { overflow: hidden; }
+

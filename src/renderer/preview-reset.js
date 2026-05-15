@@ -2,7 +2,7 @@
  * when the app is running on a Vercel preview deployment or localhost.
  *
  * Keeps QA sessions fresh while preserving the user's auth: drafts,
- * locations, taxonomy, transactions, and coach-mark dismissals are
+ * seeds, taxonomy, transactions, and coach-mark dismissals are
  * gone on each load so testing starts from a clean slate, but the
  * phone-verification JWT (and its associated phone identifiers) stay
  * put — re-verifying via SMS on every preview reload would defeat

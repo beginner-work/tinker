@@ -5,7 +5,7 @@
  * Reply: { text, usage }
  *
  * Stytch-gated proxy for the writing-flow turns in src/renderer/writing.js
- * and the location-vector classifier in src/renderer/heatmap.js. Mirrors
+ * and the seed-vector classifier in src/renderer/heatmap.js. Mirrors
  * api/search.js — both call Stytch's /sessions/authenticate on every
  * request, so a reload (or the Update banner click) doesn't burn the
  * caller down to the 5-minute JWT clock. Anthropic Messages call shape
