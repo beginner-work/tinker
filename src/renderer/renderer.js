@@ -338,9 +338,13 @@
       return;
     }
     welcomePillsEl.hidden = false;
+    const colorFor = window.tinkerHeatmap && typeof window.tinkerHeatmap.colorFor === "function"
+      ? window.tinkerHeatmap.colorFor
+      : null;
     for (const loc of locs) {
       const pill = document.createElement("span");
       pill.className = "welcome-pill";
+      if (colorFor) pill.style.setProperty("--welcome-pill-bg", colorFor(loc.key));
 
       const select = document.createElement("button");
       select.type = "button";

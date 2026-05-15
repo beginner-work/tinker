@@ -538,5 +538,12 @@
     };
   }
 
-  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForLocation };
+  // Same deterministic rainbow used by the home cards' avatars — exposed
+  // so other surfaces (e.g. the welcome pills) can colour-match a
+  // location to its sidebar identity.
+  function colorFor(key) {
+    return PALETTE[hashSlot(String(key || ""), PALETTE.length)];
+  }
+
+  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForLocation, colorFor };
 })();
