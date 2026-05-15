@@ -308,11 +308,16 @@
   const welcomeInput = document.getElementById("welcome-input");
   if (welcomeInput) {
     const placeholders = ["Where are you?", "Who are you?"];
+    const FADE_MS = 360;
     let i = Math.floor(Math.random() * placeholders.length);
     welcomeInput.setAttribute("placeholder", placeholders[i]);
     setInterval(() => {
-      i = (i + 1) % placeholders.length;
-      welcomeInput.setAttribute("placeholder", placeholders[i]);
+      welcomeInput.classList.add("welcome__input--fading");
+      setTimeout(() => {
+        i = (i + 1) % placeholders.length;
+        welcomeInput.setAttribute("placeholder", placeholders[i]);
+        welcomeInput.classList.remove("welcome__input--fading");
+      }, FADE_MS);
     }, 5000);
   }
   if (welcomeForm && welcomeInput) {
