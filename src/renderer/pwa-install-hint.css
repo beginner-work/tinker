@@ -111,6 +111,13 @@ html.pwa-hint-visible .drawer-toggle {
 html.pwa-hint-visible .feed {
   padding-top: calc(env(safe-area-inset-top, 0px) + 80px + 64px);
 }
+/* The writing + read views have their own top bars instead of the
+ * feed's bulk padding. Push those bars down by the same 64px so the
+ * lowered drawer-toggle stays clear of the body content beneath. */
+html.pwa-hint-visible .writing__top,
+html.pwa-hint-visible .read__top {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 16px + 64px);
+}
 
 /* ── Bottom-sheet ──────────────────────────────────────────────────── */
 
