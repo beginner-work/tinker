@@ -32,10 +32,14 @@
     border: 0;
     color: #fff;
     box-shadow: none;
-    transition: background 0.2s ease, transform 0.15s ease, opacity 0.18s ease;
+    /* --toggle-y is driven by mobile-drawer.js to follow the active
+     * section's scrollTop so the hamburger drifts up with the page
+     * instead of staying glued to the viewport. */
+    transform: translateY(var(--toggle-y, 0));
+    transition: background 0.2s ease, opacity 0.18s ease;
   }
   .drawer-toggle:hover { background: rgba(255, 255, 255, 0.16); }
-  .drawer-toggle:active { transform: scale(0.96); }
+  .drawer-toggle:active { transform: translateY(var(--toggle-y, 0)) scale(0.96); }
 
   body[data-drawer-open] .drawer-toggle {
     opacity: 0;
