@@ -308,8 +308,12 @@
   const welcomeInput = document.getElementById("welcome-input");
   if (welcomeInput) {
     const placeholders = ["Where are you?", "Who are you?"];
-    const pick = placeholders[Math.floor(Math.random() * placeholders.length)];
-    welcomeInput.setAttribute("placeholder", pick);
+    let i = Math.floor(Math.random() * placeholders.length);
+    welcomeInput.setAttribute("placeholder", placeholders[i]);
+    setInterval(() => {
+      i = (i + 1) % placeholders.length;
+      welcomeInput.setAttribute("placeholder", placeholders[i]);
+    }, 5000);
   }
   if (welcomeForm && welcomeInput) {
     welcomeForm.addEventListener("submit", (e) => {
