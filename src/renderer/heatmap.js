@@ -91,6 +91,9 @@
   }
   function saveState(s) {
     try { localStorage.setItem(TAXONOMY_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+    if (window.tinkerSync && typeof window.tinkerSync.pushTaxonomy === "function") {
+      window.tinkerSync.pushTaxonomy();
+    }
   }
 
   function normCat(s) {

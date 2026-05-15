@@ -90,6 +90,9 @@
   }
   function save(list) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+    if (window.tinkerSync && typeof window.tinkerSync.pushSeeds === "function") {
+      window.tinkerSync.pushSeeds();
+    }
   }
   function loadHidden() {
     try {
@@ -100,6 +103,9 @@
   }
   function saveHidden(set) {
     try { localStorage.setItem(STORAGE_HIDDEN, JSON.stringify(Array.from(set))); } catch { /* ignore */ }
+    if (window.tinkerSync && typeof window.tinkerSync.pushSeeds === "function") {
+      window.tinkerSync.pushSeeds();
+    }
   }
   function nextId() { return "seed_" + Math.random().toString(36).slice(2, 10); }
 
@@ -327,4 +333,13 @@
   if (window.tinkerTransactions && typeof window.tinkerTransactions.subscribe === "function") {
     window.tinkerTransactions.subscribe(() => notify());
   }
+
+  // Server hydration may have overwritten the seeds + hidden storage
+  // keys after this module's initial load. Re-read both, then notify
+  // subscribers (the sidebar) to re-render.
+  window.addEventListener("tinker:hydrated", () => {
+    explicit = load();
+    hidden = loadHidden();
+    notify();
+  });
 })();

@@ -39,6 +39,11 @@
          user who signs in on iOS Safari stays signed in after they
          Add to Home Screen. Must run before auth.js. -->
     <script src="./pwa-session.js" defer></script>
+    <!-- Bridges the four client-owned blobs to /api/user-data/*. Runs
+         before seeds.js/heatmap.js so its hydrate() can fire as soon
+         as a token exists; consumer modules subscribe to the
+         tinker:hydrated event to re-render from refreshed storage. -->
+    <script src="./sync.js" defer></script>
     <script src="./transactions.js" defer></script>
     <script src="./seeds.js" defer></script>
     <script src="./heatmap.js" defer></script>
