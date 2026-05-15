@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>tinker — design system</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/design-tokens.css">
+  <style>
+    :root {
+      --page-bg: #fffdf7;
+      --page-ink: #2d2a26;
+      --page-muted: #6f6a65;
+      --page-border: #ede8e0;
+      --page-card: #ffffff;
+      --page-font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --page-font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+      --page-font-mono: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--page-bg);
+      color: var(--page-ink);
+      font-family: var(--page-font-sans);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .page { max-width: 960px; margin: 0 auto; padding: 72px 32px 120px; }
+    .eyebrow {
+      font-family: var(--page-font-mono);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--page-muted);
+      margin: 0 0 12px;
+    }
+    h1 {
+      font-family: var(--page-font-display);
+      font-size: 38px;
+      letter-spacing: -0.02em;
+      margin: 0 0 12px;
+      font-weight: 700;
+    }
+    .lede {
+      color: var(--page-muted);
+      font-size: 17px;
+      margin: 0 0 64px;
+      max-width: 62ch;
+    }
+    .lede code {
+      font-family: var(--page-font-mono);
+      font-size: 13px;
+      background: #f5f3ef;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    h2 {
+      font-family: var(--page-font-display);
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin: 0 0 20px;
+    }
+    section { margin-bottom: 64px; }
+    section > p {
+      color: var(--page-muted);
+      margin: -12px 0 20px;
+      font-size: 14px;
+    }
+
+    .marks {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      gap: 20px;
+    }
+    @media (max-width: 720px) { .marks { grid-template-columns: 1fr; } }
+    .mark-tile {
+      background: var(--page-card);
+      border: 1px solid var(--page-border);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .mark-tile__art {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 180px;
+    }
+    .mark-tile__art img { display: block; max-width: 100%; height: auto; }
+    .mark-tile__art--square img { width: 200px; }
+    .mark-tile__art--wide img  { width: 100%; max-width: 360px; }
+    .mark-tile__meta strong { font-weight: 600; }
+    .mark-tile__meta p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--page-muted);
+    }
+    .mark-tile__meta code {
+      font-family: var(--page-font-mono);
+      font-size: 12px;
+      background: #f5f3ef;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .swatches {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+    }
+    .swatch {
+      border: 1px solid var(--page-border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--page-card);
+    }
+    .swatch__color { height: 72px; }
+    .swatch__meta {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .swatch__name { font-weight: 600; font-size: 13px; }
+    .swatch__hex {
+      color: var(--page-muted);
+      font-family: var(--page-font-mono);
+      font-size: 12px;
+    }
+
+    .typescale { display: grid; gap: 14px; }
+    .typespec {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 24px;
+      align-items: baseline;
+      padding: 12px 0;
+      border-top: 1px solid var(--page-border);
+    }
+    .typespec:first-child { border-top: 0; padding-top: 0; }
+    .typespec__label {
+      color: var(--page-muted);
+      font-size: 12px;
+      font-family: var(--page-font-mono);
+    }
+    .t-display-lg { font-family: var(--page-font-display); font-size: 38px; letter-spacing: -0.02em; font-weight: 700; line-height: 1.1; }
+    .t-display    { font-family: var(--page-font-display); font-size: 22px; letter-spacing: -0.01em; font-weight: 600; line-height: 1.3; }
+    .t-essay      { font-size: 17px; line-height: 1.7; }
+    .t-base       { font-size: 15px; line-height: 1.55; }
+    .t-body       { font-size: 14px; line-height: 1.55; }
+    .t-small      { font-size: 13px; line-height: 1.5; }
+    .t-micro      { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+
+    .radii {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 14px;
+    }
+    .radii__item {
+      aspect-ratio: 1;
+      background: var(--page-card);
+      border: 1px solid var(--page-border);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 14px;
+      font-size: 12px;
+      color: var(--page-muted);
+      font-family: var(--page-font-mono);
+    }
+
+    footer {
+      margin-top: 80px;
+      padding-top: 24px;
+      border-top: 1px solid var(--page-border);
+      font-size: 12px;
+      color: var(--page-muted);
+      font-family: var(--page-font-mono);
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <p class="eyebrow">tinker</p>
+    <h1>Design system</h1>
+    <p class="lede">The marks, colors, and type that make tinker feel like tinker. Tokens live in <code>src/renderer/design-tokens.css</code>; the globe geometry lives in <code>src/renderer/tokens/rainbow-web.json</code>.</p>
+
+    <section>
+      <h2>Marks</h2>
+      <div class="marks">
+        <div class="mark-tile">
+          <div class="mark-tile__art mark-tile__art--square">
+            <img src="/icons/tinker-mark.svg" alt="The tinker rainbow globe">
+          </div>
+          <div class="mark-tile__meta">
+            <strong>Tinker mark</strong>
+            <p>The multi-colored globe — tinker's primary identity. Built from <code>tokens/rainbow-web.json</code>, so a single edit to the dictionary updates every surface.</p>
+          </div>
+        </div>
+        <div class="mark-tile">
+          <div class="mark-tile__art mark-tile__art--wide">
+            <img src="/icons/calico-cat-globe.svg" alt="A calico cat batting the tinker globe">
+          </div>
+          <div class="mark-tile__meta">
+            <strong>Calico cat &amp; globe</strong>
+            <p>A friendlier brand illustration: a calico cat batting the tinker globe like a ball of yarn. For welcome surfaces, empty states, and any moment where the app wants to feel warm.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Logo palette</h2>
+      <p>The seven colors of the rainbow globe. No violet, no indigo — same as the upstream token dictionary.</p>
+      <div class="swatches" id="palette-logo"></div>
+    </section>
+
+    <section>
+      <h2>Pastel rainbow</h2>
+      <p>The full expressive palette for UI accents. Each color also exposes a paired <code>-light</code> tint in <code>design-tokens.css</code>.</p>
+      <div class="swatches" id="palette-pastel"></div>
+    </section>
+
+    <section>
+      <h2>Brand neutrals</h2>
+      <p>The grounded tones used across chrome, cards, and prose.</p>
+      <div class="swatches" id="palette-neutral"></div>
+    </section>
+
+    <section>
+      <h2>Type scale</h2>
+      <p>Display in Plus Jakarta Sans; body in Inter. Sample text: <em>a quiet place to be on the web</em>.</p>
+      <div class="typescale">
+        <div class="typespec"><div class="typespec__label">display-lg · 38</div><div class="t-display-lg">A quiet place to be on the web.</div></div>
+        <div class="typespec"><div class="typespec__label">display · 22</div><div class="t-display">A quiet place to be on the web.</div></div>
+        <div class="typespec"><div class="typespec__label">essay · 17</div><div class="t-essay">A quiet place to be on the web.</div></div>
+        <div class="typespec"><div class="typespec__label">base · 15</div><div class="t-base">A quiet place to be on the web.</div></div>
+        <div class="typespec"><div class="typespec__label">body · 14</div><div class="t-body">A quiet place to be on the web.</div></div>
+        <div class="typespec"><div class="typespec__label">small · 13</div><div class="t-small">A quiet place to be on the web.</div></div>
+        <div class="typespec"><div class="typespec__label">micro · 11</div><div class="t-micro">A quiet place to be on the web</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Radii</h2>
+      <p>Named corner radii from <code>design-tokens.css</code>.</p>
+      <div class="radii">
+        <div class="radii__item" style="border-radius: var(--radius-chip)">chip · 9</div>
+        <div class="radii__item" style="border-radius: var(--radius-icon)">icon · 8</div>
+        <div class="radii__item" style="border-radius: var(--radius-button)">button · 10</div>
+        <div class="radii__item" style="border-radius: var(--radius-card)">card · 12</div>
+        <div class="radii__item" style="border-radius: var(--radius-logo-tile)">logo-tile · 44</div>
+        <div class="radii__item" style="border-radius: var(--radius-pill)">pill</div>
+      </div>
+    </section>
+
+    <footer>
+      Edit this page at <code>src/renderer/design-system/index.html</code>.
+    </footer>
+  </main>
+
+  <script>
+    const LOGO = [
+      ["logo-pink",   "#f9a8d4"],
+      ["logo-orange", "#fdba74"],
+      ["logo-yellow", "#fde68a"],
+      ["logo-leaf",   "#7bc47a"],
+      ["logo-sky",    "#7dd3fc"],
+      ["logo-mint",   "#6ee7b7"],
+      ["logo-purple", "#c8b6e2"],
+    ];
+    const PASTEL = [
+      ["rose",   "#f9a8d4"],
+      ["peach",  "#fdba74"],
+      ["amber",  "#fde68a"],
+      ["mint",   "#6ee7b7"],
+      ["sky",    "#7dd3fc"],
+      ["indigo", "#a5b4fc"],
+      ["violet", "#c4b5fd"],
+    ];
+    const NEUTRAL = [
+      ["cream",     "#fffdf7"],
+      ["parchment", "#f7f0e3"],
+      ["card",      "#fff9f0"],
+      ["border",    "#ede8e0"],
+      ["leaf",      "#7bc47a"],
+      ["sprout",    "#5aad58"],
+      ["forest",    "#2d5a3d"],
+      ["ink",       "#2d2a26"],
+    ];
+
+    function renderSwatches(targetId, list) {
+      const container = document.getElementById(targetId);
+      container.innerHTML = list.map(([name, hex]) => `
+        <div class="swatch">
+          <div class="swatch__color" style="background:${hex}"></div>
+          <div class="swatch__meta">
+            <span class="swatch__name">${name}</span>
+            <span class="swatch__hex">${hex.toUpperCase()}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+    renderSwatches("palette-logo", LOGO);
+    renderSwatches("palette-pastel", PASTEL);
+    renderSwatches("palette-neutral", NEUTRAL);
+  </script>
+</body>
+</html>
