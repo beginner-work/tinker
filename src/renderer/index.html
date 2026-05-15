@@ -221,12 +221,14 @@
       </div>
     </div>
 
-    <!-- iOS Safari "Add to Home Screen" install affordance. Two pieces:
-         a top banner (modeled on the App Store install banner) and a
+    <!-- iOS "Add to Home Screen" install affordance. Two pieces: a top
+         banner (modeled on the App Store install banner) and a
          bottom-sheet that opens when the Install button is tapped,
-         showing the iOS Safari steps. Both hidden by default;
-         pwa-install-hint.js reveals the banner on iOS Safari (mobile
-         web, not standalone, not Capacitor) and wires the sheet. -->
+         showing the share-sheet steps. Both hidden by default;
+         pwa-install-hint.js reveals the banner on iOS WebKit browsers
+         that expose Add to Home Screen — Safari and Chrome iOS, but
+         not in-app webviews — when not already standalone and not
+         inside Capacitor, then wires the sheet. -->
     <div id="pwa-hint" class="pwa-hint" role="region" aria-label="Install tinker" hidden>
       <span class="pwa-hint__icon" aria-hidden="true">
         <svg data-rainbow-logo viewBox="0 0 200 200" fill="none">
@@ -296,7 +298,7 @@
                   <circle cx="13" cy="8" r="1.4" fill="currentColor" />
                 </svg>
               </span>
-              in Safari's URL bar
+              in your browser's URL bar
             </span>
           </li>
           <li>
