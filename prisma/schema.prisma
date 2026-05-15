@@ -1,0 +1,27 @@
+// Web's slice of the schema. The canonical schema lives in the
+// beginner repo at api/prisma/schema.prisma; this file mirrors only
+// the one table the web Vercel functions touch directly. Both repos
+// point at the same Postgres via DATABASE_URL.
+
+generator client {
+  provider      = "prisma-client-js"
+  // "rhel-openssl-3.0.x" is what Vercel's serverless runtime needs;
+  // "native" lets `prisma generate` work locally on macOS/Linux dev
+  // machines.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TinkerUserData {
+  userId    String
+  kind      String
+  data      Json     @default("null")
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@id([userId, kind])
+  @@index([userId])
+}

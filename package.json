@@ -8,7 +8,10 @@
     "dev": "electron . --dev",
     "web": "node src/web/server.js",
     "lint": "eslint src/",
+    "test": "node --test tests/*.test.js",
     "eval:product-spec": "node .claude/skills/product-spec/evals/run-evals.mjs",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
     "mobile:sync": "cap sync",
     "mobile:add:ios": "cap add ios",
     "mobile:add:android": "cap add android",
@@ -27,11 +30,13 @@
     "@capacitor/browser": "^6.0.0",
     "@capacitor/core": "^6.2.0",
     "@capacitor/ios": "^6.2.0",
-    "@capacitor/preferences": "^6.0.0"
+    "@capacitor/preferences": "^6.0.0",
+    "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.2.0",
     "electron": "^33.0.0",
-    "eslint": "^9.0.0"
+    "eslint": "^9.0.0",
+    "prisma": "^5.22.0"
   }
 }

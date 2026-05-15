@@ -50,6 +50,9 @@
   }
   function saveDrafts(drafts) {
     try { localStorage.setItem(STORAGE_DRAFTS, JSON.stringify(drafts)); } catch { /* ignore */ }
+    if (window.tinkerSync && typeof window.tinkerSync.pushDrafts === "function") {
+      window.tinkerSync.pushDrafts();
+    }
   }
   function loadEssays() {
     try {
@@ -61,6 +64,9 @@
   }
   function saveEssays(essays) {
     try { localStorage.setItem(STORAGE_ESSAYS, JSON.stringify(essays)); } catch { /* ignore */ }
+    if (window.tinkerSync && typeof window.tinkerSync.pushEssays === "function") {
+      window.tinkerSync.pushEssays();
+    }
   }
 
   // ── State ────────────────────────────────────────────────────────────
@@ -401,6 +407,24 @@
       const d = store.getActive();
       if (d && confirm(`Delete "${d.title || "Untitled draft"}"?`)) store.deleteDraft(d.id);
     }
+  });
+
+  // Server hydration may have overwritten the drafts + essays storage
+  // keys after this module's initial load. Re-read both, then re-render
+  // the views that depend on them. An active draft is preserved if its
+  // id still exists in the new list; otherwise we drop back to the feed.
+  window.addEventListener("tinker:hydrated", () => {
+    drafts = loadDrafts();
+    essays = loadEssays();
+    if (activeId && !drafts.some((d) => d.id === activeId)) {
+      activeId = null;
+      showFeed();
+      return;
+    }
+    renderSidebar();
+    if (readView && !readView.hidden) return;
+    if (writingView && !writingView.hidden) return;
+    renderHome();
   });
 
   // ── Boot ────────────────────────────────────────────────────────────

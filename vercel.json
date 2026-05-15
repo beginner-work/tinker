@@ -3,8 +3,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "outputDirectory": "src/renderer",
-  "installCommand": "echo 'skip install — static PWA + dependency-free Vercel functions'",
-  "buildCommand": "echo 'no build step — files in src/renderer are served as-is'",
+  "installCommand": "npm ci",
+  "buildCommand": "prisma migrate deploy",
   "headers": [
     {
       "source": "/(.*)",
