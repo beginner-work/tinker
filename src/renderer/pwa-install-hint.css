@@ -243,6 +243,13 @@ html.pwa-hint-visible .read__top {
   margin-bottom: 14px;
 }
 .pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--chrome { order: 4; }
+/* Grabber slides to the bottom edge — that's the floating edge for
+ * a pull-down sheet, and the natural place to start the drag-up-to-
+ * close gesture. */
+.pwa-hint-sheet--chrome .pwa-hint-sheet__grabber {
+  order: 5;
+  margin: 14px auto 0;
+}
 /* Globe rolls along the TOP edge instead of the bottom. */
 .pwa-hint-sheet--chrome .pwa-hint-sheet__globe {
   top: calc(env(safe-area-inset-top, 0px) + 12px);
@@ -268,19 +275,19 @@ html.pwa-hint-visible .read__top {
   color: var(--color-foreground, #2d2a26);
   margin: 0;
 }
-.pwa-hint-sheet__close {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 0;
-  display: grid;
-  place-items: center;
-  background: transparent;
-  color: var(--color-muted, #6f6a65);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+/* Drag-handle grabber: small pill at the panel's floating edge.
+ * Decorative — the actual dismiss is the drag-to-close gesture
+ * handled in pwa-install-hint.js. Centered horizontally via auto
+ * margins; flex-shrink: 0 keeps it from collapsing in the
+ * chrome-mode flex column. */
+.pwa-hint-sheet__grabber {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-border, #ede8e0);
+  margin: 0 auto 14px;
+  flex-shrink: 0;
 }
-.pwa-hint-sheet__close:active { background: var(--color-surface-alt, #fff9f0); color: var(--color-foreground, #2d2a26); }
 
 .pwa-hint-sheet__app {
   display: flex;

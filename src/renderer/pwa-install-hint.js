@@ -224,12 +224,12 @@
     });
 
     if (sheet) {
-      // Direct listeners on the dismiss targets — the previous
-      // delegated handler via e.target.closest() was unreliable on
-      // iOS Safari taps where the SVG path was the event target.
-      const closeBtn = sheet.querySelector(".pwa-hint-sheet__close");
+      // The X close button is gone — dismissal happens via the
+      // drag-to-close gesture, a backdrop tap, or Escape. Direct
+      // listener on the backdrop (delegating via closest() was
+      // unreliable on iOS Safari taps where the SVG path inside
+      // the old X icon was the event target).
       const backdrop = sheet.querySelector(".pwa-hint-sheet__backdrop");
-      if (closeBtn) closeBtn.addEventListener("click", closeSheet);
       if (backdrop) backdrop.addEventListener("click", closeSheet);
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && !sheet.hidden) closeSheet();

@@ -274,14 +274,16 @@
       <div class="pwa-hint-sheet__backdrop" data-pwa-action="close-sheet"></div>
       <div class="pwa-hint-sheet__panel" role="dialog" aria-modal="true"
            aria-labelledby="pwa-hint-sheet-title">
+        <!-- Drag-handle grabber. Decorative cue that the sheet is
+             draggable — the real dismiss gesture is handled by
+             pwa-install-hint.js's touch listeners on the panel.
+             Placed at the floating edge: top of the panel for the
+             default rise-from-bottom sheet, repositioned to the
+             bottom of the panel in chrome mode (pull-down) via
+             flex `order` in pwa-install-hint.css. -->
+        <div class="pwa-hint-sheet__grabber" aria-hidden="true"></div>
         <header class="pwa-hint-sheet__header">
           <h2 id="pwa-hint-sheet-title" class="pwa-hint-sheet__title">Install the app</h2>
-          <button class="pwa-hint-sheet__close" type="button"
-                  aria-label="Close" data-pwa-action="close-sheet">
-            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
-              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            </svg>
-          </button>
         </header>
         <div class="pwa-hint-sheet__app">
           <span class="pwa-hint-sheet__app-icon" aria-hidden="true">
