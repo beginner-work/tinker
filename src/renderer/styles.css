@@ -210,13 +210,10 @@ html.on-web .sidebar__top {
   width: 100%;
 }
 .welcome__logo {
-  margin-bottom: 6px;
+  opacity: 0.85;
+  margin-bottom: 4px;
 }
-.welcome__logo-img {
-  display: block;
-  width: 144px;
-  height: auto;
-}
+.welcome__logo svg rect { display: none; }
 .welcome__question {
   margin: 0;
   font-family: var(--font-display);
@@ -225,6 +222,12 @@ html.on-web .sidebar__top {
   letter-spacing: -0.015em;
   color: var(--color-foreground);
   line-height: 1.25;
+}
+.welcome__sub {
+  margin: -4px 0 0;
+  font-size: 15px;
+  color: var(--color-muted);
+  line-height: 1.4;
 }
 .welcome__form {
   display: flex;
@@ -252,7 +255,11 @@ html.on-web .sidebar__top {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   min-width: 0;
 }
-.welcome__input::placeholder { color: var(--color-muted); }
+.welcome__input::placeholder {
+  color: var(--color-muted);
+  transition: color 360ms ease;
+}
+.welcome__input--fading::placeholder { color: transparent; }
 .welcome__input:focus {
   border-color: var(--color-accent-strong);
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
