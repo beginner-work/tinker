@@ -199,7 +199,26 @@ html.on-web .sidebar__top {
      small screens) to land in the same visual neighbourhood. */
   padding: clamp(40px, 6vh, 64px) clamp(40px, 10vw, 96px);
   background: var(--color-background);
+  position: relative;
+  overflow: hidden;
 }
+/* Indigo right-triangle hugging the top-left corner of the welcome
+ * page. Sized large enough to fully encase the floating drawer-toggle
+ * (48px button at 12px inset) on mobile, while reading as a deliberate
+ * corner flag on desktop where the toggle is hidden. */
+.stage > .welcome.feed[data-active]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: clamp(140px, 22vw, 220px);
+  height: clamp(140px, 22vw, 220px);
+  background: var(--color-indigo);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+.welcome .welcome__inner { position: relative; z-index: 1; }
 .welcome__inner {
   display: flex;
   flex-direction: column;
