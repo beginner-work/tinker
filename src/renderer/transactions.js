@@ -34,6 +34,9 @@
     } catch {
       // localStorage full or denied — nothing to do here in v1.
     }
+    if (window.tinkerSync && typeof window.tinkerSync.pushTransactions === "function") {
+      window.tinkerSync.pushTransactions();
+    }
   }
   function nextId() {
     return "t_" + Math.random().toString(36).slice(2, 10);
@@ -109,25 +112,6 @@
     },
     openAddModal() { openModal(); },
   };
-
-  // On Vercel preview deployments and local dev, preview-reset.js wipes
-  // localStorage on every load — which leaves the Receipts view empty
-  // and reviewers can't see the populated state. Auto-seed the
-  // production sample set so the preview reflects what shipped users
-  // actually see once they've added receipts. Inert on production
-  // hostnames; inert when the user already has transactions saved.
-  try {
-    const h = location.hostname;
-    const isPreview =
-      h.includes("-git-") ||
-      h === "localhost" ||
-      h === "127.0.0.1";
-    if (isPreview && txns.length === 0) {
-      txns = buildSeedSamples();
-      save(txns);
-      notify();
-    }
-  } catch { /* storage disabled — skip */ }
 
   // ── Parsing ─────────────────────────────────────────────────────────
   // Accept either a JSON array of {date, merchant, amount, category?} or
@@ -354,5 +338,14 @@ date,merchant,amount,category
     const sign = v < 0 ? "−" : "";
     return `${sign}$${Math.abs(v).toFixed(2)}`;
   }
+
+  // Server hydration may have overwritten the transactions storage key
+  // after this module's initial load (sync.js fetches it on boot and
+  // after auth changes). Re-read and notify subscribers so the Receipts
+  // view and heatmap pick up the server snapshot.
+  window.addEventListener("tinker:hydrated", () => {
+    txns = load();
+    notify();
+  });
 
 })();
