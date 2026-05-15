@@ -909,6 +909,101 @@ html.on-web .sidebar__top {
   font-style: italic;
 }
 
+/* ── Receipts view (sidebar Account → Receipts) ──────────────────── */
+.receipts[hidden] { display: none !important; }
+.receipts {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-background);
+}
+.receipts__head {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 32px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.receipts__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--color-foreground);
+}
+.receipts__sub {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-muted);
+  max-width: 540px;
+  line-height: 1.5;
+}
+.receipts__add {
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--color-accent-strong);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.15s ease, transform 0.06s ease;
+}
+.receipts__add:hover { background: #4f46e5; }
+.receipts__add:active { transform: scale(0.98); }
+.receipts__list {
+  list-style: none;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px 32px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.receipts__item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.receipts__item-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.receipts__item-merchant {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-foreground);
+}
+.receipts__item-amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-foreground);
+}
+.receipts__item-meta {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.receipts__empty {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 32px 80px;
+  font-size: 14px;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
 /* ── Auth gate (web only) ─────────────────────────────────────────── */
 /*
  * Mirrors the welcome page: pill-shaped input with an embedded pill
@@ -1153,6 +1248,10 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   .category-feed__list { padding: 12px 18px 60px; }
   .category-feed__empty { padding: 8px 18px 60px; }
   .category-feed__title { font-size: 28px; }
+  .receipts__head { padding: 32px 18px 12px; }
+  .receipts__list { padding: 12px 18px 60px; }
+  .receipts__empty { padding: 8px 18px 60px; }
+  .receipts__title { font-size: 28px; }
 }
 
 /* ── Seed pre-prompt (Instagram tag-style head, regular textarea) ── */

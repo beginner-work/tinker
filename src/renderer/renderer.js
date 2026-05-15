@@ -36,6 +36,7 @@
   const categoryFeedSub = $("#category-feed-sub");
   const categoryFeedList = $("#category-feed-list");
   const categoryFeedEmpty = $("#category-feed-empty");
+  const receiptsView = $("#receipts");
 
   // ── Storage helpers ──────────────────────────────────────────────────
   const uid = () => "d_" + Math.random().toString(36).slice(2, 10);
@@ -198,6 +199,7 @@
     writingView.hidden = true;
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
+    if (receiptsView) receiptsView.hidden = true;
     activeId = null;
     readingEssayId = null;
     renderSidebar();
@@ -212,12 +214,14 @@
     writingView.hidden = false;
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
+    if (receiptsView) receiptsView.hidden = true;
   }
   function showRead(essay) {
     feedView.removeAttribute("data-active");
     writingView.hidden = true;
     readView.hidden = false;
     if (categoryFeedView) categoryFeedView.hidden = true;
+    if (receiptsView) receiptsView.hidden = true;
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
@@ -239,6 +243,7 @@
     writingView.hidden = true;
     readView.hidden = true;
     categoryFeedView.hidden = false;
+    if (receiptsView) receiptsView.hidden = true;
     activeId = null;
     renderSidebar();
 
@@ -270,6 +275,17 @@
       categoryFeedList.appendChild(card);
     }
     return true;
+  }
+  function showReceipts() {
+    if (!receiptsView) return;
+    feedView.removeAttribute("data-active");
+    writingView.hidden = true;
+    readView.hidden = true;
+    if (categoryFeedView) categoryFeedView.hidden = true;
+    receiptsView.hidden = false;
+    activeId = null;
+    readingEssayId = null;
+    renderSidebar();
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
@@ -391,6 +407,7 @@
   };
   window.tinkerResumeDraft = (draftId) => openDraft(draftId);
   window.tinkerShowCategoryFeed = (categoryKey) => showCategoryFeed(categoryKey);
+  window.tinkerShowReceipts = () => showReceipts();
 
   // Keyboard shortcuts. Cmd/Ctrl+T = new draft. Cmd/Ctrl+W = close
   // (delete) the current draft. The address-bar shortcut is gone — there
