@@ -1,14 +1,16 @@
 /* POST /api/claude/converse
  *
- * Authorization: Bearer <stytch session_jwt>
+ * Authorization: Bearer <stytch session_token>
  * Body: { system, messages, model, maxTokens }
  * Reply: { text, usage }
  *
  * Stytch-gated proxy for the writing-flow turns in src/renderer/writing.js
  * and the location-vector classifier in src/renderer/heatmap.js. Mirrors
- * api/search.js — same JWKS-based JWT verification, same Anthropic Messages
- * call shape — except the system prompt + messages + model + maxTokens
- * arrive from the renderer instead of being hard-coded.
+ * api/search.js — both call Stytch's /sessions/authenticate on every
+ * request, so a reload (or the Update banner click) doesn't burn the
+ * caller down to the 5-minute JWT clock. Anthropic Messages call shape
+ * matches the search proxy; the system prompt + messages + model +
+ * maxTokens arrive from the renderer instead of being hard-coded.
  *
  * Caching: whatever system prompt the renderer sends is wrapped in
  * cache_control ephemeral, so repeat turns within the same draft (or
@@ -17,8 +19,7 @@
 
 "use strict";
 
-const { verifyStytchJwt } = require("../_lib/jwks.js");
-const { readEnv } = require("../_lib/stytch.js");
+const { authenticateSession } = require("../_lib/stytch.js");
 
 function parseBody(req) {
   if (req.body && typeof req.body === "object") return req.body;
@@ -79,17 +80,9 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  let projectId;
-  try {
-    ({ projectId } = readEnv());
-  } catch (err) {
-    res.status(err.status || 503).json({ error: err.message });
-    return;
-  }
-
   const token = extractBearer(req.headers && req.headers.authorization);
   try {
-    await verifyStytchJwt(token, projectId);
+    await authenticateSession(token);
   } catch (err) {
     res.status(err.status || 401).json({ error: err.message || "Unauthorized" });
     return;

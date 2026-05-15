@@ -1,9 +1,13 @@
 /* tinker — phone/PIN auth gate
  *
  * On the plain web build (the one served by src/web/server.js) we put a
- * sign-in screen in front of the renderer until the user has a JWT for the
- * Claude proxy. The JWT is stored under `tinker_jwt` in localStorage so the
- * platform-mobile shim can read it for search calls.
+ * sign-in screen in front of the renderer until the user has a Stytch
+ * session token for the Claude proxy. The token is stored under
+ * `tinker_jwt` in localStorage (legacy key — the value is now Stytch's
+ * long-lived `session_token`, not a JWT) so the platform-mobile shim
+ * can read it for proxied Claude calls. Validation happens server-side
+ * on every request via Stytch's /sessions/authenticate, so there is no
+ * client-side `exp` to check — the server is the source of truth.
  *
  * On Electron desktop and on Capacitor mobile this file is loaded too but
  * the gate is skipped — desktop already has its own ANTHROPIC_API_KEY env
@@ -43,30 +47,17 @@
   };
   window.tinkerAuth = auth;
 
-  // Decode the JWT payload and treat anything malformed or past `exp` as
-  // already invalid. Without this, a stale token in localStorage looks
-  // signed-in to auth.js — the gate stays hidden, the user lands on the
-  // welcome screen, types a location, and the first proxied Claude call
-  // 401s and bounces them back to sign-in. Login must be the first
-  // thing the user sees when login is needed at all.
-  function isValidJwt(token) {
-    if (!token || typeof token !== "string") return false;
-    const parts = token.split(".");
-    if (parts.length !== 3) return false;
-    let payload;
-    try {
-      let b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-      while (b64.length % 4) b64 += "=";
-      payload = JSON.parse(atob(b64));
-    } catch { return false; }
-    if (typeof payload.exp !== "number") return true;
-    // Drop the token a beat before the server would 401 us so the gate
-    // appears here, on load, rather than after a Claude call reloads us.
-    return Math.floor(Date.now() / 1000) < payload.exp - 30;
+  // Drop any leftover JWT-shaped value (three base64url segments
+  // separated by ".") that pre-dates the switch to Stytch session
+  // tokens. The server only accepts the long-lived `session_token`
+  // shape now, so a stale JWT would 401 the first Claude call and
+  // surface the gate mid-session — better to clear it here on load.
+  function looksLikeLegacyJwt(token) {
+    return typeof token === "string" && token.split(".").length === 3;
   }
 
   if (!isWebPlatform()) return;
-  if (auth.token && !isValidJwt(auth.token)) auth.token = "";
+  if (auth.token && looksLikeLegacyJwt(auth.token)) auth.token = "";
 
   // ── DOM refs ─────────────────────────────────────────────────────────
 
