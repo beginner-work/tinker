@@ -184,6 +184,7 @@ html.pwa-hint-visible .read__top {
     animation: none;
     left: calc(100% - 96px);
   }
+  .pwa-hint-sheet--chrome .pwa-hint-sheet__panel { animation: none; }
 }
 
 /* Modifier: anchor the sheet to the TOP of the viewport instead of
@@ -196,6 +197,61 @@ html.pwa-hint-visible .read__top {
 .pwa-hint-sheet--from-top .pwa-hint-sheet__panel {
   border-radius: 0 0 20px 20px;
   padding: calc(env(safe-area-inset-top, 0px) + 18px) 18px 22px;
+}
+
+/* Modifier: Chrome iOS variant. The sheet pulls down from the top,
+ * the ball rolls across the top edge, and the steps slide to the
+ * bottom near the user's thumb. Both step lists are stacked in the
+ * DOM — show the chrome one, hide the default one. The selectors
+ * below chain both classes (specificity 0,2,0) so they beat the
+ * later-in-file `.pwa-hint-sheet__steps { display: flex }` base
+ * rule (0,1,0), which would otherwise win on source order. */
+.pwa-hint-sheet__steps.pwa-hint-sheet__steps--chrome { display: none; }
+.pwa-hint-sheet--chrome { align-items: flex-start; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__panel {
+  border-radius: 0 0 20px 20px;
+  /* Top padding leaves room for the rolling globe + a touch of
+   * breathing room before the header; bottom padding hugs the
+   * steps to the safe-area inset. */
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 104px) 18px
+    calc(env(safe-area-inset-bottom, 0px) + 22px);
+  display: flex;
+  flex-direction: column;
+  /* Replay the pull-down each time the sheet is shown. The browser
+   * restarts CSS animations when an element transitions out of
+   * `display: none`, which is how the sheet is shown/hidden. */
+  animation: pwaHintPullDown 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--default { display: none; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--chrome { display: flex; }
+/* Reorder so the title heads up the bottom cluster, followed by the
+ * full app card (icon + name + URL) and then the steps. The header's
+ * auto-margin eats the gap above the cluster, leaving the rolling
+ * globe to play across the empty top half of the panel. */
+.pwa-hint-sheet--chrome .pwa-hint-sheet__header {
+  order: 1;
+  margin-top: auto;
+  margin-bottom: 12px;
+}
+.pwa-hint-sheet--chrome .pwa-hint-sheet__app { order: 2; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--chrome { order: 3; }
+/* Grabber slides to the bottom edge — that's the floating edge for
+ * a pull-down sheet, and the natural place to start the drag-up-to-
+ * close gesture. */
+.pwa-hint-sheet--chrome .pwa-hint-sheet__grabber {
+  order: 4;
+  margin: 14px auto 0;
+}
+/* Globe rolls along the TOP edge instead of the bottom. */
+.pwa-hint-sheet--chrome .pwa-hint-sheet__globe {
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  bottom: auto;
+}
+
+@keyframes pwaHintPullDown {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
 }
 
 .pwa-hint-sheet__header {
@@ -212,19 +268,19 @@ html.pwa-hint-visible .read__top {
   color: var(--color-foreground, #2d2a26);
   margin: 0;
 }
-.pwa-hint-sheet__close {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 0;
-  display: grid;
-  place-items: center;
-  background: transparent;
-  color: var(--color-muted, #6f6a65);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+/* Drag-handle grabber: small pill at the panel's floating edge.
+ * Decorative — the actual dismiss is the drag-to-close gesture
+ * handled in pwa-install-hint.js. Centered horizontally via auto
+ * margins; flex-shrink: 0 keeps it from collapsing in the
+ * chrome-mode flex column. */
+.pwa-hint-sheet__grabber {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-border, #ede8e0);
+  margin: 0 auto 14px;
+  flex-shrink: 0;
 }
-.pwa-hint-sheet__close:active { background: var(--color-surface-alt, #fff9f0); color: var(--color-foreground, #2d2a26); }
 
 .pwa-hint-sheet__app {
   display: flex;
