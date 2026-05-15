@@ -118,6 +118,9 @@ html.pwa-hint-visible .writing__top,
 html.pwa-hint-visible .read__top {
   padding-top: calc(env(safe-area-inset-top, 0px) + 16px + 64px);
 }
+html.pwa-hint-visible .category-feed__head {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 80px + 64px);
+}
 
 /* ── Bottom-sheet ──────────────────────────────────────────────────── */
 
