@@ -295,12 +295,25 @@
   // ── Wire up ─────────────────────────────────────────────────────────
   navHome.addEventListener("click", () => showFeed());
 
-  // Welcome screen prompt: "Where are you?".
-  // On submit: register the place as a location (so it persists in
+  // Welcome screen prompt: randomly "Where are you?" or "Who are you?"
+  // on each load. The founder's typed answer still seeds the writing
+  // session's `location` anchor either way — the question is just a
+  // different door into the same flow.
+  // On submit: register the answer as a location (so it persists in
   // the sidebar) and spawn a writing session anchored there. Empty
   // submissions just re-focus the input.
   const welcomeForm = document.getElementById("welcome-form");
   const welcomeInput = document.getElementById("welcome-input");
+  const welcomeQuestionEl = document.querySelector("#welcome .welcome__question");
+  if (welcomeQuestionEl && welcomeInput) {
+    const prompts = [
+      { q: "Where are you?", placeholder: "A coffee shop, your kitchen, the back porch…" },
+      { q: "Who are you?", placeholder: "A founder, a parent, a tinkerer…" },
+    ];
+    const pick = prompts[Math.floor(Math.random() * prompts.length)];
+    welcomeQuestionEl.textContent = pick.q;
+    welcomeInput.setAttribute("placeholder", pick.placeholder);
+  }
   if (welcomeForm && welcomeInput) {
     welcomeForm.addEventListener("submit", (e) => {
       e.preventDefault();
