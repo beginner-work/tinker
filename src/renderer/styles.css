@@ -213,7 +213,7 @@ html.on-web .sidebar__top {
   left: 0;
   width: clamp(140px, 22vw, 220px);
   height: clamp(140px, 22vw, 220px);
-  background: var(--color-indigo);
+  background: var(--color-accent-strong);
   clip-path: polygon(0 0, 100% 0, 0 100%);
   pointer-events: none;
   z-index: 0;
