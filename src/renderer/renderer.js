@@ -295,12 +295,31 @@
   // ── Wire up ─────────────────────────────────────────────────────────
   navHome.addEventListener("click", () => showFeed());
 
-  // Welcome screen prompt: "Where are you?".
-  // On submit: register the place as a location (so it persists in
+  // Welcome screen: the H1 is the standing line ("Everyone is a
+  // founder."), and the actual question rotates inside the input's
+  // placeholder on each load — sometimes "Where are you?", sometimes
+  // "Who are you?". Either way the typed answer seeds the writing
+  // session's `location` anchor; the placeholder is just a different
+  // door into the same flow.
+  // On submit: register the answer as a location (so it persists in
   // the sidebar) and spawn a writing session anchored there. Empty
   // submissions just re-focus the input.
   const welcomeForm = document.getElementById("welcome-form");
   const welcomeInput = document.getElementById("welcome-input");
+  if (welcomeInput) {
+    const placeholders = ["Where are you?", "Who are you?"];
+    const FADE_MS = 360;
+    let i = Math.floor(Math.random() * placeholders.length);
+    welcomeInput.setAttribute("placeholder", placeholders[i]);
+    setInterval(() => {
+      welcomeInput.classList.add("welcome__input--fading");
+      setTimeout(() => {
+        i = (i + 1) % placeholders.length;
+        welcomeInput.setAttribute("placeholder", placeholders[i]);
+        welcomeInput.classList.remove("welcome__input--fading");
+      }, FADE_MS);
+    }, 5000);
+  }
   if (welcomeForm && welcomeInput) {
     welcomeForm.addEventListener("submit", (e) => {
       e.preventDefault();
