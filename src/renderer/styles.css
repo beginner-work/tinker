@@ -770,6 +770,29 @@ html.on-web .sidebar__top {
   display: flex;
   flex-direction: column;
   background: var(--color-background);
+  position: relative;
+}
+
+.read__delete {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 18px);
+  right: 24px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+  background: transparent;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.read__delete:hover {
+  background: rgba(196, 64, 64, 0.08);
+  color: #b23a3a;
 }
 
 .read__body {
@@ -1124,6 +1147,8 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   .writing__body { padding: 24px 16px 16px; }
   .writing__foot { padding: 14px 16px 18px; }
   .read__body { padding: 32px 18px 60px; }
+  .read__delete { top: calc(env(safe-area-inset-top, 0px) + 14px); right: 14px; padding: 0 8px; }
+  .read__delete span { display: none; }
   .category-feed__head { padding: 32px 18px 12px; }
   .category-feed__list { padding: 12px 18px 60px; }
   .category-feed__empty { padding: 8px 18px 60px; }

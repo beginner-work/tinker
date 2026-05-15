@@ -30,6 +30,7 @@
   const readView = $("#read");
   const homeListEl = $("#home-list");
   const readBody = $("#read-body");
+  const readDelete = $("#read-delete");
   const categoryFeedView = $("#category-feed");
   const categoryFeedTitle = $("#category-feed-title");
   const categoryFeedSub = $("#category-feed-sub");
@@ -66,6 +67,7 @@
   let drafts = loadDrafts();
   let essays = loadEssays();
   let activeId = null; // current draft id, or null when on the feed/read view
+  let readingEssayId = null; // currently opened essay in the read view, or null
 
   // Expose so writing.js can mutate the active draft's state.
   const store = {
@@ -86,6 +88,15 @@
       saveDrafts(drafts);
       if (activeId === id) showFeed();
       renderSidebar();
+    },
+    deleteEssay(id) {
+      const essay = essays.find((e) => e.id === id);
+      if (!essay) return null;
+      essays = essays.filter((e) => e.id !== id);
+      saveEssays(essays);
+      if (readingEssayId === id) showFeed();
+      renderHome();
+      return essay;
     },
     publish(draft, stitched) {
       const slug = slugify(draft.title || stitched.title || "untitled") + "-" + draft.id.slice(2, 6);
@@ -182,6 +193,7 @@
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     activeId = null;
+    readingEssayId = null;
     renderSidebar();
     renderHome();
     // Drop focus onto the welcome question so the founder can just
@@ -201,6 +213,7 @@
     readView.hidden = false;
     if (categoryFeedView) categoryFeedView.hidden = true;
     activeId = null;
+    readingEssayId = essay.id;
     renderSidebar();
     readBody.innerHTML =
       `<header class="read__head">` +
@@ -339,6 +352,17 @@
   if (window.tinkerSeeds && typeof window.tinkerSeeds.subscribe === "function") {
     window.tinkerSeeds.subscribe(() => {
       renderHome();
+    });
+  }
+
+  if (readDelete) {
+    readDelete.addEventListener("click", () => {
+      if (!readingEssayId) return;
+      const essay = essays.find((e) => e.id === readingEssayId);
+      if (!essay) return;
+      if (confirm(`Delete "${essay.title || "Untitled"}"? This can't be undone.`)) {
+        store.deleteEssay(essay.id);
+      }
     });
   }
 
