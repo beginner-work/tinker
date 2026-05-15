@@ -284,19 +284,20 @@ html.on-web .sidebar__top {
 }
 .welcome__pills[hidden] { display: none; }
 .welcome-pill {
+  --welcome-pill-bg: var(--color-surface-alt);
   display: inline-flex;
   align-items: stretch;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
-  background: var(--color-surface-alt);
+  background: var(--welcome-pill-bg);
   overflow: hidden;
   box-shadow: var(--shadow-card);
-  transition: border-color 0.12s ease, background 0.12s ease,
+  transition: border-color 0.12s ease, filter 0.12s ease,
               box-shadow 0.16s ease, transform 0.08s ease;
 }
 .welcome-pill:hover {
   border-color: var(--color-accent-strong);
-  background: var(--color-accent-dim);
+  filter: brightness(0.96);
   box-shadow: 0 6px 18px rgba(99, 102, 241, 0.12);
   transform: translateY(-1px);
 }
