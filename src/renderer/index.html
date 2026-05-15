@@ -361,8 +361,10 @@
         <!-- Chrome iOS variant: no URL-bar pre-tap (Chrome's three-dot
              menu sits at the top by default, and Share is a direct
              entry there). View more / Add to Home Screen split into
-             two beats so users don't miss the scroll inside Share. -->
-        <ol class="pwa-hint-sheet__steps pwa-hint-sheet__steps--chrome">
+             two beats so users don't miss the scroll inside Share.
+             Hidden by default — JS unhides it when CriOS is detected
+             and hides the default list at the same time. -->
+        <ol class="pwa-hint-sheet__steps pwa-hint-sheet__steps--chrome" hidden>
           <li>
             <span class="pwa-hint-sheet__num">1</span>
             <span class="pwa-hint-sheet__step-text">

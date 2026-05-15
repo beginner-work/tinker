@@ -202,8 +202,11 @@ html.pwa-hint-visible .read__top {
 /* Modifier: Chrome iOS variant. The sheet pulls down from the top,
  * the ball rolls across the top edge, and the steps slide to the
  * bottom near the user's thumb. Both step lists are stacked in the
- * DOM — show the chrome one, hide the default one. */
-.pwa-hint-sheet__steps--chrome { display: none; }
+ * DOM — show the chrome one, hide the default one. The selectors
+ * below chain both classes (specificity 0,2,0) so they beat the
+ * later-in-file `.pwa-hint-sheet__steps { display: flex }` base
+ * rule (0,1,0), which would otherwise win on source order. */
+.pwa-hint-sheet__steps.pwa-hint-sheet__steps--chrome { display: none; }
 .pwa-hint-sheet--chrome { align-items: flex-start; }
 .pwa-hint-sheet--chrome .pwa-hint-sheet__panel {
   border-radius: 0 0 20px 20px;
@@ -220,8 +223,8 @@ html.pwa-hint-visible .read__top {
    * `display: none`, which is how the sheet is shown/hidden. */
   animation: pwaHintPullDown 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
-.pwa-hint-sheet--chrome .pwa-hint-sheet__steps--default { display: none; }
-.pwa-hint-sheet--chrome .pwa-hint-sheet__steps--chrome { display: flex; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--default { display: none; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--chrome { display: flex; }
 /* Reorder so the app card stays at the top under the rolling globe
  * while the "Install the app" title slides down to sit directly
  * above the steps. The header's auto-margin eats the gap between

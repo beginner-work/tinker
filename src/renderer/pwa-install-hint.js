@@ -87,8 +87,16 @@
       // "Add to Home Screen" sits under "View more" inside Share. The
       // sheet pulls down from the top, ball rolls across the top, and
       // the now-three steps (Share → View more → Add to Home Screen)
-      // sit at the bottom near the user's thumb.
-      if (isIosChrome()) sheet.classList.add("pwa-hint-sheet--chrome");
+      // sit at the bottom near the user's thumb. We swap which steps
+      // list is `hidden` here too — that way visibility is JS-driven
+      // and immune to CSS specificity fights from base step rules.
+      if (isIosChrome()) {
+        sheet.classList.add("pwa-hint-sheet--chrome");
+        const defaultList = sheet.querySelector(".pwa-hint-sheet__steps--default");
+        const chromeList = sheet.querySelector(".pwa-hint-sheet__steps--chrome");
+        if (defaultList) defaultList.hidden = true;
+        if (chromeList) chromeList.hidden = false;
+      }
     }
 
     function showBanner() {
