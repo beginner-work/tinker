@@ -194,7 +194,7 @@
     const whereLabel = document.createElement("label");
     whereLabel.className = "writing-location__label";
     whereLabel.innerHTML =
-      `<span class="writing-location__pin" aria-hidden="true">📍</span>` +
+      `<img class="writing-location__pin" src="./icons/tinker-mark.svg" alt="" aria-hidden="true" />` +
       `<span>Where are you, physically?</span>`;
     card.appendChild(whereLabel);
 
@@ -338,7 +338,7 @@
       const parts = [];
       if (active.location) {
         parts.push(
-          `<div class="writing-recall__line"><span class="writing-recall__pin" aria-hidden="true">📍</span><span class="writing-recall__text">${escapeHtml(active.location)}</span></div>`
+          `<div class="writing-recall__line"><img class="writing-recall__pin" src="./icons/tinker-mark.svg" alt="" aria-hidden="true" /><span class="writing-recall__text">${escapeHtml(active.location)}</span></div>`
         );
       }
       if (active.facing) {
