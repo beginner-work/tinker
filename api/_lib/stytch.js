@@ -101,4 +101,26 @@ async function authenticateOtp(phoneId, code) {
   });
 }
 
-module.exports = { readEnv, baseUrlFor, sendSmsOtp, authenticateOtp };
+// Validate whatever bearer string the renderer is holding — long-lived
+// `session_token` (what we now hand out) or short-lived `session_jwt`
+// (legacy clients). Stytch accepts either at the same endpoint and
+// returns a fresh JWT each time, so the 5-minute JWT clock that used
+// to log people out after a reload is no longer the limiting factor.
+async function authenticateSession(bearer) {
+  if (!bearer || typeof bearer !== "string") {
+    throw Object.assign(new Error("Missing token."), { status: 401 });
+  }
+  const body = bearer.includes(".")
+    ? { session_jwt: bearer }
+    : { session_token: bearer };
+  try {
+    return await stytchPost("/v1/sessions/authenticate", body);
+  } catch (err) {
+    if (err.status && err.status >= 400 && err.status < 500) {
+      throw Object.assign(new Error("Session expired."), { status: 401 });
+    }
+    throw err;
+  }
+}
+
+module.exports = { readEnv, baseUrlFor, sendSmsOtp, authenticateOtp, authenticateSession };

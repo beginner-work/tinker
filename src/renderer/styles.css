@@ -33,6 +33,11 @@
 html, body {
   margin: 0;
   height: 100vh;
+  /* Dynamic viewport height matches the *actually visible* area on
+     iOS standalone PWAs, where 100vh otherwise resolves to the
+     largest viewport (home-indicator area included) and the welcome
+     form ends up sitting below the visual centre on initial load. */
+  height: 100dvh;
   overflow: hidden;
   font-family: var(--font-sans);
   color: var(--color-foreground);
@@ -57,11 +62,12 @@ input:focus, button:focus, textarea:focus { outline: none; }
 
 /* Sidebar now feels like the main screen — same background, same
    density. The parchment gradient is gone; the only separator is a
-   subtle right-border. The home-list (locations) lives here. */
+   subtle right-border. The home-list (seeds) lives here. */
 .sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--color-background);
@@ -69,6 +75,9 @@ input:focus, button:focus, textarea:focus { outline: none; }
   user-select: none;
   position: relative;
   -webkit-app-region: drag;
+  /* Keep the bottom rows (Receipts + footer) above the iOS home
+     indicator when running as an installed PWA / Capacitor app. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .sidebar__top {
@@ -88,13 +97,19 @@ html.on-web .sidebar__top {
   align-items: center;
   gap: 9px;
   padding: 4px 6px 4px 4px;
-  border-radius: 8px;
+  border-radius: 10px;
   -webkit-app-region: no-drag;
   cursor: pointer;
-  transition: background 0.15s ease;
   min-width: 0;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px) url(#liquid-glass) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 0;
+  box-shadow: none;
+  transition: background 0.2s ease, transform 0.15s ease;
 }
-.sidebar__brand:hover { background: var(--color-hover); }
+.sidebar__brand:hover { background: rgba(255, 255, 255, 0.16); }
+.sidebar__brand:active { transform: scale(0.985); }
 
 .sidebar__name {
   font-family: var(--font-display);
@@ -103,34 +118,6 @@ html.on-web .sidebar__top {
   letter-spacing: -0.005em;
   color: var(--color-foreground);
 }
-
-.sidebar__top-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  -webkit-app-region: no-drag;
-}
-
-/* Compose + add-location icon buttons. Plain icon, no text — matches
-   the channel-list density of the home rows beneath. */
-.sidebar__icon-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 0;
-  background: transparent;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--color-muted);
-  transition: background 0.12s ease, color 0.12s ease, transform 0.06s ease;
-}
-.sidebar__icon-btn:hover {
-  background: var(--color-hover);
-  color: var(--color-foreground);
-}
-.sidebar__icon-btn:active { transform: scale(0.94); }
 
 .sidebar__footer {
   padding: 10px 12px 14px;
@@ -144,9 +131,62 @@ html.on-web .sidebar__top {
 }
 .sidebar__footer-copy { padding: 0 6px; font-size: 12px; }
 
+.sidebar__account {
+  padding: 8px 8px 10px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+.sidebar__account-head {
+  margin: 0;
+  padding: 6px 10px 4px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.sidebar__account-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar__account-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.sidebar__account-item:hover { background: var(--color-hover); }
+.sidebar__account-icon { color: var(--color-muted); flex-shrink: 0; }
+.sidebar__account-flash {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--color-muted);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.sidebar__account-flash.is-visible { opacity: 1; }
+
 /* ── Welcome (empty state on main when no draft/read is active) ──── */
 
-.welcome {
+.stage > .welcome.feed[data-active] {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -159,7 +199,26 @@ html.on-web .sidebar__top {
      small screens) to land in the same visual neighbourhood. */
   padding: clamp(40px, 6vh, 64px) clamp(40px, 10vw, 96px);
   background: var(--color-background);
+  position: relative;
+  overflow: hidden;
 }
+/* Indigo right-triangle hugging the top-left corner of the welcome
+ * page. Sized large enough to fully encase the floating drawer-toggle
+ * (48px button at 12px inset) on mobile, while reading as a deliberate
+ * corner flag on desktop where the toggle is hidden. */
+.stage > .welcome.feed[data-active]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: clamp(140px, 22vw, 220px);
+  height: clamp(140px, 22vw, 220px);
+  background: var(--color-accent-strong);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+.welcome .welcome__inner { position: relative; z-index: 1; }
 .welcome__inner {
   display: flex;
   flex-direction: column;
@@ -173,6 +232,7 @@ html.on-web .sidebar__top {
   opacity: 0.85;
   margin-bottom: 4px;
 }
+.welcome__logo svg rect { display: none; }
 .welcome__question {
   margin: 0;
   font-family: var(--font-display);
@@ -181,6 +241,12 @@ html.on-web .sidebar__top {
   letter-spacing: -0.015em;
   color: var(--color-foreground);
   line-height: 1.25;
+}
+.welcome__sub {
+  margin: -4px 0 0;
+  font-size: 15px;
+  color: var(--color-muted);
+  line-height: 1.4;
 }
 .welcome__form {
   display: flex;
@@ -208,7 +274,11 @@ html.on-web .sidebar__top {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   min-width: 0;
 }
-.welcome__input::placeholder { color: var(--color-muted); }
+.welcome__input::placeholder {
+  color: var(--color-muted);
+  transition: color 360ms ease;
+}
+.welcome__input--fading::placeholder { color: transparent; }
 .welcome__input:focus {
   border-color: var(--color-accent-strong);
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
@@ -700,31 +770,15 @@ html.on-web .sidebar__top {
   display: flex;
   flex-direction: column;
   background: var(--color-background);
+  position: relative;
 }
-
-.read__top {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 18px 28px;
-  border-bottom: 1px solid rgba(237, 232, 224, 0.6);
-}
-.read__close {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px 0 8px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-foreground);
-  transition: background 0.15s ease;
-}
-.read__close:hover { background: rgba(45, 90, 61, 0.08); }
 
 .read__delete {
-  display: flex;
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 18px);
+  right: 24px;
+  z-index: 2;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 32px;
@@ -733,6 +787,7 @@ html.on-web .sidebar__top {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-muted);
+  background: transparent;
   transition: background 0.15s ease, color 0.15s ease;
 }
 .read__delete:hover {
@@ -740,24 +795,16 @@ html.on-web .sidebar__top {
   color: #b23a3a;
 }
 
-.read__url {
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 12px;
-  color: var(--color-muted);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .read__body {
+  width: 100%;
   max-width: 720px;
-  margin: 0 auto;
+  margin: 0;
   padding: 56px 32px 80px;
   font-family: var(--font-display);
   font-size: 18px;
   line-height: 1.75;
   color: var(--color-foreground);
+  text-align: left;
 }
 .read__head { margin-bottom: 24px; }
 .read__author {
@@ -777,6 +824,90 @@ html.on-web .sidebar__top {
   line-height: 1.2;
 }
 .read__body p { margin: 0 0 1em; }
+
+/* ── Category feed (seed → category landing page) ───────────────── */
+.category-feed[hidden] { display: none !important; }
+.category-feed {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-background);
+}
+.category-feed__head {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 32px 16px;
+}
+.category-feed__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--color-foreground);
+}
+.category-feed__sub {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--color-muted);
+}
+.category-feed__list {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px 32px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.category-feed__card {
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  font-family: var(--font-sans);
+}
+.category-feed__card:hover { background: var(--color-surface-alt); }
+.category-feed__card:active { transform: scale(0.99); }
+.category-feed__card-author {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-forest);
+}
+.category-feed__card-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--color-foreground);
+}
+.category-feed__card-body {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+.category-feed__card-body p { margin: 0 0 1em; }
+.category-feed__card-body p:last-child { margin-bottom: 0; }
+.category-feed__empty {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 32px 80px;
+  font-size: 14px;
+  color: var(--color-muted);
+  font-style: italic;
+}
 
 /* ── Auth gate (web only) ─────────────────────────────────────────── */
 /*
@@ -944,88 +1075,6 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   text-align: center;
 }
 
-/* ── Welcome card (first-sign-in modal) ──────────────────────────── */
-.welcome-card {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-/* The class rule above sets display:flex, which outranks the HTML
-   `hidden` attribute's default display:none. Without this explicit
-   override, setting card.hidden = true from JS doesn't actually hide
-   anything — that was the 'dismiss button doesn't work' bug. */
-.welcome-card[hidden] { display: none; }
-.welcome-card__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(45, 42, 38, 0.45);
-  backdrop-filter: blur(3px);
-  cursor: pointer;
-}
-.welcome-card__panel {
-  position: relative;
-  z-index: 1;  /* keep above the absolutely-positioned backdrop sibling */
-  width: 100%;
-  max-width: 440px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 18px;
-  box-shadow: 0 24px 80px rgba(45, 42, 38, 0.25);
-  padding: 28px 26px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  animation: welcome-card-in 0.22s ease;
-}
-@keyframes welcome-card-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-.welcome-card__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
-  color: var(--color-foreground);
-}
-.welcome-card__body {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--color-foreground);
-}
-.welcome-card__sig {
-  margin: 0;
-  font-size: 14px;
-  font-style: italic;
-  color: var(--color-muted);
-}
-.welcome-card__btn {
-  margin-top: 6px;
-  padding: 12px 18px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--color-accent-strong);
-  color: #fff;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.06s ease;
-}
-.welcome-card__btn:hover { background: #4f46e5; }
-.welcome-card__btn:active { transform: scale(0.98); }
-.welcome-card__btn:focus-visible {
-  outline: 3px solid rgba(99, 102, 241, 0.35);
-  outline-offset: 3px;
-}
-
 @media (min-width: 540px) {
   .auth-gate { align-items: center; }
   .auth-gate__inner {
@@ -1084,6 +1133,7 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   .sidebar__home span,
   .sidebar__label,
   .sidebar__footer,
+  .sidebar__account,
   .session__title,
   .session__close { display: none; }
   .sidebar__new, .sidebar__home {
@@ -1093,26 +1143,31 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   }
   .session { padding: 8px; justify-content: center; }
   .feed { padding: 16px 14px 56px; }
-  .writing__top, .read__top { padding: 14px 16px; }
+  .writing__top { padding: 14px 16px; }
   .writing__body { padding: 24px 16px 16px; }
   .writing__foot { padding: 14px 16px 18px; }
   .read__body { padding: 32px 18px 60px; }
+  .read__delete { top: calc(env(safe-area-inset-top, 0px) + 14px); right: 14px; padding: 0 8px; }
   .read__delete span { display: none; }
-  .read__delete { padding: 0 8px; }
+  .category-feed__head { padding: 32px 18px 12px; }
+  .category-feed__list { padding: 12px 18px 60px; }
+  .category-feed__empty { padding: 8px 18px 60px; }
+  .category-feed__title { font-size: 28px; }
 }
 
-/* ── Location pre-prompt (Instagram tag-style head, regular textarea) ── */
-.writing-location__head {
+/* ── Seed pre-prompt (Instagram tag-style head, regular textarea) ── */
+.writing-seed__head {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.writing-location__pin {
-  font-size: 28px;
-  line-height: 1;
+.writing-seed__pin {
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
+  display: block;
 }
-.writing-location__skip {
+.writing-seed__skip {
   align-self: flex-start;
   background: none;
   border: 0;
@@ -1125,8 +1180,8 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.writing-location__skip:hover { color: var(--color-foreground); }
-.writing-location__label {
+.writing-seed__skip:hover { color: var(--color-foreground); }
+.writing-seed__label {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1137,7 +1192,7 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   color: var(--color-foreground);
   margin: 8px 0 -8px;
 }
-.writing-location__input {
+.writing-seed__input {
   min-height: 0;
   height: auto;
   padding: 14px 16px;
@@ -1145,9 +1200,9 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   line-height: 1.4;
   resize: none;
 }
-.writing-location__label .writing-location__pin {
-  font-size: 20px;
-  line-height: 1;
+.writing-seed__label .writing-seed__pin {
+  width: 20px;
+  height: 20px;
 }
 
 .writing-recall {
@@ -1167,10 +1222,11 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   gap: 8px;
 }
 .writing-recall__pin {
-  font-size: 16px;
-  line-height: 1.4;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
-  font-style: normal;
+  margin-top: 3px;
+  display: block;
 }
 .writing-recall__label {
   font-style: normal;
@@ -1353,12 +1409,12 @@ html.txn-modal-open { overflow: hidden; }
   .txn-modal__item-category { display: none; }
 }
 
-/* ── Home view (locations list) ──────────────────────────────────────
+/* ── Home view (seeds list) ──────────────────────────────────────────
  *
  * Light theme — tinker palette. Top bar pattern mirrors Claude Code
  * mobile (☰ on the left, title in the middle, + on the right) but
  * styled to fit the rest of the app. No filter chips on this view;
- * the list is a simple time-grouped feed of previous locations.
+ * the list is a simple time-grouped feed of previous seeds.
  */
 
 #welcome.feed[data-active] {
@@ -1458,37 +1514,7 @@ html.txn-modal-open { overflow: hidden; }
   0%, 100% { opacity: 0.55; }
   50%      { opacity: 0.9; }
 }
-.home-list__empty {
-  margin: 28px 4px;
-  padding: 28px 22px;
-  background: var(--color-surface);
-  border: 1px dashed var(--color-border);
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 6px;
-}
-.home-list__empty-title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-foreground);
-}
-.home-list__empty-sub {
-  margin: 0;
-  font-size: 14px;
-  color: var(--color-muted);
-  max-width: 360px;
-  line-height: 1.55;
-}
-.home-list__empty-sub strong {
-  font-weight: 700;
-  color: var(--color-accent-strong);
-}
-/* Location card */
+/* Seed card */
 .home-card {
   display: grid;
   grid-template-columns: 22px 1fr;
@@ -1517,7 +1543,7 @@ html.txn-modal-open { overflow: hidden; }
   color: #2d2a26;
   flex-shrink: 0;
 }
-/* Body stacks the location name above the writing title (when one
+/* Body stacks the seed name above the writing title (when one
    exists). Single-line row when no writing is anchored yet. */
 .home-card__body {
   display: flex;
@@ -1551,8 +1577,8 @@ html.txn-modal-open { overflow: hidden; }
   color: var(--color-muted);
 }
 
-/* ── Add-location modal (light, tinker-styled) ──────────────────────── */
-.loc-modal {
+/* ── Add-seed modal (light, tinker-styled) ──────────────────────── */
+.seed-modal {
   position: fixed;
   inset: 0;
   z-index: 110;
@@ -1561,13 +1587,13 @@ html.txn-modal-open { overflow: hidden; }
   justify-content: center;
   padding: 24px;
 }
-.loc-modal__backdrop {
+.seed-modal__backdrop {
   position: absolute;
   inset: 0;
   background: rgba(45, 42, 38, 0.45);
   backdrop-filter: blur(2px);
 }
-.loc-modal__card {
+.seed-modal__card {
   position: relative;
   width: 100%;
   max-width: 440px;
@@ -1580,13 +1606,13 @@ html.txn-modal-open { overflow: hidden; }
   flex-direction: column;
   gap: 12px;
 }
-.loc-modal__head {
+.seed-modal__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
-.loc-modal__title {
+.seed-modal__title {
   margin: 0;
   font-family: var(--font-display);
   font-size: 20px;
@@ -1594,7 +1620,7 @@ html.txn-modal-open { overflow: hidden; }
   letter-spacing: -0.01em;
   color: var(--color-foreground);
 }
-.loc-modal__close {
+.seed-modal__close {
   background: none;
   border: 0;
   font-size: 24px;
@@ -1604,14 +1630,14 @@ html.txn-modal-open { overflow: hidden; }
   padding: 4px 8px;
   border-radius: 8px;
 }
-.loc-modal__close:hover { background: var(--color-hover); }
-.loc-modal__sub {
+.seed-modal__close:hover { background: var(--color-hover); }
+.seed-modal__sub {
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
   color: var(--color-muted);
 }
-.loc-modal__input {
+.seed-modal__input {
   width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--color-border);
@@ -1622,20 +1648,20 @@ html.txn-modal-open { overflow: hidden; }
   color: var(--color-foreground);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.loc-modal__input:focus {
+.seed-modal__input:focus {
   border-color: var(--color-accent-strong);
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
   outline: none;
 }
-.loc-modal__msg { font-size: 12px; min-height: 1em; }
-.loc-modal__msg[data-kind="err"] { color: #b03a2e; }
-.loc-modal__actions {
+.seed-modal__msg { font-size: 12px; min-height: 1em; }
+.seed-modal__msg[data-kind="err"] { color: #b03a2e; }
+.seed-modal__actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
 }
-.loc-modal__btn {
+.seed-modal__btn {
   padding: 9px 16px;
   border-radius: 999px;
   border: 1px solid var(--color-border);
@@ -1647,11 +1673,12 @@ html.txn-modal-open { overflow: hidden; }
   cursor: pointer;
   transition: background 0.12s ease;
 }
-.loc-modal__btn:hover { background: var(--color-border); }
-.loc-modal__btn--primary {
+.seed-modal__btn:hover { background: var(--color-border); }
+.seed-modal__btn--primary {
   background: var(--color-accent-strong);
   border-color: transparent;
   color: #fff;
 }
-.loc-modal__btn--primary:hover { background: #4f46e5; }
-html.loc-modal-open { overflow: hidden; }
+.seed-modal__btn--primary:hover { background: #4f46e5; }
+html.seed-modal-open { overflow: hidden; }
+

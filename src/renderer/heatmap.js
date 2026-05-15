@@ -1,8 +1,8 @@
-/* tinker — home location list, grouped by a Claude-managed taxonomy
+/* tinker — home seed list, grouped by a Claude-managed taxonomy
  *
- * Each location is one card. Cards are grouped under a category Claude
+ * Each seed is one card. Cards are grouped under a category Claude
  * picks from a *growing* taxonomy — the categories are not a fixed
- * list. Each time a new location (or a location with new writing)
+ * list. Each time a new seed (or a seed with new writing)
  * needs placing, Claude either:
  *   1. Fits it under an existing category, OR
  *   2. Nests it under an existing top-level as a more specific
@@ -11,54 +11,71 @@
  *
  * Stored at localStorage["tinker.taxonomy.v1"] as:
  *   {
- *     taxonomy:  { [normKey]: { name, description, parent: normKey | null } },
- *     locations: { [locKey]: { path: [normKey, normKey?], fp: contentHash } }
+ *     taxonomy: { [normKey]: { name, description, parent: normKey | null } },
+ *     seeds:    { [seedKey]: { path: [normKey, normKey?], fp: contentHash } }
  *   }
  *
  * Public API:
  *   window.tinkerHeatmap.render(mountEl)
  *
- * Module name is historical (heatmap → merchant cards → locations).
+ * Module name is historical (heatmap → merchant cards → seeds).
  */
 
 (() => {
   "use strict";
 
   // Tinker rainbow palette — avatar colour is picked deterministically
-  // from the location's normalised name so re-renders stay stable.
+  // from the seed's normalised name so re-renders stay stable.
   const PALETTE = ["#F9A8D4", "#FDBA74", "#FDE68A", "#7BC47A", "#7DD3FC", "#C8B6E2", "#6EE7B7"];
 
   const TAXONOMY_KEY = "tinker.taxonomy.v1";
   const UNSORTED_KEY = "unsorted";
+  // One-time purge flag for the legacy bug where classifier failures
+  // persisted UNSORTED with the live fingerprint and froze the seed
+  // there forever. Once cleared per browser, future legitimate UNSORTED
+  // placements (from the path-validation fallback when Claude returns
+  // invalid paths) are left alone.
+  const UNSTUCK_FLAG_KEY = "tinker.taxonomy.unstuck_legacy.v1";
 
   function loadState() {
     try {
       const raw = localStorage.getItem(TAXONOMY_KEY);
-      if (!raw) return { taxonomy: {}, locations: {} };
+      if (!raw) return { taxonomy: {}, seeds: {} };
       const parsed = JSON.parse(raw);
       const taxonomy = (parsed && typeof parsed.taxonomy === "object" && parsed.taxonomy) || {};
-      const rawLocations = (parsed && typeof parsed.locations === "object" && parsed.locations) || {};
+      const rawSeeds = (parsed && typeof parsed.seeds === "object" && parsed.seeds) || {};
+      const dropStuckUnsorted = !localStorage.getItem(UNSTUCK_FLAG_KEY);
       // Silent migration: older entries used { path: [...] } singular.
       // Wrap into { paths: [[...]] } so callers only need to handle
       // the new shape.
-      const locations = {};
-      for (const [k, v] of Object.entries(rawLocations)) {
+      const seeds = {};
+      for (const [k, v] of Object.entries(rawSeeds)) {
         if (!v || typeof v !== "object") continue;
-        if (Array.isArray(v.paths) && v.paths.length) {
-          locations[k] = { paths: v.paths, fp: v.fp || null };
-        } else if (Array.isArray(v.path) && v.path.length) {
-          locations[k] = { paths: [v.path], fp: v.fp || null };
+        const rawPaths = Array.isArray(v.paths) && v.paths.length
+          ? v.paths
+          : (Array.isArray(v.path) && v.path.length ? [v.path] : null);
+        if (!rawPaths) continue;
+        if (dropStuckUnsorted) {
+          const onlyUnsorted = rawPaths.length === 1
+            && Array.isArray(rawPaths[0])
+            && rawPaths[0].length === 1
+            && rawPaths[0][0] === UNSORTED_KEY;
+          if (onlyUnsorted) continue;
         }
+        seeds[k] = { paths: rawPaths, fp: v.fp || null };
       }
-      return { taxonomy, locations };
-    } catch { return { taxonomy: {}, locations: {} }; }
+      if (dropStuckUnsorted) {
+        try { localStorage.setItem(UNSTUCK_FLAG_KEY, "1"); } catch { /* ignore */ }
+      }
+      return { taxonomy, seeds };
+    } catch { return { taxonomy: {}, seeds: {} }; }
   }
 
   // Strip any path whose prefix is fully contained in a longer path
-  // returned for the same location — Claude is told not to do this,
+  // returned for the same seed — Claude is told not to do this,
   // but we defend against it. Also dedupe exact duplicates.
   function dedupePaths(paths) {
-    const sigs = paths.map((p) => p.join(""));
+    const sigs = paths.map((p) => p.join(""));
     const keep = [];
     for (let i = 0; i < paths.length; i++) {
       const sig = sigs[i];
@@ -81,7 +98,7 @@
   }
 
   // Cheap stable hash over the joined content snippets — re-classify
-  // only when the founder's writing at this location has actually
+  // only when the founder's writing at this seed has actually
   // changed since we last asked Claude.
   function fingerprintContent(snippets) {
     if (!snippets || !snippets.length) return "_empty";
@@ -117,10 +134,16 @@
 
   // ── Classifier ─────────────────────────────────────────────────────
   let classifying = false;
+  // In-memory backoff so a failing classifier (e.g. missing server-side
+  // API key, expired JWT) doesn't fire on every re-render. Cleared by a
+  // page reload, which is enough recovery in practice.
+  let classifyCooldownUntil = 0;
+  const CLASSIFY_RETRY_MS = 60_000;
 
   async function classifyUncategorized(items, state) {
     if (classifying) return;
     if (!items.length) return;
+    if (Date.now() < classifyCooldownUntil) return;
     if (!window.tinker || typeof window.tinker.callClaude !== "function") return;
 
     classifying = true;
@@ -136,41 +159,41 @@
               : "";
             return `- "${c.name}"${parentName}: ${c.description || ""}`;
           }).join("\n")
-        : "(none yet — the first location placed will need a brand-new top-level category)";
+        : "(none yet — the first seed placed will need a brand-new top-level category)";
 
-      const locationBlocks = items.map((loc) => {
-        const snippets = (loc.contentSnippets || []).filter(Boolean).slice(-3);
+      const seedBlocks = items.map((seed) => {
+        const snippets = (seed.contentSnippets || []).filter(Boolean).slice(-3);
         const body = snippets.length
           ? snippets.map((s) => "  - " + String(s).replace(/\s+/g, " ").trim().slice(0, 220)).join("\n")
           : "  (no writing yet — place using the name as the only hint)";
-        return `# ${loc.name}\n${body}`;
+        return `# ${seed.name}\n${body}`;
       }).join("\n\n");
 
       const system = [
-        "You manage a founder's growing taxonomy of learning categories. Each location they reflect from is placed into the taxonomy based on what they've written there.",
+        "You manage a founder's growing taxonomy of learning categories. Each seed they reflect from is placed into the taxonomy based on what they've written there.",
         "",
-        "A single location may contain MULTIPLE distinct topics across sessions — return one path per topic. Don't collapse genuinely different topics into one path just to keep things tidy.",
+        "A single seed may contain MULTIPLE distinct topics across sessions — return one path per topic. Don't collapse genuinely different topics into one path just to keep things tidy.",
         "",
         "For each path, decide:",
         "  A) It fits an existing top-level category → path: [Top].",
         "  B) It's a distinct, more specific angle of an existing top-level → path: [Top, NewChild]. Add the child to newCategories with parent set to Top.",
         "  C) It's distinctly different from everything existing → path: [NewTop]. Add NewTop to newCategories with parent: null.",
         "",
-        "When a single location's topics RELATE to each other (different facets of a shared concern), nest them as siblings under a shared parent. This is how one location 'encompasses' multiple topics — both child paths share the same Top, so the parent names the larger thread the location is part of.",
+        "When a single seed's topics RELATE to each other (different facets of a shared concern), nest them as siblings under a shared parent. This is how one seed 'encompasses' multiple topics — both child paths share the same Top, so the parent names the larger thread the seed is part of.",
         "",
         "Rules:",
         "- Strongly prefer A. Create new categories only when the writing genuinely doesn't fit.",
         "- Category names: 2-5 words, title case, identity-aware (e.g. 'Customer learning', 'Solo making', 'Operational chores'). Concrete, not generic.",
         "- Descriptions: EXACTLY 4 words. Tight noun phrase, observational, no advice tone. Examples: 'Specific layout and structure', 'Time near real customers', 'Money out the door'. Never more than 4 words.",
         "- Max nesting depth is 2 (top + one sub). Never propose a 3-level path.",
-        "- Don't return both [Top] and [Top, Child] for the same location — keep the more specific one only.",
+        "- Don't return both [Top] and [Top, Child] for the same seed — keep the more specific one only.",
         "",
         "Output ONLY this JSON shape — no prose, no preamble, no code fences:",
-        '{ "assignments": { "<location name>": [ ["Top"] or ["Top","Child"], ... ] },',
+        '{ "assignments": { "<seed name>": [ ["Top"] or ["Top","Child"], ... ] },',
         '  "newCategories": [ { "name": "...", "description": "...", "parent": "<existing top> or null" } ] }',
       ].join("\n");
 
-      const userMessage = `Existing taxonomy:\n${taxonomyText}\n\nLocations to place:\n\n${locationBlocks}`;
+      const userMessage = `Existing taxonomy:\n${taxonomyText}\n\nSeeds to place:\n\n${seedBlocks}`;
 
       const result = await window.tinker.callClaude({
         system,
@@ -205,7 +228,7 @@
       //    assignment but didn't declare in newCategories. Common
       //    failure mode: the model emits a new category name in a path
       //    and forgets the parallel entry in newCategories. Without
-      //    this, every such path is filtered out and the location
+      //    this, every such path is filtered out and the seed
       //    falls back to Unsorted — exactly the "generative sorting
       //    isn't working" symptom.
       for (const claim of Object.values(assignments)) {
@@ -232,11 +255,11 @@
         if (cat.parent && !state.taxonomy[cat.parent]) cat.parent = null;
       }
 
-      // 4. Place each location into one or more paths.
-      //    Multiple paths capture multi-topic locations — the same
+      // 4. Place each seed into one or more paths.
+      //    Multiple paths capture multi-topic seeds — the same
       //    card will appear under each leaf section.
-      for (const loc of items) {
-        const claimed = assignments[loc.name];
+      for (const seed of items) {
+        const claimed = assignments[seed.name];
         // Accept either the new shape ([["Top"],["Top","Child"]]) or
         // the older single-path shape (["Top"]) so we tolerate the
         // model occasionally collapsing back to a single path.
@@ -249,28 +272,25 @@
           .map((p) => (Array.isArray(p) ? p.map(normCat).filter((k) => state.taxonomy[k]) : []))
           .filter((p) => p.length > 0);
         const deduped = dedupePaths(paths);
-        const fp = fingerprintContent(loc.contentSnippets || []);
+        const fp = fingerprintContent(seed.contentSnippets || []);
         if (deduped.length === 0) {
           ensureUnsorted(state);
-          state.locations[loc.key] = { paths: [[UNSORTED_KEY]], fp };
+          state.seeds[seed.key] = { paths: [[UNSORTED_KEY]], fp };
         } else {
-          state.locations[loc.key] = { paths: deduped, fp };
+          state.seeds[seed.key] = { paths: deduped, fp };
         }
       }
 
       saveState(state);
-    } catch {
-      // Network / parse failure — assign everything to Unsorted so the
-      // UI settles instead of spinning. Founder can prompt a retry by
-      // adding more writing (changes the fingerprint).
-      ensureUnsorted(state);
-      for (const loc of items) {
-        state.locations[loc.key] = {
-          paths: [[UNSORTED_KEY]],
-          fp: fingerprintContent(loc.contentSnippets || []),
-        };
-      }
-      saveState(state);
+    } catch (err) {
+      // Network / parse / upstream failure. Don't persist a placement —
+      // the items stay in the PENDING bucket so a future render retries
+      // once the underlying issue (missing API key, expired JWT, transient
+      // 5xx) clears. Persisting UNSORTED here used to freeze classification
+      // permanently because the fingerprint matched on every subsequent
+      // render. Backoff to avoid hammering the API while it's still down.
+      classifyCooldownUntil = Date.now() + CLASSIFY_RETRY_MS;
+      try { console.error("[tinker] seed classification failed:", err); } catch { /* ignore */ }
     } finally {
       classifying = false;
       const mount = document.getElementById("home-list");
@@ -290,57 +310,70 @@
   // Trim descriptions to four words at render time so legacy entries
   // already in localStorage (Claude used to be asked for 8-15 words)
   // line up with the new four-word format without a migration step.
+  // If the cut lands on a dangling function word ("Lessons about sharing and"),
+  // drop it so the subtitle reads as a complete phrase.
+  const TRAILING_STOP_WORDS = new Set([
+    "and", "or", "but", "nor", "yet", "so", "for",
+    "a", "an", "the",
+    "of", "in", "on", "at", "by", "to", "with", "from", "into", "onto", "about",
+    "as", "if", "than", "that", "which",
+    "my", "your", "our", "their", "his", "her", "its",
+  ]);
   function shortDescription(s) {
     const words = String(s || "").trim().split(/\s+/).filter(Boolean);
-    if (words.length <= 4) return words.join(" ");
-    return words.slice(0, 4).join(" ");
+    const truncated = words.slice(0, 4);
+    while (truncated.length > 1) {
+      const tail = truncated[truncated.length - 1].toLowerCase().replace(/[.,;:!?]+$/, "");
+      if (!TRAILING_STOP_WORDS.has(tail)) break;
+      truncated.pop();
+    }
+    return truncated.join(" ");
   }
 
   // ── Rendering ──────────────────────────────────────────────────────
   function render(mountEl) {
     if (!mountEl) return { all: 0 };
-    const locations = (window.tinkerLocations && typeof window.tinkerLocations.list === "function")
-      ? window.tinkerLocations.list()
+    const seeds = (window.tinkerSeeds && typeof window.tinkerSeeds.list === "function")
+      ? window.tinkerSeeds.list()
       : [];
 
     mountEl.innerHTML = "";
 
-    if (locations.length === 0) {
-      mountEl.appendChild(renderEmpty());
+    if (seeds.length === 0) {
       return { all: 0 };
     }
 
     const state = loadState();
     const PENDING = "__pending__";
 
-    // Two buckets per location now (no more AWAITING):
+    // Two buckets per seed now (no more AWAITING):
     //   1. PENDING — no cached placement yet, OR content fingerprint
     //      shifted, OR cached path references a category that's
     //      since been removed. Eager classification handles these.
     //   2. Categorised — has a valid path. Grouped by leaf category.
-    // Locations without any writing still classify eagerly from their
+    // Seeds without any writing still classify eagerly from their
     // name alone (the classifier is happy with name-only input).
     const groups = new Map();
-    for (const loc of locations) {
-      const stored = state.locations[loc.key];
-      const currentFp = fingerprintContent(loc.contentSnippets || []);
+    for (const seed of seeds) {
+      const stored = state.seeds[seed.key];
+      const currentFp = fingerprintContent(seed.contentSnippets || []);
       const pathsValid = stored && Array.isArray(stored.paths) && stored.paths.length
         && stored.paths.every((p) => Array.isArray(p) && p.length && p.every((seg) => state.taxonomy[seg]));
       const fpMatches = stored && stored.fp === currentFp;
 
       if (!pathsValid || !fpMatches) {
         if (!groups.has(PENDING)) groups.set(PENDING, { items: [], path: null });
-        groups.get(PENDING).items.push(loc);
+        groups.get(PENDING).items.push(seed);
         continue;
       }
 
-      // A location can hold multiple topic paths — surface the card
+      // A seed can hold multiple topic paths — surface the card
       // under each leaf so a multi-topic place shows up in every
       // category it touches.
       for (const path of stored.paths) {
         const leaf = path[path.length - 1];
         if (!groups.has(leaf)) groups.set(leaf, { items: [], path });
-        groups.get(leaf).items.push(loc);
+        groups.get(leaf).items.push(seed);
       }
     }
 
@@ -384,7 +417,7 @@
       }
       section.appendChild(head);
 
-      for (const loc of group.items) section.appendChild(renderCard(loc));
+      for (const seed of group.items) section.appendChild(renderCard(seed));
       mountEl.appendChild(section);
     }
 
@@ -394,42 +427,32 @@
       setTimeout(() => classifyUncategorized(pendingItems, state), 50);
     }
 
-    return { all: locations.length };
+    return { all: seeds.length };
   }
 
   // Build a sortable key so top-level categories come first alphabetically,
   // and a sub-category always sits directly under its parent. Format:
-  // "<top-level-name><child-name>" — the low-byte separator ensures
+  // "<top-level-name><child-name>" — the low-byte separator ensures
   // parent rows ("Customer learning") precede their children ("Customer
-  // learningFounder–customer alignment") in localeCompare.
+  // learningFounder–customer alignment") in localeCompare.
   function sectionRank(path, state) {
     if (!path || !path.length) return "￿";
     const topName = state.taxonomy[path[0]]?.name || path[0];
     const leafName = path.length > 1 ? (state.taxonomy[path[path.length - 1]]?.name || path[path.length - 1]) : "";
-    return leafName ? `${topName}${leafName}` : topName;
-  }
-
-  function renderEmpty() {
-    const empty = document.createElement("div");
-    empty.className = "home-list__empty";
-    empty.innerHTML = `
-      <p class="home-list__empty-title">No locations yet.</p>
-      <p class="home-list__empty-sub">Tap the <strong>+</strong> above to add a place you reflect from. Claude will sort each one into a category once you've written there — and the categories will grow with you.</p>
-    `;
-    return empty;
+    return leafName ? `${topName}${leafName}` : topName;
   }
 
   // Layout the row as a Slack-style channel: avatar + name on top,
   // and (when one exists) the title of the most recent writing
-  // produced at this location stacked below. The "last used" line is
+  // produced at this seed stacked below. The "last used" line is
   // gone — the writing title carries that signal more usefully.
-  function renderCard(loc) {
+  function renderCard(seed) {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "home-card";
 
-    const colour = PALETTE[hashSlot(loc.key, PALETTE.length)];
-    const writing = loc.latestWriting && loc.latestWriting.title ? loc.latestWriting : null;
+    const colour = PALETTE[hashSlot(seed.key, PALETTE.length)];
+    const writing = seed.latestWriting && seed.latestWriting.title ? seed.latestWriting : null;
     if (writing) card.classList.add("home-card--has-writing");
 
     const subline = writing
@@ -437,21 +460,34 @@
       : "";
 
     card.innerHTML =
-      `<span class="home-card__avatar" aria-hidden="true" style="background:${colour}">${escapeHtml(initialOf(loc.name))}</span>` +
+      `<span class="home-card__avatar" aria-hidden="true" style="background:${colour}">${escapeHtml(initialOf(seed.name))}</span>` +
       `<span class="home-card__body">` +
-        `<span class="home-card__name">${escapeHtml(loc.name)}</span>` +
+        `<span class="home-card__name">${escapeHtml(seed.name)}</span>` +
         subline +
       `</span>`;
 
-    card.addEventListener("click", () => openLocation(loc));
+    card.addEventListener("click", () => openSeed(seed));
     return card;
   }
 
-  // Tap routing: if a writing piece already exists at this location,
-  // open it (read view for essays, resume for drafts). Otherwise spin
-  // up a fresh session anchored at the location.
-  function openLocation(loc) {
-    const w = loc.latestWriting;
+  // Tap routing: prefer the seed's category feed (lists all essays
+  // sharing the same leaf category). Falls back to opening the in-
+  // progress draft, or spinning up a fresh session, when there's no
+  // category placement or no essays to show yet.
+  function openSeed(seed) {
+    const state = loadState();
+    const stored = state.seeds[seed.key];
+    const path = stored && Array.isArray(stored.paths) && stored.paths[0];
+    const leaf = path && path.length ? path[path.length - 1] : null;
+    if (leaf && state.taxonomy[leaf]) {
+      const feed = buildCategoryFeed(leaf, state);
+      if (feed && feed.essays.length && typeof window.tinkerShowCategoryFeed === "function") {
+        window.tinkerShowCategoryFeed(leaf);
+        return;
+      }
+    }
+
+    const w = seed.latestWriting;
     if (w && w.type === "essay" && typeof window.tinkerOpenEssay === "function") {
       window.tinkerOpenEssay(w.id);
       return;
@@ -461,9 +497,67 @@
       return;
     }
     if (typeof window.tinkerNewSession === "function") {
-      window.tinkerNewSession({ location: loc.name });
+      window.tinkerNewSession({ seed: seed.name });
     }
   }
 
-  window.tinkerHeatmap = { render };
+  // Public-facing: gather every published essay whose seed belongs
+  // to a path ending in `categoryKey`. Used by the category feed view
+  // in renderer.js.
+  function getCategoryFeed(categoryKey) {
+    return buildCategoryFeed(categoryKey, loadState());
+  }
+
+  // Public-facing: leaf category key for a seed name, or null when
+  // the seed hasn't been classified yet. Used by the publish flow
+  // so a freshly published essay can land on its category feed.
+  function getCategoryKeyForSeed(seedName) {
+    if (!seedName) return null;
+    const state = loadState();
+    const stored = state.seeds[normCat(seedName)];
+    const path = stored && Array.isArray(stored.paths) && stored.paths[0];
+    return path && path.length ? path[path.length - 1] : null;
+  }
+
+  function buildCategoryFeed(categoryKey, state) {
+    const cat = state.taxonomy[categoryKey];
+    if (!cat) return null;
+
+    let allEssays = [];
+    try {
+      const raw = localStorage.getItem("tinker.essays.v1");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) allEssays = parsed;
+      }
+    } catch { /* ignore */ }
+
+    const items = [];
+    for (const essay of allEssays) {
+      if (!essay || !essay.seed) continue;
+      const seedKey = normCat(essay.seed);
+      const stored = state.seeds[seedKey];
+      if (!stored || !Array.isArray(stored.paths)) continue;
+      const matches = stored.paths.some((p) => Array.isArray(p) && p.length && p[p.length - 1] === categoryKey);
+      if (matches) items.push(essay);
+    }
+
+    items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    return {
+      key: categoryKey,
+      name: cat.name,
+      description: shortDescription(cat.description || ""),
+      essays: items,
+    };
+  }
+
+  // Same deterministic rainbow used by the home cards' avatars — exposed
+  // so other surfaces (e.g. the welcome pills) can colour-match a
+  // seed to its sidebar identity.
+  function colorFor(key) {
+    return PALETTE[hashSlot(String(key || ""), PALETTE.length)];
+  }
+
+  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForSeed, colorFor };
 })();
