@@ -179,10 +179,57 @@ html.pwa-hint-visible .read__top {
   100% { left: 100%;  transform: rotate(720deg); }
 }
 
+/* Pixel-art Scottish fold cat pushing the globe. Sized smaller than
+ * the globe so the cat appears to be at ground level, with its
+ * extended front paw lining up with the globe's lower-left arc.
+ * Crisp 1:1 pixel scaling preserves the chunky pixel-art look at
+ * any device pixel ratio. */
+.pwa-hint-sheet__cat {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  width: 64px;
+  height: 52px;
+  pointer-events: none;
+  /* Same 6s crossing as the globe so the pair never drifts apart.
+   * The static x-offset lives inside the bob keyframes (any value
+   * applied to `transform` here would be overwritten by the
+   * animation), parking the cat just to the left of the globe with
+   * a few pixels of paw overlap. The bob runs at a separate cadence
+   * to suggest a walking gait independent of the long crossing. */
+  animation:
+    pwaHintCatRoll 6s linear infinite,
+    pwaHintCatBob 600ms steps(2, jump-none) infinite;
+}
+.pwa-hint-sheet__cat svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+@keyframes pwaHintCatRoll {
+  0%   { left: -90px; }
+  100% { left: 100%; }
+}
+@keyframes pwaHintCatBob {
+  /* translateX keeps the cat ~56px left of the globe's `left`
+   * position throughout. translateY toggles between 0 and -1px to
+   * sell the walking gait without smearing the pixel grid. */
+  0%   { transform: translate(-56px, 0); }
+  50%  { transform: translate(-56px, -1px); }
+  100% { transform: translate(-56px, 0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pwa-hint-sheet__globe {
     animation: none;
     left: calc(100% - 96px);
+  }
+  .pwa-hint-sheet__cat {
+    animation: none;
+    left: calc(100% - 96px);
+    transform: translateX(-56px);
   }
   .pwa-hint-sheet--chrome .pwa-hint-sheet__panel { animation: none; }
 }
@@ -246,6 +293,11 @@ html.pwa-hint-visible .read__top {
 /* Globe rolls along the TOP edge instead of the bottom. */
 .pwa-hint-sheet--chrome .pwa-hint-sheet__globe {
   top: calc(env(safe-area-inset-top, 0px) + 12px);
+  bottom: auto;
+}
+/* Cat follows the globe up to the top edge in the Chrome variant. */
+.pwa-hint-sheet--chrome .pwa-hint-sheet__cat {
+  top: calc(env(safe-area-inset-top, 0px) + 26px);
   bottom: auto;
 }
 
