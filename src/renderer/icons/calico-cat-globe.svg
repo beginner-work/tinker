@@ -1,7 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
-  <!-- Background tile, matching the tinker brand -->
-  <rect width="240" height="200" rx="44" fill="#F5F3EF"/>
-
   <!-- Pixel-art calico cat: a 25x27 sprite at 5px per cell, sitting
        and reaching its right paw out to bat the globe. -->
   <g shape-rendering="crispEdges">
@@ -455,7 +452,7 @@
 
   <!-- Tinker globe (smooth, brand-correct) — tilted to suggest motion -->
   <g transform="rotate(-14 175 122)">
-    <circle cx="175" cy="122" r="36" fill="#F5F3EF" stroke="#C8B6E2" stroke-width="6"/>
+    <circle cx="175" cy="122" r="36" fill="none" stroke="#C8B6E2" stroke-width="6"/>
     <line x1="157" y1="104" x2="193" y2="104" stroke="#F9A8D4" stroke-width="6" stroke-linecap="round"/>
     <line x1="139" y1="122" x2="211" y2="122" stroke="#FDBA74" stroke-width="6" stroke-linecap="round"/>
     <line x1="157" y1="140" x2="193" y2="140" stroke="#FDE68A" stroke-width="6" stroke-linecap="round"/>
