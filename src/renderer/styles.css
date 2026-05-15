@@ -276,9 +276,7 @@ html.on-web .sidebar__top {
 }
 .welcome__input::placeholder {
   color: var(--color-muted);
-  transition: color 360ms ease;
 }
-.welcome__input--fading::placeholder { color: transparent; }
 .welcome__input:focus {
   border-color: var(--color-accent-strong);
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
