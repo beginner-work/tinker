@@ -1,21 +1,20 @@
 /* POST /api/search
  *
- * Authorization: Bearer <stytch session_jwt>
+ * Authorization: Bearer <stytch session_token>
  * Body: { query }
  * Reply: { text, usage }
  *
- * Verifies the Stytch JWT via JWKS, then proxies a one-shot search to
- * Claude Haiku 4.5. The system prompt is marked ephemeral for prompt
- * caching; if the prompt ever moves, mirror the change to
- * src/renderer/platform-mobile.js (Capacitor path).
+ * Re-validates the session against Stytch on every request, then proxies
+ * a one-shot search to Claude Haiku 4.5. The system prompt is marked
+ * ephemeral for prompt caching; if the prompt ever moves, mirror the
+ * change to src/renderer/platform-mobile.js (Capacitor path).
  *
- * Zero external deps — uses Node 18+ global fetch and crypto.
+ * Zero external deps — uses Node 18+ global fetch.
  */
 
 "use strict";
 
-const { verifyStytchJwt } = require("./_lib/jwks.js");
-const { readEnv } = require("./_lib/stytch.js");
+const { authenticateSession } = require("./_lib/stytch.js");
 
 const SEARCH_SYSTEM_PROMPT = `You are the search engine for the tinker web browser — a quiet alternative to ad-driven search.
 
@@ -85,17 +84,9 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  let projectId;
-  try {
-    ({ projectId } = readEnv());
-  } catch (err) {
-    res.status(err.status || 503).json({ error: err.message });
-    return;
-  }
-
   const token = extractBearer(req.headers && req.headers.authorization);
   try {
-    await verifyStytchJwt(token, projectId);
+    await authenticateSession(token);
   } catch (err) {
     res.status(err.status || 401).json({ error: err.message || "Unauthorized" });
     return;

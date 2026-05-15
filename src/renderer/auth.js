@@ -1,9 +1,13 @@
 /* tinker — phone/PIN auth gate
  *
  * On the plain web build (the one served by src/web/server.js) we put a
- * sign-in screen in front of the renderer until the user has a JWT for the
- * Claude proxy. The JWT is stored under `tinker_jwt` in localStorage so the
- * platform-mobile shim can read it for search calls.
+ * sign-in screen in front of the renderer until the user has a Stytch
+ * session token for the Claude proxy. The token is stored under
+ * `tinker_jwt` in localStorage (legacy key — the value is now Stytch's
+ * long-lived `session_token`, not a JWT) so the platform-mobile shim
+ * can read it for proxied Claude calls. Validation happens server-side
+ * on every request via Stytch's /sessions/authenticate, so there is no
+ * client-side `exp` to check — the server is the source of truth.
  *
  * On Electron desktop and on Capacitor mobile this file is loaded too but
  * the gate is skipped — desktop already has its own ANTHROPIC_API_KEY env
@@ -43,8 +47,17 @@
   };
   window.tinkerAuth = auth;
 
+  // Drop any leftover JWT-shaped value (three base64url segments
+  // separated by ".") that pre-dates the switch to Stytch session
+  // tokens. The server only accepts the long-lived `session_token`
+  // shape now, so a stale JWT would 401 the first Claude call and
+  // surface the gate mid-session — better to clear it here on load.
+  function looksLikeLegacyJwt(token) {
+    return typeof token === "string" && token.split(".").length === 3;
+  }
+
   if (!isWebPlatform()) return;
-  if (auth.token) return; // Already signed in.
+  if (auth.token && looksLikeLegacyJwt(auth.token)) auth.token = "";
 
   // ── DOM refs ─────────────────────────────────────────────────────────
 
@@ -59,10 +72,19 @@
   const titleEl = gate.querySelector("[data-step-title]");
   const ledeEl = gate.querySelector("[data-step-lede]");
 
-  gate.hidden = false;
-  // Lock background scroll while the gate is up.
-  document.documentElement.classList.add("auth-gating");
-  setTimeout(() => phoneInput.focus(), 0);
+  function showGate() {
+    gate.hidden = false;
+    document.documentElement.classList.add("auth-gating");
+    setTimeout(() => phoneInput.focus(), 0);
+  }
+
+  // Expose for mid-session reauth (platform-mobile.js calls this when a
+  // proxied request 401s, instead of reloading the page).
+  auth.showGate = showGate;
+
+  if (!auth.token) {
+    showGate();
+  }
 
   // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -159,6 +181,10 @@
       const data = await postJson("/api/auth/phone/verify", { phone_id: phoneId, pin });
       auth.token = data.token;
       try { localStorage.removeItem(PHONE_ID_KEY); } catch { /* ignore */ }
+      // Let pwa-session.js fold the fresh JWT into the manifest's
+      // start_url so an immediate "Add to Home Screen" carries the
+      // session into the standalone PWA.
+      try { window.dispatchEvent(new CustomEvent("tinker:auth-changed")); } catch { /* ignore */ }
       setStatus(data.isNew ? "Welcome to tinker!" : "Welcome back.", "ok");
       // Brief beat so the success message lands, then drop the gate.
       setTimeout(() => {

@@ -1,0 +1,370 @@
+/* pwa-install-hint.css — install banner + bottom-sheet, re-implemented.
+ *
+ * Re-implementation goals, after iterating on the previous version
+ * left a persistent hairline "transit shadow" under the banner that
+ * removing borders, matching backgrounds, switching transform → top,
+ * and matching theme-color all failed to clear:
+ *
+ *   1. No transforms. WebKit promotes any transformed element to its
+ *      own compositing layer and renders a subtle anti-aliased shadow
+ *      at the layer boundary — the suspected cause of the darkness.
+ *   2. No opacity / visibility transitions. Same reason.
+ *   3. No box-shadows, no border-bottoms, no backdrop-filters.
+ *   4. Show/hide via the `hidden` attribute only. The browser toggles
+ *      `display: none` ↔ default with no animation, no layer churn.
+ *
+ * If a darkness still appears at the banner's bottom under this
+ * minimal version, the cause is structural (iOS scroll-edge or
+ * status-bar separator) rather than anything our CSS is asking for.
+ */
+
+/* ── Banner ────────────────────────────────────────────────────────── */
+
+.pwa-hint {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 75;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+  padding-left: calc(env(safe-area-inset-left, 0px) + 12px);
+  padding-right: calc(env(safe-area-inset-right, 0px) + 12px);
+  background: var(--color-surface, #ffffff);
+}
+
+/* Author `display: flex` above outranks the user-agent
+ * `[hidden] { display: none }` rule (same specificity, but author
+ * wins). Explicitly hide when the attribute is present. */
+.pwa-hint[hidden] { display: none; }
+
+.pwa-hint__icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.pwa-hint__icon svg { display: block; width: 100%; height: 100%; }
+
+.pwa-hint__copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.25;
+}
+.pwa-hint__title {
+  font-family: var(--font-display, "Plus Jakarta Sans", system-ui, sans-serif);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--color-foreground, #2d2a26);
+  letter-spacing: -0.01em;
+}
+.pwa-hint__subtitle {
+  margin-top: 1px;
+  font-size: 12.5px;
+  color: var(--color-muted, #6f6a65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pwa-hint__action {
+  flex-shrink: 0;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--color-accent-strong, #6366f1);
+  color: #ffffff;
+  border: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pwa-hint__action:active { background: var(--color-accent-press, #4f46e5); }
+
+.pwa-hint__dismiss {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface-alt, #fff9f0);
+  color: var(--color-muted, #6f6a65);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pwa-hint__dismiss:active { background: var(--color-border, #ede8e0); }
+
+/* Shift the hamburger drawer-toggle and welcome content down so they
+ * don't sit beneath the banner. Class on <html> tracks visibility. */
+html.pwa-hint-visible .drawer-toggle {
+  top: calc(env(safe-area-inset-top, 0px) + 12px + 64px);
+}
+html.pwa-hint-visible .feed {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 80px + 64px);
+}
+/* The writing + read views have their own top bars instead of the
+ * feed's bulk padding. Push those bars down by the same 64px so the
+ * lowered drawer-toggle stays clear of the body content beneath. */
+html.pwa-hint-visible .writing__top,
+html.pwa-hint-visible .read__top {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 16px + 64px);
+}
+html.pwa-hint-visible .category-feed__head {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 80px + 64px);
+}
+
+/* ── Bottom-sheet ──────────────────────────────────────────────────── */
+
+.pwa-hint-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+/* Same author-style-wins-over-UA fix as the banner. */
+.pwa-hint-sheet[hidden] { display: none; }
+.pwa-hint-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 24, 40, 0.45);
+}
+.pwa-hint-sheet__panel {
+  position: relative;
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+  background: var(--color-surface, #ffffff);
+  border-radius: 20px 20px 0 0;
+  padding: 18px 18px calc(env(safe-area-inset-bottom, 0px) + 22px);
+  /* Cover the full viewport from below; the panel's top edge
+   * stays high above any popover Safari rises from the URL bar. */
+  min-height: 95vh;
+  min-height: 95dvh;
+}
+
+/* Tinker globe (rainbow wireframe, no backing tile) rolls along
+ * the bottom of the panel, looping from off the left edge to off
+ * the right edge. Anchored absolutely so the rest of the panel
+ * content can stack normally above it. */
+.pwa-hint-sheet__globe {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  width: 80px;
+  height: 80px;
+  pointer-events: none;
+  animation: pwaHintRoll 6s linear infinite;
+}
+.pwa-hint-sheet__globe svg { display: block; width: 100%; height: 100%; }
+/* lib/rainbow-web.js re-mounts every [data-rainbow-logo] SVG on
+ * DOMContentLoaded with the canonical body — which always includes
+ * a filled cream rect as the "app icon tile". For the rolling
+ * globe we want just the wireframe, no backing tile, so override
+ * the rect's fill to transparent. Author CSS outranks the SVG
+ * presentation attribute. */
+.pwa-hint-sheet__globe svg rect { fill: transparent; }
+
+@keyframes pwaHintRoll {
+  /* `left` animates from off-panel-left to off-panel-right; the
+   * matching rotation makes the rainbow strokes appear to spin
+   * with the direction of travel. ~720° over the crossing is a
+   * pleasant rolling cadence for an 80px circle on a 540px panel. */
+  0%   { left: -90px; transform: rotate(0deg); }
+  100% { left: 100%;  transform: rotate(720deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pwa-hint-sheet__globe {
+    animation: none;
+    left: calc(100% - 96px);
+  }
+  .pwa-hint-sheet--chrome .pwa-hint-sheet__panel { animation: none; }
+}
+
+/* Modifier: anchor the sheet to the TOP of the viewport instead of
+ * the bottom. Applied by JS when iOS Safari is configured with its
+ * URL bar at the bottom — putting the sheet on the opposite side
+ * keeps Safari's chrome unobstructed and avoids any visual
+ * collision with the URL pill. The rounded corners flip from top
+ * to bottom, and the safe-area padding moves to the top. */
+.pwa-hint-sheet--from-top { align-items: flex-start; }
+.pwa-hint-sheet--from-top .pwa-hint-sheet__panel {
+  border-radius: 0 0 20px 20px;
+  padding: calc(env(safe-area-inset-top, 0px) + 18px) 18px 22px;
+}
+
+/* Modifier: Chrome iOS variant. The sheet pulls down from the top,
+ * the ball rolls across the top edge, and the steps slide to the
+ * bottom near the user's thumb. Both step lists are stacked in the
+ * DOM — show the chrome one, hide the default one. The selectors
+ * below chain both classes (specificity 0,2,0) so they beat the
+ * later-in-file `.pwa-hint-sheet__steps { display: flex }` base
+ * rule (0,1,0), which would otherwise win on source order. */
+.pwa-hint-sheet__steps.pwa-hint-sheet__steps--chrome { display: none; }
+.pwa-hint-sheet--chrome { align-items: flex-start; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__panel {
+  border-radius: 0 0 20px 20px;
+  /* Top padding leaves room for the rolling globe + a touch of
+   * breathing room before the header; bottom padding hugs the
+   * steps to the safe-area inset. */
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 104px) 18px
+    calc(env(safe-area-inset-bottom, 0px) + 22px);
+  display: flex;
+  flex-direction: column;
+  /* Replay the pull-down each time the sheet is shown. The browser
+   * restarts CSS animations when an element transitions out of
+   * `display: none`, which is how the sheet is shown/hidden. */
+  animation: pwaHintPullDown 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--default { display: none; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--chrome { display: flex; }
+/* Reorder so the title heads up the bottom cluster, followed by the
+ * full app card (icon + name + URL) and then the steps. The header's
+ * auto-margin eats the gap above the cluster, leaving the rolling
+ * globe to play across the empty top half of the panel. */
+.pwa-hint-sheet--chrome .pwa-hint-sheet__header {
+  order: 1;
+  margin-top: auto;
+  margin-bottom: 12px;
+}
+.pwa-hint-sheet--chrome .pwa-hint-sheet__app { order: 2; }
+.pwa-hint-sheet--chrome .pwa-hint-sheet__steps.pwa-hint-sheet__steps--chrome { order: 3; }
+/* Grabber slides to the bottom edge — that's the floating edge for
+ * a pull-down sheet, and the natural place to start the drag-up-to-
+ * close gesture. */
+.pwa-hint-sheet--chrome .pwa-hint-sheet__grabber {
+  order: 4;
+  margin: 14px auto 0;
+}
+/* Globe rolls along the TOP edge instead of the bottom. */
+.pwa-hint-sheet--chrome .pwa-hint-sheet__globe {
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  bottom: auto;
+}
+
+@keyframes pwaHintPullDown {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
+.pwa-hint-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.pwa-hint-sheet__title {
+  font-family: var(--font-display, "Plus Jakarta Sans", system-ui, sans-serif);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--color-foreground, #2d2a26);
+  margin: 0;
+}
+/* Drag-handle grabber: small pill at the panel's floating edge.
+ * Decorative — the actual dismiss is the drag-to-close gesture
+ * handled in pwa-install-hint.js. Centered horizontally via auto
+ * margins; flex-shrink: 0 keeps it from collapsing in the
+ * chrome-mode flex column. */
+.pwa-hint-sheet__grabber {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-border, #ede8e0);
+  margin: 0 auto 14px;
+  flex-shrink: 0;
+}
+
+.pwa-hint-sheet__app {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--color-surface-alt, #fff9f0);
+  border: 1px solid var(--color-border, #ede8e0);
+  margin-bottom: 18px;
+}
+.pwa-hint-sheet__app-icon {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.pwa-hint-sheet__app-icon svg { display: block; width: 100%; height: 100%; }
+.pwa-hint-sheet__app-name {
+  font-family: var(--font-display, "Plus Jakarta Sans", system-ui, sans-serif);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--color-foreground, #2d2a26);
+  line-height: 1.2;
+}
+.pwa-hint-sheet__app-url {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--color-muted, #6f6a65);
+  word-break: break-all;
+}
+
+.pwa-hint-sheet__steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pwa-hint-sheet__steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--color-foreground, #2d2a26);
+}
+.pwa-hint-sheet__num {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--color-muted, #6f6a65);
+  font-variant-numeric: tabular-nums;
+  width: 18px;
+  text-align: right;
+}
+.pwa-hint-sheet__step-text { flex: 1 1 auto; }
+
+.pwa-hint-sheet__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--color-surface-alt, #fff9f0);
+  border: 1px solid var(--color-border, #ede8e0);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-foreground, #2d2a26);
+  vertical-align: -3px;
+}
+.pwa-hint-sheet__chip svg { display: block; }
+
+/* The hint is mobile-only by definition (iOS Safari), so hide it on
+ * any wider viewport defensively. */
+@media (min-width: 541px) {
+  .pwa-hint,
+  .pwa-hint-sheet { display: none !important; }
+  html.pwa-hint-visible .drawer-toggle { top: calc(env(safe-area-inset-top, 0px) + 12px); }
+  html.pwa-hint-visible .feed { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
+}

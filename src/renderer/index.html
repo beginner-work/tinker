@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://vercel.live wss://ws-us3.pusher.com; script-src 'self' https://vercel.live; frame-src https://vercel.live;" />
+          content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://vercel.live wss://ws-us3.pusher.com; script-src 'self' https://vercel.live; frame-src https://vercel.live; manifest-src 'self' data: blob:;" />
     <title>tinker</title>
     <!-- Belt + suspenders: this tag tells well-behaved crawlers not to
          index the app; the X-Robots-Tag header in vercel.json catches
@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./design-tokens.css" />
     <link rel="stylesheet" href="./mobile-drawer.css" />
+    <link rel="stylesheet" href="./pwa-install-hint.css" />
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" type="image/svg+xml" href="./icons/tinker-icon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/tinker-icon-192.png" />
@@ -28,20 +29,39 @@
     <meta name="apple-mobile-web-app-title" content="tinker" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Wipes localStorage on Vercel previews + localhost only, so each
+         QA load starts from a clean slate. No-op on production. Loaded
+         first so it runs before auth.js / pwa-install-hint.js read
+         from storage. -->
+    <script src="./preview-reset.js" defer></script>
+    <!-- Reads `?#ts=<jwt>` off the PWA's launch URL into localStorage and
+         rewrites the manifest with the current JWT in start_url, so a
+         user who signs in on iOS Safari stays signed in after they
+         Add to Home Screen. Must run before auth.js. -->
+    <script src="./pwa-session.js" defer></script>
     <script src="./transactions.js" defer></script>
-    <script src="./locations.js" defer></script>
+    <script src="./seeds.js" defer></script>
     <script src="./heatmap.js" defer></script>
   </head>
   <body>
+    <svg class="liquid-glass-defs" width="0" height="0" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="liquid-glass" x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="7" result="noise"/>
+          <feGaussianBlur in="noise" stdDeviation="1.2" result="softNoise"/>
+          <feDisplacementMap in="SourceGraphic" in2="softNoise" scale="14"/>
+        </filter>
+      </defs>
+    </svg>
     <button id="drawer-toggle" class="drawer-toggle" type="button"
             aria-label="Open sidebar" aria-controls="sidebar" aria-expanded="false">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
-        <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <svg viewBox="0 0 24 24" width="29" height="29" fill="none" aria-hidden="true">
+        <path d="M5 8h14M5 12h10M5 16h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
       </svg>
     </button>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
-    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Locations">
+    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Seeds">
       <header class="sidebar__top">
         <button id="nav-home" class="sidebar__brand" type="button" title="Pick a place to start writing">
           <svg data-rainbow-logo viewBox="0 0 200 200" width="22" height="22" aria-hidden="true" fill="none">
@@ -56,22 +76,39 @@
           </svg>
           <span class="sidebar__name">tinker</span>
         </button>
-        <div class="sidebar__top-actions">
-          <button id="new-session" class="sidebar__icon-btn" type="button" aria-label="Start a new draft" title="Start a new draft">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-              <path d="M14 4l6 6-10 10H4v-6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-              <path d="M13 5l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-          </button>
-          <button id="home-add" class="sidebar__icon-btn" type="button" aria-label="Add a location" title="Add a location">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
-        </div>
       </header>
 
       <div id="home-list" class="home-list" aria-live="polite"></div>
+
+      <nav class="sidebar__account" aria-label="Account">
+        <h2 class="sidebar__account-head">Account</h2>
+        <ul class="sidebar__account-list">
+          <li>
+            <button id="nav-receipts" type="button" class="sidebar__account-item">
+              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <span class="sidebar__account-label">Receipts</span>
+            </button>
+          </li>
+          <!-- Share button: revealed by share.js only when the app is
+               running as an installed PWA (standalone) or inside a
+               wrapped runtime (Capacitor). Stays hidden in plain
+               browser tabs and on Electron desktop, where the OS
+               already exposes "Share Link" through the URL bar. -->
+          <li>
+            <button id="nav-share" type="button" class="sidebar__account-item" hidden>
+              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                <path d="M12 4v10M8.5 7.5L12 4l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6 12v7h12v-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="sidebar__account-label">Share tinker</span>
+              <span class="sidebar__account-flash" data-share-flash aria-live="polite"></span>
+            </button>
+          </li>
+        </ul>
+      </nav>
 
       <footer class="sidebar__footer">
         <span class="sidebar__footer-copy">&copy; 2026 tinker</span>
@@ -82,7 +119,7 @@
 
     <main class="stage" id="stage" role="main">
       <!-- Default landing: a quiet empty state that points back at the
-           sidebar. Once a location is tapped, #writing takes over. -->
+           sidebar. Once a seed is tapped, #writing takes over. -->
       <section id="welcome" class="feed welcome" data-active>
         <div class="welcome__inner">
           <div class="welcome__logo" aria-hidden="true">
@@ -97,14 +134,14 @@
               <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
             </svg>
           </div>
-          <h1 class="welcome__question">What's the name of the place you are at?</h1>
+          <h1 class="welcome__question">Everyone is a founder.</h1>
+          <p class="welcome__sub">You just need a seed to start.</p>
           <form id="welcome-form" class="welcome__form" autocomplete="off">
             <input id="welcome-input" class="welcome__input" type="text"
                    placeholder="A coffee shop, your kitchen, the back porch…"
                    autocomplete="off" spellcheck="false" maxlength="120" />
             <button type="submit" class="welcome__submit">Start →</button>
           </form>
-          <p class="welcome__hint">Or pick a place from the sidebar.</p>
         </div>
       </section>
 
@@ -135,16 +172,20 @@
 
       <!-- Read-an-essay view: rendered when a feed card is opened. -->
       <section id="read" class="read" hidden>
-        <header class="read__top">
-          <button id="read-close" class="read__close" type="button" aria-label="Back to feed">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-              <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            </svg>
-            <span>Feed</span>
-          </button>
-          <div class="read__url" id="read-url"></div>
-        </header>
         <article class="read__body" id="read-body"></article>
+      </section>
+
+      <!-- Category feed view: rendered when a seed is tapped — lists
+           every essay whose seed belongs to the same category. -->
+      <section id="category-feed" class="category-feed" hidden>
+        <header class="category-feed__head">
+          <h1 class="category-feed__title" id="category-feed-title"></h1>
+          <p class="category-feed__sub" id="category-feed-sub" hidden></p>
+        </header>
+        <div class="category-feed__list" id="category-feed-list"></div>
+        <p class="category-feed__empty" id="category-feed-empty" hidden>
+          No essays here yet.
+        </p>
       </section>
     </main>
 
@@ -195,20 +236,195 @@
       </div>
     </div>
 
-    <!-- First-sign-in welcome card. Shown once per device after the
-         tester finishes phone-OTP; suppressed thereafter via
-         localStorage["tinker.welcomed.v1"]. Personal framing, no
-         "beta" badge. -->
-    <div id="welcome-card" class="welcome-card" hidden
-         role="dialog" aria-modal="true" aria-labelledby="welcome-card-title">
-      <div class="welcome-card__backdrop" data-welcome-dismiss></div>
-      <div class="welcome-card__panel">
-        <h2 id="welcome-card-title" class="welcome-card__title">you're inside tinker.</h2>
-        <p class="welcome-card__body">
-          If you ever notice a bug, just text me.
-        </p>
-        <p class="welcome-card__sig">— Tyler</p>
-        <button type="button" class="welcome-card__btn" data-welcome-dismiss>tinker</button>
+    <!-- iOS "Add to Home Screen" install affordance. Two pieces: a top
+         banner (modeled on the App Store install banner) and a
+         bottom-sheet that opens when the Install button is tapped,
+         showing the share-sheet steps. Both hidden by default;
+         pwa-install-hint.js reveals the banner on iOS WebKit browsers
+         that expose Add to Home Screen — Safari and Chrome iOS, but
+         not in-app webviews — when not already standalone and not
+         inside Capacitor, then wires the sheet. -->
+    <div id="pwa-hint" class="pwa-hint" role="region" aria-label="Install tinker" hidden>
+      <span class="pwa-hint__icon" aria-hidden="true">
+        <svg data-rainbow-logo viewBox="0 0 200 200" fill="none">
+          <rect width="200" height="200" rx="44" fill="#f5f3ef" />
+          <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
+          <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
+          <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
+          <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
+          <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
+          <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
+          <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
+        </svg>
+      </span>
+      <div class="pwa-hint__copy">
+        <div class="pwa-hint__title">tinker</div>
+        <div class="pwa-hint__subtitle">A new way to web</div>
+      </div>
+      <button class="pwa-hint__action" type="button" data-pwa-action="install">Install</button>
+      <button class="pwa-hint__dismiss" type="button"
+              aria-label="Dismiss install banner" data-pwa-action="dismiss">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none">
+          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+        </svg>
+      </button>
+    </div>
+
+    <div id="pwa-hint-sheet" class="pwa-hint-sheet" hidden>
+      <div class="pwa-hint-sheet__backdrop" data-pwa-action="close-sheet"></div>
+      <div class="pwa-hint-sheet__panel" role="dialog" aria-modal="true"
+           aria-labelledby="pwa-hint-sheet-title">
+        <!-- Drag-handle grabber. Decorative cue that the sheet is
+             draggable — the real dismiss gesture is handled by
+             pwa-install-hint.js's touch listeners on the panel.
+             Placed at the floating edge: top of the panel for the
+             default rise-from-bottom sheet, repositioned to the
+             bottom of the panel in chrome mode (pull-down) via
+             flex `order` in pwa-install-hint.css. -->
+        <div class="pwa-hint-sheet__grabber" aria-hidden="true"></div>
+        <header class="pwa-hint-sheet__header">
+          <h2 id="pwa-hint-sheet-title" class="pwa-hint-sheet__title">Install the app</h2>
+        </header>
+        <div class="pwa-hint-sheet__app">
+          <span class="pwa-hint-sheet__app-icon" aria-hidden="true">
+            <svg data-rainbow-logo viewBox="0 0 200 200" fill="none">
+              <rect width="200" height="200" rx="44" fill="#f5f3ef" />
+              <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
+              <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
+              <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
+              <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
+              <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
+              <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
+              <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
+            </svg>
+          </span>
+          <div class="pwa-hint-sheet__app-meta">
+            <div class="pwa-hint-sheet__app-name">tinker</div>
+            <div class="pwa-hint-sheet__app-url" data-pwa-host></div>
+          </div>
+        </div>
+        <ol class="pwa-hint-sheet__steps pwa-hint-sheet__steps--default">
+          <li>
+            <span class="pwa-hint-sheet__num">1</span>
+            <span class="pwa-hint-sheet__step-text">
+              Tap
+              <span class="pwa-hint-sheet__chip" aria-label="page menu button">
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                  <circle cx="3" cy="8" r="1.4" fill="currentColor" />
+                  <circle cx="8" cy="8" r="1.4" fill="currentColor" />
+                  <circle cx="13" cy="8" r="1.4" fill="currentColor" />
+                </svg>
+              </span>
+              in your browser's URL bar
+            </span>
+          </li>
+          <li>
+            <span class="pwa-hint-sheet__num">2</span>
+            <span class="pwa-hint-sheet__step-text">
+              Tap
+              <span class="pwa-hint-sheet__chip" aria-label="Share">
+                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none">
+                  <path d="M8 2 V10 M5.5 4.5 L8 2 L10.5 4.5"
+                        stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M4.5 7.5 V12.5 H11.5 V7.5"
+                        stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Share
+              </span>
+            </span>
+          </li>
+          <li>
+            <span class="pwa-hint-sheet__num">3</span>
+            <span class="pwa-hint-sheet__step-text">
+              Tap
+              <span class="pwa-hint-sheet__chip" aria-label="View more">
+                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none">
+                  <path d="M4 6 L8 10 L12 6"
+                        stroke="currentColor" stroke-width="1.6"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                View more
+              </span>
+              then
+              <span class="pwa-hint-sheet__chip" aria-label="Add to Home Screen">
+                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none">
+                  <rect x="2.5" y="2.5" width="11" height="11" rx="2.5"
+                        stroke="currentColor" stroke-width="1.4" />
+                  <path d="M8 5.5 V10.5 M5.5 8 H10.5"
+                        stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                </svg>
+                Add to Home Screen
+              </span>
+            </span>
+          </li>
+        </ol>
+        <!-- Chrome iOS variant: no URL-bar pre-tap (Chrome's three-dot
+             menu sits at the top by default, and Share is a direct
+             entry there). View more / Add to Home Screen split into
+             two beats so users don't miss the scroll inside Share.
+             Hidden by default — JS unhides it when CriOS is detected
+             and hides the default list at the same time. -->
+        <ol class="pwa-hint-sheet__steps pwa-hint-sheet__steps--chrome" hidden>
+          <li>
+            <span class="pwa-hint-sheet__num">1</span>
+            <span class="pwa-hint-sheet__step-text">
+              Tap
+              <span class="pwa-hint-sheet__chip" aria-label="Share">
+                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none">
+                  <path d="M8 2 V10 M5.5 4.5 L8 2 L10.5 4.5"
+                        stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M4.5 7.5 V12.5 H11.5 V7.5"
+                        stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Share
+              </span>
+            </span>
+          </li>
+          <li>
+            <span class="pwa-hint-sheet__num">2</span>
+            <span class="pwa-hint-sheet__step-text">
+              Tap
+              <span class="pwa-hint-sheet__chip" aria-label="View more">
+                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none">
+                  <path d="M4 6 L8 10 L12 6"
+                        stroke="currentColor" stroke-width="1.6"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                View more
+              </span>
+            </span>
+          </li>
+          <li>
+            <span class="pwa-hint-sheet__num">3</span>
+            <span class="pwa-hint-sheet__step-text">
+              Tap
+              <span class="pwa-hint-sheet__chip" aria-label="Add to Home Screen">
+                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none">
+                  <rect x="2.5" y="2.5" width="11" height="11" rx="2.5"
+                        stroke="currentColor" stroke-width="1.4" />
+                  <path d="M8 5.5 V10.5 M5.5 8 H10.5"
+                        stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                </svg>
+                Add to Home Screen
+              </span>
+            </span>
+          </li>
+        </ol>
+        <div class="pwa-hint-sheet__globe" aria-hidden="true">
+          <svg data-rainbow-logo viewBox="0 0 200 200" fill="none">
+            <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
+            <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
+            <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
+            <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
+            <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
+            <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
+            <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
+          </svg>
+        </div>
       </div>
     </div>
 
@@ -219,7 +435,9 @@
     <script src="./icon-init.js" defer></script>
     <script src="./writing.js" defer></script>
     <script src="./renderer.js" defer></script>
-    <script src="./welcome-card.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
+    <script src="./pwa-install-hint.js" defer></script>
+    <script src="./share.js" defer></script>
+    <script src="./update-banner.js" defer></script>
   </body>
 </html>

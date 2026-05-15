@@ -24,16 +24,17 @@
   // ── DOM refs ─────────────────────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
   const sessionsEl = $("#sessions"); // legacy mount; null after the sidebar restructure
-  const newSessionBtn = $("#new-session");
   const navHome = $("#nav-home");
   const feedView = $("#welcome");
   const writingView = $("#writing");
   const readView = $("#read");
   const homeListEl = $("#home-list");
-  const homeAddBtn = $("#home-add");
-  const readUrl = $("#read-url");
   const readBody = $("#read-body");
-  const readClose = $("#read-close");
+  const categoryFeedView = $("#category-feed");
+  const categoryFeedTitle = $("#category-feed-title");
+  const categoryFeedSub = $("#category-feed-sub");
+  const categoryFeedList = $("#category-feed-list");
+  const categoryFeedEmpty = $("#category-feed-empty");
 
   // ── Storage helpers ──────────────────────────────────────────────────
   const uid = () => "d_" + Math.random().toString(36).slice(2, 10);
@@ -97,9 +98,9 @@
         createdAt: Date.now(),
         url: `/${stitched.author || "you"}/${slug}`,
         sourceDraft: draft.id,
-        // Carry location through so the home list's vector classifier
+        // Carry seed through so the home list's vector classifier
         // can keep reading the writing content after publish.
-        location: draft.location || null,
+        seed: draft.seed || null,
       };
       essays = [essay, ...essays];
       saveEssays(essays);
@@ -108,7 +109,15 @@
       activeId = null;
       renderSidebar();
       renderHome();
-      showRead(essay);
+      // Land on the seed's category feed (now containing the
+      // just-published essay). For a brand-new seed with no
+      // classification yet, fall through to the read view.
+      const leafKey = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryKeyForSeed === "function")
+        ? window.tinkerHeatmap.getCategoryKeyForSeed(essay.seed)
+        : null;
+      if (!leafKey || !showCategoryFeed(leafKey)) {
+        showRead(essay);
+      }
       return essay;
     },
   };
@@ -136,11 +145,11 @@
       updatedAt: Date.now(),
     };
     if (preset && typeof preset === "object") {
-      // Pre-set the scene fields. writing.js' renderLocationPrompt
-      // checks `active.location === undefined`, so once we assign
+      // Pre-set the scene fields. writing.js' renderSeedPrompt
+      // checks `active.seed === undefined`, so once we assign
       // a string (or null) the prompt is skipped and the founder
       // jumps straight into the mood-tuned first question.
-      if (preset.location !== undefined) draft.location = preset.location || null;
+      if (preset.seed !== undefined) draft.seed = preset.seed || null;
       if (preset.facing !== undefined) draft.facing = preset.facing || null;
       if (preset.lastPurchased !== undefined) draft.lastPurchased = preset.lastPurchased || null;
     }
@@ -171,6 +180,7 @@
     feedView.setAttribute("data-active", "");
     writingView.hidden = true;
     readView.hidden = true;
+    if (categoryFeedView) categoryFeedView.hidden = true;
     activeId = null;
     renderSidebar();
     renderHome();
@@ -183,14 +193,15 @@
     feedView.removeAttribute("data-active");
     writingView.hidden = false;
     readView.hidden = true;
+    if (categoryFeedView) categoryFeedView.hidden = true;
   }
   function showRead(essay) {
     feedView.removeAttribute("data-active");
     writingView.hidden = true;
     readView.hidden = false;
+    if (categoryFeedView) categoryFeedView.hidden = true;
     activeId = null;
     renderSidebar();
-    readUrl.textContent = essay.url;
     readBody.innerHTML =
       `<header class="read__head">` +
         `<div class="read__author">${escapeHtml(essay.author)}</div>` +
@@ -198,10 +209,53 @@
       `</header>` +
       paragraphs(essay.body);
   }
+  function showCategoryFeed(categoryKey) {
+    if (!categoryFeedView) return false;
+    const feed = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryFeed === "function")
+      ? window.tinkerHeatmap.getCategoryFeed(categoryKey)
+      : null;
+    if (!feed) return false;
+
+    feedView.removeAttribute("data-active");
+    writingView.hidden = true;
+    readView.hidden = true;
+    categoryFeedView.hidden = false;
+    activeId = null;
+    renderSidebar();
+
+    categoryFeedTitle.textContent = feed.name;
+    if (feed.description) {
+      categoryFeedSub.textContent = feed.description;
+      categoryFeedSub.hidden = false;
+    } else {
+      categoryFeedSub.textContent = "";
+      categoryFeedSub.hidden = true;
+    }
+
+    categoryFeedList.innerHTML = "";
+    if (!feed.essays.length) {
+      categoryFeedEmpty.hidden = false;
+      return true;
+    }
+    categoryFeedEmpty.hidden = true;
+    for (const essay of feed.essays) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "category-feed__card";
+      const body = paragraphs(essay.body);
+      card.innerHTML =
+        `<span class="category-feed__card-author">${escapeHtml(essay.author || "you")}</span>` +
+        `<h3 class="category-feed__card-title">${escapeHtml(essay.title || "Untitled")}</h3>` +
+        (body ? `<div class="category-feed__card-body">${body}</div>` : "");
+      card.addEventListener("click", () => showRead(essay));
+      categoryFeedList.appendChild(card);
+    }
+    return true;
+  }
 
   // ── Rendering ───────────────────────────────────────────────────────
-  // Sidebar's drafts+essays list is gone — locations now own the sidebar
-  // (see #home-list). Each location card surfaces the latest writing
+  // Sidebar's drafts+essays list is gone — seeds now own the sidebar
+  // (see #home-list). Each seed card surfaces the latest writing
   // produced there. Kept as a no-op so existing call sites compile.
   function renderSidebar() {
     if (!sessionsEl) return;
@@ -239,56 +293,66 @@
   }
 
   // ── Wire up ─────────────────────────────────────────────────────────
-  newSessionBtn.addEventListener("click", () => newDraft());
   navHome.addEventListener("click", () => showFeed());
 
-  if (homeAddBtn) {
-    homeAddBtn.addEventListener("click", () => {
-      if (window.tinkerLocations && typeof window.tinkerLocations.openAddModal === "function") {
-        window.tinkerLocations.openAddModal();
-      }
-    });
-  }
-
-  // Welcome screen prompt: "What's the name of the place you are at?".
-  // On submit: register the place as a location (so it persists in
+  // Welcome screen: the H1 is the standing line ("Everyone is a
+  // founder."), and the actual question rotates inside the input's
+  // placeholder on each load — sometimes "Where are you?", sometimes
+  // "Who are you?". Either way the typed answer seeds the writing
+  // session's `seed` anchor; the placeholder is just a different
+  // door into the same flow.
+  // On submit: register the answer as a seed (so it persists in
   // the sidebar) and spawn a writing session anchored there. Empty
   // submissions just re-focus the input.
   const welcomeForm = document.getElementById("welcome-form");
   const welcomeInput = document.getElementById("welcome-input");
+  if (welcomeInput) {
+    const placeholders = ["Where are you?", "Who are you?"];
+    const FADE_MS = 360;
+    let i = Math.floor(Math.random() * placeholders.length);
+    welcomeInput.setAttribute("placeholder", placeholders[i]);
+    setInterval(() => {
+      welcomeInput.classList.add("welcome__input--fading");
+      setTimeout(() => {
+        i = (i + 1) % placeholders.length;
+        welcomeInput.setAttribute("placeholder", placeholders[i]);
+        welcomeInput.classList.remove("welcome__input--fading");
+      }, FADE_MS);
+    }, 5000);
+  }
   if (welcomeForm && welcomeInput) {
     welcomeForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const name = welcomeInput.value.trim();
       if (!name) { welcomeInput.focus(); return; }
-      if (window.tinkerLocations && typeof window.tinkerLocations.add === "function") {
-        window.tinkerLocations.add(name);
+      if (window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
+        window.tinkerSeeds.add(name);
       }
       welcomeInput.value = "";
       if (typeof window.tinkerNewSession === "function") {
-        window.tinkerNewSession({ location: name });
+        window.tinkerNewSession({ seed: name });
       }
     });
   }
 
-  // Re-render the home list whenever locations change.
-  if (window.tinkerLocations && typeof window.tinkerLocations.subscribe === "function") {
-    window.tinkerLocations.subscribe(() => renderHome());
+  // Re-render the home list whenever seeds change.
+  if (window.tinkerSeeds && typeof window.tinkerSeeds.subscribe === "function") {
+    window.tinkerSeeds.subscribe(() => {
+      renderHome();
+    });
   }
-
-  readClose.addEventListener("click", () => showFeed());
 
   // Tell writing.js how to ask the renderer to do things.
   window.tinkerOnWritingClose = () => closeActiveDraft();
   window.tinkerOnWritingPublish = (draft, stitched) => store.publish(draft, stitched);
   window.tinkerOnDraftChange = (draftId, patch) => store.updateDraft(draftId, patch);
 
-  // Used by the location list in the sidebar: open a fresh draft
+  // Used by the seed list in the sidebar: open a fresh draft
   // pre-filled with scene context so the founder jumps straight into
   // mood-tuned reflection.
   window.tinkerNewSession = (preset) => newDraft({ activate: true, preset: preset || null });
 
-  // Used by the location list when a card already carries a published
+  // Used by the seed list when a card already carries a published
   // essay or an in-progress draft — tap routes to the right surface
   // instead of always spawning a new session.
   window.tinkerOpenEssay = (essayId) => {
@@ -296,6 +360,7 @@
     if (essay) showRead(essay);
   };
   window.tinkerResumeDraft = (draftId) => openDraft(draftId);
+  window.tinkerShowCategoryFeed = (categoryKey) => showCategoryFeed(categoryKey);
 
   // Keyboard shortcuts. Cmd/Ctrl+T = new draft. Cmd/Ctrl+W = close
   // (delete) the current draft. The address-bar shortcut is gone — there
