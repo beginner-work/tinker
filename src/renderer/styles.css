@@ -214,9 +214,24 @@ html.on-web .sidebar__top {
   width: clamp(140px, 22vw, 220px);
   height: clamp(140px, 22vw, 220px);
   background: var(--color-accent-strong);
-  clip-path: polygon(0 0, 100% 0, 0 100%);
+  /* 4-point polygon (last two points coincide at the bottom-left) so
+   * the shape can smoothly interpolate into a full rectangle when the
+   * founder taps into the input below. */
+  clip-path: polygon(0 0, 100% 0, 0 100%, 0 100%);
   pointer-events: none;
   z-index: 0;
+  transition:
+    width 0.55s cubic-bezier(0.65, 0, 0.35, 1),
+    height 0.55s cubic-bezier(0.65, 0, 0.35, 1),
+    clip-path 0.55s cubic-bezier(0.65, 0, 0.35, 1);
+}
+/* Click into the input → the corner triangle blooms out to fill the
+ * page and the pill-shaped form grows into the same large writing-input
+ * box used by the rest of the writing flow. Reverts on blur. */
+.stage > .welcome.feed[data-active]:focus-within::before {
+  width: 100%;
+  height: 100%;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
 }
 .welcome .welcome__inner { position: relative; z-index: 1; }
 .welcome__inner {
@@ -227,10 +242,12 @@ html.on-web .sidebar__top {
   gap: 14px;
   max-width: 480px;
   width: 100%;
+  transition: max-width 0.45s ease, gap 0.45s ease;
 }
 .welcome__logo {
   opacity: 0.85;
   margin-bottom: 4px;
+  transition: opacity 0.35s ease;
 }
 .welcome__logo svg rect { display: none; }
 .welcome__question {
@@ -241,12 +258,14 @@ html.on-web .sidebar__top {
   letter-spacing: -0.015em;
   color: var(--color-foreground);
   line-height: 1.25;
+  transition: color 0.35s ease;
 }
 .welcome__sub {
   margin: -4px 0 0;
   font-size: 15px;
   color: var(--color-muted);
   line-height: 1.4;
+  transition: color 0.35s ease;
 }
 .welcome__form {
   display: flex;
@@ -261,6 +280,8 @@ html.on-web .sidebar__top {
   margin-left: auto;
   margin-right: auto;
   margin-top: 6px;
+  flex-wrap: wrap;
+  transition: max-width 0.45s ease, gap 0.4s ease;
 }
 .welcome__input {
   flex: 1;
@@ -271,7 +292,15 @@ html.on-web .sidebar__top {
   font-size: 16px;
   background: var(--color-surface);
   color: var(--color-foreground);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    min-height 0.45s cubic-bezier(0.65, 0, 0.35, 1),
+    padding 0.4s ease,
+    border-radius 0.4s ease,
+    font-size 0.3s ease,
+    line-height 0.3s ease,
+    flex-basis 0.4s ease;
   min-width: 0;
 }
 .welcome__input::placeholder {
@@ -295,7 +324,13 @@ html.on-web .sidebar__top {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.06s ease;
+  transition:
+    background 0.3s ease,
+    color 0.3s ease,
+    transform 0.06s ease,
+    border-radius 0.4s ease,
+    box-shadow 0.3s ease,
+    margin-left 0.4s ease;
   white-space: nowrap;
 }
 .welcome__submit:hover { background: #4f46e5; }
@@ -305,6 +340,46 @@ html.on-web .sidebar__top {
   font-size: 13px;
   color: var(--color-muted);
   line-height: 1.5;
+}
+
+/* Focus-within bloom: when the founder clicks into the input, the
+ * welcome layout grows into the writing-flow's question card — large
+ * input box, pill-shaped Next-style submit — sitting on the indigo
+ * wash created by the corner triangle filling the page. */
+.welcome:focus-within .welcome__inner {
+  max-width: 720px;
+  gap: 22px;
+}
+.welcome:focus-within .welcome__logo { opacity: 0.4; }
+.welcome:focus-within .welcome__question,
+.welcome:focus-within .welcome__sub { color: #fff; }
+.welcome:focus-within .welcome__form {
+  max-width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.welcome:focus-within .welcome__input {
+  width: 100%;
+  min-height: 220px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  font-size: 17px;
+  line-height: 1.65;
+}
+.welcome:focus-within .welcome__input:focus {
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.22);
+}
+.welcome:focus-within .welcome__submit {
+  align-self: flex-end;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-accent-strong);
+  box-shadow: var(--shadow-purple);
+}
+.welcome:focus-within .welcome__submit:hover {
+  background: rgba(255, 255, 255, 0.92);
 }
 
 @media (max-width: 540px) {
