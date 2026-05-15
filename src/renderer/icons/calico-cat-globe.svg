@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
+  <!-- Background tile, matching the tinker brand -->
+  <rect width="240" height="200" rx="44" fill="#F5F3EF"/>
+
+  <!-- Tail, swept up behind the body -->
+  <path d="M 30 145 Q 2 128 6 92 Q 10 68 30 70"
+        stroke="#2D2D2D" stroke-width="13" stroke-linecap="round" fill="none"/>
+  <path d="M 30 70 Q 16 72 12 86"
+        stroke="#FDBA74" stroke-width="9" stroke-linecap="round" fill="none"/>
+
+  <!-- Sitting body -->
+  <path d="M 32 105 Q 18 140 28 178 Q 38 188 58 188 L 78 188 Q 100 188 105 175 Q 115 145 100 115 Q 70 92 32 105 Z"
+        fill="#FFFFFF" stroke="#2D2D2D" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Calico body patches -->
+  <path d="M 70 100 Q 95 105 105 135 Q 108 165 92 175 Q 78 175 75 160 Q 65 130 70 100 Z"
+        fill="#2D2D2D"/>
+  <path d="M 32 140 Q 22 165 35 182 Q 50 184 56 168 Q 52 145 38 138 Z"
+        fill="#FDBA74"/>
+
+  <!-- Tinker globe — tilted slightly to suggest motion from the bat -->
+  <g transform="rotate(-14 175 108)">
+    <circle cx="175" cy="108" r="40" fill="#F5F3EF" stroke="#C8B6E2" stroke-width="6"/>
+    <line x1="155" y1="88" x2="195" y2="88" stroke="#F9A8D4" stroke-width="6" stroke-linecap="round"/>
+    <line x1="135" y1="108" x2="215" y2="108" stroke="#FDBA74" stroke-width="6" stroke-linecap="round"/>
+    <line x1="155" y1="128" x2="195" y2="128" stroke="#FDE68A" stroke-width="6" stroke-linecap="round"/>
+    <ellipse cx="175" cy="108" rx="28" ry="40" fill="none" stroke="#7BC47A" stroke-width="6"/>
+    <ellipse cx="175" cy="108" rx="14" ry="40" fill="none" stroke="#7DD3FC" stroke-width="6"/>
+    <line x1="175" y1="68" x2="175" y2="148" stroke="#6EE7B7" stroke-width="6" stroke-linecap="round"/>
+  </g>
+
+  <!-- Motion arcs trailing the globe -->
+  <path d="M 222 95 Q 228 100 224 108" stroke="#C8B6E2" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.75"/>
+  <path d="M 226 118 Q 230 124 224 130" stroke="#C8B6E2" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.75"/>
+
+  <!-- Raised paw — drawn on top of the globe so the cat appears to touch it -->
+  <path d="M 90 132 Q 115 120 138 108 Q 148 105 148 96 Q 144 90 136 93 Q 113 100 96 115 Q 88 122 90 132 Z"
+        fill="#FFFFFF" stroke="#2D2D2D" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M 105 116 Q 120 110 134 105 Q 138 110 132 113 Q 118 119 108 121 Z"
+        fill="#FDBA74"/>
+  <line x1="142" y1="98" x2="146" y2="93" stroke="#2D2D2D" stroke-width="1.4" stroke-linecap="round"/>
+  <line x1="146" y1="100" x2="150" y2="96" stroke="#2D2D2D" stroke-width="1.4" stroke-linecap="round"/>
+
+  <!-- Standing front paws -->
+  <ellipse cx="48" cy="184" rx="12" ry="6" fill="#FFFFFF" stroke="#2D2D2D" stroke-width="2.5"/>
+  <ellipse cx="76" cy="186" rx="12" ry="6" fill="#FFFFFF" stroke="#2D2D2D" stroke-width="2.5"/>
+  <line x1="44" y1="183" x2="44" y2="188" stroke="#2D2D2D" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="48" y1="184" x2="48" y2="189" stroke="#2D2D2D" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="52" y1="183" x2="52" y2="188" stroke="#2D2D2D" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="72" y1="185" x2="72" y2="190" stroke="#2D2D2D" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="76" y1="186" x2="76" y2="191" stroke="#2D2D2D" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="80" y1="185" x2="80" y2="190" stroke="#2D2D2D" stroke-width="1.3" stroke-linecap="round"/>
+
+  <!-- Head -->
+  <ellipse cx="60" cy="78" rx="33" ry="29" fill="#FFFFFF" stroke="#2D2D2D" stroke-width="3"/>
+
+  <!-- Ears: left white, right black (calico asymmetry) -->
+  <path d="M 33 60 L 38 30 L 56 54 Z" fill="#FFFFFF" stroke="#2D2D2D" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M 64 54 L 82 30 L 87 60 Z" fill="#2D2D2D" stroke="#2D2D2D" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M 38 50 L 42 38 L 50 50 Z" fill="#F9A8D4"/>
+  <path d="M 70 50 L 80 40 L 84 56 Z" fill="#D87BA0"/>
+
+  <!-- Face patches: orange forehead, black extending from the right ear -->
+  <path d="M 35 65 Q 28 85 36 96 Q 50 95 56 78 Q 52 62 40 62 Z" fill="#FDBA74"/>
+  <path d="M 78 70 Q 90 78 88 92 Q 78 100 70 92 Q 70 75 78 70 Z" fill="#2D2D2D"/>
+
+  <!-- Eyes -->
+  <ellipse cx="48" cy="80" rx="4" ry="5" fill="#2D2D2D"/>
+  <circle cx="49" cy="78" r="1.2" fill="#FFFFFF"/>
+  <ellipse cx="72" cy="82" rx="4" ry="5" fill="#FFFFFF"/>
+  <ellipse cx="72.5" cy="83" rx="2" ry="3" fill="#2D2D2D"/>
+
+  <!-- Nose -->
+  <path d="M 56 91 L 64 91 L 60 96 Z" fill="#F9A8D4" stroke="#2D2D2D" stroke-width="1" stroke-linejoin="round"/>
+
+  <!-- Mouth -->
+  <path d="M 60 96 Q 56 100 51 98" stroke="#2D2D2D" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 60 96 Q 64 100 69 98" stroke="#2D2D2D" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Whiskers -->
+  <line x1="38" y1="93" x2="18" y2="89" stroke="#2D2D2D" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="38" y1="97" x2="18" y2="99" stroke="#2D2D2D" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="82" y1="93" x2="100" y2="89" stroke="#2D2D2D" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="82" y1="97" x2="100" y2="99" stroke="#2D2D2D" stroke-width="1.2" stroke-linecap="round"/>
+</svg>
