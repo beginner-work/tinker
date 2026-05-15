@@ -226,6 +226,12 @@ html.on-web .sidebar__top {
   color: var(--color-foreground);
   line-height: 1.25;
 }
+.welcome__sub {
+  margin: -4px 0 0;
+  font-size: 15px;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
 .welcome__form {
   display: flex;
   gap: 8px;
