@@ -242,7 +242,6 @@ html.on-web .sidebar__top {
   gap: 14px;
   max-width: 480px;
   width: 100%;
-  transition: max-width 0.45s ease, gap 0.45s ease;
 }
 .welcome__logo {
   opacity: 0.85;
@@ -281,7 +280,7 @@ html.on-web .sidebar__top {
   margin-right: auto;
   margin-top: 6px;
   flex-wrap: wrap;
-  transition: max-width 0.45s ease, gap 0.4s ease;
+  transition: gap 0.4s ease;
 }
 .welcome__input {
   flex: 1;
@@ -299,8 +298,7 @@ html.on-web .sidebar__top {
     padding 0.4s ease,
     border-radius 0.4s ease,
     font-size 0.3s ease,
-    line-height 0.3s ease,
-    flex-basis 0.4s ease;
+    line-height 0.3s ease;
   min-width: 0;
 }
 .welcome__input::placeholder {
@@ -329,8 +327,7 @@ html.on-web .sidebar__top {
     color 0.3s ease,
     transform 0.06s ease,
     border-radius 0.4s ease,
-    box-shadow 0.3s ease,
-    margin-left 0.4s ease;
+    box-shadow 0.3s ease;
   white-space: nowrap;
 }
 .welcome__submit:hover { background: #4f46e5; }
@@ -345,16 +342,14 @@ html.on-web .sidebar__top {
 /* Focus-within bloom: when the founder clicks into the input, the
  * welcome layout grows into the writing-flow's question card — large
  * input box, pill-shaped Next-style submit — sitting on the indigo
- * wash created by the corner triangle filling the page. */
-.welcome:focus-within .welcome__inner {
-  max-width: 720px;
-  gap: 22px;
-}
+ * wash created by the corner triangle filling the page. The form's
+ * outer width and margins stay put so it doesn't shift sideways
+ * during the transition; only the input grows and the submit drops
+ * underneath. */
 .welcome:focus-within .welcome__logo { opacity: 0.4; }
 .welcome:focus-within .welcome__question,
 .welcome:focus-within .welcome__sub { color: #fff; }
 .welcome:focus-within .welcome__form {
-  max-width: 100%;
   flex-direction: column;
   align-items: stretch;
   gap: 12px;
