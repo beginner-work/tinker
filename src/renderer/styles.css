@@ -214,6 +214,16 @@ html.on-web .sidebar__top {
   margin-bottom: 4px;
 }
 .welcome__logo svg rect { display: none; }
+.welcome__mascot {
+  width: 160px;
+  height: 160px;
+  margin: 2px 0 6px;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  user-select: none;
+  -webkit-user-drag: none;
+}
 .welcome__question {
   margin: 0;
   font-family: var(--font-display);
