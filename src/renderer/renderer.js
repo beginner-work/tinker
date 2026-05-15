@@ -352,6 +352,28 @@
         window.tinkerNewSession({ seed: name });
       }
     });
+    // Welcome input is a textarea so it can anchor text to the top-left
+    // when it grows into the writing-flow format on focus. The seed is
+    // a one-line label, so any Enter submits — no newlines allowed.
+    welcomeInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (typeof welcomeForm.requestSubmit === "function") {
+          welcomeForm.requestSubmit();
+        } else {
+          welcomeForm.dispatchEvent(new Event("submit", { cancelable: true }));
+        }
+      }
+    });
+    // Clicking the Start button shouldn't blur the input mid-click —
+    // doing so collapses the :focus-within bloom and snaps the form
+    // back to row layout before the click registers, leaving the
+    // cursor over empty space. Holding focus on the input keeps the
+    // button where the founder pressed it.
+    const welcomeSubmit = welcomeForm.querySelector(".welcome__submit");
+    if (welcomeSubmit) {
+      welcomeSubmit.addEventListener("mousedown", (e) => e.preventDefault());
+    }
   }
 
   // Re-render the home list whenever seeds change.

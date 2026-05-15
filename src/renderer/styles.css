@@ -288,9 +288,19 @@ html.on-web .sidebar__top {
   border: 1px solid var(--color-border);
   border-radius: 12px;
   font: inherit;
+  font-family: var(--font-sans);
   font-size: 16px;
+  line-height: 1.4;
   background: var(--color-surface);
   color: var(--color-foreground);
+  /* Textarea: no drag handle, top-left text anchor, no horizontal
+   * overflow. The element starts as a single-line look (rows=1) and
+   * grows tall when the founder taps in. */
+  resize: none;
+  overflow: auto;
+  text-align: left;
+  vertical-align: top;
+  display: block;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease,
