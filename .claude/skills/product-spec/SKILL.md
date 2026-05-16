@@ -15,11 +15,11 @@ This is an interview, not a form. Ask questions one or two at a time, in plain l
 
 Run three phases in order: **Foundation**, **Narrowing**, **Synthesis**. Don't move to the next phase until the current one is done.
 
-Use the **AskUserQuestion** tool for the structured multiple-choice prompts in Phase 2 — that's the question loader. For Phase 1's open-ended questions and the reflections after each batch, just ask in conversation.
+**Always use the AskUserQuestion tool — the question loader — for every question you ask the user, across all three phases.** This is non-negotiable. Phase 1's open-ended questions, Phase 2's structured prompts, and every always-ask follow-up all go through the loader. The user can always pick "Other" to give a free-text answer, so open-endedness is preserved without dropping back into plain-chat questions. Reflections back to the user (e.g. *"OK, so what I'm hearing…"*) are confirmations, not questions — those stay in conversation, not in the loader.
 
 ### One product per session
 
-If the user has more than one idea in flight (e.g. a browser app and a marketplace platform), ask up front: *"Which one are we speccing today? Pick one — we can do the other in a separate pass."* Don't try to spec two products in one run. The output is one `build-prompt.md` per product.
+If the user has more than one idea in flight (e.g. a browser app and a marketplace platform), ask up front via **AskUserQuestion**: *"Which one are we speccing today?"* with one option per idea the user mentioned, plus a closing line in chat: *"We can do the others in a separate pass."* Don't try to spec two products in one run. The output is one `build-prompt.md` per product.
 
 ### If a pitch deck exists
 
@@ -35,44 +35,56 @@ If the user is genuinely greenfield, confirm in the first reflection: *"This is 
 
 ## Phase 1 — Foundation
 
-Phase 1 is two parts: a one-question **prelude** about platform target, then the five broad open-ended questions. Ask the prelude first — it shapes everything downstream.
+Phase 1 is two parts: a one-question **prelude** about platform target, then the five broad foundation questions. Ask the prelude first — it shapes everything downstream. Every question in Phase 1 goes through **AskUserQuestion**; the loader's "Other" option preserves open-endedness.
 
 ### Prelude — platform target
 
-Ask in plain chat, before the five foundation questions:
+Ask via **AskUserQuestion** before the five foundation questions. Use this exact question and these options (the user can always pick "Other" to give a free-text answer):
 
-> *"Before we dig into the product itself: where does this run first — a website / PWA people open in a browser, a desktop app you install, a phone app, or all of the above from one codebase? If you're not sure, say 'web first.'"*
+> Before we dig into the product itself: where does this run first?
 
-Capture the answer verbatim. This shapes the build prompt's phase plan. If the user says *all of the above from one codebase*, the build prompt will phase the work — web/PWA first, native shells after explicit approval. If single-target, no phasing.
+| Option | Description |
+|---|---|
+| Web / PWA in a browser | A website people open in a browser; works on any device. The safe default if you're not sure. |
+| Desktop app I install | A native app for Mac / Windows / Linux. |
+| Phone app | A native app for iPhone or Android. |
+| All of the above from one codebase | One codebase, web first, then native shells after. |
+
+Capture the answer. This shapes the build prompt's phase plan. If the user picks *All of the above from one codebase*, the build prompt will phase the work — web/PWA first, native shells after explicit approval. If single-target, no phasing.
 
 ### The five broad questions
 
-Ask these in order, in conversation. After each, reflect the answer back and capture it. Use everyday language; the parenthetical maps to spec terms — keep that to yourself.
+Ask each via **AskUserQuestion**, one at a time, in order. After each, reflect the answer back in plain chat and capture it. Use everyday language; the parenthetical maps to spec terms — keep that to yourself. The loader's "Other" option is the escape hatch when the user's real answer doesn't fit any choice — encourage them to use it freely.
 
-1. **"Picture one specific person using your thing for the first time. What's the one moment where they go 'oh — this is for me'?"**
+1. **Hero moment.** Question: *"Picture one specific person using your thing for the first time. What's the one moment where they go 'oh — this is for me'?"*
+   Options (4): *"They see a result that solves their problem in one shot"*, *"They feel understood — the product knows them"*, *"They finish something they'd been putting off"*, *"They share it with someone immediately"*.
    *(Maps to: hero use case, core value moment, the single feature that earns the product.)*
 
-2. **"What did that same person do yesterday — before your thing existed — to handle this? Walk me through it like you're describing a friend's morning."**
+2. **Status quo.** Question: *"What did that same person do yesterday — before your thing existed — to handle this?"*
+   Options (4): *"Nothing — they lived with the problem"*, *"A manual workaround (spreadsheet, notes app, paper)"*, *"A different product that's clunky or expensive"*, *"They paid a person to do it for them"*.
    *(Maps to: status quo, what you replace, baseline behavior. Reveals whether the problem is real and how big the wedge is.)*
 
-3. **"If your thing could only do one tiny thing well, and absolutely nothing else, what would that one thing be?"**
+3. **One tiny thing.** Question: *"If your thing could only do one tiny thing well, and absolutely nothing else, what would that one thing be?"*
+   Options (4): *"Take an input and return a finished output"*, *"Show the user something they couldn't see before"*, *"Save them a step they do every day"*, *"Connect them to a person or community"*.
    *(Maps to: MVP scope. The single feature that proves the mechanic works.)*
 
-4. **"What goes in, what comes out? What does the person hand to your thing, and what do they walk away with?"**
+4. **In and out.** Question: *"What goes in, what comes out? What does the person hand to your thing, and what do they walk away with?"*
+   Options (4): *"They give text / answers → get a generated artifact"*, *"They upload a file → get it transformed"*, *"They configure something → get a saved workspace"*, *"They ask a question → get an answer or recommendation"*.
    *(Maps to: primary user flow, inputs and outputs.)*
 
-5. **"What's the line — what would your thing definitely NOT do, even if a user begged?"**
+5. **The line.** Question: *"What's the line — what would your thing definitely NOT do, even if a user begged?"*
+   Options (4): *"No AI-written content / no generated words on the page"*, *"No social features / no public profiles or feeds"*, *"No ads, tracking, or data resale"*, *"No enterprise / B2B features even if asked"*.
    *(Maps to: scope boundaries, principles, the things saying yes to would break the product.)*
 
-After all five, summarize back: *"OK, so what I'm hearing: someone in `[situation X]` opens this thing, the moment they feel it is `[Y]`, the closest thing they do today is `[Z]`, the smallest version of your product is just `[W]`, and you'd never build `[V]`. Yes?"* Get a confirm or correction before moving on.
+After all five, summarize back in plain chat: *"OK, so what I'm hearing: someone in `[situation X]` opens this thing, the moment they feel it is `[Y]`, the closest thing they do today is `[Z]`, the smallest version of your product is just `[W]`, and you'd never build `[V]`. Yes?"* Get a confirm or correction before moving on.
 
 ---
 
 ## Phase 2 — Narrowing (use AskUserQuestion)
 
-Now use the question loader to nail down the specifics. Send these in batches that flow conversationally — never dump them all at once. Pair Q1+Q2 in one call if it flows; same with Q5+Q6.
+Keep using the question loader to nail down the specifics. Send these in batches that flow conversationally — never dump them all at once. Pair Q1+Q2 in one call if it flows; same with Q5+Q6.
 
-After each batch, reflect what you heard in the same warm voice (*"Got it — they open it daily, it's a feed, and the thing that brings them back is a draft they left half-finished."*). Let them correct before you move on.
+After each batch, reflect what you heard in plain chat (*"Got it — they open it daily, it's a feed, and the thing that brings them back is a draft they left half-finished."*). Let them correct before you move on. Reflections stay in chat; new questions stay in the loader.
 
 **Voice rule for every user-facing question.** Ask like a builder friend who's curious about the thing they're making, not a form collecting requirements. The user knows nothing about product management. No words like *MVP*, *retention*, *acquisition*, *funnel*, *churn*, *PMF*, *flywheel*, *iterate*. The internal labels in headings (*Q3 — First-time experience*) are model-only — they don't appear to the user.
 
@@ -103,11 +115,18 @@ After each batch, reflect what you heard in the same warm voice (*"Got it — th
 
 (Shapes the primary screen and the data model.)
 
-**Always-ask follow-up to Q2 (in plain chat).** If the user picked *A conversation* or *A tool that does the work*, the next question is:
+**Always-ask follow-up to Q2 (via AskUserQuestion).** If the user picked *A conversation* or *A tool that does the work*, ask this next via the loader:
 
-> *"In what shape — a chat (text area at the bottom, scroll thread climbs upward, like ChatGPT), an onboarding flow (one question at a time, big focus, progress indicator, paginated, like Typeform or Stripe's setup), a wizard (named steps with a Next button), or something else?"*
+> In what shape does that conversation or tool take place?
 
-Capture the answer verbatim. The chat-vs-onboarding-flow distinction is the difference between a ChatGPT clone and a guided experience — both are conversational, but the UI shapes are opposites. The build prompt's UI-shape constraint and anti-pattern are derived from the answer.
+| Option | Description |
+|---|---|
+| Chat (text area at the bottom, thread climbs up) | Like ChatGPT. Persistent input box, message bubbles, scroll history. |
+| Onboarding flow (one question at a time, paginated) | Like Typeform or Stripe's setup. Big focus, progress indicator, one prompt per screen. |
+| Wizard (named steps with a Next button) | Like a tax-prep app. Discrete labeled steps the user advances through. |
+| Something else | Pick this if none of the above match — describe in your own words. |
+
+Capture the answer. The chat-vs-onboarding-flow distinction is the difference between a ChatGPT clone and a guided experience — both are conversational, but the UI shapes are opposites. The build prompt's UI-shape constraint and anti-pattern are derived from the answer.
 
 ### Q3 — First-time experience (singleSelect)
 
@@ -170,13 +189,23 @@ Capture the answer verbatim. The chat-vs-onboarding-flow distinction is the diff
 
 (This is the question that prevents the most common 0-to-1 failure: the agent inventing a UI from scratch because the build prompt didn't tell it where to inherit from. If the user picks "Nothing yet," stop and force a decision before Phase 3.)
 
-After Q7, you may ask **one** plain-chat follow-up if a beat still feels thin — for example: *"What's the one thing you'd be crushed to see go wrong on launch day?"* — but only one. Don't pile on.
+After Q7, you may ask **one** follow-up via AskUserQuestion if a beat still feels thin — for example: *"What's the one thing you'd be crushed to see go wrong on launch day?"* with 3–4 plausible options + Other — but only one. Don't pile on.
 
-### Always-ask follow-ups (in plain chat, not AskUserQuestion)
+### Always-ask follow-ups (via AskUserQuestion)
 
-- *"What pieces of this already exist anywhere — a doc, a sketch, a half-built prototype, a piece of someone else's app you keep referencing?"* → seeds the build sequence.
-- *"If a contractor said 'I can build you exactly one screen this month' — which screen?"* → forces the MVP cut.
-- *"How would you know, in one week, that you should keep building this — or stop?"* → the success signal.
+Ask these three through the question loader, one per call, after Q7. Each maps to a section of the build prompt; "Other" is always available for free-text answers.
+
+**F1 — Existing pieces.** Question: *"What pieces of this already exist anywhere — a doc, a sketch, a half-built prototype, a piece of someone else's app you keep referencing?"*
+Options (4): *"A written doc / notes / a pitch"*, *"A sketch, wireframe, or Figma"*, *"A half-built prototype or code"*, *"Nothing yet — it's all in my head"*.
+→ Seeds the build sequence.
+
+**F2 — One screen.** Question: *"If a contractor said 'I can build you exactly one screen this month' — which screen?"*
+Options (4): *"The first-time / onboarding screen"*, *"The main thing-they-do screen"*, *"The result / output screen"*, *"The dashboard / home / feed they return to"*.
+→ Forces the MVP cut.
+
+**F3 — Success signal.** Question: *"How would you know, in one week, that you should keep building this — or stop?"*
+Options (4): *"A specific person uses it without me prompting them"*, *"Someone I don't know finishes the core flow"*, *"Someone pays me / commits money"*, *"I'd just feel it — no concrete signal yet"*.
+→ The success signal.
 
 ---
 
@@ -257,7 +286,7 @@ From AskUserQuestion Q5 + Q6. Where the user expects this to break, and what the
 A numbered list — what to build first, second, third. Each item is **one screen or one capability**, never a vague phase like "core platform" or "infra". From the contractor follow-up + the v1 answer. Each step that produces visible UI must reference section 4's canon and section 9's allowlist. If the user only gave you enough for step 1, list step 1 honestly and write `[NEEDS INPUT: what comes after the first screen ships]` for the rest.
 
 ## 12. How you'll know it's working
-Two or three concrete signals — observable behavior, not vanity metrics. *"My barber sends his nephew."* *"Someone I don't know puts $20 in."* *"The third user finishes the form without messaging me."* If the user didn't give you signals, ask once; if still nothing, leave `[NEEDS INPUT: signals]`.
+Two or three concrete signals — observable behavior, not vanity metrics. *"My barber sends his nephew."* *"Someone I don't know puts $20 in."* *"The third user finishes the form without messaging me."* If the user didn't give you signals, ask once via **AskUserQuestion** with concrete-signal options (e.g. *"A stranger finishes the core flow"*, *"Someone pays / commits money"*, *"A user I didn't recruit comes back next week"*, *"Word of mouth — someone tells someone else"*); if still nothing, leave `[NEEDS INPUT: signals]`.
 
 ## 13. Open questions
 Anything you couldn't nail down in the interview. List them as questions the user has to answer before the first line of code, not as TODOs.
@@ -374,7 +403,7 @@ If the user explicitly asks for the descriptive doc — *"can I see this as a sp
 - **Never invent product details, users, screens, features, or metrics.** Every concrete claim in `build-prompt.md` traces to something the user said. If a section needs information you don't have, leave a `[NEEDS INPUT: …]` placeholder rather than filling it in.
 - Never use the words *MVP*, *retention*, *funnel*, *acquisition*, *PMF*, *flywheel*, *iterate*, *go-to-market* with the user. Translate silently.
 - If the user wants v1 to do six things, push back **once**: *"If we ship one of those next month and the rest later, which one?"* Honor the answer.
-- If the user describes a feature without a person attached, ask: *"Who's using that, and what does it feel like for them?"* — anchor every feature to a person.
+- If the user describes a feature without a person attached, ask via **AskUserQuestion**: *"Who's using that, and what does it feel like for them?"* with 3–4 plausible person-archetypes drawn from the conversation + Other — anchor every feature to a person.
 - If the user is genuinely pre-everything (no sketch, no screen, no draft), **say so honestly** in the build sequence. Don't pad it with placeholder steps.
 - **If the product lives inside an existing app, the new screen inherits — never invents.** Buttons, fonts, colors, containers, spacing, AND structural primitives (sidebar, tabs, address bar, navigation, modals, welcome page) all come from the host app's existing files. Read `README.md` and a representative slice of `src/` first to understand the existing shell. The build prompt's "Read first" and "Constraints" sections must enumerate BOTH visual AND structural inheritance by file path — visual without structural produces builds the agent treats as a new screen bolted onto the existing app, and the founder looks at the result and says *"that's not my app."* The canon is the difference between "feels like mine" and "feels like a generic AI-shaped UI."
 - **If the line includes a content principle (e.g. "no AI-written words"), turn it into an allowlist constraint, not a vibe.** Principles get rationalized away by agents; explicit allowlists get checked. Force the build prompt to enumerate every visible string in its constraints section.
@@ -383,12 +412,12 @@ If the user explicitly asks for the descriptive doc — *"can I see this as a sp
 
 ## When the build prompt is done
 
-After writing `build-prompt.md`, read it back as a 4–5 line summary, point out any `[NEEDS INPUT: …]` placeholders the user needs to fill, and ask in plain chat: *"Does this match the thing you have in your head, or do we tighten anywhere?"*
+After writing `build-prompt.md`, read it back as a 4–5 line summary, point out any `[NEEDS INPUT: …]` placeholders the user needs to fill, and ask via **AskUserQuestion**: *"Does this match the thing you have in your head, or do we tighten anywhere?"* with options like *"Yes, this is it — ship the prompt"*, *"Mostly, but tighten one section"*, *"The first version is bigger than what I'd actually build first"*, *"Something fundamental is off — let's revisit"*.
 
 If they want edits, edit the file in place — don't rewrite from scratch unless they ask.
 
 ## Tools to use
 
 - **Read** — load `pitch-deck.md` if it exists, for background. Also load `README.md` and skim `src/` if they exist (so structural inheritance in the build prompt is concrete). And load any prior `build-prompt.md` to read its current version, so Phase 3 can increment.
-- **AskUserQuestion** — Q1 through Q7 in Phase 2. This is the question loader; don't replace it with free-form chat for those seven. Q7 (visual canon) is the one most often skipped by accident — do not skip it; skipping it produces builds the agent treats as a greenfield design brief.
+- **AskUserQuestion** — every question the user is asked, across all phases: the Phase 1 prelude, the five Phase 1 foundation questions, Q1 through Q7 in Phase 2, the Q2 UI-shape follow-up, and the three always-ask follow-ups (F1, F2, F3). This is the question loader; do not replace it with free-form chat for any of these. The "Other" option is always available in the loader, so open-ended answers remain possible without dropping into plain-chat prompts. Q7 (visual canon) is the one most often skipped by accident — do not skip it; skipping it produces builds the agent treats as a greenfield design brief. Reflections back to the user stay in plain chat — those are confirmations, not questions.
 - **Write** / **Edit** — produce and refine `build-prompt.md` (Phase 3). Optionally `product-spec.md` if the user explicitly asks for the descriptive form.
