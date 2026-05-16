@@ -202,10 +202,14 @@
     readingEssayId = null;
     renderSidebar();
     renderHome();
-    // Drop focus onto the welcome question so the founder can just
-    // type the place they're at and hit Enter.
+    // If the "Somewhere else" specify input is already open, drop focus
+    // there; otherwise leave focus on the grid (the tiles are buttons,
+    // so keyboard users land on the first one via Tab).
+    const formEl = document.getElementById("welcome-form");
     const inputEl = document.getElementById("welcome-input");
-    if (inputEl) setTimeout(() => { inputEl.focus(); inputEl.select(); }, 30);
+    if (formEl && !formEl.hidden && inputEl) {
+      setTimeout(() => { inputEl.focus(); inputEl.select(); }, 30);
+    }
   }
   function showWriting() {
     feedView.removeAttribute("data-active");
@@ -315,29 +319,58 @@
   navHome.addEventListener("click", () => showFeed());
 
   // Welcome screen: the H1 is the standing line ("Everyone is a
-  // founder."), and the actual question sits inside the input's
-  // placeholder: "Where are you right now?". The typed answer seeds
-  // the writing session's `seed` anchor.
-  // On submit: register the answer as a seed (so it persists in
-  // the sidebar) and spawn a writing session anchored there. Empty
-  // submissions just re-focus the input.
+  // founder.") and the question ("Where are you right now?") sits
+  // above a 2×2 grid of four locations — Cafe, Home, Work, Somewhere
+  // else. The first three drop you straight into a writing session
+  // seeded with that location. "Somewhere else" reveals a small input
+  // so the founder can specify the place themselves.
+  const welcomeGrid = document.getElementById("welcome-grid");
   const welcomeForm = document.getElementById("welcome-form");
   const welcomeInput = document.getElementById("welcome-input");
-  if (welcomeInput) {
-    welcomeInput.setAttribute("placeholder", "Where are you right now?");
+
+  function startSessionWith(seed) {
+    if (window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
+      window.tinkerSeeds.add(seed);
+    }
+    if (typeof window.tinkerNewSession === "function") {
+      window.tinkerNewSession({ seed });
+    }
   }
+
+  const LOCATION_LABELS = { cafe: "Cafe", home: "Home", work: "Work" };
+
+  if (welcomeGrid) {
+    welcomeGrid.addEventListener("click", (e) => {
+      const tile = e.target.closest("[data-location]");
+      if (!tile) return;
+      const key = tile.getAttribute("data-location");
+      if (key === "other") {
+        if (!welcomeForm || !welcomeInput) return;
+        welcomeForm.hidden = false;
+        // Highlight the chosen tile so the founder knows why the input
+        // appeared, and remember it in case other tiles get aria-pressed.
+        for (const t of welcomeGrid.querySelectorAll("[data-location]")) {
+          t.setAttribute("aria-pressed", t === tile ? "true" : "false");
+        }
+        setTimeout(() => { welcomeInput.focus(); welcomeInput.select(); }, 30);
+        return;
+      }
+      const label = LOCATION_LABELS[key];
+      if (!label) return;
+      if (welcomeForm) welcomeForm.hidden = true;
+      if (welcomeInput) welcomeInput.value = "";
+      startSessionWith(label);
+    });
+  }
+
   if (welcomeForm && welcomeInput) {
     welcomeForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const name = welcomeInput.value.trim();
       if (!name) { welcomeInput.focus(); return; }
-      if (window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
-        window.tinkerSeeds.add(name);
-      }
       welcomeInput.value = "";
-      if (typeof window.tinkerNewSession === "function") {
-        window.tinkerNewSession({ seed: name });
-      }
+      welcomeForm.hidden = true;
+      startSessionWith(name);
     });
   }
 
