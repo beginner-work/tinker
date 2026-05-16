@@ -59,12 +59,18 @@ The flow is:
    Claude Haiku 4.5 with the server-side Anthropic key. The browser
    bundle never sees the Anthropic key.
 
-Required Vercel env vars (set per environment — Production = `project-live-*`
-creds, Preview = `project-test-*` creds):
+Required Vercel env vars:
 
 - `STYTCH_PROJECT_ID`
 - `STYTCH_SECRET`
 - `ANTHROPIC_API_KEY`
+- `DATABASE_URL`
+
+Set the same values for Production and Preview so preview deploys see the
+same Stytch users and the same Postgres rows as production. (Preview used
+to point at a separate `project-test-*` Stytch project and got its
+localStorage wiped on every load — both are gone now; previews behave
+like a second URL pointing at production.)
 
 Sign out by clearing `tinker_jwt` (`window.tinkerAuth.signOut()` from the
 inspector, or `localStorage.removeItem("tinker_jwt")`).
