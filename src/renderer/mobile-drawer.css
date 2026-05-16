@@ -30,7 +30,10 @@
     backdrop-filter: blur(18px) url(#liquid-glass) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     border: 0;
-    color: #fff;
+    /* Dark glyph by default so it reads against the cream surfaces
+     * (category-feed, read, writing). The welcome screen overrides
+     * to white because the indigo corner-flag sits behind it. */
+    color: var(--color-foreground);
     box-shadow: none;
     /* --toggle-y is driven by mobile-drawer.js to follow the active
      * section's scrollTop so the hamburger drifts up with the page
@@ -40,6 +43,13 @@
   }
   .drawer-toggle:hover { background: rgba(255, 255, 255, 0.16); }
   .drawer-toggle:active { transform: translateY(var(--toggle-y, 0)) scale(0.96); }
+
+  /* Welcome screen has an indigo corner-flag (see styles.css
+   * .stage > .welcome.feed[data-active]::before) directly under
+   * the hamburger — flip the glyph to white there for contrast. */
+  body:has(.stage > .welcome.feed[data-active]) .drawer-toggle {
+    color: #fff;
+  }
 
   body[data-drawer-open] .drawer-toggle {
     opacity: 0;
