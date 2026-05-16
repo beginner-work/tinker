@@ -903,6 +903,74 @@ html.on-web .sidebar__top {
   flex-direction: column;
   gap: 12px;
 }
+
+/* Status composer — single textarea + Post. Sits above the feed list
+ * inside the same 720px column. Designed for short, top-of-mind notes
+ * that don't justify an essay. */
+.status-composer {
+  width: 100%;
+  max-width: 720px;
+  margin: 16px auto 0;
+  padding: 0 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.status-composer[hidden] { display: none !important; }
+.status-composer__input {
+  width: 100%;
+  resize: vertical;
+  min-height: 76px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-foreground);
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.status-composer__input::placeholder { color: var(--color-muted); }
+.status-composer__input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+.status-composer__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.status-composer__hint {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.status-composer__post {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-accent-strong);
+  background: var(--color-accent-strong);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+}
+.status-composer__post:hover:not(:disabled) { background: var(--color-accent-press); }
+.status-composer__post:active:not(:disabled) { transform: scale(0.98); }
+.status-composer__post:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.category-feed__card--status .category-feed__card-body {
+  color: var(--color-foreground);
+  font-size: 15px;
+}
 .category-feed__card {
   text-align: left;
   background: var(--color-surface);
@@ -1195,6 +1263,7 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   .category-feed__list { padding: 12px 18px 60px; }
   .category-feed__empty { padding: 8px 18px 60px; }
   .category-feed__title { font-size: 28px; }
+  .status-composer { padding: 0 18px; }
 }
 
 /* ── Seed pre-prompt (Instagram tag-style head, regular textarea) ── */

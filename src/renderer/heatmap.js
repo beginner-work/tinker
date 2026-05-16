@@ -511,7 +511,10 @@
     if (leaf && state.taxonomy[leaf]) {
       const feed = buildCategoryFeed(leaf, state);
       if (feed && feed.essays.length && typeof window.tinkerShowCategoryFeed === "function") {
-        window.tinkerShowCategoryFeed(leaf);
+        // Pass the tapped seed name through so the category feed's
+        // status composer can attach new posts to the channel the
+        // founder actually tapped.
+        window.tinkerShowCategoryFeed(leaf, seed.name);
         return;
       }
     }

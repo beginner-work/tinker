@@ -36,6 +36,16 @@
   const categoryFeedSub = $("#category-feed-sub");
   const categoryFeedList = $("#category-feed-list");
   const categoryFeedEmpty = $("#category-feed-empty");
+  const statusComposer = $("#status-composer");
+  const statusComposerInput = $("#status-composer-input");
+  const statusComposerPost = $("#status-composer-post");
+  const statusComposerHint = $("#status-composer-hint");
+
+  // Which category feed is currently on screen, and what seed the user
+  // tapped to land here. The composer attaches new statuses to that
+  // seed so they show up under the channel they were typed into.
+  let activeCategoryKey = null;
+  let activeCategorySeed = null;
 
   // ── Storage helpers ──────────────────────────────────────────────────
   const uid = () => "d_" + Math.random().toString(36).slice(2, 10);
@@ -115,6 +125,7 @@
         createdAt: Date.now(),
         url: `/${stitched.author || "you"}/${slug}`,
         sourceDraft: draft.id,
+        kind: "essay",
         // Carry seed through so the home list's vector classifier
         // can keep reading the writing content after publish.
         seed: draft.seed || null,
@@ -135,6 +146,39 @@
       if (!leafKey || !showCategoryFeed(leafKey)) {
         showRead(essay);
       }
+      return essay;
+    },
+    // Short-form post: typed straight into the textarea at the top of
+    // a category feed. Skips the interview flow and the stitching/
+    // verification logic — the body is exactly what the founder typed.
+    // No title; the card and read view render without one. Tied to a
+    // seed so the home-list classifier keeps placing it in the same
+    // category the founder posted from.
+    publishStatus({ body, seed }) {
+      const trimmed = String(body || "").trim();
+      if (!trimmed) return null;
+      const seedName = seed ? String(seed).trim() : null;
+      const slug = "status-" + Math.random().toString(36).slice(2, 8);
+      const essay = {
+        id: "e_" + Math.random().toString(36).slice(2, 10),
+        slug,
+        author: "you",
+        title: null,
+        body: trimmed,
+        createdAt: Date.now(),
+        url: `/you/${slug}`,
+        sourceDraft: null,
+        kind: "status",
+        seed: seedName || null,
+      };
+      essays = [essay, ...essays];
+      saveEssays(essays);
+      // Make sure the seed exists in the explicit list so it has a
+      // sidebar card. add() is a no-op if it's already there.
+      if (seedName && window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
+        window.tinkerSeeds.add(seedName);
+      }
+      renderHome();
       return essay;
     },
   };
@@ -200,6 +244,8 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     activeId = null;
     readingEssayId = null;
+    activeCategoryKey = null;
+    activeCategorySeed = null;
     renderSidebar();
     renderHome();
     // If the "Somewhere else" specify input is already open, drop focus
@@ -225,14 +271,17 @@
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
+    const titleHtml = essay.title
+      ? `<h1 class="read__title">${escapeHtml(essay.title)}</h1>`
+      : "";
     readBody.innerHTML =
       `<header class="read__head">` +
         `<div class="read__author">${escapeHtml(essay.author)}</div>` +
-        `<h1 class="read__title">${escapeHtml(essay.title)}</h1>` +
+        titleHtml +
       `</header>` +
       paragraphs(essay.body);
   }
-  function showCategoryFeed(categoryKey) {
+  function showCategoryFeed(categoryKey, originatingSeed) {
     if (!categoryFeedView) return false;
     const feed = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryFeed === "function")
       ? window.tinkerHeatmap.getCategoryFeed(categoryKey)
@@ -244,6 +293,12 @@
     readView.hidden = true;
     categoryFeedView.hidden = false;
     activeId = null;
+    activeCategoryKey = categoryKey;
+    // Prefer the seed the user just tapped. Fall back to the most-
+    // recently-touched seed in this category so the composer still
+    // has somewhere to attach a status (e.g. when the feed is opened
+    // by routing after publish, with no clicked seed in hand).
+    activeCategorySeed = originatingSeed || pickSeedForCategory(feed) || null;
     renderSidebar();
 
     categoryFeedTitle.textContent = feed.name;
@@ -255,6 +310,8 @@
       categoryFeedSub.hidden = true;
     }
 
+    refreshStatusComposer();
+
     categoryFeedList.innerHTML = "";
     if (!feed.essays.length) {
       categoryFeedEmpty.hidden = false;
@@ -262,18 +319,53 @@
     }
     categoryFeedEmpty.hidden = true;
     for (const essay of feed.essays) {
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "category-feed__card";
-      const body = paragraphs(essay.body);
-      card.innerHTML =
-        `<span class="category-feed__card-author">${escapeHtml(essay.author || "you")}</span>` +
-        `<h3 class="category-feed__card-title">${escapeHtml(essay.title || "Untitled")}</h3>` +
-        (body ? `<div class="category-feed__card-body">${body}</div>` : "");
-      card.addEventListener("click", () => showRead(essay));
-      categoryFeedList.appendChild(card);
+      categoryFeedList.appendChild(renderFeedCard(essay));
     }
     return true;
+  }
+
+  function renderFeedCard(essay) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "category-feed__card";
+    if (essay.kind === "status") card.classList.add("category-feed__card--status");
+    const body = paragraphs(essay.body);
+    const titleHtml = essay.title
+      ? `<h3 class="category-feed__card-title">${escapeHtml(essay.title)}</h3>`
+      : "";
+    card.innerHTML =
+      `<span class="category-feed__card-author">${escapeHtml(essay.author || "you")}</span>` +
+      titleHtml +
+      (body ? `<div class="category-feed__card-body">${body}</div>` : "");
+    card.addEventListener("click", () => showRead(essay));
+    return card;
+  }
+
+  function pickSeedForCategory(feed) {
+    if (!feed || !Array.isArray(feed.essays) || feed.essays.length === 0) return null;
+    // Essays in the feed are already sorted most-recent first; take
+    // the first one carrying a seed.
+    for (const essay of feed.essays) {
+      if (essay && essay.seed) return essay.seed;
+    }
+    return null;
+  }
+
+  function refreshStatusComposer() {
+    if (!statusComposer) return;
+    if (!activeCategoryKey) {
+      statusComposer.hidden = true;
+      return;
+    }
+    statusComposer.hidden = false;
+    if (statusComposerInput) {
+      statusComposerInput.value = "";
+      statusComposerInput.placeholder = activeCategorySeed
+        ? `Post a quick thought in ${activeCategorySeed}…`
+        : "What's on your mind?";
+    }
+    if (statusComposerPost) statusComposerPost.disabled = true;
+    if (statusComposerHint) statusComposerHint.textContent = "";
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
@@ -386,7 +478,9 @@
       if (!readingEssayId) return;
       const essay = essays.find((e) => e.id === readingEssayId);
       if (!essay) return;
-      if (confirm(`Delete "${essay.title || "Untitled"}"? This can't be undone.`)) {
+      const label = essay.title
+        || (essay.body ? essay.body.trim().slice(0, 48).replace(/\s+/g, " ") + (essay.body.length > 48 ? "…" : "") : "Untitled");
+      if (confirm(`Delete "${label}"? This can't be undone.`)) {
         store.deleteEssay(essay.id);
       }
     });
@@ -410,7 +504,35 @@
     if (essay) showRead(essay);
   };
   window.tinkerResumeDraft = (draftId) => openDraft(draftId);
-  window.tinkerShowCategoryFeed = (categoryKey) => showCategoryFeed(categoryKey);
+  window.tinkerShowCategoryFeed = (categoryKey, originatingSeed) =>
+    showCategoryFeed(categoryKey, originatingSeed);
+
+  // Status composer wiring. The textarea enables the Post button once
+  // there's non-whitespace input; Cmd/Ctrl+Enter submits without
+  // hunting for the button. After posting, re-render the feed so the
+  // new card lands at the top.
+  if (statusComposer && statusComposerInput && statusComposerPost) {
+    const updateEnabled = () => {
+      statusComposerPost.disabled = statusComposerInput.value.trim().length === 0;
+    };
+    statusComposerInput.addEventListener("input", updateEnabled);
+    statusComposerInput.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (!statusComposerPost.disabled) statusComposer.requestSubmit();
+      }
+    });
+    statusComposer.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const body = statusComposerInput.value;
+      if (!body.trim() || !activeCategoryKey) return;
+      const essay = store.publishStatus({ body, seed: activeCategorySeed });
+      if (!essay) return;
+      // Stay on this category feed so the founder sees their post
+      // land at the top of the channel they just typed into.
+      showCategoryFeed(activeCategoryKey, activeCategorySeed);
+    });
+  }
 
   // Keyboard shortcuts. Cmd/Ctrl+T = new draft. Cmd/Ctrl+W = close
   // (delete) the current draft. The address-bar shortcut is gone — there
