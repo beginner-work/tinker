@@ -1572,6 +1572,28 @@ html.txn-modal-open { overflow: hidden; }
 }
 .home-card:hover { background: rgba(99, 102, 241, 0.08); }
 .home-card:active { background: rgba(99, 102, 241, 0.14); }
+
+/* "You are here": filled card with a left rail in the accent. The
+   rail is drawn with an inset box-shadow so it doesn't shift the
+   row's grid (any border would). */
+.home-card--active,
+.home-card--active:hover {
+  background: rgba(99, 102, 241, 0.16);
+  box-shadow: inset 3px 0 0 0 var(--color-accent-strong);
+}
+.home-card--active .home-card__name { color: var(--color-accent-strong); font-weight: 600; }
+
+/* The enclosing channel header gets the same accent so the trail
+   from "you are here" up to "the channel you're in" reads at a
+   glance without needing a separate breadcrumb component. */
+.home-list__section--active .home-list__group,
+.home-list__section--active .home-list__crumb,
+.home-list__section--active .home-list__crumb--leaf {
+  color: var(--color-accent-strong);
+}
+.home-list__section--active.home-list__section--nested::before {
+  opacity: 0.85;
+}
 .home-card__avatar {
   width: 22px;
   height: 22px;

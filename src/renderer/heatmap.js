@@ -100,6 +100,12 @@
     return String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
   }
 
+  // Tracks "where am I right now" so the sidebar can highlight the
+  // active seed card and its enclosing channel. Renderer.js pushes
+  // updates via setActive(...) on every view transition.
+  let activeSeedKey = null;
+  let activeCategoryKey = null;
+
   // Cheap stable hash over the joined content snippets — re-classify
   // only when the founder's writing at this seed has actually
   // changed since we last asked Claude.
@@ -408,13 +414,35 @@
       g.items.sort((a, b) => (b.lastUsed || 0) - (a.lastUsed || 0));
     }
 
-    // Section order: PENDING (loading) → categorised, with sub-
-    // categories sitting directly under their parents alphabetical.
+    // Section order: PENDING (loading) → categorised. Top-level
+    // channels are ordered by most-recent activity (so the channel
+    // you've been writing in lately bubbles to the top — easy to
+    // revisit). Nested sub-channels follow their parent, parent
+    // first then children alphabetically, so the structural shape
+    // stays predictable even as recency reshuffles the top level.
     const sections = [];
     if (groups.has(PENDING)) sections.push([PENDING, groups.get(PENDING)]);
 
     const categorised = Array.from(groups.entries()).filter(([k]) => k !== PENDING);
-    categorised.sort(([, a], [, b]) => sectionRank(a.path, state).localeCompare(sectionRank(b.path, state)));
+    const topRecency = new Map();
+    for (const [, group] of categorised) {
+      if (!group.path || !group.path.length) continue;
+      const top = group.path[0];
+      const groupMax = group.items.reduce((m, s) => Math.max(m, s.lastUsed || 0), 0);
+      topRecency.set(top, Math.max(topRecency.get(top) || 0, groupMax));
+    }
+    categorised.sort(([, a], [, b]) => {
+      const aTop = a.path[0], bTop = b.path[0];
+      if (aTop !== bTop) {
+        const diff = (topRecency.get(bTop) || 0) - (topRecency.get(aTop) || 0);
+        if (diff !== 0) return diff;
+        const aName = state.taxonomy[aTop]?.name || aTop;
+        const bName = state.taxonomy[bTop]?.name || bTop;
+        return aName.localeCompare(bName);
+      }
+      if (a.path.length !== b.path.length) return a.path.length - b.path.length;
+      return sectionRank(a.path, state).localeCompare(sectionRank(b.path, state));
+    });
     for (const entry of categorised) sections.push(entry);
 
     for (const [key, group] of sections) {
@@ -432,6 +460,13 @@
         const nested = group.path.length > 1;
         const names = group.path.map((p) => state.taxonomy[p]?.name || p);
         if (nested) section.classList.add("home-list__section--nested");
+        // Section is "active" when its leaf matches the current
+        // category view, OR when the active seed lives inside it —
+        // both routes mean the founder is engaged with this channel.
+        const sectionActive = (activeCategoryKey && key === activeCategoryKey)
+          || (activeSeedKey && group.items.some((s) => s.key === activeSeedKey));
+        if (sectionActive) section.classList.add("home-list__section--active");
+        section.dataset.categoryKey = key;
         const breadcrumb = names
           .map((n, i) => i === 0
             ? `<span class="home-list__crumb">${escapeHtml(n)}</span>`
@@ -451,6 +486,16 @@
     if (groups.has(PENDING)) {
       const pendingItems = groups.get(PENDING).items;
       setTimeout(() => classifyUncategorized(pendingItems, state), 50);
+    }
+
+    // Slide the active card into view so a long sidebar never hides
+    // "where you are" below the fold. `nearest` stops a forced jump
+    // when it's already on screen.
+    if (activeSeedKey) {
+      const activeEl = mountEl.querySelector('.home-card--active');
+      if (activeEl && typeof activeEl.scrollIntoView === "function") {
+        activeEl.scrollIntoView({ block: "nearest" });
+      }
     }
 
     return { all: seeds.length };
@@ -476,6 +521,11 @@
     const card = document.createElement("button");
     card.type = "button";
     card.className = "home-card";
+    card.dataset.seedKey = seed.key;
+    if (activeSeedKey && seed.key === activeSeedKey) {
+      card.classList.add("home-card--active");
+      card.setAttribute("aria-current", "page");
+    }
 
     const colour = PALETTE[hashSlot(seed.key, PALETTE.length)];
     const writing = seed.latestWriting && seed.latestWriting.title ? seed.latestWriting : null;
@@ -588,5 +638,19 @@
     return PALETTE[hashSlot(String(key || ""), PALETTE.length)];
   }
 
-  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForSeed, colorFor };
+  // Pushed by renderer.js on every view transition so the sidebar can
+  // mark the seed/channel the founder is currently inside. Pass null
+  // (or {}) to clear when returning to the welcome view.
+  function setActive(target) {
+    const next = target || {};
+    const nextSeed = next.seedName ? normCat(next.seedName) : (next.seedKey || null);
+    const nextCategory = next.categoryKey || null;
+    if (nextSeed === activeSeedKey && nextCategory === activeCategoryKey) return;
+    activeSeedKey = nextSeed;
+    activeCategoryKey = nextCategory;
+    const mount = document.getElementById("home-list");
+    if (mount) render(mount);
+  }
+
+  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForSeed, colorFor, setActive };
 })();

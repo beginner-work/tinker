@@ -183,6 +183,7 @@
     activeId = id;
     renderSidebar();
     showWriting();
+    setSidebarActive({ seedName: draft.seed || null });
     if (window.tinkerWriting) window.tinkerWriting.open(draft);
   }
 
@@ -190,6 +191,15 @@
     activeId = null;
     renderSidebar();
     showFeed();
+  }
+
+  // Push the "where am I" signal into the sidebar so the active seed
+  // card and its enclosing channel get highlighted. Safe no-op until
+  // heatmap.js loads.
+  function setSidebarActive(target) {
+    if (window.tinkerHeatmap && typeof window.tinkerHeatmap.setActive === "function") {
+      window.tinkerHeatmap.setActive(target);
+    }
   }
 
   // ── Views ───────────────────────────────────────────────────────────
@@ -202,6 +212,7 @@
     readingEssayId = null;
     renderSidebar();
     renderHome();
+    setSidebarActive(null);
     // If the "Somewhere else" specify input is already open, drop focus
     // there; otherwise leave focus on the grid (the tiles are buttons,
     // so keyboard users land on the first one via Tab).
@@ -225,6 +236,7 @@
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
+    setSidebarActive({ seedName: essay.seed || null });
     readBody.innerHTML =
       `<header class="read__head">` +
         `<div class="read__author">${escapeHtml(essay.author)}</div>` +
@@ -245,6 +257,7 @@
     categoryFeedView.hidden = false;
     activeId = null;
     renderSidebar();
+    setSidebarActive({ categoryKey });
 
     categoryFeedTitle.textContent = feed.name;
     if (feed.description) {
