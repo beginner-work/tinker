@@ -1,0 +1,38 @@
+name: product-spec evals
+
+on:
+  pull_request:
+    paths:
+      - '.claude/skills/product-spec/**'
+      - '.github/workflows/product-spec-evals.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+concurrency:
+  group: product-spec-evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evals:
+    name: Run product-spec evals
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+        env:
+          PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
+
+      - name: Run product-spec evals
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EVAL_DUMP_FAILURES: '1'
+        run: npm run eval:product-spec
