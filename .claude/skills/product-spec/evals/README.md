@@ -18,7 +18,11 @@ default.
 ## Run
 
 ```bash
+# Either of these works; OAuth token is preferred when both are set.
+export CLAUDE_CODE_OAUTH_TOKEN="..."   # from the Claude Code GitHub App
+# or
 export ANTHROPIC_API_KEY="sk-ant-..."
+
 npm run eval:product-spec
 ```
 

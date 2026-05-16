@@ -5,7 +5,8 @@
 // produce a build-prompt.md, then runs assertions against the output.
 //
 // Run from repo root: `npm run eval:product-spec`
-// Requires: ANTHROPIC_API_KEY env var.
+// Auth: prefers CLAUDE_CODE_OAUTH_TOKEN (from the Claude Code GitHub App), falls
+//       back to ANTHROPIC_API_KEY. One of them must be set.
 // Optional: EVAL_DUMP_FAILURES=1 prints the full build prompt for any failed case.
 // Optional: EVAL_MODEL=claude-... overrides the model.
 // Optional: EVAL_CASE=01-... runs a single case by filename prefix.
@@ -21,12 +22,19 @@ const CASES_DIR = join(__dirname, "cases");
 const FIXTURES_DIR = join(__dirname, "fixtures");
 const MODEL = process.env.EVAL_MODEL || "claude-sonnet-4-6";
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error("ANTHROPIC_API_KEY is not set. Export it before running.");
+const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+const apiKey = process.env.ANTHROPIC_API_KEY;
+
+if (!oauthToken && !apiKey) {
+  console.error("Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY is set. Export one before running.");
   process.exit(2);
 }
 
-const client = new Anthropic();
+const client = oauthToken
+  ? new Anthropic({ authToken: oauthToken, apiKey: null })
+  : new Anthropic({ apiKey });
+
+console.log(`Auth: ${oauthToken ? "CLAUDE_CODE_OAUTH_TOKEN" : "ANTHROPIC_API_KEY"}`);
 
 function loadFixtures(names) {
   if (!names || names.length === 0) return "(none)";
