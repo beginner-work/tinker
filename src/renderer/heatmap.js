@@ -481,7 +481,8 @@
     const writing = seed.latestWriting && seed.latestWriting.title ? seed.latestWriting : null;
     if (writing) card.classList.add("home-card--has-writing");
 
-    const label = channelName(seed.name) || seed.name;
+    const override = seed.displayName ? String(seed.displayName).trim() : "";
+    const label = override || channelName(seed.name) || seed.name;
     if (label !== seed.name) card.title = seed.name;
 
     const subline = writing
@@ -496,7 +497,53 @@
       `</span>`;
 
     card.addEventListener("click", () => openSeed(seed));
+    attachRename(card, seed);
     return card;
+  }
+
+  // Right-click (desktop) or long-press (touch) opens the rename modal.
+  // The long-press path also suppresses the click that would otherwise
+  // fire on release so the seed doesn't open behind the modal.
+  function attachRename(card, seed) {
+    if (!window.tinkerSeeds || typeof window.tinkerSeeds.openRenameModal !== "function") return;
+    const open = () => window.tinkerSeeds.openRenameModal(seed);
+
+    card.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      open();
+    });
+
+    let pressTimer = null;
+    let longPressed = false;
+    const LONG_PRESS_MS = 500;
+    const clearTimer = () => {
+      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    };
+
+    card.addEventListener("touchstart", (e) => {
+      if (e.touches.length !== 1) return;
+      longPressed = false;
+      clearTimer();
+      pressTimer = setTimeout(() => {
+        longPressed = true;
+        pressTimer = null;
+        open();
+      }, LONG_PRESS_MS);
+    }, { passive: true });
+
+    card.addEventListener("touchmove", clearTimer, { passive: true });
+    card.addEventListener("touchcancel", () => { clearTimer(); longPressed = false; }, { passive: true });
+    card.addEventListener("touchend", clearTimer, { passive: true });
+
+    // Swallow the synthetic click that follows a long-press release so
+    // openSeed() doesn't fire behind the rename modal.
+    card.addEventListener("click", (e) => {
+      if (longPressed) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        longPressed = false;
+      }
+    }, true);
   }
 
   // Tap routing: prefer the seed's category feed (lists all essays

@@ -161,6 +161,14 @@
     // Explicit seeds
     for (const e of explicit) touch(e.name, e.createdAt || 0, "manual");
 
+    // Layer in any user-set display name overrides. Stored on the
+    // explicit entry so they ride sync.pushSeeds() without a new kind.
+    for (const e of explicit) {
+      if (!e || !e.displayName) continue;
+      const merged = map.get(normalize(e.name));
+      if (merged) merged.displayName = String(e.displayName);
+    }
+
     // Drafts in localStorage — also pull the writing content so the
     // vector classifier can read what the founder actually wrote here.
     try {
@@ -305,6 +313,104 @@
     notify();
   }
 
+  function setDisplayName(rawSeedName, rawDisplayName) {
+    const key = normalize(rawSeedName);
+    if (!key) return;
+    const display = String(rawDisplayName || "").trim();
+    let idx = explicit.findIndex((e) => normalize(e.name) === key);
+    if (idx === -1) {
+      // The seed exists only because of a past draft/essay/transaction.
+      // Promote it to explicit so the override has somewhere to live and
+      // rides sync.pushSeeds() with the rest of the seed state.
+      if (!display) { notify(); return; }
+      explicit = [{
+        id: nextId(),
+        name: String(rawSeedName || "").trim(),
+        createdAt: Date.now(),
+        displayName: display,
+      }].concat(explicit);
+    } else if (display) {
+      explicit[idx] = { ...explicit[idx], displayName: display };
+    } else {
+      const { displayName, ...rest } = explicit[idx];
+      explicit[idx] = rest;
+    }
+    save(explicit);
+    notify();
+  }
+
+  // ── Rename modal ─────────────────────────────────────────────────
+  let renameModal = null;
+
+  function openRenameModal(seed) {
+    if (renameModal || !seed) return;
+    const current = String(seed.displayName || "").trim();
+    const hasOverride = current.length > 0;
+
+    renameModal = document.createElement("div");
+    renameModal.className = "seed-modal";
+    renameModal.innerHTML = `
+      <div class="seed-modal__backdrop" data-close></div>
+      <div class="seed-modal__card" role="dialog" aria-modal="true" aria-labelledby="seed-rename-title">
+        <header class="seed-modal__head">
+          <h2 id="seed-rename-title" class="seed-modal__title">Rename channel</h2>
+          <button type="button" class="seed-modal__close" data-close aria-label="Close">×</button>
+        </header>
+        <p class="seed-modal__sub">Change how this seed appears in the sidebar. The full seed text stays the same.</p>
+        <input type="text" id="seed-rename-input" class="seed-modal__input" placeholder="${escapeAttr(seed.name)}" maxlength="60" autocomplete="off" spellcheck="false" />
+        <span class="seed-modal__msg" data-msg></span>
+        <div class="seed-modal__actions">
+          ${hasOverride ? '<button type="button" class="seed-modal__btn" data-action="reset">Reset to default</button>' : ""}
+          <button type="button" class="seed-modal__btn" data-close>Cancel</button>
+          <button type="button" class="seed-modal__btn seed-modal__btn--primary" data-action="save">Save</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(renameModal);
+    document.documentElement.classList.add("seed-modal-open");
+
+    const input = renameModal.querySelector("#seed-rename-input");
+    input.value = current;
+
+    renameModal.querySelectorAll("[data-close]").forEach((el) => {
+      el.addEventListener("click", closeRenameModal);
+    });
+    document.addEventListener("keydown", escCloseRename);
+
+    const commit = () => {
+      setDisplayName(seed.name, input.value);
+      closeRenameModal();
+    };
+    renameModal.querySelector('[data-action="save"]').addEventListener("click", commit);
+    const resetBtn = renameModal.querySelector('[data-action="reset"]');
+    if (resetBtn) {
+      resetBtn.addEventListener("click", () => {
+        setDisplayName(seed.name, "");
+        closeRenameModal();
+      });
+    }
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); commit(); }
+    });
+
+    setTimeout(() => { input.focus(); input.select(); }, 20);
+  }
+
+  function closeRenameModal() {
+    if (!renameModal) return;
+    renameModal.remove();
+    renameModal = null;
+    document.documentElement.classList.remove("seed-modal-open");
+    document.removeEventListener("keydown", escCloseRename);
+  }
+  function escCloseRename(e) { if (e.key === "Escape") closeRenameModal(); }
+
+  function escapeAttr(s) {
+    return String(s || "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+    );
+  }
+
   function removeSeed(name) {
     const key = normalize(name);
     if (!key) return;
@@ -325,8 +431,10 @@
     list: listMerged,
     add: addSeed,
     remove: removeSeed,
+    setDisplayName,
     subscribe(fn) { subscribers.add(fn); return () => subscribers.delete(fn); },
     openAddModal,
+    openRenameModal,
   };
 
   // Re-emit when transactions change so the list reflects new merchants.
