@@ -139,12 +139,12 @@
 
   function listMerged() {
     const map = new Map();
-    const touch = (rawName, when, source, content, writing) => {
+    const touch = (rawName, when, source, content, writing, essayItem) => {
       const name = String(rawName || "").trim();
       if (!name) return;
       const key = normalize(name);
       if (!map.has(key)) {
-        map.set(key, { key, name, usageCount: 0, lastUsed: 0, sources: new Set(), contentSnippets: [], latestWriting: null });
+        map.set(key, { key, name, usageCount: 0, lastUsed: 0, sources: new Set(), contentSnippets: [], latestWriting: null, essays: [] });
       }
       const e = map.get(key);
       e.usageCount += 1;
@@ -156,6 +156,10 @@
       if (writing && writing.title && (!e.latestWriting || (writing.time || 0) >= (e.latestWriting.time || 0))) {
         e.latestWriting = writing;
       }
+      // Essays are the placement unit for the classifier — each gets
+      // its own taxonomy path. Drafts feed the seed's "shape" but
+      // aren't placed individually (they're transient).
+      if (essayItem && essayItem.id) e.essays.push(essayItem);
     };
 
     // Explicit seeds
@@ -188,7 +192,11 @@
             const writing = e.title
               ? { type: "essay", id: e.id, slug: e.slug, title: e.title, time: e.createdAt || 0 }
               : null;
-            touch(e.seed, e.createdAt || 0, "session", String(e.body || "").slice(0, 1500), writing);
+            const body = String(e.body || "").slice(0, 1500);
+            const essayItem = e.id
+              ? { id: e.id, title: e.title || "", body, time: e.createdAt || 0 }
+              : null;
+            touch(e.seed, e.createdAt || 0, "session", body, writing, essayItem);
           }
         }
       }

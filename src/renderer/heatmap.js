@@ -40,10 +40,11 @@
   function loadState() {
     try {
       const raw = localStorage.getItem(TAXONOMY_KEY);
-      if (!raw) return { taxonomy: {}, seeds: {} };
+      if (!raw) return { taxonomy: {}, seeds: {}, essays: {} };
       const parsed = JSON.parse(raw);
       const taxonomy = (parsed && typeof parsed.taxonomy === "object" && parsed.taxonomy) || {};
       const rawSeeds = (parsed && typeof parsed.seeds === "object" && parsed.seeds) || {};
+      const rawEssays = (parsed && typeof parsed.essays === "object" && parsed.essays) || {};
       const dropStuckUnsorted = !localStorage.getItem(UNSTUCK_FLAG_KEY);
       // Silent migration: older entries used { path: [...] } singular.
       // Wrap into { paths: [[...]] } so callers only need to handle
@@ -64,11 +65,18 @@
         }
         seeds[k] = { paths: rawPaths, fp: v.fp || null };
       }
+      const essays = {};
+      for (const [k, v] of Object.entries(rawEssays)) {
+        if (!v || typeof v !== "object") continue;
+        const rawPaths = Array.isArray(v.paths) && v.paths.length ? v.paths : null;
+        if (!rawPaths) continue;
+        essays[k] = { paths: rawPaths, fp: v.fp || null };
+      }
       if (dropStuckUnsorted) {
         try { localStorage.setItem(UNSTUCK_FLAG_KEY, "1"); } catch { /* ignore */ }
       }
-      return { taxonomy, seeds };
-    } catch { return { taxonomy: {}, seeds: {} }; }
+      return { taxonomy, seeds, essays };
+    } catch { return { taxonomy: {}, seeds: {}, essays: {} }; }
   }
 
   // Strip any path whose prefix is fully contained in a longer path
@@ -143,11 +151,56 @@
   let classifyCooldownUntil = 0;
   const CLASSIFY_RETRY_MS = 60_000;
 
+  // Build the list of placement units the classifier will read. Each
+  // unit is either an ESSAY (placed by its own body) or a bare SEED
+  // (placed by name + any draft snippets, when no essay is anchored
+  // there yet). Returning an array of plain objects keeps the prompt
+  // construction and the result-handling loop reading from the same
+  // shape, so a unit's place in the output unambiguously maps back to
+  // the right slot in state.
+  function buildPlacementUnits(items) {
+    const units = [];
+    for (const seed of items) {
+      const seedEssays = Array.isArray(seed.essays) ? seed.essays : [];
+      if (seedEssays.length) {
+        for (const e of seedEssays) {
+          units.push({
+            kind: "essay",
+            seed,
+            id: e.id,
+            title: e.title || "",
+            body: String(e.body || "").replace(/\s+/g, " ").trim().slice(0, 800),
+          });
+        }
+      } else {
+        // No essays anchored yet — fall back to the name + draft
+        // snippets so the seed still lands somewhere on the home view.
+        const snippets = (seed.contentSnippets || []).filter(Boolean).slice(-3);
+        units.push({
+          kind: "seed",
+          seed,
+          snippetText: snippets
+            .map((s) => String(s).replace(/\s+/g, " ").trim().slice(0, 220))
+            .filter(Boolean)
+            .join(" | "),
+        });
+      }
+    }
+    return units;
+  }
+
+  function unitKey(unit) {
+    return unit.kind === "essay" ? `essay:${unit.id}` : `seed:${unit.seed.key}`;
+  }
+
   async function classifyUncategorized(items, state) {
     if (classifying) return;
     if (!items.length) return;
     if (Date.now() < classifyCooldownUntil) return;
     if (!window.tinker || typeof window.tinker.callClaude !== "function") return;
+
+    const units = buildPlacementUnits(items);
+    if (!units.length) return;
 
     classifying = true;
     try {
@@ -162,47 +215,49 @@
               : "";
             return `- "${c.name}"${parentName}: ${c.description || ""}`;
           }).join("\n")
-        : "(none yet — the first seed placed will need a brand-new top-level category)";
+        : "(none yet — the first item placed will need a brand-new top-level category)";
 
-      const seedBlocks = items.map((seed) => {
-        const snippets = (seed.contentSnippets || []).filter(Boolean).slice(-3);
-        const body = snippets.length
-          ? snippets.map((s) => "  - " + String(s).replace(/\s+/g, " ").trim().slice(0, 220)).join("\n")
-          : "  (no writing yet — place using the name as the only hint)";
-        return `# ${seed.name}\n${body}`;
+      const placementBlocks = units.map((u) => {
+        if (u.kind === "essay") {
+          const titleLine = u.title ? `  title: ${u.title}\n` : "";
+          const bodyLine = u.body ? `  body: ${u.body}` : "  (empty body — place using the title and seed as the only hint)";
+          return `# ${unitKey(u)}\n  (anchored at seed: "${u.seed.name}")\n${titleLine}${bodyLine}`;
+        }
+        const body = u.snippetText
+          ? `  draft excerpts: ${u.snippetText}`
+          : "  (no writing yet — place using the seed name as the only hint)";
+        return `# ${unitKey(u)}\n  seed name: "${u.seed.name}"\n${body}`;
       }).join("\n\n");
 
       const system = [
-        "You manage a founder's growing taxonomy of learning categories. Each seed they reflect from is placed into the taxonomy based on what they've written there.",
+        "You manage a founder's growing taxonomy of learning categories. Each item below is one piece of writing they've produced, or a fresh seed (a place they write from) that has no writing yet. Place each item under the single category that best fits its content.",
         "",
-        "A single seed may contain MULTIPLE distinct topics across sessions — return one path per topic. Don't collapse genuinely different topics into one path just to keep things tidy.",
-        "",
-        "For each path, decide:",
+        "For each item, decide:",
         "  A) It fits an existing top-level category → path: [Top].",
         "  B) It's a distinct, more specific angle of an existing top-level → path: [Top, NewChild]. Add the child to newCategories with parent set to Top.",
         "  C) It's distinctly different from everything existing → path: [NewTop]. Add NewTop to newCategories with parent: null.",
         "",
-        "When a single seed's topics RELATE to each other (different facets of a shared concern), nest them as siblings under a shared parent. This is how one seed 'encompasses' multiple topics — both child paths share the same Top, so the parent names the larger thread the seed is part of.",
-        "",
         "Rules:",
+        "- Each item gets EXACTLY ONE path. Pick the dominant theme of THAT item's content. Do not place an item into a category just because its seed has other writings that fit there — judge each essay on its own body text.",
         "- Strongly prefer A. Create new categories only when the writing genuinely doesn't fit.",
         "- Category names: 2-5 words, title case, identity-aware (e.g. 'Customer learning', 'Solo making', 'Operational chores'). Concrete, not generic.",
         "- Descriptions: EXACTLY 4 words. Tight noun phrase, observational, no advice tone. Examples: 'Specific layout and structure', 'Time near real customers', 'Money out the door'. Never more than 4 words.",
         "- Max nesting depth is 2 (top + one sub). Never propose a 3-level path.",
-        "- Don't return both [Top] and [Top, Child] for the same seed — keep the more specific one only.",
+        "",
+        "Items are referenced by stable keys like 'essay:e_abc123' or 'seed:kitchen counter'. Use those exact keys (including the prefix) in your output.",
         "",
         "Output ONLY this JSON shape — no prose, no preamble, no code fences:",
-        '{ "assignments": { "<seed name>": [ ["Top"] or ["Top","Child"], ... ] },',
+        '{ "assignments": { "<item key>": ["Top"] or ["Top","Child"], ... },',
         '  "newCategories": [ { "name": "...", "description": "...", "parent": "<existing top> or null" } ] }',
       ].join("\n");
 
-      const userMessage = `Existing taxonomy:\n${taxonomyText}\n\nSeeds to place:\n\n${seedBlocks}`;
+      const userMessage = `Existing taxonomy:\n${taxonomyText}\n\nItems to place:\n\n${placementBlocks}`;
 
       const result = await window.tinker.callClaude({
         system,
         messages: [{ role: "user", content: userMessage }],
         model: "claude-haiku-4-5-20251001",
-        maxTokens: 600,
+        maxTokens: 800,
       });
 
       const raw = (result.text || "").trim();
@@ -231,23 +286,23 @@
       //    assignment but didn't declare in newCategories. Common
       //    failure mode: the model emits a new category name in a path
       //    and forgets the parallel entry in newCategories. Without
-      //    this, every such path is filtered out and the seed
-      //    falls back to Unsorted — exactly the "generative sorting
-      //    isn't working" symptom.
+      //    this, every such path is filtered out and the item falls
+      //    back to Unsorted — exactly the "generative sorting isn't
+      //    working" symptom.
       for (const claim of Object.values(assignments)) {
         if (!Array.isArray(claim) || !claim.length) continue;
-        const pathsToScan = Array.isArray(claim[0]) ? claim : [claim];
-        for (const path of pathsToScan) {
-          if (!Array.isArray(path)) continue;
-          for (let i = 0; i < path.length; i++) {
-            const seg = path[i];
-            if (typeof seg !== "string" || !seg.trim()) continue;
-            const key = normCat(seg);
-            if (state.taxonomy[key]) continue;
-            // For a 2-segment path the child's parent is index 0.
-            const parent = i > 0 ? normCat(path[0]) : null;
-            state.taxonomy[key] = { name: seg.trim(), description: "", parent };
-          }
+        // Per-item placement is a single path; tolerate a wrapped
+        // array from the model and unwrap one level.
+        const path = Array.isArray(claim[0]) ? claim[0] : claim;
+        if (!Array.isArray(path)) continue;
+        for (let i = 0; i < path.length; i++) {
+          const seg = path[i];
+          if (typeof seg !== "string" || !seg.trim()) continue;
+          const key = normCat(seg);
+          if (state.taxonomy[key]) continue;
+          // For a 2-segment path the child's parent is index 0.
+          const parent = i > 0 ? normCat(path[0]) : null;
+          state.taxonomy[key] = { name: seg.trim(), description: "", parent };
         }
       }
 
@@ -258,22 +313,49 @@
         if (cat.parent && !state.taxonomy[cat.parent]) cat.parent = null;
       }
 
-      // 4. Place each seed into one or more paths.
-      //    Multiple paths capture multi-topic seeds — the same
-      //    card will appear under each leaf section.
-      for (const seed of items) {
-        const claimed = assignments[seed.name];
-        // Accept either the new shape ([["Top"],["Top","Child"]]) or
-        // the older single-path shape (["Top"]) so we tolerate the
-        // model occasionally collapsing back to a single path.
-        let rawPaths = [];
+      // 4. Place each unit. Essays go into state.essays keyed by id;
+      //    bare seeds go into state.seeds keyed by seed key.
+      for (const u of units) {
+        const claimed = assignments[unitKey(u)];
+        let path = [];
         if (Array.isArray(claimed) && claimed.length) {
-          if (Array.isArray(claimed[0])) rawPaths = claimed;
-          else rawPaths = [claimed];
+          path = Array.isArray(claimed[0]) ? claimed[0] : claimed;
         }
-        const paths = rawPaths
-          .map((p) => (Array.isArray(p) ? p.map(normCat).filter((k) => state.taxonomy[k]) : []))
-          .filter((p) => p.length > 0);
+        const normalized = (Array.isArray(path) ? path : [])
+          .map(normCat)
+          .filter((k) => state.taxonomy[k]);
+
+        if (u.kind === "essay") {
+          const fp = fingerprintContent([u.body]);
+          if (normalized.length === 0) {
+            ensureUnsorted(state);
+            state.essays[u.id] = { paths: [[UNSORTED_KEY]], fp };
+          } else {
+            state.essays[u.id] = { paths: [normalized], fp };
+          }
+        } else {
+          const fp = fingerprintContent(u.seed.contentSnippets || []);
+          if (normalized.length === 0) {
+            ensureUnsorted(state);
+            state.seeds[u.seed.key] = { paths: [[UNSORTED_KEY]], fp };
+          } else {
+            state.seeds[u.seed.key] = { paths: [normalized], fp };
+          }
+        }
+      }
+
+      // 5. For seeds that had essays placed, recompute the seed's path
+      //    set as the union of its essays' paths (across ALL essays
+      //    anchored there, not just the freshly-classified ones — so
+      //    re-classifying one essay doesn't lose the others' contribution).
+      for (const seed of items) {
+        const seedEssays = Array.isArray(seed.essays) ? seed.essays : [];
+        if (!seedEssays.length) continue;
+        const paths = [];
+        for (const e of seedEssays) {
+          const stored = state.essays[e.id];
+          if (stored && Array.isArray(stored.paths)) paths.push(...stored.paths);
+        }
         const deduped = dedupePaths(paths);
         const fp = fingerprintContent(seed.contentSnippets || []);
         if (deduped.length === 0) {
@@ -387,7 +469,21 @@
         && stored.paths.every((p) => Array.isArray(p) && p.length && p.every((seg) => state.taxonomy[seg]));
       const fpMatches = stored && stored.fp === currentFp;
 
-      if (!pathsValid || !fpMatches) {
+      // Essays are the classifier's placement unit — if any essay
+      // anchored to this seed hasn't been placed yet (or its body
+      // changed since last placement), re-classify so the new essay
+      // doesn't inherit a sibling's category.
+      const seedEssays = Array.isArray(seed.essays) ? seed.essays : [];
+      const essaysPlaced = seedEssays.every((e) => {
+        const placement = state.essays[e.id];
+        if (!placement || !Array.isArray(placement.paths) || !placement.paths.length) return false;
+        const validPath = placement.paths.every((p) => Array.isArray(p) && p.length && p.every((seg) => state.taxonomy[seg]));
+        if (!validPath) return false;
+        const essayFp = fingerprintContent([String(e.body || "")]);
+        return placement.fp === essayFp;
+      });
+
+      if (!pathsValid || !fpMatches || !essaysPlaced) {
         if (!groups.has(PENDING)) groups.set(PENDING, { items: [], path: null });
         groups.get(PENDING).items.push(seed);
         continue;
@@ -548,6 +644,20 @@
     return path && path.length ? path[path.length - 1] : null;
   }
 
+  // Per-essay variant. Returns the leaf category key for a specific
+  // essay, or null when the essay hasn't been classified yet. Caller
+  // (the publish flow) should fall back to the read view in that case
+  // — opening a seed-level category for an unclassified essay would
+  // either send the founder somewhere stale or somewhere the new essay
+  // isn't yet listed.
+  function getCategoryKeyForEssay(essayId) {
+    if (!essayId) return null;
+    const state = loadState();
+    const stored = state.essays && state.essays[essayId];
+    const path = stored && Array.isArray(stored.paths) && stored.paths[0];
+    return path && path.length ? path[path.length - 1] : null;
+  }
+
   function buildCategoryFeed(categoryKey, state) {
     const cat = state.taxonomy[categoryKey];
     if (!cat) return null;
@@ -561,13 +671,18 @@
       }
     } catch { /* ignore */ }
 
+    // Each essay carries its own placement now — that's the whole
+    // point of per-essay classification. Falling back to the seed's
+    // union of paths (legacy behaviour) would re-introduce the bug
+    // where every essay anchored at a multi-topic seed leaks into
+    // every category that seed touches.
+    const essaysMap = state.essays || {};
     const items = [];
     for (const essay of allEssays) {
-      if (!essay || !essay.seed) continue;
-      const seedKey = normCat(essay.seed);
-      const stored = state.seeds[seedKey];
-      if (!stored || !Array.isArray(stored.paths)) continue;
-      const matches = stored.paths.some((p) => Array.isArray(p) && p.length && p[p.length - 1] === categoryKey);
+      if (!essay || !essay.id) continue;
+      const placement = essaysMap[essay.id];
+      if (!placement || !Array.isArray(placement.paths)) continue;
+      const matches = placement.paths.some((p) => Array.isArray(p) && p.length && p[p.length - 1] === categoryKey);
       if (matches) items.push(essay);
     }
 
@@ -588,5 +703,5 @@
     return PALETTE[hashSlot(String(key || ""), PALETTE.length)];
   }
 
-  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForSeed, colorFor };
+  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForSeed, getCategoryKeyForEssay, colorFor };
 })();

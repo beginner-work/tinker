@@ -126,11 +126,16 @@
       activeId = null;
       renderSidebar();
       renderHome();
-      // Land on the seed's category feed (now containing the
-      // just-published essay). For a brand-new seed with no
-      // classification yet, fall through to the read view.
-      const leafKey = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryKeyForSeed === "function")
-        ? window.tinkerHeatmap.getCategoryKeyForSeed(essay.seed)
+      // Land on this essay's category feed once it has one. The
+      // essay-level lookup is the right call here — the seed's
+      // union of paths may include older categories that don't
+      // describe this particular essay. Classification runs async
+      // after publish, so the lookup will usually return null on
+      // the first try; we fall through to the read view in that
+      // case and the home view picks up the new placement on its
+      // next re-render.
+      const leafKey = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryKeyForEssay === "function")
+        ? window.tinkerHeatmap.getCategoryKeyForEssay(essay.id)
         : null;
       if (!leafKey || !showCategoryFeed(leafKey)) {
         showRead(essay);
