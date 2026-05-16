@@ -29,11 +29,6 @@
     <meta name="apple-mobile-web-app-title" content="tinker" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <!-- Wipes localStorage on Vercel previews + localhost only, so each
-         QA load starts from a clean slate. No-op on production. Loaded
-         first so it runs before auth.js / pwa-install-hint.js read
-         from storage. -->
-    <script src="./preview-reset.js" defer></script>
     <!-- Reads `?#ts=<jwt>` off the PWA's launch URL into localStorage and
          rewrites the manifest with the current JWT in start_url, so a
          user who signs in on iOS Safari stays signed in after they
