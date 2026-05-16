@@ -141,9 +141,24 @@
           </div>
           <h1 class="welcome__question">Everyone is a founder.</h1>
           <p class="welcome__sub">You just need a seed to start.</p>
-          <form id="welcome-form" class="welcome__form" autocomplete="off">
+          <p class="welcome__prompt">Where are you right now?</p>
+          <div id="welcome-grid" class="welcome__grid" role="group" aria-label="Where are you right now?">
+            <button type="button" class="welcome__tile" data-location="cafe">
+              <span class="welcome__tile-label">Cafe</span>
+            </button>
+            <button type="button" class="welcome__tile" data-location="home">
+              <span class="welcome__tile-label">Home</span>
+            </button>
+            <button type="button" class="welcome__tile" data-location="work">
+              <span class="welcome__tile-label">Work</span>
+            </button>
+            <button type="button" class="welcome__tile" data-location="other">
+              <span class="welcome__tile-label">Somewhere else</span>
+            </button>
+          </div>
+          <form id="welcome-form" class="welcome__form" autocomplete="off" hidden>
             <input id="welcome-input" class="welcome__input" type="text"
-                   placeholder="Where are you right now?"
+                   placeholder="Where are you?"
                    autocomplete="off" spellcheck="false" maxlength="120" />
             <button type="submit" class="welcome__submit">Start →</button>
           </form>
