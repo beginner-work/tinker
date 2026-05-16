@@ -5,10 +5,12 @@
 // produce a build-prompt.md, then runs assertions against the output.
 //
 // Run from repo root: `npm run eval:product-spec`
-// Auth: prefers CLAUDE_CODE_OAUTH_TOKEN (from the Claude Code GitHub App), falls
-//       back to ANTHROPIC_API_KEY. One of them must be set.
+// Auth: prefers GITHUB_TOKEN (calls GitHub Models with an OpenAI-compatible
+//       endpoint, used in CI). Falls back to ANTHROPIC_API_KEY (calls the
+//       Anthropic SDK directly, used for local dev).
 // Optional: EVAL_DUMP_FAILURES=1 prints the full build prompt for any failed case.
-// Optional: EVAL_MODEL=claude-... overrides the model.
+// Optional: EVAL_MODEL=... overrides the model. Defaults: openai/gpt-4o
+//           (GitHub Models) or claude-sonnet-4-6 (Anthropic).
 // Optional: EVAL_CASE=01-... runs a single case by filename prefix.
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -20,21 +22,56 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SKILL_PATH = join(__dirname, "..", "SKILL.md");
 const CASES_DIR = join(__dirname, "cases");
 const FIXTURES_DIR = join(__dirname, "fixtures");
-const MODEL = process.env.EVAL_MODEL || "claude-sonnet-4-6";
 
-const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+const githubToken = process.env.GITHUB_TOKEN;
 const apiKey = process.env.ANTHROPIC_API_KEY;
 
-if (!oauthToken && !apiKey) {
-  console.error("Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY is set. Export one before running.");
+if (!githubToken && !apiKey) {
+  console.error("Neither GITHUB_TOKEN nor ANTHROPIC_API_KEY is set. Export one before running.");
   process.exit(2);
 }
 
-const client = oauthToken
-  ? new Anthropic({ authToken: oauthToken, apiKey: null })
-  : new Anthropic({ apiKey });
+const useGitHubModels = !!githubToken;
+const MODEL =
+  process.env.EVAL_MODEL ||
+  (useGitHubModels ? "openai/gpt-4o" : "claude-sonnet-4-6");
 
-console.log(`Auth: ${oauthToken ? "CLAUDE_CODE_OAUTH_TOKEN" : "ANTHROPIC_API_KEY"}`);
+console.log(`Provider: ${useGitHubModels ? "GitHub Models" : "Anthropic"}`);
+console.log(`Model:    ${MODEL}`);
+
+const anthropic = useGitHubModels ? null : new Anthropic({ apiKey });
+
+async function generate(prompt) {
+  if (useGitHubModels) {
+    const res = await fetch("https://models.github.ai/inference/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${githubToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 8000,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`GitHub Models ${res.status}: ${body.slice(0, 500)}`);
+    }
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content ?? "";
+  }
+
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 8000,
+    messages: [{ role: "user", content: prompt }],
+  });
+  const block = response.content.find((b) => b.type === "text");
+  return block ? block.text : "";
+}
 
 function loadFixtures(names) {
   if (!names || names.length === 0) return "(none)";
@@ -86,15 +123,7 @@ Now produce build-prompt.md. Begin with "# Build ".`;
 async function runCase(testCase) {
   const skillContent = readFileSync(SKILL_PATH, "utf8");
   const prompt = buildPrompt(skillContent, testCase);
-
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 8000,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const block = response.content.find((b) => b.type === "text");
-  return block ? block.text : "";
+  return generate(prompt);
 }
 
 const ASSERTION_HANDLERS = {

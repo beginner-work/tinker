@@ -17,20 +17,28 @@ default.
 
 ## Run
 
-```bash
-# Either of these works; OAuth token is preferred when both are set.
-export CLAUDE_CODE_OAUTH_TOKEN="..."   # from the Claude Code GitHub App
-# or
-export ANTHROPIC_API_KEY="sk-ant-..."
+Two providers are supported. The harness prefers `GITHUB_TOKEN` (used by CI)
+and falls back to `ANTHROPIC_API_KEY` (used for local dev).
 
+```bash
+# Local dev (Claude):
+export ANTHROPIC_API_KEY="sk-ant-..."
+npm run eval:product-spec
+
+# Local dev mimicking CI (GitHub Models / GPT-4o):
+export GITHUB_TOKEN="ghp_..."   # PAT with models:read scope
 npm run eval:product-spec
 ```
+
+In CI the `GITHUB_TOKEN` is auto-provisioned by Actions; the workflow grants
+it `models: read` so it can call the GitHub Models inference endpoint. No
+repo secret needs to be configured.
 
 Optional env vars:
 
 | Var | Effect |
 |---|---|
-| `EVAL_MODEL` | Override the model. Default: `claude-sonnet-4-6`. |
+| `EVAL_MODEL` | Override the model. Default: `openai/gpt-4o` (GitHub Models) or `claude-sonnet-4-6` (Anthropic). |
 | `EVAL_CASE` | Run only cases whose filename starts with this prefix (e.g. `EVAL_CASE=01`). |
 | `EVAL_DUMP_FAILURES=1` | After the run, print the full generated build prompt for any failed case. |
 

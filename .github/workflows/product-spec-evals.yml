@@ -20,8 +20,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      pull-requests: read
-      id-token: write
+      models: read
     steps:
       - uses: actions/checkout@v4
 
@@ -33,26 +32,8 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      - name: Run evals via Claude Code
-        uses: anthropics/claude-code-base-action@beta
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            Run the product-spec eval harness from the repo root:
-
-                node .claude/skills/product-spec/evals/run-evals.mjs
-
-            The script authenticates via the CLAUDE_CODE_OAUTH_TOKEN env var
-            that you already have access to — do not look for or set an API
-            key. Stream the script's output as-is.
-
-            After it exits:
-            - If exit code is 0, say "EVALS PASSED" on its own line and stop.
-            - If exit code is non-zero, say "EVALS FAILED" on its own line,
-              then exit your turn with a non-zero status so the workflow step
-              fails.
-
-            Do not modify any files. Do not retry. Do not interpret assertion
-            failures — just report what the harness reports.
-          allowed_tools: "Bash(node .claude/skills/product-spec/evals/run-evals.mjs)"
-          claude_args: "--max-turns 5"
+      - name: Run product-spec evals via GitHub Models
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVAL_DUMP_FAILURES: '1'
+        run: npm run eval:product-spec
