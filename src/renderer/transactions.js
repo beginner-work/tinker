@@ -169,6 +169,7 @@
 
   // ── Modal ────────────────────────────────────────────────────────────
   let modal = null;
+  const expanded = new Set();
 
   function openModal() {
     if (modal) return;
@@ -293,21 +294,60 @@ date,merchant,amount,category
       return;
     }
     txns.forEach((t) => {
+      const entry = document.createElement("div");
+      entry.className = "txn-modal__entry";
+      if (expanded.has(t.id)) entry.classList.add("txn-modal__entry--open");
+
       const row = document.createElement("div");
       row.className = "txn-modal__item";
+      row.setAttribute("role", "button");
+      row.setAttribute("tabindex", "0");
+      row.setAttribute("aria-expanded", expanded.has(t.id) ? "true" : "false");
       row.innerHTML =
         `<span class="txn-modal__item-date">${escapeHtml(t.date)}</span>` +
         `<span class="txn-modal__item-merchant">${escapeHtml(t.merchant)}</span>` +
         `<span class="txn-modal__item-amount">${formatAmount(t.amount)}</span>` +
         `<span class="txn-modal__item-category">${escapeHtml(t.category || "—")}</span>` +
-        `<button type="button" class="txn-modal__item-del" aria-label="Delete">×</button>`;
-      row.querySelector(".txn-modal__item-del").addEventListener("click", () => {
-        txns = txns.filter((x) => x.id !== t.id);
-        save(txns);
-      notify();
+        `<svg class="txn-modal__item-chev" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">` +
+          `<path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>` +
+        `</svg>`;
+      const toggle = () => {
+        if (expanded.has(t.id)) expanded.delete(t.id);
+        else expanded.add(t.id);
         renderList();
+      };
+      row.addEventListener("click", toggle);
+      row.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
       });
-      list.appendChild(row);
+      entry.appendChild(row);
+
+      if (expanded.has(t.id)) {
+        const detail = document.createElement("div");
+        detail.className = "txn-modal__detail";
+        const sign = Number(t.amount) < 0 ? "Expense" : "Income";
+        detail.innerHTML =
+          `<dl class="txn-modal__detail-grid">` +
+            `<dt>Date</dt><dd>${escapeHtml(formatLongDate(t.date))}</dd>` +
+            `<dt>Merchant</dt><dd>${escapeHtml(t.merchant)}</dd>` +
+            `<dt>Amount</dt><dd class="txn-modal__detail-amount">${formatAmount(t.amount)} <span class="txn-modal__detail-tag">${sign}</span></dd>` +
+            `<dt>Category</dt><dd>${escapeHtml(t.category || "—")}</dd>` +
+            (t._demo ? `<dt>Source</dt><dd><span class="txn-modal__detail-tag">Demo data</span></dd>` : "") +
+          `</dl>` +
+          `<div class="txn-modal__detail-actions">` +
+            `<button type="button" class="txn-modal__btn txn-modal__btn--danger" data-action="delete">Delete</button>` +
+          `</div>`;
+        detail.querySelector('[data-action="delete"]').addEventListener("click", () => {
+          expanded.delete(t.id);
+          txns = txns.filter((x) => x.id !== t.id);
+          save(txns);
+          notify();
+          renderList();
+        });
+        entry.appendChild(detail);
+      }
+
+      list.appendChild(entry);
     });
   }
 
@@ -334,6 +374,29 @@ date,merchant,amount,category
     if (!Number.isFinite(v)) return "";
     const sign = v < 0 ? "−" : "";
     return `${sign}$${Math.abs(v).toFixed(2)}`;
+  }
+  function formatLongDate(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+    if (!m) return String(iso || "");
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (Number.isNaN(d.getTime())) return String(iso);
+    try {
+      return d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    } catch {
+      return String(iso);
+    }
+  }
+
+  // ── Sidebar entry ───────────────────────────────────────────────────
+  function wireNav() {
+    const btn = document.getElementById("nav-transactions");
+    if (!btn) return;
+    btn.addEventListener("click", openModal);
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wireNav);
+  } else {
+    wireNav();
   }
 
 })();

@@ -1376,107 +1376,66 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   background: var(--color-bg, #fffdf7);
 }
 .txn-modal__empty { padding: 14px; font-size: 13px; color: var(--color-muted, #6f6a65); }
+.txn-modal__entry { border-radius: 8px; }
+.txn-modal__entry--open { background: var(--color-hover, #f5f3ef); }
 .txn-modal__item {
   display: grid;
-  grid-template-columns: 90px 1fr 80px 110px 24px;
+  grid-template-columns: 90px 1fr 80px 110px 16px;
   gap: 8px;
   align-items: center;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border-radius: 8px;
   font-size: 13px;
+  cursor: pointer;
+  user-select: none;
 }
 .txn-modal__item:hover { background: var(--color-hover, #f5f3ef); }
+.txn-modal__item:focus-visible { outline: 2px solid var(--color-forest, #2d5a3d); outline-offset: 1px; }
 .txn-modal__item-date { color: var(--color-muted, #6f6a65); font-variant-numeric: tabular-nums; }
 .txn-modal__item-merchant { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .txn-modal__item-amount { text-align: right; font-variant-numeric: tabular-nums; }
 .txn-modal__item-category { color: var(--color-muted, #6f6a65); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.txn-modal__item-del {
-  background: none;
-  border: 0;
-  color: var(--color-muted, #6f6a65);
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  padding: 2px 6px;
-  border-radius: 6px;
+.txn-modal__item-chev { color: var(--color-muted, #6f6a65); transition: transform 120ms ease; justify-self: end; }
+.txn-modal__entry--open .txn-modal__item-chev { transform: rotate(180deg); }
+.txn-modal__detail {
+  padding: 4px 14px 14px;
+  font-size: 13px;
+  border-top: 1px solid var(--color-border, #ede8e0);
+  margin-top: -1px;
 }
-.txn-modal__item-del:hover { background: rgba(176, 58, 46, 0.1); color: #b03a2e; }
+.txn-modal__detail-grid {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 6px 12px;
+  margin: 10px 0 12px;
+}
+.txn-modal__detail-grid dt { color: var(--color-muted, #6f6a65); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+.txn-modal__detail-grid dd { margin: 0; }
+.txn-modal__detail-amount { font-variant-numeric: tabular-nums; font-weight: 500; }
+.txn-modal__detail-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--color-bg, #fffdf7);
+  border: 1px solid var(--color-border, #ede8e0);
+  color: var(--color-muted, #6f6a65);
+  margin-left: 4px;
+}
+.txn-modal__detail-actions { display: flex; justify-content: flex-end; }
+.txn-modal__btn--danger {
+  color: #b03a2e;
+  border-color: rgba(176, 58, 46, 0.3);
+}
+.txn-modal__btn--danger:hover { background: rgba(176, 58, 46, 0.08); }
 .txn-modal__foot { display: flex; justify-content: flex-end; }
 html.txn-modal-open { overflow: hidden; }
 @media (max-width: 720px) {
   .txn-modal__manual { grid-template-columns: 1fr 1fr; }
-  .txn-modal__item { grid-template-columns: 70px 1fr 70px 24px; }
+  .txn-modal__item { grid-template-columns: 70px 1fr 70px 16px; }
   .txn-modal__item-category { display: none; }
-}
-
-/* ── Receipts modal (opened from sidebar Account → Receipts) ───────── */
-.receipts-modal__list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 60vh;
-  overflow-y: auto;
-  border: 1px solid var(--color-border, #ede8e0);
-  border-radius: 10px;
-  padding: 6px;
-  background: var(--color-bg, #fffdf7);
-}
-.receipts-modal__item {
-  display: grid;
-  grid-template-columns: 90px 110px 1fr 90px;
-  gap: 10px;
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  color: inherit;
-  text-decoration: none;
-  border: 1px solid transparent;
-}
-.receipts-modal__item:hover {
-  background: var(--color-hover, #f5f3ef);
-  border-color: var(--color-border, #ede8e0);
-}
-.receipts-modal__item-num {
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  color: var(--color-muted, #6f6a65);
-  font-size: 12px;
-  letter-spacing: 0.04em;
-}
-.receipts-modal__item-date {
-  color: var(--color-muted, #6f6a65);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.receipts-modal__item-parties {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.receipts-modal__item-maker {
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.receipts-modal__item-customer {
-  color: var(--color-muted, #6f6a65);
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.receipts-modal__item-total {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--color-forest, #2d5a3d);
-}
-.txn-modal__empty[data-kind="err"] { color: #b03a2e; }
-@media (max-width: 520px) {
-  .receipts-modal__item { grid-template-columns: 70px 1fr 80px; }
-  .receipts-modal__item-date { display: none; }
+  .txn-modal__detail-grid { grid-template-columns: 1fr; gap: 2px 0; }
+  .txn-modal__detail-grid dt { margin-top: 8px; }
 }
 
 /* ── Home view (seeds list) ──────────────────────────────────────────
