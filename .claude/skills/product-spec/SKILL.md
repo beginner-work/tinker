@@ -9,13 +9,25 @@ A content harness for turning a 0-to-1 builder's idea into a buildable build pro
 
 The canonical output of this skill is `build-prompt.md` — an imperative directive a build agent (or future you) executes. The descriptive product spec is internal scaffolding only; this repo's skills work off imperative programming, not descriptive docs. Skip the spec write by default.
 
+## REQUIRED TOOL — `AskUserQuestion` (the question loader)
+
+**This is a blocking requirement, not a stylistic suggestion.** Phase 2's seven multiple-choice questions (Q1–Q7) MUST be delivered by calling the `AskUserQuestion` tool. Do not paraphrase the options into plain chat. Do not "simulate" the loader by typing the options as a bulleted list and waiting for a reply. Do not skip the tool because the conversation feels like it's already flowing. If you reach Phase 2 and have not yet called `AskUserQuestion`, stop and call it before producing any more user-facing text.
+
+Concretely, in this skill:
+- **Phase 1 (Foundation):** plain chat. The five broad questions are open-ended, so `AskUserQuestion` is the wrong shape — ask them in conversation.
+- **Phase 2 (Narrowing):** `AskUserQuestion` for every one of Q1–Q7, in batches as described below. This is non-negotiable. Reflections between batches are plain chat; the questions themselves are tool calls.
+- **Phase 2 plain-chat follow-ups** (the Q2 shape follow-up, the always-ask follow-ups): plain chat.
+- **Phase 3 (Synthesis):** no questions; write `build-prompt.md`.
+
+If `AskUserQuestion` is unavailable in the current environment, say so explicitly to the user before proceeding with a chat fallback — don't silently downgrade.
+
 ## How to run the harness
 
 This is an interview, not a form. Ask questions one or two at a time, in plain language. Reflect each answer back in your own words before moving on — the user should feel heard, and you should confirm you understood. **Never** dump all the questions at once. **Never** lecture about product concepts (MVP, retention, funnel, scope creep); translate silently.
 
 Run three phases in order: **Foundation**, **Narrowing**, **Synthesis**. Don't move to the next phase until the current one is done.
 
-Use the **AskUserQuestion** tool for the structured multiple-choice prompts in Phase 2 — that's the question loader. For Phase 1's open-ended questions and the reflections after each batch, just ask in conversation.
+The question loader is the `AskUserQuestion` tool. Phase 2's Q1–Q7 are tool calls, not prose. Phase 1's open-ended prompts and the inter-batch reflections are plain chat. See the "REQUIRED TOOL" block above — it governs.
 
 ### One product per session
 
@@ -68,9 +80,11 @@ After all five, summarize back: *"OK, so what I'm hearing: someone in `[situatio
 
 ---
 
-## Phase 2 — Narrowing (use AskUserQuestion)
+## Phase 2 — Narrowing (CALL `AskUserQuestion` — do not type the options into chat)
 
-Now use the question loader to nail down the specifics. Send these in batches that flow conversationally — never dump them all at once. Pair Q1+Q2 in one call if it flows; same with Q5+Q6.
+Now use the question loader to nail down the specifics. **Every one of Q1–Q7 below is delivered via a `AskUserQuestion` tool call.** The headings here name the question; the table beneath each one is the `options` array for the tool call (each row = one option, with `label` and `description`). Do not paste the table into chat as a bulleted list — that's the failure mode this section is named to prevent.
+
+Send these in batches that flow conversationally — never dump them all at once. Pair Q1+Q2 in one `AskUserQuestion` call (two questions in the `questions` array) if it flows; same with Q5+Q6.
 
 After each batch, reflect what you heard in the same warm voice (*"Got it — they open it daily, it's a feed, and the thing that brings them back is a draft they left half-finished."*). Let them correct before you move on.
 
@@ -390,5 +404,5 @@ If they want edits, edit the file in place — don't rewrite from scratch unless
 ## Tools to use
 
 - **Read** — load `pitch-deck.md` if it exists, for background. Also load `README.md` and skim `src/` if they exist (so structural inheritance in the build prompt is concrete). And load any prior `build-prompt.md` to read its current version, so Phase 3 can increment.
-- **AskUserQuestion** — Q1 through Q7 in Phase 2. This is the question loader; don't replace it with free-form chat for those seven. Q7 (visual canon) is the one most often skipped by accident — do not skip it; skipping it produces builds the agent treats as a greenfield design brief.
+- **AskUserQuestion** — REQUIRED for Q1 through Q7 in Phase 2. This is the question loader. Calling it is a blocking requirement of this skill (see the "REQUIRED TOOL" block near the top); don't replace it with free-form chat, don't type the option tables into chat as a bulleted list, don't skip it because the conversation feels warm. Q7 (visual canon) is the one most often skipped by accident — do not skip it; skipping it produces builds the agent treats as a greenfield design brief.
 - **Write** / **Edit** — produce and refine `build-prompt.md` (Phase 3). Optionally `product-spec.md` if the user explicitly asks for the descriptive form.
