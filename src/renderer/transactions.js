@@ -1,16 +1,18 @@
-/* tinker — transactions module (Phase A: localStorage only)
+/* tinker — transactions module
  *
- * Exposes a global "Connect bank account" button in the top-right of
- * the app. Tap it → modal that lets the founder paste JSON / CSV
- * transactions or add them by hand. Stored in
- * localStorage["tinker.transactions.v1"]. writing.js reads them via
- * window.tinkerTransactions.list() and threads them into Claude's
- * context so the interview can reference real spending while the
- * founder reflects.
+ * Two surfaces, deliberately split:
  *
- * Phase B (separate PR) will replace the manual-entry path with a
- * Plaid Link flow + server-side storage. The list() shape stays the
- * same so writing.js doesn't need to change.
+ * 1) Sidebar Account → Transactions opens a modal that fetches the
+ *    signed-in buyer's marketplace transactions from /api/transactions
+ *    (resolved by the phone number on the Stytch session). Read-only
+ *    listing with inline-expand rows showing line items and status.
+ *
+ * 2) window.tinkerTransactions.list() / .subscribe() still expose a
+ *    localStorage-backed list ("tinker.transactions.v1") used by
+ *    seeds.js (merchant suggestions) and writing.js (Claude context).
+ *    No UI writes into it now; .seed() is available from the console
+ *    for populating sample data. Folding marketplace transactions
+ *    into that flow is a follow-up.
  */
 
 (() => {
@@ -171,6 +173,16 @@
   let modal = null;
   const expanded = new Set();
 
+  const TOKEN_KEY = "tinker_jwt";
+  function authToken() {
+    try { return localStorage.getItem(TOKEN_KEY) || ""; }
+    catch { return ""; }
+  }
+
+  let serverTxns = [];
+  let loadState = "idle"; // idle | loading | ok | error | unauth
+  let loadError = "";
+
   function openModal() {
     if (modal) return;
     modal = document.createElement("div");
@@ -179,39 +191,13 @@
       <div class="txn-modal__backdrop" data-close></div>
       <div class="txn-modal__card" role="dialog" aria-modal="true" aria-labelledby="txn-modal-title">
         <header class="txn-modal__head">
-          <h2 id="txn-modal-title" class="txn-modal__title">Recent activity</h2>
+          <h2 id="txn-modal-title" class="txn-modal__title">Transactions</h2>
           <button type="button" class="txn-modal__close" data-close aria-label="Close">×</button>
         </header>
-        <p class="txn-modal__note">Not for taxes or bookkeeping. Transactions live here so that when you're reflecting on a moment, your recent activity can be in the room — to help you see how the way you spend, eat, move, and meet connects to how you conduct your business and your life. Paste, type, or import. Stored on this device.</p>
-
+        <p class="txn-modal__note">Purchases on your beginner account. Tap a row for the line items.</p>
         <section class="txn-modal__section">
-          <label class="txn-modal__label" for="txn-paste">Paste</label>
-          <textarea id="txn-paste" class="txn-modal__paste" rows="4" placeholder='[{"date":"2026-05-08","merchant":"Whole Foods","amount":-45.23,"category":"Groceries"}]
-or
-date,merchant,amount,category
-2026-05-08,Whole Foods,-45.23,Groceries'></textarea>
-          <div class="txn-modal__row">
-            <button type="button" class="txn-modal__btn" data-action="import">Import</button>
-            <span class="txn-modal__msg" data-msg></span>
-          </div>
+          <div class="txn-modal__list" data-list aria-live="polite"></div>
         </section>
-
-        <section class="txn-modal__section">
-          <label class="txn-modal__label">Add by hand</label>
-          <div class="txn-modal__manual">
-            <input type="date" class="txn-modal__input" data-field="date" />
-            <input type="text" class="txn-modal__input" data-field="merchant" placeholder="Merchant" />
-            <input type="number" class="txn-modal__input txn-modal__input--num" data-field="amount" placeholder="Amount" step="0.01" />
-            <input type="text" class="txn-modal__input" data-field="category" placeholder="Category (optional)" />
-            <button type="button" class="txn-modal__btn" data-action="add">Add</button>
-          </div>
-        </section>
-
-        <section class="txn-modal__section">
-          <label class="txn-modal__label">Saved <span class="txn-modal__count" data-count></span></label>
-          <div class="txn-modal__list" data-list></div>
-        </section>
-
         <footer class="txn-modal__foot">
           <button type="button" class="txn-modal__btn txn-modal__btn--primary" data-close>Done</button>
         </footer>
@@ -220,80 +206,85 @@ date,merchant,amount,category
     document.body.appendChild(modal);
     document.documentElement.classList.add("txn-modal-open");
 
-    // Wire close
     modal.querySelectorAll("[data-close]").forEach((el) => {
       el.addEventListener("click", closeModal);
     });
     document.addEventListener("keydown", escClose);
 
-    // Wire import
-    const paste = modal.querySelector("#txn-paste");
-    const msgEl = modal.querySelector("[data-msg]");
-    modal.querySelector('[data-action="import"]').addEventListener("click", () => {
-      const r = parseInput(paste.value);
-      if (!r.ok) {
-        msgEl.textContent = r.error;
-        msgEl.dataset.kind = "err";
-        return;
-      }
-      txns = r.rows.concat(txns);
-      save(txns);
-      notify();
-      paste.value = "";
-      msgEl.textContent = `Imported ${r.rows.length} transaction${r.rows.length === 1 ? "" : "s"}.`;
-      msgEl.dataset.kind = "ok";
-      renderList();
-    });
+    loadAndRender();
+  }
 
-    // Wire add-by-hand
-    const fields = {
-      date: modal.querySelector('[data-field="date"]'),
-      merchant: modal.querySelector('[data-field="merchant"]'),
-      amount: modal.querySelector('[data-field="amount"]'),
-      category: modal.querySelector('[data-field="category"]'),
-    };
-    fields.date.value = new Date().toISOString().slice(0, 10);
-    modal.querySelector('[data-action="add"]').addEventListener("click", () => {
-      const row = normalise({
-        date: fields.date.value,
-        merchant: fields.merchant.value,
-        amount: fields.amount.value,
-        category: fields.category.value,
-      });
-      if (!row) {
-        msgEl.textContent = "Need at least a merchant and a number for the amount.";
-        msgEl.dataset.kind = "err";
-        return;
-      }
-      txns = [row].concat(txns);
-      save(txns);
-      notify();
-      fields.merchant.value = "";
-      fields.amount.value = "";
-      fields.category.value = "";
-      msgEl.textContent = "Added.";
-      msgEl.dataset.kind = "ok";
+  async function loadAndRender() {
+    if (!modal) return;
+    const t = authToken();
+    if (!t) {
+      loadState = "unauth";
       renderList();
-      fields.merchant.focus();
-    });
-
+      return;
+    }
+    loadState = "loading";
     renderList();
+    try {
+      const res = await fetch("/api/transactions", {
+        headers: { Accept: "application/json", Authorization: `Bearer ${t}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const err = new Error(body.error || `Request failed (${res.status})`);
+        err.status = res.status;
+        throw err;
+      }
+      const body = await res.json();
+      serverTxns = Array.isArray(body.transactions) ? body.transactions : [];
+      loadState = "ok";
+      renderList();
+    } catch (err) {
+      if (err && err.status === 401) {
+        loadState = "unauth";
+      } else {
+        loadState = "error";
+        loadError = (err && err.message) || "unknown error";
+      }
+      renderList();
+    }
   }
 
   function renderList() {
     if (!modal) return;
     const list = modal.querySelector("[data-list]");
-    const count = modal.querySelector("[data-count]");
-    count.textContent = txns.length ? `(${txns.length})` : "(none yet)";
     list.innerHTML = "";
-    if (txns.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "txn-modal__empty";
-      empty.textContent = "Nothing saved yet.";
-      list.appendChild(empty);
+
+    if (loadState === "loading") {
+      const el = document.createElement("div");
+      el.className = "txn-modal__empty";
+      el.textContent = "Loading…";
+      list.appendChild(el);
       return;
     }
-    txns.forEach((t) => {
+    if (loadState === "unauth") {
+      const el = document.createElement("div");
+      el.className = "txn-modal__empty";
+      el.textContent = "Sign in to view your transactions.";
+      list.appendChild(el);
+      return;
+    }
+    if (loadState === "error") {
+      const el = document.createElement("div");
+      el.className = "txn-modal__empty";
+      el.dataset.kind = "err";
+      el.textContent = `Couldn't load transactions: ${loadError}`;
+      list.appendChild(el);
+      return;
+    }
+    if (serverTxns.length === 0) {
+      const el = document.createElement("div");
+      el.className = "txn-modal__empty";
+      el.textContent = "No transactions yet.";
+      list.appendChild(el);
+      return;
+    }
+
+    serverTxns.forEach((t) => {
       const entry = document.createElement("div");
       entry.className = "txn-modal__entry";
       if (expanded.has(t.id)) entry.classList.add("txn-modal__entry--open");
@@ -304,10 +295,10 @@ date,merchant,amount,category
       row.setAttribute("tabindex", "0");
       row.setAttribute("aria-expanded", expanded.has(t.id) ? "true" : "false");
       row.innerHTML =
-        `<span class="txn-modal__item-date">${escapeHtml(t.date)}</span>` +
-        `<span class="txn-modal__item-merchant">${escapeHtml(t.merchant)}</span>` +
-        `<span class="txn-modal__item-amount">${formatAmount(t.amount)}</span>` +
-        `<span class="txn-modal__item-category">${escapeHtml(t.category || "—")}</span>` +
+        `<span class="txn-modal__item-date">${escapeHtml(formatShortDate(t.createdAt))}</span>` +
+        `<span class="txn-modal__item-merchant">${escapeHtml(t.merchantName || "—")}</span>` +
+        `<span class="txn-modal__item-amount">${formatAmount(-Math.abs(Number(t.totalAmount) || 0))}</span>` +
+        `<span class="txn-modal__item-category">${escapeHtml(prettyStatus(t.status))}</span>` +
         `<svg class="txn-modal__item-chev" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">` +
           `<path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>` +
         `</svg>`;
@@ -325,25 +316,31 @@ date,merchant,amount,category
       if (expanded.has(t.id)) {
         const detail = document.createElement("div");
         detail.className = "txn-modal__detail";
-        const sign = Number(t.amount) < 0 ? "Expense" : "Income";
+        const items = Array.isArray(t.items) ? t.items : [];
+        const itemsHtml = items
+          .map((it) => {
+            const qty = Number(it.quantity) || 1;
+            const lineTotal = (Number(it.price) || 0) * qty;
+            return (
+              `<li class="txn-modal__detail-item">` +
+                `<span class="txn-modal__detail-item-desc">${escapeHtml(it.description || "—")}</span>` +
+                `<span class="txn-modal__detail-item-qty">${qty > 1 ? `× ${escapeHtml(String(qty))}` : ""}</span>` +
+                `<span class="txn-modal__detail-item-price">${formatAmount(-Math.abs(lineTotal))}</span>` +
+              `</li>`
+            );
+          })
+          .join("");
         detail.innerHTML =
           `<dl class="txn-modal__detail-grid">` +
-            `<dt>Date</dt><dd>${escapeHtml(formatLongDate(t.date))}</dd>` +
-            `<dt>Merchant</dt><dd>${escapeHtml(t.merchant)}</dd>` +
-            `<dt>Amount</dt><dd class="txn-modal__detail-amount">${formatAmount(t.amount)} <span class="txn-modal__detail-tag">${sign}</span></dd>` +
-            `<dt>Category</dt><dd>${escapeHtml(t.category || "—")}</dd>` +
-            (t._demo ? `<dt>Source</dt><dd><span class="txn-modal__detail-tag">Demo data</span></dd>` : "") +
+            `<dt>Date</dt><dd>${escapeHtml(formatLongDate(t.createdAt))}</dd>` +
+            `<dt>Merchant</dt><dd>${escapeHtml(t.merchantName || "—")}</dd>` +
+            `<dt>Status</dt><dd><span class="txn-modal__detail-tag">${escapeHtml(prettyStatus(t.status))}</span></dd>` +
+            (t.paymentCompletedAt
+              ? `<dt>Paid</dt><dd>${escapeHtml(formatLongDate(t.paymentCompletedAt))}</dd>`
+              : "") +
+            `<dt>Total</dt><dd class="txn-modal__detail-amount">${formatAmount(-Math.abs(Number(t.totalAmount) || 0))}</dd>` +
           `</dl>` +
-          `<div class="txn-modal__detail-actions">` +
-            `<button type="button" class="txn-modal__btn txn-modal__btn--danger" data-action="delete">Delete</button>` +
-          `</div>`;
-        detail.querySelector('[data-action="delete"]').addEventListener("click", () => {
-          expanded.delete(t.id);
-          txns = txns.filter((x) => x.id !== t.id);
-          save(txns);
-          notify();
-          renderList();
-        });
+          (itemsHtml ? `<ul class="txn-modal__detail-items">${itemsHtml}</ul>` : "");
         entry.appendChild(detail);
       }
 
@@ -365,7 +362,7 @@ date,merchant,amount,category
 
   // ── Helpers ─────────────────────────────────────────────────────────
   function escapeHtml(s) {
-    return String(s || "").replace(/[&<>"']/g, (c) =>
+    return String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
     );
   }
@@ -375,16 +372,23 @@ date,merchant,amount,category
     const sign = v < 0 ? "−" : "";
     return `${sign}$${Math.abs(v).toFixed(2)}`;
   }
+  function formatShortDate(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso || "");
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
   function formatLongDate(iso) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
-    if (!m) return String(iso || "");
-    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    if (Number.isNaN(d.getTime())) return String(iso);
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso || "");
     try {
       return d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
     } catch {
       return String(iso);
     }
+  }
+  function prettyStatus(s) {
+    if (!s) return "—";
+    return String(s).toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   // ── Sidebar entry ───────────────────────────────────────────────────
