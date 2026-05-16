@@ -333,6 +333,29 @@
     return truncated.join(" ");
   }
 
+  // Founders type seed names like "I want to be able to manage my landscaping"
+  // or "I'm wanting to take care of my back yard". Rendered as-is the sidebar
+  // becomes a wall of "I want to be able t…" rows that all read the same.
+  // channelName strips the common opener and keeps the first few meaningful
+  // words so cards read like Slack channels ("manage my landscaping",
+  // "take care", "Home"). The full text stays in the card's title attribute.
+  const CHANNEL_NAME_WORDS = 3;
+  const LEADING_FILLER = /^(?:i(?:'m| am|'d| would)?\s+)?(?:want|wanting|need|needing|hope|hoping|wish|wishing|like|love|plan|planning|trying|going|aim|aiming)\s+to\s+(?:be\s+able\s+to\s+)?/i;
+  function channelName(s) {
+    let t = String(s || "").trim();
+    if (!t) return "";
+    t = t.replace(LEADING_FILLER, "").trim();
+    if (!t) return String(s).trim();
+    const words = t.split(/\s+/).filter(Boolean);
+    const out = words.slice(0, CHANNEL_NAME_WORDS);
+    while (out.length > 1) {
+      const tail = out[out.length - 1].toLowerCase().replace(/[.,;:!?]+$/, "");
+      if (!TRAILING_STOP_WORDS.has(tail)) break;
+      out.pop();
+    }
+    return out.join(" ");
+  }
+
   // ── Rendering ──────────────────────────────────────────────────────
   function render(mountEl) {
     if (!mountEl) return { all: 0 };
@@ -458,14 +481,17 @@
     const writing = seed.latestWriting && seed.latestWriting.title ? seed.latestWriting : null;
     if (writing) card.classList.add("home-card--has-writing");
 
+    const label = channelName(seed.name) || seed.name;
+    if (label !== seed.name) card.title = seed.name;
+
     const subline = writing
       ? `<span class="home-card__sub home-card__sub--title">${escapeHtml(writing.title)}</span>`
       : "";
 
     card.innerHTML =
-      `<span class="home-card__avatar" aria-hidden="true" style="background:${colour}">${escapeHtml(initialOf(seed.name))}</span>` +
+      `<span class="home-card__avatar" aria-hidden="true" style="background:${colour}">${escapeHtml(initialOf(label))}</span>` +
       `<span class="home-card__body">` +
-        `<span class="home-card__name">${escapeHtml(seed.name)}</span>` +
+        `<span class="home-card__name">${escapeHtml(label)}</span>` +
         subline +
       `</span>`;
 
