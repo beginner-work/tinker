@@ -202,12 +202,25 @@
       </section>
 
       <!-- Category feed view: rendered when a seed is tapped — lists
-           every essay whose seed belongs to the same category. -->
+           every essay whose seed belongs to the same category. The
+           composer at the top is a single-textarea "status" entry —
+           bypasses the interview flow for top-of-mind notes that
+           don't warrant an essay. -->
       <section id="category-feed" class="category-feed" hidden>
         <header class="category-feed__head">
           <h1 class="category-feed__title" id="category-feed-title"></h1>
           <p class="category-feed__sub" id="category-feed-sub" hidden></p>
         </header>
+        <form id="status-composer" class="status-composer" autocomplete="off" hidden>
+          <textarea id="status-composer-input" class="status-composer__input"
+                    rows="3" maxlength="2000"
+                    placeholder="What's on your mind?"></textarea>
+          <div class="status-composer__foot">
+            <span class="status-composer__hint" id="status-composer-hint"></span>
+            <button type="submit" id="status-composer-post"
+                    class="status-composer__post" disabled>Post</button>
+          </div>
+        </form>
         <div class="category-feed__list" id="category-feed-list"></div>
         <p class="category-feed__empty" id="category-feed-empty" hidden>
           No essays here yet.
