@@ -3,8 +3,7 @@ name: Preview Smoke
 # When the Vercel GitHub app reports a preview deploy as ready, we POST
 # to /api/preview-smoke on the same preview URL. The function runs inside
 # the deployment it's testing, so Browserbase keys come natively from
-# the Vercel project env — no Vercel CLI, no VERCEL_TOKEN, no key
-# duplication to GitHub. No new secrets needed: the function authenticates
+# the Vercel project env. No new secrets needed: the function authenticates
 # the caller solely by the GITHUB_TOKEN we forward (used to upsert the
 # results comment back into the PR).
 
@@ -13,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       preview_url:
-        description: 'Preview URL to drive Browserbase at (e.g. https://tinker-abc.vercel.app)'
+        description: 'Preview URL (e.g. https://tinker-abc.vercel.app)'
         required: true
       pr_number:
         description: 'PR number to comment on'
@@ -23,7 +22,7 @@ on:
         required: true
 
 concurrency:
-  group: preview-smoke-${{ github.event.deployment_status.deployment.sha || inputs.sha }}
+  group: preview-smoke-${{ github.event.deployment.sha || inputs.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -42,50 +41,99 @@ jobs:
     steps:
       - name: Resolve preview context
         id: ctx
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            PREVIEW_URL="${{ inputs.preview_url }}"
-            SHA="${{ inputs.sha }}"
-            PR="${{ inputs.pr_number }}"
-          else
-            PREVIEW_URL="${{ github.event.deployment_status.environment_url }}"
-            SHA="${{ github.event.deployment.sha }}"
-            # Look up the PR number for this commit.
-            PR=$(curl -sH "Authorization: Bearer $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${{ github.repository }}/commits/$SHA/pulls" \
-              | node -e 'const ps=JSON.parse(require("fs").readFileSync(0));console.log(ps[0]?.number ?? "")')
-          fi
-          if [ -z "$PR" ]; then
-            echo "no associated PR for $SHA; skipping"
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
-            echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-            echo "pr=$PR" >> "$GITHUB_OUTPUT"
-          fi
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let previewUrl, sha, prNumber;
+            if (context.eventName === 'workflow_dispatch') {
+              previewUrl = context.payload.inputs.preview_url;
+              sha = context.payload.inputs.sha;
+              prNumber = Number(context.payload.inputs.pr_number);
+            } else {
+              previewUrl = context.payload.deployment_status.environment_url;
+              sha = context.payload.deployment.sha;
+              const { data } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                ...context.repo,
+                commit_sha: sha,
+              });
+              prNumber = data[0]?.number;
+            }
+            core.info(`previewUrl=${previewUrl}`);
+            core.info(`sha=${sha}`);
+            core.info(`prNumber=${prNumber}`);
+            if (!previewUrl || !sha || !prNumber) {
+              core.warning('Missing context; skipping.');
+              core.setOutput('skip', 'true');
+              return;
+            }
+            core.setOutput('previewUrl', previewUrl);
+            core.setOutput('sha', sha);
+            core.setOutput('prNumber', String(prNumber));
 
-      - name: POST /api/preview-smoke on the preview deploy
+      - name: POST /api/preview-smoke
+        id: post
         if: steps.ctx.outputs.skip != 'true'
+        uses: actions/github-script@v7
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          BODY=$(node -e 'console.log(JSON.stringify({
-            previewUrl: process.argv[1],
-            sha: process.argv[2],
-            prNumber: Number(process.argv[3]),
-            repo: process.argv[4]
-          }))' \
-            "${{ steps.ctx.outputs.preview_url }}" \
-            "${{ steps.ctx.outputs.sha }}" \
-            "${{ steps.ctx.outputs.pr }}" \
-            "${{ github.repository }}")
-          curl -fsS --max-time 120 \
-            -X POST "${{ steps.ctx.outputs.preview_url }}/api/preview-smoke" \
-            -H "Content-Type: application/json" \
-            -H "X-Github-Token: $GITHUB_TOKEN" \
-            -d "$BODY"
+          PREVIEW_URL: ${{ steps.ctx.outputs.previewUrl }}
+          SHA: ${{ steps.ctx.outputs.sha }}
+          PR_NUMBER: ${{ steps.ctx.outputs.prNumber }}
+        with:
+          script: |
+            const previewUrl = process.env.PREVIEW_URL;
+            const sha = process.env.SHA;
+            const prNumber = Number(process.env.PR_NUMBER);
+            const body = JSON.stringify({
+              previewUrl,
+              sha,
+              prNumber,
+              repo: `${context.repo.owner}/${context.repo.repo}`,
+            });
+            core.info(`POST ${previewUrl}/api/preview-smoke`);
+            core.info(`body=${body}`);
+            const res = await fetch(`${previewUrl}/api/preview-smoke`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Github-Token': process.env.GITHUB_TOKEN,
+              },
+              body,
+              signal: AbortSignal.timeout(120_000),
+            });
+            const text = await res.text();
+            core.info(`status=${res.status}`);
+            core.info(`response=${text.slice(0, 2000)}`);
+            if (!res.ok) {
+              core.setFailed(`function returned ${res.status}: ${text.slice(0, 500)}`);
+            }
+
+      - name: Post diagnostic comment on failure
+        if: failure() && steps.ctx.outputs.prNumber != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = Number('${{ steps.ctx.outputs.prNumber }}');
+            if (!pr) return;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const marker = '<!-- tinker-preview-smoke-diag -->';
+            const body = [
+              marker,
+              '### Preview smoke — workflow failed',
+              `Run: ${runUrl}`,
+              `Trigger: \`${context.eventName}\``,
+              `Preview URL: \`${{ steps.ctx.outputs.previewUrl }}\``,
+              `SHA: \`${{ steps.ctx.outputs.sha }}\``,
+              '',
+              'Open the run link above for step output.',
+            ].join('\n');
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo,
+              issue_number: pr,
+              per_page: 100,
+            });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: pr, body });
+            }
