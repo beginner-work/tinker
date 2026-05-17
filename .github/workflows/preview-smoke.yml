@@ -1,64 +1,96 @@
 name: Preview Smoke
 
-# Fires on every PR push; polls Vercel for the matching preview, drives
-# Browserbase through tests/preview/scenarios.json against the preview URL,
-# and upserts a single PR comment with the results (the comment is the
-# boundary that Claude reads via subscribe_pr_activity).
+# When the Vercel GitHub app reports a preview deploy as ready, we POST
+# to /api/preview-smoke on the same preview URL. The function runs inside
+# the deployment it's testing, so Browserbase keys come natively from
+# the Vercel project env — no Vercel CLI, no VERCEL_TOKEN, no key
+# duplication to GitHub. The only GH secret needed is PREVIEW_SMOKE_SECRET
+# (a shared random string with the Vercel function's env var of the
+# same name).
 #
-# Forks have no secret access; the if: guard below silently skips that case.
+# deployment_status workflows run only from the default branch, so this
+# file must land on `main` before it starts firing for new PRs.
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: 'Preview URL to drive Browserbase at (e.g. https://tinker-abc.vercel.app)'
+        required: true
+      pr_number:
+        description: 'PR number to comment on'
+        required: true
+      sha:
+        description: 'Commit SHA (full 40 chars)'
+        required: true
 
 concurrency:
-  group: preview-smoke-${{ github.event.pull_request.number }}
+  group: preview-smoke-${{ github.event.deployment_status.deployment.sha || inputs.sha }}
   cancel-in-progress: true
 
 jobs:
   smoke:
-    name: Run Browserbase smoke against Vercel preview
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    name: Drive Browserbase against the new preview
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'deployment_status' &&
+       github.event.deployment_status.state == 'success' &&
+       github.event.deployment.environment == 'Preview' &&
+       github.event.deployment_status.environment_url != '')
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      # Pull Vercel project's preview env (Browserbase + project IDs) into
-      # .env.local so the runner can read them without duplicating secrets
-      # to GitHub. Mirrors the local flow: `vercel link` + `vercel env pull`.
-      - name: Pull preview env from Vercel
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          npx --yes vercel@latest link --yes \
-            --project=tinker --scope=beginner-work --token="$VERCEL_TOKEN"
-          npx vercel env pull .env.local \
-            --environment=preview --token="$VERCEL_TOKEN"
-          # VERCEL_PROJECT_ID is in .vercel/project.json after link; expose
-          # it to the next step so the runner can poll the Vercel REST API.
-          echo "VERCEL_PROJECT_ID=$(node -p 'require("./.vercel/project.json").projectId')" >> "$GITHUB_ENV"
-
-      - name: Run preview smoke
+      - name: Resolve preview context
+        id: ctx
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          SCREENSHOTS_DIR: ${{ runner.temp }}/preview-screenshots
-        run: node scripts/run-preview-smoke.js
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PREVIEW_URL="${{ inputs.preview_url }}"
+            SHA="${{ inputs.sha }}"
+            PR="${{ inputs.pr_number }}"
+          else
+            PREVIEW_URL="${{ github.event.deployment_status.environment_url }}"
+            SHA="${{ github.event.deployment.sha }}"
+            # Look up the PR number for this commit.
+            PR=$(curl -sH "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/commits/$SHA/pulls" \
+              | node -e 'const ps=JSON.parse(require("fs").readFileSync(0));console.log(ps[0]?.number ?? "")')
+          fi
+          if [ -z "$PR" ]; then
+            echo "no associated PR for $SHA; skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+            echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+            echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          fi
 
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: preview-screenshots-${{ github.event.pull_request.head.sha }}
-          path: ${{ runner.temp }}/preview-screenshots
-          if-no-files-found: ignore
-          retention-days: 14
+      - name: POST /api/preview-smoke on the preview deploy
+        if: steps.ctx.outputs.skip != 'true'
+        env:
+          PREVIEW_SMOKE_SECRET: ${{ secrets.PREVIEW_SMOKE_SECRET }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BODY=$(node -e 'console.log(JSON.stringify({
+            previewUrl: process.argv[1],
+            sha: process.argv[2],
+            prNumber: Number(process.argv[3]),
+            repo: process.argv[4]
+          }))' \
+            "${{ steps.ctx.outputs.preview_url }}" \
+            "${{ steps.ctx.outputs.sha }}" \
+            "${{ steps.ctx.outputs.pr }}" \
+            "${{ github.repository }}")
+          curl -fsS --max-time 120 \
+            -X POST "${{ steps.ctx.outputs.preview_url }}/api/preview-smoke" \
+            -H "Content-Type: application/json" \
+            -H "X-Smoke-Secret: $PREVIEW_SMOKE_SECRET" \
+            -H "X-Github-Token: $GITHUB_TOKEN" \
+            -d "$BODY"
