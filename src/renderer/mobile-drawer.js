@@ -11,7 +11,7 @@
 
   const toggle = document.getElementById('drawer-toggle');
   const backdrop = document.getElementById('drawer-backdrop');
-  const homeListEl = document.getElementById('home-list');
+  const treeEl = document.getElementById('sidebar-tree');
   const navHome = document.getElementById('nav-home');
 
   function open() {
@@ -32,10 +32,14 @@
 
   backdrop && backdrop.addEventListener('click', close);
 
-  // Auto-close after picking a seed or tapping the brand — the
-  // user wants the stage back.
-  homeListEl && homeListEl.addEventListener('click', (e) => {
-    if (isMobile() && e.target.closest('.home-card')) close();
+  // Auto-close after tapping a row that actually navigates the
+  // stage (a single-writing growth vector or a writing in the
+  // multi-writing picker). Expand-only taps (Earth, Seed, badged
+  // growth vector) leave the drawer open so the founder can
+  // keep drilling.
+  treeEl && treeEl.addEventListener('click', (e) => {
+    if (!isMobile()) return;
+    if (e.target.closest('[data-action="open"]')) close();
   });
   navHome && navHome.addEventListener('click', () => {
     if (isMobile()) close();

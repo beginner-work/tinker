@@ -1,24 +1,24 @@
-/* tinker — home seed list, grouped by a Claude-managed taxonomy
+/* tinker — legacy taxonomy classifier (now utility-only)
  *
- * Each seed is one card. Cards are grouped under a category Claude
- * picks from a *growing* taxonomy — the categories are not a fixed
- * list. Each time a new seed (or a seed with new writing)
- * needs placing, Claude either:
- *   1. Fits it under an existing category, OR
- *   2. Nests it under an existing top-level as a more specific
- *      sub-category, OR
- *   3. Creates a brand-new top-level category.
+ * Each earth's writing used to be classified by Claude into a growing
+ * taxonomy and rendered as flat cards. The v0.102 revamp replaced the
+ * flat list with the three-tier sidebar tree (tree.js). This module
+ * survives only to power the category-feed view that still loads
+ * after a publish redirect — render() is no longer called from the
+ * sidebar.
  *
  * Stored at localStorage["tinker.taxonomy.v1"] as:
  *   {
  *     taxonomy: { [normKey]: { name, description, parent: normKey | null } },
- *     seeds:    { [seedKey]: { path: [normKey, normKey?], fp: contentHash } }
+ *     earths:   { [earthKey]: { path: [normKey, normKey?], fp: contentHash } }
  *   }
  *
- * Public API:
- *   window.tinkerHeatmap.render(mountEl)
+ * Public API (kept for category-feed consumers in renderer.js):
+ *   window.tinkerHeatmap.getCategoryFeed(categoryKey)
+ *   window.tinkerHeatmap.getCategoryKeyForEarth(earthName)
+ *   window.tinkerHeatmap.colorFor(key)
  *
- * Module name is historical (heatmap → merchant cards → seeds).
+ * Module name is historical (heatmap → merchant cards → earths).
  */
 
 (() => {
@@ -40,16 +40,16 @@
   function loadState() {
     try {
       const raw = localStorage.getItem(TAXONOMY_KEY);
-      if (!raw) return { taxonomy: {}, seeds: {} };
+      if (!raw) return { taxonomy: {}, earths: {} };
       const parsed = JSON.parse(raw);
       const taxonomy = (parsed && typeof parsed.taxonomy === "object" && parsed.taxonomy) || {};
-      const rawSeeds = (parsed && typeof parsed.seeds === "object" && parsed.seeds) || {};
+      const rawEarths = (parsed && typeof parsed.earths === "object" && parsed.earths) || {};
       const dropStuckUnsorted = !localStorage.getItem(UNSTUCK_FLAG_KEY);
       // Silent migration: older entries used { path: [...] } singular.
       // Wrap into { paths: [[...]] } so callers only need to handle
       // the new shape.
-      const seeds = {};
-      for (const [k, v] of Object.entries(rawSeeds)) {
+      const earths = {};
+      for (const [k, v] of Object.entries(rawEarths)) {
         if (!v || typeof v !== "object") continue;
         const rawPaths = Array.isArray(v.paths) && v.paths.length
           ? v.paths
@@ -62,13 +62,13 @@
             && rawPaths[0][0] === UNSORTED_KEY;
           if (onlyUnsorted) continue;
         }
-        seeds[k] = { paths: rawPaths, fp: v.fp || null };
+        earths[k] = { paths: rawPaths, fp: v.fp || null };
       }
       if (dropStuckUnsorted) {
         try { localStorage.setItem(UNSTUCK_FLAG_KEY, "1"); } catch { /* ignore */ }
       }
-      return { taxonomy, seeds };
-    } catch { return { taxonomy: {}, seeds: {} }; }
+      return { taxonomy, earths };
+    } catch { return { taxonomy: {}, earths: {} }; }
   }
 
   // Strip any path whose prefix is fully contained in a longer path
@@ -143,6 +143,11 @@
   let classifyCooldownUntil = 0;
   const CLASSIFY_RETRY_MS = 60_000;
 
+  // NOTE: classifyUncategorized + the render path below are dead code
+  // since v0.102 — renderer.js no longer calls tinkerHeatmap.render.
+  // The taxonomy state is preserved for getCategoryFeed callers but
+  // is otherwise frozen. Left in place to minimise churn for the
+  // sidebar revamp; can be deleted in a follow-up cleanup.
   async function classifyUncategorized(items, state) {
     if (classifying) return;
     if (!items.length) return;
@@ -258,8 +263,8 @@
         if (cat.parent && !state.taxonomy[cat.parent]) cat.parent = null;
       }
 
-      // 4. Place each seed into one or more paths.
-      //    Multiple paths capture multi-topic seeds — the same
+      // 4. Place each earth into one or more paths.
+      //    Multiple paths capture multi-topic earths — the same
       //    card will appear under each leaf section.
       for (const seed of items) {
         const claimed = assignments[seed.name];
@@ -278,9 +283,9 @@
         const fp = fingerprintContent(seed.contentSnippets || []);
         if (deduped.length === 0) {
           ensureUnsorted(state);
-          state.seeds[seed.key] = { paths: [[UNSORTED_KEY]], fp };
+          state.earths[seed.key] = { paths: [[UNSORTED_KEY]], fp };
         } else {
-          state.seeds[seed.key] = { paths: deduped, fp };
+          state.earths[seed.key] = { paths: deduped, fp };
         }
       }
 
@@ -359,8 +364,8 @@
   // ── Rendering ──────────────────────────────────────────────────────
   function render(mountEl) {
     if (!mountEl) return { all: 0 };
-    const seeds = (window.tinkerSeeds && typeof window.tinkerSeeds.list === "function")
-      ? window.tinkerSeeds.list()
+    const seeds = (window.tinkerEarths && typeof window.tinkerEarths.list === "function")
+      ? window.tinkerEarths.list()
       : [];
 
     mountEl.innerHTML = "";
@@ -381,7 +386,7 @@
     // name alone (the classifier is happy with name-only input).
     const groups = new Map();
     for (const seed of seeds) {
-      const stored = state.seeds[seed.key];
+      const stored = state.earths[seed.key];
       const currentFp = fingerprintContent(seed.contentSnippets || []);
       const pathsValid = stored && Array.isArray(stored.paths) && stored.paths.length
         && stored.paths.every((p) => Array.isArray(p) && p.length && p.every((seg) => state.taxonomy[seg]));
@@ -505,7 +510,7 @@
   // category placement or no essays to show yet.
   function openSeed(seed) {
     const state = loadState();
-    const stored = state.seeds[seed.key];
+    const stored = state.earths[seed.key];
     const path = stored && Array.isArray(stored.paths) && stored.paths[0];
     const leaf = path && path.length ? path[path.length - 1] : null;
     if (leaf && state.taxonomy[leaf]) {
@@ -529,7 +534,7 @@
       return;
     }
     if (typeof window.tinkerNewSession === "function") {
-      window.tinkerNewSession({ seed: seed.name });
+      window.tinkerNewSession({ earth: seed.name });
     }
   }
 
@@ -540,13 +545,13 @@
     return buildCategoryFeed(categoryKey, loadState());
   }
 
-  // Public-facing: leaf category key for a seed name, or null when
-  // the seed hasn't been classified yet. Used by the publish flow
+  // Public-facing: leaf category key for an earth name, or null when
+  // the earth hasn't been classified yet. Used by the publish flow
   // so a freshly published essay can land on its category feed.
-  function getCategoryKeyForSeed(seedName) {
-    if (!seedName) return null;
+  function getCategoryKeyForEarth(earthName) {
+    if (!earthName) return null;
     const state = loadState();
-    const stored = state.seeds[normCat(seedName)];
+    const stored = state.earths[normCat(earthName)];
     const path = stored && Array.isArray(stored.paths) && stored.paths[0];
     return path && path.length ? path[path.length - 1] : null;
   }
@@ -566,9 +571,9 @@
 
     const items = [];
     for (const essay of allEssays) {
-      if (!essay || !essay.seed) continue;
-      const seedKey = normCat(essay.seed);
-      const stored = state.seeds[seedKey];
+      if (!essay || !essay.earth) continue;
+      const earthKey = normCat(essay.earth);
+      const stored = state.earths[earthKey];
       if (!stored || !Array.isArray(stored.paths)) continue;
       const matches = stored.paths.some((p) => Array.isArray(p) && p.length && p[p.length - 1] === categoryKey);
       if (matches) items.push(essay);
@@ -591,5 +596,5 @@
     return PALETTE[hashSlot(String(key || ""), PALETTE.length)];
   }
 
-  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForSeed, colorFor };
+  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForEarth, colorFor };
 })();

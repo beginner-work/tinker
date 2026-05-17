@@ -138,6 +138,11 @@ html.on-web .sidebar__top {
   flex-direction: column;
   gap: 4px;
   -webkit-app-region: no-drag;
+  /* Cold-start empty state: with the sidebar tree hidden, this auto
+     margin pushes the Account block (and footer below it) to the
+     bottom of the sidebar. When the tree is visible, the tree's
+     flex: 1 fills the middle and this margin becomes a no-op. */
+  margin-top: auto;
 }
 .sidebar__account-head {
   margin: 0;
@@ -183,6 +188,125 @@ html.on-web .sidebar__top {
   transition: opacity 0.18s ease;
 }
 .sidebar__account-flash.is-visible { opacity: 1; }
+
+/* ── Sidebar tree (Earth → Seed → Growth vector) ─────────────────────
+ *
+ * Three-tier nav between the brand and the Account block. Rows reuse
+ * .sidebar__account-item's sizing/hover so the tree visually belongs
+ * to the same family as the Account rows below it. Indentation —
+ * not separate row sizes — encodes depth. Ordinals on Earth and
+ * Seed rows are quiet, fixed-width, never bold. */
+.sidebar__tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 8px 10px;
+  display: flex;
+  flex-direction: column;
+  -webkit-app-region: no-drag;
+}
+.sidebar__tree[hidden] { display: none; }
+.sidebar__tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sidebar__tree-item { display: contents; }
+.sidebar__tree-row {
+  /* Single row line, no wrap. Ordinal slot to the left, label
+     stretches, optional badge/retry on the right. */
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+  line-height: 1.25;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-foreground);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.sidebar__tree-row:hover { background: var(--color-hover); }
+.sidebar__tree-row[data-active] {
+  background: rgba(99, 102, 241, 0.10);
+}
+.sidebar__tree-row--earth { padding-left: 10px; }
+.sidebar__tree-row--seed  { padding-left: 28px; }
+.sidebar__tree-row--gv    { padding-left: 46px; }
+.sidebar__tree-row--writing {
+  padding-left: 62px;
+  font-style: italic;
+  color: var(--color-muted);
+}
+/* Ordinal: small, fixed-width, muted token-defined text. Never bold,
+   never an accent colour, never a list-style bullet. Slot width is
+   fixed so labels align cleanly. */
+.sidebar__tree-ord {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  min-width: 18px;
+  text-align: left;
+  user-select: none;
+  flex-shrink: 0;
+}
+/* Growth vector rows skip the ordinal column entirely — leaves are
+   never numbered. We still inherit the same grid so labels line up. */
+.sidebar__tree-row--gv,
+.sidebar__tree-row--writing {
+  grid-template-columns: 1fr auto;
+}
+.sidebar__tree-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar__tree-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.sidebar__tree-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 0;
+}
+.sidebar__tree-retry:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--color-foreground);
+}
+
+/* While a refresh is in flight, fade the existing tree slightly so
+   the founder sees something is happening — but never a spinner,
+   never a "thinking…" string. */
+.sidebar__tree--refreshing .sidebar__tree-row {
+  animation: sidebar-tree-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes sidebar-tree-shimmer {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
 
 /* ── Welcome (empty state on main when no draft/read is active) ──── */
 

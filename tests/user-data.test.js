@@ -141,7 +141,7 @@ test("PUT requires a `data` field in the body", async () => {
 
 test("rejects non-GET, non-PUT methods with 405", async () => {
   reset();
-  const handler = makeHandler("seeds");
+  const handler = makeHandler("earths");
   const res = fakeRes();
   await handler(
     fakeReq({ method: "DELETE", headers: { authorization: "Bearer t1" } }),
@@ -166,7 +166,7 @@ test("returns 401 when Stytch rejects the token", async () => {
 
 test("rows for different users do not collide", async () => {
   reset();
-  const handler = makeHandler("seeds");
+  const handler = makeHandler("earths");
 
   stytchUserId = "user-test-alice";
   await handler(

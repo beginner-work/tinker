@@ -39,7 +39,7 @@
     "Never wrap the JSON in code fences. Never add explanations outside the JSON.",
     "",
     "RULE 6 — LET PLACE, CIRCUMSTANCE, AND RECENT PURCHASE SET THE MOOD.",
-    "If the user message provides a seed ('Where the founder is right now: ...'), what they are facing ('What the founder is facing: ...'), and/or what they last purchased ('What the founder last purchased: ...'), let those shape the mood, cadence, and word choice of your questions. Match the texture of where they are, the weight of what's in front of them, and the residue of what they just bought. A recent purchase is a small window into how the founder lives and works — use it as one. Do NOT assume what they are learning from any of these — never lead, never name their facing or their last purchase back to them as a fact.",
+    "If the user message provides an earth ('Where the founder is right now: ...'), what they are facing ('What the founder is facing: ...'), and/or what they last purchased ('What the founder last purchased: ...'), let those shape the mood, cadence, and word choice of your questions. Match the texture of where they are, the weight of what's in front of them, and the residue of what they just bought. A recent purchase is a small window into how the founder lives and works — use it as one. Do NOT assume what they are learning from any of these — never lead, never name their facing or their last purchase back to them as a fact.",
     "",
     "RULE 7 — RE-ANCHOR ON LEARNING WHEN THE FOUNDER PULLS AWAY.",
     "Watch the founder's recent answers. If they go terse (one-line, fragmented, monosyllabic), stressed (frustrated, scattered, deflective, 'I don't know', cursing), or otherwise drift from the question, your next question should bring them back to the underlying intent: what they are learning. Phrase it gently — either restate 'What are you learning?' in mood-matched words, or ask it more plainly (e.g. 'What is it you're learning, really?') if a softer touch isn't landing. Stay open and uncritical. Don't comment on their tone; just re-anchor.",
@@ -64,12 +64,12 @@
   window.tinkerWriting = {
     open(draft) {
       active = draft;
-      // Pre-prompt: seed capture (Instagram tag-style) before the
-      // question flow. `seed` is undefined on a fresh draft; once the
+      // Pre-prompt: earth capture (Instagram tag-style) before the
+      // question flow. `earth` is undefined on a fresh draft; once the
       // founder commits or skips it becomes a string or null and never
-      // re-prompts. The seed is metadata, not part of the transcript,
+      // re-prompts. The earth is metadata, not part of the transcript,
       // so it doesn't affect stitching or founder-only verification.
-      if (active.seed === undefined) {
+      if (active.earth === undefined) {
         renderSeedPrompt();
         return;
       }
@@ -85,7 +85,7 @@
       pending: active.pending,
       stitched: active.stitched,
       title: active.title,
-      seed: active.seed,
+      earth: active.earth,
       facing: active.facing,
       lastPurchased: active.lastPurchased,
       _scratch: active._scratch,
@@ -97,14 +97,14 @@
   }
 
   function seedAndRenderInterview() {
-    // First-time seed with scene context (place and/or what they're
-    // facing): ask Claude to mood the canonical "What are you
+    // First-time question with scene context (earth and/or what
+    // they're facing): ask Claude to mood the canonical "What are you
     // learning?" to fit. Failures and no-context cases fall through to
-    // the canonical seed.
-    if ((active.transcript || []).length === 0 && !active.pending && (active.seed || active.facing || active.lastPurchased)) {
+    // the canonical question.
+    if ((active.transcript || []).length === 0 && !active.pending && (active.earth || active.facing || active.lastPurchased)) {
       const draftId = active.id;
       renderLoading("Setting the scene…");
-      moodSeedQuestion(active.seed, active.facing, active.lastPurchased)
+      moodSeedQuestion(active.earth, active.facing, active.lastPurchased)
         .then((q) => {
           if (!active || active.id !== draftId) return;
           applySeed(q);
@@ -136,7 +136,7 @@
     renderStep();
   }
 
-  async function moodSeedQuestion(seed, facing, lastPurchased) {
+  async function moodSeedQuestion(earth, facing, lastPurchased) {
     if (!window.tinker || typeof window.tinker.callClaude !== "function") {
       throw new Error("Anthropic client unavailable.");
     }
@@ -158,7 +158,7 @@
       "- Output ONLY the question. No quotes, no preamble, no trailing notes.",
     ].join("\n");
     const ctxLines = [];
-    if (seed) ctxLines.push(`Where the founder is right now: ${seed}`);
+    if (earth) ctxLines.push(`Where the founder is right now: ${earth}`);
     if (facing) ctxLines.push(`What the founder is facing: ${facing}`);
     if (lastPurchased) ctxLines.push(`What the founder last purchased: ${lastPurchased}`);
     const txLines = buildTransactionsContext();
@@ -237,7 +237,7 @@
     skip.className = "writing-seed__skip";
     skip.textContent = "Skip for now";
     skip.addEventListener("click", () => {
-      active.seed = null;
+      active.earth = null;
       active.facing = null;
       active.lastPurchased = null;
       persist();
@@ -258,7 +258,7 @@
       const wv = whereInput.value.trim();
       const fv = facingInput.value.trim();
       const lv = lastInput.value.trim();
-      active.seed = wv || null;
+      active.earth = wv || null;
       active.facing = fv || null;
       active.lastPurchased = lv || null;
       persist();
@@ -332,13 +332,13 @@
     const card = document.createElement("div");
     card.className = "writing-card";
 
-    if (active.seed || active.facing || active.lastPurchased) {
+    if (active.earth || active.facing || active.lastPurchased) {
       const recall = document.createElement("div");
       recall.className = "writing-recall";
       const parts = [];
-      if (active.seed) {
+      if (active.earth) {
         parts.push(
-          `<div class="writing-recall__line"><img class="writing-recall__pin" src="./icons/tinker-mark.svg" alt="" aria-hidden="true" /><span class="writing-recall__text">${escapeHtml(active.seed)}</span></div>`
+          `<div class="writing-recall__line"><img class="writing-recall__pin" src="./icons/tinker-mark.svg" alt="" aria-hidden="true" /><span class="writing-recall__text">${escapeHtml(active.earth)}</span></div>`
         );
       }
       if (active.facing) {
@@ -645,8 +645,8 @@
 
   function buildUserMessage(transcript, { forceStitch = false } = {}) {
     const lines = [];
-    if (active && active.seed) {
-      lines.push(`Where the founder is right now: ${active.seed}`);
+    if (active && active.earth) {
+      lines.push(`Where the founder is right now: ${active.earth}`);
     }
     if (active && active.facing) {
       lines.push(`What the founder is facing: ${active.facing}`);
@@ -753,6 +753,13 @@
   closeBtn.addEventListener("click", () => {
     if (typeof window.tinkerOnWritingClose === "function") {
       window.tinkerOnWritingClose();
+    }
+    // Closing the writing session is the cue for the sidebar tree to
+    // recompute. tree.refresh() reads localStorage, fires the cluster
+    // API, and updates the cached tree. Failures are silent — the
+    // cached tree stays on screen.
+    if (window.tinkerTree && typeof window.tinkerTree.refresh === "function") {
+      window.tinkerTree.refresh();
     }
   });
 
