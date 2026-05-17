@@ -148,10 +148,24 @@ html.on-web .sidebar__top {
 /* Theme row — visual is .sidebar__account-item (same padding, hover,
    typography). This class is the hook for theme-specific behaviour:
    active-state styling for the currently-tapped cluster (open question
-   #6), and the selector mobile-drawer.js listens on to auto-close. */
+   #6), the selector mobile-drawer.js listens on to auto-close, and the
+   shimmer below. */
 .sidebar__theme {
   font-family: var(--font-display);
   letter-spacing: -0.005em;
+}
+
+/* Loading shimmer — applied while /api/themes is in flight. Opacity
+   pulse on the existing rows so the founder notices something is
+   happening without the chrome shouting. Stays quiet (~1 cycle/1.6s,
+   55% trough) per the founder's instinct that this should be felt,
+   not announced. */
+.sidebar__themes--refreshing .sidebar__theme {
+  animation: sidebar-theme-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes sidebar-theme-shimmer {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
 }
 
 /* Account pins itself to the bottom of the column. With the legacy

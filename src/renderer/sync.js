@@ -1,12 +1,12 @@
 /* tinker — user-data sync layer
  *
- * Bridges the four client-owned blobs (essays, drafts, seeds, taxonomy)
- * to /api/user-data/<kind>. On boot: when an auth token is available,
- * fetch each blob and overwrite the corresponding localStorage key so
- * the consumer modules (seeds.js, heatmap.js, renderer.js) see the
- * server state on their next read. On every save: push the new blob
- * back, debounced per-kind so a burst of keystrokes coalesces into one
- * write.
+ * Bridges the five client-owned blobs (essays, drafts, seeds, taxonomy,
+ * themes) to /api/user-data/<kind>. On boot: when an auth token is
+ * available, fetch each blob and overwrite the corresponding
+ * localStorage key so the consumer modules (seeds.js, heatmap.js,
+ * themes.js, renderer.js) see the server state on their next read. On
+ * every save: push the new blob back, debounced per-kind so a burst of
+ * keystrokes coalesces into one write.
  *
  * The localStorage keys stay the source of truth for the renderer.
  * The server is the source of truth across devices, but locally
@@ -20,6 +20,8 @@
  *   - seeds    → "tinker.seeds.v1" + "tinker.seeds.hidden.v1"
  *                stored on the server as one { explicit, hidden } blob
  *   - taxonomy → "tinker.taxonomy.v1" (object)
+ *   - themes   → "tinker.themes.v1"   (array of validated themes from
+ *                the /api/themes clustering step)
  *
  * Events dispatched on window:
  *   - "tinker:hydrated"  after a successful boot fetch overwrote one or
@@ -37,12 +39,14 @@
   const KIND_DRAFTS = "drafts";
   const KIND_SEEDS = "seeds";
   const KIND_TAXONOMY = "taxonomy";
+  const KIND_THEMES = "themes";
 
   const LS_ESSAYS = "tinker.essays.v1";
   const LS_DRAFTS = "tinker.drafts.v1";
   const LS_SEEDS = "tinker.seeds.v1";
   const LS_SEEDS_HIDDEN = "tinker.seeds.hidden.v1";
   const LS_TAXONOMY = "tinker.taxonomy.v1";
+  const LS_THEMES = "tinker.themes.v1";
 
   // Debounce window per kind. Keystrokes in a textarea hit
   // saveDrafts() at ~3hz; coalescing into one PUT every 1.5s is
@@ -90,6 +94,11 @@
   function applyTaxonomyFromServer(data) {
     if (!data || typeof data !== "object") return false;
     setLs(LS_TAXONOMY, JSON.stringify(data));
+    return true;
+  }
+  function applyThemesFromServer(data) {
+    if (!Array.isArray(data)) return false;
+    setLs(LS_THEMES, JSON.stringify(data));
     return true;
   }
 
@@ -162,6 +171,7 @@
     pushTaxonomy() {
       schedulePush(KIND_TAXONOMY, () => getLsJson(LS_TAXONOMY, null));
     },
+    pushThemes() { schedulePush(KIND_THEMES, () => getLsJson(LS_THEMES, [])); },
     // Force a flush of every pending push immediately — used on auth
     // change and pagehide so the server doesn't drop the tail of a
     // typing burst.
@@ -177,22 +187,25 @@
       if (kinds.includes(KIND_DRAFTS))   pushKind(KIND_DRAFTS,   getLsJson(LS_DRAFTS, []));
       if (kinds.includes(KIND_SEEDS))    pushKind(KIND_SEEDS,    buildSeedsBlob());
       if (kinds.includes(KIND_TAXONOMY)) pushKind(KIND_TAXONOMY, getLsJson(LS_TAXONOMY, null));
+      if (kinds.includes(KIND_THEMES))   pushKind(KIND_THEMES,   getLsJson(LS_THEMES, []));
     },
   };
 
   async function hydrate() {
     if (!token()) return;
-    const [essays, drafts, seeds, taxonomy] = await Promise.all([
+    const [essays, drafts, seeds, taxonomy, themes] = await Promise.all([
       fetchKind(KIND_ESSAYS),
       fetchKind(KIND_DRAFTS),
       fetchKind(KIND_SEEDS),
       fetchKind(KIND_TAXONOMY),
+      fetchKind(KIND_THEMES),
     ]);
     let changed = false;
     if (applyEssaysFromServer(essays)) changed = true;
     if (applyDraftsFromServer(drafts)) changed = true;
     if (applySeedsFromServer(seeds)) changed = true;
     if (applyTaxonomyFromServer(taxonomy)) changed = true;
+    if (applyThemesFromServer(themes)) changed = true;
     if (changed) {
       try { window.dispatchEvent(new CustomEvent("tinker:hydrated")); }
       catch { /* ignore */ }

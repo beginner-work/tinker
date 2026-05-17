@@ -137,6 +137,7 @@
       activeId = null;
       renderSidebar();
       renderThemes();
+      refreshThemesAfterSession();
       // Land on the seed's category feed (now containing the
       // just-published essay). For a brand-new seed with no
       // classification yet, fall through to the read view.
@@ -179,6 +180,7 @@
         window.tinkerSeeds.add(seedName);
       }
       renderThemes();
+      refreshThemesAfterSession();
       return essay;
     },
   };
@@ -234,6 +236,18 @@
     activeId = null;
     renderSidebar();
     showFeed();
+    refreshThemesAfterSession();
+  }
+
+  // Themes refresh hook — fired on every writing-session close and
+  // every publish. The founder asked for the strict reading of the
+  // spec's "refresh after any writing" wording: each close fires a
+  // fresh /api/themes call. Best-effort; the themes module is a no-op
+  // if the user is signed out or already refreshing.
+  function refreshThemesAfterSession() {
+    if (window.tinkerThemes && typeof window.tinkerThemes.refresh === "function") {
+      window.tinkerThemes.refresh();
+    }
   }
 
   // ── Views ───────────────────────────────────────────────────────────
@@ -383,42 +397,44 @@
   // themes nav stays hidden and the sidebar collapses to brand → Account
   // → footer. With themes present, each row reuses .sidebar__account-item
   // for sizing/hover/typography and adds .sidebar__theme as a hook for
-  // theme-specific behaviour (active state, mobile-drawer auto-close).
-  // The /api/themes wiring lands in step 3; for the step 2 checkpoint the
-  // source is the hardcoded MOCK_THEMES list so the founder can verify
-  // visual treatment.
+  // theme-specific behaviour (active state, mobile-drawer auto-close,
+  // step-3 loading shimmer).
   //
-  // MOCK — verbatim-style fragments meant to look like phrases lifted
-  // from a person's seed drafts, not AI labels. Each one reads as a
-  // theme-level observation a founder might actually write down, not
-  // a single tactical moment. Replaced in step 3 by the /api/themes
-  // response.
-  const MOCK_THEMES = [
-    "the kind of work I'm pulled toward",
-    "what the boys keep teaching me",
-    "where the money is actually going",
-    "the version of me that shows up at 7am",
-    "what I'm still figuring out about the move",
-  ];
-
+  // Data flow: tinkerThemes.list() returns the cached themes from
+  // localStorage. tinkerThemes.refresh() (fired by renderer.js on
+  // session-close and publish) calls /api/themes and persists via
+  // sync.js. The sidebar resubscribes via tinkerThemes.subscribe — so
+  // a refresh that arrives while another view is on screen still
+  // updates the cache; the sidebar paints fresh labels next render.
   function renderThemes() {
     if (!themesEl) return;
     themesEl.innerHTML = "";
-    const themes = MOCK_THEMES;
+    const themes = (window.tinkerThemes && typeof window.tinkerThemes.list === "function")
+      ? window.tinkerThemes.list()
+      : [];
+    const isRefreshing = !!(
+      window.tinkerThemes &&
+      typeof window.tinkerThemes.isRefreshing === "function" &&
+      window.tinkerThemes.isRefreshing()
+    );
+    themesEl.classList.toggle("sidebar__themes--refreshing", isRefreshing);
     if (!themes.length) {
       themesEl.hidden = true;
       return;
     }
-    for (const label of themes) {
+    for (const t of themes) {
+      if (!t || typeof t.label !== "string" || !t.label) continue;
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "sidebar__account-item sidebar__theme";
-      btn.textContent = label;
-      // [NEEDS INPUT] open question #2 — inline expand vs stage takeover.
-      // Step 4 wires the real destination; step 2 just logs so the
-      // founder can confirm the tap target lands.
+      btn.textContent = t.label;
+      btn.dataset.themeLabel = t.label;
+      // [NEEDS INPUT] step 4 wires this: tap → new writing session
+      // pre-anchored to the theme (no memory concept); long-press →
+      // show past writings in the cluster. For step 3 the tap just
+      // logs so the founder can confirm the row is interactive.
       btn.addEventListener("click", () => {
-        console.log("[themes] tapped:", label);
+        console.log("[themes] tap:", t.label, t);
       });
       themesEl.appendChild(btn);
     }
@@ -512,6 +528,13 @@
     window.tinkerSeeds.subscribe(() => {
       renderThemes();
     });
+  }
+
+  // Re-render whenever the themes cache changes — refresh start (for
+  // the shimmer), refresh end (for fresh labels), and hydration from
+  // the server on boot.
+  if (window.tinkerThemes && typeof window.tinkerThemes.subscribe === "function") {
+    window.tinkerThemes.subscribe(() => renderThemes());
   }
 
   if (readDelete) {

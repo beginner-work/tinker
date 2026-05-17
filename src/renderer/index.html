@@ -42,6 +42,11 @@
     <script src="./transactions.js" defer></script>
     <script src="./seeds.js" defer></script>
     <script src="./heatmap.js" defer></script>
+    <!-- Themes module: drives the new sidebar themes nav. Reads cached
+         themes from localStorage on boot; refresh() calls /api/themes
+         and persists via sync.js. Loaded after sync.js so pushThemes
+         is in place before themes.js calls it. -->
+    <script src="./themes.js" defer></script>
   </head>
   <body>
     <svg class="liquid-glass-defs" width="0" height="0" aria-hidden="true" focusable="false">
