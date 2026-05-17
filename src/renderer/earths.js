@@ -32,6 +32,46 @@
   const STORAGE_ESSAYS = "tinker.essays.v1";
   const STORAGE_TAXONOMY = "tinker.taxonomy.v1";
 
+  // Idempotent field rename for drafts/essays: every item with a
+  // `.seed` key gets its value moved to `.earth`. Safe to re-run after
+  // sync.js' hydrate() overwrites localStorage with the server blob,
+  // which is the v0.100 shape until the server's drafts/essays get
+  // re-pushed with the new shape. Returns true if anything changed.
+  function renameFieldsInStorage(storageKey) {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return false;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return false;
+      let changed = false;
+      for (const item of arr) {
+        if (item && typeof item === "object" && "seed" in item) {
+          if (!("earth" in item)) item.earth = item.seed;
+          delete item.seed;
+          changed = true;
+        }
+      }
+      if (changed) localStorage.setItem(storageKey, JSON.stringify(arr));
+      return changed;
+    } catch { return false; }
+  }
+
+  // Same for the inner taxonomy map.
+  function renameTaxonomyKey() {
+    try {
+      const raw = localStorage.getItem(STORAGE_TAXONOMY);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && parsed.seeds && !parsed.earths) {
+        parsed.earths = parsed.seeds;
+        delete parsed.seeds;
+        localStorage.setItem(STORAGE_TAXONOMY, JSON.stringify(parsed));
+        return true;
+      }
+      return false;
+    } catch { return false; }
+  }
+
   // One-time migration from the previous "location" naming (v0.99 →
   // v0.100). Runs before anything else reads from storage. Touches:
   // seeds storage keys, draft.location → draft.seed, essay.location →
@@ -54,7 +94,7 @@
       moveKey("tinker.locations.v1", "tinker.seeds.v1");
       moveKey("tinker.locations.hidden.v1", "tinker.seeds.hidden.v1");
 
-      const renameField = (storageKey) => {
+      const renameLocationField = (storageKey) => {
         try {
           const raw = localStorage.getItem(storageKey);
           if (!raw) return;
@@ -71,8 +111,8 @@
           if (changed) localStorage.setItem(storageKey, JSON.stringify(arr));
         } catch { /* ignore */ }
       };
-      renameField(STORAGE_DRAFTS);
-      renameField(STORAGE_ESSAYS);
+      renameLocationField(STORAGE_DRAFTS);
+      renameLocationField(STORAGE_ESSAYS);
 
       try {
         const raw = localStorage.getItem(STORAGE_TAXONOMY);
@@ -90,17 +130,18 @@
     } catch { /* ignore */ }
   })();
 
-  // One-time migration from the previous "seed" (place) naming (v0.100
-  // → v0.101). Runs after the location → seed migration above so a
-  // client at v0.99 walks through both renames in one boot. The
-  // localStorage slot `tinker.seeds.v1` is FREED here so the new
-  // Seed-cluster meaning (AI-derived groups inside an Earth) can land
-  // there without colliding with the old place data.
+  // One-time STORAGE-KEY migration from the previous "seed" (place)
+  // naming (v0.100 → v0.101). Renames the localStorage keys for
+  // explicit/hidden once per browser. The FIELD renames on drafts /
+  // essays / taxonomy are NOT gated on this flag — they run on every
+  // boot AND every hydrate, because sync.js can overwrite local
+  // storage with the v0.100 server shape and we need to re-rename
+  // whatever lands. This race is the difference between an empty
+  // sidebar tree and a populated one for a returning user.
   (function migrateFromSeedsToEarths() {
     const FLAG = "tinker.earths.migration.v1";
     try {
       if (localStorage.getItem(FLAG)) return;
-
       const moveKey = (oldKey, newKey) => {
         const v = localStorage.getItem(oldKey);
         if (v === null) return;
@@ -111,42 +152,27 @@
       };
       moveKey("tinker.seeds.v1", STORAGE_KEY);
       moveKey("tinker.seeds.hidden.v1", STORAGE_HIDDEN);
-
-      const renameField = (storageKey) => {
-        try {
-          const raw = localStorage.getItem(storageKey);
-          if (!raw) return;
-          const arr = JSON.parse(raw);
-          if (!Array.isArray(arr)) return;
-          let changed = false;
-          for (const item of arr) {
-            if (item && typeof item === "object" && "seed" in item) {
-              if (!("earth" in item)) item.earth = item.seed;
-              delete item.seed;
-              changed = true;
-            }
-          }
-          if (changed) localStorage.setItem(storageKey, JSON.stringify(arr));
-        } catch { /* ignore */ }
-      };
-      renameField(STORAGE_DRAFTS);
-      renameField(STORAGE_ESSAYS);
-
-      try {
-        const raw = localStorage.getItem(STORAGE_TAXONOMY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === "object" && parsed.seeds && !parsed.earths) {
-            parsed.earths = parsed.seeds;
-            delete parsed.seeds;
-            localStorage.setItem(STORAGE_TAXONOMY, JSON.stringify(parsed));
-          }
-        }
-      } catch { /* ignore */ }
-
       localStorage.setItem(FLAG, "1");
     } catch { /* ignore */ }
   })();
+
+  // Always-on field normalisation. Runs on boot AND after every
+  // hydration so the server's v0.100 shape gets rewritten to v0.101
+  // even when sync overwrites our local rename. When anything
+  // changes, push the new shape back so the server eventually catches
+  // up too.
+  function normalizeFieldsAndPush() {
+    const draftsChanged = renameFieldsInStorage(STORAGE_DRAFTS);
+    const essaysChanged = renameFieldsInStorage(STORAGE_ESSAYS);
+    renameTaxonomyKey();
+    if (draftsChanged && window.tinkerSync && typeof window.tinkerSync.pushDrafts === "function") {
+      window.tinkerSync.pushDrafts();
+    }
+    if (essaysChanged && window.tinkerSync && typeof window.tinkerSync.pushEssays === "function") {
+      window.tinkerSync.pushEssays();
+    }
+  }
+  normalizeFieldsAndPush();
 
   function load() {
     try {
@@ -407,9 +433,11 @@
   }
 
   // Server hydration may have overwritten the earths + hidden storage
-  // keys after this module's initial load. Re-read both, then notify
-  // subscribers (the sidebar tree) to re-render.
+  // keys after this module's initial load. Re-read both, normalise
+  // draft/essay fields (the server still ships the v0.100 shape with
+  // `.seed`), then notify subscribers (the sidebar tree) to re-render.
   window.addEventListener("tinker:hydrated", () => {
+    normalizeFieldsAndPush();
     explicit = load();
     hidden = loadHidden();
     notify();

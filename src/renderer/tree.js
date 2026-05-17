@@ -59,6 +59,7 @@
   const STORAGE_DRAFTS = "tinker.drafts.v1";
   const STORAGE_ESSAYS = "tinker.essays.v1";
   const TOKEN_KEY = "tinker_jwt";
+  const STALE_MS = 24 * 60 * 60 * 1000;
 
   const mountEl = document.getElementById("sidebar-tree");
 
@@ -497,14 +498,54 @@
 
   // Hydration arrived from the server — re-read cache and re-render.
   // Reset the expand state so the MRU-Earth default re-applies on
-  // the freshly-hydrated tree.
+  // the freshly-hydrated tree. If the cache is still missing or
+  // stale (and the user has actual writings), kick a refresh so the
+  // tree populates instead of staying empty. This is the critical
+  // path for a returning user whose drafts/essays just landed via
+  // hydrate but whose tree was never cached server-side.
   window.addEventListener("tinker:hydrated", () => {
     expandedEarths = new Set();
     expandedSeeds = new Set();
     expandedGrowthVectors = new Set();
     lastTree = loadTree();
     render();
+
+    if (shouldRefreshOnHydrate()) {
+      refresh().catch(() => { /* ignore */ });
+    }
   });
+
+  function shouldRefreshOnHydrate() {
+    const cached = loadTree();
+    if (cached && cached.updatedAt && (Date.now() - cached.updatedAt) <= STALE_MS) {
+      return false;
+    }
+    // Only spend a cluster call if the user actually has writings.
+    // Otherwise the API returns { earths: [] } and we burn a request.
+    return hasAnyEarthAssignedWritings();
+  }
+
+  function hasAnyEarthAssignedWritings() {
+    try {
+      const drafts = JSON.parse(localStorage.getItem(STORAGE_DRAFTS) || "[]");
+      if (Array.isArray(drafts)) {
+        for (const d of drafts) {
+          if (d && d.earth && (d.stitched || (Array.isArray(d.transcript) && d.transcript.length))) {
+            return true;
+          }
+        }
+      }
+    } catch { /* ignore */ }
+    try {
+      const essays = JSON.parse(localStorage.getItem(STORAGE_ESSAYS) || "[]");
+      if (Array.isArray(essays)) {
+        for (const e of essays) {
+          if (e && e.earth && e.body) return true;
+        }
+      }
+    } catch { /* ignore */ }
+    return false;
+  }
 
   // Auth landed → kick a refresh so a fresh sign-in pulls the latest
   // tree even if the cached one is empty (or stale from another
@@ -513,18 +554,19 @@
     refresh().catch(() => { /* ignore */ });
   });
 
-  // On boot, if a token already exists and the cache is empty (or
-  // stale > 24h), trigger one refresh in the background. The cached
-  // tree (if any) renders immediately above; this just keeps it warm.
-  const STALE_MS = 24 * 60 * 60 * 1000;
+  // The tinker:hydrated path above is the primary refresh trigger for
+  // the typical web user (auth gate → hydrate fires → tree populates).
+  // This boot timer is the fallback for environments where hydrate
+  // never fires (Electron desktop without a Stytch token, or a stale
+  // cached tree that hydration didn't touch).
   setTimeout(() => {
     try {
       const t = localStorage.getItem(TOKEN_KEY);
       if (!t) return;
       const cached = loadTree();
-      if (!cached || !cached.updatedAt || (Date.now() - cached.updatedAt) > STALE_MS) {
-        refresh().catch(() => { /* ignore */ });
-      }
+      if (cached && cached.updatedAt && (Date.now() - cached.updatedAt) <= STALE_MS) return;
+      if (!hasAnyEarthAssignedWritings()) return;
+      refresh().catch(() => { /* ignore */ });
     } catch { /* ignore */ }
-  }, 400);
+  }, 1500);
 })();
