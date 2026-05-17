@@ -189,7 +189,28 @@ Capture the answer. The chat-vs-onboarding-flow distinction is the difference be
 
 (This is the question that prevents the most common 0-to-1 failure: the agent inventing a UI from scratch because the build prompt didn't tell it where to inherit from. If the user picks "Nothing yet," stop and force a decision before Phase 3.)
 
-After Q7, you may ask **one** follow-up via AskUserQuestion if a beat still feels thin — for example: *"What's the one thing you'd be crushed to see go wrong on launch day?"* with 3–4 plausible options + Other — but only one. Don't pile on.
+### Q8 — Mood / emotional register (singleSelect)
+
+> When the screen renders and the user's eye lands on it, what should it feel like emotionally? Not what it *looks* like (Q7 covered that) — what it *feels* like.
+
+| Option | Description |
+|---|---|
+| Quiet home | Calm, lived-in, low-contrast. Familiar. Nothing demands attention; the content breathes. |
+| Focused workshop | Purposeful, tool-like, slightly more contrast. Feels like a clean workbench — every element has a job. |
+| Curriculum just for you | Personal, considered, intentional. Feels like a path of learning made for this one person — bespoke, not template-y. |
+| Playful & warm | Soft expressive touches, gentle warmth, a hint of personality. Friendly, not toy-like. |
+
+(Visual canon — Q7 — tells the agent *where* to inherit pixels from. Mood — Q8 — tells the agent *how* to compose what it inherits. Without Q8 the agent treats every section of the host app as equally valid to mirror; with Q8 it knows which corner of the host app's range to reach for, and which choices to make when the canon gives it two options.)
+
+**Always-ask follow-up to Q8 (via AskUserQuestion).** A mood is unfalsifiable on its own — the agent will rationalize anything into it. Force one concrete UI cue that carries the mood, so the constraint can be checked, not just felt. Ask this immediately after Q8:
+
+> What's one specific, visible cue that should carry that mood when the page renders?
+
+The four options are mood-shaped — pick the option set that matches the Q8 answer. For *Quiet home*: generous padding everywhere, no separators or dividers, muted single-color palette, soft hover with no animation. For *Focused workshop*: clear row separators, tighter spacing, defined hover/active states, visible affordances on every actionable element. For *Curriculum just for you*: slight numbering or ordering markers on top-level items, a quiet sense of "where you've been vs. what's still new," typographic weight that shifts by tier, breathing pattern that gets tighter as the tree gets deeper. For *Playful & warm*: a warm accent color used sparingly, soft micro-motion on interaction, friendly glyphs or marks, generous corner radius. Multi-select is fine — the user can pick more than one cue if several fit.
+
+Capture the answer. The selected cue becomes a constraint in section 4 of the scaffold and a checked line in the build prompt's Constraints section — not a vibe.
+
+After Q8 and its follow-up, you may ask **one** further follow-up via AskUserQuestion if a beat still feels thin — for example: *"What's the one thing you'd be crushed to see go wrong on launch day?"* with 3–4 plausible options + Other — but only one. Don't pile on.
 
 ### Always-ask follow-ups (via AskUserQuestion)
 
@@ -246,7 +267,8 @@ Required content:
 - **Source of truth:** explicit path(s) or asset name(s) — e.g. `src/renderer/styles.css`, `src/renderer/tokens/rainbow-web.json`, *"the existing welcome page in `src/renderer/index.html`"*.
 - **Inherited visual primitives:** the buttons, typography, color tokens, container shapes the new screen must reuse. List them by name as they appear in the source.
 - **Inherited structural primitives:** the sidebar, tab/session model, address bar, navigation rail, modal pattern, welcome page — every UI primitive the new screen lives inside or alongside. Name the file paths (e.g. `src/renderer/renderer.js` for the tab model, `src/renderer/index.html` for the welcome surface). Inheriting visuals without inheriting structure produces builds that "feel like a separate app bolted onto the existing app." If the user is building inside an existing shell and structural inheritance isn't named, the scaffold is incomplete — return to Phase 1 and probe the shell.
-- **What the agent may NOT do:** introduce a new font, a color outside the tokens, a custom button visual, a new icon library, an animation library, a CSS framework, OR a new structural primitive (a new sidebar, a new tab model, a new welcome page, a new modal stack) when the host app already has one. List the temptations explicitly so the rule is enforceable, not vibes-based.
+- **Mood / emotional register:** from AskUserQuestion Q8. Name the mood in the founder's own words (e.g. *"quiet home"*, *"curriculum just for you"*) and the **one concrete UI cue** from the Q8 follow-up that carries it. The cue is checkable, not a vibe — e.g. *"slight numbering markers on Earth rows"*, *"generous padding everywhere with no row separators"*, *"warm accent color used only on the active row"*. The agent uses Q7 to know which pixels to inherit and Q8 to know which corner of the canon's range to compose from.
+- **What the agent may NOT do:** introduce a new font, a color outside the tokens, a custom button visual, a new icon library, an animation library, a CSS framework, OR a new structural primitive (a new sidebar, a new tab model, a new welcome page, a new modal stack) when the host app already has one. List the temptations explicitly so the rule is enforceable, not vibes-based. Also: compose against the named mood — do not adopt a different mood from elsewhere in the host app even if the canon permits it. If the mood is *quiet home*, the agent may not pick the *focused-workshop* corner of the host's styles for this screen.
 
 ## 5. The first version
 **One screen, one flow, one outcome.** From Phase 1 Q3 and the contractor follow-up.
@@ -425,5 +447,5 @@ If they want edits, edit the file in place — don't rewrite from scratch unless
 ## Tools to use
 
 - **Read** — load `pitch-deck.md` if it exists, for background. Also load `README.md` and skim `src/` if they exist (so structural inheritance in the build prompt is concrete). And load any prior `build-prompt.md` to read its current version, so Phase 3 can increment.
-- **AskUserQuestion** — every question the user is asked, across all phases: the Phase 1 prelude, the five Phase 1 foundation questions, Q1 through Q7 in Phase 2, the Q2 UI-shape follow-up, and the three always-ask follow-ups (F1, F2, F3). This is the question loader; do not replace it with free-form chat for any of these. The "Other" option is always available in the loader, so open-ended answers remain possible without dropping into plain-chat prompts. Q7 (visual canon) is the one most often skipped by accident — do not skip it; skipping it produces builds the agent treats as a greenfield design brief. Reflections back to the user stay in plain chat — those are confirmations, not questions.
+- **AskUserQuestion** — every question the user is asked, across all phases: the Phase 1 prelude, the five Phase 1 foundation questions, Q1 through Q8 in Phase 2, the Q2 UI-shape follow-up, the Q8 mood-cue follow-up, and the three always-ask follow-ups (F1, F2, F3). This is the question loader; do not replace it with free-form chat for any of these. The "Other" option is always available in the loader, so open-ended answers remain possible without dropping into plain-chat prompts. Q7 (visual canon) and Q8 (mood) are the two most often skipped by accident — do not skip either. Skipping Q7 produces builds the agent treats as a greenfield design brief; skipping Q8 produces builds that inherit pixels correctly but feel emotionally wrong because the agent picked the loudest corner of the canon by default. Reflections back to the user stay in plain chat — those are confirmations, not questions.
 - **Write** / **Edit** — produce and refine `build-prompt.md` (Phase 3). Optionally `product-spec.md` if the user explicitly asks for the descriptive form.
