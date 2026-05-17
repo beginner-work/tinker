@@ -1,19 +1,8 @@
 {
   "mcpServers": {
     "browserbase": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@browserbasehq/mcp",
-        "--modelName",
-        "anthropic/claude-sonnet-4.5",
-        "--modelApiKey",
-        "${ANTHROPIC_API_KEY}"
-      ],
-      "env": {
-        "BROWSERBASE_API_KEY": "${BROWSERBASE_API_KEY}",
-        "BROWSERBASE_PROJECT_ID": "${BROWSERBASE_PROJECT_ID}"
-      }
+      "type": "http",
+      "url": "https://mcp.browserbase.com/mcp?browserbaseApiKey=${BROWSERBASE_API_KEY}"
     }
   }
 }

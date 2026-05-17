@@ -86,22 +86,17 @@ real Chromium at the preview through [Browserbase](https://browserbase.com).
 
 ### From Claude Code (recommended)
 
-`.mcp.json` registers the [Browserbase MCP server](https://github.com/browserbase/mcp-server-browserbase)
-as a project-scoped tool. After merging, the next time you open this
-repo in Claude Code you'll be asked to approve the project-scoped MCP
-once — accept it and Claude gets `navigate`, `act`, `observe`, and
-`extract` tools that drive a cloud browser directly. Ask Claude
-something like "open the latest preview and tell me what's printed in
-the console" and it'll spin up a session and look for you.
+`.mcp.json` points at Browserbase's hosted MCP server. The next time
+you open this repo in Claude Code you'll be asked to approve the
+project-scoped MCP once — accept it and Claude gets `navigate`,
+`act`, `observe`, and `extract` tools wired up to a cloud Chromium.
+Ask Claude something like "open the latest preview and tell me what's
+printed in the console" and it'll spin up a session and look for you.
 
-The MCP needs three env vars in your Claude Code environment:
-
-- `BROWSERBASE_API_KEY`
-- `BROWSERBASE_PROJECT_ID`
-- `ANTHROPIC_API_KEY` — used as Stagehand's translation model
-
-(`start`/`end`/`navigate` work without the Anthropic key, but the
-`act`/`observe`/`extract` tools need it.)
+The hosted server handles its own LLM costs (Browserbase pays for
+Gemini under the hood); all you need is `BROWSERBASE_API_KEY` set in
+your Claude Code environment. The key is passed as a URL query
+param — no extra model key, no Anthropic key, no Gemini key.
 
 ### From your terminal
 
