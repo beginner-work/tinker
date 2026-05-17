@@ -17,7 +17,23 @@ jobs:
       contents: write          # push to the `previews` branch
       pull-requests: write     # update the PR description
     steps:
+      - name: Check Browserbase config
+        id: config
+        env:
+          # Bringing the secret into env (not into a run-line literal)
+          # avoids GH masking the empty-string check itself.
+          BB_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+          BB_PROJECT: ${{ secrets.BROWSERBASE_PROJECT_ID }}
+        run: |
+          if [ -n "$BB_KEY" ] && [ -n "$BB_PROJECT" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Browserbase not configured::Set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID in Settings → Secrets and variables → Actions. See README → Preview screenshots (Browserbase)."
+          fi
+
       - name: Checkout
+        if: steps.config.outputs.ready == 'true'
         uses: actions/checkout@v4
         with:
           # The deployment event's SHA is the commit Vercel built.
@@ -25,14 +41,17 @@ jobs:
           ref: ${{ github.event.deployment.sha }}
 
       - name: Set up Node
+        if: steps.config.outputs.ready == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
       - name: Install
+        if: steps.config.outputs.ready == 'true'
         run: npm ci
 
       - name: Find PR for commit
+        if: steps.config.outputs.ready == 'true'
         id: pr
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -58,7 +77,7 @@ jobs:
           fi
 
       - name: Walk preview with Browserbase
-        if: steps.pr.outputs.found == 'true'
+        if: steps.config.outputs.ready == 'true' && steps.pr.outputs.found == 'true'
         env:
           PREVIEW_URL: ${{ github.event.deployment_status.target_url }}
           BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
@@ -69,7 +88,7 @@ jobs:
         run: npm run preview:screenshots
 
       - name: Upload artifacts
-        if: always() && steps.pr.outputs.found == 'true'
+        if: always() && steps.config.outputs.ready == 'true' && steps.pr.outputs.found == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: preview-walkthrough-pr-${{ steps.pr.outputs.number }}
@@ -78,7 +97,7 @@ jobs:
           retention-days: 14
 
       - name: Publish to PR
-        if: steps.pr.outputs.found == 'true'
+        if: steps.config.outputs.ready == 'true' && steps.pr.outputs.found == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
