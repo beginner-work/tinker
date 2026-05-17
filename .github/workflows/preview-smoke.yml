@@ -1,0 +1,52 @@
+name: Preview Smoke
+
+# Fires on every PR push; polls Vercel for the matching preview, drives
+# Browserbase through tests/preview/scenarios.json against the preview URL,
+# and upserts a single PR comment with the results (the comment is the
+# boundary that Claude reads via subscribe_pr_activity).
+#
+# Forks have no secret access; the if: guard below silently skips that case.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: preview-smoke-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Run Browserbase smoke against Vercel preview
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run preview smoke
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+          BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
+          SCREENSHOTS_DIR: ${{ runner.temp }}/preview-screenshots
+        run: node scripts/run-preview-smoke.js
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: preview-screenshots-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/preview-screenshots
+          if-no-files-found: ignore
+          retention-days: 14

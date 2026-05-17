@@ -1,0 +1,20 @@
+{
+  "scenarios": [
+    {
+      "name": "homepage loads cleanly",
+      "path": "/",
+      "expect": {
+        "loadStatus": "fired",
+        "noConsoleErrors": true,
+        "titleContains": "tinker"
+      }
+    },
+    {
+      "name": "version endpoint reachable in-browser",
+      "path": "/api/version",
+      "expect": {
+        "loadStatus": "fired"
+      }
+    }
+  ]
+}
