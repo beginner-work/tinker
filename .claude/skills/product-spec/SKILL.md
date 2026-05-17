@@ -387,7 +387,9 @@ For each placeholder above, pull content from the internal scaffold:
 
 Read it back as a one-line summary: *"Build prompt v[N.M] is at `build-prompt.md`. Hand this to a fresh build agent or to yourself in three weeks."*
 
-If the user wants edits, edit the file in place — don't rewrite from scratch.
+Then **paste the full contents of `build-prompt.md` back into the chat inside a fenced ```markdown code block** so the user can copy and paste it directly into a fresh agent, another tool, or anywhere else they want to run it. The file on disk and the pasted block must be identical — do not summarize, trim, or reformat. This is non-negotiable: the user is often working from the chat surface and can't easily grab the file, so the copy-paste block is how the artifact actually reaches them.
+
+If the user wants edits, edit the file in place — don't rewrite from scratch — then re-paste the updated full contents in the same way.
 
 ### Optional: also write product-spec.md
 
@@ -412,9 +414,13 @@ If the user explicitly asks for the descriptive doc — *"can I see this as a sp
 
 ## When the build prompt is done
 
-After writing `build-prompt.md`, read it back as a 4–5 line summary, point out any `[NEEDS INPUT: …]` placeholders the user needs to fill, and ask via **AskUserQuestion**: *"Does this match the thing you have in your head, or do we tighten anywhere?"* with options like *"Yes, this is it — ship the prompt"*, *"Mostly, but tighten one section"*, *"The first version is bigger than what I'd actually build first"*, *"Something fundamental is off — let's revisit"*.
+After writing `build-prompt.md`:
 
-If they want edits, edit the file in place — don't rewrite from scratch unless they ask.
+1. Read it back as a 4–5 line summary and point out any `[NEEDS INPUT: …]` placeholders the user needs to fill.
+2. **Paste the full contents of `build-prompt.md` into the chat inside a fenced ```markdown code block**, byte-identical to the file on disk. This is the copy-paste handoff — the user is often on a chat surface where grabbing a file is awkward, and the pasted block is how the artifact actually reaches them. Do not summarize, abridge, or "show the important parts" — paste the whole thing.
+3. Then ask via **AskUserQuestion**: *"Does this match the thing you have in your head, or do we tighten anywhere?"* with options like *"Yes, this is it — ship the prompt"*, *"Mostly, but tighten one section"*, *"The first version is bigger than what I'd actually build first"*, *"Something fundamental is off — let's revisit"*.
+
+If they want edits, edit the file in place — don't rewrite from scratch unless they ask — and re-paste the updated full contents in the same fenced block.
 
 ## Tools to use
 
