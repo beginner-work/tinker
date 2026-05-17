@@ -439,10 +439,10 @@
   const EARTH_LABELS = { cafe: "At a cafe", home: "At home", work: "At work" };
 
   // Color-match welcome tiles to the sidebar tree's Earth rows.
-  // tinkerEarths.color() is the shared palette source — same swatch
-  // shows up on both surfaces for "At home", and likewise for "At a
-  // cafe" and "At work". The "Somewhere else" tile keeps its own
-  // muted palette swatch so it reads as a different kind of choice.
+  // tinkerEarths.color() is the shared palette source (same swatches
+  // as the tinker globe), so "At home" shows the same color on both
+  // surfaces. Foreground stays the dark ink so the pastels read like
+  // the globe arcs over cream.
   function paintWelcomeTiles() {
     if (!welcomeGrid) return;
     const earthsApi = window.tinkerEarths;
@@ -451,7 +451,7 @@
       const key = tile.getAttribute("data-earth");
       const name = key === "other" ? "Somewhere else" : (EARTH_LABELS[key] || key);
       tile.style.background = earthsApi.color(name);
-      tile.style.color = "var(--color-cream)";
+      tile.style.color = "var(--color-ink)";
       tile.style.borderColor = "transparent";
     }
   }

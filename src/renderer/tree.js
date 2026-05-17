@@ -206,11 +206,10 @@
     btn.type = "button";
     btn.className = "sidebar__account-item sidebar__tree-row sidebar__tree-row--earth";
     btn.setAttribute("aria-expanded", expandedEarths.has(earth.earthId) ? "true" : "false");
-    // Rainbow palette swatch on each Earth row — deterministic per
-    // earthId, matched to the welcome-tile color. Cream text reads
-    // on the pastel backgrounds the palette ships with. Set as a
-    // custom property so the :hover rule in styles.css can keep the
-    // colored fill instead of falling back to --color-hover.
+    // Rainbow palette swatch on each Earth row — same colors used in
+    // the tinker globe logo. Deterministic per earthId, matched to
+    // the welcome tile. Foreground stays the dark ink so the pastel
+    // swatches read the way they do in the globe itself.
     btn.style.setProperty("--earth-color", earthColor(earth.earthId));
     btn.innerHTML =
       `<span class="sidebar__tree-twirl" aria-hidden="true"></span>` +

@@ -292,13 +292,13 @@ html.on-web .sidebar__top {
 .sidebar__tree-list--gvs        .sidebar__tree-row { padding-left: 34px; }
 .sidebar__tree-list--writings   .sidebar__tree-row { padding-left: 46px; }
 
-/* Earth rows get a rainbow palette swatch + cream text. The swatch
-   is supplied per-row via the --earth-color custom property (see
-   tree.js). The :hover state preserves the colored fill so it
-   doesn't snap back to --color-hover. */
+/* Earth rows get a rainbow palette swatch matching the tinker globe.
+   The swatch is supplied per-row via the --earth-color custom
+   property (see tree.js). Foreground stays the dark ink so the
+   pastels read the way the globe arcs do over the cream backdrop. */
 .sidebar__tree-row--earth {
   background: var(--earth-color, var(--color-hover));
-  color: var(--color-cream);
+  color: var(--color-ink);
 }
 .sidebar__tree-row--earth:hover {
   background: var(--earth-color, var(--color-hover));
@@ -306,11 +306,11 @@ html.on-web .sidebar__top {
 }
 .sidebar__tree-row--earth .sidebar__tree-label,
 .sidebar__tree-row--earth .sidebar__account-label {
-  color: var(--color-cream);
+  color: var(--color-ink);
 }
 .sidebar__tree-row--earth .sidebar__tree-twirl {
-  color: var(--color-cream);
-  opacity: 0.85;
+  color: var(--color-ink);
+  opacity: 0.7;
 }
 /* Slight muted weight on Seed and Growth vector rows so the Earth
    row reads as the top of its branch. Same family, no new visuals. */
