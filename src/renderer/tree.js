@@ -67,6 +67,13 @@
   let refreshing = false;
   let mockMode = false;
   let mountRef = null;
+  // One-shot guard: existing users who arrive at the new deploy with
+  // writings already in localStorage have a null `tinker.tree.v1` cache
+  // (clustering has never run for them). Without this kick, the sidebar
+  // reads as empty until their next writing-session close — which is
+  // exactly the "empty sidebar on load" symptom. The flag is reset on
+  // hydrate so a fresh sign-in re-checks the new state.
+  let kickedInitialRefresh = false;
 
   function loadCachedTree() {
     if (mockMode) return MOCK_TREE;
@@ -77,6 +84,51 @@
       if (!parsed || !Array.isArray(parsed.earths)) return null;
       return parsed;
     } catch { return null; }
+  }
+
+  function hasAnyWritings() {
+    try {
+      const drafts = JSON.parse(localStorage.getItem(LS_DRAFTS) || "[]");
+      if (Array.isArray(drafts)) {
+        for (const d of drafts) {
+          if (d && d.earth && (d.stitched?.body || (Array.isArray(d.transcript) && d.transcript.some((t) => t && t.a)))) {
+            return true;
+          }
+        }
+      }
+    } catch { /* ignore */ }
+    try {
+      const essays = JSON.parse(localStorage.getItem(LS_ESSAYS) || "[]");
+      if (Array.isArray(essays)) {
+        for (const e of essays) {
+          if (e && e.earth && e.body) return true;
+        }
+      }
+    } catch { /* ignore */ }
+    return false;
+  }
+
+  function hasToken() {
+    try { return !!localStorage.getItem("tinker_jwt"); }
+    catch { return false; }
+  }
+
+  // Fire a one-shot refresh on first render if the cache is empty but
+  // we have writings (and a session) to cluster. Without this, an
+  // existing user landing on the new deploy sees a blank sidebar until
+  // they close their next writing session.
+  function maybeKickInitialRefresh() {
+    if (kickedInitialRefresh) return;
+    if (mockMode) return;
+    if (refreshing) return;
+    if (loadCachedTree()) return; // already have cached data
+    if (!hasToken()) return;       // not signed in yet — wait for hydrate
+    if (!hasAnyWritings()) return; // genuinely cold-start
+    kickedInitialRefresh = true;
+    // Defer past the current paint so the empty-state render lands
+    // first; the skeleton shimmer takes over once refresh() flips
+    // `refreshing` true and re-renders.
+    setTimeout(() => { refresh(); }, 0);
   }
 
   function saveCachedTree(tree) {
@@ -174,10 +226,14 @@
       .filter((e) => e.seeds.length > 0);
 
     // Cold-start: hide the <nav> entirely so the brand block sits
-    // directly above the Account block.
+    // directly above the Account block. If we're hiding because the
+    // cache is empty but the founder DOES have writings, kick a
+    // one-shot refresh in the background — the shimmer will take over
+    // the moment refresh() flips refreshing true.
     if (visible.length === 0) {
       target.innerHTML = "";
       target.hidden = true;
+      maybeKickInitialRefresh();
       return;
     }
 
@@ -528,9 +584,12 @@
   };
 
   // Re-render after sync hydrate so the founder sees their tree the
-  // moment server data lands.
+  // moment server data lands. Reset the initial-refresh guard so
+  // post-hydrate state (which may have brought in writings the
+  // pre-hydrate boot didn't see) gets a fresh kick if still empty.
   window.addEventListener("tinker:hydrated", () => {
     defaulted = false;
+    kickedInitialRefresh = false;
     expanded.earths.clear();
     expanded.seeds.clear();
     expanded.vectors.clear();
