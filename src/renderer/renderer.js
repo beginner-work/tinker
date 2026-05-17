@@ -429,12 +429,17 @@
       btn.className = "sidebar__account-item sidebar__theme";
       btn.textContent = t.label;
       btn.dataset.themeLabel = t.label;
-      // [NEEDS INPUT] step 4 wires this: tap → new writing session
-      // pre-anchored to the theme (no memory concept); long-press →
-      // show past writings in the cluster. For step 3 the tap just
-      // logs so the founder can confirm the row is interactive.
+      // Tap → new writing session anchored to this theme. Per the
+      // founder's step-3 clarification, a theme is an area of growth
+      // to engage again, not a folder of past writings — so the label
+      // rides through as the seed (the existing seed-as-scene flow in
+      // writing.js) and no memory context is attached. Long-press to
+      // see the cluster's past writings is a follow-up; for now the
+      // primary affordance is start writing.
       btn.addEventListener("click", () => {
-        console.log("[themes] tap:", t.label, t);
+        if (typeof window.tinkerNewSession === "function") {
+          window.tinkerNewSession({ seed: t.label });
+        }
       });
       themesEl.appendChild(btn);
     }
