@@ -48,6 +48,30 @@ const SESSION_TIMEOUT_SECONDS = 300;
 const SCENARIO_LOAD_TIMEOUT_MS = 15_000;
 const CDP_OPEN_TIMEOUT_MS = 30_000;
 
+// Mirror scripts/browserbase-debug.js loadDotEnv — read BROWSERBASE_* and
+// any other vars out of .env.local (written by `vercel env pull`) so the
+// only secret GitHub Actions needs is VERCEL_TOKEN. process.env always wins.
+function loadDotEnv() {
+  for (const name of [".env.local", ".env"]) {
+    const p = path.resolve(__dirname, "..", name);
+    if (!fs.existsSync(p)) continue;
+    for (const line of fs.readFileSync(p, "utf8").split("\n")) {
+      const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$/);
+      if (!m) continue;
+      const [, key, rawValue] = m;
+      if (process.env[key] != null) continue;
+      let value = rawValue.trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      process.env[key] = value;
+    }
+  }
+}
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -518,6 +542,7 @@ async function upsertComment({ repo, prNumber, body, token }) {
 // ----- Main -----
 
 async function main() {
+  loadDotEnv();
   const env = readEnv();
   const scenarios = loadScenarios();
   console.log(

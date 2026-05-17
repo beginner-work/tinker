@@ -30,6 +30,21 @@ jobs:
         with:
           node-version: '22'
 
+      # Pull Vercel project's preview env (Browserbase + project IDs) into
+      # .env.local so the runner can read them without duplicating secrets
+      # to GitHub. Mirrors the local flow: `vercel link` + `vercel env pull`.
+      - name: Pull preview env from Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npx --yes vercel@latest link --yes \
+            --project=tinker --scope=beginner-work --token="$VERCEL_TOKEN"
+          npx vercel env pull .env.local \
+            --environment=preview --token="$VERCEL_TOKEN"
+          # VERCEL_PROJECT_ID is in .vercel/project.json after link; expose
+          # it to the next step so the runner can poll the Vercel REST API.
+          echo "VERCEL_PROJECT_ID=$(node -p 'require("./.vercel/project.json").projectId')" >> "$GITHUB_ENV"
+
       - name: Run preview smoke
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -37,9 +52,6 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
-          BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
           SCREENSHOTS_DIR: ${{ runner.temp }}/preview-screenshots
         run: node scripts/run-preview-smoke.js
 
