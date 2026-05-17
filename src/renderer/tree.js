@@ -44,7 +44,42 @@
   let refreshing = false;
   let lastRefreshFailed = false;
 
+  // One-time cleanup for the v0.102 poisoning where a transient
+  // cluster failure persisted `{earths: []}` over a previously-good
+  // tree. If localStorage holds a tree blob with no meaningful
+  // content, drop it and push the clear so the server row gets
+  // wiped on the next sync — otherwise hydrate would keep
+  // reinstating the poison on every reload.
+  (function evictPoisonedCache() {
+    try {
+      const raw = localStorage.getItem(STORAGE_TREE);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return;
+      if (!Array.isArray(parsed.earths)) return;
+      const hasContent = parsed.earths.some(
+        (e) => e && Array.isArray(e.seeds) && e.seeds.some(
+          (s) => s && Array.isArray(s.growthVectors) && s.growthVectors.length > 0,
+        ),
+      );
+      if (hasContent) return;
+      try { console.warn("[tinker.tree] evicting empty-earths cache from v0.102 race"); } catch { /* ignore */ }
+      localStorage.removeItem(STORAGE_TREE);
+      if (window.tinkerSync && typeof window.tinkerSync.pushTree === "function") {
+        window.tinkerSync.pushTree();
+      }
+    } catch { /* ignore */ }
+  })();
+
   // ── Storage helpers ────────────────────────────────────────────────
+  function treeHasContent(parsed) {
+    if (!parsed || !Array.isArray(parsed.earths)) return false;
+    return parsed.earths.some(
+      (e) => e && Array.isArray(e.seeds) && e.seeds.some(
+        (s) => s && Array.isArray(s.growthVectors) && s.growthVectors.length > 0,
+      ),
+    );
+  }
   function loadTree() {
     try {
       const raw = localStorage.getItem(STORAGE_TREE);
@@ -52,6 +87,12 @@
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object") return null;
       if (!Array.isArray(parsed.earths)) return null;
+      // Reject empty / no-content caches outright. They land in
+      // localStorage from the v0.102 race where a transient cluster
+      // failure persisted `{earths: []}` over a previously-good
+      // tree; treating them as "no cache" lets the boot kicker
+      // refresh and self-heal.
+      if (!treeHasContent(parsed)) return null;
       return parsed;
     } catch { return null; }
   }

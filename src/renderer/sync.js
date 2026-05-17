@@ -98,6 +98,11 @@
   }
   function applyTreeFromServer(data) {
     if (!data || typeof data !== "object") return false;
+    // Skip empty-earths blobs. They reach the server when an
+    // earlier client persisted a transient cluster failure as
+    // `{earths: []}` — writing that to localStorage would just
+    // re-poison this device.
+    if (!Array.isArray(data.earths) || data.earths.length === 0) return false;
     setLs(LS_TREE, JSON.stringify(data));
     return true;
   }
