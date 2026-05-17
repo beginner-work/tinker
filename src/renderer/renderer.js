@@ -422,20 +422,47 @@
       themesEl.hidden = true;
       return;
     }
+    const colorFor = (window.tinkerHeatmap && typeof window.tinkerHeatmap.colorFor === "function")
+      ? window.tinkerHeatmap.colorFor
+      : null;
+
     for (const t of themes) {
       if (!t || typeof t.label !== "string" || !t.label) continue;
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "sidebar__account-item sidebar__theme";
-      btn.textContent = t.label;
       btn.dataset.themeLabel = t.label;
+
+      // Theme label stacks above the location chips. The label is the
+      // verbatim phrase from /api/themes; the chips are the unique
+      // locations where the founder engaged with this theme — the
+      // cluster, in the founder's mental model. Chip colours come from
+      // the same rainbow palette the home cards used, so a location
+      // keeps its identity across surfaces.
+      const labelEl = document.createElement("span");
+      labelEl.className = "sidebar__theme-label";
+      labelEl.textContent = t.label;
+      btn.appendChild(labelEl);
+
+      const locations = Array.isArray(t.locations) ? t.locations : [];
+      if (locations.length) {
+        const chips = document.createElement("span");
+        chips.className = "sidebar__theme-chips";
+        for (const loc of locations) {
+          const chip = document.createElement("span");
+          chip.className = "sidebar__theme-chip";
+          chip.textContent = loc;
+          if (colorFor) chip.style.backgroundColor = colorFor(loc);
+          chips.appendChild(chip);
+        }
+        btn.appendChild(chips);
+      }
+
       // Tap → new writing session anchored to this theme. Per the
       // founder's step-3 clarification, a theme is an area of growth
       // to engage again, not a folder of past writings — so the label
       // rides through as the seed (the existing seed-as-scene flow in
-      // writing.js) and no memory context is attached. Long-press to
-      // see the cluster's past writings is a follow-up; for now the
-      // primary affordance is start writing.
+      // writing.js) and no memory context is attached.
       btn.addEventListener("click", () => {
         if (typeof window.tinkerNewSession === "function") {
           window.tinkerNewSession({ seed: t.label });

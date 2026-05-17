@@ -111,15 +111,22 @@
 
   window.tinkerThemes = { list, isRefreshing, subscribe, refresh };
 
-  // Bootstrap: if there's a token AND the cache is empty, kick a
-  // refresh as soon as sync.js's hydration settles. Existing writers
-  // who already had seeds + drafts + essays in the user-data table
+  // The cache is "stale-shape" if any cached theme is missing the
+  // `locations` array — the field added when each theme started
+  // carrying its rainbow location chips. Old caches get one boot
+  // refresh to pick up the new shape; after that, refreshes are
+  // session-close only per the founder's choice on open question #3.
+  function cacheIsStaleShape(list) {
+    return list.some((t) => t && !Array.isArray(t.locations));
+  }
+
+  // Bootstrap: if there's a token AND the cache is either empty or
+  // stale-shape, kick a refresh as soon as sync.js's hydration
+  // settles. Existing writers who already had seeds + drafts + essays
   // don't have to close a new writing session before themes appear.
-  // After this initial fill, the refresh trigger is strictly
-  // session-close (per the founder's choice on open question #3).
   function maybeBootRefresh() {
     if (!token()) return;
-    if (themes.length > 0) return;
+    if (themes.length > 0 && !cacheIsStaleShape(themes)) return;
     refresh();
   }
   if (document.readyState === "loading") {

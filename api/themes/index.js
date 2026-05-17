@@ -71,7 +71,9 @@ async function resolveUserId(req) {
 
 // Pulls the three corpus blobs out of the kind-keyed user-data table
 // and flattens them into a single ordered list. Each item carries an
-// id (so the response can name cluster members back to the client) and
+// id (so the response can name cluster members back to the client),
+// a seedName (the location it was written at — what the founder picks
+// from the welcome grid, e.g. "Cafe" or "the kitchen counter"), and
 // the raw text the clusterer reads.
 async function loadCorpus(userId) {
   const rows = await prisma.tinkerUserData.findMany({
@@ -91,6 +93,7 @@ async function loadCorpus(userId) {
       id: s.id || `seed:${s.name}`,
       type: "seed",
       text: String(s.name),
+      seedName: String(s.name),
     });
   }
 
@@ -105,14 +108,28 @@ async function loadCorpus(userId) {
     }
     if (d.stitched && d.stitched.body) parts.push(String(d.stitched.body));
     const text = parts.join("\n").trim();
-    if (text) items.push({ id: d.id, type: "draft", text });
+    if (text) {
+      items.push({
+        id: d.id,
+        type: "draft",
+        text,
+        seedName: d.seed ? String(d.seed) : null,
+      });
+    }
   }
 
   const essays = Array.isArray(byKind.essays) ? byKind.essays : [];
   for (const e of essays) {
     if (!e || !e.id) continue;
     const text = String(e.body || "").trim();
-    if (text) items.push({ id: e.id, type: "essay", text });
+    if (text) {
+      items.push({
+        id: e.id,
+        type: "essay",
+        text,
+        seedName: e.seed ? String(e.seed) : null,
+      });
+    }
   }
 
   return items;
@@ -180,13 +197,23 @@ function validateThemes(parsed, items) {
     if (slice !== t.label) continue;
 
     const clusterIds = [];
+    const locationSet = new Set();
+    const locationOrder = [];
     if (Array.isArray(t.items)) {
       for (const ix of t.items) {
         const n = Number(ix);
         if (!Number.isInteger(n) || n < 1 || n > items.length) continue;
         if (seenItems.has(n)) continue;
         seenItems.add(n);
-        clusterIds.push(items[n - 1].id);
+        const it = items[n - 1];
+        clusterIds.push(it.id);
+        // Deduplicate locations while preserving the order they were
+        // first seen in the cluster — gives a stable chip ordering
+        // across refreshes for the same underlying writing.
+        if (it.seedName && !locationSet.has(it.seedName)) {
+          locationSet.add(it.seedName);
+          locationOrder.push(it.seedName);
+        }
       }
     }
     valid.push({
@@ -195,6 +222,7 @@ function validateThemes(parsed, items) {
       sourceOffset: offset,
       sourceLength: length,
       clusterIds,
+      locations: locationOrder,
     });
   }
   return valid.slice(0, 7);
