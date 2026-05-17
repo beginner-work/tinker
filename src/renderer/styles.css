@@ -184,6 +184,164 @@ html.on-web .sidebar__top {
 }
 .sidebar__account-flash.is-visible { opacity: 1; }
 
+/* ── Sidebar tree (Earth → Seed → Growth vector) ────────────────────
+ *
+ * The v0.101 replacement for the flat seed-card list. Three tiers
+ * (Earth → Seed → Growth vector), with an optional fourth inline tier
+ * for the writings under a multi-writing Growth vector. Every row
+ * reuses .sidebar__account-item's sizing/hover/spacing, with depth
+ * conveyed only through left-padding indent and twirl glyph state.
+ *
+ * Hidden entirely on the cold-start empty state (the <nav>
+ * carries hidden=""). No header, no chrome. */
+.sidebar__tree {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 8px 12px;
+  -webkit-app-region: no-drag;
+}
+.sidebar__tree[hidden] { display: none !important; }
+
+.sidebar__tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar__tree-row {
+  /* Inherits .sidebar__account-item but anchors twirl + label + badge
+     into a 3-column grid so labels stay aligned across tiers and the
+     badge tucks neatly to the right edge. */
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding-right: 8px;
+}
+.sidebar__tree-row[aria-expanded="true"] .sidebar__tree-twirl {
+  transform: rotate(90deg);
+}
+.sidebar__tree-twirl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--color-muted);
+  transition: transform 0.12s ease;
+  flex-shrink: 0;
+  position: relative;
+}
+/* CSS-drawn right-pointing chevron — no text content so the visible-
+   string audit (build-prompt.md step 6) walks past it. Rotates 90deg
+   when the parent row is [aria-expanded="true"]. */
+.sidebar__tree-twirl::before {
+  content: "";
+  display: block;
+  width: 0;
+  height: 0;
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  border-left: 5px solid currentColor;
+}
+.sidebar__tree-twirl--dot::before {
+  width: 3px;
+  height: 3px;
+  border: 0;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}
+/* Growth-vector rows: one-writing rows show a dot, multi-writing
+   rows show the chevron (and toggle the inline writing list). */
+.sidebar__tree-twirl--chevron::before {
+  /* identical to the default chevron — explicit class for clarity */
+  width: 0;
+  height: 0;
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  border-left: 5px solid currentColor;
+  background: transparent;
+  opacity: 1;
+  border-radius: 0;
+}
+.sidebar__tree-label {
+  /* Inherits .sidebar__account-label. Truncate so a long verbatim
+     phrase stays on one line. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.sidebar__tree-badge {
+  font-size: 12px;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* Indent each nested level by adding to the row's left padding. The
+   account-item base sets 10px left padding; each tier adds another 14px. */
+.sidebar__tree-list--seeds      .sidebar__tree-row { padding-left: 22px; }
+.sidebar__tree-list--gvs        .sidebar__tree-row { padding-left: 34px; }
+.sidebar__tree-list--writings   .sidebar__tree-row { padding-left: 46px; }
+
+/* Slight muted weight on Seed and Growth vector rows so the Earth
+   row reads as the top of its branch. Same family, no new visuals. */
+.sidebar__tree-row--earth .sidebar__tree-label {
+  font-weight: 600;
+}
+.sidebar__tree-row--seed .sidebar__tree-label {
+  font-weight: 500;
+}
+.sidebar__tree-row--gv .sidebar__tree-label,
+.sidebar__tree-row--writing .sidebar__tree-label {
+  font-weight: 400;
+  color: var(--color-foreground);
+}
+
+/* Loading shimmer: while clustering is running, faint pulse the rows
+   that are being recomputed. The existing tree stays rendered so the
+   founder doesn't lose context. */
+.sidebar__tree[data-refreshing="1"] .sidebar__tree-row {
+  animation: tree-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes tree-shimmer {
+  0%, 100% { opacity: 0.65; }
+  50%      { opacity: 1; }
+}
+
+/* Retry affordance — appears only after a failed refresh, next to
+   the topmost Earth. Glyph is one of the allow-listed chrome strings. */
+.sidebar__tree-retry {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--color-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sidebar__tree-retry:hover {
+  background: var(--color-hover);
+  color: var(--color-foreground);
+}
+
+/* The legacy #home-list slot is retired but the element survives as a
+   no-op container so any inflight code path can still write to it
+   without crashing. Hidden in every state. */
+.home-list { display: none !important; }
+
 /* ── Welcome (empty state on main when no draft/read is active) ──── */
 
 .stage > .welcome.feed[data-active] {
