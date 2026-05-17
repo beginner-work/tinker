@@ -1,8 +1,9 @@
-/* tinker — home seed list, grouped by a Claude-managed taxonomy
+/* tinker — legacy category taxonomy, still backing the category-feed
+ * surface that opens after a publish.
  *
- * Each seed is one card. Cards are grouped under a category Claude
- * picks from a *growing* taxonomy — the categories are not a fixed
- * list. Each time a new seed (or a seed with new writing)
+ * Each Earth is one card-source. Cards are grouped under a category
+ * Claude picks from a *growing* taxonomy — the categories are not a
+ * fixed list. Each time a new Earth (or an Earth with new writing)
  * needs placing, Claude either:
  *   1. Fits it under an existing category, OR
  *   2. Nests it under an existing top-level as a more specific
@@ -12,26 +13,32 @@
  * Stored at localStorage["tinker.taxonomy.v1"] as:
  *   {
  *     taxonomy: { [normKey]: { name, description, parent: normKey | null } },
- *     seeds:    { [seedKey]: { path: [normKey, normKey?], fp: contentHash } }
+ *     earths:   { [earthKey]: { path: [normKey, normKey?], fp: contentHash } }
  *   }
  *
- * Public API:
- *   window.tinkerHeatmap.render(mountEl)
+ * Public API (still used by renderer.js' showCategoryFeed):
+ *   window.tinkerHeatmap.getCategoryFeed(categoryKey)
+ *   window.tinkerHeatmap.getCategoryKeyForEarth(earthName)
+ *   window.tinkerHeatmap.colorFor(key)
  *
- * Module name is historical (heatmap → merchant cards → seeds).
+ * The render() entry point is retained for completeness but is no
+ * longer called by the sidebar — the three-tier tree (tree.js) owns
+ * that slot.
+ *
+ * Module name is historical (heatmap → merchant cards → seeds → earths).
  */
 
 (() => {
   "use strict";
 
   // Tinker rainbow palette — avatar colour is picked deterministically
-  // from the seed's normalised name so re-renders stay stable.
+  // from the Earth's normalised name so re-renders stay stable.
   const PALETTE = ["#F9A8D4", "#FDBA74", "#FDE68A", "#7BC47A", "#7DD3FC", "#C8B6E2", "#6EE7B7"];
 
   const TAXONOMY_KEY = "tinker.taxonomy.v1";
   const UNSORTED_KEY = "unsorted";
   // One-time purge flag for the legacy bug where classifier failures
-  // persisted UNSORTED with the live fingerprint and froze the seed
+  // persisted UNSORTED with the live fingerprint and froze the Earth
   // there forever. Once cleared per browser, future legitimate UNSORTED
   // placements (from the path-validation fallback when Claude returns
   // invalid paths) are left alone.
@@ -40,16 +47,16 @@
   function loadState() {
     try {
       const raw = localStorage.getItem(TAXONOMY_KEY);
-      if (!raw) return { taxonomy: {}, seeds: {} };
+      if (!raw) return { taxonomy: {}, earths: {} };
       const parsed = JSON.parse(raw);
       const taxonomy = (parsed && typeof parsed.taxonomy === "object" && parsed.taxonomy) || {};
-      const rawSeeds = (parsed && typeof parsed.seeds === "object" && parsed.seeds) || {};
+      const rawEarths = (parsed && typeof parsed.earths === "object" && parsed.earths) || {};
       const dropStuckUnsorted = !localStorage.getItem(UNSTUCK_FLAG_KEY);
       // Silent migration: older entries used { path: [...] } singular.
       // Wrap into { paths: [[...]] } so callers only need to handle
       // the new shape.
-      const seeds = {};
-      for (const [k, v] of Object.entries(rawSeeds)) {
+      const earths = {};
+      for (const [k, v] of Object.entries(rawEarths)) {
         if (!v || typeof v !== "object") continue;
         const rawPaths = Array.isArray(v.paths) && v.paths.length
           ? v.paths
@@ -62,17 +69,17 @@
             && rawPaths[0][0] === UNSORTED_KEY;
           if (onlyUnsorted) continue;
         }
-        seeds[k] = { paths: rawPaths, fp: v.fp || null };
+        earths[k] = { paths: rawPaths, fp: v.fp || null };
       }
       if (dropStuckUnsorted) {
         try { localStorage.setItem(UNSTUCK_FLAG_KEY, "1"); } catch { /* ignore */ }
       }
-      return { taxonomy, seeds };
-    } catch { return { taxonomy: {}, seeds: {} }; }
+      return { taxonomy, earths };
+    } catch { return { taxonomy: {}, earths: {} }; }
   }
 
   // Strip any path whose prefix is fully contained in a longer path
-  // returned for the same seed — Claude is told not to do this,
+  // returned for the same Earth — Claude is told not to do this,
   // but we defend against it. Also dedupe exact duplicates.
   function dedupePaths(paths) {
     const sigs = paths.map((p) => p.join(""));
@@ -101,7 +108,7 @@
   }
 
   // Cheap stable hash over the joined content snippets — re-classify
-  // only when the founder's writing at this seed has actually
+  // only when the founder's writing at this Earth has actually
   // changed since we last asked Claude.
   function fingerprintContent(snippets) {
     if (!snippets || !snippets.length) return "_empty";
@@ -162,41 +169,41 @@
               : "";
             return `- "${c.name}"${parentName}: ${c.description || ""}`;
           }).join("\n")
-        : "(none yet — the first seed placed will need a brand-new top-level category)";
+        : "(none yet — the first Earth placed will need a brand-new top-level category)";
 
-      const seedBlocks = items.map((seed) => {
-        const snippets = (seed.contentSnippets || []).filter(Boolean).slice(-3);
+      const earthBlocks = items.map((earth) => {
+        const snippets = (earth.contentSnippets || []).filter(Boolean).slice(-3);
         const body = snippets.length
           ? snippets.map((s) => "  - " + String(s).replace(/\s+/g, " ").trim().slice(0, 220)).join("\n")
           : "  (no writing yet — place using the name as the only hint)";
-        return `# ${seed.name}\n${body}`;
+        return `# ${earth.name}\n${body}`;
       }).join("\n\n");
 
       const system = [
-        "You manage a founder's growing taxonomy of learning categories. Each seed they reflect from is placed into the taxonomy based on what they've written there.",
+        "You manage a founder's growing taxonomy of learning categories. Each place they reflect from (an Earth) is placed into the taxonomy based on what they've written there.",
         "",
-        "A single seed may contain MULTIPLE distinct topics across sessions — return one path per topic. Don't collapse genuinely different topics into one path just to keep things tidy.",
+        "A single Earth may contain MULTIPLE distinct topics across sessions — return one path per topic. Don't collapse genuinely different topics into one path just to keep things tidy.",
         "",
         "For each path, decide:",
         "  A) It fits an existing top-level category → path: [Top].",
         "  B) It's a distinct, more specific angle of an existing top-level → path: [Top, NewChild]. Add the child to newCategories with parent set to Top.",
         "  C) It's distinctly different from everything existing → path: [NewTop]. Add NewTop to newCategories with parent: null.",
         "",
-        "When a single seed's topics RELATE to each other (different facets of a shared concern), nest them as siblings under a shared parent. This is how one seed 'encompasses' multiple topics — both child paths share the same Top, so the parent names the larger thread the seed is part of.",
+        "When a single Earth's topics RELATE to each other (different facets of a shared concern), nest them as siblings under a shared parent. This is how one Earth 'encompasses' multiple topics — both child paths share the same Top, so the parent names the larger thread the Earth is part of.",
         "",
         "Rules:",
         "- Strongly prefer A. Create new categories only when the writing genuinely doesn't fit.",
         "- Category names: 2-5 words, title case, identity-aware (e.g. 'Customer learning', 'Solo making', 'Operational chores'). Concrete, not generic.",
         "- Descriptions: EXACTLY 4 words. Tight noun phrase, observational, no advice tone. Examples: 'Specific layout and structure', 'Time near real customers', 'Money out the door'. Never more than 4 words.",
         "- Max nesting depth is 2 (top + one sub). Never propose a 3-level path.",
-        "- Don't return both [Top] and [Top, Child] for the same seed — keep the more specific one only.",
+        "- Don't return both [Top] and [Top, Child] for the same Earth — keep the more specific one only.",
         "",
         "Output ONLY this JSON shape — no prose, no preamble, no code fences:",
-        '{ "assignments": { "<seed name>": [ ["Top"] or ["Top","Child"], ... ] },',
+        '{ "assignments": { "<earth name>": [ ["Top"] or ["Top","Child"], ... ] },',
         '  "newCategories": [ { "name": "...", "description": "...", "parent": "<existing top> or null" } ] }',
       ].join("\n");
 
-      const userMessage = `Existing taxonomy:\n${taxonomyText}\n\nSeeds to place:\n\n${seedBlocks}`;
+      const userMessage = `Existing taxonomy:\n${taxonomyText}\n\nEarths to place:\n\n${earthBlocks}`;
 
       const result = await window.tinker.callClaude({
         system,
@@ -231,7 +238,7 @@
       //    assignment but didn't declare in newCategories. Common
       //    failure mode: the model emits a new category name in a path
       //    and forgets the parallel entry in newCategories. Without
-      //    this, every such path is filtered out and the seed
+      //    this, every such path is filtered out and the Earth
       //    falls back to Unsorted — exactly the "generative sorting
       //    isn't working" symptom.
       for (const claim of Object.values(assignments)) {
@@ -258,11 +265,11 @@
         if (cat.parent && !state.taxonomy[cat.parent]) cat.parent = null;
       }
 
-      // 4. Place each seed into one or more paths.
-      //    Multiple paths capture multi-topic seeds — the same
+      // 4. Place each Earth into one or more paths.
+      //    Multiple paths capture multi-topic Earths — the same
       //    card will appear under each leaf section.
-      for (const seed of items) {
-        const claimed = assignments[seed.name];
+      for (const earth of items) {
+        const claimed = assignments[earth.name];
         // Accept either the new shape ([["Top"],["Top","Child"]]) or
         // the older single-path shape (["Top"]) so we tolerate the
         // model occasionally collapsing back to a single path.
@@ -275,12 +282,12 @@
           .map((p) => (Array.isArray(p) ? p.map(normCat).filter((k) => state.taxonomy[k]) : []))
           .filter((p) => p.length > 0);
         const deduped = dedupePaths(paths);
-        const fp = fingerprintContent(seed.contentSnippets || []);
+        const fp = fingerprintContent(earth.contentSnippets || []);
         if (deduped.length === 0) {
           ensureUnsorted(state);
-          state.seeds[seed.key] = { paths: [[UNSORTED_KEY]], fp };
+          state.earths[earth.key] = { paths: [[UNSORTED_KEY]], fp };
         } else {
-          state.seeds[seed.key] = { paths: deduped, fp };
+          state.earths[earth.key] = { paths: deduped, fp };
         }
       }
 
@@ -293,7 +300,7 @@
       // permanently because the fingerprint matched on every subsequent
       // render. Backoff to avoid hammering the API while it's still down.
       classifyCooldownUntil = Date.now() + CLASSIFY_RETRY_MS;
-      try { console.error("[tinker] seed classification failed:", err); } catch { /* ignore */ }
+      try { console.error("[tinker] earth classification failed:", err); } catch { /* ignore */ }
     } finally {
       classifying = false;
       const mount = document.getElementById("home-list");
@@ -333,7 +340,7 @@
     return truncated.join(" ");
   }
 
-  // Founders type seed names like "I want to be able to manage my landscaping"
+  // Founders type Earth names like "I want to be able to manage my landscaping"
   // or "I'm wanting to take care of my back yard". Rendered as-is the sidebar
   // becomes a wall of "I want to be able t…" rows that all read the same.
   // channelName strips the common opener and keeps the first few meaningful
@@ -357,49 +364,53 @@
   }
 
   // ── Rendering ──────────────────────────────────────────────────────
+  // Legacy entry point — the three-tier tree (tree.js) owns the sidebar
+  // slot now and never calls this. Retained because the after-classify
+  // re-render (in classifyUncategorized's finally{}) targets #home-list,
+  // which no longer exists; the early return below makes that a no-op.
   function render(mountEl) {
     if (!mountEl) return { all: 0 };
-    const seeds = (window.tinkerSeeds && typeof window.tinkerSeeds.list === "function")
-      ? window.tinkerSeeds.list()
+    const earths = (window.tinkerEarths && typeof window.tinkerEarths.list === "function")
+      ? window.tinkerEarths.list()
       : [];
 
     mountEl.innerHTML = "";
 
-    if (seeds.length === 0) {
+    if (earths.length === 0) {
       return { all: 0 };
     }
 
     const state = loadState();
     const PENDING = "__pending__";
 
-    // Two buckets per seed now (no more AWAITING):
+    // Two buckets per Earth now (no more AWAITING):
     //   1. PENDING — no cached placement yet, OR content fingerprint
     //      shifted, OR cached path references a category that's
     //      since been removed. Eager classification handles these.
     //   2. Categorised — has a valid path. Grouped by leaf category.
-    // Seeds without any writing still classify eagerly from their
+    // Earths without any writing still classify eagerly from their
     // name alone (the classifier is happy with name-only input).
     const groups = new Map();
-    for (const seed of seeds) {
-      const stored = state.seeds[seed.key];
-      const currentFp = fingerprintContent(seed.contentSnippets || []);
+    for (const earth of earths) {
+      const stored = state.earths[earth.key];
+      const currentFp = fingerprintContent(earth.contentSnippets || []);
       const pathsValid = stored && Array.isArray(stored.paths) && stored.paths.length
         && stored.paths.every((p) => Array.isArray(p) && p.length && p.every((seg) => state.taxonomy[seg]));
       const fpMatches = stored && stored.fp === currentFp;
 
       if (!pathsValid || !fpMatches) {
         if (!groups.has(PENDING)) groups.set(PENDING, { items: [], path: null });
-        groups.get(PENDING).items.push(seed);
+        groups.get(PENDING).items.push(earth);
         continue;
       }
 
-      // A seed can hold multiple topic paths — surface the card
+      // An Earth can hold multiple topic paths — surface the card
       // under each leaf so a multi-topic place shows up in every
       // category it touches.
       for (const path of stored.paths) {
         const leaf = path[path.length - 1];
         if (!groups.has(leaf)) groups.set(leaf, { items: [], path });
-        groups.get(leaf).items.push(seed);
+        groups.get(leaf).items.push(earth);
       }
     }
 
@@ -443,7 +454,7 @@
       }
       section.appendChild(head);
 
-      for (const seed of group.items) section.appendChild(renderCard(seed));
+      for (const earth of group.items) section.appendChild(renderCard(earth));
       mountEl.appendChild(section);
     }
 
@@ -453,7 +464,7 @@
       setTimeout(() => classifyUncategorized(pendingItems, state), 50);
     }
 
-    return { all: seeds.length };
+    return { all: earths.length };
   }
 
   // Build a sortable key so top-level categories come first alphabetically,
@@ -470,19 +481,19 @@
 
   // Layout the row as a Slack-style channel: avatar + name on top,
   // and (when one exists) the title of the most recent writing
-  // produced at this seed stacked below. The "last used" line is
+  // produced at this Earth stacked below. The "last used" line is
   // gone — the writing title carries that signal more usefully.
-  function renderCard(seed) {
+  function renderCard(earth) {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "home-card";
 
-    const colour = PALETTE[hashSlot(seed.key, PALETTE.length)];
-    const writing = seed.latestWriting && seed.latestWriting.title ? seed.latestWriting : null;
+    const colour = PALETTE[hashSlot(earth.key, PALETTE.length)];
+    const writing = earth.latestWriting && earth.latestWriting.title ? earth.latestWriting : null;
     if (writing) card.classList.add("home-card--has-writing");
 
-    const label = channelName(seed.name) || seed.name;
-    if (label !== seed.name) card.title = seed.name;
+    const label = channelName(earth.name) || earth.name;
+    if (label !== earth.name) card.title = earth.name;
 
     const subline = writing
       ? `<span class="home-card__sub home-card__sub--title">${escapeHtml(writing.title)}</span>`
@@ -495,31 +506,31 @@
         subline +
       `</span>`;
 
-    card.addEventListener("click", () => openSeed(seed));
+    card.addEventListener("click", () => openEarth(earth));
     return card;
   }
 
-  // Tap routing: prefer the seed's category feed (lists all essays
+  // Tap routing: prefer the Earth's category feed (lists all essays
   // sharing the same leaf category). Falls back to opening the in-
   // progress draft, or spinning up a fresh session, when there's no
   // category placement or no essays to show yet.
-  function openSeed(seed) {
+  function openEarth(earth) {
     const state = loadState();
-    const stored = state.seeds[seed.key];
+    const stored = state.earths[earth.key];
     const path = stored && Array.isArray(stored.paths) && stored.paths[0];
     const leaf = path && path.length ? path[path.length - 1] : null;
     if (leaf && state.taxonomy[leaf]) {
       const feed = buildCategoryFeed(leaf, state);
       if (feed && feed.essays.length && typeof window.tinkerShowCategoryFeed === "function") {
-        // Pass the tapped seed name through so the category feed's
+        // Pass the tapped Earth name through so the category feed's
         // status composer can attach new posts to the channel the
         // founder actually tapped.
-        window.tinkerShowCategoryFeed(leaf, seed.name);
+        window.tinkerShowCategoryFeed(leaf, earth.name);
         return;
       }
     }
 
-    const w = seed.latestWriting;
+    const w = earth.latestWriting;
     if (w && w.type === "essay" && typeof window.tinkerOpenEssay === "function") {
       window.tinkerOpenEssay(w.id);
       return;
@@ -529,24 +540,24 @@
       return;
     }
     if (typeof window.tinkerNewSession === "function") {
-      window.tinkerNewSession({ seed: seed.name });
+      window.tinkerNewSession({ earth: earth.name });
     }
   }
 
-  // Public-facing: gather every published essay whose seed belongs
+  // Public-facing: gather every published essay whose Earth belongs
   // to a path ending in `categoryKey`. Used by the category feed view
   // in renderer.js.
   function getCategoryFeed(categoryKey) {
     return buildCategoryFeed(categoryKey, loadState());
   }
 
-  // Public-facing: leaf category key for a seed name, or null when
-  // the seed hasn't been classified yet. Used by the publish flow
+  // Public-facing: leaf category key for an Earth name, or null when
+  // the Earth hasn't been classified yet. Used by the publish flow
   // so a freshly published essay can land on its category feed.
-  function getCategoryKeyForSeed(seedName) {
-    if (!seedName) return null;
+  function getCategoryKeyForEarth(earthName) {
+    if (!earthName) return null;
     const state = loadState();
-    const stored = state.seeds[normCat(seedName)];
+    const stored = state.earths[normCat(earthName)];
     const path = stored && Array.isArray(stored.paths) && stored.paths[0];
     return path && path.length ? path[path.length - 1] : null;
   }
@@ -566,9 +577,9 @@
 
     const items = [];
     for (const essay of allEssays) {
-      if (!essay || !essay.seed) continue;
-      const seedKey = normCat(essay.seed);
-      const stored = state.seeds[seedKey];
+      if (!essay || !essay.earth) continue;
+      const earthKey = normCat(essay.earth);
+      const stored = state.earths[earthKey];
       if (!stored || !Array.isArray(stored.paths)) continue;
       const matches = stored.paths.some((p) => Array.isArray(p) && p.length && p[p.length - 1] === categoryKey);
       if (matches) items.push(essay);
@@ -585,11 +596,11 @@
   }
 
   // Same deterministic rainbow used by the home cards' avatars — exposed
-  // so other surfaces (e.g. the welcome pills) can colour-match a
-  // seed to its sidebar identity.
+  // so other surfaces (e.g. the welcome pills) can colour-match an
+  // Earth to its sidebar identity.
   function colorFor(key) {
     return PALETTE[hashSlot(String(key || ""), PALETTE.length)];
   }
 
-  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForSeed, colorFor };
+  window.tinkerHeatmap = { render, getCategoryFeed, getCategoryKeyForEarth, colorFor };
 })();

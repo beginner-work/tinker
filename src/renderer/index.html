@@ -34,13 +34,14 @@
          user who signs in on iOS Safari stays signed in after they
          Add to Home Screen. Must run before auth.js. -->
     <script src="./pwa-session.js" defer></script>
-    <!-- Bridges the four client-owned blobs to /api/user-data/*. Runs
-         before seeds.js/heatmap.js so its hydrate() can fire as soon
-         as a token exists; consumer modules subscribe to the
+    <!-- Bridges the five client-owned blobs to /api/user-data/*. Runs
+         before earths.js/tree.js/heatmap.js so its hydrate() can fire
+         as soon as a token exists; consumer modules subscribe to the
          tinker:hydrated event to re-render from refreshed storage. -->
     <script src="./sync.js" defer></script>
     <script src="./transactions.js" defer></script>
-    <script src="./seeds.js" defer></script>
+    <script src="./earths.js" defer></script>
+    <script src="./tree.js" defer></script>
     <script src="./heatmap.js" defer></script>
   </head>
   <body>
@@ -61,7 +62,7 @@
     </button>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
-    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Seeds">
+    <aside class="sidebar" id="sidebar" role="navigation" aria-label="tinker">
       <header class="sidebar__top">
         <button id="nav-home" class="sidebar__brand" type="button" title="Pick a place to start writing">
           <svg data-rainbow-logo viewBox="0 0 200 200" width="22" height="22" aria-hidden="true" fill="none">
@@ -78,7 +79,7 @@
         </button>
       </header>
 
-      <div id="home-list" class="home-list" aria-live="polite"></div>
+      <nav id="sidebar-tree" class="sidebar__tree" aria-label="Earths" aria-live="polite" hidden></nav>
 
       <nav class="sidebar__account" aria-label="Account">
         <h2 class="sidebar__account-head">Account</h2>
@@ -138,16 +139,16 @@
           <p class="welcome__sub">You just need a seed to start.</p>
           <p class="welcome__prompt">Where are you right now?</p>
           <div id="welcome-grid" class="welcome__grid" role="group" aria-label="Where are you right now?">
-            <button type="button" class="welcome__tile" data-location="cafe">
+            <button type="button" class="welcome__tile" data-earth="cafe">
               <span class="welcome__tile-label">Cafe</span>
             </button>
-            <button type="button" class="welcome__tile" data-location="home">
+            <button type="button" class="welcome__tile" data-earth="home">
               <span class="welcome__tile-label">Home</span>
             </button>
-            <button type="button" class="welcome__tile" data-location="work">
+            <button type="button" class="welcome__tile" data-earth="work">
               <span class="welcome__tile-label">Work</span>
             </button>
-            <button type="button" class="welcome__tile" data-location="other">
+            <button type="button" class="welcome__tile" data-earth="other">
               <span class="welcome__tile-label">Somewhere else</span>
             </button>
           </div>
