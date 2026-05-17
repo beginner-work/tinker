@@ -42,8 +42,6 @@ To preview as HTML:
 Tyler Lindow · Founder & CEO of beginner
 Pre-seed · $250k – $950k
 
-*Speaker note: Read the line. Pause. Turn the page.*
-
 ---
 
 ## Slide 2 — The problem
@@ -51,8 +49,6 @@ Pre-seed · $250k – $950k
 # Do you feel like you've worked so hard, but you're still finding yourself stressed about what you're doing?
 
 That people are asking more from you, expecting more from you, and you thought that this next life change would be the one — but it feels like you're doing the same thing again.
-
-*Speaker note: This is the homepage line. Don't argue it. State it.*
 
 ---
 
@@ -93,8 +89,6 @@ When someone opens Tinker for the first time, they see they get a place to start
 That's the prompt. *Where are you writing from?*
 
 That's the product. Identity first, then learning, then software — in that order.
-
-*Speaker note: This is the slide where the room gets quiet. Let it.*
 
 ---
 
