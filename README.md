@@ -81,11 +81,33 @@ inspector, or `localStorage.removeItem("tinker_jwt")`).
 
 When a Vercel preview misbehaves in a way you can't reproduce locally —
 auth flow only breaks behind the edge network, a third-party widget only
-loads from a non-localhost origin, etc. — `scripts/browserbase-debug.js`
-spins up a [Browserbase](https://browserbase.com) cloud Chromium pointed
-at the preview URL. It prints a live debug URL you open in your own
-browser to get full DevTools (Network, Console, Elements) against the
-live deploy.
+loads from a non-localhost origin, etc. — there are two ways to point a
+real Chromium at the preview through [Browserbase](https://browserbase.com).
+
+### From Claude Code (recommended)
+
+`.mcp.json` registers the [Browserbase MCP server](https://github.com/browserbase/mcp-server-browserbase)
+as a project-scoped tool. After merging, the next time you open this
+repo in Claude Code you'll be asked to approve the project-scoped MCP
+once — accept it and Claude gets `navigate`, `act`, `observe`, and
+`extract` tools that drive a cloud browser directly. Ask Claude
+something like "open the latest preview and tell me what's printed in
+the console" and it'll spin up a session and look for you.
+
+The MCP needs three env vars in your Claude Code environment:
+
+- `BROWSERBASE_API_KEY`
+- `BROWSERBASE_PROJECT_ID`
+- `ANTHROPIC_API_KEY` — used as Stagehand's translation model
+
+(`start`/`end`/`navigate` work without the Anthropic key, but the
+`act`/`observe`/`extract` tools need it.)
+
+### From your terminal
+
+For human-driven poking around — when you want the Network tab in your
+own browser pointed at a live preview — use the CLI script. It prints a
+live DevTools URL you open locally:
 
 ```bash
 npx vercel env pull            # pulls BROWSERBASE_API_KEY + BROWSERBASE_PROJECT_ID
