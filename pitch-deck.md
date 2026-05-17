@@ -1,208 +1,194 @@
-# [Platform Name]
+---
+marp: true
+theme: default
+paginate: true
+size: 16:9
+backgroundColor: "#fafaf7"
+color: "#1a1a1a"
+style: |
+  section { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; padding: 80px; }
+  h1 { font-weight: 600; letter-spacing: -0.02em; }
+  blockquote { border-left: 3px solid #1a1a1a; color: #555; }
+  strong { color: #000; }
+---
 
-**Be fully funded by being yourself.**
+# Tinker
 
-A pitch deck.
-A disclosure.
-The first demonstration of the mechanic.
+**I finally found what I was looking for.**
 
-> *Investors don't get pitched here. They get **shown**, and then they choose.*
-> *This document is the showing.*
+A pitch deck, in the founder's own words.
+
+> *Every line below is what Tyler actually said.*
+> *No upward translation into VC vocabulary.*
+
+<!--
+To export this deck as a visual PDF:
+  npx @marp-team/marp-cli@latest pitch-deck.md --pdf
+To export as PPTX:
+  npx @marp-team/marp-cli@latest pitch-deck.md --pptx
+To preview as HTML:
+  npx @marp-team/marp-cli@latest pitch-deck.md --html -o pitch-deck.html
+-->
+
 
 ---
 
 ## Slide 1 — Cover
 
-# Be fully funded by being yourself.
+# I finally found what I was looking for.
 
-[Platform Name]
-A marketplace where founders show their work, and investors fund what they want, on their own terms.
+**Tinker** — a product of *beginner*.
 
-[Founder Name] · Solo · Asking $300,000 for year one.
+Tyler Lindow · Founder & CEO of beginner
+Pre-seed · $250k – $950k
 
-*Speaker note: Read the tagline. Pause. Then turn the page.*
+*Speaker note: Read the line. Pause. Turn the page.*
 
 ---
 
-## Slide 2 — The wound
+## Slide 2 — The problem
 
-# Founders aren't underfunded. They're un-met.
+# Do you feel like you've worked so hard, but you're still finding yourself stressed about what you're doing?
 
-The current system asks founders to become someone they're not — to use the right vocabulary, hit the right pattern, perform the right pace — before any money moves.
+That people are asking more from you, expecting more from you, and you thought that this next life change would be the one — but it feels like you're doing the same thing again.
 
-A whole generation of builders has been priced out of being themselves.
-
-The investors who would have funded these founders, if they'd ever met one, have never met one.
-
-*Speaker note: Don't argue this. State it. The investors who feel it will nod. The ones who don't, won't, and that's fine.*
+*Speaker note: This is the homepage line. Don't argue it. State it.*
 
 ---
 
 ## Slide 3 — Why now
 
-# Three things changed at once.
+# AI is making our workplace more toxic.
 
-- **AI collapsed the cost to build.** Solo and small-team builders are now venture-viable in categories that used to demand a team of fifteen.
-- **Founder mental health became a public crisis.** The cost of pretending finally got named, in public, by the people doing the pretending.
-- **Capital got bored of pattern-matching.** The next generation of LPs and solo allocators is asking different questions than the last one did.
+So many types of tasks that we cannot do, AI does do. The sprint towards figuring out what we can do is insane right now.
 
-The matching layer hasn't caught up. That's the opening.
+People, including myself, need a tool that can help them figure out who they are as a founder — whether that is creating their own ride-hailing service or whether that is something else entirely. There are so many interests out there.
 
----
+How can we all believe that we are fully funded? That there is a market so large for our craft that we know it will be fully funded — that we get the money, and that we do not have to stress that AI will take our job, or any other next technology that will just take everything we have.
 
-## Slide 4 — The thesis
-
-# Be fully funded by being yourself.
-
-Not "fund the deck."
-Not "fund the persona."
-Not "fund the pattern."
-
-Fund the person, the practice, and the offering — as they actually are, today.
+**It's our livelihood.**
 
 ---
 
-## Slide 5 — The mechanic (what nobody else does)
+## Slide 4 — Who it's for
 
-# It's not a negotiation.
+# This is for John.
 
-1. **Founders show their work.** Offerings, prices, craft, story, numbers, principles. Everything.
-2. **Investors read the disclosure.** They don't bid. They don't negotiate. They choose.
-3. **Funding moves on the founder's stated terms.** Or it doesn't.
+John is 31. He's a dad. He goes to school full time. He's on LinkedIn quite a bit. He stands for human health.
 
-There is no pitch meeting. **The platform is the meeting.**
+He's a recovering AI engineer, and he's quite progressive when it comes to considering men's mental health.
+
+He's right now stressed — taking care of a newborn baby. He quit his job in the health startup because he didn't have that spark. After you are doing your own thing, it's really difficult to work for anybody else, and that is partly why he is lacking the dignity that he expects. It comes off as him having to be, at times, pedantic with others.
+
+**John is seeking extreme wealth. He knows it's there. He just hasn't tapped it yet — and that's everything.**
+
+---
+
+## Slide 5 — The product
+
+# Where are you writing from?
+
+When someone opens Tinker for the first time, they see they get a place to start.
+
+That's the prompt. *Where are you writing from?*
+
+That's the product. Identity first, then learning, then software — in that order.
 
 *Speaker note: This is the slide where the room gets quiet. Let it.*
 
 ---
 
-## Slide 6 — Product
+## Slide 6 — How it works as a business
 
-# What's on the platform.
+# Free to start. $7 a month once they use it enough.
 
-**For founders:**
-- A profile that holds your craft, your story, and your asks
-- An offerings storefront — start earning before you raise
-- **Web Crafter** — build your site without leaving the platform
-- Investor-readable disclosure: numbers, terms, principles, the line you won't cross
+**Distribution:** Word of mouth — whether actual in-person conversations or social networks like LinkedIn. Word of mouth is the biggest distribution model.
 
-**For investors:**
-- A discovery feed of founders who can't be found anywhere else
-- Read full disclosure before any conversation starts
-- Fund directly, on the terms the founder posted
-- No deal heat. No FOMO theater. No coffee meetings that go nowhere.
+**Pricing:** Free to start. $7 a month once they use it enough. Various tiers of monthly subscriptions to get deeper into the writing tools.
+
+**Receiving seeds from other people:** they have to pay for it.
+
+**You come because they have what you need. You stay because everyone's there.**
 
 ---
 
-## Slide 7 — Proof
+## Slide 7 — Why me
 
-# The first founder funded by this platform is me.
+# I've been working on my identity as a tinkerer since I was born.
 
-| Source | Amount | Type |
-|---|---:|---|
-| My barber | $100 | Seed |
-| My network (2 × $10) | $20 | Seed |
-| 2 hop tinctures sold on-platform | $50 | Offering revenue |
-| 1 career coaching foundation session | $125 | Offering revenue |
-| **Total through the platform** | **$295** | Before the round opens |
+The traditional lineage is: you build software, then you build software to figure out how people learn, then you help the learning community by building this software.
 
-This is small on purpose.
+**Mine is the opposite.** You start with identity. Then you understand why people learn. Then you build software.
 
-The proof isn't volume — it's that the mechanic works on a real human at the actual unit economics, with real money from real people who chose to fund me on their own terms.
+That's my trajectory. I'm deepening my craft in building with the latest technologies — but my roots are in identity research.
 
-If it works at $295, it works at $295,000. The rails are the same.
+Regardless if you have more capital than me or you have a head start: nobody has a head start with how I was raised. My ability to create this solution — to help other people identify as a tinkerer and to do this development through a software product — is unique.
+
+There's no one else living where I am right now in San Diego, California. No one else living in the neighborhood I'm living in. **And that matters.**
+
+To ask *"How are you gonna win?"* is like — it's already this. This is the point.
 
 ---
 
-## Slide 8 — Business model
+## Slide 8 — The moat
 
-# Four lines of revenue, layered.
+# Your ideas are woven together with other founders on the platform.
 
-| Line | Pricing | What it covers |
-|---|---|---|
-| **Transaction fees on seeds** | 5% / 7% / 9% (tiered, non-optional) | The take rate on every dollar funded through the platform |
-| **Base subscription** | $7 / month per founder | The platform itself |
-| **Marketplace fees** | Variable | Paid promotion of offerings |
-| **Usage fees** | Pay-per-use | The Web Crafter builder tool |
+Just like Claude Code — I could have turned it on just today, but I know it's the best developer experience out there.
 
-Founders never pay to list. **The platform earns when the founder earns.**
+Similarly: if you want to do this raw with a notes document, there are plenty of different writing tools out there. **That's not it.**
 
----
+You get on the platform because you find it useful. You stay because your ideas are woven together with other founders on the platform.
 
-## Slide 9 — Market
-
-# Who shows up on each side.
-
-**Founder side — abundant, magnetized by brand**
-- Solo and small-team builders priced out of conventional VC
-- Practitioners with real offerings: makers, coaches, tincture-blenders, writers, healers, niche software builders
-- `[NEEDS NUMBER: founder-side population — build bottoms-up from a defensible source, e.g. US sole-proprietor count × % in target categories × % seeking outside capital. Don't ship without arithmetic.]`
-
-**Investor side — the harder side, the side this raise serves**
-- Solo capital allocators, small family offices, angel practitioners — investors who already evaluate humans, not pattern-matched pitches
-- Most of them have never invested in someone who looks and sounds like the founders on this platform. That's the work.
-- The earliest cohort funds *me*. They become the proof for cohort two.
+The canonical thing: **you come because they have what you need, and you stay because everyone's there.**
 
 ---
 
-## Slide 10 — Why me
+## Slide 9 — The opposition
 
-# I am the use case.
+# Meta. Instagram. The clear opposition.
 
-I sell hop tinctures. I coach careers. My barber gave me $100 because he believes in me, not because he read a deck. I have built this platform alone, in public, on a stack I chose for portability and dignity.
+Tinker is the antithesis of the feed.
 
-This is not a thesis I had and then went looking for users to validate. **This is the only way I could find to make my own life work** — and the discovery, working through it, that the same shape works for everyone built like me.
+It is not loud. It is not performative. It is not built to extract your attention and sell it back to you.
 
-If you want to know whether the founder can run the platform, look at the platform. The founder did.
-
-*[Founder: tighten this in your own voice. The bones are right; the music should be yours.]*
+It is the place you write from. It is the place your identity gets to compound.
 
 ---
 
-## Slide 11 — The ask
+## Slide 10 — The ask
 
-# $300,000. One year. Solo founder.
+# Pre-seed: $250k – $950k.
 
-**What's inside the number:**
-- Salary
-- Health, dental, vision benefits
-- That's it. No office. No hires. No extras.
+**What this buys:**
+- Time to keep building calm and collected — the minimum amount of capital to stay calm.
+- The first version of Tinker, shipped.
+- The first cohort of founders writing from where they are.
+- The seed mechanic — founders receiving seeds from other founders, on the platform.
 
-**What that buys:**
-- 12 months of full-time, well-fed, unrushed building
-- The first 100 founders onboarded
-- The first 25 funded rounds run end-to-end through the mechanic
-- Public proof for cohort two, which raises on the back of cohort one's results
-
-**This is not a negotiation.** The terms are stated. Fund what you want, on the terms you want — after this disclosure.
+**What it does not require:**
+- Speed. Speed is not the solution these days in terms of development time and capital.
+- A head start. Nobody has a head start with how I was raised.
+- A bigger team. The extremes that just don't work, I won't chase.
 
 ---
 
-## Slide 12 — Close
+## Slide 11 — Close
 
-# You can fund a deck.
+# I finally found what I was looking for.
 
-You can fund a persona.
-You can fund a pattern.
+That's the sentence a customer like John says to a friend.
 
-Or you can fund a person who has shown you everything and is asking only to keep doing what already works.
+That's the deck.
 
-# Be fully funded by being yourself.
-
-[Founder Name]
-[email] · [link to platform profile]
+Tyler Lindow · Founder & CEO, beginner
+Tinker
 
 ---
 
-## Appendix — On format
+## Appendix — Source
 
-This deck is meant to be read alone, in full, before any conversation. That is the mechanic. If a reader wants to talk after, talk. If they want to fund, fund. If they want neither, that is also a complete answer.
+Every slide on this deck is composed from a single interview with the founder. The lines are verbatim where possible, with minimal connective tissue for readability. Where the founder pushed back on a question, the deck honors the pushback rather than forcing the frame.
 
-## Appendix — Placeholders to fill in before sending
-
-- `[Platform Name]` — the platform's name (cover, slide 1, footer)
-- `[Founder Name]` — your name (cover, slide 11, slide 12)
-- `[email]` — your contact (slide 12)
-- `[link to platform profile]` — your own profile on the platform (slide 12)
-- Slide 8 tier gating — if 5%/7%/9% maps to specific founder tiers (e.g. monthly funding volume, plan, tenure), tighten that line
-- Slide 10 — replace the placeholder paragraph with your own one-paragraph "why me," in your voice
+**Founder thesis, stated in the founder's words:**
+*"You start with identity. Then you understand why people learn. Then you build software."*
