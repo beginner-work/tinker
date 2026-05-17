@@ -145,6 +145,15 @@ html.on-web .sidebar__top {
 }
 .sidebar__themes[hidden] { display: none; }
 
+/* Theme row — visual is .sidebar__account-item (same padding, hover,
+   typography). This class is the hook for theme-specific behaviour:
+   active-state styling for the currently-tapped cluster (open question
+   #6), and the selector mobile-drawer.js listens on to auto-close. */
+.sidebar__theme {
+  font-family: var(--font-display);
+  letter-spacing: -0.005em;
+}
+
 /* Account pins itself to the bottom of the column. With the legacy
    `.home-list { flex: 1 }` slot gone, this `margin-top: auto` is what
    keeps the Account block flush above the footer regardless of how few

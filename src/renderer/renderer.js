@@ -381,12 +381,45 @@
 
   // Empty state for the themes revamp: with no clustering data yet, the
   // themes nav stays hidden and the sidebar collapses to brand → Account
-  // → footer. Step 2 swaps in mocked theme rows; step 3 wires the real
-  // /api/themes response.
+  // → footer. With themes present, each row reuses .sidebar__account-item
+  // for sizing/hover/typography and adds .sidebar__theme as a hook for
+  // theme-specific behaviour (active state, mobile-drawer auto-close).
+  // The /api/themes wiring lands in step 3; for the step 2 checkpoint the
+  // source is the hardcoded MOCK_THEMES list so the founder can verify
+  // visual treatment.
+  //
+  // MOCK — verbatim-style fragments meant to look like phrases lifted
+  // from a person's seed drafts, not AI labels. Replaced in step 3.
+  const MOCK_THEMES = [
+    "the barber shop",
+    "hop tinctures at 7am",
+    "before the kids wake up",
+    "scratch on the iPad screen",
+    "what to do about the broken faucet",
+  ];
+
   function renderThemes() {
     if (!themesEl) return;
     themesEl.innerHTML = "";
-    themesEl.hidden = true;
+    const themes = MOCK_THEMES;
+    if (!themes.length) {
+      themesEl.hidden = true;
+      return;
+    }
+    for (const label of themes) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "sidebar__account-item sidebar__theme";
+      btn.textContent = label;
+      // [NEEDS INPUT] open question #2 — inline expand vs stage takeover.
+      // Step 4 wires the real destination; step 2 just logs so the
+      // founder can confirm the tap target lands.
+      btn.addEventListener("click", () => {
+        console.log("[themes] tapped:", label);
+      });
+      themesEl.appendChild(btn);
+    }
+    themesEl.hidden = false;
   }
 
   function escapeHtml(s) {
