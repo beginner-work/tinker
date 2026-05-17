@@ -13,6 +13,7 @@
 
 const { authenticateSession } = require("./stytch.js");
 const prisma = require("./db.js");
+const { withResponseLogging } = require("./log.js");
 
 // Cap the JSON payload at 256 KB. The whole-blob semantics mean even
 // busy users (hundreds of essays) stay well under this; anything larger
@@ -63,7 +64,7 @@ async function resolveUserId(req) {
 }
 
 function makeHandler(kind) {
-  return async function handler(req, res) {
+  return withResponseLogging(async function handler(req, res) {
     if (req.method !== "GET" && req.method !== "PUT") {
       res.setHeader("Allow", "GET, PUT");
       res.status(405).json({ error: "Method not allowed" });
@@ -106,7 +107,7 @@ function makeHandler(kind) {
       const status = err.status || 500;
       res.status(status).json({ error: err.message || "Internal error" });
     }
-  };
+  });
 }
 
 module.exports = { makeHandler };

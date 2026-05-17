@@ -24,6 +24,8 @@
 
 "use strict";
 
+const { withResponseLogging } = require("./_lib/log.js");
+
 const DEFAULT_SUMMARY = "Bug fixes";
 const SUMMARY_MAX = 60;
 
@@ -35,7 +37,7 @@ function readSummary() {
   return trimmed.length > SUMMARY_MAX ? trimmed.slice(0, SUMMARY_MAX - 1) + "…" : trimmed;
 }
 
-module.exports = function handler(req, res) {
+module.exports = withResponseLogging(function handler(req, res) {
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.setHeader("Allow", "GET, HEAD");
     res.status(405).json({ error: "Method not allowed" });
@@ -53,4 +55,4 @@ module.exports = function handler(req, res) {
     "public, max-age=0, s-maxage=30, stale-while-revalidate=60"
   );
   res.status(200).json({ version, sha, deploymentId, env, summary });
-};
+});

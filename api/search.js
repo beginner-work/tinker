@@ -15,6 +15,7 @@
 "use strict";
 
 const { authenticateSession } = require("./_lib/stytch.js");
+const { withResponseLogging } = require("./_lib/log.js");
 
 const SEARCH_SYSTEM_PROMPT = `You are the search engine for the tinker web browser — a quiet alternative to ad-driven search.
 
@@ -77,7 +78,7 @@ async function callAnthropic(query) {
   return { text: textBlock ? textBlock.text : "", usage: data.usage };
 }
 
-module.exports = async function handler(req, res) {
+module.exports = withResponseLogging(async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ error: "Method not allowed" });
@@ -109,4 +110,4 @@ module.exports = async function handler(req, res) {
   } catch (err) {
     res.status(err.status || 502).json({ error: err.message || "Upstream error" });
   }
-};
+});
