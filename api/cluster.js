@@ -32,9 +32,12 @@
 
 const { authenticateSession } = require("./_lib/stytch.js");
 
-// [NEEDS INPUT] Default per-Earth minimum. Build prompt asks the
-// founder for the right number; until that lands, 3 is the default.
-const MIN_WRITINGS_PER_EARTH = 3;
+// Per-Earth writing floor. Founder-set to 1 (down from the
+// build-prompt.md default of 3). MIN_SEEDS_PER_EARTH = 2 still
+// enforces "at least two distinct topic clusters", so a 1-writing
+// Earth only appears if the model can lift 2+ verbatim topic phrases
+// out of that single writing — otherwise it's omitted from the tree.
+const MIN_WRITINGS_PER_EARTH = 1;
 const MIN_SEEDS_PER_EARTH = 2;
 const MAX_SEEDS_PER_EARTH = 5;
 const MAX_BODY_CHARS = 6000;
