@@ -11,7 +11,7 @@
 
   const toggle = document.getElementById('drawer-toggle');
   const backdrop = document.getElementById('drawer-backdrop');
-  const homeListEl = document.getElementById('home-list');
+  const treeEl = document.getElementById('sidebar-tree');
   const navHome = document.getElementById('nav-home');
 
   function open() {
@@ -32,10 +32,12 @@
 
   backdrop && backdrop.addEventListener('click', close);
 
-  // Auto-close after picking a seed or tapping the brand — the
-  // user wants the stage back.
-  homeListEl && homeListEl.addEventListener('click', (e) => {
-    if (isMobile() && e.target.closest('.home-card')) close();
+  // Auto-close after the founder taps into a Growth vector (or a
+  // writing inside one) — the stage is what they want next.
+  treeEl && treeEl.addEventListener('click', (e) => {
+    if (!isMobile()) return;
+    const row = e.target.closest('.sidebar__tree-row--gv, .sidebar__tree-row--writing');
+    if (row) close();
   });
   navHome && navHome.addEventListener('click', () => {
     if (isMobile()) close();
