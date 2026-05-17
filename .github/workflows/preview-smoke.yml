@@ -4,12 +4,9 @@ name: Preview Smoke
 # to /api/preview-smoke on the same preview URL. The function runs inside
 # the deployment it's testing, so Browserbase keys come natively from
 # the Vercel project env — no Vercel CLI, no VERCEL_TOKEN, no key
-# duplication to GitHub. The only GH secret needed is PREVIEW_SMOKE_SECRET
-# (a shared random string with the Vercel function's env var of the
-# same name).
-#
-# deployment_status workflows run only from the default branch, so this
-# file must land on `main` before it starts firing for new PRs.
+# duplication to GitHub. No new secrets needed: the function authenticates
+# the caller solely by the GITHUB_TOKEN we forward (used to upsert the
+# results comment back into the PR).
 
 on:
   deployment_status:
@@ -74,7 +71,6 @@ jobs:
       - name: POST /api/preview-smoke on the preview deploy
         if: steps.ctx.outputs.skip != 'true'
         env:
-          PREVIEW_SMOKE_SECRET: ${{ secrets.PREVIEW_SMOKE_SECRET }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
@@ -91,6 +87,5 @@ jobs:
           curl -fsS --max-time 120 \
             -X POST "${{ steps.ctx.outputs.preview_url }}/api/preview-smoke" \
             -H "Content-Type: application/json" \
-            -H "X-Smoke-Secret: $PREVIEW_SMOKE_SECRET" \
             -H "X-Github-Token: $GITHUB_TOKEN" \
             -d "$BODY"
