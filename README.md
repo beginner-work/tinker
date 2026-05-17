@@ -65,6 +65,8 @@ Required Vercel env vars:
 - `STYTCH_SECRET`
 - `ANTHROPIC_API_KEY`
 - `DATABASE_URL`
+- `BROWSERBASE_API_KEY` — used by `scripts/browserbase-debug.js`
+- `BROWSERBASE_PROJECT_ID` — used by `scripts/browserbase-debug.js`
 
 Set the same values for Production and Preview so preview deploys see the
 same Stytch users and the same Postgres rows as production. (Preview used
@@ -74,6 +76,24 @@ like a second URL pointing at production.)
 
 Sign out by clearing `tinker_jwt` (`window.tinkerAuth.signOut()` from the
 inspector, or `localStorage.removeItem("tinker_jwt")`).
+
+## Debugging preview deploys
+
+When a Vercel preview misbehaves in a way you can't reproduce locally —
+auth flow only breaks behind the edge network, a third-party widget only
+loads from a non-localhost origin, etc. — `scripts/browserbase-debug.js`
+spins up a [Browserbase](https://browserbase.com) cloud Chromium pointed
+at the preview URL. It prints a live debug URL you open in your own
+browser to get full DevTools (Network, Console, Elements) against the
+live deploy.
+
+```bash
+npx vercel env pull            # pulls BROWSERBASE_API_KEY + BROWSERBASE_PROJECT_ID
+npm run debug:preview -- --url https://tinker-abc.vercel.app
+```
+
+The session auto-expires after 10 minutes of inactivity. Pass
+`--timeout 3600` for a longer session, or `--help` to see all flags.
 
 ## Search
 
