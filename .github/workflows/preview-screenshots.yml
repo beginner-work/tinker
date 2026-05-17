@@ -1,0 +1,85 @@
+name: Preview screenshots (Browserbase)
+
+# Fires when Vercel posts a deployment_status webhook on a successful
+# Preview deploy. We don't trigger on pull_request events directly
+# because the preview URL isn't ready at that point — waiting for
+# Vercel's signal is simpler and avoids a polling loop.
+on:
+  deployment_status:
+
+jobs:
+  walkthrough:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment == 'Preview'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # push to the `previews` branch
+      pull-requests: write     # update the PR description
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # The deployment event's SHA is the commit Vercel built.
+          # Check that out so the flow definitions match the preview.
+          ref: ${{ github.event.deployment.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install
+        run: npm ci
+
+      - name: Find PR for commit
+        id: pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.deployment.sha }}
+        run: |
+          # The deployment_status event doesn't include the PR number,
+          # but the SHA is associated with exactly one open PR (the
+          # branch tip Vercel built). Ask the API which one.
+          pr_number=$(
+            curl --fail --silent \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${SHA}/pulls" \
+              | node -e 'const d=JSON.parse(require("fs").readFileSync(0,"utf8"));const p=(d||[]).find(x=>x.state==="open")||d[0];process.stdout.write(p?String(p.number):"")'
+          )
+          if [ -z "$pr_number" ]; then
+            echo "No PR found for $SHA; skipping."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "number=$pr_number" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Walk preview with Browserbase
+        if: steps.pr.outputs.found == 'true'
+        env:
+          PREVIEW_URL: ${{ github.event.deployment_status.target_url }}
+          BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+          BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
+          TINKER_TEST_SESSION_TOKEN: ${{ secrets.TINKER_TEST_SESSION_TOKEN }}
+          PR_SHA: ${{ github.event.deployment.sha }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: npm run preview:screenshots
+
+      - name: Upload artifacts
+        if: always() && steps.pr.outputs.found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-walkthrough-pr-${{ steps.pr.outputs.number }}
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Publish to PR
+        if: steps.pr.outputs.found == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: node scripts/post-preview-update.js

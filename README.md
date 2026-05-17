@@ -170,6 +170,86 @@ The renderer is plain HTML/CSS/JS — no build step, no bundler. Each
 tab maps to either the welcome page (in-DOM) or an Electron
 `<webview>` mounted lazily on first navigation.
 
+## Preview screenshots (Browserbase)
+
+Every successful Vercel **Preview** deploy triggers a GitHub Actions
+workflow (`.github/workflows/preview-screenshots.yml`) that drives the
+preview through a list of product flows in a cloud Chromium session
+hosted by [Browserbase](https://browserbase.com), captures a screenshot
+of each, and rewrites the PR description with the images inline plus a
+link to the session replay.
+
+The workflow exits cleanly when individual flows fail — failures are
+surfaced as a section at the top of the PR comment with the error
+message and any browser-console errors that fired, so a regression in
+the welcome page doesn't block the rest of the review.
+
+### One-time setup
+
+1. **Add the Browserbase integration in Vercel.** From the Vercel
+   dashboard → Integrations → Browserbase, link your Browserbase
+   project. Vercel will set `BROWSERBASE_API_KEY` and
+   `BROWSERBASE_PROJECT_ID` on the project's env vars.
+2. **Mirror those into GitHub.** The walkthrough runs on the GitHub
+   Actions runner, not on Vercel, so copy the same values into
+   `Settings → Secrets and variables → Actions` as repository secrets
+   with the same names.
+3. *(Optional)* **Add a Stytch test session.** To screenshot flows
+   past the sign-in gate, sign in once as a dedicated test user, copy
+   the `tinker_jwt` value out of `localStorage`, and store it as a
+   `TINKER_TEST_SESSION_TOKEN` GitHub secret. Stytch sessions live for
+   30 days (see `api/_lib/stytch.js`), so refresh it monthly.
+   Without this secret, authed flows skip silently and the PR comment
+   notes them as such.
+
+### Adding a flow
+
+Append an entry to `scripts/preview-flows.js` — each flow is a small
+async function that drives Playwright to the surface you care about
+and returns. The harness handles the screenshot, the console capture,
+and the PR comment for you.
+
+```js
+{
+  name: "search-results",
+  description: "Search pane after a query",
+  viewport: { width: 1280, height: 800 },
+  auth: true,
+  async run(page, { url }) {
+    await page.goto(url);
+    await page.waitForSelector(".sidebar__brand");
+    await page.fill(".address-bar input", "claude code");
+    await page.press(".address-bar input", "Enter");
+    await page.waitForSelector(".search-result");
+  },
+}
+```
+
+### Running locally
+
+```bash
+export PREVIEW_URL="https://your-preview.vercel.app"
+export BROWSERBASE_API_KEY="bb_live_..."
+export BROWSERBASE_PROJECT_ID="proj_..."
+export TINKER_TEST_SESSION_TOKEN="..."   # optional
+npm run preview:screenshots
+```
+
+Screenshots land in `artifacts/screenshots/`, console captures in
+`artifacts/logs/`, and a machine-readable rollup in
+`artifacts/summary.json`. The browser session itself stays available
+on `browserbase.com/sessions/<id>` for live debugging — full replay
+with DOM snapshots, network, and console.
+
+### Where the images live
+
+The PR description embeds raw images from a long-lived `previews`
+branch (orphan, separate history from `main`). Each PR gets its own
+directory: `pr-<N>/<flow>.png`, overwritten on every preview deploy.
+Old PR directories can be deleted at any time without affecting
+anything else; nothing in the repo references them outside of the
+preview comments themselves.
+
 ## Shortcuts
 
 | Action | Shortcut |

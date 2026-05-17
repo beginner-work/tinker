@@ -18,7 +18,8 @@
     "mobile:open:ios": "cap open ios",
     "mobile:open:android": "cap open android",
     "mobile:run:ios": "cap run ios",
-    "mobile:run:android": "cap run android"
+    "mobile:run:android": "cap run android",
+    "preview:screenshots": "node scripts/browserbase-walkthrough.js"
   },
   "keywords": ["browser", "electron", "capacitor", "tinker"],
   "author": "tinker",
@@ -34,9 +35,11 @@
     "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
+    "@browserbasehq/sdk": "^2.5.0",
     "@capacitor/cli": "^6.2.0",
     "electron": "^33.0.0",
     "eslint": "^9.0.0",
+    "playwright-core": "^1.49.0",
     "prisma": "^5.22.0"
   }
 }
