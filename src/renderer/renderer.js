@@ -389,13 +389,16 @@
   // visual treatment.
   //
   // MOCK — verbatim-style fragments meant to look like phrases lifted
-  // from a person's seed drafts, not AI labels. Replaced in step 3.
+  // from a person's seed drafts, not AI labels. Each one reads as a
+  // theme-level observation a founder might actually write down, not
+  // a single tactical moment. Replaced in step 3 by the /api/themes
+  // response.
   const MOCK_THEMES = [
-    "the barber shop",
-    "hop tinctures at 7am",
-    "before the kids wake up",
-    "scratch on the iPad screen",
-    "what to do about the broken faucet",
+    "the kind of work I'm pulled toward",
+    "what the boys keep teaching me",
+    "where the money is actually going",
+    "the version of me that shows up at 7am",
+    "what I'm still figuring out about the move",
   ];
 
   function renderThemes() {
