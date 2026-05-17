@@ -28,7 +28,7 @@
   const feedView = $("#welcome");
   const writingView = $("#writing");
   const readView = $("#read");
-  const homeListEl = $("#home-list");
+  const themesEl = $("#sidebar-themes");
   const readBody = $("#read-body");
   const readDelete = $("#read-delete");
   const categoryFeedView = $("#category-feed");
@@ -111,7 +111,7 @@
       essays = essays.filter((e) => e.id !== id);
       saveEssays(essays);
       if (readingEssayId === id) showFeed();
-      renderHome();
+      renderThemes();
       return essay;
     },
     publish(draft, stitched) {
@@ -136,7 +136,7 @@
       saveDrafts(drafts);
       activeId = null;
       renderSidebar();
-      renderHome();
+      renderThemes();
       // Land on the seed's category feed (now containing the
       // just-published essay). For a brand-new seed with no
       // classification yet, fall through to the read view.
@@ -178,7 +178,7 @@
       if (seedName && window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
         window.tinkerSeeds.add(seedName);
       }
-      renderHome();
+      renderThemes();
       return essay;
     },
   };
@@ -247,7 +247,7 @@
     activeCategoryKey = null;
     activeCategorySeed = null;
     renderSidebar();
-    renderHome();
+    renderThemes();
     // If the "Somewhere else" specify input is already open, drop focus
     // there; otherwise leave focus on the grid (the tiles are buttons,
     // so keyboard users land on the first one via Tab).
@@ -369,19 +369,24 @@
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
-  // Sidebar's drafts+essays list is gone — seeds now own the sidebar
-  // (see #home-list). Each seed card surfaces the latest writing
-  // produced there. Kept as a no-op so existing call sites compile.
+  // Sidebar's drafts+essays list is gone, and (as of the themes revamp)
+  // the seed list is gone too. The middle of the sidebar is now the
+  // themes nav, painted by renderThemes() from the /api/themes response.
+  // Both helpers are kept as no-ops where the data isn't ready yet so
+  // existing call sites compile.
   function renderSidebar() {
     if (!sessionsEl) return;
     sessionsEl.innerHTML = "";
   }
 
-  function renderHome() {
-    if (!homeListEl) return;
-    if (window.tinkerHeatmap && typeof window.tinkerHeatmap.render === "function") {
-      window.tinkerHeatmap.render(homeListEl);
-    }
+  // Empty state for the themes revamp: with no clustering data yet, the
+  // themes nav stays hidden and the sidebar collapses to brand → Account
+  // → footer. Step 2 swaps in mocked theme rows; step 3 wires the real
+  // /api/themes response.
+  function renderThemes() {
+    if (!themesEl) return;
+    themesEl.innerHTML = "";
+    themesEl.hidden = true;
   }
 
   function escapeHtml(s) {
@@ -469,7 +474,7 @@
   // Re-render the home list whenever seeds change.
   if (window.tinkerSeeds && typeof window.tinkerSeeds.subscribe === "function") {
     window.tinkerSeeds.subscribe(() => {
-      renderHome();
+      renderThemes();
     });
   }
 
@@ -566,11 +571,11 @@
     renderSidebar();
     if (readView && !readView.hidden) return;
     if (writingView && !writingView.hidden) return;
-    renderHome();
+    renderThemes();
   });
 
   // ── Boot ────────────────────────────────────────────────────────────
   renderSidebar();
-  renderHome();
+  renderThemes();
   showFeed();
 })();

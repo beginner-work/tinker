@@ -61,7 +61,7 @@
     </button>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
-    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Seeds">
+    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar">
       <header class="sidebar__top">
         <button id="nav-home" class="sidebar__brand" type="button" title="Pick a place to start writing">
           <svg data-rainbow-logo viewBox="0 0 200 200" width="22" height="22" aria-hidden="true" fill="none">
@@ -78,7 +78,12 @@
         </button>
       </header>
 
-      <div id="home-list" class="home-list" aria-live="polite"></div>
+      <!-- Themes section: short list of verbatim phrases lifted from the
+           founder's own seeds/drafts/essays, surfaced by /api/themes. Hidden
+           by default; revealed only when clustering produces three to seven
+           valid themes. No visible heading — the labels themselves are the
+           content; the sr-only aria-label is the only chrome string. -->
+      <nav id="sidebar-themes" class="sidebar__themes" aria-label="Themes" aria-live="polite" hidden></nav>
 
       <nav class="sidebar__account" aria-label="Account">
         <h2 class="sidebar__account-head">Account</h2>

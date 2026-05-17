@@ -11,7 +11,7 @@
 
   const toggle = document.getElementById('drawer-toggle');
   const backdrop = document.getElementById('drawer-backdrop');
-  const homeListEl = document.getElementById('home-list');
+  const themesEl = document.getElementById('sidebar-themes');
   const navHome = document.getElementById('nav-home');
 
   function open() {
@@ -32,10 +32,10 @@
 
   backdrop && backdrop.addEventListener('click', close);
 
-  // Auto-close after picking a seed or tapping the brand — the
+  // Auto-close after picking a theme or tapping the brand — the
   // user wants the stage back.
-  homeListEl && homeListEl.addEventListener('click', (e) => {
-    if (isMobile() && e.target.closest('.home-card')) close();
+  themesEl && themesEl.addEventListener('click', (e) => {
+    if (isMobile() && e.target.closest('.sidebar__theme')) close();
   });
   navHome && navHome.addEventListener('click', () => {
     if (isMobile()) close();

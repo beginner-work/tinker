@@ -131,7 +131,26 @@ html.on-web .sidebar__top {
 }
 .sidebar__footer-copy { padding: 0 6px; font-size: 12px; }
 
+/* Themes section — replaces the legacy seed list. Sits between the brand
+   block and the Account block. Hidden until clustering produces a valid
+   set of three to seven verbatim labels; when hidden it collapses out
+   of layout entirely so the empty state reads as brand → Account →
+   footer with no chrome in between. */
+.sidebar__themes {
+  padding: 12px 8px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+.sidebar__themes[hidden] { display: none; }
+
+/* Account pins itself to the bottom of the column. With the legacy
+   `.home-list { flex: 1 }` slot gone, this `margin-top: auto` is what
+   keeps the Account block flush above the footer regardless of how few
+   (or zero) themes are rendered above it. */
 .sidebar__account {
+  margin-top: auto;
   padding: 8px 8px 10px;
   border-top: 1px solid var(--color-border);
   display: flex;
