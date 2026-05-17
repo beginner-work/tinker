@@ -428,10 +428,21 @@
       const data = await res.json();
       if (data && Array.isArray(data.earths)) {
         try { console.log(`[tinker.tree] received ${data.earths.length} earth(s)`); } catch { /* ignore */ }
-        saveTree(data);
-        lastRefreshFailed = false;
+        if (data.earths.length > 0) {
+          saveTree(data);
+          lastRefreshFailed = false;
+        } else {
+          // Empty earths from a non-empty writing corpus almost
+          // always means clustering had to drop every label as
+          // non-verbatim (Claude's offset arithmetic is brittle).
+          // Keep the last good cache and surface the retry —
+          // never silently nuke a valid sidebar.
+          try { console.warn("[tinker.tree] cluster returned empty earths despite a non-empty corpus — keeping last good cache"); } catch { /* ignore */ }
+          lastRefreshFailed = true;
+        }
       } else {
         try { console.warn("[tinker.tree] cluster response missing `earths` array:", data); } catch { /* ignore */ }
+        lastRefreshFailed = true;
       }
     } catch (err) {
       lastRefreshFailed = true;
