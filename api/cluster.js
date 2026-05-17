@@ -43,17 +43,23 @@ const MAX_SEEDS_PER_EARTH = 5;
 const MAX_BODY_CHARS = 6000;
 const MAX_BYTES = 256 * 1024;
 
+// [FOUNDER OVERRIDE] The build-prompt.md spec required labels to be
+// verbatim substrings of the founder's writings (returned as
+// offsets, validated server-side). Founder feedback in PR #94 asked
+// to "try AI-generated seeds" instead. This relaxes the constraint:
+// the model now returns label TEXT directly, in its own words. If
+// the founder wants the verbatim flow back, restore the offset
+// schema in the system prompt and bring back the offset validation
+// in validateLabel().
 const SYSTEM_PROMPT = `You cluster a founder's writings into a three-tier tree for the tinker writing tool: Earth → Seed → Growth vector.
 
 You receive a list of writings, all from a single Earth (a place the founder writes from). You return between 2 and 5 Seeds. Each Seed is a topic cluster of one or more writings. Inside each Seed, you return one Growth vector per distinct sub-topic.
 
-CRITICAL RULE — labels must be verbatim substrings of the founder's writing.
-- Every Seed label and every Growth-vector label must be a contiguous substring of exactly one of the writings you were given.
-- You return offsets, NOT strings. Each label is identified by { sourceWritingId, sourceOffset, sourceLength } where sourceOffset is the 0-indexed character offset into that writing's body, and sourceLength is the length of the substring.
-- The substring you select must read as a noun phrase or short phrase the founder actually used — 2 to 8 words is the typical range. Avoid full sentences. Avoid trailing punctuation. Avoid leading articles like "the" or "a" unless they're truly part of the phrase the founder used.
-- Do NOT paraphrase. Do NOT summarise. Do NOT invent labels. Do NOT improve the founder's words.
-
-Seed labels are slightly broader; Growth-vector labels are more specific. Both must be verbatim. If you cannot find a clean verbatim substring for a cluster, drop the cluster rather than invent one.
+Label style:
+- Seed labels are short topic phrases — 2 to 5 words is the typical range. Concrete and specific. Examples: "the barber shop", "hop tinctures at 7am", "the morning call".
+- Growth-vector labels are more specific than their parent Seed — 2 to 6 words. They capture a single facet of the Seed's topic. Examples: "his hands", "what I taste first", "the thing I'm avoiding".
+- Use the founder's vocabulary and tone where it fits. You may paraphrase if a verbatim phrase doesn't read cleanly on its own, but stay close to what the founder actually wrote — no marketing words, no "your career stuff" generality, no AI tells.
+- Lowercase except for proper nouns. No trailing punctuation. No quotes.
 
 Group writings by topic, not by Earth — all writings in your input are from the same Earth. A Growth vector may cover multiple writings (those become a count badge in the UI); a Seed contains one or more Growth vectors.
 
@@ -61,10 +67,12 @@ RESPOND IN STRICT JSON. Single object, exactly these keys:
 {
   "seeds": [
     {
-      "label": { "sourceWritingId": string, "sourceOffset": number, "sourceLength": number },
+      "label": string,
+      "sourceWritingId": string,
       "growthVectors": [
         {
-          "label": { "sourceWritingId": string, "sourceOffset": number, "sourceLength": number },
+          "label": string,
+          "sourceWritingId": string,
           "writingIds": [string, ...]
         },
         ...
@@ -73,6 +81,8 @@ RESPOND IN STRICT JSON. Single object, exactly these keys:
     ...
   ]
 }
+
+For sourceWritingId: pick the writing id that best represents this cluster (typically the one whose content most clearly led you to this label). For writingIds in a Growth vector: list every writing that belongs under it.
 
 Never wrap the JSON in code fences. Never add explanations outside the JSON. If the writings don't cluster into at least 2 distinct topics, return { "seeds": [] }.`;
 
@@ -184,30 +194,26 @@ function tryParseJson(text) {
   catch { return null; }
 }
 
-// Given the model's labels (offsets into a writing), pull the actual
-// substring and verify it matches what the model picked. Drops any
-// label whose offset is out of range, whose source writing isn't in
-// our input, or whose substring is empty after trim.
-function validateLabel(spec, byId) {
-  if (!spec || typeof spec !== "object") return null;
-  const id = String(spec.sourceWritingId || "");
-  const offset = Number.isFinite(spec.sourceOffset) ? Math.floor(spec.sourceOffset) : -1;
-  const length = Number.isFinite(spec.sourceLength) ? Math.floor(spec.sourceLength) : -1;
-  if (!id || offset < 0 || length <= 0) return null;
-  const writing = byId.get(id);
-  if (!writing) return null;
-  if (offset + length > writing.body.length) return null;
-  const substring = writing.body.slice(offset, offset + length);
-  const trimmed = substring.trim();
-  if (!trimmed) return null;
-  // The model is told 2–8 words is the typical range — enforce a
-  // hard upper bound so a runaway full-sentence label gets dropped.
-  if (trimmed.length > 120) return null;
+// [FOUNDER OVERRIDE] Used to validate that each label was a verbatim
+// substring of the source writing (offset+length). Now accepts the
+// model's string directly: trim, length-clamp, drop empties. The
+// sourceWritingId is preserved when the model sets it so the
+// renderer can still resolve "which writing led to this label" if
+// needed later. See the comment on SYSTEM_PROMPT.
+function validateLabel(rawLabel, sourceWritingId, byId) {
+  const text = String(rawLabel == null ? "" : rawLabel).trim();
+  if (!text) return null;
+  // Hard upper bound — keep a runaway full-sentence label out of the
+  // sidebar (would overflow the row anyway).
+  if (text.length > 120) return null;
+  // Strip wrapping quotes the model sometimes adds despite the
+  // prompt rule against them.
+  const cleaned = text.replace(/^["'“‘]+|["'”’]+$/g, "").trim();
+  if (!cleaned) return null;
+  const id = String(sourceWritingId || "");
   return {
-    label: trimmed,
-    sourceWritingId: id,
-    sourceOffset: offset,
-    sourceLength: length,
+    label: cleaned,
+    sourceWritingId: byId.has(id) ? id : null,
   };
 }
 
@@ -255,13 +261,15 @@ async function clusterEarth(earthGroup) {
   // surviving Growth vectors gets dropped.
   const seeds = [];
   for (const rawSeed of parsed.seeds) {
-    const seedLabel = validateLabel(rawSeed && rawSeed.label, byId);
+    if (!rawSeed || typeof rawSeed !== "object") continue;
+    const seedLabel = validateLabel(rawSeed.label, rawSeed.sourceWritingId, byId);
     if (!seedLabel) continue;
 
     const growthVectors = [];
     if (Array.isArray(rawSeed.growthVectors)) {
       for (const rawGv of rawSeed.growthVectors) {
-        const gvLabel = validateLabel(rawGv && rawGv.label, byId);
+        if (!rawGv || typeof rawGv !== "object") continue;
+        const gvLabel = validateLabel(rawGv.label, rawGv.sourceWritingId, byId);
         if (!gvLabel) continue;
         const writingIds = Array.isArray(rawGv.writingIds)
           ? Array.from(new Set(rawGv.writingIds.filter((id) => byId.has(id))))
@@ -270,8 +278,6 @@ async function clusterEarth(earthGroup) {
         growthVectors.push({
           label: gvLabel.label,
           sourceWritingId: gvLabel.sourceWritingId,
-          sourceOffset: gvLabel.sourceOffset,
-          sourceLength: gvLabel.sourceLength,
           writingIds,
         });
       }
@@ -280,8 +286,6 @@ async function clusterEarth(earthGroup) {
     seeds.push({
       label: seedLabel.label,
       sourceWritingId: seedLabel.sourceWritingId,
-      sourceOffset: seedLabel.sourceOffset,
-      sourceLength: seedLabel.sourceLength,
       growthVectors,
     });
   }

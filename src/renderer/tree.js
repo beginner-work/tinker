@@ -394,6 +394,21 @@
       if (!data || !Array.isArray(data.earths)) {
         throw new Error("cluster response shape");
       }
+      // Don't cache an empty response when the user actually has
+      // writings — that result is almost certainly a transient (the
+      // request fired before sync.js finished hydrating, or the model
+      // hiccupped on a sparse Earth). Caching it as "fresh empty"
+      // would make shouldRefreshOnHydrate skip the next try, leaving
+      // the sidebar empty until the user manually closes a writing
+      // session. Preserve the previous cache instead so the next
+      // event re-attempts.
+      const empty = data.earths.length === 0;
+      const hadWritings = (payload.writings || []).length > 0;
+      if (empty && hadWritings) {
+        // Drop the response on the floor. Surface the retry
+        // affordance the same way a thrown error would.
+        throw new Error("cluster empty with writings");
+      }
       const next = { updatedAt: Date.now(), earths: data.earths };
       lastTree = next;
       lastError = null;
@@ -547,12 +562,15 @@
     return false;
   }
 
-  // Auth landed → kick a refresh so a fresh sign-in pulls the latest
-  // tree even if the cached one is empty (or stale from another
-  // device's clustering). Best-effort; swallow errors.
-  window.addEventListener("tinker:auth-changed", () => {
-    refresh().catch(() => { /* ignore */ });
-  });
+  // No tinker:auth-changed handler: when a user signs in, this
+  // event fires BEFORE sync.js' hydrate() has had a chance to pull
+  // their drafts/essays from the server. Calling refresh() at that
+  // moment would send an empty payload to /api/cluster, get back
+  // { earths: [] }, and cache that as "fresh empty" — poisoning the
+  // shouldRefreshOnHydrate gate and leaving the sidebar empty until
+  // the founder manually closes a writing session. The
+  // tinker:hydrated path below handles fresh sign-ins instead, by
+  // which point localStorage actually has the writings.
 
   // The tinker:hydrated path above is the primary refresh trigger for
   // the typical web user (auth gate → hydrate fires → tree populates).

@@ -436,7 +436,7 @@
     }
   }
 
-  const EARTH_LABELS = { cafe: "Cafe", home: "Home", work: "Work" };
+  const EARTH_LABELS = { cafe: "At a cafe", home: "At home", work: "At work" };
 
   if (welcomeGrid) {
     welcomeGrid.addEventListener("click", (e) => {
