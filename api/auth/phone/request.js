@@ -14,8 +14,9 @@
 "use strict";
 
 const { sendSmsOtp } = require("../../_lib/stytch.js");
+const { withResponseLogging } = require("../../_lib/log.js");
 
-module.exports = async function handler(req, res) {
+module.exports = withResponseLogging(async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ error: "Method not allowed" });
@@ -48,4 +49,4 @@ module.exports = async function handler(req, res) {
     const status = err.status && err.status >= 400 ? err.status : 502;
     res.status(status).json({ error: err.message || "Stytch request failed" });
   }
-};
+});
