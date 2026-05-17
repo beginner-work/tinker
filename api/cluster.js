@@ -55,11 +55,37 @@ const SYSTEM_PROMPT = `You cluster a founder's writings into a three-tier tree f
 
 You receive a list of writings, all from a single Earth (a place the founder writes from). You return between 2 and 5 Seeds. Each Seed is a topic cluster of one or more writings. Inside each Seed, you return one Growth vector per distinct sub-topic.
 
-Label style:
-- Seed labels are short topic phrases — 2 to 5 words is the typical range. Concrete and specific. Examples: "the barber shop", "hop tinctures at 7am", "the morning call".
-- Growth-vector labels are more specific than their parent Seed — 2 to 6 words. They capture a single facet of the Seed's topic. Examples: "his hands", "what I taste first", "the thing I'm avoiding".
-- Use the founder's vocabulary and tone where it fits. You may paraphrase if a verbatim phrase doesn't read cleanly on its own, but stay close to what the founder actually wrote — no marketing words, no "your career stuff" generality, no AI tells.
-- Lowercase except for proper nouns. No trailing punctuation. No quotes.
+LABELS ARE COMPLETE, AUTHORED TOPIC PHRASES — NOT TEXT FRAGMENTS.
+
+You author the label in plain English using the founder's vocabulary as your guide. The label must read as a complete topic phrase a human could speak out loud and understand. Think "what's this group ABOUT?" — name the topic.
+
+GOOD labels (note: complete phrases, no clipped words):
+- "the barber shop"
+- "hop tinctures at 7am"
+- "his hands"
+- "what I taste first"
+- "the morning call"
+- "not posting to LinkedIn"
+- "finding a safer path"
+- "how to be still"
+
+BAD labels (DO NOT produce anything like these — they are clipped mid-word, missing first or last word, or look like accidental string slicing):
+- "ot LinkedIn"           ← clipped: missing first letter
+- "forward in"            ← clipped: incomplete phrase
+- "know what so"          ← clipped: ends mid-thought
+- "for a safe pa"         ← clipped: ends mid-word
+- "w to be still I've"    ← clipped: missing first letters
+- "your career stuff"     ← too generic, AI tell
+- "thoughts on family"    ← too generic, AI tell
+
+Every label must:
+- Start with a complete word (never a single letter followed by space; never a partial word like "ot " or "w ")
+- End with a complete word (never end with a single letter or partial word like "pa" or "so" alone)
+- Be a noun phrase or short phrase, 2–6 words typical
+- Lowercase except proper nouns
+- No trailing punctuation, no quotes wrapping the label
+
+Seed labels are slightly broader (the topic of the cluster). Growth-vector labels are more specific (one facet of the Seed). Both must be complete, authored phrases.
 
 Group writings by topic, not by Earth — all writings in your input are from the same Earth. A Growth vector may cover multiple writings (those become a count badge in the UI); a Seed contains one or more Growth vectors.
 
@@ -196,10 +222,10 @@ function tryParseJson(text) {
 
 // [FOUNDER OVERRIDE] Used to validate that each label was a verbatim
 // substring of the source writing (offset+length). Now accepts the
-// model's string directly: trim, length-clamp, drop empties. The
-// sourceWritingId is preserved when the model sets it so the
-// renderer can still resolve "which writing led to this label" if
-// needed later. See the comment on SYSTEM_PROMPT.
+// model's string directly: trim, length-clamp, drop empties + drop
+// obvious mid-word cut-offs. The sourceWritingId is preserved when
+// the model sets it so the renderer can still resolve "which
+// writing led to this label" if needed later.
 function validateLabel(rawLabel, sourceWritingId, byId) {
   const text = String(rawLabel == null ? "" : rawLabel).trim();
   if (!text) return null;
@@ -210,6 +236,36 @@ function validateLabel(rawLabel, sourceWritingId, byId) {
   // prompt rule against them.
   const cleaned = text.replace(/^["'“‘]+|["'”’]+$/g, "").trim();
   if (!cleaned) return null;
+  // Reject obvious mid-word clips. The model has been told what BAD
+  // labels look like ("ot LinkedIn", "for a safe pa") but it still
+  // sometimes produces them — drop here so they never reach the UI.
+  // Heuristics: a 1–2 character first/last token is suspicious. Only
+  // accept it when it's a known short English word; otherwise drop.
+  const SHORT_WORDS = new Set([
+    "a", "i",
+    "an", "as", "at", "be", "by", "do", "go", "he", "if", "in", "is",
+    "it", "me", "my", "no", "of", "on", "or", "so", "to", "up", "us",
+    "we", "am",
+  ]);
+  const isShortWordClip = (token) => {
+    const t = token.replace(/[.,;:!?]+$/, "").toLowerCase();
+    return t.length > 0 && t.length <= 2 && !SHORT_WORDS.has(t);
+  };
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return null;
+  if (isShortWordClip(tokens[0])) return null;
+  if (isShortWordClip(tokens[tokens.length - 1])) return null;
+  // A trailing preposition/conjunction also reads as a clip
+  // ("forward in", "know what so"). Allow them in the middle, drop
+  // them at the end.
+  const TRAILING_CLIP = new Set([
+    "in", "on", "at", "to", "of", "by", "as", "so", "or", "and", "but",
+    "for", "with", "into", "onto", "from",
+  ]);
+  if (tokens.length >= 2) {
+    const last = tokens[tokens.length - 1].replace(/[.,;:!?]+$/, "").toLowerCase();
+    if (TRAILING_CLIP.has(last)) return null;
+  }
   const id = String(sourceWritingId || "");
   return {
     label: cleaned,
