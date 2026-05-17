@@ -76,6 +76,7 @@
     refreshing = true;
     notify();
     try {
+      console.log("[themes] refresh →");
       const res = await fetch("/api/themes", {
         method: "POST",
         headers: {
@@ -84,15 +85,24 @@
         },
         body: "{}",
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        console.warn("[themes] /api/themes failed", res.status, errText);
+        return;
+      }
       const json = await res.json().catch(() => null);
       const next = (json && Array.isArray(json.themes)) ? json.themes : null;
-      if (!next) return;
+      if (!next) {
+        console.warn("[themes] response missing themes array", json);
+        return;
+      }
+      console.log("[themes] got", next.length, "themes:", next.map((t) => t.label));
       themes = next;
       save(themes);
-    } catch {
+    } catch (err) {
       // Best-effort. The cached themes stay on screen and the next
       // session-close re-tries.
+      console.warn("[themes] refresh error", err);
     } finally {
       refreshing = false;
       notify();
@@ -101,10 +111,31 @@
 
   window.tinkerThemes = { list, isRefreshing, subscribe, refresh };
 
+  // Bootstrap: if there's a token AND the cache is empty, kick a
+  // refresh as soon as sync.js's hydration settles. Existing writers
+  // who already had seeds + drafts + essays in the user-data table
+  // don't have to close a new writing session before themes appear.
+  // After this initial fill, the refresh trigger is strictly
+  // session-close (per the founder's choice on open question #3).
+  function maybeBootRefresh() {
+    if (!token()) return;
+    if (themes.length > 0) return;
+    refresh();
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", maybeBootRefresh, { once: true });
+  } else {
+    maybeBootRefresh();
+  }
+
   // Server hydration overwrites the themes cache on boot. Re-read and
-  // notify the sidebar so it re-renders against the synced set.
+  // notify the sidebar so it re-renders against the synced set. If
+  // hydration still left the cache empty (first time signing in on
+  // this device), the boot refresh above will have already fired or
+  // will fire when this runs.
   window.addEventListener("tinker:hydrated", () => {
     themes = load();
     notify();
+    maybeBootRefresh();
   });
 })();
