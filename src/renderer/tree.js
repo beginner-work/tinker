@@ -135,6 +135,16 @@
     return bestEarth;
   }
 
+  // Earth-row color comes from window.tinkerEarths.color() so the
+  // sidebar row, the welcome tile, and any future Earth surface stay
+  // in sync. Earths.js owns the palette + hash.
+  function earthColor(name) {
+    if (window.tinkerEarths && typeof window.tinkerEarths.color === "function") {
+      return window.tinkerEarths.color(name);
+    }
+    return "#c8b6e2";
+  }
+
   // ── Rendering ─────────────────────────────────────────────────────
   function render() {
     if (!mountEl) return;
@@ -196,6 +206,12 @@
     btn.type = "button";
     btn.className = "sidebar__account-item sidebar__tree-row sidebar__tree-row--earth";
     btn.setAttribute("aria-expanded", expandedEarths.has(earth.earthId) ? "true" : "false");
+    // Rainbow palette swatch on each Earth row — deterministic per
+    // earthId, matched to the welcome-tile color. Cream text reads
+    // on the pastel backgrounds the palette ships with. Set as a
+    // custom property so the :hover rule in styles.css can keep the
+    // colored fill instead of falling back to --color-hover.
+    btn.style.setProperty("--earth-color", earthColor(earth.earthId));
     btn.innerHTML =
       `<span class="sidebar__tree-twirl" aria-hidden="true"></span>` +
       `<span class="sidebar__account-label sidebar__tree-label">${escapeHtml(earth.earthName)}</span>`;

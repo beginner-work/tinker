@@ -187,7 +187,12 @@ async function callAnthropic({ system, userMessage, retry = false }) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-haiku-4-5",
+      // Sonnet (not Haiku) for this call. Authoring complete topic
+      // phrases out of a founder's writing — without verbatim
+      // anchoring — is a higher-judgement task than Haiku reliably
+      // handles. Spec called for Haiku 4.5; founder feedback in
+      // PR #94 ("no AI generated labels") flipped it.
+      model: "claude-sonnet-4-6",
       max_tokens: 2048,
       system: [
         {
@@ -255,22 +260,26 @@ function validateLabel(rawLabel, sourceWritingId, byId) {
   if (tokens.length === 0) return null;
   if (isShortWordClip(tokens[0])) return null;
   if (isShortWordClip(tokens[tokens.length - 1])) return null;
-  // A trailing preposition/conjunction also reads as a clip
-  // ("forward in", "know what so"). Allow them in the middle, drop
-  // them at the end.
-  const TRAILING_CLIP = new Set([
-    "in", "on", "at", "to", "of", "by", "as", "so", "or", "and", "but",
-    "for", "with", "into", "onto", "from",
-  ]);
-  if (tokens.length >= 2) {
-    const last = tokens[tokens.length - 1].replace(/[.,;:!?]+$/, "").toLowerCase();
-    if (TRAILING_CLIP.has(last)) return null;
-  }
+  // (Earlier iterations also dropped labels ending in prepositions/
+  // conjunctions like "forward in" / "know what so". That filter was
+  // too aggressive and was killing every label, leaving the tree
+  // empty. The mid-word-clip filter above stays — it's narrowly
+  // targeted at the specific failure mode.)
   const id = String(sourceWritingId || "");
   return {
     label: cleaned,
     sourceWritingId: byId.has(id) ? id : null,
   };
+}
+
+// Capitalize the first letter of a Seed label so it reads as a
+// named topic in the sidebar ("The barber shop" not "the barber
+// shop"). Growth-vector labels stay lowercase per the original
+// spec's example treatment.
+function capitalizeFirst(s) {
+  const trimmed = String(s || "").trim();
+  if (!trimmed) return trimmed;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
 
 function buildUserMessage(earthName, writings) {
@@ -340,7 +349,7 @@ async function clusterEarth(earthGroup) {
     }
     if (growthVectors.length === 0) continue;
     seeds.push({
-      label: seedLabel.label,
+      label: capitalizeFirst(seedLabel.label),
       sourceWritingId: seedLabel.sourceWritingId,
       growthVectors,
     });

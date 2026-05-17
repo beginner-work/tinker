@@ -438,6 +438,25 @@
 
   const EARTH_LABELS = { cafe: "At a cafe", home: "At home", work: "At work" };
 
+  // Color-match welcome tiles to the sidebar tree's Earth rows.
+  // tinkerEarths.color() is the shared palette source — same swatch
+  // shows up on both surfaces for "At home", and likewise for "At a
+  // cafe" and "At work". The "Somewhere else" tile keeps its own
+  // muted palette swatch so it reads as a different kind of choice.
+  function paintWelcomeTiles() {
+    if (!welcomeGrid) return;
+    const earthsApi = window.tinkerEarths;
+    if (!earthsApi || typeof earthsApi.color !== "function") return;
+    for (const tile of welcomeGrid.querySelectorAll("[data-earth]")) {
+      const key = tile.getAttribute("data-earth");
+      const name = key === "other" ? "Somewhere else" : (EARTH_LABELS[key] || key);
+      tile.style.background = earthsApi.color(name);
+      tile.style.color = "var(--color-cream)";
+      tile.style.borderColor = "transparent";
+    }
+  }
+  paintWelcomeTiles();
+
   if (welcomeGrid) {
     welcomeGrid.addEventListener("click", (e) => {
       const tile = e.target.closest("[data-earth]");

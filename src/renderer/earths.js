@@ -156,20 +156,80 @@
     } catch { /* ignore */ }
   })();
 
+  // Rename the v0.100 welcome-tile labels ("Cafe", "Home", "Work")
+  // to the v0.101 phrasing ("At a cafe", "At home", "At work").
+  // Founder feedback on PR #94: "Home" reads as the app's home page,
+  // not a place. Renames apply to:
+  //  - the explicit Earth list (tinker.earths.v1, each .name)
+  //  - every draft.earth in tinker.drafts.v1
+  //  - every essay.earth in tinker.essays.v1
+  // Match is exact-case-insensitive so the rename catches both the
+  // original "Cafe" and any "cafe" variants. Re-runnable so it
+  // survives sync overwriting localStorage with server data.
+  const EARTH_RENAMES = new Map([
+    ["cafe", "At a cafe"],
+    ["home", "At home"],
+    ["work", "At work"],
+  ]);
+  function renameEarthValueInExplicit() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return false;
+      let changed = false;
+      for (const item of arr) {
+        if (!item || typeof item !== "object" || !item.name) continue;
+        const next = EARTH_RENAMES.get(String(item.name).trim().toLowerCase());
+        if (next && item.name !== next) {
+          item.name = next;
+          changed = true;
+        }
+      }
+      if (changed) localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+      return changed;
+    } catch { return false; }
+  }
+  function renameEarthValueInWritings(storageKey) {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return false;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return false;
+      let changed = false;
+      for (const item of arr) {
+        if (!item || typeof item !== "object" || !item.earth) continue;
+        const next = EARTH_RENAMES.get(String(item.earth).trim().toLowerCase());
+        if (next && item.earth !== next) {
+          item.earth = next;
+          changed = true;
+        }
+      }
+      if (changed) localStorage.setItem(storageKey, JSON.stringify(arr));
+      return changed;
+    } catch { return false; }
+  }
+
   // Always-on field normalisation. Runs on boot AND after every
   // hydration so the server's v0.100 shape gets rewritten to v0.101
   // even when sync overwrites our local rename. When anything
   // changes, push the new shape back so the server eventually catches
   // up too.
   function normalizeFieldsAndPush() {
-    const draftsChanged = renameFieldsInStorage(STORAGE_DRAFTS);
-    const essaysChanged = renameFieldsInStorage(STORAGE_ESSAYS);
+    const draftsFieldChanged = renameFieldsInStorage(STORAGE_DRAFTS);
+    const essaysFieldChanged = renameFieldsInStorage(STORAGE_ESSAYS);
     renameTaxonomyKey();
-    if (draftsChanged && window.tinkerSync && typeof window.tinkerSync.pushDrafts === "function") {
+    const earthsValueChanged = renameEarthValueInExplicit();
+    const draftsValueChanged = renameEarthValueInWritings(STORAGE_DRAFTS);
+    const essaysValueChanged = renameEarthValueInWritings(STORAGE_ESSAYS);
+    if ((draftsFieldChanged || draftsValueChanged) && window.tinkerSync && typeof window.tinkerSync.pushDrafts === "function") {
       window.tinkerSync.pushDrafts();
     }
-    if (essaysChanged && window.tinkerSync && typeof window.tinkerSync.pushEssays === "function") {
+    if ((essaysFieldChanged || essaysValueChanged) && window.tinkerSync && typeof window.tinkerSync.pushEssays === "function") {
       window.tinkerSync.pushEssays();
+    }
+    if (earthsValueChanged && window.tinkerSync && typeof window.tinkerSync.pushEarths === "function") {
+      window.tinkerSync.pushEarths();
     }
   }
   normalizeFieldsAndPush();
@@ -417,12 +477,33 @@
     return new Set(hidden);
   }
 
+  // Deterministic rainbow palette swatch per Earth — same colors as
+  // the heatmap avatar palette. Hashed from the NORMALIZED name so
+  // the sidebar tree row, the welcome tile, and any future surface
+  // colour-match for the same Earth.
+  const EARTH_PALETTE = [
+    "#f9a8d4", "#fdba74", "#fde68a", "#7bc47a",
+    "#7dd3fc", "#c8b6e2", "#6ee7b7",
+  ];
+  function hashIndex(s, modulo) {
+    let h = 0;
+    const str = String(s || "");
+    for (let i = 0; i < str.length; i++) {
+      h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h) % Math.max(1, modulo);
+  }
+  function colorFor(name) {
+    return EARTH_PALETTE[hashIndex(normalize(name), EARTH_PALETTE.length)];
+  }
+
   // ── Public API ──────────────────────────────────────────────────────
   window.tinkerEarths = {
     list: listMerged,
     add: addEarth,
     remove: removeEarth,
     hidden: getHiddenSet,
+    color: colorFor,
     subscribe(fn) { subscribers.add(fn); return () => subscribers.delete(fn); },
     openAddModal,
   };
