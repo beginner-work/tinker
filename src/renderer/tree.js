@@ -454,6 +454,9 @@
     if (!token()) return;
     const writings = buildWritingsForCluster();
     if (writings.length === 0) {
+      // Truly nothing to cluster (no writings or all hidden). This is
+      // cold-start territory — empty is the right state, no soft-
+      // fallback. Hide the nav.
       cached = { earths: [] };
       saveCache(cached);
       render();
@@ -474,10 +477,38 @@
       if (!res.ok) throw new Error(`cluster ${res.status}`);
       const data = await res.json();
       if (!data || !Array.isArray(data.earths)) throw new Error("malformed");
-      cached = data;
-      saveCache(cached);
-      lastFailed = false;
-    } catch {
+
+      // Soft-fallback: if clustering returned an empty tree but the
+      // existing cache had renderable content, treat it as a partial
+      // failure rather than wiping a working tree off the screen.
+      // The founder sees the ↻ retry next to the topmost Earth and
+      // can re-trigger manually. This is the "if clustering fails,
+      // fall back to last cached" rule from the spec, extended to
+      // cover the case where the model couldn't produce ≥2 Seeds
+      // for any Earth this round (a real possibility on small
+      // single-writing Earths given the 1-writing floor).
+      const respHasContent = renderableEarths(data).length > 0;
+      const cacheHasContent = renderableEarths(cached).length > 0;
+      try {
+        // Lightweight DevTools breadcrumb so the founder (and we, on
+        // the next pass) can see what came back without enabling
+        // verbose logging.
+        console.info("[tinker] /api/cluster ←", {
+          earths: data.earths.length,
+          renderable: respHasContent,
+          keptCache: !respHasContent && cacheHasContent,
+        });
+      } catch { /* ignore */ }
+
+      if (!respHasContent && cacheHasContent) {
+        lastFailed = true;
+      } else {
+        cached = data;
+        saveCache(cached);
+        lastFailed = false;
+      }
+    } catch (err) {
+      try { console.warn("[tinker] /api/cluster failed:", err && err.message); } catch { /* ignore */ }
       lastFailed = true;
     } finally {
       inFlight = false;
