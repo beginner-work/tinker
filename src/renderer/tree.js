@@ -101,28 +101,42 @@
 
   // Build a quick lookup so render() can resolve writing titles for
   // multi-vector inline lists without re-scanning every render.
+  //
+  // Visible-string discipline: every title that lands in this map must
+  // be verbatim founder-authored text — either a stitched title (which
+  // the writing engine picks as a contiguous phrase the founder typed)
+  // or the first sentence of their first answer / body. A writing with
+  // no recoverable founder text is omitted; the inline picker filters
+  // to valid index entries, so the row simply doesn't render.
   function indexWritings({ drafts, essays }) {
     const map = new Map();
     for (const d of drafts) {
       if (!d || !d.id) continue;
-      const title = (d.stitched && d.stitched.title) || (d.title && d.title !== "Untitled draft" ? d.title : null);
-      // Untitled-draft fallback: take the first sentence of the first
-      // answer so the row still says SOMETHING the founder wrote.
+      const stitched = (d.stitched && d.stitched.title && String(d.stitched.title).trim()) || "";
+      // d.title is "Untitled draft" by default — that string is dev-
+      // authored and must not be rendered; treat any non-default title
+      // as a founder-typed value (the writing engine sets it to the
+      // first-sentence of their first answer).
+      const typed = (d.title && d.title !== "Untitled draft") ? String(d.title).trim() : "";
       let fallback = "";
-      if (!title && Array.isArray(d.transcript) && d.transcript.length) {
+      if (!stitched && !typed && Array.isArray(d.transcript) && d.transcript.length) {
         const a = String(d.transcript[0].a || "").trim();
         fallback = a.split(/[.!?\n]/)[0].slice(0, 60).trim();
       }
-      map.set(d.id, { id: d.id, type: "draft", title: title || fallback || "Untitled draft" });
+      const title = stitched || typed || fallback;
+      if (!title) continue;
+      map.set(d.id, { id: d.id, type: "draft", title });
     }
     for (const e of essays) {
       if (!e || !e.id) continue;
-      // Status posts have no title — fall back to the first line of body.
-      let title = e.title;
-      if (!title && e.body) {
-        title = String(e.body).trim().split("\n")[0].slice(0, 60);
+      const explicit = e.title && String(e.title).trim();
+      let fallback = "";
+      if (!explicit && e.body) {
+        fallback = String(e.body).trim().split("\n")[0].slice(0, 60).trim();
       }
-      map.set(e.id, { id: e.id, type: "essay", title: title || "Untitled" });
+      const title = explicit || fallback;
+      if (!title) continue;
+      map.set(e.id, { id: e.id, type: "essay", title });
     }
     return map;
   }
