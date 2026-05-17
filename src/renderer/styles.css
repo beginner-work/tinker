@@ -296,6 +296,14 @@ html.on-web .sidebar__top {
   background: rgba(0, 0, 0, 0.04);
   color: var(--color-foreground);
 }
+/* Standalone retry used when the cluster failed AND there's no
+   cached tree to anchor a per-row glyph on. Lives directly inside
+   .sidebar__tree as the only row. */
+.sidebar__tree-retry-standalone {
+  justify-content: center;
+  color: var(--color-muted);
+  font-size: 16px;
+}
 
 /* While a refresh is in flight, fade the existing tree slightly so
    the founder sees something is happening — but never a spinner,

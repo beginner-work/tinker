@@ -29,18 +29,21 @@
   const STORAGE_ESSAYS = "tinker.essays.v1";
   const STORAGE_TAXONOMY = "tinker.taxonomy.v1";
 
-  // One-time migration from the previous "seed" naming (which itself
-  // came from "location" in the prior generation). Runs before
-  // anything else reads from storage. Touches: earth storage keys,
-  // draft.seed → draft.earth, essay.seed → essay.earth, and the
-  // taxonomy's inner `seeds` map → `earths`. Gated on a new flag so
-  // it only fires once per browser. Mirrors the previous
-  // location → seed migration pattern.
-  (function migrateFromSeeds() {
-    const FLAG = "tinker.earths.migration.v1";
+  // Idempotent migration from the previous "seed" naming. Touches:
+  // earth storage keys, draft.seed → draft.earth, essay.seed →
+  // essay.earth, and the taxonomy's inner `seeds` map → `earths`.
+  //
+  // Runs at IIFE start AND after every `tinker:hydrated` event,
+  // because sync.js's hydrate may overwrite localStorage with old-
+  // format server data — the migration has to run again on the
+  // freshly-applied blob to keep the renderer's `.earth` reads
+  // consistent. Each step is idempotent (no-op when there's
+  // nothing to rename), so re-running is cheap and safe. The
+  // legacy `tinker.earths.migration.v1` flag is no longer set
+  // since the migration is now self-detecting via field presence.
+  function runMigration() {
+    const out = { drafts: false, essays: false, taxonomy: false };
     try {
-      if (localStorage.getItem(FLAG)) return;
-
       const moveKey = (oldKey, newKey) => {
         const v = localStorage.getItem(oldKey);
         if (v === null) return;
@@ -55,9 +58,9 @@
       const renameField = (storageKey) => {
         try {
           const raw = localStorage.getItem(storageKey);
-          if (!raw) return;
+          if (!raw) return false;
           const arr = JSON.parse(raw);
-          if (!Array.isArray(arr)) return;
+          if (!Array.isArray(arr)) return false;
           let changed = false;
           for (const item of arr) {
             if (item && typeof item === "object" && "seed" in item) {
@@ -67,10 +70,11 @@
             }
           }
           if (changed) localStorage.setItem(storageKey, JSON.stringify(arr));
-        } catch { /* ignore */ }
+          return changed;
+        } catch { return false; }
       };
-      renameField(STORAGE_DRAFTS);
-      renameField(STORAGE_ESSAYS);
+      out.drafts = renameField(STORAGE_DRAFTS);
+      out.essays = renameField(STORAGE_ESSAYS);
 
       try {
         const raw = localStorage.getItem(STORAGE_TAXONOMY);
@@ -80,13 +84,31 @@
             parsed.earths = parsed.seeds;
             delete parsed.seeds;
             localStorage.setItem(STORAGE_TAXONOMY, JSON.stringify(parsed));
+            out.taxonomy = true;
           }
         }
       } catch { /* ignore */ }
-
-      localStorage.setItem(FLAG, "1");
     } catch { /* ignore */ }
-  })();
+    return out;
+  }
+
+  // Push migrated blobs back so the server gets the renamed field
+  // and the next hydrate doesn't overwrite us with old-format data.
+  function pushMigrated(changed) {
+    if (!window.tinkerSync) return;
+    if (changed.drafts && typeof window.tinkerSync.pushDrafts === "function") {
+      window.tinkerSync.pushDrafts();
+    }
+    if (changed.essays && typeof window.tinkerSync.pushEssays === "function") {
+      window.tinkerSync.pushEssays();
+    }
+    if (changed.taxonomy && typeof window.tinkerSync.pushTaxonomy === "function") {
+      window.tinkerSync.pushTaxonomy();
+    }
+  }
+
+  // Initial run — covers cold-start, before any hydration happens.
+  pushMigrated(runMigration());
 
   function load() {
     try {
@@ -265,9 +287,13 @@
     window.tinkerTransactions.subscribe(() => notify());
   }
 
-  // Server hydration may have overwritten storage after this module's
-  // initial load. Re-read and notify subscribers.
+  // Server hydration may have overwritten storage with old-format
+  // (`.seed`-tagged) data after this module's initial load. Re-run
+  // the rename, push the migrated blobs back, then notify
+  // subscribers so the tree + downstream consumers see the
+  // freshly-named fields.
   window.addEventListener("tinker:hydrated", () => {
+    pushMigrated(runMigration());
     explicit = load();
     hidden = loadHidden();
     notify();

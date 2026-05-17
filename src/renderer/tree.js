@@ -116,6 +116,21 @@
     );
 
     if (!hasContent) {
+      // Empty content. If a clustering refresh just failed AND there
+      // are writings to cluster, surface a quiet retry so the
+      // founder isn't stranded — the spec calls for `↻` on the
+      // topmost Earth on failure, but with no Earths to anchor to
+      // we render the same glyph in the empty-state nav.
+      if (lastRefreshFailed && hasWritings()) {
+        mountEl.hidden = false;
+        mountEl.innerHTML =
+          `<button type="button" class="sidebar__account-item sidebar__tree-retry-standalone" data-retry>` +
+          `<span class="sidebar__tree-label">&#x21bb;</span>` +
+          `</button>`;
+        const btn = mountEl.querySelector("[data-retry]");
+        if (btn) btn.addEventListener("click", () => refresh());
+        return;
+      }
       mountEl.innerHTML = "";
       mountEl.hidden = true;
       return;
@@ -378,9 +393,13 @@
   async function refresh() {
     if (refreshing) return;
     const t = token();
-    if (!t) return;
+    if (!t) {
+      try { console.warn("[tinker.tree] refresh skipped — no auth token"); } catch { /* ignore */ }
+      return;
+    }
     const writings = gatherWritings();
     if (writings.length === 0) {
+      try { console.warn("[tinker.tree] refresh skipped — no taggable writings (need at least one draft/essay with an `.earth` field)"); } catch { /* ignore */ }
       // Nothing to cluster — clear any stale cache and render empty.
       try { localStorage.removeItem(STORAGE_TREE); } catch { /* ignore */ }
       if (window.tinkerSync && typeof window.tinkerSync.pushTree === "function") {
@@ -393,6 +412,7 @@
     refreshing = true;
     render(mountEl);
     try {
+      try { console.log(`[tinker.tree] clustering ${writings.length} writing(s)`); } catch { /* ignore */ }
       const res = await fetch("/api/cluster", {
         method: "POST",
         headers: {
@@ -402,16 +422,20 @@
         body: JSON.stringify({ writings, minWritingsPerEarth: MIN_WRITINGS_PER_EARTH }),
       });
       if (!res.ok) {
-        throw new Error(`Cluster API returned ${res.status}`);
+        const text = await res.text().catch(() => "");
+        throw new Error(`Cluster API returned ${res.status}: ${text.slice(0, 200)}`);
       }
       const data = await res.json();
       if (data && Array.isArray(data.earths)) {
+        try { console.log(`[tinker.tree] received ${data.earths.length} earth(s)`); } catch { /* ignore */ }
         saveTree(data);
         lastRefreshFailed = false;
+      } else {
+        try { console.warn("[tinker.tree] cluster response missing `earths` array:", data); } catch { /* ignore */ }
       }
     } catch (err) {
       lastRefreshFailed = true;
-      try { console.error("[tinker] tree refresh failed:", err); } catch { /* ignore */ }
+      try { console.error("[tinker.tree] refresh failed:", err); } catch { /* ignore */ }
     } finally {
       refreshing = false;
       render(mountEl);
