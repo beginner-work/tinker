@@ -9,6 +9,7 @@
     "web": "node src/web/server.js",
     "lint": "eslint src/",
     "test": "node --test tests/*.test.js",
+    "debug:preview": "node scripts/browserbase-debug.js",
     "eval:product-spec": "node .claude/skills/product-spec/evals/run-evals.mjs",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",

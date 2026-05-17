@@ -65,6 +65,8 @@ Required Vercel env vars:
 - `STYTCH_SECRET`
 - `ANTHROPIC_API_KEY`
 - `DATABASE_URL`
+- `BROWSERBASE_API_KEY` — used by `scripts/browserbase-debug.js`
+- `BROWSERBASE_PROJECT_ID` — used by `scripts/browserbase-debug.js`
 
 Set the same values for Production and Preview so preview deploys see the
 same Stytch users and the same Postgres rows as production. (Preview used
@@ -74,6 +76,41 @@ like a second URL pointing at production.)
 
 Sign out by clearing `tinker_jwt` (`window.tinkerAuth.signOut()` from the
 inspector, or `localStorage.removeItem("tinker_jwt")`).
+
+## Debugging preview deploys
+
+When a Vercel preview misbehaves in a way you can't reproduce locally —
+auth flow only breaks behind the edge network, a third-party widget only
+loads from a non-localhost origin, etc. — there are two ways to point a
+real Chromium at the preview through [Browserbase](https://browserbase.com).
+
+### From Claude Code (recommended)
+
+`.mcp.json` points at Browserbase's hosted MCP server. The next time
+you open this repo in Claude Code you'll be asked to approve the
+project-scoped MCP once — accept it and Claude gets `navigate`,
+`act`, `observe`, and `extract` tools wired up to a cloud Chromium.
+Ask Claude something like "open the latest preview and tell me what's
+printed in the console" and it'll spin up a session and look for you.
+
+The hosted server handles its own LLM costs (Browserbase pays for
+Gemini under the hood); all you need is `BROWSERBASE_API_KEY` set in
+your Claude Code environment. The key is passed as a URL query
+param — no extra model key, no Anthropic key, no Gemini key.
+
+### From your terminal
+
+For human-driven poking around — when you want the Network tab in your
+own browser pointed at a live preview — use the CLI script. It prints a
+live DevTools URL you open locally:
+
+```bash
+npx vercel env pull            # pulls BROWSERBASE_API_KEY + BROWSERBASE_PROJECT_ID
+npm run debug:preview -- --url https://tinker-abc.vercel.app
+```
+
+The session auto-expires after 10 minutes of inactivity. Pass
+`--timeout 3600` for a longer session, or `--help` to see all flags.
 
 ## Search
 
