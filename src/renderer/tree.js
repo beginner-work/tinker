@@ -59,7 +59,6 @@
   let expandedSeeds = new Set();        // ids
   let expandedVectors = new Set();      // ids (growth vector ids whose multi-essay list is open)
   let activeRow = null;                 // { kind, id }
-  let firstPaintDone = false;
   let mock = null;                      // optional mock blob, see installMock()
 
   function loadCachedTree() {
@@ -111,27 +110,26 @@
   // ── Boot ───────────────────────────────────────────────────────────
   function boot() {
     render();
-    // On hydrate, re-read from storage (sync.js may have overwritten
-    // tinker.tree.v1) and re-render.
+    // On hydrate, re-read storage (sync.js may have overwritten the
+    // cached tree) and kick a background refresh. inFlight inside
+    // refresh() coalesces concurrent calls so a hydrate-during-boot
+    // doesn't double-fire the cluster request.
     window.addEventListener("tinker:hydrated", () => {
       tree = loadCachedTree();
       render();
-      // After cache render on first paint, kick a background refresh
-      // so the tree reflects whatever the founder has written since
-      // the cache was last saved. Only on signed-in surfaces.
-      if (!firstPaintDone) {
-        firstPaintDone = true;
-        refresh().catch(() => { /* surface via tiny retry affordance */ });
-      }
-    });
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => {
-        firstPaintDone = true;
-        refresh().catch(() => { /* surface via tiny retry affordance */ });
-      }, { once: true });
-    } else {
-      firstPaintDone = true;
       refresh().catch(() => { /* surface via tiny retry affordance */ });
+    });
+    // Initial paint: render from cache, then kick a refresh in the
+    // background. On a fresh load without a JWT yet, refresh() exits
+    // early; the hydrate handler above will pick it back up once auth
+    // completes.
+    const initialRefresh = () => {
+      refresh().catch(() => { /* surface via tiny retry affordance */ });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initialRefresh, { once: true });
+    } else {
+      initialRefresh();
     }
   }
 
@@ -217,10 +215,18 @@
         ? window.tinkerEarths.isHidden(name)
         : false;
 
+    // Accept the legacy `seed` field as a fallback. The seed→earth
+    // migration in earths.js handles this on initial load and on
+    // hydrate, but a race during boot (server data arrives mid-render)
+    // can briefly leave items on the old shape — better to cluster
+    // them than to drop them on the floor.
+    const earthOf = (item) => (item && (item.earth || item.seed)) || null;
+
     const out = [];
     for (const d of drafts) {
-      if (!d || !d.earth) continue;
-      if (isHidden(d.earth)) continue;
+      const earth = earthOf(d);
+      if (!d || !earth) continue;
+      if (isHidden(earth)) continue;
       const body = extractDraftBody(d);
       const title = (d.stitched && d.stitched.title) ||
         (d.title && d.title !== "Untitled draft" ? d.title : "");
@@ -228,21 +234,22 @@
       out.push({
         id: d.id,
         kind: "draft",
-        earth: String(d.earth),
+        earth: String(earth),
         title: String(title || ""),
         body,
         createdAt: d.updatedAt || d.createdAt || 0,
       });
     }
     for (const e of essays) {
-      if (!e || !e.earth) continue;
-      if (isHidden(e.earth)) continue;
+      const earth = earthOf(e);
+      if (!e || !earth) continue;
+      if (isHidden(earth)) continue;
       const body = String(e.body || "");
       if (!body) continue;
       out.push({
         id: e.id,
         kind: "essay",
-        earth: String(e.earth),
+        earth: String(earth),
         title: String(e.title || ""),
         body,
         createdAt: e.createdAt || 0,

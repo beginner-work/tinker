@@ -29,17 +29,83 @@
   const STORAGE_ESSAYS = "tinker.essays.v1";
   const STORAGE_TAXONOMY = "tinker.taxonomy.v1";
 
-  // One-time migration from the previous "seed" naming. Runs before
-  // anything else reads from storage. Touches: seed storage keys → earth
-  // storage keys, draft.seed → draft.earth, essay.seed → essay.earth,
-  // and the taxonomy's inner `seeds` map → `earths`. Gated on a flag so
-  // it only fires once per browser. Mirrors the prior `location → seed`
-  // migration kept right below for reference.
-  (function migrateFromSeeds() {
+  // Idempotent field rename on whichever drafts/essays array is at
+  // `storageKey`. Rewrites any item with `seed` (legacy) or `location`
+  // (pre-legacy) onto `earth`. Safe to call repeatedly — no-op when
+  // every item is already on `earth`. Used by both the one-shot
+  // migration below and the `tinker:hydrated` listener (server-pulled
+  // data can still carry the legacy field name and would otherwise
+  // silently un-migrate the local copy).
+  function renameWritingField(storageKey) {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return false;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return false;
+      let changed = false;
+      for (const item of arr) {
+        if (!item || typeof item !== "object") continue;
+        if ("earth" in item) {
+          if ("seed" in item) { delete item.seed; changed = true; }
+          if ("location" in item) { delete item.location; changed = true; }
+          continue;
+        }
+        if ("seed" in item) {
+          item.earth = item.seed;
+          delete item.seed;
+          if ("location" in item) delete item.location;
+          changed = true;
+        } else if ("location" in item) {
+          item.earth = item.location;
+          delete item.location;
+          changed = true;
+        }
+      }
+      if (changed) localStorage.setItem(storageKey, JSON.stringify(arr));
+      return changed;
+    } catch { return false; }
+  }
+
+  // Idempotent rename for the taxonomy blob's inner `seeds` map (or,
+  // pre-legacy, `locations`) → `earths`. Same one-shot-vs-hydrate
+  // story as renameWritingField.
+  function renameTaxonomyMap() {
+    try {
+      const raw = localStorage.getItem(STORAGE_TAXONOMY);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return false;
+      let changed = false;
+      if (parsed.seeds && !parsed.earths) {
+        parsed.earths = parsed.seeds;
+        delete parsed.seeds;
+        changed = true;
+      } else if (parsed.seeds && parsed.earths) {
+        delete parsed.seeds;
+        changed = true;
+      }
+      if (parsed.locations && !parsed.earths) {
+        parsed.earths = parsed.locations;
+        delete parsed.locations;
+        changed = true;
+      } else if (parsed.locations && parsed.earths) {
+        delete parsed.locations;
+        changed = true;
+      }
+      if (changed) localStorage.setItem(STORAGE_TAXONOMY, JSON.stringify(parsed));
+      return changed;
+    } catch { return false; }
+  }
+
+  // One-shot KEY move from the previous "seed" naming. The field
+  // rename inside drafts/essays/taxonomy is handled separately —
+  // it's idempotent and re-runs on every hydrate, because the server
+  // can still hand back legacy-shaped blobs that would otherwise
+  // silently un-migrate the local copy.
+  (function migrateKeysFromSeeds() {
     const FLAG = "tinker.earths.migration.v1";
     try {
       if (localStorage.getItem(FLAG)) return;
-
       const moveKey = (oldKey, newKey) => {
         const v = localStorage.getItem(oldKey);
         if (v === null) return;
@@ -50,52 +116,18 @@
       };
       moveKey("tinker.seeds.v1", STORAGE_KEY);
       moveKey("tinker.seeds.hidden.v1", STORAGE_HIDDEN);
-
-      const renameField = (storageKey) => {
-        try {
-          const raw = localStorage.getItem(storageKey);
-          if (!raw) return;
-          const arr = JSON.parse(raw);
-          if (!Array.isArray(arr)) return;
-          let changed = false;
-          for (const item of arr) {
-            if (item && typeof item === "object" && "seed" in item) {
-              if (!("earth" in item)) item.earth = item.seed;
-              delete item.seed;
-              changed = true;
-            }
-          }
-          if (changed) localStorage.setItem(storageKey, JSON.stringify(arr));
-        } catch { /* ignore */ }
-      };
-      renameField(STORAGE_DRAFTS);
-      renameField(STORAGE_ESSAYS);
-
-      try {
-        const raw = localStorage.getItem(STORAGE_TAXONOMY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === "object" && parsed.seeds && !parsed.earths) {
-            parsed.earths = parsed.seeds;
-            delete parsed.seeds;
-            localStorage.setItem(STORAGE_TAXONOMY, JSON.stringify(parsed));
-          }
-        }
-      } catch { /* ignore */ }
-
       localStorage.setItem(FLAG, "1");
     } catch { /* ignore */ }
   })();
 
-  // Previous-generation migration kept in place. v0.100 builds in the
-  // wild already ran this; the gate makes it a no-op for everyone else.
-  // Adapted: writes the renamed field straight to `earth` to skip the
-  // freed `seed` field name entirely.
-  (function migrateFromLocations() {
+  // Previous-generation key move (location → ...). v0.100 builds in
+  // the wild already ran something equivalent; the gate makes it a
+  // no-op for everyone else. Lands the renamed key on STORAGE_KEY
+  // directly to skip the freed `seeds` slot entirely.
+  (function migrateKeysFromLocations() {
     const FLAG = "tinker.seeds.migration.v1";
     try {
       if (localStorage.getItem(FLAG)) return;
-
       const moveKey = (oldKey, newKey) => {
         const v = localStorage.getItem(oldKey);
         if (v === null) return;
@@ -106,42 +138,16 @@
       };
       moveKey("tinker.locations.v1", STORAGE_KEY);
       moveKey("tinker.locations.hidden.v1", STORAGE_HIDDEN);
-
-      const renameField = (storageKey) => {
-        try {
-          const raw = localStorage.getItem(storageKey);
-          if (!raw) return;
-          const arr = JSON.parse(raw);
-          if (!Array.isArray(arr)) return;
-          let changed = false;
-          for (const item of arr) {
-            if (item && typeof item === "object" && "location" in item) {
-              if (!("earth" in item)) item.earth = item.location;
-              delete item.location;
-              changed = true;
-            }
-          }
-          if (changed) localStorage.setItem(storageKey, JSON.stringify(arr));
-        } catch { /* ignore */ }
-      };
-      renameField(STORAGE_DRAFTS);
-      renameField(STORAGE_ESSAYS);
-
-      try {
-        const raw = localStorage.getItem(STORAGE_TAXONOMY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === "object" && parsed.locations && !parsed.earths) {
-            parsed.earths = parsed.locations;
-            delete parsed.locations;
-            localStorage.setItem(STORAGE_TAXONOMY, JSON.stringify(parsed));
-          }
-        }
-      } catch { /* ignore */ }
-
       localStorage.setItem(FLAG, "1");
     } catch { /* ignore */ }
   })();
+
+  // Field rename on initial load. Catches the migrated-from-seed
+  // case (local drafts/essays/taxonomy still on the old shape) before
+  // anything else reads them.
+  renameWritingField(STORAGE_DRAFTS);
+  renameWritingField(STORAGE_ESSAYS);
+  renameTaxonomyMap();
 
   function load() {
     try {
@@ -380,10 +386,15 @@
     window.tinkerTransactions.subscribe(() => notify());
   }
 
-  // Server hydration may have overwritten the earth storage keys after
-  // this module's initial load. Re-read, then notify subscribers (the
-  // sidebar) to re-render.
+  // Server hydration may have overwritten the earth storage keys —
+  // AND the drafts/essays/taxonomy blobs — with copies still on the
+  // legacy `seed`/`location` field shape (the server hasn't been
+  // migrated row-by-row). Re-run the idempotent renames before any
+  // consumer reads, then notify subscribers to re-render.
   window.addEventListener("tinker:hydrated", () => {
+    renameWritingField(STORAGE_DRAFTS);
+    renameWritingField(STORAGE_ESSAYS);
+    renameTaxonomyMap();
     explicit = load();
     hidden = loadHidden();
     notify();
