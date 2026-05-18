@@ -258,7 +258,7 @@ Pre-seed · $300k – $950k
 
 ---
 
-# The Problem
+# A Persona
 
 > *John is 31. He's a dad. He goes to school full time. He's a recovering AI engineer, and he's quite progressive when it comes to considering men's mental health.*
 
