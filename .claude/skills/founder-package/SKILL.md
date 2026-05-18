@@ -63,6 +63,63 @@ This means the model's job during Phase 3 is **selection and arrangement**, not 
 
 Why this rule exists: investors who would back this founder are backing the founder, not a deck-shaped translation of the founder. Upward translation makes every deck sound the same. The verbatim rule keeps the deck specific, defensible, and unmistakably authored.
 
+## Phase 0A — Gap detection (run first if `pitch-deck.md` exists)
+
+Before asking anything, **Read** `pitch-deck.md` from the working directory. If it doesn't exist, skip this phase and run the full Foundation + Narrowing sequence.
+
+If it does exist, inventory the 13 slides. A slide is **filled** only if:
+
+- it has at least one verbatim founder line in its body (not just a slide title), AND
+- the content matches the slide's purpose (e.g. slide 9 is actually about competitors, not just the word *"meta"*), AND
+- the content is not a placeholder (`[NEEDS QUOTE]`, `[NEEDS NUMBER]`, `[ASK FOUNDER]`, `TBD`, a single stand-in word).
+
+Anything else is a **gap**. Build a list in your head, keyed by slide number. Common shapes:
+
+- **Empty slide** — title only, no body. The whole slide is a gap.
+- **Thin slide** — one stray token like *"meta"* or a half-sentence. Treat as empty.
+- **Placeholder slide** — `[NEEDS NUMBER: …]` or similar. The gap is the specific missing input, not the whole slide.
+
+**Position each question to the gap it fills.** For every AskUserQuestion call in Phase 1A and Phase 2A, do two things:
+
+1. Set the `header` chip to the slide name in compact form: *"Slide 9 — Comp"*, *"Slide 12 — Ask"*, *"Slide 13 — Line"*, etc. (12-char max — use abbreviations.)
+2. Open the `question` text by naming the gap in the founder's deck before asking. Example:
+   > *"Slide 9 in your deck just says 'meta' right now. Let's fill it — name two or three brands today that feel like the OPPOSITE of yours."*
+
+Or for an empty slide:
+   > *"Slide 10 (traction) is empty. What's already real? Anything — a website, a prototype, a customer who said yes, an email list."*
+
+This gives the founder context: every question they answer plugs a visible hole, not a generic interview prompt.
+
+**Skip the questions whose slides are already filled.** If slide 6 (How it makes money) already has a verbatim founder line, do not ask Foundation Q4's business sub-question for pricing — that gap is closed. Only ask the questions whose slides are still gaps.
+
+**Reflect the gap inventory back to the founder** in plain chat at the start, so they confirm what we're filling:
+
+> *"OK, I read your deck. What's filled: slides 1, 2, 3, 6, 7. What's a gap: slide 4 (who it's for), slide 5 (how it works), slide 9 (just says 'meta' — let's fix that), slide 10 (traction), slide 11 (team), slide 13 (the line). I'll ask you about each, in order. Sound right?"*
+
+After confirmation, ask the gap-targeted questions one at a time. Skip Foundation Q1–Q5 entirely if all the slides they map to are already filled.
+
+If `pitch-deck.md` doesn't exist, ignore this phase and run Phase 1A from scratch.
+
+### Slide → question map (for gap detection)
+
+| Slide | Filled by which question(s) |
+|---|---|
+| 1 — Tagline / cover | Foundation Q3 + Brand spirit branch "one-sentence customer description" |
+| 2 — The problem | Mission branch "who is being harmed" + the wound from Foundation Q2 |
+| 3 — Why now | Mission branch "what changed in the world" |
+| 4 — Who it's for | Mission branch "one specific person" |
+| 5 — How it works | Foundation Q4 + Business branch sub-question |
+| 6 — How it makes money | Business branch sub-question (pricing / model) |
+| 7 — Market size | Founder-supplied figures only; arithmetic from inputs |
+| 8 — Why us | Conviction branch "what would you do that competitors won't" |
+| 9 — Competition | Brand spirit branch "opposite brands" |
+| 10 — Traction | Always-ask T1 |
+| 11 — Team | Always-ask T2 |
+| 12 — The ask | Foundation Q1 paycheck + Always-ask T3 |
+| 13 — Line in the sand | Conviction branch "what's your line" |
+
+Use this table to decide which questions to ask. If slide N is a gap, ask the question(s) in the right column. If slide N is filled, skip them.
+
 ## Phase 1A — Foundation (five questions via AskUserQuestion)
 
 Ask each of these one at a time through the loader, in order. The options are common archetypes — the founder is encouraged to use **Other** if their real answer doesn't fit. Capture the founder's exact words for every answer; those exact words are what end up on slides.

@@ -11,9 +11,56 @@ A content harness for building a VC-grade pitch deck through conversation. The u
 
 This is an interview, not a form. Ask questions one or two at a time, in plain language. Reflect each answer back in your own words before moving on — the user should feel heard, and you should confirm you understood. **Never** dump all the questions at once. **Never** lecture about business concepts; translate silently.
 
-Run three phases in order: **Foundation**, **Narrowing**, **Synthesis**. Don't move to the next phase until the current one is done.
+Run three phases in order: **Foundation**, **Narrowing**, **Synthesis**. Don't move to the next phase until the current one is done. If `pitch-deck.md` already exists in the working directory, run **Phase 0 — Gap detection** first and use it to skip questions whose slides are already filled.
 
 When you have multiple-choice or short-answer prompts, prefer the structured question tool. For open-ended reflections, just ask in conversation.
+
+---
+
+## Phase 0 — Gap detection (run first if `pitch-deck.md` exists)
+
+If a `pitch-deck.md` already exists in the working directory, **Read** it before asking anything. Inventory the 13 slides and classify each:
+
+- **Filled** — has at least one real founder line in the body, content matches the slide's purpose, no placeholder tokens.
+- **Empty** — title only, no body.
+- **Thin** — a single stand-in token (*"meta"*, *"TBD"*), a half-sentence, or content that doesn't address the slide's purpose. Treat as empty.
+- **Placeholder** — `[NEEDS NUMBER: …]`, `[NEEDS QUOTE: …]`, or `[ASK FOUNDER: …]`. The gap is the specific missing input, not the whole slide.
+
+**Reflect the gap inventory back to the user** in plain chat before any questions:
+
+> *"OK, I read your deck. What's filled: slides 1, 2, 3, 6, 7. What's a gap: slide 4 (who it's for), slide 5 (how it works), slide 9 (just says 'meta' right now), slide 10 (traction), slide 11 (team), slide 13 (the line). I'll ask you about each, in order. Sound right?"*
+
+Get a confirm or correction, then ask only the questions whose slides are still gaps.
+
+**Position each question to the gap.** When you ask a question through the structured question tool, open the prompt by naming the slide in the user's deck that the answer fills:
+
+> *"Slide 9 in your deck just says 'meta' right now. Let's fill it — name two or three brands today that feel like the OPPOSITE of yours."*
+
+> *"Slide 10 (traction) is empty. What's already real? Anything — a website, a prototype, a customer who said yes, an email list."*
+
+This gives the user context: every answer plugs a visible hole, not a generic interview prompt.
+
+If `pitch-deck.md` doesn't exist, skip this phase and run Phase 1 from scratch — every slide is a gap by default.
+
+### Slide → question map (for gap detection)
+
+| Slide | Filled by which question(s) |
+|---|---|
+| 1 — Tagline / cover | Foundation Q3 + Brand-spirit branch "one-sentence customer description" |
+| 2 — The problem | Mission branch "who is being harmed" + the wound from Foundation Q2 |
+| 3 — Why now | Mission branch "what changed in the world" |
+| 4 — Who it's for | Mission branch "one specific person" |
+| 5 — How it works | Foundation Q4 + Business branch sub-question |
+| 6 — How it makes money | Business branch sub-question (pricing / model) |
+| 7 — Market size | User-supplied figures only; arithmetic from inputs |
+| 8 — Why us | Conviction branch "what would you do that competitors won't" |
+| 9 — Competition | Brand-spirit branch "opposite brands" |
+| 10 — Traction | Always-ask "what's already real" |
+| 11 — Team | Always-ask "who's helping you" |
+| 12 — The ask | Foundation Q1 paycheck + Always-ask "how much money do you need" |
+| 13 — Line in the sand | Conviction branch "what's your line" |
+
+If slide N is a gap, ask the question(s) in the right column. If slide N is filled, skip them.
 
 ---
 
