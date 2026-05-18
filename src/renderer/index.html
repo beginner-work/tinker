@@ -34,14 +34,16 @@
          user who signs in on iOS Safari stays signed in after they
          Add to Home Screen. Must run before auth.js. -->
     <script src="./pwa-session.js" defer></script>
-    <!-- Bridges the four client-owned blobs to /api/user-data/*. Runs
-         before seeds.js/heatmap.js so its hydrate() can fire as soon
-         as a token exists; consumer modules subscribe to the
+    <!-- Bridges the client-owned blobs (essays, drafts, seeds,
+         taxonomy, tree) to /api/user-data/*. Runs before
+         seeds.js/heatmap.js/sidebar-tree.js so its hydrate() can fire
+         as soon as a token exists; consumer modules subscribe to the
          tinker:hydrated event to re-render from refreshed storage. -->
     <script src="./sync.js" defer></script>
     <script src="./transactions.js" defer></script>
     <script src="./seeds.js" defer></script>
     <script src="./heatmap.js" defer></script>
+    <script src="./sidebar-tree.js" defer></script>
   </head>
   <body>
     <svg class="liquid-glass-defs" width="0" height="0" aria-hidden="true" focusable="false">
@@ -61,7 +63,7 @@
     </button>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
-    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Seeds">
+    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar">
       <header class="sidebar__top">
         <button id="nav-home" class="sidebar__brand" type="button" title="Pick a place to start writing">
           <svg data-rainbow-logo viewBox="0 0 200 200" width="22" height="22" aria-hidden="true" fill="none">
@@ -78,7 +80,14 @@
         </button>
       </header>
 
-      <div id="home-list" class="home-list" aria-live="polite"></div>
+      <!-- The v0.103 sidebar tree: the seven pitch-deck slide titles
+           as the top tier, verbatim phrases from the founder's own
+           writings as the inner rows. The <nav> is hidden whenever
+           the tree has no resolvable phrases — cold-start state
+           collapses to brand + Account only. -->
+      <nav class="sidebar__tree" aria-label="Pitch deck" hidden>
+        <ul class="sidebar__tree-list"></ul>
+      </nav>
 
       <nav class="sidebar__account" aria-label="Account">
         <h2 class="sidebar__account-head">Account</h2>

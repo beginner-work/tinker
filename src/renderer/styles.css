@@ -184,6 +184,79 @@ html.on-web .sidebar__top {
 }
 .sidebar__account-flash.is-visible { opacity: 1; }
 
+/* ── Sidebar pitch-deck tree (v0.103) ─────────────────────────────
+ *
+ * Mirrors pitch-deck.md inside the sidebar. The top tier rows hold one
+ * of the seven slide titles; the inner rows hold verbatim phrases
+ * lifted from the founder's own writings. Both reuse
+ * `.sidebar__account-item` for sizing/hover/spacing so the surface is
+ * visually continuous with the Account block below. The nav is hidden
+ * (via the [hidden] attribute) on cold-start — no placeholder, no CTA.
+ */
+
+.sidebar__tree {
+  padding: 8px 8px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.sidebar__tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar__deck-heading-row { display: contents; }
+.sidebar__deck-heading {
+  /* Top-tier row carries the deck-slide title — a fixed literal from
+   * the renderer's const. The label sits flush with the Account
+   * block's items to read as continuous chrome. */
+  font-weight: 600;
+}
+.sidebar__deck-heading[aria-expanded="false"] .sidebar__account-label {
+  color: var(--color-muted);
+}
+.sidebar__deck-heading[data-active] {
+  background: var(--color-hover);
+}
+.sidebar__phrase-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar__phrase .sidebar__account-label {
+  font-size: 13px;
+  color: var(--color-muted);
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sidebar__phrase[data-active] {
+  background: var(--color-hover);
+}
+.sidebar__phrase[data-active] .sidebar__account-label {
+  color: var(--color-foreground);
+}
+.sidebar__tree-retry {
+  margin-left: auto;
+  font-size: 14px;
+  color: var(--color-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+.sidebar__tree-retry:hover { background: var(--color-hover); color: var(--color-foreground); }
+
 /* ── Welcome (empty state on main when no draft/read is active) ──── */
 
 .stage > .welcome.feed[data-active] {
