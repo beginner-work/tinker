@@ -145,7 +145,7 @@ style: |
     line-height: 1;
   }
 
-  /* Closing — centered "Thank you" */
+  /* Closing — centered "Thank you" with beginner lockup + tinker first-product line */
   section.closing { justify-content: center; align-items: center; padding-top: 80px; }
   section.closing > h1 {
     font-size: 96px;
@@ -153,6 +153,34 @@ style: |
     margin: 0;
     color: #2d5a3d;
     line-height: 1;
+  }
+  section.closing .closing-lockup {
+    position: absolute;
+    top: 56px;
+    left: 112px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  section.closing .closing-lockup svg { width: 40px; height: 40px; }
+  section.closing .closing-lockup .wm {
+    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    letter-spacing: -0.03em;
+    color: #2d5a3d;
+    line-height: 1;
+  }
+  section.closing .first-product {
+    text-align: center;
+    margin: 28px 0 0;
+    font-size: 24px;
+    color: #6f6a65;
+  }
+  section.closing .first-product strong {
+    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    color: #2d2a26;
+    font-weight: 700;
   }
 
   /* Product slide — inline SVG screenshot */
@@ -216,7 +244,7 @@ Export to PDF: npx @marp-team/marp-cli@latest pitch-deck.md --pdf --html
 <div class="meta">
 
 Tyler Lindow · Founder & CEO of beginner<br>
-Pre-seed · $250k – $950k
+Pre-seed · $300k – $950k
 
 </div>
 
@@ -234,7 +262,7 @@ Pre-seed · $250k – $950k
 
 > *John is 31. He's a dad. He goes to school full time. He's a recovering AI engineer, and he's quite progressive when it comes to considering men's mental health.*
 
-> *John is seeking extreme wealth. He knows it's there. He just hasn't tapped it yet, and that's everything.*
+> *John is seeking wealth. He knows it's there. He just hasn't tapped it yet, and that's everything.*
 
 ---
 
@@ -270,9 +298,9 @@ Pre-seed · $250k – $950k
 
 # How We Make Money
 
-> *Word of mouth is the biggest distribution model. Free to start, $7 a month once they use it enough.*
+> *Free to start, $7 a month once they use it enough.*
 
-> *Various tiers of monthly subscriptions to get deeper into the writing tools.*
+> *Tiered monthly subscriptions to get deeper into the writing tools: $7, $35, $70 — and enterprise-level pricing beyond that.*
 
 ---
 
@@ -318,9 +346,9 @@ Pre-seed · $250k – $950k
 
 # The Vision
 
-> *Eventually, it's just the way that people do invest in each other. "Hey, are you on Tinker?"*
+> *It's a two-sided marketplace and a social network — for the types of craft and the types of founders that have traditionally not been funded.*
 
-> *A two-sided marketplace and a payment network at the same time, and a social network — for the types of craft and the types of founders that have traditionally not been funded.*
+> *A marketplace and a social network combined is a payment network — and that's where a lot of money can be made.*
 
 ---
 
@@ -336,19 +364,26 @@ Pre-seed · $250k – $950k
 
 # The Ask
 
-> *Pre-seed: $250k – $950k.*
+> *Pre-seed: $300k – $950k.*
 
-<p class="min-line"><strong>$250k</strong> — the minimum: founder's salary so I can keep building full-time.</p>
+<p class="min-line"><strong>$300k</strong> — the minimum: founder's salary so I can keep building full-time.</p>
 
-<p class="incr-lead">Each increment above that just speeds it all up:</p>
+<p class="incr-lead">Each increment above that just speeds it all up (least to most):</p>
 
-- Marketing
-- Travel costs
-- Product investments to speed up development
+- Travel and office costs
 - Cloud infrastructure costs
+- Marketing
+- AI agentic development costs
 
 ---
 
 <!-- _class: closing -->
 
+<div class="closing-lockup">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
+<span class="wm">beginner</span>
+</div>
+
 # Thank you
+
+<p class="first-product">Our first product: <strong>tinker</strong></p>
