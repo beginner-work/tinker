@@ -50,9 +50,9 @@
     "The Ask",
   ];
 
-  // Cap per heading. Spec: typically 2–5 in steady state. We keep up
-  // to five most-recent and drop older ones.
-  const MAX_PHRASES_PER_HEADING = 5;
+  // Cap per heading: at most two essay titles per deck slide. Older
+  // entries are dropped (by addedAt) when a third arrives.
+  const MAX_PHRASES_PER_HEADING = 2;
 
   // ── One-shot v0.103 recovery migration ───────────────────────────
   // v0.102's `seed → earth` rename never shipped to production, but
@@ -366,11 +366,17 @@
     const renderable = [];
     for (const heading of DECK_HEADINGS) {
       const recs = Array.isArray(memTree[heading]) ? memTree[heading] : [];
+      // Order by addedAt (newest first) so the cap retains the most
+      // recent essay titles when stored data exceeds the limit (e.g.
+      // a returning user whose v0.103 tree was written under the
+      // previous five-per-heading cap).
+      const ordered = recs.slice().sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
       const resolved = [];
-      for (const rec of recs) {
+      for (const rec of ordered) {
         const r = resolvePhraseText(rec);
         if (!r) continue;
         resolved.push({ rec, text: r.slice, kind: r.kind, writing: r.record });
+        if (resolved.length >= MAX_PHRASES_PER_HEADING) break;
       }
       if (resolved.length > 0) renderable.push({ heading, resolved });
     }

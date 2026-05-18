@@ -147,7 +147,7 @@ test("upsertPhrase moves a writing to a new heading when the classifier changes 
   assert.equal(snap["Why Now?"][0].writingId, "d_abc");
 });
 
-test("upsertPhrase trims to the five most-recent phrases per heading", () => {
+test("upsertPhrase trims to the two most-recent phrases per heading", () => {
   const drafts = Array.from({ length: 7 }, (_, i) => ({
     id: `d_${i}`,
     stitched: { body: `body ${i} the founder wrote something here today right now okay sure` },
@@ -164,13 +164,13 @@ test("upsertPhrase trims to the five most-recent phrases per heading", () => {
     });
   }
   const snap = api.snapshot();
-  assert.equal(snap["The Problem"].length, 5);
-  // Most-recent retained, oldest dropped.
+  assert.equal(snap["The Problem"].length, 2);
+  // Most-recent retained, older entries dropped.
   const ids = snap["The Problem"].map((p) => p.writingId);
   assert.ok(ids.includes("d_6"));
-  assert.ok(ids.includes("d_2"));
+  assert.ok(ids.includes("d_5"));
+  assert.ok(!ids.includes("d_4"));
   assert.ok(!ids.includes("d_0"));
-  assert.ok(!ids.includes("d_1"));
 });
 
 test("clearWritingFromTree removes the writing from every heading", () => {
