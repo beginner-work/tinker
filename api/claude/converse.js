@@ -45,7 +45,7 @@ async function callAnthropic({ system, messages, model, maxTokens }) {
     });
   }
   const body = {
-    model: model || "claude-sonnet-4-6",
+    model: model || "claude-opus-4-7",
     max_tokens: Math.min(Math.max(Number(maxTokens) || 2048, 1), 8192),
     messages,
   };

@@ -19,69 +19,90 @@ When you have multiple-choice or short-answer prompts, prefer the structured que
 
 ## Phase 0 — Gap detection (run first if `pitch-deck.md` exists)
 
-If a `pitch-deck.md` already exists in the working directory, **Read** it before asking anything. Inventory the 13 slides and classify each:
+If a `pitch-deck.md` already exists in the working directory, **Read** it before asking anything. The deck's **actual slide structure** is the source of truth — not the canonical 13-slide template. Extract the slide titles as they appear in the deck and work from that list.
 
-- **Filled** — has at least one real founder line in the body, content matches the slide's purpose, no placeholder tokens.
+Map each of the user's slide titles to the **pitch spine** below — these are the eight beats every pitch needs, regardless of how the deck is named or numbered:
+
+1. **The problem** — the wrongness in the world the user is fighting.
+2. **Why now** — what changed that makes this the right moment.
+3. **The product** — what the thing is and what it does in one frame.
+4. **How we make money** — pricing, the economics in one line.
+5. **Go to market** — how the first customers actually find this and start paying.
+6. **The moat** — what makes this hold up against competitors.
+7. **The competition** — who else is in the room and how the user is different.
+8. **The ask** — the number, the milestone, the terms.
+
+These eight beats — and only these — are the gap inventory. Cover slides, section dividers, *"Thank you"* closers, and the like are decoration; they don't enter the inventory.
+
+Classify each beat:
+
+- **Filled** — has at least one real user line in the body of the slide that addresses the beat, no placeholder tokens.
 - **Empty** — title only, no body.
-- **Thin** — a single stand-in token (*"meta"*, *"TBD"*), a half-sentence, or content that doesn't address the slide's purpose. Treat as empty.
-- **Placeholder** — `[NEEDS NUMBER: …]`, `[NEEDS QUOTE: …]`, or `[ASK FOUNDER: …]`. The gap is the specific missing input, not the whole slide.
+- **Thin** — a single stand-in token (*"meta"*, *"TBD"*), a half-sentence, or content that doesn't address the beat. Treat as empty.
+- **Placeholder** — `[NEEDS NUMBER: …]`, `[NEEDS QUOTE: …]`, or `[ASK FOUNDER: …]`. The gap is the specific missing input.
+- **Missing beat** — no slide for this beat in the deck at all. Still a gap; insert it during synthesis.
 
-**Reflect the gap inventory back to the user** in plain chat before any questions:
+**Reflect the gap inventory back to the user** in plain chat before any questions, naming each beat by the user's slide title (or by the beat name if there's no slide yet):
 
-> *"OK, I read your deck. What's filled: slides 1, 2, 3, 6, 7. What's a gap: slide 4 (who it's for), slide 5 (how it works), slide 9 (just says 'meta' right now), slide 10 (traction), slide 11 (team), slide 13 (the line). I'll ask you about each, in order. Sound right?"*
+> *"OK, I read your deck. What's filled: The Problem, Why Now?, How We Make Money, The Moat, The Ask. What's a gap: The Product (title only — no body yet), Competition (just says 'meta'). I'll ask about each, in order. Sound right?"*
 
-Get a confirm or correction, then ask only the questions whose slides are still gaps.
+Get a confirm or correction, then ask only the questions whose beats are still gaps.
 
-**Position each question to the gap.** When you ask a question through the structured question tool, open the prompt by naming the slide in the user's deck that the answer fills:
+**Position each question to the gap.** Name the gap in a **plain-chat line before** the structured question. The question itself stays around 7 words. Example:
 
-> *"Slide 9 in your deck just says 'meta' right now. Let's fill it — name two or three brands today that feel like the OPPOSITE of yours."*
+Chat: *"Your Competition slide just says 'meta'. Let's fill it."*
+Question: *"Two brands that feel opposite to yours?"* *(7 words.)*
 
-> *"Slide 10 (traction) is empty. What's already real? Anything — a website, a prototype, a customer who said yes, an email list."*
+Chat: *"The Product slide is title-only right now."*
+Question: *"What would somebody actually pay you for?"* *(7 words.)*
 
-This gives the user context: every answer plugs a visible hole, not a generic interview prompt.
+This gives the user context: every answer plugs a visible hole, but the question itself stays scannable.
 
-If `pitch-deck.md` doesn't exist, skip this phase and run Phase 1 from scratch — every slide is a gap by default.
+If `pitch-deck.md` doesn't exist, skip this phase and run Phase 1 from scratch — every beat is a gap by default.
 
-### Slide → question map (for gap detection)
+### Beat → question map (for gap detection)
 
-| Slide | Filled by which question(s) |
+| Beat | Filled by which question(s) |
 |---|---|
-| 1 — Tagline / cover | Foundation Q3 + Brand-spirit branch "one-sentence customer description" |
-| 2 — The problem | Mission branch "who is being harmed" + the wound from Foundation Q2 |
-| 3 — Why now | Mission branch "what changed in the world" |
-| 4 — Who it's for | Mission branch "one specific person" |
-| 5 — How it works | Foundation Q4 + Business branch sub-question |
-| 6 — How it makes money | Business branch sub-question (pricing / model) |
-| 7 — Market size | User-supplied figures only; arithmetic from inputs |
-| 8 — Why us | Conviction branch "what would you do that competitors won't" |
-| 9 — Competition | Brand-spirit branch "opposite brands" |
-| 10 — Traction | Always-ask "what's already real" |
-| 11 — Team | Always-ask "who's helping you" |
-| 12 — The ask | Foundation Q1 paycheck + Always-ask "how much money do you need" |
-| 13 — Line in the sand | Conviction branch "what's your line" |
+| The problem | Mission branch "who is being harmed" + the wound from Foundation Q2 |
+| Why now | Mission branch "what changed in the world" |
+| The product | Foundation Q4 + Business branch sub-question |
+| How we make money | Business branch sub-question (pricing) |
+| Go to market | Always-ask GTM (see below) |
+| The moat | Conviction branch "what would you do that competitors won't" |
+| The competition | Brand-spirit branch "opposite brands" + Brand-spirit "one-sentence customer description" |
+| The ask | Foundation Q1 paycheck + Always-ask "how much money do you need" |
 
-If slide N is a gap, ask the question(s) in the right column. If slide N is filled, skip them.
+If a beat is a gap, ask the question(s) in the right column. If it's filled, skip them.
+
+**Always-ask GTM (for the Go to market beat).** Short-form canonical wording:
+
+**Ask:** *"How will the first 100 people find this?"* *(8 words.)*
+
+Options to offer: word of mouth (user tells user); show up where they already are (rooms, threads, feeds); content pulls them in (essays, videos, posts); a partner already has the audience. Capture the user's verbatim answer for the slide.
 
 ---
 
 ## Phase 1 — Foundation (the five broad questions)
 
-Ask these in order. After each, reflect the answer back and capture it in a running notes block you keep in your head. Use everyday language; the parenthetical is what each question secretly maps to in deck terms — keep that to yourself.
+Ask these in order. After each, reflect the answer back and capture it in a running notes block you keep in your head. **Every question shown to the user stays around 7 words** (5–10 is fine; over 12 is a bug). The bold lines below are the canonical short-form prompts — ask those. The italic long-form lines are the meaning behind each, kept for reference; never paste them at the user.
 
-1. **"If this thing worked exactly how you want, what's the paycheck that would make you feel like you made it? Annual, take-home, no funny math."**
-   *(Maps to: revenue floor, valuation expectation, company stage, lifestyle-vs-venture fork.)*
+1. **"What paycheck would feel like you made it?"** *(7 words.)*
+   *Long-form meaning: "If this thing worked exactly how you want, what's the paycheck that would make you feel like you made it? Annual, take-home, no funny math."* (Maps to: revenue floor, valuation expectation, company stage, lifestyle-vs-venture fork.)
 
-2. **"What do you stand for? What's the belief you'd hold onto even if it cost you the deal?"**
-   *(Maps to: mission, "why now", the wedge against incumbents, founder-market fit.)*
+2. **"What belief would you hold even costing the deal?"** *(9 words.)*
+   *Long-form meaning: "What do you stand for? What's the belief you'd hold onto even if it cost you the deal?"* (Maps to: mission, "why now", the wedge against incumbents, founder-market fit.)
 
-3. **"If your brand walked into a room as a person, what would the room feel like after they arrived? What's the spirit of it?"**
-   *(Maps to: positioning, voice, archetype, differentiation.)*
+3. **"What's the spirit of your brand?"** *(6 words.)*
+   *Long-form meaning: "If your brand walked into a room as a person, what would the room feel like after they arrived? What's the spirit of it?"* (Maps to: positioning, voice, archetype, differentiation.)
 
-4. **"What business are you in? In one sentence — what would somebody actually pay you for?"**
-   *(Maps to: category, business model, ICP.)*
+4. **"What would somebody actually pay you for?"** *(7 words.)*
+   *Long-form meaning: "What business are you in? In one sentence — what would somebody actually pay you for?"* (Maps to: category, business model, ICP.)
 
-5. **"How far would you go for this? What would you give up? And what wouldn't you?"**
-   *(Maps to: moat from conviction, founder commitment slide, defensibility.)*
+5. **"How far would you go for this?"** *(7 words.)*
+   *Long-form meaning: "How far would you go for this? What would you give up? And what wouldn't you?"* (Maps to: moat from conviction, founder commitment slide, defensibility.)
+
+If a question needs setup — gap context, a definition, a reflection — put the setup in a plain-chat line *before* asking, then ask the short question. Don't smuggle the setup into the question itself.
 
 After all five, summarize back: *"OK so what I'm hearing is: you want to take home `$X`, you stand for `Y`, your brand feels like `Z`, you're in the business of `W`, and you'd go as far as `V` but not past `U`. Yes?"* Get a confirm or correction before moving on.
 
@@ -168,6 +189,9 @@ A walk-through of the core experience in three steps. The user's first minute, f
 
 ## 6. How it makes money
 What people pay, when they pay it, and the unit economics in one line: *"We make `$X` per customer, it costs us `$Y` to acquire one, payback in `Z` months."*
+
+## 6.5 Go to market
+How the first 100 paying customers actually find this — one sentence, in the user's own words. Word of mouth, showing up where they already are, content that pulls them in, a partner who already has the audience. Be specific about *which* rooms / threads / partners.
 
 ## 7. Market size
 Show the arithmetic. Every figure on this slide must be either (a) a real cited source or (b) the product of inputs that are themselves cited or explicitly flagged as assumptions. Format: *"`N` people × `$P` per year = `$M` market"*, with `N` and `P` each followed by a source or a `[VERIFY assumption]` tag. **Do not** write phrases like *"tens of millions globally"*, *"a massive market"*, or *"$Xbn TAM"* without showing the multiplication that gets you there. If you don't have enough inputs to build the arithmetic, write `[NEEDS NUMBER: …]` and stop — a blank is better than a bluff.
