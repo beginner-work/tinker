@@ -20,6 +20,7 @@ The founder opens this skill not knowing which artifact they need yet. The skill
 - **Translate concepts silently.** The founder is assumed to know nothing about business, product management, or pitching. Never lecture about MVP, retention, TAM, runway, traction, funnel, churn, PMF, go-to-market, or unit economics. Translate in your head; speak plainly.
 - **Never invent numbers, users, screens, features, citations, or quotes.** Every concrete claim in any output file traces to something the founder said. If a section needs information you don't have, leave a placeholder (`[NEEDS NUMBER: …]`, `[NEEDS INPUT: …]`, `[ASK FOUNDER: …]`) rather than fabricating.
 - **Voice rule.** Ask like a friend who's curious about the founder's life and work — not a form collecting requirements. The internal labels in question headings (*Q3 — Opening beat*) are model-only and do not appear to the founder.
+- **Question length — around 7 words.** Every question in the AskUserQuestion `question` field is a single, scannable sentence around 7 words long (5–10 is fine; over 12 is a bug). If a question needs setup — gap context, a definition, a reflection — put the setup in a plain-chat line *before* the AskUserQuestion call, then ask the short question. The example prompts in this skill (Foundation Q1–Q5, Narrowing branches, always-asks) are written long for reference; rewrite them down to the 7-word target at call time. The short-form rewrites below the example prompts are the canonical wording — use those verbatim when they exist.
 
 ## Phase 0 — Routing (always first)
 
@@ -63,6 +64,89 @@ This means the model's job during Phase 3 is **selection and arrangement**, not 
 
 Why this rule exists: investors who would back this founder are backing the founder, not a deck-shaped translation of the founder. Upward translation makes every deck sound the same. The verbatim rule keeps the deck specific, defensible, and unmistakably authored.
 
+## Phase 0A — Gap detection (run first if `pitch-deck.md` exists)
+
+Before asking anything, **Read** `pitch-deck.md` from the working directory. If it doesn't exist, skip this phase and run the full Foundation + Narrowing sequence.
+
+If it does exist, the deck's **actual slide structure** is the source of truth — not the canonical 13-slide template. Extract the slide titles as they appear in the deck (each `#` heading or `<!-- _class -->` slide block) and work from that list. The founder may have collapsed or renamed slides — that's their deck, honor it.
+
+Map each of the founder's slide titles to the **pitch spine** below — these are the eight beats every pitch needs, regardless of how the deck is named or numbered:
+
+1. **The problem** — the wrongness in the world the founder is fighting.
+2. **Why now** — what changed that makes this the right moment.
+3. **The product** — what the thing is and what it does in one frame.
+4. **How we make money** — pricing, the economics in one line.
+5. **Go to market** — how the first customers actually find this and start paying.
+6. **The moat** — what makes this hold up against competitors.
+7. **The competition** — who else is in the room and how the founder is different.
+8. **The ask** — the number, the milestone, the terms.
+
+These eight beats — and only these — are the gap inventory. Cover slides, section dividers, *"Thank you"* closers, and the like are decoration; they don't enter the inventory.
+
+A beat is **filled** only if:
+
+- it has at least one verbatim founder line in the body of the slide that addresses the beat, AND
+- the content matches the beat's purpose (e.g. *Competition* must actually name competitors or describe how the founder differs — *"meta"* on its own does not count), AND
+- the content is not a placeholder (`[NEEDS QUOTE]`, `[NEEDS NUMBER]`, `[ASK FOUNDER]`, `TBD`, or a single stand-in word).
+
+Anything else is a **gap**. Common shapes:
+
+- **Empty slide** — title only, no body.
+- **Thin slide** — one stray token like *"meta"* or a half-sentence. Treat as empty.
+- **Placeholder slide** — `[NEEDS NUMBER: …]` or similar. The gap is the specific missing input.
+- **Missing beat** — the founder's deck has no slide for this beat at all. Still a gap; the new slide will be inserted in the deck during synthesis.
+
+**Reflect the gap inventory back to the founder** in plain chat at the start, naming each beat by the founder's slide title (or by the beat name if there's no slide yet):
+
+> *"OK, I read your deck. What's filled: The Problem, Why Now?, How We Make Money, The Moat, The Ask. What's a gap: The Product (title only — no body yet), Competition (just says 'meta'). I'll ask about each, in order. Sound right?"*
+
+Get a confirm or correction, then ask only the questions that fill the remaining gaps.
+
+**Position each question to the beat it fills.** For every AskUserQuestion call in Phase 1A and Phase 2A:
+
+1. Set the `header` chip to the beat name in compact form: *"Problem"*, *"Why now"*, *"Product"*, *"Money"*, *"Moat"*, *"Comp"*, *"Ask"* (12-char max).
+2. Name the gap in a **plain-chat line before** the AskUserQuestion call. The `question` text itself stays around 7 words. Example:
+
+   Chat: *"Your Competition slide just says 'meta'. Let's fill it."*
+   Question (in AskUserQuestion): *"Two brands that feel opposite to yours?"* *(7 words.)*
+
+   Chat: *"The Product slide is title-only right now."*
+   Question: *"What would somebody actually pay you for?"* *(7 words.)*
+
+This gives the founder context: every question plugs a visible hole, but the question itself stays scannable.
+
+**Skip questions whose beats are already filled.** If *How we make money* already has a verbatim founder line, do not ask Foundation Q4's business sub-question for pricing — that gap is closed. Only ask the questions whose beats are still gaps. Skip Foundation Q1–Q5 entirely if all the beats they map to are already filled.
+
+If `pitch-deck.md` doesn't exist, ignore this phase and run Phase 1A from scratch.
+
+### Beat → question map (for gap detection)
+
+| Beat | Filled by which question(s) |
+|---|---|
+| The problem | Mission branch "who is being harmed" + the wound from Foundation Q2 |
+| Why now | Mission branch "what changed in the world" |
+| The product | Foundation Q4 + Business branch sub-question |
+| How we make money | Business branch sub-question (pricing) |
+| Go to market | Always-ask GTM (see below) |
+| The moat | Conviction branch "what would you do that competitors won't" |
+| The competition | Brand-spirit branch "opposite brands" + Brand-spirit "one-sentence customer description" |
+| The ask | Foundation Q1 paycheck + Always-ask "how much money do you need" |
+
+If a beat is a gap, ask the question(s) in the right column. If it's filled, skip them. The verbatim rule still applies: the founder's exact words for each answer go onto that beat's slide.
+
+**Always-ask GTM (for the Go to market beat).** Ask via AskUserQuestion. The short-form question (around 7 words) is the canonical wording:
+
+**Ask (short form, verbatim):** *"How will the first 100 people find this?"* *(8 words.)*
+
+| Option | Description |
+|---|---|
+| Word of mouth — one user tells the next | The product spreads through the network it serves. |
+| I show up where they already are | I'm in the rooms, threads, or feeds my user already lives in. |
+| Content I make pulls them in | Essays, videos, posts that earn their attention first. |
+| A partner already has the audience | Someone else's list, store, or community is the wedge. |
+
+The founder's verbatim answer goes on the Go to market slide.
+
 ## Phase 1A — Foundation (five questions via AskUserQuestion)
 
 Ask each of these one at a time through the loader, in order. The options are common archetypes — the founder is encouraged to use **Other** if their real answer doesn't fit. Capture the founder's exact words for every answer; those exact words are what end up on slides.
@@ -71,6 +155,9 @@ After each question, reflect the answer back in plain chat in the founder's own 
 
 ### Foundation Q1 — Paycheck
 
+**Ask (short form, verbatim):** *"What paycheck would feel like you made it?"* *(7 words.)*
+
+Long-form reference (don't ask this; it's the meaning):
 > If this thing worked exactly how you want, what's the paycheck that would make you feel like you made it? Annual, take-home, no funny math.
 
 | Option | Description |
@@ -84,6 +171,9 @@ After each question, reflect the answer back in plain chat in the founder's own 
 
 ### Foundation Q2 — What you stand for
 
+**Ask (short form, verbatim):** *"What belief would you hold even costing the deal?"* *(9 words.)*
+
+Long-form reference:
 > What do you stand for? What's the belief you'd hold onto even if it cost you the deal?
 
 | Option | Description |
@@ -97,6 +187,9 @@ The founder will almost always pick **Other** here — that's expected. Capture 
 
 ### Foundation Q3 — Brand spirit
 
+**Ask (short form, verbatim):** *"What's the spirit of your brand?"* *(6 words.)*
+
+Long-form reference:
 > If your brand walked into a room as a person, what would the room feel like after they arrived? What's the spirit of it?
 
 | Option | Description |
@@ -110,6 +203,9 @@ The founder will almost always pick **Other** here — that's expected. Capture 
 
 ### Foundation Q4 — What business are you in
 
+**Ask (short form, verbatim):** *"What would somebody actually pay you for?"* *(7 words.)*
+
+Long-form reference:
 > What business are you in? In one sentence — what would somebody actually pay you for?
 
 | Option | Description |
@@ -123,6 +219,9 @@ The founder's verbatim one-sentence answer goes on slide 6 (product) and informs
 
 ### Foundation Q5 — How far you'd go
 
+**Ask (short form, verbatim):** *"How far would you go for this?"* *(7 words.)*
+
+Long-form reference:
 > How far would you go for this? What would you give up? And what wouldn't you?
 
 | Option | Description |
@@ -322,7 +421,10 @@ Numbers rules (carried over from the original pitch-deck skill):
 [Founder's verbatim words for what the user does, what they get. Pull from Foundation Q4 + the Business branch sub-question.]
 
 ## 6. How it makes money
-[Founder's verbatim words from the Business branch on pricing / model.]
+[Founder's verbatim words from the Business branch on pricing.]
+
+## 6.5 Go to market
+[Founder's verbatim answer to the GTM always-ask — how the first 100 people find this.]
 
 ## 7. Market size
 [Arithmetic only. Every input cited or `[VERIFY assumption]`-flagged. If the founder didn't supply inputs, this slide is `[NEEDS NUMBER: arithmetic from founder-supplied inputs]`.]
