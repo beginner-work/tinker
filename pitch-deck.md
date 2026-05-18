@@ -240,6 +240,22 @@ Pre-seed · $250k – $950k
 </div>
 <div class="tinker-rainbow"></div>
 
+# Go to Market
+
+> *I show up where they already are.*
+
+> *I'm in the rooms, threads, or feeds my user already lives in.*
+
+---
+
+<!-- _class: tinker -->
+
+<div class="tinker-badge">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img" aria-label="tinker rainbow-web mark"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62.00" x2="175.94" y2="62.00" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24.00" y1="100.00" x2="176.00" y2="100.00" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138.00" x2="175.94" y2="138.00" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></svg>
+<span class="wm">tinker</span>
+</div>
+<div class="tinker-rainbow"></div>
+
 # The Moat
 
 > *Your ideas are woven together with other founders on the platform.*
