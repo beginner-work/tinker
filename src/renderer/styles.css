@@ -187,7 +187,7 @@ html.on-web .sidebar__top {
 /* ── Sidebar pitch-deck tree (v0.103) ─────────────────────────────
  *
  * Mirrors pitch-deck.md inside the sidebar. The top tier rows hold one
- * of the seven slide titles; the inner rows hold verbatim phrases
+ * of the eight slide titles; the inner rows hold verbatim phrases
  * lifted from the founder's own writings. Both reuse
  * `.sidebar__account-item` for sizing/hover/spacing so the surface is
  * visually continuous with the Account block below. The nav is hidden
@@ -220,8 +220,8 @@ html.on-web .sidebar__top {
   font-weight: 600;
 }
 .sidebar__deck-heading-num {
-  /* Deck-position number (1.–7.) — sits left of the heading label so
-   * the founder can see which slide of the seven they're looking at,
+  /* Deck-position number (1.–8.) — sits left of the heading label so
+   * the founder can see which slide of the eight they're looking at,
    * even when only some have been touched. */
   flex-shrink: 0;
   min-width: 14px;
@@ -280,8 +280,8 @@ html.on-web .sidebar__top {
 
 /* ── Pitch-progress bar ────────────────────────────────────────────
  *
- * Sits at the top of the sidebar tree, above the seven deck-heading
- * rows. Shows how many of the seven headings have at least one
+ * Sits at the top of the sidebar tree, above the eight deck-heading
+ * rows. Shows how many of the eight headings have at least one
  * resolvable phrase. Hidden alongside the tree on cold-start; visible
  * the moment the classifier lands its first hit.
  */
@@ -327,7 +327,7 @@ html.on-web .sidebar__top {
 }
 
 /* ── In-flight / strengthened / off-pitch states ──────────────────── */
-/* The "stay tuned…" label sits inline alongside the "N / 7" count and
+/* The "stay tuned…" label sits inline alongside the "N / 8" count and
    is swapped in only while the classifier is reading the just-published
    writing. Both spans live inside [data-audit-ignore] so the visible-
    string audit (sidebar-tree.js:554) is unaffected. */

@@ -3,7 +3,7 @@
  * GET  → { data: { [deckHeading]: [{ writingId, offset, length, addedAt }, ...] } | null, updatedAt }
  * PUT  body { data } → { ok: true, updatedAt }
  *
- * The v0.103 sidebar tree: deck heading (one of the seven pitch-deck
+ * The v0.103 sidebar tree: deck heading (one of the eight pitch-deck
  * literals) → list of verbatim phrase rows. The client computes new
  * entries by calling /api/classify on each writing-session close and
  * round-trips the updated blob through this endpoint. Whole-blob

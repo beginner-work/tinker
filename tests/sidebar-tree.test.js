@@ -207,7 +207,7 @@ test("markClassifyFailed and markClassifySucceeded toggle the failure timestamp"
 });
 
 test("recovery clears a v0.102-shaped tree blob", () => {
-  // A blob with a Seed-shaped top-level key (not one of the seven
+  // A blob with a Seed-shaped top-level key (not one of the eight
   // deck-heading literals) — this should be wiped on first boot.
   const stale = {
     "seed:cafe": [{ writingId: "d_a", offset: 0, length: 4 }],

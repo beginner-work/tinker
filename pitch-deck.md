@@ -204,6 +204,14 @@ Pre-seed · $250k – $950k
 
 ---
 
+# The Vision
+
+> *A place where founders go to find themselves through writing — the rainbow-web reshaping what writing-for-yourself looks like.*
+
+> *A world where everyone building something has somewhere to think through who they are.*
+
+---
+
 <!-- _class: tinker title-only -->
 
 <div class="tinker-badge">

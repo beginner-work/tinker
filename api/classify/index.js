@@ -6,14 +6,14 @@
  *
  * The v0.103 sidebar tree classifier. Takes the body of one of the
  * founder's drafts or essays and returns the deck heading it most
- * cleanly belongs under (one of the seven pitch-deck literals) plus a
+ * cleanly belongs under (one of the eight pitch-deck literals) plus a
  * 4–18-word verbatim substring of the body to show as the phrase row.
  * Either field may be null when the model can't place the writing
  * confidently.
  *
- * The seven deck headings are spelled exactly as in pitch-deck.md. The
+ * The eight deck headings are spelled exactly as in pitch-deck.md. The
  * model is forbidden from inventing new headings or paraphrasing one
- * of the seven; the offset/length must point into the body and the
+ * of the eight; the offset/length must point into the body and the
  * substring must be a clean 4–18-word phrase. On a malformed reply we
  * retry once, then drop the bad field.
  *
@@ -28,6 +28,7 @@ const { withResponseLogging } = require("../_lib/log.js");
 const DECK_HEADINGS = [
   "The Problem",
   "Why Now?",
+  "The Vision",
   "The Product",
   "How We Make Money",
   "The Moat",
@@ -44,6 +45,8 @@ const HEADING_DESCRIPTIONS = {
     "Do you feel like you've worked so hard, but you're still finding yourself stressed about what you're doing? You thought that this next life change would be the one, but it feels like you're doing the same thing again. John is 31. He's a dad. He goes to school full time. He's a recovering AI engineer, and he's quite progressive when it comes to considering men's mental health. John is seeking extreme wealth. He knows it's there. He just hasn't tapped it yet, and that's everything.",
   "Why Now?":
     "AI is making our workplace more toxic. The sprint towards figuring out what we can do is insane right now. People, including myself, need a tool that can help them figure out who they are as a founder.",
+  "The Vision":
+    "The long-term picture of what tinker becomes if it works. Where founders go to find themselves through writing, how the rainbow-web reshapes what writing-for-yourself looks like, and what the world feels like when everyone building something has a place to think through who they are.",
   "The Product":
     "tinker — the product itself: the writing tool, the rainbow-web brand, how the founder shapes their identity by writing through it.",
   "How We Make Money":
@@ -73,9 +76,9 @@ function extractBearer(header) {
 
 function buildSystemPrompt() {
   const lines = [
-    "You classify a founder's writing under one of the seven slide titles from their pitch deck. The seven slide titles are FIXED — you must return one of them exactly, character-for-character, or null when no heading fits.",
+    "You classify a founder's writing under one of the eight slide titles from their pitch deck. The eight slide titles are FIXED — you must return one of them exactly, character-for-character, or null when no heading fits.",
     "",
-    "The seven slide titles (treat as opaque literals — do NOT paraphrase, lowercase, drop articles, or invent new headings):",
+    "The eight slide titles (treat as opaque literals — do NOT paraphrase, lowercase, drop articles, or invent new headings):",
     "",
   ];
   for (const h of DECK_HEADINGS) {
@@ -84,17 +87,17 @@ function buildSystemPrompt() {
     lines.push("");
   }
   lines.push(
-    "Given a single piece of writing, decide which slide title best fits its central beat. Bias toward returning a heading — most founder writing fits SOMEWHERE under one of the seven; only return null when truly none of the seven applies.",
+    "Given a single piece of writing, decide which slide title best fits its central beat. Bias toward returning a heading — most founder writing fits SOMEWHERE under one of the eight; only return null when truly none of the eight applies.",
     "",
     "Then COPY a short phrase from the writing — 3 to 18 words — that captures that beat in the founder's own words. The phrase MUST appear verbatim in the writing body. Copy it exactly as it appears (same letters, same spacing, same punctuation). Aim for 6 to 12 words. Do not include a leading/trailing space, do not include a line break inside the phrase, do not summarise.",
     "",
     "Whenever you return a non-null deckHeading you MUST also return a valid phraseText that you copied verbatim from the writing. Pick a sentence or sentence-fragment — not a single word.",
     "",
     "Respond as a single JSON object, with exactly these keys:",
-    '  { "deckHeading": "<one of the seven literals, or null>", "phraseText": "<a verbatim 3-to-18-word substring of the writing>" | null }',
+    '  { "deckHeading": "<one of the eight literals, or null>", "phraseText": "<a verbatim 3-to-18-word substring of the writing>" | null }',
     "",
     "If the writing truly doesn't belong under any heading, return { \"deckHeading\": null, \"phraseText\": null }.",
-    "Do not invent new headings. Do not paraphrase the seven. Do not invent a phraseText that isn't in the writing. Never wrap the JSON in code fences. Never add explanations outside the JSON.",
+    "Do not invent new headings. Do not paraphrase the eight. Do not invent a phraseText that isn't in the writing. Never wrap the JSON in code fences. Never add explanations outside the JSON.",
   );
   return lines.join("\n");
 }

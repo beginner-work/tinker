@@ -22,10 +22,11 @@ const {
   buildSystemPrompt,
 } = __test__;
 
-test("the seven deck headings are spelled exactly as in pitch-deck.md", () => {
+test("the eight deck headings are spelled exactly as in pitch-deck.md", () => {
   assert.deepEqual(DECK_HEADINGS, [
     "The Problem",
     "Why Now?",
+    "The Vision",
     "The Product",
     "How We Make Money",
     "The Moat",

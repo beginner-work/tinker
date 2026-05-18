@@ -145,7 +145,7 @@
       renderHome();
       // Drop the draft from the tree before classifying the new
       // essay — the draft no longer exists. Then ask the v0.103
-      // classifier to place the essay under one of the seven deck
+      // classifier to place the essay under one of the eight deck
       // headings.
       if (window.tinkerTree && typeof window.tinkerTree.clearWritingFromTree === "function") {
         window.tinkerTree.clearWritingFromTree(draft.id);
