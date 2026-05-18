@@ -359,8 +359,8 @@
   // ── Rendering ──────────────────────────────────────────────────────
   function render(mountEl) {
     if (!mountEl) return { all: 0 };
-    const seeds = (window.tinkerSeeds && typeof window.tinkerSeeds.list === "function")
-      ? window.tinkerSeeds.list()
+    const seeds = (window.tinkerEarths && typeof window.tinkerEarths.list === "function")
+      ? window.tinkerEarths.list()
       : [];
 
     mountEl.innerHTML = "";
@@ -529,7 +529,7 @@
       return;
     }
     if (typeof window.tinkerNewSession === "function") {
-      window.tinkerNewSession({ seed: seed.name });
+      window.tinkerNewSession({ earth: seed.name });
     }
   }
 
@@ -566,8 +566,8 @@
 
     const items = [];
     for (const essay of allEssays) {
-      if (!essay || !essay.seed) continue;
-      const seedKey = normCat(essay.seed);
+      if (!essay || !essay.earth) continue;
+      const seedKey = normCat(essay.earth);
       const stored = state.seeds[seedKey];
       if (!stored || !Array.isArray(stored.paths)) continue;
       const matches = stored.paths.some((p) => Array.isArray(p) && p.length && p[p.length - 1] === categoryKey);

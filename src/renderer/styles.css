@@ -62,7 +62,8 @@ input:focus, button:focus, textarea:focus { outline: none; }
 
 /* Sidebar now feels like the main screen — same background, same
    density. The parchment gradient is gone; the only separator is a
-   subtle right-border. The home-list (seeds) lives here. */
+   subtle right-border. The three-tier tree (.sidebar__tree) lives
+   between the brand block and the Account block. */
 .sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
@@ -1792,4 +1793,110 @@ html.txn-modal-open { overflow: hidden; }
 }
 .seed-modal__btn--primary:hover { background: #4f46e5; }
 html.seed-modal-open { overflow: hidden; }
+
+/* ── Sidebar tree (Earth → Seed → Growth vector) ─────────────────── */
+/*
+ * Rows at every tier extend .sidebar__account-item — same padding,
+ * same hover colour, same line-height. Indentation encodes depth.
+ * Quiet two-digit ordinals on Earth + Seed rows carry the curriculum
+ * mood (the build prompt's "single concrete cue"). Growth vector rows
+ * are leaves and do NOT carry ordinals.
+ */
+.sidebar__tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 8px 16px;
+  display: block;
+}
+.sidebar__tree[hidden] { display: none; }
+
+.sidebar__tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* Nested lists step in. The padding matches the ordinal-slot width so
+ * a Seed row's label visually starts beneath its parent Earth's label,
+ * and a Growth vector starts beneath its parent Seed's label. */
+.sidebar__tree-list--seeds { padding-left: 18px; padding-top: 2px; }
+.sidebar__tree-list--vectors { padding-left: 18px; padding-top: 1px; }
+.sidebar__tree-list--writings { padding-left: 12px; padding-top: 1px; }
+
+/* Inherit .sidebar__account-item visuals: padding, hover, font, etc.
+ * Override only what's specific to the tree: layout slots for the
+ * ordinal column on Earth/Seed rows and the badge slot on vectors. */
+.sidebar__tree-row {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.sidebar__tree-row--earth,
+.sidebar__tree-row--seed {
+  grid-template-columns: 18px 1fr auto;
+}
+.sidebar__tree-row--vector,
+.sidebar__tree-row--writing {
+  grid-template-columns: 1fr auto;
+}
+.sidebar__tree-row.is-active { background: var(--color-hover); }
+
+/* Quiet ordinal: muted text, fixed slot, NOT bold, NOT in accent
+ * colour, NOT a list-style bullet. Same muted token the footer copy
+ * uses — keeps the eye on the founder's words, not on the numbers. */
+.sidebar__tree-ord {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-muted);
+  letter-spacing: 0;
+  text-align: left;
+  user-select: none;
+}
+
+.sidebar__tree-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.sidebar__tree-row--earth .sidebar__tree-label { font-weight: 600; }
+.sidebar__tree-row--vector .sidebar__tree-label,
+.sidebar__tree-row--writing .sidebar__tree-label {
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--color-foreground);
+}
+
+/* Count badge on a Growth vector with N≥2 underlying writings. Right-
+ * aligned, muted — same token the ordinals use. The format itself
+ * ("(N)") is on the visible-string allowlist. */
+.sidebar__tree-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-muted);
+  user-select: none;
+}
+
+/* Retry affordance on the topmost Earth row when the last cluster
+ * call failed. "↻" glyph is on the chrome allowlist. */
+.sidebar__tree-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 13px;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.sidebar__tree-retry:hover { color: var(--color-foreground); background: var(--color-border); }
 

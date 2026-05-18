@@ -64,13 +64,13 @@
   window.tinkerWriting = {
     open(draft) {
       active = draft;
-      // Pre-prompt: seed capture (Instagram tag-style) before the
-      // question flow. `seed` is undefined on a fresh draft; once the
+      // Pre-prompt: scene capture (Instagram tag-style) before the
+      // question flow. `earth` is undefined on a fresh draft; once the
       // founder commits or skips it becomes a string or null and never
-      // re-prompts. The seed is metadata, not part of the transcript,
+      // re-prompts. The earth is metadata, not part of the transcript,
       // so it doesn't affect stitching or founder-only verification.
-      if (active.seed === undefined) {
-        renderSeedPrompt();
+      if (active.earth === undefined) {
+        renderScenePrompt();
         return;
       }
       seedAndRenderInterview();
@@ -85,7 +85,7 @@
       pending: active.pending,
       stitched: active.stitched,
       title: active.title,
-      seed: active.seed,
+      earth: active.earth,
       facing: active.facing,
       lastPurchased: active.lastPurchased,
       _scratch: active._scratch,
@@ -101,10 +101,10 @@
     // facing): ask Claude to mood the canonical "What are you
     // learning?" to fit. Failures and no-context cases fall through to
     // the canonical seed.
-    if ((active.transcript || []).length === 0 && !active.pending && (active.seed || active.facing || active.lastPurchased)) {
+    if ((active.transcript || []).length === 0 && !active.pending && (active.earth || active.facing || active.lastPurchased)) {
       const draftId = active.id;
       renderLoading("Setting the scene…");
-      moodSeedQuestion(active.seed, active.facing, active.lastPurchased)
+      moodSeedQuestion(active.earth, active.facing, active.lastPurchased)
         .then((q) => {
           if (!active || active.id !== draftId) return;
           applySeed(q);
@@ -136,7 +136,7 @@
     renderStep();
   }
 
-  async function moodSeedQuestion(seed, facing, lastPurchased) {
+  async function moodSeedQuestion(earth, facing, lastPurchased) {
     if (!window.tinker || typeof window.tinker.callClaude !== "function") {
       throw new Error("Anthropic client unavailable.");
     }
@@ -158,7 +158,7 @@
       "- Output ONLY the question. No quotes, no preamble, no trailing notes.",
     ].join("\n");
     const ctxLines = [];
-    if (seed) ctxLines.push(`Where the founder is right now: ${seed}`);
+    if (earth) ctxLines.push(`Where the founder is right now: ${earth}`);
     if (facing) ctxLines.push(`What the founder is facing: ${facing}`);
     if (lastPurchased) ctxLines.push(`What the founder last purchased: ${lastPurchased}`);
     const txLines = buildTransactionsContext();
@@ -182,7 +182,7 @@
   }
 
   // ── Render ──────────────────────────────────────────────────────────
-  function renderSeedPrompt() {
+  function renderScenePrompt() {
     const card = document.createElement("div");
     card.className = "writing-card writing-card--seed";
 
@@ -237,7 +237,7 @@
     skip.className = "writing-seed__skip";
     skip.textContent = "Skip for now";
     skip.addEventListener("click", () => {
-      active.seed = null;
+      active.earth = null;
       active.facing = null;
       active.lastPurchased = null;
       persist();
@@ -258,7 +258,7 @@
       const wv = whereInput.value.trim();
       const fv = facingInput.value.trim();
       const lv = lastInput.value.trim();
-      active.seed = wv || null;
+      active.earth = wv || null;
       active.facing = fv || null;
       active.lastPurchased = lv || null;
       persist();
@@ -332,13 +332,13 @@
     const card = document.createElement("div");
     card.className = "writing-card";
 
-    if (active.seed || active.facing || active.lastPurchased) {
+    if (active.earth || active.facing || active.lastPurchased) {
       const recall = document.createElement("div");
       recall.className = "writing-recall";
       const parts = [];
-      if (active.seed) {
+      if (active.earth) {
         parts.push(
-          `<div class="writing-recall__line"><img class="writing-recall__pin" src="./icons/tinker-mark.svg" alt="" aria-hidden="true" /><span class="writing-recall__text">${escapeHtml(active.seed)}</span></div>`
+          `<div class="writing-recall__line"><img class="writing-recall__pin" src="./icons/tinker-mark.svg" alt="" aria-hidden="true" /><span class="writing-recall__text">${escapeHtml(active.earth)}</span></div>`
         );
       }
       if (active.facing) {
@@ -645,8 +645,8 @@
 
   function buildUserMessage(transcript, { forceStitch = false } = {}) {
     const lines = [];
-    if (active && active.seed) {
-      lines.push(`Where the founder is right now: ${active.seed}`);
+    if (active && active.earth) {
+      lines.push(`Where the founder is right now: ${active.earth}`);
     }
     if (active && active.facing) {
       lines.push(`What the founder is facing: ${active.facing}`);

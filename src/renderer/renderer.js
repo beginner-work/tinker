@@ -28,7 +28,6 @@
   const feedView = $("#welcome");
   const writingView = $("#writing");
   const readView = $("#read");
-  const homeListEl = $("#home-list");
   const readBody = $("#read-body");
   const readDelete = $("#read-delete");
   const categoryFeedView = $("#category-feed");
@@ -41,11 +40,11 @@
   const statusComposerPost = $("#status-composer-post");
   const statusComposerHint = $("#status-composer-hint");
 
-  // Which category feed is currently on screen, and what seed the user
+  // Which category feed is currently on screen, and what earth the user
   // tapped to land here. The composer attaches new statuses to that
-  // seed so they show up under the channel they were typed into.
+  // earth so they show up under the channel they were typed into.
   let activeCategoryKey = null;
-  let activeCategorySeed = null;
+  let activeCategoryEarth = null;
 
   // ── Storage helpers ──────────────────────────────────────────────────
   const uid = () => "d_" + Math.random().toString(36).slice(2, 10);
@@ -111,7 +110,9 @@
       essays = essays.filter((e) => e.id !== id);
       saveEssays(essays);
       if (readingEssayId === id) showFeed();
-      renderHome();
+      if (window.tinkerTree && typeof window.tinkerTree.refresh === "function") {
+        window.tinkerTree.refresh();
+      }
       return essay;
     },
     publish(draft, stitched) {
@@ -126,9 +127,9 @@
         url: `/${stitched.author || "you"}/${slug}`,
         sourceDraft: draft.id,
         kind: "essay",
-        // Carry seed through so the home list's vector classifier
-        // can keep reading the writing content after publish.
-        seed: draft.seed || null,
+        // Carry earth through so the clustering step on session close
+        // can group this writing under the right place.
+        earth: draft.earth || null,
       };
       essays = [essay, ...essays];
       saveEssays(essays);
@@ -136,12 +137,16 @@
       saveDrafts(drafts);
       activeId = null;
       renderSidebar();
-      renderHome();
-      // Land on the seed's category feed (now containing the
-      // just-published essay). For a brand-new seed with no
+      // Kick a clustering refresh — the writing session is closing
+      // and we want the tree to reflect this new writing.
+      if (window.tinkerTree && typeof window.tinkerTree.refresh === "function") {
+        window.tinkerTree.refresh();
+      }
+      // Land on the earth's category feed (now containing the
+      // just-published essay). For a brand-new earth with no
       // classification yet, fall through to the read view.
       const leafKey = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryKeyForSeed === "function")
-        ? window.tinkerHeatmap.getCategoryKeyForSeed(essay.seed)
+        ? window.tinkerHeatmap.getCategoryKeyForSeed(essay.earth)
         : null;
       if (!leafKey || !showCategoryFeed(leafKey)) {
         showRead(essay);
@@ -151,13 +156,13 @@
     // Short-form post: typed straight into the textarea at the top of
     // a category feed. Skips the interview flow and the stitching/
     // verification logic — the body is exactly what the founder typed.
-    // No title; the card and read view render without one. Tied to a
-    // seed so the home-list classifier keeps placing it in the same
-    // category the founder posted from.
-    publishStatus({ body, seed }) {
+    // No title; the card and read view render without one. Tied to an
+    // earth so clustering keeps it grouped under the same place the
+    // founder posted from.
+    publishStatus({ body, earth }) {
       const trimmed = String(body || "").trim();
       if (!trimmed) return null;
-      const seedName = seed ? String(seed).trim() : null;
+      const earthName = earth ? String(earth).trim() : null;
       const slug = "status-" + Math.random().toString(36).slice(2, 8);
       const essay = {
         id: "e_" + Math.random().toString(36).slice(2, 10),
@@ -169,16 +174,18 @@
         url: `/you/${slug}`,
         sourceDraft: null,
         kind: "status",
-        seed: seedName || null,
+        earth: earthName || null,
       };
       essays = [essay, ...essays];
       saveEssays(essays);
-      // Make sure the seed exists in the explicit list so it has a
-      // sidebar card. add() is a no-op if it's already there.
-      if (seedName && window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
-        window.tinkerSeeds.add(seedName);
+      // Make sure the earth exists in the explicit list so it has a
+      // sidebar row. add() is a no-op if it's already there.
+      if (earthName && window.tinkerEarths && typeof window.tinkerEarths.add === "function") {
+        window.tinkerEarths.add(earthName);
       }
-      renderHome();
+      if (window.tinkerTree && typeof window.tinkerTree.refresh === "function") {
+        window.tinkerTree.refresh();
+      }
       return essay;
     },
   };
@@ -207,10 +214,10 @@
     };
     if (preset && typeof preset === "object") {
       // Pre-set the scene fields. writing.js' renderSeedPrompt
-      // checks `active.seed === undefined`, so once we assign
+      // checks `active.earth === undefined`, so once we assign
       // a string (or null) the prompt is skipped and the founder
       // jumps straight into the mood-tuned first question.
-      if (preset.seed !== undefined) draft.seed = preset.seed || null;
+      if (preset.earth !== undefined) draft.earth = preset.earth || null;
       if (preset.facing !== undefined) draft.facing = preset.facing || null;
       if (preset.lastPurchased !== undefined) draft.lastPurchased = preset.lastPurchased || null;
     }
@@ -245,9 +252,8 @@
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
-    activeCategorySeed = null;
+    activeCategoryEarth = null;
     renderSidebar();
-    renderHome();
     // If the "Somewhere else" specify input is already open, drop focus
     // there; otherwise leave focus on the grid (the tiles are buttons,
     // so keyboard users land on the first one via Tab).
@@ -281,7 +287,7 @@
       `</header>` +
       paragraphs(essay.body);
   }
-  function showCategoryFeed(categoryKey, originatingSeed) {
+  function showCategoryFeed(categoryKey, originatingEarth) {
     if (!categoryFeedView) return false;
     const feed = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryFeed === "function")
       ? window.tinkerHeatmap.getCategoryFeed(categoryKey)
@@ -294,11 +300,11 @@
     categoryFeedView.hidden = false;
     activeId = null;
     activeCategoryKey = categoryKey;
-    // Prefer the seed the user just tapped. Fall back to the most-
-    // recently-touched seed in this category so the composer still
+    // Prefer the earth the user just tapped. Fall back to the most-
+    // recently-touched earth in this category so the composer still
     // has somewhere to attach a status (e.g. when the feed is opened
-    // by routing after publish, with no clicked seed in hand).
-    activeCategorySeed = originatingSeed || pickSeedForCategory(feed) || null;
+    // by routing after publish, with no clicked row in hand).
+    activeCategoryEarth = originatingEarth || pickEarthForCategory(feed) || null;
     renderSidebar();
 
     categoryFeedTitle.textContent = feed.name;
@@ -341,12 +347,12 @@
     return card;
   }
 
-  function pickSeedForCategory(feed) {
+  function pickEarthForCategory(feed) {
     if (!feed || !Array.isArray(feed.essays) || feed.essays.length === 0) return null;
     // Essays in the feed are already sorted most-recent first; take
-    // the first one carrying a seed.
+    // the first one carrying an earth.
     for (const essay of feed.essays) {
-      if (essay && essay.seed) return essay.seed;
+      if (essay && essay.earth) return essay.earth;
     }
     return null;
   }
@@ -360,8 +366,8 @@
     statusComposer.hidden = false;
     if (statusComposerInput) {
       statusComposerInput.value = "";
-      statusComposerInput.placeholder = activeCategorySeed
-        ? `Post a quick thought in ${activeCategorySeed}…`
+      statusComposerInput.placeholder = activeCategoryEarth
+        ? `Post a quick thought in ${activeCategoryEarth}…`
         : "What's on your mind?";
     }
     if (statusComposerPost) statusComposerPost.disabled = true;
@@ -369,19 +375,12 @@
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
-  // Sidebar's drafts+essays list is gone — seeds now own the sidebar
-  // (see #home-list). Each seed card surfaces the latest writing
-  // produced there. Kept as a no-op so existing call sites compile.
+  // The drafts+essays sidebar list is gone — the three-tier tree
+  // owned by tree.js renders into #sidebar-tree instead. This helper
+  // stays as a no-op so existing call sites compile.
   function renderSidebar() {
     if (!sessionsEl) return;
     sessionsEl.innerHTML = "";
-  }
-
-  function renderHome() {
-    if (!homeListEl) return;
-    if (window.tinkerHeatmap && typeof window.tinkerHeatmap.render === "function") {
-      window.tinkerHeatmap.render(homeListEl);
-    }
   }
 
   function escapeHtml(s) {
@@ -412,42 +411,42 @@
 
   // Welcome screen: the H1 is the standing line ("Everyone is a
   // founder.") and the question ("Where are you right now?") sits
-  // above a 2×2 grid of four locations — Cafe, Home, Work, Somewhere
+  // above a 2×2 grid of four earths — Cafe, Home, Work, Somewhere
   // else. The first three drop you straight into a writing session
-  // seeded with that location. "Somewhere else" reveals a small input
+  // pinned to that earth. "Somewhere else" reveals a small input
   // so the founder can specify the place themselves.
   const welcomeGrid = document.getElementById("welcome-grid");
   const welcomeForm = document.getElementById("welcome-form");
   const welcomeInput = document.getElementById("welcome-input");
 
-  function startSessionWith(seed) {
-    if (window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
-      window.tinkerSeeds.add(seed);
+  function startSessionWith(earth) {
+    if (window.tinkerEarths && typeof window.tinkerEarths.add === "function") {
+      window.tinkerEarths.add(earth);
     }
     if (typeof window.tinkerNewSession === "function") {
-      window.tinkerNewSession({ seed });
+      window.tinkerNewSession({ earth });
     }
   }
 
-  const LOCATION_LABELS = { cafe: "Cafe", home: "Home", work: "Work" };
+  const EARTH_LABELS = { cafe: "Cafe", home: "Home", work: "Work" };
 
   if (welcomeGrid) {
     welcomeGrid.addEventListener("click", (e) => {
-      const tile = e.target.closest("[data-location]");
+      const tile = e.target.closest("[data-earth]");
       if (!tile) return;
-      const key = tile.getAttribute("data-location");
+      const key = tile.getAttribute("data-earth");
       if (key === "other") {
         if (!welcomeForm || !welcomeInput) return;
         welcomeForm.hidden = false;
         // Highlight the chosen tile so the founder knows why the input
         // appeared, and remember it in case other tiles get aria-pressed.
-        for (const t of welcomeGrid.querySelectorAll("[data-location]")) {
+        for (const t of welcomeGrid.querySelectorAll("[data-earth]")) {
           t.setAttribute("aria-pressed", t === tile ? "true" : "false");
         }
         setTimeout(() => { welcomeInput.focus(); welcomeInput.select(); }, 30);
         return;
       }
-      const label = LOCATION_LABELS[key];
+      const label = EARTH_LABELS[key];
       if (!label) return;
       if (welcomeForm) welcomeForm.hidden = true;
       if (welcomeInput) welcomeInput.value = "";
@@ -466,10 +465,16 @@
     });
   }
 
-  // Re-render the home list whenever seeds change.
-  if (window.tinkerSeeds && typeof window.tinkerSeeds.subscribe === "function") {
-    window.tinkerSeeds.subscribe(() => {
-      renderHome();
+  // Re-render the sidebar tree whenever the earth set changes (add /
+  // remove via the welcome grid or the add modal). Clustering doesn't
+  // rerun on a pure add — the tree just hides Earths with no Seeds —
+  // but a remove that drops the last writing from an Earth would
+  // leave a phantom row until the next refresh, so we kick one.
+  if (window.tinkerEarths && typeof window.tinkerEarths.subscribe === "function") {
+    window.tinkerEarths.subscribe(() => {
+      if (window.tinkerTree && typeof window.tinkerTree.refresh === "function") {
+        window.tinkerTree.refresh();
+      }
     });
   }
 
@@ -491,21 +496,19 @@
   window.tinkerOnWritingPublish = (draft, stitched) => store.publish(draft, stitched);
   window.tinkerOnDraftChange = (draftId, patch) => store.updateDraft(draftId, patch);
 
-  // Used by the seed list in the sidebar: open a fresh draft
-  // pre-filled with scene context so the founder jumps straight into
-  // mood-tuned reflection.
+  // Used by the sidebar tree: open a fresh draft pre-filled with scene
+  // context so the founder jumps straight into mood-tuned reflection.
   window.tinkerNewSession = (preset) => newDraft({ activate: true, preset: preset || null });
 
-  // Used by the seed list when a card already carries a published
-  // essay or an in-progress draft — tap routes to the right surface
-  // instead of always spawning a new session.
+  // Used by the tree's growth-vector rows: tap routes to the
+  // underlying writing instead of always spawning a new session.
   window.tinkerOpenEssay = (essayId) => {
     const essay = essays.find((e) => e.id === essayId);
     if (essay) showRead(essay);
   };
   window.tinkerResumeDraft = (draftId) => openDraft(draftId);
-  window.tinkerShowCategoryFeed = (categoryKey, originatingSeed) =>
-    showCategoryFeed(categoryKey, originatingSeed);
+  window.tinkerShowCategoryFeed = (categoryKey, originatingEarth) =>
+    showCategoryFeed(categoryKey, originatingEarth);
 
   // Status composer wiring. The textarea enables the Post button once
   // there's non-whitespace input; Cmd/Ctrl+Enter submits without
@@ -526,11 +529,11 @@
       e.preventDefault();
       const body = statusComposerInput.value;
       if (!body.trim() || !activeCategoryKey) return;
-      const essay = store.publishStatus({ body, seed: activeCategorySeed });
+      const essay = store.publishStatus({ body, earth: activeCategoryEarth });
       if (!essay) return;
       // Stay on this category feed so the founder sees their post
       // land at the top of the channel they just typed into.
-      showCategoryFeed(activeCategoryKey, activeCategorySeed);
+      showCategoryFeed(activeCategoryKey, activeCategoryEarth);
     });
   }
 
@@ -566,11 +569,9 @@
     renderSidebar();
     if (readView && !readView.hidden) return;
     if (writingView && !writingView.hidden) return;
-    renderHome();
   });
 
   // ── Boot ────────────────────────────────────────────────────────────
   renderSidebar();
-  renderHome();
   showFeed();
 })();
