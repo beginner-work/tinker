@@ -28,10 +28,10 @@ const { withResponseLogging } = require("../_lib/log.js");
 const DECK_HEADINGS = [
   "The Problem",
   "Why Now?",
-  "The Vision",
   "The Product",
   "How We Make Money",
   "The Moat",
+  "The Vision",
   "Competition",
   "The Ask",
 ];

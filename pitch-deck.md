@@ -204,14 +204,6 @@ Pre-seed · $250k – $950k
 
 ---
 
-# The Vision
-
-> *A place where founders go to find themselves through writing — the rainbow-web reshaping what writing-for-yourself looks like.*
-
-> *A world where everyone building something has somewhere to think through who they are.*
-
----
-
 <!-- _class: tinker title-only -->
 
 <div class="tinker-badge">
@@ -253,6 +245,14 @@ Pre-seed · $250k – $950k
 > *Your ideas are woven together with other founders on the platform.*
 
 > *You come because they have what you need, and you stay because everyone's there.*
+
+---
+
+# The Vision
+
+> *A place where founders go to find themselves through writing — the rainbow-web reshaping what writing-for-yourself looks like.*
+
+> *A world where everyone building something has somewhere to think through who they are.*
 
 ---
 
