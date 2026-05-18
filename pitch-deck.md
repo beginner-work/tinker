@@ -169,7 +169,7 @@ Export to PDF: npx @marp-team/marp-cli@latest pitch-deck.md --pdf --html
 
 # beginner
 
-<p class="tagline">Everyone as a Founder</p>
+<p class="tagline">Everyone is a founder</p>
 
 <div class="meta">
 
