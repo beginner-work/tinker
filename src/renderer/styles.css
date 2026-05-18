@@ -219,7 +219,18 @@ html.on-web .sidebar__top {
    * block's items to read as continuous chrome. */
   font-weight: 600;
 }
-.sidebar__deck-heading[aria-expanded="false"] .sidebar__account-label {
+.sidebar__deck-heading-num {
+  /* Deck-position number (1.–7.) — sits left of the heading label so
+   * the founder can see which slide of the seven they're looking at,
+   * even when only some have been touched. */
+  flex-shrink: 0;
+  min-width: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+.sidebar__deck-heading[aria-expanded="false"] .sidebar__account-label,
+.sidebar__deck-heading[aria-expanded="false"] .sidebar__deck-heading-num {
   color: var(--color-muted);
 }
 .sidebar__deck-heading[data-active] {
@@ -233,13 +244,23 @@ html.on-web .sidebar__top {
   flex-direction: column;
   gap: 2px;
 }
+.sidebar__phrase {
+  /* Allow the row's flex container to shrink so wrapping text doesn't
+   * push the row past the sidebar's width. */
+  align-items: flex-start;
+}
 .sidebar__phrase .sidebar__account-label {
   font-size: 13px;
   color: var(--color-muted);
   display: block;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  /* Founder writing wraps instead of truncating — every phrase is a
+   * verbatim slice of their own text, and clipping it hides the words
+   * they wrote. Long phrases break on word boundaries first, then
+   * break out of long unbroken runs as a last resort. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
 }
 .sidebar__phrase[data-active] {
   background: var(--color-hover);
@@ -256,6 +277,54 @@ html.on-web .sidebar__top {
   border-radius: 4px;
 }
 .sidebar__tree-retry:hover { background: var(--color-hover); color: var(--color-foreground); }
+
+/* ── Pitch-progress bar ────────────────────────────────────────────
+ *
+ * Sits at the top of the sidebar tree, above the seven deck-heading
+ * rows. Shows how many of the seven headings have at least one
+ * resolvable phrase. Hidden alongside the tree on cold-start; visible
+ * the moment the classifier lands its first hit.
+ */
+.sidebar__tree-progress {
+  padding: 4px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sidebar__tree-progress-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sidebar__tree-progress-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.sidebar__tree-progress-count {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+.sidebar__tree-progress-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+.sidebar__tree-progress-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-accent-strong);
+  transition: width 0.3s ease;
+}
 
 /* ── Welcome (empty state on main when no draft/read is active) ──── */
 

@@ -246,10 +246,16 @@
 
   let navEl = null;
   let listEl = null;
+  let progressCountEl = null;
+  let progressFillEl = null;
+  let progressBarEl = null;
 
   function ensureMount() {
     navEl = document.querySelector(".sidebar__tree");
     listEl = navEl ? navEl.querySelector(".sidebar__tree-list") : null;
+    progressCountEl = navEl ? navEl.querySelector("[data-tree-progress-count]") : null;
+    progressFillEl = navEl ? navEl.querySelector("[data-tree-progress-fill]") : null;
+    progressBarEl = navEl ? navEl.querySelector("[data-tree-progress-bar]") : null;
   }
 
   // ── Public API ────────────────────────────────────────────────────
@@ -374,9 +380,11 @@
     if (renderable.length === 0) {
       navEl.hidden = true;
       listEl.innerHTML = "";
+      updateProgress(0);
       return;
     }
     navEl.hidden = false;
+    updateProgress(renderable.length);
 
     const meta = memTree._meta || {};
     const failed = !!meta.lastClassifyFailedAt;
@@ -400,6 +408,14 @@
       headBtn.setAttribute("data-deck-heading", heading);
       const isOpen = heading in expanded ? !!expanded[heading] : heading === defaultExpanded;
       headBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      // Deck-position prefix (1.–7.) — the deck's slide order is fixed,
+      // so the number is the heading's index in DECK_HEADINGS + 1. This
+      // stays stable as headings appear and disappear from the tree.
+      const num = document.createElement("span");
+      num.className = "sidebar__deck-heading-num";
+      num.setAttribute("aria-hidden", "true");
+      num.textContent = `${DECK_HEADINGS.indexOf(heading) + 1}.`;
+      headBtn.appendChild(num);
       const label = document.createElement("span");
       label.className = "sidebar__account-label";
       label.textContent = heading;
@@ -461,6 +477,16 @@
     refreshActive();
   }
 
+  function updateProgress(coveredCount) {
+    if (!progressCountEl && !progressFillEl && !progressBarEl) return;
+    const total = DECK_HEADINGS.length;
+    const covered = Math.max(0, Math.min(total, coveredCount | 0));
+    const pct = Math.round((covered / total) * 100);
+    if (progressCountEl) progressCountEl.textContent = `${covered} / ${total}`;
+    if (progressFillEl) progressFillEl.style.width = `${pct}%`;
+    if (progressBarEl) progressBarEl.setAttribute("aria-valuenow", String(covered));
+  }
+
   function toggleExpanded(heading) {
     memTree._meta = memTree._meta || { expanded: {} };
     const current = memTree._meta.expanded || {};
@@ -512,10 +538,13 @@
   //
   // Walks every text node inside .sidebar__tree and verifies each is
   // either (a) one of the seven deck-heading literals, (b) the ↻ retry
-  // glyph during a failure, or (c) a verbatim substring of one of the
-  // founder's drafts or essays, located at the offset recorded on
-  // that row's data-writing-id. Anything outside (a)–(c) is a bug.
-  // Returns an array of issue strings; empty array means clean.
+  // glyph during a failure, (c) a developer-authored chrome string
+  // (deck-position number "N.", or anything inside a [data-audit-ignore]
+  // container such as the pitch-progress bar), or (d) a verbatim
+  // substring of one of the founder's drafts or essays, located at the
+  // offset recorded on that row's data-writing-id. Anything outside
+  // (a)–(d) is a bug. Returns an array of issue strings; empty array
+  // means clean.
   function auditVisibleStrings() {
     const issues = [];
     ensureMount();
@@ -530,7 +559,15 @@
       if (DECK_HEADINGS.includes(txt)) continue;
       // (b) retry glyph
       if (txt === "↻") continue;
-      // (c) verbatim substring of a writing
+      // (c) developer-authored chrome:
+      //   - deck-position number "N." inside .sidebar__deck-heading-num
+      //   - progress-bar text inside [data-audit-ignore]
+      const parent = node.parentElement;
+      if (parent) {
+        if (parent.closest("[data-audit-ignore]")) continue;
+        if (parent.closest(".sidebar__deck-heading-num") && /^\d+\.$/.test(txt)) continue;
+      }
+      // (d) verbatim substring of a writing
       const phraseRow = node.parentElement && node.parentElement.closest("[data-writing-id]");
       if (phraseRow) {
         const writingId = phraseRow.getAttribute("data-writing-id");
@@ -554,7 +591,7 @@
         }
         continue;
       }
-      // Not in any of (a)–(c).
+      // Not in any of (a)–(d).
       issues.push(`unexpected visible string: "${txt.slice(0, 60)}"`);
     }
     return issues;

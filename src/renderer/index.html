@@ -86,6 +86,22 @@
            the tree has no resolvable phrases — cold-start state
            collapses to brand + Account only. -->
       <nav class="sidebar__tree" aria-label="Pitch deck" hidden>
+        <!-- Overall progress: how many of the seven deck headings have
+             at least one resolvable phrase. Developer-authored chrome
+             (the literals "Pitch progress" and the "N / 7" count are
+             allow-listed in sidebar-tree.js's audit). -->
+        <div class="sidebar__tree-progress" data-tree-progress data-audit-ignore>
+          <div class="sidebar__tree-progress-meta">
+            <span class="sidebar__tree-progress-label">Pitch progress</span>
+            <span class="sidebar__tree-progress-count" data-tree-progress-count>0 / 7</span>
+          </div>
+          <div class="sidebar__tree-progress-track" role="progressbar"
+               aria-label="Pitch deck completion"
+               aria-valuemin="0" aria-valuemax="7" aria-valuenow="0"
+               data-tree-progress-bar>
+            <div class="sidebar__tree-progress-fill" data-tree-progress-fill></div>
+          </div>
+        </div>
         <ul class="sidebar__tree-list"></ul>
       </nav>
 
