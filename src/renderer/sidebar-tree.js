@@ -644,6 +644,76 @@
     classifyWriting(lastClassifiedWritingId);
   };
 
+  // ── One-shot v0.103 backfill ──────────────────────────────────────
+  //
+  // Returning users have writings that were never seen by the v0.103
+  // classifier (it didn't exist when they wrote them). Without this,
+  // the sidebar stays empty until they write a new piece. Walk every
+  // draft and essay that isn't already represented in the tree, and
+  // classify them one at a time with a small gap so we don't slam
+  // Anthropic. Hidden writings are excluded via classifyWriting's own
+  // guard. Gated on a flag so it runs once per browser.
+  const BACKFILL_FLAG = "tinker.backfill.v103.v1";
+  const BACKFILL_GAP_MS = 400;
+
+  function writingIdsInTree() {
+    const ids = new Set();
+    for (const h of DECK_HEADINGS) {
+      if (Array.isArray(memTree[h])) {
+        for (const rec of memTree[h]) ids.add(rec.writingId);
+      }
+    }
+    return ids;
+  }
+
+  async function runBackfill() {
+    try {
+      if (localStorage.getItem(BACKFILL_FLAG)) return;
+    } catch { return; }
+
+    // Defer until the user is signed in — no token, no classifier
+    // calls. We re-attempt when auth changes (and on next boot).
+    let token = "";
+    try { token = localStorage.getItem("tinker_jwt") || ""; }
+    catch { /* ignore */ }
+    if (!token) return;
+
+    const drafts = loadDrafts();
+    const essays = loadEssays();
+    const known = writingIdsInTree();
+    const queue = [];
+    for (const d of drafts) {
+      if (d && d.id && !known.has(d.id)) {
+        const body = bodyForDraft(d);
+        if (body && body.trim()) queue.push(d.id);
+      }
+    }
+    for (const e of essays) {
+      if (e && e.id && !known.has(e.id)) {
+        const body = String(e.body || "");
+        if (body.trim()) queue.push(e.id);
+      }
+    }
+
+    if (queue.length === 0) {
+      try { localStorage.setItem(BACKFILL_FLAG, "1"); } catch { /* ignore */ }
+      return;
+    }
+
+    try { console.log(`[tinker.backfill.v103] classifying ${queue.length} writing(s) — sidebar will fill in as results land`); }
+    catch { /* ignore */ }
+
+    for (const id of queue) {
+      try { await classifyWriting(id); }
+      catch { /* skip on failure; future edits will reclassify */ }
+      // Small spacing between calls so the tree fills in
+      // progressively and the API doesn't get hammered.
+      await new Promise((r) => setTimeout(r, BACKFILL_GAP_MS));
+    }
+
+    try { localStorage.setItem(BACKFILL_FLAG, "1"); } catch { /* ignore */ }
+  }
+
   // ── Event hooks ───────────────────────────────────────────────────
   //
   // writing.js and renderer.js dispatch "tinker:writing-saved" with
@@ -660,6 +730,11 @@
   function boot() {
     ensureMount();
     render();
+    // Returning-user backfill: fire after the initial render so the
+    // cold-start state paints first and the tree fills in as results
+    // land. No-op when there's a token + nothing to backfill, or when
+    // the flag has already been set on a prior boot.
+    runBackfill();
   }
 
   if (document.readyState === "loading") {
@@ -669,9 +744,19 @@
   }
 
   // Server hydration may have overwritten the tree blob after this
-  // module's initial load. Re-read and re-render.
+  // module's initial load. Re-read and re-render. If hydrate just
+  // brought in writings the local browser hasn't classified yet, the
+  // backfill retries (it's a no-op if the flag is already set or the
+  // queue is empty).
   window.addEventListener("tinker:hydrated", () => {
     memTree = loadTree();
     render();
+    runBackfill();
+  });
+
+  // Auth changed (e.g. just signed in) — same idea: retry backfill
+  // now that a token exists.
+  window.addEventListener("tinker:auth-changed", () => {
+    runBackfill();
   });
 })();
