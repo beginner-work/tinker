@@ -68,6 +68,14 @@ Required Vercel env vars:
 - `BROWSERBASE_API_KEY` — used by `scripts/browserbase-debug.js`
 - `BROWSERBASE_PROJECT_ID` — used by `scripts/browserbase-debug.js`
 
+Optional Preview-only vars (enable the Claude-Code → Browserbase loop;
+see "Closed-loop iteration on a Vercel preview" below):
+
+- `VERCEL_AUTOMATION_BYPASS_SECRET` — auto-set when you enable Protection Bypass
+- `TEST_AUTH_TOKEN` — gates `/api/dev-bootstrap`
+- `TEST_SESSION_TOKEN` — long-lived Stytch `session_token` for the test user
+- `TEST_PHONE_NUMBER` — E.164 number for the test account; used by `scripts/mint-test-session.js`
+
 Set the same values for Production and Preview so preview deploys see the
 same Stytch users and the same Postgres rows as production. (Preview used
 to point at a separate `project-test-*` Stytch project and got its
@@ -97,6 +105,77 @@ The hosted server handles its own LLM costs (Browserbase pays for
 Gemini under the hood); all you need is `BROWSERBASE_API_KEY` set in
 your Claude Code environment. The key is passed as a URL query
 param — no extra model key, no Anthropic key, no Gemini key.
+
+### Closed-loop iteration on a Vercel preview
+
+For the full edit → push → preview → poke → fix loop, Claude needs to
+get past two auth walls in a single browser navigation:
+
+1. Vercel's "Authentication Required" page on protected previews.
+2. The app's own Stytch SMS-OTP gate.
+
+The repo handles both with one URL:
+
+```
+https://<preview>.vercel.app/api/dev-bootstrap
+  ?test_auth=$TEST_AUTH_TOKEN
+  &x-vercel-protection-bypass=$VERCEL_AUTOMATION_BYPASS_SECRET
+  &x-vercel-set-bypass-cookie=true
+  &next=/
+```
+
+Vercel consumes the bypass query params at the edge (and sets a
+`_vercel_jwt` cookie so subsequent navigations on the same session don't
+need them). The function then validates `test_auth` and returns a tiny
+HTML page that writes a pre-minted Stytch session token into
+`localStorage.tinker_jwt` and redirects to `/`. From there the app is
+fully authenticated and Claude can use the Browserbase MCP tools
+(`navigate`, `act`, `observe`, `extract`) against the real preview.
+
+One-time setup:
+
+1. Vercel dashboard → Settings → Deployment Protection → enable
+   **Protection Bypass for Automation**. This auto-adds
+   `VERCEL_AUTOMATION_BYPASS_SECRET` to project env.
+2. Add three Preview-scope env vars:
+
+   ```
+   vercel env add TEST_PHONE_NUMBER preview    # e.g. +15551234567
+   vercel env add TEST_AUTH_TOKEN  preview     # any 32+ char random string
+   vercel env add TEST_SESSION_TOKEN preview   # see step 3
+   ```
+
+3. Mint the long-lived session token (rerun every ~30 days):
+
+   ```bash
+   npx vercel env pull
+   node scripts/mint-test-session.js
+   # Triggers an SMS to TEST_PHONE_NUMBER, prompts for the 6-digit code,
+   # prints the session_token plus the exact `vercel env add` command to
+   # paste it into the Preview scope. Then redeploy.
+   ```
+
+These vars only exist in the Preview scope on purpose: production stays
+unaware of them, so the `/api/dev-bootstrap` endpoint silently 404s on
+the production hostname.
+
+### Secrets in Claude Code on the web
+
+Vercel stays the source of truth for everything else.
+`.claude/hooks/session-start.sh` runs at the start of each cloud Claude
+Code session, pulls the Preview env from Vercel, and exposes it to the
+session so `.mcp.json`'s `${BROWSERBASE_API_KEY}` placeholder
+interpolates correctly when the Browserbase MCP server starts. The hook
+needs three bootstrap vars in the Claude Code web environment for this
+repo (the only secrets that can't live in Vercel):
+
+- `VERCEL_TOKEN`       — a read-only-by-default Vercel API token
+- `VERCEL_PROJECT_ID`  — copy from `.vercel/project.json` after a local `vercel link`
+- `VERCEL_ORG_ID`      — same file
+
+Without them, the hook still installs npm deps and exits cleanly, so
+local `claude` runs that already have `.env.local` on disk are
+unaffected.
 
 ### From your terminal
 
