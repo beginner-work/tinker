@@ -589,7 +589,11 @@
         try { return localStorage.getItem("tinker_jwt") || ""; }
         catch { return ""; }
       })();
-      if (!token) return null;
+      if (!token) {
+        try { console.warn(`[tinker.classify] no token, skipping ${writingId}`); }
+        catch { /* ignore */ }
+        return null;
+      }
 
       let res;
       try {
@@ -601,24 +605,39 @@
           },
           body: JSON.stringify({ writingId, body: found.body }),
         });
-      } catch {
+      } catch (err) {
         api.markClassifyFailed();
+        try { console.warn(`[tinker.classify] network error for ${writingId}`, err); }
+        catch { /* ignore */ }
         return null;
       }
       if (!res.ok) {
         api.markClassifyFailed();
+        let errText = "";
+        try { errText = await res.text(); } catch { /* ignore */ }
+        try { console.warn(`[tinker.classify] ${res.status} for ${writingId}: ${errText.slice(0, 200)}`); }
+        catch { /* ignore */ }
         return null;
       }
       let json = null;
       try { json = await res.json(); }
-      catch { api.markClassifyFailed(); return null; }
+      catch (err) {
+        api.markClassifyFailed();
+        try { console.warn(`[tinker.classify] bad JSON for ${writingId}`, err); }
+        catch { /* ignore */ }
+        return null;
+      }
       if (!json || typeof json !== "object") {
         api.markClassifyFailed();
+        try { console.warn(`[tinker.classify] empty response for ${writingId}`); }
+        catch { /* ignore */ }
         return null;
       }
       api.markClassifySucceeded();
       lastClassifiedWritingId = writingId;
       if (json.deckHeading && json.phrase) {
+        try { console.log(`[tinker.classify] ${writingId} → ${json.deckHeading} (offset ${json.phrase.offset}, len ${json.phrase.length})`); }
+        catch { /* ignore */ }
         api.upsertPhrase({
           deckHeading: json.deckHeading,
           writingId,
@@ -626,8 +645,13 @@
           length: json.phrase.length,
           addedAt: Date.now(),
         });
+      } else if (json.deckHeading && !json.phrase) {
+        try { console.log(`[tinker.classify] ${writingId} → ${json.deckHeading} but no usable phrase, skipping`); }
+        catch { /* ignore */ }
       } else if (json.deckHeading === null) {
         // Writing doesn't fit any heading — strip any prior phrase.
+        try { console.log(`[tinker.classify] ${writingId} → no heading match`); }
+        catch { /* ignore */ }
         api.clearWritingFromTree(writingId);
       }
       return json;
@@ -652,8 +676,11 @@
   // draft and essay that isn't already represented in the tree, and
   // classify them one at a time with a small gap so we don't slam
   // Anthropic. Hidden writings are excluded via classifyWriting's own
-  // guard. Gated on a flag so it runs once per browser.
-  const BACKFILL_FLAG = "tinker.backfill.v103.v1";
+  // guard. Gated on a flag so it runs once per browser; the version
+  // suffix bumps with each shipped change so a browser stuck on a
+  // prior empty pass gets one more try with the newer model /
+  // validators.
+  const BACKFILL_FLAG = "tinker.backfill.v103.v2";
   const BACKFILL_GAP_MS = 400;
 
   function writingIdsInTree() {

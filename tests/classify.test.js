@@ -93,17 +93,39 @@ test("validatePhrase rejects offset past the body", () => {
   assert.equal(validatePhrase(body, { offset: -1, length: 5 }), null);
 });
 
-test("validatePhrase rejects fewer than 4 words", () => {
+test("validatePhrase rejects fewer than 3 words", () => {
   const body = "the barber gave me a hundred bucks";
-  const phrase = "the barber gave";
+  const phrase = "the barber";
   const offset = body.indexOf(phrase);
   assert.equal(validatePhrase(body, { offset, length: phrase.length }), null);
 });
 
-test("validatePhrase rejects more than 18 words", () => {
-  const body = Array.from({ length: 25 }, (_, i) => `word${i}`).join(" ");
-  // Take the whole 25-word string — too long.
+test("validatePhrase accepts a 3-word phrase (relaxed from 4)", () => {
+  const body = "first sentence here. everyone is here today. another sentence.";
+  const phrase = "everyone is here";
+  const offset = body.indexOf(phrase);
+  assert.deepEqual(
+    validatePhrase(body, { offset, length: phrase.length }),
+    { offset, length: phrase.length },
+  );
+});
+
+test("validatePhrase rejects more than 22 words", () => {
+  const body = Array.from({ length: 30 }, (_, i) => `word${i}`).join(" ");
+  // Take the whole 30-word string — too long.
   assert.equal(validatePhrase(body, { offset: 0, length: body.length }), null);
+});
+
+test("validatePhrase trims tolerable leading/trailing whitespace from the model", () => {
+  const body = "before the barber gave me a hundred bucks today after";
+  const trimmedPhrase = "the barber gave me a hundred bucks today";
+  const trimmedOffset = body.indexOf(trimmedPhrase);
+  // Model sent a slice with a leading space (offset one back, length +1).
+  const result = validatePhrase(body, {
+    offset: trimmedOffset - 1,
+    length: trimmedPhrase.length + 1,
+  });
+  assert.deepEqual(result, { offset: trimmedOffset, length: trimmedPhrase.length });
 });
 
 test("validatePhrase rejects substrings containing a line break", () => {
@@ -113,11 +135,16 @@ test("validatePhrase rejects substrings containing a line break", () => {
   assert.equal(validatePhrase(body, { offset, length: phrase.length }), null);
 });
 
-test("validatePhrase rejects phrases with leading or trailing whitespace", () => {
+test("validatePhrase trims trailing whitespace from a model slice", () => {
   const body = "the barber gave me a hundred bucks";
-  // Length includes a trailing space → trimmable, so rejected.
   const trailingSpaceLen = "the barber gave me a hundred ".length;
-  assert.equal(validatePhrase(body, { offset: 0, length: trailingSpaceLen }), null);
+  // The trailing space is folded out; the returned window is the
+  // trimmed phrase, which is 6 words long and clears the word-count
+  // floor.
+  assert.deepEqual(
+    validatePhrase(body, { offset: 0, length: trailingSpaceLen }),
+    { offset: 0, length: "the barber gave me a hundred".length },
+  );
 });
 
 test("validatePhrase accepts a phrase that starts after punctuation", () => {

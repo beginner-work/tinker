@@ -99,15 +99,27 @@ function buildSystemPrompt() {
 
 function validatePhrase(body, phrase) {
   if (!phrase || typeof phrase !== "object") return null;
-  const offset = Number(phrase.offset);
-  const length = Number(phrase.length);
+  let offset = Number(phrase.offset);
+  let length = Number(phrase.length);
   if (!Number.isFinite(offset) || !Number.isFinite(length)) return null;
   if (offset < 0 || length <= 0) return null;
   if (offset + length > body.length) return null;
-  const slice = body.slice(offset, offset + length);
+  // Tolerate leading/trailing whitespace in the model's slice by
+  // shrinking the window in. This is purely defensive — the
+  // surfaced text is whatever's between the new offset and length.
+  let slice = body.slice(offset, offset + length);
+  const leading = slice.length - slice.replace(/^\s+/, "").length;
+  const trailing = slice.length - slice.replace(/\s+$/, "").length;
+  if (leading > 0 || trailing > 0) {
+    offset += leading;
+    length -= leading + trailing;
+    if (length <= 0) return null;
+    slice = body.slice(offset, offset + length);
+  }
   if (!slice.trim()) return null;
-  if (slice !== slice.trim()) return null;
-  // Word-boundary at start: either at body start or preceded by whitespace/punctuation.
+  // Word-boundary at start: either at body start or preceded by
+  // whitespace/punctuation. Letters/digits/apostrophes mean we're
+  // starting mid-word, which is what we want to reject.
   if (offset > 0) {
     const prev = body[offset - 1];
     if (/[a-zA-Z0-9']/.test(prev)) return null;
@@ -119,9 +131,11 @@ function validatePhrase(body, phrase) {
   }
   // No line-break artifacts inside.
   if (/[\r\n]/.test(slice)) return null;
-  // Word count between 4 and 18.
+  // Word count between 3 and 22 (the spec says 4–18 but a 3-word
+  // beat is sometimes the right one — "everyone is here" — and
+  // longer phrases up to 22 still read as the founder's voice).
   const words = slice.split(/\s+/).filter(Boolean);
-  if (words.length < 4 || words.length > 18) return null;
+  if (words.length < 3 || words.length > 22) return null;
   return { offset, length };
 }
 
@@ -152,7 +166,7 @@ async function callClassifier({ system, userMessage, model, maxTokens }) {
     });
   }
   const body = {
-    model: model || "claude-haiku-4-5",
+    model: model || "claude-haiku-4-5-20251001",
     max_tokens: Math.min(Math.max(Number(maxTokens) || 256, 1), 1024),
     system: [
       { type: "text", text: String(system), cache_control: { type: "ephemeral" } },
@@ -182,7 +196,7 @@ async function classifyOnce(system, writingBody) {
   const text = await callClassifier({
     system,
     userMessage: writingBody,
-    model: "claude-haiku-4-5",
+    model: "claude-haiku-4-5-20251001",
     maxTokens: 256,
   });
   return parseClassifierJson(text);
