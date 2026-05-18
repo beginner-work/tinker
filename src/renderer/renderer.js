@@ -36,6 +36,8 @@
   const categoryFeedSub = $("#category-feed-sub");
   const categoryFeedList = $("#category-feed-list");
   const categoryFeedEmpty = $("#category-feed-empty");
+  const writingFitView = $("#writing-fit");
+  const writingFitContent = $("#writing-fit-content");
   const statusComposer = $("#status-composer");
   const statusComposerInput = $("#status-composer-input");
   const statusComposerPost = $("#status-composer-post");
@@ -155,15 +157,13 @@
           detail: { writingId: essay.id },
         }));
       } catch { /* ignore */ }
-      // Land on the seed's category feed (now containing the
-      // just-published essay). For a brand-new seed with no
-      // classification yet, fall through to the read view.
-      const leafKey = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryKeyForSeed === "function")
-        ? window.tinkerHeatmap.getCategoryKeyForSeed(essay.seed)
-        : null;
-      if (!leafKey || !showCategoryFeed(leafKey)) {
-        showRead(essay);
-      }
+      // Replace the post-publish category feed with a screen that
+      // tells the founder where this latest writing slots into their
+      // eight-slide starter pitch — or that it doesn't fit yet. The
+      // sidebar-tree's classify listener (fired by the event above)
+      // already has the call in flight; showWritingFit attaches to
+      // that same promise via the inflight dedupe.
+      showWritingFit(essay);
       return essay;
     },
     // Short-form post: typed straight into the textarea at the top of
@@ -265,6 +265,7 @@
     writingView.hidden = true;
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
+    if (writingFitView) writingFitView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -285,12 +286,14 @@
     writingView.hidden = false;
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
+    if (writingFitView) writingFitView.hidden = true;
   }
   function showRead(essay) {
     feedView.removeAttribute("data-active");
     writingView.hidden = true;
     readView.hidden = false;
     if (categoryFeedView) categoryFeedView.hidden = true;
+    if (writingFitView) writingFitView.hidden = true;
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
@@ -315,6 +318,7 @@
     writingView.hidden = true;
     readView.hidden = true;
     categoryFeedView.hidden = false;
+    if (writingFitView) writingFitView.hidden = true;
     activeId = null;
     activeCategoryKey = categoryKey;
     // Prefer the seed the user just tapped. Fall back to the most-
@@ -345,6 +349,126 @@
       categoryFeedList.appendChild(renderFeedCard(essay));
     }
     return true;
+  }
+
+  // Post-publish fit screen. Shows which of the eight starter-pitch
+  // slides this essay slots under (lifted verbatim phrase included) or
+  // — when the classifier returns nothing — flags it as a new direction
+  // the deck hasn't named yet. The classifier call has already been
+  // kicked off by the tinker:writing-saved dispatch in publish(); the
+  // sidebar-tree's inflight dedupe means our classify() call here just
+  // attaches to that same promise.
+  function showWritingFit(essay) {
+    if (!writingFitView || !writingFitContent) {
+      // Fallback to read view if the fit surface didn't mount for any
+      // reason (older cached HTML, audit harness, etc).
+      showRead(essay);
+      return;
+    }
+    feedView.removeAttribute("data-active");
+    writingView.hidden = true;
+    readView.hidden = true;
+    if (categoryFeedView) categoryFeedView.hidden = true;
+    writingFitView.hidden = false;
+    activeId = null;
+    readingEssayId = null;
+    activeCategoryKey = null;
+    activeCategorySeed = null;
+    renderSidebar();
+
+    renderWritingFitLoading();
+
+    const tree = window.tinkerTree;
+    if (tree && typeof tree.classify === "function") {
+      Promise.resolve()
+        .then(() => tree.classify(essay.id, { fresh: true }))
+        .then((result) => renderWritingFitResult(essay, result))
+        .catch(() => renderWritingFitResult(essay, null));
+    } else {
+      renderWritingFitResult(essay, null);
+    }
+  }
+
+  function renderWritingFitLoading() {
+    writingFitContent.innerHTML =
+      `<p class="writing-fit__crumb">You just published</p>` +
+      `<div class="writing-fit__loading">` +
+        `<div class="thinking-dots" aria-hidden="true">` +
+          `<span class="thinking-dot"></span><span class="thinking-dot"></span><span class="thinking-dot"></span>` +
+        `</div>` +
+        `<div class="writing-fit__loading-text">Seeing where this fits in your pitch…</div>` +
+      `</div>`;
+  }
+
+  function renderWritingFitResult(essay, result) {
+    const headings = (window.tinkerTree && window.tinkerTree.DECK_HEADINGS) || [];
+    const totalSlots = headings.length || 8;
+    const titleText = fitTitleFor(essay);
+
+    // `null` from classify means the call couldn't run (network, no
+    // token, parse error). The model deciding "no slide fits" comes
+    // back as { deckHeading: null }. Distinguishing the two so we
+    // don't tell the founder their writing missed the deck when the
+    // classifier never actually weighed in.
+    let slotHtml;
+    let leadHtml = "";
+    if (result === null || result === undefined) {
+      slotHtml =
+        `<div class="writing-fit__slot writing-fit__slot--miss">` +
+          `<div class="writing-fit__slot-num">Hold tight</div>` +
+          `<h2 class="writing-fit__slot-heading">Couldn't see where this fits right now.</h2>` +
+          `<p class="writing-fit__sub">The pitch reader didn't respond. Your essay saved fine — open it below, or come back and the sidebar will catch up.</p>` +
+        `</div>`;
+    } else if (result.deckHeading) {
+      const heading = result.deckHeading;
+      const phrase = result.phrase;
+      let phraseText = "";
+      if (phrase && essay.body
+          && Number.isFinite(phrase.offset) && Number.isFinite(phrase.length)
+          && phrase.offset >= 0 && phrase.offset + phrase.length <= essay.body.length) {
+        phraseText = String(essay.body).slice(phrase.offset, phrase.offset + phrase.length);
+      }
+      const slotNum = headings.indexOf(heading) + 1;
+      const slotLabel = slotNum > 0 ? `Slide ${slotNum} of ${totalSlots}` : "Pitch slide";
+      slotHtml =
+        `<div class="writing-fit__slot">` +
+          `<div class="writing-fit__slot-num">${escapeHtml(slotLabel)}</div>` +
+          `<h2 class="writing-fit__slot-heading">${escapeHtml(heading)}</h2>` +
+          (phraseText ? `<blockquote class="writing-fit__phrase">${escapeHtml(phraseText)}</blockquote>` : "") +
+        `</div>`;
+      leadHtml = `<p class="writing-fit__sub">It lands in your starter pitch here:</p>`;
+    } else {
+      slotHtml =
+        `<div class="writing-fit__slot writing-fit__slot--miss">` +
+          `<div class="writing-fit__slot-num">Off the deck</div>` +
+          `<h2 class="writing-fit__slot-heading">Doesn't fit your starter pitch — yet.</h2>` +
+          `<p class="writing-fit__sub">None of your eight slides quite hold this one. That's how a new beat usually shows up first.</p>` +
+        `</div>`;
+    }
+
+    writingFitContent.innerHTML =
+      `<p class="writing-fit__crumb">You just published</p>` +
+      `<h1 class="writing-fit__headline">${escapeHtml(titleText)}</h1>` +
+      leadHtml +
+      slotHtml +
+      `<div class="writing-fit__actions">` +
+        `<button type="button" class="writing-action" data-fit-action="done">Done</button>` +
+        `<button type="button" class="writing-action writing-action--primary" data-fit-action="read">Read it →</button>` +
+      `</div>`;
+
+    const doneBtn = writingFitContent.querySelector('[data-fit-action="done"]');
+    const readBtn = writingFitContent.querySelector('[data-fit-action="read"]');
+    if (doneBtn) doneBtn.addEventListener("click", () => showFeed());
+    if (readBtn) readBtn.addEventListener("click", () => showRead(essay));
+  }
+
+  function fitTitleFor(essay) {
+    if (essay.title) return essay.title;
+    const body = String(essay.body || "").trim();
+    if (!body) return "Untitled";
+    const words = body.split(/\s+/);
+    const head = words.slice(0, 8).join(" ");
+    return words.length > 8 ? `${head}…` : head;
   }
 
   function renderFeedCard(essay) {
