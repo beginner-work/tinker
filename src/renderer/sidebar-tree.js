@@ -680,7 +680,7 @@
   // suffix bumps with each shipped change so a browser stuck on a
   // prior empty pass gets one more try with the newer model /
   // validators.
-  const BACKFILL_FLAG = "tinker.backfill.v103.v2";
+  const BACKFILL_FLAG = "tinker.backfill.v103.v3";
   const BACKFILL_GAP_MS = 400;
 
   function writingIdsInTree() {
@@ -722,10 +722,14 @@
       }
     }
 
-    if (queue.length === 0) {
-      try { localStorage.setItem(BACKFILL_FLAG, "1"); } catch { /* ignore */ }
-      return;
-    }
+    // Empty queue is NOT the latch signal: it might just mean
+    // hydrate hasn't populated localStorage with the user's drafts
+    // and essays yet. If we set the flag now, the next tinker:hydrated
+    // run is a no-op and the founder's writings stay invisible
+    // forever. Only set the flag after at least one queue item has
+    // actually been processed — the cheap re-entries when there's
+    // nothing to do are harmless.
+    if (queue.length === 0) return;
 
     try { console.log(`[tinker.backfill.v103] classifying ${queue.length} writing(s) — sidebar will fill in as results land`); }
     catch { /* ignore */ }

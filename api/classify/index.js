@@ -84,14 +84,18 @@ function buildSystemPrompt() {
     lines.push("");
   }
   lines.push(
-    "Given a single piece of writing, decide which slide title best fits its central beat. Then pick ONE verbatim substring of the writing — 4 to 18 words — that captures that beat in the founder's own words. The phrase must be a clean contiguous substring of the writing: start at a word boundary, end at a word boundary, no leading/trailing whitespace or punctuation.",
+    "Given a single piece of writing, decide which slide title best fits its central beat. Bias toward returning a heading — most founder writing fits SOMEWHERE under one of the seven; only return null when truly none of the seven applies.",
+    "",
+    "Then pick ONE verbatim substring of the writing — 3 to 18 words — that captures that beat in the founder's own words. The phrase must be a clean contiguous substring of the writing: starts at a word boundary, ends at a word boundary, contains no newline characters, no leading/trailing whitespace.",
+    "",
+    "CRITICAL: count words and double-check offset/length carefully before you respond. Pick a phrase that's CLEARLY between 3 and 18 words — aim for 6 to 12, well inside the window. Whenever you return a non-null deckHeading you MUST also return a valid phrase. Don't return a heading with a null phrase.",
     "",
     "Respond as a single JSON object, with exactly these keys:",
     '  { "deckHeading": "<one of the seven literals, or null>", "phrase": { "offset": <integer>, "length": <integer> } | null }',
     "",
-    "Offset is a 0-based character index into the writing body; length is the character count of the phrase substring.",
+    "Offset is a 0-based character index into the writing body; length is the character count of the phrase substring. To verify: body.slice(offset, offset+length) must equal the phrase you want surfaced, character-for-character.",
     "",
-    "If the writing doesn't clearly belong under any heading, return { \"deckHeading\": null, \"phrase\": null }.",
+    "If the writing truly doesn't belong under any heading, return { \"deckHeading\": null, \"phrase\": null }.",
     "Do not invent new headings. Do not paraphrase the seven. Do not invent a phrase that isn't in the writing. Never wrap the JSON in code fences. Never add explanations outside the JSON.",
   );
   return lines.join("\n");
@@ -192,16 +196,6 @@ async function callClassifier({ system, userMessage, model, maxTokens }) {
   return textBlock ? textBlock.text : "";
 }
 
-async function classifyOnce(system, writingBody) {
-  const text = await callClassifier({
-    system,
-    userMessage: writingBody,
-    model: "claude-haiku-4-5-20251001",
-    maxTokens: 256,
-  });
-  return parseClassifierJson(text);
-}
-
 // Exported for the test suite — Vercel only reads the default export,
 // so attaching helpers as properties is invisible to the route layer.
 const handler = withResponseLogging(async function handler(req, res) {
@@ -232,22 +226,52 @@ const handler = withResponseLogging(async function handler(req, res) {
   }
 
   const system = buildSystemPrompt();
+  const isPreview = process.env.VERCEL_ENV === "preview";
 
   let deckHeading = undefined;
   let phrase = undefined;
   for (let attempt = 0; attempt < 2; attempt++) {
     let parsed = null;
+    let rawText = "";
     try {
-      parsed = await classifyOnce(system, writingBody);
+      rawText = await callClassifier({
+        system,
+        userMessage: writingBody,
+        model: "claude-haiku-4-5-20251001",
+        maxTokens: 256,
+      });
+      parsed = parseClassifierJson(rawText);
     } catch (err) {
       res.status(err.status || 502).json({ error: err.message || "Upstream error" });
       return;
     }
-    if (!parsed || typeof parsed !== "object") continue;
+    if (isPreview) {
+      try { console.log(`[classify] writingId=${writingId} attempt=${attempt} raw=${rawText.slice(0, 400)}`); }
+      catch { /* ignore */ }
+    }
+    if (!parsed || typeof parsed !== "object") {
+      if (isPreview) {
+        try { console.log(`[classify] writingId=${writingId} attempt=${attempt} parsedNull`); }
+        catch { /* ignore */ }
+      }
+      continue;
+    }
 
     const heading = validateHeading(parsed.deckHeading);
     const validatedPhrase =
       parsed.phrase === null ? null : validatePhrase(writingBody, parsed.phrase);
+
+    if (isPreview) {
+      try {
+        const phraseShape = parsed.phrase
+          ? `offset=${parsed.phrase.offset},length=${parsed.phrase.length}`
+          : "null";
+        const slice = (parsed.phrase && typeof parsed.phrase.offset === "number")
+          ? JSON.stringify(writingBody.slice(parsed.phrase.offset, parsed.phrase.offset + (parsed.phrase.length || 0))).slice(0, 200)
+          : "";
+        console.log(`[classify] writingId=${writingId} attempt=${attempt} heading=${JSON.stringify(parsed.deckHeading)} validated=${JSON.stringify(heading)} phrase=${phraseShape} validatedPhrase=${validatedPhrase === undefined ? "MALFORMED" : JSON.stringify(validatedPhrase)} slice=${slice}`);
+      } catch { /* ignore */ }
+    }
 
     // Heading is settled the first time it validates (null counts as
     // settled — the model can decide a writing doesn't fit). Phrase
