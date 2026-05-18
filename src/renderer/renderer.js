@@ -104,6 +104,9 @@
       saveDrafts(drafts);
       if (activeId === id) showFeed();
       renderSidebar();
+      if (window.tinkerTree && typeof window.tinkerTree.clearWritingFromTree === "function") {
+        window.tinkerTree.clearWritingFromTree(id);
+      }
     },
     deleteEssay(id) {
       const essay = essays.find((e) => e.id === id);
@@ -112,6 +115,9 @@
       saveEssays(essays);
       if (readingEssayId === id) showFeed();
       renderHome();
+      if (window.tinkerTree && typeof window.tinkerTree.clearWritingFromTree === "function") {
+        window.tinkerTree.clearWritingFromTree(id);
+      }
       return essay;
     },
     publish(draft, stitched) {
@@ -137,6 +143,18 @@
       activeId = null;
       renderSidebar();
       renderHome();
+      // Drop the draft from the tree before classifying the new
+      // essay — the draft no longer exists. Then ask the v0.103
+      // classifier to place the essay under one of the seven deck
+      // headings.
+      if (window.tinkerTree && typeof window.tinkerTree.clearWritingFromTree === "function") {
+        window.tinkerTree.clearWritingFromTree(draft.id);
+      }
+      try {
+        window.dispatchEvent(new CustomEvent("tinker:writing-saved", {
+          detail: { writingId: essay.id },
+        }));
+      } catch { /* ignore */ }
       // Land on the seed's category feed (now containing the
       // just-published essay). For a brand-new seed with no
       // classification yet, fall through to the read view.
@@ -179,6 +197,11 @@
         window.tinkerSeeds.add(seedName);
       }
       renderHome();
+      try {
+        window.dispatchEvent(new CustomEvent("tinker:writing-saved", {
+          detail: { writingId: essay.id },
+        }));
+      } catch { /* ignore */ }
       return essay;
     },
   };
@@ -369,15 +392,18 @@
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
-  // Sidebar's drafts+essays list is gone — seeds now own the sidebar
-  // (see #home-list). Each seed card surfaces the latest writing
-  // produced there. Kept as a no-op so existing call sites compile.
+  // Sidebar's drafts+essays list is gone — the v0.103 pitch-deck tree
+  // owns the sidebar surface between brand and Account (see
+  // sidebar-tree.js). renderSidebar/renderHome are kept as no-ops so
+  // existing call sites compile.
   function renderSidebar() {
     if (!sessionsEl) return;
     sessionsEl.innerHTML = "";
   }
 
   function renderHome() {
+    // The v0.103 sidebar drops the heatmap-rendered home list; the
+    // mount node is gone from the DOM and this becomes a no-op.
     if (!homeListEl) return;
     if (window.tinkerHeatmap && typeof window.tinkerHeatmap.render === "function") {
       window.tinkerHeatmap.render(homeListEl);

@@ -751,8 +751,19 @@
 
   // ── Top-bar wiring ──────────────────────────────────────────────────
   closeBtn.addEventListener("click", () => {
+    // Snapshot the active draft id before we hand off — the renderer
+    // clears `active` synchronously. The classifier runs in the
+    // background; the sidebar tree picks up the result on next paint.
+    const closingId = active && active.id;
     if (typeof window.tinkerOnWritingClose === "function") {
       window.tinkerOnWritingClose();
+    }
+    if (closingId) {
+      try {
+        window.dispatchEvent(new CustomEvent("tinker:writing-saved", {
+          detail: { writingId: closingId },
+        }));
+      } catch { /* ignore */ }
     }
   });
 
