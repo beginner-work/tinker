@@ -345,9 +345,9 @@ Pre-seed · $300k – $950k
 
 # Go to Market
 
-> *I have a LinkedIn network and professional and personal networks in San Diego and San Francisco, and I start there.*
+> *I start by building off of my personal and professional networks in San Diego and San Francisco.*
 
-> *I need help from a startup incubator making the connections and explaining the playbook nationally.*
+> *Then I build into the enterprise space by connecting with incubation spaces globally.*
 
 ---
 
