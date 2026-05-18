@@ -93,13 +93,24 @@
         <div class="sidebar__tree-progress" data-tree-progress data-audit-ignore>
           <div class="sidebar__tree-progress-meta">
             <span class="sidebar__tree-progress-label">Pitch progress</span>
-            <span class="sidebar__tree-progress-count" data-tree-progress-count>0 / 7</span>
+            <span class="sidebar__tree-progress-count" data-tree-progress-count>
+              <span class="sidebar__tree-progress-count-num" data-tree-progress-count-num>0 / 7</span>
+              <span class="sidebar__tree-progress-count-flight" aria-hidden="true">stay tuned…</span>
+            </span>
           </div>
           <div class="sidebar__tree-progress-track" role="progressbar"
                aria-label="Pitch deck completion"
                aria-valuemin="0" aria-valuemax="7" aria-valuenow="0"
                data-tree-progress-bar>
             <div class="sidebar__tree-progress-fill" data-tree-progress-fill></div>
+          </div>
+          <div class="sidebar__tree-progress-secondary" data-tree-progress-secondary hidden>
+            <div class="sidebar__tree-progress-secondary-meta">
+              <span class="sidebar__tree-progress-secondary-label">Other founder journeys</span>
+            </div>
+            <div class="sidebar__tree-progress-secondary-track" aria-hidden="true">
+              <div class="sidebar__tree-progress-secondary-fill" data-tree-progress-secondary-fill></div>
+            </div>
           </div>
         </div>
         <ul class="sidebar__tree-list"></ul>

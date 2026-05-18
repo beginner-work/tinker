@@ -36,6 +36,14 @@
   const ESSAYS_KEY = "tinker.essays.v1";
   const SEEDS_HIDDEN_KEY = "tinker.seeds.hidden.v1";
   const RECOVERY_FLAG = "tinker.recovery.v103.v1";
+  // Local-only counter of fresh publications whose classifier result
+  // did NOT grow the covered-heading count. Drives the secondary "Other
+  // founder journeys" bar's slow asymptotic fill. Not synced — the bar
+  // is a per-browser nod to the founder, not a permanent record.
+  const OFFPITCH_KEY = "tinker.tree.offPitchCount.v1";
+  // How long the transient "strengthened" / "off-pitch" states stay on
+  // the progress container before reverting to idle.
+  const TRANSIENT_MS = 1000;
 
   // The seven deck headings, in deck order — top to bottom in the
   // sidebar. Hard-coded here AND in the classifier; both sides
@@ -206,6 +214,27 @@
     } catch { return []; }
   }
 
+  function loadOffPitchCount() {
+    try {
+      const raw = localStorage.getItem(OFFPITCH_KEY);
+      const n = parseInt(raw || "0", 10);
+      return Number.isFinite(n) && n >= 0 ? n : 0;
+    } catch { return 0; }
+  }
+
+  function saveOffPitchCount(n) {
+    try { localStorage.setItem(OFFPITCH_KEY, String(Math.max(0, n | 0))); }
+    catch { /* ignore */ }
+  }
+
+  // Asymptotic fill — each off-pitch publication adds ~15% of the
+  // remaining gap. The bar approaches but never reaches 100%, so the
+  // founder always has room to grow on alternate journeys.
+  function offPitchPct(n) {
+    if (n <= 0) return 0;
+    return 1 - Math.pow(0.85, n);
+  }
+
   // ── Writing lookups ───────────────────────────────────────────────
 
   // The tree's phrase rows reference { writingId, offset, length }
@@ -246,16 +275,25 @@
 
   let navEl = null;
   let listEl = null;
+  let progressEl = null;
   let progressCountEl = null;
   let progressFillEl = null;
   let progressBarEl = null;
+  let progressSecondaryEl = null;
+  let progressSecondaryFillEl = null;
 
   function ensureMount() {
     navEl = document.querySelector(".sidebar__tree");
     listEl = navEl ? navEl.querySelector(".sidebar__tree-list") : null;
-    progressCountEl = navEl ? navEl.querySelector("[data-tree-progress-count]") : null;
+    progressEl = navEl ? navEl.querySelector("[data-tree-progress]") : null;
+    // The inner num span is what updateProgress writes to. The outer
+    // [data-tree-progress-count] wrapper also contains the transient
+    // "stay tuned…" label, shown by CSS only during classifying.
+    progressCountEl = navEl ? navEl.querySelector("[data-tree-progress-count-num]") : null;
     progressFillEl = navEl ? navEl.querySelector("[data-tree-progress-fill]") : null;
     progressBarEl = navEl ? navEl.querySelector("[data-tree-progress-bar]") : null;
+    progressSecondaryEl = navEl ? navEl.querySelector("[data-tree-progress-secondary]") : null;
+    progressSecondaryFillEl = navEl ? navEl.querySelector("[data-tree-progress-secondary-fill]") : null;
   }
 
   // ── Public API ────────────────────────────────────────────────────
@@ -381,16 +419,29 @@
       if (resolved.length > 0) renderable.push({ heading, resolved });
     }
 
-    // Cold-start / nothing-rendered: hide the entire nav. Brand sits
-    // directly above Account. No placeholder, no CTA.
-    if (renderable.length === 0) {
+    const offPitchCount = loadOffPitchCount();
+
+    // Cold-start / nothing-rendered: hide the entire nav unless the
+    // founder has off-pitch publications, in which case the secondary
+    // "Other founder journeys" bar carries the acknowledgement on its
+    // own. Brand sits directly above Account when both are empty.
+    if (renderable.length === 0 && offPitchCount === 0) {
       navEl.hidden = true;
       listEl.innerHTML = "";
       updateProgress(0);
+      renderSecondary(0);
       return;
     }
     navEl.hidden = false;
     updateProgress(renderable.length);
+    renderSecondary(offPitchCount);
+
+    // No main-pitch headings yet, but off-pitch writing is being
+    // acknowledged: render an empty list (no rows) under the bars.
+    if (renderable.length === 0) {
+      listEl.innerHTML = "";
+      return;
+    }
 
     const meta = memTree._meta || {};
     const failed = !!meta.lastClassifyFailedAt;
@@ -491,6 +542,95 @@
     if (progressCountEl) progressCountEl.textContent = `${covered} / ${total}`;
     if (progressFillEl) progressFillEl.style.width = `${pct}%`;
     if (progressBarEl) progressBarEl.setAttribute("aria-valuenow", String(covered));
+  }
+
+  function renderSecondary(n) {
+    if (!progressSecondaryEl) return;
+    if (n <= 0) {
+      progressSecondaryEl.hidden = true;
+      if (progressSecondaryFillEl) progressSecondaryFillEl.style.width = "0%";
+      return;
+    }
+    const wasHidden = progressSecondaryEl.hidden;
+    progressSecondaryEl.hidden = false;
+    if (!progressSecondaryFillEl) return;
+    const targetPct = Math.round(offPitchPct(n) * 100);
+    if (wasHidden) {
+      // First appearance: pin to 0% in this frame, then animate to the
+      // target on the next, so the bar visibly grows in instead of
+      // popping in at its resting width.
+      progressSecondaryFillEl.style.width = "0%";
+      const fillEl = progressSecondaryFillEl;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          fillEl.style.width = `${targetPct}%`;
+        });
+      });
+    } else {
+      progressSecondaryFillEl.style.width = `${targetPct}%`;
+    }
+  }
+
+  // How many of the seven headings currently resolve to at least one
+  // verbatim phrase. Re-validates offsets the same way render() does
+  // so prior counts always match what the founder is looking at.
+  function countCoveredHeadings() {
+    let n = 0;
+    for (const heading of DECK_HEADINGS) {
+      const recs = Array.isArray(memTree[heading]) ? memTree[heading] : [];
+      const ordered = recs.slice().sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+      for (const rec of ordered) {
+        if (resolvePhraseText(rec)) { n++; break; }
+      }
+    }
+    return n;
+  }
+
+  // Mirror the progress-state attribute onto both the progress
+  // container and the <body> so the brand globe (sidebar header,
+  // [data-rainbow-logo]) can react via a body-scoped selector.
+  let transientTimer = null;
+  function setProgressState(state) {
+    ensureMount();
+    const v = state || "idle";
+    if (progressEl) {
+      if (v === "idle") progressEl.removeAttribute("data-tree-progress-state");
+      else progressEl.setAttribute("data-tree-progress-state", v);
+    }
+    if (document && document.body) {
+      if (v === "idle") document.body.removeAttribute("data-tree-progress-state");
+      else document.body.setAttribute("data-tree-progress-state", v);
+    }
+  }
+
+  function clearTransientState() {
+    if (transientTimer) {
+      clearTimeout(transientTimer);
+      transientTimer = null;
+    }
+    setProgressState("idle");
+  }
+
+  function pulseStrengthened() {
+    setProgressState("strengthened");
+    if (transientTimer) clearTimeout(transientTimer);
+    transientTimer = setTimeout(() => {
+      transientTimer = null;
+      setProgressState("idle");
+    }, TRANSIENT_MS);
+  }
+
+  function nudgeOffPitch() {
+    const next = loadOffPitchCount() + 1;
+    saveOffPitchCount(next);
+    // Re-render so the secondary bar's width animates from old to new.
+    render();
+    setProgressState("off-pitch");
+    if (transientTimer) clearTimeout(transientTimer);
+    transientTimer = setTimeout(() => {
+      transientTimer = null;
+      setProgressState("idle");
+    }, TRANSIENT_MS);
   }
 
   function toggleExpanded(heading) {
@@ -616,7 +756,7 @@
   const inflight = new Map();
   let lastClassifiedWritingId = null;
 
-  async function classifyWriting(writingId) {
+  async function classifyWriting(writingId, opts) {
     if (!writingId) return null;
     if (inflight.has(writingId)) return inflight.get(writingId);
 
@@ -627,6 +767,14 @@
     const found = findWriting(writingId);
     if (!found || !found.body || !found.body.trim()) return null;
 
+    // `fresh` means this is a just-published writing — the founder
+    // is watching for feedback. The backfill loop leaves it false so
+    // returning-user catch-up runs silently.
+    const fresh = !!(opts && opts.fresh);
+    const priorCovered = fresh ? countCoveredHeadings() : 0;
+    let errored = false;
+    if (fresh) setProgressState("classifying");
+
     const p = (async () => {
       const token = (function () {
         try { return localStorage.getItem("tinker_jwt") || ""; }
@@ -635,6 +783,7 @@
       if (!token) {
         try { console.warn(`[tinker.classify] no token, skipping ${writingId}`); }
         catch { /* ignore */ }
+        errored = true;
         return null;
       }
 
@@ -652,6 +801,7 @@
         api.markClassifyFailed();
         try { console.warn(`[tinker.classify] network error for ${writingId}`, err); }
         catch { /* ignore */ }
+        errored = true;
         return null;
       }
       if (!res.ok) {
@@ -660,6 +810,7 @@
         try { errText = await res.text(); } catch { /* ignore */ }
         try { console.warn(`[tinker.classify] ${res.status} for ${writingId}: ${errText.slice(0, 200)}`); }
         catch { /* ignore */ }
+        errored = true;
         return null;
       }
       let json = null;
@@ -668,12 +819,14 @@
         api.markClassifyFailed();
         try { console.warn(`[tinker.classify] bad JSON for ${writingId}`, err); }
         catch { /* ignore */ }
+        errored = true;
         return null;
       }
       if (!json || typeof json !== "object") {
         api.markClassifyFailed();
         try { console.warn(`[tinker.classify] empty response for ${writingId}`); }
         catch { /* ignore */ }
+        errored = true;
         return null;
       }
       api.markClassifySucceeded();
@@ -701,14 +854,35 @@
     })();
 
     inflight.set(writingId, p);
-    try { return await p; }
-    finally { inflight.delete(writingId); }
+    try {
+      const result = await p;
+      if (fresh) {
+        // Decide which post-classify state to enter. Errors clear the
+        // classifying state without crediting the off-pitch counter —
+        // a network failure isn't a journey, just a setback.
+        if (errored) {
+          clearTransientState();
+        } else {
+          const nextCovered = countCoveredHeadings();
+          if (nextCovered > priorCovered) pulseStrengthened();
+          else nudgeOffPitch();
+        }
+      }
+      return result;
+    } catch (err) {
+      // Defensive: don't let the spinning globe linger if anything
+      // unexpected escaped the inner promise.
+      if (fresh) clearTransientState();
+      throw err;
+    } finally {
+      inflight.delete(writingId);
+    }
   }
 
   api.classify = classifyWriting;
   api.onManualRetry = function () {
     if (!lastClassifiedWritingId) return;
-    classifyWriting(lastClassifiedWritingId);
+    classifyWriting(lastClassifiedWritingId, { fresh: true });
   };
 
   // ── One-shot v0.103 backfill ──────────────────────────────────────
@@ -796,7 +970,7 @@
   window.addEventListener("tinker:writing-saved", (e) => {
     const writingId = e && e.detail && e.detail.writingId;
     if (!writingId) return;
-    classifyWriting(writingId);
+    classifyWriting(writingId, { fresh: true });
   });
 
   // ── Boot ──────────────────────────────────────────────────────────
