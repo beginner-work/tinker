@@ -680,7 +680,7 @@
   // suffix bumps with each shipped change so a browser stuck on a
   // prior empty pass gets one more try with the newer model /
   // validators.
-  const BACKFILL_FLAG = "tinker.backfill.v103.v3";
+  const BACKFILL_FLAG = "tinker.backfill.v103.v4";
   const BACKFILL_GAP_MS = 400;
 
   function writingIdsInTree() {

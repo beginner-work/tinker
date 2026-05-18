@@ -86,21 +86,101 @@ function buildSystemPrompt() {
   lines.push(
     "Given a single piece of writing, decide which slide title best fits its central beat. Bias toward returning a heading — most founder writing fits SOMEWHERE under one of the seven; only return null when truly none of the seven applies.",
     "",
-    "Then pick ONE verbatim substring of the writing — 3 to 18 words — that captures that beat in the founder's own words. The phrase must be a clean contiguous substring of the writing: starts at a word boundary, ends at a word boundary, contains no newline characters, no leading/trailing whitespace.",
+    "Then COPY a short phrase from the writing — 3 to 18 words — that captures that beat in the founder's own words. The phrase MUST appear verbatim in the writing body. Copy it exactly as it appears (same letters, same spacing, same punctuation). Aim for 6 to 12 words. Do not include a leading/trailing space, do not include a line break inside the phrase, do not summarise.",
     "",
-    "CRITICAL: count words and double-check offset/length carefully before you respond. Pick a phrase that's CLEARLY between 3 and 18 words — aim for 6 to 12, well inside the window. Whenever you return a non-null deckHeading you MUST also return a valid phrase. Don't return a heading with a null phrase.",
+    "Whenever you return a non-null deckHeading you MUST also return a valid phraseText that you copied verbatim from the writing. Pick a sentence or sentence-fragment — not a single word.",
     "",
     "Respond as a single JSON object, with exactly these keys:",
-    '  { "deckHeading": "<one of the seven literals, or null>", "phrase": { "offset": <integer>, "length": <integer> } | null }',
+    '  { "deckHeading": "<one of the seven literals, or null>", "phraseText": "<a verbatim 3-to-18-word substring of the writing>" | null }',
     "",
-    "Offset is a 0-based character index into the writing body; length is the character count of the phrase substring. To verify: body.slice(offset, offset+length) must equal the phrase you want surfaced, character-for-character.",
-    "",
-    "If the writing truly doesn't belong under any heading, return { \"deckHeading\": null, \"phrase\": null }.",
-    "Do not invent new headings. Do not paraphrase the seven. Do not invent a phrase that isn't in the writing. Never wrap the JSON in code fences. Never add explanations outside the JSON.",
+    "If the writing truly doesn't belong under any heading, return { \"deckHeading\": null, \"phraseText\": null }.",
+    "Do not invent new headings. Do not paraphrase the seven. Do not invent a phraseText that isn't in the writing. Never wrap the JSON in code fences. Never add explanations outside the JSON.",
   );
   return lines.join("\n");
 }
 
+// Find the model's phrase text inside the writing body and return
+// the resolved { offset, length } if it lands on a clean substring.
+// We prefer an exact indexOf; if that misses (model added/dropped a
+// stray space or smart-quote), fall back to a whitespace-normalized
+// search. Returns null on anything we can't ground in the body.
+function resolvePhraseText(body, phraseText) {
+  if (typeof phraseText !== "string") return null;
+  const trimmed = phraseText.trim();
+  if (!trimmed) return null;
+  // Word count between 3 and 22 (spec says 4–18; relaxed at the
+  // edges so the model has room to pick the natural beat).
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length < 3 || words.length > 22) return null;
+  // Phrases that span a line break would be visually awkward in the
+  // sidebar row — drop them so the renderer doesn't get them.
+  if (/[\r\n]/.test(trimmed)) return null;
+
+  // 1. Exact indexOf wins.
+  let offset = body.indexOf(trimmed);
+  let length = trimmed.length;
+  // 2. Fallback: collapse whitespace in both sides and re-find,
+  //    then map the normalized index back to a body offset.
+  if (offset === -1) {
+    const norm = (s) => s.replace(/\s+/g, " ");
+    const normalizedBody = norm(body);
+    const normalizedPhrase = norm(trimmed);
+    const normalizedIndex = normalizedBody.indexOf(normalizedPhrase);
+    if (normalizedIndex === -1) return null;
+    // Walk through `body` counting non-collapsed chars to find the
+    // real offset. This is O(body.length) once.
+    let realIndex = 0;
+    let normCursor = 0;
+    while (realIndex < body.length && normCursor < normalizedIndex) {
+      const ch = body[realIndex];
+      const isWs = /\s/.test(ch);
+      if (isWs) {
+        // Skip a run of whitespace; in the normalized form it counts as one space.
+        const start = realIndex;
+        while (realIndex < body.length && /\s/.test(body[realIndex])) realIndex++;
+        // If the run consumed something, that's one normalized space.
+        if (realIndex > start) normCursor++;
+      } else {
+        realIndex++;
+        normCursor++;
+      }
+    }
+    offset = realIndex;
+    // Find the end offset by walking forward through the normalized phrase.
+    let endReal = realIndex;
+    let endNorm = 0;
+    while (endReal < body.length && endNorm < normalizedPhrase.length) {
+      const ch = body[endReal];
+      const isWs = /\s/.test(ch);
+      if (isWs) {
+        // A run of whitespace = one normalized space.
+        const start = endReal;
+        while (endReal < body.length && /\s/.test(body[endReal])) endReal++;
+        if (endReal > start) endNorm++;
+      } else {
+        endReal++;
+        endNorm++;
+      }
+    }
+    length = endReal - offset;
+    if (length <= 0) return null;
+  }
+  if (offset < 0 || offset + length > body.length) return null;
+  // Phrase falls inside the body; ensure word-boundaries on each
+  // side (allow body edges).
+  if (offset > 0) {
+    const prev = body[offset - 1];
+    if (/[a-zA-Z0-9']/.test(prev)) return null;
+  }
+  if (offset + length < body.length) {
+    const next = body[offset + length];
+    if (/[a-zA-Z0-9']/.test(next)) return null;
+  }
+  return { offset, length };
+}
+
+// Legacy offset-based validator. Kept exported because the test suite
+// still references it; the new contract uses resolvePhraseText.
 function validatePhrase(body, phrase) {
   if (!phrase || typeof phrase !== "object") return null;
   let offset = Number(phrase.offset);
@@ -108,9 +188,6 @@ function validatePhrase(body, phrase) {
   if (!Number.isFinite(offset) || !Number.isFinite(length)) return null;
   if (offset < 0 || length <= 0) return null;
   if (offset + length > body.length) return null;
-  // Tolerate leading/trailing whitespace in the model's slice by
-  // shrinking the window in. This is purely defensive — the
-  // surfaced text is whatever's between the new offset and length.
   let slice = body.slice(offset, offset + length);
   const leading = slice.length - slice.replace(/^\s+/, "").length;
   const trailing = slice.length - slice.replace(/\s+$/, "").length;
@@ -121,23 +198,15 @@ function validatePhrase(body, phrase) {
     slice = body.slice(offset, offset + length);
   }
   if (!slice.trim()) return null;
-  // Word-boundary at start: either at body start or preceded by
-  // whitespace/punctuation. Letters/digits/apostrophes mean we're
-  // starting mid-word, which is what we want to reject.
   if (offset > 0) {
     const prev = body[offset - 1];
     if (/[a-zA-Z0-9']/.test(prev)) return null;
   }
-  // Word-boundary at end.
   if (offset + length < body.length) {
     const next = body[offset + length];
     if (/[a-zA-Z0-9']/.test(next)) return null;
   }
-  // No line-break artifacts inside.
   if (/[\r\n]/.test(slice)) return null;
-  // Word count between 3 and 22 (the spec says 4–18 but a 3-word
-  // beat is sometimes the right one — "everyone is here" — and
-  // longer phrases up to 22 still read as the founder's voice).
   const words = slice.split(/\s+/).filter(Boolean);
   if (words.length < 3 || words.length > 22) return null;
   return { offset, length };
@@ -258,31 +327,37 @@ const handler = withResponseLogging(async function handler(req, res) {
     }
 
     const heading = validateHeading(parsed.deckHeading);
-    const validatedPhrase =
-      parsed.phrase === null ? null : validatePhrase(writingBody, parsed.phrase);
+    const resolved =
+      parsed.phraseText === null || parsed.phraseText === undefined
+        ? null
+        : resolvePhraseText(writingBody, parsed.phraseText);
 
     if (isPreview) {
       try {
-        const phraseShape = parsed.phrase
-          ? `offset=${parsed.phrase.offset},length=${parsed.phrase.length}`
-          : "null";
-        const slice = (parsed.phrase && typeof parsed.phrase.offset === "number")
-          ? JSON.stringify(writingBody.slice(parsed.phrase.offset, parsed.phrase.offset + (parsed.phrase.length || 0))).slice(0, 200)
-          : "";
-        console.log(`[classify] writingId=${writingId} attempt=${attempt} heading=${JSON.stringify(parsed.deckHeading)} validated=${JSON.stringify(heading)} phrase=${phraseShape} validatedPhrase=${validatedPhrase === undefined ? "MALFORMED" : JSON.stringify(validatedPhrase)} slice=${slice}`);
+        const phraseTextPreview = typeof parsed.phraseText === "string"
+          ? JSON.stringify(parsed.phraseText).slice(0, 200)
+          : JSON.stringify(parsed.phraseText);
+        console.log(`[classify] writingId=${writingId} attempt=${attempt} heading=${JSON.stringify(parsed.deckHeading)} validatedHeading=${JSON.stringify(heading)} phraseText=${phraseTextPreview} resolved=${JSON.stringify(resolved)}`);
       } catch { /* ignore */ }
     }
 
     // Heading is settled the first time it validates (null counts as
-    // settled — the model can decide a writing doesn't fit). Phrase
-    // similarly: a valid {offset,length} or an explicit null both
-    // settle. `undefined` from the validators means malformed; we
-    // retry up to once.
+    // settled — the model can decide a writing doesn't fit).
     if (deckHeading === undefined && heading !== undefined) {
       deckHeading = heading;
     }
-    if (phrase === undefined && validatedPhrase !== undefined) {
-      phrase = validatedPhrase;
+    // Phrase: explicit null from the model OR a resolved
+    // {offset,length} both settle. A non-null phraseText that we
+    // couldn't resolve in the body means malformed → retry up to once.
+    if (phrase === undefined) {
+      if (parsed.phraseText === null || parsed.phraseText === undefined) {
+        // Only allow null phrase when the heading is also null —
+        // otherwise force a retry to coax a phrase out of the model.
+        if (heading === null) phrase = null;
+      } else if (resolved !== null) {
+        phrase = resolved;
+      }
+      // resolved === null AND non-null phraseText → malformed, retry
     }
     if (deckHeading !== undefined && phrase !== undefined) break;
   }
@@ -303,6 +378,7 @@ module.exports.__test__ = {
   DECK_HEADINGS,
   HEADING_DESCRIPTIONS,
   validatePhrase,
+  resolvePhraseText,
   validateHeading,
   parseClassifierJson,
   buildSystemPrompt,

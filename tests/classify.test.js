@@ -16,6 +16,7 @@ const {
   DECK_HEADINGS,
   HEADING_DESCRIPTIONS,
   validatePhrase,
+  resolvePhraseText,
   validateHeading,
   parseClassifierJson,
   buildSystemPrompt,
@@ -171,4 +172,49 @@ test("parseClassifierJson tolerates code-fence wrapping", () => {
 test("parseClassifierJson returns null on unparseable text", () => {
   assert.equal(parseClassifierJson("hello world"), null);
   assert.equal(parseClassifierJson(""), null);
+});
+
+test("resolvePhraseText finds an exact substring in the body", () => {
+  const body = "the barber gave me a hundred bucks and i didn't know what to say";
+  const phrase = "the barber gave me a hundred bucks";
+  assert.deepEqual(
+    resolvePhraseText(body, phrase),
+    { offset: 0, length: phrase.length },
+  );
+});
+
+test("resolvePhraseText handles whitespace-normalized mismatches", () => {
+  // Body has a newline mid-sentence; model returned the phrase
+  // with the newline collapsed to a space.
+  const body = "the barber gave me\na hundred bucks today";
+  const phrase = "the barber gave me a hundred bucks today";
+  const r = resolvePhraseText(body, phrase);
+  // Resolved range should map back to the original body span.
+  assert.ok(r);
+  assert.equal(r.offset, 0);
+  assert.equal(body.slice(r.offset, r.offset + r.length), body);
+});
+
+test("resolvePhraseText returns null when the phrase isn't in the body", () => {
+  const body = "the barber gave me a hundred bucks";
+  assert.equal(resolvePhraseText(body, "I went to the moon yesterday"), null);
+});
+
+test("resolvePhraseText rejects fewer than 3 words", () => {
+  const body = "the barber gave me a hundred bucks";
+  assert.equal(resolvePhraseText(body, "the barber"), null);
+});
+
+test("resolvePhraseText accepts a 3-word phrase", () => {
+  const body = "everyone is here today, finally, after all these months of waiting around";
+  assert.deepEqual(
+    resolvePhraseText(body, "everyone is here"),
+    { offset: 0, length: "everyone is here".length },
+  );
+});
+
+test("resolvePhraseText trims a stray leading/trailing space from the model", () => {
+  const body = "the barber gave me a hundred bucks today";
+  const r = resolvePhraseText(body, "  the barber gave me a hundred  ");
+  assert.deepEqual(r, { offset: 0, length: "the barber gave me a hundred".length });
 });
