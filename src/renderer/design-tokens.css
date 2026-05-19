@@ -8,13 +8,15 @@
 :root {
   /* Typography — extension.
    *
-   * Display is Instrument Serif (single weight, paired regular + italic).
-   * Reading face is Instrument Sans (400/500/600). Plus Jakarta Sans + Inter
-   * stay in the fallback stack so the app keeps a sensible face during the
-   * font rollout. Load both families via the Google Fonts link in
-   * src/renderer/index.html. */
-  --font-display: "Instrument Serif", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+   * Display is Fraunces (variable, with SOFT + WONK + opsz axes).
+   * House setting dials SOFT high and WONK low so the face reads warm-paper
+   * rather than brutalist. Reading face is Instrument Sans (400/500/600).
+   * Plus Jakarta Sans + Inter stay in the fallback stack so the app keeps
+   * a sensible face during the font rollout. Load both families via the
+   * Google Fonts link in src/renderer/index.html. */
+  --font-display: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
   --font-sans:    "Instrument Sans", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
 
   /* Action accent — extension */
   --color-accent-press: #4f46e5;

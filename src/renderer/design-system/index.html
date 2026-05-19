@@ -8,7 +8,7 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&display=swap">
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=Instrument+Sans:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="/design-tokens.css">
   <style>
     :root {
@@ -20,7 +20,8 @@
       --page-accent: #4f46e5;
       --page-leaf: #7bc47a;
       --page-font-sans: var(--font-sans, "Instrument Sans", "Inter", system-ui, sans-serif);
-      --page-font-display: var(--font-display, "Instrument Serif", Georgia, serif);
+      --page-font-display: var(--font-display, "Fraunces", Georgia, serif);
+      --page-font-display-settings: var(--font-display-settings, "SOFT" 100, "WONK" 0, "opsz" 144);
       --page-font-mono: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
     }
     * { box-sizing: border-box; }
@@ -44,10 +45,11 @@
     }
     h1 {
       font-family: var(--page-font-display);
-      font-size: 44px;
+      font-variation-settings: var(--page-font-display-settings);
+      font-size: 46px;
       letter-spacing: -0.015em;
       margin: 0 0 12px;
-      font-weight: 400;
+      font-weight: 500;
       line-height: 1.05;
     }
     .lede {
@@ -65,8 +67,9 @@
     }
     h2 {
       font-family: var(--page-font-display);
-      font-size: 26px;
-      font-weight: 400;
+      font-variation-settings: var(--page-font-display-settings);
+      font-size: 28px;
+      font-weight: 500;
       letter-spacing: -0.01em;
       margin: 0 0 20px;
       line-height: 1.2;
@@ -156,9 +159,9 @@
       font-size: 12px;
       font-family: var(--page-font-mono);
     }
-    .t-display-lg { font-family: var(--page-font-display); font-size: 44px; letter-spacing: -0.015em; font-weight: 400; line-height: 1.05; }
-    .t-display    { font-family: var(--page-font-display); font-size: 26px; letter-spacing: -0.01em; font-weight: 400; line-height: 1.2; }
-    .t-display-it { font-family: var(--page-font-display); font-size: 26px; letter-spacing: -0.01em; font-weight: 400; line-height: 1.2; font-style: italic; }
+    .t-display-lg { font-family: var(--page-font-display); font-variation-settings: var(--page-font-display-settings); font-size: 46px; letter-spacing: -0.015em; font-weight: 500; line-height: 1.05; }
+    .t-display    { font-family: var(--page-font-display); font-variation-settings: var(--page-font-display-settings); font-size: 28px; letter-spacing: -0.01em; font-weight: 500; line-height: 1.2; }
+    .t-display-it { font-family: var(--page-font-display); font-variation-settings: var(--page-font-display-settings); font-size: 28px; letter-spacing: -0.01em; font-weight: 400; line-height: 1.2; font-style: italic; }
     .t-essay      { font-size: 17px; line-height: 1.7; }
     .t-base       { font-size: 15px; line-height: 1.55; }
     .t-body       { font-size: 14px; line-height: 1.55; }
@@ -470,7 +473,7 @@
   <main class="page">
     <p class="eyebrow">tinker</p>
     <h1>Design system</h1>
-    <p class="lede">The marks, colors, type, spacing, shadows, and components that make tinker feel like tinker. Tokens live in <code>src/renderer/design-tokens.css</code>; the globe geometry lives in <code>src/renderer/tokens/rainbow-web.json</code>. Display face is <em>Instrument Serif</em>; reading face is <em>Instrument Sans</em>.</p>
+    <p class="lede">The marks, colors, type, spacing, shadows, and components that make tinker feel like tinker. Tokens live in <code>src/renderer/design-tokens.css</code>; the globe geometry lives in <code>src/renderer/tokens/rainbow-web.json</code>. Display face is <em>Fraunces</em> (SOFT 100, WONK 0); reading face is <em>Instrument Sans</em>.</p>
 
     <section>
       <h2>Marks</h2>
@@ -516,11 +519,11 @@
 
     <section>
       <h2>Type scale</h2>
-      <p>Display is Instrument Serif (regular + italic only — no bold; size carries the weight). Reading face is Instrument Sans (400 / 500 / 600). Sample text: <em>a quiet place to be on the web</em>.</p>
+      <p>Display is Fraunces — variable, dialed warm with <code>SOFT 100</code> (rounded terminals) and <code>WONK 0</code> (no quirky spurs). Reading face is Instrument Sans (400 / 500 / 600). Sample text: <em>a quiet place to be on the web</em>.</p>
       <div class="typescale">
-        <div class="typespec"><div class="typespec__label">display-lg · 44</div><div class="t-display-lg">A quiet place to be on the web.</div></div>
-        <div class="typespec"><div class="typespec__label">display · 26</div><div class="t-display">A quiet place to be on the web.</div></div>
-        <div class="typespec"><div class="typespec__label">display-it · 26</div><div class="t-display-it">A quiet place to be on the web.</div></div>
+        <div class="typespec"><div class="typespec__label">display-lg · 46</div><div class="t-display-lg">A quiet place to be on the web.</div></div>
+        <div class="typespec"><div class="typespec__label">display · 28</div><div class="t-display">A quiet place to be on the web.</div></div>
+        <div class="typespec"><div class="typespec__label">display-it · 28</div><div class="t-display-it">A quiet place to be on the web.</div></div>
         <div class="typespec"><div class="typespec__label">essay · 17</div><div class="t-essay">A quiet place to be on the web.</div></div>
         <div class="typespec"><div class="typespec__label">base · 15</div><div class="t-base">A quiet place to be on the web.</div></div>
         <div class="typespec"><div class="typespec__label">body · 14</div><div class="t-body">A quiet place to be on the web.</div></div>
@@ -794,7 +797,7 @@
           <li><span class="never__tag">Shadows</span><span class="never__rule">No shadows except on buttons. Cards, panels, modals, inputs &mdash; all flat. Hairline border does the work.</span></li>
           <li><span class="never__tag">Motion</span><span class="never__rule">No motion. Instant state changes. No transitions, no springs, no eases on hover, press, modal entry, or focus.</span></li>
           <li><span class="never__tag">Voice</span><span class="never__rule">No emoji, no exclamation points, no marketing voice, no AI tells.</span></li>
-          <li><span class="never__tag">Type</span><span class="never__rule">No synthesized bold on Instrument Serif. It has Regular and Italic only &mdash; size carries the weight.</span></li>
+          <li><span class="never__tag">Type</span><span class="never__rule">Display is dialed warm (Fraunces, SOFT 100, WONK 0). No quirky spurs, no slab terminals &mdash; if it reads brash, it is wrong.</span></li>
         </ul>
       </div>
     </section>
