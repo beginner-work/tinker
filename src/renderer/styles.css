@@ -75,7 +75,7 @@ input:focus, button:focus, textarea:focus { outline: none; }
   user-select: none;
   position: relative;
   -webkit-app-region: drag;
-  /* Keep the bottom rows (Receipts + footer) above the iOS home
+  /* Keep the bottom rows (Account + footer) above the iOS home
      indicator when running as an installed PWA / Capacitor app. */
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -183,6 +183,24 @@ html.on-web .sidebar__top {
   transition: opacity 0.18s ease;
 }
 .sidebar__account-flash.is-visible { opacity: 1; }
+
+/* Two-line account row: "Account" or "Account setup" on the primary
+ * line, and (post-setup) the founder's name in the muted-token color
+ * on a secondary line. Pre-setup, the name span is hidden via the
+ * [hidden] attribute. */
+.sidebar__account-labels {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.sidebar__account-name {
+  font-size: 12px;
+  color: var(--color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ── Sidebar pitch-deck tree (v0.103) ─────────────────────────────
  *
@@ -2381,4 +2399,296 @@ html.txn-modal-open { overflow: hidden; }
 }
 .seed-modal__btn--primary:hover { background: #4f46e5; }
 html.seed-modal-open { overflow: hidden; }
+
+/* ── Account page (v0.102) ─────────────────────────────────────────
+ *
+ * The Account page is the workshop tucked inside tinker's quiet home:
+ * denser, more deliberate, more colorful. Two states share the
+ * container — the pre-setup form and the post-setup dashboard. Section
+ * accents pull from the rainbow-web token set so each section is
+ * visibly its own thing the way an IDE colors syntax.
+ */
+
+.account[hidden] { display: none !important; }
+.account {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-background);
+  min-height: 100%;
+  overflow-y: auto;
+}
+.account__inner {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 32px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Setup form — light, two fields, one save. */
+.account__inner--setup { max-width: 480px; gap: 18px; }
+.account__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-foreground);
+}
+.account__form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.account__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.account__field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  letter-spacing: 0.01em;
+}
+.account__field-input {
+  font: inherit;
+  font-size: 15px;
+  padding: 10px 12px;
+  border-radius: var(--radius-button, 10px);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.account__field-input:focus {
+  outline: none;
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+.account__field-error {
+  margin: 0;
+  font-size: 12px;
+  color: #b23a3a;
+}
+.account__form-actions { margin-top: 4px; }
+.account__save {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 22px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-accent-strong);
+  background: var(--color-accent-strong);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.account__save:hover { background: #4f46e5; }
+
+/* Dashboard — header + stacked sections. */
+.account__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+.account__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-foreground);
+}
+.account__tier {
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-muted);
+}
+
+/* Section — one per dashboard category. The marker is a thin
+ * left-border accent drawn from rainbow-web; --account-accent is set
+ * inline per section so each gets its IDE-syntax-colored stripe. */
+.account__section {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px 22px 22px 30px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card, 12px);
+}
+.account__section-marker {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--account-accent, var(--color-accent-strong));
+}
+.account__section-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-foreground);
+  letter-spacing: -0.01em;
+}
+.account__section-sub {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+/* Widget — the unit inside a section. */
+.account__widget {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* MMF (Money market funds) widget. */
+.account__mmf-balance {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-button, 10px);
+  border: 1px solid var(--color-border);
+}
+.account__mmf-balance-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.account__mmf-balance-value {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.account__mmf-list-head {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.account__mmf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.account__mmf-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.account__mmf-row:last-child { border-bottom: 0; }
+.account__mmf-row-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+.account__mmf-row-amount {
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  color: var(--color-foreground);
+  text-align: left;
+}
+.account__mmf-row-date {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+/* LinkedIn fits slot — the embedded #linkedin-fit element brings its
+ * own chrome; the slot just strips the outer panel's full-page
+ * padding so it nests cleanly inside the section. */
+.account__widget--linkedin .linkedin-fit {
+  min-height: 0;
+  background: transparent;
+}
+.account__widget--linkedin .linkedin-fit__inner {
+  padding: 0;
+  max-width: none;
+  gap: 14px;
+}
+
+/* Plan widget — tier cards. */
+.account__widget--plan {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.account__tier-card {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-button, 10px);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+}
+.account__tier-card--current {
+  border-color: var(--account-accent, var(--color-accent-strong));
+  background: #f7f3fb;
+}
+.account__tier-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+.account__tier-chip {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--account-accent, var(--color-accent-strong));
+  color: #2d2a26;
+}
+.account__tier-cta {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+.account__tier-cta:disabled {
+  opacity: 0.7;
+}
+.account__tier-note {
+  font-size: 11px;
+  color: var(--color-muted);
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 540px) {
+  .account__inner { padding: 32px 18px 60px; }
+  .account__section { padding: 18px 16px 18px 24px; }
+}
 

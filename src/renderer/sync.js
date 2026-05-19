@@ -15,12 +15,14 @@
  * unchanged.
  *
  * Storage keys covered:
- *   - essays   → "tinker.essays.v1"   (array)
- *   - drafts   → "tinker.drafts.v1"   (array)
+ *   - essays   → "tinker.essays.v1"        (array)
+ *   - drafts   → "tinker.drafts.v1"        (array)
  *   - seeds    → "tinker.seeds.v1" + "tinker.seeds.hidden.v1"
  *                stored on the server as one { explicit, hidden } blob
- *   - taxonomy → "tinker.taxonomy.v1" (object)
- *   - tree     → "tinker.tree.v1"     (object: { [deckHeading]: [...] })
+ *   - taxonomy → "tinker.taxonomy.v1"      (object)
+ *   - tree     → "tinker.tree.v1"          (object: { [deckHeading]: [...] })
+ *   - account  → "tinker.account.setup.v1" (object: { name, linkedin, completedAt })
+ *   - plan     → "tinker.plan.v1"          (object: { tier })
  *
  * Events dispatched on window:
  *   - "tinker:hydrated"  after a successful boot fetch overwrote one or
@@ -39,6 +41,8 @@
   const KIND_SEEDS = "seeds";
   const KIND_TAXONOMY = "taxonomy";
   const KIND_TREE = "tree";
+  const KIND_ACCOUNT = "account";
+  const KIND_PLAN = "plan";
 
   const LS_ESSAYS = "tinker.essays.v1";
   const LS_DRAFTS = "tinker.drafts.v1";
@@ -46,6 +50,8 @@
   const LS_SEEDS_HIDDEN = "tinker.seeds.hidden.v1";
   const LS_TAXONOMY = "tinker.taxonomy.v1";
   const LS_TREE = "tinker.tree.v1";
+  const LS_ACCOUNT = "tinker.account.setup.v1";
+  const LS_PLAN = "tinker.plan.v1";
 
   // Debounce window per kind. Keystrokes in a textarea hit
   // saveDrafts() at ~3hz; coalescing into one PUT every 1.5s is
@@ -129,6 +135,21 @@
     setLs(LS_TREE, JSON.stringify(data));
     return true;
   }
+  function applyAccountFromServer(data) {
+    // The account blob is either `{ name, linkedin, completedAt }` or
+    // null (setup not yet done). Server `null` means "no row" — leave
+    // local untouched so a setup completed offline isn't dropped.
+    if (data === null || typeof data === "undefined") return false;
+    if (typeof data !== "object") return false;
+    setLs(LS_ACCOUNT, JSON.stringify(data));
+    return true;
+  }
+  function applyPlanFromServer(data) {
+    if (data === null || typeof data === "undefined") return false;
+    if (typeof data !== "object") return false;
+    setLs(LS_PLAN, JSON.stringify(data));
+    return true;
+  }
 
   function buildSeedsBlob() {
     return {
@@ -202,6 +223,12 @@
     pushTree() {
       schedulePush(KIND_TREE, () => getLsJson(LS_TREE, null));
     },
+    pushAccount() {
+      schedulePush(KIND_ACCOUNT, () => getLsJson(LS_ACCOUNT, null));
+    },
+    pushPlan() {
+      schedulePush(KIND_PLAN, () => getLsJson(LS_PLAN, null));
+    },
     // Force a flush of every pending push immediately — used on auth
     // change and pagehide so the server doesn't drop the tail of a
     // typing burst.
@@ -218,17 +245,21 @@
       if (kinds.includes(KIND_SEEDS))    pushKind(KIND_SEEDS,    buildSeedsBlob());
       if (kinds.includes(KIND_TAXONOMY)) pushKind(KIND_TAXONOMY, getLsJson(LS_TAXONOMY, null));
       if (kinds.includes(KIND_TREE))     pushKind(KIND_TREE,     getLsJson(LS_TREE, null));
+      if (kinds.includes(KIND_ACCOUNT))  pushKind(KIND_ACCOUNT,  getLsJson(LS_ACCOUNT, null));
+      if (kinds.includes(KIND_PLAN))     pushKind(KIND_PLAN,     getLsJson(LS_PLAN, null));
     },
   };
 
   async function hydrate() {
     if (!token()) return;
-    const [essays, drafts, seeds, taxonomy, tree] = await Promise.all([
+    const [essays, drafts, seeds, taxonomy, tree, account, plan] = await Promise.all([
       fetchKind(KIND_ESSAYS),
       fetchKind(KIND_DRAFTS),
       fetchKind(KIND_SEEDS),
       fetchKind(KIND_TAXONOMY),
       fetchKind(KIND_TREE),
+      fetchKind(KIND_ACCOUNT),
+      fetchKind(KIND_PLAN),
     ]);
     let changed = false;
     if (applyEssaysFromServer(essays)) changed = true;
@@ -236,6 +267,8 @@
     if (applySeedsFromServer(seeds)) changed = true;
     if (applyTaxonomyFromServer(taxonomy)) changed = true;
     if (applyTreeFromServer(tree)) changed = true;
+    if (applyAccountFromServer(account)) changed = true;
+    if (applyPlanFromServer(plan)) changed = true;
     if (changed) {
       try { window.dispatchEvent(new CustomEvent("tinker:hydrated")); }
       catch { /* ignore */ }

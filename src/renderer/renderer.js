@@ -43,6 +43,7 @@
   const writingFitView = $("#writing-fit");
   const writingFitContent = $("#writing-fit-content");
   const linkedinFitView = $("#linkedin-fit");
+  const accountView = $("#account");
   const statusComposer = $("#status-composer");
   const statusComposerInput = $("#status-composer-input");
   const statusComposerPost = $("#status-composer-post");
@@ -307,6 +308,7 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
     if (linkedinFitView) linkedinFitView.hidden = true;
+    if (accountView) accountView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -329,6 +331,7 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
     if (linkedinFitView) linkedinFitView.hidden = true;
+    if (accountView) accountView.hidden = true;
   }
   function showRead(essay) {
     feedView.removeAttribute("data-active");
@@ -337,6 +340,7 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
     if (linkedinFitView) linkedinFitView.hidden = true;
+    if (accountView) accountView.hidden = true;
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
@@ -363,6 +367,7 @@
     categoryFeedView.hidden = false;
     if (writingFitView) writingFitView.hidden = true;
     if (linkedinFitView) linkedinFitView.hidden = true;
+    if (accountView) accountView.hidden = true;
     activeId = null;
     activeCategoryKey = categoryKey;
     // Prefer the seed the user just tapped. Fall back to the most-
@@ -415,6 +420,7 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     writingFitView.hidden = false;
     if (linkedinFitView) linkedinFitView.hidden = true;
+    if (accountView) accountView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -505,24 +511,6 @@
     const readBtn = writingFitContent.querySelector('[data-fit-action="read"]');
     if (doneBtn) doneBtn.addEventListener("click", () => showFeed());
     if (readBtn) readBtn.addEventListener("click", () => showRead(essay));
-  }
-
-  function showLinkedinFits() {
-    if (!linkedinFitView) return;
-    feedView.removeAttribute("data-active");
-    writingView.hidden = true;
-    readView.hidden = true;
-    if (categoryFeedView) categoryFeedView.hidden = true;
-    if (writingFitView) writingFitView.hidden = true;
-    linkedinFitView.hidden = false;
-    activeId = null;
-    readingEssayId = null;
-    activeCategoryKey = null;
-    activeCategorySeed = null;
-    renderSidebar();
-    if (window.tinkerLinkedinFit && typeof window.tinkerLinkedinFit.render === "function") {
-      window.tinkerLinkedinFit.render();
-    }
   }
 
   function fitTitleFor(essay) {
@@ -628,8 +616,18 @@
   // ── Wire up ─────────────────────────────────────────────────────────
   navHome.addEventListener("click", () => showFeed());
 
-  const navLinkedin = $("#nav-linkedin");
-  if (navLinkedin) navLinkedin.addEventListener("click", () => showLinkedinFits());
+  // v0.102: the sidebar's two old account rows (Receipts, LinkedIn
+  // fits) collapsed into a single Account row. The account page,
+  // owned by account.js, contains both as dashboard sections; tap
+  // routing lives there.
+  const navAccount = $("#nav-account");
+  if (navAccount) {
+    navAccount.addEventListener("click", () => {
+      if (window.tinkerAccount && typeof window.tinkerAccount.show === "function") {
+        window.tinkerAccount.show();
+      }
+    });
+  }
 
   // Welcome screen: the H1 is the standing line ("Everyone is a
   // founder.") and the question ("Where are you right now?") sits
@@ -727,6 +725,26 @@
   window.tinkerResumeDraft = (draftId) => openDraft(draftId);
   window.tinkerShowCategoryFeed = (categoryKey, originatingSeed) =>
     showCategoryFeed(categoryKey, originatingSeed);
+
+  // Stage-takeover for the v0.102 Account page. account.js owns the
+  // inside of <section id="account">; this helper just toggles
+  // visibility against the other stage views so account.js doesn't
+  // have to know about every sibling.
+  window.tinkerShowAccountStage = () => {
+    if (!accountView) return;
+    feedView.removeAttribute("data-active");
+    writingView.hidden = true;
+    readView.hidden = true;
+    if (categoryFeedView) categoryFeedView.hidden = true;
+    if (writingFitView) writingFitView.hidden = true;
+    if (linkedinFitView) linkedinFitView.hidden = true;
+    accountView.hidden = false;
+    activeId = null;
+    readingEssayId = null;
+    activeCategoryKey = null;
+    activeCategorySeed = null;
+    renderSidebar();
+  };
 
   // Status composer wiring. The textarea enables the Post button once
   // there's non-whitespace input; Cmd/Ctrl+Enter submits without

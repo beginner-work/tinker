@@ -47,6 +47,12 @@
   navHome && navHome.addEventListener('click', () => {
     if (isMobile()) close();
   });
+  // v0.102: Account row replaces the old Receipts / LinkedIn fits
+  // rows; same auto-close-on-tap behavior on mobile.
+  const navAccount = document.getElementById('nav-account');
+  navAccount && navAccount.addEventListener('click', () => {
+    if (isMobile()) close();
+  });
 
   // Resizing from mobile to desktop drops the open state.
   window.addEventListener('resize', () => {

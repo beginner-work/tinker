@@ -120,23 +120,15 @@
         <h2 class="sidebar__account-head">Account</h2>
         <ul class="sidebar__account-list">
           <li>
-            <button id="nav-receipts" type="button" class="sidebar__account-item">
+            <button id="nav-account" type="button" class="sidebar__account-item">
               <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
-                <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                <path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
               </svg>
-              <span class="sidebar__account-label">Receipts</span>
-            </button>
-          </li>
-          <li>
-            <button id="nav-linkedin" type="button" class="sidebar__account-item">
-              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
-                <rect x="4" y="4" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/>
-                <circle cx="8" cy="7.5" r="0.9" fill="currentColor"/>
-                <path d="M8 10v5M11 15v-5M11 12c0-1.5 3-1.5 3 0v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-                <path d="M16 6l3-3M19 3h-2M19 3v2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span class="sidebar__account-label">LinkedIn fits</span>
+              <span class="sidebar__account-labels">
+                <span class="sidebar__account-label" data-account-row-label>Account setup</span>
+                <span class="sidebar__account-name" data-account-row-name hidden></span>
+              </span>
             </button>
           </li>
           <!-- Share button: revealed by share.js only when the app is
@@ -254,8 +246,18 @@
       <!-- LinkedIn fits view: a quiet review of every published essay,
            sorted so the model-flagged fits float to the top. For each
            fit, a question about a picture from the essay that could
-           help readers land in it. -->
+           help readers land in it.
+
+           v0.102: this view is no longer reached from the sidebar; it
+           mounts as a section inside the Account page. The element
+           stays here so linkedin-fit.js's existing render() entry
+           point can still find its DOM target — account.js relocates
+           it into the dashboard at render time. -->
       <section id="linkedin-fit" class="linkedin-fit" hidden></section>
+
+      <!-- Account page: setup form (pre-setup) or dashboard
+           (post-setup). Owned by account.js. -->
+      <section id="account" class="account" hidden></section>
 
       <!-- Category feed view: rendered when a seed is tapped — lists
            every essay whose seed belongs to the same category. The
@@ -531,6 +533,7 @@
     <script src="./writing.js" defer></script>
     <script src="./renderer.js" defer></script>
     <script src="./linkedin-fit.js" defer></script>
+    <script src="./account.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>

@@ -10,9 +10,12 @@
  * keyed by essay id so the view fills in instantly on return.
  * "Read each one" re-runs the check on every essay.
  *
- * Entry point: window.tinkerLinkedinFit.render(). Triggered by the
- * "LinkedIn fits" item in the sidebar Account list (wired in
- * renderer.js).
+ * Entry point: window.tinkerLinkedinFit.render(). In v0.102 this is
+ * called by account.js when the Account dashboard is mounted — the
+ * sidebar's LinkedIn fits row was collapsed into the Account page,
+ * and the #linkedin-fit element is relocated into the dashboard's
+ * "LinkedIn fits" section so render()'s existing DOM lookup still
+ * resolves.
  */
 
 (() => {
