@@ -21,13 +21,12 @@
   const STORAGE_KEY = "tinker.linkedinFits.v1";
   const CONCURRENCY = 3;
 
-  // LinkedIn's composer URL accepts `text=` intermittently on desktop
-  // web and not at all in mobile / in-app browsers. We send a best-effort
-  // prefill alongside a guaranteed clipboard copy so the paste path is
-  // always available either way.
-  const COMPOSE_URL = "https://www.linkedin.com/feed/?shareActive=true";
-  const POST_PREFILL_MAX_CHARS = 3000;
-  const POST_URL_MAX_LENGTH = 8000;
+  // The fit-row action copies the essay body to the clipboard so the
+  // founder can paste it into LinkedIn (or anywhere else) themselves.
+  // No URL-open: LinkedIn's compose deep links honour `text=` only
+  // intermittently on desktop web and not at all in the mobile app, so
+  // a button that promises "Post to LinkedIn" would silently lie. The
+  // clipboard copy is the honest, reliable handoff.
   const POST_LABEL_RESET_MS = 5000;
 
   const SYSTEM_PROMPT = [
@@ -240,26 +239,14 @@
     } catch { return false; }
   }
 
-  // Best-effort prefill. LinkedIn honours `text=` on desktop web
-  // intermittently and not at all on mobile / in-app browsers. The
-  // clipboard copy is the safety net either way.
-  function openLinkedinComposer(body) {
-    const trimmed = body.length > POST_PREFILL_MAX_CHARS
-      ? body.slice(0, POST_PREFILL_MAX_CHARS) : body;
-    const candidate = `${COMPOSE_URL}&text=${encodeURIComponent(trimmed)}`;
-    const url = candidate.length <= POST_URL_MAX_LENGTH ? candidate : COMPOSE_URL;
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-
-  async function postToLinkedIn(essay, button) {
+  async function copyEssayToClipboard(essay, button) {
     const body = String(essay.body || "");
     if (!body) return;
     await copyToClipboard(body);
-    openLinkedinComposer(body);
-    button.textContent = "Copied — paste in LinkedIn";
+    button.textContent = "Copied";
     clearTimeout(button._labelTimer);
     button._labelTimer = setTimeout(() => {
-      button.textContent = "Post to LinkedIn";
+      button.textContent = "Copy to clipboard";
     }, POST_LABEL_RESET_MS);
   }
 
@@ -325,7 +312,7 @@
     post.type = "button";
     post.className = "linkedin-fit__check linkedin-fit__post";
     post.dataset.role = "post";
-    post.textContent = "Post to LinkedIn";
+    post.textContent = "Copy to clipboard";
     post.hidden = true;
     actions.appendChild(post);
     const check = document.createElement("button");
@@ -337,7 +324,7 @@
 
     refreshRow(row, essay);
     check.addEventListener("click", () => runCheck(essay, row));
-    post.addEventListener("click", () => postToLinkedIn(essay, post));
+    post.addEventListener("click", () => copyEssayToClipboard(essay, post));
     return row;
   }
 
