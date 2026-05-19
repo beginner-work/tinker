@@ -91,7 +91,7 @@
     "- The opening must hook in two lines. Use the strongest first-person line you can find verbatim, or set it up with one short ai segment.",
     "- Do not include essay titles, dates, or meta-commentary about the essays themselves.",
     "- Do not invent facts. AI segments are framing only — no claims, no statistics, no new specifics.",
-    "- AI segments must NEVER use the word 'I' (capital I as a standalone word, including in contractions like I'm, I've, I'll, I'd). The first person belongs to the founder; AI segments speak about the founder or about the work in third person or impersonal voice.",
+    "- AI segments must NEVER use first-person words. Banned: 'I' (capital, standalone), 'I'm', 'I've', 'I'll', 'I'd', 'my', 'mine', 'me', 'myself'. The first person belongs to the founder; AI segments speak about the founder or about the work in third person or impersonal voice. 'The founder…' is fine. 'Tinker…' is fine. 'My / me / I…' is not.",
     "- Prefer fewer, stronger verbatim quotes over many short ones. Aim for 3–6 verbatim segments total.",
     "",
     "Respond as a single JSON object with exactly this shape:",
@@ -135,11 +135,16 @@
     catch { return null; }
   }
 
-  // \bI\b catches "I" as a standalone capital — including the I in
-  // contractions (I'm, I've, I'll, I'd) because apostrophe is a
-  // non-word character, so the boundary holds. Lowercase "it", "is",
-  // "in" don't match (case-sensitive).
-  const AI_FIRST_PERSON = /\bI\b/;
+  // The first person belongs to the founder. AI segments that reach
+  // for it get dropped — both the capital-I family (I, I'm, I've,
+  // I'll, I'd) and the my / me / mine / myself family, case-
+  // insensitive on the latter. Whole-word matches only, so "it",
+  // "in", "remember", "items" don't trip the filter.
+  const AI_FIRST_PERSON_I = /\bI(?:'(?:m|ve|ll|d|s))?\b/;
+  const AI_FIRST_PERSON_PRONOUNS = /\b(?:my|mine|me|myself)\b/i;
+  function aiSegmentBannedFirstPerson(text) {
+    return AI_FIRST_PERSON_I.test(text) || AI_FIRST_PERSON_PRONOUNS.test(text);
+  }
 
   function validateSegments(rawSegments, essaysById) {
     const out = [];
@@ -158,12 +163,12 @@
         }
         // Paraphrased — demoted to ai, but the first-person rule
         // still applies on the demoted segment.
-        if (AI_FIRST_PERSON.test(text)) continue;
+        if (aiSegmentBannedFirstPerson(text)) continue;
         out.push({ type: "ai", text });
       } else {
         // The first person belongs to the founder. Any AI segment
-        // that uses "I" gets dropped — the model was told not to.
-        if (AI_FIRST_PERSON.test(text)) continue;
+        // that uses "I" or the my-family gets dropped.
+        if (aiSegmentBannedFirstPerson(text)) continue;
         out.push({ type: "ai", text });
       }
     }
