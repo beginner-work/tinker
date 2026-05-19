@@ -384,6 +384,26 @@
     },
     /** Public read for diagnostics / tests. */
     snapshot() { return JSON.parse(JSON.stringify(memTree)); },
+    /** Deck headings whose phrases still resolve to a verbatim slice of
+     *  a draft or essay. Same shape as countCoveredHeadings but returns
+     *  the names. */
+    coveredHeadings() {
+      const out = [];
+      for (const heading of DECK_HEADINGS) {
+        const recs = Array.isArray(memTree[heading]) ? memTree[heading] : [];
+        for (const rec of recs) {
+          if (resolvePhraseText(rec)) { out.push(heading); break; }
+        }
+      }
+      return out;
+    },
+    /** Deck headings that have no resolving phrase yet — the parts of
+     *  the founder's pitch they haven't written into. Order matches the
+     *  fixed deck order. */
+    uncoveredHeadings() {
+      const covered = new Set(api.coveredHeadings());
+      return DECK_HEADINGS.filter((h) => !covered.has(h));
+    },
     /** Visible-string audit. Returns an array of issues found in the
      *  rendered tree DOM. A clean audit is an empty array. */
     auditVisibleStrings,
