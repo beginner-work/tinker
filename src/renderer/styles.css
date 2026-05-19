@@ -1223,6 +1223,107 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   .writing-fit__phrase { font-size: 16px; }
 }
 
+/* ── Pitch-complete upsell (rendered inside writing-fit) ── */
+
+.writing-fit__upsell {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+  padding: 24px 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+}
+.writing-fit__upsell--confirm {
+  background: var(--color-surface-alt);
+  border-style: dashed;
+}
+.writing-fit__upsell-crumb {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-forest);
+}
+.writing-fit__upsell-heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--color-foreground);
+}
+.writing-fit__upsell-sub {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+.writing-fit__upsell-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.writing-fit__upsell-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px 18px;
+  text-align: left;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 120ms ease, transform 120ms ease, background 120ms ease;
+}
+.writing-fit__upsell-option:hover {
+  border-color: var(--color-foreground);
+  background: var(--color-hover);
+}
+.writing-fit__upsell-option:active { transform: scale(0.99); }
+.writing-fit__upsell-option--paid {
+  border-color: var(--color-accent-strong);
+}
+.writing-fit__upsell-option--paid:hover {
+  background: var(--color-surface-alt);
+}
+.writing-fit__upsell-option-tag {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.writing-fit__upsell-option--paid .writing-fit__upsell-option-tag {
+  color: var(--color-accent-strong);
+}
+.writing-fit__upsell-option-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-foreground);
+}
+.writing-fit__upsell-option-sub {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+@media (max-width: 539px) {
+  .writing-fit__upsell { padding: 20px 18px; }
+  .writing-fit__upsell-heading { font-size: 22px; }
+  .writing-fit__upsell-option { padding: 14px 16px; }
+  .writing-fit__upsell-option-title { font-size: 18px; }
+}
+
 /* ── LinkedIn fits (quiet review of essays for LinkedIn-worthiness) ── */
 
 .linkedin-fit[hidden] { display: none !important; }

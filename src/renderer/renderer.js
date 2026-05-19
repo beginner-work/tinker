@@ -20,6 +20,12 @@
 
   const STORAGE_DRAFTS = "tinker.drafts.v1";
   const STORAGE_ESSAYS = "tinker.essays.v1";
+  // Local-only record of how the founder responded the first time
+  // they hit a complete 8/8 starter pitch. Shape:
+  //   { choice: "continue" | "upgrade", chosenAt: <ts> }
+  // Once a choice is recorded the upsell card no longer appears on
+  // the post-publish writing-fit screen.
+  const STORAGE_PITCH_UPSELL = "tinker.pitch.upsell.v1";
 
   // ── DOM refs ─────────────────────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
@@ -406,6 +412,29 @@
       `</div>`;
   }
 
+  function loadPitchUpsell() {
+    try {
+      const raw = localStorage.getItem(STORAGE_PITCH_UPSELL);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+  function savePitchUpsell(state) {
+    try { localStorage.setItem(STORAGE_PITCH_UPSELL, JSON.stringify(state)); }
+    catch { /* ignore */ }
+  }
+
+  // The pitch is "complete" once every one of the eight deck headings
+  // has at least one resolving phrase. coveredHeadings() re-validates
+  // against live drafts/essays at call time, so an edit that strands
+  // an offset can knock a slide back out of the covered set.
+  function pitchIsComplete() {
+    const tree = window.tinkerTree;
+    if (!tree || typeof tree.coveredHeadings !== "function") return false;
+    const covered = tree.coveredHeadings();
+    const total = (tree.DECK_HEADINGS && tree.DECK_HEADINGS.length) || 8;
+    return Array.isArray(covered) && covered.length >= total;
+  }
+
   function renderWritingFitResult(essay, result) {
     const headings = (window.tinkerTree && window.tinkerTree.DECK_HEADINGS) || [];
     const totalSlots = headings.length || 8;
@@ -452,20 +481,88 @@
         `</div>`;
     }
 
+    // Only celebrate completion when the classifier actually slotted
+    // this essay — on a "doesn't fit" or network-miss screen, the
+    // upsell would land on top of a contradictory message.
+    const slotted = !!(result && result.deckHeading);
+    const upsellState = loadPitchUpsell();
+    const showUpsell = slotted && pitchIsComplete() && !upsellState;
+
+    const footerHtml = showUpsell ? renderUpsellMarkup() : (
+      `<div class="writing-fit__actions">` +
+        `<button type="button" class="writing-action" data-fit-action="done">Done</button>` +
+        `<button type="button" class="writing-action writing-action--primary" data-fit-action="read">Read it →</button>` +
+      `</div>`
+    );
+
     writingFitContent.innerHTML =
       `<p class="writing-fit__crumb">You just published</p>` +
       `<h1 class="writing-fit__headline">${escapeHtml(titleText)}</h1>` +
       leadHtml +
       slotHtml +
-      `<div class="writing-fit__actions">` +
-        `<button type="button" class="writing-action" data-fit-action="done">Done</button>` +
-        `<button type="button" class="writing-action writing-action--primary" data-fit-action="read">Read it →</button>` +
-      `</div>`;
+      footerHtml;
 
-    const doneBtn = writingFitContent.querySelector('[data-fit-action="done"]');
-    const readBtn = writingFitContent.querySelector('[data-fit-action="read"]');
-    if (doneBtn) doneBtn.addEventListener("click", () => showFeed());
-    if (readBtn) readBtn.addEventListener("click", () => showRead(essay));
+    if (showUpsell) {
+      wireUpsell(essay);
+    } else {
+      const doneBtn = writingFitContent.querySelector('[data-fit-action="done"]');
+      const readBtn = writingFitContent.querySelector('[data-fit-action="read"]');
+      if (doneBtn) doneBtn.addEventListener("click", () => showFeed());
+      if (readBtn) readBtn.addEventListener("click", () => showRead(essay));
+    }
+  }
+
+  function renderUpsellMarkup() {
+    return (
+      `<aside class="writing-fit__upsell" data-upsell-root>` +
+        `<p class="writing-fit__upsell-crumb">Your starter pitch is complete</p>` +
+        `<h2 class="writing-fit__upsell-heading">All eight slides covered.</h2>` +
+        `<p class="writing-fit__upsell-sub">Where do you want to take it next?</p>` +
+        `<div class="writing-fit__upsell-options">` +
+          `<button type="button" class="writing-fit__upsell-option" data-upsell-action="continue">` +
+            `<span class="writing-fit__upsell-option-tag">Free</span>` +
+            `<span class="writing-fit__upsell-option-title">Keep refining</span>` +
+            `<span class="writing-fit__upsell-option-sub">Stay in the interview. Sharpen each slide in your own words.</span>` +
+          `</button>` +
+          `<button type="button" class="writing-fit__upsell-option writing-fit__upsell-option--paid" data-upsell-action="upgrade">` +
+            `<span class="writing-fit__upsell-option-tag">$8/mo</span>` +
+            `<span class="writing-fit__upsell-option-title">Try a new persona</span>` +
+            `<span class="writing-fit__upsell-option-sub">Tailored prompts to say your pitch a new way — for an investor, a customer, a friend.</span>` +
+          `</button>` +
+        `</div>` +
+      `</aside>`
+    );
+  }
+
+  function renderUpsellConfirmMarkup() {
+    return (
+      `<aside class="writing-fit__upsell writing-fit__upsell--confirm" data-upsell-root>` +
+        `<p class="writing-fit__upsell-crumb">You're on the list</p>` +
+        `<h2 class="writing-fit__upsell-heading">Persona prompts are still cooking.</h2>` +
+        `<p class="writing-fit__upsell-sub">We'll let you know the moment they're ready. Keep refining your pitch in the meantime.</p>` +
+        `<div class="writing-fit__actions">` +
+          `<button type="button" class="writing-action writing-action--primary" data-upsell-action="continue">Keep refining</button>` +
+        `</div>` +
+      `</aside>`
+    );
+  }
+
+  function wireUpsell(essay) {
+    const root = writingFitContent.querySelector('[data-upsell-root]');
+    if (!root) return;
+    root.addEventListener("click", (ev) => {
+      const btn = ev.target && ev.target.closest("[data-upsell-action]");
+      if (!btn) return;
+      const action = btn.getAttribute("data-upsell-action");
+      if (action === "continue") {
+        savePitchUpsell({ choice: "continue", chosenAt: Date.now() });
+        showFeed();
+      } else if (action === "upgrade") {
+        savePitchUpsell({ choice: "upgrade", chosenAt: Date.now() });
+        root.outerHTML = renderUpsellConfirmMarkup();
+        wireUpsell(essay);
+      }
+    });
   }
 
   function showLinkedinFits() {
