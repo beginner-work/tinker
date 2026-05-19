@@ -21,7 +21,8 @@
  *                stored on the server as one { explicit, hidden } blob
  *   - taxonomy → "tinker.taxonomy.v1" (object)
  *   - tree     → "tinker.tree.v1"     (object: { [deckHeading]: [...] })
- *   - linkedin-fits → "tinker.linkedinFits.v1" (object: { [essayId]: verdict })
+ *   - linkedin-pitch-draft → "tinker.linkedinPitchDraft.v1"
+ *                            (object: { segments, essayIds, ts })
  *
  * Events dispatched on window:
  *   - "tinker:hydrated"  after a successful boot fetch overwrote one or
@@ -40,7 +41,7 @@
   const KIND_SEEDS = "seeds";
   const KIND_TAXONOMY = "taxonomy";
   const KIND_TREE = "tree";
-  const KIND_LINKEDIN_FITS = "linkedin-fits";
+  const KIND_LINKEDIN_PITCH_DRAFT = "linkedin-pitch-draft";
 
   const LS_ESSAYS = "tinker.essays.v1";
   const LS_DRAFTS = "tinker.drafts.v1";
@@ -48,7 +49,7 @@
   const LS_SEEDS_HIDDEN = "tinker.seeds.hidden.v1";
   const LS_TAXONOMY = "tinker.taxonomy.v1";
   const LS_TREE = "tinker.tree.v1";
-  const LS_LINKEDIN_FITS = "tinker.linkedinFits.v1";
+  const LS_LINKEDIN_PITCH_DRAFT = "tinker.linkedinPitchDraft.v1";
 
   // Debounce window per kind. Keystrokes in a textarea hit
   // saveDrafts() at ~3hz; coalescing into one PUT every 1.5s is
@@ -132,9 +133,9 @@
     setLs(LS_TREE, JSON.stringify(data));
     return true;
   }
-  function applyLinkedinFitsFromServer(data) {
+  function applyLinkedinPitchDraftFromServer(data) {
     if (!data || typeof data !== "object") return false;
-    setLs(LS_LINKEDIN_FITS, JSON.stringify(data));
+    setLs(LS_LINKEDIN_PITCH_DRAFT, JSON.stringify(data));
     return true;
   }
 
@@ -210,8 +211,8 @@
     pushTree() {
       schedulePush(KIND_TREE, () => getLsJson(LS_TREE, null));
     },
-    pushLinkedinFits() {
-      schedulePush(KIND_LINKEDIN_FITS, () => getLsJson(LS_LINKEDIN_FITS, null));
+    pushLinkedinPitchDraft() {
+      schedulePush(KIND_LINKEDIN_PITCH_DRAFT, () => getLsJson(LS_LINKEDIN_PITCH_DRAFT, null));
     },
     // Force a flush of every pending push immediately — used on auth
     // change and pagehide so the server doesn't drop the tail of a
@@ -229,19 +230,19 @@
       if (kinds.includes(KIND_SEEDS))    pushKind(KIND_SEEDS,    buildSeedsBlob());
       if (kinds.includes(KIND_TAXONOMY)) pushKind(KIND_TAXONOMY, getLsJson(LS_TAXONOMY, null));
       if (kinds.includes(KIND_TREE))     pushKind(KIND_TREE,     getLsJson(LS_TREE, null));
-      if (kinds.includes(KIND_LINKEDIN_FITS)) pushKind(KIND_LINKEDIN_FITS, getLsJson(LS_LINKEDIN_FITS, null));
+      if (kinds.includes(KIND_LINKEDIN_PITCH_DRAFT)) pushKind(KIND_LINKEDIN_PITCH_DRAFT, getLsJson(LS_LINKEDIN_PITCH_DRAFT, null));
     },
   };
 
   async function hydrate() {
     if (!token()) return;
-    const [essays, drafts, seeds, taxonomy, tree, linkedinFits] = await Promise.all([
+    const [essays, drafts, seeds, taxonomy, tree, linkedinPitchDraft] = await Promise.all([
       fetchKind(KIND_ESSAYS),
       fetchKind(KIND_DRAFTS),
       fetchKind(KIND_SEEDS),
       fetchKind(KIND_TAXONOMY),
       fetchKind(KIND_TREE),
-      fetchKind(KIND_LINKEDIN_FITS),
+      fetchKind(KIND_LINKEDIN_PITCH_DRAFT),
     ]);
     let changed = false;
     if (applyEssaysFromServer(essays)) changed = true;
@@ -249,7 +250,7 @@
     if (applySeedsFromServer(seeds)) changed = true;
     if (applyTaxonomyFromServer(taxonomy)) changed = true;
     if (applyTreeFromServer(tree)) changed = true;
-    if (applyLinkedinFitsFromServer(linkedinFits)) changed = true;
+    if (applyLinkedinPitchDraftFromServer(linkedinPitchDraft)) changed = true;
     if (changed) {
       try { window.dispatchEvent(new CustomEvent("tinker:hydrated")); }
       catch { /* ignore */ }
