@@ -21,6 +21,15 @@
   const STORAGE_KEY = "tinker.linkedinFits.v1";
   const CONCURRENCY = 3;
 
+  // LinkedIn's composer URL accepts `text=` intermittently on desktop
+  // web and not at all in mobile / in-app browsers. We send a best-effort
+  // prefill alongside a guaranteed clipboard copy so the paste path is
+  // always available either way.
+  const COMPOSE_URL = "https://www.linkedin.com/feed/?shareActive=true";
+  const POST_PREFILL_MAX_CHARS = 3000;
+  const POST_URL_MAX_LENGTH = 8000;
+  const POST_LABEL_RESET_MS = 5000;
+
   const SYSTEM_PROMPT = [
     "You read a founder's essay and assess how well it would perform as a LinkedIn post.",
     "",
@@ -55,6 +64,11 @@
   function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cache)); }
     catch { /* ignore */ }
+    // Push to the server so a verdict scored on desktop shows up on
+    // phone without re-running the model.
+    if (window.tinkerSync && typeof window.tinkerSync.pushLinkedinFits === "function") {
+      window.tinkerSync.pushLinkedinFits();
+    }
   }
 
   // Strip stale cache entries whose essays no longer exist. Keeps the
@@ -204,6 +218,51 @@
     );
   }
 
+  // Async clipboard with a hidden-textarea fallback for older Capacitor
+  // WebViews where the async API throws on insecure contexts.
+  async function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try { await navigator.clipboard.writeText(text); return true; }
+      catch { /* fall through */ }
+    }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.top = "-1000px";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch { return false; }
+  }
+
+  // Best-effort prefill. LinkedIn honours `text=` on desktop web
+  // intermittently and not at all on mobile / in-app browsers. The
+  // clipboard copy is the safety net either way.
+  function openLinkedinComposer(body) {
+    const trimmed = body.length > POST_PREFILL_MAX_CHARS
+      ? body.slice(0, POST_PREFILL_MAX_CHARS) : body;
+    const candidate = `${COMPOSE_URL}&text=${encodeURIComponent(trimmed)}`;
+    const url = candidate.length <= POST_URL_MAX_LENGTH ? candidate : COMPOSE_URL;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function postToLinkedIn(essay, button) {
+    const body = String(essay.body || "");
+    if (!body) return;
+    await copyToClipboard(body);
+    openLinkedinComposer(body);
+    button.textContent = "Copied — paste in LinkedIn";
+    clearTimeout(button._labelTimer);
+    button._labelTimer = setTimeout(() => {
+      button.textContent = "Post to LinkedIn";
+    }, POST_LABEL_RESET_MS);
+  }
+
   function essaySnippet(essay) {
     if (essay.title) return essay.title;
     const body = String(essay.body || "").trim();
@@ -262,6 +321,13 @@
 
     const actions = document.createElement("div");
     actions.className = "linkedin-fit__row-actions";
+    const post = document.createElement("button");
+    post.type = "button";
+    post.className = "linkedin-fit__check linkedin-fit__post";
+    post.dataset.role = "post";
+    post.textContent = "Post to LinkedIn";
+    post.hidden = true;
+    actions.appendChild(post);
     const check = document.createElement("button");
     check.type = "button";
     check.className = "linkedin-fit__check";
@@ -271,17 +337,20 @@
 
     refreshRow(row, essay);
     check.addEventListener("click", () => runCheck(essay, row));
+    post.addEventListener("click", () => postToLinkedIn(essay, post));
     return row;
   }
 
   function refreshRow(row, essay) {
     const verdict = row.querySelector('[data-role="verdict"]');
     const check = row.querySelector('[data-role="check"]');
+    const post = row.querySelector('[data-role="post"]');
     const cached = cache[essay.id];
     if (!cached) {
       verdict.innerHTML = `<p class="linkedin-fit__verdict-meta">Not read yet.</p>`;
       check.textContent = "Read this one";
       check.disabled = false;
+      if (post) post.hidden = true;
       row.dataset.state = "idle";
       row.removeAttribute("data-strongest");
       return;
@@ -310,12 +379,14 @@
         picture;
       row.dataset.state = "fit";
       if (isStrongest) row.dataset.strongest = "true"; else row.removeAttribute("data-strongest");
+      if (post) post.hidden = false;
     } else {
       verdict.innerHTML =
         `<p class="linkedin-fit__verdict-label linkedin-fit__verdict-label--miss">Better kept as an essay.</p>` +
         `<p class="linkedin-fit__verdict-reason">${escapeHtml(cached.reason)}</p>`;
       row.dataset.state = "miss";
       row.removeAttribute("data-strongest");
+      if (post) post.hidden = true;
     }
     check.textContent = "Read again";
     check.disabled = false;
@@ -324,7 +395,9 @@
   async function runCheck(essay, row) {
     const verdict = row.querySelector('[data-role="verdict"]');
     const check = row.querySelector('[data-role="check"]');
+    const post = row.querySelector('[data-role="post"]');
     check.disabled = true;
+    if (post) post.hidden = true;
     row.dataset.state = "loading";
     verdict.innerHTML =
       `<div class="thinking-dots" aria-hidden="true">` +
@@ -365,12 +438,24 @@
     if (list.length === 0) {
       emptyEl.hidden = false;
       checkAllBtn.disabled = true;
+      delete viewEl.dataset.autoScored;
       return;
     }
     emptyEl.hidden = true;
     checkAllBtn.disabled = false;
     for (const essay of list) {
       listEl.appendChild(renderRow(essay));
+    }
+    // Auto-score so the user lands in a populated workshop on first
+    // arrival — and so essays written since last visit appear scored
+    // on return without a manual click. The flag prevents a re-render
+    // during an in-flight scoring pass from kicking off a second one;
+    // it clears when the pass finishes so the next batch of idle rows
+    // (a newly published essay) can auto-score too.
+    const hasIdle = list.some((e) => !cache[e.id]);
+    if (hasIdle && viewEl.dataset.autoScored !== "true") {
+      viewEl.dataset.autoScored = "true";
+      checkAll().finally(() => { delete viewEl.dataset.autoScored; });
     }
   }
 
@@ -402,8 +487,14 @@
   function maybeRerender() {
     if (viewEl && !viewEl.hidden) render();
   }
+  function onHydrated() {
+    // Server pulled a fresh verdict cache into localStorage — re-read
+    // it so the view reflects any verdicts scored on another device.
+    cache = load();
+    maybeRerender();
+  }
   window.addEventListener("tinker:writing-saved", maybeRerender);
-  window.addEventListener("tinker:hydrated", maybeRerender);
+  window.addEventListener("tinker:hydrated", onHydrated);
 
   // ── Public API ───────────────────────────────────────────────────────
   window.tinkerLinkedinFit = {

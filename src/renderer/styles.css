@@ -1292,30 +1292,20 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 .linkedin-fit__list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
+/* Rows read as list items with a clear separator beneath — not cards.
+ * The score chip and "Strongest pick" badge carry the visual weight;
+ * the row itself stays quiet. */
 .linkedin-fit__row {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 18px 20px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  transition: border-color 0.15s ease;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--color-border);
 }
-.linkedin-fit__row[data-state="fit"] {
-  border-color: var(--color-leaf);
-  background: #f6fbf6;
-}
-.linkedin-fit__row[data-state="miss"] {
-  background: var(--color-surface-alt);
-  border-style: dashed;
-}
-.linkedin-fit__row[data-state="err"] {
-  border-color: #d9a3a3;
-  background: #fdf6f6;
-}
+.linkedin-fit__row:last-child { border-bottom: 0; }
+.linkedin-fit__row[data-state="err"] .linkedin-fit__verdict-label--err { color: #b23a3a; }
 .linkedin-fit__row-head {
   display: flex;
   align-items: baseline;
@@ -1399,7 +1389,7 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   text-transform: uppercase;
   line-height: 1.4;
 }
-.linkedin-fit__row[data-strongest="true"] { border-color: var(--color-leaf); box-shadow: 0 1px 6px rgba(123, 196, 122, 0.16); }
+/* Strongest pick gets the badge above; no row-level chrome on top of it. */
 .linkedin-fit__verdict-reason {
   margin: 0;
   font-size: 14px;
@@ -1421,6 +1411,7 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 .linkedin-fit__row-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 .linkedin-fit__check {
   font-family: var(--font-sans);
@@ -1441,6 +1432,15 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   border-color: var(--color-accent);
 }
 .linkedin-fit__check:disabled { opacity: 0.55; cursor: default; }
+/* Post action sits in a quieter register than "Read again" so it
+ * doesn't overshadow the score chip or reason. Borderless until hover. */
+.linkedin-fit__post {
+  border-color: transparent;
+}
+.linkedin-fit__post:hover {
+  border-color: var(--color-accent);
+}
+.linkedin-fit__post[hidden] { display: none; }
 
 .linkedin-fit__empty {
   margin: 0;
@@ -1453,7 +1453,7 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 @media (max-width: 539px) {
   .linkedin-fit__inner { padding: 32px 18px 60px; }
   .linkedin-fit__title { font-size: 26px; }
-  .linkedin-fit__row { padding: 16px 16px; }
+  .linkedin-fit__row { padding: 16px 0; }
   .linkedin-fit__row-title { font-size: 16px; }
 }
 
