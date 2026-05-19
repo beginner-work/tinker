@@ -80,6 +80,7 @@
     "- The opening must hook in two lines. Use the strongest first-person line you can find verbatim, or set it up with one short ai segment.",
     "- Do not include essay titles, dates, or meta-commentary about the essays themselves.",
     "- Do not invent facts. AI segments are framing only — no claims, no statistics, no new specifics.",
+    "- AI segments must NEVER use the word 'I' (capital I as a standalone word, including in contractions like I'm, I've, I'll, I'd). The first person belongs to the founder; AI segments speak about the founder or about the work in third person or impersonal voice.",
     "- Prefer fewer, stronger verbatim quotes over many short ones. Aim for 3–6 verbatim segments total.",
     "",
     "Respond as a single JSON object with exactly this shape:",
@@ -123,6 +124,12 @@
     catch { return null; }
   }
 
+  // \bI\b catches "I" as a standalone capital — including the I in
+  // contractions (I'm, I've, I'll, I'd) because apostrophe is a
+  // non-word character, so the boundary holds. Lowercase "it", "is",
+  // "in" don't match (case-sensitive).
+  const AI_FIRST_PERSON = /\bI\b/;
+
   function validateSegments(rawSegments, essaysById) {
     const out = [];
     for (const seg of rawSegments) {
@@ -138,8 +145,14 @@
           out.push({ type: "verbatim", text, essayId });
           continue;
         }
+        // Paraphrased — demoted to ai, but the first-person rule
+        // still applies on the demoted segment.
+        if (AI_FIRST_PERSON.test(text)) continue;
         out.push({ type: "ai", text });
       } else {
+        // The first person belongs to the founder. Any AI segment
+        // that uses "I" gets dropped — the model was told not to.
+        if (AI_FIRST_PERSON.test(text)) continue;
         out.push({ type: "ai", text });
       }
     }
