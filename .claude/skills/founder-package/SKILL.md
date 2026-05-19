@@ -1,15 +1,16 @@
 ---
 name: founder-package
-description: One guided interview that produces a pitch deck, a product spec, or a pitch narrative — depending on what the founder needs. Starts with a single routing question ("What are you building? A pitch deck, a product, or a pitch narrative?"), then runs the full interview for that artifact through the question loader (AskUserQuestion) so the founder can iterate option by option. The major change from the standalone pitch-deck skill is the verbatim rule — when building a pitch deck, every line of slide content uses the founder's own words, with no upward translation into VC vocabulary. Use whenever the founder says "help me with my pitch / product / narrative", "I have an idea, where do I start", or invokes the founder package directly.
+description: One guided interview that produces a pitch deck, a product spec, a pitch narrative, or a design system — depending on what the founder needs. Starts with a single routing question ("What are you building? A pitch deck, a product, a pitch narrative, or a design system?"), then runs the full interview for that artifact through the question loader (AskUserQuestion) so the founder can iterate option by option. The verbatim rule applies across every flow — slide content, README narrative, build-prompt anti-patterns, and design-system "what it never does" all use the founder's own words rather than upward translation into VC, product, or design vocabulary. Use whenever the founder says "help me with my pitch / product / narrative / design system", "I have an idea, where do I start", or invokes the founder package directly.
 ---
 
 # Founder Package
 
-A unified harness that produces one of three artifacts:
+A unified harness that produces one of four artifacts:
 
 - A **pitch deck** → `pitch-deck.md`
 - A **product spec** → `build-prompt.md` (and optionally `product-spec.md`)
 - A **pitch narrative** → `pitch-narrative-coworker.md`, `pitch-narrative-family.md`, and/or `pitch-narrative-friend.md`
+- A **design system** → `design-system/README.md`, `design-system/colors_and_type.css`, `design-system/preview/*.html`, and `design-system/assets/`
 
 The founder opens this skill not knowing which artifact they need yet. The skill starts with one routing question and runs the right flow from there.
 
@@ -26,19 +27,21 @@ The founder opens this skill not knowing which artifact they need yet. The skill
 
 Before anything else, ask the founder one question via **AskUserQuestion**, using exactly this wording and these options:
 
-> **What are you building? Are you building a pitch deck, a product, or a pitch narrative?**
+> **What are you building? Are you building a pitch deck, a product, a pitch narrative, or a design system?**
 
 | Option | Description |
 |---|---|
 | A pitch deck | A document for investors — slides that explain what you're building and why someone should give you money. We'll fill out a VC-grade deck in your own words. |
 | A product | The thing you're actually going to ship. We'll spec out the smallest version you can build next, in a form a build agent (or future you) can execute. |
 | A pitch narrative | The "in your own voice" version of your pitch — the way you'd tell a coworker, a family member, or a friend. Requires that a `pitch-deck.md` already exists. |
+| A design system | The visual language your product ships in — tokens (colors, type, spacing, radii, shadows, motion), a README that names the system, and preview cards that demo each foundation. Writes to `design-system/` in the working directory. |
 
 After the founder answers, route:
 
 - **A pitch deck** → run [Pitch Deck Flow](#pitch-deck-flow).
 - **A product** → run [Product Spec Flow](#product-spec-flow).
 - **A pitch narrative** → first check that `pitch-deck.md` exists in the working directory. If yes, run [Pitch Narrative Flow](#pitch-narrative-flow). If no, stop and tell the founder to build the deck first (offer to run the pitch deck flow now via AskUserQuestion with options *"Yes, let's build the deck first"* / *"No, I'll come back later"*).
+- **A design system** → run [Design System Flow](#design-system-flow).
 
 Reflect the routing in chat after they choose (*"Got it — pitch deck. Three phases: a few broad questions about you, then narrower ones about the specifics, then I'll write the deck."*) so they know what's coming.
 
@@ -955,6 +958,333 @@ Read each file back to the founder as a 2–3 sentence summary, then ask via Ask
 
 ---
 
+# Design System Flow
+
+A complete design system — tokens, marks references, preview cards, and a README — built around the founder's spirit and constraints. The output mirrors the layout of a working `design-system/` folder: a CSS token file at the root, a README that names and frames the system, an `assets/` folder for marks (referenced or scaffolded — not generated), and `preview/` HTML cards that demo each foundation in isolation.
+
+## The verbatim rule (this flow's defining constraint)
+
+Two layers of output, two rules:
+
+- **Tokens** (hex codes, font names, px values, scale steps, radii, shadow offsets, motion durations) come from the loader's option set, or from the founder's Other answer. Once picked, they're written canonically into `colors_and_type.css` as CSS custom properties. **No invented hex codes, no invented pixel values, no invented font names.** If the founder skipped a branch, the token's section gets a `/* [NEEDS INPUT: which branch] */` comment, not a guess.
+- **Narrative copy** (the README description, the *"What it never does"* section, the spirit line, mark descriptions, preview-card captions) uses **only verbatim language from the founder**. No filler design-system marketing copy. No *"thoughtfully crafted"*, *"modern and clean"*, *"designed with intention"*, *"a system that scales"*, *"meticulously crafted tokens"*. If the founder said *"calm, warm, paper-coloured, and deliberately unbusy"*, the README says exactly that — not *"a calm and warm visual system."*
+
+Anything outside these two rules is a bug. Before considering the system done, walk every visible string in the README and the preview cards; verify each is either a verbatim founder phrase, a token value the founder picked, or a fixed UI string from the templates below (section titles like *"What's in this folder"*, *"Visual foundations"*, *"What it never does"*).
+
+This means the model's job during Phase 3D is **arrangement and faithful transcription**, not generation. You're a typesetter, not a copywriter.
+
+## Phase 0D — Pre-checks and gap detection (run first)
+
+- **If `design-system/` exists in the working directory**, read `design-system/README.md` and `design-system/colors_and_type.css` first. The existing system's actual structure and tokens are the source of truth — not the templates below. Treat the rest of this flow as gap-filling: extract the current tokens (every `--color-*`, `--font-*`, `--text-*`, `--space-*`, `--radius-*`, `--shadow-*`) and the current narrative beats. Ask only the questions whose tokens are missing, whose narrative beats are thin (a section heading with no body), or whose values are placeholders (`[NEEDS INPUT: …]`, `TBD`, a single stand-in token).
+- **If `pitch-deck.md` or `BRAND.md` exist**, skim them for the spirit and voice already established. Don't ask Foundation D2 (spirit) from scratch if the brand voice is already written down — pull the verbatim phrase and confirm via AskUserQuestion (*"Your BRAND.md says 'direct, layered, generative.' Is that still the spirit for the design system, or has it shifted?"*).
+- **If the working directory looks like an app shell with an existing renderer** (e.g., `src/renderer/`, `ui/public/`, `app/`), note the path. The `design-system/` folder sits **alongside** the renderer at the repo root, not inside it. The renderer can later `@import` the tokens from `../design-system/colors_and_type.css`.
+
+**Reflect the gap inventory back to the founder** in plain chat at the start, naming each foundation by its section in `colors_and_type.css` (or the README beat if there's no CSS yet):
+
+> *"OK, I read your design system. What's filled: surfaces, typography, type scale, spacing, radii. What's a gap: motion (no tokens yet), shadows (just one variable), preview cards (only `colors-brand.html` exists). I'll ask about each. Sound right?"*
+
+Get a confirm or correction, then ask only the questions that fill the remaining gaps. **Skip the Phase 1D foundation questions entirely if all the corresponding foundations are already filled** — jump straight to Phase 2D narrowing for the missing branches.
+
+If `design-system/` doesn't exist, ignore the gap-detection sub-steps and run Phase 1D from scratch.
+
+## Phase 1D — Foundation (five questions via AskUserQuestion)
+
+Ask each one at a time through the loader, in order. Reflect each answer back in plain chat in the founder's exact words before moving on. The Other option is the escape hatch — encourage the founder to use it.
+
+### D1 — Layer model
+
+**Ask (short form, verbatim):** *"One brand, or company plus product?"* *(6 words.)*
+
+Long-form reference (don't ask this; it's the meaning):
+> Is this one brand, or does the company brand sit underneath one or more product brands? If two layers, the tokens are shared and only the wordmark + mark differ per product.
+
+| Option | Description |
+|---|---|
+| One brand | The company and the product are the same brand. One name, one mark. |
+| Company + one product | Two wordmarks, one mark each, shared tokens. |
+| Company + multiple products | The company brand is the chrome; products live underneath it. |
+| I haven't decided yet | Force me to pick. |
+
+*(Maps to: how the README opens, how `assets/` is structured, what "wordmark" means in preview cards.)*
+
+### D2 — Spirit / mood
+
+**Ask (short form, verbatim):** *"What's the spirit of the system?"* *(6 words.)*
+
+Long-form reference:
+> If someone opens a page styled with this system, what do they feel in the first second?
+
+| Option | Description |
+|---|---|
+| Calm and grounded — the page exhales | Low contrast, low volume, warm neutrals. |
+| Sharp and direct — the page says the thing | Strong type, clear hierarchy, no decoration. |
+| Warm and inviting — the page leans in | Soft colors, generous spacing, personal touches. |
+| Playful and surprising — the page laughs | Saturated accents, motion, expressive shapes. |
+
+The founder will often pick **Other** here. Capture their exact phrasing. The verbatim line — italicized — opens the README and informs every later token choice (saturation, weight, roundness, shadow softness).
+
+### D3 — Surface treatment
+
+**Ask (short form, verbatim):** *"Page color: paper, white, or dark?"* *(6 words.)*
+
+Long-form reference:
+> What color is the page itself? Pure white feels clinical; paper has warmth; dark inverts everything.
+
+| Option | Description |
+|---|---|
+| Paper — warm white, never pure white | A specific off-white like `#fffdf7` — like opening a notebook. |
+| Pure white | The default. Clean, neutral, clinical. |
+| Dark — black or near-black | The page is dark; everything else is on it. |
+| Both — light and dark modes from one source | Tokens have light/dark variants; the system flips. |
+
+The founder's pick sets `--color-background` and ripples through `--color-surface`, `--color-card`, `--color-border` (derived as warmer-than-page steps if paper; subtler steps if dark or white). If they pick Other and supply a specific hex, use it verbatim.
+
+### D4 — Brand color
+
+**Ask (short form, verbatim):** *"Your brand color, in one word?"* *(5 words.)*
+
+Long-form reference:
+> If your brand had to be one color, in one word — what is it? Pick the family, not the hex code yet.
+
+| Option | Description |
+|---|---|
+| Green — forest, leaf, sage, mint | Anything in the green family. |
+| Blue — indigo, navy, sky, teal | Anything in the blue family. |
+| Warm — red, orange, amber, peach | The warm half of the wheel. |
+| Neutral — black, gray, stone, white | The brand color is the absence of color. |
+
+The founder's verbatim word goes in the README. The family they picked drives the brand color variable (`--color-forest`, `--color-indigo`, etc.) and the action-accent CTA color. If they supply a specific hex in Other, use it verbatim — don't substitute a "close" value.
+
+### D5 — The line (never do)
+
+**Ask (short form, verbatim):** *"What should this system never do?"* *(6 words.)*
+
+This question is **multiSelect**.
+
+Long-form reference:
+> Every design system is defined as much by what it refuses as what it ships. What's off-limits?
+
+| Option | Description |
+|---|---|
+| No emoji, no exclamation points | The system stays adult; copy carries the warmth, not glyphs. |
+| No bouncy springs or motion that bounces | Motion is for confirmation, never for celebration. |
+| No pure white, no harsh black | Everything is paper-tinted; nothing is `#fff` or `#000`. |
+| No purple, no gradients, no glow | The system stays grounded; no synthwave. |
+
+The founder's verbatim list (including Other items) goes in the README's *"What it never does"* section, one bullet per item. The list also becomes a checkable constraint during synthesis: if a token in `colors_and_type.css` would violate any item (e.g., `--color-background: #ffffff` when they said "no pure white"), stop and pick a compliant value, or flag `[NEEDS INPUT: …]`.
+
+After all five, summarize in plain chat using the founder's own words: *"OK so what I'm hearing: it's `[D1 layer]`, the spirit is `[D2 verbatim word]`, the page is `[D3 surface]`, the brand color family is `[D4 verbatim word]`, and the system never `[D5 verbatim list, comma-joined]`. Yes?"* Get a confirm or correction. If the founder corrects, the corrected wording is the one that ends up in the README.
+
+## Phase 2D — Narrowing (branched + always-asks, all via AskUserQuestion)
+
+Pick the branches that need filling — either from gap detection (Phase 0D) or from the foundation answers. Every question goes through the loader. Capture verbatim quotes; capture specific numbers the founder supplies. Pair compatible branches in a single AskUserQuestion call when they flow (e.g., Type + Scale; Spacing + Radii) — don't dump them all at once.
+
+### Type branch
+
+**Ask (short form):** *"Display font and reading font?"* *(5 words.)*
+
+| Option | Description |
+|---|---|
+| Plus Jakarta Sans + Inter | Modern geometric display with a workhorse reading face. Calm and friendly. |
+| Inter only — one face for everything | Neutral, scalable, system-feeling. |
+| Geist + Geist Mono | System-feeling, sharp, slightly technical. |
+| A serif for display, a sans for body | Editorial. Display has personality, body stays neutral. |
+
+The founder's pick sets `--font-display` and `--font-sans`. Write the Google Fonts `@import` line at the top of `colors_and_type.css` to match the picked faces. If the founder picks Other and names a specific pair, use those exact names.
+
+### Scale branch
+
+**Ask (short form):** *"Type scale: compressed, standard, or generous?"* *(6 words.)*
+
+| Option | Description |
+|---|---|
+| Compressed — 11, 13, 14, 15, 17, 22, 38 | Dense, lots of information per screen. |
+| Standard — 12, 14, 16, 18, 24, 32, 48 | Web defaults. Easy to remember. |
+| Generous — 14, 16, 18, 20, 24, 32, 56 | Spacious, editorial, slower reading. |
+
+Writes the `--text-*` variables. If Other, capture the founder's exact numbers and use them.
+
+### Spacing branch
+
+**Ask (short form):** *"Spacing rhythm: 4-based, 6-based, or 8-based?"* *(6 words.)*
+
+| Option | Description |
+|---|---|
+| 4-based — 4, 6, 8, 12, 16, 24, 32, 48 | Fine-grained; allows tight UI. |
+| 8-based — 8, 16, 24, 32, 48, 64 | Web default. Coarse, predictable. |
+| 6-based — 6, 12, 18, 24, 36, 48 | Less common; pairs with 18px line-height systems. |
+
+Writes the `--space-*` variables.
+
+### Radii branch
+
+**Ask (short form):** *"Radii: sharp, soft, or round?"* *(5 words.)*
+
+| Option | Description |
+|---|---|
+| Sharp — 0, 2, 4 | No softening; corners are corners. |
+| Soft — 8, 9, 10, 12 | Most surfaces have a gentle rounding; pills exist for tags. |
+| Round — 16, 24, 999 | Heavy rounding everywhere; tile-like. |
+
+Writes `--radius-card`, `--radius-button`, `--radius-chip`, `--radius-icon`, `--radius-pill`. If the founder named a "logo tile" or app-icon radius in Other, add `--radius-logo-tile`.
+
+### Shadow branch
+
+**Ask (short form):** *"Shadows: tinted, neutral, or none?"* *(5 words.)*
+
+| Option | Description |
+|---|---|
+| Tinted — shadows take the brand color | Brand-tinted soft shadow, accent-tinted CTA shadow, focus halo at brand color. |
+| Neutral — gray shadows | The standard web look. |
+| None — borders only, no shadows | Flat. Hairline borders carry the hierarchy. |
+
+Writes `--shadow-soft`, `--shadow-card`, `--shadow-purple` (or rename to match the founder's brand color word — e.g., `--shadow-forest`), and `--focus-ring`.
+
+### Motion branch
+
+**Ask (short form):** *"Motion: none, soft, or expressive?"* *(5 words.)*
+
+| Option | Description |
+|---|---|
+| None — instant, no transitions | Every state change is instant. |
+| Soft — 150ms eases, nothing bouncy | Hover, focus, modal entry. No springs. |
+| Expressive — springs and stagger | Motion is part of the personality. |
+
+Writes one or two transition timing variables (`--motion-quick`, `--motion-base`). If the founder picked "None" or "Soft" — or said *"no bouncy springs"* in D5 — that rule joins the README's *"What it never does"* section verbatim.
+
+### Marks branch (always-ask)
+
+**Ask (short form):** *"Where do your marks live today?"* *(6 words.)*
+
+| Option | Description |
+|---|---|
+| I have SVG files ready | Give me the paths; I'll reference them in `assets/`. |
+| I have a sketch or PNG — not an SVG yet | I'll leave a placeholder; you'll drop the SVG in later. |
+| The wordmark IS the mark — no separate icon | I'll skip the icon and only treat the wordmark. |
+| I haven't designed a mark yet | I'll leave `assets/MARKS.md` with an interview prompt for later. |
+
+If "SVG files ready", ask one short open-ended plain-chat follow-up for the paths and what each mark depicts in one phrase. Capture verbatim. The marks are referenced in `assets/`; do not generate SVG markup from scratch — leave the file as-is or scaffold a placeholder filename the founder can drop into.
+
+### Components branch (always-ask, multiSelect)
+
+**Ask (short form):** *"Which preview cards do you want in v1?"* *(9 words — acceptable.)*
+
+| Option | Description |
+|---|---|
+| Foundations — colors, type, spacing, radii, shadows, motion | The token demo cards. Always recommended. |
+| Components — buttons, inputs, iconography | Interactive primitives. |
+| Logo / brand — logo treatments and clear-space | If you have a mark. |
+| Application surfaces — one or two product-specific cards | The pixel-faithful UI kit slice (sidebar, welcome page, etc.). |
+
+Each picked option expands into one or more `preview/*.html` files during synthesis.
+
+### Reference brands (always-ask)
+
+**Ask (short form):** *"One system to study, one to fight?"* *(7 words.)*
+
+| Option | Description |
+|---|---|
+| Linear / Vercel / Stripe — clean tech | The "studio" tier. |
+| Notion / Substack / Are.na — quiet, literary | The "paper" tier. |
+| Figma / GitHub — utility-grade | The "tool" tier. |
+| I have specific names — let me write them | Force open-ended. |
+
+Capture the founder's verbatim names (Other is expected). The names go in the README's *"Inspiration and opposites"* section as a *Study* / *Fight* pair.
+
+## Phase 3D — Synthesis (write the design system)
+
+Write to `design-system/` in the working directory. **If `design-system/` already exists from Phase 0D gap detection, edit files in place — do not overwrite founder edits to README narrative or CSS comments. Touch only the sections corresponding to the gaps you filled in Phase 2D.**
+
+**Apply the verbatim rule.** Every visible string in `README.md` and in `preview/*.html` captions must be one of:
+- (a) a verbatim quote from the founder's transcript (Phase 1D answers, Phase 2D narrowing answers, any chat confirmations), OR
+- (b) a token value the founder picked (or that derives from a founder-picked option set), OR
+- (c) a fixed UI string from the templates in this skill (section titles like *"What's in this folder"*, *"Visual foundations (the short list)"*, *"What it never does"*, *"Inspiration and opposites"*).
+
+Anything else is a bug. Replace with the founder's closest line, or leave `[NEEDS QUOTE: what beat, which file]`.
+
+### Files to produce
+
+- `design-system/README.md` — describes the system in the founder's verbatim words. Uses the README template below.
+- `design-system/colors_and_type.css` — every token from Phases 1D and 2D, written as CSS custom properties under `:root { ... }`. Section-commented for navigability.
+- `design-system/preview/*.html` — one self-contained HTML document per picked option in the Components branch. Each `@import`s `../colors_and_type.css` and renders the demo with verbatim founder labels where applicable.
+- `design-system/assets/` — drop in SVGs if the founder provided paths; otherwise, write `design-system/assets/MARKS.md` with the interview prompt for "what does the mark show, in three words" so it's there when the founder commissions the mark later.
+
+### README template
+
+```markdown
+# [Founder's verbatim brand name] Design System
+
+> *[Founder's verbatim D2 spirit line, in italics — trimmed only, not translated.]*
+
+This is the design system used across [founder's verbatim D1 layer description — e.g., "the company brand and the product"]. It's [founder's verbatim D2 + D3 phrasing, joined plainly — e.g., "calm, warm, paper-coloured, and deliberately unbusy"].
+
+## What's in this folder
+
+| File / folder | What it holds |
+|---|---|
+| `colors_and_type.css` | Every design token as CSS custom properties + base element styles. |
+| `assets/` | [Marks branch verbatim answer — e.g., "Both marks, as SVG + JSON token dictionary." Or: "Placeholder until the mark is designed."] |
+| `preview/` | Standalone HTML cards that demo each foundation. |
+
+## Visual foundations (the short list)
+
+- **Page is `[--color-background hex]`** — [founder's verbatim D3 phrasing — e.g., "warm white, never pure white"].
+- **Brand color is `[--color-{founder's-word} hex]`** — [founder's verbatim D4 word, e.g., "forest"].
+- **Type**: [Type branch verbatim font names].
+- **Scale**: [Scale branch numbers, comma-separated, ascending].
+- **Spacing**: [Spacing branch numbers, slash-separated].
+- **Radii**: [Radii branch numbers, comma-separated].
+- **Shadows**: [Shadow branch verbatim phrase].
+- **Motion**: [Motion branch verbatim phrase, or omit if "None"].
+
+## What it never does
+
+[Founder's verbatim D5 list — one bullet per item, no editorializing.]
+
+## Inspiration and opposites
+
+- **Study**: [Reference-brands verbatim study list].
+- **Fight**: [Reference-brands verbatim fight list].
+```
+
+### CSS template
+
+The `colors_and_type.css` skeleton uses these section comments **verbatim** as load-bearing structure (they're how the founder navigates the file): `/* Surfaces & ink */`, `/* Foreground text */`, `/* Brand palette */`, `/* Action accent */`, `/* Semantic */`, `/* Typography */`, `/* Type scale */`, `/* Layout / shape */`, `/* Shadows */`, `/* Spacing */`, `/* Motion */`.
+
+Open with a top-of-file block comment that names the system and (if D1 was a two-layer model) names both layers — using the founder's verbatim brand names.
+
+Fill each section with the specific values the founder picked. If a section was skipped in Phase 2D (because gap detection said it was already filled, or the founder declined the branch), leave a `/* [NEEDS INPUT: which branch] */` comment **only if the section is genuinely empty** — don't blank-overwrite tokens that already exist on disk from gap detection.
+
+After the `:root { ... }` block, write the base element rules (`body`, `h1`, `h2`, `h3`, `p`, `small`, `a`, `code`) using the tokens. Keep this short — these are defaults, not opinions.
+
+### Preview cards
+
+Each preview file is a complete `<!doctype html>` document with `<link rel="stylesheet" href="../colors_and_type.css">` (or `<style>@import url("../colors_and_type.css");</style>`) and a single foundation or component rendered.
+
+Structure per card: a `<h1>` with the foundation name (e.g., *"Colors — brand"*), the rendered thing (color chips, type ladder, spacing scale, radii samples, shadow examples), and a small `<small class="label">` caption per item that names the token used (e.g., *"`--color-forest` · #2d5a3d"*).
+
+**Card captions and any prose use founder verbatim phrases** where they describe intent, mood, or how the token feels. Token names and hex values are themselves; they're not narrative copy.
+
+Foundations branch expands to: `colors-brand.html`, `colors-surfaces.html`, `colors-semantic.html`, `type-display.html`, `type-body.html`, `type-scale.html`, `spacing.html`, `radii.html`, `shadows.html`, `motion.html`.
+
+Components branch expands to: `components-buttons.html`, `components-input.html`, `components-iconography.html`.
+
+Logo branch expands to: `logo.html`, `colors-logo.html` (only if marks exist).
+
+Application-surfaces branch expands to one file per surface the founder named (e.g., `surface-sidebar.html`).
+
+### When the design system is done
+
+1. Read the system back as a 4–5 line summary in plain chat. Point out any `[NEEDS INPUT: …]` placeholders and any `[NEEDS QUOTE: …]` lines in the README.
+2. Run the **verbatim check** on the README: walk every line; verify each phrase is either a verbatim founder word, a token value, or a fixed UI string from the template above. Report any line that doesn't trace; either replace it with the founder's closest line or leave `[NEEDS QUOTE: …]`.
+3. Run the **never-do check** on `colors_and_type.css`: walk the D5 list; verify no token violates it (e.g., no `#ffffff` if "no pure white" was picked; no spring timing functions if "no bouncy springs" was picked). Fix any violation by either picking a compliant value or flagging `[NEEDS INPUT: …]`.
+4. Run the **token-completeness check** on `colors_and_type.css`: every section has at least one value, or a `[NEEDS INPUT: which branch]` comment. Nothing is silently missing.
+5. Ask via AskUserQuestion: *"Does this feel like your system, or do we tighten any foundation?"* with options *"Yes, this is the system"*, *"Mostly — adjust one foundation"*, *"The narrative is off — let's redo the README"*, *"Something fundamental — let's revisit"*.
+
+If they want edits, edit the file(s) in place — don't rewrite from scratch unless they ask. When the founder hand-edits a token or a README line, treat their new value/wording as the new verbatim source for that token or beat.
+
+---
+
 # Tone rules for the whole skill
 
 - Talk like a smart friend who happens to know how money, products, and storytelling work. Not a consultant.
@@ -967,6 +1297,6 @@ Read each file back to the founder as a 2–3 sentence summary, then ask via Ask
 
 # Tools to use
 
-- **Read** — load `pitch-deck.md` (background for product spec flow; required for pitch narrative flow). Also load `README.md` and skim `src/` if they exist (so structural inheritance in build prompts is concrete). Load any prior `build-prompt.md` to read its current version for Phase 3B incrementing.
-- **AskUserQuestion** — every question the founder is asked, across all four phases (routing + the three flows). This is the question loader; don't replace it with free-form chat for any of these. The "Other" option preserves open-endedness.
-- **Write** / **Edit** — produce and refine the output file(s): `pitch-deck.md`, `build-prompt.md`, `pitch-narrative-*.md` (and `product-spec.md` only if explicitly requested).
+- **Read** — load `pitch-deck.md` (background for product spec flow; required for pitch narrative flow; optional context for design system flow). Also load `README.md` and skim `src/` if they exist (so structural inheritance in build prompts is concrete). Load any prior `build-prompt.md` to read its current version for Phase 3B incrementing. For the design system flow, load `design-system/README.md` and `design-system/colors_and_type.css` if they exist (Phase 0D gap detection), and skim `BRAND.md` if present.
+- **AskUserQuestion** — every question the founder is asked, across the routing question and all four flows (pitch deck, product spec, pitch narrative, design system). This is the question loader; don't replace it with free-form chat for any of these. The "Other" option preserves open-endedness.
+- **Write** / **Edit** — produce and refine the output file(s): `pitch-deck.md`, `build-prompt.md`, `pitch-narrative-*.md` (and `product-spec.md` only if explicitly requested), and for the design system flow: `design-system/README.md`, `design-system/colors_and_type.css`, `design-system/preview/*.html`, plus `design-system/assets/MARKS.md` (or referenced SVGs) under `design-system/assets/`. When gap-detecting an existing design system, prefer **Edit** over **Write** so founder edits to narrative or comments aren't clobbered.

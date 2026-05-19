@@ -6,6 +6,18 @@
  */
 
 :root {
+  /* Typography — extension.
+   *
+   * Display is Fraunces (variable, with SOFT + WONK + opsz axes).
+   * House setting dials SOFT high and WONK low so the face reads warm-paper
+   * rather than brutalist. Reading face is Instrument Sans (400/500/600).
+   * Plus Jakarta Sans + Inter stay in the fallback stack so the app keeps
+   * a sensible face during the font rollout. Load both families via the
+   * Google Fonts link in src/renderer/index.html. */
+  --font-display: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+  --font-sans:    "Instrument Sans", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+
   /* Action accent — extension */
   --color-accent-press: #4f46e5;
 
@@ -64,9 +76,23 @@
   --radius-icon:        8px;
   --radius-logo-tile:  44px;
 
-  /* Shadow + focus extensions */
-  --shadow-card: 0 1px 2px rgba(45, 90, 61, 0.04);
-  --focus-ring:  0 0 0 4px rgba(99, 102, 241, 0.18);
+  /* Shadow + focus extensions.
+   *
+   * House rule: shadows on buttons only. Cards, panels, modals, inputs,
+   * and surfaces use borders (--color-border) and never lift.
+   * --shadow-card is kept as a legacy alias but neutralized so existing
+   * call sites don't break; new code should not reach for it.
+   * Focus state is a halo (--focus-ring), not a shadow. */
+  --shadow-card:         none;
+  --shadow-button:       0 1px 0 rgba(45, 42, 38, 0.04), 0 1px 2px rgba(45, 42, 38, 0.06);
+  --shadow-button-hover: 0 1px 0 rgba(45, 42, 38, 0.05), 0 2px 4px rgba(45, 42, 38, 0.08);
+  --shadow-button-press: inset 0 1px 0 rgba(45, 42, 38, 0.06);
+  --focus-ring:          0 0 0 4px rgba(99, 102, 241, 0.18);
+
+  /* Motion: none. State changes are instant by design.
+   * No --motion-* tokens exist. If you reach for a transition or an
+   * animation timing, reconsider — the spirit of the app is "a quiet
+   * place to be on the web," and nothing here performs. */
 
   /* Spacing */
   --space-1:  4px;

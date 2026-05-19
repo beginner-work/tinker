@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=Instrument+Sans:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="/design-tokens.css">
   <style>
     :root {
@@ -14,8 +17,11 @@
       --page-muted: #6f6a65;
       --page-border: #ede8e0;
       --page-card: #ffffff;
-      --page-font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-      --page-font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+      --page-accent: #4f46e5;
+      --page-leaf: #7bc47a;
+      --page-font-sans: var(--font-sans, "Instrument Sans", "Inter", system-ui, sans-serif);
+      --page-font-display: var(--font-display, "Fraunces", Georgia, serif);
+      --page-font-display-settings: var(--font-display-settings, "SOFT" 100, "WONK" 0, "opsz" 144);
       --page-font-mono: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
     }
     * { box-sizing: border-box; }
@@ -39,10 +45,12 @@
     }
     h1 {
       font-family: var(--page-font-display);
-      font-size: 38px;
-      letter-spacing: -0.02em;
+      font-variation-settings: var(--page-font-display-settings);
+      font-size: 46px;
+      letter-spacing: -0.015em;
       margin: 0 0 12px;
-      font-weight: 700;
+      font-weight: 500;
+      line-height: 1.05;
     }
     .lede {
       color: var(--page-muted);
@@ -59,10 +67,12 @@
     }
     h2 {
       font-family: var(--page-font-display);
-      font-size: 22px;
-      font-weight: 600;
+      font-variation-settings: var(--page-font-display-settings);
+      font-size: 28px;
+      font-weight: 500;
       letter-spacing: -0.01em;
       margin: 0 0 20px;
+      line-height: 1.2;
     }
     section { margin-bottom: 64px; }
     section > p {
@@ -149,8 +159,9 @@
       font-size: 12px;
       font-family: var(--page-font-mono);
     }
-    .t-display-lg { font-family: var(--page-font-display); font-size: 38px; letter-spacing: -0.02em; font-weight: 700; line-height: 1.1; }
-    .t-display    { font-family: var(--page-font-display); font-size: 22px; letter-spacing: -0.01em; font-weight: 600; line-height: 1.3; }
+    .t-display-lg { font-family: var(--page-font-display); font-variation-settings: var(--page-font-display-settings); font-size: 46px; letter-spacing: -0.015em; font-weight: 500; line-height: 1.05; }
+    .t-display    { font-family: var(--page-font-display); font-variation-settings: var(--page-font-display-settings); font-size: 28px; letter-spacing: -0.01em; font-weight: 500; line-height: 1.2; }
+    .t-display-it { font-family: var(--page-font-display); font-variation-settings: var(--page-font-display-settings); font-size: 28px; letter-spacing: -0.01em; font-weight: 400; line-height: 1.2; font-style: italic; }
     .t-essay      { font-size: 17px; line-height: 1.7; }
     .t-base       { font-size: 15px; line-height: 1.55; }
     .t-body       { font-size: 14px; line-height: 1.55; }
@@ -175,6 +186,279 @@
       font-family: var(--page-font-mono);
     }
 
+    /* Spacing preview ----------------------------------------------------- */
+    .spacing {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 14px 24px;
+      align-items: center;
+    }
+    .spacing__label {
+      font-family: var(--page-font-mono);
+      font-size: 12px;
+      color: var(--page-muted);
+    }
+    .spacing__bar {
+      height: 14px;
+      background: var(--page-leaf);
+      border-radius: 4px;
+    }
+
+    /* Shadows preview ----------------------------------------------------- */
+    .shadows {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .shadow-tile {
+      background: var(--page-card);
+      border: 1px solid var(--page-border);
+      border-radius: 12px;
+      padding: 24px;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .shadow-tile--button {
+      background: var(--page-card);
+      border: 1px solid var(--page-border);
+      box-shadow: var(--shadow-button);
+    }
+    .shadow-tile--button-hover {
+      background: var(--page-card);
+      border: 1px solid var(--page-border);
+      box-shadow: var(--shadow-button-hover);
+    }
+    .shadow-tile--focus {
+      background: var(--page-card);
+      border: 1px solid var(--page-accent);
+      box-shadow: var(--focus-ring);
+    }
+    .shadow-tile--none {
+      background: var(--page-card);
+      border: 1px solid var(--page-border);
+      box-shadow: none;
+    }
+    .shadow-tile__label {
+      font-family: var(--page-font-mono);
+      font-size: 12px;
+      color: var(--page-muted);
+    }
+    .shadow-tile__name { font-weight: 600; font-size: 14px; }
+
+    /* Motion panel -------------------------------------------------------- */
+    .motion-panel {
+      background: var(--page-card);
+      border: 1px solid var(--page-border);
+      border-radius: 12px;
+      padding: 28px 32px;
+      display: grid;
+      gap: 6px;
+    }
+    .motion-panel__quote {
+      font-family: var(--page-font-display);
+      font-size: 22px;
+      font-style: italic;
+      line-height: 1.3;
+    }
+    .motion-panel__caption {
+      color: var(--page-muted);
+      font-size: 13px;
+    }
+
+    /* Components: cards --------------------------------------------------- */
+    .components { display: grid; gap: 20px; }
+    .component-row {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 24px;
+      align-items: flex-start;
+      padding: 20px 0;
+      border-top: 1px solid var(--page-border);
+    }
+    .component-row:first-child { border-top: 0; padding-top: 0; }
+    .component-row__meta {
+      font-family: var(--page-font-mono);
+      font-size: 12px;
+      color: var(--page-muted);
+      line-height: 1.6;
+    }
+    .component-row__meta strong {
+      font-family: var(--page-font-display);
+      font-style: italic;
+      font-weight: 400;
+      font-size: 18px;
+      color: var(--page-ink);
+      display: block;
+      margin-bottom: 6px;
+    }
+    .component-row__demo {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .ds-card {
+      background: var(--page-card);
+      border: 1px solid var(--page-border);
+      border-radius: var(--radius-card, 12px);
+      padding: 24px;
+      min-width: 220px;
+      max-width: 280px;
+    }
+    .ds-card__eyebrow {
+      font-family: var(--page-font-mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--page-muted);
+      margin: 0 0 8px;
+    }
+    .ds-card__title {
+      font-family: var(--page-font-display);
+      font-weight: 400;
+      font-size: 22px;
+      line-height: 1.2;
+      margin: 0 0 8px;
+    }
+    .ds-card__body {
+      font-size: 14px;
+      color: var(--page-ink);
+      margin: 0;
+      line-height: 1.55;
+    }
+    .ds-card--quiet {
+      background: #fbf7ee;
+      border-color: #ede5cf;
+    }
+    .ds-card--prose .ds-card__body { font-size: 15px; line-height: 1.7; }
+
+    .ds-btn {
+      font-family: var(--page-font-sans);
+      font-weight: 500;
+      font-size: 14px;
+      padding: 10px 16px;
+      border-radius: var(--radius-button, 10px);
+      border: 1px solid var(--page-border);
+      background: var(--page-card);
+      color: var(--page-ink);
+      box-shadow: var(--shadow-button);
+      cursor: default;
+    }
+    .ds-btn--primary {
+      background: var(--page-accent);
+      color: #fff;
+      border-color: var(--page-accent);
+    }
+    .ds-btn--ghost {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+      color: var(--page-ink);
+    }
+    .ds-btn--small {
+      font-size: 13px;
+      padding: 6px 12px;
+    }
+    .ds-btn[disabled] {
+      opacity: 0.5;
+      box-shadow: none;
+    }
+
+    .ds-input {
+      font-family: var(--page-font-sans);
+      font-size: 14px;
+      padding: 10px 14px;
+      border-radius: var(--radius-button, 10px);
+      border: 1px solid var(--page-border);
+      background: var(--page-card);
+      color: var(--page-ink);
+      min-width: 260px;
+    }
+    .ds-input:focus {
+      outline: none;
+      border-color: var(--page-accent);
+      box-shadow: var(--focus-ring);
+    }
+    .ds-input--error {
+      border-color: #d97a4a;
+      background: var(--color-error-bg, #fdf0eb);
+    }
+    .ds-field { display: grid; gap: 6px; }
+    .ds-field__label {
+      font-family: var(--page-font-mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--page-muted);
+    }
+
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 16px;
+    }
+    .icon-tile {
+      background: var(--page-card);
+      border: 1px solid var(--page-border);
+      border-radius: var(--radius-icon, 8px);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: var(--page-ink);
+    }
+    .icon-tile svg { display: block; }
+    .icon-tile__label {
+      font-family: var(--page-font-mono);
+      font-size: 11px;
+      color: var(--page-muted);
+    }
+    .icon-tile__name { font-size: 13px; font-weight: 500; }
+
+    /* Never-does panel ---------------------------------------------------- */
+    .never {
+      background: #faf6ec;
+      border: 1px solid #ece4cf;
+      border-radius: 16px;
+      padding: 28px 32px;
+    }
+    .never__title {
+      font-family: var(--page-font-display);
+      font-style: italic;
+      font-weight: 400;
+      font-size: 22px;
+      margin: 0 0 18px;
+    }
+    .never__list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 12px;
+    }
+    .never__list li {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 16px;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .never__tag {
+      font-family: var(--page-font-mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--page-muted);
+    }
+    .never__rule {
+      color: var(--page-ink);
+    }
+
     footer {
       margin-top: 80px;
       padding-top: 24px;
@@ -189,7 +473,7 @@
   <main class="page">
     <p class="eyebrow">tinker</p>
     <h1>Design system</h1>
-    <p class="lede">The marks, colors, and type that make tinker feel like tinker. Tokens live in <code>src/renderer/design-tokens.css</code>; the globe geometry lives in <code>src/renderer/tokens/rainbow-web.json</code>.</p>
+    <p class="lede">The marks, colors, type, spacing, shadows, and components that make tinker feel like tinker. Tokens live in <code>src/renderer/design-tokens.css</code>; the globe geometry lives in <code>src/renderer/tokens/rainbow-web.json</code>. Display face is <em>Fraunces</em> (SOFT 100, WONK 0); reading face is <em>Instrument Sans</em>.</p>
 
     <section>
       <h2>Marks</h2>
@@ -235,10 +519,11 @@
 
     <section>
       <h2>Type scale</h2>
-      <p>Display in Plus Jakarta Sans; body in Inter. Sample text: <em>a quiet place to be on the web</em>.</p>
+      <p>Display is Fraunces — variable, dialed warm with <code>SOFT 100</code> (rounded terminals) and <code>WONK 0</code> (no quirky spurs). Reading face is Instrument Sans (400 / 500 / 600). Sample text: <em>a quiet place to be on the web</em>.</p>
       <div class="typescale">
-        <div class="typespec"><div class="typespec__label">display-lg · 38</div><div class="t-display-lg">A quiet place to be on the web.</div></div>
-        <div class="typespec"><div class="typespec__label">display · 22</div><div class="t-display">A quiet place to be on the web.</div></div>
+        <div class="typespec"><div class="typespec__label">display-lg · 46</div><div class="t-display-lg">A quiet place to be on the web.</div></div>
+        <div class="typespec"><div class="typespec__label">display · 28</div><div class="t-display">A quiet place to be on the web.</div></div>
+        <div class="typespec"><div class="typespec__label">display-it · 28</div><div class="t-display-it">A quiet place to be on the web.</div></div>
         <div class="typespec"><div class="typespec__label">essay · 17</div><div class="t-essay">A quiet place to be on the web.</div></div>
         <div class="typespec"><div class="typespec__label">base · 15</div><div class="t-base">A quiet place to be on the web.</div></div>
         <div class="typespec"><div class="typespec__label">body · 14</div><div class="t-body">A quiet place to be on the web.</div></div>
@@ -260,8 +545,265 @@
       </div>
     </section>
 
+    <section>
+      <h2>Spacing</h2>
+      <p>One scale, eight steps. Bars are drawn to actual pixel width — no relative scaling on this page.</p>
+      <div class="spacing" id="spacing-scale"></div>
+    </section>
+
+    <section>
+      <h2>Shadows</h2>
+      <p>House rule: <em>shadows on buttons only</em>. Cards, panels, modals, inputs, and surfaces all stay flat — they use a 1px hairline border (<code>--color-border</code>) for separation. Focus is a halo, not a shadow.</p>
+      <div class="shadows">
+        <div class="shadow-tile shadow-tile--none">
+          <div class="shadow-tile__name">Card / panel / input</div>
+          <div class="shadow-tile__label">box-shadow: none<br>border: 1px solid --color-border</div>
+        </div>
+        <div class="shadow-tile shadow-tile--button">
+          <div class="shadow-tile__name">Button (rest)</div>
+          <div class="shadow-tile__label">var(--shadow-button)</div>
+        </div>
+        <div class="shadow-tile shadow-tile--button-hover">
+          <div class="shadow-tile__name">Button (hover)</div>
+          <div class="shadow-tile__label">var(--shadow-button-hover)</div>
+        </div>
+        <div class="shadow-tile shadow-tile--focus">
+          <div class="shadow-tile__name">Focus halo</div>
+          <div class="shadow-tile__label">var(--focus-ring)</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Motion</h2>
+      <p>There are no motion tokens. State changes are instant by design — no transitions, no springs, no eases. If you reach for one, reconsider.</p>
+      <div class="motion-panel">
+        <div class="motion-panel__quote">A quiet place to be on the web.</div>
+        <div class="motion-panel__caption">Nothing here performs. Buttons commit on click. Modals appear. Focus snaps in. The interface is a room, not a stage.</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Components &middot; Cards <span style="font-family: var(--page-font-mono); font-size: 12px; color: var(--page-muted); letter-spacing: 0.08em; text-transform: uppercase;">priority</span></h2>
+      <p>The container pattern that anchors every surface — sidebar entries, session cards, writing tiles, settings panels. Always: <code>--page-card</code> background, 1px <code>--color-border</code> hairline, <code>--radius-card</code> corners, no shadow. Padding scales with importance.</p>
+      <div class="components">
+        <div class="component-row">
+          <div class="component-row__meta">
+            <strong>Default</strong>
+            background --page-card<br>
+            border 1px --color-border<br>
+            radius --radius-card · 12<br>
+            padding 24px (--space-6)<br>
+            shadow none
+          </div>
+          <div class="component-row__demo">
+            <article class="ds-card">
+              <p class="ds-card__eyebrow">Session · Today</p>
+              <h3 class="ds-card__title">A short morning at the desk.</h3>
+              <p class="ds-card__body">Default card — content surface for sessions, notes, list entries. No shadow, no hover lift. The border does the work.</p>
+            </article>
+          </div>
+        </div>
+        <div class="component-row">
+          <div class="component-row__meta">
+            <strong>Quiet</strong>
+            background #fbf7ee<br>
+            border 1px #ede5cf<br>
+            radius --radius-card · 12<br>
+            padding 24px (--space-6)<br>
+            use for prompts, asides, settings hints
+          </div>
+          <div class="component-row__demo">
+            <article class="ds-card ds-card--quiet">
+              <p class="ds-card__eyebrow">Hint</p>
+              <h3 class="ds-card__title">A softer surface.</h3>
+              <p class="ds-card__body">Quiet variant for asides and helpers. Slightly warmer cream background; same hairline border, same radius.</p>
+            </article>
+          </div>
+        </div>
+        <div class="component-row">
+          <div class="component-row__meta">
+            <strong>Prose</strong>
+            background --page-card<br>
+            border 1px --color-border<br>
+            radius --radius-card · 12<br>
+            padding 28px (--space-6 + 4)<br>
+            body uses --leading-prose · 1.7
+          </div>
+          <div class="component-row__demo">
+            <article class="ds-card ds-card--prose" style="max-width: 360px; padding: 28px;">
+              <p class="ds-card__eyebrow">Essay</p>
+              <h3 class="ds-card__title">The longer card.</h3>
+              <p class="ds-card__body">When a card holds reading — an essay opener, a session reflection, an explainer — switch to <code>--text-essay</code> at 17/1.7 and let the type breathe. Same surface rules; the content sets the rhythm.</p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Components &middot; Buttons</h2>
+      <p>The only surface that gets a shadow. Three variants: <em>primary</em>, <em>secondary</em>, <em>ghost</em>. Sizes default and small. State changes are instant — no transitions on hover or press.</p>
+      <div class="components">
+        <div class="component-row">
+          <div class="component-row__meta">
+            <strong>Primary</strong>
+            background --color-accent-press<br>
+            color #fff<br>
+            shadow --shadow-button<br>
+            radius --radius-button · 10
+          </div>
+          <div class="component-row__demo">
+            <button class="ds-btn ds-btn--primary" type="button">Start a session</button>
+            <button class="ds-btn ds-btn--primary ds-btn--small" type="button">Save</button>
+            <button class="ds-btn ds-btn--primary" type="button" disabled>Disabled</button>
+          </div>
+        </div>
+        <div class="component-row">
+          <div class="component-row__meta">
+            <strong>Secondary</strong>
+            background --page-card<br>
+            border 1px --color-border<br>
+            shadow --shadow-button<br>
+            radius --radius-button · 10
+          </div>
+          <div class="component-row__demo">
+            <button class="ds-btn" type="button">Cancel</button>
+            <button class="ds-btn ds-btn--small" type="button">Edit</button>
+          </div>
+        </div>
+        <div class="component-row">
+          <div class="component-row__meta">
+            <strong>Ghost</strong>
+            background transparent<br>
+            border none<br>
+            shadow none<br>
+            for inline actions, chrome-quiet placements
+          </div>
+          <div class="component-row__demo">
+            <button class="ds-btn ds-btn--ghost" type="button">Skip</button>
+            <button class="ds-btn ds-btn--ghost ds-btn--small" type="button">More</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Components &middot; Inputs</h2>
+      <p>Borders and a focus halo. No shadows. Errors borrow the terracotta semantic tokens.</p>
+      <div class="components">
+        <div class="component-row">
+          <div class="component-row__meta">
+            <strong>Text input</strong>
+            border 1px --color-border<br>
+            radius --radius-button · 10<br>
+            focus border-color --color-accent<br>
+            focus shadow --focus-ring
+          </div>
+          <div class="component-row__demo">
+            <div class="ds-field">
+              <label class="ds-field__label">Default</label>
+              <input class="ds-input" type="text" placeholder="A quiet place to write&hellip;">
+            </div>
+            <div class="ds-field">
+              <label class="ds-field__label">Focused (try it)</label>
+              <input class="ds-input" type="text" placeholder="Click to focus">
+            </div>
+          </div>
+        </div>
+        <div class="component-row">
+          <div class="component-row__meta">
+            <strong>Error</strong>
+            border 1px --color-error-border<br>
+            background --color-error-bg<br>
+            no shadow, no shake, no transition
+          </div>
+          <div class="component-row__demo">
+            <div class="ds-field">
+              <label class="ds-field__label">Error state</label>
+              <input class="ds-input ds-input--error" type="text" value="needs a value">
+            </div>
+          </div>
+        </div>
+        <div class="component-row">
+          <div class="component-row__meta">
+            <strong>Textarea</strong>
+            same surface rules as text input<br>
+            min-height 76px<br>
+            resize vertical only
+          </div>
+          <div class="component-row__demo">
+            <div class="ds-field">
+              <label class="ds-field__label">Compose</label>
+              <textarea class="ds-input" rows="3" style="resize: vertical; font-family: var(--page-font-sans); min-height: 76px;" placeholder="What did you make today?"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Components &middot; Iconography</h2>
+      <p>Three sizes — <em>sm 16 · md 20 · lg 24</em> — drawn with a 1.75 stroke. Colors inherit from <code>currentColor</code>. The two illustrative marks (rainbow globe, calico cat) live separately in <code>src/renderer/icons/</code>.</p>
+      <div class="icon-grid">
+        <div class="icon-tile">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+          <div class="icon-tile__name">globe</div>
+          <div class="icon-tile__label">sm · 16</div>
+        </div>
+        <div class="icon-tile">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20l-7-7 7-7"/><path d="M5 13h14"/></svg>
+          <div class="icon-tile__name">arrow-left</div>
+          <div class="icon-tile__label">md · 20</div>
+        </div>
+        <div class="icon-tile">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <div class="icon-tile__name">plus</div>
+          <div class="icon-tile__label">lg · 24</div>
+        </div>
+        <div class="icon-tile">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h16"/></svg>
+          <div class="icon-tile__name">menu</div>
+          <div class="icon-tile__label">md · 20</div>
+        </div>
+        <div class="icon-tile">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <div class="icon-tile__name">search</div>
+          <div class="icon-tile__label">md · 20</div>
+        </div>
+        <div class="icon-tile">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+          <div class="icon-tile__name">check</div>
+          <div class="icon-tile__label">md · 20</div>
+        </div>
+        <div class="icon-tile">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          <div class="icon-tile__name">close</div>
+          <div class="icon-tile__label">md · 20</div>
+        </div>
+        <div class="icon-tile">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/></svg>
+          <div class="icon-tile__name">add</div>
+          <div class="icon-tile__label">md · 20</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>What this system never does</h2>
+      <div class="never">
+        <p class="never__title">House rules &mdash; the never-do list.</p>
+        <ul class="never__list">
+          <li><span class="never__tag">Shadows</span><span class="never__rule">No shadows except on buttons. Cards, panels, modals, inputs &mdash; all flat. Hairline border does the work.</span></li>
+          <li><span class="never__tag">Motion</span><span class="never__rule">No motion. Instant state changes. No transitions, no springs, no eases on hover, press, modal entry, or focus.</span></li>
+          <li><span class="never__tag">Voice</span><span class="never__rule">No emoji, no exclamation points, no marketing voice, no AI tells.</span></li>
+          <li><span class="never__tag">Type</span><span class="never__rule">Display is dialed warm (Fraunces, SOFT 100, WONK 0). No quirky spurs, no slab terminals &mdash; if it reads brash, it is wrong.</span></li>
+        </ul>
+      </div>
+    </section>
+
     <footer>
-      Edit this page at <code>src/renderer/design-system/index.html</code>.
+      Edit this page at <code>src/renderer/design-system/index.html</code>. Tokens at <code>src/renderer/design-tokens.css</code>. Font loader at <code>src/renderer/index.html</code>.
     </footer>
   </main>
 
@@ -310,6 +852,24 @@
     renderSwatches("palette-logo", LOGO);
     renderSwatches("palette-pastel", PASTEL);
     renderSwatches("palette-neutral", NEUTRAL);
+
+    const SPACING = [
+      ["space-1",  4],
+      ["space-2",  6],
+      ["space-3",  8],
+      ["space-4", 12],
+      ["space-5", 16],
+      ["space-6", 24],
+      ["space-7", 32],
+      ["space-8", 48],
+    ];
+    const spacingHost = document.getElementById("spacing-scale");
+    if (spacingHost) {
+      spacingHost.innerHTML = SPACING.map(([name, px]) => `
+        <div class="spacing__label">${name} &middot; ${px}</div>
+        <div><div class="spacing__bar" style="width:${px}px"></div></div>
+      `).join("");
+    }
   </script>
 </body>
 </html>
