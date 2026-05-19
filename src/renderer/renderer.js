@@ -20,6 +20,10 @@
 
   const STORAGE_DRAFTS = "tinker.drafts.v1";
   const STORAGE_ESSAYS = "tinker.essays.v1";
+  // Status-composer drafts: half-typed quick thoughts that haven't been
+  // posted yet. Keyed by `${categoryKey}::${seed||""}` so each channel
+  // gets its own slot — switching categories doesn't clobber the others.
+  const STORAGE_STATUS_DRAFTS = "tinker.statusDrafts.v1";
 
   // ── DOM refs ─────────────────────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
@@ -80,6 +84,41 @@
     if (window.tinkerSync && typeof window.tinkerSync.pushEssays === "function") {
       window.tinkerSync.pushEssays();
     }
+  }
+  function loadStatusDrafts() {
+    try {
+      const raw = localStorage.getItem(STORAGE_STATUS_DRAFTS);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch { return {}; }
+  }
+  function saveStatusDrafts(map) {
+    try { localStorage.setItem(STORAGE_STATUS_DRAFTS, JSON.stringify(map)); } catch { /* ignore */ }
+  }
+  function statusDraftKey(categoryKey, seed) {
+    return `${categoryKey || ""}::${seed || ""}`;
+  }
+  function getStatusDraft(categoryKey, seed) {
+    const map = loadStatusDrafts();
+    const entry = map[statusDraftKey(categoryKey, seed)];
+    return entry && typeof entry.body === "string" ? entry : null;
+  }
+  function setStatusDraft(categoryKey, seed, body) {
+    const map = loadStatusDrafts();
+    const key = statusDraftKey(categoryKey, seed);
+    const trimmed = String(body || "");
+    if (!trimmed) {
+      delete map[key];
+    } else {
+      map[key] = { body: trimmed, updatedAt: Date.now() };
+    }
+    saveStatusDrafts(map);
+  }
+  function clearStatusDraft(categoryKey, seed) {
+    const map = loadStatusDrafts();
+    delete map[statusDraftKey(categoryKey, seed)];
+    saveStatusDrafts(map);
   }
 
   // ── State ────────────────────────────────────────────────────────────
@@ -529,14 +568,19 @@
       return;
     }
     statusComposer.hidden = false;
+    const saved = getStatusDraft(activeCategoryKey, activeCategorySeed);
     if (statusComposerInput) {
-      statusComposerInput.value = "";
+      statusComposerInput.value = saved ? saved.body : "";
       statusComposerInput.placeholder = activeCategorySeed
         ? `Post a quick thought in ${activeCategorySeed}…`
         : "What's on your mind?";
     }
-    if (statusComposerPost) statusComposerPost.disabled = true;
-    if (statusComposerHint) statusComposerHint.textContent = "";
+    if (statusComposerPost) {
+      statusComposerPost.disabled = !(saved && saved.body.trim().length > 0);
+    }
+    if (statusComposerHint) {
+      statusComposerHint.textContent = saved ? "Draft restored" : "";
+    }
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
@@ -689,10 +733,26 @@
   // hunting for the button. After posting, re-render the feed so the
   // new card lands at the top.
   if (statusComposer && statusComposerInput && statusComposerPost) {
+    let statusDraftTimer = null;
     const updateEnabled = () => {
       statusComposerPost.disabled = statusComposerInput.value.trim().length === 0;
     };
-    statusComposerInput.addEventListener("input", updateEnabled);
+    statusComposerInput.addEventListener("input", () => {
+      updateEnabled();
+      if (!activeCategoryKey) return;
+      // Debounce to avoid hitting localStorage on every keystroke. The
+      // hint flashes "Draft saved" so an interrupted founder knows their
+      // half-typed thought survived.
+      clearTimeout(statusDraftTimer);
+      statusDraftTimer = setTimeout(() => {
+        setStatusDraft(activeCategoryKey, activeCategorySeed, statusComposerInput.value);
+        if (statusComposerHint) {
+          statusComposerHint.textContent = statusComposerInput.value.trim()
+            ? "Draft saved"
+            : "";
+        }
+      }, 350);
+    });
     statusComposerInput.addEventListener("keydown", (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
@@ -703,8 +763,14 @@
       e.preventDefault();
       const body = statusComposerInput.value;
       if (!body.trim() || !activeCategoryKey) return;
+      const draftKeyCat = activeCategoryKey;
+      const draftKeySeed = activeCategorySeed;
       const essay = store.publishStatus({ body, seed: activeCategorySeed });
       if (!essay) return;
+      // Posted — drop the saved draft for this channel so refresh
+      // doesn't restore an already-published thought.
+      clearTimeout(statusDraftTimer);
+      clearStatusDraft(draftKeyCat, draftKeySeed);
       // Stay on this category feed so the founder sees their post
       // land at the top of the channel they just typed into.
       showCategoryFeed(activeCategoryKey, activeCategorySeed);
