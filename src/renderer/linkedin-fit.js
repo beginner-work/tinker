@@ -50,6 +50,11 @@
   ].join("");
 
   // Image canvas constants. Square reads well on LinkedIn mobile feeds.
+  // Type follows tinker's design system: Fraunces for the founder's
+  // own words (display), Instrument Sans for the AI connecting tissue
+  // and the chrome. SOFT/WONK/opsz are pushed through CSS on the
+  // canvas element below — Fraunces falls back to Plus Jakarta Sans /
+  // Georgia if Fraunces isn't loaded yet.
   const IMG_W = 1080;
   const IMG_H = 1080;
   const IMG_MARGIN = 90;
@@ -58,8 +63,14 @@
   const IMG_BODY_TOP = IMG_HEADER_H + 30;
   const IMG_BODY_BOTTOM = IMG_H - IMG_FOOTER_RESERVE;
   const IMG_BODY_LINE_HEIGHT = 62;
-  const IMG_VERBATIM_FONT = "700 40px 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
-  const IMG_AI_FONT = "500 36px 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
+  const IMG_VERBATIM_FONT = "700 40px 'Fraunces', 'Plus Jakarta Sans', Georgia, 'Times New Roman', serif";
+  const IMG_AI_FONT = "500 36px 'Instrument Sans', 'Inter', system-ui, sans-serif";
+  const IMG_WORDMARK_FONT = "700 30px 'Fraunces', 'Plus Jakarta Sans', Georgia, serif";
+  const IMG_BRAND_FOOTER_FONT = "700 26px 'Fraunces', 'Plus Jakarta Sans', Georgia, serif";
+  const IMG_META_FONT = "500 22px 'Instrument Sans', 'Inter', system-ui, sans-serif";
+  const IMG_LEGEND_FONT = "500 22px 'Instrument Sans', 'Inter', system-ui, sans-serif";
+  // Fraunces axes — "warm-paper, not brutalist" per design-tokens.css.
+  const IMG_FONT_VARIATION_SETTINGS = '"SOFT" 100, "WONK" 0, "opsz" 144';
   const IMG_BG = "#fffdf7";
   const IMG_AI_COLOR = "#9a948a";
   const IMG_BRAND_COLOR = "#2d5a3d";
@@ -235,12 +246,15 @@
     fontsReady = (async () => {
       try {
         await Promise.all([
+          document.fonts.load("700 40px 'Fraunces'"),
+          document.fonts.load("700 30px 'Fraunces'"),
+          document.fonts.load("700 26px 'Fraunces'"),
+          document.fonts.load("500 36px 'Instrument Sans'"),
+          document.fonts.load("500 22px 'Instrument Sans'"),
+          // Fallback faces — preloaded so the canvas never blocks on
+          // network if Fraunces / Instrument Sans haven't arrived.
           document.fonts.load("700 40px 'Plus Jakarta Sans'"),
-          document.fonts.load("500 36px 'Plus Jakarta Sans'"),
-          document.fonts.load("700 30px 'Plus Jakarta Sans'"),
-          document.fonts.load("700 24px 'Plus Jakarta Sans'"),
           document.fonts.load("500 22px 'Inter'"),
-          document.fonts.load("500 20px 'Inter'"),
         ]);
         if (document.fonts.ready) await document.fonts.ready;
       } catch { /* fall through to system fonts */ }
@@ -558,14 +572,14 @@
     if (mark) ctx.drawImage(mark, markX, markY, markSize, markSize);
 
     ctx.fillStyle = IMG_BRAND_COLOR;
-    ctx.font = "700 30px 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
+    ctx.font = IMG_WORDMARK_FONT;
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
     ctx.fillText("tinker", markX + markSize + 14, markY + markSize / 2 + 1);
 
     if (totalPages > 1) {
       ctx.fillStyle = IMG_SUB_COLOR;
-      ctx.font = "500 22px 'Inter', system-ui, sans-serif";
+      ctx.font = IMG_META_FONT;
       ctx.textAlign = "right";
       ctx.fillText(`${pageNum} / ${totalPages}`, IMG_W - IMG_MARGIN, markY + markSize / 2 + 1);
       ctx.textAlign = "left";
@@ -582,31 +596,65 @@
     ctx.stroke();
 
     ctx.fillStyle = IMG_BRAND_COLOR;
-    ctx.font = "700 26px 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
+    ctx.font = IMG_BRAND_FOOTER_FONT;
     ctx.textBaseline = "alphabetic";
     ctx.textAlign = "left";
     ctx.fillText("Created by tinker", IMG_MARGIN, y0 + 42);
 
-    // Legend row 1 — rainbow swatches + label
-    const legendY = y0 + 96;
-    const swatchSize = 18;
-    let lx = IMG_MARGIN;
-    for (let i = 0; i < TINKER_RAINBOW.length; i++) {
-      ctx.fillStyle = TINKER_RAINBOW[i];
-      ctx.fillRect(lx + i * (swatchSize + 2), legendY - swatchSize + 2, swatchSize, swatchSize);
-    }
-    lx += TINKER_RAINBOW.length * (swatchSize + 2) + 14;
-    ctx.fillStyle = IMG_SUB_COLOR;
-    ctx.font = "500 22px 'Inter', system-ui, sans-serif";
-    ctx.fillText("the founder's own words, verbatim", lx, legendY);
+    // Legend lines — same length on both rows so the eye lines them
+    // up. The verbatim row is the tinker spectrum (same horizontal
+    // stripe vocabulary as the home-page mark, laid out as one
+    // continuous line). The AI row is a single muted stripe.
+    const lineLen = 180;
+    const lineThickness = 10;
+    const labelGap = 18;
+    const verbatimY = y0 + 96;
+    const aiY = verbatimY + 38;
 
-    // Legend row 2 — gray swatch + label
-    const legendY2 = legendY + 38;
-    ctx.fillStyle = IMG_AI_COLOR;
-    ctx.fillRect(IMG_MARGIN, legendY2 - swatchSize + 2, swatchSize, swatchSize);
+    const grad = ctx.createLinearGradient(IMG_MARGIN, 0, IMG_MARGIN + lineLen, 0);
+    for (let i = 0; i < TINKER_RAINBOW.length; i++) {
+      grad.addColorStop(i / (TINKER_RAINBOW.length - 1), TINKER_RAINBOW[i]);
+    }
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = lineThickness;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(IMG_MARGIN + lineThickness / 2, verbatimY);
+    ctx.lineTo(IMG_MARGIN + lineLen - lineThickness / 2, verbatimY);
+    ctx.stroke();
+
+    ctx.strokeStyle = IMG_AI_COLOR;
+    ctx.lineWidth = lineThickness;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(IMG_MARGIN + lineThickness / 2, aiY);
+    ctx.lineTo(IMG_MARGIN + lineLen - lineThickness / 2, aiY);
+    ctx.stroke();
+
     ctx.fillStyle = IMG_SUB_COLOR;
-    ctx.font = "500 22px 'Inter', system-ui, sans-serif";
-    ctx.fillText("connecting tissue, AI-written", IMG_MARGIN + swatchSize + 14, legendY2);
+    ctx.font = IMG_LEGEND_FONT;
+    ctx.textBaseline = "middle";
+    ctx.fillText("the founder's own words, verbatim", IMG_MARGIN + lineLen + labelGap, verbatimY);
+    ctx.fillText("connecting tissue, AI-written",     IMG_MARGIN + lineLen + labelGap, aiY);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  // Attach the canvas to the DOM (offscreen) and set
+  // font-variation-settings on the element. Browsers that honour the
+  // element's font CSS during canvas text drawing will pick up the
+  // SOFT / WONK / opsz axes; others render Fraunces at its default
+  // axes, which is still correct typeface, just not the warm-paper
+  // tuning the design system specifies.
+  function createPageCanvas() {
+    const canvas = document.createElement("canvas");
+    canvas.width = IMG_W;
+    canvas.height = IMG_H;
+    canvas.style.position = "absolute";
+    canvas.style.left = "-99999px";
+    canvas.style.top = "0";
+    canvas.style.fontVariationSettings = IMG_FONT_VARIATION_SETTINGS;
+    document.body.appendChild(canvas);
+    return canvas;
   }
 
   async function renderImages(segments) {
@@ -616,9 +664,7 @@
     const pages = paginateAtoms(atoms);
     const blobs = [];
     for (let p = 0; p < pages.length; p++) {
-      const canvas = document.createElement("canvas");
-      canvas.width = IMG_W;
-      canvas.height = IMG_H;
+      const canvas = createPageCanvas();
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = IMG_BG;
       ctx.fillRect(0, 0, IMG_W, IMG_H);
@@ -632,6 +678,7 @@
       }
       if (p === pages.length - 1) drawFooter(ctx);
       const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+      canvas.parentNode && canvas.parentNode.removeChild(canvas);
       if (blob) blobs.push(blob);
     }
     return blobs;
