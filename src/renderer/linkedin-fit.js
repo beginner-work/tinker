@@ -3,24 +3,16 @@
  * Stitches verbatim fragments of the founder's published essays into a
  * single LinkedIn-ready post that follows the pitch arc: problem →
  * persona → why now → product. The founder's own words flow through
- * the tinker rainbow on screen and appear in colored ink on the
- * generated images; AI connective tissue is muted and labelled. The
- * boundary between "I said this" and "AI wrote this" is carried by
- * colour, not brackets, so what posts to LinkedIn reads cleanly.
+ * the tinker rainbow; AI connective tissue is muted and labelled.
+ * The boundary is carried by colour, not brackets.
  *
- * The page produces two things:
- *   1. One or more tinker-branded PNG images, sized for LinkedIn
- *      (1080×1080), saveable to camera roll via Web Share or
- *      download. The last image carries the "Created by tinker" footer
- *      and a legend explaining the colour code.
- *   2. A clipboard payload of the founder's verbatim words only —
- *      no AI connective tissue, no quotation marks, no brackets — so
- *      the founder can paste their own writing as the LinkedIn post
- *      caption alongside the images.
+ * The page is image-first. The stitched draft is rendered straight to
+ * tinker-branded PNG images (1080×1080, paginated) and the page
+ * preview shows those images — not the text. A compact copy-pill
+ * surfaces a snippet of the founder's verbatim words; click it to
+ * copy the full verbatim string as the LinkedIn caption.
  *
- * Cached in localStorage["tinker.linkedinPitchDraft.v1"] as a single
- * { segments, essayIds, ts } object. Auto-regenerates when the set of
- * published essay ids drifts from what produced the cached draft.
+ * Cached in localStorage["tinker.linkedinPitchDraft.v1"].
  *
  * Entry point: window.tinkerLinkedinFit.render(). Wired in renderer.js.
  */
@@ -30,36 +22,49 @@
 
   const STORAGE_KEY = "tinker.linkedinPitchDraft.v1";
   const COPY_LABEL_RESET_MS = 5000;
+  const COPY_PREVIEW_MAX_CHARS = 56;
 
-  // Tinker's rainbow — same palette as the brand logo. Used both for
-  // the on-screen live shader and the per-word colour rotation in the
-  // generated images.
+  // Tinker's rainbow — same palette as src/renderer/icons/tinker-mark.svg.
   const TINKER_RAINBOW = [
-    "#f9a8d4", // pink
-    "#fdba74", // orange
-    "#fde68a", // yellow
-    "#7bc47a", // leaf
-    "#7dd3fc", // sky
-    "#6ee7b7", // mint
-    "#c8b6e2", // purple
+    "#F9A8D4", // pink
+    "#FDBA74", // orange
+    "#FDE68A", // yellow
+    "#7BC47A", // leaf
+    "#7DD3FC", // sky
+    "#6EE7B7", // mint
+    "#C8B6E2", // purple
   ];
 
-  // Image canvas constants. Square is LinkedIn-friendly and reads well
-  // on mobile feeds.
+  // The actual tinker mark, inlined so we can draw it onto the canvas
+  // image without a network fetch. Mirrors src/renderer/icons/tinker-mark.svg.
+  const TINKER_MARK_SVG = [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">',
+    '<circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/>',
+    '<line x1="34.18" y1="62" x2="165.82" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/>',
+    '<line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/>',
+    '<line x1="34.18" y1="138" x2="165.82" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/>',
+    '<ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/>',
+    '<ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/>',
+    '<line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/>',
+    '</svg>',
+  ].join("");
+
+  // Image canvas constants. Square reads well on LinkedIn mobile feeds.
   const IMG_W = 1080;
   const IMG_H = 1080;
   const IMG_MARGIN = 90;
-  const IMG_HEADER_H = 110;
-  const IMG_FOOTER_RESERVE = 220; // bottom reserve on every page
-  const IMG_BODY_TOP = IMG_HEADER_H + 40;
+  const IMG_HEADER_H = 130;
+  const IMG_FOOTER_RESERVE = 230;
+  const IMG_BODY_TOP = IMG_HEADER_H + 30;
   const IMG_BODY_BOTTOM = IMG_H - IMG_FOOTER_RESERVE;
   const IMG_BODY_LINE_HEIGHT = 62;
   const IMG_VERBATIM_FONT = "700 40px 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
-  const IMG_AI_FONT = "italic 36px 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
+  const IMG_AI_FONT = "500 36px 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
   const IMG_BG = "#fffdf7";
   const IMG_AI_COLOR = "#9a948a";
   const IMG_BRAND_COLOR = "#2d5a3d";
   const IMG_SUB_COLOR = "#6f6a65";
+  const IMG_LINE_COLOR = "#ede8e0";
 
   const SYSTEM_PROMPT = [
     "You stitch together a single LinkedIn post from a founder's published essays, following the arc of a pitch deck: problem → persona → why now → product.",
@@ -118,9 +123,6 @@
     catch { return null; }
   }
 
-  // Validate every "verbatim" segment is an exact substring of the
-  // cited essay. The model is told this rule but doesn't always obey;
-  // demote violators to "ai" so the on-screen attribution stays honest.
   function validateSegments(rawSegments, essaysById) {
     const out = [];
     for (const seg of rawSegments) {
@@ -207,6 +209,44 @@
     return inflight;
   }
 
+  // ── Font + mark preload ──────────────────────────────────────────────
+  // Canvas falls back to system fonts unless the web fonts have been
+  // loaded explicitly. document.fonts.load() forces the load and
+  // resolves once the font is in the registry. We trigger it once per
+  // session and gate every render on it so the saved PNGs and the
+  // page previews use the same typography the rest of tinker uses.
+  let fontsReady = null;
+  function ensureFonts() {
+    if (fontsReady) return fontsReady;
+    if (!document.fonts) { fontsReady = Promise.resolve(); return fontsReady; }
+    fontsReady = (async () => {
+      try {
+        await Promise.all([
+          document.fonts.load("700 40px 'Plus Jakarta Sans'"),
+          document.fonts.load("500 36px 'Plus Jakarta Sans'"),
+          document.fonts.load("700 30px 'Plus Jakarta Sans'"),
+          document.fonts.load("700 24px 'Plus Jakarta Sans'"),
+          document.fonts.load("500 22px 'Inter'"),
+          document.fonts.load("500 20px 'Inter'"),
+        ]);
+        if (document.fonts.ready) await document.fonts.ready;
+      } catch { /* fall through to system fonts */ }
+    })();
+    return fontsReady;
+  }
+
+  let tinkerMarkPromise = null;
+  function ensureTinkerMark() {
+    if (tinkerMarkPromise) return tinkerMarkPromise;
+    tinkerMarkPromise = new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(TINKER_MARK_SVG);
+    });
+    return tinkerMarkPromise;
+  }
+
   // ── View ─────────────────────────────────────────────────────────────
   let viewEl = null;
   let draftEl = null;
@@ -215,6 +255,24 @@
   let stitchBtn = null;
   let saveBtn = null;
   let copyBtn = null;
+  let copyPreviewEl = null;
+
+  // Rendered-image cache so we don't re-render every time the user
+  // navigates back to the page. Keyed on draft.ts.
+  let renderedBlobs = null;
+  let renderedBlobsForTs = 0;
+  let renderedUrls = [];
+  function clearRenderedUrls() {
+    for (const url of renderedUrls) URL.revokeObjectURL(url);
+    renderedUrls = [];
+  }
+
+  const COPY_ICON_SVG =
+    `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" ` +
+    `stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
+    `<rect x="8" y="3" width="11" height="4" rx="1"/>` +
+    `<path d="M16 5h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/>` +
+    `</svg>`;
 
   function mount() {
     viewEl = document.getElementById("linkedin-fit");
@@ -226,6 +284,7 @@
       stitchBtn = viewEl.querySelector('[data-linkedin-action="stitch"]');
       saveBtn = viewEl.querySelector('[data-linkedin-action="save"]');
       copyBtn = viewEl.querySelector('[data-linkedin-action="copy"]');
+      copyPreviewEl = copyBtn && copyBtn.querySelector('[data-role="copy-preview"]');
       return true;
     }
     viewEl.innerHTML =
@@ -233,11 +292,14 @@
         `<header class="linkedin-fit__head">` +
           `<p class="linkedin-fit__crumb">Quiet stitch</p>` +
           `<h1 class="linkedin-fit__title">A pitch-shaped post, stitched from your essays</h1>` +
-          `<p class="linkedin-fit__sub">Following the arc of your pitch — problem, persona, why now, product. Your words flow through the tinker rainbow; the connective tissue is muted so the boundary is honest, on screen and on the saved images.</p>` +
+          `<p class="linkedin-fit__sub">Following the arc of your pitch — problem, persona, why now, product. Your words flow through the tinker rainbow on the saved images. Tap the copy pill to lift just your verbatim words as the LinkedIn caption.</p>` +
           `<div class="linkedin-fit__head-actions">` +
             `<button type="button" class="linkedin-fit__check-all" data-linkedin-action="stitch">Stitch a new draft</button>` +
             `<button type="button" class="linkedin-fit__check linkedin-fit__post" data-linkedin-action="save" hidden>Save image</button>` +
-            `<button type="button" class="linkedin-fit__check linkedin-fit__post" data-linkedin-action="copy" hidden>Copy my words</button>` +
+            `<button type="button" class="linkedin-fit__copy-pill" data-linkedin-action="copy" title="Copy my words" aria-label="Copy my words" hidden>` +
+              COPY_ICON_SVG +
+              `<span class="linkedin-fit__copy-preview" data-role="copy-preview"></span>` +
+            `</button>` +
           `</div>` +
         `</header>` +
         `<div class="linkedin-fit__draft" data-linkedin-draft></div>` +
@@ -250,6 +312,7 @@
     stitchBtn = viewEl.querySelector('[data-linkedin-action="stitch"]');
     saveBtn = viewEl.querySelector('[data-linkedin-action="save"]');
     copyBtn = viewEl.querySelector('[data-linkedin-action="copy"]');
+    copyPreviewEl = copyBtn.querySelector('[data-role="copy-preview"]');
     stitchBtn.addEventListener("click", () => runGenerate());
     saveBtn.addEventListener("click", () => saveDraftImages());
     copyBtn.addEventListener("click", () => copyMyWords());
@@ -263,18 +326,6 @@
     );
   }
 
-  function renderSegments(segments) {
-    return segments.map((seg) => {
-      if (seg.type === "verbatim") {
-        return `<span class="linkedin-fit__seg linkedin-fit__seg--you">${escapeHtml(seg.text)}</span>`;
-      }
-      return `<span class="linkedin-fit__seg linkedin-fit__seg--ai">` +
-        `<span class="linkedin-fit__seg-tag" aria-hidden="true">AI</span>` +
-        escapeHtml(seg.text) +
-        `</span>`;
-    }).join(" ");
-  }
-
   function formatStitchedTimestamp(ts) {
     if (!ts) return "";
     const diff = Date.now() - ts;
@@ -284,7 +335,16 @@
     return `Stitched ${Math.round(diff / 86_400_000)} d ago`;
   }
 
+  function verbatimSnippet(segments) {
+    const first = segments.find((s) => s.type === "verbatim");
+    if (!first) return "Copy my words";
+    const t = first.text.trim();
+    if (t.length <= COPY_PREVIEW_MAX_CHARS) return `"${t}"`;
+    return `"${t.slice(0, COPY_PREVIEW_MAX_CHARS).trim()}…"`;
+  }
+
   function showLoading() {
+    clearRenderedUrls();
     draftEl.innerHTML =
       `<div class="linkedin-fit__loading">` +
         `<div class="thinking-dots" aria-hidden="true">` +
@@ -299,6 +359,7 @@
   }
 
   function showError(message) {
+    clearRenderedUrls();
     draftEl.innerHTML =
       `<p class="linkedin-fit__verdict-label linkedin-fit__verdict-label--err">Couldn't stitch a draft.</p>` +
       `<p class="linkedin-fit__verdict-reason">${escapeHtml(message)}</p>`;
@@ -309,17 +370,56 @@
     stitchBtn.textContent = "Try again";
   }
 
-  function showDraft(draft) {
-    draftEl.innerHTML = renderSegments(draft.segments);
+  async function showDraft(draft) {
     metaEl.textContent = formatStitchedTimestamp(draft.ts);
     metaEl.hidden = false;
-    saveBtn.hidden = false;
-    copyBtn.hidden = false;
     stitchBtn.disabled = false;
     stitchBtn.textContent = "Stitch a new draft";
+    if (copyPreviewEl) copyPreviewEl.textContent = verbatimSnippet(draft.segments);
+    copyBtn.hidden = false;
+
+    // Spinner while images render — first paint can take a beat.
+    clearRenderedUrls();
+    draftEl.innerHTML =
+      `<div class="linkedin-fit__loading">` +
+        `<div class="thinking-dots" aria-hidden="true">` +
+          `<span class="thinking-dot"></span><span class="thinking-dot"></span><span class="thinking-dot"></span>` +
+        `</div>` +
+      `</div>`;
+
+    let blobs;
+    try {
+      blobs = await ensureRendered(draft);
+    } catch (err) {
+      showError((err && err.message) || "Couldn't render the post.");
+      return;
+    }
+    if (!blobs.length) {
+      draftEl.innerHTML = "";
+      return;
+    }
+
+    const urls = blobs.map((b) => URL.createObjectURL(b));
+    renderedUrls = urls;
+    const total = blobs.length;
+    draftEl.innerHTML =
+      `<div class="linkedin-fit__previews">` +
+      urls.map((url, i) =>
+        `<figure class="linkedin-fit__preview-frame">` +
+          `<img class="linkedin-fit__preview" src="${url}" alt="tinker pitch page ${i + 1} of ${total}" />` +
+          (total > 1
+            ? `<figcaption class="linkedin-fit__preview-caption">${i + 1} / ${total}</figcaption>`
+            : "") +
+        `</figure>`
+      ).join("") +
+      `</div>`;
+
+    saveBtn.hidden = false;
+    saveBtn.textContent = total > 1 ? "Save images" : "Save image";
   }
 
   function showEmpty() {
+    clearRenderedUrls();
     draftEl.innerHTML = "";
     metaEl.hidden = true;
     saveBtn.hidden = true;
@@ -333,7 +433,7 @@
     try {
       const draft = await generate();
       if (!draft) { showEmpty(); return; }
-      showDraft(draft);
+      await showDraft(draft);
     } catch (err) {
       showError((err && err.message) || "Try again.");
     }
@@ -353,11 +453,14 @@
     } else {
       fallbackCopy(text);
     }
-    copyBtn.textContent = "Copied";
-    clearTimeout(copyBtn._labelTimer);
-    copyBtn._labelTimer = setTimeout(() => {
-      copyBtn.textContent = "Copy my words";
-    }, COPY_LABEL_RESET_MS);
+    if (copyPreviewEl) {
+      const original = copyPreviewEl.textContent;
+      copyPreviewEl.textContent = "Copied";
+      clearTimeout(copyBtn._labelTimer);
+      copyBtn._labelTimer = setTimeout(() => {
+        copyPreviewEl.textContent = original;
+      }, COPY_LABEL_RESET_MS);
+    }
   }
 
   function fallbackCopy(text) {
@@ -376,13 +479,6 @@
   }
 
   // ── Image generation ─────────────────────────────────────────────────
-  //
-  // Lay out the segments into "atoms" (word + colour + font), then walk
-  // the atoms onto pages. Verbatim words cycle through the tinker
-  // rainbow palette one word at a time — visually distinct from the
-  // muted AI text, and the same visual cue the on-screen shader uses.
-  // The last page gets a "Created by tinker" footer + colour legend.
-
   function buildAtoms(segments) {
     const atoms = [];
     let rainbowIdx = 0;
@@ -407,7 +503,6 @@
   }
 
   function paginateAtoms(atoms) {
-    // Use a throwaway canvas for measuring word widths.
     const measure = document.createElement("canvas");
     measure.width = IMG_W; measure.height = IMG_H;
     const mctx = measure.getContext("2d");
@@ -415,7 +510,7 @@
     const pages = [];
     let page = [];
     let x = IMG_MARGIN;
-    let y = IMG_BODY_TOP + Math.round(IMG_BODY_LINE_HEIGHT * 0.7); // baseline of first line
+    let y = IMG_BODY_TOP + Math.round(IMG_BODY_LINE_HEIGHT * 0.7);
     const maxX = IMG_W - IMG_MARGIN;
 
     function flushPage() {
@@ -430,14 +525,10 @@
       const wordW = mctx.measureText(atom.text).width;
       const atLineStart = x <= IMG_MARGIN + 0.5;
       const spaceW = atLineStart ? 0 : mctx.measureText(" ").width;
-
       if (x + spaceW + wordW > maxX) {
-        // wrap to next line
         x = IMG_MARGIN;
         y += IMG_BODY_LINE_HEIGHT;
-        if (y > IMG_BODY_BOTTOM) {
-          flushPage();
-        }
+        if (y > IMG_BODY_BOTTOM) flushPage();
       }
       if (x > IMG_MARGIN) x += spaceW;
       page.push({ text: atom.text, color: atom.color, font: atom.font, x, y });
@@ -447,64 +538,45 @@
     return pages;
   }
 
-  function drawHeader(ctx, pageNum, totalPages) {
-    // Seed-mark glyph: a small green leaf to the left of the wordmark.
-    const cx = IMG_MARGIN + 18;
-    const cy = 70;
-    ctx.fillStyle = IMG_BRAND_COLOR;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 18, 0, Math.PI * 2);
-    ctx.fill();
-    // Inner stroke (cream) — evokes the "b" in the brand badge.
-    ctx.strokeStyle = IMG_BG;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(cx - 4, cy - 8);
-    ctx.lineTo(cx - 4, cy + 8);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(cx + 3, cy + 1, 7, -Math.PI / 2, Math.PI * 1.2);
-    ctx.stroke();
+  function drawHeader(ctx, pageNum, totalPages, mark) {
+    const markSize = 56;
+    const markX = IMG_MARGIN;
+    const markY = 40;
+    if (mark) ctx.drawImage(mark, markX, markY, markSize, markSize);
 
-    // Wordmark
     ctx.fillStyle = IMG_BRAND_COLOR;
-    ctx.font = "700 28px 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
+    ctx.font = "700 30px 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
-    ctx.fillText("tinker", cx + 32, cy + 1);
+    ctx.fillText("tinker", markX + markSize + 14, markY + markSize / 2 + 1);
 
-    // Page indicator if multi
     if (totalPages > 1) {
       ctx.fillStyle = IMG_SUB_COLOR;
       ctx.font = "500 22px 'Inter', system-ui, sans-serif";
       ctx.textAlign = "right";
-      ctx.fillText(`${pageNum} / ${totalPages}`, IMG_W - IMG_MARGIN, cy + 1);
+      ctx.fillText(`${pageNum} / ${totalPages}`, IMG_W - IMG_MARGIN, markY + markSize / 2 + 1);
       ctx.textAlign = "left";
     }
   }
 
   function drawFooter(ctx) {
-    const y0 = IMG_H - IMG_FOOTER_RESERVE + 40;
-    // Divider
-    ctx.strokeStyle = "#ede8e0";
+    const y0 = IMG_H - IMG_FOOTER_RESERVE + 30;
+    ctx.strokeStyle = IMG_LINE_COLOR;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(IMG_MARGIN, y0);
     ctx.lineTo(IMG_W - IMG_MARGIN, y0);
     ctx.stroke();
 
-    // "Created by tinker"
     ctx.fillStyle = IMG_BRAND_COLOR;
-    ctx.font = "700 24px 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
+    ctx.font = "700 26px 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
     ctx.textBaseline = "alphabetic";
     ctx.textAlign = "left";
-    ctx.fillText("Created by tinker", IMG_MARGIN, y0 + 40);
+    ctx.fillText("Created by tinker", IMG_MARGIN, y0 + 42);
 
-    // Legend: rainbow swatch + label, then gray swatch + label
-    const legendY = y0 + 90;
-    const swatchSize = 16;
-
-    // Rainbow swatch — seven small chips
+    // Legend row 1 — rainbow swatches + label
+    const legendY = y0 + 96;
+    const swatchSize = 18;
     let lx = IMG_MARGIN;
     for (let i = 0; i < TINKER_RAINBOW.length; i++) {
       ctx.fillStyle = TINKER_RAINBOW[i];
@@ -512,19 +584,21 @@
     }
     lx += TINKER_RAINBOW.length * (swatchSize + 2) + 14;
     ctx.fillStyle = IMG_SUB_COLOR;
-    ctx.font = "500 20px 'Inter', system-ui, sans-serif";
-    ctx.fillText("the founder's own words", lx, legendY);
+    ctx.font = "500 22px 'Inter', system-ui, sans-serif";
+    ctx.fillText("the founder's own words, verbatim", lx, legendY);
 
-    // Gray swatch
-    const legendY2 = legendY + 36;
+    // Legend row 2 — gray swatch + label
+    const legendY2 = legendY + 38;
     ctx.fillStyle = IMG_AI_COLOR;
     ctx.fillRect(IMG_MARGIN, legendY2 - swatchSize + 2, swatchSize, swatchSize);
     ctx.fillStyle = IMG_SUB_COLOR;
-    ctx.font = "italic 20px 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
+    ctx.font = "500 22px 'Inter', system-ui, sans-serif";
     ctx.fillText("connecting tissue, AI-written", IMG_MARGIN + swatchSize + 14, legendY2);
   }
 
   async function renderImages(segments) {
+    await ensureFonts();
+    const mark = await ensureTinkerMark();
     const atoms = buildAtoms(segments);
     const pages = paginateAtoms(atoms);
     const blobs = [];
@@ -535,7 +609,7 @@
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = IMG_BG;
       ctx.fillRect(0, 0, IMG_W, IMG_H);
-      drawHeader(ctx, p + 1, pages.length);
+      drawHeader(ctx, p + 1, pages.length, mark);
       ctx.textBaseline = "alphabetic";
       ctx.textAlign = "left";
       for (const a of pages[p]) {
@@ -550,33 +624,38 @@
     return blobs;
   }
 
+  async function ensureRendered(draft) {
+    if (renderedBlobsForTs === draft.ts && renderedBlobs) return renderedBlobs;
+    const blobs = await renderImages(draft.segments);
+    renderedBlobs = blobs;
+    renderedBlobsForTs = draft.ts;
+    return blobs;
+  }
+
   async function saveDraftImages() {
     if (!cache || !Array.isArray(cache.segments)) return;
     saveBtn.disabled = true;
-    const originalLabel = saveBtn.textContent;
-    saveBtn.textContent = "Rendering…";
+    const fallbackLabel = (n) => (n > 1 ? "Save images" : "Save image");
     let blobs;
     try {
-      blobs = await renderImages(cache.segments);
+      blobs = await ensureRendered(cache);
     } catch (err) {
       saveBtn.disabled = false;
-      saveBtn.textContent = originalLabel;
+      saveBtn.textContent = fallbackLabel(1);
       showError((err && err.message) || "Image render failed.");
       return;
     }
     if (!blobs.length) {
       saveBtn.disabled = false;
-      saveBtn.textContent = originalLabel;
+      saveBtn.textContent = fallbackLabel(1);
       return;
     }
-    saveBtn.textContent = blobs.length > 1 ? "Save images" : "Save image";
+    saveBtn.textContent = fallbackLabel(blobs.length);
 
     const files = blobs.map((blob, i) =>
       new File([blob], `tinker-pitch-${i + 1}.png`, { type: "image/png" })
     );
 
-    // Mobile / PWA path: Web Share with files raises the share sheet
-    // which includes "Save Image" / "Save to Photos".
     if (navigator.canShare && navigator.canShare({ files })) {
       try {
         await navigator.share({ files, title: "tinker pitch" });
@@ -584,20 +663,19 @@
         saveBtn.textContent = "Saved";
         clearTimeout(saveBtn._labelTimer);
         saveBtn._labelTimer = setTimeout(() => {
-          saveBtn.textContent = blobs.length > 1 ? "Save images" : "Save image";
+          saveBtn.textContent = fallbackLabel(blobs.length);
         }, COPY_LABEL_RESET_MS);
         return;
       } catch (err) {
         if (err && err.name === "AbortError") {
           saveBtn.disabled = false;
-          saveBtn.textContent = blobs.length > 1 ? "Save images" : "Save image";
+          saveBtn.textContent = fallbackLabel(blobs.length);
           return;
         }
         // fall through to download
       }
     }
 
-    // Desktop / fallback: download each blob.
     for (const file of files) {
       const url = URL.createObjectURL(file);
       const a = document.createElement("a");
@@ -612,7 +690,7 @@
     saveBtn.textContent = "Saved";
     clearTimeout(saveBtn._labelTimer);
     saveBtn._labelTimer = setTimeout(() => {
-      saveBtn.textContent = blobs.length > 1 ? "Save images" : "Save image";
+      saveBtn.textContent = fallbackLabel(blobs.length);
     }, COPY_LABEL_RESET_MS);
   }
 
@@ -633,8 +711,10 @@
     const draftIsStale = !haveDraft || !sameIds(cache.essayIds || [], currentIds);
 
     if (haveDraft) {
+      // Fire and forget — showDraft awaits image rendering internally.
       showDraft(cache);
     } else {
+      clearRenderedUrls();
       draftEl.innerHTML = "";
       metaEl.hidden = true;
       saveBtn.hidden = true;
@@ -654,6 +734,10 @@
   }
   function onHydrated() {
     cache = load();
+    // The server may have given us a fresh draft; drop the rendered
+    // cache so the previews re-render from the new segments.
+    renderedBlobs = null;
+    renderedBlobsForTs = 0;
     maybeRerender();
   }
   window.addEventListener("tinker:writing-saved", maybeRerender);
