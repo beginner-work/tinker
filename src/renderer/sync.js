@@ -79,8 +79,37 @@
   }
   function applyDraftsFromServer(data) {
     if (!Array.isArray(data)) return false;
-    setLs(LS_DRAFTS, JSON.stringify(data));
+    // Boot race: the user can tap a welcome tile and create a draft
+    // before the initial hydrate fetch resolves. The push that would
+    // tell the server about the new draft is debounced 1500ms, so the
+    // server's response still reflects the pre-tap state. A naive
+    // overwrite drops the new draft out of localStorage, and the
+    // tinker:hydrated listener in renderer.js bounces the writing view
+    // back to the feed — a visible flicker on the first tap. Merging
+    // by id preserves the local-only draft while letting the server be
+    // authoritative for drafts it already knows about.
+    const local = getLsJson(LS_DRAFTS, []);
+    setLs(LS_DRAFTS, JSON.stringify(mergeById(local, data)));
     return true;
+  }
+  function mergeById(local, server) {
+    const byId = new Map();
+    for (const d of server) {
+      if (d && d.id) byId.set(d.id, d);
+    }
+    for (const d of local) {
+      if (!d || !d.id) continue;
+      const sv = byId.get(d.id);
+      if (!sv) { byId.set(d.id, d); continue; }
+      const lu = Number(d.updatedAt) || Number(d.createdAt) || 0;
+      const su = Number(sv.updatedAt) || Number(sv.createdAt) || 0;
+      if (lu > su) byId.set(d.id, d);
+    }
+    return Array.from(byId.values()).sort((a, b) => {
+      const at = Number(a.createdAt) || 0;
+      const bt = Number(b.createdAt) || 0;
+      return bt - at;
+    });
   }
   function applySeedsFromServer(data) {
     if (!data || typeof data !== "object") return false;
