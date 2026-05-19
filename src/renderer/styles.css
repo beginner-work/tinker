@@ -1310,19 +1310,39 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   padding: 0;
 }
 /* Segments wrap inline so the post flows as one body of text.
- * "You" segments are the founder's verbatim words — wrapped in
- * straight quotes so the same boundary is visible on screen as in
- * the copied text. "AI" segments are the connective tissue,
- * slightly muted with an inline tag prefix. */
+ * Verbatim words are painted by the tinker rainbow — a live gradient
+ * that slowly drifts across the founder's own writing. AI segments
+ * are quiet gray with an inline tag so the boundary is obvious. */
 .linkedin-fit__seg {
   display: inline;
 }
 .linkedin-fit__seg--you {
-  font-style: italic;
-  color: var(--color-foreground);
+  font-weight: 700;
+  background: linear-gradient(
+    90deg,
+    #f9a8d4 0%,
+    #fdba74 16%,
+    #fde68a 32%,
+    #7bc47a 48%,
+    #7dd3fc 64%,
+    #6ee7b7 80%,
+    #c8b6e2 96%,
+    #f9a8d4 100%
+  );
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: linkedin-fit-shader 9s linear infinite;
 }
-.linkedin-fit__seg--you::before { content: "\201C"; }
-.linkedin-fit__seg--you::after  { content: "\201D"; }
+@keyframes linkedin-fit-shader {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 220% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .linkedin-fit__seg--you { animation: none; }
+}
 .linkedin-fit__seg--ai {
   color: var(--color-muted);
 }
