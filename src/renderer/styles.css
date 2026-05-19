@@ -1350,6 +1350,12 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   flex-direction: column;
   gap: 6px;
 }
+.linkedin-fit__verdict-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
 .linkedin-fit__verdict-meta {
   margin: 0;
   font-size: 13px;
@@ -1366,6 +1372,34 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 }
 .linkedin-fit__verdict-label--miss { color: var(--color-muted); }
 .linkedin-fit__verdict-label--err { color: #b23a3a; }
+.linkedin-fit__score {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-dim);
+  color: var(--color-accent-strong);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+.linkedin-fit__strongest {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-leaf);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+.linkedin-fit__row[data-strongest="true"] { border-color: var(--color-leaf); box-shadow: 0 1px 6px rgba(123, 196, 122, 0.16); }
 .linkedin-fit__verdict-reason {
   margin: 0;
   font-size: 14px;

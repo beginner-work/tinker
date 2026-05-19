@@ -22,20 +22,22 @@
   const CONCURRENCY = 3;
 
   const SYSTEM_PROMPT = [
-    "You read a founder's essay and decide whether it could work as a LinkedIn post.",
+    "You read a founder's essay and assess how well it would perform as a LinkedIn post.",
     "",
-    "A good LinkedIn post:",
-    "- Has one concrete moment, story, or insight that a stranger scrolling past could land in within the first two lines.",
+    "A strong LinkedIn post:",
+    "- Has one concrete moment, story, or insight that a stranger scrolling past lands in within the first two lines.",
     "- Has a 'what I learned' or 'what I noticed' beat that travels beyond the writer's private context.",
     "- Is not purely a journal entry — there is something for the reader to take with them.",
+    "- Has visual potential — a real picture from the founder's life could help readers land in it.",
     "",
     "For the essay, decide:",
-    "1. fit (boolean) — would this make a good LinkedIn post?",
-    "2. reason (string, one sentence, plain language) — why it does or doesn't fit. No marketing words.",
-    "3. picture_subject (string or null) — only when fit is true: a short concrete noun phrase naming the most visually salient thing in the essay that the founder might already have a picture of. Examples: 'the napkin sketch you mentioned', 'your kitchen counter from that morning', 'the dashboard on your laptop', 'the receipt you crumpled', 'the view from where you were sitting'. Always something the founder could plausibly have photographed in their normal life. Never a stock image. Never generic ('your computer'). Make it specific to this essay.",
-    "4. picture_question (string or null) — only when fit is true: a single question to the founder, starting with 'Do you have a picture of', that names the subject and adds one short reason it would help the reader. 22 words or fewer. End with a question mark.",
+    "1. fit (boolean) — would this make a good LinkedIn post at all? Set false when the essay is too private, too abstract, or has no take-away for a reader.",
+    "2. strength (integer 1–10) — how well this essay would perform compared to the average post in a founder's feed. Weigh hook, specificity, take-away, and visual potential. A 1 means don't post. A 10 means rare, strongly worth posting. Most worthwhile fits sit between 5 and 9; reserve 9–10 for essays you'd genuinely expect to outperform. When fit is false, set strength to 1, 2, or 3. Be honest — do not inflate. Vary your scores; not every fit is a 7.",
+    "3. reason (string, one sentence, plain language) — why this score. No marketing words. Be concrete about what works or doesn't.",
+    "4. picture_subject (string or null) — only when fit is true: a short concrete noun phrase naming the most visually salient thing in the essay that the founder might already have a picture of. Examples: 'the napkin sketch you mentioned', 'your kitchen counter from that morning', 'the dashboard on your laptop', 'the receipt you crumpled', 'the view from where you were sitting'. Always something the founder could plausibly have photographed in their normal life. Never a stock image. Never generic ('your computer'). Make it specific to this essay.",
+    "5. picture_question (string or null) — only when fit is true: a single question to the founder, starting with 'Do you have a picture of', that names the subject and adds one short reason it would help the reader. 22 words or fewer. End with a question mark.",
     "",
-    "Respond as a single JSON object with exactly these four keys. Never wrap in code fences. Never add explanations outside the JSON.",
+    "Respond as a single JSON object with exactly these five keys. Never wrap in code fences. Never add explanations outside the JSON.",
   ].join("\n");
 
   // ── Cache ────────────────────────────────────────────────────────────
@@ -81,6 +83,10 @@
     const fit = !!parsed.fit;
     const reason = typeof parsed.reason === "string" ? parsed.reason.trim() : "";
     if (!reason) return null;
+    const rawStrength = Number(parsed.strength);
+    const strength = Number.isFinite(rawStrength)
+      ? Math.min(10, Math.max(1, Math.round(rawStrength)))
+      : null;
     const pictureSubject = fit && typeof parsed.picture_subject === "string"
       ? parsed.picture_subject.trim() || null
       : null;
@@ -89,11 +95,25 @@
       : null;
     return {
       fit,
+      strength,
       reason,
       pictureSubject,
       pictureQuestion,
       ts: Date.now(),
     };
+  }
+
+  // Highest strength among cached fits. Used to badge the top pick.
+  // Returns -1 when no scored fits exist.
+  function maxFitStrength() {
+    let best = -1;
+    for (const id of Object.keys(cache)) {
+      const c = cache[id];
+      if (c && c.fit && Number.isFinite(c.strength) && c.strength > best) {
+        best = c.strength;
+      }
+    }
+    return best;
   }
 
   async function checkEssay(essay) {
@@ -104,6 +124,7 @@
     if (!body) {
       const empty = {
         fit: false,
+        strength: 1,
         reason: "Not enough text to read.",
         pictureSubject: null,
         pictureQuestion: null,
@@ -160,8 +181,8 @@
       `<div class="linkedin-fit__inner">` +
         `<header class="linkedin-fit__head">` +
           `<p class="linkedin-fit__crumb">Quiet review</p>` +
-          `<h1 class="linkedin-fit__title">Could any of these be LinkedIn posts?</h1>` +
-          `<p class="linkedin-fit__sub">A short read through each essay. The fits float to the top. For each fit, a small question about a picture that might help readers land in it.</p>` +
+          `<h1 class="linkedin-fit__title">Which of these would do best as LinkedIn posts?</h1>` +
+          `<p class="linkedin-fit__sub">A short read through each essay, scored 1–10 on how well it would perform. The strongest float to the top. For each fit, a small question about a picture that might help readers land in it.</p>` +
           `<div class="linkedin-fit__head-actions">` +
             `<button type="button" class="linkedin-fit__check-all" data-linkedin-action="check-all">Read each one</button>` +
           `</div>` +
@@ -198,12 +219,22 @@
     return store.essays.slice();
   }
 
+  // Sort order:
+  //   1. cached fits, highest strength first (unscored fits sink to the
+  //      bottom of the fit block)
+  //   2. cached non-fits
+  //   3. uncached essays, newest first
   function sortedEssays() {
     return getEssays().sort((a, b) => {
       const fa = cache[a.id], fb = cache[b.id];
-      const sa = (fa && fa.fit) ? 2 : fa ? 1 : 0;
-      const sb = (fb && fb.fit) ? 2 : fb ? 1 : 0;
-      if (sa !== sb) return sb - sa;
+      const tierA = (fa && fa.fit) ? 2 : fa ? 1 : 0;
+      const tierB = (fb && fb.fit) ? 2 : fb ? 1 : 0;
+      if (tierA !== tierB) return tierB - tierA;
+      if (tierA === 2) {
+        const stA = Number.isFinite(fa.strength) ? fa.strength : -1;
+        const stB = Number.isFinite(fb.strength) ? fb.strength : -1;
+        if (stA !== stB) return stB - stA;
+      }
       return (b.createdAt || 0) - (a.createdAt || 0);
     });
   }
@@ -252,22 +283,39 @@
       check.textContent = "Read this one";
       check.disabled = false;
       row.dataset.state = "idle";
+      row.removeAttribute("data-strongest");
       return;
     }
     if (cached.fit) {
+      const score = Number.isFinite(cached.strength)
+        ? `<span class="linkedin-fit__score" aria-label="Strength out of 10">${cached.strength}/10</span>`
+        : "";
+      const top = maxFitStrength();
+      const isStrongest = Number.isFinite(cached.strength)
+        && cached.strength === top
+        && top > 0;
+      const strongestBadge = isStrongest
+        ? `<span class="linkedin-fit__strongest">Strongest pick</span>`
+        : "";
       const picture = cached.pictureQuestion
         ? `<p class="linkedin-fit__picture">${escapeHtml(cached.pictureQuestion)}</p>`
         : "";
       verdict.innerHTML =
-        `<p class="linkedin-fit__verdict-label">Could be a LinkedIn post.</p>` +
+        `<div class="linkedin-fit__verdict-line">` +
+          `<p class="linkedin-fit__verdict-label">Could be a LinkedIn post.</p>` +
+          score +
+          strongestBadge +
+        `</div>` +
         `<p class="linkedin-fit__verdict-reason">${escapeHtml(cached.reason)}</p>` +
         picture;
       row.dataset.state = "fit";
+      if (isStrongest) row.dataset.strongest = "true"; else row.removeAttribute("data-strongest");
     } else {
       verdict.innerHTML =
         `<p class="linkedin-fit__verdict-label linkedin-fit__verdict-label--miss">Better kept as an essay.</p>` +
         `<p class="linkedin-fit__verdict-reason">${escapeHtml(cached.reason)}</p>`;
       row.dataset.state = "miss";
+      row.removeAttribute("data-strongest");
     }
     check.textContent = "Read again";
     check.disabled = false;
@@ -293,7 +341,20 @@
       check.disabled = false;
       return;
     }
-    refreshRow(row, essay);
+    // Refresh every rendered row, not just this one — a new top
+    // strength can demote the previous "Strongest pick" badge.
+    refreshAllRows();
+  }
+
+  function refreshAllRows() {
+    if (!listEl) return;
+    const store = window.tinkerStore;
+    const essays = store && Array.isArray(store.essays) ? store.essays : [];
+    listEl.querySelectorAll(".linkedin-fit__row").forEach((row) => {
+      const id = row.dataset.essayId;
+      const essay = essays.find((e) => e.id === id);
+      if (essay) refreshRow(row, essay);
+    });
   }
 
   function render() {
