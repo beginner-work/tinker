@@ -78,7 +78,7 @@
   const IMG_LINE_COLOR = "#ede8e0";
 
   const SYSTEM_PROMPT = [
-    "You stitch together a single LinkedIn post from a founder's published essays, following the arc of a pitch deck: problem → persona → why now → product.",
+    "You stitch together a single LinkedIn post from the writer's published essays, following the arc of a pitch deck: problem → persona → why now → product.",
     "",
     "The post is a sequence of segments. Each segment is either:",
     "- type 'verbatim': an exact substring of one of the essays (case-sensitive, punctuation included, no paraphrase). Pull the tightest, most concrete fragment — a single sentence or short clause. Always cite the source essay id.",
@@ -87,11 +87,12 @@
     "Rules:",
     "- Every 'verbatim' text MUST appear character-for-character inside the cited essay's body. If it doesn't, you must rewrite that segment as 'ai' (don't fake a verbatim).",
     "- The concatenated post should land around 800–1500 characters, total.",
-    "- Move from the founder's problem → the persona they're for → why now → what they're building. Drop any beat the essays don't speak to; work with what's there.",
+    "- Move from the writer's problem → the persona they're for → why now → what they're building. Drop any beat the essays don't speak to; work with what's there.",
     "- The opening must hook in two lines. Use the strongest first-person line you can find verbatim, or set it up with one short ai segment.",
     "- Do not include essay titles, dates, or meta-commentary about the essays themselves.",
     "- Do not invent facts. AI segments are framing only — no claims, no statistics, no new specifics.",
-    "- AI segments must NEVER use first-person words. Banned: 'I' (capital, standalone), 'I'm', 'I've', 'I'll', 'I'd', 'my', 'mine', 'me', 'myself'. The first person belongs to the founder; AI segments speak about the founder or about the work in third person or impersonal voice. 'The founder…' is fine. 'Tinker…' is fine. 'My / me / I…' is not.",
+    "- AI segments must NEVER use first-person words. Banned: 'I' (capital, standalone), 'I'm', 'I've', 'I'll', 'I'd', 'my', 'mine', 'me', 'myself'. The first person belongs to the writer; AI segments speak about the writer or about the work in third person or impersonal voice. 'Tinker…' is fine. 'My / me / I…' is not.",
+    "- AI segments must NEVER use the word 'founder' (or 'founders', 'founder's', 'co-founder', etc.). Refer to the writer, the builder, the author, by name, or in impersonal voice instead. Verbatim segments are exempt — the writer's own essays are quoted as-is.",
     "- Prefer fewer, stronger verbatim quotes over many short ones. Aim for 3–6 verbatim segments total.",
     "",
     "Respond as a single JSON object with exactly this shape:",
@@ -135,7 +136,7 @@
     catch { return null; }
   }
 
-  // The first person belongs to the founder. AI segments that reach
+  // The first person belongs to the writer. AI segments that reach
   // for it get dropped — both the capital-I family (I, I'm, I've,
   // I'll, I'd) and the my / me / mine / myself family, case-
   // insensitive on the latter. Whole-word matches only, so "it",
@@ -144,6 +145,19 @@
   const AI_FIRST_PERSON_PRONOUNS = /\b(?:my|mine|me|myself)\b/i;
   function aiSegmentBannedFirstPerson(text) {
     return AI_FIRST_PERSON_I.test(text) || AI_FIRST_PERSON_PRONOUNS.test(text);
+  }
+
+  // The word "founder" is forbidden in AI-generated segments only —
+  // verbatim quotes from the writer's own essays pass through as-is.
+  // Catches founder / founders / founder's / cofounder / co-founder
+  // and capitalized variants.
+  const AI_BANNED_FOUNDER = /\b(?:co-?)?founders?\b/i;
+  function aiSegmentBannedFounder(text) {
+    return AI_BANNED_FOUNDER.test(text);
+  }
+
+  function aiSegmentBanned(text) {
+    return aiSegmentBannedFirstPerson(text) || aiSegmentBannedFounder(text);
   }
 
   function validateSegments(rawSegments, essaysById) {
@@ -161,14 +175,13 @@
           out.push({ type: "verbatim", text, essayId });
           continue;
         }
-        // Paraphrased — demoted to ai, but the first-person rule
-        // still applies on the demoted segment.
-        if (aiSegmentBannedFirstPerson(text)) continue;
+        // Paraphrased — demoted to ai, so the AI-segment bans
+        // (first-person, "founder") apply.
+        if (aiSegmentBanned(text)) continue;
         out.push({ type: "ai", text });
       } else {
-        // The first person belongs to the founder. Any AI segment
-        // that uses "I" or the my-family gets dropped.
-        if (aiSegmentBannedFirstPerson(text)) continue;
+        // AI segments: drop on first-person or "founder".
+        if (aiSegmentBanned(text)) continue;
         out.push({ type: "ai", text });
       }
     }
