@@ -187,7 +187,7 @@
       renderHome();
       // Drop the draft from the tree before classifying the new
       // essay — the draft no longer exists. Then ask the v0.103
-      // classifier to place the essay under one of the eight deck
+      // classifier to place the essay under one of the eleven deck
       // headings.
       if (window.tinkerTree && typeof window.tinkerTree.clearWritingFromTree === "function") {
         window.tinkerTree.clearWritingFromTree(draft.id);
@@ -199,7 +199,7 @@
       } catch { /* ignore */ }
       // Replace the post-publish category feed with a screen that
       // tells the founder where this latest writing slots into their
-      // eight-slide starter pitch — or that it doesn't fit yet. The
+      // eleven-slide starter pitch — or that it doesn't fit yet. The
       // sidebar-tree's classify listener (fired by the event above)
       // already has the call in flight; showWritingFit attaches to
       // that same promise via the inflight dedupe.
@@ -395,7 +395,7 @@
     return true;
   }
 
-  // Post-publish fit screen. Shows which of the eight starter-pitch
+  // Post-publish fit screen. Shows which of the eleven starter-pitch
   // slides this essay slots under (lifted verbatim phrase included) or
   // — when the classifier returns nothing — flags it as a new direction
   // the deck hasn't named yet. The classifier call has already been
@@ -447,7 +447,7 @@
 
   function renderWritingFitResult(essay, result) {
     const headings = (window.tinkerTree && window.tinkerTree.DECK_HEADINGS) || [];
-    const totalSlots = headings.length || 8;
+    const totalSlots = headings.length || 11;
     const titleText = fitTitleFor(essay);
 
     // `null` from classify means the call couldn't run (network, no
@@ -487,7 +487,7 @@
         `<div class="writing-fit__slot writing-fit__slot--miss">` +
           `<div class="writing-fit__slot-num">Off the deck</div>` +
           `<h2 class="writing-fit__slot-heading">Doesn't fit your starter pitch — yet.</h2>` +
-          `<p class="writing-fit__sub">None of your eight slides quite hold this one. That's how a new beat usually shows up first.</p>` +
+          `<p class="writing-fit__sub">None of your eleven slides quite hold this one. That's how a new beat usually shows up first.</p>` +
         `</div>`;
     }
 

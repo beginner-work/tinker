@@ -187,7 +187,7 @@ html.on-web .sidebar__top {
 /* ── Sidebar pitch-deck tree (v0.103) ─────────────────────────────
  *
  * Mirrors pitch-deck.md inside the sidebar. The top tier rows hold one
- * of the eight slide titles; the inner rows hold verbatim phrases
+ * of the eleven slide titles; the inner rows hold verbatim phrases
  * lifted from the founder's own writings. Both reuse
  * `.sidebar__account-item` for sizing/hover/spacing so the surface is
  * visually continuous with the Account block below. The nav is hidden
@@ -220,11 +220,13 @@ html.on-web .sidebar__top {
   font-weight: 600;
 }
 .sidebar__deck-heading-num {
-  /* Deck-position number (1.–8.) — sits left of the heading label so
-   * the founder can see which slide of the eight they're looking at,
-   * even when only some have been touched. */
+  /* Deck-position number (1.–11.) — sits left of the heading label so
+   * the founder can see which slide of the eleven they're looking at,
+   * even when only some have been touched. Width fits a two-digit
+   * label like "11." with tabular-nums so the column stays aligned
+   * regardless of which headings are showing. */
   flex-shrink: 0;
-  min-width: 14px;
+  min-width: 22px;
   font-variant-numeric: tabular-nums;
   color: var(--color-muted);
   font-weight: 600;
@@ -280,8 +282,8 @@ html.on-web .sidebar__top {
 
 /* ── Pitch-progress bar ────────────────────────────────────────────
  *
- * Sits at the top of the sidebar tree, above the eight deck-heading
- * rows. Shows how many of the eight headings have at least one
+ * Sits at the top of the sidebar tree, above the eleven deck-heading
+ * rows. Shows how many of the eleven headings have at least one
  * resolvable phrase. Hidden alongside the tree on cold-start; visible
  * the moment the classifier lands its first hit.
  */

@@ -1,6 +1,6 @@
 /* tinker — sidebar tree (v0.103)
  *
- * Mirrors the pitch deck inside the sidebar: the eight slide titles
+ * Mirrors the pitch deck inside the sidebar: the eleven slide titles
  * are the top tier, and verbatim phrases lifted from the founder's
  * own drafts and essays are the inner rows under each. A heading only
  * appears once the user has written something the classifier maps to
@@ -21,7 +21,7 @@
  *
  * Persisted via sync.js's pushTree(); pulled back on hydrate.
  *
- * The eight literals are FIXED, AI/developer-authored, and on the
+ * The eleven literals are FIXED, AI/developer-authored, and on the
  * chrome allowlist. Everything else under each heading must be a
  * verbatim substring of the founder's own writing, validated at render
  * time by re-reading the substring at { writingId, offset, length }
@@ -45,14 +45,17 @@
   // the progress container before reverting to idle.
   const TRANSIENT_MS = 1000;
 
-  // The eight deck headings, in deck order — top to bottom in the
+  // The eleven deck headings, in deck order — top to bottom in the
   // sidebar. Hard-coded here AND in the classifier; both sides
   // reference the same const so a typo here surfaces immediately.
   const DECK_HEADINGS = [
     "The Problem",
+    "A Persona",
     "Why Now?",
+    "The Team",
     "The Product",
     "How We Make Money",
+    "Go to Market",
     "The Moat",
     "The Vision",
     "Competition",
@@ -112,7 +115,7 @@
         const raw = localStorage.getItem(TREE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          // Any tree object that doesn't use one of the eight
+          // Any tree object that doesn't use one of the deck
           // headings as a top-level key is presumed v0.102 shaped.
           if (parsed && typeof parsed === "object") {
             const top = Object.keys(parsed).filter((k) => k !== "_meta");
@@ -139,7 +142,7 @@
       if (!raw) return emptyTree();
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object") return emptyTree();
-      // Defensive: drop any top-level key that isn't one of the eight
+      // Defensive: drop any top-level key that isn't one of the eleven
       // (or _meta). This is a runtime check against a malformed blob.
       const cleaned = emptyTree();
       for (const heading of DECK_HEADINGS) {
@@ -486,7 +489,7 @@
       headBtn.setAttribute("data-deck-heading", heading);
       const isOpen = heading in expanded ? !!expanded[heading] : heading === defaultExpanded;
       headBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
-      // Deck-position prefix (1.–8.) — the deck's slide order is fixed,
+      // Deck-position prefix (1.–11.) — the deck's slide order is fixed,
       // so the number is the heading's index in DECK_HEADINGS + 1. This
       // stays stable as headings appear and disappear from the tree.
       const num = document.createElement("span");
@@ -592,7 +595,7 @@
     }
   }
 
-  // How many of the eight headings currently resolve to at least one
+  // How many of the eleven headings currently resolve to at least one
   // verbatim phrase. Re-validates offsets the same way render() does
   // so prior counts always match what the founder is looking at.
   function countCoveredHeadings() {
@@ -704,7 +707,7 @@
   // ── Visible-string audit ──────────────────────────────────────────
   //
   // Walks every text node inside .sidebar__tree and verifies each is
-  // either (a) one of the eight deck-heading literals, (b) the ↻ retry
+  // either (a) one of the eleven deck-heading literals, (b) the ↻ retry
   // glyph during a failure, (c) a developer-authored chrome string
   // (deck-position number "N.", or anything inside a [data-audit-ignore]
   // container such as the pitch-progress bar), or (d) a verbatim
@@ -722,7 +725,7 @@
     while ((node = walker.nextNode())) {
       const txt = (node.nodeValue || "").trim();
       if (!txt) continue;
-      // (a) one of the eight deck-heading literals
+      // (a) one of the eleven deck-heading literals
       if (DECK_HEADINGS.includes(txt)) continue;
       // (b) retry glyph
       if (txt === "↻") continue;
