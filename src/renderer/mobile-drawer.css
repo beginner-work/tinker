@@ -99,15 +99,13 @@
   .feed { padding: calc(env(safe-area-inset-top, 0px) + 80px) 14px 56px; }
   .writing__top {
     padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+    padding-right: calc(env(safe-area-inset-right, 0px) + 16px);
     padding-left: 64px;
     /* Reserve enough vertical room that body content always starts below
      * the 48px+12px-top hamburger, even if the row's content collapses. */
     min-height: calc(env(safe-area-inset-top, 0px) + 60px);
     box-sizing: border-box;
   }
-  /* Belt-and-suspenders: indent the review crumb and title past the
-   * hamburger's right edge so they can't visually sit under it. */
-  .writing-review__head { padding-left: 56px; }
   .read__body { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
   .category-feed__head { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
   /* Post-publish "You just published" crumb and the LinkedIn fits

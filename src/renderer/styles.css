@@ -1828,7 +1828,7 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   .feed { padding: 16px 14px 56px; }
   .writing__top { padding: 14px 16px; }
   .writing__body { padding: 24px 16px 16px; }
-  .writing__foot { padding: 14px 16px 18px; }
+  .writing__foot { padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 18px); }
   .read__body { padding: 32px 18px 60px; }
   .read__delete { top: calc(env(safe-area-inset-top, 0px) + 14px); right: 14px; padding: 0 8px; }
   .read__delete span { display: none; }
