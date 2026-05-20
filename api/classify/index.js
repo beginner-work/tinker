@@ -6,14 +6,14 @@
  *
  * The v0.103 sidebar tree classifier. Takes the body of one of the
  * founder's drafts or essays and returns the deck heading it most
- * cleanly belongs under (one of the eight pitch-deck literals) plus a
+ * cleanly belongs under (one of the eleven pitch-deck literals) plus a
  * 4–18-word verbatim substring of the body to show as the phrase row.
  * Either field may be null when the model can't place the writing
  * confidently.
  *
- * The eight deck headings are spelled exactly as in pitch-deck.md. The
+ * The eleven deck headings are spelled exactly as in pitch-deck.md. The
  * model is forbidden from inventing new headings or paraphrasing one
- * of the eight; the offset/length must point into the body and the
+ * of the eleven; the offset/length must point into the body and the
  * substring must be a clean 4–18-word phrase. On a malformed reply we
  * retry once, then drop the bad field.
  *
@@ -27,9 +27,12 @@ const { withResponseLogging } = require("../_lib/log.js");
 
 const DECK_HEADINGS = [
   "The Problem",
+  "A Persona",
   "Why Now?",
+  "The Team",
   "The Product",
   "How We Make Money",
+  "Go to Market",
   "The Moat",
   "The Vision",
   "Competition",
@@ -42,21 +45,27 @@ const DECK_HEADINGS = [
 // own pitch language, not a generic taxonomy.
 const HEADING_DESCRIPTIONS = {
   "The Problem":
-    "Do you feel like you've worked so hard, but you're still finding yourself stressed about what you're doing? You thought that this next life change would be the one, but it feels like you're doing the same thing again. John is 31. He's a dad. He goes to school full time. He's a recovering AI engineer, and he's quite progressive when it comes to considering men's mental health. John is seeking extreme wealth. He knows it's there. He just hasn't tapped it yet, and that's everything.",
+    "Do you feel like you've worked so hard, but you're still finding yourself stressed about what you're doing? You thought that this next life change would be the one, but it feels like you're doing the same thing again.",
+  "A Persona":
+    "John is 31. He's a dad. He goes to school full time. He's a recovering AI engineer, and he's quite progressive when it comes to considering men's mental health. John is seeking wealth. He knows it's there. He just hasn't tapped it yet, and that's everything.",
   "Why Now?":
     "AI is making our workplace more toxic. The sprint towards figuring out what we can do is insane right now. People, including myself, need a tool that can help them figure out who they are as a founder.",
-  "The Vision":
-    "The long-term picture of what tinker becomes if it works. Where founders go to find themselves through writing, how the rainbow-web reshapes what writing-for-yourself looks like, and what the world feels like when everyone building something has a place to think through who they are.",
+  "The Team":
+    "Who's building tinker — the founder's own background and conviction, anyone working alongside, and what their experience with writing, AI, and shipping products has prepared them for this bet.",
   "The Product":
     "tinker — the product itself: the writing tool, the rainbow-web brand, how the founder shapes their identity by writing through it.",
   "How We Make Money":
-    "Word of mouth is the biggest distribution model. Free to start, $7 a month once they use it enough. Various tiers of monthly subscriptions to get deeper into the writing tools.",
+    "Free to start, $7 a month once they use it enough. Tiered monthly subscriptions to get deeper into the writing tools: $7, $35, $70 — and enterprise-level pricing beyond that.",
+  "Go to Market":
+    "I start by building off of my personal and professional networks in San Diego and San Francisco. Then I build into the enterprise space by connecting with incubation spaces globally. Word of mouth is the biggest distribution model.",
   "The Moat":
     "Your ideas are woven together with other founders on the platform. You come because they have what you need, and you stay because everyone's there.",
+  "The Vision":
+    "It's a two-sided marketplace and a social network — for the types of craft and the types of founders that have traditionally not been funded. A marketplace and a social network combined is a payment network — and that's where a lot of money can be made.",
   "Competition":
     "Comparisons to other tools, platforms, or companies in the space. What sets tinker apart from meta, Substack, journaling apps, or the AI assistants people already use.",
   "The Ask":
-    "Pre-seed: $250k – $950k. What the founder is asking investors for, why now, and what the money goes to.",
+    "Pre-seed: $300k – $950k. What the founder is asking investors for, why now, and what the money goes to — founder salary, travel and office costs, cloud infrastructure, marketing, and AI agentic development costs.",
 };
 
 function parseBody(req) {
@@ -76,9 +85,9 @@ function extractBearer(header) {
 
 function buildSystemPrompt() {
   const lines = [
-    "You classify a founder's writing under one of the eight slide titles from their pitch deck. The eight slide titles are FIXED — you must return one of them exactly, character-for-character, or null when no heading fits.",
+    "You classify a founder's writing under one of the eleven slide titles from their pitch deck. The eleven slide titles are FIXED — you must return one of them exactly, character-for-character, or null when no heading fits.",
     "",
-    "The eight slide titles (treat as opaque literals — do NOT paraphrase, lowercase, drop articles, or invent new headings):",
+    "The eleven slide titles (treat as opaque literals — do NOT paraphrase, lowercase, drop articles, or invent new headings):",
     "",
   ];
   for (const h of DECK_HEADINGS) {
@@ -87,17 +96,17 @@ function buildSystemPrompt() {
     lines.push("");
   }
   lines.push(
-    "Given a single piece of writing, decide which slide title best fits its central beat. Bias toward returning a heading — most founder writing fits SOMEWHERE under one of the eight; only return null when truly none of the eight applies.",
+    "Given a single piece of writing, decide which slide title best fits its central beat. Bias toward returning a heading — most founder writing fits SOMEWHERE under one of the eleven; only return null when truly none of the eleven applies.",
     "",
     "Then COPY a short phrase from the writing — 3 to 18 words — that captures that beat in the founder's own words. The phrase MUST appear verbatim in the writing body. Copy it exactly as it appears (same letters, same spacing, same punctuation). Aim for 6 to 12 words. Do not include a leading/trailing space, do not include a line break inside the phrase, do not summarise.",
     "",
     "Whenever you return a non-null deckHeading you MUST also return a valid phraseText that you copied verbatim from the writing. Pick a sentence or sentence-fragment — not a single word.",
     "",
     "Respond as a single JSON object, with exactly these keys:",
-    '  { "deckHeading": "<one of the eight literals, or null>", "phraseText": "<a verbatim 3-to-18-word substring of the writing>" | null }',
+    '  { "deckHeading": "<one of the eleven literals, or null>", "phraseText": "<a verbatim 3-to-18-word substring of the writing>" | null }',
     "",
     "If the writing truly doesn't belong under any heading, return { \"deckHeading\": null, \"phraseText\": null }.",
-    "Do not invent new headings. Do not paraphrase the eight. Do not invent a phraseText that isn't in the writing. Never wrap the JSON in code fences. Never add explanations outside the JSON.",
+    "Do not invent new headings. Do not paraphrase the eleven. Do not invent a phraseText that isn't in the writing. Never wrap the JSON in code fences. Never add explanations outside the JSON.",
   );
   return lines.join("\n");
 }
