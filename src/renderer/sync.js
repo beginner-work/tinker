@@ -22,7 +22,11 @@
  *   - taxonomy → "tinker.taxonomy.v1" (object)
  *   - tree     → "tinker.tree.v1"     (object: { [deckHeading]: [...] })
  *   - linkedin-pitch-draft → "tinker.linkedinPitchDraft.v1"
- *                            (object: { segments, essayIds, ts })
+ *                            (object: { segments, essayIds, ts, destinationGlyph })
+ *   - linkedin-destination → "tinker.linkedinDestination.v1"
+ *                            (object: { text })
+ *   - linkedin-posted-quotes → "tinker.linkedinPostedQuotes.v1"
+ *                            (object: { quotes: [{ text, essayId, postedAt, excluded }] })
  *
  * Events dispatched on window:
  *   - "tinker:hydrated"  after a successful boot fetch overwrote one or
@@ -42,6 +46,8 @@
   const KIND_TAXONOMY = "taxonomy";
   const KIND_TREE = "tree";
   const KIND_LINKEDIN_PITCH_DRAFT = "linkedin-pitch-draft";
+  const KIND_LINKEDIN_DESTINATION = "linkedin-destination";
+  const KIND_LINKEDIN_POSTED_QUOTES = "linkedin-posted-quotes";
 
   const LS_ESSAYS = "tinker.essays.v1";
   const LS_DRAFTS = "tinker.drafts.v1";
@@ -50,6 +56,8 @@
   const LS_TAXONOMY = "tinker.taxonomy.v1";
   const LS_TREE = "tinker.tree.v1";
   const LS_LINKEDIN_PITCH_DRAFT = "tinker.linkedinPitchDraft.v1";
+  const LS_LINKEDIN_DESTINATION = "tinker.linkedinDestination.v1";
+  const LS_LINKEDIN_POSTED_QUOTES = "tinker.linkedinPostedQuotes.v1";
 
   // Debounce window per kind. Keystrokes in a textarea hit
   // saveDrafts() at ~3hz; coalescing into one PUT every 1.5s is
@@ -138,6 +146,16 @@
     setLs(LS_LINKEDIN_PITCH_DRAFT, JSON.stringify(data));
     return true;
   }
+  function applyLinkedinDestinationFromServer(data) {
+    if (!data || typeof data !== "object") return false;
+    setLs(LS_LINKEDIN_DESTINATION, JSON.stringify(data));
+    return true;
+  }
+  function applyLinkedinPostedQuotesFromServer(data) {
+    if (!data || typeof data !== "object") return false;
+    setLs(LS_LINKEDIN_POSTED_QUOTES, JSON.stringify(data));
+    return true;
+  }
 
   function buildSeedsBlob() {
     return {
@@ -214,6 +232,12 @@
     pushLinkedinPitchDraft() {
       schedulePush(KIND_LINKEDIN_PITCH_DRAFT, () => getLsJson(LS_LINKEDIN_PITCH_DRAFT, null));
     },
+    pushLinkedinDestination() {
+      schedulePush(KIND_LINKEDIN_DESTINATION, () => getLsJson(LS_LINKEDIN_DESTINATION, null));
+    },
+    pushLinkedinPostedQuotes() {
+      schedulePush(KIND_LINKEDIN_POSTED_QUOTES, () => getLsJson(LS_LINKEDIN_POSTED_QUOTES, null));
+    },
     // Force a flush of every pending push immediately — used on auth
     // change and pagehide so the server doesn't drop the tail of a
     // typing burst.
@@ -231,18 +255,22 @@
       if (kinds.includes(KIND_TAXONOMY)) pushKind(KIND_TAXONOMY, getLsJson(LS_TAXONOMY, null));
       if (kinds.includes(KIND_TREE))     pushKind(KIND_TREE,     getLsJson(LS_TREE, null));
       if (kinds.includes(KIND_LINKEDIN_PITCH_DRAFT)) pushKind(KIND_LINKEDIN_PITCH_DRAFT, getLsJson(LS_LINKEDIN_PITCH_DRAFT, null));
+      if (kinds.includes(KIND_LINKEDIN_DESTINATION)) pushKind(KIND_LINKEDIN_DESTINATION, getLsJson(LS_LINKEDIN_DESTINATION, null));
+      if (kinds.includes(KIND_LINKEDIN_POSTED_QUOTES)) pushKind(KIND_LINKEDIN_POSTED_QUOTES, getLsJson(LS_LINKEDIN_POSTED_QUOTES, null));
     },
   };
 
   async function hydrate() {
     if (!token()) return;
-    const [essays, drafts, seeds, taxonomy, tree, linkedinPitchDraft] = await Promise.all([
+    const [essays, drafts, seeds, taxonomy, tree, linkedinPitchDraft, linkedinDestination, linkedinPostedQuotes] = await Promise.all([
       fetchKind(KIND_ESSAYS),
       fetchKind(KIND_DRAFTS),
       fetchKind(KIND_SEEDS),
       fetchKind(KIND_TAXONOMY),
       fetchKind(KIND_TREE),
       fetchKind(KIND_LINKEDIN_PITCH_DRAFT),
+      fetchKind(KIND_LINKEDIN_DESTINATION),
+      fetchKind(KIND_LINKEDIN_POSTED_QUOTES),
     ]);
     let changed = false;
     if (applyEssaysFromServer(essays)) changed = true;
@@ -251,6 +279,8 @@
     if (applyTaxonomyFromServer(taxonomy)) changed = true;
     if (applyTreeFromServer(tree)) changed = true;
     if (applyLinkedinPitchDraftFromServer(linkedinPitchDraft)) changed = true;
+    if (applyLinkedinDestinationFromServer(linkedinDestination)) changed = true;
+    if (applyLinkedinPostedQuotesFromServer(linkedinPostedQuotes)) changed = true;
     if (changed) {
       try { window.dispatchEvent(new CustomEvent("tinker:hydrated")); }
       catch { /* ignore */ }

@@ -1437,6 +1437,131 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   color: var(--color-muted);
 }
 
+/* Destination field — a single text input above the stitch action.
+ * The writer types where they're going next; the next stitch sends it
+ * to the model, which picks a single emoji that rides on the closing
+ * page. The text rides along in the copied caption. */
+.linkedin-fit__destination-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.linkedin-fit__destination-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.linkedin-fit__destination-input {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.linkedin-fit__destination-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  background: var(--color-hover);
+}
+.linkedin-fit__destination-hint {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--color-muted);
+  line-height: 1.45;
+}
+
+/* Quote panels — two stacked lists. The first ("Quotes in this stitch")
+ * appears under the rendered images and lists each verbatim segment
+ * from the current draft with a checkbox. Checking marks the quote as
+ * already-posted; the next stitch skips it. The second ("Quotes you've
+ * posted before") collects quotes from previous stitches that aren't
+ * in the current draft, so the writer can still uncheck them to allow
+ * them back into the pool. */
+.linkedin-fit__quotes,
+.linkedin-fit__posted {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 0 6px;
+  border-top: 1px solid var(--color-border);
+}
+.linkedin-fit__quotes[hidden],
+.linkedin-fit__posted[hidden] { display: none; }
+.linkedin-fit__quotes-title,
+.linkedin-fit__posted-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-foreground);
+}
+.linkedin-fit__quotes-hint,
+.linkedin-fit__posted-hint {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--color-muted);
+  line-height: 1.45;
+}
+.linkedin-fit__quotes-list,
+.linkedin-fit__posted-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.linkedin-fit__quote-item,
+.linkedin-fit__posted-item {
+  margin: 0;
+}
+.linkedin-fit__quote-label,
+.linkedin-fit__posted-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.linkedin-fit__quote-label:hover,
+.linkedin-fit__posted-label:hover {
+  background: var(--color-hover);
+  border-color: var(--color-accent);
+}
+.linkedin-fit__quote-check,
+.linkedin-fit__posted-check {
+  flex: 0 0 auto;
+  margin: 3px 0 0;
+  cursor: pointer;
+  accent-color: var(--color-accent-strong);
+}
+.linkedin-fit__quote-text,
+.linkedin-fit__posted-text {
+  font-family: var(--font-display);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-foreground);
+  word-break: break-word;
+}
+.linkedin-fit__posted-text {
+  color: var(--color-muted);
+}
+
 @media (max-width: 539px) {
   .linkedin-fit__inner { padding: 32px 18px 60px; }
   .linkedin-fit__title { font-size: 26px; }

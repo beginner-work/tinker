@@ -21,8 +21,12 @@
   "use strict";
 
   const STORAGE_KEY = "tinker.linkedinPitchDraft.v1";
+  const STORAGE_KEY_DESTINATION = "tinker.linkedinDestination.v1";
+  const STORAGE_KEY_POSTED = "tinker.linkedinPostedQuotes.v1";
   const COPY_LABEL_RESET_MS = 5000;
   const COPY_PREVIEW_MAX_CHARS = 56;
+  const DESTINATION_MAX_CHARS = 120;
+  const DESTINATION_PERSIST_DEBOUNCE_MS = 400;
 
   // Tinker's rainbow — same palette as src/renderer/icons/tinker-mark.svg.
   const TINKER_RAINBOW = [
@@ -69,6 +73,10 @@
   const IMG_BRAND_FOOTER_FONT = "700 26px 'Fraunces', 'Plus Jakarta Sans', Georgia, serif";
   const IMG_META_FONT = "500 22px 'Instrument Sans', 'Inter', system-ui, sans-serif";
   const IMG_LEGEND_FONT = "500 22px 'Instrument Sans', 'Inter', system-ui, sans-serif";
+  // The destination glyph rides large and centered on the closing page.
+  // System emoji fonts vary, so we list the common ones explicitly so
+  // the canvas picks one up regardless of platform.
+  const IMG_GLYPH_FONT = "400 260px 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'EmojiOne Color', system-ui, sans-serif";
   // Fraunces axes — "warm-paper, not brutalist" per design-tokens.css.
   const IMG_FONT_VARIATION_SETTINGS = '"SOFT" 100, "WONK" 0, "opsz" 144';
   const IMG_BG = "#fffdf7";
@@ -94,15 +102,19 @@
     "- AI segments must NEVER use first-person words. Banned: 'I' (capital, standalone), 'I'm', 'I've', 'I'll', 'I'd', 'my', 'mine', 'me', 'myself'. The first person belongs to the writer; AI segments speak about the writer or about the work in third person or impersonal voice. 'Tinker…' is fine. 'My / me / I…' is not.",
     "- AI segments must NEVER use the word 'founder' (or 'founders', 'founder's', 'co-founder', etc.). Refer to the writer, the builder, the author, by name, or in impersonal voice instead. Verbatim segments are exempt — the writer's own essays are quoted as-is.",
     "- Prefer fewer, stronger verbatim quotes over many short ones. Aim for 3–6 verbatim segments total.",
+    "- If the user payload lists 'Excluded quotes', treat them as off-limits. Do not include any of those strings as verbatim segments and do not paraphrase them. Pick different lines from the essays.",
+    "- If the user payload includes a 'Destination', also return a 'destinationGlyph': a single emoji that visually evokes where the writer is heading. One character only, no words, no punctuation. Choose something concrete (a place, an object, a vehicle) rather than an abstract symbol when you can. If no destination is provided, omit 'destinationGlyph'.",
     "",
     "Respond as a single JSON object with exactly this shape:",
-    '{"segments": [{"type": "verbatim", "text": "...", "essayId": "..."}, {"type": "ai", "text": "..."}, ...]}',
+    '{"segments": [{"type": "verbatim", "text": "...", "essayId": "..."}, {"type": "ai", "text": "..."}, ...], "destinationGlyph": "🗽"}',
     "",
     "Never wrap in code fences. Never add explanations outside the JSON.",
   ].join("\n");
 
   // ── Cache ────────────────────────────────────────────────────────────
   let cache = load();
+  let destinationCache = loadDestination();
+  let postedCache = loadPosted();
   let inflight = null;
 
   function load() {
@@ -124,6 +136,66 @@
     if (window.tinkerSync && typeof window.tinkerSync.pushLinkedinPitchDraft === "function") {
       window.tinkerSync.pushLinkedinPitchDraft();
     }
+  }
+
+  function loadDestination() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_DESTINATION);
+      if (!raw) return { text: "" };
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return { text: "" };
+      const text = typeof parsed.text === "string" ? parsed.text : "";
+      return { text };
+    } catch { return { text: "" }; }
+  }
+  function saveDestination(next) {
+    destinationCache = { text: typeof next.text === "string" ? next.text : "" };
+    try {
+      localStorage.setItem(STORAGE_KEY_DESTINATION, JSON.stringify(destinationCache));
+    } catch { /* ignore */ }
+    if (window.tinkerSync && typeof window.tinkerSync.pushLinkedinDestination === "function") {
+      window.tinkerSync.pushLinkedinDestination();
+    }
+  }
+
+  // Posted-quote history. Existence in `quotes` means the writer has
+  // marked this quote as posted; the next stitch excludes it. There is
+  // no separate "excluded" flag — the checkbox in the UI just adds or
+  // removes the entry.
+  function loadPosted() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_POSTED);
+      if (!raw) return { quotes: [] };
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return { quotes: [] };
+      const quotes = Array.isArray(parsed.quotes) ? parsed.quotes.filter((q) =>
+        q && typeof q === "object" && typeof q.text === "string" && q.text.trim()
+      ) : [];
+      return { quotes };
+    } catch { return { quotes: [] }; }
+  }
+  function savePosted(next) {
+    postedCache = { quotes: Array.isArray(next.quotes) ? next.quotes : [] };
+    try {
+      localStorage.setItem(STORAGE_KEY_POSTED, JSON.stringify(postedCache));
+    } catch { /* ignore */ }
+    if (window.tinkerSync && typeof window.tinkerSync.pushLinkedinPostedQuotes === "function") {
+      window.tinkerSync.pushLinkedinPostedQuotes();
+    }
+  }
+  function isQuotePosted(text) {
+    if (!text) return false;
+    const needle = String(text).trim();
+    return postedCache.quotes.some((q) => q.text.trim() === needle);
+  }
+  function setQuotePosted(text, essayId, posted) {
+    const needle = String(text || "").trim();
+    if (!needle) return;
+    const without = postedCache.quotes.filter((q) => q.text.trim() !== needle);
+    if (posted) {
+      without.push({ text: needle, essayId: essayId || "", postedAt: Date.now() });
+    }
+    savePosted({ quotes: without });
   }
 
   function parseJson(text) {
@@ -160,14 +232,18 @@
     return aiSegmentBannedFirstPerson(text) || aiSegmentBannedFounder(text);
   }
 
-  function validateSegments(rawSegments, essaysById) {
+  function validateSegments(rawSegments, essaysById, excludedSet) {
     const out = [];
+    const excluded = excludedSet || new Set();
     for (const seg of rawSegments) {
       if (!seg || typeof seg !== "object") continue;
       const text = typeof seg.text === "string" ? seg.text.trim() : "";
       if (!text) continue;
       const type = seg.type === "verbatim" ? "verbatim" : "ai";
       if (type === "verbatim") {
+        // The writer has marked this quote as already-posted. Drop it
+        // entirely so the model can't sneak it in by re-citing.
+        if (excluded.has(text)) continue;
         const essayId = typeof seg.essayId === "string" ? seg.essayId : "";
         const essay = essayId ? essaysById[essayId] : null;
         const body = essay ? String(essay.body || "") : "";
@@ -186,6 +262,26 @@
       }
     }
     return out;
+  }
+
+  // The destination glyph is meant to be one emoji. Models will
+  // sometimes return a short phrase, a parenthetical, or wrap the
+  // emoji in quotes. Pull the first grapheme-ish token and call it
+  // a day. If nothing usable lands, return "".
+  function sanitizeDestinationGlyph(raw) {
+    if (typeof raw !== "string") return "";
+    const trimmed = raw.trim().replace(/^["'`]+|["'`]+$/g, "");
+    if (!trimmed) return "";
+    try {
+      const seg = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+      for (const { segment } of seg.segment(trimmed)) {
+        if (segment.trim()) return segment;
+      }
+    } catch { /* older browsers — fall through */ }
+    // Fallback: take up to the first 4 code units, which covers
+    // most single emojis (including surrogate pairs and variation
+    // selectors but not flag sequences).
+    return trimmed.slice(0, 4);
   }
 
   function getEssays() {
@@ -215,12 +311,27 @@
       throw new Error("Anthropic client unavailable. Reload the page.");
     }
 
+    const destinationText = String(destinationCache && destinationCache.text || "").trim();
+    const excludedQuotes = (postedCache.quotes || []).map((q) => String(q.text || "").trim()).filter(Boolean);
+
     const userParts = ["Essays to stitch from. Each block starts with its id on its own line, then the essay body.\n"];
     for (const essay of essays) {
       userParts.push(`---\nid: ${essay.id}`);
       if (essay.title) userParts.push(`title: ${essay.title}`);
       userParts.push("");
       userParts.push(String(essay.body || ""));
+      userParts.push("");
+    }
+    if (excludedQuotes.length) {
+      userParts.push("---");
+      userParts.push("Excluded quotes — DO NOT use any of these strings as verbatim segments. They appeared in earlier LinkedIn posts and the writer wants a different angle this time. Pick different lines from the essays.");
+      for (const q of excludedQuotes) userParts.push(`- ${JSON.stringify(q)}`);
+      userParts.push("");
+    }
+    if (destinationText) {
+      userParts.push("---");
+      userParts.push("Destination — where the writer is heading next. Use this to select a single emoji for destinationGlyph that visually evokes it.");
+      userParts.push(destinationText);
       userParts.push("");
     }
 
@@ -237,12 +348,16 @@
       }
       const essaysById = Object.create(null);
       for (const e of essays) essaysById[e.id] = e;
-      const segments = validateSegments(parsed.segments, essaysById);
+      const excludedSet = new Set(excludedQuotes);
+      const segments = validateSegments(parsed.segments, essaysById, excludedSet);
       if (!segments.length) throw new Error("The stitched draft came back empty.");
+      const destinationGlyph = destinationText ? sanitizeDestinationGlyph(parsed.destinationGlyph) : "";
       const draft = {
         segments,
         essayIds: essayIdSet(essays),
         ts: Date.now(),
+        destinationText: destinationText || "",
+        destinationGlyph,
       };
       save(draft);
       return draft;
@@ -301,6 +416,12 @@
   let saveBtn = null;
   let copyBtn = null;
   let copyPreviewEl = null;
+  let destinationInputEl = null;
+  let quotesSectionEl = null;
+  let quotesListEl = null;
+  let postedSectionEl = null;
+  let postedListEl = null;
+  let destinationPersistTimer = null;
 
   // Rendered-image cache so we don't re-render every time the user
   // navigates back to the page. Keyed on draft.ts.
@@ -319,17 +440,26 @@
     `<path d="M16 5h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/>` +
     `</svg>`;
 
+  function bindMountedRefs() {
+    draftEl = viewEl.querySelector("[data-linkedin-draft]");
+    metaEl = viewEl.querySelector("[data-linkedin-meta]");
+    emptyEl = viewEl.querySelector("[data-linkedin-empty]");
+    stitchBtn = viewEl.querySelector('[data-linkedin-action="stitch"]');
+    saveBtn = viewEl.querySelector('[data-linkedin-action="save"]');
+    copyBtn = viewEl.querySelector('[data-linkedin-action="copy"]');
+    copyPreviewEl = copyBtn && copyBtn.querySelector('[data-role="copy-preview"]');
+    destinationInputEl = viewEl.querySelector("[data-linkedin-destination]");
+    quotesSectionEl = viewEl.querySelector("[data-linkedin-quotes]");
+    quotesListEl = viewEl.querySelector("[data-linkedin-quotes-list]");
+    postedSectionEl = viewEl.querySelector("[data-linkedin-posted]");
+    postedListEl = viewEl.querySelector("[data-linkedin-posted-list]");
+  }
+
   function mount() {
     viewEl = document.getElementById("linkedin-fit");
     if (!viewEl) return false;
     if (viewEl.dataset.mounted === "true") {
-      draftEl = viewEl.querySelector("[data-linkedin-draft]");
-      metaEl = viewEl.querySelector("[data-linkedin-meta]");
-      emptyEl = viewEl.querySelector("[data-linkedin-empty]");
-      stitchBtn = viewEl.querySelector('[data-linkedin-action="stitch"]');
-      saveBtn = viewEl.querySelector('[data-linkedin-action="save"]');
-      copyBtn = viewEl.querySelector('[data-linkedin-action="copy"]');
-      copyPreviewEl = copyBtn && copyBtn.querySelector('[data-role="copy-preview"]');
+      bindMountedRefs();
       return true;
     }
     viewEl.innerHTML =
@@ -338,6 +468,11 @@
           `<p class="linkedin-fit__crumb">Quiet stitch</p>` +
           `<h1 class="linkedin-fit__title">A pitch-shaped post, stitched from your essays</h1>` +
           `<p class="linkedin-fit__sub">Following the arc of your pitch — problem, persona, why now, product. Your words flow through the tinker rainbow on the saved images. Tap the copy pill to lift just your verbatim words as the LinkedIn caption.</p>` +
+          `<div class="linkedin-fit__destination-field">` +
+            `<label class="linkedin-fit__destination-label" for="linkedin-destination-input">Where are you going?</label>` +
+            `<input class="linkedin-fit__destination-input" id="linkedin-destination-input" type="text" maxlength="${DESTINATION_MAX_CHARS}" placeholder="A city, a milestone, a feeling — your own words." data-linkedin-destination />` +
+            `<p class="linkedin-fit__destination-hint">A glyph lands on the closing page. The text rides along when you copy the caption.</p>` +
+          `</div>` +
           `<div class="linkedin-fit__head-actions">` +
             `<button type="button" class="linkedin-fit__check-all" data-linkedin-action="stitch">Stitch a new draft</button>` +
             `<button type="button" class="linkedin-fit__check linkedin-fit__post" data-linkedin-action="save" hidden>Save image</button>` +
@@ -349,20 +484,38 @@
         `</header>` +
         `<div class="linkedin-fit__draft" data-linkedin-draft></div>` +
         `<p class="linkedin-fit__meta" data-linkedin-meta hidden></p>` +
+        `<section class="linkedin-fit__quotes" data-linkedin-quotes hidden>` +
+          `<h2 class="linkedin-fit__quotes-title">Quotes in this stitch</h2>` +
+          `<p class="linkedin-fit__quotes-hint">Check the ones you've already posted. They sit out of the next stitch.</p>` +
+          `<ul class="linkedin-fit__quotes-list" data-linkedin-quotes-list></ul>` +
+        `</section>` +
+        `<section class="linkedin-fit__posted" data-linkedin-posted hidden>` +
+          `<h2 class="linkedin-fit__posted-title">Quotes you've posted before</h2>` +
+          `<p class="linkedin-fit__posted-hint">Uncheck to let one back into the pool.</p>` +
+          `<ul class="linkedin-fit__posted-list" data-linkedin-posted-list></ul>` +
+        `</section>` +
         `<p class="linkedin-fit__empty" data-linkedin-empty hidden>No published essays yet. Finish a draft first.</p>` +
       `</div>`;
-    draftEl = viewEl.querySelector("[data-linkedin-draft]");
-    metaEl = viewEl.querySelector("[data-linkedin-meta]");
-    emptyEl = viewEl.querySelector("[data-linkedin-empty]");
-    stitchBtn = viewEl.querySelector('[data-linkedin-action="stitch"]');
-    saveBtn = viewEl.querySelector('[data-linkedin-action="save"]');
-    copyBtn = viewEl.querySelector('[data-linkedin-action="copy"]');
-    copyPreviewEl = copyBtn.querySelector('[data-role="copy-preview"]');
+    bindMountedRefs();
     stitchBtn.addEventListener("click", () => runGenerate());
     saveBtn.addEventListener("click", () => saveDraftImages());
     copyBtn.addEventListener("click", () => copyMyWords());
+    destinationInputEl.value = String(destinationCache.text || "");
+    destinationInputEl.addEventListener("input", onDestinationInput);
+    destinationInputEl.addEventListener("blur", flushDestination);
     viewEl.dataset.mounted = "true";
     return true;
+  }
+
+  function onDestinationInput(e) {
+    const next = String(e.target.value || "").slice(0, DESTINATION_MAX_CHARS);
+    destinationCache = { text: next };
+    if (destinationPersistTimer) clearTimeout(destinationPersistTimer);
+    destinationPersistTimer = setTimeout(flushDestination, DESTINATION_PERSIST_DEBOUNCE_MS);
+  }
+  function flushDestination() {
+    if (destinationPersistTimer) { clearTimeout(destinationPersistTimer); destinationPersistTimer = null; }
+    saveDestination(destinationCache);
   }
 
   function escapeHtml(s) {
@@ -388,6 +541,91 @@
     return `"${t.slice(0, COPY_PREVIEW_MAX_CHARS).trim()}…"`;
   }
 
+  // ── Quote panels ─────────────────────────────────────────────────────
+  // Two stacked lists. "Quotes in this stitch" shows each verbatim
+  // segment from the current draft with a checkbox; checked means the
+  // writer has posted it elsewhere and the next stitch will skip it.
+  // "Quotes you've posted before" shows previously-marked quotes that
+  // are NOT in the current draft, so the writer can still uncheck them
+  // to let them back into the pool.
+  function renderQuotesPanel(draft) {
+    if (!quotesSectionEl || !quotesListEl) return;
+    const segments = (draft && Array.isArray(draft.segments)) ? draft.segments : [];
+    const verbatims = segments.filter((s) => s.type === "verbatim" && s.text);
+    if (!verbatims.length) {
+      quotesSectionEl.hidden = true;
+      quotesListEl.innerHTML = "";
+      return;
+    }
+    quotesSectionEl.hidden = false;
+    quotesListEl.innerHTML = verbatims.map((s, i) => {
+      const checked = isQuotePosted(s.text);
+      const id = `linkedin-quote-${i}`;
+      return (
+        `<li class="linkedin-fit__quote-item">` +
+          `<label class="linkedin-fit__quote-label" for="${id}">` +
+            `<input type="checkbox" id="${id}" class="linkedin-fit__quote-check" ` +
+              `data-quote-text="${escapeAttr(s.text)}" data-quote-essay="${escapeAttr(s.essayId || "")}" ` +
+              `${checked ? "checked" : ""} />` +
+            `<span class="linkedin-fit__quote-text">${escapeHtml(s.text)}</span>` +
+          `</label>` +
+        `</li>`
+      );
+    }).join("");
+    for (const cb of quotesListEl.querySelectorAll(".linkedin-fit__quote-check")) {
+      cb.addEventListener("change", onQuoteCheckChange);
+    }
+  }
+
+  function renderPostedPanel(draft) {
+    if (!postedSectionEl || !postedListEl) return;
+    const draftTexts = new Set();
+    if (draft && Array.isArray(draft.segments)) {
+      for (const s of draft.segments) {
+        if (s && s.type === "verbatim" && s.text) draftTexts.add(s.text.trim());
+      }
+    }
+    const other = (postedCache.quotes || []).filter((q) => !draftTexts.has(q.text.trim()));
+    if (!other.length) {
+      postedSectionEl.hidden = true;
+      postedListEl.innerHTML = "";
+      return;
+    }
+    postedSectionEl.hidden = false;
+    postedListEl.innerHTML = other.map((q, i) => {
+      const id = `linkedin-posted-${i}`;
+      return (
+        `<li class="linkedin-fit__posted-item">` +
+          `<label class="linkedin-fit__posted-label" for="${id}">` +
+            `<input type="checkbox" id="${id}" class="linkedin-fit__posted-check" ` +
+              `data-quote-text="${escapeAttr(q.text)}" data-quote-essay="${escapeAttr(q.essayId || "")}" checked />` +
+            `<span class="linkedin-fit__posted-text">${escapeHtml(q.text)}</span>` +
+          `</label>` +
+        `</li>`
+      );
+    }).join("");
+    for (const cb of postedListEl.querySelectorAll(".linkedin-fit__posted-check")) {
+      cb.addEventListener("change", onQuoteCheckChange);
+    }
+  }
+
+  function onQuoteCheckChange(e) {
+    const cb = e.currentTarget;
+    const text = cb.getAttribute("data-quote-text") || "";
+    const essayId = cb.getAttribute("data-quote-essay") || "";
+    setQuotePosted(text, essayId, !!cb.checked);
+    // Re-render the "other" panel so a newly-checked current-draft quote
+    // doesn't double up there, and an unchecked one disappears from the
+    // history list.
+    renderPostedPanel(cache);
+  }
+
+  function escapeAttr(s) {
+    return String(s || "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+    );
+  }
+
   function showLoading() {
     clearRenderedUrls();
     draftEl.innerHTML =
@@ -399,6 +637,7 @@
     metaEl.hidden = true;
     saveBtn.hidden = true;
     copyBtn.hidden = true;
+    if (quotesSectionEl) quotesSectionEl.hidden = true;
     stitchBtn.disabled = true;
     stitchBtn.textContent = "Stitching…";
   }
@@ -411,6 +650,7 @@
     metaEl.hidden = true;
     saveBtn.hidden = true;
     copyBtn.hidden = true;
+    if (quotesSectionEl) quotesSectionEl.hidden = true;
     stitchBtn.disabled = false;
     stitchBtn.textContent = "Try again";
   }
@@ -461,6 +701,9 @@
 
     saveBtn.hidden = false;
     saveBtn.textContent = total > 1 ? "Save images" : "Save image";
+
+    renderQuotesPanel(draft);
+    renderPostedPanel(draft);
   }
 
   function showEmpty() {
@@ -469,6 +712,8 @@
     metaEl.hidden = true;
     saveBtn.hidden = true;
     copyBtn.hidden = true;
+    if (quotesSectionEl) quotesSectionEl.hidden = true;
+    if (postedSectionEl) postedSectionEl.hidden = true;
     stitchBtn.hidden = true;
     emptyEl.hidden = false;
   }
@@ -485,13 +730,18 @@
   }
 
   // ── Clipboard: founder's verbatim words only ─────────────────────────
+  // The verbatim text is the caption. The destination (if set) rides
+  // along as a closing line — read live from the destination input so
+  // edits made after the last stitch land in the copy too.
   async function copyMyWords() {
     if (!cache || !Array.isArray(cache.segments)) return;
-    const text = cache.segments
+    const verbatim = cache.segments
       .filter((s) => s.type === "verbatim")
       .map((s) => s.text.trim())
       .join(" ");
-    if (!text) return;
+    if (!verbatim) return;
+    const destination = String(destinationCache && destinationCache.text || "").trim();
+    const text = destination ? `${verbatim}\n\n→ ${destination}` : verbatim;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try { await navigator.clipboard.writeText(text); }
       catch { fallbackCopy(text); }
@@ -675,26 +925,83 @@
     return canvas;
   }
 
-  async function renderImages(segments) {
+  // Big glyph centered horizontally on the page. The destination
+  // emoji is the only visual cue to where the writer is heading — no
+  // label text — so the glyph reads as a symbol on its own, not a
+  // captioned icon. `topY` is where the glyph's baseline-ish vertical
+  // center should sit; we measure and offset from there.
+  function drawDestinationGlyph(ctx, glyph, centerY) {
+    if (!glyph) return;
+    ctx.save();
+    ctx.font = IMG_GLYPH_FONT;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = IMG_BRAND_COLOR;
+    ctx.fillText(glyph, IMG_W / 2, centerY);
+    ctx.restore();
+  }
+
+  async function renderImages(segments, destinationGlyph) {
     await ensureFonts();
     const mark = await ensureTinkerMark();
     const atoms = buildAtoms(segments);
-    const pages = paginateAtoms(atoms);
+    const bodyPages = paginateAtoms(atoms);
+    const hasGlyph = Boolean(destinationGlyph && String(destinationGlyph).trim());
+
+    // If there's a glyph, decide whether it fits in the leftover space
+    // on the last body page (above the footer) or needs its own page.
+    // We need ~260px of vertical headroom: glyph height (~210) plus
+    // breathing room above and below.
+    const GLYPH_HEADROOM = 260;
+    let glyphOnOwnPage = false;
+    if (hasGlyph) {
+      const lastPage = bodyPages[bodyPages.length - 1] || [];
+      const lastY = lastPage.length ? lastPage[lastPage.length - 1].y : IMG_BODY_TOP;
+      const remaining = IMG_BODY_BOTTOM - lastY;
+      glyphOnOwnPage = remaining < GLYPH_HEADROOM;
+    }
+    const extraPages = glyphOnOwnPage ? 1 : 0;
+    const totalPages = bodyPages.length + extraPages;
+
     const blobs = [];
-    for (let p = 0; p < pages.length; p++) {
+    for (let p = 0; p < bodyPages.length; p++) {
       const canvas = createPageCanvas();
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = IMG_BG;
       ctx.fillRect(0, 0, IMG_W, IMG_H);
-      drawHeader(ctx, p + 1, pages.length, mark);
+      drawHeader(ctx, p + 1, totalPages, mark);
       ctx.textBaseline = "alphabetic";
       ctx.textAlign = "left";
-      for (const a of pages[p]) {
+      for (const a of bodyPages[p]) {
         ctx.font = a.font;
         ctx.fillStyle = a.color;
         ctx.fillText(a.text, a.x, a.y);
       }
-      if (p === pages.length - 1) drawFooter(ctx);
+      const isLastBodyPage = p === bodyPages.length - 1;
+      if (isLastBodyPage && hasGlyph && !glyphOnOwnPage) {
+        const lastPage = bodyPages[p];
+        const lastY = lastPage.length ? lastPage[lastPage.length - 1].y : IMG_BODY_TOP;
+        const centerY = (lastY + IMG_BODY_BOTTOM) / 2 + 10;
+        drawDestinationGlyph(ctx, destinationGlyph, centerY);
+      }
+      // Footer (legend) lives on whatever the absolute last page ends
+      // up being. When the glyph gets its own page, the footer rides
+      // with the glyph, not here.
+      if (isLastBodyPage && !glyphOnOwnPage) drawFooter(ctx);
+      const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+      canvas.parentNode && canvas.parentNode.removeChild(canvas);
+      if (blob) blobs.push(blob);
+    }
+
+    if (glyphOnOwnPage) {
+      const canvas = createPageCanvas();
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = IMG_BG;
+      ctx.fillRect(0, 0, IMG_W, IMG_H);
+      drawHeader(ctx, totalPages, totalPages, mark);
+      const glyphCenterY = (IMG_BODY_TOP + IMG_BODY_BOTTOM) / 2;
+      drawDestinationGlyph(ctx, destinationGlyph, glyphCenterY);
+      drawFooter(ctx);
       const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
       canvas.parentNode && canvas.parentNode.removeChild(canvas);
       if (blob) blobs.push(blob);
@@ -704,7 +1011,7 @@
 
   async function ensureRendered(draft) {
     if (renderedBlobsForTs === draft.ts && renderedBlobs) return renderedBlobs;
-    const blobs = await renderImages(draft.segments);
+    const blobs = await renderImages(draft.segments, draft.destinationGlyph || "");
     renderedBlobs = blobs;
     renderedBlobsForTs = draft.ts;
     return blobs;
@@ -797,6 +1104,10 @@
       metaEl.hidden = true;
       saveBtn.hidden = true;
       copyBtn.hidden = true;
+      if (quotesSectionEl) quotesSectionEl.hidden = true;
+      // Even without a draft, the writer can still manage the
+      // already-posted history.
+      renderPostedPanel(null);
       stitchBtn.disabled = false;
       stitchBtn.textContent = "Stitch a new draft";
     }
@@ -812,6 +1123,9 @@
   }
   function onHydrated() {
     cache = load();
+    destinationCache = loadDestination();
+    postedCache = loadPosted();
+    if (destinationInputEl) destinationInputEl.value = String(destinationCache.text || "");
     // The server may have given us a fresh draft; drop the rendered
     // cache so the previews re-render from the new segments.
     renderedBlobs = null;
