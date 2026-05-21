@@ -1,0 +1,452 @@
+/* tinker — validation surfaces (v0.103)
+ *
+ * Shared styles for the validation flow's review screen, the payment
+ * screen, the deck switcher chrome, and the add-a-deck modal.
+ *
+ * Design system non-negotiables (from the build prompt):
+ *   - Fraunces (var(--font-display)) for display, Instrument Sans for body.
+ *   - Type scale: 38 / 22 / 17 / 15 / 14 / 13 / 11 only.
+ *   - Spacing: 4 / 6 / 8 / 12 / 16 / 24 only.
+ *   - Radii: 999 / 12 / 10 / 9 / 8 only.
+ *   - Tokens, never hard-coded hex. CTA = --color-accent (#6366f1),
+ *     press = --color-accent-press (#4f46e5).
+ *   - Shadows on BUTTONS only. Cards/panels/modals/spectrum/dropdowns
+ *     are flat with --color-border hairlines.
+ *   - No transitions, no animations. State changes are instant.
+ *   - No emoji, no exclamation points, no pure white, no harsh black.
+ */
+
+/* ── Validation tile (welcome grid) ─────────────────────────────────── */
+
+.welcome__tile--validate {
+  /* Same shape as the place tiles, but visually distinct enough that
+   * the eye recognizes it as a different kind of action. Inherits the
+   * existing .welcome__tile rules. */
+  font-family: var(--font-sans);
+}
+.welcome__tile--validate .welcome__tile-label {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+/* While the validation flow is active, hide the sidebar's pitch tree
+ * so the founder writes from memory. Brand + Account stay visible. */
+body.validation-flow .sidebar__tree {
+  display: none !important;
+}
+
+/* ── Review screen ──────────────────────────────────────────────────── */
+
+.validation-review[hidden] { display: none !important; }
+.validation-review {
+  position: absolute;
+  inset: 0;
+  background: var(--color-background, #fffdf7);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.validation-review__inner {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.validation-review__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: var(--font-display-settings);
+  font-size: var(--text-display);    /* 22px */
+  line-height: var(--leading-tight, 1.1);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-foreground);
+  font-weight: 500;
+}
+
+.validation-review__loading {
+  padding: 24px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-muted);
+}
+
+.validation-review__error {
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.validation-review__error p {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  color: var(--color-foreground);
+}
+
+/* ── The spectrum bar ───────────────────────────────────────────────── */
+
+.validation-spectrum-wrap {
+  padding: 48px 0 64px;
+  /* Reserve vertical room so the 11 rotated labels below the bar
+   * don't collide with the footer. */
+}
+
+.validation-spectrum {
+  position: relative;
+  height: 12px;
+  border-radius: var(--radius-pill);  /* 999 — fully rounded ends */
+  /* Carry the same rainbow vocabulary tinker uses on the home-page
+   * mark. Token-driven; never hard-coded hex. */
+  background: linear-gradient(
+    to right,
+    var(--logo-pink),
+    var(--logo-orange),
+    var(--logo-yellow),
+    var(--logo-leaf),
+    var(--logo-mint),
+    var(--logo-sky),
+    var(--logo-purple)
+  );
+  /* No shadow on the bar — flat by spec. Borders only on
+   * cards/panels. */
+}
+
+.validation-spectrum__marker {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: var(--color-card, #fff9f0);
+  border: 1.5px solid var(--color-accent-strong);  /* overridden inline per heading */
+  transform: translateY(-50%);
+  cursor: pointer;
+  /* No transitions — state changes are instant. */
+}
+.validation-spectrum__marker:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.validation-spectrum__chip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-card, #fff9f0);
+  border: 1px solid var(--color-border, #ede8e0);
+  border-radius: var(--radius-chip);  /* 9px */
+  padding: 4px 8px;
+  font-family: var(--font-sans);
+  font-size: var(--text-small);       /* 13px */
+  color: var(--color-foreground);
+  white-space: nowrap;
+  display: none;
+  /* No shadow — borders only. */
+}
+.validation-spectrum__marker:hover .validation-spectrum__chip,
+.validation-spectrum__marker:focus .validation-spectrum__chip {
+  display: block;
+}
+
+.validation-spectrum__label {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform-origin: top left;
+  transform: rotate(-60deg) translateX(-4px);
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);       /* 11px */
+  color: var(--color-foreground);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── Footer buttons (shared across review / payment / add-a-deck) ───── */
+
+.validation-review__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border, #ede8e0);
+}
+
+.validation-button {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: var(--radius-button);  /* 10px */
+  font-family: var(--font-sans);
+  font-size: var(--text-body);          /* 14px */
+  font-weight: 600;
+  cursor: pointer;
+  /* No transitions. State changes are instant. */
+}
+.validation-button--primary {
+  background: var(--color-accent-strong);
+  color: #ffffff;  /* not pure-white per page tone; #ffffff is fine on indigo */
+  border: 0;
+  /* Shadow on buttons only. */
+  box-shadow: var(--shadow-button);
+}
+.validation-button--primary:hover {
+  box-shadow: var(--shadow-button-hover);
+}
+.validation-button--primary:active {
+  background: var(--color-accent-press);
+  box-shadow: var(--shadow-button-press);
+}
+.validation-button--primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
+.validation-button--secondary {
+  background: transparent;
+  color: var(--color-accent-strong);
+  border: 1px solid var(--color-border, #ede8e0);
+}
+.validation-button--secondary:hover {
+  background: var(--color-card, #fff9f0);
+}
+
+/* ── Payment screen ─────────────────────────────────────────────────── */
+
+.payment[hidden] { display: none !important; }
+.payment {
+  position: absolute;
+  inset: 0;
+  background: var(--color-background, #fffdf7);
+  overflow-y: auto;
+}
+.payment__inner {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.payment__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: var(--font-display-settings);
+  font-size: var(--text-display);  /* 22px */
+  letter-spacing: var(--tracking-display);
+  color: var(--color-foreground);
+  font-weight: 500;
+  line-height: 1.1;
+}
+.payment__body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-essay);    /* 17px */
+  line-height: 1.55;
+  color: var(--color-foreground);
+}
+.payment__cta {
+  align-self: flex-start;
+  min-width: 160px;
+  margin-top: 8px;
+}
+.payment__not-now {
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  color: var(--color-accent-strong);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);    /* 14px */
+  font-weight: 600;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.payment__error {
+  margin: 8px 0 0;
+  font-size: var(--text-body);
+  color: #8b3a1a;
+}
+
+/* ── Deck switcher chrome ───────────────────────────────────────────── */
+
+.deck-switcher[hidden] { display: none !important; }
+.deck-switcher {
+  position: relative;
+  margin-top: 8px;
+  padding: 0 12px;
+}
+.deck-switcher__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-chip);  /* 9px */
+  border: 1px solid var(--color-border, #ede8e0);
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);        /* 14px */
+  color: var(--color-foreground);
+  cursor: pointer;
+}
+.deck-switcher__trigger:hover {
+  background: var(--color-card, #fff9f0);
+}
+.deck-switcher__caret {
+  color: var(--color-accent-strong);
+  font-size: 11px;
+}
+.deck-switcher__name {
+  max-width: 12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-switcher__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 12px;
+  min-width: 220px;
+  background: var(--color-card, #fff9f0);
+  border: 1px solid var(--color-border, #ede8e0);
+  border-radius: var(--radius-card);   /* 12px */
+  /* No shadow — borders only. */
+  z-index: 100;
+  overflow: hidden;
+}
+.deck-switcher__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--color-border, #ede8e0);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);         /* 14px */
+  color: var(--color-foreground);
+  text-align: left;
+  cursor: pointer;
+}
+.deck-switcher__row:last-child { border-bottom: 0; }
+.deck-switcher__row:hover {
+  background: var(--color-selection);
+}
+.deck-switcher__row[aria-current="true"] {
+  background: var(--color-selection);
+  font-weight: 600;
+}
+.deck-switcher__row-name { flex: 1; }
+.deck-switcher__row-host {
+  font-size: var(--text-micro);        /* 11px */
+  color: var(--color-muted);
+}
+.deck-switcher__row--add {
+  color: var(--color-accent-strong);
+  font-weight: 600;
+}
+.deck-switcher__plus {
+  color: var(--color-accent-strong);
+  font-size: var(--text-base);
+}
+
+/* ── Add-a-deck modal ───────────────────────────────────────────────── */
+
+.add-deck-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.add-deck-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(45, 42, 38, 0.32);
+}
+.add-deck-modal__card {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: var(--color-card, #fff9f0);
+  border: 1px solid var(--color-border, #ede8e0);
+  border-radius: var(--radius-card);    /* 12px */
+  /* No shadow — borders only. */
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.add-deck-modal__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: var(--font-display-settings);
+  font-size: var(--text-display);     /* 22px */
+  letter-spacing: var(--tracking-display);
+  font-weight: 500;
+  color: var(--color-foreground);
+  line-height: 1.1;
+}
+.add-deck-modal__body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);        /* 14px */
+  color: var(--color-foreground);
+  line-height: 1.55;
+}
+.add-deck-modal__input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border, #ede8e0);
+  border-radius: var(--radius-button);  /* 10px */
+  background: var(--color-background, #fffdf7);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);          /* 15px */
+}
+.add-deck-modal__input:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: var(--color-accent-strong);
+}
+.add-deck-modal__status {
+  min-height: 18px;
+  font-family: var(--font-sans);
+  font-size: var(--text-small);         /* 13px */
+  color: var(--color-muted);
+}
+.add-deck-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.add-deck-modal__cancel {
+  background: transparent;
+  border: 0;
+  color: var(--color-accent-strong);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 600;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+/* Responsive — tighten paddings on narrow screens but keep the scale.
+   No motion. */
+@media (max-width: 540px) {
+  .validation-review__inner { padding: 16px 16px 24px; }
+  .validation-spectrum-wrap { padding: 40px 0 56px; }
+  .payment__inner { padding: 24px 16px; }
+  .add-deck-modal__card { padding: 16px; }
+}

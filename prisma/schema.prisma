@@ -25,3 +25,26 @@ model TinkerUserData {
   @@id([userId, kind])
   @@index([userId])
 }
+
+// Shared cache of investor / venture-partner contexts. A founder types
+// the name of who they're pitching ("Y Combinator", "Sequoia"); the
+// server resolves the canonical site, distills the target's voice into
+// sourceContext, and stores the result here keyed by a normalized form
+// of the name. The cache is shared across all paid users — the second
+// person to type the same name reuses the same row. Entries expire
+// after 30 days (the endpoint re-fetches and overwrites on read past
+// the TTL). sourceContext is internal-only — never shown to founders
+// verbatim, only used to bias the classifier.
+model PitchContext {
+  id             BigInt   @id @default(autoincrement())
+  normalizedName String   @unique
+  rawName        String
+  canonicalName  String
+  sourceUrl      String?
+  sourceContext  String   @default("")
+  fetchedAt      DateTime @default(now()) @updatedAt
+  createdAt      DateTime @default(now())
+
+  @@map("pitch_contexts")
+  @@index([normalizedName])
+}

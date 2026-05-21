@@ -63,9 +63,18 @@
 
   let active = null; // current draft
 
+  // Validation-mode state. When a validation flow is active, the post-
+  // stitch branch routes the stitched essay to validationCallbacks.onStitch
+  // instead of triggering the normal publish + writing-fit chain. The
+  // sidebar deck is hidden via body.validation-flow (set by validation.js).
+  let validationCallbacks = null;
+  let validationSeedQuestion = null;
+
   // ── Public API ──────────────────────────────────────────────────────
   window.tinkerWriting = {
     open(draft) {
+      validationCallbacks = null;
+      validationSeedQuestion = null;
       active = draft;
       // Pre-prompt: seed capture (Instagram tag-style) before the
       // question flow. `seed` is undefined on a fresh draft; once the
@@ -78,10 +87,63 @@
       }
       seedAndRenderInterview();
     },
+    // Validation flow entry point. Reuses this engine — same textarea,
+    // same Next/End buttons, same verifyFounderOnly stitch discipline —
+    // with three changes (driven by validation.js):
+    //   1. The sidebar deck is hidden via body.validation-flow (set by
+    //      the caller before invoking this).
+    //   2. The seed question is the validation-flavored variant.
+    //   3. On stitch, route to onStitch instead of publishing.
+    openValidation({ seedQuestion, onStitch, onClose } = {}) {
+      validationCallbacks = { onStitch, onClose };
+      validationSeedQuestion = seedQuestion || SEED_QUESTION;
+      // Build an ephemeral draft. NOT persisted to localStorage —
+      // validation is one-shot: the founder writes a fresh essay from
+      // memory, the result drives the spectrum, and the draft is
+      // discarded when they Keep or Sharpen.
+      active = {
+        id: "validation_" + Math.random().toString(36).slice(2, 10),
+        title: "Validation",
+        transcript: [],
+        currentStep: 0,
+        stitched: null,
+        pending: null,
+        seed: null,
+        facing: null,
+        lastPurchased: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        _ephemeral: true,
+        _mode: "validation",
+      };
+      // Skip the scene-capture pre-prompt; route straight into the
+      // single validation question.
+      active.pending = validationSeedQuestion;
+      const writingSection = document.getElementById("writing");
+      if (writingSection) {
+        // Hide every sibling section and show #writing. The mode flag
+        // on `active` keeps the post-stitch branch on the validation
+        // path.
+        const main = writingSection.parentElement;
+        if (main) {
+          const sections = main.querySelectorAll(":scope > section");
+          sections.forEach((s) => {
+            s.hidden = s.id !== "writing";
+            if (s.id !== "writing") s.removeAttribute("data-active");
+          });
+        }
+        writingSection.hidden = false;
+      }
+      renderStep();
+    },
   };
 
   function persist(extraPatch) {
     if (!active) return;
+    // Ephemeral validation drafts are NOT persisted — they exist only
+    // for the duration of the validation flow and never enter the
+    // founder's drafts list.
+    if (active._ephemeral) return;
     const patch = {
       transcript: active.transcript,
       currentStep: active.currentStep,
@@ -619,6 +681,20 @@
       active.pending = null;
       active.currentStep = (active.transcript || []).length; // jump to review
       persist();
+      // Validation mode: hand the stitched essay back to validation.js
+      // and tear down this writing instance. Skip the normal review
+      // (publish) screen — the review screen for validation is the
+      // spectrum, owned by validation.js.
+      if (active._mode === "validation" && validationCallbacks && typeof validationCallbacks.onStitch === "function") {
+        const stitched = { title, body };
+        const cbs = validationCallbacks;
+        validationCallbacks = null;
+        const writingSection = document.getElementById("writing");
+        if (writingSection) writingSection.hidden = true;
+        active = null;
+        cbs.onStitch(stitched);
+        return;
+      }
       renderStep();
       return;
     }
@@ -771,6 +847,17 @@
 
   // ── Top-bar wiring ──────────────────────────────────────────────────
   closeBtn.addEventListener("click", () => {
+    // Validation mode: don't save anything, just close the flow and
+    // hand control back to validation.js. The ephemeral draft is GC'd.
+    if (active && active._mode === "validation") {
+      const cbs = validationCallbacks;
+      validationCallbacks = null;
+      active = null;
+      const writingSection = document.getElementById("writing");
+      if (writingSection) writingSection.hidden = true;
+      if (cbs && typeof cbs.onClose === "function") cbs.onClose();
+      return;
+    }
     // Snapshot the active draft id before we hand off — the renderer
     // clears `active` synchronously. The classifier runs in the
     // background; the sidebar tree picks up the result on next paint.

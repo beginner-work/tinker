@@ -137,33 +137,45 @@
   // ── Storage helpers ───────────────────────────────────────────────
 
   function loadTree() {
-    try {
-      const raw = localStorage.getItem(TREE_KEY);
-      if (!raw) return emptyTree();
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== "object") return emptyTree();
-      // Defensive: drop any top-level key that isn't one of the eleven
-      // (or _meta). This is a runtime check against a malformed blob.
-      const cleaned = emptyTree();
-      for (const heading of DECK_HEADINGS) {
-        if (Array.isArray(parsed[heading])) {
-          cleaned[heading] = parsed[heading].filter(isValidPhraseRecord);
-        }
-      }
-      const meta = parsed._meta && typeof parsed._meta === "object" ? parsed._meta : {};
-      cleaned._meta = {
-        mostRecentlyTouched: DECK_HEADINGS.includes(meta.mostRecentlyTouched)
-          ? meta.mostRecentlyTouched
-          : null,
-        expanded: meta.expanded && typeof meta.expanded === "object" ? { ...meta.expanded } : {},
-        lastClassifyFailedAt: typeof meta.lastClassifyFailedAt === "number"
-          ? meta.lastClassifyFailedAt
-          : null,
-      };
-      return cleaned;
-    } catch {
-      return emptyTree();
+    // v0.103 multi-deck: read from the active deck's tree via
+    // tinkerDecks. The decks module runs its migration before this
+    // module boots (script order in index.html), so by the time we
+    // load, the legacy tinker.tree.v1 blob has already been folded
+    // into the default deck. We still defensively support the legacy
+    // path here for the brief window during boot before tinkerDecks
+    // is wired up.
+    let parsed = null;
+    if (window.tinkerDecks && typeof window.tinkerDecks.activeTree === "function") {
+      try { parsed = window.tinkerDecks.activeTree(); }
+      catch { parsed = null; }
     }
+    if (!parsed) {
+      try {
+        const raw = localStorage.getItem(TREE_KEY);
+        if (!raw) return emptyTree();
+        parsed = JSON.parse(raw);
+      } catch { return emptyTree(); }
+    }
+    if (!parsed || typeof parsed !== "object") return emptyTree();
+    // Defensive: drop any top-level key that isn't one of the eleven
+    // (or _meta). This is a runtime check against a malformed blob.
+    const cleaned = emptyTree();
+    for (const heading of DECK_HEADINGS) {
+      if (Array.isArray(parsed[heading])) {
+        cleaned[heading] = parsed[heading].filter(isValidPhraseRecord);
+      }
+    }
+    const meta = parsed._meta && typeof parsed._meta === "object" ? parsed._meta : {};
+    cleaned._meta = {
+      mostRecentlyTouched: DECK_HEADINGS.includes(meta.mostRecentlyTouched)
+        ? meta.mostRecentlyTouched
+        : null,
+      expanded: meta.expanded && typeof meta.expanded === "object" ? { ...meta.expanded } : {},
+      lastClassifyFailedAt: typeof meta.lastClassifyFailedAt === "number"
+        ? meta.lastClassifyFailedAt
+        : null,
+    };
+    return cleaned;
   }
 
   function emptyTree() {
@@ -180,10 +192,18 @@
   }
 
   function saveTree(tree) {
-    try { localStorage.setItem(TREE_KEY, JSON.stringify(tree)); }
-    catch { /* ignore */ }
-    if (window.tinkerSync && typeof window.tinkerSync.pushTree === "function") {
-      window.tinkerSync.pushTree();
+    // v0.103: write through tinkerDecks if available. The decks module
+    // owns the storage shape; the legacy direct-key write is only
+    // exercised during the brief window before tinkerDecks initializes.
+    if (window.tinkerDecks && typeof window.tinkerDecks.replaceActiveTree === "function") {
+      try { window.tinkerDecks.replaceActiveTree(tree); }
+      catch { /* fall through */ }
+    } else {
+      try { localStorage.setItem(TREE_KEY, JSON.stringify(tree)); }
+      catch { /* ignore */ }
+      if (window.tinkerSync && typeof window.tinkerSync.pushTree === "function") {
+        window.tinkerSync.pushTree();
+      }
     }
   }
 
@@ -387,6 +407,12 @@
     },
     /** Public read for diagnostics / tests. */
     snapshot() { return JSON.parse(JSON.stringify(memTree)); },
+    /** Returns true iff every entry in DECK_HEADINGS has at least one
+     *  resolvable phrase in the active deck's tree. Block A's validation
+     *  tile (in validation.js) uses this signal. */
+    fullProgressReached() {
+      return countCoveredHeadings() === DECK_HEADINGS.length;
+    },
     /** Deck headings whose phrases still resolve to a verbatim slice of
      *  a draft or essay. Same shape as countCoveredHeadings but returns
      *  the names. */
@@ -811,6 +837,20 @@
         return null;
       }
 
+      // v0.103: when an additional (paid) deck is active and the founder
+      // has resolved a sourceContext for it, pass it through so the
+      // classifier biases its heading choice toward how this writing
+      // would land for that audience. The endpoint validates that the
+      // returned phrase is still a verbatim substring of the body —
+      // sourceContext can never inject new words.
+      let sourceContext = null;
+      try {
+        if (window.tinkerDecks && typeof window.tinkerDecks.active === "function") {
+          const deck = window.tinkerDecks.active();
+          if (deck && deck.sourceContext) sourceContext = deck.sourceContext;
+        }
+      } catch { /* ignore */ }
+
       let res;
       try {
         res = await fetch("/api/classify", {
@@ -819,7 +859,7 @@
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ writingId, body: found.body }),
+          body: JSON.stringify({ writingId, body: found.body, sourceContext }),
         });
       } catch (err) {
         api.markClassifyFailed();
@@ -1024,6 +1064,14 @@
     memTree = loadTree();
     render();
     runBackfill();
+  });
+
+  // The deck switcher emits this whenever the active deck changes
+  // (or a new deck is created). Re-read the active deck's tree and
+  // re-render so the sidebar shows the new context.
+  window.addEventListener("tinker:decks-changed", () => {
+    memTree = loadTree();
+    render();
   });
 
   // Auth changed (e.g. just signed in) — same idea: retry backfill

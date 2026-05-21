@@ -1,7 +1,7 @@
 /* POST /api/classify
  *
  * Authorization: Bearer <stytch session_token>
- * Body: { writingId, body }
+ * Body: { writingId, body, sourceContext? }
  * Reply: { deckHeading: string | null, phrase: { writingId, offset, length } | null }
  *
  * The v0.103 sidebar tree classifier. Takes the body of one of the
@@ -10,6 +10,12 @@
  * 4–18-word verbatim substring of the body to show as the phrase row.
  * Either field may be null when the model can't place the writing
  * confidently.
+ *
+ * Optional sourceContext (paid-tier multi-deck): when present, the
+ * classifier reads it as additional bias on which heading the writing
+ * lands under. The phrase MUST still be a verbatim substring of the
+ * founder's body — sourceContext can never introduce new words into
+ * the rendered phrase.
  *
  * The eleven deck headings are spelled exactly as in pitch-deck.md. The
  * model is forbidden from inventing new headings or paraphrasing one
@@ -301,12 +307,31 @@ const handler = withResponseLogging(async function handler(req, res) {
   }
   const writingId = typeof body.writingId === "string" ? body.writingId : null;
   const writingBody = typeof body.body === "string" ? body.body : "";
+  const sourceContext = typeof body.sourceContext === "string" && body.sourceContext.trim()
+    ? body.sourceContext.slice(0, 8000)
+    : null;
   if (!writingId || !writingBody.trim()) {
     res.status(400).json({ error: "writingId and non-empty body are required" });
     return;
   }
 
   const system = buildSystemPrompt();
+  // When a sourceContext is supplied, append a context-only preamble
+  // to the user message. The system prompt's existing rule (no
+  // invented phrases, phraseText must appear verbatim in the body)
+  // still binds — the preamble only biases which heading is chosen
+  // and which phrase gets surfaced, never the words.
+  const contextPreamble = sourceContext
+    ? [
+        "The active pitch is targeting the following investor / company. Their words (excerpted from their website) follow; use them to bias your classification of the founder's writing toward how it would land for this audience. Do NOT generate any text from this preamble — it's context only, not source material.",
+        "",
+        "Their text (read for context):",
+        sourceContext,
+        "",
+        "The founder's writing follows:",
+        "",
+      ].join("\n")
+    : "";
   const isPreview = process.env.VERCEL_ENV === "preview";
 
   let deckHeading = undefined;
@@ -317,7 +342,7 @@ const handler = withResponseLogging(async function handler(req, res) {
     try {
       rawText = await callClassifier({
         system,
-        userMessage: writingBody,
+        userMessage: contextPreamble + writingBody,
         model: "claude-haiku-4-5-20251001",
         maxTokens: 256,
       });

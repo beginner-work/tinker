@@ -35,6 +35,29 @@
 
   // ── Token store ──────────────────────────────────────────────────────
 
+  // localStorage cache for the subscription state. Server is the source
+  // of truth; this cache is just for instant reads on boot (the refresh
+  // call on tinker:auth-changed updates it).
+  const SUBSCRIPTION_CACHE_KEY = "tinker.subscription.v1";
+
+  function readCachedSubscription() {
+    try {
+      const raw = localStorage.getItem(SUBSCRIPTION_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return null;
+      return parsed;
+    } catch { return null; }
+  }
+  function writeCachedSubscription(blob) {
+    try {
+      if (blob) localStorage.setItem(SUBSCRIPTION_CACHE_KEY, JSON.stringify(blob));
+      else localStorage.removeItem(SUBSCRIPTION_CACHE_KEY);
+    } catch { /* ignore */ }
+  }
+
+  let subscriptionCache = readCachedSubscription();
+
   const auth = {
     get token() { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; } },
     set token(v) {
@@ -43,9 +66,66 @@
         else localStorage.removeItem(TOKEN_KEY);
       } catch { /* ignore */ }
     },
-    signOut() { this.token = ""; window.location.reload(); },
+    signOut() { this.token = ""; writeCachedSubscription(null); window.location.reload(); },
+    // Synchronous read of the cached subscription state. Server is
+    // authoritative — the cache is overwritten by refreshSubscription()
+    // on boot and on tinker:auth-changed. UI surfaces (deck switcher,
+    // review screen's sharpen button routing) call this.
+    isSubscribed() {
+      if (!subscriptionCache) return false;
+      if (subscriptionCache.isSubscribed !== true) return false;
+      if (subscriptionCache.currentPeriodEnd
+          && Number.isFinite(subscriptionCache.currentPeriodEnd)
+          && subscriptionCache.currentPeriodEnd * 1000 < Date.now()) {
+        return false;
+      }
+      return true;
+    },
+    // Re-fetch /api/payment/status and update the cache. Called from
+    // boot, from tinker:auth-changed, and on post-payment return.
+    async refreshSubscription() {
+      try {
+        const t = this.token;
+        if (!t) {
+          subscriptionCache = null;
+          writeCachedSubscription(null);
+          dispatchSubscriptionChanged();
+          return false;
+        }
+        const res = await fetch("/api/payment/status", {
+          headers: { Authorization: `Bearer ${t}` },
+        });
+        if (!res.ok) return this.isSubscribed();
+        const json = await res.json();
+        if (!json) return this.isSubscribed();
+        subscriptionCache = {
+          isSubscribed: !!json.isSubscribed,
+          currentPeriodEnd: Number.isFinite(json.currentPeriodEnd) ? json.currentPeriodEnd : null,
+          checkedAt: Date.now(),
+        };
+        writeCachedSubscription(subscriptionCache);
+        dispatchSubscriptionChanged();
+        return subscriptionCache.isSubscribed;
+      } catch {
+        return this.isSubscribed();
+      }
+    },
   };
   window.tinkerAuth = auth;
+
+  function dispatchSubscriptionChanged() {
+    try {
+      window.dispatchEvent(new CustomEvent("tinker:subscription-changed", {
+        detail: { isSubscribed: auth.isSubscribed() },
+      }));
+    } catch { /* ignore */ }
+  }
+
+  // Refresh on boot (after a token exists) and any time auth changes.
+  // On Electron / Capacitor the token check returns "" — refresh is a
+  // cheap no-op there.
+  setTimeout(() => { auth.refreshSubscription(); }, 0);
+  window.addEventListener("tinker:auth-changed", () => { auth.refreshSubscription(); });
 
   // Drop any leftover JWT-shaped value (three base64url segments
   // separated by ".") that pre-dates the switch to Stytch session

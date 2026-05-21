@@ -302,17 +302,29 @@
   // ── Views ───────────────────────────────────────────────────────────
   function showFeed() {
     feedView.setAttribute("data-active", "");
+    feedView.hidden = false;
     writingView.hidden = true;
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
     if (linkedinFitView) linkedinFitView.hidden = true;
+    // v0.103 surfaces (validation review, payment screen) are children
+    // of <main.stage> too; hide them when returning to the feed.
+    const validationReview = document.getElementById("validation-review");
+    if (validationReview) validationReview.hidden = true;
+    const paymentView = document.getElementById("payment");
+    if (paymentView) paymentView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
     activeCategorySeed = null;
     renderSidebar();
     renderHome();
+    // Re-evaluate the validation tile (shown only when the active deck
+    // has crossed full progress).
+    if (window.tinkerValidation && typeof window.tinkerValidation.refreshTile === "function") {
+      window.tinkerValidation.refreshTile();
+    }
     // If the "Somewhere else" specify input is already open, drop focus
     // there; otherwise leave focus on the grid (the tiles are buttons,
     // so keyboard users land on the first one via Tab).

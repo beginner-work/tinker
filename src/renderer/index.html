@@ -19,6 +19,7 @@
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./design-tokens.css" />
+    <link rel="stylesheet" href="./validation.css" />
     <link rel="stylesheet" href="./mobile-drawer.css" />
     <link rel="stylesheet" href="./pwa-install-hint.css" />
     <link rel="manifest" href="./manifest.json" />
@@ -43,6 +44,10 @@
     <script src="./transactions.js" defer></script>
     <script src="./seeds.js" defer></script>
     <script src="./heatmap.js" defer></script>
+    <!-- decks.js runs the v0.103 multi-deck migration and exposes
+         window.tinkerDecks. Loaded BEFORE sidebar-tree.js so the tree
+         reads its initial state through the multi-deck accessor. -->
+    <script src="./decks.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
   </head>
   <body>
@@ -531,6 +536,12 @@
     <script src="./writing.js" defer></script>
     <script src="./renderer.js" defer></script>
     <script src="./linkedin-fit.js" defer></script>
+    <!-- v0.103 validation + payment + multi-deck. Loaded after the
+         renderer so window.tinkerWriting / tinkerAuth / tinkerDecks
+         are wired up when these modules boot. -->
+    <script src="./validation.js" defer></script>
+    <script src="./payment.js" defer></script>
+    <script src="./deck-switcher.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>
