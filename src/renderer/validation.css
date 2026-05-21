@@ -16,6 +16,32 @@
  *   - No emoji, no exclamation points, no pure white, no harsh black.
  */
 
+/* ── Pitch button (bottom of welcome page) ──────────────────────────── */
+/* Centered, rounded entry point into the validation flow. Always
+ * present at the bottom of the welcome surface. */
+
+.welcome__pitch {
+  align-self: center;
+  margin-top: 24px;
+  height: 44px;
+  padding: 0 24px;
+  border-radius: var(--radius-pill);  /* 999 — fully rounded */
+  border: 0;
+  background: var(--color-accent-strong);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);        /* 14px */
+  font-weight: 600;
+  cursor: pointer;
+  /* Shadow on buttons only — token-driven. */
+  box-shadow: var(--shadow-button);
+}
+.welcome__pitch:hover { box-shadow: var(--shadow-button-hover); }
+.welcome__pitch:active {
+  background: var(--color-accent-press);
+  box-shadow: var(--shadow-button-press);
+}
+
 /* ── Validation tile (welcome grid) ─────────────────────────────────── */
 
 .welcome__tile--validate {

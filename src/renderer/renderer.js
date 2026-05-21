@@ -699,6 +699,18 @@
     });
   }
 
+  // "Pitch" button at the bottom of the welcome page — direct entry to
+  // the validation flow. Unlike the progress-gated tile inside the
+  // grid, this button is always available.
+  const welcomePitch = document.getElementById("welcome-pitch");
+  if (welcomePitch) {
+    welcomePitch.addEventListener("click", () => {
+      if (window.tinkerValidation && typeof window.tinkerValidation.open === "function") {
+        window.tinkerValidation.open();
+      }
+    });
+  }
+
   // Re-render the home list whenever seeds change.
   if (window.tinkerSeeds && typeof window.tinkerSeeds.subscribe === "function") {
     window.tinkerSeeds.subscribe(() => {
