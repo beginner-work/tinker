@@ -240,6 +240,31 @@ style: |
     padding: 0 0 0 24px;
   }
   section.ask ul li { margin-bottom: 4px; }
+
+  /* Team slide — two verbatim bullets */
+  section.team ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 32px;
+    line-height: 1.5;
+  }
+  section.team ul li {
+    position: relative;
+    padding-left: 44px;
+    margin-bottom: 30px;
+  }
+  section.team ul li:last-child { margin-bottom: 0; }
+  section.team ul li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #2d5a3d;
+  }
 ---
 
 <!--
@@ -395,6 +420,20 @@ Pre-seed · $300k – $950k
 # Competition
 
 <svg class="meta-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 120" role="img" aria-label="Meta"><defs><linearGradient id="metaG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#0081FB"/><stop offset="50%" stop-color="#0273E6"/><stop offset="100%" stop-color="#0064E0"/></linearGradient></defs><path d="M 50 60 C 50 20, 100 20, 130 60 C 160 100, 210 100, 210 60 C 210 20, 160 20, 130 60 C 100 100, 50 100, 50 60 Z" fill="none" stroke="url(#metaG)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
+---
+
+<!-- _class: team -->
+
+<div class="beginner-badge">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
+<span class="wm">beginner</span>
+</div>
+
+# The Team
+
+- I know the fundraising business from working at museums, and that's the why behind this team.
+- I'm a solo founder that is in the business of human dignity and distribution of wealth.
 
 ---
 
