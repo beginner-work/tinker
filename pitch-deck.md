@@ -265,6 +265,52 @@ style: |
     border-radius: 50%;
     background: #2d5a3d;
   }
+
+  /* Persona slide — nested founder bullets */
+  section.persona ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 28px;
+    line-height: 1.5;
+  }
+  section.persona > ul > li {
+    position: relative;
+    padding-left: 40px;
+    margin-bottom: 22px;
+  }
+  section.persona > ul > li:last-child { margin-bottom: 0; }
+  section.persona > ul > li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #2d5a3d;
+  }
+  section.persona ul ul {
+    margin: 12px 0 4px;
+    padding: 0;
+    font-size: 22px;
+  }
+  section.persona ul ul li {
+    position: relative;
+    padding-left: 28px;
+    margin-bottom: 6px;
+  }
+  section.persona ul ul li:last-child { margin-bottom: 0; }
+  section.persona ul ul li::before {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 0.7em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #7bc47a;
+  }
 ---
 
 <!--
@@ -304,6 +350,8 @@ Pre-seed · $300k – $950k
 
 ---
 
+<!-- _class: persona -->
+
 <div class="beginner-badge">
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
 <span class="wm">beginner</span>
@@ -311,9 +359,13 @@ Pre-seed · $300k – $950k
 
 # A Persona
 
-> *John is 31. He's a dad. He goes to school full time. He's a recovering AI engineer, and he's quite progressive when it comes to considering men's mental health.*
-
-> *John is seeking wealth. He knows it's there. He just hasn't tapped it yet, and that's everything.*
+- I'm Tyler. I'm 32.
+- I have my family of five:
+  - one dog
+  - two chickens
+  - two cats
+  - my best friend and partner, who is a Mexican folk healer
+- He's been through the razor of a public fintech company and knows that his idea can change the world but hasn't got a seat yet.
 
 ---
 
@@ -432,7 +484,7 @@ Pre-seed · $300k – $950k
 
 # The Team
 
-- Museums → Onboarding small businesses to a payment network at scale.
+- Founder: Museums → Onboarding small businesses to a payment network at scale.
 - I'm a solo founder that is in the business of human dignity and distribution of wealth.
 
 ---
