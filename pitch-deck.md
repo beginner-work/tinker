@@ -432,7 +432,7 @@ Pre-seed · $300k – $950k
 
 # The Team
 
-- I know the fundraising business from working at museums, and that's the why behind this team.
+- Museums → Onboarding small businesses to a payment network at scale.
 - I'm a solo founder that is in the business of human dignity and distribution of wealth.
 
 ---
