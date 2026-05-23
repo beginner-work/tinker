@@ -275,63 +275,6 @@ style: |
     background: #2d5a3d;
   }
 
-  /* Persona slide — lion on the left, me on the right */
-  section.persona .persona-row {
-    display: grid;
-    grid-template-columns: 280px 1fr;
-    gap: 64px;
-    align-items: center;
-    margin: 8px 0 0;
-  }
-  section.persona .persona-lion svg {
-    display: block;
-    width: 100%;
-    height: auto;
-  }
-  section.persona .persona-text ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    font-size: 26px;
-    line-height: 1.5;
-  }
-  section.persona .persona-text > ul > li {
-    position: relative;
-    padding-left: 40px;
-    margin-bottom: 22px;
-  }
-  section.persona .persona-text > ul > li:last-child { margin-bottom: 0; }
-  section.persona .persona-text > ul > li::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0.55em;
-    width: 11px;
-    height: 11px;
-    border-radius: 50%;
-    background: #2d5a3d;
-  }
-  section.persona .persona-text ul ul {
-    margin: 10px 0 4px;
-    padding: 0;
-    font-size: 20px;
-  }
-  section.persona .persona-text ul ul li {
-    position: relative;
-    padding-left: 26px;
-    margin-bottom: 5px;
-  }
-  section.persona .persona-text ul ul li:last-child { margin-bottom: 0; }
-  section.persona .persona-text ul ul li::before {
-    content: "";
-    position: absolute;
-    left: 6px;
-    top: 0.7em;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #7bc47a;
-  }
 ---
 
 <!--
@@ -371,8 +314,6 @@ Pre-seed · $300k – $950k
 
 ---
 
-<!-- _class: persona -->
-
 <div class="beginner-badge">
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
 <span class="wm">beginner</span>
@@ -380,22 +321,9 @@ Pre-seed · $300k – $950k
 
 # A Persona
 
-<div class="persona-row">
-<div class="persona-lion">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img" aria-label="lion sigil"><g fill="#2d5a3d"><circle cx="100" cy="20" r="22"/><circle cx="140" cy="31" r="22"/><circle cx="169" cy="60" r="22"/><circle cx="180" cy="100" r="22"/><circle cx="169" cy="140" r="22"/><circle cx="140" cy="169" r="22"/><circle cx="100" cy="180" r="22"/><circle cx="60" cy="169" r="22"/><circle cx="31" cy="140" r="22"/><circle cx="20" cy="100" r="22"/><circle cx="31" cy="60" r="22"/><circle cx="60" cy="31" r="22"/></g><circle cx="100" cy="104" r="70" fill="#7bc47a"/><circle cx="100" cy="108" r="50" fill="#f5f3ef"/><path d="M76 86 L92 92" stroke="#2d2a26" stroke-width="3" stroke-linecap="round"/><path d="M124 86 L108 92" stroke="#2d2a26" stroke-width="3" stroke-linecap="round"/><circle cx="84" cy="102" r="5" fill="#2d2a26"/><circle cx="116" cy="102" r="5" fill="#2d2a26"/><path d="M100 122 L92 128 L108 128 Z" fill="#2d2a26"/><path d="M100 128 L100 137" stroke="#2d2a26" stroke-width="3" stroke-linecap="round"/><path d="M100 137 Q92 141, 86 136" stroke="#2d2a26" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M100 137 Q108 141, 114 136" stroke="#2d2a26" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
-</div>
-<div class="persona-text">
+> *me, 32 — a family of five: one dog, two chickens, two cats, and my best friend and partner, a Mexican folk healer.*
 
-- me, 32
-- a family of five:
-  - one dog
-  - two chickens
-  - two cats
-  - my best friend and partner, a Mexican folk healer
-- I've been through the razor of a public fintech company. My idea can change the world but I haven't got a seat yet.
-
-</div>
-</div>
+> *I've been through the razor of a public fintech company. My idea can change the world but I haven't got a seat yet.*
 
 ---
 
@@ -438,7 +366,7 @@ Pre-seed · $300k – $950k
 
 > *Free to start, $8 a month once they use it enough.*
 
-> *Tiered monthly subscriptions to get deeper into the writing tools: $8 (Sharpen), $40 (seeded), $80 (seeded+) — and enterprise-level pricing beyond that.*
+> *Tiered monthly subscriptions to get deeper into the writing tools: $8 (sharpen), $40 (seeded), $80 (seeded+) — and enterprise-level pricing beyond that.*
 
 ---
 
