@@ -17,4 +17,4 @@ options (e.g. verify locally, iterate on a specific aspect, hold off).
 Even when the work feels fully complete, close with this question
 rather than a flat "done." Skip it only when the user's message itself
 was a direct question that has been fully answered with no follow-on
-work pending.
+work pending, or when all PRs on the session have been merged.
