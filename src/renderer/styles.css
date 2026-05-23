@@ -435,19 +435,21 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 
 /* ── Pitch switcher (v0.104) ──────────────────────────────────────
  *
- * A row of chips above the pitch-progress bar. Renders only when the
- * founder has at least one alternate pitch — until then the sidebar
- * tree shows the starter deck without ceremony. The chips read as a
- * tab strip: one is always active, tapping a different one switches
- * the tree's body. The whole surface sits inside [data-audit-ignore]
- * because alt-pitch titles are model-generated rather than verbatim
- * founder phrases.
+ * A dropdown above the pitch-progress bar. The face button shows the
+ * active pitch's title; tapping it expands a menu of all pitches.
+ * The pencil button to the right opens an inline rename input. Every
+ * pitch is equal-status (no main/alt distinction), so the menu lists
+ * them all the same way — title plus a "covered N/11" hint. The
+ * whole surface sits inside [data-audit-ignore] because pitch titles
+ * are model-generated or founder-edited rather than verbatim founder
+ * phrases.
  */
 .sidebar__pitch-switcher {
   padding: 4px 10px 6px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  position: relative;
 }
 .sidebar__pitch-switcher-label {
   font-family: var(--font-display);
@@ -457,86 +459,143 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   text-transform: uppercase;
   color: var(--color-muted);
 }
-.sidebar__pitch-switcher-chips {
+.sidebar__pitch-switcher-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: center;
+  gap: 4px;
 }
-.sidebar__pitch-chip {
-  padding: 4px 10px;
-  border-radius: 999px;
+.sidebar__pitch-dropdown {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.sidebar__pitch-dropdown:hover {
+  background: var(--color-hover);
+}
+.sidebar__pitch-dropdown[aria-expanded="true"] {
+  background: var(--color-hover);
+  border-color: var(--color-foreground);
+}
+.sidebar__pitch-dropdown-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar__pitch-dropdown-caret {
+  font-size: 10px;
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+.sidebar__pitch-rename-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   border: 1px solid var(--color-border);
   background: transparent;
   color: var(--color-muted);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sidebar__pitch-rename-btn:hover {
+  background: var(--color-hover);
+  color: var(--color-foreground);
+}
+.sidebar__pitch-rename-form {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+.sidebar__pitch-rename-input {
+  flex: 1 1 auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-foreground);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 13px;
+}
+.sidebar__pitch-rename-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-accent-strong);
+}
+.sidebar__pitch-rename-save {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-foreground);
+  background: var(--color-foreground);
+  color: var(--color-background);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.sidebar__pitch-chip:hover {
-  background: var(--color-hover);
-  color: var(--color-foreground);
-}
-.sidebar__pitch-chip[data-active] {
-  background: var(--color-foreground);
-  color: var(--color-background);
-  border-color: var(--color-foreground);
-}
-
-/* ── Alt-pitch list ─────────────────────────────────────────────────
- *
- * Body of the sidebar tree when the active pitch is an alt. Flat list
- * of the writings the model clustered into that pitch, opened by tap
- * the same way phrase rows open in the starter view.
- */
-.sidebar__alt-pitch-list {
-  padding: 4px 8px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.sidebar__alt-pitch-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 0 4px;
-}
-.sidebar__alt-pitch-headline {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-foreground);
-}
-.sidebar__alt-pitch-count {
-  font-size: 11px;
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
-}
-.sidebar__alt-pitch-items {
+.sidebar__pitch-menu {
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: 4px 0 0;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
 }
-.sidebar__alt-pitch-item {
-  font-size: 13px;
+.sidebar__pitch-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
   color: var(--color-foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
   text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background 0.12s ease;
 }
-.sidebar__alt-pitch-item[data-active] {
+.sidebar__pitch-menu-item:hover {
   background: var(--color-hover);
 }
-.sidebar__alt-pitch-empty {
-  padding: 8px 12px;
-  font-size: 12px;
+.sidebar__pitch-menu-item[data-active] {
+  background: var(--color-hover);
+}
+.sidebar__pitch-menu-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar__pitch-menu-meta {
+  font-size: 11px;
   color: var(--color-muted);
-  font-style: italic;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
 /* ── Welcome (empty state on main when no draft/read is active) ──── */
