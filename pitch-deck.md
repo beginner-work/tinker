@@ -275,21 +275,33 @@ style: |
     background: #2d5a3d;
   }
 
-  /* Persona slide — nested founder bullets */
-  section.persona ul {
+  /* Persona slide — lion on the left, me on the right */
+  section.persona .persona-row {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 64px;
+    align-items: center;
+    margin: 8px 0 0;
+  }
+  section.persona .persona-lion svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  section.persona .persona-text ul {
     list-style: none;
     margin: 0;
     padding: 0;
-    font-size: 28px;
+    font-size: 26px;
     line-height: 1.5;
   }
-  section.persona > ul > li {
+  section.persona .persona-text > ul > li {
     position: relative;
     padding-left: 40px;
     margin-bottom: 22px;
   }
-  section.persona > ul > li:last-child { margin-bottom: 0; }
-  section.persona > ul > li::before {
+  section.persona .persona-text > ul > li:last-child { margin-bottom: 0; }
+  section.persona .persona-text > ul > li::before {
     content: "";
     position: absolute;
     left: 0;
@@ -299,18 +311,18 @@ style: |
     border-radius: 50%;
     background: #2d5a3d;
   }
-  section.persona ul ul {
-    margin: 12px 0 4px;
+  section.persona .persona-text ul ul {
+    margin: 10px 0 4px;
     padding: 0;
-    font-size: 22px;
+    font-size: 20px;
   }
-  section.persona ul ul li {
+  section.persona .persona-text ul ul li {
     position: relative;
-    padding-left: 28px;
-    margin-bottom: 6px;
+    padding-left: 26px;
+    margin-bottom: 5px;
   }
-  section.persona ul ul li:last-child { margin-bottom: 0; }
-  section.persona ul ul li::before {
+  section.persona .persona-text ul ul li:last-child { margin-bottom: 0; }
+  section.persona .persona-text ul ul li::before {
     content: "";
     position: absolute;
     left: 6px;
@@ -368,13 +380,22 @@ Pre-seed · $300k – $950k
 
 # A Persona
 
-- I'm Tyler. I'm 32.
-- I have my family of five:
+<div class="persona-row">
+<div class="persona-lion">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img" aria-label="lion sigil"><g fill="#2d5a3d"><circle cx="100" cy="20" r="22"/><circle cx="140" cy="31" r="22"/><circle cx="169" cy="60" r="22"/><circle cx="180" cy="100" r="22"/><circle cx="169" cy="140" r="22"/><circle cx="140" cy="169" r="22"/><circle cx="100" cy="180" r="22"/><circle cx="60" cy="169" r="22"/><circle cx="31" cy="140" r="22"/><circle cx="20" cy="100" r="22"/><circle cx="31" cy="60" r="22"/><circle cx="60" cy="31" r="22"/></g><circle cx="100" cy="104" r="70" fill="#7bc47a"/><circle cx="100" cy="108" r="50" fill="#f5f3ef"/><path d="M76 86 L92 92" stroke="#2d2a26" stroke-width="3" stroke-linecap="round"/><path d="M124 86 L108 92" stroke="#2d2a26" stroke-width="3" stroke-linecap="round"/><circle cx="84" cy="102" r="5" fill="#2d2a26"/><circle cx="116" cy="102" r="5" fill="#2d2a26"/><path d="M100 122 L92 128 L108 128 Z" fill="#2d2a26"/><path d="M100 128 L100 137" stroke="#2d2a26" stroke-width="3" stroke-linecap="round"/><path d="M100 137 Q92 141, 86 136" stroke="#2d2a26" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M100 137 Q108 141, 114 136" stroke="#2d2a26" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+</div>
+<div class="persona-text">
+
+- me, 32
+- a family of five:
   - one dog
   - two chickens
   - two cats
-  - my best friend and partner, who is a Mexican folk healer
-- He's been through the razor of a public fintech company and knows that his idea can change the world but hasn't got a seat yet.
+  - my best friend and partner, a Mexican folk healer
+- I've been through the razor of a public fintech company. My idea can change the world but I haven't got a seat yet.
+
+</div>
+</div>
 
 ---
 
@@ -401,8 +422,6 @@ Pre-seed · $300k – $950k
 
 # The Product
 
-> *It's not about refining context. It's about repetition.*
-
 <svg class="product-shot" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 400" role="img" aria-label="tinker product screenshot"><rect x="1" y="1" width="1098" height="398" rx="18" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><line x1="260" y1="20" x2="260" y2="380" stroke="#ede8e0" stroke-width="1"/><g font-family="Inter, system-ui, sans-serif" fill="#2d2a26"><g transform="translate(24, 22) scale(0.1)"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62" x2="175.94" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138" x2="175.94" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></g><text x="52" y="36" font-family="Plus Jakarta Sans, Inter" font-size="14" font-weight="700">tinker</text><text x="24" y="72" font-size="9" letter-spacing="1.2" fill="#6f6a65">PITCH PROGRESS</text><text x="236" y="72" font-size="9" text-anchor="end" fill="#6f6a65">4 / 7</text><rect x="24" y="78" width="212" height="3" rx="1.5" fill="#ede8e0"/><rect x="24" y="78" width="121" height="3" rx="1.5" fill="#6366f1"/><text x="24" y="106" font-family="Plus Jakarta Sans, Inter" font-size="11" font-weight="700">1.  The Problem</text><text x="24" y="122" font-size="9.5" fill="#6f6a65">I want to go into the office as</text><text x="24" y="134" font-size="9.5" fill="#6f6a65">easily as a home office</text><text x="24" y="160" font-family="Plus Jakarta Sans, Inter" font-size="11" font-weight="700">3.  The Product</text><text x="24" y="176" font-size="9.5" fill="#6f6a65">I can write for myself</text><text x="24" y="202" font-family="Plus Jakarta Sans, Inter" font-size="11" font-weight="700">5.  The Moat</text><text x="24" y="218" font-size="9.5" fill="#6f6a65">my content and writing verbatim</text><text x="24" y="244" font-family="Plus Jakarta Sans, Inter" font-size="11" font-weight="700">7.  The Ask</text><text x="24" y="260" font-size="9.5" fill="#6f6a65">ready to launch and submit my</text><text x="24" y="272" font-size="9.5" fill="#6f6a65">funding applications</text><line x1="24" y1="310" x2="236" y2="310" stroke="#ede8e0" stroke-width="1"/><text x="24" y="326" font-size="9" letter-spacing="1.2" fill="#6f6a65">ACCOUNT</text><rect x="24" y="341" width="10" height="12" rx="1.5" fill="none" stroke="#2d2a26" stroke-width="1.2"/><line x1="27" y1="345" x2="32" y2="345" stroke="#2d2a26" stroke-width="1"/><line x1="27" y1="348" x2="32" y2="348" stroke="#2d2a26" stroke-width="1"/><text x="42" y="350" font-size="11" fill="#2d2a26">Receipts</text><path d="M24 366 L24 372 L34 372 L34 366 M29 369 L29 360 M26 363 L29 360 L32 363" fill="none" stroke="#2d2a26" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><text x="42" y="370" font-size="11" fill="#2d2a26">Share tinker</text></g><polygon points="260,20 440,20 260,200" fill="#6366f1"/><g text-anchor="middle"><g transform="translate(652, 58) scale(0.26)"><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62" x2="175.94" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138" x2="175.94" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></g><text x="680" y="158" font-family="Plus Jakarta Sans, Inter" font-size="30" font-weight="700" fill="#2d2a26">Everyone is a founder.</text><text x="680" y="184" font-family="Inter" font-size="13" fill="#6f6a65">You just need a seed to start.</text><text x="680" y="226" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Where are you right now?</text><rect x="480" y="244" width="180" height="40" rx="10" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="570" y="269" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Cafe</text><rect x="700" y="244" width="180" height="40" rx="10" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="790" y="269" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Home</text><rect x="480" y="296" width="180" height="40" rx="10" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="570" y="321" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Work</text><rect x="700" y="296" width="180" height="40" rx="10" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="790" y="321" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Somewhere else</text></g></svg>
 
 ---
@@ -417,9 +436,9 @@ Pre-seed · $300k – $950k
 
 # How We Make Money
 
-> *Free to start, $7 a month once they use it enough.*
+> *Free to start, $8 a month once they use it enough.*
 
-> *Tiered monthly subscriptions to get deeper into the writing tools: $7, $35, $70 — and enterprise-level pricing beyond that.*
+> *Tiered monthly subscriptions to get deeper into the writing tools: $8 (Sharpen), $40 (seeded), $80 (seeded+) — and enterprise-level pricing beyond that.*
 
 ---
 
