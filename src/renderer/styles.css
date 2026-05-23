@@ -1527,58 +1527,55 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   border-color: var(--color-accent-strong);
 }
 
-/* ── Step 2: verdict list ──────────────────────────────────────── */
-.post-on-social__verdict {
-  list-style: none;
+/* ── Step 2 — loading + empty states ──────────────────────────── */
+.post-on-social__loading {
+  display: flex;
+  justify-content: center;
+  padding: 60px 0;
+}
+.post-on-social__empty {
   margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-.post-on-social__row {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 18px 0;
-  border-bottom: 1px solid var(--color-border);
-}
-.post-on-social__row:last-child {
-  border-bottom: none;
-}
-.post-on-social__row--loading .post-on-social__row-reason {
-  min-height: 1.6em;
-}
-.post-on-social__row-main {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.post-on-social__row-title {
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.005em;
-  line-height: 1.3;
-  color: var(--color-foreground);
-}
-.post-on-social__row-reason {
-  font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.55;
+  padding: 40px 0;
+  text-align: center;
+  font-size: 15px;
   color: var(--color-muted);
 }
-.post-on-social__row-reason--err {
-  color: #b23a3a;
+.post-on-social__posted-confirm {
+  margin: 0;
+  padding: 80px 0 24px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: var(--color-forest);
 }
-.post-on-social__row-side {
-  flex: 0 0 auto;
+.post-on-social__back-row {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
+  justify-content: center;
+  margin-top: 8px;
 }
+.post-on-social__back {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 12px 22px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.post-on-social__back:hover {
+  background: var(--color-hover);
+  border-color: var(--color-accent);
+}
+
+/* The score chip carries context for the picked essay — small,
+ * unobtrusive, sits beside the essay title above the reader-POV
+ * question. */
 .post-on-social__score-chip {
   display: inline-flex;
   align-items: center;
@@ -1598,62 +1595,22 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   color: var(--color-forest);
   border-color: var(--color-forest);
 }
-.post-on-social__read-link,
-.post-on-social__retry {
-  background: transparent;
-  border: none;
-  padding: 0;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--color-muted);
-  cursor: pointer;
-  transition: color 0.15s ease;
-}
-.post-on-social__read-link:hover,
-.post-on-social__retry:hover {
-  color: var(--color-accent-strong);
-}
 
-.post-on-social__continue-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 12px;
-}
-.post-on-social__continue-row[hidden] { display: none; }
-.post-on-social__continue {
-  font-family: var(--font-sans);
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 12px 22px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-accent-strong);
-  background: var(--color-accent-strong);
-  color: #ffffff;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease;
-}
-.post-on-social__continue:hover { background: #4f46e5; }
-.post-on-social__continue:active { transform: translateY(1px); }
-
-.post-on-social__empty {
-  margin: 0;
-  padding: 40px 0;
-  text-align: center;
-  font-size: 14px;
-  color: var(--color-muted);
-}
-
-/* ── Step 3: reader-POV prompt ─────────────────────────────────── */
+/* ── Step 2 — reader-POV prompt ─────────────────────────────── */
 .post-on-social__prompt {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 48px 0 24px;
+  gap: 14px;
+  padding: 32px 0 8px;
   text-align: center;
+}
+.post-on-social__prompt-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 .post-on-social__prompt-source {
   font-family: var(--font-sans);
@@ -1661,6 +1618,14 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--color-muted);
+}
+.post-on-social__prompt-reason {
+  margin: 0;
+  max-width: 560px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
   color: var(--color-muted);
 }
 .post-on-social__prompt-question {
@@ -1692,38 +1657,78 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   color: var(--color-accent-strong);
 }
 
-.post-on-social__compose-row {
+/* ── Step 2 — inline composer ───────────────────────────────── */
+.post-on-social__composer {
   display: flex;
-  justify-content: center;
-  margin-top: 24px;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
 }
-.post-on-social__compose {
+.post-on-social__textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md, 14px);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
   font-family: var(--font-sans);
   font-size: 15px;
+  line-height: 1.55;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+.post-on-social__textarea:focus {
+  border-color: var(--color-accent-strong);
+}
+.post-on-social__compose-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  align-items: center;
+}
+.post-on-social__copy {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.post-on-social__copy:hover:not(:disabled) {
+  background: var(--color-hover);
+  color: var(--color-foreground);
+  border-color: var(--color-accent);
+}
+.post-on-social__copy:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.post-on-social__mark-posted {
+  font-family: var(--font-sans);
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  padding: 16px 32px;
+  padding: 12px 22px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-accent-strong);
   background: var(--color-accent-strong);
   color: #ffffff;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
-  box-shadow: 0 1px 3px rgba(45, 90, 61, 0.08);
+  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
 }
-.post-on-social__compose:hover {
-  background: #4f46e5;
-  box-shadow: 0 2px 8px rgba(45, 90, 61, 0.15);
-}
-.post-on-social__compose:active {
-  transform: translateY(1px);
-}
-.post-on-social__other-note {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 14px;
-  color: var(--color-muted);
-  text-align: center;
+.post-on-social__mark-posted:hover:not(:disabled) { background: #4f46e5; }
+.post-on-social__mark-posted:active:not(:disabled) { transform: translateY(1px); }
+.post-on-social__mark-posted:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 @media (max-width: 539px) {
@@ -1731,7 +1736,8 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   .post-on-social__title { font-size: 26px; }
   .post-on-social__platforms { grid-template-columns: 1fr; }
   .post-on-social__prompt-question { font-size: 22px; }
-  .post-on-social__compose { padding: 14px 24px; font-size: 14px; }
+  .post-on-social__compose-actions { flex-direction: column-reverse; align-items: stretch; }
+  .post-on-social__mark-posted { padding: 14px 22px; }
 }
 
 .category-feed[hidden] { display: none !important; }
