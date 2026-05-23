@@ -158,8 +158,9 @@
         : {};
       const firstPitch = {
         id: uid(),
-        title: null,
-        autoTitled: true,
+        aiTitle: null,
+        personalTitle: null,
+        aiTitleSourceHash: null,
         deck,
         meta: {
           mostRecentlyTouched: DECK_HEADINGS.includes(legacyMeta.mostRecentlyTouched)
@@ -189,8 +190,28 @@
     for (const p of raw.pitches) {
       if (!p || typeof p !== "object") continue;
       const id = typeof p.id === "string" && p.id ? p.id : uid();
-      const title = typeof p.title === "string" ? p.title : null;
-      const autoTitled = p.autoTitled !== false;
+
+      // Two parallel titles: aiTitle is model-generated and evolves
+      // as the pitch's writings change; personalTitle is what the
+      // founder calls it, optional and stable. Migration from the
+      // older single-`title` shape: if autoTitled was true (or
+      // missing), the old title was AI-generated → move to aiTitle.
+      // If autoTitled was false, the founder had renamed it → keep
+      // that as personalTitle so we don't lose their input.
+      let aiTitle = typeof p.aiTitle === "string" ? p.aiTitle : null;
+      let personalTitle = typeof p.personalTitle === "string" ? p.personalTitle : null;
+      if (aiTitle === null && personalTitle === null && typeof p.title === "string") {
+        if (p.autoTitled === false) {
+          personalTitle = p.title;
+        } else {
+          aiTitle = p.title;
+        }
+      }
+
+      const aiTitleSourceHash = typeof p.aiTitleSourceHash === "string"
+        ? p.aiTitleSourceHash
+        : null;
+
       const deck = emptyDeck();
       const rawDeck = p.deck && typeof p.deck === "object" ? p.deck : {};
       for (const h of DECK_HEADINGS) {
@@ -210,8 +231,9 @@
       };
       pitches.push({
         id,
-        title,
-        autoTitled,
+        aiTitle,
+        personalTitle,
+        aiTitleSourceHash,
         deck,
         meta,
         createdAt: Number(p.createdAt) || Date.now(),
@@ -300,8 +322,13 @@
   function getPitches() {
     return blob.pitches.map((p) => ({
       id: p.id,
-      title: displayTitle(p),
-      autoTitled: p.autoTitled,
+      aiTitle: p.aiTitle || null,
+      personalTitle: p.personalTitle || null,
+      // displayName is the fallback for any callsite that just wants
+      // one label: personal wins (that's how the founder recognizes
+      // it), then ai, then a placeholder. The full pair is available
+      // for surfaces that want to show both.
+      displayName: p.personalTitle || p.aiTitle || "Untitled",
       robustness: pitchRobustness(p),
       createdAt: p.createdAt,
     }));
@@ -327,44 +354,62 @@
     fire("tinker:active-pitch-changed");
   }
 
-  function renamePitch(id, newTitle) {
+  // Set or clear the founder's personal recognition label for a
+  // pitch. Empty / whitespace-only input clears it (so the dropdown
+  // falls back to just the AI title). Does NOT touch aiTitle —
+  // personal names sit alongside, they never replace.
+  function setPersonalTitle(id, newTitle) {
     const p = blob.pitches.find((x) => x.id === id);
     if (!p) return false;
-    const clean = sanitizeTitle(newTitle);
-    if (!clean) return false;
-    p.title = clean;
-    p.autoTitled = false;
+    const trimmed = typeof newTitle === "string" ? newTitle.trim() : "";
+    if (!trimmed) {
+      p.personalTitle = null;
+    } else {
+      const clean = sanitizePersonalTitle(trimmed);
+      if (!clean) return false;
+      p.personalTitle = clean;
+    }
     save();
     fire("tinker:pitches-changed");
     return true;
   }
 
-  // Founder-created pitch: seeded with a title but no writings. The
-  // title becomes a hint for the next rehome call — the model will
-  // bias toward slotting relevant off-pitch writings into this
-  // bucket. Returns the new pitch's id, or null if the title was
-  // rejected.
-  function createPitch(title) {
-    const clean = sanitizeTitle(title);
+  // Back-compat alias for setPersonalTitle. The dropdown UI used to
+  // call renamePitch when the founder edited the title; under the
+  // new two-title model that input edits the personal recognition
+  // name, not the AI-generated one.
+  function renamePitch(id, newTitle) {
+    return setPersonalTitle(id, newTitle);
+  }
+
+  // Founder-created pitch: seeded with a personal title but no
+  // writings yet. The personal title becomes the rehome hint — the
+  // model is told to strongly prefer routing relevant off-pitch
+  // writings into this bucket. Once writings land, the auto-namer
+  // also generates an aiTitle that sits alongside the personal one.
+  // Returns the new pitch's id, or null if the title was rejected.
+  function createPitch(personalName) {
+    const clean = sanitizePersonalTitle(personalName);
     if (!clean) return null;
-    // Don't duplicate an existing pitch with the same title (case-
-    // insensitive). Reuse it and make it active instead — gives the
-    // founder the same "I just made it" feeling without orphaning
-    // their writings.
-    const existing = blob.pitches.find(
-      (p) => (p.title || "").toLowerCase() === clean.toLowerCase(),
-    );
+    // Don't duplicate an existing pitch that matches by either
+    // title (case-insensitive). Re-activate it instead — the
+    // founder gets the same "I just made it" feeling without
+    // orphaning their writings.
+    const existing = blob.pitches.find((p) => titlesMatch(p, clean));
     if (existing) {
       blob.activeId = existing.id;
       save();
       fire("tinker:active-pitch-changed");
       return existing.id;
     }
-    const pitch = createPitchInternal({ title: clean, autoTitled: false });
+    const pitch = createPitchInternal({
+      aiTitle: null,
+      personalTitle: clean,
+    });
     blob.activeId = pitch.id;
     // Reset the rehome hash so the next scheduleRegenerate actually
     // fires a fresh call with this title as a hint — otherwise the
-    // hash dedupe would skip the call until off-pitch ids change.
+    // dedupe would skip until off-pitch ids change.
     lastRegenHash = null;
     save();
     fire("tinker:pitches-changed");
@@ -373,11 +418,16 @@
     return pitch.id;
   }
 
-  // Titles are model-generated or founder-edited. We allow a single
-  // word (1-14 letters, any casing — "tinker", "Tinker", "TINKER" all
-  // pass through). Whitespace and punctuation get stripped; if the
-  // founder types a phrase we keep only the first word.
-  function sanitizeTitle(s) {
+  function titlesMatch(pitch, candidate) {
+    const c = candidate.toLowerCase();
+    return (pitch.aiTitle || "").toLowerCase() === c
+      || (pitch.personalTitle || "").toLowerCase() === c;
+  }
+
+  // AI-generated titles: a single word, 1-14 letters, any case. This
+  // shape is enforced both server-side (in /api/alt-pitches) and
+  // client-side when folding rehome results.
+  function sanitizeAiTitle(s) {
     if (typeof s !== "string") return null;
     const trimmed = s.trim();
     if (!trimmed) return null;
@@ -387,9 +437,14 @@
     return stripped;
   }
 
-  function displayTitle(p) {
-    if (p.title) return p.title;
-    return "Untitled";
+  // Personal titles: free-form, but capped at 30 chars so the
+  // dropdown chip stays readable. Allows spaces, punctuation,
+  // numbers — whatever helps the founder spot the pitch fast.
+  function sanitizePersonalTitle(s) {
+    if (typeof s !== "string") return null;
+    const trimmed = s.trim();
+    if (!trimmed) return null;
+    return trimmed.length > 30 ? trimmed.slice(0, 30) : trimmed;
   }
 
   function upsertPhrase({ pitchId, deckHeading, writingId, offset, length, addedAt }) {
@@ -477,11 +532,12 @@
     fire("tinker:pitches-changed");
   }
 
-  function createPitchInternal({ title, autoTitled }) {
+  function createPitchInternal({ aiTitle, personalTitle }) {
     const pitch = {
       id: uid(),
-      title: title || null,
-      autoTitled: autoTitled !== false,
+      aiTitle: aiTitle || null,
+      personalTitle: personalTitle || null,
+      aiTitleSourceHash: null,
       deck: emptyDeck(),
       meta: { mostRecentlyTouched: null, expanded: {}, lastClassifyFailedAt: null },
       createdAt: Date.now(),
@@ -554,8 +610,12 @@
   async function regenerate() {
     if (regenInflight) return;
     const off = listOffPitchWritings();
+    // Hand the model whatever label best identifies each existing
+    // pitch — personal first (that's how the founder names it),
+    // then ai (so the model can re-use a label it previously
+    // generated). Skip pitches with neither.
     const existingPitchTitles = blob.pitches
-      .map((p) => p.title)
+      .map((p) => p.personalTitle || p.aiTitle)
       .filter((t) => typeof t === "string" && t.length > 0);
 
     if (off.length === 0) return;
@@ -600,22 +660,27 @@
     }
   }
 
-  // Apply server rehome output to local pitches. Each input pitch is
-  // either tied to an existing pitch (by title match) or seeds a new
-  // one. Each writing inside gets folded via upsertPhrase so the
-  // deck-slot bookkeeping (cap, sort, mostRecentlyTouched) runs the
-  // same way as the live classify flow.
+  // Apply server rehome output to local pitches. Each incoming
+  // bucket is matched to an existing pitch (by aiTitle OR
+  // personalTitle, case-insensitive) or seeds a new one. Each
+  // writing inside gets folded via upsertPhrase so the deck-slot
+  // bookkeeping (cap, sort, mostRecentlyTouched) runs the same way
+  // as the live classify flow.
   function foldRehomeResults(rehomedPitches) {
     let changed = false;
     for (const incoming of rehomedPitches) {
       if (!incoming || typeof incoming !== "object") continue;
-      const title = sanitizeTitle(incoming.title);
+      const title = sanitizeAiTitle(incoming.title);
       if (!title) continue;
-      let pitch = blob.pitches.find(
-        (p) => (p.title || "").toLowerCase() === title.toLowerCase(),
-      );
+      let pitch = blob.pitches.find((p) => titlesMatch(p, title));
       if (!pitch) {
-        pitch = createPitchInternal({ title, autoTitled: true });
+        pitch = createPitchInternal({ aiTitle: title, personalTitle: null });
+        changed = true;
+      } else if (!pitch.aiTitle) {
+        // First-time AI title for a founder-seeded pitch — record it
+        // so the dropdown can show the canonical AI label alongside
+        // the personal one.
+        pitch.aiTitle = title;
         changed = true;
       }
 
@@ -644,12 +709,35 @@
     }
   }
 
-  // For any pitch with autoTitled=true and a null/empty title, ask
-  // the model to name it from its current writings. Cheap call (one
-  // bucket, one title). Rate-limited per-pitch so a failing endpoint
-  // doesn't loop.
+  // Stable hash of the sorted writingIds in a pitch. Used to decide
+  // when the AI title needs to evolve — if the writings backing a
+  // pitch have changed since the last name we ran, fire another
+  // naming call.
+  function writingsHashForPitch(pitch) {
+    const ids = new Set();
+    for (const h of DECK_HEADINGS) {
+      for (const rec of (pitch.deck[h] || [])) ids.add(rec.writingId);
+    }
+    const sorted = Array.from(ids).sort();
+    let h = 5381;
+    for (const id of sorted) {
+      for (let i = 0; i < id.length; i++) h = ((h << 5) + h + id.charCodeAt(i)) | 0;
+      h = ((h << 5) + h + 124) | 0;
+    }
+    return `h${(h >>> 0).toString(36)}_${sorted.length}`;
+  }
+
+  // For any pitch whose AI title is stale (writings have changed
+  // since the title was last generated, or there's no aiTitle at
+  // all), ask the model to (re)name it from its current writings.
+  // Cheap call (one bucket, one title). Rate-limited per-pitch so
+  // a failing endpoint doesn't loop.
   async function autoNamePitches() {
-    const candidates = blob.pitches.filter((p) => p.autoTitled && !p.title);
+    const candidates = blob.pitches.filter((p) => {
+      const writingHash = writingsHashForPitch(p);
+      if (!p.aiTitle) return true;
+      return writingHash !== p.aiTitleSourceHash;
+    });
     if (candidates.length === 0) return;
 
     let token = "";
@@ -671,7 +759,12 @@
         const body = bodyForWriting(id);
         if (body && body.trim()) writings.push({ id, snippet: body });
       }
+      // An empty pitch (no writings yet) waits for content before
+      // the AI tries to name it. The personal title carries the UI
+      // in the meantime.
       if (writings.length === 0) continue;
+
+      const writingHash = writingsHashForPitch(pitch);
 
       try {
         const res = await fetch("/api/alt-pitches", {
@@ -685,9 +778,10 @@
         if (!res.ok) continue;
         const json = await res.json().catch(() => null);
         const first = json && Array.isArray(json.pitches) ? json.pitches[0] : null;
-        const title = first && sanitizeTitle(first.title);
+        const title = first && sanitizeAiTitle(first.title);
         if (title) {
-          pitch.title = title;
+          pitch.aiTitle = title;
+          pitch.aiTitleSourceHash = writingHash;
           save();
           fire("tinker:pitches-changed");
         }
@@ -711,6 +805,7 @@
     getActivePitch,
     getPitch,
     setActivePitch,
+    setPersonalTitle,
     renamePitch,
     createPitch,
     upsertPhrase,

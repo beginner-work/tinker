@@ -499,6 +499,42 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   color: var(--color-muted);
   flex-shrink: 0;
 }
+/* Two-line title block: personal recognition name on top, AI-
+ * generated canonical name underneath as a muted subtitle. Used in
+ * both the dropdown face and the menu items. */
+.sidebar__pitch-title-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 1px;
+  overflow: hidden;
+}
+.sidebar__pitch-title-personal {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.sidebar__pitch-title-ai {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.sidebar__pitch-title-ai--sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-muted);
+  font-style: italic;
+}
 .sidebar__pitch-rename-btn {
   display: inline-flex;
   align-items: center;

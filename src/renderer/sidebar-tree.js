@@ -424,6 +424,41 @@
   let renameOpen = false;
   let addOpen = false;
 
+  // Render the two-line title block used in the dropdown face and
+  // in each menu item. Personal title on top (the founder's
+  // recognition name), AI title underneath as a muted subtitle.
+  // When only one of the two exists, it sits alone — no awkward
+  // empty rows.
+  function renderTitleStack(pitch) {
+    const wrap = document.createElement("span");
+    wrap.className = "sidebar__pitch-title-stack";
+    const personal = pitch.personalTitle || null;
+    const ai = pitch.aiTitle || null;
+    if (personal) {
+      const personalEl = document.createElement("span");
+      personalEl.className = "sidebar__pitch-title-personal";
+      personalEl.textContent = personal;
+      wrap.appendChild(personalEl);
+    }
+    if (ai) {
+      const aiEl = document.createElement("span");
+      aiEl.className = personal
+        ? "sidebar__pitch-title-ai sidebar__pitch-title-ai--sub"
+        : "sidebar__pitch-title-ai";
+      aiEl.textContent = ai;
+      wrap.appendChild(aiEl);
+    }
+    if (!personal && !ai) {
+      // Fallback so the chip isn't blank while we wait for the
+      // first auto-name call to land.
+      const fallback = document.createElement("span");
+      fallback.className = "sidebar__pitch-title-ai";
+      fallback.textContent = pitch.displayName || "Naming…";
+      wrap.appendChild(fallback);
+    }
+    return wrap;
+  }
+
   function renderSwitcher(pitches, activeId) {
     if (!switcherEl) return;
     if (!pitches || pitches.length === 0) {
@@ -458,21 +493,23 @@
 
     const active = pitches.find((p) => p.id === activeId) || pitches[0];
 
-    // The face button: shows the active title and a caret. Tapping
-    // it opens the menu.
+    // The face button: shows both the founder's personal recognition
+    // name (if set) and the AI-generated canonical name. Layout is
+    // two lines — personal as the prominent label (that's what the
+    // founder spots fast), AI as a muted subtitle (the canonical
+    // identifier that evolves as the pitch's writings change). If
+    // only one of the two exists, it sits alone.
     const face = document.createElement("button");
     face.type = "button";
     face.className = "sidebar__pitch-dropdown";
     face.setAttribute("aria-haspopup", "listbox");
     face.setAttribute("aria-expanded", switcherOpen ? "true" : "false");
-    const faceTitle = document.createElement("span");
-    faceTitle.className = "sidebar__pitch-dropdown-title";
-    faceTitle.textContent = active.title;
+    const titles = renderTitleStack(active);
+    face.appendChild(titles);
     const caret = document.createElement("span");
     caret.className = "sidebar__pitch-dropdown-caret";
     caret.setAttribute("aria-hidden", "true");
     caret.textContent = "▾";
-    face.appendChild(faceTitle);
     face.appendChild(caret);
     face.addEventListener("click", (e) => {
       // Stop bubbling: the document-level "click outside to close"
@@ -488,12 +525,16 @@
     });
     row.appendChild(face);
 
-    // Rename pencil — opens an inline edit for the active pitch.
+    // Personal-name pencil — opens an inline edit for the founder's
+    // recognition label on this pitch. Does NOT touch the AI title.
     const rename = document.createElement("button");
     rename.type = "button";
     rename.className = "sidebar__pitch-rename-btn";
-    rename.setAttribute("aria-label", `Rename pitch ${active.title}`);
-    rename.setAttribute("title", "Rename this pitch");
+    const renameLabel = active.personalTitle
+      ? `Edit your name for this pitch`
+      : `Add your name for this pitch`;
+    rename.setAttribute("aria-label", renameLabel);
+    rename.setAttribute("title", renameLabel);
     rename.textContent = "✎";
     rename.addEventListener("click", (e) => {
       e.preventDefault();
@@ -517,9 +558,9 @@
       const input = document.createElement("input");
       input.type = "text";
       input.className = "sidebar__pitch-rename-input";
-      input.value = active.title || "";
-      input.maxLength = 14;
-      input.placeholder = "One word";
+      input.value = active.personalTitle || "";
+      input.maxLength = 30;
+      input.placeholder = "Your name for this pitch";
       input.autocomplete = "off";
       input.spellcheck = false;
       form.appendChild(input);
@@ -530,9 +571,10 @@
       form.appendChild(submit);
       form.addEventListener("submit", (e) => {
         e.preventDefault();
+        e.stopPropagation();
         const pm = pitchesApi();
-        if (pm && typeof pm.renamePitch === "function") {
-          pm.renamePitch(active.id, input.value);
+        if (pm && typeof pm.setPersonalTitle === "function") {
+          pm.setPersonalTitle(active.id, input.value);
         }
         renameOpen = false;
         render();
@@ -557,14 +599,11 @@
         btn.className = "sidebar__pitch-menu-item";
         btn.setAttribute("data-pitch-id", p.id);
         if (p.id === active.id) btn.setAttribute("data-active", "");
-        const itemTitle = document.createElement("span");
-        itemTitle.className = "sidebar__pitch-menu-title";
-        itemTitle.textContent = p.title;
+        btn.appendChild(renderTitleStack(p));
         const itemMeta = document.createElement("span");
         itemMeta.className = "sidebar__pitch-menu-meta";
         const robust = Number(p.robustness) || 0;
         itemMeta.textContent = `${robust} / ${DECK_HEADINGS.length}`;
-        btn.appendChild(itemTitle);
         btn.appendChild(itemMeta);
         btn.addEventListener("click", (e) => {
           e.stopPropagation();

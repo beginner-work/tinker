@@ -217,34 +217,77 @@ test("legacy tree blob migrates into pitches[0] on first load", () => {
   const { pitches } = loadInSandbox({ drafts: [draft], seedTree: legacyTree });
   const snap = pitches.snapshot();
   assert.equal(snap.pitches.length, 1, "legacy tree wraps as one pitch");
-  assert.equal(snap.pitches[0].title, null, "migrated pitch is unnamed until autoName runs");
-  assert.equal(snap.pitches[0].autoTitled, true);
+  assert.equal(snap.pitches[0].aiTitle, null, "AI title fills in once the namer runs");
+  assert.equal(snap.pitches[0].personalTitle, null);
   const deck = deckOf(snap);
   assert.equal(deck["The Problem"].length, 1);
   assert.equal(deck["The Problem"][0].writingId, "d_abc");
 });
 
-test("renamePitch sets title and marks autoTitled=false", () => {
-  const draft = { id: "d_abc", stitched: { body: "the body" } };
-  const { api, pitches } = loadInSandbox({ drafts: [draft] });
-  api.upsertPhrase({ deckHeading: "The Problem", writingId: "d_abc", offset: 0, length: 8 });
+test("older pitches.v1 blob with `title`+autoTitled migrates into ai/personal split", () => {
+  // An autoTitled pitch keeps its AI title; a manually-renamed
+  // pitch moves the old title to personalTitle so the founder's
+  // input isn't lost.
+  const seedPitches = {
+    pitches: [
+      { id: "p_auto", title: "Beans", autoTitled: true, deck: {}, meta: {}, createdAt: 1 },
+      { id: "p_named", title: "MyThing", autoTitled: false, deck: {}, meta: {}, createdAt: 2 },
+    ],
+    activeId: "p_auto",
+  };
+  const { pitches } = loadInSandbox({ seedPitches });
   const snap = pitches.snapshot();
-  const id = snap.pitches[0].id;
-  const ok = pitches.renamePitch(id, "Tinker");
-  assert.equal(ok, true);
-  const after = pitches.snapshot();
-  assert.equal(after.pitches[0].title, "Tinker");
-  assert.equal(after.pitches[0].autoTitled, false);
+  assert.equal(snap.pitches[0].aiTitle, "Beans");
+  assert.equal(snap.pitches[0].personalTitle, null);
+  assert.equal(snap.pitches[1].aiTitle, null);
+  assert.equal(snap.pitches[1].personalTitle, "MyThing");
 });
 
-test("renamePitch normalizes multi-word input to its first word, preserving case", () => {
-  const draft = { id: "d_abc", stitched: { body: "the body" } };
-  const { api, pitches } = loadInSandbox({ drafts: [draft] });
-  api.upsertPhrase({ deckHeading: "The Problem", writingId: "d_abc", offset: 0, length: 8 });
-  const id = pitches.snapshot().pitches[0].id;
-  pitches.renamePitch(id, "coffee shop business");
-  // First word kept, casing preserved (no auto-capitalize).
-  assert.equal(pitches.snapshot().pitches[0].title, "coffee");
+test("setPersonalTitle sets the personal label without touching aiTitle", () => {
+  const seedPitches = {
+    pitches: [{
+      id: "p_one",
+      aiTitle: "Beans",
+      personalTitle: null,
+      deck: {},
+      meta: {},
+      createdAt: 1,
+    }],
+    activeId: "p_one",
+  };
+  const { pitches } = loadInSandbox({ seedPitches });
+  assert.equal(pitches.setPersonalTitle("p_one", "  my coffee thing  "), true);
+  const after = pitches.snapshot();
+  assert.equal(after.pitches[0].personalTitle, "my coffee thing");
+  assert.equal(after.pitches[0].aiTitle, "Beans", "AI title must be untouched");
+});
+
+test("setPersonalTitle with empty string clears the personal label", () => {
+  const seedPitches = {
+    pitches: [{
+      id: "p_one",
+      aiTitle: "Beans",
+      personalTitle: "MyCoffee",
+      deck: {},
+      meta: {},
+      createdAt: 1,
+    }],
+    activeId: "p_one",
+  };
+  const { pitches } = loadInSandbox({ seedPitches });
+  pitches.setPersonalTitle("p_one", "   ");
+  assert.equal(pitches.snapshot().pitches[0].personalTitle, null);
+  assert.equal(pitches.snapshot().pitches[0].aiTitle, "Beans");
+});
+
+test("setPersonalTitle accepts multi-word, lowercase, and punctuation", () => {
+  const seedPitches = {
+    pitches: [{ id: "p_one", aiTitle: null, personalTitle: null, deck: {}, meta: {}, createdAt: 1 }],
+    activeId: "p_one",
+  };
+  const { pitches } = loadInSandbox({ seedPitches });
+  pitches.setPersonalTitle("p_one", "my side hustle (2026)");
+  assert.equal(pitches.snapshot().pitches[0].personalTitle, "my side hustle (2026)");
 });
 
 test("setActivePitch switches the active selection", () => {
@@ -255,16 +298,16 @@ test("setActivePitch switches the active selection", () => {
     pitches: [
       {
         id: "p_one",
-        title: "First",
-        autoTitled: false,
+        aiTitle: "First",
+        personalTitle: null,
         deck: { "The Problem": [{ writingId: "d_a", offset: 0, length: 5, addedAt: 1 }] },
         meta: { mostRecentlyTouched: null, expanded: {}, lastClassifyFailedAt: null },
         createdAt: 1000,
       },
       {
         id: "p_two",
-        title: "Second",
-        autoTitled: false,
+        aiTitle: "Second",
+        personalTitle: null,
         deck: { "A Persona": [{ writingId: "d_b", offset: 0, length: 4, addedAt: 1 }] },
         meta: { mostRecentlyTouched: null, expanded: {}, lastClassifyFailedAt: null },
         createdAt: 2000,
@@ -278,35 +321,50 @@ test("setActivePitch switches the active selection", () => {
   assert.equal(pitches.getActivePitchId(), "p_two");
 });
 
-test("createPitch seeds an empty pitch with the founder-supplied title", () => {
+test("createPitch seeds an empty pitch with the founder-supplied personal title", () => {
   const { pitches } = loadInSandbox();
-  const id = pitches.createPitch("Coffee");
+  const id = pitches.createPitch("My Coffee Idea");
   assert.ok(id);
   const snap = pitches.snapshot();
   assert.equal(snap.pitches.length, 1);
-  assert.equal(snap.pitches[0].title, "Coffee");
-  assert.equal(snap.pitches[0].autoTitled, false);
+  assert.equal(snap.pitches[0].personalTitle, "My Coffee Idea");
+  assert.equal(snap.pitches[0].aiTitle, null, "AI title fills in once writings land");
   assert.equal(snap.activeId, id);
 });
 
 test("createPitch preserves lowercase titles", () => {
   const { pitches } = loadInSandbox();
-  const id = pitches.createPitch("tinker");
-  assert.ok(id);
-  assert.equal(pitches.snapshot().pitches[0].title, "tinker");
+  pitches.createPitch("tinker");
+  assert.equal(pitches.snapshot().pitches[0].personalTitle, "tinker");
 });
 
-test("createPitch rejects multi-word titles by taking just the first word", () => {
+test("createPitch keeps multi-word personal titles intact (free-form)", () => {
   const { pitches } = loadInSandbox();
   pitches.createPitch("coffee shop business");
-  assert.equal(pitches.snapshot().pitches[0].title, "coffee");
+  assert.equal(pitches.snapshot().pitches[0].personalTitle, "coffee shop business");
 });
 
-test("createPitch reuses an existing pitch when the title matches (case-insensitive)", () => {
+test("createPitch reuses an existing pitch when the personal title matches", () => {
   const { pitches } = loadInSandbox();
   const idA = pitches.createPitch("Tinker");
   const idB = pitches.createPitch("tinker");
   assert.equal(idA, idB, "second call should re-activate the existing pitch");
+  assert.equal(pitches.snapshot().pitches.length, 1);
+});
+
+test("createPitch matches against an existing pitch's aiTitle too", () => {
+  // A pitch already has its AI title; the founder tries to add a
+  // pitch with that same name — should just re-activate.
+  const seedPitches = {
+    pitches: [{
+      id: "p_one", aiTitle: "Beans", personalTitle: null,
+      deck: {}, meta: {}, createdAt: 1,
+    }],
+    activeId: "p_one",
+  };
+  const { pitches } = loadInSandbox({ seedPitches });
+  const id = pitches.createPitch("Beans");
+  assert.equal(id, "p_one");
   assert.equal(pitches.snapshot().pitches.length, 1);
 });
 
@@ -317,8 +375,8 @@ test("default active pick = most robust pitch (most covered headings)", () => {
     pitches: [
       {
         id: "p_thin",
-        title: "Thin",
-        autoTitled: false,
+        aiTitle: "Thin",
+        personalTitle: null,
         deck: {
           "The Problem": [{ writingId: "d_a", offset: 0, length: 5, addedAt: 1 }],
         },
@@ -327,8 +385,8 @@ test("default active pick = most robust pitch (most covered headings)", () => {
       },
       {
         id: "p_robust",
-        title: "Robust",
-        autoTitled: false,
+        aiTitle: "Robust",
+        personalTitle: null,
         deck: {
           "The Problem": [{ writingId: "d_a", offset: 0, length: 5, addedAt: 1 }],
           "A Persona": [{ writingId: "d_b", offset: 0, length: 4, addedAt: 1 }],
