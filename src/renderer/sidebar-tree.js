@@ -422,6 +422,9 @@
   // verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
+  // Transient publish state: "idle" | "publishing" | { ok: true, readerPath } | { ok: false, error }
+  let publishState = "idle";
+  let publishToastTimer = null;
 
   // Render the two-line title block used in the dropdown face and
   // in each menu item. Personal title on top (the founder's
@@ -548,6 +551,49 @@
       }
     });
     row.appendChild(rename);
+
+    // Publish — ships the active pitch's resolved phrases as a daily
+    // beginner post. The endpoint upserts a TinkerUserData row with
+    // kind="published:<slug>"; the beginner repo's /daily/ reader
+    // pulls that row down and renders it.
+    const publish = document.createElement("button");
+    publish.type = "button";
+    publish.className = "sidebar__pitch-publish-btn";
+    const publishLabel = "Publish to your daily beginner";
+    publish.setAttribute("aria-label", publishLabel);
+    publish.setAttribute("title", publishLabel);
+    if (publishState === "publishing") {
+      publish.textContent = "…";
+      publish.disabled = true;
+    } else if (publishState && publishState.ok === true) {
+      publish.textContent = "✓";
+    } else if (publishState && publishState.ok === false) {
+      publish.textContent = "!";
+      publish.setAttribute("title", publishState.error || publishLabel);
+    } else {
+      publish.textContent = "↗";
+    }
+    publish.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (publishState === "publishing") return;
+      const pm = pitchesApi();
+      if (!pm || typeof pm.publishPitch !== "function") return;
+      publishState = "publishing";
+      render();
+      const result = await pm.publishPitch(active.id);
+      publishState = result && result.ok
+        ? { ok: true, readerPath: result.readerPath }
+        : { ok: false, error: (result && result.error) || "Publish failed" };
+      render();
+      if (publishToastTimer) clearTimeout(publishToastTimer);
+      publishToastTimer = setTimeout(() => {
+        publishState = "idle";
+        publishToastTimer = null;
+        render();
+      }, result && result.ok ? 3500 : 5000);
+    });
+    row.appendChild(publish);
 
     if (renameOpen) {
       const form = document.createElement("form");
