@@ -6,10 +6,10 @@ size: 16:9
 backgroundColor: "#fffdf7"
 color: "#2d2a26"
 style: |
-  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
+  @import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=Instrument+Sans:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
 
   section {
-    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: "Instrument Sans", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
     background: #fffdf7;
     color: #2d2a26;
     padding: 128px 112px 80px;
@@ -21,7 +21,8 @@ style: |
   }
 
   h1, h2, h3 {
-    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
     letter-spacing: -0.02em;
     color: #2d2a26;
@@ -51,7 +52,7 @@ style: |
   em { font-style: italic; color: #2d2a26; }
 
   section::after {
-    font-family: "Inter", sans-serif;
+    font-family: "Instrument Sans", "Inter", sans-serif;
     font-size: 11px;
     color: #6f6a65;
     letter-spacing: 0.08em;
@@ -67,7 +68,8 @@ style: |
   }
   section.cover .lockup svg { width: 108px; height: 108px; }
   section.cover .lockup .wm {
-    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 800;
     font-size: 92px;
     letter-spacing: -0.04em;
@@ -76,7 +78,8 @@ style: |
   }
   section.cover h1 { display: none; }
   section.cover .tagline {
-    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
     font-size: 44px;
     line-height: 1.15;
@@ -107,7 +110,8 @@ style: |
   }
   section.tinker .tinker-badge svg { width: 36px; height: 36px; }
   section.tinker .tinker-badge .wm {
-    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
     font-size: 18px;
     letter-spacing: -0.01em;
@@ -136,7 +140,8 @@ style: |
 
   /* Statement slide — title + one-word punch */
   section.statement > p {
-    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
     font-size: 88px;
     letter-spacing: -0.03em;
@@ -164,7 +169,8 @@ style: |
   }
   .beginner-badge svg { width: 40px; height: 40px; }
   .beginner-badge .wm {
-    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 800;
     font-size: 28px;
     letter-spacing: -0.03em;
@@ -182,7 +188,8 @@ style: |
   }
   section.closing .tinker-badge svg { width: 40px; height: 40px; }
   section.closing .tinker-badge .wm {
-    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
     font-size: 28px;
     letter-spacing: -0.02em;
@@ -190,7 +197,8 @@ style: |
     line-height: 1;
   }
   section.closing .closing-tagline {
-    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
     font-size: 32px;
     letter-spacing: -0.02em;
@@ -225,7 +233,8 @@ style: |
     margin: 0 0 18px;
   }
   section.ask p.min-line strong {
-    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     color: #2d5a3d;
   }
   section.ask p.incr-lead {
