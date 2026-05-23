@@ -27,8 +27,9 @@
  *                fields (personalTitle, activeId, expanded) between
  *                job runs; a hydrate that races a not-yet-pushed
  *                rename gets a local-preferred merge to keep the label.
- *   - linkedin-pitch-draft → "tinker.linkedinPitchDraft.v1"
- *                            (object: { segments, essayIds, ts })
+ *   - post-on-social → "tinker.postOnSocial.v1"
+ *                      (object: { "<essayId>::<platform>": { score, reason,
+ *                        reader_question, scorer_model, ts }, ... })
  *
  * Events dispatched on window:
  *   - "tinker:hydrated"  after a successful boot fetch overwrote one or
@@ -48,7 +49,7 @@
   const KIND_TAXONOMY = "taxonomy";
   const KIND_TREE = "tree";
   const KIND_PITCHES = "pitches";
-  const KIND_LINKEDIN_PITCH_DRAFT = "linkedin-pitch-draft";
+  const KIND_POST_ON_SOCIAL = "post-on-social";
 
   const LS_ESSAYS = "tinker.essays.v1";
   const LS_DRAFTS = "tinker.drafts.v1";
@@ -57,7 +58,7 @@
   const LS_TAXONOMY = "tinker.taxonomy.v1";
   const LS_TREE = "tinker.tree.v1";
   const LS_PITCHES = "tinker.pitches.v1";
-  const LS_LINKEDIN_PITCH_DRAFT = "tinker.linkedinPitchDraft.v1";
+  const LS_POST_ON_SOCIAL = "tinker.postOnSocial.v1";
 
   // Debounce window per kind. Keystrokes in a textarea hit
   // saveDrafts() at ~3hz; coalescing into one PUT every 1.5s is
@@ -171,9 +172,9 @@
     setLs(LS_PITCHES, JSON.stringify(merged));
     return true;
   }
-  function applyLinkedinPitchDraftFromServer(data) {
+  function applyPostOnSocialFromServer(data) {
     if (!data || typeof data !== "object") return false;
-    setLs(LS_LINKEDIN_PITCH_DRAFT, JSON.stringify(data));
+    setLs(LS_POST_ON_SOCIAL, JSON.stringify(data));
     return true;
   }
 
@@ -252,8 +253,8 @@
     pushPitches() {
       schedulePush(KIND_PITCHES, () => getLsJson(LS_PITCHES, null));
     },
-    pushLinkedinPitchDraft() {
-      schedulePush(KIND_LINKEDIN_PITCH_DRAFT, () => getLsJson(LS_LINKEDIN_PITCH_DRAFT, null));
+    pushPostOnSocial() {
+      schedulePush(KIND_POST_ON_SOCIAL, () => getLsJson(LS_POST_ON_SOCIAL, null));
     },
     // Force a flush of every pending push immediately — used on auth
     // change and pagehide so the server doesn't drop the tail of a
@@ -272,20 +273,20 @@
       if (kinds.includes(KIND_TAXONOMY)) pushKind(KIND_TAXONOMY, getLsJson(LS_TAXONOMY, null));
       if (kinds.includes(KIND_TREE))     pushKind(KIND_TREE,     getLsJson(LS_TREE, null));
       if (kinds.includes(KIND_PITCHES))  pushKind(KIND_PITCHES,  getLsJson(LS_PITCHES, null));
-      if (kinds.includes(KIND_LINKEDIN_PITCH_DRAFT)) pushKind(KIND_LINKEDIN_PITCH_DRAFT, getLsJson(LS_LINKEDIN_PITCH_DRAFT, null));
+      if (kinds.includes(KIND_POST_ON_SOCIAL)) pushKind(KIND_POST_ON_SOCIAL, getLsJson(LS_POST_ON_SOCIAL, null));
     },
   };
 
   async function hydrate() {
     if (!token()) return;
-    const [essays, drafts, seeds, taxonomy, tree, pitches, linkedinPitchDraft] = await Promise.all([
+    const [essays, drafts, seeds, taxonomy, tree, pitches, postOnSocial] = await Promise.all([
       fetchKind(KIND_ESSAYS),
       fetchKind(KIND_DRAFTS),
       fetchKind(KIND_SEEDS),
       fetchKind(KIND_TAXONOMY),
       fetchKind(KIND_TREE),
       fetchKind(KIND_PITCHES),
-      fetchKind(KIND_LINKEDIN_PITCH_DRAFT),
+      fetchKind(KIND_POST_ON_SOCIAL),
     ]);
     let changed = false;
     if (applyEssaysFromServer(essays)) changed = true;
@@ -294,7 +295,7 @@
     if (applyTaxonomyFromServer(taxonomy)) changed = true;
     if (applyTreeFromServer(tree)) changed = true;
     if (applyPitchesFromServer(pitches)) changed = true;
-    if (applyLinkedinPitchDraftFromServer(linkedinPitchDraft)) changed = true;
+    if (applyPostOnSocialFromServer(postOnSocial)) changed = true;
     if (changed) {
       try { window.dispatchEvent(new CustomEvent("tinker:hydrated")); }
       catch { /* ignore */ }
