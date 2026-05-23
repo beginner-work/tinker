@@ -433,6 +433,207 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   transition: width 0.6s ease;
 }
 
+/* ── Pitch switcher (v0.104) ──────────────────────────────────────
+ *
+ * A dropdown above the pitch-progress bar. The face button shows the
+ * active pitch's title; tapping it expands a menu of all pitches.
+ * The pencil button to the right opens an inline rename input. Every
+ * pitch is equal-status (no main/alt distinction), so the menu lists
+ * them all the same way — title plus a "covered N/11" hint. The
+ * whole surface sits inside [data-audit-ignore] because pitch titles
+ * are model-generated or founder-edited rather than verbatim founder
+ * phrases.
+ */
+.sidebar__pitch-switcher {
+  padding: 4px 10px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+.sidebar__pitch-switcher-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.sidebar__pitch-switcher-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sidebar__pitch-dropdown {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.sidebar__pitch-dropdown:hover {
+  background: var(--color-hover);
+}
+.sidebar__pitch-dropdown[aria-expanded="true"] {
+  background: var(--color-hover);
+  border-color: var(--color-foreground);
+}
+.sidebar__pitch-dropdown-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar__pitch-dropdown-caret {
+  font-size: 10px;
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+/* Two-line title block: personal recognition name on top, AI-
+ * generated canonical name underneath as a muted subtitle. Used in
+ * both the dropdown face and the menu items. */
+.sidebar__pitch-title-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 1px;
+  overflow: hidden;
+}
+.sidebar__pitch-title-personal {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.sidebar__pitch-title-ai {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.sidebar__pitch-title-ai--sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-muted);
+  font-style: italic;
+}
+.sidebar__pitch-rename-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sidebar__pitch-rename-btn:hover {
+  background: var(--color-hover);
+  color: var(--color-foreground);
+}
+.sidebar__pitch-rename-form {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+.sidebar__pitch-rename-input {
+  flex: 1 1 auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-foreground);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 13px;
+}
+.sidebar__pitch-rename-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-accent-strong);
+}
+.sidebar__pitch-rename-save {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-foreground);
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sidebar__pitch-menu {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.sidebar__pitch-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.sidebar__pitch-menu-item:hover {
+  background: var(--color-hover);
+}
+.sidebar__pitch-menu-item[data-active] {
+  background: var(--color-hover);
+}
+.sidebar__pitch-menu-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar__pitch-menu-meta {
+  font-size: 11px;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
 /* ── Welcome (empty state on main when no draft/read is active) ──── */
 
 .stage > .welcome.feed[data-active] {
