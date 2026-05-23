@@ -485,9 +485,9 @@
     } else {
       slotHtml =
         `<div class="writing-fit__slot writing-fit__slot--miss">` +
-          `<div class="writing-fit__slot-num">Off the deck</div>` +
-          `<h2 class="writing-fit__slot-heading">Doesn't fit your starter pitch — yet.</h2>` +
-          `<p class="writing-fit__sub">None of your eleven slides quite hold this one. That's how a new beat usually shows up first.</p>` +
+          `<div class="writing-fit__slot-num">New pitch</div>` +
+          `<h2 class="writing-fit__slot-heading">You discovered a new pitch!</h2>` +
+          `<p class="writing-fit__sub">None of your existing pitches quite hold this one. Your sidebar will name it and cluster it with others on the same beat as you keep writing.</p>` +
         `</div>`;
     }
 
