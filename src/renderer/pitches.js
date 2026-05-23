@@ -639,6 +639,84 @@
     fire("tinker:pitches-changed");
   }
 
+  // ── Publish ───────────────────────────────────────────────────────
+  //
+  // Resolve a pitch's deck into a flat { [heading]: ["verbatim", ...] }
+  // map and POST it to /api/publish/pitch. The server stitches the
+  // phrases into a Marp post and stores it under TinkerUserData
+  // (userId, "published:<slug>") so the daily-beginner reader can pull
+  // it down.
+
+  function resolveDeckPhrases(pitch) {
+    const out = {};
+    if (!pitch || !pitch.deck) return out;
+    for (const h of DECK_HEADINGS) {
+      const recs = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
+      const phrases = [];
+      for (const rec of recs) {
+        const body = bodyForWriting(rec.writingId);
+        if (!body) continue;
+        if (rec.offset < 0 || rec.offset + rec.length > body.length) continue;
+        const slice = body.slice(rec.offset, rec.offset + rec.length);
+        const phrase = String(slice).replace(/\s+/g, " ").trim();
+        if (phrase) phrases.push(phrase);
+      }
+      if (phrases.length) out[h] = phrases;
+    }
+    return out;
+  }
+
+  function displayTitleFor(pitch) {
+    if (!pitch) return "";
+    const personal = typeof pitch.personalTitle === "string" ? pitch.personalTitle.trim() : "";
+    if (personal) return personal;
+    const ai = typeof pitch.aiTitle === "string" ? pitch.aiTitle.trim() : "";
+    return ai || "";
+  }
+
+  async function publishPitch(pitchId) {
+    const pitch = getPitch(pitchId);
+    if (!pitch) return { ok: false, error: "Unknown pitch" };
+    const title = displayTitleFor(pitch);
+    if (!title) return { ok: false, error: "Pitch has no title yet" };
+    const slides = resolveDeckPhrases(pitch);
+    if (!Object.keys(slides).length) {
+      return { ok: false, error: "Pitch has no resolved phrases to publish" };
+    }
+    const t = (function () {
+      try { return localStorage.getItem(TOKEN_KEY) || ""; }
+      catch { return ""; }
+    })();
+    if (!t) return { ok: false, error: "Not signed in" };
+
+    let res;
+    try {
+      res = await fetch("/api/publish/pitch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${t}`,
+        },
+        body: JSON.stringify({ title, slides }),
+      });
+    } catch (err) {
+      return { ok: false, error: String((err && err.message) || err) };
+    }
+    let json = null;
+    try { json = await res.json(); } catch { /* ignore */ }
+    if (!res.ok || !json || !json.ok) {
+      return { ok: false, error: (json && json.error) || `HTTP ${res.status}` };
+    }
+    fire("tinker:pitch-published");
+    return {
+      ok: true,
+      slug: json.slug,
+      readerUrl: json.readerUrl,
+      beatCount: json.beatCount,
+      updatedAt: json.updatedAt,
+    };
+  }
+
   // ── Public surface ────────────────────────────────────────────────
 
   const api = {
@@ -657,6 +735,7 @@
     toggleExpanded,
     pitchRobustness,
     listOffPitchWritings,
+    publishPitch,
     scheduleOrganize,
     triggerOrganize,
     // Back-compat alias for callers still on the old name. The

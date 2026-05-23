@@ -82,6 +82,18 @@ to point at a separate `project-test-*` Stytch project and got its
 localStorage wiped on every load — both are gone now; previews behave
 like a second URL pointing at production.)
 
+### Shared database with the beginner repo
+
+`DATABASE_URL` on both tinker (production + preview) and beginner
+production points at the same Neon endpoint
+(`ep-delicate-art-ak2qmsls-pooler`). `TinkerUserData` is the shared
+row store — see `beginner/CLAUDE.md` → "Database topology". One
+asymmetry: beginner's Vercel project has Neon preview-branching
+enabled, so a **beginner preview** reads from a fresh per-deploy
+branch, not the production DB. Cross-project flows (e.g. publishing a
+pitch from tinker preview to `/daily/` on beginner preview) therefore
+won't round-trip in preview; verify on production after merge.
+
 Sign out by clearing `tinker_jwt` (`window.tinkerAuth.signOut()` from the
 inspector, or `localStorage.removeItem("tinker_jwt")`).
 
