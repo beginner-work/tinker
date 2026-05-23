@@ -134,14 +134,12 @@
             </button>
           </li>
           <li>
-            <button id="nav-linkedin" type="button" class="sidebar__account-item">
+            <button id="nav-post-on-social" type="button" class="sidebar__account-item">
               <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
-                <rect x="4" y="4" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/>
-                <circle cx="8" cy="7.5" r="0.9" fill="currentColor"/>
-                <path d="M8 10v5M11 15v-5M11 12c0-1.5 3-1.5 3 0v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-                <path d="M16 6l3-3M19 3h-2M19 3v2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 3L3 10.5l7 2 2 7L21 3z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 12.5L21 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
               </svg>
-              <span class="sidebar__account-label">LinkedIn fits</span>
+              <span class="sidebar__account-label">Post on Social</span>
             </button>
           </li>
           <!-- Share button: revealed by share.js only when the app is
@@ -256,11 +254,11 @@
         <div class="writing-fit__inner" id="writing-fit-content"></div>
       </section>
 
-      <!-- LinkedIn fits view: a quiet review of every published essay,
-           sorted so the model-flagged fits float to the top. For each
-           fit, a question about a picture from the essay that could
-           help readers land in it. -->
-      <section id="linkedin-fit" class="linkedin-fit" hidden></section>
+      <!-- Post on Social view: a three-step flow opened on impulse —
+           pick a platform, see the founder's essays scored for that
+           platform, and end on a reader-POV question that points them
+           into the platform's empty composer in their own words. -->
+      <section id="post-on-social" class="post-on-social" hidden aria-label="Post on Social"></section>
 
       <!-- Category feed view: rendered when a seed is tapped — lists
            every essay whose seed belongs to the same category. The
@@ -535,7 +533,7 @@
     <script src="./icon-init.js" defer></script>
     <script src="./writing.js" defer></script>
     <script src="./renderer.js" defer></script>
-    <script src="./linkedin-fit.js" defer></script>
+    <script src="./post-on-social.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>

@@ -104,10 +104,10 @@
   }
   .read__body { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
   .category-feed__head { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
-  /* Post-publish "You just published" crumb and the LinkedIn fits
+  /* Post-publish "You just published" crumb and the Post on Social
    * review both sit at the very top of the stage with no in-view
    * close button — without this clearance the floating hamburger
    * overlaps the crumb/headline on phones. */
   .writing-fit__inner { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
-  .linkedin-fit__inner { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
+  .post-on-social__inner { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
 }

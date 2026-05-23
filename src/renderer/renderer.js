@@ -42,7 +42,7 @@
   const categoryFeedEmpty = $("#category-feed-empty");
   const writingFitView = $("#writing-fit");
   const writingFitContent = $("#writing-fit-content");
-  const linkedinFitView = $("#linkedin-fit");
+  const postOnSocialView = $("#post-on-social");
   const statusComposer = $("#status-composer");
   const statusComposerInput = $("#status-composer-input");
   const statusComposerPost = $("#status-composer-post");
@@ -306,7 +306,7 @@
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
-    if (linkedinFitView) linkedinFitView.hidden = true;
+    if (postOnSocialView) postOnSocialView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -328,7 +328,7 @@
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
-    if (linkedinFitView) linkedinFitView.hidden = true;
+    if (postOnSocialView) postOnSocialView.hidden = true;
   }
   function showRead(essay) {
     feedView.removeAttribute("data-active");
@@ -336,7 +336,7 @@
     readView.hidden = false;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
-    if (linkedinFitView) linkedinFitView.hidden = true;
+    if (postOnSocialView) postOnSocialView.hidden = true;
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
@@ -362,7 +362,7 @@
     readView.hidden = true;
     categoryFeedView.hidden = false;
     if (writingFitView) writingFitView.hidden = true;
-    if (linkedinFitView) linkedinFitView.hidden = true;
+    if (postOnSocialView) postOnSocialView.hidden = true;
     activeId = null;
     activeCategoryKey = categoryKey;
     // Prefer the seed the user just tapped. Fall back to the most-
@@ -414,7 +414,7 @@
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     writingFitView.hidden = false;
-    if (linkedinFitView) linkedinFitView.hidden = true;
+    if (postOnSocialView) postOnSocialView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -507,21 +507,21 @@
     if (readBtn) readBtn.addEventListener("click", () => showRead(essay));
   }
 
-  function showLinkedinFits() {
-    if (!linkedinFitView) return;
+  function showPostOnSocial() {
+    if (!postOnSocialView) return;
     feedView.removeAttribute("data-active");
     writingView.hidden = true;
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
-    linkedinFitView.hidden = false;
+    postOnSocialView.hidden = false;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
     activeCategorySeed = null;
     renderSidebar();
-    if (window.tinkerLinkedinFit && typeof window.tinkerLinkedinFit.render === "function") {
-      window.tinkerLinkedinFit.render();
+    if (window.tinkerPostOnSocial && typeof window.tinkerPostOnSocial.render === "function") {
+      window.tinkerPostOnSocial.render();
     }
   }
 
@@ -628,8 +628,8 @@
   // ── Wire up ─────────────────────────────────────────────────────────
   navHome.addEventListener("click", () => showFeed());
 
-  const navLinkedin = $("#nav-linkedin");
-  if (navLinkedin) navLinkedin.addEventListener("click", () => showLinkedinFits());
+  const navPostOnSocial = $("#nav-post-on-social");
+  if (navPostOnSocial) navPostOnSocial.addEventListener("click", () => showPostOnSocial());
 
   // Welcome screen: the H1 is the standing line ("Everyone is a
   // founder.") and the question ("Where are you right now?") sits
@@ -711,6 +711,9 @@
   window.tinkerOnWritingClose = () => closeActiveDraft();
   window.tinkerOnWritingPublish = (draft, stitched) => store.publish(draft, stitched);
   window.tinkerOnDraftChange = (draftId, patch) => store.updateDraft(draftId, patch);
+  // Used by post-on-social.js after the founder marks a post as
+  // posted — drops them back at the welcome screen.
+  window.tinkerShowFeed = () => showFeed();
 
   // Used by the seed list in the sidebar: open a fresh draft
   // pre-filled with scene context so the founder jumps straight into

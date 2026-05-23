@@ -1428,37 +1428,37 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 
 /* ── LinkedIn fits (quiet review of essays for LinkedIn-worthiness) ── */
 
-.linkedin-fit[hidden] { display: none !important; }
-.linkedin-fit {
+.post-on-social[hidden] { display: none !important; }
+.post-on-social {
   display: flex;
   flex-direction: column;
   background: var(--color-background);
   min-height: 100%;
   overflow-y: auto;
 }
-.linkedin-fit__inner {
+.post-on-social__inner {
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
   padding: 56px 32px 80px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
-.linkedin-fit__head {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.linkedin-fit__crumb {
-  margin: 0;
+
+/* The concrete mood cue the founder picked: small uppercase tracking,
+ * muted color, no background or border — just the numbers and the
+ * slash. Sits at the top of every step. */
+.post-on-social__step-indicator {
+  font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--color-forest);
+  color: var(--color-muted);
 }
-.linkedin-fit__title {
+
+.post-on-social__title {
   margin: 0;
   font-family: var(--font-display);
   font-size: 32px;
@@ -1467,181 +1467,267 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   line-height: 1.15;
   color: var(--color-foreground);
 }
-.linkedin-fit__sub {
-  margin: 0;
+
+/* ── Step 1: the platform tiles ────────────────────────────────── */
+.post-on-social__platforms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+.post-on-social__platform {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 18px 20px;
+  border-radius: var(--radius-md, 14px);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.post-on-social__platform:hover {
+  background: var(--color-hover);
+  border-color: var(--color-accent);
+}
+.post-on-social__platform:active {
+  transform: translateY(1px);
+}
+.post-on-social__platform[aria-pressed="true"] {
+  border-color: var(--color-accent-strong);
+  background: var(--color-hover);
+}
+.post-on-social__platform-label {
+  display: block;
+}
+
+.post-on-social__other-form {
+  margin: 4px 0 0;
+}
+.post-on-social__other-form[hidden] { display: none; }
+.post-on-social__other-input {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
   font-size: 15px;
-  line-height: 1.6;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.post-on-social__other-input:focus {
+  border-color: var(--color-accent-strong);
+}
+
+/* ── Step 2 — loading + empty states ──────────────────────────── */
+.post-on-social__loading {
+  display: flex;
+  justify-content: center;
+  padding: 60px 0;
+}
+.post-on-social__empty {
+  margin: 0;
+  padding: 40px 0;
+  text-align: center;
+  font-size: 15px;
   color: var(--color-muted);
 }
-.linkedin-fit__head-actions {
-  margin-top: 6px;
+.post-on-social__back-row {
   display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+.post-on-social__back {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 12px 22px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.post-on-social__back:hover {
+  background: var(--color-hover);
+  border-color: var(--color-accent);
+}
+
+/* The score chip carries context for the picked essay — small,
+ * unobtrusive, sits beside the essay title above the reader-POV
+ * question. */
+.post-on-social__score-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.post-on-social__score-chip[data-fit="yes"] {
+  color: var(--color-forest);
+  border-color: var(--color-forest);
+}
+
+/* ── Step 2 — reader-POV prompt ─────────────────────────────── */
+.post-on-social__prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 32px 0 8px;
+  text-align: center;
+}
+.post-on-social__prompt-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
+  justify-content: center;
+}
+.post-on-social__prompt-source {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.post-on-social__prompt-reason {
+  margin: 0;
+  max-width: 560px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+.post-on-social__prompt-question {
+  margin: 0;
+  max-width: 640px;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--color-foreground);
+}
+.post-on-social__read-again {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-top: 4px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.post-on-social__read-again:hover {
+  color: var(--color-accent-strong);
+}
+
+/* ── Step 2 — inline composer ───────────────────────────────── */
+.post-on-social__composer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+.post-on-social__textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md, 14px);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+.post-on-social__textarea:focus {
+  border-color: var(--color-accent-strong);
+}
+.post-on-social__compose-actions {
+  display: flex;
+  justify-content: flex-end;
   gap: 10px;
   align-items: center;
 }
-.linkedin-fit__check-all {
+.post-on-social__copy {
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  padding: 9px 18px;
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.post-on-social__copy:hover:not(:disabled) {
+  background: var(--color-hover);
+  color: var(--color-foreground);
+  border-color: var(--color-accent);
+}
+.post-on-social__copy:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.post-on-social__mark-posted {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 12px 22px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-accent-strong);
   background: var(--color-accent-strong);
   color: #ffffff;
   cursor: pointer;
-  transition: background 0.15s ease, opacity 0.15s ease;
+  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
 }
-.linkedin-fit__check-all:hover { background: #4f46e5; }
-.linkedin-fit__check-all:disabled { opacity: 0.55; cursor: default; }
-
-/* Image-first preview. The stitched draft renders as one or more
- * tinker-branded PNGs; the page shows them stacked so the founder
- * sees exactly what saves to camera roll. */
-.linkedin-fit__draft {
-  display: block;
-}
-.linkedin-fit__previews {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  align-items: center;
-}
-.linkedin-fit__preview-frame {
-  width: 100%;
-  max-width: 540px;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-.linkedin-fit__preview {
-  width: 100%;
-  height: auto;
-  display: block;
-  border-radius: 14px;
-  box-shadow: 0 1px 4px rgba(45, 90, 61, 0.08);
-}
-.linkedin-fit__preview-caption {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--color-muted);
-  letter-spacing: 0.02em;
-}
-
-.linkedin-fit__loading {
-  display: flex;
-  justify-content: center;
-  padding: 40px 0;
-}
-
-.linkedin-fit__meta {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-/* Verdict labels carry over for the error state on the draft surface. */
-.linkedin-fit__verdict-label {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-.linkedin-fit__verdict-label--err { color: #b23a3a; }
-.linkedin-fit__verdict-reason {
-  margin: 6px 0 0;
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--color-foreground);
-}
-
-/* "Copy to clipboard" sits in a quieter register than the primary
- * "Stitch a new draft" action. Borderless until hover. */
-.linkedin-fit__check {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 9px 16px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-muted);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-.linkedin-fit__check:hover {
-  background: var(--color-hover);
-  color: var(--color-foreground);
-  border-color: var(--color-accent);
-}
-.linkedin-fit__check:disabled { opacity: 0.55; cursor: default; }
-.linkedin-fit__post {
-  border-color: transparent;
-}
-.linkedin-fit__post:hover {
-  border-color: var(--color-accent);
-}
-.linkedin-fit__post[hidden] { display: none; }
-
-/* Copy pill — a compact icon + truncated verbatim preview. Click
- * copies the full verbatim string. The icon previews the action; the
- * snippet previews the words that will land in the clipboard. */
-.linkedin-fit__copy-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 320px;
-  padding: 7px 14px 7px 11px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-muted);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  line-height: 1.3;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-.linkedin-fit__copy-pill:hover {
-  background: var(--color-hover);
-  color: var(--color-foreground);
-  border-color: var(--color-accent);
-}
-.linkedin-fit__copy-pill[hidden] { display: none; }
-.linkedin-fit__copy-pill svg {
-  flex: 0 0 auto;
-}
-.linkedin-fit__copy-preview {
-  display: inline-block;
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-style: italic;
-}
-
-.linkedin-fit__empty {
-  margin: 0;
-  padding: 40px 0;
-  text-align: center;
-  font-size: 14px;
-  color: var(--color-muted);
+.post-on-social__mark-posted:hover:not(:disabled) { background: #4f46e5; }
+.post-on-social__mark-posted:active:not(:disabled) { transform: translateY(1px); }
+.post-on-social__mark-posted:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 @media (max-width: 539px) {
-  .linkedin-fit__inner { padding: 32px 18px 60px; }
-  .linkedin-fit__title { font-size: 26px; }
-  .linkedin-fit__draft { font-size: 16px; padding: 20px 0; }
+  .post-on-social__inner { padding: 32px 18px 60px; gap: 18px; }
+  .post-on-social__title { font-size: 26px; }
+  .post-on-social__platforms { grid-template-columns: 1fr; }
+  .post-on-social__prompt-question { font-size: 22px; }
+  .post-on-social__compose-actions { flex-direction: column-reverse; align-items: stretch; }
+  .post-on-social__mark-posted { padding: 14px 22px; }
 }
 
 .category-feed[hidden] { display: none !important; }
