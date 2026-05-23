@@ -1,4 +1,4 @@
-/* tinker — pitches (v0.104)
+/* tinker — pitches (v0.105)
  *
  * The founder's writings live in one or more pitches. Each pitch is a
  * full eleven-slide deck — same shape as pitch-deck.md — with verbatim
@@ -7,9 +7,13 @@
  * and the active selection defaults to the most robust pitch (most
  * deck headings covered by at least one phrase).
  *
- * This module owns the unified state. The sidebar tree renders the
- * active pitch's deck, the same way it used to render the singular
- * tree blob.
+ * This module owns local pitch state — active selection, personal
+ * title editing, deck expand/collapse, per-classify upsert. The AI
+ * organization work (cluster off-pitch writings, name pitches whose
+ * writings drifted) used to run from this file on every hydrate; it
+ * now lives behind /api/pitches/organize. This module just debounces
+ * a single trigger call when writings change and folds the persisted
+ * blob back via the sync layer.
  *
  * Storage:
  *   - tinker.pitches.v1
@@ -17,8 +21,9 @@
  *         pitches: [
  *           {
  *             id: "p_<8>",
- *             title: "<one capitalized word>" | null,
- *             autoTitled: bool,           // false once the founder renames
+ *             aiTitle: string | null,
+ *             personalTitle: string | null,
+ *             aiTitleSourceHash: string | null,
  *             deck: { [deckHeading]: [phraseRecord, ...] },
  *             meta: { mostRecentlyTouched, expanded, lastClassifyFailedAt },
  *             createdAt: <ts>,
@@ -30,16 +35,11 @@
  *
  * One-shot migration: if tinker.pitches.v1 doesn't exist and
  * tinker.tree.v1 does, wrap the tree as pitches[0] with a placeholder
- * title that gets auto-named on the next online boot.
+ * title that gets filled in the next time the organize job runs.
  *
  * Events:
  *   - "tinker:pitches-changed"        any pitch state changed.
  *   - "tinker:active-pitch-changed"   active selection changed.
- *
- * Wired into tinker:writing-saved: when a fresh classify lands and
- * the writing wasn't placed in any pitch's deck (the universal
- * classifier returned null), schedule a rehome via /api/alt-pitches
- * so the writing finds — or seeds — its own pitch.
  */
 
 (() => {
@@ -51,7 +51,11 @@
   const ESSAYS_KEY = "tinker.essays.v1";
   const TOKEN_KEY = "tinker_jwt";
 
-  const REGEN_DEBOUNCE_MS = 1500;
+  // Debounce window for the backend organize job. Coalesces a typing
+  // burst (multiple writing-saved events in quick succession) into
+  // one POST. The job itself is idempotent, so worst case we make
+  // one extra round-trip.
+  const ORGANIZE_DEBOUNCE_MS = 2500;
   const MAX_PHRASES_PER_HEADING = 2;
 
   // The eleven deck headings, same as sidebar-tree.js. Duplicated
@@ -248,13 +252,12 @@
   // ── State ──────────────────────────────────────────────────────────
 
   let blob = loadPitchesBlob();
-  let regenTimer = null;
-  let regenInflight = false;
-  let lastRegenHash = null;
-  // Tracks which auto-titled pitches we've already kicked off a
-  // naming call for, so a transient failure doesn't loop on every
-  // event.
-  const lastNameAttemptAt = new Map();
+  let organizeTimer = null;
+  let organizeInflight = false;
+  // Stable hash of the last set of off-pitch ids we sent to the
+  // backend job. Re-firing for the same set is a no-op on the
+  // server, so we just skip the round-trip.
+  let lastOrganizeHash = null;
 
   function save() {
     saveJson(PITCHES_KEY, blob);
@@ -382,25 +385,6 @@
     return setPersonalTitle(id, newTitle);
   }
 
-  function titlesMatch(pitch, candidate) {
-    const c = candidate.toLowerCase();
-    return (pitch.aiTitle || "").toLowerCase() === c
-      || (pitch.personalTitle || "").toLowerCase() === c;
-  }
-
-  // AI-generated titles: a single word, 1-14 letters, any case. This
-  // shape is enforced both server-side (in /api/alt-pitches) and
-  // client-side when folding rehome results.
-  function sanitizeAiTitle(s) {
-    if (typeof s !== "string") return null;
-    const trimmed = s.trim();
-    if (!trimmed) return null;
-    const firstWord = trimmed.split(/\s+/)[0];
-    const stripped = firstWord.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, "");
-    if (stripped.length < 1 || stripped.length > 14) return null;
-    return stripped;
-  }
-
   // Personal titles: free-form, but capped at 30 chars so the
   // dropdown chip stays readable. Allows spaces, punctuation,
   // numbers — whatever helps the founder spot the pitch fast.
@@ -419,10 +403,11 @@
     const targetId = pitchId || effectiveActiveId();
     let pitch = blob.pitches.find((p) => p.id === targetId);
 
-    // Cold-start: no pitches yet. Create the first one with a
-    // placeholder title; the auto-namer will fill it in shortly.
+    // Cold-start: no pitches yet. Create the first one with no
+    // title; the next /api/pitches/organize run will name it from
+    // the writings now slotted into its deck.
     if (!pitch) {
-      pitch = createPitchInternal({ title: null, autoTitled: true });
+      pitch = createPitchInternal({ aiTitle: null, personalTitle: null });
     }
 
     // Remove this writing from every pitch (across the whole blob) so
@@ -511,7 +496,14 @@
     return pitch;
   }
 
-  // ── Off-pitch + rehome ───────────────────────────────────────────
+  // ── Off-pitch + organize ─────────────────────────────────────────
+  //
+  // The actual clustering + naming work happens server-side in
+  // /api/pitches/organize. The client just identifies whether
+  // anything has drifted since the last trigger and, if so, fires a
+  // single debounced POST. The job persists the new blob to
+  // TinkerUserData and returns it; we fold the reply back in place
+  // of our local blob.
 
   function writingIdsInAnyPitch() {
     const ids = new Set();
@@ -544,213 +536,100 @@
     return out;
   }
 
-  // Stable hash of (off-pitch id set ⊕ existing pitch titles). Same
-  // off-pitch ids AND same set of existing pitch contexts → same hash
-  // → skip the API call. Bumps when a new alt pitch lands or a
-  // writing flips in/out of being slotted.
-  function rehomeHash(offIds, existingTitles) {
-    const ids = offIds.slice().sort();
-    const titles = existingTitles.slice().sort();
+  // Stable hash of (off-pitch ids ⊕ pitch ids needing a fresh AI
+  // name). Same hash → no work for the backend job → skip the POST
+  // entirely. The job itself is idempotent, so this is purely a
+  // round-trip saver.
+  function organizeHash() {
+    const offIds = listOffPitchWritings().map((w) => w.id).sort();
+    const staleIds = [];
+    for (const p of blob.pitches) {
+      const writingIds = new Set();
+      for (const h of DECK_HEADINGS) {
+        for (const rec of (p.deck[h] || [])) writingIds.add(rec.writingId);
+      }
+      if (writingIds.size === 0) continue;
+      const sorted = Array.from(writingIds).sort();
+      let inner = 5381;
+      for (const id of sorted) {
+        for (let i = 0; i < id.length; i++) inner = ((inner << 5) + inner + id.charCodeAt(i)) | 0;
+      }
+      const writingsHash = `${(inner >>> 0).toString(36)}_${sorted.length}`;
+      if (!p.aiTitle || writingsHash !== p.aiTitleSourceHash) staleIds.push(p.id);
+    }
+    staleIds.sort();
     let h = 5381;
     const mix = (s) => {
       for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
       h = ((h << 5) + h + 124) | 0;
     };
-    for (const x of ids) mix(x);
+    for (const x of offIds) mix(x);
     h = ((h << 5) + h + 999) | 0;
-    for (const x of titles) mix(x);
-    return `h${(h >>> 0).toString(36)}_${ids.length}_${titles.length}`;
+    for (const x of staleIds) mix(x);
+    return `h${(h >>> 0).toString(36)}_${offIds.length}_${staleIds.length}`;
   }
 
-  function scheduleRegenerate() {
-    if (regenTimer) clearTimeout(regenTimer);
-    regenTimer = setTimeout(() => {
-      regenTimer = null;
-      regenerate().catch(() => { /* logged inside */ });
-      autoNamePitches().catch(() => { /* logged inside */ });
-    }, REGEN_DEBOUNCE_MS);
+  function scheduleOrganize() {
+    if (organizeTimer) clearTimeout(organizeTimer);
+    organizeTimer = setTimeout(() => {
+      organizeTimer = null;
+      triggerOrganize().catch(() => { /* logged inside */ });
+    }, ORGANIZE_DEBOUNCE_MS);
   }
 
-  async function regenerate() {
-    if (regenInflight) return;
-    const off = listOffPitchWritings();
-    // Hand the model whatever label best identifies each existing
-    // pitch — personal first (that's how the founder names it),
-    // then ai (so the model can re-use a label it previously
-    // generated). Skip pitches with neither.
-    const existingPitchTitles = blob.pitches
-      .map((p) => p.personalTitle || p.aiTitle)
-      .filter((t) => typeof t === "string" && t.length > 0);
+  async function triggerOrganize() {
+    if (organizeInflight) return;
 
-    if (off.length === 0) return;
-
-    const hash = rehomeHash(off.map((w) => w.id), existingPitchTitles);
-    if (hash === lastRegenHash) return;
+    const hash = organizeHash();
+    // Nothing drifted; the persisted server blob is already current.
+    if (hash === lastOrganizeHash) return;
 
     let token = "";
     try { token = localStorage.getItem(TOKEN_KEY) || ""; }
     catch { /* ignore */ }
     if (!token) return;
 
-    regenInflight = true;
-    lastRegenHash = hash;
+    organizeInflight = true;
+    lastOrganizeHash = hash;
     try {
-      const res = await fetch("/api/alt-pitches", {
+      const res = await fetch("/api/pitches/organize", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          mode: "cluster",
-          writings: off.map((w) => ({ id: w.id, snippet: w.body })),
-          existingPitchTitles,
-        }),
+        // Body is empty — the server reads essays/drafts/pitches
+        // straight from TinkerUserData. Whatever the client just
+        // PUT via the sync layer is what the job sees.
+        body: "{}",
       });
       if (!res.ok) {
-        try { console.warn(`[tinker.pitches] rehome ${res.status}`); }
+        try { console.warn(`[tinker.pitches] organize ${res.status}`); }
         catch { /* ignore */ }
+        // Clear the hash so a retry on the next event isn't skipped.
+        lastOrganizeHash = null;
         return;
       }
       const json = await res.json().catch(() => null);
-      if (!json || !Array.isArray(json.pitches)) return;
-
-      foldRehomeResults(json.pitches);
+      if (!json || !json.pitches || typeof json.pitches !== "object") return;
+      applyServerBlob(json.pitches);
     } catch (err) {
-      try { console.warn(`[tinker.pitches] rehome network error`, err); }
+      try { console.warn(`[tinker.pitches] organize network error`, err); }
       catch { /* ignore */ }
+      lastOrganizeHash = null;
     } finally {
-      regenInflight = false;
+      organizeInflight = false;
     }
   }
 
-  // Apply server rehome output to local pitches. Each incoming
-  // bucket is matched to an existing pitch (by aiTitle OR
-  // personalTitle, case-insensitive) or seeds a new one. Each
-  // writing inside gets folded via upsertPhrase so the deck-slot
-  // bookkeeping (cap, sort, mostRecentlyTouched) runs the same way
-  // as the live classify flow.
-  function foldRehomeResults(rehomedPitches) {
-    let changed = false;
-    for (const incoming of rehomedPitches) {
-      if (!incoming || typeof incoming !== "object") continue;
-      const title = sanitizeAiTitle(incoming.title);
-      if (!title) continue;
-      let pitch = blob.pitches.find((p) => titlesMatch(p, title));
-      if (!pitch) {
-        pitch = createPitchInternal({ aiTitle: title, personalTitle: null });
-        changed = true;
-      } else if (!pitch.aiTitle) {
-        // First-time AI title for a founder-seeded pitch — record it
-        // so the dropdown can show the canonical AI label alongside
-        // the personal one.
-        pitch.aiTitle = title;
-        changed = true;
-      }
-
-      const writings = Array.isArray(incoming.writings) ? incoming.writings : [];
-      for (const w of writings) {
-        if (!w || typeof w !== "object") continue;
-        if (typeof w.id !== "string") continue;
-        if (!DECK_HEADINGS.includes(w.deckHeading)) continue;
-        const phrase = w.phrase;
-        if (!phrase || typeof phrase !== "object") continue;
-        if (typeof phrase.offset !== "number" || typeof phrase.length !== "number") continue;
-        upsertPhrase({
-          pitchId: pitch.id,
-          deckHeading: w.deckHeading,
-          writingId: w.id,
-          offset: phrase.offset,
-          length: phrase.length,
-          addedAt: Date.now(),
-        });
-        changed = true;
-      }
-    }
-    if (changed) {
-      save();
-      fire("tinker:pitches-changed");
-    }
-  }
-
-  // Stable hash of the sorted writingIds in a pitch. Used to decide
-  // when the AI title needs to evolve — if the writings backing a
-  // pitch have changed since the last name we ran, fire another
-  // naming call.
-  function writingsHashForPitch(pitch) {
-    const ids = new Set();
-    for (const h of DECK_HEADINGS) {
-      for (const rec of (pitch.deck[h] || [])) ids.add(rec.writingId);
-    }
-    const sorted = Array.from(ids).sort();
-    let h = 5381;
-    for (const id of sorted) {
-      for (let i = 0; i < id.length; i++) h = ((h << 5) + h + id.charCodeAt(i)) | 0;
-      h = ((h << 5) + h + 124) | 0;
-    }
-    return `h${(h >>> 0).toString(36)}_${sorted.length}`;
-  }
-
-  // For any pitch whose AI title is stale (writings have changed
-  // since the title was last generated, or there's no aiTitle at
-  // all), ask the model to (re)name it from its current writings.
-  // Cheap call (one bucket, one title). Rate-limited per-pitch so
-  // a failing endpoint doesn't loop.
-  async function autoNamePitches() {
-    const candidates = blob.pitches.filter((p) => {
-      const writingHash = writingsHashForPitch(p);
-      if (!p.aiTitle) return true;
-      return writingHash !== p.aiTitleSourceHash;
-    });
-    if (candidates.length === 0) return;
-
-    let token = "";
-    try { token = localStorage.getItem(TOKEN_KEY) || ""; }
-    catch { /* ignore */ }
-    if (!token) return;
-
-    for (const pitch of candidates) {
-      const lastAttempt = lastNameAttemptAt.get(pitch.id) || 0;
-      if (Date.now() - lastAttempt < 10000) continue;
-      lastNameAttemptAt.set(pitch.id, Date.now());
-
-      const writingIds = new Set();
-      for (const h of DECK_HEADINGS) {
-        for (const rec of (pitch.deck[h] || [])) writingIds.add(rec.writingId);
-      }
-      const writings = [];
-      for (const id of writingIds) {
-        const body = bodyForWriting(id);
-        if (body && body.trim()) writings.push({ id, snippet: body });
-      }
-      // An empty pitch (no writings yet) waits for content before
-      // the AI tries to name it. The personal title carries the UI
-      // in the meantime.
-      if (writings.length === 0) continue;
-
-      const writingHash = writingsHashForPitch(pitch);
-
-      try {
-        const res = await fetch("/api/alt-pitches", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ mode: "name", writings }),
-        });
-        if (!res.ok) continue;
-        const json = await res.json().catch(() => null);
-        const first = json && Array.isArray(json.pitches) ? json.pitches[0] : null;
-        const title = first && sanitizeAiTitle(first.title);
-        if (title) {
-          pitch.aiTitle = title;
-          pitch.aiTitleSourceHash = writingHash;
-          save();
-          fire("tinker:pitches-changed");
-        }
-      } catch { /* ignore; will retry on next regenerate */ }
-    }
+  // Replace the in-memory blob with the server's authoritative one
+  // and re-mirror to localStorage. The sync layer already wrote it
+  // during hydrate; this path covers the case where the organize
+  // call returns a fresh blob mid-session.
+  function applyServerBlob(serverBlob) {
+    saveJson(PITCHES_KEY, serverBlob);
+    blob = loadPitchesBlob();
+    fire("tinker:pitches-changed");
   }
 
   // ── Server hydrate ────────────────────────────────────────────────
@@ -778,8 +657,11 @@
     toggleExpanded,
     pitchRobustness,
     listOffPitchWritings,
-    scheduleRegenerate,
-    regenerate,
+    scheduleOrganize,
+    triggerOrganize,
+    // Back-compat alias for callers still on the old name. The
+    // behaviour is now "ping the backend job, debounced".
+    scheduleRegenerate: scheduleOrganize,
     snapshot() { return JSON.parse(JSON.stringify(blob)); },
   };
   window.tinkerPitches = api;
@@ -789,23 +671,28 @@
   window.tinkerAltPitches = api;
 
   // ── Event hooks ────────────────────────────────────────────────────
+  //
+  // Boot and hydrate no longer fire the organize job — they just
+  // reload from storage so the UI reflects whatever the sync layer
+  // pulled from the server. Organization happens after writing
+  // changes, off the app-load path. Auth-changed is treated as a
+  // writing event because a fresh sign-in might surface essays /
+  // drafts the local browser has never seen before.
 
   window.addEventListener("tinker:writing-saved", () => {
-    scheduleRegenerate();
+    scheduleOrganize();
   });
 
   window.addEventListener("tinker:hydrated", () => {
     reloadFromStorage();
-    scheduleRegenerate();
   });
 
   window.addEventListener("tinker:auth-changed", () => {
-    scheduleRegenerate();
+    scheduleOrganize();
   });
 
   function boot() {
     fire("tinker:pitches-changed");
-    scheduleRegenerate();
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot, { once: true });
