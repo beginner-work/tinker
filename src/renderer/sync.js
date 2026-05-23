@@ -22,9 +22,11 @@
  *   - taxonomy → "tinker.taxonomy.v1" (object)
  *   - tree     → "tinker.tree.v1"     (object: { [deckHeading]: [...] })
  *   - pitches  → "tinker.pitches.v1"  (object: { pitches, activeId, ... })
- *                personalTitle (the founder's label) lives in here, so
- *                a hydrate that races a not-yet-pushed rename gets a
- *                local-preferred merge to keep the label.
+ *                authoritatively produced by the backend organize job
+ *                (/api/pitches/organize). PUT carries user-controlled
+ *                fields (personalTitle, activeId, expanded) between
+ *                job runs; a hydrate that races a not-yet-pushed
+ *                rename gets a local-preferred merge to keep the label.
  *   - linkedin-pitch-draft → "tinker.linkedinPitchDraft.v1"
  *                            (object: { segments, essayIds, ts })
  *
@@ -139,11 +141,6 @@
     setLs(LS_TREE, JSON.stringify(data));
     return true;
   }
-  function applyLinkedinPitchDraftFromServer(data) {
-    if (!data || typeof data !== "object") return false;
-    setLs(LS_LINKEDIN_PITCH_DRAFT, JSON.stringify(data));
-    return true;
-  }
   // The founder's personalTitle (their label for a pitch) is written
   // locally and pushed on a 1500ms debounce. A boot or auth-changed
   // hydrate that races that debounce would otherwise overwrite the
@@ -172,6 +169,11 @@
       return p;
     });
     setLs(LS_PITCHES, JSON.stringify(merged));
+    return true;
+  }
+  function applyLinkedinPitchDraftFromServer(data) {
+    if (!data || typeof data !== "object") return false;
+    setLs(LS_LINKEDIN_PITCH_DRAFT, JSON.stringify(data));
     return true;
   }
 
