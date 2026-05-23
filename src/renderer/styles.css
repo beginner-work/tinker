@@ -1540,16 +1540,6 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   font-size: 15px;
   color: var(--color-muted);
 }
-.post-on-social__posted-confirm {
-  margin: 0;
-  padding: 80px 0 24px;
-  text-align: center;
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.005em;
-  color: var(--color-forest);
-}
 .post-on-social__back-row {
   display: flex;
   justify-content: center;

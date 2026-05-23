@@ -711,6 +711,9 @@
   window.tinkerOnWritingClose = () => closeActiveDraft();
   window.tinkerOnWritingPublish = (draft, stitched) => store.publish(draft, stitched);
   window.tinkerOnDraftChange = (draftId, patch) => store.updateDraft(draftId, patch);
+  // Used by post-on-social.js after the founder marks a post as
+  // posted — drops them back at the welcome screen.
+  window.tinkerShowFeed = () => showFeed();
 
   // Used by the seed list in the sidebar: open a fresh draft
   // pre-filled with scene context so the founder jumps straight into

@@ -407,22 +407,12 @@
       const text = textarea.value;
       if (!text.trim()) return;
       markPosted(essay.id, platform, text);
-      renderStep2Posted(platform);
+      if (typeof window.tinkerShowFeed === "function") {
+        window.tinkerShowFeed();
+      }
     });
 
     setTimeout(() => { textarea.focus(); }, 30);
-  }
-
-  function renderStep2Posted(platform) {
-    viewEl.innerHTML =
-      `<div class="post-on-social__inner">` +
-        `<div class="post-on-social__step-indicator">2 / 2</div>` +
-        `<p class="post-on-social__posted-confirm">${escapeHtml(`Posted to ${platform}.`)}</p>` +
-        `<div class="post-on-social__back-row">` +
-          `<button type="button" class="post-on-social__back" data-role="back">Pick another platform →</button>` +
-        `</div>` +
-      `</div>`;
-    wireBackButton();
   }
 
   function fallbackCopy(text) {
