@@ -382,42 +382,6 @@
     return setPersonalTitle(id, newTitle);
   }
 
-  // Founder-created pitch: seeded with a personal title but no
-  // writings yet. The personal title becomes the rehome hint — the
-  // model is told to strongly prefer routing relevant off-pitch
-  // writings into this bucket. Once writings land, the auto-namer
-  // also generates an aiTitle that sits alongside the personal one.
-  // Returns the new pitch's id, or null if the title was rejected.
-  function createPitch(personalName) {
-    const clean = sanitizePersonalTitle(personalName);
-    if (!clean) return null;
-    // Don't duplicate an existing pitch that matches by either
-    // title (case-insensitive). Re-activate it instead — the
-    // founder gets the same "I just made it" feeling without
-    // orphaning their writings.
-    const existing = blob.pitches.find((p) => titlesMatch(p, clean));
-    if (existing) {
-      blob.activeId = existing.id;
-      save();
-      fire("tinker:active-pitch-changed");
-      return existing.id;
-    }
-    const pitch = createPitchInternal({
-      aiTitle: null,
-      personalTitle: clean,
-    });
-    blob.activeId = pitch.id;
-    // Reset the rehome hash so the next scheduleRegenerate actually
-    // fires a fresh call with this title as a hint — otherwise the
-    // dedupe would skip until off-pitch ids change.
-    lastRegenHash = null;
-    save();
-    fire("tinker:pitches-changed");
-    fire("tinker:active-pitch-changed");
-    scheduleRegenerate();
-    return pitch.id;
-  }
-
   function titlesMatch(pitch, candidate) {
     const c = candidate.toLowerCase();
     return (pitch.aiTitle || "").toLowerCase() === c
@@ -807,7 +771,6 @@
     setActivePitch,
     setPersonalTitle,
     renamePitch,
-    createPitch,
     upsertPhrase,
     clearWritingFromAllPitches,
     markClassifyFailed,

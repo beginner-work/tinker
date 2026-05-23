@@ -321,53 +321,6 @@ test("setActivePitch switches the active selection", () => {
   assert.equal(pitches.getActivePitchId(), "p_two");
 });
 
-test("createPitch seeds an empty pitch with the founder-supplied personal title", () => {
-  const { pitches } = loadInSandbox();
-  const id = pitches.createPitch("My Coffee Idea");
-  assert.ok(id);
-  const snap = pitches.snapshot();
-  assert.equal(snap.pitches.length, 1);
-  assert.equal(snap.pitches[0].personalTitle, "My Coffee Idea");
-  assert.equal(snap.pitches[0].aiTitle, null, "AI title fills in once writings land");
-  assert.equal(snap.activeId, id);
-});
-
-test("createPitch preserves lowercase titles", () => {
-  const { pitches } = loadInSandbox();
-  pitches.createPitch("tinker");
-  assert.equal(pitches.snapshot().pitches[0].personalTitle, "tinker");
-});
-
-test("createPitch keeps multi-word personal titles intact (free-form)", () => {
-  const { pitches } = loadInSandbox();
-  pitches.createPitch("coffee shop business");
-  assert.equal(pitches.snapshot().pitches[0].personalTitle, "coffee shop business");
-});
-
-test("createPitch reuses an existing pitch when the personal title matches", () => {
-  const { pitches } = loadInSandbox();
-  const idA = pitches.createPitch("Tinker");
-  const idB = pitches.createPitch("tinker");
-  assert.equal(idA, idB, "second call should re-activate the existing pitch");
-  assert.equal(pitches.snapshot().pitches.length, 1);
-});
-
-test("createPitch matches against an existing pitch's aiTitle too", () => {
-  // A pitch already has its AI title; the founder tries to add a
-  // pitch with that same name — should just re-activate.
-  const seedPitches = {
-    pitches: [{
-      id: "p_one", aiTitle: "Beans", personalTitle: null,
-      deck: {}, meta: {}, createdAt: 1,
-    }],
-    activeId: "p_one",
-  };
-  const { pitches } = loadInSandbox({ seedPitches });
-  const id = pitches.createPitch("Beans");
-  assert.equal(id, "p_one");
-  assert.equal(pitches.snapshot().pitches.length, 1);
-});
-
 test("default active pick = most robust pitch (most covered headings)", () => {
   const draftA = { id: "d_a", stitched: { body: "alpha body content here for the test" } };
   const draftB = { id: "d_b", stitched: { body: "beta body content here for the test" } };
