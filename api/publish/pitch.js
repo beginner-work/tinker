@@ -35,6 +35,12 @@ const MAX_TITLE_LEN = 24;
 const MAX_PHRASES_PER_HEADING = 6;
 const MAX_PHRASE_LEN = 600;
 
+// The daily-beginner reader lives on the beginner repo, deployed at
+// beginner.work in production. The publish endpoint hands the client
+// an absolute URL so the sidebar button can open the reader directly
+// in a new tab — tinker and beginner are different origins.
+const READER_HOST = "https://beginner.work";
+
 function extractBearer(header) {
   if (!header || typeof header !== "string") return "";
   const m = header.match(/^Bearer\s+(\S+)$/i);
@@ -181,12 +187,13 @@ async function handler(req, res) {
       create: { userId, kind, data },
       update: { data },
     });
+    const readerUrl = `${READER_HOST}/daily/?u=${encodeURIComponent(userId)}&t=${encodeURIComponent(parsed.slug)}`;
     res.status(200).json({
       ok: true,
       slug: parsed.slug,
       beatCount: rendered.beatCount,
       updatedAt: saved.updatedAt,
-      readerPath: `/daily/?u=${encodeURIComponent(userId)}&t=${encodeURIComponent(parsed.slug)}`,
+      readerUrl,
     });
   } catch (err) {
     res.status(500).json({ error: err.message || "Internal error" });

@@ -583,9 +583,19 @@
       render();
       const result = await pm.publishPitch(active.id);
       publishState = result && result.ok
-        ? { ok: true, readerPath: result.readerPath }
+        ? { ok: true, readerUrl: result.readerUrl }
         : { ok: false, error: (result && result.error) || "Publish failed" };
       render();
+      // On success, open the daily-beginner reader so the founder
+      // sees what just shipped. The reader lives on the beginner
+      // origin, so the publish endpoint hands us an absolute URL.
+      if (result && result.ok && result.readerUrl) {
+        if (window.tinker && typeof window.tinker.openExternal === "function") {
+          window.tinker.openExternal(result.readerUrl);
+        } else {
+          window.open(result.readerUrl, "_blank", "noopener,noreferrer");
+        }
+      }
       if (publishToastTimer) clearTimeout(publishToastTimer);
       publishToastTimer = setTimeout(() => {
         publishState = "idle";

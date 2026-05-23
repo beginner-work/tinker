@@ -711,7 +711,7 @@
     return {
       ok: true,
       slug: json.slug,
-      readerPath: json.readerPath,
+      readerUrl: json.readerUrl,
       beatCount: json.beatCount,
       updatedAt: json.updatedAt,
     };

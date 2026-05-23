@@ -172,8 +172,8 @@ test("POST upserts a published row and returns the reader path", async () => {
   assert.equal(res.captured.body.slug, "tinker");
   assert.equal(res.captured.body.beatCount, 2);
   assert.equal(
-    res.captured.body.readerPath,
-    "/daily/?u=user-test-abc&t=tinker",
+    res.captured.body.readerUrl,
+    "https://beginner.work/daily/?u=user-test-abc&t=tinker",
   );
   assert.equal(prismaCalls.length, 1);
   assert.equal(prismaCalls[0][2], "published:tinker");
