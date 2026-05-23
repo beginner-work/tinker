@@ -21,6 +21,13 @@
  * /api/publish/read endpoint over in the beginner repo." The styling
  * is owned server-side (frontmatter pulled from pitch-deck.md); the
  * body is whatever the client just sent for each beat.
+ *
+ * Database topology note: tinker and beginner share the production
+ * Neon endpoint via TinkerUserData, but beginner preview deploys read
+ * from an auto-branched preview database. A tinker-preview → beginner-
+ * preview round-trip therefore won't find the row; verify on prod
+ * after merge. See README.md → "Shared database with the beginner
+ * repo" for the full picture.
  */
 
 "use strict";
