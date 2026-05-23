@@ -36,22 +36,74 @@ const MAX_PHRASES_PER_HEADING = 6;
 const MAX_PHRASE_LEN = 600;
 
 // The daily-beginner reader lives on the beginner repo. In production
-// it's served from beginner.work; in Vercel preview deploys both repos
-// publish on the same branch slug under
-//   <project>-git-<branch>-<scope>.vercel.app
-// so the matching beginner preview is just this tinker deployment's
-// URL with the leading "tinker-" swapped for "beginner-".
+// it's served from beginner.work; in Vercel preview deploys we want
+// the matching beginner preview for the same git branch so the founder
+// can test publish-then-view end-to-end inside a single PR.
 //
-// BEGINNER_PUBLIC_URL overrides everything (handy for local dev or for
-// pointing a tinker deploy at a specific beginner branch).
-function readerHost() {
+// Resolution order:
+//   1. BEGINNER_PUBLIC_URL env override (any env — handy for local dev).
+//   2. Production tinker deploy → https://beginner.work.
+//   3. Preview deploy → Vercel REST API lookup: find the latest READY
+//      preview for the beginner project on the same githubCommitRef.
+//      Requires VERCEL_TOKEN + VERCEL_TEAM_ID on the tinker Vercel
+//      project. This is the verification step — it confirms a beginner
+//      preview actually exists for this branch before handing back a
+//      URL.
+//   4. Fallback: swap the leading "tinker-git-" for "beginner-git-" in
+//      VERCEL_BRANCH_URL (the stable branch alias — NOT VERCEL_URL,
+//      which is a unique deployment hash that won't exist on the
+//      beginner project).
+//   5. Last resort: production beginner.work.
+async function lookupBeginnerPreviewViaApi(ref) {
+  const token = process.env.VERCEL_TOKEN;
+  const teamId = process.env.VERCEL_TEAM_ID;
+  const projectId = process.env.BEGINNER_VERCEL_PROJECT || "beginner";
+  if (!token || !teamId || !ref) return "";
+  const url = new URL("https://api.vercel.com/v6/deployments");
+  url.searchParams.set("app", projectId);
+  url.searchParams.set("target", "preview");
+  url.searchParams.set("state", "READY");
+  url.searchParams.set("meta-githubCommitRef", ref);
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("teamId", teamId);
+  let resp;
+  try {
+    resp = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    return "";
+  }
+  if (!resp.ok) return "";
+  let json;
+  try { json = await resp.json(); }
+  catch { return ""; }
+  const dep = json && Array.isArray(json.deployments) ? json.deployments[0] : null;
+  if (!dep) return "";
+  const alias = dep.meta && dep.meta.branchAlias;
+  if (alias) return `https://${alias}`;
+  if (dep.url) return `https://${dep.url}`;
+  return "";
+}
+
+function swapBranchAlias() {
+  const branchUrl = process.env.VERCEL_BRANCH_URL || "";
+  if (branchUrl.startsWith("tinker-git-")) {
+    return `https://beginner-git-${branchUrl.slice("tinker-git-".length)}`;
+  }
+  return "";
+}
+
+async function readerHost() {
   const override = process.env.BEGINNER_PUBLIC_URL;
   if (override) return override.replace(/\/+$/, "");
+  if (process.env.VERCEL_ENV === "production") return "https://beginner.work";
   if (process.env.VERCEL_ENV === "preview") {
-    const url = process.env.VERCEL_URL || "";
-    if (url.startsWith("tinker-")) {
-      return `https://beginner-${url.slice("tinker-".length)}`;
-    }
+    const ref = process.env.VERCEL_GIT_COMMIT_REF || "";
+    const fromApi = await lookupBeginnerPreviewViaApi(ref);
+    if (fromApi) return fromApi;
+    const fromSwap = swapBranchAlias();
+    if (fromSwap) return fromSwap;
   }
   return "https://beginner.work";
 }
@@ -202,7 +254,7 @@ async function handler(req, res) {
       create: { userId, kind, data },
       update: { data },
     });
-    const readerUrl = `${readerHost()}/daily/?u=${encodeURIComponent(userId)}&t=${encodeURIComponent(parsed.slug)}`;
+    const readerUrl = `${await readerHost()}/daily/?u=${encodeURIComponent(userId)}&t=${encodeURIComponent(parsed.slug)}`;
     res.status(200).json({
       ok: true,
       slug: parsed.slug,
@@ -221,3 +273,5 @@ module.exports._raw = handler;
 module.exports._slugify = slugify;
 module.exports._validateBody = validateBody;
 module.exports._readerHost = readerHost;
+module.exports._lookupBeginnerPreviewViaApi = lookupBeginnerPreviewViaApi;
+module.exports._swapBranchAlias = swapBranchAlias;

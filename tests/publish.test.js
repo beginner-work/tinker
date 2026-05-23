@@ -204,26 +204,40 @@ test("slugify lowercases and replaces non-alphanumerics with hyphens", () => {
   assert.equal(publish._slugify("   "), "");
 });
 
-test("readerHost defaults to beginner.work", () => {
+test("readerHost defaults to beginner.work", async () => {
   const prev = { ...process.env };
-  delete process.env.BEGINNER_PUBLIC_URL;
-  delete process.env.VERCEL_ENV;
-  delete process.env.VERCEL_URL;
+  for (const k of ["BEGINNER_PUBLIC_URL", "VERCEL_ENV", "VERCEL_URL", "VERCEL_BRANCH_URL", "VERCEL_TOKEN", "VERCEL_TEAM_ID"]) {
+    delete process.env[k];
+  }
   try {
-    assert.equal(publish._readerHost(), "https://beginner.work");
+    assert.equal(await publish._readerHost(), "https://beginner.work");
   } finally {
     process.env = prev;
   }
 });
 
-test("readerHost swaps tinker→beginner on Vercel previews", () => {
+test("readerHost in production always returns beginner.work", async () => {
   const prev = { ...process.env };
   delete process.env.BEGINNER_PUBLIC_URL;
+  process.env.VERCEL_ENV = "production";
+  process.env.VERCEL_BRANCH_URL = "tinker-git-main-beginner-work.vercel.app";
+  try {
+    assert.equal(await publish._readerHost(), "https://beginner.work");
+  } finally {
+    process.env = prev;
+  }
+});
+
+test("readerHost falls back to VERCEL_BRANCH_URL swap when no API token", async () => {
+  const prev = { ...process.env };
+  delete process.env.BEGINNER_PUBLIC_URL;
+  delete process.env.VERCEL_TOKEN;
+  delete process.env.VERCEL_TEAM_ID;
   process.env.VERCEL_ENV = "preview";
-  process.env.VERCEL_URL = "tinker-git-claude-slide-deck-tinker-sync-chppv-beginner-work.vercel.app";
+  process.env.VERCEL_BRANCH_URL = "tinker-git-claude-slide-deck-tinker-sync-chppv-beginner-work.vercel.app";
   try {
     assert.equal(
-      publish._readerHost(),
+      await publish._readerHost(),
       "https://beginner-git-claude-slide-deck-tinker-sync-chppv-beginner-work.vercel.app",
     );
   } finally {
@@ -231,26 +245,108 @@ test("readerHost swaps tinker→beginner on Vercel previews", () => {
   }
 });
 
-test("readerHost honours BEGINNER_PUBLIC_URL override", () => {
+test("readerHost honours BEGINNER_PUBLIC_URL override", async () => {
   const prev = { ...process.env };
   process.env.BEGINNER_PUBLIC_URL = "http://localhost:5173/";
   process.env.VERCEL_ENV = "preview";
-  process.env.VERCEL_URL = "tinker-foo.vercel.app";
+  process.env.VERCEL_BRANCH_URL = "tinker-git-foo-beginner-work.vercel.app";
   try {
-    assert.equal(publish._readerHost(), "http://localhost:5173");
+    assert.equal(await publish._readerHost(), "http://localhost:5173");
   } finally {
     process.env = prev;
   }
 });
 
-test("readerHost falls back to production when preview URL doesn't match the tinker- prefix", () => {
+test("readerHost falls back to production when preview branch URL doesn't match the tinker-git- prefix", async () => {
   const prev = { ...process.env };
   delete process.env.BEGINNER_PUBLIC_URL;
+  delete process.env.VERCEL_TOKEN;
+  delete process.env.VERCEL_TEAM_ID;
   process.env.VERCEL_ENV = "preview";
-  process.env.VERCEL_URL = "something-else.vercel.app";
+  process.env.VERCEL_BRANCH_URL = "something-else.vercel.app";
   try {
-    assert.equal(publish._readerHost(), "https://beginner.work");
+    assert.equal(await publish._readerHost(), "https://beginner.work");
   } finally {
     process.env = prev;
+  }
+});
+
+test("readerHost prefers Vercel API lookup over the URL swap when configured", async () => {
+  const prev = { ...process.env };
+  const realFetch = globalThis.fetch;
+  delete process.env.BEGINNER_PUBLIC_URL;
+  process.env.VERCEL_ENV = "preview";
+  process.env.VERCEL_TOKEN = "tok";
+  process.env.VERCEL_TEAM_ID = "team_xyz";
+  process.env.VERCEL_GIT_COMMIT_REF = "claude/some-branch";
+  process.env.VERCEL_BRANCH_URL = "tinker-git-claude-some-branch-beginner-work.vercel.app";
+  const calls = [];
+  globalThis.fetch = async (url, opts) => {
+    calls.push({ url: String(url), headers: opts && opts.headers });
+    return {
+      ok: true,
+      json: async () => ({
+        deployments: [{
+          url: "beginner-abc123-beginner-work.vercel.app",
+          meta: { branchAlias: "beginner-git-claude-some-branch-beginner-work.vercel.app" },
+        }],
+      }),
+    };
+  };
+  try {
+    assert.equal(
+      await publish._readerHost(),
+      "https://beginner-git-claude-some-branch-beginner-work.vercel.app",
+    );
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /app=beginner/);
+    assert.match(calls[0].url, /meta-githubCommitRef=claude%2Fsome-branch/);
+    assert.match(calls[0].url, /teamId=team_xyz/);
+    assert.equal(calls[0].headers.Authorization, "Bearer tok");
+  } finally {
+    process.env = prev;
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("readerHost falls back to branch-alias swap when the API returns no deployments", async () => {
+  const prev = { ...process.env };
+  const realFetch = globalThis.fetch;
+  delete process.env.BEGINNER_PUBLIC_URL;
+  process.env.VERCEL_ENV = "preview";
+  process.env.VERCEL_TOKEN = "tok";
+  process.env.VERCEL_TEAM_ID = "team_xyz";
+  process.env.VERCEL_GIT_COMMIT_REF = "claude/some-branch";
+  process.env.VERCEL_BRANCH_URL = "tinker-git-claude-some-branch-beginner-work.vercel.app";
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ deployments: [] }) });
+  try {
+    assert.equal(
+      await publish._readerHost(),
+      "https://beginner-git-claude-some-branch-beginner-work.vercel.app",
+    );
+  } finally {
+    process.env = prev;
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("readerHost falls back gracefully when the API call throws", async () => {
+  const prev = { ...process.env };
+  const realFetch = globalThis.fetch;
+  delete process.env.BEGINNER_PUBLIC_URL;
+  process.env.VERCEL_ENV = "preview";
+  process.env.VERCEL_TOKEN = "tok";
+  process.env.VERCEL_TEAM_ID = "team_xyz";
+  process.env.VERCEL_GIT_COMMIT_REF = "claude/some-branch";
+  process.env.VERCEL_BRANCH_URL = "tinker-git-claude-some-branch-beginner-work.vercel.app";
+  globalThis.fetch = async () => { throw new Error("network is down"); };
+  try {
+    assert.equal(
+      await publish._readerHost(),
+      "https://beginner-git-claude-some-branch-beginner-work.vercel.app",
+    );
+  } finally {
+    process.env = prev;
+    globalThis.fetch = realFetch;
   }
 });
