@@ -422,12 +422,26 @@
   // verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
+  let addOpen = false;
 
   function renderSwitcher(pitches, activeId) {
     if (!switcherEl) return;
     if (!pitches || pitches.length === 0) {
       switcherEl.hidden = true;
       switcherEl.innerHTML = "";
+      return;
+    }
+    // While the founder is typing in the rename or add-pitch input,
+    // leave the switcher DOM alone. Background pitches-changed
+    // events (the rehome flow folding writings into pitches, the
+    // auto-namer landing a title) fire while they type — if we
+    // rebuilt the switcher on each one, the input gets detached
+    // from the DOM and on iOS the keyboard collapses with no way
+    // to programmatically re-open it outside a user gesture.
+    const existingInput = switcherEl.querySelector(
+      ".sidebar__pitch-rename-input, .sidebar__pitch-add-input",
+    );
+    if (existingInput && document.activeElement === existingInput) {
       return;
     }
     switcherEl.hidden = false;
@@ -564,6 +578,63 @@
         li.appendChild(btn);
         menu.appendChild(li);
       }
+
+      // Add-pitch row at the bottom: tap to reveal an inline input,
+      // type a title, hit enter. The new pitch becomes the active
+      // one and its title is handed to the next rehome call as a
+      // hint so the model knows the founder is making room for
+      // writings on that thread.
+      const addLi = document.createElement("li");
+      addLi.className = "sidebar__pitch-menu-add-row";
+      if (addOpen) {
+        const form = document.createElement("form");
+        form.className = "sidebar__pitch-add-form";
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "sidebar__pitch-add-input";
+        input.maxLength = 14;
+        input.placeholder = "Name a new pitch";
+        input.autocomplete = "off";
+        input.spellcheck = false;
+        const submit = document.createElement("button");
+        submit.type = "submit";
+        submit.className = "sidebar__pitch-add-save";
+        submit.textContent = "Add";
+        form.appendChild(input);
+        form.appendChild(submit);
+        form.addEventListener("submit", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const pm = pitchesApi();
+          if (pm && typeof pm.createPitch === "function") {
+            pm.createPitch(input.value);
+          }
+          addOpen = false;
+          switcherOpen = false;
+          render();
+        });
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            addOpen = false;
+            render();
+          }
+        });
+        addLi.appendChild(form);
+        setTimeout(() => { input.focus(); }, 0);
+      } else {
+        const addBtn = document.createElement("button");
+        addBtn.type = "button";
+        addBtn.className = "sidebar__pitch-menu-add";
+        addBtn.textContent = "+ Add a pitch";
+        addBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          addOpen = true;
+          render();
+        });
+        addLi.appendChild(addBtn);
+      }
+      menu.appendChild(addLi);
+
       switcherEl.appendChild(menu);
     }
   }
@@ -935,16 +1006,18 @@
   window.addEventListener("tinker:active-pitch-changed", () => {
     switcherOpen = false;
     renameOpen = false;
+    addOpen = false;
     render();
   });
 
-  // Close the dropdown / rename if the user clicks outside.
+  // Close the dropdown / rename / add if the user clicks outside.
   document.addEventListener("click", (e) => {
-    if (!switcherOpen && !renameOpen) return;
+    if (!switcherOpen && !renameOpen && !addOpen) return;
     if (!switcherEl) return;
     if (switcherEl.contains(e.target)) return;
     switcherOpen = false;
     renameOpen = false;
+    addOpen = false;
     render();
   });
 

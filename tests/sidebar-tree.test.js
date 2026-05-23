@@ -237,13 +237,14 @@ test("renamePitch sets title and marks autoTitled=false", () => {
   assert.equal(after.pitches[0].autoTitled, false);
 });
 
-test("renamePitch normalizes multi-word input to a single capitalized word", () => {
+test("renamePitch normalizes multi-word input to its first word, preserving case", () => {
   const draft = { id: "d_abc", stitched: { body: "the body" } };
   const { api, pitches } = loadInSandbox({ drafts: [draft] });
   api.upsertPhrase({ deckHeading: "The Problem", writingId: "d_abc", offset: 0, length: 8 });
   const id = pitches.snapshot().pitches[0].id;
   pitches.renamePitch(id, "coffee shop business");
-  assert.equal(pitches.snapshot().pitches[0].title, "Coffee");
+  // First word kept, casing preserved (no auto-capitalize).
+  assert.equal(pitches.snapshot().pitches[0].title, "coffee");
 });
 
 test("setActivePitch switches the active selection", () => {
@@ -275,6 +276,38 @@ test("setActivePitch switches the active selection", () => {
   assert.equal(pitches.getActivePitchId(), "p_one");
   pitches.setActivePitch("p_two");
   assert.equal(pitches.getActivePitchId(), "p_two");
+});
+
+test("createPitch seeds an empty pitch with the founder-supplied title", () => {
+  const { pitches } = loadInSandbox();
+  const id = pitches.createPitch("Coffee");
+  assert.ok(id);
+  const snap = pitches.snapshot();
+  assert.equal(snap.pitches.length, 1);
+  assert.equal(snap.pitches[0].title, "Coffee");
+  assert.equal(snap.pitches[0].autoTitled, false);
+  assert.equal(snap.activeId, id);
+});
+
+test("createPitch preserves lowercase titles", () => {
+  const { pitches } = loadInSandbox();
+  const id = pitches.createPitch("tinker");
+  assert.ok(id);
+  assert.equal(pitches.snapshot().pitches[0].title, "tinker");
+});
+
+test("createPitch rejects multi-word titles by taking just the first word", () => {
+  const { pitches } = loadInSandbox();
+  pitches.createPitch("coffee shop business");
+  assert.equal(pitches.snapshot().pitches[0].title, "coffee");
+});
+
+test("createPitch reuses an existing pitch when the title matches (case-insensitive)", () => {
+  const { pitches } = loadInSandbox();
+  const idA = pitches.createPitch("Tinker");
+  const idB = pitches.createPitch("tinker");
+  assert.equal(idA, idB, "second call should re-activate the existing pitch");
+  assert.equal(pitches.snapshot().pitches.length, 1);
 });
 
 test("default active pick = most robust pitch (most covered headings)", () => {

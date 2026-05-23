@@ -136,7 +136,7 @@ function buildClusterPrompt(existingPitchTitles) {
 
   if (existingPitchTitles && existingPitchTitles.length > 0) {
     lines.push(
-      "If a cluster's thread is the same as one of the founder's existing pitches, REUSE that pitch's title exactly. Otherwise pick a fresh one-word title.",
+      "The founder has named these pitches already. STRONGLY PREFER routing writings into one of these titles — only mint a new title when a writing genuinely doesn't fit any existing one. Reuse a title EXACTLY (same casing).",
       "",
       `Existing pitch titles: ${existingPitchTitles.map((t) => JSON.stringify(t)).join(", ")}`,
       "",
@@ -146,12 +146,15 @@ function buildClusterPrompt(existingPitchTitles) {
   lines.push(
     "Every writing id you receive MUST appear in exactly one cluster. Do not invent ids. Do not drop ids. Do not duplicate ids across clusters.",
     "",
+    "Every writing MUST be slotted: pick a deckHeading (one of the eleven literals) and a verbatim phraseText for every single writing. Even if the writing only loosely matches a beat, pick the closest one — there are no orphan writings. Do not return null for deckHeading or phraseText.",
+    "",
+    "Some writings may be iterations of the same pitch line — different drafts of the same beat. Put iterations of the same idea under the same pitch's same heading; the deck retains the two most recent so older drafts naturally fall away. Writings on genuinely different topics belong in different pitches.",
+    "",
     "Prefer fewer clusters when the writings share a thread. Only split when threads are clearly different.",
     "",
     "Respond as a single JSON object, with exactly this shape:",
-    '  { "pitches": [ { "title": "<OneWord>", "writings": [ { "id": "<id>", "deckHeading": "<one of the eleven literals or null>", "phraseText": "<verbatim 3-to-18-word substring of the writing or null>" } ] } ] }',
+    '  { "pitches": [ { "title": "<OneWord>", "writings": [ { "id": "<id>", "deckHeading": "<one of the eleven literals>", "phraseText": "<verbatim 3-to-18-word substring of the writing>" } ] } ] }',
     "",
-    "Use deckHeading=null and phraseText=null ONLY when the writing genuinely doesn't match any of the eleven beats. Otherwise both fields must be set.",
     "Never wrap the JSON in code fences. Never add explanations outside the JSON. Do not output any other keys.",
   );
   return lines.join("\n");
@@ -181,11 +184,14 @@ function buildUserMessage(writings) {
   return lines.join("\n");
 }
 
-// One capitalized English word, 3–14 letters.
+// A single English word, 1-14 letters, any case. Both model output
+// and founder rename input flow through this; preserving the case
+// the model (or founder) picked lets "tinker" stay lowercase if
+// that's how the brand reads.
 function validateTitle(value) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  if (!/^[A-Z][a-z]{2,13}$/.test(trimmed)) return null;
+  if (!/^[A-Za-z]{1,14}$/.test(trimmed)) return null;
   return trimmed;
 }
 
@@ -193,6 +199,34 @@ function validateHeading(value) {
   if (value === null || value === undefined) return null;
   if (typeof value !== "string") return null;
   return DECK_HEADINGS.includes(value) ? value : null;
+}
+
+// Server-side fallback so every writing in a rehome reply lands in
+// a real slot, even when the model couldn't produce a verbatim
+// phrase. Pulls the leading 6–10 words of the body — always
+// verbatim by construction. Returns null only when the body is
+// blank.
+function fallbackPhrase(body) {
+  const trimmed = String(body || "").trim();
+  if (!trimmed) return null;
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return null;
+  const take = Math.min(words.length, 10);
+  const head = words.slice(0, take).join(" ");
+  // Anchor the head against the original body so the recorded
+  // offset stays valid (the trim above may have dropped leading
+  // whitespace).
+  const offset = body.indexOf(head);
+  if (offset < 0) return null;
+  return { offset, length: head.length };
+}
+
+// Round-robin through the eleven headings when the model couldn't
+// (or wouldn't) pick one. Variety beats parking every fallback in a
+// single bucket like "The Vision".
+function fallbackHeading(index) {
+  const safe = Number.isFinite(index) && index >= 0 ? Math.floor(index) : 0;
+  return DECK_HEADINGS[safe % DECK_HEADINGS.length];
 }
 
 // Lifted from /api/classify; same resolver so the contract for
@@ -326,15 +360,35 @@ function normalizeInputs(rawWritings) {
 }
 
 // Apply the contract guarantees to the model's cluster reply: titles
-// validate to single words, each writing maps to a known input id
-// with a valid heading + resolved phrase (or null/null), every input
-// id appears in exactly one bucket.
+// validate to a single word, each writing maps to a known input id
+// with a valid heading + verbatim phrase, every input id appears in
+// exactly one bucket. When the model returns null/invalid for a
+// writing's heading or phrase, we synthesize a fallback so every
+// writing lands in a real slot — there are no orphan writings.
 function reconcileClusters(parsed, inputs) {
   const inputIds = inputs.map((w) => w.id);
   const bodyById = new Map(inputs.map((w) => [w.id, w.snippet]));
   const allowed = new Set(inputIds);
   const claimed = new Set();
   const pitches = [];
+  // Counter for the heading round-robin fallback. Spreads
+  // un-classifiable writings across the eleven slots instead of
+  // dumping them all in one.
+  let fallbackIndex = 0;
+
+  function slotForWriting(id, w) {
+    const body = bodyById.get(id) || "";
+    const heading = validateHeading(w && w.deckHeading) || fallbackHeading(fallbackIndex++);
+    const resolved = w && w.phraseText
+      ? resolvePhraseText(body, w.phraseText)
+      : null;
+    const phrase = resolved || fallbackPhrase(body);
+    return {
+      id,
+      deckHeading: heading,
+      phrase: phrase ? { writingId: id, offset: phrase.offset, length: phrase.length } : null,
+    };
+  }
 
   const raw = parsed && Array.isArray(parsed.pitches) ? parsed.pitches : [];
   for (const p of raw) {
@@ -348,18 +402,8 @@ function reconcileClusters(parsed, inputs) {
       if (!w || typeof w !== "object") continue;
       const id = typeof w.id === "string" ? w.id : "";
       if (!allowed.has(id) || claimed.has(id)) continue;
-      const heading = validateHeading(w.deckHeading);
-      let phrase = null;
-      if (heading) {
-        const body = bodyById.get(id) || "";
-        phrase = resolvePhraseText(body, w.phraseText);
-      }
       claimed.add(id);
-      writings.push({
-        id,
-        deckHeading: heading,
-        phrase: phrase ? { writingId: id, offset: phrase.offset, length: phrase.length } : null,
-      });
+      writings.push(slotForWriting(id, w));
     }
 
     if (writings.length === 0) continue;
@@ -367,10 +411,12 @@ function reconcileClusters(parsed, inputs) {
     if (pitches.length >= MAX_BUCKETS) break;
   }
 
-  // Catch-all for ids the model dropped or never validated.
+  // Catch-all for ids the model dropped or never validated. They go
+  // into the first valid bucket with synthesised slot + phrase so
+  // every founder writing makes it onto a deck.
   const leftover = inputIds.filter((id) => !claimed.has(id));
   if (leftover.length > 0) {
-    const orphan = leftover.map((id) => ({ id, deckHeading: null, phrase: null }));
+    const orphan = leftover.map((id) => slotForWriting(id, null));
     if (pitches.length === 0) {
       pitches.push({ title: "Other", writings: orphan });
     } else {
@@ -385,18 +431,6 @@ async function handleCluster(req, res, body) {
   const writings = normalizeInputs(body.writings);
   if (writings.length === 0) {
     res.status(200).json({ pitches: [] });
-    return;
-  }
-  if (writings.length === 1) {
-    // Skip the model call — a single writing trivially clusters to
-    // itself. The /api/classify endpoint can place its phrase if the
-    // client wants one; we return a null heading here.
-    res.status(200).json({
-      pitches: [{
-        title: "Solo",
-        writings: [{ id: writings[0].id, deckHeading: null, phrase: null }],
-      }],
-    });
     return;
   }
 
@@ -435,10 +469,26 @@ async function handleCluster(req, res, body) {
   }
 
   if (!pitches) {
-    pitches = [{
-      title: "Other",
-      writings: writings.map((w) => ({ id: w.id, deckHeading: null, phrase: null })),
-    }];
+    // Model never produced a usable reply — synthesise slots so
+    // every writing still lands somewhere. Reuse reconcileClusters'
+    // fallback path by passing an empty parsed object.
+    pitches = reconcileClusters({ pitches: [] }, writings);
+    if (pitches.length === 0) {
+      // Defensive: reconcileClusters returns at least one bucket
+      // when there are any inputs, but guard against a future
+      // refactor.
+      pitches = [{
+        title: "Other",
+        writings: writings.map((w, i) => ({
+          id: w.id,
+          deckHeading: fallbackHeading(i),
+          phrase: (function () {
+            const p = fallbackPhrase(w.snippet);
+            return p ? { writingId: w.id, offset: p.offset, length: p.length } : null;
+          })(),
+        })),
+      }];
+    }
   }
 
   res.status(200).json({ pitches });
@@ -531,6 +581,8 @@ module.exports.__test__ = {
   parseClassifierJson,
   normalizeInputs,
   resolvePhraseText,
+  fallbackPhrase,
+  fallbackHeading,
   buildClusterPrompt,
   buildNamePrompt,
 };

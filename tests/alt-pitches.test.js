@@ -26,6 +26,8 @@ const {
   parseClassifierJson,
   normalizeInputs,
   resolvePhraseText,
+  fallbackPhrase,
+  fallbackHeading,
   buildClusterPrompt,
   buildNamePrompt,
 } = __test__;
@@ -54,21 +56,18 @@ test("every heading has a non-trivial generic description", () => {
   }
 });
 
-test("validateTitle accepts a single capitalized 3-14 letter word", () => {
+test("validateTitle accepts a single word of any casing, 1-14 letters", () => {
   assert.equal(validateTitle("Craft"), "Craft");
-  assert.equal(validateTitle("Doubt"), "Doubt");
-  assert.equal(validateTitle("Friendship"), "Friendship");
+  assert.equal(validateTitle("tinker"), "tinker"); // lowercase preserved
+  assert.equal(validateTitle("TINKER"), "TINKER"); // uppercase preserved
   assert.equal(validateTitle("Aaaaaaaaaaaaaa"), "Aaaaaaaaaaaaaa"); // 14
 });
 
-test("validateTitle rejects phrases, hyphens, casing variants, empty values", () => {
+test("validateTitle rejects phrases, hyphens, empty values, oversized", () => {
   assert.equal(validateTitle("the craft"), null);
   assert.equal(validateTitle("Craft Money"), null);
   assert.equal(validateTitle("co-founder"), null);
-  assert.equal(validateTitle("craft"), null);
-  assert.equal(validateTitle("CRAFT"), null);
-  assert.equal(validateTitle("Cr"), null);
-  assert.equal(validateTitle("Aaaaaaaaaaaaaaa"), null); // 15
+  assert.equal(validateTitle("Aaaaaaaaaaaaaaa"), null); // 15 letters
   assert.equal(validateTitle(""), null);
   assert.equal(validateTitle(null), null);
   assert.equal(validateTitle(123), null);
@@ -111,25 +110,28 @@ test("reconcileClusters validates titles, headings, and resolves phrases", () =>
   assert.equal(out[0].writings[1].deckHeading, "A Persona");
 });
 
-test("reconcileClusters drops invalid headings but keeps the writing as null/null", () => {
-  const inputs = [{ id: "e_1", snippet: "I went to the cafe" }];
+test("reconcileClusters falls back to a heading + phrase when the model returns an invalid heading", () => {
+  const inputs = [{ id: "e_1", snippet: "I went to the cafe and ordered coffee" }];
   const parsed = {
     pitches: [
       {
         title: "Daily",
         writings: [
-          { id: "e_1", deckHeading: "Random", phraseText: "I went to the cafe" },
+          { id: "e_1", deckHeading: "Random", phraseText: "I went to the cafe and ordered coffee" },
         ],
       },
     ],
   };
   const out = reconcileClusters(parsed, inputs);
   assert.equal(out.length, 1);
-  assert.equal(out[0].writings[0].deckHeading, null);
-  assert.equal(out[0].writings[0].phrase, null);
+  // Invalid heading → falls back to a real one (round-robin from index 0 → "The Problem")
+  assert.ok(DECK_HEADINGS.includes(out[0].writings[0].deckHeading));
+  // Phrase falls back to first words of body — must be non-null
+  assert.ok(out[0].writings[0].phrase);
+  assert.ok(out[0].writings[0].phrase.length > 0);
 });
 
-test("reconcileClusters drops phrase that isn't verbatim", () => {
+test("reconcileClusters falls back to leading-words phrase when the model phrase isn't verbatim", () => {
   const inputs = [{ id: "e_1", snippet: "the cat sat on the mat in the morning" }];
   const parsed = {
     pitches: [
@@ -144,19 +146,21 @@ test("reconcileClusters drops phrase that isn't verbatim", () => {
   const out = reconcileClusters(parsed, inputs);
   assert.equal(out.length, 1);
   assert.equal(out[0].writings[0].deckHeading, "The Problem");
-  assert.equal(out[0].writings[0].phrase, null);
+  // Fallback phrase = leading words of the body
+  assert.ok(out[0].writings[0].phrase);
+  assert.equal(out[0].writings[0].phrase.writingId, "e_1");
 });
 
 test("reconcileClusters dedupes ids across buckets — first bucket wins", () => {
   const inputs = [
-    { id: "a", snippet: "alpha alpha alpha" },
-    { id: "b", snippet: "beta beta beta" },
-    { id: "c", snippet: "gamma gamma gamma" },
+    { id: "a", snippet: "alpha alpha alpha sentence one here" },
+    { id: "b", snippet: "beta beta beta sentence two here" },
+    { id: "c", snippet: "gamma gamma gamma sentence three here" },
   ];
   const parsed = {
     pitches: [
-      { title: "First", writings: [{ id: "a", deckHeading: null, phraseText: null }, { id: "b", deckHeading: null, phraseText: null }] },
-      { title: "Second", writings: [{ id: "b", deckHeading: null, phraseText: null }, { id: "c", deckHeading: null, phraseText: null }] },
+      { title: "First", writings: [{ id: "a", deckHeading: "The Problem", phraseText: "alpha alpha alpha sentence one here" }, { id: "b", deckHeading: "A Persona", phraseText: "beta beta beta sentence two here" }] },
+      { title: "Second", writings: [{ id: "b", deckHeading: "The Problem", phraseText: "beta beta beta sentence two here" }, { id: "c", deckHeading: "The Vision", phraseText: "gamma gamma gamma sentence three here" }] },
     ],
   };
   const out = reconcileClusters(parsed, inputs);
@@ -165,52 +169,62 @@ test("reconcileClusters dedupes ids across buckets — first bucket wins", () =>
   assert.deepEqual(out[1].writings.map((w) => w.id), ["c"]);
 });
 
-test("reconcileClusters sweeps leftover ids into the first valid bucket", () => {
+test("reconcileClusters sweeps leftover ids (with synthesized slots) into the first valid bucket", () => {
   const inputs = [
-    { id: "a", snippet: "alpha" },
-    { id: "b", snippet: "beta" },
-    { id: "c", snippet: "gamma" },
-    { id: "d", snippet: "delta" },
+    { id: "a", snippet: "alpha sentence one with several words here" },
+    { id: "b", snippet: "beta sentence two with several words here" },
+    { id: "c", snippet: "gamma sentence three with several words here" },
+    { id: "d", snippet: "delta sentence four with several words here" },
   ];
   const parsed = {
     pitches: [
-      { title: "Known", writings: [{ id: "a", deckHeading: null, phraseText: null }] },
-      { title: "Other", writings: [{ id: "b", deckHeading: null, phraseText: null }] },
+      { title: "Known", writings: [{ id: "a", deckHeading: "The Problem", phraseText: "alpha sentence one with several words here" }] },
+      { title: "Other", writings: [{ id: "b", deckHeading: "A Persona", phraseText: "beta sentence two with several words here" }] },
     ],
   };
   const out = reconcileClusters(parsed, inputs);
   assert.equal(out.length, 2);
   const firstIds = out[0].writings.map((w) => w.id).sort();
   assert.deepEqual(firstIds, ["a", "c", "d"]);
+  // Synthesised slots must be real headings + non-null phrases.
+  for (const w of out[0].writings) {
+    assert.ok(DECK_HEADINGS.includes(w.deckHeading));
+    assert.ok(w.phrase, `${w.id} should have a fallback phrase`);
+  }
 });
 
 test("reconcileClusters falls back to a single 'Other' bucket when nothing validates", () => {
   const inputs = [
-    { id: "a", snippet: "alpha" },
-    { id: "b", snippet: "beta" },
+    { id: "a", snippet: "alpha sentence here with words" },
+    { id: "b", snippet: "beta sentence here with words" },
   ];
   const parsed = {
     pitches: [
-      { title: "lower", writings: [{ id: "a", deckHeading: null, phraseText: null }] },
-      { title: "Two Words", writings: [{ id: "b", deckHeading: null, phraseText: null }] },
+      { title: "lowercase phrase", writings: [{ id: "a", deckHeading: "The Problem", phraseText: "alpha sentence here with words" }] },
+      { title: "Two Words", writings: [{ id: "b", deckHeading: "A Persona", phraseText: "beta sentence here with words" }] },
     ],
   };
   const out = reconcileClusters(parsed, inputs);
   assert.equal(out.length, 1);
   assert.equal(out[0].title, "Other");
   assert.equal(out[0].writings.length, 2);
+  // Even the orphan bucket guarantees slots.
+  for (const w of out[0].writings) {
+    assert.ok(DECK_HEADINGS.includes(w.deckHeading));
+    assert.ok(w.phrase);
+  }
 });
 
 test("reconcileClusters caps at MAX_BUCKETS", () => {
   const inputs = [];
-  for (let i = 0; i < 8; i++) inputs.push({ id: `e_${i}`, snippet: `body ${i}` });
+  for (let i = 0; i < 8; i++) inputs.push({ id: `e_${i}`, snippet: `body ${i} with several words here for the test` });
   const parsed = {
     pitches: [
-      { title: "One", writings: [{ id: "e_0", deckHeading: null, phraseText: null }] },
-      { title: "Two", writings: [{ id: "e_1", deckHeading: null, phraseText: null }] },
-      { title: "Three", writings: [{ id: "e_2", deckHeading: null, phraseText: null }] },
-      { title: "Four", writings: [{ id: "e_3", deckHeading: null, phraseText: null }] },
-      { title: "Five", writings: [{ id: "e_4", deckHeading: null, phraseText: null }] },
+      { title: "One", writings: [{ id: "e_0", deckHeading: "The Problem", phraseText: "body 0 with several words here" }] },
+      { title: "Two", writings: [{ id: "e_1", deckHeading: "A Persona", phraseText: "body 1 with several words here" }] },
+      { title: "Three", writings: [{ id: "e_2", deckHeading: "Why Now?", phraseText: "body 2 with several words here" }] },
+      { title: "Four", writings: [{ id: "e_3", deckHeading: "The Team", phraseText: "body 3 with several words here" }] },
+      { title: "Five", writings: [{ id: "e_4", deckHeading: "The Product", phraseText: "body 4 with several words here" }] },
     ],
   };
   const out = reconcileClusters(parsed, inputs);
@@ -221,6 +235,56 @@ test("reconcileClusters caps at MAX_BUCKETS", () => {
   assert.ok(firstIds.includes("e_5"));
   assert.ok(firstIds.includes("e_6"));
   assert.ok(firstIds.includes("e_7"));
+});
+
+test("fallbackPhrase pulls leading words and resolves to a verbatim slice", () => {
+  const body = "the brief intro line goes here and then keeps going further";
+  const fp = fallbackPhrase(body);
+  assert.ok(fp);
+  const slice = body.slice(fp.offset, fp.offset + fp.length);
+  assert.ok(slice.length > 0);
+  // The slice is a contiguous prefix of the body.
+  assert.equal(body.indexOf(slice), 0);
+});
+
+test("fallbackPhrase returns null on blank or whitespace-only bodies", () => {
+  assert.equal(fallbackPhrase(""), null);
+  assert.equal(fallbackPhrase("   \t\n  "), null);
+});
+
+test("fallbackHeading round-robins through the eleven literals", () => {
+  for (let i = 0; i < 25; i++) {
+    assert.equal(fallbackHeading(i), DECK_HEADINGS[i % DECK_HEADINGS.length]);
+  }
+});
+
+test("every input writing appears in the reply (no orphans) — model leaves headings blank", () => {
+  const inputs = [
+    { id: "a", snippet: "alpha body content here today" },
+    { id: "b", snippet: "beta body content here today" },
+    { id: "c", snippet: "gamma body content here today" },
+  ];
+  // Model returns valid clusters but with null headings — fallbacks
+  // must kick in and every writing must still appear.
+  const parsed = {
+    pitches: [
+      { title: "Group", writings: [
+        { id: "a", deckHeading: null, phraseText: null },
+        { id: "b", deckHeading: null, phraseText: null },
+        { id: "c", deckHeading: null, phraseText: null },
+      ] },
+    ],
+  };
+  const out = reconcileClusters(parsed, inputs);
+  const seenIds = new Set();
+  for (const p of out) {
+    for (const w of p.writings) {
+      seenIds.add(w.id);
+      assert.ok(DECK_HEADINGS.includes(w.deckHeading), `${w.id} should have a real heading`);
+      assert.ok(w.phrase, `${w.id} should have a non-null phrase`);
+    }
+  }
+  assert.deepEqual(Array.from(seenIds).sort(), ["a", "b", "c"]);
 });
 
 test("normalizeInputs drops blank bodies, dedupes by id, truncates long snippets", () => {

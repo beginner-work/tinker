@@ -339,9 +339,44 @@
     return true;
   }
 
+  // Founder-created pitch: seeded with a title but no writings. The
+  // title becomes a hint for the next rehome call — the model will
+  // bias toward slotting relevant off-pitch writings into this
+  // bucket. Returns the new pitch's id, or null if the title was
+  // rejected.
+  function createPitch(title) {
+    const clean = sanitizeTitle(title);
+    if (!clean) return null;
+    // Don't duplicate an existing pitch with the same title (case-
+    // insensitive). Reuse it and make it active instead — gives the
+    // founder the same "I just made it" feeling without orphaning
+    // their writings.
+    const existing = blob.pitches.find(
+      (p) => (p.title || "").toLowerCase() === clean.toLowerCase(),
+    );
+    if (existing) {
+      blob.activeId = existing.id;
+      save();
+      fire("tinker:active-pitch-changed");
+      return existing.id;
+    }
+    const pitch = createPitchInternal({ title: clean, autoTitled: false });
+    blob.activeId = pitch.id;
+    // Reset the rehome hash so the next scheduleRegenerate actually
+    // fires a fresh call with this title as a hint — otherwise the
+    // hash dedupe would skip the call until off-pitch ids change.
+    lastRegenHash = null;
+    save();
+    fire("tinker:pitches-changed");
+    fire("tinker:active-pitch-changed");
+    scheduleRegenerate();
+    return pitch.id;
+  }
+
   // Titles are model-generated or founder-edited. We allow a single
-  // capitalized word (matches the API's contract) so the dropdown
-  // stays tight. Anything else gets normalized to its first word.
+  // word (1-14 letters, any casing — "tinker", "Tinker", "TINKER" all
+  // pass through). Whitespace and punctuation get stripped; if the
+  // founder types a phrase we keep only the first word.
   function sanitizeTitle(s) {
     if (typeof s !== "string") return null;
     const trimmed = s.trim();
@@ -349,7 +384,7 @@
     const firstWord = trimmed.split(/\s+/)[0];
     const stripped = firstWord.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, "");
     if (stripped.length < 1 || stripped.length > 14) return null;
-    return stripped.charAt(0).toUpperCase() + stripped.slice(1).toLowerCase();
+    return stripped;
   }
 
   function displayTitle(p) {
@@ -677,6 +712,7 @@
     getPitch,
     setActivePitch,
     renamePitch,
+    createPitch,
     upsertPhrase,
     clearWritingFromAllPitches,
     markClassifyFailed,
