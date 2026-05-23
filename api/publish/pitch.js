@@ -35,11 +35,26 @@ const MAX_TITLE_LEN = 24;
 const MAX_PHRASES_PER_HEADING = 6;
 const MAX_PHRASE_LEN = 600;
 
-// The daily-beginner reader lives on the beginner repo, deployed at
-// beginner.work in production. The publish endpoint hands the client
-// an absolute URL so the sidebar button can open the reader directly
-// in a new tab — tinker and beginner are different origins.
-const READER_HOST = "https://beginner.work";
+// The daily-beginner reader lives on the beginner repo. In production
+// it's served from beginner.work; in Vercel preview deploys both repos
+// publish on the same branch slug under
+//   <project>-git-<branch>-<scope>.vercel.app
+// so the matching beginner preview is just this tinker deployment's
+// URL with the leading "tinker-" swapped for "beginner-".
+//
+// BEGINNER_PUBLIC_URL overrides everything (handy for local dev or for
+// pointing a tinker deploy at a specific beginner branch).
+function readerHost() {
+  const override = process.env.BEGINNER_PUBLIC_URL;
+  if (override) return override.replace(/\/+$/, "");
+  if (process.env.VERCEL_ENV === "preview") {
+    const url = process.env.VERCEL_URL || "";
+    if (url.startsWith("tinker-")) {
+      return `https://beginner-${url.slice("tinker-".length)}`;
+    }
+  }
+  return "https://beginner.work";
+}
 
 function extractBearer(header) {
   if (!header || typeof header !== "string") return "";
@@ -187,7 +202,7 @@ async function handler(req, res) {
       create: { userId, kind, data },
       update: { data },
     });
-    const readerUrl = `${READER_HOST}/daily/?u=${encodeURIComponent(userId)}&t=${encodeURIComponent(parsed.slug)}`;
+    const readerUrl = `${readerHost()}/daily/?u=${encodeURIComponent(userId)}&t=${encodeURIComponent(parsed.slug)}`;
     res.status(200).json({
       ok: true,
       slug: parsed.slug,
@@ -205,3 +220,4 @@ module.exports = withResponseLogging(handler);
 module.exports._raw = handler;
 module.exports._slugify = slugify;
 module.exports._validateBody = validateBody;
+module.exports._readerHost = readerHost;

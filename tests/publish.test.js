@@ -203,3 +203,54 @@ test("slugify lowercases and replaces non-alphanumerics with hyphens", () => {
   assert.equal(publish._slugify("café--shop!"), "caf-shop");
   assert.equal(publish._slugify("   "), "");
 });
+
+test("readerHost defaults to beginner.work", () => {
+  const prev = { ...process.env };
+  delete process.env.BEGINNER_PUBLIC_URL;
+  delete process.env.VERCEL_ENV;
+  delete process.env.VERCEL_URL;
+  try {
+    assert.equal(publish._readerHost(), "https://beginner.work");
+  } finally {
+    process.env = prev;
+  }
+});
+
+test("readerHost swaps tinker→beginner on Vercel previews", () => {
+  const prev = { ...process.env };
+  delete process.env.BEGINNER_PUBLIC_URL;
+  process.env.VERCEL_ENV = "preview";
+  process.env.VERCEL_URL = "tinker-git-claude-slide-deck-tinker-sync-chppv-beginner-work.vercel.app";
+  try {
+    assert.equal(
+      publish._readerHost(),
+      "https://beginner-git-claude-slide-deck-tinker-sync-chppv-beginner-work.vercel.app",
+    );
+  } finally {
+    process.env = prev;
+  }
+});
+
+test("readerHost honours BEGINNER_PUBLIC_URL override", () => {
+  const prev = { ...process.env };
+  process.env.BEGINNER_PUBLIC_URL = "http://localhost:5173/";
+  process.env.VERCEL_ENV = "preview";
+  process.env.VERCEL_URL = "tinker-foo.vercel.app";
+  try {
+    assert.equal(publish._readerHost(), "http://localhost:5173");
+  } finally {
+    process.env = prev;
+  }
+});
+
+test("readerHost falls back to production when preview URL doesn't match the tinker- prefix", () => {
+  const prev = { ...process.env };
+  delete process.env.BEGINNER_PUBLIC_URL;
+  process.env.VERCEL_ENV = "preview";
+  process.env.VERCEL_URL = "something-else.vercel.app";
+  try {
+    assert.equal(publish._readerHost(), "https://beginner.work");
+  } finally {
+    process.env = prev;
+  }
+});
