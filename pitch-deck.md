@@ -323,7 +323,7 @@ Pre-seed · $300k – $950k
 
 > *me, 32 — a family of five: one dog, two chickens, two cats, and my best friend and wife, a Mexican folk healer.*
 
-> *I've been through the razor of a public fintech company. My idea can change the world but I haven't got a seat yet.*
+> *I've been through the razor of a public fintech company. My idea can change the world but I haven't got seeded yet.*
 
 ---
 
