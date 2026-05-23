@@ -461,7 +461,13 @@
     face.appendChild(faceTitle);
     face.appendChild(caret);
     face.addEventListener("click", (e) => {
+      // Stop bubbling: the document-level "click outside to close"
+      // listener also fires on the same event, and by the time it
+      // runs the render() below has already detached the face button
+      // from the DOM — so switcherEl.contains(e.target) would return
+      // false and the menu would close immediately.
       e.preventDefault();
+      e.stopPropagation();
       switcherOpen = !switcherOpen;
       renameOpen = false;
       render();
@@ -477,6 +483,7 @@
     rename.textContent = "✎";
     rename.addEventListener("click", (e) => {
       e.preventDefault();
+      e.stopPropagation();
       renameOpen = !renameOpen;
       switcherOpen = false;
       render();
@@ -545,7 +552,8 @@
         itemMeta.textContent = `${robust} / ${DECK_HEADINGS.length}`;
         btn.appendChild(itemTitle);
         btn.appendChild(itemMeta);
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
           const pm = pitchesApi();
           if (pm && typeof pm.setActivePitch === "function") {
             pm.setActivePitch(p.id);
