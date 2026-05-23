@@ -44,6 +44,11 @@
     <script src="./seeds.js" defer></script>
     <script src="./heatmap.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
+    <!-- Companion to sidebar-tree.js: clusters "doesn't fit" writings
+         into alternate pitches, owns the active-pitch toggle. Loaded
+         after sidebar-tree.js so its boot event fires once the tree
+         module has already painted the cold-start view. -->
+    <script src="./alt-pitches.js" defer></script>
   </head>
   <body>
     <svg class="liquid-glass-defs" width="0" height="0" aria-hidden="true" focusable="false">

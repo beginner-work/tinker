@@ -285,6 +285,13 @@
   let progressBarEl = null;
   let progressSecondaryEl = null;
   let progressSecondaryFillEl = null;
+  // Pitch switcher + alt-pitch list mounts. Created lazily inside navEl
+  // on first render so we don't need a static slot in index.html. Both
+  // live inside [data-audit-ignore] wrappers — alt-pitch chrome is
+  // model-generated chip text, outside the verbatim-phrase contract
+  // that audits the rest of the tree.
+  let switcherEl = null;
+  let altListEl = null;
 
   function ensureMount() {
     navEl = document.querySelector(".sidebar__tree");
@@ -298,6 +305,41 @@
     progressBarEl = navEl ? navEl.querySelector("[data-tree-progress-bar]") : null;
     progressSecondaryEl = navEl ? navEl.querySelector("[data-tree-progress-secondary]") : null;
     progressSecondaryFillEl = navEl ? navEl.querySelector("[data-tree-progress-secondary-fill]") : null;
+    if (!navEl) return;
+
+    // Pitch switcher: a row of chips above the progress bar. Hidden
+    // until there's more than one pitch to choose from.
+    if (!switcherEl || !navEl.contains(switcherEl)) {
+      switcherEl = navEl.querySelector("[data-pitch-switcher]");
+      if (!switcherEl) {
+        switcherEl = document.createElement("div");
+        switcherEl.className = "sidebar__pitch-switcher";
+        switcherEl.setAttribute("data-pitch-switcher", "");
+        switcherEl.setAttribute("data-audit-ignore", "");
+        switcherEl.hidden = true;
+        navEl.insertBefore(switcherEl, navEl.firstChild);
+      }
+    }
+
+    // Alt-pitch list: flat list of essays/drafts in the active alt
+    // pitch. Rendered alongside (and instead of) the deck-headings list.
+    if (!altListEl || !navEl.contains(altListEl)) {
+      altListEl = navEl.querySelector("[data-alt-pitch-list]");
+      if (!altListEl) {
+        altListEl = document.createElement("div");
+        altListEl.className = "sidebar__alt-pitch-list";
+        altListEl.setAttribute("data-alt-pitch-list", "");
+        altListEl.setAttribute("data-audit-ignore", "");
+        altListEl.hidden = true;
+        // Sits after the deck-heading list so the switcher → bars →
+        // (deck OR alt list) flow reads top-to-bottom.
+        if (listEl && listEl.parentNode === navEl) {
+          listEl.insertAdjacentElement("afterend", altListEl);
+        } else {
+          navEl.appendChild(altListEl);
+        }
+      }
+    }
   }
 
   // ── Public API ────────────────────────────────────────────────────
@@ -445,18 +487,50 @@
 
     const offPitchCount = loadOffPitchCount();
 
+    // Pull alt-pitch state from the companion module (alt-pitches.js).
+    // When the module hasn't booted yet we fall back to a single-pitch
+    // world — the switcher stays hidden, the starter view renders as
+    // before.
+    const altModule = window.tinkerAltPitches;
+    const pitches = altModule && typeof altModule.getPitches === "function"
+      ? altModule.getPitches()
+      : [{ id: "starter", title: "Starter", kind: "starter" }];
+    const activePitchId = altModule && typeof altModule.getActivePitchId === "function"
+      ? altModule.getActivePitchId()
+      : "starter";
+    const hasAltPitches = pitches.some((p) => p.kind === "alt");
+    const onAltView = activePitchId !== "starter" && hasAltPitches
+      && pitches.some((p) => p.id === activePitchId);
+
     // Cold-start / nothing-rendered: hide the entire nav unless the
     // founder has off-pitch publications, in which case the secondary
     // "Other founder journeys" bar carries the acknowledgement on its
     // own. Brand sits directly above Account when both are empty.
-    if (renderable.length === 0 && offPitchCount === 0) {
+    if (renderable.length === 0 && offPitchCount === 0 && !hasAltPitches) {
       navEl.hidden = true;
       listEl.innerHTML = "";
+      if (altListEl) { altListEl.hidden = true; altListEl.innerHTML = ""; }
+      if (switcherEl) { switcherEl.hidden = true; switcherEl.innerHTML = ""; }
       updateProgress(0);
       renderSecondary(0);
       return;
     }
     navEl.hidden = false;
+    renderPitchSwitcher(pitches, activePitchId);
+
+    if (onAltView) {
+      // Hide the deck-heading list + the pitch-progress bar; the
+      // alt-pitch view runs on its own header (the switcher chip
+      // identifies the active pitch).
+      listEl.innerHTML = "";
+      if (progressEl) progressEl.hidden = true;
+      renderAltPitchView(activePitchId);
+      refreshActive();
+      return;
+    }
+
+    if (progressEl) progressEl.hidden = false;
+    if (altListEl) { altListEl.hidden = true; altListEl.innerHTML = ""; }
     updateProgress(renderable.length);
     renderSecondary(offPitchCount);
 
@@ -556,6 +630,121 @@
     // Active-row treatment is whisper-quiet (handled in CSS via
     // data-active); only the currently-open row carries the bg.
     refreshActive();
+  }
+
+  // ── Pitch switcher ────────────────────────────────────────────────
+  //
+  // A row of chips at the top of the sidebar tree. One chip per pitch
+  // — starter first, then any alt-pitches the model has clustered out
+  // of the founder's off-pitch writings. Tapping a chip flips the
+  // active pitch and re-renders the tree. The whole switcher lives in
+  // a [data-audit-ignore] wrapper since the alt-pitch titles are
+  // model-generated rather than verbatim founder text.
+  function renderPitchSwitcher(pitches, activePitchId) {
+    if (!switcherEl) return;
+    if (!pitches || pitches.length <= 1) {
+      switcherEl.hidden = true;
+      switcherEl.innerHTML = "";
+      return;
+    }
+    switcherEl.hidden = false;
+    switcherEl.innerHTML = "";
+
+    const label = document.createElement("div");
+    label.className = "sidebar__pitch-switcher-label";
+    label.textContent = "Pitches";
+    switcherEl.appendChild(label);
+
+    const chipRow = document.createElement("div");
+    chipRow.className = "sidebar__pitch-switcher-chips";
+    switcherEl.appendChild(chipRow);
+
+    for (const p of pitches) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "sidebar__pitch-chip";
+      chip.setAttribute("data-pitch-id", p.id);
+      if (p.id === activePitchId) chip.setAttribute("data-active", "");
+      chip.textContent = p.title;
+      chip.addEventListener("click", () => {
+        const altModule = window.tinkerAltPitches;
+        if (!altModule) return;
+        altModule.setActivePitch(p.id);
+      });
+      chipRow.appendChild(chip);
+    }
+  }
+
+  // ── Alt-pitch view ────────────────────────────────────────────────
+  //
+  // Flat list of the off-pitch writings the model bucketed into the
+  // active alt pitch. Each row is a tappable button that opens the
+  // writing in the centre column (same routing as a phrase row in the
+  // starter pitch). All chrome here is model-generated or
+  // developer-authored, so the entire surface sits inside
+  // [data-audit-ignore].
+  function renderAltPitchView(pitchId) {
+    if (!altListEl) return;
+    altListEl.hidden = false;
+    altListEl.innerHTML = "";
+
+    const altModule = window.tinkerAltPitches;
+    const pitch = altModule && typeof altModule.getPitch === "function"
+      ? altModule.getPitch(pitchId)
+      : null;
+    const writings = altModule && typeof altModule.getPitchWritings === "function"
+      ? altModule.getPitchWritings(pitchId)
+      : [];
+
+    if (!pitch || writings.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "sidebar__alt-pitch-empty";
+      empty.textContent = "Nothing here yet.";
+      altListEl.appendChild(empty);
+      return;
+    }
+
+    const header = document.createElement("div");
+    header.className = "sidebar__alt-pitch-header";
+    const headTitle = document.createElement("span");
+    headTitle.className = "sidebar__alt-pitch-headline";
+    headTitle.textContent = pitch.title;
+    const headCount = document.createElement("span");
+    headCount.className = "sidebar__alt-pitch-count";
+    headCount.textContent = `${writings.length} piece${writings.length === 1 ? "" : "s"}`;
+    header.appendChild(headTitle);
+    header.appendChild(headCount);
+    altListEl.appendChild(header);
+
+    const ul = document.createElement("ul");
+    ul.className = "sidebar__alt-pitch-items";
+    for (const { kind, record } of writings) {
+      if (!record || !record.id) continue;
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "sidebar__account-item sidebar__alt-pitch-item";
+      btn.setAttribute("data-writing-id", record.id);
+      const snippet = altPitchPreview(record, kind);
+      btn.textContent = snippet;
+      btn.title = snippet;
+      btn.addEventListener("click", () => openWriting(kind, record));
+      li.appendChild(btn);
+      ul.appendChild(li);
+    }
+    altListEl.appendChild(ul);
+  }
+
+  function altPitchPreview(record, kind) {
+    if (!record) return "Untitled";
+    if (record.title) return record.title;
+    const body = kind === "draft"
+      ? bodyForDraft(record).trim()
+      : String(record.body || "").trim();
+    if (!body) return "Untitled";
+    const words = body.split(/\s+/).slice(0, 9);
+    const text = words.join(" ");
+    return body.length > text.length ? `${text}…` : text;
   }
 
   function updateProgress(coveredCount) {
@@ -692,11 +881,11 @@
   }
 
   api.setActiveWriting = function (writingId) {
-    if (!listEl) return;
-    const allRows = listEl.querySelectorAll(".sidebar__account-item");
+    if (!navEl) return;
+    const allRows = navEl.querySelectorAll(".sidebar__account-item");
     for (const r of allRows) r.removeAttribute("data-active");
     if (!writingId) return;
-    const match = listEl.querySelector(`[data-writing-id="${cssAttrEscape(writingId)}"]`);
+    const match = navEl.querySelector(`[data-writing-id="${cssAttrEscape(writingId)}"]`);
     if (match) match.setAttribute("data-active", "");
   };
 
@@ -1031,4 +1220,10 @@
   window.addEventListener("tinker:auth-changed", () => {
     runBackfill();
   });
+
+  // Alt-pitches module signals when the bucket list changes or when
+  // the founder taps a different pitch chip. Either way the sidebar
+  // tree owns the rendering, so we re-render on both.
+  window.addEventListener("tinker:alt-pitches-changed", () => { render(); });
+  window.addEventListener("tinker:active-pitch-changed", () => { render(); });
 })();

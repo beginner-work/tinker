@@ -433,6 +433,112 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   transition: width 0.6s ease;
 }
 
+/* ── Pitch switcher (v0.104) ──────────────────────────────────────
+ *
+ * A row of chips above the pitch-progress bar. Renders only when the
+ * founder has at least one alternate pitch — until then the sidebar
+ * tree shows the starter deck without ceremony. The chips read as a
+ * tab strip: one is always active, tapping a different one switches
+ * the tree's body. The whole surface sits inside [data-audit-ignore]
+ * because alt-pitch titles are model-generated rather than verbatim
+ * founder phrases.
+ */
+.sidebar__pitch-switcher {
+  padding: 4px 10px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sidebar__pitch-switcher-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.sidebar__pitch-switcher-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sidebar__pitch-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.sidebar__pitch-chip:hover {
+  background: var(--color-hover);
+  color: var(--color-foreground);
+}
+.sidebar__pitch-chip[data-active] {
+  background: var(--color-foreground);
+  color: var(--color-background);
+  border-color: var(--color-foreground);
+}
+
+/* ── Alt-pitch list ─────────────────────────────────────────────────
+ *
+ * Body of the sidebar tree when the active pitch is an alt. Flat list
+ * of the writings the model clustered into that pitch, opened by tap
+ * the same way phrase rows open in the starter view.
+ */
+.sidebar__alt-pitch-list {
+  padding: 4px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sidebar__alt-pitch-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+.sidebar__alt-pitch-headline {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-foreground);
+}
+.sidebar__alt-pitch-count {
+  font-size: 11px;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sidebar__alt-pitch-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar__alt-pitch-item {
+  font-size: 13px;
+  color: var(--color-foreground);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar__alt-pitch-item[data-active] {
+  background: var(--color-hover);
+}
+.sidebar__alt-pitch-empty {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
 /* ── Welcome (empty state on main when no draft/read is active) ──── */
 
 .stage > .welcome.feed[data-active] {
