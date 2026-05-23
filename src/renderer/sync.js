@@ -21,6 +21,10 @@
  *                stored on the server as one { explicit, hidden } blob
  *   - taxonomy → "tinker.taxonomy.v1" (object)
  *   - tree     → "tinker.tree.v1"     (object: { [deckHeading]: [...] })
+ *   - pitches  → "tinker.pitches.v1"  (object: { pitches, activeId, ... })
+ *                personalTitle (the founder's label) lives in here, so
+ *                a hydrate that races a not-yet-pushed rename gets a
+ *                local-preferred merge to keep the label.
  *   - linkedin-pitch-draft → "tinker.linkedinPitchDraft.v1"
  *                            (object: { segments, essayIds, ts })
  *
@@ -41,6 +45,7 @@
   const KIND_SEEDS = "seeds";
   const KIND_TAXONOMY = "taxonomy";
   const KIND_TREE = "tree";
+  const KIND_PITCHES = "pitches";
   const KIND_LINKEDIN_PITCH_DRAFT = "linkedin-pitch-draft";
 
   const LS_ESSAYS = "tinker.essays.v1";
@@ -49,6 +54,7 @@
   const LS_SEEDS_HIDDEN = "tinker.seeds.hidden.v1";
   const LS_TAXONOMY = "tinker.taxonomy.v1";
   const LS_TREE = "tinker.tree.v1";
+  const LS_PITCHES = "tinker.pitches.v1";
   const LS_LINKEDIN_PITCH_DRAFT = "tinker.linkedinPitchDraft.v1";
 
   // Debounce window per kind. Keystrokes in a textarea hit
@@ -138,6 +144,36 @@
     setLs(LS_LINKEDIN_PITCH_DRAFT, JSON.stringify(data));
     return true;
   }
+  // The founder's personalTitle (their label for a pitch) is written
+  // locally and pushed on a 1500ms debounce. A boot or auth-changed
+  // hydrate that races that debounce would otherwise overwrite the
+  // label with a server copy that hasn't seen it yet. Per-pitch fold:
+  // when the server has no personalTitle for an id but localStorage
+  // does, keep the local value — the still-pending push will reconcile.
+  function applyPitchesFromServer(data) {
+    if (!data || typeof data !== "object") return false;
+    if (!Array.isArray(data.pitches)) return false;
+    const local = getLsJson(LS_PITCHES, null);
+    const localPersonalById = new Map();
+    if (local && Array.isArray(local.pitches)) {
+      for (const p of local.pitches) {
+        if (p && typeof p.id === "string" && p.personalTitle) {
+          localPersonalById.set(p.id, p.personalTitle);
+        }
+      }
+    }
+    const merged = { ...data };
+    merged.pitches = data.pitches.map((p) => {
+      if (p && typeof p.id === "string"
+          && (p.personalTitle == null || p.personalTitle === "")
+          && localPersonalById.has(p.id)) {
+        return { ...p, personalTitle: localPersonalById.get(p.id) };
+      }
+      return p;
+    });
+    setLs(LS_PITCHES, JSON.stringify(merged));
+    return true;
+  }
 
   function buildSeedsBlob() {
     return {
@@ -211,6 +247,9 @@
     pushTree() {
       schedulePush(KIND_TREE, () => getLsJson(LS_TREE, null));
     },
+    pushPitches() {
+      schedulePush(KIND_PITCHES, () => getLsJson(LS_PITCHES, null));
+    },
     pushLinkedinPitchDraft() {
       schedulePush(KIND_LINKEDIN_PITCH_DRAFT, () => getLsJson(LS_LINKEDIN_PITCH_DRAFT, null));
     },
@@ -230,18 +269,20 @@
       if (kinds.includes(KIND_SEEDS))    pushKind(KIND_SEEDS,    buildSeedsBlob());
       if (kinds.includes(KIND_TAXONOMY)) pushKind(KIND_TAXONOMY, getLsJson(LS_TAXONOMY, null));
       if (kinds.includes(KIND_TREE))     pushKind(KIND_TREE,     getLsJson(LS_TREE, null));
+      if (kinds.includes(KIND_PITCHES))  pushKind(KIND_PITCHES,  getLsJson(LS_PITCHES, null));
       if (kinds.includes(KIND_LINKEDIN_PITCH_DRAFT)) pushKind(KIND_LINKEDIN_PITCH_DRAFT, getLsJson(LS_LINKEDIN_PITCH_DRAFT, null));
     },
   };
 
   async function hydrate() {
     if (!token()) return;
-    const [essays, drafts, seeds, taxonomy, tree, linkedinPitchDraft] = await Promise.all([
+    const [essays, drafts, seeds, taxonomy, tree, pitches, linkedinPitchDraft] = await Promise.all([
       fetchKind(KIND_ESSAYS),
       fetchKind(KIND_DRAFTS),
       fetchKind(KIND_SEEDS),
       fetchKind(KIND_TAXONOMY),
       fetchKind(KIND_TREE),
+      fetchKind(KIND_PITCHES),
       fetchKind(KIND_LINKEDIN_PITCH_DRAFT),
     ]);
     let changed = false;
@@ -250,6 +291,7 @@
     if (applySeedsFromServer(seeds)) changed = true;
     if (applyTaxonomyFromServer(taxonomy)) changed = true;
     if (applyTreeFromServer(tree)) changed = true;
+    if (applyPitchesFromServer(pitches)) changed = true;
     if (applyLinkedinPitchDraftFromServer(linkedinPitchDraft)) changed = true;
     if (changed) {
       try { window.dispatchEvent(new CustomEvent("tinker:hydrated")); }
