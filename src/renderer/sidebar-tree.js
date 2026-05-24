@@ -25,12 +25,6 @@
   const DRAFTS_KEY = "tinker.drafts.v1";
   const ESSAYS_KEY = "tinker.essays.v1";
   const SEEDS_HIDDEN_KEY = "tinker.seeds.hidden.v1";
-  // Local-only counter of fresh publications whose classify result
-  // didn't grow the active pitch's covered-heading count. Kept around
-  // to drive the secondary "Other founder journeys" bar's slow
-  // asymptotic fill animation — the rehome flow turns these into
-  // alt pitches independently.
-  const OFFPITCH_KEY = "tinker.tree.offPitchCount.v1";
   const TRANSIENT_MS = 1000;
 
   // Mirrors pitches.js DECK_HEADINGS. Duplicated so the audit can
@@ -78,26 +72,6 @@
 
   function normalizeEarthKey(name) {
     return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
-  }
-
-  function loadOffPitchCount() {
-    try {
-      const raw = localStorage.getItem(OFFPITCH_KEY);
-      const n = parseInt(raw || "0", 10);
-      return Number.isFinite(n) && n >= 0 ? n : 0;
-    } catch { return 0; }
-  }
-
-  function saveOffPitchCount(n) {
-    try { localStorage.setItem(OFFPITCH_KEY, String(Math.max(0, n | 0))); }
-    catch { /* ignore */ }
-  }
-
-  // Asymptotic fill — each off-pitch publication adds ~15% of the
-  // remaining gap.
-  function offPitchPct(n) {
-    if (n <= 0) return 0;
-    return 1 - Math.pow(0.85, n);
   }
 
   // ── Pitch + writing lookups ──────────────────────────────────────
@@ -170,8 +144,6 @@
   let progressCountEl = null;
   let progressFillEl = null;
   let progressBarEl = null;
-  let progressSecondaryEl = null;
-  let progressSecondaryFillEl = null;
   // Switcher = dropdown + rename UI. Created lazily inside navEl.
   let switcherEl = null;
 
@@ -182,8 +154,6 @@
     progressCountEl = navEl ? navEl.querySelector("[data-tree-progress-count-num]") : null;
     progressFillEl = navEl ? navEl.querySelector("[data-tree-progress-fill]") : null;
     progressBarEl = navEl ? navEl.querySelector("[data-tree-progress-bar]") : null;
-    progressSecondaryEl = navEl ? navEl.querySelector("[data-tree-progress-secondary]") : null;
-    progressSecondaryFillEl = navEl ? navEl.querySelector("[data-tree-progress-secondary-fill]") : null;
     if (!navEl) return;
 
     if (!switcherEl || !navEl.contains(switcherEl)) {
@@ -302,17 +272,13 @@
       if (resolved.length > 0) renderable.push({ heading, resolved });
     }
 
-    const offPitchCount = loadOffPitchCount();
-
-    // Cold-start: no pitches, no resolved phrases, no off-pitch
-    // backlog. Hide the whole nav so brand sits directly above
-    // Account.
-    if (pitches.length === 0 && renderable.length === 0 && offPitchCount === 0) {
+    // Cold-start: no pitches, no resolved phrases. Hide the whole nav
+    // so brand sits directly above Account.
+    if (pitches.length === 0 && renderable.length === 0) {
       navEl.hidden = true;
       listEl.innerHTML = "";
       if (switcherEl) { switcherEl.hidden = true; switcherEl.innerHTML = ""; }
       updateProgress(0);
-      renderSecondary(0);
       return;
     }
     navEl.hidden = false;
@@ -320,7 +286,6 @@
     renderSwitcher(pitches, activeId);
     if (progressEl) progressEl.hidden = false;
     updateProgress(renderable.length);
-    renderSecondary(offPitchCount);
 
     if (renderable.length === 0) {
       // Pitch exists but the active deck is empty — nothing to list.
@@ -684,30 +649,6 @@
     if (progressBarEl) progressBarEl.setAttribute("aria-valuenow", String(covered));
   }
 
-  function renderSecondary(n) {
-    if (!progressSecondaryEl) return;
-    if (n <= 0) {
-      progressSecondaryEl.hidden = true;
-      if (progressSecondaryFillEl) progressSecondaryFillEl.style.width = "0%";
-      return;
-    }
-    const wasHidden = progressSecondaryEl.hidden;
-    progressSecondaryEl.hidden = false;
-    if (!progressSecondaryFillEl) return;
-    const targetPct = Math.round(offPitchPct(n) * 100);
-    if (wasHidden) {
-      progressSecondaryFillEl.style.width = "0%";
-      const fillEl = progressSecondaryFillEl;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          fillEl.style.width = `${targetPct}%`;
-        });
-      });
-    } else {
-      progressSecondaryFillEl.style.width = `${targetPct}%`;
-    }
-  }
-
   // ── Transient progress states ────────────────────────────────────
 
   let transientTimer = null;
@@ -731,18 +672,6 @@
 
   function pulseStrengthened() {
     setProgressState("strengthened");
-    if (transientTimer) clearTimeout(transientTimer);
-    transientTimer = setTimeout(() => {
-      transientTimer = null;
-      setProgressState("idle");
-    }, TRANSIENT_MS);
-  }
-
-  function nudgeOffPitch() {
-    const next = loadOffPitchCount() + 1;
-    saveOffPitchCount(next);
-    render();
-    setProgressState("off-pitch");
     if (transientTimer) clearTimeout(transientTimer);
     transientTimer = setTimeout(() => {
       transientTimer = null;
@@ -941,7 +870,7 @@
         } else {
           const nextCovered = countCoveredHeadings();
           if (nextCovered > priorCovered) pulseStrengthened();
-          else nudgeOffPitch();
+          else clearTransientState();
         }
       }
       return result;
