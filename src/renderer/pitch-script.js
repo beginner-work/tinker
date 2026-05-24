@@ -56,7 +56,17 @@
     download: "Download",
     close: "Close",
     playbackTitle: "Your take",
+    saveToCloud: "Save to cloud",
+    uploading: "Uploading…",
+    uploaded: "Saved",
+    uploadFailed: "Upload failed",
+    copyLink: "Copy link",
+    linkCopied: "Link copied",
+    notSignedIn: "Sign in first to save your pitch to the cloud.",
   };
+
+  const TOKEN_KEY = "tinker_jwt";
+  const UPLOAD_ENDPOINT = "/api/upload/pitch-video";
 
   let viewEl = null;
   let currentPitchId = null;
@@ -74,11 +84,18 @@
   let mediaRecorder = null;
   let recordedChunks = [];
   let recordedBlobUrl = null;
+  let recordedBlob = null;
+  let recordedMimeType = "video/webm";
   let countdownValue = 0;
   let countdownTimer = null;
   let elapsedSeconds = 0;
   let elapsedTimer = null;
   let startedAt = 0;
+
+  // ── Upload state ────────────────────────────────────────────────
+  // upload: "idle" | "uploading" | { ok: true, url, copied? } | { ok: false, error }
+  let uploadState = "idle";
+  let uploadCopiedTimer = null;
 
   function escapeHtml(s) {
     return String(s == null ? "" : s)
@@ -253,10 +270,37 @@
       videoHtml =
         `<video class="pitch-script__rec-video" data-role="rec-preview" autoplay muted playsinline></video>`;
     } else if (recorderMode === "playback") {
-      statusHtml = `<span class="pitch-script__rec-status">${escapeHtml(STR.playbackTitle)} · ${escapeHtml(formatClock(elapsedSeconds))}</span>`;
+      const downloadName = recordedMimeType && recordedMimeType.includes("mp4") ? "pitch.mp4" : "pitch.webm";
+      let uploadHtml = "";
+      let statusSuffix = "";
+      if (uploadState === "uploading") {
+        statusSuffix = ` · ${escapeHtml(STR.uploading)}`;
+      } else if (uploadState && uploadState.ok === true) {
+        statusSuffix = ` · ${escapeHtml(STR.uploaded)}`;
+      } else if (uploadState && uploadState.ok === false) {
+        statusSuffix = ` · ${escapeHtml(STR.uploadFailed)}`;
+      }
+      statusHtml =
+        `<span class="pitch-script__rec-status">${escapeHtml(STR.playbackTitle)} · ${escapeHtml(formatClock(elapsedSeconds))}${statusSuffix}</span>`;
+      if (uploadState === "uploading") {
+        uploadHtml =
+          `<button type="button" class="pitch-script__rec-secondary" disabled>${escapeHtml(STR.uploading)}</button>`;
+      } else if (uploadState && uploadState.ok === true) {
+        const copyLabel = uploadState.copied ? STR.linkCopied : STR.copyLink;
+        uploadHtml = `<button type="button" class="pitch-script__rec-secondary" data-role="rec-copy-link">${escapeHtml(copyLabel)}</button>`;
+      } else {
+        // idle or failed — let the founder retry from either path.
+        uploadHtml = `<button type="button" class="pitch-script__rec-secondary" data-role="rec-upload">${escapeHtml(STR.saveToCloud)}</button>`;
+      }
+      const failureHint =
+        uploadState && uploadState.ok === false && uploadState.error
+          ? ` <span class="pitch-script__rec-upload-error" title="${escapeHtml(uploadState.error)}">·</span>`
+          : "";
       controlsHtml =
         `<button type="button" class="pitch-script__rec-secondary" data-role="rec-redo">${escapeHtml(STR.recordAgain)}</button>` +
-        `<a class="pitch-script__rec-secondary pitch-script__rec-download" data-role="rec-download" href="${escapeHtml(recordedBlobUrl || "#")}" download="pitch.webm">${escapeHtml(STR.download)}</a>` +
+        uploadHtml +
+        failureHint +
+        `<a class="pitch-script__rec-secondary pitch-script__rec-download" data-role="rec-download" href="${escapeHtml(recordedBlobUrl || "#")}" download="${escapeHtml(downloadName)}">${escapeHtml(STR.download)}</a>` +
         `<button type="button" class="pitch-script__rec-primary" data-role="rec-close">${escapeHtml(STR.close)}</button>`;
       videoHtml =
         `<video class="pitch-script__rec-video" data-role="rec-playback" src="${escapeHtml(recordedBlobUrl || "")}" controls playsinline></video>`;
@@ -335,6 +379,12 @@
 
     const redo = viewEl.querySelector('[data-role="rec-redo"]');
     if (redo) redo.addEventListener("click", () => startRecorder());
+
+    const upload = viewEl.querySelector('[data-role="rec-upload"]');
+    if (upload) upload.addEventListener("click", () => uploadRecording());
+
+    const copyLink = viewEl.querySelector('[data-role="rec-copy-link"]');
+    if (copyLink) copyLink.addEventListener("click", () => copyUploadedLink());
   }
 
   // After render() rewrites innerHTML the live MediaStream needs to
@@ -362,6 +412,9 @@
       try { URL.revokeObjectURL(recordedBlobUrl); } catch (_) { /* noop */ }
       recordedBlobUrl = null;
     }
+    recordedBlob = null;
+    uploadState = "idle";
+    if (uploadCopiedTimer) { clearTimeout(uploadCopiedTimer); uploadCopiedTimer = null; }
     elapsedSeconds = 0;
     recorderError = null;
     recorderMode = "arming";
@@ -420,12 +473,16 @@
       if (e.data && e.data.size) recordedChunks.push(e.data);
     });
     mediaRecorder.addEventListener("stop", () => {
-      const blob = new Blob(recordedChunks, { type: recordedChunks[0]?.type || "video/webm" });
+      const blobType = recordedChunks[0]?.type || "video/webm";
+      const blob = new Blob(recordedChunks, { type: blobType });
       if (recordedBlobUrl) {
         try { URL.revokeObjectURL(recordedBlobUrl); } catch (_) { /* noop */ }
       }
+      recordedBlob = blob;
+      recordedMimeType = blobType;
       recordedBlobUrl = URL.createObjectURL(blob);
       recorderMode = "playback";
+      uploadState = "idle";
       // Free the camera/mic once we have the blob; playback uses the
       // blob URL, not the live stream.
       teardownStream();
@@ -511,12 +568,149 @@
       try { URL.revokeObjectURL(recordedBlobUrl); } catch (_) { /* noop */ }
       recordedBlobUrl = null;
     }
+    recordedBlob = null;
     recordedChunks = [];
     elapsedSeconds = 0;
     countdownValue = 0;
     recorderError = null;
     recorderMode = "idle";
+    uploadState = "idle";
+    if (uploadCopiedTimer) { clearTimeout(uploadCopiedTimer); uploadCopiedTimer = null; }
     if (rerender) render();
+  }
+
+  // ── Upload to Vercel Blob ───────────────────────────────────────
+  //
+  // Hand-rolled equivalent of @vercel/blob/client's `upload(...)` —
+  // the SDK ships ESM-only and the tinker renderer has no bundler.
+  // Two HTTP calls:
+  //   1. POST our serverless function with the protocol envelope
+  //      `{ type: "blob.generate-client-token", payload: {...} }`.
+  //      The server authenticates the founder, validates the pathname,
+  //      and returns a short-lived `vercel_blob_client_*` token.
+  //   2. PUT the recording straight to Vercel Blob's API
+  //      (`https://vercel.com/api/blob?pathname=...`) with that token.
+  //      Vercel Blob will then POST `blob.upload-completed` back to our
+  //      function, which upserts the TinkerUserData row keyed by the
+  //      `pitch-video:<pitchId>` kind.
+  function getAuthToken() {
+    try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; }
+  }
+
+  function extForMimeType(mt) {
+    if (mt && mt.includes("mp4")) return "mp4";
+    return "webm";
+  }
+
+  async function uploadRecording() {
+    if (!recordedBlob || !currentPitchId) return;
+    if (uploadState === "uploading") return;
+
+    const token = getAuthToken();
+    if (!token) {
+      uploadState = { ok: false, error: STR.notSignedIn };
+      render();
+      return;
+    }
+
+    uploadState = "uploading";
+    render();
+
+    const ext = extForMimeType(recordedMimeType);
+    const pathname = `pitch-videos/${currentPitchId}/${Date.now()}.${ext}`;
+    const clientPayload = JSON.stringify({ pitchId: currentPitchId });
+
+    try {
+      // Step 1 — exchange auth for a client token scoped to this pathname.
+      const tokenRes = await fetch(UPLOAD_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type: "blob.generate-client-token",
+          payload: { pathname, clientPayload, multipart: false },
+        }),
+      });
+      if (!tokenRes.ok) {
+        const detail = await tokenRes.json().catch(() => ({}));
+        throw new Error(detail.error || `Token request failed (${tokenRes.status})`);
+      }
+      const tokenJson = await tokenRes.json();
+      const clientToken = tokenJson && tokenJson.clientToken;
+      if (!clientToken) throw new Error("Server did not return a client token");
+
+      // Step 2 — direct PUT to Vercel Blob. The bytes bypass our
+      // serverless function entirely; the function only sees the
+      // signed completion callback Vercel fires afterwards.
+      //
+      // Headers mirror @vercel/blob/client's requestApi(): the
+      // version + store-id are both required by Vercel's API.
+      // The store-id is encoded in the client token at position 3
+      // (`vercel_blob_client_<storeId>_<payload>`).
+      const parts = clientToken.split("_");
+      const storeId = parts[3] || "";
+      if (!storeId) throw new Error("Client token is missing store id");
+      const requestId =
+        `${storeId}:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+      const blobApiUrl =
+        `https://vercel.com/api/blob/?` +
+        new URLSearchParams({ pathname }).toString();
+      const putRes = await fetch(blobApiUrl, {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${clientToken}`,
+          "x-api-version": "12",
+          "x-vercel-blob-store-id": storeId,
+          "x-api-blob-request-id": requestId,
+          "x-api-blob-request-attempt": "0",
+          "x-content-type": recordedMimeType || "video/webm",
+        },
+        body: recordedBlob,
+      });
+      if (!putRes.ok) {
+        const detail = await putRes.text().catch(() => "");
+        throw new Error(`Blob upload failed (${putRes.status}) ${detail}`);
+      }
+      const putJson = await putRes.json();
+      if (!putJson || !putJson.url) {
+        throw new Error("Blob upload did not return a URL");
+      }
+      uploadState = { ok: true, url: putJson.url };
+    } catch (err) {
+      uploadState = { ok: false, error: String((err && err.message) || err) };
+    }
+    render();
+  }
+
+  async function copyUploadedLink() {
+    if (!uploadState || uploadState.ok !== true || !uploadState.url) return;
+    const url = uploadState.url;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+    } catch (_) { /* clipboard blocked — swallow */ }
+    uploadState = { ...uploadState, copied: true };
+    render();
+    if (uploadCopiedTimer) clearTimeout(uploadCopiedTimer);
+    uploadCopiedTimer = setTimeout(() => {
+      if (uploadState && uploadState.ok === true) {
+        uploadState = { ok: true, url: uploadState.url };
+        render();
+      }
+      uploadCopiedTimer = null;
+    }, 1500);
   }
 
   window.tinkerPitchScript = {
@@ -535,5 +729,6 @@
     _scriptToPlainText: scriptToPlainText,
     _formatDuration: formatDuration,
     _formatClock: formatClock,
+    _extForMimeType: extForMimeType,
   };
 })();

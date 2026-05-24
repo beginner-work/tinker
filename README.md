@@ -65,6 +65,9 @@ Required Vercel env vars:
 - `STYTCH_SECRET`
 - `ANTHROPIC_API_KEY`
 - `DATABASE_URL`
+- `BLOB_READ_WRITE_TOKEN` — Vercel Blob store credentials; auto-injected
+  when a Blob store is linked to the project. Used by
+  `/api/upload/pitch-video` (the in-app pitch recorder's cloud-save flow)
 - `BROWSERBASE_API_KEY` — used by `scripts/browserbase-debug.js`
 - `BROWSERBASE_PROJECT_ID` — used by `scripts/browserbase-debug.js`
 

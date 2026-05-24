@@ -3194,3 +3194,12 @@ html.seed-modal-open { overflow: hidden; }
 .pitch-script__rec-secondary:hover {
   background: var(--color-hover);
 }
+.pitch-script__rec-secondary:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.pitch-script__rec-upload-error {
+  color: #b04a3a;
+  font-weight: 700;
+  cursor: help;
+}
