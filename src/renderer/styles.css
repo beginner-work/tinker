@@ -3022,6 +3022,49 @@ html.seed-modal-open { overflow: hidden; }
   display: flex;
   justify-content: flex-start;
 }
+
+/* ── pitch-script · saved take thumbnail ────────────────────────────
+ *
+ * Re-watch surface for the most recently uploaded take. Sits between
+ * the pitch title and the record CTA so the founder sees their last
+ * cut before they decide whether to record another one. The native
+ * <video controls> renders the first frame as a poster on its own
+ * thanks to preload="metadata".
+ */
+.pitch-script__saved {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface, transparent);
+}
+.pitch-script__saved-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pitch-script__saved-heading {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+.pitch-script__saved-hint {
+  font-family: var(--font-body, var(--font-sans));
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.pitch-script__saved-video {
+  width: 100%;
+  max-width: 360px;
+  border-radius: 8px;
+  background: #000;
+  display: block;
+}
 .pitch-script__record {
   display: inline-flex;
   align-items: center;

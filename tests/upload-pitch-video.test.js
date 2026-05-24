@@ -80,11 +80,14 @@ const { _validatePathnameForPitch: validatePathname, _parseClientPayload: parseC
 // Tiny req/res harness — Node's serverless function shape uses
 // http-style req/res. We feed a JSON body via a Readable + ship a
 // minimal res that records the status + JSON payload.
-function makeReq({ method = "POST", body, headers = {} } = {}) {
-  const stream = Readable.from([Buffer.from(JSON.stringify(body))]);
+function makeReq({ method = "POST", body, headers = {}, url } = {}) {
+  const payload = method === "GET" ? null : body;
+  const stream = payload != null
+    ? Readable.from([Buffer.from(JSON.stringify(payload))])
+    : Readable.from([]);
   stream.method = method;
   stream.headers = headers;
-  stream.url = "/api/upload/pitch-video";
+  stream.url = url || "/api/upload/pitch-video";
   return stream;
 }
 function makeRes() {
@@ -148,12 +151,93 @@ test("parseClientPayload requires a valid pitchId", () => {
 
 // ── handler dispatch ────────────────────────────────────────────────
 
-test("handler rejects non-POST methods", async () => {
-  const req = makeReq({ method: "GET", body: {} });
+test("handler rejects unsupported methods", async () => {
+  const req = makeReq({ method: "DELETE", body: {} });
   const res = makeRes();
   await handler(req, res);
   assert.equal(res.statusCode, 405);
-  assert.equal(res.headers.Allow, "POST");
+  assert.equal(res.headers.Allow, "GET, POST");
+});
+
+test("GET requires a valid pitchId in the query string", async () => {
+  const req = makeReq({
+    method: "GET",
+    headers: { authorization: "Bearer session-token-abc" },
+    url: "/api/upload/pitch-video",
+  });
+  const res = makeRes();
+  await handler(req, res);
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /pitchId/);
+});
+
+test("GET returns the saved take when one exists", async () => {
+  // Seed the fake store by going through the upload-completed leg.
+  prismaCalls.length = 0;
+  const savedRow = {
+    url: "https://blob.example.com/pitch-videos/p_abc123/take.webm",
+    downloadUrl: "https://blob.example.com/pitch-videos/p_abc123/take.webm?download=1",
+    pathname: "pitch-videos/p_abc123/take.webm",
+    contentType: "video/webm",
+    uploadedAt: 1716000000000,
+  };
+  // Patch the stub for this one test so the GET sees a row.
+  const origUpsert = dbStub.tinkerUserData.upsert;
+  let upserted = null;
+  dbStub.tinkerUserData.upsert = async (args) => {
+    upserted = { args, row: { userId: "user-test-abc", kind: "pitch-video:p_abc123", data: savedRow, updatedAt: new Date() } };
+    return upserted.row;
+  };
+  const origFindUnique = dbStub.tinkerUserData.findUnique;
+  dbStub.tinkerUserData.findUnique = async ({ where: { userId_kind: { userId, kind } } }) => {
+    if (upserted && userId === "user-test-abc" && kind === "pitch-video:p_abc123") {
+      return upserted.row;
+    }
+    return null;
+  };
+
+  // Trigger an upload-completed first to populate the row.
+  const postReq = makeReq({
+    body: {
+      type: "blob.upload-completed",
+      payload: {
+        blob: savedRow,
+        tokenPayload: JSON.stringify({ userId: "user-test-abc", pitchId: "p_abc123" }),
+      },
+    },
+  });
+  await handler(postReq, makeRes());
+
+  // Now GET.
+  const getReq = makeReq({
+    method: "GET",
+    headers: { authorization: "Bearer session-token-abc" },
+    url: "/api/upload/pitch-video?pitchId=p_abc123",
+  });
+  const getRes = makeRes();
+  await handler(getReq, getRes);
+  assert.equal(getRes.statusCode, 200, JSON.stringify(getRes.body));
+  assert.equal(getRes.body.data.url, savedRow.url);
+  assert.equal(getRes.body.data.contentType, "video/webm");
+
+  // Restore stubs.
+  dbStub.tinkerUserData.upsert = origUpsert;
+  dbStub.tinkerUserData.findUnique = origFindUnique;
+});
+
+test("GET returns null when no take has been saved", async () => {
+  const origFindUnique = dbStub.tinkerUserData.findUnique;
+  dbStub.tinkerUserData.findUnique = async () => null;
+  const req = makeReq({
+    method: "GET",
+    headers: { authorization: "Bearer session-token-abc" },
+    url: "/api/upload/pitch-video?pitchId=p_neverr",
+  });
+  const res = makeRes();
+  await handler(req, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.data, null);
+  dbStub.tinkerUserData.findUnique = origFindUnique;
 });
 
 test("handler requires a bearer token for blob.generate-client-token", async () => {

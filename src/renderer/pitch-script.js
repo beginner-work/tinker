@@ -56,13 +56,15 @@
     download: "Download",
     close: "Close",
     playbackTitle: "Your take",
-    saveToCloud: "Save to cloud",
     uploading: "Uploading…",
     uploaded: "Saved",
-    uploadFailed: "Upload failed",
+    uploadFailed: "Upload failed — tap to retry",
+    retryUpload: "Retry upload",
     copyLink: "Copy link",
     linkCopied: "Link copied",
     notSignedIn: "Sign in first to save your pitch to the cloud.",
+    savedTakeHeading: "Your latest take",
+    savedTakeHint: "Play to re-watch what's already saved to the cloud.",
   };
 
   const TOKEN_KEY = "tinker_jwt";
@@ -96,6 +98,14 @@
   // upload: "idle" | "uploading" | { ok: true, url, copied? } | { ok: false, error }
   let uploadState = "idle";
   let uploadCopiedTimer = null;
+
+  // ── Saved take ──────────────────────────────────────────────────
+  // The most recently uploaded take for the current pitch, fetched
+  // from the server on show() so a thumbnail+playback shows up at
+  // the top of the script across sessions.
+  // savedTake: null | { url, contentType, uploadedAt, pitchId }
+  let savedTake = null;
+  let savedTakeFetchToken = 0;
 
   function escapeHtml(s) {
     return String(s == null ? "" : s)
@@ -206,6 +216,7 @@
         `<h1 class="pitch-script__title">${escapeHtml(STR.surfaceTitle)}</h1>` +
         `<div class="pitch-script__pitch-title" data-audit-ignore>${escapeHtml(script.title)}</div>` +
         `<div class="pitch-script__total">${escapeHtml(STR.totalLabel)}: ${escapeHtml(formatDuration(total))}</div>` +
+        savedTakeHtml() +
         `<div class="pitch-script__record-row">` +
           `<button type="button" class="pitch-script__record" data-role="record" ${recorderActive ? "disabled" : ""}>` +
             `<span class="pitch-script__record-glyph" aria-hidden="true">●</span>` +
@@ -230,6 +241,27 @@
       // element. innerHTML rewrites tear the old element out.
       attachStreamToPreview();
     }
+  }
+
+  // ── Saved-take thumbnail ────────────────────────────────────────
+  // Rendered when the founder has a previously-uploaded take for
+  // this pitch (either from a prior session or from the most recent
+  // recording in this one). preload="metadata" lets the browser
+  // paint the first frame as a poster without downloading the whole
+  // file. Hidden while the recorder panel is up so it doesn't
+  // double the "video on screen" surface area.
+  function savedTakeHtml() {
+    if (!savedTake || !savedTake.url) return "";
+    if (recorderMode !== "idle") return "";
+    return (
+      `<section class="pitch-script__saved" aria-label="${escapeHtml(STR.savedTakeHeading)}">` +
+        `<header class="pitch-script__saved-header">` +
+          `<span class="pitch-script__saved-heading">${escapeHtml(STR.savedTakeHeading)}</span>` +
+          `<span class="pitch-script__saved-hint">${escapeHtml(STR.savedTakeHint)}</span>` +
+        `</header>` +
+        `<video class="pitch-script__saved-video" src="${escapeHtml(savedTake.url)}" controls preload="metadata" playsinline></video>` +
+      `</section>`
+    );
   }
 
   // ── Recorder panel HTML ─────────────────────────────────────────
@@ -271,35 +303,27 @@
         `<video class="pitch-script__rec-video" data-role="rec-preview" autoplay muted playsinline></video>`;
     } else if (recorderMode === "playback") {
       const downloadName = recordedMimeType && recordedMimeType.includes("mp4") ? "pitch.mp4" : "pitch.webm";
+      // Upload runs automatically the moment a take is captured, so the
+      // status line is the only surface that reflects it. Failures get
+      // a retry button next to the controls — no second button to
+      // tap for the happy path.
       let uploadHtml = "";
       let statusSuffix = "";
       if (uploadState === "uploading") {
         statusSuffix = ` · ${escapeHtml(STR.uploading)}`;
       } else if (uploadState && uploadState.ok === true) {
         statusSuffix = ` · ${escapeHtml(STR.uploaded)}`;
+        const copyLabel = uploadState.copied ? STR.linkCopied : STR.copyLink;
+        uploadHtml = `<button type="button" class="pitch-script__rec-secondary" data-role="rec-copy-link">${escapeHtml(copyLabel)}</button>`;
       } else if (uploadState && uploadState.ok === false) {
         statusSuffix = ` · ${escapeHtml(STR.uploadFailed)}`;
+        uploadHtml = `<button type="button" class="pitch-script__rec-secondary" data-role="rec-upload" title="${escapeHtml(uploadState.error || "")}">${escapeHtml(STR.retryUpload)}</button>`;
       }
       statusHtml =
         `<span class="pitch-script__rec-status">${escapeHtml(STR.playbackTitle)} · ${escapeHtml(formatClock(elapsedSeconds))}${statusSuffix}</span>`;
-      if (uploadState === "uploading") {
-        uploadHtml =
-          `<button type="button" class="pitch-script__rec-secondary" disabled>${escapeHtml(STR.uploading)}</button>`;
-      } else if (uploadState && uploadState.ok === true) {
-        const copyLabel = uploadState.copied ? STR.linkCopied : STR.copyLink;
-        uploadHtml = `<button type="button" class="pitch-script__rec-secondary" data-role="rec-copy-link">${escapeHtml(copyLabel)}</button>`;
-      } else {
-        // idle or failed — let the founder retry from either path.
-        uploadHtml = `<button type="button" class="pitch-script__rec-secondary" data-role="rec-upload">${escapeHtml(STR.saveToCloud)}</button>`;
-      }
-      const failureHint =
-        uploadState && uploadState.ok === false && uploadState.error
-          ? ` <span class="pitch-script__rec-upload-error" title="${escapeHtml(uploadState.error)}">·</span>`
-          : "";
       controlsHtml =
         `<button type="button" class="pitch-script__rec-secondary" data-role="rec-redo">${escapeHtml(STR.recordAgain)}</button>` +
         uploadHtml +
-        failureHint +
         `<a class="pitch-script__rec-secondary pitch-script__rec-download" data-role="rec-download" href="${escapeHtml(recordedBlobUrl || "#")}" download="${escapeHtml(downloadName)}">${escapeHtml(STR.download)}</a>` +
         `<button type="button" class="pitch-script__rec-primary" data-role="rec-close">${escapeHtml(STR.close)}</button>`;
       videoHtml =
@@ -487,6 +511,10 @@
       // blob URL, not the live stream.
       teardownStream();
       render();
+      // Kick off the cloud upload automatically. The founder shouldn't
+      // have to tap a second button for the obvious next step; if it
+      // fails, the status flips to a retry affordance.
+      uploadRecording().catch(() => { /* surfaced in uploadState */ });
     });
 
     elapsedSeconds = 0;
@@ -678,6 +706,16 @@
         throw new Error("Blob upload did not return a URL");
       }
       uploadState = { ok: true, url: putJson.url };
+      // Optimistically populate the saved-take thumbnail so it shows
+      // up the moment the upload finishes — without waiting on the
+      // upload-completed callback to round-trip through Vercel and
+      // land in our database.
+      savedTake = {
+        url: putJson.url,
+        contentType: recordedMimeType || "video/webm",
+        uploadedAt: Date.now(),
+        pitchId: currentPitchId,
+      };
     } catch (err) {
       uploadState = { ok: false, error: String((err && err.message) || err) };
     }
@@ -713,6 +751,40 @@
     }, 1500);
   }
 
+  // Pulls the most recently uploaded take for the active pitch so
+  // the saved-take thumbnail renders on first paint. Cancelled
+  // implicitly when show() is called again for a different pitch —
+  // the token guard drops any in-flight response that no longer
+  // matches the current pitch.
+  async function fetchSavedTake(pitchId) {
+    const token = getAuthToken();
+    if (!token) return;
+    const fetchId = ++savedTakeFetchToken;
+    try {
+      const res = await fetch(
+        `${UPLOAD_ENDPOINT}?pitchId=${encodeURIComponent(pitchId)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) return;
+      const json = await res.json();
+      if (fetchId !== savedTakeFetchToken) return;
+      if (pitchId !== currentPitchId) return;
+      const data = json && json.data;
+      if (data && data.url) {
+        savedTake = {
+          url: data.url,
+          contentType: data.contentType || "video/webm",
+          uploadedAt: data.uploadedAt || null,
+          pitchId,
+        };
+        render();
+      }
+    } catch (_) {
+      // Network blips just leave the thumbnail hidden; nothing
+      // user-facing to flag.
+    }
+  }
+
   window.tinkerPitchScript = {
     show(pitchId) {
       viewEl = document.getElementById("pitch-script");
@@ -721,9 +793,11 @@
       // down so the new pitch lands in a clean idle state.
       if (currentPitchId !== pitchId) {
         teardownRecorder();
+        savedTake = null;
       }
       currentPitchId = pitchId || null;
       render();
+      if (currentPitchId) fetchSavedTake(currentPitchId);
     },
     // Exposed for tests.
     _scriptToPlainText: scriptToPlainText,

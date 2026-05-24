@@ -61,6 +61,21 @@ function extractBearer(header) {
   return m ? m[1] : "";
 }
 
+// Vercel's serverless adapter populates req.query, but plain Node http
+// (and our tests) does not — fall back to parsing req.url.
+function urlPitchId(req) {
+  const raw = String((req && req.url) || "");
+  if (!raw) return "";
+  const q = raw.indexOf("?");
+  if (q < 0) return "";
+  try {
+    const params = new URLSearchParams(raw.slice(q + 1));
+    return params.get("pitchId") || "";
+  } catch {
+    return "";
+  }
+}
+
 function readJsonBody(req) {
   if (req.body && typeof req.body === "object") return Promise.resolve(req.body);
   return new Promise((resolve, reject) => {
@@ -138,8 +153,35 @@ function parseClientPayload(clientPayload) {
 }
 
 async function handler(req, res) {
+  if (req.method === "GET") {
+    let userId;
+    try {
+      userId = await resolveUserId(req);
+    } catch (err) {
+      res.status(err.status || 401).json({ error: err.message || "Unauthorized" });
+      return;
+    }
+    const pitchId = String(((req.query && req.query.pitchId) || urlPitchId(req)) || "").trim();
+    if (!pitchId || !PITCH_ID_RE.test(pitchId)) {
+      res.status(400).json({ error: "Invalid pitchId" });
+      return;
+    }
+    try {
+      const row = await prisma.tinkerUserData.findUnique({
+        where: { userId_kind: { userId, kind: `pitch-video:${pitchId}` } },
+      });
+      res.status(200).json({
+        data: row ? row.data : null,
+        updatedAt: row ? row.updatedAt : null,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message || "Internal error" });
+    }
+    return;
+  }
+
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+    res.setHeader("Allow", "GET, POST");
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
