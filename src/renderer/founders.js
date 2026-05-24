@@ -1,18 +1,21 @@
-/* tinker — founders (v0.2)
+/* tinker — founders (v0.3)
  *
  * The "founders" surface: a quiet adjacency tool for founder-to-founder
  * discovery inside tinker. Two states:
  *
  *   1. Opt-in screen (the load-bearing v1 surface — discoverable is OFF
  *      by default). One paragraph explains what discoverability means;
- *      a picker lets the founder choose WHICH of their published
- *      pitches to share with the network; one button opts them in.
+ *      a picker lets the founder choose WHICH of their pitches to share
+ *      with the network (any pitch with a title and at least one
+ *      resolved phrase — not just already-published ones); one button
+ *      opts them in. The act of opting in auto-publishes the picked
+ *      pitch so other founders have a link to click.
  *
  *   2. Results page (once opted in). Shows the picked pitch's title at
  *      the top, the "find my founders" button, and on press a list of
  *      3–7 adjacent founder pitches as paper cards. A "Change pitch"
- *      control swaps to a different published pitch; a "Hide" control
- *      opts back out.
+ *      control swaps to a different pitch; a "Hide" control opts back
+ *      out.
  *
  * NOT a scrolling feed. NOT engagement-ranked. NO likes, hearts,
  * comments, reactions, follower counts. NO DM / reach-out / reveal-
@@ -45,8 +48,9 @@
     pickerPrompt: "Pick a pitch to share with your founder network:",
     optInButton: "Make this pitch discoverable",
     hideHint: "You can hide it again any time.",
-    noPublishedHint:
-      "Publish one of your pitches first, then come back here to share it with the network.",
+    noPitchesHint:
+      "You don't have any pitches with a title yet. Write a few drafts so tinker can name your first pitch, then come back.",
+    publishingHint: "Publishing your pitch…",
 
     // Results page
     findButton: "find my founders", // verbatim
@@ -72,10 +76,12 @@
   let viewEl = null;
   // null = haven't checked yet; otherwise { discoverableAt, pitchSlug }.
   let status = null;
-  // Cached list of the founder's published pitches (for the picker).
+  // Cached list of the founder's published pitches (used to look up
+  // the title for the shared-pitch banner on the results page).
   let publishedPitches = null;
-  // Selection in the picker before the user confirms.
-  let pickerSelectedSlug = null;
+  // Selection in the picker before the user confirms. Holds a pitch id
+  // (window.tinkerPitches uses ids; slugs are derived at publish time).
+  let pickerSelectedId = null;
   // Last adjacency response so flipping away and back doesn't re-fire.
   let lastResults = null;
   let busyOptIn = false;
@@ -106,6 +112,23 @@
   function findPitchBySlug(slug) {
     if (!slug || !Array.isArray(publishedPitches)) return null;
     return publishedPitches.find((p) => p.slug === slug) || null;
+  }
+
+  // Read every local pitch with a display title — that's what the
+  // picker shows. Robustness > 0 means the pitch has at least one
+  // resolved phrase, which is the floor for being publishable (the
+  // publish endpoint 400s on an empty deck).
+  function listLocalPitches() {
+    const pm = window.tinkerPitches;
+    if (!pm || typeof pm.getPitches !== "function") return [];
+    const all = pm.getPitches() || [];
+    return all
+      .filter((p) => (p.personalTitle || p.aiTitle) && (Number(p.robustness) || 0) > 0)
+      .map((p) => ({
+        id: p.id,
+        title: p.personalTitle || p.aiTitle,
+        robustness: Number(p.robustness) || 0,
+      }));
   }
 
   // ── Server I/O ──────────────────────────────────────────────────────
@@ -168,6 +191,19 @@
     }
   }
 
+  // Publish a local pitch via the existing pitches.js API and return
+  // the resulting slug. Idempotent — re-publishing an already-published
+  // pitch upserts the row server-side.
+  async function publishLocalPitch(pitchId) {
+    const pm = window.tinkerPitches;
+    if (!pm || typeof pm.publishPitch !== "function") {
+      return { ok: false, error: "Publish is unavailable" };
+    }
+    const r = await pm.publishPitch(pitchId);
+    if (!r || !r.ok) return { ok: false, error: (r && r.error) || "Publish failed" };
+    return { ok: true, slug: r.slug };
+  }
+
   async function findAdjacent() {
     const token = getJwt();
     if (!token) return { ok: false, error: "Not signed in" };
@@ -212,25 +248,33 @@
   }
 
   function renderOptIn() {
-    // Default the picker selection to the most recently published
-    // pitch if the founder hasn't touched the picker yet.
-    if (pickerSelectedSlug === null && publishedPitches.length) {
-      pickerSelectedSlug = publishedPitches[0].slug;
+    const localPitches = listLocalPitches();
+
+    // Default the picker selection to the first pitch if the founder
+    // hasn't touched the picker yet. If they were previously opted in
+    // (i.e., are coming from "Change pitch"), prefer the same title.
+    if (pickerSelectedId === null && localPitches.length) {
+      let defaultPick = localPitches[0];
+      const prevShared = findPitchBySlug(status && status.pitchSlug);
+      if (prevShared) {
+        const match = localPitches.find((p) => p.title === prevShared.title);
+        if (match) defaultPick = match;
+      }
+      pickerSelectedId = defaultPick.id;
     }
 
     let pickerHtml = "";
-    if (!publishedPitches.length) {
+    if (!localPitches.length) {
       pickerHtml =
-        `<p class="founders__fineprint">${escapeHtml(STR.noPublishedHint)}</p>`;
+        `<p class="founders__fineprint">${escapeHtml(STR.noPitchesHint)}</p>`;
     } else {
-      const optionsHtml = publishedPitches.map((p) => {
-        const checked = p.slug === pickerSelectedSlug ? " checked" : "";
-        // Pitch titles are founder-generated chrome (the daily-beginner
-        // post titles). data-audit-ignore keeps them out of any future
-        // visible-string audit.
+      const optionsHtml = localPitches.map((p) => {
+        const checked = p.id === pickerSelectedId ? " checked" : "";
+        // Pitch titles are founder-generated chrome. data-audit-ignore
+        // keeps them out of any future visible-string audit.
         return (
           `<label class="founders__picker-option" data-audit-ignore>` +
-            `<input type="radio" name="founders-pitch" value="${escapeHtml(p.slug)}"${checked} />` +
+            `<input type="radio" name="founders-pitch" value="${escapeHtml(p.id)}"${checked} />` +
             `<span class="founders__picker-title">${escapeHtml(p.title)}</span>` +
           `</label>`
         );
@@ -240,7 +284,7 @@
         `<div class="founders__picker" data-role="picker">${optionsHtml}</div>`;
     }
 
-    const buttonDisabled = !publishedPitches.length || !pickerSelectedSlug || busyOptIn;
+    const buttonDisabled = !localPitches.length || !pickerSelectedId || busyOptIn;
 
     viewEl.innerHTML =
       `<div class="founders__inner">` +
@@ -250,7 +294,7 @@
         `<form class="founders__opt-in" data-role="opt-in-form" aria-label="${escapeHtml(STR.aria.optInForm)}">` +
           `<button type="submit" class="founders__primary" data-role="opt-in-btn"` +
                   (buttonDisabled ? " disabled" : "") + `>` +
-            escapeHtml(STR.optInButton) +
+            escapeHtml(busyOptIn ? STR.publishingHint : STR.optInButton) +
           `</button>` +
           `<p class="founders__fineprint">${escapeHtml(STR.hideHint)}</p>` +
         `</form>` +
@@ -261,7 +305,7 @@
       picker.addEventListener("change", (e) => {
         const input = e.target.closest('input[type="radio"]');
         if (!input) return;
-        pickerSelectedSlug = input.value;
+        pickerSelectedId = input.value;
         renderOptIn();
       });
     }
@@ -270,13 +314,26 @@
     if (form) {
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        if (busyOptIn || !pickerSelectedSlug) return;
+        if (busyOptIn || !pickerSelectedId) return;
         busyOptIn = true;
         renderOptIn();
-        const r = await setDiscoverable({ optIn: true, pitchSlug: pickerSelectedSlug });
+        // Two-step: publish the picked pitch (idempotent), then
+        // record the resulting slug on the discoverable row. If the
+        // pitch had never been published before, this is what makes
+        // it visible to other founders.
+        const pub = await publishLocalPitch(pickerSelectedId);
+        if (!pub.ok) {
+          busyOptIn = false;
+          renderOptInError(pub.error);
+          return;
+        }
+        // Refresh the published-pitches cache so the results page can
+        // look up the title for the new slug.
+        publishedPitches = null;
+        const opt = await setDiscoverable({ optIn: true, pitchSlug: pub.slug });
         busyOptIn = false;
-        if (!r.ok) {
-          renderOptInError(r.error);
+        if (!opt.ok) {
+          renderOptInError(opt.error);
           return;
         }
         lastResults = null;
@@ -356,12 +413,12 @@
     if (changeBtn) {
       changeBtn.addEventListener("click", async () => {
         if (busyChange) return;
-        // "Change pitch" drops them back to the picker. Hide first so
-        // the picker can render in opt-in mode, with the current slug
-        // pre-selected so they can confirm or pick a different one.
+        // "Change pitch" drops them back to the picker. Clear the
+        // selection so the picker defaults to the currently shared
+        // pitch (via the title lookup in renderOptIn).
         busyChange = true;
         renderResults();
-        pickerSelectedSlug = status.pitchSlug;
+        pickerSelectedId = null;
         const r = await setDiscoverable({ optIn: false });
         busyChange = false;
         if (!r.ok) {
@@ -387,7 +444,7 @@
           return;
         }
         lastResults = null;
-        pickerSelectedSlug = null;
+        pickerSelectedId = null;
         render();
       });
     }
@@ -476,7 +533,7 @@
     refresh() {
       status = null;
       publishedPitches = null;
-      pickerSelectedSlug = null;
+      pickerSelectedId = null;
       lastResults = null;
       render();
     },
