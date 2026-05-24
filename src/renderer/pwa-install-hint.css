@@ -118,13 +118,29 @@ html.pwa-hint-visible .writing__top {
   padding-top: calc(env(safe-area-inset-top, 0px) + 16px + 64px);
 }
 /* The read view has no top bar — the body article carries the
- * hamburger clearance directly, mirroring the feed's 80px base.
- * Without this, the floating hamburger lands on top of .read__title. */
-html.pwa-hint-visible .read__body {
-  padding-top: calc(env(safe-area-inset-top, 0px) + 80px + 64px);
+ * hamburger + floating-title clearance directly. With the install
+ * banner visible we add another 64px so the first paragraph still
+ * sits below both the banner and the now-lowered title bar. */
+html.pwa-hint-visible .read__body,
+html.pwa-hint-visible .category-feed__head,
+html.pwa-hint-visible .writing-fit__inner,
+html.pwa-hint-visible .post-on-social__inner,
+html.pwa-hint-visible .pitch-script__inner,
+html.pwa-hint-visible .founders__inner {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 76px + 64px);
 }
-html.pwa-hint-visible .category-feed__head {
-  padding-top: calc(env(safe-area-inset-top, 0px) + 80px + 64px);
+
+/* Slide the floating page-title bar below the install banner, the
+ * same 64px shift the hamburger and body containers get. */
+@media (max-width: 540px) {
+  html.pwa-hint-visible .category-feed__title,
+  html.pwa-hint-visible .read__title,
+  html.pwa-hint-visible .post-on-social__title,
+  html.pwa-hint-visible .writing-fit__headline,
+  html.pwa-hint-visible .pitch-script__title,
+  html.pwa-hint-visible .founders__title {
+    top: 64px;
+  }
 }
 
 /* ── Bottom-sheet ──────────────────────────────────────────────────── */
