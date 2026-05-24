@@ -717,6 +717,33 @@
     };
   }
 
+  // Build the inputs the founders' "prepare a video script" view
+  // needs from a pitch: the display title + every slide whose resolved
+  // phrases survived the writing-source lookup, plus a per-slide
+  // suggested speaking duration (rounded to the nearest 5 seconds,
+  // floored at 10 and capped at 60 — based on ~130 spoken words/min,
+  // which is the deliberate on-camera rate, not the read-silently
+  // rate). Slides with no resolved phrases are dropped so the
+  // storyboard only shows what the founder actually has copy for.
+  function getPitchScript(pitchId) {
+    const pitch = pitchId ? blob.pitches.find((p) => p.id === pitchId) : null;
+    if (!pitch) return null;
+    const resolved = resolveDeckPhrases(pitch);
+    const slides = [];
+    for (const heading of DECK_HEADINGS) {
+      const phrases = resolved[heading];
+      if (!phrases || !phrases.length) continue;
+      const wordCount = phrases.reduce(
+        (n, p) => n + String(p).trim().split(/\s+/).filter(Boolean).length,
+        0,
+      );
+      const raw = (wordCount / 130) * 60;
+      const rounded = Math.max(10, Math.min(60, Math.ceil(raw / 5) * 5));
+      slides.push({ heading, phrases, seconds: rounded });
+    }
+    return { title: displayTitleFor(pitch), slides };
+  }
+
   // ── Public surface ────────────────────────────────────────────────
 
   const api = {
@@ -736,6 +763,7 @@
     pitchRobustness,
     listOffPitchWritings,
     publishPitch,
+    getPitchScript,
     scheduleOrganize,
     triggerOrganize,
     // Back-compat alias for callers still on the old name. The

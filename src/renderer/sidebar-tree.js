@@ -387,9 +387,10 @@
   // verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
-  // Transient publish state: "idle" | "publishing" | { ok: true, readerPath } | { ok: false, error }
-  let publishState = "idle";
-  let publishToastTimer = null;
+  // Transient post state for the ▶ button: "idle" | "posting" |
+  // { ok: true, readerUrl } | { ok: false, error }
+  let postState = "idle";
+  let postToastTimer = null;
 
   // Render the two-line title block used in the dropdown face and
   // in each menu item. Personal title on top (the founder's
@@ -517,43 +518,42 @@
     });
     row.appendChild(rename);
 
-    // Publish — ships the active pitch's resolved phrases as a daily
-    // beginner post. The endpoint upserts a TinkerUserData row with
-    // kind="published:<slug>"; the beginner repo's /daily/ reader
-    // pulls that row down and renders it.
-    const publish = document.createElement("button");
-    publish.type = "button";
-    publish.className = "sidebar__pitch-publish-btn";
-    const publishLabel = "Publish to your daily beginner";
-    publish.setAttribute("aria-label", publishLabel);
-    publish.setAttribute("title", publishLabel);
-    if (publishState === "publishing") {
-      publish.textContent = "…";
-      publish.disabled = true;
-    } else if (publishState && publishState.ok === true) {
-      publish.textContent = "✓";
-    } else if (publishState && publishState.ok === false) {
-      publish.textContent = "!";
-      publish.setAttribute("title", publishState.error || publishLabel);
+    // Post — ships the active pitch's resolved phrases as a daily
+    // beginner post. The ▶ glyph reads "press play / send it"; the
+    // endpoint upserts a TinkerUserData row with kind="published:
+    // <slug>" and the beginner repo's /daily/ reader pulls that row
+    // down and renders it. Success opens the reader so the founder
+    // sees what just shipped.
+    const post = document.createElement("button");
+    post.type = "button";
+    post.className = "sidebar__pitch-publish-btn";
+    const postLabel = "Post to your daily beginner";
+    post.setAttribute("aria-label", postLabel);
+    post.setAttribute("title", postLabel);
+    if (postState === "posting") {
+      post.textContent = "…";
+      post.disabled = true;
+    } else if (postState && postState.ok === true) {
+      post.textContent = "✓";
+    } else if (postState && postState.ok === false) {
+      post.textContent = "!";
+      post.setAttribute("title", postState.error || postLabel);
     } else {
-      publish.textContent = "↗";
+      post.textContent = "▶";
     }
-    publish.addEventListener("click", async (e) => {
+    post.addEventListener("click", async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (publishState === "publishing") return;
+      if (postState === "posting") return;
       const pm = pitchesApi();
       if (!pm || typeof pm.publishPitch !== "function") return;
-      publishState = "publishing";
+      postState = "posting";
       render();
       const result = await pm.publishPitch(active.id);
-      publishState = result && result.ok
+      postState = result && result.ok
         ? { ok: true, readerUrl: result.readerUrl }
-        : { ok: false, error: (result && result.error) || "Publish failed" };
+        : { ok: false, error: (result && result.error) || "Post failed" };
       render();
-      // On success, open the daily-beginner reader so the founder
-      // sees what just shipped. The reader lives on the beginner
-      // origin, so the publish endpoint hands us an absolute URL.
       if (result && result.ok && result.readerUrl) {
         if (window.tinker && typeof window.tinker.openExternal === "function") {
           window.tinker.openExternal(result.readerUrl);
@@ -561,14 +561,14 @@
           window.open(result.readerUrl, "_blank", "noopener,noreferrer");
         }
       }
-      if (publishToastTimer) clearTimeout(publishToastTimer);
-      publishToastTimer = setTimeout(() => {
-        publishState = "idle";
-        publishToastTimer = null;
+      if (postToastTimer) clearTimeout(postToastTimer);
+      postToastTimer = setTimeout(() => {
+        postState = "idle";
+        postToastTimer = null;
         render();
       }, result && result.ok ? 3500 : 5000);
     });
-    row.appendChild(publish);
+    row.appendChild(post);
 
     if (renameOpen) {
       const form = document.createElement("form");

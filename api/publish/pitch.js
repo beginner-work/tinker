@@ -43,20 +43,15 @@ const MAX_PHRASES_PER_HEADING = 6;
 const MAX_PHRASE_LEN = 600;
 
 // The daily-beginner reader lives on the beginner repo. Production
-// tinker → https://beginner.work. Preview tinker → swap the leading
-// "tinker-git-" for "beginner-git-" in VERCEL_BRANCH_URL so a tinker
-// preview opens the matching beginner preview for the same git branch.
+// tinker → https://beginner.work. Preview tinker → beginner's main
+// preview alias (always the latest deploy of beginner's `main`),
+// because tinker preview branches rarely have a matching beginner
+// branch and the per-branch swap 404s in that case.
 //
-// VERCEL_ENV and VERCEL_BRANCH_URL are auto-injected by Vercel — there
-// are no new env vars to configure. If the beginner side hasn't built
-// the branch yet, the swap-produced URL 404s; that's an honest signal
-// that the companion PR isn't deployed, not silent fallback to prod.
+// VERCEL_ENV is auto-injected by Vercel — no new env vars to configure.
 function readerHost() {
   if (process.env.VERCEL_ENV === "preview") {
-    const branchUrl = process.env.VERCEL_BRANCH_URL || "";
-    if (branchUrl.startsWith("tinker-git-")) {
-      return `https://beginner-git-${branchUrl.slice("tinker-git-".length)}`;
-    }
+    return "https://beginner-git-main-beginner-work.vercel.app";
   }
   return "https://beginner.work";
 }

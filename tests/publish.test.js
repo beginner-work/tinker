@@ -225,26 +225,15 @@ test("readerHost in production always returns beginner.work", () => {
   }
 });
 
-test("readerHost swaps tinker-git- → beginner-git- in VERCEL_BRANCH_URL on previews", () => {
+test("readerHost on previews returns beginner's main preview alias", () => {
   const prev = { ...process.env };
   process.env.VERCEL_ENV = "preview";
   process.env.VERCEL_BRANCH_URL = "tinker-git-claude-slide-deck-tinker-sync-chppv-beginner-work.vercel.app";
   try {
     assert.equal(
       publish._readerHost(),
-      "https://beginner-git-claude-slide-deck-tinker-sync-chppv-beginner-work.vercel.app",
+      "https://beginner-git-main-beginner-work.vercel.app",
     );
-  } finally {
-    process.env = prev;
-  }
-});
-
-test("readerHost falls back to beginner.work when the preview branch URL doesn't start with tinker-git-", () => {
-  const prev = { ...process.env };
-  process.env.VERCEL_ENV = "preview";
-  process.env.VERCEL_BRANCH_URL = "something-else.vercel.app";
-  try {
-    assert.equal(publish._readerHost(), "https://beginner.work");
   } finally {
     process.env = prev;
   }

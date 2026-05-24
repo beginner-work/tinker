@@ -1456,7 +1456,7 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   align-items: center;
   justify-content: flex-start;
   padding: 18px 20px;
-  border-radius: var(--radius-md, 14px);
+  border-radius: var(--radius-card, 14px);
   border: 1px solid var(--color-border);
   background: transparent;
   color: var(--color-foreground);
@@ -1634,7 +1634,7 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   width: 100%;
   min-height: 180px;
   padding: 16px 18px;
-  border-radius: var(--radius-md, 14px);
+  border-radius: var(--radius-card, 14px);
   border: 1px solid var(--color-border);
   background: var(--color-background);
   color: var(--color-foreground);
@@ -2631,3 +2631,381 @@ html.txn-modal-open { overflow: hidden; }
 .seed-modal__btn--primary:hover { background: #4f46e5; }
 html.seed-modal-open { overflow: hidden; }
 
+/* ── founders (social-feed adjacency tool) ─────────────────────────
+ *
+ * Sibling surface to #post-on-social — inherits the same paper-card
+ * mood. Quiet, generous padding (the "quiet home" cue from the spec).
+ * No animations, no engagement chrome, no scroll feed. */
+.founders {
+  display: block;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 0;
+}
+.founders[hidden] { display: none; }
+
+.founders__inner {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 32px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.founders__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--color-foreground);
+}
+
+.founders__lede {
+  margin: 0;
+  font-family: var(--font-body, var(--font-sans));
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-foreground);
+  max-width: 56ch;
+}
+
+.founders__loading,
+.founders__results-loading {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+.founders__primary {
+  align-self: flex-start;
+  padding: 14px 24px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-accent-strong, var(--color-foreground));
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.founders__primary:hover { background: #000; }
+.founders__primary:active { transform: translateY(1px); }
+.founders__primary[disabled] { opacity: 0.55; cursor: default; }
+
+.founders__secondary {
+  align-self: flex-start;
+  padding: 10px 16px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.founders__secondary:hover {
+  background: var(--color-hover);
+  color: var(--color-foreground);
+}
+.founders__secondary[disabled] { opacity: 0.55; cursor: default; }
+
+.founders__opt-in,
+.founders__find,
+.founders__hide {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+/* Picker: a vertical list of radio rows, one per published pitch. */
+.founders__picker-prompt {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+  letter-spacing: 0.01em;
+}
+.founders__picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.founders__picker-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--radius-card, 12px);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.founders__picker-option:hover {
+  border-color: var(--color-accent-strong);
+  background: var(--color-hover);
+}
+.founders__picker-option input[type="radio"] {
+  margin: 0;
+  accent-color: var(--color-accent-strong);
+}
+.founders__picker-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+/* Inline text-button for "Change pitch" — sits under the shared-pitch
+ * card; muted, no border, opens the picker. */
+.founders__inline-link {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.founders__inline-link:hover { color: var(--color-foreground); }
+.founders__inline-link[disabled] { opacity: 0.55; cursor: default; }
+
+.founders__fineprint {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.founders__error {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: var(--radius-card, 12px);
+  background: rgba(176, 58, 46, 0.08);
+  color: #8a2a1f;
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.founders__own {
+  padding: 20px 24px;
+  border-radius: var(--radius-card, 14px);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+}
+.founders__own-label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 6px;
+}
+.founders__own-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-foreground);
+}
+
+.founders__results {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.founders__results-heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-foreground);
+}
+
+.founders__empty {
+  margin: 0;
+  padding: 24px 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-muted);
+  max-width: 52ch;
+}
+
+.founders__cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.founders__card {
+  margin: 0;
+  padding: 0;
+}
+.founders__card-link {
+  display: block;
+  padding: 28px 28px;
+  border-radius: var(--radius-card, 14px);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+.founders__card-link:hover {
+  border-color: var(--color-accent-strong, var(--color-foreground));
+  background: var(--color-hover);
+}
+.founders__card-link:active { transform: translateY(1px); }
+.founders__card-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+  color: var(--color-foreground);
+}
+.founders__card-summary {
+  font-family: var(--font-body, var(--font-sans));
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+
+/* ── pitch-script ──────────────────────────────────────────────────
+ *
+ * "Prepare a script for a video" view. Modeled on .founders — same
+ * column width, same padding, same typographic scale. One section
+ * per slide with the founder's resolved phrases verbatim; a copy
+ * button at the bottom for the full plain-text script.
+ */
+.pitch-script { display: block; width: 100%; min-height: 100%; box-sizing: border-box; padding: 0; }
+.pitch-script[hidden] { display: none; }
+
+.pitch-script__inner {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 32px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pitch-script__back {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  cursor: pointer;
+}
+.pitch-script__back:hover { background: var(--color-hover); color: var(--color-foreground); }
+
+.pitch-script__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--color-foreground);
+}
+
+.pitch-script__pitch-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.pitch-script__total {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--color-muted);
+  letter-spacing: 0.02em;
+}
+
+.pitch-script__empty {
+  margin: 0;
+  font-family: var(--font-body, var(--font-sans));
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+.pitch-script__storyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pitch-script__slide {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 16px 18px 8px;
+  background: var(--color-surface, transparent);
+}
+
+.pitch-script__slide-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--color-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pitch-script__slide-index { font-weight: 700; color: var(--color-foreground); }
+.pitch-script__slide-heading { flex: 1; text-transform: none; letter-spacing: 0; color: var(--color-foreground); font-weight: 600; font-size: 14px; }
+.pitch-script__slide-time { color: var(--color-muted); font-variant-numeric: tabular-nums; }
+
+.pitch-script__slide-body { display: flex; flex-direction: column; gap: 8px; }
+
+.pitch-script__phrase {
+  margin: 0;
+  font-family: var(--font-body, var(--font-sans));
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-foreground);
+}
+
+.pitch-script__actions { display: flex; gap: 12px; padding-top: 8px; }
+.pitch-script__copy {
+  padding: 10px 18px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-accent-strong, var(--color-foreground));
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pitch-script__copy:hover { background: #000; }
