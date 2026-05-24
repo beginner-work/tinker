@@ -57,6 +57,7 @@
     sectionHeading: "Founders adjacent to you", // verbatim
     sharedPitchLabel: "You're sharing",
     changePitchButton: "Change pitch",
+    previewPitchButton: "Preview pitch",
     hideButton: "Hide my pitch from other founders",
 
     // Cold-start / empty state
@@ -356,6 +357,14 @@
   function renderResults() {
     const shared = findPitchBySlug(status.pitchSlug);
     const sharedTitle = shared ? shared.title : status.pitchSlug;
+    const readerUrl = shared && shared.readerUrl ? shared.readerUrl : "";
+
+    // Anchor (not button) so the reader URL is visible on hover and
+    // middle-click opens in a new tab. target=_blank because the daily
+    // beginner reader is a separate site/preview from tinker.
+    const previewLink = readerUrl
+      ? `<a class="founders__inline-link" href="${escapeHtml(readerUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(STR.previewPitchButton)}</a>`
+      : "";
 
     viewEl.innerHTML =
       `<div class="founders__inner">` +
@@ -365,6 +374,7 @@
         `<section class="founders__own" aria-labelledby="founders-own-label">` +
           `<div id="founders-own-label" class="founders__own-label">${escapeHtml(STR.sharedPitchLabel)}</div>` +
           `<div class="founders__own-title" data-audit-ignore>${escapeHtml(sharedTitle || "")}</div>` +
+          previewLink +
           `<button type="button" class="founders__inline-link" data-role="change-btn"` +
                   (busyChange ? " disabled" : "") + `>` +
             escapeHtml(STR.changePitchButton) +

@@ -436,6 +436,21 @@ test("published-pitches lists the founder's published rows, most recent first", 
   assert.equal(res.captured.body.pitches[0].title, "New");
 });
 
+test("published-pitches includes a readerUrl for the daily-beginner reader", async () => {
+  reset();
+  seedPublished("user-self", "alpha", "Alpha", "# Alpha\n\nx");
+  const res = fakeRes();
+  await publishedPitches._raw(
+    fakeReq({ method: "GET", headers: { authorization: "Bearer t" } }),
+    res,
+  );
+  assert.equal(res.captured.status, 200);
+  assert.equal(
+    res.captured.body.pitches[0].readerUrl,
+    "https://beginner.work/daily/?u=user-self&t=alpha",
+  );
+});
+
 // ── Helper unit tests ─────────────────────────────────────────────────
 
 test("fallbackSummary strips frontmatter and headings", () => {
