@@ -2728,6 +2728,63 @@ html.seed-modal-open { overflow: hidden; }
   margin: 0;
 }
 
+/* Picker: a vertical list of radio rows, one per published pitch. */
+.founders__picker-prompt {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+  letter-spacing: 0.01em;
+}
+.founders__picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.founders__picker-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--radius-card, 12px);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.founders__picker-option:hover {
+  border-color: var(--color-accent-strong);
+  background: var(--color-hover);
+}
+.founders__picker-option input[type="radio"] {
+  margin: 0;
+  accent-color: var(--color-accent-strong);
+}
+.founders__picker-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+/* Inline text-button for "Change pitch" — sits under the shared-pitch
+ * card; muted, no border, opens the picker. */
+.founders__inline-link {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.founders__inline-link:hover { color: var(--color-foreground); }
+.founders__inline-link[disabled] { opacity: 0.55; cursor: default; }
+
 .founders__fineprint {
   margin: 0;
   font-family: var(--font-sans);

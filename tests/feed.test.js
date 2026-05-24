@@ -37,12 +37,23 @@ const dbStub = {
     findMany: async ({ where, orderBy }) => {
       let rows = Array.from(fakeStore.values());
       if (where) {
+        if (Array.isArray(where.OR)) {
+          rows = rows.filter((r) =>
+            where.OR.some((clause) => {
+              if (clause.userId && clause.userId !== r.userId) return false;
+              if (clause.kind && clause.kind !== r.kind) return false;
+              return true;
+            }),
+          );
+        }
         if (typeof where.kind === "string") {
           rows = rows.filter((r) => r.kind === where.kind);
         } else if (where.kind && typeof where.kind.startsWith === "string") {
           rows = rows.filter((r) => r.kind.startsWith(where.kind.startsWith));
         }
-        if (where.userId && Array.isArray(where.userId.in)) {
+        if (typeof where.userId === "string") {
+          rows = rows.filter((r) => r.userId === where.userId);
+        } else if (where.userId && Array.isArray(where.userId.in)) {
           const set = new Set(where.userId.in);
           rows = rows.filter((r) => set.has(r.userId));
         }
@@ -68,6 +79,7 @@ stubAt(path.join(libDir, "db.js"), dbStub);
 
 const discoverable = require("../api/feed/discoverable.js");
 const adjacent = require("../api/feed/adjacent.js");
+const publishedPitches = require("../api/feed/published-pitches.js");
 
 function fakeReq({ method = "POST", raw, headers = {} } = {}) {
   const stream = Readable.from(raw == null ? [] : [Buffer.from(raw)]);
@@ -109,31 +121,67 @@ test("discoverable GET returns null when not opted in", async () => {
   await discoverable._raw(fakeReq({ method: "GET", headers: { authorization: "Bearer t" } }), res);
   assert.equal(res.captured.status, 200);
   assert.equal(res.captured.body.discoverableAt, null);
+  assert.equal(res.captured.body.pitchSlug, null);
 });
 
-test("discoverable POST optIn:true sets a timestamp; GET reads it back", async () => {
+test("discoverable POST optIn:true with pitchSlug sets a timestamp; GET reads it back", async () => {
   reset();
+  // Picker requires a published row to exist for the picked slug.
+  fakeStore.set("user-self::published:mypitch", {
+    userId: "user-self",
+    kind: "published:mypitch",
+    data: { slug: "mypitch", title: "MyPitch", markdown: "# MyPitch\n\nA short pitch." },
+    updatedAt: new Date(),
+  });
   const before = Date.now();
   let res = fakeRes();
   await discoverable._raw(
-    fakeReq({ method: "POST", raw: JSON.stringify({ optIn: true }), headers: { authorization: "Bearer t" } }),
+    fakeReq({ method: "POST", raw: JSON.stringify({ optIn: true, pitchSlug: "mypitch" }), headers: { authorization: "Bearer t" } }),
     res,
   );
-  assert.equal(res.captured.status, 200);
+  assert.equal(res.captured.status, 200, JSON.stringify(res.captured.body));
   const ts = res.captured.body.discoverableAt;
   assert.ok(typeof ts === "string" && ts.length > 0);
   assert.ok(new Date(ts).getTime() >= before);
+  assert.equal(res.captured.body.pitchSlug, "mypitch");
 
   res = fakeRes();
   await discoverable._raw(fakeReq({ method: "GET", headers: { authorization: "Bearer t" } }), res);
   assert.equal(res.captured.body.discoverableAt, ts);
+  assert.equal(res.captured.body.pitchSlug, "mypitch");
 });
 
-test("discoverable POST optIn:false nulls the timestamp", async () => {
+test("discoverable POST optIn:true rejects when the slug isn't a published pitch", async () => {
   reset();
-  let res = fakeRes();
+  const res = fakeRes();
+  await discoverable._raw(
+    fakeReq({ method: "POST", raw: JSON.stringify({ optIn: true, pitchSlug: "ghost" }), headers: { authorization: "Bearer t" } }),
+    res,
+  );
+  assert.equal(res.captured.status, 400);
+});
+
+test("discoverable POST optIn:true rejects when pitchSlug is missing", async () => {
+  reset();
+  const res = fakeRes();
   await discoverable._raw(
     fakeReq({ method: "POST", raw: JSON.stringify({ optIn: true }), headers: { authorization: "Bearer t" } }),
+    res,
+  );
+  assert.equal(res.captured.status, 400);
+});
+
+test("discoverable POST optIn:false nulls the timestamp and slug", async () => {
+  reset();
+  fakeStore.set("user-self::published:mypitch", {
+    userId: "user-self",
+    kind: "published:mypitch",
+    data: { slug: "mypitch", title: "MyPitch", markdown: "# MyPitch\n\nA short pitch." },
+    updatedAt: new Date(),
+  });
+  let res = fakeRes();
+  await discoverable._raw(
+    fakeReq({ method: "POST", raw: JSON.stringify({ optIn: true, pitchSlug: "mypitch" }), headers: { authorization: "Bearer t" } }),
     res,
   );
   assert.ok(res.captured.body.discoverableAt);
@@ -145,6 +193,7 @@ test("discoverable POST optIn:false nulls the timestamp", async () => {
   );
   assert.equal(res.captured.status, 200);
   assert.equal(res.captured.body.discoverableAt, null);
+  assert.equal(res.captured.body.pitchSlug, null);
 });
 
 test("discoverable POST rejects missing optIn", async () => {
@@ -159,11 +208,11 @@ test("discoverable POST rejects missing optIn", async () => {
 
 // ── /api/feed/adjacent ────────────────────────────────────────────────
 
-function seedDiscoverable(userId, optedInAt) {
+function seedDiscoverable(userId, optedInAt, pitchSlug) {
   fakeStore.set(`${userId}::discoverable`, {
     userId,
     kind: "discoverable",
-    data: { discoverableAt: optedInAt },
+    data: { discoverableAt: optedInAt, pitchSlug: pitchSlug || null },
     updatedAt: new Date(),
   });
 }
@@ -175,6 +224,13 @@ function seedPublished(userId, slug, title, markdown, updatedAt) {
     updatedAt: updatedAt || new Date(),
   });
 }
+// Self is always opted in + has a published pitch for the adjacency
+// tests — the endpoint now reads the requester's pitch from their own
+// discoverable row, so self has to be opted in to call it at all.
+function seedSelf() {
+  seedPublished("user-self", "self", "Self", "# Self\n\nA quiet writing tool for founders.");
+  seedDiscoverable("user-self", "2026-05-01T00:00:00Z", "self");
+}
 
 test("adjacent rejects non-POST methods", async () => {
   reset();
@@ -183,11 +239,11 @@ test("adjacent rejects non-POST methods", async () => {
   assert.equal(res.captured.status, 405);
 });
 
-test("adjacent rejects missing pitchText", async () => {
+test("adjacent 400s when the requester isn't opted in to a pitch", async () => {
   reset();
   const res = fakeRes();
   await adjacent._raw(
-    fakeReq({ method: "POST", raw: JSON.stringify({}), headers: { authorization: "Bearer t" } }),
+    fakeReq({ method: "POST", raw: "{}", headers: { authorization: "Bearer t" } }),
     res,
   );
   assert.equal(res.captured.status, 400);
@@ -195,17 +251,14 @@ test("adjacent rejects missing pitchText", async () => {
 
 test("adjacent returns coldStart:true when fewer than 3 candidates have published", async () => {
   reset();
-  // Two opted-in candidates, only one with a published pitch.
-  seedDiscoverable("user-a", "2026-05-01T00:00:00Z");
-  seedDiscoverable("user-b", "2026-05-02T00:00:00Z");
+  seedSelf();
+  // Two opted-in candidates, only one with a matching published pitch.
+  seedDiscoverable("user-a", "2026-05-01T00:00:00Z", "alpha");
   seedPublished("user-a", "alpha", "Alpha", "# Alpha\n\nA pitch about coffee.");
+  seedDiscoverable("user-b", "2026-05-02T00:00:00Z", "beta"); // no published row
   const res = fakeRes();
   await adjacent._raw(
-    fakeReq({
-      method: "POST",
-      raw: JSON.stringify({ pitchText: "A pitch about something." }),
-      headers: { authorization: "Bearer t" },
-    }),
+    fakeReq({ method: "POST", raw: "{}", headers: { authorization: "Bearer t" } }),
     res,
   );
   assert.equal(res.captured.status, 200);
@@ -215,37 +268,48 @@ test("adjacent returns coldStart:true when fewer than 3 candidates have publishe
 
 test("adjacent excludes the requester from candidates", async () => {
   reset();
-  // Self + 3 others, all opted in with published pitches.
-  seedDiscoverable("user-self", "2026-05-01T00:00:00Z");
-  seedPublished("user-self", "self", "Self", "# Self\n\nMy own pitch.");
+  seedSelf();
   for (const u of ["user-a", "user-b"]) {
-    seedDiscoverable(u, "2026-05-01T00:00:00Z");
+    seedDiscoverable(u, "2026-05-01T00:00:00Z", u);
     seedPublished(u, u, u, `# ${u}\n\nA pitch.`);
   }
-  // Only 2 non-self candidates → coldStart:true.
   const res = fakeRes();
   await adjacent._raw(
-    fakeReq({
-      method: "POST",
-      raw: JSON.stringify({ pitchText: "Self pitch text." }),
-      headers: { authorization: "Bearer t" },
-    }),
+    fakeReq({ method: "POST", raw: "{}", headers: { authorization: "Bearer t" } }),
     res,
   );
   assert.equal(res.captured.body.coldStart, true);
 });
 
+test("adjacent skips candidates whose pitchSlug no longer maps to a published row", async () => {
+  reset();
+  seedSelf();
+  // user-a opted in with a slug that doesn't have a published row.
+  seedDiscoverable("user-a", "2026-05-01T00:00:00Z", "ghost");
+  seedDiscoverable("user-b", "2026-05-01T00:00:00Z", "beta");
+  seedPublished("user-b", "beta", "Beta", "# Beta\n\nA real pitch.");
+  seedDiscoverable("user-c", "2026-05-01T00:00:00Z", "gamma");
+  seedPublished("user-c", "gamma", "Gamma", "# Gamma\n\nAnother real pitch.");
+  const res = fakeRes();
+  await adjacent._raw(
+    fakeReq({ method: "POST", raw: "{}", headers: { authorization: "Bearer t" } }),
+    res,
+  );
+  // Only 2 valid candidates → coldStart:true.
+  assert.equal(res.captured.body.coldStart, true);
+});
+
 test("adjacent calls Claude and returns ranked results with verbatim summaries", async () => {
   reset();
+  seedSelf();
   // 3 non-self candidates with distinct pitch text.
-  seedDiscoverable("user-a", "2026-05-01T00:00:00Z");
-  seedDiscoverable("user-b", "2026-05-01T00:00:00Z");
-  seedDiscoverable("user-c", "2026-05-01T00:00:00Z");
+  seedDiscoverable("user-a", "2026-05-01T00:00:00Z", "alpha");
+  seedDiscoverable("user-b", "2026-05-01T00:00:00Z", "beta");
+  seedDiscoverable("user-c", "2026-05-01T00:00:00Z", "gamma");
   seedPublished("user-a", "alpha", "Alpha", "# Alpha\n\nA coffee shop for founders who walk to work.");
   seedPublished("user-b", "beta", "Beta", "# Beta\n\nA quiet network for women who code at night.");
   seedPublished("user-c", "gamma", "Gamma", "# Gamma\n\nA marketplace for handmade keyboards.");
 
-  // Stub global fetch to return a Claude-shaped JSON reply.
   const originalFetch = global.fetch;
   global.fetch = async () => ({
     ok: true,
@@ -267,11 +331,7 @@ test("adjacent calls Claude and returns ranked results with verbatim summaries",
   try {
     const res = fakeRes();
     await adjacent._raw(
-      fakeReq({
-        method: "POST",
-        raw: JSON.stringify({ pitchText: "A quiet writing tool for founders." }),
-        headers: { authorization: "Bearer t" },
-      }),
+      fakeReq({ method: "POST", raw: "{}", headers: { authorization: "Bearer t" } }),
       res,
     );
     assert.equal(res.captured.status, 200, JSON.stringify(res.captured.body));
@@ -292,9 +352,10 @@ test("adjacent calls Claude and returns ranked results with verbatim summaries",
 
 test("adjacent falls back to a clean sentence when the model invents a summary", async () => {
   reset();
-  seedDiscoverable("user-a", "2026-05-01T00:00:00Z");
-  seedDiscoverable("user-b", "2026-05-01T00:00:00Z");
-  seedDiscoverable("user-c", "2026-05-01T00:00:00Z");
+  seedSelf();
+  seedDiscoverable("user-a", "2026-05-01T00:00:00Z", "alpha");
+  seedDiscoverable("user-b", "2026-05-01T00:00:00Z", "beta");
+  seedDiscoverable("user-c", "2026-05-01T00:00:00Z", "gamma");
   seedPublished("user-a", "alpha", "Alpha", "# Alpha\n\nThe one true pitch. About coffee.");
   seedPublished("user-b", "beta", "Beta", "# Beta\n\nA second pitch text.");
   seedPublished("user-c", "gamma", "Gamma", "# Gamma\n\nA third pitch text here.");
@@ -319,11 +380,7 @@ test("adjacent falls back to a clean sentence when the model invents a summary",
   try {
     const res = fakeRes();
     await adjacent._raw(
-      fakeReq({
-        method: "POST",
-        raw: JSON.stringify({ pitchText: "Founders pitch." }),
-        headers: { authorization: "Bearer t" },
-      }),
+      fakeReq({ method: "POST", raw: "{}", headers: { authorization: "Bearer t" } }),
       res,
     );
     assert.equal(res.captured.body.results.length, 1);
@@ -335,6 +392,48 @@ test("adjacent falls back to a clean sentence when the model invents a summary",
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+// ── /api/feed/published-pitches ───────────────────────────────────────
+
+test("published-pitches rejects non-GET methods", async () => {
+  reset();
+  const res = fakeRes();
+  await publishedPitches._raw(
+    fakeReq({ method: "POST", headers: { authorization: "Bearer t" } }),
+    res,
+  );
+  assert.equal(res.captured.status, 405);
+});
+
+test("published-pitches returns an empty list when the founder has none", async () => {
+  reset();
+  const res = fakeRes();
+  await publishedPitches._raw(
+    fakeReq({ method: "GET", headers: { authorization: "Bearer t" } }),
+    res,
+  );
+  assert.equal(res.captured.status, 200);
+  assert.deepEqual(res.captured.body, { pitches: [] });
+});
+
+test("published-pitches lists the founder's published rows, most recent first", async () => {
+  reset();
+  // Set updatedAt explicitly so the ordering is deterministic.
+  seedPublished("user-self", "old", "Old", "# Old\n\nx", new Date("2026-01-01T00:00:00Z"));
+  seedPublished("user-self", "new", "New", "# New\n\nx", new Date("2026-05-01T00:00:00Z"));
+  // Another user's row should not leak in.
+  seedPublished("user-other", "other", "Other", "# Other\n\nx", new Date("2026-06-01T00:00:00Z"));
+  const res = fakeRes();
+  await publishedPitches._raw(
+    fakeReq({ method: "GET", headers: { authorization: "Bearer t" } }),
+    res,
+  );
+  assert.equal(res.captured.status, 200);
+  assert.equal(res.captured.body.pitches.length, 2);
+  assert.equal(res.captured.body.pitches[0].slug, "new");
+  assert.equal(res.captured.body.pitches[1].slug, "old");
+  assert.equal(res.captured.body.pitches[0].title, "New");
 });
 
 // ── Helper unit tests ─────────────────────────────────────────────────

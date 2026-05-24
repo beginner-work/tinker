@@ -2,14 +2,20 @@
  *
  * Authorization: Bearer <stytch session_token>
  *
- * GET  → { discoverableAt: <iso8601> | null }
- * POST { optIn: true|false } → { discoverableAt: <iso8601> | null }
+ * GET  → { discoverableAt: <iso8601> | null, pitchSlug: <slug> | null }
+ * POST { optIn: true, pitchSlug: <slug> } → { discoverableAt, pitchSlug }
+ * POST { optIn: false } → { discoverableAt: null, pitchSlug: null }
  *
  * The opt-in flag for the "founders" social feed surface. Stored as a
- * sibling row on TinkerUserData under a fixed kind — null means "not
- * discoverable", a timestamp means "opted in at that moment". The
- * timestamp (rather than a boolean) is the source of truth so we can
- * later show "opted in N days ago" without a schema change.
+ * sibling row on TinkerUserData under a fixed kind. `discoverableAt`
+ * null means "not discoverable", a timestamp means "opted in at that
+ * moment". `pitchSlug` records WHICH of the founder's published
+ * pitches is the one being shared with the network — the founder
+ * picks from their published pitches; the picked slug is what the
+ * adjacency endpoint will return to other founders as the link target.
+ *
+ * The timestamp (rather than a boolean) is the source of truth so we
+ * can later show "opted in N days ago" without a schema change.
  */
 
 "use strict";
@@ -50,11 +56,25 @@ function readJsonBody(req) {
   });
 }
 
-function discoverableAtFrom(row) {
-  if (!row || !row.data || typeof row.data !== "object") return null;
-  const v = row.data.discoverableAt;
-  if (typeof v === "string" && v) return v;
-  return null;
+function shapeFrom(row) {
+  if (!row || !row.data || typeof row.data !== "object") {
+    return { discoverableAt: null, pitchSlug: null };
+  }
+  const at = typeof row.data.discoverableAt === "string" && row.data.discoverableAt
+    ? row.data.discoverableAt
+    : null;
+  const slug = typeof row.data.pitchSlug === "string" && row.data.pitchSlug
+    ? row.data.pitchSlug
+    : null;
+  // Either both are present (opted in to a specific pitch) or both
+  // are null (not opted in). A timestamp without a slug shouldn't
+  // happen but we collapse it to "not opted in" defensively.
+  if (!at || !slug) return { discoverableAt: null, pitchSlug: null };
+  return { discoverableAt: at, pitchSlug: slug };
+}
+
+function isValidSlug(s) {
+  return typeof s === "string" && /^[a-z0-9][a-z0-9-]{0,63}$/.test(s);
 }
 
 async function handler(req, res) {
@@ -85,7 +105,7 @@ async function handler(req, res) {
       const row = await prisma.tinkerUserData.findUnique({
         where: { userId_kind: { userId, kind: DISCOVERABLE_KIND } },
       });
-      res.status(200).json({ discoverableAt: discoverableAtFrom(row) });
+      res.status(200).json(shapeFrom(row));
     } catch (err) {
       res.status(500).json({ error: err.message || "Internal error" });
     }
@@ -103,9 +123,33 @@ async function handler(req, res) {
     return;
   }
 
-  const data = body.optIn
-    ? { discoverableAt: new Date().toISOString() }
-    : { discoverableAt: null };
+  let data;
+  if (body.optIn) {
+    if (!isValidSlug(body.pitchSlug)) {
+      res.status(400).json({ error: "pitchSlug is required when opting in" });
+      return;
+    }
+    // Confirm the slug actually maps to a published pitch this user
+    // owns — otherwise other founders would see broken links.
+    try {
+      const pub = await prisma.tinkerUserData.findUnique({
+        where: { userId_kind: { userId, kind: `published:${body.pitchSlug}` } },
+      });
+      if (!pub) {
+        res.status(400).json({ error: "Pick a pitch you've already published." });
+        return;
+      }
+    } catch (err) {
+      res.status(500).json({ error: err.message || "Internal error" });
+      return;
+    }
+    data = {
+      discoverableAt: new Date().toISOString(),
+      pitchSlug: body.pitchSlug,
+    };
+  } else {
+    data = { discoverableAt: null, pitchSlug: null };
+  }
 
   try {
     await prisma.tinkerUserData.upsert({
@@ -113,7 +157,10 @@ async function handler(req, res) {
       create: { userId, kind: DISCOVERABLE_KIND, data },
       update: { data },
     });
-    res.status(200).json({ discoverableAt: data.discoverableAt });
+    res.status(200).json({
+      discoverableAt: data.discoverableAt,
+      pitchSlug: data.pitchSlug,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message || "Internal error" });
   }

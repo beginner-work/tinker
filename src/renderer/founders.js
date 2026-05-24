@@ -1,16 +1,18 @@
-/* tinker — founders (v0.1)
+/* tinker — founders (v0.2)
  *
  * The "founders" surface: a quiet adjacency tool for founder-to-founder
  * discovery inside tinker. Two states:
  *
  *   1. Opt-in screen (the load-bearing v1 surface — discoverable is OFF
- *      by default). One paragraph explains what discoverability means,
- *      one button opts the founder in.
+ *      by default). One paragraph explains what discoverability means;
+ *      a picker lets the founder choose WHICH of their published
+ *      pitches to share with the network; one button opts them in.
  *
- *   2. Results page (once opted in). Shows the founder's pitch summary
- *      at the top, the "find my founders" button, and on press a list
- *      of 3–7 adjacent founder pitches as paper cards. A small "Hide
- *      my pitch" control opts back out.
+ *   2. Results page (once opted in). Shows the picked pitch's title at
+ *      the top, the "find my founders" button, and on press a list of
+ *      3–7 adjacent founder pitches as paper cards. A "Change pitch"
+ *      control swaps to a different published pitch; a "Hide" control
+ *      opts back out.
  *
  * NOT a scrolling feed. NOT engagement-ranked. NO likes, hearts,
  * comments, reactions, follower counts. NO DM / reach-out / reveal-
@@ -22,7 +24,7 @@
  * string from the allowlist in build-prompts/social-feed.md. Strings
  * marked NEEDS_INPUT are placeholders waiting on founder copy.
  *
- * Entry point: window.tinkerFounders.render(). Wired in renderer.js
+ * Entry point: window.tinkerFounders.refresh(). Wired in renderer.js
  * when the "founders" sidebar item is tapped.
  */
 
@@ -32,10 +34,6 @@
   const TOKEN_KEY = "tinker_jwt";
 
   // ── Visible-string allowlist ────────────────────────────────────────
-  //
-  // Mirror of build-prompts/social-feed.md. Strings here are either
-  // verbatim from the founder's transcript (marked) or fixed UI labels.
-  // Placeholders marked NEEDS_INPUT are drafts pending founder copy.
 
   const STR = {
     // Opt-in screen
@@ -43,44 +41,47 @@
       // NEEDS_INPUT — the spec calls for the one-paragraph explanation
       // of what "discoverable" means in the founder's own words. This
       // draft sits in until the founder lands the line they want.
-      "When you make your pitch discoverable, other founders inside tinker can find it as a match for their own pitch. No likes, no comments, no public profile — just a one-line summary and a link to your daily beginner.",
-    optInButton: "Make my pitch discoverable",
+      "When you make a pitch discoverable, other founders inside tinker can find it as a match for their own pitch. No likes, no comments, no public profile — just a one-line summary and a link to your daily beginner.",
+    pickerPrompt: "Pick a pitch to share with your founder network:",
+    optInButton: "Make this pitch discoverable",
     hideHint: "You can hide it again any time.",
+    noPublishedHint:
+      "Publish one of your pitches first, then come back here to share it with the network.",
 
     // Results page
     findButton: "find my founders", // verbatim
     sectionHeading: "Founders adjacent to you", // verbatim
-    yourPitchLabel: "Your pitch",
+    sharedPitchLabel: "You're sharing",
+    changePitchButton: "Change pitch",
     hideButton: "Hide my pitch from other founders",
-    viewPitchButton: "View pitch",
 
     // Cold-start / empty state
     emptyLine:
       // NEEDS_INPUT — empty-state line, pending the founder's own words.
       "You're early — there aren't enough founders here yet for a match. Check back as more opt in.",
 
-    // Transient + plumbing strings (sidebar tab label is the literal
-    // "founders" in index.html; aria/title attributes only)
     aria: {
       surface: "founders",
-      optInForm: "Make my pitch discoverable",
+      optInForm: "Opt in to be discoverable",
       findForm: "Find adjacent founders",
     },
   };
 
-  // ── DOM ─────────────────────────────────────────────────────────────
+  // ── DOM + state ─────────────────────────────────────────────────────
 
   let viewEl = null;
-  // Cached opt-in status. null means "haven't checked the server yet";
-  // a string is the ISO timestamp of when the founder opted in; the
-  // empty string is the "checked, not opted in" state.
-  let discoverableAt = null;
-  // Last adjacency response so we can re-render without re-firing the
-  // endpoint when the founder taps Hide / re-opens the page.
+  // null = haven't checked yet; otherwise { discoverableAt, pitchSlug }.
+  let status = null;
+  // Cached list of the founder's published pitches (for the picker).
+  let publishedPitches = null;
+  // Selection in the picker before the user confirms.
+  let pickerSelectedSlug = null;
+  // Last adjacency response so flipping away and back doesn't re-fire.
   let lastResults = null;
   let busyOptIn = false;
   let busyFind = false;
   let busyHide = false;
+  let busyChange = false;
 
   function mount() {
     viewEl = document.getElementById("founders");
@@ -98,85 +99,54 @@
     catch { return ""; }
   }
 
-  // ── Pitch text for adjacency ────────────────────────────────────────
-  //
-  // The endpoint needs the requester's pitch in flat text form so Claude
-  // can compare it against the candidates. Stitch the active pitch's
-  // resolved deck phrases into "Heading: phrase. phrase." lines.
-
-  function stitchActivePitchText() {
-    const pm = window.tinkerPitches;
-    if (!pm) return { text: "", title: "", missing: "no-module" };
-    const pitch = typeof pm.getActivePitch === "function" ? pm.getActivePitch() : null;
-    if (!pitch) return { text: "", title: "", missing: "no-pitch" };
-
-    const headings = (pm.DECK_HEADINGS && pm.DECK_HEADINGS.length)
-      ? pm.DECK_HEADINGS
-      : [];
-    const lines = [];
-    for (const h of headings) {
-      const recs = (pitch.deck && Array.isArray(pitch.deck[h])) ? pitch.deck[h] : [];
-      const phrases = [];
-      for (const rec of recs) {
-        const body = bodyForWriting(rec.writingId);
-        if (!body) continue;
-        if (rec.offset < 0 || rec.offset + rec.length > body.length) continue;
-        const slice = String(body.slice(rec.offset, rec.offset + rec.length))
-          .replace(/\s+/g, " ").trim();
-        if (slice) phrases.push(slice);
-      }
-      if (phrases.length) lines.push(`${h}: ${phrases.join(" ")}`);
-    }
-    const title = (pitch.personalTitle || pitch.aiTitle || "").trim();
-    return {
-      text: lines.join("\n"),
-      title,
-      missing: lines.length ? null : "no-phrases",
-    };
-  }
-
-  function bodyForWriting(writingId) {
-    try {
-      const drafts = JSON.parse(localStorage.getItem("tinker.drafts.v1") || "[]") || [];
-      const draft = Array.isArray(drafts) ? drafts.find((d) => d && d.id === writingId) : null;
-      if (draft) {
-        if (draft.stitched && draft.stitched.body) return String(draft.stitched.body);
-        const turns = Array.isArray(draft.transcript) ? draft.transcript : [];
-        return turns.map((t) => String(t && t.a || "").trim()).filter(Boolean).join("\n\n");
-      }
-      const essays = JSON.parse(localStorage.getItem("tinker.essays.v1") || "[]") || [];
-      const essay = Array.isArray(essays) ? essays.find((e) => e && e.id === writingId) : null;
-      if (essay) return String(essay.body || "");
-    } catch { /* ignore */ }
-    return "";
-  }
-
   function isOptedIn() {
-    return typeof discoverableAt === "string" && discoverableAt.length > 0;
+    return !!(status && status.discoverableAt && status.pitchSlug);
+  }
+
+  function findPitchBySlug(slug) {
+    if (!slug || !Array.isArray(publishedPitches)) return null;
+    return publishedPitches.find((p) => p.slug === slug) || null;
   }
 
   // ── Server I/O ──────────────────────────────────────────────────────
 
-  async function loadDiscoverable() {
+  async function loadStatus() {
     const token = getJwt();
-    if (!token) { discoverableAt = ""; return; }
+    if (!token) { status = { discoverableAt: null, pitchSlug: null }; return; }
     try {
       const res = await fetch("/api/feed/discoverable", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) { discoverableAt = ""; return; }
+      if (!res.ok) { status = { discoverableAt: null, pitchSlug: null }; return; }
       const json = await res.json();
-      discoverableAt = (json && typeof json.discoverableAt === "string")
-        ? json.discoverableAt
-        : "";
+      status = {
+        discoverableAt: (json && typeof json.discoverableAt === "string") ? json.discoverableAt : null,
+        pitchSlug: (json && typeof json.pitchSlug === "string") ? json.pitchSlug : null,
+      };
     } catch {
-      discoverableAt = "";
+      status = { discoverableAt: null, pitchSlug: null };
     }
   }
 
-  async function setDiscoverable(optIn) {
+  async function loadPublishedPitches() {
+    const token = getJwt();
+    if (!token) { publishedPitches = []; return; }
+    try {
+      const res = await fetch("/api/feed/published-pitches", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { publishedPitches = []; return; }
+      const json = await res.json();
+      publishedPitches = Array.isArray(json && json.pitches) ? json.pitches : [];
+    } catch {
+      publishedPitches = [];
+    }
+  }
+
+  async function setDiscoverable({ optIn, pitchSlug }) {
     const token = getJwt();
     if (!token) return { ok: false, error: "Not signed in" };
+    const payload = optIn ? { optIn: true, pitchSlug } : { optIn: false };
     try {
       const res = await fetch("/api/feed/discoverable", {
         method: "POST",
@@ -184,11 +154,14 @@
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ optIn: !!optIn }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json) return { ok: false, error: (json && json.error) || `HTTP ${res.status}` };
-      discoverableAt = typeof json.discoverableAt === "string" ? json.discoverableAt : "";
+      status = {
+        discoverableAt: typeof json.discoverableAt === "string" ? json.discoverableAt : null,
+        pitchSlug: typeof json.pitchSlug === "string" ? json.pitchSlug : null,
+      };
       return { ok: true };
     } catch (err) {
       return { ok: false, error: String((err && err.message) || err) };
@@ -198,12 +171,6 @@
   async function findAdjacent() {
     const token = getJwt();
     if (!token) return { ok: false, error: "Not signed in" };
-    const { text, title, missing } = stitchActivePitchText();
-    if (missing === "no-phrases" || !text) {
-      // No pitch yet to compare against — treat the same as cold start
-      // so the page renders the empty line rather than throwing.
-      return { ok: true, coldStart: true, results: [] };
-    }
     try {
       const res = await fetch("/api/feed/adjacent", {
         method: "POST",
@@ -211,11 +178,15 @@
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ pitchText: text, pitchTitle: title }),
+        body: JSON.stringify({}),
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json) return { ok: false, error: (json && json.error) || `HTTP ${res.status}` };
-      return { ok: true, coldStart: !!json.coldStart, results: Array.isArray(json.results) ? json.results : [] };
+      return {
+        ok: true,
+        coldStart: !!json.coldStart,
+        results: Array.isArray(json.results) ? json.results : [],
+      };
     } catch (err) {
       return { ok: false, error: String((err && err.message) || err) };
     }
@@ -225,9 +196,12 @@
 
   function render() {
     if (!mount()) return;
-    viewEl.innerHTML = `<div class="founders__loading" aria-hidden="true">…</div>`;
-    if (discoverableAt === null) {
-      loadDiscoverable().then(() => render());
+    if (status === null || publishedPitches === null) {
+      viewEl.innerHTML = `<div class="founders__loading" aria-hidden="true">…</div>`;
+      Promise.all([
+        status === null ? loadStatus() : Promise.resolve(),
+        publishedPitches === null ? loadPublishedPitches() : Promise.resolve(),
+      ]).then(() => render());
       return;
     }
     if (isOptedIn()) {
@@ -238,35 +212,73 @@
   }
 
   function renderOptIn() {
+    // Default the picker selection to the most recently published
+    // pitch if the founder hasn't touched the picker yet.
+    if (pickerSelectedSlug === null && publishedPitches.length) {
+      pickerSelectedSlug = publishedPitches[0].slug;
+    }
+
+    let pickerHtml = "";
+    if (!publishedPitches.length) {
+      pickerHtml =
+        `<p class="founders__fineprint">${escapeHtml(STR.noPublishedHint)}</p>`;
+    } else {
+      const optionsHtml = publishedPitches.map((p) => {
+        const checked = p.slug === pickerSelectedSlug ? " checked" : "";
+        // Pitch titles are founder-generated chrome (the daily-beginner
+        // post titles). data-audit-ignore keeps them out of any future
+        // visible-string audit.
+        return (
+          `<label class="founders__picker-option" data-audit-ignore>` +
+            `<input type="radio" name="founders-pitch" value="${escapeHtml(p.slug)}"${checked} />` +
+            `<span class="founders__picker-title">${escapeHtml(p.title)}</span>` +
+          `</label>`
+        );
+      }).join("");
+      pickerHtml =
+        `<div class="founders__picker-prompt">${escapeHtml(STR.pickerPrompt)}</div>` +
+        `<div class="founders__picker" data-role="picker">${optionsHtml}</div>`;
+    }
+
+    const buttonDisabled = !publishedPitches.length || !pickerSelectedSlug || busyOptIn;
+
     viewEl.innerHTML =
       `<div class="founders__inner">` +
         `<h1 class="founders__title">${escapeHtml(STR.aria.surface)}</h1>` +
         `<p class="founders__lede">${escapeHtml(STR.optInExplain)}</p>` +
+        pickerHtml +
         `<form class="founders__opt-in" data-role="opt-in-form" aria-label="${escapeHtml(STR.aria.optInForm)}">` +
           `<button type="submit" class="founders__primary" data-role="opt-in-btn"` +
-                  (busyOptIn ? " disabled" : "") + `>` +
+                  (buttonDisabled ? " disabled" : "") + `>` +
             escapeHtml(STR.optInButton) +
           `</button>` +
           `<p class="founders__fineprint">${escapeHtml(STR.hideHint)}</p>` +
         `</form>` +
       `</div>`;
 
+    const picker = viewEl.querySelector('[data-role="picker"]');
+    if (picker) {
+      picker.addEventListener("change", (e) => {
+        const input = e.target.closest('input[type="radio"]');
+        if (!input) return;
+        pickerSelectedSlug = input.value;
+        renderOptIn();
+      });
+    }
+
     const form = viewEl.querySelector('[data-role="opt-in-form"]');
     if (form) {
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        if (busyOptIn) return;
+        if (busyOptIn || !pickerSelectedSlug) return;
         busyOptIn = true;
         renderOptIn();
-        const r = await setDiscoverable(true);
+        const r = await setDiscoverable({ optIn: true, pitchSlug: pickerSelectedSlug });
         busyOptIn = false;
         if (!r.ok) {
-          // Show a quiet inline error and re-render the opt-in screen
-          // so the founder can try again.
           renderOptInError(r.error);
           return;
         }
-        // Land on the results page once the timestamp comes back.
         lastResults = null;
         render();
       });
@@ -285,23 +297,22 @@
   }
 
   function renderResults() {
-    const { title: pitchTitle } = stitchActivePitchText();
-    const titleLine = pitchTitle ? escapeHtml(pitchTitle) : "";
+    const shared = findPitchBySlug(status.pitchSlug);
+    const sharedTitle = shared ? shared.title : status.pitchSlug;
 
     viewEl.innerHTML =
       `<div class="founders__inner">` +
         `<h1 class="founders__title">${escapeHtml(STR.aria.surface)}</h1>` +
 
-        // The founder's own pitch summary at the top.
-        (titleLine
-          ? `<section class="founders__own" aria-labelledby="founders-own-label">` +
-              `<div id="founders-own-label" class="founders__own-label">${escapeHtml(STR.yourPitchLabel)}</div>` +
-              // The pitch title is founder-generated chrome — wrapped
-              // in data-audit-ignore so the visible-string audit
-              // doesn't complain about a developer-authored literal.
-              `<div class="founders__own-title" data-audit-ignore>${titleLine}</div>` +
-            `</section>`
-          : "") +
+        // The pitch the founder is currently sharing with the network.
+        `<section class="founders__own" aria-labelledby="founders-own-label">` +
+          `<div id="founders-own-label" class="founders__own-label">${escapeHtml(STR.sharedPitchLabel)}</div>` +
+          `<div class="founders__own-title" data-audit-ignore>${escapeHtml(sharedTitle || "")}</div>` +
+          `<button type="button" class="founders__inline-link" data-role="change-btn"` +
+                  (busyChange ? " disabled" : "") + `>` +
+            escapeHtml(STR.changePitchButton) +
+          `</button>` +
+        `</section>` +
 
         // The primary action.
         `<form class="founders__find" data-role="find-form" aria-label="${escapeHtml(STR.aria.findForm)}">` +
@@ -311,7 +322,7 @@
           `</button>` +
         `</form>` +
 
-        // Slot for the adjacency results (filled by renderResultsList).
+        // Slot for the adjacency results.
         `<div class="founders__results" data-role="results"></div>` +
 
         // Quiet opt-out.
@@ -341,15 +352,18 @@
       });
     }
 
-    const hideForm = viewEl.querySelector('[data-role="hide-form"]');
-    if (hideForm) {
-      hideForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        if (busyHide) return;
-        busyHide = true;
+    const changeBtn = viewEl.querySelector('[data-role="change-btn"]');
+    if (changeBtn) {
+      changeBtn.addEventListener("click", async () => {
+        if (busyChange) return;
+        // "Change pitch" drops them back to the picker. Hide first so
+        // the picker can render in opt-in mode, with the current slug
+        // pre-selected so they can confirm or pick a different one.
+        busyChange = true;
         renderResults();
-        const r = await setDiscoverable(false);
-        busyHide = false;
+        pickerSelectedSlug = status.pitchSlug;
+        const r = await setDiscoverable({ optIn: false });
+        busyChange = false;
         if (!r.ok) {
           renderResultsError(r.error);
           return;
@@ -359,8 +373,25 @@
       });
     }
 
-    // If we already have an adjacency response from this session, paint
-    // it back so flipping away and back doesn't re-fire the endpoint.
+    const hideForm = viewEl.querySelector('[data-role="hide-form"]');
+    if (hideForm) {
+      hideForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (busyHide) return;
+        busyHide = true;
+        renderResults();
+        const r = await setDiscoverable({ optIn: false });
+        busyHide = false;
+        if (!r.ok) {
+          renderResultsError(r.error);
+          return;
+        }
+        lastResults = null;
+        pickerSelectedSlug = null;
+        render();
+      });
+    }
+
     if (lastResults) renderResultsList();
   }
 
@@ -413,9 +444,6 @@
     const li = document.createElement("li");
     li.className = "founders__card";
 
-    // The whole card is a link to the founder's pitch page. Title +
-    // one-line summary lifted verbatim from the candidate's pitch live
-    // inside that link; no other chrome.
     const a = document.createElement("a");
     a.className = "founders__card-link";
     a.href = result.viewUrl;
@@ -424,8 +452,6 @@
 
     const title = document.createElement("div");
     title.className = "founders__card-title";
-    // Titles are founder-generated rather than fixed UI strings — the
-    // audit ignores anything under data-audit-ignore.
     title.setAttribute("data-audit-ignore", "");
     title.textContent = result.pitchTitle || "";
     a.appendChild(title);
@@ -445,9 +471,12 @@
   window.tinkerFounders = {
     render,
     // Called from renderer.js when the surface is opened so the page
-    // re-checks discoverability (a fresh tab might have changed it).
+    // re-checks discoverability + the published-pitches list (a fresh
+    // publish in another tab might have changed either).
     refresh() {
-      discoverableAt = null;
+      status = null;
+      publishedPitches = null;
+      pickerSelectedSlug = null;
       lastResults = null;
       render();
     },

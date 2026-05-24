@@ -1,7 +1,9 @@
 /* POST /api/feed/adjacent
  *
  * Authorization: Bearer <stytch session_token>
- * Body: { pitchText: string, pitchTitle?: string }
+ * Body: {}  (no payload — requester pitch is read from their own
+ *           discoverable row's pitchSlug, so the server is the
+ *           single source of truth for what "your pitch" means.)
  * Reply:
  *   {
  *     coldStart: boolean,
@@ -17,17 +19,22 @@
  *     ]
  *   }
  *
- * The adjacency engine for the "founders" surface. The client passes
- * the founder's current pitch text (stitched from their active pitch's
- * deck phrases). The server:
+ * The adjacency engine for the "founders" surface. The requester has
+ * already picked which of their published pitches represents them in
+ * the network (stored as `pitchSlug` on their discoverable row). The
+ * server:
  *
- *   1. Queries every opted-in user (kind="discoverable" with a non-null
- *      timestamp) except the requester.
- *   2. For each, reads their most-recently-updated published pitch row
- *      (kind="published:<slug>"). Users opted in but with no published
- *      pitch are silently dropped — the v1 list-only surface needs a
- *      title and a one-line summary to render a card, both of which
- *      come from the published pitch.
+ *   1. Reads the requester's own `published:<pitchSlug>` row — that's
+ *      the pitch text we compare against. If the requester isn't
+ *      opted in or their slug no longer maps to a published pitch,
+ *      returns 400.
+ *   2. Queries every opted-in user (kind="discoverable" with a non-null
+ *      timestamp AND a pitchSlug) except the requester.
+ *   2. For each, reads the specific published pitch row the user chose
+ *      to share (kind="published:<pitchSlug>"). Users whose chosen
+ *      pitch no longer exists (renamed, deleted) are silently dropped
+ *      — the v1 list-only surface needs a title and a one-line summary
+ *      to render a card, both of which come from the published pitch.
  *   3. If fewer than 3 candidates exist, returns coldStart:true with
  *      whatever it has (including an empty list).
  *   4. Otherwise asks Claude to pick the 3–7 candidates whose pitches
@@ -122,37 +129,67 @@ function truncatePitch(markdown) {
   return `${markdown.slice(0, MAX_PITCH_CHARS)}\n…`;
 }
 
+async function loadRequesterPitch(userId) {
+  const discoverable = await prisma.tinkerUserData.findUnique({
+    where: { userId_kind: { userId, kind: DISCOVERABLE_KIND } },
+  });
+  if (!discoverable || !discoverable.data || typeof discoverable.data !== "object") return null;
+  if (!discoverable.data.discoverableAt) return null;
+  const slug = typeof discoverable.data.pitchSlug === "string" ? discoverable.data.pitchSlug : "";
+  if (!slug) return null;
+  const pub = await prisma.tinkerUserData.findUnique({
+    where: { userId_kind: { userId, kind: `published:${slug}` } },
+  });
+  if (!pub || !pub.data || typeof pub.data.markdown !== "string" || !pub.data.markdown.trim()) {
+    return null;
+  }
+  return { slug, markdown: pub.data.markdown };
+}
+
 async function loadCandidates(requesterUserId) {
   const optedIn = await prisma.tinkerUserData.findMany({
     where: { kind: DISCOVERABLE_KIND },
   });
-  const userIds = [];
+  // Each candidate is a (userId, pitchSlug) pair — the founder picked
+  // which of their pitches to share, so we look up that specific
+  // published row rather than the most-recent one.
+  const wanted = [];
   for (const row of optedIn) {
     if (row.userId === requesterUserId) continue;
     if (!row.data || typeof row.data !== "object") continue;
     if (!row.data.discoverableAt) continue;
-    userIds.push(row.userId);
+    const slug = typeof row.data.pitchSlug === "string" ? row.data.pitchSlug : "";
+    if (!slug) continue;
+    wanted.push({ userId: row.userId, kind: `published:${slug}` });
   }
-  if (!userIds.length) return [];
+  if (!wanted.length) return [];
 
+  // Prisma doesn't take an array of compound keys in `where`, so OR
+  // a list of (userId, kind) tuples.
   const publishedRows = await prisma.tinkerUserData.findMany({
     where: {
-      userId: { in: userIds },
-      kind: { startsWith: "published:" },
+      OR: wanted.map((w) => ({ userId: w.userId, kind: w.kind })),
     },
-    orderBy: { updatedAt: "desc" },
   });
 
-  const byUser = new Map();
+  const byKey = new Map();
   for (const row of publishedRows) {
-    if (byUser.has(row.userId)) continue;
+    byKey.set(`${row.userId}::${row.kind}`, row);
+  }
+
+  const candidates = [];
+  for (const w of wanted) {
+    const row = byKey.get(`${w.userId}::${w.kind}`);
+    if (!row) continue;
     const d = row.data || {};
     if (typeof d.markdown !== "string" || !d.markdown.trim()) continue;
     const title = typeof d.title === "string" && d.title.trim() ? d.title.trim() : "Untitled";
-    const slug = typeof d.slug === "string" && d.slug.trim() ? d.slug.trim() : row.kind.slice("published:".length);
-    byUser.set(row.userId, { userId: row.userId, title, slug, markdown: d.markdown });
+    const slug = typeof d.slug === "string" && d.slug.trim()
+      ? d.slug.trim()
+      : w.kind.slice("published:".length);
+    candidates.push({ userId: w.userId, title, slug, markdown: d.markdown });
   }
-  return Array.from(byUser.values());
+  return candidates;
 }
 
 function buildSystemPrompt() {
@@ -301,15 +338,18 @@ async function handler(req, res) {
     return;
   }
 
-  let body;
-  try { body = await readJsonBody(req); }
+  // Body is intentionally ignored — the requester's pitch is the one
+  // they picked when opting in. Server is the source of truth so a
+  // tampered client can't compare against arbitrary text.
+
+  let requesterPitch;
+  try { requesterPitch = await loadRequesterPitch(userId); }
   catch (err) {
-    res.status(err.status || 400).json({ error: err.message || "Bad request" });
+    res.status(500).json({ error: err.message || "Internal error" });
     return;
   }
-  const pitchText = typeof body.pitchText === "string" ? body.pitchText.trim() : "";
-  if (!pitchText) {
-    res.status(400).json({ error: "pitchText is required" });
+  if (!requesterPitch) {
+    res.status(400).json({ error: "Pick a pitch to share first." });
     return;
   }
 
@@ -325,7 +365,7 @@ async function handler(req, res) {
     return;
   }
 
-  const ranked = await rank(truncatePitch(pitchText), candidates);
+  const ranked = await rank(truncatePitch(requesterPitch.markdown), candidates);
   if (ranked === null) {
     res.status(502).json({ error: "Adjacency engine unavailable" });
     return;
