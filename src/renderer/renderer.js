@@ -481,7 +481,14 @@
           `<h2 class="writing-fit__slot-heading">${escapeHtml(heading)}</h2>` +
           (phraseText ? `<blockquote class="writing-fit__phrase">${escapeHtml(phraseText)}</blockquote>` : "") +
         `</div>`;
-      leadHtml = `<p class="writing-fit__sub">It lands in your starter pitch here:</p>`;
+      // Title preference: founder's manual name wins, otherwise the
+      // AI-generated name (which also covers the first-classification
+      // path before the founder has renamed anything).
+      const activePitch = (window.tinkerPitches && typeof window.tinkerPitches.getActivePitch === "function")
+        ? window.tinkerPitches.getActivePitch()
+        : null;
+      const pitchLabel = (activePitch && (activePitch.personalTitle || activePitch.aiTitle)) || "your starter pitch";
+      leadHtml = `<p class="writing-fit__sub">Your pitch landed in ${escapeHtml(pitchLabel)}.</p>`;
     } else {
       slotHtml =
         `<div class="writing-fit__slot writing-fit__slot--miss">` +
