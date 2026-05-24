@@ -102,12 +102,31 @@
     min-height: calc(env(safe-area-inset-top, 0px) + 60px);
     box-sizing: border-box;
   }
-  .read__body { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
-  .category-feed__head { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
-  /* Post-publish "You just published" crumb and the Post on Social
-   * review both sit at the very top of the stage with no in-view
-   * close button — without this clearance the floating hamburger
-   * overlaps the crumb/headline on phones. */
+  /* Pull category-feed and read heads up so the page title sits in
+   * the same row as the floating hamburger (top: safe + 12px, 48px
+   * tall → vertical center at safe + 36px). The post-publish and
+   * post-on-social views keep their 80px clearance because they
+   * stack a step indicator / crumb above the title. */
+  .read__body { padding-top: calc(env(safe-area-inset-top, 0px) + 18px); }
+  .category-feed__head { padding-top: calc(env(safe-area-inset-top, 0px) + 18px); }
   .writing-fit__inner { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
   .post-on-social__inner { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
+
+  /* Float page titles centered in line with the menu icon — text
+   * sits in the middle of the screen instead of being obscured by
+   * the floating hamburger at the top-left. Self-padding on the
+   * title gives the icon (12px + 48px wide) clearance on the left
+   * and visually balances the right edge. */
+  .category-feed__title,
+  .read__title,
+  .read__author,
+  .post-on-social__title,
+  .post-on-social__step-indicator,
+  .writing-fit__headline,
+  .writing-fit__crumb {
+    text-align: center;
+    padding-left: 56px;
+    padding-right: 56px;
+    box-sizing: border-box;
+  }
 }
