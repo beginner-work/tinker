@@ -41,7 +41,7 @@ const {
   validateTitle,
 } = require("./pitches-clusterer.js");
 
-const MAX_PHRASES_PER_HEADING = 2;
+const MAX_PHRASES_PER_HEADING = 1;
 
 function emptyDeck() {
   const d = {};
