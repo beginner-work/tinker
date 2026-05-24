@@ -2892,3 +2892,120 @@ html.seed-modal-open { overflow: hidden; }
   color: var(--color-muted);
 }
 
+
+/* ── pitch-script ──────────────────────────────────────────────────
+ *
+ * "Prepare a script for a video" view. Modeled on .founders — same
+ * column width, same padding, same typographic scale. One section
+ * per slide with the founder's resolved phrases verbatim; a copy
+ * button at the bottom for the full plain-text script.
+ */
+.pitch-script { display: block; width: 100%; min-height: 100%; box-sizing: border-box; padding: 0; }
+.pitch-script[hidden] { display: none; }
+
+.pitch-script__inner {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 32px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pitch-script__back {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  cursor: pointer;
+}
+.pitch-script__back:hover { background: var(--color-hover); color: var(--color-foreground); }
+
+.pitch-script__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--color-foreground);
+}
+
+.pitch-script__pitch-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.pitch-script__total {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--color-muted);
+  letter-spacing: 0.02em;
+}
+
+.pitch-script__empty {
+  margin: 0;
+  font-family: var(--font-body, var(--font-sans));
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+.pitch-script__storyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pitch-script__slide {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 16px 18px 8px;
+  background: var(--color-surface, transparent);
+}
+
+.pitch-script__slide-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--color-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pitch-script__slide-index { font-weight: 700; color: var(--color-foreground); }
+.pitch-script__slide-heading { flex: 1; text-transform: none; letter-spacing: 0; color: var(--color-foreground); font-weight: 600; font-size: 14px; }
+.pitch-script__slide-time { color: var(--color-muted); font-variant-numeric: tabular-nums; }
+
+.pitch-script__slide-body { display: flex; flex-direction: column; gap: 8px; }
+
+.pitch-script__phrase {
+  margin: 0;
+  font-family: var(--font-body, var(--font-sans));
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-foreground);
+}
+
+.pitch-script__actions { display: flex; gap: 12px; padding-top: 8px; }
+.pitch-script__copy {
+  padding: 10px 18px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-accent-strong, var(--color-foreground));
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pitch-script__copy:hover { background: #000; }

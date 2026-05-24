@@ -44,6 +44,7 @@
   const writingFitContent = $("#writing-fit-content");
   const postOnSocialView = $("#post-on-social");
   const foundersView = $("#founders");
+  const pitchScriptView = $("#pitch-script");
   const statusComposer = $("#status-composer");
   const statusComposerInput = $("#status-composer-input");
   const statusComposerPost = $("#status-composer-post");
@@ -309,6 +310,7 @@
     if (writingFitView) writingFitView.hidden = true;
     if (postOnSocialView) postOnSocialView.hidden = true;
     if (foundersView) foundersView.hidden = true;
+    if (pitchScriptView) pitchScriptView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -332,6 +334,7 @@
     if (writingFitView) writingFitView.hidden = true;
     if (postOnSocialView) postOnSocialView.hidden = true;
     if (foundersView) foundersView.hidden = true;
+    if (pitchScriptView) pitchScriptView.hidden = true;
   }
   function showRead(essay) {
     feedView.removeAttribute("data-active");
@@ -341,6 +344,7 @@
     if (writingFitView) writingFitView.hidden = true;
     if (postOnSocialView) postOnSocialView.hidden = true;
     if (foundersView) foundersView.hidden = true;
+    if (pitchScriptView) pitchScriptView.hidden = true;
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
@@ -368,6 +372,7 @@
     if (writingFitView) writingFitView.hidden = true;
     if (postOnSocialView) postOnSocialView.hidden = true;
     if (foundersView) foundersView.hidden = true;
+    if (pitchScriptView) pitchScriptView.hidden = true;
     activeId = null;
     activeCategoryKey = categoryKey;
     // Prefer the seed the user just tapped. Fall back to the most-
@@ -421,6 +426,7 @@
     writingFitView.hidden = false;
     if (postOnSocialView) postOnSocialView.hidden = true;
     if (foundersView) foundersView.hidden = true;
+    if (pitchScriptView) pitchScriptView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -529,6 +535,7 @@
     if (writingFitView) writingFitView.hidden = true;
     postOnSocialView.hidden = false;
     if (foundersView) foundersView.hidden = true;
+    if (pitchScriptView) pitchScriptView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -547,6 +554,7 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
     if (postOnSocialView) postOnSocialView.hidden = true;
+    if (pitchScriptView) pitchScriptView.hidden = true;
     foundersView.hidden = false;
     activeId = null;
     readingEssayId = null;
@@ -557,6 +565,31 @@
       window.tinkerFounders.refresh();
     }
   }
+
+  function showPitchScript(pitchId) {
+    if (!pitchScriptView) return;
+    feedView.removeAttribute("data-active");
+    writingView.hidden = true;
+    readView.hidden = true;
+    if (categoryFeedView) categoryFeedView.hidden = true;
+    if (writingFitView) writingFitView.hidden = true;
+    if (postOnSocialView) postOnSocialView.hidden = true;
+    if (foundersView) foundersView.hidden = true;
+    pitchScriptView.hidden = false;
+    activeId = null;
+    readingEssayId = null;
+    activeCategoryKey = null;
+    activeCategorySeed = null;
+    renderSidebar();
+    if (window.tinkerPitchScript && typeof window.tinkerPitchScript.show === "function") {
+      window.tinkerPitchScript.show(pitchId);
+    }
+  }
+  // The pitch-script view's "back" button calls this to return to the
+  // home view; exposed on window so pitch-script.js (loaded after
+  // renderer.js) can reach it without a circular import.
+  window.tinkerShowPitch = () => showFeed();
+  window.tinkerShowPitchScript = (pitchId) => showPitchScript(pitchId);
 
   function fitTitleFor(essay) {
     if (essay.title) return essay.title;

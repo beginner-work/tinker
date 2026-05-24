@@ -387,9 +387,6 @@
   // verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
-  // Transient publish state: "idle" | "publishing" | { ok: true, readerPath } | { ok: false, error }
-  let publishState = "idle";
-  let publishToastTimer = null;
 
   // Render the two-line title block used in the dropdown face and
   // in each menu item. Personal title on top (the founder's
@@ -517,58 +514,26 @@
     });
     row.appendChild(rename);
 
-    // Publish — ships the active pitch's resolved phrases as a daily
-    // beginner post. The endpoint upserts a TinkerUserData row with
-    // kind="published:<slug>"; the beginner repo's /daily/ reader
-    // pulls that row down and renders it.
-    const publish = document.createElement("button");
-    publish.type = "button";
-    publish.className = "sidebar__pitch-publish-btn";
-    const publishLabel = "Publish to your daily beginner";
-    publish.setAttribute("aria-label", publishLabel);
-    publish.setAttribute("title", publishLabel);
-    if (publishState === "publishing") {
-      publish.textContent = "…";
-      publish.disabled = true;
-    } else if (publishState && publishState.ok === true) {
-      publish.textContent = "✓";
-    } else if (publishState && publishState.ok === false) {
-      publish.textContent = "!";
-      publish.setAttribute("title", publishState.error || publishLabel);
-    } else {
-      publish.textContent = "↗";
-    }
-    publish.addEventListener("click", async (e) => {
+    // Script — opens the "prepare a script for a video" storyboard
+    // for the active pitch. NOT a publish step (publishing now lives
+    // in the founders opt-in flow); this is the pre-step where the
+    // founder gets a slide-by-slide narration script they can record
+    // a video from before sharing it with the world.
+    const script = document.createElement("button");
+    script.type = "button";
+    script.className = "sidebar__pitch-publish-btn";
+    const scriptLabel = "Prepare a script for a video";
+    script.setAttribute("aria-label", scriptLabel);
+    script.setAttribute("title", scriptLabel);
+    script.textContent = "▶";
+    script.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (publishState === "publishing") return;
-      const pm = pitchesApi();
-      if (!pm || typeof pm.publishPitch !== "function") return;
-      publishState = "publishing";
-      render();
-      const result = await pm.publishPitch(active.id);
-      publishState = result && result.ok
-        ? { ok: true, readerUrl: result.readerUrl }
-        : { ok: false, error: (result && result.error) || "Publish failed" };
-      render();
-      // On success, open the daily-beginner reader so the founder
-      // sees what just shipped. The reader lives on the beginner
-      // origin, so the publish endpoint hands us an absolute URL.
-      if (result && result.ok && result.readerUrl) {
-        if (window.tinker && typeof window.tinker.openExternal === "function") {
-          window.tinker.openExternal(result.readerUrl);
-        } else {
-          window.open(result.readerUrl, "_blank", "noopener,noreferrer");
-        }
+      if (typeof window.tinkerShowPitchScript === "function") {
+        window.tinkerShowPitchScript(active.id);
       }
-      if (publishToastTimer) clearTimeout(publishToastTimer);
-      publishToastTimer = setTimeout(() => {
-        publishState = "idle";
-        publishToastTimer = null;
-        render();
-      }, result && result.ok ? 3500 : 5000);
     });
-    row.appendChild(publish);
+    row.appendChild(script);
 
     if (renameOpen) {
       const form = document.createElement("form");

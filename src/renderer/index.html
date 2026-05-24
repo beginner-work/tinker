@@ -271,6 +271,15 @@
            v1. The whole inside is rendered by founders.js. -->
       <section id="founders" class="founders" hidden aria-label="founders"></section>
 
+      <!-- pitch-script view: the "prepare a script for a video"
+           storyboard for a single pitch. Opened from the script
+           button on a pitch row in the sidebar. List of slides with
+           the founder's resolved phrases verbatim, plus a suggested
+           on-camera duration per slide and a copy-to-clipboard
+           action. NOT a publish step — publishing happens elsewhere
+           (today via the founders opt-in). -->
+      <section id="pitch-script" class="pitch-script" hidden aria-label="Prepare a script for a video"></section>
+
       <!-- Category feed view: rendered when a seed is tapped — lists
            every essay whose seed belongs to the same category. The
            composer at the top is a single-textarea "status" entry —
@@ -546,6 +555,7 @@
     <script src="./renderer.js" defer></script>
     <script src="./post-on-social.js" defer></script>
     <script src="./founders.js" defer></script>
+    <script src="./pitch-script.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>
