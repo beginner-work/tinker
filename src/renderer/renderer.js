@@ -43,6 +43,7 @@
   const writingFitView = $("#writing-fit");
   const writingFitContent = $("#writing-fit-content");
   const postOnSocialView = $("#post-on-social");
+  const foundersView = $("#founders");
   const statusComposer = $("#status-composer");
   const statusComposerInput = $("#status-composer-input");
   const statusComposerPost = $("#status-composer-post");
@@ -307,6 +308,7 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
     if (postOnSocialView) postOnSocialView.hidden = true;
+    if (foundersView) foundersView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -329,6 +331,7 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
     if (postOnSocialView) postOnSocialView.hidden = true;
+    if (foundersView) foundersView.hidden = true;
   }
   function showRead(essay) {
     feedView.removeAttribute("data-active");
@@ -337,6 +340,7 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
     if (postOnSocialView) postOnSocialView.hidden = true;
+    if (foundersView) foundersView.hidden = true;
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
@@ -363,6 +367,7 @@
     categoryFeedView.hidden = false;
     if (writingFitView) writingFitView.hidden = true;
     if (postOnSocialView) postOnSocialView.hidden = true;
+    if (foundersView) foundersView.hidden = true;
     activeId = null;
     activeCategoryKey = categoryKey;
     // Prefer the seed the user just tapped. Fall back to the most-
@@ -415,6 +420,7 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     writingFitView.hidden = false;
     if (postOnSocialView) postOnSocialView.hidden = true;
+    if (foundersView) foundersView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -522,6 +528,7 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
     postOnSocialView.hidden = false;
+    if (foundersView) foundersView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -529,6 +536,25 @@
     renderSidebar();
     if (window.tinkerPostOnSocial && typeof window.tinkerPostOnSocial.render === "function") {
       window.tinkerPostOnSocial.render();
+    }
+  }
+
+  function showFounders() {
+    if (!foundersView) return;
+    feedView.removeAttribute("data-active");
+    writingView.hidden = true;
+    readView.hidden = true;
+    if (categoryFeedView) categoryFeedView.hidden = true;
+    if (writingFitView) writingFitView.hidden = true;
+    if (postOnSocialView) postOnSocialView.hidden = true;
+    foundersView.hidden = false;
+    activeId = null;
+    readingEssayId = null;
+    activeCategoryKey = null;
+    activeCategorySeed = null;
+    renderSidebar();
+    if (window.tinkerFounders && typeof window.tinkerFounders.refresh === "function") {
+      window.tinkerFounders.refresh();
     }
   }
 
@@ -637,6 +663,9 @@
 
   const navPostOnSocial = $("#nav-post-on-social");
   if (navPostOnSocial) navPostOnSocial.addEventListener("click", () => showPostOnSocial());
+
+  const navFounders = $("#nav-founders");
+  if (navFounders) navFounders.addEventListener("click", () => showFounders());
 
   // Welcome screen: the H1 is the standing line ("Everyone is a
   // founder.") and the question ("Where are you right now?") sits

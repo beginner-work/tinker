@@ -134,6 +134,17 @@
               <span class="sidebar__account-label">Post on Social</span>
             </button>
           </li>
+          <li>
+            <button id="nav-founders" type="button" class="sidebar__account-item">
+              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                <circle cx="9" cy="9" r="3" stroke="currentColor" stroke-width="1.6"/>
+                <circle cx="17" cy="11" r="2.4" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M3.5 19c0-2.8 2.5-5 5.5-5s5.5 2.2 5.5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M14.5 19c.4-2 2-3.5 4-3.5 1.5 0 2.8.8 3.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <span class="sidebar__account-label">founders</span>
+            </button>
+          </li>
           <!-- Share button: revealed by share.js only when the app is
                running as an installed PWA (standalone) or inside a
                wrapped runtime (Capacitor). Stays hidden in plain
@@ -251,6 +262,14 @@
            platform, and end on a reader-POV question that points them
            into the platform's empty composer in their own words. -->
       <section id="post-on-social" class="post-on-social" hidden aria-label="Post on Social"></section>
+
+      <!-- founders view: the social-feed adjacency tool. Opt-in screen
+           by default; once opted in, a quiet results page with one
+           primary button ("find my founders") that calls
+           /api/feed/adjacent and renders 3–7 adjacent founders as
+           paper cards. List-only — no likes, no comments, no DMs in
+           v1. The whole inside is rendered by founders.js. -->
+      <section id="founders" class="founders" hidden aria-label="founders"></section>
 
       <!-- Category feed view: rendered when a seed is tapped — lists
            every essay whose seed belongs to the same category. The
@@ -526,6 +545,7 @@
     <script src="./writing.js" defer></script>
     <script src="./renderer.js" defer></script>
     <script src="./post-on-social.js" defer></script>
+    <script src="./founders.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>
