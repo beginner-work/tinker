@@ -90,14 +90,11 @@ function readJsonBody(req) {
   });
 }
 
-// Mirror of api/publish/pitch.js readerHost — preview tinker should
-// point at the matching beginner preview. Documented in that file.
+// Mirror of api/publish/pitch.js readerHost — preview tinker points at
+// beginner's main preview alias. Documented in that file.
 function readerHost() {
   if (process.env.VERCEL_ENV === "preview") {
-    const branchUrl = process.env.VERCEL_BRANCH_URL || "";
-    if (branchUrl.startsWith("tinker-git-")) {
-      return `https://beginner-git-${branchUrl.slice("tinker-git-".length)}`;
-    }
+    return "https://beginner-git-main-beginner-work.vercel.app";
   }
   return "https://beginner.work";
 }

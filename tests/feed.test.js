@@ -454,9 +454,12 @@ test("verbatimIn matches exact and whitespace-normalised sentences", () => {
   assert.equal(adjacent._test.verbatimIn(haystack, "Goodbye."), null);
 });
 
-test("viewUrlFor swaps tinker-git- prefix for beginner-git- in preview env", () => {
+test("viewUrlFor uses beginner's main preview alias in preview env", () => {
   process.env.VERCEL_ENV = "preview";
   process.env.VERCEL_BRANCH_URL = "tinker-git-feature-x.vercel.app";
   const url = adjacent._test.viewUrlFor("user-a", "alpha");
-  assert.match(url, /^https:\/\/beginner-git-feature-x\.vercel\.app\/daily\/\?u=user-a&t=alpha$/);
+  assert.match(
+    url,
+    /^https:\/\/beginner-git-main-beginner-work\.vercel\.app\/daily\/\?u=user-a&t=alpha$/,
+  );
 });
