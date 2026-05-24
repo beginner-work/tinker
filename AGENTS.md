@@ -14,6 +14,11 @@ shortcut the user picks when the change is good as-is and should go out
 without further iteration. Pair it with 2–3 other context-relevant
 options (e.g. verify locally, iterate on a specific aspect, hold off).
 
+When the user picks "Ship it and merge", merge the PR directly if it's
+mergeable; if it's blocked on CI or required checks, enable auto-merge
+via `mcp__github__enable_pr_auto_merge` so it merges as soon as checks
+pass.
+
 Even when the work feels fully complete, close with this question
 rather than a flat "done." Skip it only when the user's message itself
 was a direct question that has been fully answered with no follow-on
