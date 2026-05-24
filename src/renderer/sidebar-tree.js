@@ -241,7 +241,7 @@
 
   // How many phrases are currently held per heading on the active
   // pitch. Matches the cap in pitches.js.
-  const MAX_PHRASES_PER_HEADING = 2;
+  const MAX_PHRASES_PER_HEADING = 1;
 
   function render() {
     ensureMount();

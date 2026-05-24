@@ -150,7 +150,7 @@ test("upsertPhrase moves a writing to a new heading when the classifier changes 
   assert.equal(deck["Why Now?"][0].writingId, "d_abc");
 });
 
-test("upsertPhrase trims to the two most-recent phrases per heading", () => {
+test("upsertPhrase trims to the most-recent phrase per heading", () => {
   const drafts = Array.from({ length: 7 }, (_, i) => ({
     id: `d_${i}`,
     stitched: { body: `body ${i} the founder wrote something here today right now okay sure` },
@@ -167,11 +167,8 @@ test("upsertPhrase trims to the two most-recent phrases per heading", () => {
     });
   }
   const deck = deckOf(pitches.snapshot());
-  assert.equal(deck["The Problem"].length, 2);
-  const ids = deck["The Problem"].map((p) => p.writingId);
-  assert.ok(ids.includes("d_6"));
-  assert.ok(ids.includes("d_5"));
-  assert.ok(!ids.includes("d_0"));
+  assert.equal(deck["The Problem"].length, 1);
+  assert.equal(deck["The Problem"][0].writingId, "d_6");
 });
 
 test("clearWritingFromTree removes the writing from every heading", () => {

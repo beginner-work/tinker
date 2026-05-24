@@ -56,7 +56,7 @@
   // one POST. The job itself is idempotent, so worst case we make
   // one extra round-trip.
   const ORGANIZE_DEBOUNCE_MS = 2500;
-  const MAX_PHRASES_PER_HEADING = 2;
+  const MAX_PHRASES_PER_HEADING = 1;
 
   // The eleven deck headings, same as sidebar-tree.js. Duplicated
   // here (rather than imported) so this module can stand on its own
