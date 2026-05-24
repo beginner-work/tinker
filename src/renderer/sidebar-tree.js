@@ -387,6 +387,10 @@
   // verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
+  // Transient post state for the ▶ button: "idle" | "posting" |
+  // { ok: true, readerUrl } | { ok: false, error }
+  let postState = "idle";
+  let postToastTimer = null;
 
   // Render the two-line title block used in the dropdown face and
   // in each menu item. Personal title on top (the founder's
@@ -514,26 +518,57 @@
     });
     row.appendChild(rename);
 
-    // Script — opens the "prepare a script for a video" storyboard
-    // for the active pitch. NOT a publish step (publishing now lives
-    // in the founders opt-in flow); this is the pre-step where the
-    // founder gets a slide-by-slide narration script they can record
-    // a video from before sharing it with the world.
-    const script = document.createElement("button");
-    script.type = "button";
-    script.className = "sidebar__pitch-publish-btn";
-    const scriptLabel = "Prepare a script for a video";
-    script.setAttribute("aria-label", scriptLabel);
-    script.setAttribute("title", scriptLabel);
-    script.textContent = "▶";
-    script.addEventListener("click", (e) => {
+    // Post — ships the active pitch's resolved phrases as a daily
+    // beginner post. The ▶ glyph reads "press play / send it"; the
+    // endpoint upserts a TinkerUserData row with kind="published:
+    // <slug>" and the beginner repo's /daily/ reader pulls that row
+    // down and renders it. Success opens the reader so the founder
+    // sees what just shipped.
+    const post = document.createElement("button");
+    post.type = "button";
+    post.className = "sidebar__pitch-publish-btn";
+    const postLabel = "Post to your daily beginner";
+    post.setAttribute("aria-label", postLabel);
+    post.setAttribute("title", postLabel);
+    if (postState === "posting") {
+      post.textContent = "…";
+      post.disabled = true;
+    } else if (postState && postState.ok === true) {
+      post.textContent = "✓";
+    } else if (postState && postState.ok === false) {
+      post.textContent = "!";
+      post.setAttribute("title", postState.error || postLabel);
+    } else {
+      post.textContent = "▶";
+    }
+    post.addEventListener("click", async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (typeof window.tinkerShowPitchScript === "function") {
-        window.tinkerShowPitchScript(active.id);
+      if (postState === "posting") return;
+      const pm = pitchesApi();
+      if (!pm || typeof pm.publishPitch !== "function") return;
+      postState = "posting";
+      render();
+      const result = await pm.publishPitch(active.id);
+      postState = result && result.ok
+        ? { ok: true, readerUrl: result.readerUrl }
+        : { ok: false, error: (result && result.error) || "Post failed" };
+      render();
+      if (result && result.ok && result.readerUrl) {
+        if (window.tinker && typeof window.tinker.openExternal === "function") {
+          window.tinker.openExternal(result.readerUrl);
+        } else {
+          window.open(result.readerUrl, "_blank", "noopener,noreferrer");
+        }
       }
+      if (postToastTimer) clearTimeout(postToastTimer);
+      postToastTimer = setTimeout(() => {
+        postState = "idle";
+        postToastTimer = null;
+        render();
+      }, result && result.ok ? 3500 : 5000);
     });
-    row.appendChild(script);
+    row.appendChild(post);
 
     if (renameOpen) {
       const form = document.createElement("form");

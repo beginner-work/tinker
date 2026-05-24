@@ -697,9 +697,6 @@
   const navPostOnSocial = $("#nav-post-on-social");
   if (navPostOnSocial) navPostOnSocial.addEventListener("click", () => showPostOnSocial());
 
-  const navFounders = $("#nav-founders");
-  if (navFounders) navFounders.addEventListener("click", () => showFounders());
-
   // Welcome screen: the H1 is the standing line ("Everyone is a
   // founder.") and the question ("Where are you right now?") sits
   // above a 2×2 grid of four locations — Cafe, Home, Work, Somewhere
