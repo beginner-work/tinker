@@ -387,10 +387,6 @@
   // verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
-  // Transient post state for the ▶ button: "idle" | "posting" |
-  // { ok: true, readerUrl } | { ok: false, error }
-  let postState = "idle";
-  let postToastTimer = null;
 
   // Render the two-line title block used in the dropdown face and
   // in each menu item. Personal title on top (the founder's
@@ -518,57 +514,25 @@
     });
     row.appendChild(rename);
 
-    // Post — ships the active pitch's resolved phrases as a daily
-    // beginner post. The ▶ glyph reads "press play / send it"; the
-    // endpoint upserts a TinkerUserData row with kind="published:
-    // <slug>" and the beginner repo's /daily/ reader pulls that row
-    // down and renders it. Success opens the reader so the founder
-    // sees what just shipped.
-    const post = document.createElement("button");
-    post.type = "button";
-    post.className = "sidebar__pitch-publish-btn";
-    const postLabel = "Post to your daily beginner";
-    post.setAttribute("aria-label", postLabel);
-    post.setAttribute("title", postLabel);
-    if (postState === "posting") {
-      post.textContent = "…";
-      post.disabled = true;
-    } else if (postState && postState.ok === true) {
-      post.textContent = "✓";
-    } else if (postState && postState.ok === false) {
-      post.textContent = "!";
-      post.setAttribute("title", postState.error || postLabel);
-    } else {
-      post.textContent = "▶";
-    }
-    post.addEventListener("click", async (e) => {
+    // Play — opens the in-app video-notes surface for the active pitch
+    // (the storyboard the founder records a video from). The ▶ glyph
+    // reads "press play / record". This used to publish to the daily
+    // beginner; publishing now lives behind the founders opt-in.
+    const play = document.createElement("button");
+    play.type = "button";
+    play.className = "sidebar__pitch-publish-btn";
+    const playLabel = "Record your pitch";
+    play.setAttribute("aria-label", playLabel);
+    play.setAttribute("title", playLabel);
+    play.textContent = "▶";
+    play.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (postState === "posting") return;
-      const pm = pitchesApi();
-      if (!pm || typeof pm.publishPitch !== "function") return;
-      postState = "posting";
-      render();
-      const result = await pm.publishPitch(active.id);
-      postState = result && result.ok
-        ? { ok: true, readerUrl: result.readerUrl }
-        : { ok: false, error: (result && result.error) || "Post failed" };
-      render();
-      if (result && result.ok && result.readerUrl) {
-        if (window.tinker && typeof window.tinker.openExternal === "function") {
-          window.tinker.openExternal(result.readerUrl);
-        } else {
-          window.open(result.readerUrl, "_blank", "noopener,noreferrer");
-        }
+      if (typeof window.tinkerShowPitchScript === "function") {
+        window.tinkerShowPitchScript(active.id);
       }
-      if (postToastTimer) clearTimeout(postToastTimer);
-      postToastTimer = setTimeout(() => {
-        postState = "idle";
-        postToastTimer = null;
-        render();
-      }, result && result.ok ? 3500 : 5000);
     });
-    row.appendChild(post);
+    row.appendChild(play);
 
     if (renameOpen) {
       const form = document.createElement("form");

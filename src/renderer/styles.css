@@ -3009,3 +3009,188 @@ html.seed-modal-open { overflow: hidden; }
   cursor: pointer;
 }
 .pitch-script__copy:hover { background: #000; }
+
+/* ── pitch-script · record CTA + recorder panel ─────────────────────
+ *
+ * The "Record your pitch" CTA sits between the total-duration line
+ * and the storyboard so it's the first thing the founder sees. The
+ * recorder panel is fixed to the bottom of the viewport so the
+ * storyboard above stays scrollable — the founder can glance at
+ * their lines while the camera rolls below.
+ */
+.pitch-script__record-row {
+  display: flex;
+  justify-content: flex-start;
+}
+.pitch-script__record {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-accent-strong, var(--color-foreground));
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+.pitch-script__record:hover { background: #000; }
+.pitch-script__record:active { transform: translateY(1px); }
+.pitch-script__record:disabled {
+  cursor: default;
+  opacity: 0.55;
+  background: var(--color-foreground);
+}
+.pitch-script__record-glyph {
+  color: #e0625a;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Push the storyboard above the floating recorder so the last
+ * slide isn't trapped beneath it. ~280px covers the panel even at
+ * the larger playback layout. */
+.pitch-script__inner--recording {
+  padding-bottom: 280px;
+}
+
+.pitch-script__rec-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: var(--color-background);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -8px 24px rgba(45, 42, 38, 0.08);
+}
+.pitch-script__rec-panel-inner {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: grid;
+  grid-template-columns: 200px 1fr auto;
+  align-items: center;
+  gap: 18px;
+}
+@media (max-width: 640px) {
+  .pitch-script__rec-panel-inner {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+}
+
+.pitch-script__rec-video-wrap {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pitch-script__rec-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Selfie-view: mirror the preview during recording so it tracks
+   * the founder's expectations. The playback element re-renders
+   * without this class so the saved file looks correct on disk. */
+}
+.pitch-script__rec-video[data-role="rec-preview"] {
+  transform: scaleX(-1);
+}
+
+.pitch-script__rec-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.pitch-script__rec-title {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.pitch-script__rec-status {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.pitch-script__rec-status--error { color: #b04a3a; font-weight: 500; font-size: 14px; }
+.pitch-script__rec-status--live { color: #b03a3a; }
+.pitch-script__rec-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #d63a3a;
+  animation: pitch-script-rec-pulse 1.2s ease-in-out infinite;
+}
+@keyframes pitch-script-rec-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.85); }
+}
+.pitch-script__rec-countdown {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-foreground);
+  font-variant-numeric: tabular-nums;
+  min-width: 18px;
+  display: inline-block;
+  text-align: center;
+}
+
+.pitch-script__rec-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.pitch-script__rec-primary {
+  padding: 10px 18px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-foreground);
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.pitch-script__rec-primary:hover { background: #000; }
+.pitch-script__rec-secondary {
+  padding: 9px 16px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.pitch-script__rec-secondary:hover {
+  background: var(--color-hover);
+}

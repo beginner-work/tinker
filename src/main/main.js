@@ -85,10 +85,16 @@ function userAgent() {
 app.whenReady().then(() => {
   session.defaultSession.setUserAgent(userAgent());
 
-  // Permission prompts — for now allow clipboard / fullscreen by default,
-  // and deny camera/mic/notifications until we have a trust UI.
+  // Permission prompts — allow clipboard / fullscreen / media (camera +
+  // microphone for the in-app pitch recorder), deny everything else
+  // until we have a trust UI.
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => {
-    const allowed = ["clipboard-read", "clipboard-sanitized-write", "fullscreen"];
+    const allowed = [
+      "clipboard-read",
+      "clipboard-sanitized-write",
+      "fullscreen",
+      "media",
+    ];
     cb(allowed.includes(permission));
   });
 
