@@ -3246,3 +3246,14 @@ html.seed-modal-open { overflow: hidden; }
   font-weight: 700;
   cursor: help;
 }
+.pitch-script__rec-error-detail {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #b04a3a;
+  line-height: 1.4;
+  word-break: break-word;
+  max-width: 100%;
+}

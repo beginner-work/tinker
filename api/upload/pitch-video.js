@@ -212,6 +212,20 @@ async function handler(req, res) {
     }
   }
 
+  // Fail loudly when the store isn't configured — without this the
+  // handleUpload() call below blows up with a generic message and
+  // the founder just sees "Upload failed" with no clue what's
+  // wrong. (Vercel auto-injects BLOB_READ_WRITE_TOKEN when a Blob
+  // store is linked to the project, so the fix is one click in the
+  // dashboard.)
+  if (body && body.type === "blob.generate-client-token" && !process.env.BLOB_READ_WRITE_TOKEN) {
+    res.status(503).json({
+      error:
+        "Vercel Blob is not configured on this deployment. Link a Blob store in the Vercel dashboard to enable cloud saves.",
+    });
+    return;
+  }
+
   try {
     const json = await handleUpload({
       body,
@@ -269,8 +283,19 @@ async function handler(req, res) {
     });
     res.status(200).json(json);
   } catch (err) {
+    // Surface enough detail to actually debug a failed cloud save.
+    // The error class names from @vercel/blob (BlobAccessError,
+    // BlobContentTypeNotAllowedError, etc.) are useful context — the
+    // founder doesn't see them, but they show up in Vercel logs and
+    // get echoed back to the renderer so the playback panel can
+    // display a real reason instead of just "Upload failed".
     const status = err && err.status ? err.status : 400;
-    res.status(status).json({ error: (err && err.message) || "Bad request" });
+    const message = (err && err.message) || "Bad request";
+    const name = err && err.name ? String(err.name) : "Error";
+    try {
+      console.error("[upload/pitch-video]", name, message, err && err.stack);
+    } catch { /* logging must never throw */ }
+    res.status(status).json({ error: `${name}: ${message}` });
   }
 }
 

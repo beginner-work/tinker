@@ -317,10 +317,15 @@
         uploadHtml = `<button type="button" class="pitch-script__rec-secondary" data-role="rec-copy-link">${escapeHtml(copyLabel)}</button>`;
       } else if (uploadState && uploadState.ok === false) {
         statusSuffix = ` · ${escapeHtml(STR.uploadFailed)}`;
-        uploadHtml = `<button type="button" class="pitch-script__rec-secondary" data-role="rec-upload" title="${escapeHtml(uploadState.error || "")}">${escapeHtml(STR.retryUpload)}</button>`;
+        uploadHtml = `<button type="button" class="pitch-script__rec-secondary" data-role="rec-upload">${escapeHtml(STR.retryUpload)}</button>`;
       }
+      const errorLine =
+        uploadState && uploadState.ok === false && uploadState.error
+          ? `<span class="pitch-script__rec-error-detail">${escapeHtml(uploadState.error)}</span>`
+          : "";
       statusHtml =
-        `<span class="pitch-script__rec-status">${escapeHtml(STR.playbackTitle)} · ${escapeHtml(formatClock(elapsedSeconds))}${statusSuffix}</span>`;
+        `<span class="pitch-script__rec-status">${escapeHtml(STR.playbackTitle)} · ${escapeHtml(formatClock(elapsedSeconds))}${statusSuffix}</span>` +
+        errorLine;
       controlsHtml =
         `<button type="button" class="pitch-script__rec-secondary" data-role="rec-redo">${escapeHtml(STR.recordAgain)}</button>` +
         uploadHtml +
@@ -693,13 +698,38 @@
           "x-vercel-blob-store-id": storeId,
           "x-api-blob-request-id": requestId,
           "x-api-blob-request-attempt": "0",
+          // These two are non-optional. createPutHeaders in
+          // @vercel/blob always sets x-vercel-blob-access; without
+          // it the API rejects the request before it ever reaches
+          // our store. The client token already constrains us to
+          // "public" via the addRandomSuffix:false / allowOverwrite:
+          // true / public defaults baked into onBeforeGenerateToken.
+          "x-vercel-blob-access": "public",
           "x-content-type": recordedMimeType || "video/webm",
+          // allowOverwrite is set on the token but the API also looks
+          // at the header on the PUT — mirror it so re-recording the
+          // same pathname doesn't 409.
+          "x-allow-overwrite": "1",
         },
         body: recordedBlob,
       });
       if (!putRes.ok) {
-        const detail = await putRes.text().catch(() => "");
-        throw new Error(`Blob upload failed (${putRes.status}) ${detail}`);
+        // Vercel Blob errors come back as JSON ({ error: { code, message } });
+        // CORS / network failures come back as opaque responses with
+        // no body. Try JSON first, fall back to raw text, fall back
+        // to a generic status-only message.
+        let detail = "";
+        try {
+          const errJson = await putRes.clone().json();
+          if (errJson && errJson.error) {
+            detail = errJson.error.message || errJson.error.code || JSON.stringify(errJson.error);
+          }
+        } catch (_) { /* not JSON */ }
+        if (!detail) {
+          try { detail = (await putRes.text()).slice(0, 240); }
+          catch (_) { /* opaque */ }
+        }
+        throw new Error(`Blob upload failed (${putRes.status})${detail ? ": " + detail : ""}`);
       }
       const putJson = await putRes.json();
       if (!putJson || !putJson.url) {

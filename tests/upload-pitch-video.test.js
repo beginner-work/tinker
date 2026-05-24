@@ -72,6 +72,13 @@ stubAt(path.join(libDir, "db.js"), dbStub);
 const blobClientPath = require.resolve("@vercel/blob/client");
 stubAt(blobClientPath, blobStub);
 
+// The handler refuses generate-client-token requests when
+// BLOB_READ_WRITE_TOKEN is unset (otherwise founders see a generic
+// "Upload failed" with no clue the store isn't linked). Set a fake
+// one for the test process so the dispatch logic still runs.
+process.env.BLOB_READ_WRITE_TOKEN = process.env.BLOB_READ_WRITE_TOKEN ||
+  "vercel_blob_rw_storeXYZ_fakesecret";
+
 const uploadModule = require("../api/upload/pitch-video.js");
 const handler = uploadModule._raw;
 const { _validatePathnameForPitch: validatePathname, _parseClientPayload: parseClientPayload } =
