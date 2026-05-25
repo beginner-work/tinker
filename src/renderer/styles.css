@@ -1349,13 +1349,15 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-muted);
-  background: transparent;
-  transition: background 0.15s ease, color 0.15s ease;
+  color: #b23a3a;
+  background: rgba(196, 64, 64, 0.08);
+  border: 1px solid rgba(196, 64, 64, 0.24);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 .read__delete:hover {
-  background: rgba(196, 64, 64, 0.08);
-  color: #b23a3a;
+  background: rgba(196, 64, 64, 0.16);
+  border-color: rgba(196, 64, 64, 0.4);
+  color: #8f2a2a;
 }
 
 .read__body {
