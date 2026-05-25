@@ -405,17 +405,31 @@
     return true;
   }
 
-  // Post-publish fit screen. Shows which of the eleven starter-pitch
-  // slides this essay slots under (lifted verbatim phrase included) or
-  // — when the classifier returns nothing — flags it as a new direction
-  // the deck hasn't named yet. The classifier call has already been
-  // kicked off by the tinker:writing-saved dispatch in publish(); the
-  // sidebar-tree's inflight dedupe means our classify() call here just
-  // attaches to that same promise.
+  // Post-publish arrangement screen. Replaces the older "writing-fit"
+  // confirmation that reported a single placement up front — that was
+  // a lie when the server-side organize job moved the essay or renamed
+  // the pitch a few seconds later. This screen instead shows the whole
+  // arrangement as it settles: every pitch as a row, the new essay
+  // entering "reconsideration", and — when organize returns — any swaps,
+  // renames, or pitch dissolutions that happened in the round.
+  //
+  // Three phases, driven off real lifecycle events from
+  // window.tinkerPitches:
+  //   1. reconsidering — classify is in flight; the essay hasn't been
+  //      slotted anywhere yet.
+  //   2. settling — classify landed, organize is running on the server.
+  //      The essay shows in its tentative pitch with a rainbow bar.
+  //   3. locked — organize returned; the bar fills, swaps + renames +
+  //      dissolved pitches are called out.
+  //
+  // ArrangementState is the single source of truth for what the screen
+  // currently shows; we mutate fields on it and call renderArrangement
+  // to repaint, so phase transitions don't race with each other.
+  let arrangementState = null;
+  let arrangementOrganizeHandler = null;
+
   function showWritingFit(essay) {
     if (!writingFitView || !writingFitContent) {
-      // Fallback to read view if the fit surface didn't mount for any
-      // reason (older cached HTML, audit harness, etc).
       showRead(essay);
       return;
     }
@@ -433,97 +447,249 @@
     activeCategorySeed = null;
     renderSidebar();
 
-    renderWritingFitLoading();
+    // Detach any previous organize listener from a prior publish.
+    if (arrangementOrganizeHandler) {
+      window.removeEventListener("tinker:organize-completed", arrangementOrganizeHandler);
+      arrangementOrganizeHandler = null;
+    }
+
+    arrangementState = {
+      essay,
+      phase: "reconsidering",          // reconsidering → settling → locked → error
+      classifyResult: undefined,       // undefined = pending, null = errored, object = settled
+      placement: null,                 // { pitchId, deckHeading } once classify lands
+      diff: null,                      // populated when organize returns
+      organizeError: null,             // populated on organize failure
+      titlesBefore: snapshotTitles(),  // captured pre-organize for rename callouts
+    };
+    renderArrangement();
 
     const tree = window.tinkerTree;
-    if (tree && typeof tree.classify === "function") {
-      Promise.resolve()
-        .then(() => tree.classify(essay.id, { fresh: true }))
-        .then((result) => renderWritingFitResult(essay, result))
-        .catch(() => renderWritingFitResult(essay, null));
-    } else {
-      renderWritingFitResult(essay, null);
+    const pitches = window.tinkerPitches;
+    if (!tree || typeof tree.classify !== "function") {
+      arrangementState.classifyResult = null;
+      arrangementState.phase = "error";
+      renderArrangement();
+      return;
     }
+
+    Promise.resolve()
+      .then(() => tree.classify(essay.id, { fresh: true }))
+      .then((result) => {
+        if (!arrangementState || arrangementState.essay.id !== essay.id) return;
+        arrangementState.classifyResult = result || null;
+        // Read where pitches.js actually slotted the writing — classify
+        // calls upsertPhrase, which may have created a fresh pitch if
+        // none existed yet.
+        if (pitches && typeof pitches.findPitchForWriting === "function") {
+          arrangementState.placement = pitches.findPitchForWriting(essay.id);
+        }
+        arrangementState.phase = "settling";
+        renderArrangement();
+
+        if (!pitches || typeof pitches.triggerOrganizeNow !== "function") {
+          arrangementState.phase = "locked";
+          renderArrangement();
+          return;
+        }
+
+        arrangementOrganizeHandler = (evt) => {
+          if (!arrangementState || arrangementState.essay.id !== essay.id) return;
+          const detail = (evt && evt.detail) || {};
+          if (detail.ok) {
+            arrangementState.diff = detail.diff || null;
+            arrangementState.phase = "locked";
+          } else {
+            arrangementState.organizeError = detail.reason || "unknown";
+            arrangementState.phase = "locked";   // still surface the classify placement
+          }
+          renderArrangement();
+          window.removeEventListener("tinker:organize-completed", arrangementOrganizeHandler);
+          arrangementOrganizeHandler = null;
+        };
+        window.addEventListener("tinker:organize-completed", arrangementOrganizeHandler);
+
+        pitches.triggerOrganizeNow({ force: true }).catch(() => { /* surfaced via event */ });
+      })
+      .catch(() => {
+        if (!arrangementState || arrangementState.essay.id !== essay.id) return;
+        arrangementState.classifyResult = null;
+        arrangementState.phase = "error";
+        renderArrangement();
+      });
   }
 
-  function renderWritingFitLoading() {
-    writingFitContent.innerHTML =
-      `<p class="writing-fit__crumb">You just published</p>` +
-      `<div class="writing-fit__loading">` +
-        `<div class="thinking-dots" aria-hidden="true">` +
-          `<span class="thinking-dot"></span><span class="thinking-dot"></span><span class="thinking-dot"></span>` +
-        `</div>` +
-        `<div class="writing-fit__loading-text">Seeing where this fits in your pitch…</div>` +
-      `</div>`;
+  function snapshotTitles() {
+    const pitches = window.tinkerPitches;
+    if (!pitches || typeof pitches.getPitches !== "function") return {};
+    const out = {};
+    for (const p of pitches.getPitches()) {
+      out[p.id] = p.displayName || null;
+    }
+    return out;
   }
 
-  function renderWritingFitResult(essay, result) {
+  function renderArrangement() {
+    if (!arrangementState || !writingFitContent) return;
+    const { essay, phase, classifyResult, placement, diff, organizeError } = arrangementState;
     const headings = (window.tinkerTree && window.tinkerTree.DECK_HEADINGS) || [];
-    const totalSlots = headings.length || 11;
     const titleText = fitTitleFor(essay);
+    const pitches = window.tinkerPitches;
+    const allPitches = (pitches && typeof pitches.getPitches === "function")
+      ? pitches.getPitches()
+      : [];
 
-    // `null` from classify means the call couldn't run (network, no
-    // token, parse error). The model deciding "no slide fits" comes
-    // back as { deckHeading: null }. Distinguishing the two so we
-    // don't tell the founder their writing missed the deck when the
-    // classifier never actually weighed in.
-    let slotHtml;
-    let leadHtml = "";
-    if (result === null || result === undefined) {
-      slotHtml =
-        `<div class="writing-fit__slot writing-fit__slot--miss">` +
-          `<div class="writing-fit__slot-num">Hold tight</div>` +
-          `<h2 class="writing-fit__slot-heading">Couldn't see where this fits right now.</h2>` +
-          `<p class="writing-fit__sub">The pitch reader didn't respond. Your essay saved fine — open it below, or come back and the sidebar will catch up.</p>` +
-        `</div>`;
-    } else if (result.deckHeading) {
-      const heading = result.deckHeading;
-      const phrase = result.phrase;
-      let phraseText = "";
-      if (phrase && essay.body
-          && Number.isFinite(phrase.offset) && Number.isFinite(phrase.length)
-          && phrase.offset >= 0 && phrase.offset + phrase.length <= essay.body.length) {
-        phraseText = String(essay.body).slice(phrase.offset, phrase.offset + phrase.length);
+    const phaseCopy = phaseLabel(phase, classifyResult, organizeError);
+
+    // Phrase the classifier lifted (if any) — shown as a chip alongside
+    // the essay so the founder sees what the model latched onto.
+    let phraseText = "";
+    if (classifyResult && classifyResult.phrase && essay.body) {
+      const { offset, length } = classifyResult.phrase;
+      if (Number.isFinite(offset) && Number.isFinite(length)
+          && offset >= 0 && offset + length <= essay.body.length) {
+        phraseText = String(essay.body).slice(offset, offset + length);
       }
-      const slotNum = headings.indexOf(heading) + 1;
-      const slotLabel = slotNum > 0 ? `Slide ${slotNum} of ${totalSlots}` : "Pitch slide";
-      slotHtml =
-        `<div class="writing-fit__slot">` +
-          `<div class="writing-fit__slot-num">${escapeHtml(slotLabel)}</div>` +
-          `<h2 class="writing-fit__slot-heading">${escapeHtml(heading)}</h2>` +
-          (phraseText ? `<blockquote class="writing-fit__phrase">${escapeHtml(phraseText)}</blockquote>` : "") +
-        `</div>`;
-      // Title preference: founder's manual name wins, otherwise the
-      // AI-generated name (which also covers the first-classification
-      // path before the founder has renamed anything).
-      const activePitch = (window.tinkerPitches && typeof window.tinkerPitches.getActivePitch === "function")
-        ? window.tinkerPitches.getActivePitch()
-        : null;
-      const pitchLabel = (activePitch && (activePitch.personalTitle || activePitch.aiTitle)) || "your starter pitch";
-      leadHtml = `<p class="writing-fit__sub">Your pitch landed in ${escapeHtml(pitchLabel)}.</p>`;
-    } else {
-      slotHtml =
-        `<div class="writing-fit__slot writing-fit__slot--miss">` +
-          `<div class="writing-fit__slot-num">New pitch</div>` +
-          `<h2 class="writing-fit__slot-heading">You discovered a new pitch!</h2>` +
-          `<p class="writing-fit__sub">None of your existing pitches quite hold this one. Your sidebar will name it and cluster it with others on the same beat as you keep writing.</p>` +
-        `</div>`;
     }
 
+    // Pitch rows. Each is a card with the pitch's title, a rainbow
+    // progress bar showing its current arrangement state, and a slot
+    // for the essay chip when this pitch is where the essay currently
+    // (or finally) lives.
+    const finalPlacement = (phase === "locked" && pitches && typeof pitches.findPitchForWriting === "function")
+      ? pitches.findPitchForWriting(essay.id)
+      : placement;
+    const finalPitchId = finalPlacement ? finalPlacement.pitchId : null;
+    const tentativePitchId = (placement && placement.pitchId !== finalPitchId) ? placement.pitchId : null;
+
+    const rowsHtml = allPitches.length === 0
+      ? `<div class="arrangement__empty">No pitches yet — this essay will seed your first one.</div>`
+      : allPitches.map((p) => {
+          const isFinal = p.id === finalPitchId;
+          const isTentative = p.id === tentativePitchId;
+          const wasRenamed = diff && diff.renamedPitches.some((r) => r.pitchId === p.id);
+          const rowState =
+            phase === "locked" ? (isFinal ? "locked" : "idle")
+            : (isFinal || isTentative) ? "active"
+            : "idle";
+          const fillPct =
+            phase === "locked" && isFinal ? 100
+            : phase === "settling" && (isFinal || isTentative) ? 65
+            : phase === "reconsidering" ? 25
+            : phase === "locked" ? 100  // other pitches: filled but quiet
+            : 12;
+          const chipHtml = (isFinal && phase === "locked") || (isTentative && phase === "settling")
+            ? arrangementChipHtml(essay, classifyResult, phase, isTentative)
+            : "";
+          const beforeName = arrangementState.titlesBefore && arrangementState.titlesBefore[p.id];
+          const renameHtml = wasRenamed && beforeName && beforeName !== p.displayName
+            ? `<div class="arrangement__rename">renamed from <span class="arrangement__rename-from">${escapeHtml(beforeName)}</span></div>`
+            : "";
+          return (
+            `<div class="arrangement__row" data-row-state="${rowState}">` +
+              `<div class="arrangement__row-head">` +
+                `<span class="arrangement__row-title">${escapeHtml(p.displayName || "Untitled pitch")}</span>` +
+                `<span class="arrangement__row-count">${p.robustness} / ${headings.length || 11}</span>` +
+              `</div>` +
+              renameHtml +
+              `<div class="arrangement__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(fillPct)}">` +
+                `<div class="arrangement__bar-fill" style="width: ${fillPct}%"></div>` +
+              `</div>` +
+              chipHtml +
+            `</div>`
+          );
+        }).join("");
+
+    // Dissolved pitches: any id that was in titlesBefore but isn't in
+    // the current pitch list. Surfaced as a quiet block so the founder
+    // sees that the organize round can also END a pitch line.
+    const currentIds = new Set(allPitches.map((p) => p.id));
+    const dissolvedIds = Object.keys(arrangementState.titlesBefore || {})
+      .filter((id) => !currentIds.has(id));
+    const dissolvedHtml = phase === "locked" && dissolvedIds.length > 0
+      ? `<div class="arrangement__dissolved">` +
+          dissolvedIds.map((id) => {
+            const name = arrangementState.titlesBefore[id];
+            return `<div class="arrangement__dissolved-row">` +
+              `<span class="arrangement__dissolved-label">Dissolved</span>` +
+              `<span class="arrangement__dissolved-name">${escapeHtml(name || "Untitled pitch")}</span>` +
+            `</div>`;
+          }).join("") +
+        `</div>`
+      : "";
+
+    // Slot/heading callout — only at lock time, so we don't repeat the
+    // old screen's premature placement claim.
+    let slotHtml = "";
+    if (phase === "locked") {
+      const placedHeading = finalPlacement && finalPlacement.deckHeading;
+      if (placedHeading) {
+        const slotNum = headings.indexOf(placedHeading) + 1;
+        const slotLabel = slotNum > 0 ? `Slide ${slotNum} of ${headings.length || 11}` : "Pitch slide";
+        slotHtml =
+          `<div class="arrangement__slot">` +
+            `<div class="arrangement__slot-num">${escapeHtml(slotLabel)}</div>` +
+            `<h2 class="arrangement__slot-heading">${escapeHtml(placedHeading)}</h2>` +
+            (phraseText ? `<blockquote class="arrangement__phrase">${escapeHtml(phraseText)}</blockquote>` : "") +
+          `</div>`;
+      } else {
+        slotHtml =
+          `<div class="arrangement__slot arrangement__slot--miss">` +
+            `<div class="arrangement__slot-num">No slide yet</div>` +
+            `<h2 class="arrangement__slot-heading">You discovered a new direction.</h2>` +
+            `<p class="arrangement__slot-sub">None of your existing pitches caught this one. It'll cluster with others on the same beat as you keep writing.</p>` +
+          `</div>`;
+      }
+    }
+
+    const actionsHtml = phase === "locked"
+      ? `<div class="arrangement__actions">` +
+          `<button type="button" class="writing-action" data-arrangement-action="done">Done</button>` +
+          `<button type="button" class="writing-action writing-action--primary" data-arrangement-action="read">Read it →</button>` +
+        `</div>`
+      : "";
+
     writingFitContent.innerHTML =
-      `<p class="writing-fit__crumb">You just published</p>` +
-      `<h1 class="writing-fit__headline">${escapeHtml(titleText)}</h1>` +
-      leadHtml +
-      slotHtml +
-      `<div class="writing-fit__actions">` +
-        `<button type="button" class="writing-action" data-fit-action="done">Done</button>` +
-        `<button type="button" class="writing-action writing-action--primary" data-fit-action="read">Read it →</button>` +
+      `<div class="arrangement" data-arrangement-phase="${phase}">` +
+        `<p class="arrangement__crumb">You just published</p>` +
+        `<h1 class="arrangement__headline">${escapeHtml(titleText)}</h1>` +
+        `<p class="arrangement__phase-line"><span class="arrangement__phase-dot" aria-hidden="true"></span>${escapeHtml(phaseCopy)}</p>` +
+        `<div class="arrangement__rows">${rowsHtml}</div>` +
+        dissolvedHtml +
+        slotHtml +
+        actionsHtml +
       `</div>`;
 
-    const doneBtn = writingFitContent.querySelector('[data-fit-action="done"]');
-    const readBtn = writingFitContent.querySelector('[data-fit-action="read"]');
+    const doneBtn = writingFitContent.querySelector('[data-arrangement-action="done"]');
+    const readBtn = writingFitContent.querySelector('[data-arrangement-action="read"]');
     if (doneBtn) doneBtn.addEventListener("click", () => showFeed());
     if (readBtn) readBtn.addEventListener("click", () => showRead(essay));
+  }
+
+  function phaseLabel(phase, classifyResult, organizeError) {
+    if (phase === "reconsidering") return "Reconsidering across your pitches…";
+    if (phase === "settling") return "Settling — checking with the rest of your deck…";
+    if (phase === "error") return "The pitch reader didn't respond. Your essay saved fine.";
+    if (phase === "locked") {
+      if (organizeError) return "Locked in (the rearrange step didn't finish — sidebar will catch up).";
+      if (classifyResult === null) return "Locked in — couldn't slot this one yet.";
+      return "Locked in.";
+    }
+    return "";
+  }
+
+  function arrangementChipHtml(essay, classifyResult, phase, isTentative) {
+    const titleText = fitTitleFor(essay);
+    const chipState = phase === "locked" ? "locked" : (isTentative ? "tentative" : "considering");
+    const headingPart = classifyResult && classifyResult.deckHeading
+      ? `<span class="arrangement__chip-heading">${escapeHtml(classifyResult.deckHeading)}</span>`
+      : "";
+    return (
+      `<div class="arrangement__chip" data-chip-state="${chipState}">` +
+        `<span class="arrangement__chip-title">${escapeHtml(titleText)}</span>` +
+        headingPart +
+      `</div>`
+    );
   }
 
   function showPostOnSocial() {
