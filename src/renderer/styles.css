@@ -1338,6 +1338,15 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   letter-spacing: 0.02em;
   margin-bottom: 4px;
 }
+
+/* Shared between the read view's .read__author and the arrangement
+ * screen's .arrangement__subtitle. The slide title piece is coloured
+ * inline (style="color: var(--logo-…)") to match the slide's row in
+ * the sidebar — kept as inline-style so the renderer can mint the
+ * exact CSS variable per heading without a class explosion. */
+.essay-subtitle__slide {
+  font-weight: 700;
+}
 .read__title {
   margin: 0 0 12px;
   font-family: var(--font-display);
@@ -1348,7 +1357,9 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;
+  text-align: center;
 }
+.read__author { text-align: center; }
 .read__body p { margin: 0 0 1em; }
 
 /* ── Category feed (seed → category landing page) ───────────────── */
@@ -1392,7 +1403,10 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   letter-spacing: -0.02em;
   line-height: 1.15;
   color: var(--color-foreground);
+  text-align: center;
 }
+.arrangement__subtitle { text-align: center; }
+.arrangement__crumb { text-align: center; }
 .arrangement__subtitle {
   margin: 0;
   font-family: var(--font-display);

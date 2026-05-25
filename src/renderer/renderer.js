@@ -348,12 +348,20 @@
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
+    // Title wraps the text in an inner span so the mobile floating
+    // title bar can centre with text-overflow: ellipsis — both
+    // properties only behave when applied to a sized child, not to
+    // a flex container directly.
     const titleHtml = essay.title
-      ? `<h1 class="read__title">${escapeHtml(essay.title)}</h1>`
+      ? `<h1 class="read__title"><span>${escapeHtml(essay.title)}</span></h1>`
       : "";
+    // Subtitle: which pitch + which slide this essay sits under. Falls
+    // back to the author label (the older "you" line) when the essay
+    // hasn't been placed in any pitch yet, so the slot is never empty.
+    const subtitle = pitchSubtitleHtmlFor(essay) || escapeHtml(essay.author || "you");
     readBody.innerHTML =
       `<header class="read__head">` +
-        `<div class="read__author">${escapeHtml(essay.author)}</div>` +
+        `<div class="read__author">${subtitle}</div>` +
         titleHtml +
       `</header>` +
       paragraphs(essay.body);
@@ -649,16 +657,17 @@
         `</div>`
       : "";
 
-    // Subtitle: the author label, matching the read view's pattern
-    // (centered "you" under the title). The pitch context is already
-    // carried by the rows below — the founder can see exactly which
-    // pitch the essay belongs to from the row that holds its chip.
-    const subtitleHtml = `<p class="arrangement__subtitle">${escapeHtml(essay.author || "you")}</p>`;
+    // Subtitle: "<PitchName>. <SlideTitle>" once classify lands. Falls
+    // back to the author label during the reconsidering phase (no
+    // placement yet) so the line is never blank. The slide title is
+    // coloured to match its row in the sidebar.
+    const subtitleInner = pitchSubtitleHtmlFor(essay) || escapeHtml(essay.author || "you");
+    const subtitleHtml = `<p class="arrangement__subtitle">${subtitleInner}</p>`;
 
     writingFitContent.innerHTML =
       `<div class="arrangement" data-arrangement-phase="${phase}">` +
         `<p class="arrangement__crumb">You just published</p>` +
-        `<h1 class="arrangement__headline">${escapeHtml(titleText)}</h1>` +
+        `<h1 class="arrangement__headline"><span>${escapeHtml(titleText)}</span></h1>` +
         subtitleHtml +
         `<p class="arrangement__phase-line"><span class="arrangement__phase-dot" aria-hidden="true"></span>${escapeHtml(phaseCopy)}</p>` +
         `<div class="arrangement__rows">${rowsHtml}</div>` +
@@ -763,6 +772,51 @@
   // renderer.js) can reach it without a circular import.
   window.tinkerShowPitch = () => showFeed();
   window.tinkerShowPitchScript = (pitchId) => showPitchScript(pitchId);
+
+  // The 7-colour rainbow cycle from the sidebar (styles.css:258-264),
+  // mirrored here so the same hue follows a given deck heading whether
+  // it's surfaced in the sidebar's phrase row or the essay/read view's
+  // subtitle. With 11 headings the cycle wraps; that's the same rule
+  // the sidebar already uses.
+  const SLIDE_COLOR_CYCLE = [
+    "var(--logo-pink)",
+    "var(--logo-orange)",
+    "var(--logo-yellow)",
+    "var(--logo-leaf)",
+    "var(--logo-sky)",
+    "var(--logo-mint)",
+    "var(--logo-purple)",
+  ];
+  function slideColorFor(heading) {
+    const headings = (window.tinkerTree && window.tinkerTree.DECK_HEADINGS) || [];
+    const i = headings.indexOf(heading);
+    if (i < 0) return SLIDE_COLOR_CYCLE[0];
+    return SLIDE_COLOR_CYCLE[i % SLIDE_COLOR_CYCLE.length];
+  }
+
+  // Build the per-essay subtitle: "<PitchName>. <SlideTitle>" where
+  // SlideTitle is coloured to match that slide's row in the sidebar.
+  // PitchName prefers the founder's personal title; falls back to the
+  // AI-generated one. Returns the empty string when the essay isn't
+  // slotted anywhere yet (e.g. during the reconsidering phase, or for
+  // essays the classifier couldn't place) so callers can decide on a
+  // fallback themselves.
+  function pitchSubtitleHtmlFor(essay) {
+    if (!essay || !window.tinkerPitches) return "";
+    const pitches = window.tinkerPitches;
+    if (typeof pitches.findPitchForWriting !== "function") return "";
+    const placement = pitches.findPitchForWriting(essay.id);
+    if (!placement) return "";
+    const pitch = typeof pitches.getPitch === "function"
+      ? pitches.getPitch(placement.pitchId)
+      : null;
+    const pitchName = (pitch && (pitch.personalTitle || pitch.aiTitle)) || "Untitled pitch";
+    const heading = placement.deckHeading;
+    if (!heading) return escapeHtml(pitchName) + ".";
+    const color = slideColorFor(heading);
+    return escapeHtml(pitchName) + ". "
+      + `<span class="essay-subtitle__slide" style="color: ${color}">${escapeHtml(heading)}</span>`;
+  }
 
   function fitTitleFor(essay) {
     if (essay.title) return essay.title;
