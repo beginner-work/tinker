@@ -138,15 +138,20 @@
     min-height: calc(env(safe-area-inset-top, 0px) + 60px);
     box-sizing: border-box;
     display: block;
-    /* Center the title vertically inside the fixed bar with line-height,
-     * since the previous flex layout swallowed the ellipsis (the h1 was
-     * its own flex container, and `text-overflow: ellipsis` doesn't
-     * truncate on a flex container — only on the descendant text). */
-    line-height: calc(env(safe-area-inset-top, 0px) + 36px);
+    /* Vertically align the title with the hamburger icon. The icon is
+     * 48px square sitting at safe-area-top + 12px (its center sits at
+     * safe-area-top + 36px). Matching that here means: pad the top by
+     * the same safe-area + 12px, leave 48px of content room, and use
+     * line-height: 48px so the single text line is vertically centered
+     * inside that 48px box. Net effect: text baseline center = icon
+     * center, regardless of safe-area inset. */
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    padding-bottom: 0;
+    height: calc(env(safe-area-inset-top, 0px) + 60px);
+    line-height: 48px;
     /* Left-aligned so the ellipsis actually appears at the right edge.
      * A centered long title bleeds off both sides without ever showing
-     * the ellipsis, which is what made "oing what once empowered you
-     * working again" look like it had no truncation at all. */
+     * the ellipsis. */
     text-align: start;
     font-family: var(--font-display);
     font-size: 17px;
