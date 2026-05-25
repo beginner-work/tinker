@@ -652,35 +652,36 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   z-index: 0;
 }
 
-/* Desktop: a wide shallow banner anchored at the viewport's top-left,
- * spanning across the sidebar boundary into the stage. The corner
- * wedge above keeps rendering at a smaller size; the banner sits on
- * top of it (z-index: 1 clears the .stage > section background, which
- * paints at body's step 6 alongside z-auto positioned descendants).
+/* Sidebar mirror wedge — top-right of the sidebar, mirroring the
+ * welcome corner wedge across the sidebar/stage boundary. On desktop
+ * the sidebar is always visible and the two wedges form a "frame"
+ * around the top of the layout. On mobile the sidebar is the drawer:
+ * the wedge slides in/out with the drawer's translateX transform
+ * (defined in mobile-drawer.css), so it's only visible when the
+ * drawer is open. Sized via --edge-sidebar-size (80px desktop, 60px
+ * mobile) so it doesn't reach the dropdown row below the brand.
  *
- * Welcome content (.welcome__inner) has z-index: 1 inside the section,
- * which resolves to z=1 in body's stacking context — same z-level as
- * the banner but painted LATER in document order, so the content stays
- * on top of the banner. */
-@media (min-width: 541px) {
-  .stage > .welcome.feed[data-active]::before {
-    width: 140px;
-    height: calc(140px + var(--edge-bleed));
-  }
-  body:has(.stage > .welcome.feed[data-active])::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: var(--edge-banner-width);
-    height: var(--edge-banner-height);
-    background: var(--edge-fill);
-    clip-path: var(--edge-clip);
-    mask-image: linear-gradient(to bottom, transparent 0, black calc(var(--edge-banner-height) * 0.7));
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black calc(var(--edge-banner-height) * 0.7));
-    pointer-events: none;
-    z-index: 1;
-  }
+ * isolation: isolate gives .sidebar its own stacking context (only
+ * when welcome is active) so the wedge can sit at z-index: -1 —
+ * above the sidebar's paper background, below all sidebar content
+ * (brand, dropdown, account list). No sidebar child uses z-index
+ * elsewhere, so isolating doesn't break anything. */
+body:has(.stage > .welcome.feed[data-active]) .sidebar {
+  isolation: isolate;
+}
+body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--edge-bleed));
+  right: 0;
+  width: var(--edge-sidebar-size);
+  height: calc(var(--edge-sidebar-size) + var(--edge-bleed));
+  background: var(--edge-fill-mirror);
+  clip-path: var(--edge-clip-mirror);
+  mask-image: linear-gradient(to bottom, transparent 0, black calc(var(--edge-sidebar-size) * 0.85));
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black calc(var(--edge-sidebar-size) * 0.85));
+  pointer-events: none;
+  z-index: -1;
 }
 .welcome .welcome__inner { position: relative; z-index: 1; }
 .welcome__inner {
