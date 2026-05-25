@@ -129,7 +129,7 @@
   .category-feed__title,
   .read__title,
   .post-on-social__title,
-  .writing-fit__headline,
+  .arrangement__headline,
   .pitch-script__title,
   .founders__title {
     position: fixed;
@@ -141,14 +141,27 @@
     padding: calc(env(safe-area-inset-top, 0px) + 12px) 72px 12px;
     min-height: calc(env(safe-area-inset-top, 0px) + 60px);
     box-sizing: border-box;
+    /* Layout: flex so the title can be centred AND a long line can
+     * still ellipsize. The trick is the inner <span> (added in the
+     * render code for .read__title and .arrangement__headline). The
+     * span is the actual sized child that text-overflow: ellipsis can
+     * truncate; the flex container just keeps it centred. */
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Vertically align with the hamburger icon. The icon is 48px tall
+     * at top: safe-area-top + 12px (centre at safe-area-top + 36px).
+     * Matching height: safe-area-top + 60px with padding-top:
+     * safe-area-top + 12px puts the 48px content box exactly under
+     * the icon. */
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    padding-bottom: 0;
+    height: calc(env(safe-area-inset-top, 0px) + 60px);
     text-align: center;
     font-family: var(--font-display);
     font-size: 17px;
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 48px;
     letter-spacing: -0.01em;
     color: var(--color-foreground);
     background: linear-gradient(
@@ -158,16 +171,26 @@
     );
     backdrop-filter: blur(14px) saturate(140%);
     -webkit-backdrop-filter: blur(14px) saturate(140%);
-    /* Long titles ellipsize so the bar never grows past one row. */
-    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  /* Inner span — the truncation target. When the title fits, the span
+   * shrinks to its content and the flex container centres it. When the
+   * title is too long, the span grows to max-width: 100% and the
+   * ellipsis renders at its trailing edge. */
+  .read__title > span,
+  .arrangement__headline > span {
+    display: inline-block;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   body[data-drawer-open] .category-feed__title,
   body[data-drawer-open] .read__title,
   body[data-drawer-open] .post-on-social__title,
-  body[data-drawer-open] .writing-fit__headline,
+  body[data-drawer-open] .arrangement__headline,
   body[data-drawer-open] .pitch-script__title,
   body[data-drawer-open] .founders__title {
     opacity: 0;
@@ -178,7 +201,8 @@
    * title bar (which has 72px of left/right clearance for the icon). */
   .read__author,
   .post-on-social__step-indicator,
-  .writing-fit__crumb {
+  .arrangement__crumb,
+  .arrangement__subtitle {
     text-align: center;
     padding-left: 56px;
     padding-right: 56px;

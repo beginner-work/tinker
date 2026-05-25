@@ -577,20 +577,119 @@
     }, ORGANIZE_DEBOUNCE_MS);
   }
 
-  async function triggerOrganize() {
-    if (organizeInflight) return;
+  // A snapshot of "where every writing currently lives". Compared
+  // before/after an organize round so the post-publish arrangement
+  // screen can show real swaps — which essay moved between pitches,
+  // which pitch was renamed — instead of guessing from one half of the
+  // state.
+  function placementSnapshot() {
+    const writings = {};   // writingId → { pitchId, deckHeading }
+    const titles = {};     // pitchId → displayName
+    for (const pitch of blob.pitches) {
+      titles[pitch.id] = pitch.personalTitle || pitch.aiTitle || null;
+      for (const h of DECK_HEADINGS) {
+        const list = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
+        for (const rec of list) {
+          writings[rec.writingId] = { pitchId: pitch.id, deckHeading: h };
+        }
+      }
+    }
+    return { writings, titles };
+  }
 
-    const hash = organizeHash();
-    // Nothing drifted; the persisted server blob is already current.
-    if (hash === lastOrganizeHash) return;
+  function diffSnapshots(before, after) {
+    const movedWritings = [];
+    const seen = new Set();
+    for (const id of Object.keys(after.writings || {})) {
+      seen.add(id);
+      const a = after.writings[id];
+      const b = (before.writings || {})[id] || null;
+      if (!b) {
+        movedWritings.push({
+          writingId: id,
+          fromPitchId: null, fromDeckHeading: null,
+          toPitchId: a.pitchId, toDeckHeading: a.deckHeading,
+        });
+      } else if (b.pitchId !== a.pitchId || b.deckHeading !== a.deckHeading) {
+        movedWritings.push({
+          writingId: id,
+          fromPitchId: b.pitchId, fromDeckHeading: b.deckHeading,
+          toPitchId: a.pitchId, toDeckHeading: a.deckHeading,
+        });
+      }
+    }
+    for (const id of Object.keys(before.writings || {})) {
+      if (seen.has(id)) continue;
+      const b = before.writings[id];
+      movedWritings.push({
+        writingId: id,
+        fromPitchId: b.pitchId, fromDeckHeading: b.deckHeading,
+        toPitchId: null, toDeckHeading: null,
+      });
+    }
+    const renamedPitches = [];
+    for (const id of Object.keys(after.titles || {})) {
+      const a = after.titles[id];
+      const b = (before.titles || {})[id];
+      if (b !== undefined && a !== b) renamedPitches.push({ pitchId: id, before: b, after: a });
+    }
+    const newPitchIds = Object.keys(after.titles || {}).filter((id) => !(id in (before.titles || {})));
+    const removedPitchIds = Object.keys(before.titles || {}).filter((id) => !(id in (after.titles || {})));
+    return { movedWritings, renamedPitches, newPitchIds, removedPitchIds };
+  }
 
+  // Returns { pitchId, deckHeading } for the writing, or null when
+  // it's not slotted anywhere. Used by the post-publish screen to ask
+  // "where did this essay actually land?" without parsing the snapshot
+  // itself.
+  function findPitchForWriting(writingId) {
+    if (!writingId) return null;
+    for (const pitch of blob.pitches) {
+      for (const h of DECK_HEADINGS) {
+        const list = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
+        if (list.some((rec) => rec.writingId === writingId)) {
+          return { pitchId: pitch.id, deckHeading: h };
+        }
+      }
+    }
+    return null;
+  }
+
+  // Runs the organize job immediately and returns a result the caller
+  // can act on. Unlike triggerOrganize this:
+  //   - cancels any pending debounce so the work isn't double-fired
+  //   - ignores the organizeHash short-circuit when `force: true`, so
+  //     a publish-time call always reaches the server (the client
+  //     just upserted a phrase locally — the hash hasn't moved, but
+  //     the rename pass on the server may still have work to do)
+  //   - fires tinker:organize-started before the fetch and
+  //     tinker:organize-completed with a diff after it returns
+  //   - returns { ok, diff?, reason? } instead of throwing, so the
+  //     caller can render an error state directly
+  async function triggerOrganizeNow({ force = true } = {}) {
+    if (organizeTimer) {
+      clearTimeout(organizeTimer);
+      organizeTimer = null;
+    }
+    if (organizeInflight) {
+      return { ok: false, reason: "inflight" };
+    }
     let token = "";
     try { token = localStorage.getItem(TOKEN_KEY) || ""; }
     catch { /* ignore */ }
-    if (!token) return;
+    if (!token) return { ok: false, reason: "no-token" };
 
+    const hash = organizeHash();
+    if (!force && hash === lastOrganizeHash) {
+      return { ok: true, diff: emptyDiff(), skipped: true };
+    }
+
+    const before = placementSnapshot();
     organizeInflight = true;
     lastOrganizeHash = hash;
+    fire("tinker:organize-started");
+
+    let result = { ok: false, reason: "unknown" };
     try {
       const res = await fetch("/api/pitches/organize", {
         method: "POST",
@@ -598,28 +697,44 @@
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        // Body is empty — the server reads essays/drafts/pitches
-        // straight from TinkerUserData. Whatever the client just
-        // PUT via the sync layer is what the job sees.
         body: "{}",
       });
       if (!res.ok) {
-        try { console.warn(`[tinker.pitches] organize ${res.status}`); }
-        catch { /* ignore */ }
-        // Clear the hash so a retry on the next event isn't skipped.
         lastOrganizeHash = null;
-        return;
+        result = { ok: false, reason: `http-${res.status}` };
+      } else {
+        const json = await res.json().catch(() => null);
+        if (!json || !json.pitches || typeof json.pitches !== "object") {
+          result = { ok: false, reason: "bad-json" };
+        } else {
+          applyServerBlob(json.pitches);
+          const after = placementSnapshot();
+          result = { ok: true, diff: diffSnapshots(before, after) };
+        }
       }
-      const json = await res.json().catch(() => null);
-      if (!json || !json.pitches || typeof json.pitches !== "object") return;
-      applyServerBlob(json.pitches);
     } catch (err) {
-      try { console.warn(`[tinker.pitches] organize network error`, err); }
-      catch { /* ignore */ }
       lastOrganizeHash = null;
+      result = { ok: false, reason: "network" };
     } finally {
       organizeInflight = false;
+      try {
+        window.dispatchEvent(new CustomEvent("tinker:organize-completed", {
+          detail: result,
+        }));
+      } catch { /* ignore */ }
     }
+    return result;
+  }
+
+  function emptyDiff() {
+    return { movedWritings: [], renamedPitches: [], newPitchIds: [], removedPitchIds: [] };
+  }
+
+  async function triggerOrganize() {
+    // Thin compat shim — the debounced path doesn't need the diff,
+    // but going through triggerOrganizeNow keeps a single source of
+    // truth for the fetch + lifecycle events.
+    await triggerOrganizeNow({ force: false });
   }
 
   // Replace the in-memory blob with the server's authoritative one
@@ -766,6 +881,10 @@
     getPitchScript,
     scheduleOrganize,
     triggerOrganize,
+    triggerOrganizeNow,
+    findPitchForWriting,
+    placementSnapshot,
+    diffSnapshots,
     // Back-compat alias for callers still on the old name. The
     // behaviour is now "ping the backend job, debounced".
     scheduleRegenerate: scheduleOrganize,
