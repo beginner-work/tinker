@@ -113,9 +113,14 @@ html.pwa-hint-visible .feed {
 }
 /* The writing view has its own top bar instead of the feed's bulk
  * padding. Push it down by the same 64px so the lowered drawer-toggle
- * stays clear of the body content beneath. */
+ * stays clear of the body content beneath. Bump min-height by the same
+ * 64px so the carved-out 48px content row (close icon, dots, step
+ * label) stays vertically centered on the lowered drawer-toggle —
+ * without it, the row collapses to the close button's height and
+ * drifts above the hamburger's centerline. */
 html.pwa-hint-visible .writing__top {
-  padding-top: calc(env(safe-area-inset-top, 0px) + 16px + 64px);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 12px + 64px);
+  min-height: calc(env(safe-area-inset-top, 0px) + 60px + 64px);
 }
 /* The read view has no top bar — the body article carries the
  * hamburger + floating-title clearance directly. With the install
