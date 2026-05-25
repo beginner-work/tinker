@@ -21,6 +21,8 @@ const {
   bodyForDraft,
   bodyForWriting,
   foldRehomeResults,
+  refreshDeckTimestamps,
+  dropStaleDeckRecords,
   organize,
 } = require("../api/_lib/pitches-organizer.js");
 const { DECK_HEADINGS } = require("../api/_lib/pitches-clusterer.js");
@@ -404,6 +406,145 @@ test("organize: preserves founder-named pitches even when they end up empty", as
   const founderPitch = result.blob.pitches.find((p) => p.personalTitle === "Side Project");
   assert.ok(founderPitch, "founder-renamed pitch should be preserved");
   assert.equal(result.summary.prunedEmpty, 0);
+});
+
+test("refreshDeckTimestamps: realigns each record's addedAt to the writing's own time", () => {
+  // Two records with stale fold-time addedAts (5000, 4000). After refresh
+  // they pick up the writing's createdAt (100, 200). The fix lets the
+  // fold's slice compare on essay time, not fold time.
+  const blob = normalizeBlob({
+    pitches: [{
+      id: "p_1",
+      aiTitle: "Coffee",
+      deck: {
+        "The Problem": [{ writingId: "e_OLD", offset: 0, length: 5, addedAt: 5000 }],
+        "The Vision":  [{ writingId: "e_NEW", offset: 0, length: 5, addedAt: 4000 }],
+      },
+    }],
+  });
+  const stamps = new Map([["e_OLD", 100], ["e_NEW", 200]]);
+  refreshDeckTimestamps(blob, stamps);
+  assert.equal(blob.pitches[0].deck["The Problem"][0].addedAt, 100);
+  assert.equal(blob.pitches[0].deck["The Vision"][0].addedAt, 200);
+});
+
+test("refreshDeckTimestamps: leaves addedAt alone when the writing has no stamp", () => {
+  // A record whose writing isn't in the stamp map (e.g. an essay with no
+  // createdAt/updatedAt at all) keeps whatever value it had — that's
+  // better than nuking it to 0 and losing ordering entirely.
+  const blob = normalizeBlob({
+    pitches: [{
+      id: "p_1",
+      aiTitle: "Coffee",
+      deck: { "The Problem": [{ writingId: "e_x", offset: 0, length: 5, addedAt: 999 }] },
+    }],
+  });
+  refreshDeckTimestamps(blob, new Map());
+  assert.equal(blob.pitches[0].deck["The Problem"][0].addedAt, 999);
+});
+
+test("dropStaleDeckRecords: removes records whose writings no longer exist", () => {
+  const blob = normalizeBlob({
+    pitches: [{
+      id: "p_1",
+      aiTitle: "Coffee",
+      deck: {
+        "The Problem": [{ writingId: "e_gone", offset: 0, length: 5, addedAt: 100 }],
+        "The Vision":  [{ writingId: "e_alive", offset: 0, length: 5, addedAt: 200 }],
+      },
+    }],
+  });
+  const dropped = dropStaleDeckRecords(blob, new Set(["e_alive"]));
+  assert.equal(dropped, 1);
+  assert.equal(blob.pitches[0].deck["The Problem"].length, 0);
+  assert.equal(blob.pitches[0].deck["The Vision"].length, 1);
+});
+
+test("organize: stale addedAt on the existing record doesn't lock an older essay in over a newer one", async () => {
+  // Existing slot pins e_OLD with addedAt=5000 (stale fold-time). The
+  // essay e_OLD's actual createdAt is 100. e_NEW (newer essay, createdAt
+  // 200) gets clustered into the same slot — the fold places it with
+  // addedAt=200. Without the refresh, the slot sorts [5000, 200] desc
+  // and the OLDER essay wins. With the refresh, e_OLD's addedAt becomes
+  // 100, the slot sorts [200, 100], and the newer essay wins.
+  const stored = {
+    pitches: [{
+      id: "p_1",
+      aiTitle: "Coffee",
+      deck: { "The Problem": [{ writingId: "e_OLD", offset: 0, length: 5, addedAt: 5000 }] },
+    }],
+    activeId: "p_1",
+  };
+  const essays = [
+    { id: "e_OLD", body: "alpha beta gamma", createdAt: 100, updatedAt: 100 },
+    { id: "e_NEW", body: "delta epsilon zeta", createdAt: 200, updatedAt: 200 },
+  ];
+  const cluster = async () => ([{
+    title: "Coffee",
+    writings: [{ id: "e_NEW", deckHeading: "The Problem",
+                 phrase: { writingId: "e_NEW", offset: 0, length: 5 } }],
+  }]);
+  const name = async () => "Coffee";
+  const result = await organize({ storedBlob: stored, essays, drafts: [], cluster, name });
+  const slot = result.blob.pitches[0].deck["The Problem"];
+  assert.equal(slot.length, 1);
+  assert.equal(slot[0].writingId, "e_NEW");
+});
+
+test("organize: prunes pitches whose only deck records point at deleted writings", async () => {
+  // e_gone was deleted (no longer in essays/drafts) but the pitch still
+  // carries the stale record. Before the fix, hasWritings was true
+  // (length > 0) so the prune kept the pitch — surfacing it in the
+  // dropdown with no essay to show. After the fix, stale records are
+  // dropped first, the deck becomes empty, the prune removes the pitch.
+  const stored = {
+    pitches: [{
+      id: "p_1",
+      aiTitle: "Coffee",
+      deck: { "The Problem": [{ writingId: "e_gone", offset: 0, length: 5, addedAt: 100 }] },
+    }],
+    activeId: "p_1",
+  };
+  const result = await organize({
+    storedBlob: stored,
+    essays: [],
+    drafts: [],
+    cluster: async () => [],
+    name: async () => null,
+  });
+  assert.equal(result.blob.pitches.length, 0);
+  assert.equal(result.blob.activeId, null);
+  assert.equal(result.summary.droppedStaleRecords, 1);
+  assert.equal(result.summary.prunedEmpty, 1);
+});
+
+test("organize: drops stale records but keeps founder-named pitches with surviving records elsewhere", async () => {
+  // A founder-named pitch with one stale and one live record keeps the
+  // live one and drops the dead one. The pitch survives — both because
+  // it has a personalTitle and because at least one record remains.
+  const stored = {
+    pitches: [{
+      id: "p_1",
+      personalTitle: "Side Project",
+      deck: {
+        "The Problem": [{ writingId: "e_gone", offset: 0, length: 5, addedAt: 100 }],
+        "The Vision":  [{ writingId: "e_alive", offset: 0, length: 5, addedAt: 200 }],
+      },
+    }],
+    activeId: "p_1",
+  };
+  const essays = [{ id: "e_alive", body: "delta epsilon zeta", createdAt: 200, updatedAt: 200 }];
+  const result = await organize({
+    storedBlob: stored,
+    essays,
+    drafts: [],
+    cluster: async () => [],
+    name: async () => null,
+  });
+  assert.equal(result.blob.pitches.length, 1);
+  assert.equal(result.blob.pitches[0].deck["The Problem"].length, 0);
+  assert.equal(result.blob.pitches[0].deck["The Vision"].length, 1);
+  assert.equal(result.summary.droppedStaleRecords, 1);
 });
 
 test("organize: passes existing personalTitle / aiTitle as cluster hints", async () => {
