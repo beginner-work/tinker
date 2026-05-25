@@ -325,6 +325,87 @@ test("organize: cluster failure is recorded but naming still runs", async () => 
   assert.equal(result.blob.pitches[0].aiTitle, "Named");
 });
 
+test("foldRehomeResults: writings sharing a slot resolve to the most recent essay", () => {
+  // With MAX_PHRASES_PER_HEADING=1 the slot only keeps one record. Before
+  // the fix, every upsertPhrase inside the loop used Date.now() — so the
+  // stable sort kept whichever writing happened to be iterated first.
+  // After the fix, the writing's own createdAt/updatedAt seeds addedAt
+  // and the newer essay wins.
+  const blob = normalizeBlob({ pitches: [] });
+  const writingTimestamps = new Map([
+    ["e_old", 100],
+    ["e_new", 200],
+  ]);
+  foldRehomeResults(blob, [{
+    title: "Coffee",
+    writings: [
+      // Older essay iterated first — would have won under the old code.
+      { id: "e_old", deckHeading: "The Problem", phrase: { writingId: "e_old", offset: 0, length: 5 } },
+      { id: "e_new", deckHeading: "The Problem", phrase: { writingId: "e_new", offset: 0, length: 5 } },
+    ],
+  }], { writingTimestamps });
+  const slot = blob.pitches[0].deck["The Problem"];
+  assert.equal(slot.length, 1);
+  assert.equal(slot[0].writingId, "e_new");
+});
+
+test("organize: prunes auto-named pitches that end up empty after reshuffle", async () => {
+  // The "Old" pitch's only writing gets clustered into a different new
+  // pitch. clearWritingFromAllPitches strips it from "Old", which leaves
+  // a titled-but-empty entry the founder sees as "no essay attached".
+  const stored = {
+    pitches: [{
+      id: "p_old",
+      aiTitle: "Old",
+      deck: { "The Problem": [{ writingId: "e_1", offset: 0, length: 5, addedAt: 100 }] },
+    }],
+    activeId: "p_old",
+  };
+  const essays = [makeEssay("e_1", "alpha beta gamma"), makeEssay("e_2", "delta epsilon zeta")];
+  // e_1 is already in p_old's deck, so it's NOT in the off-pitch list.
+  // Mark it as off-pitch by passing an empty deck for p_old in stored.
+  stored.pitches[0].deck = {};
+  const cluster = async () => ([{
+    title: "New",
+    writings: [
+      { id: "e_1", deckHeading: "The Vision", phrase: { writingId: "e_1", offset: 0, length: 5 } },
+      { id: "e_2", deckHeading: "The Vision", phrase: { writingId: "e_2", offset: 0, length: 5 } },
+    ],
+  }]);
+  const name = async () => "Named";
+  const result = await organize({ storedBlob: stored, essays, drafts: [], cluster, name });
+  const titles = result.blob.pitches.map((p) => p.aiTitle).sort();
+  assert.deepEqual(titles, ["Named"]);
+  assert.equal(result.summary.prunedEmpty, 1);
+  assert.equal(result.blob.activeId, null);
+});
+
+test("organize: preserves founder-named pitches even when they end up empty", async () => {
+  // A pitch the founder renamed (personalTitle set) should NOT be pruned
+  // even with an empty deck — that's their label, we don't get to drop it.
+  const stored = {
+    pitches: [{
+      id: "p_founder",
+      aiTitle: "Coffee",
+      personalTitle: "Side Project",
+      deck: {},
+    }],
+    activeId: "p_founder",
+  };
+  const essays = [makeEssay("e_1", "alpha beta gamma")];
+  const cluster = async () => ([{
+    title: "Other",
+    writings: [
+      { id: "e_1", deckHeading: "The Vision", phrase: { writingId: "e_1", offset: 0, length: 5 } },
+    ],
+  }]);
+  const name = async () => "Named";
+  const result = await organize({ storedBlob: stored, essays, drafts: [], cluster, name });
+  const founderPitch = result.blob.pitches.find((p) => p.personalTitle === "Side Project");
+  assert.ok(founderPitch, "founder-renamed pitch should be preserved");
+  assert.equal(result.summary.prunedEmpty, 0);
+});
+
 test("organize: passes existing personalTitle / aiTitle as cluster hints", async () => {
   const stored = {
     pitches: [
