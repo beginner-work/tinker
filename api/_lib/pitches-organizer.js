@@ -216,6 +216,50 @@ function titlesMatch(pitch, candidate) {
     || ((pitch.personalTitle || "").toLowerCase() === c);
 }
 
+// Refresh every deck record's `addedAt` to the writing's own
+// createdAt/updatedAt. The stored value is whatever Date.now() returned
+// when the record was placed (legacy fold time, classify time, or a
+// previous fold before this normalization existed) — and that's often
+// LATER than a brand-new essay's createdAt. Without realigning, the
+// stale fold-time stamp can outrank a newer essay's actual time when
+// the fold tries to slot it into the same heading, locking the older
+// essay in. Re-stamping at organize time means every later comparison
+// (the fold's sort/slice, the sidebar's sort) runs on essay time.
+function refreshDeckTimestamps(blob, writingTimestamps) {
+  if (!(writingTimestamps instanceof Map)) return;
+  for (const pitch of blob.pitches) {
+    for (const h of DECK_HEADINGS) {
+      const list = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
+      for (const rec of list) {
+        const stamp = writingTimestamps.get(rec.writingId);
+        if (Number.isFinite(stamp) && stamp > 0) rec.addedAt = stamp;
+      }
+    }
+  }
+}
+
+// Drop deck records whose writing no longer exists in essays/drafts.
+// Happens when an essay was deleted (locally or on another device) but
+// the pitches blob still carries a stale phrase record pointing at it.
+// The empty-pitch prune later only catches pitches with `length === 0`
+// arrays — without this step a pitch with only stale records keeps a
+// non-zero length, survives the prune, and surfaces in the dropdown
+// with no essay to show.
+function dropStaleDeckRecords(blob, knownWritingIds) {
+  let dropped = 0;
+  for (const pitch of blob.pitches) {
+    for (const h of DECK_HEADINGS) {
+      const list = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
+      const kept = list.filter((rec) => knownWritingIds.has(rec.writingId));
+      if (kept.length !== list.length) {
+        dropped += list.length - kept.length;
+        pitch.deck[h] = kept;
+      }
+    }
+  }
+  return dropped;
+}
+
 // `writingTimestamps` is a Map<writingId, number> sourced from the
 // essay/draft `createdAt`/`updatedAt`. Using the writing's own time as
 // `addedAt` (instead of `Date.now()` per call) means same-slot conflicts
@@ -318,19 +362,29 @@ async function organize({
   const safeEssays = Array.isArray(essays) ? essays : [];
   const safeDrafts = Array.isArray(drafts) ? drafts : [];
 
-  // Used inside the fold so each placement carries the writing's own
-  // timestamp rather than a shared Date.now() — see foldRehomeResults.
+  // Build two side-tables off the essays + drafts: the set of writing
+  // ids still alive, and a stamp map for the fold + the deck refresh.
   const writingTimestamps = new Map();
+  const knownWritingIds = new Set();
   for (const e of safeEssays) {
     if (!e || typeof e.id !== "string") continue;
+    knownWritingIds.add(e.id);
     const stamp = Math.max(Number(e.updatedAt) || 0, Number(e.createdAt) || 0);
     if (stamp > 0) writingTimestamps.set(e.id, stamp);
   }
   for (const d of safeDrafts) {
     if (!d || typeof d.id !== "string") continue;
+    knownWritingIds.add(d.id);
     const stamp = Math.max(Number(d.updatedAt) || 0, Number(d.createdAt) || 0);
     if (stamp > 0) writingTimestamps.set(d.id, stamp);
   }
+
+  // Drop records that point at deleted writings (so the empty-pitch
+  // prune at the end can see those pitches as empty), then realign
+  // remaining records' `addedAt` to essay time (so the fold's sort
+  // doesn't lose newer essays to stale fold-time stamps).
+  const droppedStale = dropStaleDeckRecords(blob, knownWritingIds);
+  refreshDeckTimestamps(blob, writingTimestamps);
 
   const off = listOffPitchWritings(blob, safeEssays, safeDrafts);
   const summary = {
@@ -340,6 +394,7 @@ async function organize({
     pitchesBefore: blob.pitches.length,
     pitchesAfter: blob.pitches.length,
     prunedEmpty: 0,
+    droppedStaleRecords: droppedStale,
     skippedReason: null,
   };
 
@@ -420,6 +475,8 @@ module.exports = {
   listOffPitchWritings,
   writingIdsInAnyPitch,
   foldRehomeResults,
+  refreshDeckTimestamps,
+  dropStaleDeckRecords,
   upsertPhrase,
   pitchesNeedingName,
   writingsHashForPitch,
