@@ -94,11 +94,15 @@
    * top inset; we add another 24px of breathing room before content. */
   .feed { padding: calc(env(safe-area-inset-top, 0px) + 80px) 14px 56px; }
   .writing__top {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+    /* Mirror the floating hamburger's geometry so the close icon, dots,
+     * and step label share its vertical centerline. The hamburger sits
+     * at top: safe+12px with a 48px height (center at safe+36px); using
+     * the same padding-top and a 0 padding-bottom inside a safe+60px
+     * min-height carves out a matching 48px content area. */
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
     padding-right: calc(env(safe-area-inset-right, 0px) + 16px);
+    padding-bottom: 0;
     padding-left: 64px;
-    /* Reserve enough vertical room that body content always starts below
-     * the 48px+12px-top hamburger, even if the row's content collapses. */
     min-height: calc(env(safe-area-inset-top, 0px) + 60px);
     box-sizing: border-box;
   }
