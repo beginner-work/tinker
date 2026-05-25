@@ -526,8 +526,45 @@
     });
     row.appendChild(face);
 
-    // Full-width "Rename pitch" button beneath the dropdown chip.
-    // Outlined treatment matches .writing__end in the answer flow.
+    // When the dropdown is open, the menu of pitches sits directly
+    // under the chip so the active pitch and the alternatives stay
+    // visually connected. The "Rename pitch" button then slides below
+    // the menu — the step-back action stays anchored to the bottom of
+    // the switcher block rather than getting trapped above the list.
+    if (switcherOpen) {
+      const menu = document.createElement("ul");
+      menu.className = "sidebar__pitch-menu";
+      menu.setAttribute("role", "listbox");
+      for (const p of pitches) {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "sidebar__pitch-menu-item";
+        btn.setAttribute("data-pitch-id", p.id);
+        if (p.id === active.id) btn.setAttribute("data-active", "");
+        btn.appendChild(renderTitleStack(p));
+        const itemMeta = document.createElement("span");
+        itemMeta.className = "sidebar__pitch-menu-meta";
+        const robust = Number(p.robustness) || 0;
+        itemMeta.textContent = `${robust} / ${DECK_HEADINGS.length}`;
+        btn.appendChild(itemMeta);
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const pm = pitchesApi();
+          if (pm && typeof pm.setActivePitch === "function") {
+            pm.setActivePitch(p.id);
+          }
+          switcherOpen = false;
+          render();
+        });
+        li.appendChild(btn);
+        menu.appendChild(li);
+      }
+      switcherEl.appendChild(menu);
+    }
+
+    // Full-width "Rename pitch" button. Outlined treatment matches
+    // .writing__end in the answer flow.
     const rename = document.createElement("button");
     rename.type = "button";
     rename.className = "sidebar__pitch-action sidebar__pitch-action--secondary";
@@ -581,38 +618,6 @@
         }
       });
       switcherEl.appendChild(form);
-    }
-
-    if (switcherOpen) {
-      const menu = document.createElement("ul");
-      menu.className = "sidebar__pitch-menu";
-      menu.setAttribute("role", "listbox");
-      for (const p of pitches) {
-        const li = document.createElement("li");
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "sidebar__pitch-menu-item";
-        btn.setAttribute("data-pitch-id", p.id);
-        if (p.id === active.id) btn.setAttribute("data-active", "");
-        btn.appendChild(renderTitleStack(p));
-        const itemMeta = document.createElement("span");
-        itemMeta.className = "sidebar__pitch-menu-meta";
-        const robust = Number(p.robustness) || 0;
-        itemMeta.textContent = `${robust} / ${DECK_HEADINGS.length}`;
-        btn.appendChild(itemMeta);
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const pm = pitchesApi();
-          if (pm && typeof pm.setActivePitch === "function") {
-            pm.setActivePitch(p.id);
-          }
-          switcherOpen = false;
-          render();
-        });
-        li.appendChild(btn);
-        menu.appendChild(li);
-      }
-      switcherEl.appendChild(menu);
     }
   }
 
