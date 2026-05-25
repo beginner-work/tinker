@@ -14,8 +14,8 @@
  * Visible-string contract: the eleven deck-heading literals and the
  * "N." position prefix are developer-authored chrome; every other
  * visible string under a phrase row must be a verbatim slice of the
- * founder's writing at the recorded offset. The dropdown + rename UI
- * lives inside [data-audit-ignore] wrappers because pitch titles are
+ * founder's writing at the recorded offset. The dropdown UI lives
+ * inside [data-audit-ignore] wrappers because pitch titles are
  * model-generated (or founder-edited) rather than verbatim phrases.
  */
 
@@ -376,21 +376,14 @@
     refreshActive();
   }
 
-  // ── Switcher: dropdown + rename ───────────────────────────────────
+  // ── Switcher: dropdown ────────────────────────────────────────────
   //
   // Always visible once at least one pitch exists. The button face
   // shows the active pitch's title; tapping it expands a menu of all
-  // pitches plus a pencil row to rename the active one. Rename input
-  // sanitizes to one capitalized word (matches the API + pitches.js
-  // contract). The whole surface sits inside [data-audit-ignore]
+  // pitches. The whole surface sits inside [data-audit-ignore]
   // because titles are model-generated or founder-edited rather than
   // verbatim founder phrases.
   let switcherOpen = false;
-  let renameOpen = false;
-  // Transient post state for the ▶ button: "idle" | "posting" |
-  // { ok: true, readerUrl } | { ok: false, error }
-  let postState = "idle";
-  let postToastTimer = null;
 
   // Render the two-line title block used in the dropdown face and
   // in each menu item. Personal title on top (the founder's
@@ -434,17 +427,6 @@
       switcherEl.innerHTML = "";
       return;
     }
-    // While the founder is typing in the rename input, leave the
-    // switcher DOM alone. Background pitches-changed events (the
-    // rehome flow folding writings into pitches, the auto-namer
-    // landing a title) fire while they type — if we rebuilt the
-    // switcher on each one, the input gets detached from the DOM
-    // and on iOS the keyboard collapses with no way to programmatically
-    // re-open it outside a user gesture.
-    const existingInput = switcherEl.querySelector(".sidebar__pitch-rename-input");
-    if (existingInput && document.activeElement === existingInput) {
-      return;
-    }
     switcherEl.hidden = false;
     switcherEl.innerHTML = "";
 
@@ -486,125 +468,9 @@
       e.preventDefault();
       e.stopPropagation();
       switcherOpen = !switcherOpen;
-      renameOpen = false;
       render();
     });
     row.appendChild(face);
-
-    // Personal-name pencil — opens an inline edit for the founder's
-    // recognition label on this pitch. Does NOT touch the AI title.
-    const rename = document.createElement("button");
-    rename.type = "button";
-    rename.className = "sidebar__pitch-rename-btn";
-    const renameLabel = active.personalTitle
-      ? `Edit your name for this pitch`
-      : `Add your name for this pitch`;
-    rename.setAttribute("aria-label", renameLabel);
-    rename.setAttribute("title", renameLabel);
-    rename.textContent = "✎";
-    rename.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      renameOpen = !renameOpen;
-      switcherOpen = false;
-      render();
-      if (renameOpen) {
-        // Focus the input once the DOM has it.
-        setTimeout(() => {
-          const input = switcherEl.querySelector(".sidebar__pitch-rename-input");
-          if (input) { input.focus(); input.select(); }
-        }, 0);
-      }
-    });
-    row.appendChild(rename);
-
-    // Post — ships the active pitch's resolved phrases as a daily
-    // beginner post. The ▶ glyph reads "press play / send it"; the
-    // endpoint upserts a TinkerUserData row with kind="published:
-    // <slug>" and the beginner repo's /daily/ reader pulls that row
-    // down and renders it. Success opens the reader so the founder
-    // sees what just shipped.
-    const post = document.createElement("button");
-    post.type = "button";
-    post.className = "sidebar__pitch-publish-btn";
-    const postLabel = "Post to your daily beginner";
-    post.setAttribute("aria-label", postLabel);
-    post.setAttribute("title", postLabel);
-    if (postState === "posting") {
-      post.textContent = "…";
-      post.disabled = true;
-    } else if (postState && postState.ok === true) {
-      post.textContent = "✓";
-    } else if (postState && postState.ok === false) {
-      post.textContent = "!";
-      post.setAttribute("title", postState.error || postLabel);
-    } else {
-      post.textContent = "▶";
-    }
-    post.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (postState === "posting") return;
-      const pm = pitchesApi();
-      if (!pm || typeof pm.publishPitch !== "function") return;
-      postState = "posting";
-      render();
-      const result = await pm.publishPitch(active.id);
-      postState = result && result.ok
-        ? { ok: true, readerUrl: result.readerUrl }
-        : { ok: false, error: (result && result.error) || "Post failed" };
-      render();
-      if (result && result.ok && result.readerUrl) {
-        if (window.tinker && typeof window.tinker.openExternal === "function") {
-          window.tinker.openExternal(result.readerUrl);
-        } else {
-          window.open(result.readerUrl, "_blank", "noopener,noreferrer");
-        }
-      }
-      if (postToastTimer) clearTimeout(postToastTimer);
-      postToastTimer = setTimeout(() => {
-        postState = "idle";
-        postToastTimer = null;
-        render();
-      }, result && result.ok ? 3500 : 5000);
-    });
-    row.appendChild(post);
-
-    if (renameOpen) {
-      const form = document.createElement("form");
-      form.className = "sidebar__pitch-rename-form";
-      const input = document.createElement("input");
-      input.type = "text";
-      input.className = "sidebar__pitch-rename-input";
-      input.value = active.personalTitle || "";
-      input.maxLength = 30;
-      input.placeholder = "Your name for this pitch";
-      input.autocomplete = "off";
-      input.spellcheck = false;
-      form.appendChild(input);
-      const submit = document.createElement("button");
-      submit.type = "submit";
-      submit.className = "sidebar__pitch-rename-save";
-      submit.textContent = "Save";
-      form.appendChild(submit);
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const pm = pitchesApi();
-        if (pm && typeof pm.setPersonalTitle === "function") {
-          pm.setPersonalTitle(active.id, input.value);
-        }
-        renameOpen = false;
-        render();
-      });
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-          renameOpen = false;
-          render();
-        }
-      });
-      switcherEl.appendChild(form);
-    }
 
     if (switcherOpen) {
       const menu = document.createElement("ul");
@@ -969,17 +835,15 @@
   window.addEventListener("tinker:pitches-changed", () => { render(); });
   window.addEventListener("tinker:active-pitch-changed", () => {
     switcherOpen = false;
-    renameOpen = false;
     render();
   });
 
-  // Close the dropdown / rename if the user clicks outside.
+  // Close the dropdown if the user clicks outside.
   document.addEventListener("click", (e) => {
-    if (!switcherOpen && !renameOpen) return;
+    if (!switcherOpen) return;
     if (!switcherEl) return;
     if (switcherEl.contains(e.target)) return;
     switcherOpen = false;
-    renameOpen = false;
     render();
   });
 
