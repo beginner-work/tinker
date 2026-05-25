@@ -1393,6 +1393,17 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   line-height: 1.15;
   color: var(--color-foreground);
 }
+.arrangement__subtitle {
+  margin: -8px 0 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+.arrangement__subtitle strong {
+  color: var(--color-foreground);
+  font-weight: 700;
+}
 .arrangement__phase-line {
   margin: 0;
   display: flex;
