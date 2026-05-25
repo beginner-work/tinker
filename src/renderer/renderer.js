@@ -812,9 +812,10 @@
       : null;
     const pitchName = (pitch && (pitch.personalTitle || pitch.aiTitle)) || "Untitled pitch";
     const heading = placement.deckHeading;
-    if (!heading) return escapeHtml(pitchName) + ".";
+    if (!heading) return escapeHtml(pitchName);
     const color = slideColorFor(heading);
-    return escapeHtml(pitchName) + ". "
+    return escapeHtml(pitchName)
+      + ` <span class="essay-subtitle__sep" aria-hidden="true">·</span> `
       + `<span class="essay-subtitle__slide" style="color: ${color}">${escapeHtml(heading)}</span>`;
   }
 

@@ -1347,6 +1347,15 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 .essay-subtitle__slide {
   font-weight: 700;
 }
+/* The middle-dot separator sits between PitchName and SlideTitle.
+ * Slightly muted and given a touch of horizontal breathing room so it
+ * reads as a floating bullet rather than punctuation. */
+.essay-subtitle__sep {
+  display: inline-block;
+  margin: 0 2px;
+  color: var(--color-muted);
+  opacity: 0.7;
+}
 .read__title {
   margin: 0 0 12px;
   font-family: var(--font-display);
