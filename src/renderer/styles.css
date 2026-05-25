@@ -535,7 +535,7 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   border-color: #4f46e5;
 }
 .sidebar__pitch-action:active { transform: scale(0.98); }
-.sidebar__pitch-action:disabled { opacity: 0.6; cursor: progress; }
+.sidebar__pitch-action:disabled { opacity: 0.55; cursor: not-allowed; }
 /* Bottom-of-nav mount for the indigo "Pitch" go-forth button.
  * Sits below the eleven deck-heading rows. Padding matches the
  * switcher so the button aligns vertically with the chip above. */

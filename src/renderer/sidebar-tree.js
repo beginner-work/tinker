@@ -301,7 +301,7 @@
     navEl.hidden = false;
 
     renderSwitcher(pitches, activeId);
-    renderPost(pitches, activeId);
+    renderPost(pitches, activeId, renderable.length);
     if (progressEl) progressEl.hidden = false;
     updateProgress(renderable.length);
 
@@ -602,7 +602,10 @@
 
   // Renders the indigo "Pitch" button at the bottom of the deck nav.
   // Same go-forth treatment as .writing__next in the answer flow.
-  function renderPost(pitches, activeId) {
+  // Disabled until the active pitch has at least one resolved phrase
+  // for every deck heading (progress N/11 == 11/11) — incomplete
+  // pitches shouldn't be shippable.
+  function renderPost(pitches, activeId, coveredCount) {
     if (!postEl) return;
     if (!pitches || pitches.length === 0) {
       postEl.hidden = true;
@@ -612,6 +615,10 @@
     const active = pitches.find((p) => p.id === activeId) || pitches[0];
     postEl.hidden = false;
     postEl.innerHTML = "";
+
+    const total = DECK_HEADINGS.length;
+    const covered = Math.max(0, Math.min(total, coveredCount | 0));
+    const complete = covered >= total;
 
     const post = document.createElement("button");
     post.type = "button";
@@ -628,6 +635,13 @@
       post.setAttribute("title", postState.error || postLabel);
     } else {
       post.textContent = "Pitch";
+    }
+    if (!complete && postState === "idle") {
+      post.disabled = true;
+      post.setAttribute(
+        "title",
+        `Finish your pitch first (${covered} / ${total} slides covered)`
+      );
     }
     post.addEventListener("click", async (e) => {
       e.preventDefault();
