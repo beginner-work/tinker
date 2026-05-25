@@ -88,7 +88,7 @@ function buildClusterPrompt(existingPitchTitles) {
     "",
     "Every writing MUST be slotted: pick a deckHeading (one of the eleven literals) and a verbatim phraseText for every single writing. Even if the writing only loosely matches a beat, pick the closest one — there are no orphan writings. Do not return null for deckHeading or phraseText.",
     "",
-    "Some writings may be iterations of the same pitch line — different drafts of the same beat. Put iterations of the same idea under the same pitch's same heading; the deck retains the two most recent so older drafts naturally fall away. Writings on genuinely different topics belong in different pitches.",
+    "Some writings may be iterations of the same pitch line — different drafts of the same beat. Put iterations of the same idea under the same pitch's same heading; the deck retains only the most recent so older drafts naturally fall away. Writings on genuinely different topics belong in different pitches.",
     "",
     "Prefer fewer clusters when the writings share a thread. Only split when threads are clearly different.",
     "",

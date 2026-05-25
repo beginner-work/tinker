@@ -102,27 +102,78 @@
     min-height: calc(env(safe-area-inset-top, 0px) + 60px);
     box-sizing: border-box;
   }
-  /* Pull category-feed and read heads up so the page title sits in
-   * the same row as the floating hamburger (top: safe + 12px, 48px
-   * tall → vertical center at safe + 36px). The post-publish and
-   * post-on-social views keep their 80px clearance because they
-   * stack a step indicator / crumb above the title. */
-  .read__body { padding-top: calc(env(safe-area-inset-top, 0px) + 18px); }
-  .category-feed__head { padding-top: calc(env(safe-area-inset-top, 0px) + 18px); }
-  .writing-fit__inner { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
-  .post-on-social__inner { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
+  /* The page title floats fixed at the top of the viewport (see the
+   * .…__title block below), so each surface's inner container needs
+   * enough padding to clear the ~60px-tall title bar. */
+  .read__body,
+  .category-feed__head,
+  .writing-fit__inner,
+  .post-on-social__inner,
+  .pitch-script__inner,
+  .founders__inner {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 76px);
+  }
 
-  /* Float page titles centered in line with the menu icon — text
-   * sits in the middle of the screen instead of being obscured by
-   * the floating hamburger at the top-left. Self-padding on the
-   * title gives the icon (12px + 48px wide) clearance on the left
-   * and visually balances the right edge. */
+  /* Floating page-title bar — fixed at the top in the row of the
+   * floating hamburger, centered, with a blurred cream gradient
+   * background so content scrolling underneath doesn't muddy the
+   * title text. Tracks the hamburger's top inset (safe + 12px) and
+   * is 48px tall to match the icon's hit target. z-index sits
+   * below the sidebar drawer (60) so the drawer covers it when
+   * open; the per-surface opacity rule below handles the slice
+   * that would otherwise peek out past the drawer's right edge. */
   .category-feed__title,
   .read__title,
-  .read__author,
   .post-on-social__title,
-  .post-on-social__step-indicator,
   .writing-fit__headline,
+  .pitch-script__title,
+  .founders__title {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 55;
+    margin: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 72px 12px;
+    min-height: calc(env(safe-area-inset-top, 0px) + 60px);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--color-foreground);
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 253, 247, 0.92) 70%,
+      rgba(255, 253, 247, 0)
+    );
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    /* Long titles ellipsize so the bar never grows past one row. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  body[data-drawer-open] .category-feed__title,
+  body[data-drawer-open] .read__title,
+  body[data-drawer-open] .post-on-social__title,
+  body[data-drawer-open] .writing-fit__headline,
+  body[data-drawer-open] .pitch-script__title,
+  body[data-drawer-open] .founders__title {
+    opacity: 0;
+  }
+
+  /* Secondary labels that previously sat above/beside a page title
+   * keep their centered placement so they align under the floating
+   * title bar (which has 72px of left/right clearance for the icon). */
+  .read__author,
+  .post-on-social__step-indicator,
   .writing-fit__crumb {
     text-align: center;
     padding-left: 56px;

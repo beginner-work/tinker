@@ -39,7 +39,7 @@ const { renderDeck, DECK_HEADINGS } = require("../_lib/deck-template.js");
 
 const MAX_BYTES = 64 * 1024;
 const MAX_TITLE_LEN = 24;
-const MAX_PHRASES_PER_HEADING = 6;
+const MAX_PHRASES_PER_HEADING = 1;
 const MAX_PHRASE_LEN = 600;
 
 // The daily-beginner reader lives on the beginner repo. Production
