@@ -17,9 +17,10 @@
  * Visible-string contract: the eleven deck-heading literals are
  * developer-authored chrome; every other visible string under a
  * phrase row must be a verbatim slice of the founder's writing at
- * the recorded offset. The dropdown + rename UI lives inside
- * [data-audit-ignore] wrappers because pitch titles are
- * model-generated (or founder-edited) rather than verbatim phrases.
+ * the recorded offset. The dropdown + rename action + bottom-of-nav
+ * Pitch button live inside [data-audit-ignore] wrappers because
+ * pitch titles are model-generated (or founder-edited) rather than
+ * verbatim phrases.
  */
 
 (() => {
@@ -149,6 +150,9 @@
   let progressBarEl = null;
   // Switcher = dropdown + rename UI. Created lazily inside navEl.
   let switcherEl = null;
+  // Post button sits at the very bottom of the deck nav, below the
+  // eleven slide rows. Created lazily inside navEl.
+  let postEl = null;
 
   function ensureMount() {
     navEl = document.querySelector(".sidebar__tree");
@@ -168,6 +172,18 @@
         switcherEl.setAttribute("data-audit-ignore", "");
         switcherEl.hidden = true;
         navEl.insertBefore(switcherEl, navEl.firstChild);
+      }
+    }
+
+    if (!postEl || !navEl.contains(postEl)) {
+      postEl = navEl.querySelector("[data-pitch-post]");
+      if (!postEl) {
+        postEl = document.createElement("div");
+        postEl.className = "sidebar__pitch-post";
+        postEl.setAttribute("data-pitch-post", "");
+        postEl.setAttribute("data-audit-ignore", "");
+        postEl.hidden = true;
+        navEl.appendChild(postEl);
       }
     }
   }
@@ -286,12 +302,14 @@
       navEl.hidden = true;
       listEl.innerHTML = "";
       if (switcherEl) { switcherEl.hidden = true; switcherEl.innerHTML = ""; }
+      if (postEl) { postEl.hidden = true; postEl.innerHTML = ""; }
       updateProgress(0);
       return;
     }
     navEl.hidden = false;
 
     renderSwitcher(pitches, activeId);
+    renderPost(pitches, activeId, coveredCount);
     if (progressEl) progressEl.hidden = false;
     updateProgress(coveredCount);
 
@@ -392,18 +410,21 @@
     refreshActive();
   }
 
-  // ── Switcher: dropdown + rename ───────────────────────────────────
+  // ── Switcher: dropdown + actions ──────────────────────────────────
   //
-  // Always visible once at least one pitch exists. The button face
-  // shows the active pitch's title; tapping it expands a menu of all
-  // pitches plus a pencil row to rename the active one. Rename input
-  // sanitizes to one capitalized word (matches the API + pitches.js
-  // contract). The whole surface sits inside [data-audit-ignore]
-  // because titles are model-generated or founder-edited rather than
-  // verbatim founder phrases.
+  // Always visible once at least one pitch exists. The dropdown chip
+  // shows the active pitch's title; tapping it expands the menu of
+  // all pitches. Beneath the chip, a full-width outlined "Rename
+  // pitch" button opens an inline rename input — same step-back
+  // treatment as .writing__end. The matching go-forth action — the
+  // indigo "Pitch" button — sits separately, at the very bottom of
+  // the deck nav (below all eleven slide rows), rendered via
+  // renderPost into its own mount. The whole surface sits inside
+  // [data-audit-ignore] because titles are model-generated or
+  // founder-edited rather than verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
-  // Transient post state for the ▶ button: "idle" | "posting" |
+  // Transient post state: "idle" | "posting" |
   // { ok: true, readerUrl } | { ok: false, error }
   let postState = "idle";
   let postToastTimer = null;
@@ -451,12 +472,10 @@
       return;
     }
     // While the founder is typing in the rename input, leave the
-    // switcher DOM alone. Background pitches-changed events (the
-    // rehome flow folding writings into pitches, the auto-namer
-    // landing a title) fire while they type — if we rebuilt the
-    // switcher on each one, the input gets detached from the DOM
-    // and on iOS the keyboard collapses with no way to programmatically
-    // re-open it outside a user gesture.
+    // switcher DOM alone. Background pitches-changed events fire
+    // while they type — if we rebuilt the switcher on each one, the
+    // input would detach and on iOS the keyboard collapses with no
+    // way to programmatically re-open it outside a user gesture.
     const existingInput = switcherEl.querySelector(".sidebar__pitch-rename-input");
     if (existingInput && document.activeElement === existingInput) {
       return;
@@ -507,17 +526,12 @@
     });
     row.appendChild(face);
 
-    // Personal-name pencil — opens an inline edit for the founder's
-    // recognition label on this pitch. Does NOT touch the AI title.
+    // Full-width "Rename pitch" button beneath the dropdown chip.
+    // Outlined treatment matches .writing__end in the answer flow.
     const rename = document.createElement("button");
     rename.type = "button";
-    rename.className = "sidebar__pitch-rename-btn";
-    const renameLabel = active.personalTitle
-      ? `Edit your name for this pitch`
-      : `Add your name for this pitch`;
-    rename.setAttribute("aria-label", renameLabel);
-    rename.setAttribute("title", renameLabel);
-    rename.textContent = "✎";
+    rename.className = "sidebar__pitch-action sidebar__pitch-action--secondary";
+    rename.textContent = "Rename pitch";
     rename.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -525,66 +539,13 @@
       switcherOpen = false;
       render();
       if (renameOpen) {
-        // Focus the input once the DOM has it.
         setTimeout(() => {
           const input = switcherEl.querySelector(".sidebar__pitch-rename-input");
           if (input) { input.focus(); input.select(); }
         }, 0);
       }
     });
-    row.appendChild(rename);
-
-    // Post — ships the active pitch's resolved phrases as a daily
-    // beginner post. The ▶ glyph reads "press play / send it"; the
-    // endpoint upserts a TinkerUserData row with kind="published:
-    // <slug>" and the beginner repo's /daily/ reader pulls that row
-    // down and renders it. Success opens the reader so the founder
-    // sees what just shipped.
-    const post = document.createElement("button");
-    post.type = "button";
-    post.className = "sidebar__pitch-publish-btn";
-    const postLabel = "Post to your daily beginner";
-    post.setAttribute("aria-label", postLabel);
-    post.setAttribute("title", postLabel);
-    if (postState === "posting") {
-      post.textContent = "…";
-      post.disabled = true;
-    } else if (postState && postState.ok === true) {
-      post.textContent = "✓";
-    } else if (postState && postState.ok === false) {
-      post.textContent = "!";
-      post.setAttribute("title", postState.error || postLabel);
-    } else {
-      post.textContent = "▶";
-    }
-    post.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (postState === "posting") return;
-      const pm = pitchesApi();
-      if (!pm || typeof pm.publishPitch !== "function") return;
-      postState = "posting";
-      render();
-      const result = await pm.publishPitch(active.id);
-      postState = result && result.ok
-        ? { ok: true, readerUrl: result.readerUrl }
-        : { ok: false, error: (result && result.error) || "Post failed" };
-      render();
-      if (result && result.ok && result.readerUrl) {
-        if (window.tinker && typeof window.tinker.openExternal === "function") {
-          window.tinker.openExternal(result.readerUrl);
-        } else {
-          window.open(result.readerUrl, "_blank", "noopener,noreferrer");
-        }
-      }
-      if (postToastTimer) clearTimeout(postToastTimer);
-      postToastTimer = setTimeout(() => {
-        postState = "idle";
-        postToastTimer = null;
-        render();
-      }, result && result.ok ? 3500 : 5000);
-    });
-    row.appendChild(post);
+    switcherEl.appendChild(rename);
 
     if (renameOpen) {
       const form = document.createElement("form");
@@ -653,6 +614,79 @@
       }
       switcherEl.appendChild(menu);
     }
+  }
+
+  // Renders the indigo "Pitch" button at the bottom of the deck nav.
+  // Same go-forth treatment as .writing__next in the answer flow.
+  // Disabled until the active pitch has at least one resolved phrase
+  // for every deck heading (progress N/11 == 11/11) — incomplete
+  // pitches shouldn't be shippable.
+  function renderPost(pitches, activeId, coveredCount) {
+    if (!postEl) return;
+    if (!pitches || pitches.length === 0) {
+      postEl.hidden = true;
+      postEl.innerHTML = "";
+      return;
+    }
+    const active = pitches.find((p) => p.id === activeId) || pitches[0];
+    postEl.hidden = false;
+    postEl.innerHTML = "";
+
+    const total = DECK_HEADINGS.length;
+    const covered = Math.max(0, Math.min(total, coveredCount | 0));
+    const complete = covered >= total;
+
+    const post = document.createElement("button");
+    post.type = "button";
+    post.className = "sidebar__pitch-action sidebar__pitch-action--primary";
+    const postLabel = "Post to your daily beginner";
+    post.setAttribute("aria-label", postLabel);
+    if (postState === "posting") {
+      post.textContent = "Pitching…";
+      post.disabled = true;
+    } else if (postState && postState.ok === true) {
+      post.textContent = "Pitched ✓";
+    } else if (postState && postState.ok === false) {
+      post.textContent = "Try again";
+      post.setAttribute("title", postState.error || postLabel);
+    } else {
+      post.textContent = "Pitch";
+    }
+    if (!complete && postState === "idle") {
+      post.disabled = true;
+      post.setAttribute(
+        "title",
+        `Finish your pitch first (${covered} / ${total} slides covered)`
+      );
+    }
+    post.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (postState === "posting") return;
+      const pm = pitchesApi();
+      if (!pm || typeof pm.publishPitch !== "function") return;
+      postState = "posting";
+      render();
+      const result = await pm.publishPitch(active.id);
+      postState = result && result.ok
+        ? { ok: true, readerUrl: result.readerUrl }
+        : { ok: false, error: (result && result.error) || "Post failed" };
+      render();
+      if (result && result.ok && result.readerUrl) {
+        if (window.tinker && typeof window.tinker.openExternal === "function") {
+          window.tinker.openExternal(result.readerUrl);
+        } else {
+          window.open(result.readerUrl, "_blank", "noopener,noreferrer");
+        }
+      }
+      if (postToastTimer) clearTimeout(postToastTimer);
+      postToastTimer = setTimeout(() => {
+        postState = "idle";
+        postToastTimer = null;
+        render();
+      }, result && result.ok ? 3500 : 5000);
+    });
+    postEl.appendChild(post);
   }
 
   function updateProgress(coveredCount) {

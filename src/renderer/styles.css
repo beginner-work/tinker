@@ -430,12 +430,15 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
  *
  * A dropdown above the pitch-progress bar. The face button shows the
  * active pitch's title; tapping it expands a menu of all pitches.
- * The pencil button to the right opens an inline rename input. Every
- * pitch is equal-status (no main/alt distinction), so the menu lists
- * them all the same way — title plus a "covered N/11" hint. The
- * whole surface sits inside [data-audit-ignore] because pitch titles
- * are model-generated or founder-edited rather than verbatim founder
- * phrases.
+ * Beneath the chip, a full-width outlined "Rename pitch" button
+ * mirrors the writing-flow step-back treatment. The matching
+ * go-forth action — the indigo "Pitch" button — sits separately at
+ * the very bottom of the deck nav, below all eleven slide rows.
+ * Every pitch is equal-status (no main/alt distinction), so the
+ * menu lists them all the same way — title plus a "covered N/11"
+ * hint. The whole surface sits inside [data-audit-ignore] because
+ * pitch titles are model-generated or founder-edited rather than
+ * verbatim founder phrases.
  */
 .sidebar__pitch-switcher {
   padding: 4px 10px 6px;
@@ -528,50 +531,60 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   color: var(--color-muted);
   font-style: italic;
 }
-.sidebar__pitch-rename-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-muted);
-  font-size: 14px;
+/* Full-width pill button — same outlined / indigo treatment as
+ * .writing__end and .writing__next in the onboarding answer flow,
+ * scaled down to fit the sidebar. Used for "Rename pitch" inside
+ * the switcher and for the "Pitch" go-forth button at the bottom
+ * of the deck nav. */
+.sidebar__pitch-action {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  margin-top: 2px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s ease, transform 0.05s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.sidebar__pitch-rename-btn:hover {
-  background: var(--color-hover);
+.sidebar__pitch-action--secondary {
+  background: var(--color-surface);
   color: var(--color-foreground);
-}
-.sidebar__pitch-publish-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
   border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-muted);
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
 }
-.sidebar__pitch-publish-btn:hover {
-  background: var(--color-hover);
-  color: var(--color-foreground);
+.sidebar__pitch-action--secondary:not(:disabled):hover {
+  border-color: var(--color-accent-strong);
+  color: var(--color-accent-strong);
+  background: var(--color-accent-dim);
 }
-.sidebar__pitch-publish-btn:disabled {
-  cursor: progress;
-  opacity: 0.6;
+.sidebar__pitch-action--primary {
+  background: var(--color-accent-strong);
+  color: #fff;
+  border: 1px solid var(--color-accent-strong);
+  box-shadow: var(--shadow-purple);
+}
+.sidebar__pitch-action--primary:not(:disabled):hover {
+  background: #4f46e5;
+  border-color: #4f46e5;
+}
+.sidebar__pitch-action:active { transform: scale(0.98); }
+.sidebar__pitch-action:disabled { opacity: 0.55; cursor: not-allowed; }
+/* Bottom-of-nav mount for the indigo "Pitch" go-forth button.
+ * Sits below the eleven deck-heading rows. Padding matches the
+ * switcher so the button aligns vertically with the chip above. */
+.sidebar__pitch-post {
+  padding: 6px 10px 10px;
 }
 .sidebar__pitch-rename-form {
   display: flex;
   gap: 4px;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 .sidebar__pitch-rename-input {
   flex: 1 1 auto;
