@@ -636,17 +636,10 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
  * stays solid (flush against the device's left bezel); only the TOP
  * edge fades so the phone's status bar can't break continuity on PWA.
  * --edge-bleed extends the wedge up through the safe-area on devices
- * with a notch and resolves to 0 on desktop.
- *
- * Attached at the body level (not stage-scoped) so on desktop the
- * wedge isn't clipped by the stage's overflow and reads as one
- * continuous triangle through the sidebar into the stage. --edge-size
- * grows past the sidebar width at ≥541px (see design-tokens.css). The
- * sidebar's background is made transparent on welcome (rule below) so
- * the wedge shows through behind sidebar content. */
-body:has(.stage > .welcome.feed[data-active])::before {
+ * with a notch and resolves to 0 on desktop. */
+.stage > .welcome.feed[data-active]::before {
   content: "";
-  position: fixed;
+  position: absolute;
   top: calc(-1 * var(--edge-bleed));
   left: 0;
   width: var(--edge-size);
@@ -657,9 +650,6 @@ body:has(.stage > .welcome.feed[data-active])::before {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, black var(--edge-fade));
   pointer-events: none;
   z-index: 0;
-}
-body:has(.stage > .welcome.feed[data-active]) .sidebar {
-  background: transparent;
 }
 .welcome .welcome__inner { position: relative; z-index: 1; }
 .welcome__inner {

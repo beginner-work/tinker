@@ -128,14 +128,3 @@
   --space-7: 32px;
   --space-8: 48px;
 }
-
-/* Desktop / large-screen overrides — mirrors
- * design-system/colors_and_type.css. On screens that show the sidebar
- * inline (≥541px), the Edge wedge stretches across the sidebar
- * boundary into the stage so the welcome triangle reads as one
- * continuous shape through the side-nav. */
-@media (min-width: 541px) {
-  :root {
-    --edge-size: calc(var(--sidebar-width) + 96px);
-  }
-}
