@@ -270,6 +270,14 @@
     });
 
     const top = scored[0];
+    // Nothing landed at FIT_THRESHOLD or above — send the founder back to
+    // the homepage to keep writing rather than posting a weak fit.
+    if ((Number(top.verdict.score) || 0) < FIT_THRESHOLD) {
+      if (typeof window.tinkerShowFeed === "function") {
+        window.tinkerShowFeed();
+      }
+      return;
+    }
     renderStep2Compose(top.essay, top.verdict, platform);
   }
 
