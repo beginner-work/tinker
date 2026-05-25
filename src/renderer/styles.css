@@ -101,6 +101,7 @@ html.on-web .sidebar__top {
   -webkit-app-region: no-drag;
   cursor: pointer;
   min-width: 0;
+  justify-self: start;
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(18px) url(#liquid-glass) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
