@@ -118,6 +118,13 @@
   --edge-bleed: env(safe-area-inset-top, 0px);
   --edge-clip:  polygon(0 0, 100% 0, 0 100%);
 
+  /* Edge banner — desktop-only variant. See
+   * design-system/colors_and_type.css for the full docstring. The
+   * banner attaches at body::before at ≥541px; the corner wedge keeps
+   * rendering on the welcome surface. */
+  --edge-banner-width:  calc(var(--sidebar-width) + 240px);
+  --edge-banner-height: 100px;
+
   /* Spacing */
   --space-1:  4px;
   --space-2:  6px;
