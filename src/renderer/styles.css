@@ -246,6 +246,20 @@ html.on-web .sidebar__top {
   flex-direction: column;
   gap: 2px;
 }
+/* Each excerpt carries a vertical rainbow-palette line on its left,
+ * mirroring the blockquote treatment in pitch-deck.md (section.tinker
+ * blockquote { border-left: 3px solid <rainbow> }). The line cycles
+ * through the seven rainbow-web logo hues. */
+.sidebar__phrase-list > li {
+  border-left: 3px solid var(--logo-purple);
+}
+.sidebar__phrase-list > li:nth-child(7n + 1) { border-left-color: var(--logo-pink); }
+.sidebar__phrase-list > li:nth-child(7n + 2) { border-left-color: var(--logo-orange); }
+.sidebar__phrase-list > li:nth-child(7n + 3) { border-left-color: var(--logo-yellow); }
+.sidebar__phrase-list > li:nth-child(7n + 4) { border-left-color: var(--logo-leaf); }
+.sidebar__phrase-list > li:nth-child(7n + 5) { border-left-color: var(--logo-sky); }
+.sidebar__phrase-list > li:nth-child(7n + 6) { border-left-color: var(--logo-mint); }
+.sidebar__phrase-list > li:nth-child(7n)     { border-left-color: var(--logo-purple); }
 .sidebar__phrase {
   /* Allow the row's flex container to shrink so wrapping text doesn't
    * push the row past the sidebar's width. */
