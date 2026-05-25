@@ -293,45 +293,23 @@
     return n;
   }
 
-  // Essay count = number of distinct essays (not drafts) referenced
-  // by any phrase record in the pitch's deck. Used by the sidebar
-  // switcher to highlight the pitch the founder has invested the
-  // most published writing in.
-  function pitchEssayCount(pitch) {
-    if (!pitch) return 0;
-    const essayIds = new Set(loadEssays().map((e) => e && e.id).filter(Boolean));
-    if (essayIds.size === 0) return 0;
-    const seen = new Set();
-    for (const h of DECK_HEADINGS) {
-      const recs = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
-      for (const rec of recs) {
-        if (essayIds.has(rec.writingId)) seen.add(rec.writingId);
-      }
-    }
-    return seen.size;
-  }
-
-  // Auto-pick: most associated essays wins (the sharp pitch in the
-  // switcher menu). Ties fall back to most robust, then to earliest
-  // createdAt (the original tinker pitch stays in pole position
-  // before alts overtake it).
+  // Auto-pick: most robust wins (robustness = associated-essay
+  // coverage across the eleven deck headings — the sharp pitch in
+  // the switcher menu). Ties broken by earliest createdAt (the
+  // original tinker pitch stays in pole position before alts
+  // overtake it).
   function pickDefaultActiveId() {
     if (!blob.pitches.length) return null;
     let best = blob.pitches[0];
-    let bestEssays = pitchEssayCount(best);
     let bestRobustness = pitchRobustness(best);
     for (let i = 1; i < blob.pitches.length; i++) {
       const p = blob.pitches[i];
-      const e = pitchEssayCount(p);
       const r = pitchRobustness(p);
-      if (
-        e > bestEssays ||
-        (e === bestEssays && r > bestRobustness) ||
-        (e === bestEssays && r === bestRobustness && p.createdAt < best.createdAt)
-      ) {
+      if (r > bestRobustness) {
         best = p;
-        bestEssays = e;
         bestRobustness = r;
+      } else if (r === bestRobustness && p.createdAt < best.createdAt) {
+        best = p;
       }
     }
     return best.id;
@@ -357,7 +335,6 @@
       // for surfaces that want to show both.
       displayName: p.personalTitle || p.aiTitle || "Untitled",
       robustness: pitchRobustness(p),
-      essayCount: pitchEssayCount(p),
       createdAt: p.createdAt,
     }));
   }

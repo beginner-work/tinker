@@ -529,15 +529,16 @@
     // the switcher block rather than getting trapped above the list.
     if (switcherOpen) {
       // When more than one pitch exists, the pitch with the most
-      // associated essays stays sharp; the rest render blurred so
-      // the founder's eye lands on the deepest investment first.
-      // Ties at the top stay sharp together; if no pitch has any
-      // essays yet, nothing is blurred.
-      let topEssayCount = 0;
+      // associated essays (robustness — coverage across the eleven
+      // deck headings) stays sharp; the rest render blurred so the
+      // founder's eye lands on the deepest investment first. Ties
+      // at the top stay sharp together; if no pitch has any
+      // coverage yet, nothing is blurred.
+      let topRobustness = 0;
       if (pitches.length > 1) {
         for (const p of pitches) {
-          const c = Number(p.essayCount) || 0;
-          if (c > topEssayCount) topEssayCount = c;
+          const c = Number(p.robustness) || 0;
+          if (c > topRobustness) topRobustness = c;
         }
       }
       const menu = document.createElement("ul");
@@ -548,8 +549,8 @@
         const btn = document.createElement("button");
         const isBlurred =
           pitches.length > 1 &&
-          topEssayCount > 0 &&
-          (Number(p.essayCount) || 0) < topEssayCount;
+          topRobustness > 0 &&
+          (Number(p.robustness) || 0) < topRobustness;
         btn.type = "button";
         btn.className = "sidebar__pitch-menu-item";
         btn.setAttribute("data-pitch-id", p.id);
