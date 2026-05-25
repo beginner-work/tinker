@@ -309,7 +309,7 @@
     navEl.hidden = false;
 
     renderSwitcher(pitches, activeId);
-    renderPost(pitches, activeId, coveredCount);
+    renderPost(pitches);
     if (progressEl) progressEl.hidden = false;
     updateProgress(coveredCount);
 
@@ -424,10 +424,6 @@
   // founder-edited rather than verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
-  // Transient post state: "idle" | "posting" |
-  // { ok: true, readerUrl } | { ok: false, error }
-  let postState = "idle";
-  let postToastTimer = null;
 
   // Render the two-line title block used in the dropdown face and
   // in each menu item. Personal title on top (the founder's
@@ -622,75 +618,43 @@
   }
 
   // Renders the indigo "Pitch" button at the bottom of the deck nav.
-  // Same go-forth treatment as .writing__next in the answer flow.
-  // Disabled until the active pitch has at least one resolved phrase
-  // for every deck heading (progress N/11 == 11/11) — incomplete
-  // pitches shouldn't be shippable.
-  function renderPost(pitches, activeId, coveredCount) {
+  // Permanently locked: the button shows a white lock icon and never
+  // fires — pitching is disabled regardless of completion progress.
+  function renderPost(pitches) {
     if (!postEl) return;
     if (!pitches || pitches.length === 0) {
       postEl.hidden = true;
       postEl.innerHTML = "";
       return;
     }
-    const active = pitches.find((p) => p.id === activeId) || pitches[0];
     postEl.hidden = false;
     postEl.innerHTML = "";
-
-    const total = DECK_HEADINGS.length;
-    const covered = Math.max(0, Math.min(total, coveredCount | 0));
-    const complete = covered >= total;
 
     const post = document.createElement("button");
     post.type = "button";
     post.className = "sidebar__pitch-action sidebar__pitch-action--primary";
-    const postLabel = "Post to your daily beginner";
-    post.setAttribute("aria-label", postLabel);
-    if (postState === "posting") {
-      post.textContent = "Pitching…";
-      post.disabled = true;
-    } else if (postState && postState.ok === true) {
-      post.textContent = "Pitched ✓";
-    } else if (postState && postState.ok === false) {
-      post.textContent = "Try again";
-      post.setAttribute("title", postState.error || postLabel);
-    } else {
-      post.textContent = "Pitch";
-    }
-    if (!complete && postState === "idle") {
-      post.disabled = true;
-      post.setAttribute(
-        "title",
-        `Finish your pitch first (${covered} / ${total} slides covered)`
-      );
-    }
-    post.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (postState === "posting") return;
-      const pm = pitchesApi();
-      if (!pm || typeof pm.publishPitch !== "function") return;
-      postState = "posting";
-      render();
-      const result = await pm.publishPitch(active.id);
-      postState = result && result.ok
-        ? { ok: true, readerUrl: result.readerUrl }
-        : { ok: false, error: (result && result.error) || "Post failed" };
-      render();
-      if (result && result.ok && result.readerUrl) {
-        if (window.tinker && typeof window.tinker.openExternal === "function") {
-          window.tinker.openExternal(result.readerUrl);
-        } else {
-          window.open(result.readerUrl, "_blank", "noopener,noreferrer");
-        }
-      }
-      if (postToastTimer) clearTimeout(postToastTimer);
-      postToastTimer = setTimeout(() => {
-        postState = "idle";
-        postToastTimer = null;
-        render();
-      }, result && result.ok ? 3500 : 5000);
-    });
+    post.setAttribute("aria-label", "Pitch (locked)");
+    const pitchLabel = document.createElement("span");
+    pitchLabel.textContent = "Pitch";
+    post.appendChild(pitchLabel);
+    const lockIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    lockIcon.setAttribute("width", "12");
+    lockIcon.setAttribute("height", "14");
+    lockIcon.setAttribute("viewBox", "0 0 24 28");
+    lockIcon.setAttribute("aria-hidden", "true");
+    lockIcon.style.marginLeft = "6px";
+    const lockPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    lockPath.setAttribute(
+      "d",
+      "M12 2a6 6 0 0 0-6 6v4H5a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V15a3 3 0 0 0-3-3h-1V8a6 6 0 0 0-6-6zm-4 10V8a4 4 0 0 1 8 0v4H8z"
+    );
+    lockPath.setAttribute("fill", "#fff");
+    lockIcon.appendChild(lockPath);
+    post.appendChild(lockIcon);
+    post.style.display = "inline-flex";
+    post.style.alignItems = "center";
+    post.style.justifyContent = "center";
+    post.disabled = true;
     postEl.appendChild(post);
   }
 
