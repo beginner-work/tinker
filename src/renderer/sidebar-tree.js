@@ -1,9 +1,12 @@
-/* tinker — sidebar tree (v0.104)
+/* tinker — sidebar tree (v0.105)
  *
  * Renders the active pitch's eleven-slide deck inside the sidebar.
  * Every pitch follows the same shape (deck headings + verbatim
  * phrases lifted from the founder's drafts and essays); the pitch
- * dropdown at the top swaps which pitch's deck is on screen.
+ * dropdown at the top swaps which pitch's deck is on screen. All
+ * eleven slide titles render the moment a pitch exists — headings
+ * with no resolved phrases are flagged with [data-empty] so the CSS
+ * can gray them out as placeholders.
  *
  * The data layer (load/save pitches, active selection, rehome to
  * /api/alt-pitches) lives in pitches.js. This module is purely a
@@ -11,11 +14,11 @@
  * from window.tinkerPitches and writes new phrase records back
  * through pitches.upsertPhrase.
  *
- * Visible-string contract: the eleven deck-heading literals and the
- * "N." position prefix are developer-authored chrome; every other
- * visible string under a phrase row must be a verbatim slice of the
- * founder's writing at the recorded offset. The dropdown + action
- * row + rename UI live inside [data-audit-ignore] wrappers because
+ * Visible-string contract: the eleven deck-heading literals are
+ * developer-authored chrome; every other visible string under a
+ * phrase row must be a verbatim slice of the founder's writing at
+ * the recorded offset. The dropdown + rename action + bottom-of-nav
+ * Pitch button live inside [data-audit-ignore] wrappers because
  * pitch titles are model-generated (or founder-edited) rather than
  * verbatim phrases.
  */
@@ -274,7 +277,11 @@
 
     // Resolve each heading's renderable phrases (offsets that still
     // land on a real substring of a current draft or essay body).
-    const renderable = [];
+    // Every heading lands in `rows` regardless of whether it has any
+    // resolved phrases — empty headings render as grayed-out
+    // placeholders so the full eleven-slide outline is always visible.
+    const rows = [];
+    let coveredCount = 0;
     for (const heading of DECK_HEADINGS) {
       const recs = Array.isArray(deck[heading]) ? deck[heading] : [];
       const ordered = recs.slice().sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
@@ -285,12 +292,13 @@
         resolved.push({ rec, text: r.slice, kind: r.kind, writing: r.record });
         if (resolved.length >= MAX_PHRASES_PER_HEADING) break;
       }
-      if (resolved.length > 0) renderable.push({ heading, resolved });
+      if (resolved.length > 0) coveredCount++;
+      rows.push({ heading, resolved });
     }
 
-    // Cold-start: no pitches, no resolved phrases. Hide the whole nav
-    // so brand sits directly above Account.
-    if (pitches.length === 0 && renderable.length === 0) {
+    // Cold-start: no pitches at all. Hide the whole nav so brand sits
+    // directly above Account until the founder has at least one pitch.
+    if (pitches.length === 0) {
       navEl.hidden = true;
       listEl.innerHTML = "";
       if (switcherEl) { switcherEl.hidden = true; switcherEl.innerHTML = ""; }
@@ -301,23 +309,28 @@
     navEl.hidden = false;
 
     renderSwitcher(pitches, activeId);
-    renderPost(pitches, activeId, renderable.length);
+    renderPost(pitches, activeId, coveredCount);
     if (progressEl) progressEl.hidden = false;
-    updateProgress(renderable.length);
+    updateProgress(coveredCount);
 
-    if (renderable.length === 0) {
-      // Pitch exists but the active deck is empty — nothing to list.
-      listEl.innerHTML = "";
-      return;
+    // Default-expanded heading: prefer the most recently touched if
+    // it has phrases, else the first heading that does. When nothing
+    // is covered yet, no row opens by default.
+    let defaultExpanded = null;
+    if (
+      meta.mostRecentlyTouched &&
+      rows.some((r) => r.heading === meta.mostRecentlyTouched && r.resolved.length > 0)
+    ) {
+      defaultExpanded = meta.mostRecentlyTouched;
+    } else {
+      const firstCovered = rows.find((r) => r.resolved.length > 0);
+      if (firstCovered) defaultExpanded = firstCovered.heading;
     }
-
-    let defaultExpanded = meta.mostRecentlyTouched && renderable.some((r) => r.heading === meta.mostRecentlyTouched)
-      ? meta.mostRecentlyTouched
-      : renderable[0].heading;
 
     listEl.innerHTML = "";
     let topRow = null;
-    for (const { heading, resolved } of renderable) {
+    for (const { heading, resolved } of rows) {
+      const hasPhrases = resolved.length > 0;
       const li = document.createElement("li");
       li.className = "sidebar__deck-heading-row";
 
@@ -325,13 +338,14 @@
       headBtn.type = "button";
       headBtn.className = "sidebar__account-item sidebar__deck-heading";
       headBtn.setAttribute("data-deck-heading", heading);
-      const isOpen = heading in expanded ? !!expanded[heading] : heading === defaultExpanded;
-      headBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
-      const num = document.createElement("span");
-      num.className = "sidebar__deck-heading-num";
-      num.setAttribute("aria-hidden", "true");
-      num.textContent = `${DECK_HEADINGS.indexOf(heading) + 1}.`;
-      headBtn.appendChild(num);
+      let isOpen = false;
+      if (hasPhrases) {
+        isOpen = heading in expanded ? !!expanded[heading] : heading === defaultExpanded;
+        headBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      } else {
+        headBtn.setAttribute("data-empty", "");
+        headBtn.setAttribute("aria-disabled", "true");
+      }
       const label = document.createElement("span");
       label.className = "sidebar__account-label";
       label.textContent = heading;
@@ -359,16 +373,18 @@
         headBtn.appendChild(retry);
       }
 
-      headBtn.addEventListener("click", () => {
-        const pm2 = pitchesApi();
-        if (pm2 && typeof pm2.toggleExpanded === "function") {
-          pm2.toggleExpanded(null, heading);
-        }
-      });
+      if (hasPhrases) {
+        headBtn.addEventListener("click", () => {
+          const pm2 = pitchesApi();
+          if (pm2 && typeof pm2.toggleExpanded === "function") {
+            pm2.toggleExpanded(null, heading);
+          }
+        });
+      }
       li.appendChild(headBtn);
       if (topRow === null) topRow = li;
 
-      if (isOpen) {
+      if (hasPhrases && isOpen) {
         const inner = document.createElement("ul");
         inner.className = "sidebar__phrase-list";
         for (const { text, kind, writing, rec } of resolved) {
@@ -760,14 +776,10 @@
       if (DECK_HEADINGS.includes(txt)) continue;
       // (b) retry glyph
       if (txt === "↻") continue;
-      // (c) developer-authored chrome:
-      //   - deck-position number "N." inside .sidebar__deck-heading-num
-      //   - anything inside a [data-audit-ignore] container
+      // (c) developer-authored chrome inside a [data-audit-ignore]
+      //     container (pitch switcher, rename UI, etc.)
       const parent = node.parentElement;
-      if (parent) {
-        if (parent.closest("[data-audit-ignore]")) continue;
-        if (parent.closest(".sidebar__deck-heading-num") && /^\d+\.$/.test(txt)) continue;
-      }
+      if (parent && parent.closest("[data-audit-ignore]")) continue;
       // (d) verbatim substring of a writing
       const phraseRow = node.parentElement && node.parentElement.closest("[data-writing-id]");
       if (phraseRow) {

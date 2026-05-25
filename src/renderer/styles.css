@@ -219,24 +219,26 @@ html.on-web .sidebar__top {
    * block's items to read as continuous chrome. */
   font-weight: 600;
 }
-.sidebar__deck-heading-num {
-  /* Deck-position number (1.–11.) — sits left of the heading label so
-   * the founder can see which slide of the eleven they're looking at,
-   * even when only some have been touched. Width fits a two-digit
-   * label like "11." with tabular-nums so the column stays aligned
-   * regardless of which headings are showing. */
-  flex-shrink: 0;
-  min-width: 22px;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-muted);
-  font-weight: 600;
-}
-.sidebar__deck-heading[aria-expanded="false"] .sidebar__account-label,
-.sidebar__deck-heading[aria-expanded="false"] .sidebar__deck-heading-num {
+.sidebar__deck-heading[aria-expanded="false"] .sidebar__account-label {
   color: var(--color-muted);
 }
 .sidebar__deck-heading[data-active] {
   background: var(--color-hover);
+}
+.sidebar__deck-heading[data-empty] {
+  /* Slide hasn't earned a phrase yet — render as a grayed-out
+   * placeholder so the founder can see the full eleven-slide outline
+   * from the moment a pitch exists. Not interactive: no hover swap,
+   * default cursor, no click handler bound in the renderer. */
+  cursor: default;
+  opacity: 0.5;
+}
+.sidebar__deck-heading[data-empty]:hover {
+  background: transparent;
+}
+.sidebar__deck-heading[data-empty] .sidebar__account-label {
+  color: var(--color-muted);
+  font-weight: 500;
 }
 .sidebar__phrase-list {
   list-style: none;
@@ -245,6 +247,23 @@ html.on-web .sidebar__top {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+/* Each excerpt carries a vertical rainbow-palette line on its left,
+ * mirroring the blockquote treatment in pitch-deck.md (section.tinker
+ * blockquote { border-left: 2px solid <rainbow> }). The hue is set on
+ * the deck-heading-row so every excerpt inside one section shares it,
+ * and the cycle advances to the next rainbow-web logo hue on the next
+ * section. `display: contents` on the row doesn't affect custom-property
+ * inheritance, so the children still pick up --phrase-border-color. */
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 1) { --phrase-border-color: var(--logo-pink); }
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 2) { --phrase-border-color: var(--logo-orange); }
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 3) { --phrase-border-color: var(--logo-yellow); }
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 4) { --phrase-border-color: var(--logo-leaf); }
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 5) { --phrase-border-color: var(--logo-sky); }
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 6) { --phrase-border-color: var(--logo-mint); }
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n)     { --phrase-border-color: var(--logo-purple); }
+.sidebar__phrase-list > li {
+  border-left: 2px solid var(--phrase-border-color, var(--logo-purple));
 }
 .sidebar__phrase {
   /* Allow the row's flex container to shrink so wrapping text doesn't
@@ -324,8 +343,28 @@ html.on-web .sidebar__top {
   width: 0%;
   height: 100%;
   border-radius: 999px;
-  background: var(--color-accent-strong);
-  transition: width 0.3s ease;
+  background: linear-gradient(
+    90deg,
+    var(--color-rose)   0%,
+    var(--color-peach)  18%,
+    var(--color-amber)  36%,
+    var(--logo-leaf)    55%,
+    var(--color-sky)    75%,
+    var(--color-violet) 100%
+  );
+  transform-origin: left center;
+  transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: rainbow-draw 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+@keyframes rainbow-draw {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar__tree-progress-fill {
+    animation: none;
+    transition: none;
+  }
 }
 
 /* ── In-flight / strengthened / off-pitch states ──────────────────── */
