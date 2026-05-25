@@ -215,13 +215,15 @@ async function handler(req, res) {
   // Fail loudly when the store isn't configured — without this the
   // handleUpload() call below blows up with a generic message and
   // the founder just sees "Upload failed" with no clue what's
-  // wrong. (Vercel auto-injects BLOB_READ_WRITE_TOKEN when a Blob
-  // store is linked to the project, so the fix is one click in the
-  // dashboard.)
+  // wrong. tinker shares the beginner project's Blob store; the fix
+  // is to open the beginner Vercel project's Storage tab, find the
+  // Blob store, and Connect Project → tinker. Vercel will auto-
+  // inject BLOB_READ_WRITE_TOKEN at the right scope. See tinker's
+  // README → "Shared Vercel Blob store with the beginner repo".
   if (body && body.type === "blob.generate-client-token" && !process.env.BLOB_READ_WRITE_TOKEN) {
     res.status(503).json({
       error:
-        "Vercel Blob is not configured on this deployment. Link a Blob store in the Vercel dashboard to enable cloud saves.",
+        "Vercel Blob is not configured on this deployment. Connect the beginner project's Blob store to tinker in the Vercel dashboard.",
     });
     return;
   }

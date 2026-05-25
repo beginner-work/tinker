@@ -65,9 +65,12 @@ Required Vercel env vars:
 - `STYTCH_SECRET`
 - `ANTHROPIC_API_KEY`
 - `DATABASE_URL`
-- `BLOB_READ_WRITE_TOKEN` — Vercel Blob store credentials; auto-injected
-  when a Blob store is linked to the project. Used by
-  `/api/upload/pitch-video` (the in-app pitch recorder's cloud-save flow)
+- `BLOB_READ_WRITE_TOKEN` — Vercel Blob store credentials. tinker
+  shares the beginner project's Blob store; this is auto-injected
+  when you connect that store to the tinker project from the Vercel
+  dashboard. See "Shared Vercel Blob store with the beginner repo"
+  below. Used by `/api/upload/pitch-video` (the in-app pitch
+  recorder's cloud-save flow).
 - `BROWSERBASE_API_KEY` — used by `scripts/browserbase-debug.js`
 - `BROWSERBASE_PROJECT_ID` — used by `scripts/browserbase-debug.js`
 
@@ -96,6 +99,31 @@ enabled, so a **beginner preview** reads from a fresh per-deploy
 branch, not the production DB. Cross-project flows (e.g. publishing a
 pitch from tinker preview to `/daily/` on beginner preview) therefore
 won't round-trip in preview; verify on production after merge.
+
+### Shared Vercel Blob store with the beginner repo
+
+The same pattern, applied to binary blobs. The Blob store linked to
+the **beginner** Vercel project is shared with tinker so the in-app
+pitch recorder (`/api/upload/pitch-video`) and any future beginner-side
+playback surface read and write to the same bucket without round-
+tripping through our database.
+
+Setup (one-time, in the Vercel dashboard, not in code):
+
+1. Open the beginner Vercel project → Storage → the existing Blob
+   store.
+2. Click **Connect Project** and add the tinker project (production
+   + preview + development). Vercel auto-injects
+   `BLOB_READ_WRITE_TOKEN` into the tinker project's env at the
+   right scope; nothing else to copy by hand.
+3. Confirm by deploying tinker and triggering a pitch upload — the
+   resulting object should appear under `pitch-videos/...` in the
+   shared store's browser.
+
+Pathname convention: tinker writes only under the `pitch-videos/`
+prefix (`pitch-videos/<pitchId>/<timestamp>.<ext>`). Anything outside
+that prefix belongs to beginner — keep tinker's writes namespaced so
+the two projects stay good neighbors in the shared store.
 
 Sign out by clearing `tinker_jwt` (`window.tinkerAuth.signOut()` from the
 inspector, or `localStorage.removeItem("tinker_jwt")`).
