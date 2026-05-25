@@ -653,11 +653,8 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 .sidebar__pitch-menu-item[data-blurred] {
   filter: blur(3px);
   opacity: 0.6;
-}
-.sidebar__pitch-menu-item[data-blurred]:hover,
-.sidebar__pitch-menu-item[data-blurred]:focus-visible {
-  filter: none;
-  opacity: 1;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 .sidebar__pitch-menu-title {
   overflow: hidden;

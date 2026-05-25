@@ -546,16 +546,19 @@
       for (const p of pitches) {
         const li = document.createElement("li");
         const btn = document.createElement("button");
+        const isBlurred =
+          pitches.length > 1 &&
+          topEssayCount > 0 &&
+          (Number(p.essayCount) || 0) < topEssayCount;
         btn.type = "button";
         btn.className = "sidebar__pitch-menu-item";
         btn.setAttribute("data-pitch-id", p.id);
         if (p.id === active.id) btn.setAttribute("data-active", "");
-        if (
-          pitches.length > 1 &&
-          topEssayCount > 0 &&
-          (Number(p.essayCount) || 0) < topEssayCount
-        ) {
+        if (isBlurred) {
           btn.setAttribute("data-blurred", "");
+          btn.disabled = true;
+          btn.setAttribute("aria-disabled", "true");
+          btn.tabIndex = -1;
         }
         btn.appendChild(renderTitleStack(p));
         const itemMeta = document.createElement("span");
@@ -563,15 +566,17 @@
         const robust = Number(p.robustness) || 0;
         itemMeta.textContent = `${robust} / ${DECK_HEADINGS.length}`;
         btn.appendChild(itemMeta);
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const pm = pitchesApi();
-          if (pm && typeof pm.setActivePitch === "function") {
-            pm.setActivePitch(p.id);
-          }
-          switcherOpen = false;
-          render();
-        });
+        if (!isBlurred) {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const pm = pitchesApi();
+            if (pm && typeof pm.setActivePitch === "function") {
+              pm.setActivePitch(p.id);
+            }
+            switcherOpen = false;
+            render();
+          });
+        }
         li.appendChild(btn);
         menu.appendChild(li);
       }

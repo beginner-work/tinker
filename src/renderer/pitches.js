@@ -311,21 +311,27 @@
     return seen.size;
   }
 
-  // Auto-pick: most robust wins. Ties broken by earliest createdAt
-  // (the original tinker pitch stays in pole position before alts
-  // overtake it).
+  // Auto-pick: most associated essays wins (the sharp pitch in the
+  // switcher menu). Ties fall back to most robust, then to earliest
+  // createdAt (the original tinker pitch stays in pole position
+  // before alts overtake it).
   function pickDefaultActiveId() {
     if (!blob.pitches.length) return null;
     let best = blob.pitches[0];
+    let bestEssays = pitchEssayCount(best);
     let bestRobustness = pitchRobustness(best);
     for (let i = 1; i < blob.pitches.length; i++) {
       const p = blob.pitches[i];
+      const e = pitchEssayCount(p);
       const r = pitchRobustness(p);
-      if (r > bestRobustness) {
+      if (
+        e > bestEssays ||
+        (e === bestEssays && r > bestRobustness) ||
+        (e === bestEssays && r === bestRobustness && p.createdAt < best.createdAt)
+      ) {
         best = p;
+        bestEssays = e;
         bestRobustness = r;
-      } else if (r === bestRobustness && p.createdAt < best.createdAt) {
-        best = p;
       }
     }
     return best.id;
