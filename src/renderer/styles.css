@@ -248,6 +248,23 @@ html.on-web .sidebar__top {
   flex-direction: column;
   gap: 2px;
 }
+/* Each excerpt carries a vertical rainbow-palette line on its left,
+ * mirroring the blockquote treatment in pitch-deck.md (section.tinker
+ * blockquote { border-left: 2px solid <rainbow> }). The hue is set on
+ * the deck-heading-row so every excerpt inside one section shares it,
+ * and the cycle advances to the next rainbow-web logo hue on the next
+ * section. `display: contents` on the row doesn't affect custom-property
+ * inheritance, so the children still pick up --phrase-border-color. */
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 1) { --phrase-border-color: var(--logo-pink); }
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 2) { --phrase-border-color: var(--logo-orange); }
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 3) { --phrase-border-color: var(--logo-yellow); }
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 4) { --phrase-border-color: var(--logo-leaf); }
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 5) { --phrase-border-color: var(--logo-sky); }
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 6) { --phrase-border-color: var(--logo-mint); }
+.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n)     { --phrase-border-color: var(--logo-purple); }
+.sidebar__phrase-list > li {
+  border-left: 2px solid var(--phrase-border-color, var(--logo-purple));
+}
 .sidebar__phrase {
   /* Allow the row's flex container to shrink so wrapping text doesn't
    * push the row past the sidebar's width. */
