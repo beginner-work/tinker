@@ -30,22 +30,19 @@
     backdrop-filter: blur(18px) url(#liquid-glass) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     border: 0;
-    /* Dark glyph by default so it reads against the cream surfaces
-     * (category-feed, read, writing). The welcome screen overrides
-     * to white because the indigo corner-flag sits behind it. */
+    /* Dark glyph everywhere, including the welcome screen. The
+     * welcome corner-flag (see styles.css
+     * .stage > .welcome.feed[data-active]::before) fades to mostly
+     * transparent in the toggle's zone — top-left of the wedge,
+     * where both mask axes are near-zero — so the indigo no longer
+     * sits solidly behind the glyph. Dark on the faded-indigo/blur
+     * blend reads better than white. */
     color: var(--color-foreground);
     box-shadow: none;
     transition: background 0.2s ease, opacity 0.18s ease;
   }
   .drawer-toggle:hover { background: rgba(255, 255, 255, 0.16); }
   .drawer-toggle:active { transform: scale(0.96); }
-
-  /* Welcome screen has an indigo corner-flag (see styles.css
-   * .stage > .welcome.feed[data-active]::before) directly under
-   * the hamburger — flip the glyph to white there for contrast. */
-  body:has(.stage > .welcome.feed[data-active]) .drawer-toggle {
-    color: #fff;
-  }
 
   body[data-drawer-open] .drawer-toggle {
     opacity: 0;
