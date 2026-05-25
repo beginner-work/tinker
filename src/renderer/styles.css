@@ -326,8 +326,28 @@ html.on-web .sidebar__top {
   width: 0%;
   height: 100%;
   border-radius: 999px;
-  background: var(--color-accent-strong);
-  transition: width 0.3s ease;
+  background: linear-gradient(
+    90deg,
+    var(--color-rose)   0%,
+    var(--color-peach)  18%,
+    var(--color-amber)  36%,
+    var(--logo-leaf)    55%,
+    var(--color-sky)    75%,
+    var(--color-violet) 100%
+  );
+  transform-origin: left center;
+  transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: rainbow-draw 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+@keyframes rainbow-draw {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar__tree-progress-fill {
+    animation: none;
+    transition: none;
+  }
 }
 
 /* ── In-flight / strengthened / off-pitch states ──────────────────── */
