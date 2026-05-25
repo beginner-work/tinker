@@ -94,17 +94,27 @@
    * animation timing, reconsider — the spirit of the app is "a quiet
    * place to be on the web," and nothing here performs. */
 
-  /* Edge — mirrors design-system/colors_and_type.css. The indigo
-   * right-triangle that hugs the top-left of the welcome screen.
-   * Hypotenuse stays hard; the top + left edges fade --edge-fade so
-   * the device status bar can't break continuity on PWA. --edge-bleed
-   * extends the wedge up through the safe-area zone on phones with a
-   * notch and resolves to 0 on desktop. Only the welcome surface
-   * consumes these tokens today — see
+  /* Edge — mirrors design-system/colors_and_type.css. The right-triangle
+   * that hugs the top-left of the welcome screen. Default fill is the
+   * rainbow-web palette running along the hypotenuse (225deg). The
+   * hypotenuse stays hard, and the LEFT edge stays solid too — flush
+   * against the device's left bezel. Only the TOP edge fades
+   * --edge-fade so the device status bar can't break continuity on
+   * PWA. --edge-bleed extends the wedge up through the safe-area zone
+   * on phones with a notch and resolves to 0 on desktop. Only the
+   * welcome surface consumes these tokens today — see
    * .stage > .welcome.feed[data-active]::before in styles.css. */
-  --edge-color: var(--color-accent-strong);
+  --edge-fill: linear-gradient(225deg,
+                 rgba(255, 253, 247, 0.95) 0%,
+                 var(--logo-pink)          8%,
+                 var(--logo-orange)        22%,
+                 var(--logo-yellow)        36%,
+                 var(--logo-leaf)          50%,
+                 var(--logo-mint)          63%,
+                 var(--logo-sky)           76%,
+                 var(--logo-purple)        100%);
   --edge-size:  clamp(140px, 22vw, 220px);
-  --edge-fade:  96px;
+  --edge-fade:  160px;
   --edge-bleed: env(safe-area-inset-top, 0px);
   --edge-clip:  polygon(0 0, 100% 0, 0 100%);
 

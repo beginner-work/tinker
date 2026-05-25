@@ -628,12 +628,13 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   position: relative;
   overflow: hidden;
 }
-/* Indigo right-triangle hugging the top-left corner of the welcome
- * page. Consumes the design-system Edge tokens
- * (--edge-color / --edge-size / --edge-fade / --edge-bleed /
+/* Prism wedge hugging the top-left corner of the welcome page.
+ * Consumes the design-system Edge tokens
+ * (--edge-fill / --edge-size / --edge-fade / --edge-bleed /
  * --edge-clip) — keep visuals in sync via those tokens, not by
- * patching values here. The hypotenuse stays hard; the top and left
- * edges fade so the phone's status bar can't break continuity on PWA.
+ * patching values here. The hypotenuse stays hard; the LEFT edge
+ * stays solid (flush against the device's left bezel); only the TOP
+ * edge fades so the phone's status bar can't break continuity on PWA.
  * --edge-bleed extends the wedge up through the safe-area on devices
  * with a notch and resolves to 0 on desktop. */
 .stage > .welcome.feed[data-active]::before {
@@ -643,16 +644,10 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   left: 0;
   width: var(--edge-size);
   height: calc(var(--edge-size) + var(--edge-bleed));
-  background: var(--edge-color);
+  background: var(--edge-fill);
   clip-path: var(--edge-clip);
-  mask-image:
-    linear-gradient(to bottom, transparent 0, black var(--edge-fade)),
-    linear-gradient(to right,  transparent 0, black var(--edge-fade));
-  mask-composite: intersect;
-  -webkit-mask-image:
-    linear-gradient(to bottom, transparent 0, black var(--edge-fade)),
-    linear-gradient(to right,  transparent 0, black var(--edge-fade));
-  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to bottom, transparent 0, black var(--edge-fade));
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black var(--edge-fade));
   pointer-events: none;
   z-index: 0;
 }
