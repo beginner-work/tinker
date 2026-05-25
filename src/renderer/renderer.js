@@ -649,18 +649,11 @@
         `</div>`
       : "";
 
-    // Subtitle: the pitch this essay currently belongs to. Tracks the
-    // live placement — tentative during settling, final once locked —
-    // so the founder can confirm at a glance which pitch the screen is
-    // talking about. Empty during the reconsidering phase before
-    // classify has settled anywhere.
-    const subtitlePitchId = finalPitchId || (placement && placement.pitchId) || null;
-    const subtitlePitch = subtitlePitchId
-      ? allPitches.find((p) => p.id === subtitlePitchId)
-      : null;
-    const subtitleHtml = subtitlePitch
-      ? `<p class="arrangement__subtitle">in <strong>${escapeHtml(subtitlePitch.displayName || "Untitled pitch")}</strong></p>`
-      : "";
+    // Subtitle: the author label, matching the read view's pattern
+    // (centered "you" under the title). The pitch context is already
+    // carried by the rows below — the founder can see exactly which
+    // pitch the essay belongs to from the row that holds its chip.
+    const subtitleHtml = `<p class="arrangement__subtitle">${escapeHtml(essay.author || "you")}</p>`;
 
     writingFitContent.innerHTML =
       `<div class="arrangement" data-arrangement-phase="${phase}">` +
