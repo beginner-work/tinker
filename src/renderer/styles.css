@@ -391,11 +391,13 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
  *
  * A dropdown above the pitch-progress bar. The face button shows the
  * active pitch's title; tapping it expands a menu of all pitches.
- * Every pitch is equal-status (no main/alt distinction), so the menu
- * lists them all the same way — title plus a "covered N/11" hint.
- * The whole surface sits inside [data-audit-ignore] because pitch
- * titles are model-generated or founder-edited rather than verbatim
- * founder phrases.
+ * Beneath the chip, a full-width action row mirrors the writing-flow
+ * step-back / go-forth pair: outlined "Rename pitch" on the left,
+ * indigo "Post →" on the right. Every pitch is equal-status (no
+ * main/alt distinction), so the menu lists them all the same way —
+ * title plus a "covered N/11" hint. The whole surface sits inside
+ * [data-audit-ignore] because pitch titles are model-generated or
+ * founder-edited rather than verbatim founder phrases.
  */
 .sidebar__pitch-switcher {
   padding: 4px 10px 6px;
@@ -487,6 +489,82 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   font-weight: 500;
   color: var(--color-muted);
   font-style: italic;
+}
+/* Action row beneath the dropdown chip. Two equal-width pills side
+ * by side — same outlined / indigo treatment as .writing__end and
+ * .writing__next in the onboarding answer flow, scaled down to fit
+ * the sidebar. */
+.sidebar__pitch-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+.sidebar__pitch-action {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s ease, transform 0.05s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.sidebar__pitch-action--secondary {
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
+}
+.sidebar__pitch-action--secondary:not(:disabled):hover {
+  border-color: var(--color-accent-strong);
+  color: var(--color-accent-strong);
+  background: var(--color-accent-dim);
+}
+.sidebar__pitch-action--primary {
+  background: var(--color-accent-strong);
+  color: #fff;
+  border: 1px solid var(--color-accent-strong);
+  box-shadow: var(--shadow-purple);
+}
+.sidebar__pitch-action--primary:not(:disabled):hover {
+  background: #4f46e5;
+  border-color: #4f46e5;
+}
+.sidebar__pitch-action:active { transform: scale(0.98); }
+.sidebar__pitch-action:disabled { opacity: 0.6; cursor: progress; }
+.sidebar__pitch-rename-form {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.sidebar__pitch-rename-input {
+  flex: 1 1 auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-foreground);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 13px;
+}
+.sidebar__pitch-rename-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-accent-strong);
+}
+.sidebar__pitch-rename-save {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-foreground);
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
 }
 .sidebar__pitch-menu {
   list-style: none;
