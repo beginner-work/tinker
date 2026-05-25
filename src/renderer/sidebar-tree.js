@@ -147,6 +147,9 @@
   let progressBarEl = null;
   // Switcher = dropdown + rename UI. Created lazily inside navEl.
   let switcherEl = null;
+  // Post button sits at the very bottom of the deck nav, below the
+  // eleven slide rows. Created lazily inside navEl.
+  let postEl = null;
 
   function ensureMount() {
     navEl = document.querySelector(".sidebar__tree");
@@ -166,6 +169,18 @@
         switcherEl.setAttribute("data-audit-ignore", "");
         switcherEl.hidden = true;
         navEl.insertBefore(switcherEl, navEl.firstChild);
+      }
+    }
+
+    if (!postEl || !navEl.contains(postEl)) {
+      postEl = navEl.querySelector("[data-pitch-post]");
+      if (!postEl) {
+        postEl = document.createElement("div");
+        postEl.className = "sidebar__pitch-post";
+        postEl.setAttribute("data-pitch-post", "");
+        postEl.setAttribute("data-audit-ignore", "");
+        postEl.hidden = true;
+        navEl.appendChild(postEl);
       }
     }
   }
@@ -279,12 +294,14 @@
       navEl.hidden = true;
       listEl.innerHTML = "";
       if (switcherEl) { switcherEl.hidden = true; switcherEl.innerHTML = ""; }
+      if (postEl) { postEl.hidden = true; postEl.innerHTML = ""; }
       updateProgress(0);
       return;
     }
     navEl.hidden = false;
 
     renderSwitcher(pitches, activeId);
+    renderPost(pitches, activeId);
     if (progressEl) progressEl.hidden = false;
     updateProgress(renderable.length);
 
@@ -381,13 +398,14 @@
   //
   // Always visible once at least one pitch exists. The dropdown chip
   // shows the active pitch's title; tapping it expands the menu of
-  // all pitches. Beneath the chip, a full-width action row mirrors
-  // the writing flow's step-back / go-forth pair: "Rename pitch"
-  // (outlined / step-back) opens an inline rename input, "Post →"
-  // (indigo / go-forth) publishes the active pitch as a daily
-  // beginner post. The whole surface sits inside [data-audit-ignore]
-  // because titles are model-generated or founder-edited rather than
-  // verbatim founder phrases.
+  // all pitches. Beneath the chip, a full-width outlined "Rename
+  // pitch" button opens an inline rename input — same step-back
+  // treatment as .writing__end. The matching go-forth action — the
+  // indigo "Pitch" button — sits separately, at the very bottom of
+  // the deck nav (below all eleven slide rows), rendered via
+  // renderPost into its own mount. The whole surface sits inside
+  // [data-audit-ignore] because titles are model-generated or
+  // founder-edited rather than verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
   // Transient post state: "idle" | "posting" |
@@ -492,14 +510,8 @@
     });
     row.appendChild(face);
 
-    // Action row: two full-width buttons side by side beneath the
-    // dropdown chip. Outlined "Rename pitch" on the left, indigo
-    // "Post →" on the right — same step-back / go-forth shape used
-    // in the writing flow footer.
-    const actions = document.createElement("div");
-    actions.className = "sidebar__pitch-actions";
-    switcherEl.appendChild(actions);
-
+    // Full-width "Rename pitch" button beneath the dropdown chip.
+    // Outlined treatment matches .writing__end in the answer flow.
     const rename = document.createElement("button");
     rename.type = "button";
     rename.className = "sidebar__pitch-action sidebar__pitch-action--secondary";
@@ -517,52 +529,7 @@
         }, 0);
       }
     });
-    actions.appendChild(rename);
-
-    const post = document.createElement("button");
-    post.type = "button";
-    post.className = "sidebar__pitch-action sidebar__pitch-action--primary";
-    const postLabel = "Post to your daily beginner";
-    post.setAttribute("aria-label", postLabel);
-    if (postState === "posting") {
-      post.textContent = "Posting…";
-      post.disabled = true;
-    } else if (postState && postState.ok === true) {
-      post.textContent = "Posted ✓";
-    } else if (postState && postState.ok === false) {
-      post.textContent = "Try again";
-      post.setAttribute("title", postState.error || postLabel);
-    } else {
-      post.textContent = "Post →";
-    }
-    post.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (postState === "posting") return;
-      const pm = pitchesApi();
-      if (!pm || typeof pm.publishPitch !== "function") return;
-      postState = "posting";
-      render();
-      const result = await pm.publishPitch(active.id);
-      postState = result && result.ok
-        ? { ok: true, readerUrl: result.readerUrl }
-        : { ok: false, error: (result && result.error) || "Post failed" };
-      render();
-      if (result && result.ok && result.readerUrl) {
-        if (window.tinker && typeof window.tinker.openExternal === "function") {
-          window.tinker.openExternal(result.readerUrl);
-        } else {
-          window.open(result.readerUrl, "_blank", "noopener,noreferrer");
-        }
-      }
-      if (postToastTimer) clearTimeout(postToastTimer);
-      postToastTimer = setTimeout(() => {
-        postState = "idle";
-        postToastTimer = null;
-        render();
-      }, result && result.ok ? 3500 : 5000);
-    });
-    actions.appendChild(post);
+    switcherEl.appendChild(rename);
 
     if (renameOpen) {
       const form = document.createElement("form");
@@ -631,6 +598,65 @@
       }
       switcherEl.appendChild(menu);
     }
+  }
+
+  // Renders the indigo "Pitch" button at the bottom of the deck nav.
+  // Same go-forth treatment as .writing__next in the answer flow.
+  function renderPost(pitches, activeId) {
+    if (!postEl) return;
+    if (!pitches || pitches.length === 0) {
+      postEl.hidden = true;
+      postEl.innerHTML = "";
+      return;
+    }
+    const active = pitches.find((p) => p.id === activeId) || pitches[0];
+    postEl.hidden = false;
+    postEl.innerHTML = "";
+
+    const post = document.createElement("button");
+    post.type = "button";
+    post.className = "sidebar__pitch-action sidebar__pitch-action--primary";
+    const postLabel = "Post to your daily beginner";
+    post.setAttribute("aria-label", postLabel);
+    if (postState === "posting") {
+      post.textContent = "Pitching…";
+      post.disabled = true;
+    } else if (postState && postState.ok === true) {
+      post.textContent = "Pitched ✓";
+    } else if (postState && postState.ok === false) {
+      post.textContent = "Try again";
+      post.setAttribute("title", postState.error || postLabel);
+    } else {
+      post.textContent = "Pitch";
+    }
+    post.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (postState === "posting") return;
+      const pm = pitchesApi();
+      if (!pm || typeof pm.publishPitch !== "function") return;
+      postState = "posting";
+      render();
+      const result = await pm.publishPitch(active.id);
+      postState = result && result.ok
+        ? { ok: true, readerUrl: result.readerUrl }
+        : { ok: false, error: (result && result.error) || "Post failed" };
+      render();
+      if (result && result.ok && result.readerUrl) {
+        if (window.tinker && typeof window.tinker.openExternal === "function") {
+          window.tinker.openExternal(result.readerUrl);
+        } else {
+          window.open(result.readerUrl, "_blank", "noopener,noreferrer");
+        }
+      }
+      if (postToastTimer) clearTimeout(postToastTimer);
+      postToastTimer = setTimeout(() => {
+        postState = "idle";
+        postToastTimer = null;
+        render();
+      }, result && result.ok ? 3500 : 5000);
+    });
+    postEl.appendChild(post);
   }
 
   function updateProgress(coveredCount) {

@@ -391,13 +391,15 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
  *
  * A dropdown above the pitch-progress bar. The face button shows the
  * active pitch's title; tapping it expands a menu of all pitches.
- * Beneath the chip, a full-width action row mirrors the writing-flow
- * step-back / go-forth pair: outlined "Rename pitch" on the left,
- * indigo "Post →" on the right. Every pitch is equal-status (no
- * main/alt distinction), so the menu lists them all the same way —
- * title plus a "covered N/11" hint. The whole surface sits inside
- * [data-audit-ignore] because pitch titles are model-generated or
- * founder-edited rather than verbatim founder phrases.
+ * Beneath the chip, a full-width outlined "Rename pitch" button
+ * mirrors the writing-flow step-back treatment. The matching
+ * go-forth action — the indigo "Pitch" button — sits separately at
+ * the very bottom of the deck nav, below all eleven slide rows.
+ * Every pitch is equal-status (no main/alt distinction), so the
+ * menu lists them all the same way — title plus a "covered N/11"
+ * hint. The whole surface sits inside [data-audit-ignore] because
+ * pitch titles are model-generated or founder-edited rather than
+ * verbatim founder phrases.
  */
 .sidebar__pitch-switcher {
   padding: 4px 10px 6px;
@@ -490,20 +492,18 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   color: var(--color-muted);
   font-style: italic;
 }
-/* Action row beneath the dropdown chip. Two equal-width pills side
- * by side — same outlined / indigo treatment as .writing__end and
- * .writing__next in the onboarding answer flow, scaled down to fit
- * the sidebar. */
-.sidebar__pitch-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 2px;
-}
+/* Full-width pill button — same outlined / indigo treatment as
+ * .writing__end and .writing__next in the onboarding answer flow,
+ * scaled down to fit the sidebar. Used for "Rename pitch" inside
+ * the switcher and for the "Pitch" go-forth button at the bottom
+ * of the deck nav. */
 .sidebar__pitch-action {
-  flex: 1 1 0;
+  display: block;
+  width: 100%;
   min-width: 0;
   height: 36px;
   padding: 0 12px;
+  margin-top: 2px;
   border-radius: 999px;
   font: inherit;
   font-size: 12px;
@@ -536,6 +536,12 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 }
 .sidebar__pitch-action:active { transform: scale(0.98); }
 .sidebar__pitch-action:disabled { opacity: 0.6; cursor: progress; }
+/* Bottom-of-nav mount for the indigo "Pitch" go-forth button.
+ * Sits below the eleven deck-heading rows. Padding matches the
+ * switcher so the button aligns vertically with the chip above. */
+.sidebar__pitch-post {
+  padding: 6px 10px 10px;
+}
 .sidebar__pitch-rename-form {
   display: flex;
   gap: 4px;
