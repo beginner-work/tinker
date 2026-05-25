@@ -216,7 +216,15 @@ function titlesMatch(pitch, candidate) {
     || ((pitch.personalTitle || "").toLowerCase() === c);
 }
 
-function foldRehomeResults(blob, rehomedPitches) {
+// `writingTimestamps` is a Map<writingId, number> sourced from the
+// essay/draft `createdAt`/`updatedAt`. Using the writing's own time as
+// `addedAt` (instead of `Date.now()` per call) means same-slot conflicts
+// during a single fold resolve to the most recent essay — without this,
+// every call inside the loop shared one millisecond and the stable sort
+// kept whichever writing happened to be iterated first, even when an
+// older essay was placed ahead of a newer one.
+function foldRehomeResults(blob, rehomedPitches, { writingTimestamps } = {}) {
+  const stamps = writingTimestamps instanceof Map ? writingTimestamps : null;
   for (const incoming of rehomedPitches) {
     if (!incoming || typeof incoming !== "object") continue;
     const title = validateTitle(incoming.title);
@@ -246,13 +254,14 @@ function foldRehomeResults(blob, rehomedPitches) {
       const phrase = w.phrase;
       if (!phrase || typeof phrase !== "object") continue;
       if (typeof phrase.offset !== "number" || typeof phrase.length !== "number") continue;
+      const stamp = stamps && stamps.get(w.id);
       upsertPhrase(blob, {
         pitchId: pitch.id,
         deckHeading: w.deckHeading,
         writingId: w.id,
         offset: phrase.offset,
         length: phrase.length,
-        addedAt: Date.now(),
+        addedAt: Number.isFinite(stamp) && stamp > 0 ? stamp : Date.now(),
       });
     }
   }
@@ -309,6 +318,20 @@ async function organize({
   const safeEssays = Array.isArray(essays) ? essays : [];
   const safeDrafts = Array.isArray(drafts) ? drafts : [];
 
+  // Used inside the fold so each placement carries the writing's own
+  // timestamp rather than a shared Date.now() — see foldRehomeResults.
+  const writingTimestamps = new Map();
+  for (const e of safeEssays) {
+    if (!e || typeof e.id !== "string") continue;
+    const stamp = Math.max(Number(e.updatedAt) || 0, Number(e.createdAt) || 0);
+    if (stamp > 0) writingTimestamps.set(e.id, stamp);
+  }
+  for (const d of safeDrafts) {
+    if (!d || typeof d.id !== "string") continue;
+    const stamp = Math.max(Number(d.updatedAt) || 0, Number(d.createdAt) || 0);
+    if (stamp > 0) writingTimestamps.set(d.id, stamp);
+  }
+
   const off = listOffPitchWritings(blob, safeEssays, safeDrafts);
   const summary = {
     offPitchCount: off.length,
@@ -316,6 +339,7 @@ async function organize({
     renamed: 0,
     pitchesBefore: blob.pitches.length,
     pitchesAfter: blob.pitches.length,
+    prunedEmpty: 0,
     skippedReason: null,
   };
 
@@ -331,7 +355,7 @@ async function organize({
 
     try {
       const rehomed = await cluster({ writings, existingPitchTitles });
-      foldRehomeResults(blob, rehomed);
+      foldRehomeResults(blob, rehomed, { writingTimestamps });
       summary.rehomed = writings.length;
     } catch (err) {
       summary.skippedReason = `cluster_failed:${err && err.message ? err.message : "unknown"}`;
@@ -362,6 +386,27 @@ async function organize({
     } catch {
       // Best-effort. The blob still saves; next run retries.
     }
+  }
+
+  // Prune pitches whose deck ended up fully empty. The cluster can
+  // reshuffle a writing out of an auto-named pitch into another, and the
+  // source pitch is left as a titled-but-empty entry that the founder
+  // sees in the dropdown as "no essay attached". Founder-named pitches
+  // (personalTitle set) are preserved even when empty so we don't drop
+  // a label they typed.
+  const kept = [];
+  for (const pitch of blob.pitches) {
+    const hasWritings = DECK_HEADINGS.some(
+      (h) => Array.isArray(pitch.deck[h]) && pitch.deck[h].length > 0,
+    );
+    const hasPersonalTitle =
+      typeof pitch.personalTitle === "string" && pitch.personalTitle.trim().length > 0;
+    if (hasWritings || hasPersonalTitle) kept.push(pitch);
+  }
+  summary.prunedEmpty = blob.pitches.length - kept.length;
+  blob.pitches = kept;
+  if (blob.activeId && !blob.pitches.some((p) => p.id === blob.activeId)) {
+    blob.activeId = null;
   }
 
   summary.pitchesAfter = blob.pitches.length;
