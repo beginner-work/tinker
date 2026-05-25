@@ -293,6 +293,24 @@
     return n;
   }
 
+  // Essay count = number of distinct essays (not drafts) referenced
+  // by any phrase record in the pitch's deck. Used by the sidebar
+  // switcher to highlight the pitch the founder has invested the
+  // most published writing in.
+  function pitchEssayCount(pitch) {
+    if (!pitch) return 0;
+    const essayIds = new Set(loadEssays().map((e) => e && e.id).filter(Boolean));
+    if (essayIds.size === 0) return 0;
+    const seen = new Set();
+    for (const h of DECK_HEADINGS) {
+      const recs = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
+      for (const rec of recs) {
+        if (essayIds.has(rec.writingId)) seen.add(rec.writingId);
+      }
+    }
+    return seen.size;
+  }
+
   // Auto-pick: most robust wins. Ties broken by earliest createdAt
   // (the original tinker pitch stays in pole position before alts
   // overtake it).
@@ -333,6 +351,7 @@
       // for surfaces that want to show both.
       displayName: p.personalTitle || p.aiTitle || "Untitled",
       robustness: pitchRobustness(p),
+      essayCount: pitchEssayCount(p),
       createdAt: p.createdAt,
     }));
   }

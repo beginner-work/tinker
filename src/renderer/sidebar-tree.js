@@ -528,6 +528,18 @@
     // the menu — the step-back action stays anchored to the bottom of
     // the switcher block rather than getting trapped above the list.
     if (switcherOpen) {
+      // When more than one pitch exists, the pitch with the most
+      // associated essays stays sharp; the rest render blurred so
+      // the founder's eye lands on the deepest investment first.
+      // Ties at the top stay sharp together; if no pitch has any
+      // essays yet, nothing is blurred.
+      let topEssayCount = 0;
+      if (pitches.length > 1) {
+        for (const p of pitches) {
+          const c = Number(p.essayCount) || 0;
+          if (c > topEssayCount) topEssayCount = c;
+        }
+      }
       const menu = document.createElement("ul");
       menu.className = "sidebar__pitch-menu";
       menu.setAttribute("role", "listbox");
@@ -538,6 +550,13 @@
         btn.className = "sidebar__pitch-menu-item";
         btn.setAttribute("data-pitch-id", p.id);
         if (p.id === active.id) btn.setAttribute("data-active", "");
+        if (
+          pitches.length > 1 &&
+          topEssayCount > 0 &&
+          (Number(p.essayCount) || 0) < topEssayCount
+        ) {
+          btn.setAttribute("data-blurred", "");
+        }
         btn.appendChild(renderTitleStack(p));
         const itemMeta = document.createElement("span");
         itemMeta.className = "sidebar__pitch-menu-meta";
