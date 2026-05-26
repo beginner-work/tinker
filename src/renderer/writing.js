@@ -512,7 +512,7 @@
           `<stop offset="75%" stop-color="#7dd3fc"/>` +
           `<stop offset="100%" stop-color="#c4b5fd"/>` +
         `</linearGradient></defs>` +
-        `<path class="thinking-worm__line" d="M 2 12 L 58 12"/>` +
+        `<path class="thinking-worm__line" d="M 2 12 Q 30 12 58 12"/>` +
       `</svg>` +
       `<div class="writing-loading__text">${escapeHtml(text)}</div>`;
     nextBtn.disabled = true;
