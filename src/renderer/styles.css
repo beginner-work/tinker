@@ -185,6 +185,38 @@ html.on-web .sidebar__top {
 }
 .sidebar__account-flash.is-visible { opacity: 1; }
 
+/* Indigo pre-seed upgrade button. Sits below the account-list at the
+ * bottom of the Account block. Hidden via the [hidden] attribute once
+ * subscription.js confirms the tier is active. */
+.sidebar__upgrade {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-accent-strong);
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-purple);
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+.sidebar__upgrade:hover { background: var(--color-accent-press, #4f46e5); }
+.sidebar__upgrade:active { transform: scale(0.98); }
+.sidebar__upgrade-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.sidebar__upgrade-price {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
 /* ── Sidebar pitch-deck tree (v0.103) ─────────────────────────────
  *
  * Mirrors pitch-deck.md inside the sidebar. The top tier rows hold one

@@ -48,6 +48,10 @@
          sidebar-tree.js so the tree module's first render can read
          the active pitch's deck out of window.tinkerPitches. -->
     <script src="./pitches.js" defer></script>
+    <!-- Owns the founder's paid tier (pre-seed unlocks the multi-pitch
+         switcher). Loaded BEFORE sidebar-tree.js so the first render
+         can read the entitlement out of window.tinkerSubscription. -->
+    <script src="./subscription.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
   </head>
   <body>
@@ -150,6 +154,15 @@
             </button>
           </li>
         </ul>
+        <!-- Pre-seed upgrade. Sits at the bottom of the Account block;
+             shown when the founder hasn't paid yet, hidden by
+             subscription.js once the tier is active. The handoff to
+             Stripe is wired in renderer.js. -->
+        <button id="nav-upgrade-preseed" type="button"
+                class="sidebar__upgrade" data-audit-ignore>
+          <span class="sidebar__upgrade-label">Upgrade to pre-seed</span>
+          <span class="sidebar__upgrade-price">$8 / month</span>
+        </button>
       </nav>
 
       <footer class="sidebar__footer">

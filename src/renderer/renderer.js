@@ -946,6 +946,28 @@
   const navPostOnSocial = $("#nav-post-on-social");
   if (navPostOnSocial) navPostOnSocial.addEventListener("click", () => showPostOnSocial());
 
+  // Pre-seed upgrade: hand off to Stripe via the subscription module,
+  // and hide the button once the tier is active. The hide/show step
+  // also runs on boot so a paid founder doesn't see the button at all.
+  const navUpgrade = $("#nav-upgrade-preseed");
+  function syncUpgradeButton() {
+    if (!navUpgrade) return;
+    const active = !!(window.tinkerSubscription
+      && typeof window.tinkerSubscription.isPreseed === "function"
+      && window.tinkerSubscription.isPreseed());
+    navUpgrade.hidden = active;
+  }
+  if (navUpgrade) {
+    navUpgrade.addEventListener("click", () => {
+      if (window.tinkerSubscription
+          && typeof window.tinkerSubscription.startCheckout === "function") {
+        window.tinkerSubscription.startCheckout();
+      }
+    });
+    syncUpgradeButton();
+    window.addEventListener("tinker:subscription-changed", syncUpgradeButton);
+  }
+
   // Welcome screen: the H1 is the standing line ("Everyone is a
   // founder.") and the question ("Where are you right now?") sits
   // above a 2×2 grid of four locations — Cafe, Home, Work, Somewhere

@@ -532,7 +532,11 @@
       // most associated essays). Ties resolve to the earliest
       // createdAt — mirrors pickDefaultActiveId in pitches.js so the
       // sharp pitch is always the auto-default. Every other pitch
-      // renders blurred and non-clickable.
+      // renders blurred and non-clickable — unless the founder has
+      // upgraded to pre-seed, which unlocks the full switcher.
+      const unlocked = !!(window.tinkerSubscription
+        && typeof window.tinkerSubscription.isPreseed === "function"
+        && window.tinkerSubscription.isPreseed());
       let winnerId = null;
       if (pitches.length > 0) {
         let bestRobustness = -1;
@@ -553,7 +557,7 @@
       for (const p of pitches) {
         const li = document.createElement("li");
         const btn = document.createElement("button");
-        const isBlurred = pitches.length > 1 && p.id !== winnerId;
+        const isBlurred = !unlocked && pitches.length > 1 && p.id !== winnerId;
         btn.type = "button";
         btn.className = "sidebar__pitch-menu-item";
         btn.setAttribute("data-pitch-id", p.id);
@@ -1015,6 +1019,9 @@
     renameOpen = false;
     render();
   });
+  // The pre-seed unlock removes the blur from every non-winner pitch.
+  // Re-render so the switcher picks up the new entitlement.
+  window.addEventListener("tinker:subscription-changed", () => { render(); });
 
   // Close the dropdown / rename if the user clicks outside.
   document.addEventListener("click", (e) => {
