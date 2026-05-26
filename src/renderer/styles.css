@@ -1340,7 +1340,8 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   position: absolute;
   top: calc(env(safe-area-inset-top, 0px) + 12px);
   right: 24px;
-  z-index: 2;
+  z-index: 70;
+  transition: opacity 0.18s ease;
 }
 .read__menu-trigger {
   width: 40px;
