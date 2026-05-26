@@ -27,7 +27,7 @@
     "If you provide a title, it must be a contiguous phrase the founder has typed. Pick the most evocative one. Do not invent a title.",
     "",
     "RULE 4 — KEEP IT SHORT, AND PURSUE LEARNINGS.",
-    "Aim for between five and nine questions total. Stop when the founder has said enough. Every question must pursue what the founder is learning — patterns they're noticing, ideas that are clicking or breaking, things they didn't expect, what's getting clearer or murkier, what's contradicting prior thinking. Be specific and concrete: not 'tell me more', not 'how did that make you feel', but questions that probe at what the founder is figuring out.",
+    "Aim for between three and eleven questions total. If the user message provides 'Target questions: N', wrap up by question N unless the founder is clearly mid-thought. Stop when the founder has said enough. Every question must pursue what the founder is learning — patterns they're noticing, ideas that are clicking or breaking, things they didn't expect, what's getting clearer or murkier, what's contradicting prior thinking. Be specific and concrete: not 'tell me more', not 'how did that make you feel', but questions that probe at what the founder is figuring out.",
     "Every question MUST contain the word 'learning' or one close synonym from this list: discovering, noticing, figuring out, realising, understanding, picking up, working out, coming to see, finding out, recognising. Vary the synonym across questions — don't repeat the same one verbatim. Pick the form that best fits the mood of the place.",
     "Do NOT ask about feelings, emotions, or moods. Do NOT ask 'how did that make you feel'. Do NOT psychoanalyse. Stay on the learning — what they are coming to understand. The founder's emotional state is not the subject.",
     "",
@@ -53,11 +53,28 @@
 
   const SEED_QUESTION = "What are you learning?";
 
-  // Midpoint of the 5–9 target range named in SYSTEM_PROMPT rule 4.
-  // The interviewer stops when the founder has said enough, so this is
-  // a planning anchor — used to draw ghost progress dots and to size up
-  // the step counter — not a hard cap.
-  const TARGET_TOTAL = 7;
+  // Each draft contributes to exactly one of the 11 canonical pitch
+  // sections (problem, persona, why-now, …) — see sidebar-tree.js.
+  // The per-session question target ramps from MIN_TARGET on a brand
+  // new pitch to MAX_TARGET once the founder has covered every section,
+  // so the first essay feels achievable and later essays go deeper.
+  const TOTAL_SECTIONS = 11;
+  const MIN_TARGET = 3;
+  const MAX_TARGET = 11;
+
+  function computeCoveredCount() {
+    const tree = window.tinkerTree;
+    if (!tree || typeof tree.coveredHeadings !== "function") return 0;
+    try { return tree.coveredHeadings().length; }
+    catch { return 0; }
+  }
+
+  function computeTarget(coveredCount) {
+    const ramp =
+      MIN_TARGET +
+      (MAX_TARGET - MIN_TARGET) * (coveredCount / TOTAL_SECTIONS);
+    return Math.round(Math.max(MIN_TARGET, Math.min(MAX_TARGET, ramp)));
+  }
 
   // ── DOM refs ─────────────────────────────────────────────────────────
   const stage = document.getElementById("writing-stage");
@@ -297,13 +314,16 @@
 
     // Progress dots: one per asked-or-answered slot, plus a "review"
     // pip when a stitched essay exists. While still gathering, pad up
-    // to TARGET_TOTAL so founders can see how much further they have
-    // to go instead of the interview feeling open-ended; once stitched,
-    // the gathering phase is over and we show the real total only.
+    // to the per-session target so founders can see how much further
+    // they have to go instead of the interview feeling open-ended;
+    // once stitched, the gathering phase is over and we show the real
+    // total only.
+    const coveredCount = computeCoveredCount();
+    const target = computeTarget(coveredCount);
     progressEl.innerHTML = "";
     const expectedTotal = active.stitched
       ? totalAsked
-      : Math.max(totalAsked, TARGET_TOTAL);
+      : Math.max(totalAsked, target);
     const slots = expectedTotal + (active.stitched ? 1 : 0);
     for (let i = 0; i < slots; i++) {
       const d = document.createElement("span");
@@ -314,15 +334,27 @@
       progressEl.appendChild(d);
     }
 
+    stepEl.innerHTML = "";
+    const stepLine = document.createElement("div");
+    stepLine.className = "writing__step-line";
     if (isReview) {
-      stepEl.textContent = "Review";
+      stepLine.textContent = "Review";
     } else {
       const n = Math.min(step + 1, Math.max(totalAsked, 1));
-      const knownTotal = active.stitched || totalAsked > TARGET_TOTAL;
-      stepEl.textContent = knownTotal
+      const knownTotal = active.stitched || totalAsked > target;
+      stepLine.textContent = knownTotal
         ? `Question ${n} of ${totalAsked}`
-        : `Question ${n} of about ${TARGET_TOTAL}`;
+        : `Question ${n} of ${target}`;
     }
+    stepEl.appendChild(stepLine);
+
+    const contextLine = document.createElement("div");
+    contextLine.className = "writing__step-context";
+    contextLine.textContent =
+      coveredCount === 0
+        ? `Adds 1 of ${TOTAL_SECTIONS} pitch sections`
+        : `Adds 1 of ${TOTAL_SECTIONS} pitch sections · ${coveredCount} covered`;
+    stepEl.appendChild(contextLine);
 
     nextBtn.hidden = false;
     nextBtn.disabled = false;
@@ -699,7 +731,11 @@
       if (lines.length) lines.push("");
       lines.push(...uncoveredLines);
     }
+    const coveredCount = computeCoveredCount();
+    const target = computeTarget(coveredCount);
     if (lines.length) lines.push("");
+    lines.push(`Target questions: ${target}`);
+    lines.push("");
     if (!transcript || transcript.length === 0) {
       lines.push("The founder just opened a new draft. Begin the interview.");
       return lines.join("\n");
