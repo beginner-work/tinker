@@ -1163,14 +1163,6 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   stroke: url(#worm-spectrum);
   stroke-width: 2;
   stroke-linecap: round;
-  animation: worm-inch 2.4s ease-in-out infinite;
-}
-@keyframes worm-inch {
-  0%, 100% { d: path("M 2 12 Q 30 12 58 12"); }
-  50%      { d: path("M 8 12 Q 30 -2 52 12"); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .thinking-worm__line { animation: none; }
 }
 
 .writing-card--error .writing-error {
