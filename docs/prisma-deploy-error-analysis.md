@@ -34,227 +34,141 @@ that runs `prisma migrate deploy` against this database contends for the
 
 ## Root cause
 
-Three independently-sufficient conditions combine to make migrations
-unreliable on Vercel preview builds. Any one of them is enough to be
-worth fixing; together they are why this fails every few days instead of
-every build.
+**Every Vercel preview deploy runs `prisma migrate deploy` against the
+same Neon database that production uses.** The endpoint hostname in the
+failure log — `ep-delicate-art-ak2qmsls-pooler…` — is the one DB the
+whole org points at, regardless of which PR or branch the build came
+from. Preview is not isolated. Production is not isolated from preview.
 
-### 1. We run `prisma migrate deploy` through the PgBouncer pooler
+That single fact is what's actually breaking. The P1002 error is just
+how it surfaces: when two builds hit the shared DB inside the same 10s
+window, they race for the migration engine's advisory lock and one
+loses. There's nothing wrong with the migration. There's nothing wrong
+with the DB. The system is doing exactly what it was wired to do —
+serialise migrations against a shared resource — and the resource is too
+shared to serialise cheanly given how often we deploy.
 
-Both `vercel.json` files set `buildCommand: "prisma migrate deploy"`, and
-all three Prisma schemas read `DATABASE_URL`:
+A few mechanisms compound the failure rate, but none of them are the
+root cause:
 
-- `beginner/ui/vercel.json:7`
-- `tinker/vercel.json:7`
-- `beginner/ui/prisma/schema.prisma:17`, `beginner/api/prisma/schema.prisma:7`, `tinker/prisma/schema.prisma:16`
+- The `DATABASE_URL` we point migrations at is the **pooled** Neon
+  endpoint (`…-pooler…`). PgBouncer in transaction-pooling mode can
+  swap a client to a different backend between statements, so the
+  session-scoped `pg_advisory_lock(...)` may end up held on a backend
+  the next migration call can't reach. This makes lock contention
+  resolve as a hung-then-timed-out call instead of a fast acquire.
+- Vercel runs **one build per push, per PR, per project**. With two
+  projects, six other `prisma migrate deploy` runs hit the same DB
+  within a 10-minute window around the captured failure:
+  ```
+  1779828324518  tinker     PR #175   migrate deploy
+  1779828378779  tinker     PR #178   migrate deploy
+  1779828559953  tinker     main      migrate deploy
+  1779828614974  tinker     PR #176   migrate deploy   ← later succeeded
+  1779828629894  tinker     PR #174   migrate deploy
+  1779828796334  tinker     main      migrate deploy
+  1779828935495  tinker     PR #176   migrate deploy
+  1779828941708  beginner   PR #496   migrate deploy
+  1779829274430  tinker     PR #176   migrate deploy   ← FAILED (P1002)
+  1779829280362  beginner   PR #496   migrate deploy
+  ```
+- `prisma migrate deploy` runs on every build, every PR, even when no
+  migration changed. A CSS-only PR still queues for the migration lock
+  on the production DB.
 
-`DATABASE_URL` in production points at Neon's **pooled** endpoint
-(`…-pooler.c-3.us-west-2.aws.neon.tech` — visible in the failure log).
-Neon's pooler is PgBouncer in transaction-pooling mode.
-
-Prisma's migration engine acquires a **session-scoped** Postgres advisory
-lock (`pg_advisory_lock(...)`) at the start of `migrate deploy` to
-serialise concurrent migrators. Session locks **must** stay attached to
-the same backend for their lifetime. PgBouncer in transaction mode is
-free to swap your client to a different backend between statements, so:
-
-- The lock may end up held on a backend the next migration call cannot
-  reach.
-- The unlock may not arrive at the same backend that holds the lock, so
-  the lock is "orphaned" until that backend goes idle.
-- A subsequent migration call across the pool waits the full 10s
-  hard-coded timeout and fails with **P1002**.
-
-Prisma itself
-[documents](https://pris.ly/d/migrate-advisory-locking) that the migration
-engine needs a non-pooled connection.
-
-### 2. Many builds race for the same lock on the same DB
-
-Vercel runs **one build per push, per PR, per project**. We have two
-projects (`beginner`, `tinker`) and any active commit on `main` or any
-open PR triggers a redeploy on each. At the time `dpl_3wa1Gmhy5gTGQXcAQFtrieftJFaW`
-failed, six other deploys against the same DB ran within ~10 minutes:
-
-```
-1779828324518  tinker     PR #175   migrate deploy
-1779828378779  tinker     PR #178   migrate deploy
-1779828559953  tinker     main      migrate deploy
-1779828614974  tinker     PR #176   migrate deploy   ← later succeeded
-1779828629894  tinker     PR #174   migrate deploy
-1779828796334  tinker     main      migrate deploy
-1779828935495  tinker     PR #176   migrate deploy
-1779828941708  beginner   PR #496   migrate deploy
-1779829274430  tinker     PR #176   migrate deploy   ← FAILED (P1002)
-1779829280362  beginner   PR #496   migrate deploy
-```
-
-Even with a healthy direct connection, this much concurrency on a 10s
-lock window will eventually time out. Through the pooler, it's a matter
-of when, not if.
-
-### 3. Migrations are re-run on every build, forever
-
-We have **no** unapplied migrations. The full migration set has been
-recorded in `_prisma_migrations` for weeks. Every Vercel build still
-opens a connection, takes the advisory lock, reads `_prisma_migrations`,
-confirms there is nothing to do, and releases the lock. The lock cost is
-paid on every preview deploy for no benefit — a docs-only or
-CSS-only PR with no schema change still contends for the migration lock.
+All three of those are symptoms of the same architectural fact: there's
+one DB, and everything is hitting it.
 
 ---
 
-## Mitigations (smallest first)
+## The fix: give each preview its own database
 
-### M1. Add `directUrl` so the migration engine bypasses the pooler
+The Neon-Vercel integration turns this into a non-problem. On PR open,
+Neon creates a child branch of the main DB (full copy-on-write, fast,
+free at our usage), and the Vercel preview for that PR gets a
+`DATABASE_URL` whose hostname is **specific to that branch**. The
+preview's `prisma migrate deploy` runs against the preview's own
+`_prisma_migrations` table, with its own advisory locks, on its own
+Postgres backend. Production is untouched. Other PRs are untouched.
+P1002 cannot happen because there is no contention.
 
-Smallest, most targeted change. Prisma supports a separate
-[`directUrl`](https://www.prisma.io/docs/orm/reference/prisma-schema-reference#fields-2)
-that the migration engine and Studio use while the client keeps using
-the pooled `url`.
+How we know this is the right answer for this repo:
 
-Steps:
+- The Neon API key and project id are already wired up in CI secrets
+  (`NEON_API_KEY`, `NEON_PROJECT_ID` referenced in
+  `.github/workflows/neon-branch-pruning.yml`).
+- `scripts/neon-prune.mjs` already exists, expecting per-PR `pr-<N>`
+  and `preview/<head ref>` branch naming — i.e. the cleanup half of
+  the integration is shipped, but the create half isn't turned on.
+- Closed-PR cleanup is wired (`pull_request: closed` event), so
+  branches won't leak.
 
-1. In Vercel project settings (both `beginner` and `tinker`), add a new
-   env var `DIRECT_DATABASE_URL` pointing at the **non-pooled** Neon
-   endpoint — same host with `-pooler` stripped. Available in the Neon
-   console under the same branch.
-2. In each `schema.prisma` datasource block, add `directUrl`:
-   ```prisma
-   datasource db {
-     provider  = "postgresql"
-     url       = env("DATABASE_URL")
-     directUrl = env("DIRECT_DATABASE_URL")
-   }
-   ```
-   Files: `beginner/ui/prisma/schema.prisma`,
-   `beginner/api/prisma/schema.prisma`, `tinker/prisma/schema.prisma`.
-3. Redeploy.
+What's left to do:
 
-This is the single change that addresses the actual P1002. Session locks
-will work correctly because the engine speaks to a real Postgres
-backend, not PgBouncer.
+1. Install the [Neon-Vercel integration](https://neon.tech/docs/guides/vercel-overview)
+   on each Vercel project (`beginner`, `tinker`).
+2. In Neon, set the branch policy: "create a branch for each Vercel
+   preview deployment, named after the git head ref."
+3. Confirm preview builds receive a `DATABASE_URL` whose hostname
+   differs per PR. Trigger any preview, read the build log line
+   `Datasource "db": PostgreSQL database "neondb"… at "ep-..."` — the
+   `ep-` prefix should not match production.
+4. Leave `prisma migrate deploy` in `vercel.json` for now. With per-PR
+   DBs, it becomes a fast no-op on previews (migrations already applied
+   on the branched-from snapshot) and a real apply only on the
+   production deploy.
 
-### M2. Retry the migrate step on transient P1002
-
-Wrap the build command so a single 10s lock-timeout doesn't kill the
-deploy. Replace `prisma migrate deploy` in each `vercel.json` with a
-script that retries with backoff:
-
-```json
-"buildCommand": "node scripts/migrate-with-retry.mjs"
-```
-
-where `scripts/migrate-with-retry.mjs` is ~20 lines: try `prisma migrate
-deploy`, on non-zero exit and stderr matching `P1002`, sleep
-2s/4s/8s, retry up to 3 attempts. Belt-and-suspenders to M1, not a
-substitute — but cheap to add and survives the next transient incident.
-
-### M3. Stop running `migrate deploy` on builds that don't change migrations
-
-The 95% case is "PR touches CSS, no migrations changed". Skip the
-migrate step entirely when `prisma/migrations/**` is untouched relative
-to `main`:
-
-```sh
-# pseudo-code for vercel buildCommand
-if git diff --quiet origin/main -- prisma/migrations; then
-  echo "No migration changes — skipping migrate deploy"
-  exit 0
-fi
-prisma migrate deploy
-```
-
-Caveat: Vercel's git context inside the build is shallow. The robust
-form is to move migration application out of Vercel builds entirely — see
-P1.
+That's the whole fix. After step 3, the next P1002 should be the last
+P1002.
 
 ---
 
-## Prevention (durable)
+## What about the symptoms?
 
-### P1. Move `prisma migrate deploy` out of Vercel builds into CI
+Worth fixing on their own merits even after isolation is in place,
+because they reduce blast radius if anything goes sideways during the
+rollout:
 
-Migrations belong on the merge-to-main path, run **once**, against the
-direct URL, with a real lock budget. Add a `migrate` job to
-`.github/workflows/ci.yml` that runs only on `push: main` and only when
-`prisma/migrations/**` has changed:
+- **Add `directUrl` to `schema.prisma`** so the migration engine
+  bypasses the pooler. Five-minute change in
+  `beginner/ui/prisma/schema.prisma`,
+  `beginner/api/prisma/schema.prisma`,
+  `tinker/prisma/schema.prisma`:
+  ```prisma
+  datasource db {
+    provider  = "postgresql"
+    url       = env("DATABASE_URL")
+    directUrl = env("DIRECT_DATABASE_URL")
+  }
+  ```
+  Set `DIRECT_DATABASE_URL` in Vercel to the non-pooled Neon endpoint.
+  Even with per-PR DBs, this is the correct way to wire Prisma —
+  session-scoped advisory locks work reliably and Studio/seed scripts
+  also stop fighting the pooler.
 
-```yaml
-migrate:
-  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  runs-on: ubuntu-latest
-  needs: [ui-check, api-unit]
-  defaults: { run: { working-directory: ui } }
-  steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with: { node-version: 20, cache: npm, cache-dependency-path: ui/package-lock.json }
-    - run: npm ci
-    - run: npx prisma migrate deploy
-      env:
-        DATABASE_URL: ${{ secrets.PRISMA_DIRECT_URL }}
-```
-
-Then drop `prisma migrate deploy` from `ui/vercel.json` and
-`tinker/vercel.json` entirely. The Vercel build becomes pure asset
-output (and `prisma generate` via `postinstall`, which is fine — it
-never touches the DB).
-
-Net effect: previews stop migrating shared state. Production migration
-runs exactly once per merge, in series.
-
-### P2. One canonical migration source — not three
-
-Today three Prisma schemas describe overlapping slices of one database:
-
-- `beginner/api/prisma/schema.prisma` — full marketplace schema, owns
-  most tables.
-- `beginner/ui/prisma/schema.prisma` — tinker's subset
-  (`ClaudeUser`, `ClaudePhoneVerification`, `TinkerUserData`).
-- `tinker/prisma/schema.prisma` — same `TinkerUserData` mirror.
-
-Two of these (`ui` and `tinker`) have migration directories, and both
-run `migrate deploy` against the same DB. That's two independent
-migration histories writing to a single `_prisma_migrations` table —
-the only reason this hasn't caused divergence is that the
-`20260515000000_add_tinker_user_data` migration is byte-identical in
-both repos by convention.
-
-Pick one repo (recommend `beginner` since it already owns the marketplace
-schema and the Neon-pruning workflow) as the canonical migration owner.
-The other two schemas keep only the model declarations they need for
-Prisma Client generation, with `migrations/` removed. Only the canonical
-repo runs `prisma migrate deploy`. The other two `postinstall` scripts
-stay at `prisma generate`.
-
-### P3. Use Neon per-PR branches for preview DBs
-
-Preview deploys should never share the production DB. The Neon-Vercel
-integration creates a per-PR Neon **database branch** with its own
-endpoint and its own `DATABASE_URL`, isolated from main. The
-`neon-branch-pruning.yml` workflow already exists in this repo and
-expects this setup — turning it on completes the design.
-
-This makes the migration question disappear for previews: each preview
-gets a freshly-branched copy of main with all migrations already
-applied. No `migrate deploy` step needed on the preview build.
-
-To enable: install the [Neon-Vercel integration](https://neon.tech/docs/guides/vercel-overview)
-on each project, set the per-PR branch creation policy, confirm preview
-builds receive a `DATABASE_URL` whose hostname differs per PR.
+- **Consolidate the three Prisma schemas.** Today
+  `beginner/api/prisma/schema.prisma`, `beginner/ui/prisma/schema.prisma`,
+  and `tinker/prisma/schema.prisma` each declare partial overlapping
+  slices of one database, and two of them (`ui` and `tinker`) carry
+  their own `migrations/` directories. With per-PR DBs the duplicate
+  migration histories stop colliding in production, but they still rot
+  independently — pick one repo (recommend `beginner`, since it owns
+  the marketplace schema and the Neon-pruning workflow) as the
+  canonical migration source, drop `migrations/` from the others, and
+  let the slim schemas exist only for Prisma Client generation.
 
 ---
 
 ## Recommended sequence
 
-1. **Today (5 min):** add `directUrl` (M1). Resolves P1002 immediately.
-2. **This week:** move `migrate deploy` into the CI workflow (P1). Drop it
-   from `vercel.json`.
-3. **This week:** turn on Neon per-PR branches (P3). The pruning workflow
-   is already in place.
-4. **Later:** consolidate the three Prisma schemas down to one
-   migration-owning copy (P2).
+1. **Today:** turn on the Neon-Vercel per-PR branch integration. This is
+   the actual fix.
+2. **This week:** add `directUrl` to all three schemas. Defensive depth
+   for the migration engine.
+3. **Later:** consolidate the three Prisma schemas down to one
+   migration-owning copy.
 
-Steps 1–3 together remove the failure mode entirely. Step 4 prevents the
-class of bug ever returning by deleting the duplicate-history risk.
+Step 1 alone resolves the recurring P1002 in production. Step 2 closes
+the underlying pooler-vs-session-lock bug so it can't reappear if
+someone ever points migrations at the shared DB by accident. Step 3
+removes the duplicate-migration-history risk for good.
