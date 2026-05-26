@@ -503,9 +503,7 @@
     const card = document.createElement("div");
     card.className = "writing-card writing-card--loading";
     card.innerHTML =
-      `<div class="thinking-dots" aria-hidden="true">` +
-      `<span class="thinking-dot"></span><span class="thinking-dot"></span><span class="thinking-dot"></span>` +
-      `</div>` +
+      `<span class="thinking-worm" aria-hidden="true"></span>` +
       `<div class="writing-loading__text">${escapeHtml(text)}</div>`;
     nextBtn.disabled = true;
     endBtn.disabled = true;

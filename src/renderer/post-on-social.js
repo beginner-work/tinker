@@ -288,9 +288,7 @@
         `<div class="post-on-social__step-indicator">2 / 2</div>` +
         `<h1 class="post-on-social__title">${escapeHtml(`Reading your essays for ${platform}…`)}</h1>` +
         `<div class="post-on-social__loading">` +
-          `<span class="thinking-dots" aria-hidden="true">` +
-            `<span class="thinking-dot"></span><span class="thinking-dot"></span><span class="thinking-dot"></span>` +
-          `</span>` +
+          `<span class="thinking-worm" aria-hidden="true"></span>` +
         `</div>` +
       `</div>`;
   }

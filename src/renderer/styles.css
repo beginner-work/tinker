@@ -1152,21 +1152,35 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 }
 .writing-loading__text { font-family: var(--font-display); }
 
-.thinking-dots { display: inline-flex; gap: 5px; align-items: center; height: 22px; }
-.thinking-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  animation: thinking-breathe 1.6s ease-in-out infinite;
+.thinking-worm {
+  display: inline-block;
+  width: 60px;
+  height: 16px;
+  background: linear-gradient(90deg,
+    var(--color-rose)   0%,
+    var(--color-peach)  18%,
+    var(--color-amber)  36%,
+    var(--logo-leaf)    55%,
+    var(--color-sky)    75%,
+    var(--color-violet) 100%);
+  -webkit-mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 16'><path d='M0 8 Q 7.5 1 15 8 T 30 8' stroke='black' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
+          mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 16'><path d='M0 8 Q 7.5 1 15 8 T 30 8' stroke='black' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
+  -webkit-mask-repeat: repeat-x;
+          mask-repeat: repeat-x;
+  -webkit-mask-size: 30px 16px;
+          mask-size: 30px 16px;
+  -webkit-mask-position: 0 center;
+          mask-position: 0 center;
+  animation: thinking-worm-crawl 1.8s linear infinite;
 }
-.thinking-dot:nth-child(1) { background: var(--logo-pink); }
-.thinking-dot:nth-child(2) { background: var(--logo-yellow); animation-delay: 0.2s; }
-.thinking-dot:nth-child(3) { background: var(--logo-sky);    animation-delay: 0.4s; }
-@keyframes thinking-breathe {
-  0%, 100% { opacity: 0.35; }
-  50%      { opacity: 1; }
+@keyframes thinking-worm-crawl {
+  to {
+    -webkit-mask-position: -30px center;
+            mask-position: -30px center;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .thinking-dot { animation: none; opacity: 0.8; }
+  .thinking-worm { animation: none; }
 }
 
 .writing-card--error .writing-error {
