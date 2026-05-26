@@ -503,7 +503,7 @@
     const card = document.createElement("div");
     card.className = "writing-card writing-card--loading";
     card.innerHTML =
-      `<svg class="thinking-worm" viewBox="0 0 60 20" aria-hidden="true">` +
+      `<svg class="thinking-worm" viewBox="0 0 60 16" aria-hidden="true">` +
         `<defs><linearGradient id="worm-spectrum" x1="0" x2="60" y1="0" y2="0" gradientUnits="userSpaceOnUse">` +
           `<stop offset="0%" stop-color="#f9a8d4"/>` +
           `<stop offset="18%" stop-color="#fdba74"/>` +
@@ -512,16 +512,7 @@
           `<stop offset="75%" stop-color="#7dd3fc"/>` +
           `<stop offset="100%" stop-color="#c4b5fd"/>` +
         `</linearGradient></defs>` +
-        `<path class="thinking-worm__line" d="M 2 12 L 22 12 Q 30 12 38 12 L 58 12">` +
-          `<animate attributeName="d" dur="2.8s" repeatCount="indefinite" ` +
-            `calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" ` +
-            `keySplines="0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1" ` +
-            `values="M 2 12 L 22 12 Q 30 12 38 12 L 58 12;` +
-                    `M 4 12 L 24 12 Q 32  2 40 12 L 60 12;` +
-                    `M 2 12 L 22 12 Q 30 12 38 12 L 58 12;` +
-                    `M 0 12 L 20 12 Q 28 22 36 12 L 56 12;` +
-                    `M 2 12 L 22 12 Q 30 12 38 12 L 58 12"/>` +
-        `</path>` +
+        `<line class="thinking-worm__line" x1="2" y1="8" x2="58" y2="8"/>` +
       `</svg>` +
       `<div class="writing-loading__text">${escapeHtml(text)}</div>`;
     nextBtn.disabled = true;

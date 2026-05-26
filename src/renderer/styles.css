@@ -1155,14 +1155,26 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 .thinking-worm {
   display: inline-block;
   width: 60px;
-  height: 20px;
-  overflow: visible;
+  height: 16px;
 }
 .thinking-worm__line {
   fill: none;
   stroke: url(#worm-spectrum);
   stroke-width: 2;
   stroke-linecap: round;
+  stroke-dasharray: 56;
+  stroke-dashoffset: 56;
+  animation: worm-sweep 2.8s ease-in-out infinite;
+}
+@keyframes worm-sweep {
+  0%   { stroke-dashoffset:  56; }
+  25%  { stroke-dashoffset:   0; }
+  50%  { stroke-dashoffset: -56; }
+  75%  { stroke-dashoffset:   0; }
+  100% { stroke-dashoffset:  56; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thinking-worm__line { animation: none; stroke-dashoffset: 0; }
 }
 
 .writing-card--error .writing-error {
