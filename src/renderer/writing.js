@@ -474,7 +474,7 @@
     const publish = document.createElement("button");
     publish.type = "button";
     publish.className = "writing-action writing-action--primary";
-    publish.textContent = "Publish";
+    publish.textContent = "Save";
     publish.addEventListener("click", () => {
       // Flush any pending debounced edits into the model before publish.
       if (active && active.stitched) active.stitched.body = body.value;
