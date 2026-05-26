@@ -528,17 +528,23 @@
     // the menu — the step-back action stays anchored to the bottom of
     // the switcher block rather than getting trapped above the list.
     if (switcherOpen) {
-      // When more than one pitch exists, the pitch with the most
-      // associated essays (robustness — coverage across the eleven
-      // deck headings) stays sharp; the rest render blurred so the
-      // founder's eye lands on the deepest investment first. Ties
-      // at the top stay sharp together; if no pitch has any
-      // coverage yet, nothing is blurred.
-      let topRobustness = 0;
-      if (pitches.length > 1) {
+      // Exactly one pitch stays sharp: the most robust one (= the
+      // most associated essays). Ties resolve to the earliest
+      // createdAt — mirrors pickDefaultActiveId in pitches.js so the
+      // sharp pitch is always the auto-default. Every other pitch
+      // renders blurred and non-clickable.
+      let winnerId = null;
+      if (pitches.length > 0) {
+        let bestRobustness = -1;
+        let bestCreatedAt = Infinity;
         for (const p of pitches) {
-          const c = Number(p.robustness) || 0;
-          if (c > topRobustness) topRobustness = c;
+          const r = Number(p.robustness) || 0;
+          const c = Number(p.createdAt) || 0;
+          if (r > bestRobustness || (r === bestRobustness && c < bestCreatedAt)) {
+            winnerId = p.id;
+            bestRobustness = r;
+            bestCreatedAt = c;
+          }
         }
       }
       const menu = document.createElement("ul");
@@ -547,10 +553,7 @@
       for (const p of pitches) {
         const li = document.createElement("li");
         const btn = document.createElement("button");
-        const isBlurred =
-          pitches.length > 1 &&
-          topRobustness > 0 &&
-          (Number(p.robustness) || 0) < topRobustness;
+        const isBlurred = pitches.length > 1 && p.id !== winnerId;
         btn.type = "button";
         btn.className = "sidebar__pitch-menu-item";
         btn.setAttribute("data-pitch-id", p.id);
