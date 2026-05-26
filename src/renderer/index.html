@@ -229,12 +229,25 @@
 
       <!-- Read-an-essay view: rendered when a feed card is opened. -->
       <section id="read" class="read" hidden>
-        <button id="read-delete" class="read__delete" type="button" aria-label="Delete this essay" title="Delete this essay">
-          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-            <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          </svg>
-          <span>Delete</span>
-        </button>
+        <div class="read__menu">
+          <button id="read-menu-trigger" class="read__menu-trigger" type="button"
+                  aria-label="Essay actions" aria-haspopup="menu" aria-expanded="false"
+                  aria-controls="read-menu-pop">
+            <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">
+              <circle cx="3" cy="8" r="1.6" fill="currentColor" />
+              <circle cx="8" cy="8" r="1.6" fill="currentColor" />
+              <circle cx="13" cy="8" r="1.6" fill="currentColor" />
+            </svg>
+          </button>
+          <ul id="read-menu-pop" class="read__menu-pop" role="menu" hidden>
+            <li role="none">
+              <button type="button" class="read__menu-item" data-action="archive" role="menuitem">Archive</button>
+            </li>
+            <li role="none">
+              <button type="button" class="read__menu-item read__menu-item--danger" data-action="delete" role="menuitem">Delete</button>
+            </li>
+          </ul>
+        </div>
         <article class="read__body" id="read-body"></article>
       </section>
 
