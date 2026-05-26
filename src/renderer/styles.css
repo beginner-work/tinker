@@ -1155,32 +1155,22 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 .thinking-worm {
   display: inline-block;
   width: 60px;
-  height: 16px;
-  background: linear-gradient(90deg,
-    var(--color-rose)   0%,
-    var(--color-peach)  18%,
-    var(--color-amber)  36%,
-    var(--logo-leaf)    55%,
-    var(--color-sky)    75%,
-    var(--color-violet) 100%);
-  -webkit-mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 16'><path d='M0 8 Q 7.5 1 15 8 T 30 8' stroke='black' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
-          mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 16'><path d='M0 8 Q 7.5 1 15 8 T 30 8' stroke='black' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
-  -webkit-mask-repeat: repeat-x;
-          mask-repeat: repeat-x;
-  -webkit-mask-size: 30px 16px;
-          mask-size: 30px 16px;
-  -webkit-mask-position: 0 center;
-          mask-position: 0 center;
-  animation: thinking-worm-crawl 1.8s linear infinite;
+  height: 20px;
+  overflow: visible;
 }
-@keyframes thinking-worm-crawl {
-  to {
-    -webkit-mask-position: -30px center;
-            mask-position: -30px center;
-  }
+.thinking-worm__line {
+  fill: none;
+  stroke: url(#worm-spectrum);
+  stroke-width: 2;
+  stroke-linecap: round;
+  animation: worm-inch 2.4s ease-in-out infinite;
+}
+@keyframes worm-inch {
+  0%, 100% { d: path("M 2 12 L 58 12"); }
+  50%      { d: path("M 8 12 Q 30 -2 52 12"); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .thinking-worm { animation: none; }
+  .thinking-worm__line { animation: none; }
 }
 
 .writing-card--error .writing-error {

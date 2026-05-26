@@ -503,7 +503,17 @@
     const card = document.createElement("div");
     card.className = "writing-card writing-card--loading";
     card.innerHTML =
-      `<span class="thinking-worm" aria-hidden="true"></span>` +
+      `<svg class="thinking-worm" viewBox="0 0 60 20" aria-hidden="true">` +
+        `<defs><linearGradient id="worm-spectrum" x1="0" x2="60" y1="0" y2="0" gradientUnits="userSpaceOnUse">` +
+          `<stop offset="0%" stop-color="#f9a8d4"/>` +
+          `<stop offset="18%" stop-color="#fdba74"/>` +
+          `<stop offset="36%" stop-color="#fde68a"/>` +
+          `<stop offset="55%" stop-color="#7bc47a"/>` +
+          `<stop offset="75%" stop-color="#7dd3fc"/>` +
+          `<stop offset="100%" stop-color="#c4b5fd"/>` +
+        `</linearGradient></defs>` +
+        `<path class="thinking-worm__line" d="M 2 12 L 58 12"/>` +
+      `</svg>` +
       `<div class="writing-loading__text">${escapeHtml(text)}</div>`;
     nextBtn.disabled = true;
     endBtn.disabled = true;

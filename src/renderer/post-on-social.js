@@ -288,7 +288,17 @@
         `<div class="post-on-social__step-indicator">2 / 2</div>` +
         `<h1 class="post-on-social__title">${escapeHtml(`Reading your essays for ${platform}…`)}</h1>` +
         `<div class="post-on-social__loading">` +
-          `<span class="thinking-worm" aria-hidden="true"></span>` +
+          `<svg class="thinking-worm" viewBox="0 0 60 20" aria-hidden="true">` +
+            `<defs><linearGradient id="worm-spectrum" x1="0" x2="60" y1="0" y2="0" gradientUnits="userSpaceOnUse">` +
+              `<stop offset="0%" stop-color="#f9a8d4"/>` +
+              `<stop offset="18%" stop-color="#fdba74"/>` +
+              `<stop offset="36%" stop-color="#fde68a"/>` +
+              `<stop offset="55%" stop-color="#7bc47a"/>` +
+              `<stop offset="75%" stop-color="#7dd3fc"/>` +
+              `<stop offset="100%" stop-color="#c4b5fd"/>` +
+            `</linearGradient></defs>` +
+            `<path class="thinking-worm__line" d="M 2 12 L 58 12"/>` +
+          `</svg>` +
         `</div>` +
       `</div>`;
   }
