@@ -528,31 +528,59 @@
     // the menu — the step-back action stays anchored to the bottom of
     // the switcher block rather than getting trapped above the list.
     if (switcherOpen) {
+      // Exactly one pitch stays sharp: the most robust one (= the
+      // most associated essays). Ties resolve to the earliest
+      // createdAt — mirrors pickDefaultActiveId in pitches.js so the
+      // sharp pitch is always the auto-default. Every other pitch
+      // renders blurred and non-clickable.
+      let winnerId = null;
+      if (pitches.length > 0) {
+        let bestRobustness = -1;
+        let bestCreatedAt = Infinity;
+        for (const p of pitches) {
+          const r = Number(p.robustness) || 0;
+          const c = Number(p.createdAt) || 0;
+          if (r > bestRobustness || (r === bestRobustness && c < bestCreatedAt)) {
+            winnerId = p.id;
+            bestRobustness = r;
+            bestCreatedAt = c;
+          }
+        }
+      }
       const menu = document.createElement("ul");
       menu.className = "sidebar__pitch-menu";
       menu.setAttribute("role", "listbox");
       for (const p of pitches) {
         const li = document.createElement("li");
         const btn = document.createElement("button");
+        const isBlurred = pitches.length > 1 && p.id !== winnerId;
         btn.type = "button";
         btn.className = "sidebar__pitch-menu-item";
         btn.setAttribute("data-pitch-id", p.id);
         if (p.id === active.id) btn.setAttribute("data-active", "");
+        if (isBlurred) {
+          btn.setAttribute("data-blurred", "");
+          btn.disabled = true;
+          btn.setAttribute("aria-disabled", "true");
+          btn.tabIndex = -1;
+        }
         btn.appendChild(renderTitleStack(p));
         const itemMeta = document.createElement("span");
         itemMeta.className = "sidebar__pitch-menu-meta";
         const robust = Number(p.robustness) || 0;
         itemMeta.textContent = `${robust} / ${DECK_HEADINGS.length}`;
         btn.appendChild(itemMeta);
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const pm = pitchesApi();
-          if (pm && typeof pm.setActivePitch === "function") {
-            pm.setActivePitch(p.id);
-          }
-          switcherOpen = false;
-          render();
-        });
+        if (!isBlurred) {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const pm = pitchesApi();
+            if (pm && typeof pm.setActivePitch === "function") {
+              pm.setActivePitch(p.id);
+            }
+            switcherOpen = false;
+            render();
+          });
+        }
         li.appendChild(btn);
         menu.appendChild(li);
       }

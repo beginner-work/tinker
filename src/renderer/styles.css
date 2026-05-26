@@ -650,6 +650,12 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 .sidebar__pitch-menu-item[data-active] {
   background: var(--color-hover);
 }
+.sidebar__pitch-menu-item[data-blurred] {
+  filter: blur(3px);
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 .sidebar__pitch-menu-title {
   overflow: hidden;
   text-overflow: ellipsis;

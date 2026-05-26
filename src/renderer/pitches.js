@@ -293,8 +293,10 @@
     return n;
   }
 
-  // Auto-pick: most robust wins. Ties broken by earliest createdAt
-  // (the original tinker pitch stays in pole position before alts
+  // Auto-pick: most robust wins (robustness = associated-essay
+  // coverage across the eleven deck headings — the sharp pitch in
+  // the switcher menu). Ties broken by earliest createdAt (the
+  // original tinker pitch stays in pole position before alts
   // overtake it).
   function pickDefaultActiveId() {
     if (!blob.pitches.length) return null;
