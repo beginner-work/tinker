@@ -134,6 +134,20 @@
               <span class="sidebar__account-label">Post on Social</span>
             </button>
           </li>
+          <!-- Upgrade: opens the Stripe-hosted Payment Link in a new
+               tab. No backend in tinker — the price, trial, and post-
+               payment behavior all live in the Stripe dashboard. The
+               same URL is used in preview and production; preview
+               testers should use Stripe's test cards on a live link
+               only when explicitly told to. -->
+          <li>
+            <button id="nav-upgrade" type="button" class="sidebar__account-item">
+              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                <path d="M12 3v18M5 12l7-7 7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="sidebar__account-label">Upgrade</span>
+            </button>
+          </li>
           <!-- Share button: revealed by share.js only when the app is
                running as an installed PWA (standalone) or inside a
                wrapped runtime (Capacitor). Stays hidden in plain
@@ -565,6 +579,7 @@
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>
+    <script src="./upgrade.js" defer></script>
     <script src="./update-banner.js" defer></script>
   </body>
 </html>
