@@ -34,7 +34,8 @@
   const readView = $("#read");
   const homeListEl = $("#home-list");
   const readBody = $("#read-body");
-  const readDelete = $("#read-delete");
+  const readMenuTrigger = $("#read-menu-trigger");
+  const readMenuPop = $("#read-menu-pop");
   const categoryFeedView = $("#category-feed");
   const categoryFeedTitle = $("#category-feed-title");
   const categoryFeedSub = $("#category-feed-sub");
@@ -156,6 +157,24 @@
       const essay = essays.find((e) => e.id === id);
       if (!essay) return null;
       essays = essays.filter((e) => e.id !== id);
+      saveEssays(essays);
+      if (readingEssayId === id) showFeed();
+      renderHome();
+      if (window.tinkerTree && typeof window.tinkerTree.clearWritingFromTree === "function") {
+        window.tinkerTree.clearWritingFromTree(id);
+      }
+      return essay;
+    },
+    // Soft-hide: keeps the essay in the founder's blob (still synced
+    // by PUT /api/user-data/essays) but excluded from category feeds
+    // and detached from any pitch slot. The founder can ask for an
+    // archived view later — for now, archive is "out of sight, not
+    // gone".
+    archiveEssay(id) {
+      const essay = essays.find((e) => e.id === id);
+      if (!essay) return null;
+      if (essay.archived) return essay;
+      essay.archived = true;
       saveEssays(essays);
       if (readingEssayId === id) showFeed();
       renderHome();
@@ -303,6 +322,7 @@
 
   // ── Views ───────────────────────────────────────────────────────────
   function showFeed() {
+    if (typeof window.tinkerCloseReadMenu === "function") window.tinkerCloseReadMenu();
     feedView.setAttribute("data-active", "");
     writingView.hidden = true;
     readView.hidden = true;
@@ -337,6 +357,7 @@
     if (pitchScriptView) pitchScriptView.hidden = true;
   }
   function showRead(essay) {
+    if (typeof window.tinkerCloseReadMenu === "function") window.tinkerCloseReadMenu();
     feedView.removeAttribute("data-active");
     writingView.hidden = true;
     readView.hidden = false;
@@ -988,17 +1009,47 @@
     });
   }
 
-  if (readDelete) {
-    readDelete.addEventListener("click", () => {
+  if (readMenuTrigger && readMenuPop) {
+    const setMenuOpen = (open) => {
+      readMenuPop.hidden = !open;
+      readMenuTrigger.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+    readMenuTrigger.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setMenuOpen(readMenuPop.hidden);
+    });
+    readMenuPop.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-action]");
+      if (!btn) return;
+      e.stopPropagation();
+      const action = btn.getAttribute("data-action");
+      setMenuOpen(false);
       if (!readingEssayId) return;
-      const essay = essays.find((e) => e.id === readingEssayId);
+      const essay = essays.find((es) => es.id === readingEssayId);
       if (!essay) return;
-      const label = essay.title
-        || (essay.body ? essay.body.trim().slice(0, 48).replace(/\s+/g, " ") + (essay.body.length > 48 ? "…" : "") : "Untitled");
-      if (confirm(`Delete "${label}"? This can't be undone.`)) {
-        store.deleteEssay(essay.id);
+      if (action === "archive") {
+        store.archiveEssay(essay.id);
+      } else if (action === "delete") {
+        const label = essay.title
+          || (essay.body ? essay.body.trim().slice(0, 48).replace(/\s+/g, " ") + (essay.body.length > 48 ? "…" : "") : "Untitled");
+        if (confirm(`Delete "${label}"? This can't be undone.`)) {
+          store.deleteEssay(essay.id);
+        }
       }
     });
+    document.addEventListener("click", (e) => {
+      if (readMenuPop.hidden) return;
+      if (readMenuTrigger.contains(e.target)) return;
+      if (readMenuPop.contains(e.target)) return;
+      setMenuOpen(false);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !readMenuPop.hidden) setMenuOpen(false);
+    });
+    // Expose so view-switchers (showFeed, showRead) can collapse the
+    // popup when the read view is replaced or rerendered.
+    window.tinkerCloseReadMenu = () => setMenuOpen(false);
   }
 
   // Tell writing.js how to ask the renderer to do things.

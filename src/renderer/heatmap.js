@@ -567,6 +567,7 @@
     const items = [];
     for (const essay of allEssays) {
       if (!essay || !essay.seed) continue;
+      if (essay.archived) continue;
       const seedKey = normCat(essay.seed);
       const stored = state.seeds[seedKey];
       if (!stored || !Array.isArray(stored.paths)) continue;
