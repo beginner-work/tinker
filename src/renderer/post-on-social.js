@@ -297,10 +297,15 @@
               `<stop offset="75%" stop-color="#7dd3fc"/>` +
               `<stop offset="100%" stop-color="#c4b5fd"/>` +
             `</linearGradient></defs>` +
-            `<path class="thinking-worm__line" d="M 2 12 Q 30 12 58 12">` +
-              `<animate attributeName="d" dur="2.4s" repeatCount="indefinite" ` +
-                `calcMode="spline" keyTimes="0;0.5;1" keySplines="0.42 0 0.58 1;0.42 0 0.58 1" ` +
-                `values="M 2 12 Q 30 12 58 12;M 8 12 Q 30 -2 52 12;M 2 12 Q 30 12 58 12"/>` +
+            `<path class="thinking-worm__line" d="M 2 12 L 22 12 Q 30 12 38 12 L 58 12">` +
+              `<animate attributeName="d" dur="2.8s" repeatCount="indefinite" ` +
+                `calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" ` +
+                `keySplines="0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1" ` +
+                `values="M 2 12 L 22 12 Q 30 12 38 12 L 58 12;` +
+                        `M 4 12 L 24 12 Q 32  2 40 12 L 60 12;` +
+                        `M 2 12 L 22 12 Q 30 12 38 12 L 58 12;` +
+                        `M 0 12 L 20 12 Q 28 22 36 12 L 56 12;` +
+                        `M 2 12 L 22 12 Q 30 12 38 12 L 58 12"/>` +
             `</path>` +
           `</svg>` +
         `</div>` +
