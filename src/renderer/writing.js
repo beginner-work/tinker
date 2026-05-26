@@ -53,6 +53,12 @@
 
   const SEED_QUESTION = "What are you learning?";
 
+  // Midpoint of the 5–9 target range named in SYSTEM_PROMPT rule 4.
+  // The interviewer stops when the founder has said enough, so this is
+  // a planning anchor — used to draw ghost progress dots and to size up
+  // the step counter — not a hard cap.
+  const TARGET_TOTAL = 7;
+
   // ── DOM refs ─────────────────────────────────────────────────────────
   const stage = document.getElementById("writing-stage");
   const progressEl = document.getElementById("writing-progress");
@@ -290,20 +296,33 @@
     const isReview = active.stitched && step >= totalAsked;
 
     // Progress dots: one per asked-or-answered slot, plus a "review"
-    // pip when a stitched essay exists.
+    // pip when a stitched essay exists. While still gathering, pad up
+    // to TARGET_TOTAL so founders can see how much further they have
+    // to go instead of the interview feeling open-ended; once stitched,
+    // the gathering phase is over and we show the real total only.
     progressEl.innerHTML = "";
-    const slots = totalAsked + (active.stitched ? 1 : 0);
+    const expectedTotal = active.stitched
+      ? totalAsked
+      : Math.max(totalAsked, TARGET_TOTAL);
+    const slots = expectedTotal + (active.stitched ? 1 : 0);
     for (let i = 0; i < slots; i++) {
       const d = document.createElement("span");
       d.className = "progress-dot";
       if (i === step) d.dataset.active = "";
-      if (i < step) d.dataset.done = "";
+      else if (i < step) d.dataset.done = "";
+      else if (i >= totalAsked) d.dataset.future = "";
       progressEl.appendChild(d);
     }
 
-    stepEl.textContent = isReview
-      ? "Review"
-      : `Question ${Math.min(step + 1, Math.max(totalAsked, 1))}`;
+    if (isReview) {
+      stepEl.textContent = "Review";
+    } else {
+      const n = Math.min(step + 1, Math.max(totalAsked, 1));
+      const knownTotal = active.stitched || totalAsked > TARGET_TOTAL;
+      stepEl.textContent = knownTotal
+        ? `Question ${n} of ${totalAsked}`
+        : `Question ${n} of about ${TARGET_TOTAL}`;
+    }
 
     nextBtn.hidden = false;
     nextBtn.disabled = false;

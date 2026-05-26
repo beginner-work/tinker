@@ -1061,6 +1061,10 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 }
 .progress-dot[data-done] { background: var(--color-leaf); }
 .progress-dot[data-active] { background: var(--color-accent-strong); transform: scale(1.4); }
+.progress-dot[data-future] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
 
 .writing__step {
   font-size: 12px;
