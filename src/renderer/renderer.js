@@ -946,34 +946,49 @@
   const navPostOnSocial = $("#nav-post-on-social");
   if (navPostOnSocial) navPostOnSocial.addEventListener("click", () => showPostOnSocial());
 
-  // Fundraising accounts: collapsible glass pane in the sidebar.
-  // Default state is collapsed; the founder opens it by tapping the
-  // header pill. Open/closed persists across reloads via localStorage
-  // so the section stays where the founder left it.
-  const FUNDRAISING_KEY = "tinker.fundraisingAccountsOpen.v1";
-  const fundraisingEl = $("[data-fundraising-accounts]");
-  const fundraisingToggle = $("#nav-fundraising-toggle");
-  if (fundraisingEl && fundraisingToggle) {
-    let initialOpen = false;
-    try { initialOpen = localStorage.getItem(FUNDRAISING_KEY) === "1"; }
-    catch { /* ignore */ }
-    function setFundraisingOpen(open) {
-      if (open) fundraisingEl.setAttribute("data-open", "");
-      else fundraisingEl.removeAttribute("data-open");
-      fundraisingToggle.setAttribute("aria-expanded", open ? "true" : "false");
-      try { localStorage.setItem(FUNDRAISING_KEY, open ? "1" : "0"); }
-      catch { /* ignore */ }
+  // Top-right "more" chip: circular glass three-dot button anchored
+  // in .sidebar__top. Tapping it toggles the account popover with
+  // Receipts, Post on Social, Share, and the Upgrade CTA. Closes on
+  // outside-click, Escape, or after the founder picks a menu item.
+  const moreWrap = $("[data-sidebar-more]");
+  const moreToggle = $("#nav-more-toggle");
+  const moreMenu = $("#sidebar-more-menu");
+  if (moreWrap && moreToggle && moreMenu) {
+    function setMoreOpen(open) {
+      moreMenu.hidden = !open;
+      moreToggle.setAttribute("aria-expanded", open ? "true" : "false");
     }
-    setFundraisingOpen(initialOpen);
-    fundraisingToggle.addEventListener("click", () => {
-      const isOpen = fundraisingEl.hasAttribute("data-open");
-      setFundraisingOpen(!isOpen);
+    setMoreOpen(false);
+    moreToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setMoreOpen(moreMenu.hidden);
+    });
+    // Any click inside the menu (on a real menuitem) closes it after
+    // the action fires. The individual item handlers (showReceipts,
+    // showPostOnSocial, share, upgrade) keep their own event listeners
+    // — we just add this one to dismiss the popover.
+    moreMenu.addEventListener("click", (e) => {
+      const item = e.target && e.target.closest && e.target.closest("[role=menuitem]");
+      if (item) setMoreOpen(false);
+    });
+    document.addEventListener("click", (e) => {
+      if (moreMenu.hidden) return;
+      if (moreWrap.contains(e.target)) return;
+      setMoreOpen(false);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !moreMenu.hidden) {
+        setMoreOpen(false);
+        moreToggle.focus();
+      }
     });
   }
 
-  // Pre-seed upgrade: hand off to Stripe via the subscription module,
-  // and hide the button once the tier is active. The hide/show step
-  // also runs on boot so a paid founder doesn't see the button at all.
+  // Pre-seed upgrade menu item: hand off to Stripe via the
+  // subscription module. The item lives inside the three-dot popover
+  // (above). Hide it once the tier is active so paid founders don't
+  // see it. syncUpgradeButton also runs on boot to settle the
+  // initial state.
   const navUpgrade = $("#nav-upgrade-preseed");
   function syncUpgradeButton() {
     if (!navUpgrade) return;
