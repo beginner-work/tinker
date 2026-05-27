@@ -65,13 +65,19 @@ Required Vercel env vars:
 - `STYTCH_SECRET`
 - `ANTHROPIC_API_KEY`
 - `DATABASE_URL`
-- `STRIPE_WEBHOOK_SECRET` — signing secret for `/api/stripe-webhook`;
-  add a webhook endpoint in the Stripe Dashboard pointing at
-  `https://<host>/api/stripe-webhook`, subscribe it to
-  `checkout.session.completed` (and optionally
-  `customer.subscription.deleted`), and paste the `whsec_…` value
-  here. Without it the webhook 503s and pre-seed entitlements
-  never flip to active.
+- `STRIPE_SECRET_KEY` — the standard `sk_test_*` / `sk_live_*` key.
+  Used by `/api/checkout/preseed` to create a Stripe Checkout Session
+  pinned to the calling founder's Stytch user_id, and by
+  `/api/checkout/verify` to confirm the session was paid before
+  flipping the `TinkerUserData{ kind:"subscription" }` row to active.
+  No webhook setup or `whsec_…` secret is required for the upgrade
+  flow itself — the verification round-trips through the same
+  STRIPE_SECRET_KEY at session-return time.
+- `STRIPE_WEBHOOK_SECRET` — *optional.* Only needed if you also want
+  `/api/stripe-webhook` to deactivate the row on
+  `customer.subscription.deleted` events from Stripe. Without it the
+  endpoint returns 503 and active rows never auto-deactivate, but
+  the upgrade flow still works end-to-end.
 - `BROWSERBASE_API_KEY` — used by `scripts/browserbase-debug.js`
 - `BROWSERBASE_PROJECT_ID` — used by `scripts/browserbase-debug.js`
 
