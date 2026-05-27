@@ -65,6 +65,13 @@ Required Vercel env vars:
 - `STYTCH_SECRET`
 - `ANTHROPIC_API_KEY`
 - `DATABASE_URL`
+- `STRIPE_WEBHOOK_SECRET` — signing secret for `/api/stripe-webhook`;
+  add a webhook endpoint in the Stripe Dashboard pointing at
+  `https://<host>/api/stripe-webhook`, subscribe it to
+  `checkout.session.completed` (and optionally
+  `customer.subscription.deleted`), and paste the `whsec_…` value
+  here. Without it the webhook 503s and pre-seed entitlements
+  never flip to active.
 - `BROWSERBASE_API_KEY` — used by `scripts/browserbase-debug.js`
 - `BROWSERBASE_PROJECT_ID` — used by `scripts/browserbase-debug.js`
 

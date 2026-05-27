@@ -5,32 +5,43 @@
  * every pitch except the most robust one renders blurred in the
  * sidebar dropdown (see sidebar-tree.js).
  *
- * Storage:
- *   - tinker.subscription.v1
- *       {
- *         tier: "preseed" | null,
- *         status: "active" | "inactive",
- *         activatedAt: <ts> | null,
- *       }
+ * Source of truth is server-side: TinkerUserData{ userId,
+ * kind:"subscription" }, written by /api/stripe-webhook on
+ * checkout.session.completed and read by the client via
+ * /api/user-data/subscription. localStorage is a synchronous cache
+ * the sidebar can read on render — never the authority.
  *
- * Activation paths:
- *   1. The Stripe payment link's success URL is configured to redirect
- *      back to the app with ?preseed=success. On boot, if that query
- *      param is present, we mark the tier active and strip the param
- *      from the URL so reloads don't re-trigger any UI.
- *   2. window.tinkerSubscription.activatePreseed() — callable from the
- *      upgrade button click handler or the inspector for manual
- *      activation during dev.
+ * Boot flow:
  *
- * Events:
- *   - "tinker:subscription-changed"   the active tier changed.
+ *   1. On load (and whenever the tab becomes visible again), GET
+ *      /api/user-data/subscription with the Stytch session token.
+ *      Mirror the server's blob into localStorage and fire
+ *      "tinker:subscription-changed" if the active state moved.
+ *   2. The sidebar reads isPreseed() synchronously on render.
+ *
+ * Upgrade flow:
+ *
+ *   1. Click the indigo "Upgrade to pre-seed" button in the sidebar
+ *      → renderer.js calls startCheckout().
+ *   2. startCheckout() POSTs /api/checkout/preseed, which mints a
+ *      Stripe URL with client_reference_id=<userId> set. We navigate
+ *      to that URL in the same window.
+ *   3. The founder pays on Stripe; Stripe fires the
+ *      checkout.session.completed webhook back to us with that
+ *      client_reference_id. /api/stripe-webhook writes the row.
+ *   4. When the founder returns to the tab, the visibilitychange
+ *      hydrate above picks up the new row and the sidebar re-renders.
+ *
+ * Local dev override: window.tinkerSubscription.activatePreseed()
+ * still works without hitting Stripe — it PUTs a dev-source row to
+ * the same table so it persists per-user just like the real one.
  */
 
 (() => {
   "use strict";
 
   const STORAGE_KEY = "tinker.subscription.v1";
-  const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/bJe5kx8Owdx70nA9973F605";
+  const TOKEN_KEY = "tinker_jwt";
 
   function load() {
     try {
@@ -51,50 +62,100 @@
     catch { /* ignore */ }
   }
 
+  function token() {
+    try { return localStorage.getItem(TOKEN_KEY) || ""; }
+    catch { return ""; }
+  }
+
+  function isActive(blob) {
+    return !!(blob && blob.tier === "preseed" && blob.status === "active");
+  }
+
   function getSubscription() {
     return load();
   }
 
   function isPreseed() {
-    const s = load();
-    return !!(s && s.tier === "preseed" && s.status === "active");
+    return isActive(load());
   }
 
-  function activatePreseed() {
-    const next = {
+  // Apply an incoming server (or local-dev) blob to localStorage.
+  // Returns true if the active state flipped.
+  function applyServerBlob(blob) {
+    const prevActive = isActive(load());
+    if (blob && typeof blob === "object") {
+      save(blob);
+    } else {
+      try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+    }
+    const nextActive = isActive(load());
+    if (prevActive !== nextActive) fire();
+    return prevActive !== nextActive;
+  }
+
+  async function hydrate() {
+    const t = token();
+    if (!t) return;
+    let res;
+    try {
+      res = await fetch("/api/user-data/subscription", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${t}` },
+      });
+    } catch { return; }
+    if (!res.ok) return;
+    let json;
+    try { json = await res.json(); } catch { return; }
+    const data = json && Object.prototype.hasOwnProperty.call(json, "data") ? json.data : null;
+    applyServerBlob(data);
+  }
+
+  async function startCheckout() {
+    const t = token();
+    if (!t) return;
+    let res;
+    try {
+      res = await fetch("/api/checkout/preseed", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${t}` },
+      });
+    } catch {
+      return;
+    }
+    if (!res.ok) return;
+    let json;
+    try { json = await res.json(); } catch { return; }
+    if (!json || typeof json.url !== "string") return;
+    // Same-window navigation so the post-payment redirect lands back
+    // in the app; localStorage and the server-side row both round-trip
+    // cleanly on the return.
+    window.location.href = json.url;
+  }
+
+  // Local-dev override: PUTs a "dev"-source row to the same table so
+  // the unlock persists per-user even without going through Stripe.
+  // Useful for the inspector and for tests on preview deployments.
+  async function activatePreseed() {
+    const blob = {
       tier: "preseed",
       status: "active",
       activatedAt: Date.now(),
+      source: "manual",
     };
-    const current = load();
-    if (current && current.tier === next.tier && current.status === next.status) {
-      return false;
-    }
-    save(next);
-    fire();
-    return true;
-  }
-
-  function startCheckout() {
-    // Hand off to Stripe in the same window so the configured success
-    // redirect lands back here with ?preseed=success — see activation
-    // path #1 above. localStorage holds every consumer module's state,
-    // so the round-trip rehydrates cleanly.
-    window.location.href = STRIPE_PAYMENT_LINK;
-  }
-
-  // Activation path #1: check the URL for ?preseed=success on boot.
-  // Strip the param afterwards so a reload doesn't keep the marker in
-  // the address bar.
-  function consumeSuccessRedirect() {
+    applyServerBlob(blob);
+    const t = token();
+    if (!t) return true;
     try {
-      const url = new URL(window.location.href);
-      if (url.searchParams.get("preseed") !== "success") return;
-      url.searchParams.delete("preseed");
-      activatePreseed();
-      const cleaned = url.pathname + (url.search ? url.search : "") + (url.hash || "");
-      window.history.replaceState({}, "", cleaned);
-    } catch { /* ignore */ }
+      await fetch("/api/user-data/subscription", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${t}`,
+        },
+        body: JSON.stringify({ data: blob }),
+      });
+    } catch { /* best-effort */ }
+    return true;
   }
 
   window.tinkerSubscription = {
@@ -102,8 +163,15 @@
     isPreseed,
     activatePreseed,
     startCheckout,
-    STRIPE_PAYMENT_LINK,
+    hydrate,
   };
 
-  consumeSuccessRedirect();
+  // Hydrate as soon as a token is available, and again whenever the
+  // tab returns to the foreground — that's the moment the founder
+  // comes back from Stripe checkout.
+  hydrate();
+  window.addEventListener("tinker:auth-changed", () => { hydrate(); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") hydrate();
+  });
 })();

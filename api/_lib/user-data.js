@@ -11,7 +11,7 @@
 
 "use strict";
 
-const { authenticateSession } = require("./stytch.js");
+const { resolveUserId } = require("./auth-user.js");
 const prisma = require("./db.js");
 const { withResponseLogging } = require("./log.js");
 
@@ -19,12 +19,6 @@ const { withResponseLogging } = require("./log.js");
 // busy users (hundreds of essays) stay well under this; anything larger
 // is almost certainly a bug.
 const MAX_BYTES = 256 * 1024;
-
-function extractBearer(header) {
-  if (!header || typeof header !== "string") return "";
-  const m = header.match(/^Bearer\s+(\S+)$/i);
-  return m ? m[1] : "";
-}
 
 function readJsonBody(req) {
   if (req.body && typeof req.body === "object") return Promise.resolve(req.body);
@@ -48,19 +42,6 @@ function readJsonBody(req) {
     });
     req.on("error", reject);
   });
-}
-
-async function resolveUserId(req) {
-  const token = extractBearer(req.headers && req.headers.authorization);
-  const session = await authenticateSession(token);
-  const userId =
-    (session && session.session && session.session.user_id) ||
-    (session && session.user && session.user.user_id) ||
-    "";
-  if (!userId) {
-    throw Object.assign(new Error("Session missing user id"), { status: 401 });
-  }
-  return userId;
 }
 
 function makeHandler(kind) {
