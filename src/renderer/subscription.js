@@ -115,24 +115,56 @@
 
   async function startCheckout() {
     const t = token();
-    if (!t) return;
+    if (!t) {
+      reportCheckoutError("Sign in first, then try the upgrade again.");
+      return;
+    }
     let res;
     try {
       res = await fetch("/api/checkout/preseed", {
         method: "POST",
         headers: { Authorization: `Bearer ${t}` },
       });
-    } catch {
+    } catch (err) {
+      reportCheckoutError(`Couldn't reach the checkout endpoint (${err && err.message ? err.message : "network error"}).`);
       return;
     }
-    if (!res.ok) return;
-    let json;
-    try { json = await res.json(); } catch { return; }
-    if (!json || typeof json.url !== "string") return;
+    let json = null;
+    try { json = await res.json(); } catch { /* ignore */ }
+    if (!res.ok) {
+      const detail = (json && json.error) || `HTTP ${res.status}`;
+      reportCheckoutError(detail);
+      return;
+    }
+    if (!json || typeof json.url !== "string") {
+      reportCheckoutError("Stripe didn't return a checkout URL.");
+      return;
+    }
     // Same-window navigation so Stripe's success_url redirect lands
     // back in the app and the boot-time consumeReturnRedirect() call
     // can finalize the upgrade.
     window.location.href = json.url;
+  }
+
+  // Quiet inline error UI: a one-line banner under the indigo
+  // Upgrade button. Surfaces the actual server error message
+  // (e.g. "Stripe is not configured…") so a failing click doesn't
+  // look like a no-op. The banner clears itself on the next click.
+  function reportCheckoutError(message) {
+    try { console.error("[tinker:subscription]", message); }
+    catch { /* ignore */ }
+    const btn = document.getElementById("nav-upgrade-preseed");
+    if (!btn || !btn.parentNode) return;
+    let banner = document.getElementById("nav-upgrade-error");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "nav-upgrade-error";
+      banner.className = "sidebar__upgrade-error";
+      banner.setAttribute("role", "alert");
+      btn.parentNode.insertBefore(banner, btn.nextSibling);
+    }
+    banner.textContent = `Upgrade unavailable: ${message}`;
+    banner.hidden = false;
   }
 
   // Boot path #1: the URL came back from Stripe with the session id.

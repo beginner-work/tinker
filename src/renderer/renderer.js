@@ -946,6 +946,31 @@
   const navPostOnSocial = $("#nav-post-on-social");
   if (navPostOnSocial) navPostOnSocial.addEventListener("click", () => showPostOnSocial());
 
+  // Fundraising accounts: collapsible glass pane in the sidebar.
+  // Default state is collapsed; the founder opens it by tapping the
+  // header pill. Open/closed persists across reloads via localStorage
+  // so the section stays where the founder left it.
+  const FUNDRAISING_KEY = "tinker.fundraisingAccountsOpen.v1";
+  const fundraisingEl = $("[data-fundraising-accounts]");
+  const fundraisingToggle = $("#nav-fundraising-toggle");
+  if (fundraisingEl && fundraisingToggle) {
+    let initialOpen = false;
+    try { initialOpen = localStorage.getItem(FUNDRAISING_KEY) === "1"; }
+    catch { /* ignore */ }
+    function setFundraisingOpen(open) {
+      if (open) fundraisingEl.setAttribute("data-open", "");
+      else fundraisingEl.removeAttribute("data-open");
+      fundraisingToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      try { localStorage.setItem(FUNDRAISING_KEY, open ? "1" : "0"); }
+      catch { /* ignore */ }
+    }
+    setFundraisingOpen(initialOpen);
+    fundraisingToggle.addEventListener("click", () => {
+      const isOpen = fundraisingEl.hasAttribute("data-open");
+      setFundraisingOpen(!isOpen);
+    });
+  }
+
   // Pre-seed upgrade: hand off to Stripe via the subscription module,
   // and hide the button once the tier is active. The hide/show step
   // also runs on boot so a paid founder doesn't see the button at all.

@@ -28,15 +28,26 @@ const STRIPE_API = "https://api.stripe.com/v1";
 // know about it.
 const PAYMENT_LINK_URL = "https://buy.stripe.com/bJe5kx8Owdx70nA9973F605";
 
+// Some Vercel integrations name the secret STRIPE_API_KEY rather than
+// STRIPE_SECRET_KEY. Read the first one that's present; surface a
+// clear "not configured" error otherwise so the client can show it
+// instead of failing silently.
+const SECRET_ENV_NAMES = ["STRIPE_SECRET_KEY", "STRIPE_API_KEY"];
+
 function readSecret() {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) {
-    throw Object.assign(
-      new Error("Stripe is not configured on this deployment."),
-      { status: 503 },
-    );
+  for (const name of SECRET_ENV_NAMES) {
+    if (process.env[name]) return process.env[name];
   }
-  return key;
+  throw Object.assign(
+    new Error(
+      `Stripe is not configured on this deployment — set one of ${SECRET_ENV_NAMES.join(" / ")} on the Vercel project.`,
+    ),
+    { status: 503 },
+  );
+}
+
+function isConfigured() {
+  return SECRET_ENV_NAMES.some((name) => Boolean(process.env[name]));
 }
 
 function authHeader() {
@@ -149,6 +160,7 @@ async function retrieveCheckoutSession(sessionId) {
 
 module.exports = {
   PAYMENT_LINK_URL,
+  isConfigured,
   discoverPreseedPriceId,
   createCheckoutSession,
   retrieveCheckoutSession,

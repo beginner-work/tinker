@@ -132,37 +132,77 @@ html.on-web .sidebar__top {
 }
 .sidebar__footer-copy { padding: 0 6px; font-size: 12px; }
 
-/* "Fundraising accounts" — a single pane of glass.
+/* "Fundraising accounts" — a collapsible glass-pane component.
  *
- * The whole block reads as one cohesive surface: a rounded glass
- * container with the same backdrop-blur treatment as .sidebar__brand,
- * containing the heading, the action rows, and the indigo pre-seed
- * upgrade CTA. No per-row pill hover, no inner separators — items
- * pick up a quiet text-colour shift on hover so the surface stays
- * one continuous pane. */
+ * Collapsed (default) the pane is a single pill of glass: just the
+ * section title and a caret. Tapping the toggle expands the body
+ * with the action rows and the pre-seed upgrade CTA. The whole
+ * block reads as one cohesive surface — backdrop-blur, soft shadow,
+ * translucent border — like .sidebar__brand at the top of the
+ * sidebar. The expand/collapse animates via a grid-template-rows
+ * trick so a CSS height transition works without measuring DOM.
+ *
+ * State: data-open is toggled by renderer.js and persisted in
+ * localStorage. ARIA: the toggle button owns aria-expanded and
+ * aria-controls pointing at the body. */
 .sidebar__account {
   margin: 8px;
-  padding: 10px 8px 8px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.45);
   backdrop-filter: blur(18px) url(#liquid-glass) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   border: 1px solid rgba(255, 255, 255, 0.55);
   box-shadow: 0 1px 2px rgba(45, 90, 61, 0.04), 0 6px 18px rgba(45, 90, 61, 0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   -webkit-app-region: no-drag;
+  overflow: hidden;
 }
+.sidebar__account-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--color-muted);
+  transition: color 0.15s ease;
+}
+.sidebar__account-toggle:hover { color: var(--color-foreground); }
 .sidebar__account-head {
-  margin: 0;
-  padding: 2px 10px 6px;
   font-family: var(--font-display);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-muted);
+  color: inherit;
+}
+.sidebar__account-caret {
+  color: inherit;
+  flex-shrink: 0;
+  transform: rotate(-90deg);
+  transition: transform 0.2s ease;
+}
+.sidebar__account[data-open] .sidebar__account-caret {
+  transform: rotate(0deg);
+}
+/* The grid-template-rows: 0fr → 1fr trick smoothly animates between
+ * collapsed and the body's intrinsic height without JS measurement. */
+.sidebar__account-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+}
+.sidebar__account[data-open] .sidebar__account-body {
+  grid-template-rows: 1fr;
+}
+.sidebar__account-body-inner {
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 8px 10px;
 }
 .sidebar__account-list {
   list-style: none;
@@ -231,6 +271,20 @@ html.on-web .sidebar__top {
 }
 .sidebar__upgrade:hover { background: var(--color-accent-press, #4f46e5); }
 .sidebar__upgrade:active { transform: scale(0.98); }
+/* One-line failure banner below the indigo upgrade button. Shows the
+ * actual server error so a click that can't reach Stripe doesn't
+ * silently look like a no-op. Styled to match the cream error palette
+ * (.error-bg / .error-border tokens). */
+.sidebar__upgrade-error {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--color-error-bg, #fdf0eb);
+  border: 1px solid var(--color-error-border, #f0d3c5);
+  color: #8a3a1c;
+  font-size: 11px;
+  line-height: 1.35;
+}
 .sidebar__upgrade-label {
   font-size: 13px;
   font-weight: 600;

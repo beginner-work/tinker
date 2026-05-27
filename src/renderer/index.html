@@ -117,52 +117,70 @@
         <ul class="sidebar__tree-list"></ul>
       </nav>
 
-      <nav class="sidebar__account" aria-label="Fundraising accounts">
-        <h2 class="sidebar__account-head">Fundraising accounts</h2>
-        <ul class="sidebar__account-list">
-          <li>
-            <button id="nav-receipts" type="button" class="sidebar__account-item">
-              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
-                <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                <path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-              </svg>
-              <span class="sidebar__account-label">Receipts</span>
-            </button>
-          </li>
-          <li>
-            <button id="nav-post-on-social" type="button" class="sidebar__account-item">
-              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
-                <path d="M21 3L3 10.5l7 2 2 7L21 3z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 12.5L21 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-              </svg>
-              <span class="sidebar__account-label">Post on Social</span>
-            </button>
-          </li>
-          <!-- Share button: revealed by share.js only when the app is
-               running as an installed PWA (standalone) or inside a
-               wrapped runtime (Capacitor). Stays hidden in plain
-               browser tabs and on Electron desktop, where the OS
-               already exposes "Share Link" through the URL bar. -->
-          <li>
-            <button id="nav-share" type="button" class="sidebar__account-item" hidden>
-              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
-                <path d="M12 4v10M8.5 7.5L12 4l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6 12v7h12v-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span class="sidebar__account-label">Share tinker</span>
-              <span class="sidebar__account-flash" data-share-flash aria-live="polite"></span>
-            </button>
-          </li>
-        </ul>
-        <!-- Pre-seed upgrade. Sits at the bottom of the Account block;
-             shown when the founder hasn't paid yet, hidden by
-             subscription.js once the tier is active. The handoff to
-             Stripe is wired in renderer.js. -->
-        <button id="nav-upgrade-preseed" type="button"
-                class="sidebar__upgrade" data-audit-ignore>
-          <span class="sidebar__upgrade-label">Upgrade to pre-seed</span>
-          <span class="sidebar__upgrade-price">$8 / month</span>
+      <!-- Fundraising accounts — a collapsible glass-pane component.
+           Collapsed (default) it reads as a single pill of glass with
+           the section title and a caret; tapping it expands the body
+           with the action rows and the pre-seed upgrade CTA. The
+           open/closed state persists across loads via
+           localStorage("tinker.fundraisingAccountsOpen.v1"); see
+           renderer.js for the toggle handler. -->
+      <nav class="sidebar__account" aria-label="Fundraising accounts" data-fundraising-accounts>
+        <button id="nav-fundraising-toggle" type="button"
+                class="sidebar__account-toggle"
+                aria-expanded="false"
+                aria-controls="sidebar-fundraising-body">
+          <span class="sidebar__account-head">Fundraising accounts</span>
+          <svg class="sidebar__account-caret" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" fill="none">
+            <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </button>
+        <div id="sidebar-fundraising-body" class="sidebar__account-body">
+          <div class="sidebar__account-body-inner">
+            <ul class="sidebar__account-list">
+              <li>
+                <button id="nav-receipts" type="button" class="sidebar__account-item">
+                  <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                    <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                    <path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                  </svg>
+                  <span class="sidebar__account-label">Receipts</span>
+                </button>
+              </li>
+              <li>
+                <button id="nav-post-on-social" type="button" class="sidebar__account-item">
+                  <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                    <path d="M21 3L3 10.5l7 2 2 7L21 3z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M10 12.5L21 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                  </svg>
+                  <span class="sidebar__account-label">Post on Social</span>
+                </button>
+              </li>
+              <!-- Share button: revealed by share.js only when the app is
+                   running as an installed PWA (standalone) or inside a
+                   wrapped runtime (Capacitor). Stays hidden in plain
+                   browser tabs and on Electron desktop, where the OS
+                   already exposes "Share Link" through the URL bar. -->
+              <li>
+                <button id="nav-share" type="button" class="sidebar__account-item" hidden>
+                  <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                    <path d="M12 4v10M8.5 7.5L12 4l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M6 12v7h12v-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span class="sidebar__account-label">Share tinker</span>
+                  <span class="sidebar__account-flash" data-share-flash aria-live="polite"></span>
+                </button>
+              </li>
+            </ul>
+            <!-- Pre-seed upgrade. Hidden by subscription.js once the
+                 tier is active. The handoff to Stripe is wired in
+                 renderer.js. -->
+            <button id="nav-upgrade-preseed" type="button"
+                    class="sidebar__upgrade" data-audit-ignore>
+              <span class="sidebar__upgrade-label">Upgrade to pre-seed</span>
+              <span class="sidebar__upgrade-price">$8 / month</span>
+            </button>
+          </div>
+        </div>
       </nav>
 
       <footer class="sidebar__footer">
