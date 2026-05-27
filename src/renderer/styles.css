@@ -132,17 +132,31 @@ html.on-web .sidebar__top {
 }
 .sidebar__footer-copy { padding: 0 6px; font-size: 12px; }
 
+/* "Fundraising accounts" — a single pane of glass.
+ *
+ * The whole block reads as one cohesive surface: a rounded glass
+ * container with the same backdrop-blur treatment as .sidebar__brand,
+ * containing the heading, the action rows, and the indigo pre-seed
+ * upgrade CTA. No per-row pill hover, no inner separators — items
+ * pick up a quiet text-colour shift on hover so the surface stays
+ * one continuous pane. */
 .sidebar__account {
-  padding: 8px 8px 10px;
-  border-top: 1px solid var(--color-border);
+  margin: 8px;
+  padding: 10px 8px 8px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(18px) url(#liquid-glass) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 1px 2px rgba(45, 90, 61, 0.04), 0 6px 18px rgba(45, 90, 61, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   -webkit-app-region: no-drag;
 }
 .sidebar__account-head {
   margin: 0;
-  padding: 6px 10px 4px;
+  padding: 2px 10px 6px;
   font-family: var(--font-display);
   font-size: 11px;
   font-weight: 700;
@@ -156,7 +170,6 @@ html.on-web .sidebar__top {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 .sidebar__account-item {
   display: inline-flex;
@@ -172,10 +185,18 @@ html.on-web .sidebar__top {
   font-size: 14px;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 .sidebar__account-item:hover { background: var(--color-hover); }
-.sidebar__account-icon { color: var(--color-muted); flex-shrink: 0; }
+.sidebar__account-icon { color: var(--color-muted); flex-shrink: 0; transition: color 0.15s ease; }
+/* Inside the glass pane the per-row pill hover would compete with
+ * the single-surface read; quiet it down to a colour shift on hover
+ * so the pane stays one cohesive surface. The pitch-tree still uses
+ * .sidebar__account-item outside the pane and keeps its row-pill
+ * hover from the base rule above. */
+.sidebar__account .sidebar__account-item { padding: 7px 10px; border-radius: 0; }
+.sidebar__account .sidebar__account-item:hover { color: var(--color-accent-strong); background: transparent; }
+.sidebar__account .sidebar__account-item:hover .sidebar__account-icon { color: var(--color-accent-strong); }
 .sidebar__account-flash {
   margin-left: auto;
   font-size: 12px;
@@ -185,9 +206,11 @@ html.on-web .sidebar__top {
 }
 .sidebar__account-flash.is-visible { opacity: 1; }
 
-/* Indigo pre-seed upgrade button. Sits below the account-list at the
- * bottom of the Account block. Hidden via the [hidden] attribute once
- * subscription.js confirms the tier is active. */
+/* Pre-seed upgrade CTA. Lives inside the glass pane and stays the
+ * sole indigo accent — it's the only surface that intentionally
+ * stands out against the otherwise quiet glass. Hidden via the
+ * [hidden] attribute once subscription.js confirms the tier is
+ * active. */
 .sidebar__upgrade {
   display: flex;
   flex-direction: column;
@@ -195,7 +218,8 @@ html.on-web .sidebar__top {
   gap: 2px;
   width: 100%;
   margin-top: 8px;
-  padding: 10px 12px;
+  padding: 9px 12px;
+  border: 0;
   border-radius: 10px;
   background: var(--color-accent-strong);
   color: #fff;
@@ -596,24 +620,8 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   color: var(--color-accent-strong);
   background: var(--color-accent-dim);
 }
-.sidebar__pitch-action--primary {
-  background: var(--color-accent-strong);
-  color: #fff;
-  border: 1px solid var(--color-accent-strong);
-  box-shadow: var(--shadow-purple);
-}
-.sidebar__pitch-action--primary:not(:disabled):hover {
-  background: #4f46e5;
-  border-color: #4f46e5;
-}
 .sidebar__pitch-action:active { transform: scale(0.98); }
 .sidebar__pitch-action:disabled { opacity: 0.55; cursor: not-allowed; }
-/* Bottom-of-nav mount for the indigo "Pitch" go-forth button.
- * Sits below the eleven deck-heading rows. Padding matches the
- * switcher so the button aligns vertically with the chip above. */
-.sidebar__pitch-post {
-  padding: 6px 10px 10px;
-}
 .sidebar__pitch-rename-form {
   display: flex;
   gap: 4px;

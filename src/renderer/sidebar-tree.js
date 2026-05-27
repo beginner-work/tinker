@@ -150,9 +150,6 @@
   let progressBarEl = null;
   // Switcher = dropdown + rename UI. Created lazily inside navEl.
   let switcherEl = null;
-  // Post button sits at the very bottom of the deck nav, below the
-  // eleven slide rows. Created lazily inside navEl.
-  let postEl = null;
 
   function ensureMount() {
     navEl = document.querySelector(".sidebar__tree");
@@ -175,16 +172,11 @@
       }
     }
 
-    if (!postEl || !navEl.contains(postEl)) {
-      postEl = navEl.querySelector("[data-pitch-post]");
-      if (!postEl) {
-        postEl = document.createElement("div");
-        postEl.className = "sidebar__pitch-post";
-        postEl.setAttribute("data-pitch-post", "");
-        postEl.setAttribute("data-audit-ignore", "");
-        postEl.hidden = true;
-        navEl.appendChild(postEl);
-      }
+    // Clean up the legacy "Pitch (locked)" button mount if a previous
+    // session ever stamped one into the DOM. We no longer render it.
+    const stalePost = navEl.querySelector("[data-pitch-post]");
+    if (stalePost && stalePost.parentNode) {
+      stalePost.parentNode.removeChild(stalePost);
     }
   }
 
@@ -302,14 +294,12 @@
       navEl.hidden = true;
       listEl.innerHTML = "";
       if (switcherEl) { switcherEl.hidden = true; switcherEl.innerHTML = ""; }
-      if (postEl) { postEl.hidden = true; postEl.innerHTML = ""; }
       updateProgress(0);
       return;
     }
     navEl.hidden = false;
 
     renderSwitcher(pitches, activeId);
-    renderPost(pitches);
     if (progressEl) progressEl.hidden = false;
     updateProgress(coveredCount);
 
@@ -416,10 +406,7 @@
   // shows the active pitch's title; tapping it expands the menu of
   // all pitches. Beneath the chip, a full-width outlined "Rename
   // pitch" button opens an inline rename input — same step-back
-  // treatment as .writing__end. The matching go-forth action — the
-  // indigo "Pitch" button — sits separately, at the very bottom of
-  // the deck nav (below all eleven slide rows), rendered via
-  // renderPost into its own mount. The whole surface sits inside
+  // treatment as .writing__end. The whole surface sits inside
   // [data-audit-ignore] because titles are model-generated or
   // founder-edited rather than verbatim founder phrases.
   let switcherOpen = false;
@@ -647,47 +634,6 @@
       });
       switcherEl.appendChild(form);
     }
-  }
-
-  // Renders the indigo "Pitch" button at the bottom of the deck nav.
-  // Permanently locked: the button shows a white lock icon and never
-  // fires — pitching is disabled regardless of completion progress.
-  function renderPost(pitches) {
-    if (!postEl) return;
-    if (!pitches || pitches.length === 0) {
-      postEl.hidden = true;
-      postEl.innerHTML = "";
-      return;
-    }
-    postEl.hidden = false;
-    postEl.innerHTML = "";
-
-    const post = document.createElement("button");
-    post.type = "button";
-    post.className = "sidebar__pitch-action sidebar__pitch-action--primary";
-    post.setAttribute("aria-label", "Pitch (locked)");
-    const pitchLabel = document.createElement("span");
-    pitchLabel.textContent = "Pitch";
-    post.appendChild(pitchLabel);
-    const lockIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    lockIcon.setAttribute("width", "12");
-    lockIcon.setAttribute("height", "14");
-    lockIcon.setAttribute("viewBox", "0 0 24 28");
-    lockIcon.setAttribute("aria-hidden", "true");
-    lockIcon.style.marginLeft = "6px";
-    const lockPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    lockPath.setAttribute(
-      "d",
-      "M12 2a6 6 0 0 0-6 6v4H5a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V15a3 3 0 0 0-3-3h-1V8a6 6 0 0 0-6-6zm-4 10V8a4 4 0 0 1 8 0v4H8z"
-    );
-    lockPath.setAttribute("fill", "#fff");
-    lockIcon.appendChild(lockPath);
-    post.appendChild(lockIcon);
-    post.style.display = "inline-flex";
-    post.style.alignItems = "center";
-    post.style.justifyContent = "center";
-    post.disabled = true;
-    postEl.appendChild(post);
   }
 
   function updateProgress(coveredCount) {
