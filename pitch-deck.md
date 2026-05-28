@@ -426,11 +426,41 @@ style: |
     box-shadow: 0 4px 12px rgba(45, 42, 38, 0.08);
   }
   section.ask .ask-bar-segment { height: 100%; }
-  section.ask .ask-bar-segment.salary-y1  { background: #2d5a3d; flex-basis: 35%; }
-  section.ask .ask-bar-segment.salary-y2  { background: #7bc47a; flex-basis: 19%; }
-  section.ask .ask-bar-segment.running-y1 { background: #fdba74; flex-basis: 18%; }
-  section.ask .ask-bar-segment.discovery  { background: #f9a8d4; flex-basis: 15%; }
-  section.ask .ask-bar-segment.running-y2 { background: #fde68a; flex-basis: 13%; }
+  section.ask .ask-bar-segment.year1  { background: #2d5a3d; flex-basis: 53%; }
+  section.ask .ask-bar-segment.year2  { background: #7bc47a; flex-basis: 32%; }
+  section.ask .ask-bar-segment.beyond { background: #f9a8d4; flex-basis: 15%; }
+
+  section.ask .ask-section {
+    margin-top: 22px;
+  }
+  section.ask .ask-section:first-of-type { margin-top: 4px; }
+  section.ask .ask-section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ede8e0;
+    margin-bottom: 6px;
+  }
+  section.ask .ask-section-name {
+    font-family: "Inter", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6f6a65;
+  }
+  section.ask .ask-section-total {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 18px;
+    color: #2d5a3d;
+  }
+  section.ask .ask-section .ask-legend-item {
+    padding: 4px 0;
+  }
   section.ask .ask-legend {
     display: flex;
     flex-direction: column;
@@ -451,11 +481,9 @@ style: |
     flex-shrink: 0;
     transform: translateY(2px);
   }
-  section.ask .ask-legend-dot.salary-y1  { background: #2d5a3d; }
-  section.ask .ask-legend-dot.salary-y2  { background: #7bc47a; }
-  section.ask .ask-legend-dot.running-y1 { background: #fdba74; }
-  section.ask .ask-legend-dot.discovery  { background: #f9a8d4; }
-  section.ask .ask-legend-dot.running-y2 { background: #fde68a; }
+  section.ask .ask-legend-dot.year1  { background: #2d5a3d; }
+  section.ask .ask-legend-dot.year2  { background: #7bc47a; }
+  section.ask .ask-legend-dot.beyond { background: #f9a8d4; }
   section.ask .ask-legend-amount {
     font-family: "Fraunces", serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
@@ -827,19 +855,26 @@ style: |
 <p class="ask-period">18 months runway.</p>
 
 <div class="ask-bar">
-<span class="ask-bar-segment salary-y1"></span>
-<span class="ask-bar-segment salary-y2"></span>
-<span class="ask-bar-segment running-y1"></span>
-<span class="ask-bar-segment discovery"></span>
-<span class="ask-bar-segment running-y2"></span>
+<span class="ask-bar-segment year1"></span>
+<span class="ask-bar-segment year2"></span>
+<span class="ask-bar-segment beyond"></span>
 </div>
 
-<div class="ask-legend">
-<div class="ask-legend-item"><span class="ask-legend-dot salary-y1"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">founder salary, year 1</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot salary-y2"></span><span><span class="ask-legend-amount">$95K</span> &nbsp;<span class="ask-legend-label">founder salary, year 2 (first 6 mo)</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot running-y1"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs, year 1</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot discovery"></span><span><span class="ask-legend-amount">$75K</span> &nbsp;<span class="ask-legend-label">maker discovery + reserves</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot running-y2"></span><span><span class="ask-legend-amount">$65K</span> &nbsp;<span class="ask-legend-label">running costs, year 2 (first 6 mo)</span></span></div>
+<div class="ask-section">
+<div class="ask-section-head"><span class="ask-section-name">Year 1</span><span class="ask-section-total">$265K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">founder salary</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
+</div>
+
+<div class="ask-section">
+<div class="ask-section-head"><span class="ask-section-name">Year 2 (first 6 months)</span><span class="ask-section-total">$160K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$95K</span> &nbsp;<span class="ask-legend-label">founder salary (~6% inflation)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$65K</span> &nbsp;<span class="ask-legend-label">running costs (~45% scaling)</span></span></div>
+</div>
+
+<div class="ask-section">
+<div class="ask-section-head"><span class="ask-section-name">Beyond</span><span class="ask-section-total">$75K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot beyond"></span><span><span class="ask-legend-amount">$75K</span> &nbsp;<span class="ask-legend-label">maker discovery + reserves</span></span></div>
 </div>
 
 ---
