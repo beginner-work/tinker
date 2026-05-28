@@ -464,9 +464,9 @@ style: |
     box-shadow: 0 4px 12px rgba(45, 42, 38, 0.08);
   }
   section.ask .ask-bar-segment { height: 100%; }
-  section.ask .ask-bar-segment.year1  { background: #2d5a3d; flex-basis: 53%; }
-  section.ask .ask-bar-segment.year2  { background: #7bc47a; flex-basis: 32%; }
-  section.ask .ask-bar-segment.beyond { background: #f9a8d4; flex-basis: 15%; }
+  section.ask .ask-bar-segment.year1  { background: #2d5a3d; flex-basis: 58%; }
+  section.ask .ask-bar-segment.year2  { background: #7bc47a; flex-basis: 18%; }
+  section.ask .ask-bar-segment.beyond { background: #f9a8d4; flex-basis: 24%; }
 
   section.ask .ask-section {
     margin-top: 22px;
@@ -890,7 +890,7 @@ style: |
 
 <p class="ask-amount">$500,000</p>
 
-<p class="ask-period">18 months runway.</p>
+<p class="ask-period">15 months runway.</p>
 
 <div class="ask-bar">
 <span class="ask-bar-segment year1"></span>
@@ -899,20 +899,20 @@ style: |
 </div>
 
 <div class="ask-section">
-<div class="ask-section-head"><span class="ask-section-name">Year 1</span><span class="ask-section-total">$265K</span></div>
+<div class="ask-section-head"><span class="ask-section-name">Year 1</span><span class="ask-section-total">$290K</span></div>
 <div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">founder salary</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$115K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
 </div>
 
 <div class="ask-section">
-<div class="ask-section-head"><span class="ask-section-name">Year 2 (first 6 months)</span><span class="ask-section-total">$160K</span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$95K</span> &nbsp;<span class="ask-legend-label">founder salary (~6% inflation)</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$65K</span> &nbsp;<span class="ask-legend-label">running costs (~45% scaling)</span></span></div>
+<div class="ask-section-head"><span class="ask-section-name">Year 2 (first 3 months)</span><span class="ask-section-total">$90K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$48K</span> &nbsp;<span class="ask-legend-label">founder salary (~6% inflation)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$42K</span> &nbsp;<span class="ask-legend-label">running costs (~45% scaling)</span></span></div>
 </div>
 
 <div class="ask-section">
-<div class="ask-section-head"><span class="ask-section-name">Beyond</span><span class="ask-section-total">$75K</span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot beyond"></span><span><span class="ask-legend-amount">$75K</span> &nbsp;<span class="ask-legend-label">maker discovery + reserves</span></span></div>
+<div class="ask-section-head"><span class="ask-section-name">Beyond</span><span class="ask-section-total">$120K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot beyond"></span><span><span class="ask-legend-amount">$120K</span> &nbsp;<span class="ask-legend-label">maker discovery + reserves</span></span></div>
 </div>
 
 ---
@@ -952,35 +952,35 @@ style: |
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Running costs, year 1</span><span class="appendix-amount">$90,000</span></div>
+<div class="appendix-head"><span class="appendix-label">Running costs, year 1</span><span class="appendix-amount">$115,000</span></div>
 <p class="appendix-detail">Anthropic API for both paying users and the free-tier conversion funnel + legal + accounting + banking + SF travel to build GTM motions (two one-week trips a year; extended stay only if accepted to an incubator) + Industrious office + Claude Code + Vercel + Neon + Stytch + GitHub.</p>
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Founder salary, year 2 (first 6 months)</span><span class="appendix-amount">$95,000</span></div>
-<p class="appendix-detail">~6% inflation built into the year-2 rate. Keeps the founder in seat through the first half of year 2 without re-raising.</p>
+<div class="appendix-head"><span class="appendix-label">Founder salary, year 2 (first 3 months)</span><span class="appendix-amount">$48,000</span></div>
+<p class="appendix-detail">~6% inflation built into the year-2 rate. Keeps the founder in seat through the first quarter of year 2 without re-raising.</p>
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Running costs, year 2 (first 6 months)</span><span class="appendix-amount">$65,000</span></div>
+<div class="appendix-head"><span class="appendix-label">Running costs, year 2 (first 3 months)</span><span class="appendix-amount">$42,000</span></div>
 <p class="appendix-detail">~45% scaling year-over-year — mostly Anthropic API growth (paying users and the free-tier conversion funnel both scale with acquisition). Other line items (office, stack) stay roughly flat.</p>
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Maker discovery + reserves</span><span class="appendix-amount">$75,000</span></div>
-<p class="appendix-detail">Everything left after the 18 months of runway costs. Funds the maker channel research (quarterly beginner markets, paid pilots) and a cushion for the unexpected.</p>
+<div class="appendix-head"><span class="appendix-label">Maker discovery + reserves</span><span class="appendix-amount">$120,000</span></div>
+<p class="appendix-detail">Everything left after the 15 months of runway costs. Funds the maker channel research (quarterly beginner markets, paid pilots) and a cushion for the unexpected.</p>
 </div>
 
 <div class="appendix-total"><span class="label">Total ask</span><span class="value">$500,000</span></div>
 
 <div class="appendix-breakdown">
 <p class="appendix-breakdown-label">Year 1 running costs — itemized</p>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Anthropic API — paying users (Sonnet, prompt-cached; blended down by tier mix)</span><span class="appendix-breakdown-value">$50,000</span></div>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Anthropic API — free tier funnel (Haiku, 25-session cap, prompt-cached)</span><span class="appendix-breakdown-value">$21,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Anthropic API — paying users (Sonnet, prompt-cached; blended down by tier mix)</span><span class="appendix-breakdown-value">$71,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Anthropic API — free tier funnel (Haiku, 25-session cap, prompt-cached)</span><span class="appendix-breakdown-value">$25,000</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Legal + accounting + banking</span><span class="appendix-breakdown-value">$6,500</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">SF travel — two one-week GTM trips</span><span class="appendix-breakdown-value">$5,000</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Industrious office ($332/mo × 12)</span><span class="appendix-breakdown-value">$4,000</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Claude Code Max ($200/mo × 12)</span><span class="appendix-breakdown-value">$2,500</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Stack — Vercel + Neon + Stytch + GitHub + domain</span><span class="appendix-breakdown-value">$1,000</span></div>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Year 1 running costs total</span><span class="appendix-breakdown-value">$90,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Year 1 running costs total</span><span class="appendix-breakdown-value">$115,000</span></div>
 </div>
