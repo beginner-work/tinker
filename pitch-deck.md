@@ -944,7 +944,7 @@ style: |
 
 <div class="appendix-row">
 <div class="appendix-head"><span class="appendix-label">Running costs, year 1</span><span class="appendix-amount">$90,000</span></div>
-<p class="appendix-detail">Legal + accounting + banking + Anthropic API + SF travel to build GTM motions (two one-week trips a year; extended stay only if accepted to an incubator) + Industrious office ($332/mo) + Claude Code ($200/mo) + Vercel + PlanetScale + Stytch + GitHub.</p>
+<p class="appendix-detail">Legal + accounting + banking + Anthropic API + SF travel to build GTM motions (two one-week trips a year; extended stay only if accepted to an incubator) + Industrious office + Claude Code + Vercel + PlanetScale + Stytch + GitHub.</p>
 </div>
 
 <div class="appendix-row">
