@@ -475,11 +475,11 @@ Pre-seed · $500,000
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Month 6</p><p class="timeline-event future">Target: 1,000 paid developers.</p></div>
+<div><p class="timeline-date future">Christmas 2026</p><p class="timeline-event future">Target: 20 paid makers via Instagram.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Month 12</p><p class="timeline-event future">Target: 2,000 paid developers (~$216,000 yearly revenue).</p></div>
+<div><p class="timeline-date future">May 2027 (Month 12)</p><p class="timeline-event future">Target: 4,000 paid developers (~$432,000 yearly revenue).</p></div>
 </li>
 </ul>
 
@@ -494,11 +494,11 @@ Pre-seed · $500,000
 
 # Market
 
-<p class="tam-headline">$2.16 billion a year</p>
+<p class="tam-headline">$2.9 billion a year</p>
 
-<p class="tam-math"><strong>20 million developers × $9 a month.</strong></p>
+<p class="tam-math"><strong>27 million developers × $9 a month.</strong></p>
 
-<p class="tam-footnote">The market is every developer worldwide who could ship a founder pitch. At $9 a month, this is the ceiling — what we capture is what we earn.</p>
+<p class="tam-footnote">The ceiling: every developer on earth at the entry tier.</p>
 
 ---
 
@@ -513,19 +513,11 @@ Pre-seed · $500,000
 
 > *$500,000 → 12 months. Closing now — savings run out at the end of May.*
 
-<p class="min-line"><strong>$168,000</strong> — founder salary, 12 months ($150,000 base + $18,000 benefits).</p>
+<p class="min-line"><strong>$168,000</strong> — founder salary (12 months).</p>
 
-<p class="min-line"><strong>$50,000</strong> — Instagram ads to non-developer makers (target: 2,000 paid users).</p>
+<p class="min-line"><strong>$56,000</strong> — go-to-market (Instagram ads + monthly community events).</p>
 
-<p class="min-line"><strong>$6,000</strong> — food at monthly community events ($500/month, 12 months).</p>
-
-<p class="min-line"><strong>$35,000</strong> — legal, accounting, banking, incorporation.</p>
-
-<p class="min-line"><strong>$25,000</strong> — Anthropic API (the per-user cost behind the $9 estimate).</p>
-
-<p class="min-line"><strong>$20,000</strong> — San Francisco (3 months living + weekly flights home).</p>
-
-<p class="min-line"><strong>$10,000</strong> — office and dev stack (Industrious $332/mo + Claude Code $200/mo + Vercel + PlanetScale + Stytch + GitHub).</p>
+<p class="min-line"><strong>$90,000</strong> — running costs (legal, Anthropic API, San Francisco trips, office and dev stack).</p>
 
 <p class="min-line"><strong>$186,000</strong> — reserves (extends runway to ~18 months at current burn).</p>
 
