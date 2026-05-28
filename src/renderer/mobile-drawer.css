@@ -222,8 +222,10 @@
 
   /* Pin the essay subtitle (pitch · slide label) right below the fixed
    * title bar so the heading group reads as one unit while the body
-   * scrolls underneath. Same blurred cream wash as the title so the two
-   * bars blend visually. */
+   * scrolls underneath. Solid page-colour fill (no gradient, no blur)
+   * so it doesn't read as a second floating bar under the title — the
+   * title is the only "container" the eye should see; the subtitle is
+   * just text on the page that happens to also stay put. */
   .read__author {
     position: fixed;
     top: calc(env(safe-area-inset-top, 0px) + 60px);
@@ -232,13 +234,7 @@
     z-index: 54;
     margin: 0;
     padding: 4px 56px 12px;
-    background: linear-gradient(
-      to bottom,
-      rgba(255, 253, 247, 0.92) 60%,
-      rgba(255, 253, 247, 0)
-    );
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    background: var(--color-background);
   }
 
   /* Match the title's drawer-open fade so the subtitle doesn't peek
