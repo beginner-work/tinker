@@ -315,8 +315,8 @@ Pre-seed · $500k
 
 # Team
 
-- Solo founder. 15 years building the bridge between makers and money.
-- Maker-museum education &amp; research · First-generation education · Merchant onboarding for a payment network.
+- Solo founder. 10 years building the bridge between makers and money.
+- 6.5 years: payment tech, small-business onboarding · 3.5 years: museums &amp; education.
 - The thread: never the gatekeeper, always the bridge.
 
 ---
