@@ -551,6 +551,28 @@ style: |
     font-size: 56px;
     margin-top: 56px;
   }
+  .team-learned-label {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 20px;
+    color: #6f6a65;
+    text-align: center;
+    margin: 56px 0 16px;
+  }
+  .team-learned {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 600;
+    font-size: 32px;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: #2d5a3d;
+    text-align: center;
+    margin: 0 auto;
+    max-width: 580px;
+  }
   .team-statement {
     font-size: 30px;
     color: #2d2a26;
@@ -679,6 +701,10 @@ style: |
 
 <p class="team-statement">10 years elevating engineers. From science museums to IPOs.</p>
 
+<p class="team-learned-label">What have I learned?</p>
+
+<p class="team-learned">Engineers want to found — they just need a quiet place to figure out what.</p>
+
 ---
 
 <!-- _class: problem -->
@@ -696,7 +722,7 @@ style: |
 
 <!-- _class: transition -->
 
-<p class="transition-line">So we built two things.</p>
+<p class="transition-line">Here's what I built.</p>
 
 ---
 
