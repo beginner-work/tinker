@@ -199,6 +199,16 @@
     opacity: 0;
   }
 
+  /* The shared title rule above fades to transparent at the bottom 30%
+   * so scrolling body content peeks through. In the read view, the
+   * subtitle sits flush against the title's bottom edge — that gradient
+   * fade then renders as a faint shadow line at the seam between them.
+   * Override to a solid page-coloured fill so the title flows directly
+   * into the subtitle with no visible band. */
+  .read__title {
+    background: var(--color-background);
+  }
+
   /* Secondary labels that previously sat above/beside a page title
    * keep their centered placement so they align under the floating
    * title bar (which has 72px of left/right clearance for the icon). */
