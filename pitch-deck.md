@@ -64,44 +64,79 @@ style: |
     letter-spacing: 0.08em;
   }
 
-  /* Cover slide — beginner (company) brand */
-  section.cover { padding: 96px 56px; }
+  /* Cover slide — landing-page hero pattern */
+  section.cover {
+    padding: 80px 48px 56px;
+    text-align: center;
+    align-items: center;
+    justify-content: flex-start;
+  }
   section.cover .lockup {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 24px;
-    margin: 0 0 44px;
+    gap: 16px;
+    margin: 32px 0 32px;
   }
-  section.cover .lockup svg { width: 108px; height: 108px; }
+  section.cover .lockup svg { width: 104px; height: 104px; }
   section.cover .lockup .wm {
     font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 800;
-    font-size: 92px;
-    letter-spacing: -0.04em;
+    font-size: 56px;
+    letter-spacing: -0.03em;
     color: #2d5a3d;
     line-height: 1;
   }
-  section.cover h1 { display: none; }
-  section.cover .tagline {
+  section.cover .kicker {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    color: #6f6a65;
+    margin: 0 0 24px;
+  }
+  section.cover > h1 {
     font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
-    font-size: 44px;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
+    font-size: 64px;
+    line-height: 1.04;
+    letter-spacing: -0.03em;
     color: #2d2a26;
-    margin: 0 0 8px;
-    max-width: 900px;
+    margin: 0 0 24px;
+    max-width: 600px;
+  }
+  section.cover .lede {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 500;
+    font-size: 24px;
+    line-height: 1.45;
+    color: #4a4742;
+    max-width: 540px;
+    margin: 0 auto 32px;
+  }
+  section.cover .hero-rainbow {
+    width: 200px;
+    height: 6px;
+    border-radius: 999px;
+    margin: 0 auto;
+    background: linear-gradient(90deg, #f9a8d4 0%, #fdba74 18%, #fde68a 36%, #7bc47a 55%, #7dd3fc 75%, #c4b5fd 100%);
   }
   section.cover .meta {
-    margin-top: 64px;
-    padding-top: 18px;
+    margin-top: auto;
+    padding-top: 24px;
     border-top: 1px solid #ede8e0;
-    font-size: 22px;
+    font-size: 20px;
     color: #6f6a65;
     letter-spacing: 0.02em;
     line-height: 1.7;
+    text-align: center;
+    width: 100%;
+    max-width: 480px;
   }
 
   /* Tinker product slides — rainbow-web brand */
@@ -402,9 +437,13 @@ style: |
 <span class="wm">beginner</span>
 </div>
 
-# beginner
+<p class="kicker">a pitch deck · 2026</p>
 
-<p class="tagline">Everyone is a founder</p>
+# Everyone is a founder.
+
+<p class="lede">beginner builds tinker — a guided conversation that helps builders discover their pitch over time.</p>
+
+<div class="hero-rainbow"></div>
 
 <div class="meta">
 
@@ -425,7 +464,7 @@ Pre-seed · $500,000
 # Team
 
 <div class="team-photo">
-<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tyler Lindow"><rect width="200" height="200" fill="#2d5a3d"/><text x="100" y="135" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-size="100" font-weight="700" fill="#fffdf7" font-variation-settings="'SOFT' 100, 'opsz' 144">TL</text></svg>
+<img src="pitch-deck-assets/founder-photo.jpg" alt="Tyler Lindow" />
 </div>
 
 <p class="team-name">Tyler Lindow</p>
