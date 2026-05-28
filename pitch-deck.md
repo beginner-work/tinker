@@ -755,7 +755,7 @@ style: |
 </li>
 <li class="timeline-item">
 <span class="timeline-dot"></span>
-<div><p class="timeline-date">June 1, 2026</p><p class="timeline-event">First paid user — the founder.</p></div>
+<div><p class="timeline-date">June 1, 2026</p><p class="timeline-event">First paid user — me.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
