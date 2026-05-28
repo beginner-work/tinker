@@ -441,6 +441,10 @@ style: |
     object-fit: cover;
     display: block;
   }
+  .team-photo img {
+    color: transparent;
+    font-size: 0;
+  }
   .team-name {
     font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
@@ -537,7 +541,11 @@ style: |
 
 # Team
 
-<p class="team-name team-name--lone">Tyler Lindow</p>
+<div class="team-photo">
+<img src="https://s8kxcopruztkzzgf.public.blob.vercel-storage.com/linkedin-profile" alt="Tyler Lindow" />
+</div>
+
+<p class="team-name">Tyler Lindow</p>
 
 <p class="team-statement">10 years elevating engineers. From museums to IPO.</p>
 
