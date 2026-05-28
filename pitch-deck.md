@@ -832,7 +832,7 @@ style: |
 </div>
 
 <div class="ask-legend">
-<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$225K</span> &nbsp;<span class="ask-legend-label">year 2 runway (held on the SAFE)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$225K</span> &nbsp;<span class="ask-legend-label">year 2 runway (reserved)</span></span></div>
 <div class="ask-legend-item"><span class="ask-legend-dot salary"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">founder salary (year 1)</span></span></div>
 <div class="ask-legend-item"><span class="ask-legend-dot running"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs (year 1)</span></span></div>
 <div class="ask-legend-item"><span class="ask-legend-dot reserves"></span><span><span class="ask-legend-amount">$10K</span> &nbsp;<span class="ask-legend-label">reserves</span></span></div>
@@ -886,9 +886,9 @@ style: |
 
 <div class="appendix-row">
 <div class="appendix-head"><span class="appendix-label">Year 2 runway</span><span class="appendix-amount">$225,000</span></div>
-<p class="appendix-detail">Held on the SAFE. Funds the founder's year-2 salary and running costs so the company can keep operating without raising again immediately.</p>
+<p class="appendix-detail">Reserved for year 2 — funds the founder's salary and running costs in year 2 so the company can keep operating without raising again immediately.</p>
 </div>
 
 <div class="appendix-total"><span class="label">Total ask (SAFE)</span><span class="value">$500,000</span></div>
 
-<p class="appendix-detail" style="margin-top: 16px; font-style: italic;">Any capital raised above the valuation cap funds the maker-discovery customer segment — quarterly in-person beginner markets and paid pilots with makers.</p>
+<p class="appendix-detail" style="margin-top: 16px; font-style: italic;">Do well now — the sooner discovery begins on the larger maker market.</p>
