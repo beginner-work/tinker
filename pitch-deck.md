@@ -426,10 +426,11 @@ style: |
     box-shadow: 0 4px 12px rgba(45, 42, 38, 0.08);
   }
   section.ask .ask-bar-segment { height: 100%; }
-  section.ask .ask-bar-segment.year2    { background: #f9a8d4; flex-basis: 45%; }
-  section.ask .ask-bar-segment.salary   { background: #2d5a3d; flex-basis: 35%; }
-  section.ask .ask-bar-segment.running  { background: #fdba74; flex-basis: 18%; }
-  section.ask .ask-bar-segment.reserves { background: #c8b6e2; flex-basis: 2%; }
+  section.ask .ask-bar-segment.salary-y1  { background: #2d5a3d; flex-basis: 35%; }
+  section.ask .ask-bar-segment.salary-y2  { background: #7bc47a; flex-basis: 19%; }
+  section.ask .ask-bar-segment.running-y1 { background: #fdba74; flex-basis: 18%; }
+  section.ask .ask-bar-segment.discovery  { background: #f9a8d4; flex-basis: 15%; }
+  section.ask .ask-bar-segment.running-y2 { background: #fde68a; flex-basis: 13%; }
   section.ask .ask-legend {
     display: flex;
     flex-direction: column;
@@ -450,10 +451,11 @@ style: |
     flex-shrink: 0;
     transform: translateY(2px);
   }
-  section.ask .ask-legend-dot.year2    { background: #f9a8d4; }
-  section.ask .ask-legend-dot.salary   { background: #2d5a3d; }
-  section.ask .ask-legend-dot.running  { background: #fdba74; }
-  section.ask .ask-legend-dot.reserves { background: #c8b6e2; }
+  section.ask .ask-legend-dot.salary-y1  { background: #2d5a3d; }
+  section.ask .ask-legend-dot.salary-y2  { background: #7bc47a; }
+  section.ask .ask-legend-dot.running-y1 { background: #fdba74; }
+  section.ask .ask-legend-dot.discovery  { background: #f9a8d4; }
+  section.ask .ask-legend-dot.running-y2 { background: #fde68a; }
   section.ask .ask-legend-amount {
     font-family: "Fraunces", serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
@@ -822,20 +824,22 @@ style: |
 
 <p class="ask-amount">$500,000</p>
 
-<p class="ask-period">12 months runway.</p>
+<p class="ask-period">18 months runway.</p>
 
 <div class="ask-bar">
-<span class="ask-bar-segment year2"></span>
-<span class="ask-bar-segment salary"></span>
-<span class="ask-bar-segment running"></span>
-<span class="ask-bar-segment reserves"></span>
+<span class="ask-bar-segment salary-y1"></span>
+<span class="ask-bar-segment salary-y2"></span>
+<span class="ask-bar-segment running-y1"></span>
+<span class="ask-bar-segment discovery"></span>
+<span class="ask-bar-segment running-y2"></span>
 </div>
 
 <div class="ask-legend">
-<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$225K</span> &nbsp;<span class="ask-legend-label">year 2 runway (reserved)</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot salary"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">founder salary (year 1)</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot running"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs (year 1)</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot reserves"></span><span><span class="ask-legend-amount">$10K</span> &nbsp;<span class="ask-legend-label">reserves</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot salary-y1"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">founder salary, year 1</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot salary-y2"></span><span><span class="ask-legend-amount">$95K</span> &nbsp;<span class="ask-legend-label">founder salary, year 2 (first 6 mo)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot running-y1"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs, year 1</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot discovery"></span><span><span class="ask-legend-amount">$75K</span> &nbsp;<span class="ask-legend-label">maker discovery + reserves</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot running-y2"></span><span><span class="ask-legend-amount">$65K</span> &nbsp;<span class="ask-legend-label">running costs, year 2 (first 6 mo)</span></span></div>
 </div>
 
 ---
@@ -870,25 +874,28 @@ style: |
 <p class="appendix-sub">Every line item in the $500,000 ask, fully itemized.</p>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Founder salary (year 1)</span><span class="appendix-amount">$175,000</span></div>
+<div class="appendix-head"><span class="appendix-label">Founder salary, year 1</span><span class="appendix-amount">$175,000</span></div>
 <p class="appendix-detail">12 months. Base + benefits, all in.</p>
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Running costs (year 1)</span><span class="appendix-amount">$90,000</span></div>
+<div class="appendix-head"><span class="appendix-label">Running costs, year 1</span><span class="appendix-amount">$90,000</span></div>
 <p class="appendix-detail">Legal + accounting + banking + Anthropic API + SF trips (3 months living, weekly flights home) + Industrious office ($332/mo) + Claude Code ($200/mo) + Vercel + PlanetScale + Stytch + GitHub.</p>
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Reserves</span><span class="appendix-amount">$10,000</span></div>
-<p class="appendix-detail">Small cushion for unexpected costs.</p>
+<div class="appendix-head"><span class="appendix-label">Founder salary, year 2 (first 6 months)</span><span class="appendix-amount">$95,000</span></div>
+<p class="appendix-detail">~6% inflation built into the year-2 rate. Keeps the founder in seat through the first half of year 2 without re-raising.</p>
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Year 2 runway</span><span class="appendix-amount">$225,000</span></div>
-<p class="appendix-detail">Reserved for year 2 — funds the founder's salary and running costs in year 2 so the company can keep operating without raising again immediately.</p>
+<div class="appendix-head"><span class="appendix-label">Running costs, year 2 (first 6 months)</span><span class="appendix-amount">$65,000</span></div>
+<p class="appendix-detail">~45% scaling year-over-year — mostly Anthropic API growth as the user base expands. Other line items (office, stack) stay roughly flat.</p>
+</div>
+
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">Maker discovery + reserves</span><span class="appendix-amount">$75,000</span></div>
+<p class="appendix-detail">Everything left after the year-1 and year-2 extrapolation. Funds the maker channel research (quarterly beginner markets, paid pilots) and a cushion for the unexpected.</p>
 </div>
 
 <div class="appendix-total"><span class="label">Total ask (SAFE)</span><span class="value">$500,000</span></div>
-
-<p class="appendix-detail" style="margin-top: 16px; font-style: italic;">Do well now — the sooner discovery begins on the larger maker market.</p>
