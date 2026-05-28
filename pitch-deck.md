@@ -855,6 +855,10 @@ style: |
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
+<div><p class="timeline-date future">Sept 1, 2026</p><p class="timeline-event future">$25K ARR · 46 paying engineers.</p></div>
+</li>
+<li class="timeline-item">
+<span class="timeline-dot future"></span>
 <div><p class="timeline-date future">Dec 1, 2026</p><p class="timeline-event future">$100K ARR · 185 paying engineers.</p></div>
 </li>
 <li class="timeline-item">
@@ -863,7 +867,7 @@ style: |
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Jun 1, 2027</p><p class="timeline-event future">$400K ARR · cash-flow positive (MRR exceeds monthly burn).</p></div>
+<div><p class="timeline-date future">Jun 1, 2027</p><p class="timeline-event future">$400K ARR · 741 paying engineers · cash-flow positive (MRR exceeds monthly burn).</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
@@ -984,7 +988,7 @@ style: |
 <p class="appendix-sub">Every line item in the $500,000 ask, fully itemized.</p>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Founder salary, year 1</span><span class="appendix-amount">$175,000</span></div>
+<div class="appendix-head"><span class="appendix-label">My salary, year 1</span><span class="appendix-amount">$175,000</span></div>
 <p class="appendix-detail">12 months. Base + benefits, all in.</p>
 </div>
 
@@ -994,8 +998,8 @@ style: |
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Founder salary, year 2 (first 6 months)</span><span class="appendix-amount">$95,000</span></div>
-<p class="appendix-detail">~6% inflation built into the year-2 rate. Keeps the founder in seat through the first half of year 2 without re-raising.</p>
+<div class="appendix-head"><span class="appendix-label">My salary, year 2 (first 6 months)</span><span class="appendix-amount">$95,000</span></div>
+<p class="appendix-detail">~6% inflation built into the year-2 rate. Keeps me in seat through the first half of year 2 without re-raising.</p>
 </div>
 
 <div class="appendix-row">
