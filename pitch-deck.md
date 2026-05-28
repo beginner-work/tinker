@@ -990,7 +990,7 @@ style: |
 
 <div class="appendix-row">
 <div class="appendix-head"><span class="appendix-label">Running costs, year 1</span><span class="appendix-amount">$130,000</span></div>
-<p class="appendix-detail">Anthropic API for both paying users and the free-tier conversion funnel (~$111K combined, the dominant line) + legal + accounting + banking + SF travel to build GTM motions (two one-week trips a year; extended stay only if accepted to an incubator) + Industrious office + Claude Code + Vercel + Neon + Stytch + GitHub.</p>
+<p class="appendix-detail">Anthropic API (the dominant line) + legal + accounting + banking + SF travel to build GTM motions (two one-week trips a year; extended stay only if accepted to an incubator) + Industrious office + Claude Code + Vercel + Neon + Stytch + GitHub.</p>
 </div>
 
 <div class="appendix-row">
@@ -1000,7 +1000,7 @@ style: |
 
 <div class="appendix-row">
 <div class="appendix-head"><span class="appendix-label">Running costs, year 2 (first 6 months)</span><span class="appendix-amount">$80,000</span></div>
-<p class="appendix-detail">Anthropic API ~$70K — lower than naive linear extrapolation because the Y1 cohort moves past their pitch-building phase (seed-tier users have static pages; free-tier users mostly churn or enter maintenance use). Other line items (office, legal, stack, half a year of SF travel) ~$10K.</p>
+<p class="appendix-detail">Anthropic API ~$70K (the Y1 cohort ages into low-cost maintenance use as new signups continue) + ~$10K for half a year of office, legal, stack, and one SF trip.</p>
 </div>
 
 <div class="appendix-row">
@@ -1012,8 +1012,7 @@ style: |
 
 <div class="appendix-breakdown">
 <p class="appendix-breakdown-label">Year 1 running costs — itemized</p>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Anthropic API — paying funnel (Sonnet for pre-seed week; seed tier minimal ongoing)</span><span class="appendix-breakdown-value">$30,000</span></div>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Anthropic API — free tier funnel (Haiku, 25-session cap, prompt-cached; dominant Y1 cost)</span><span class="appendix-breakdown-value">$81,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Anthropic API</span><span class="appendix-breakdown-value">$111,000</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Legal + accounting + banking</span><span class="appendix-breakdown-value">$6,500</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">SF travel — two one-week GTM trips</span><span class="appendix-breakdown-value">$5,000</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Industrious office ($332/mo × 12)</span><span class="appendix-breakdown-value">$4,000</span></div>
