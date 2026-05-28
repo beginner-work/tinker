@@ -542,7 +542,7 @@ style: |
 # Team
 
 <div class="team-photo">
-<img src="https://s8kxcopruztkzzgf.public.blob.vercel-storage.com/linkedin-profile" alt="Tyler Lindow" />
+<img src="https://media.licdn.com/dms/image/v2/D5603AQHXoA9e1jmY-g/profile-displayphoto-scale_400_400/B56Zx8ISBgGwAg-/0/1771609072488?e=2147483647&amp;v=beta&amp;t=lpFI6tVSw90oPM76Ja65OQ1cUP5ZcsKtaxYTkaLJHNU" alt="Tyler Lindow" />
 </div>
 
 <p class="team-name">Tyler Lindow</p>
