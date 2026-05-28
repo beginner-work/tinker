@@ -696,7 +696,7 @@ style: |
 
 <!-- _class: transition -->
 
-<p class="transition-line">Until now.</p>
+<p class="transition-line">So we built two things.</p>
 
 ---
 
