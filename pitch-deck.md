@@ -465,8 +465,8 @@ style: |
   }
   section.ask .ask-bar-segment { height: 100%; }
   section.ask .ask-bar-segment.year1  { background: #2d5a3d; flex-basis: 61%; }
-  section.ask .ask-bar-segment.year2  { background: #7bc47a; flex-basis: 19%; }
-  section.ask .ask-bar-segment.beyond { background: #f9a8d4; flex-basis: 20%; }
+  section.ask .ask-bar-segment.year2  { background: #7bc47a; flex-basis: 35%; }
+  section.ask .ask-bar-segment.beyond { background: #f9a8d4; flex-basis: 4%; }
 
   section.ask .ask-section {
     margin-top: 22px;
@@ -855,25 +855,29 @@ style: |
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">September 1, 2026</p><p class="timeline-event future">$25K ARR · 46 paying engineers.</p></div>
+<div><p class="timeline-date future">Dec 1, 2026</p><p class="timeline-event future">$100K ARR · 185 paying engineers.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">December 1, 2026</p><p class="timeline-event future">$100K ARR · 185 paying engineers.</p></div>
+<div><p class="timeline-date future">Mar 1, 2027</p><p class="timeline-event future">$225K ARR · 417 paying engineers.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">March 1, 2027</p><p class="timeline-event future">$225K ARR · 417 paying engineers.</p></div>
+<div><p class="timeline-date future">Jun 1, 2027</p><p class="timeline-event future">$400K ARR · cash-flow positive (MRR exceeds monthly burn).</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">June 1, 2027</p><p class="timeline-event future">$400K ARR · 741 paying engineers on the $45/mo seed tier.</p></div>
+<div><p class="timeline-date future">Sept 1, 2027</p><p class="timeline-event future">$575K ARR · 1,065 paying engineers · operating on revenue.</p></div>
+</li>
+<li class="timeline-item">
+<span class="timeline-dot future"></span>
+<div><p class="timeline-date future">Dec 1, 2027</p><p class="timeline-event future">$750K ARR · 1,400 paying engineers · Series A from a position of strength.</p></div>
 </li>
 </ul>
 
 <div class="evidence-note">
 <p class="evidence-note-label">Empirical basis</p>
-<p class="evidence-note-text"><strong>10 users · 11 days · $9.03 in model costs.</strong> 10% convert to the $9/mo pre-seed tier inside week 1; 100% of those upgrade to the $45/mo seed tier inside week 2. The Y1 ramp scales that funnel 740× and walks signup velocity from ~1/day today to ~36/day by month 12 — bounded by what founder-led GTM and the $111K Y1 model-cost budget actually support.</p>
+<p class="evidence-note-text"><strong>10 users · 11 days · $9.03 in model costs.</strong> 10% convert to the $9/mo pre-seed tier inside week 1; 100% of those upgrade to the $45/mo seed tier inside week 2. The 18-month ramp scales that funnel 1,400× and walks signup velocity from ~1/day today to ~45/day by month 18 — bounded by what founder-led GTM and the combined $181K Y1+Y2H1 model-cost budget actually support.</p>
 </div>
 
 ---
@@ -923,7 +927,7 @@ style: |
 
 <p class="ask-amount">$500,000</p>
 
-<p class="ask-period">15 months runway.</p>
+<p class="ask-period">18 months runway.</p>
 
 <div class="ask-bar">
 <span class="ask-bar-segment year1"></span>
@@ -938,14 +942,14 @@ style: |
 </div>
 
 <div class="ask-section">
-<div class="ask-section-head"><span class="ask-section-name">Year 2 (first 3 months)</span><span class="ask-section-total">$95K</span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$48K</span> &nbsp;<span class="ask-legend-label">founder salary (~6% inflation)</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$47K</span> &nbsp;<span class="ask-legend-label">running costs (~45% scaling)</span></span></div>
+<div class="ask-section-head"><span class="ask-section-name">Year 2 (first 6 months)</span><span class="ask-section-total">$175K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$95K</span> &nbsp;<span class="ask-legend-label">founder salary (~6% inflation)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$80K</span> &nbsp;<span class="ask-legend-label">running costs (lifetime-curve adj.)</span></span></div>
 </div>
 
 <div class="ask-section">
-<div class="ask-section-head"><span class="ask-section-name">Beyond</span><span class="ask-section-total">$100K</span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot beyond"></span><span><span class="ask-legend-amount">$100K</span> &nbsp;<span class="ask-legend-label">maker discovery + reserves</span></span></div>
+<div class="ask-section-head"><span class="ask-section-name">Beyond</span><span class="ask-section-total">$20K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot beyond"></span><span><span class="ask-legend-amount">$20K</span> &nbsp;<span class="ask-legend-label">maker discovery seed + cushion</span></span></div>
 </div>
 
 ---
@@ -990,18 +994,18 @@ style: |
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Founder salary, year 2 (first 3 months)</span><span class="appendix-amount">$48,000</span></div>
-<p class="appendix-detail">~6% inflation built into the year-2 rate. Keeps the founder in seat through the first quarter of year 2 without re-raising.</p>
+<div class="appendix-head"><span class="appendix-label">Founder salary, year 2 (first 6 months)</span><span class="appendix-amount">$95,000</span></div>
+<p class="appendix-detail">~6% inflation built into the year-2 rate. Keeps the founder in seat through the first half of year 2 without re-raising.</p>
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Running costs, year 2 (first 3 months)</span><span class="appendix-amount">$47,000</span></div>
-<p class="appendix-detail">~45% scaling year-over-year — mostly Anthropic API growth (paying users and the free-tier conversion funnel both scale with acquisition). Other line items (office, stack) stay roughly flat.</p>
+<div class="appendix-head"><span class="appendix-label">Running costs, year 2 (first 6 months)</span><span class="appendix-amount">$80,000</span></div>
+<p class="appendix-detail">Anthropic API ~$70K — lower than naive linear extrapolation because the Y1 cohort moves past their pitch-building phase (seed-tier users have static pages; free-tier users mostly churn or enter maintenance use). Other line items (office, legal, stack, half a year of SF travel) ~$10K.</p>
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Maker discovery + reserves</span><span class="appendix-amount">$100,000</span></div>
-<p class="appendix-detail">Everything left after the 15 months of runway costs. Funds the maker channel research (quarterly beginner markets, paid pilots) and a cushion for the unexpected.</p>
+<div class="appendix-head"><span class="appendix-label">Maker discovery seed + cushion</span><span class="appendix-amount">$20,000</span></div>
+<p class="appendix-detail">Everything left after the 18 months of runway costs. A small seed for maker channel research (one beginner market in the first year) plus a cushion for the unexpected. The engineer-only path is a viable venture business on its own; entering the maker market in scale is an investor decision once engineer GTM is proven.</p>
 </div>
 
 <div class="appendix-total"><span class="label">Total ask</span><span class="value">$500,000</span></div>
