@@ -338,30 +338,39 @@ style: |
     font-size: 26px;
     color: #2d5a3d;
   }
-  section.appendix .appendix-callout {
+  section.appendix .appendix-breakdown {
     margin-top: 20px;
     padding: 14px 16px;
     background: rgba(45, 90, 61, 0.06);
     border-left: 3px solid #2d5a3d;
     border-radius: 0 6px 6px 0;
   }
-  section.appendix .appendix-callout-label {
+  section.appendix .appendix-breakdown-label {
     font-family: "Inter", sans-serif;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #2d5a3d;
-    margin: 0 0 6px;
+    margin: 0 0 8px;
   }
-  section.appendix .appendix-callout-text {
+  section.appendix .appendix-breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
     font-family: "Inter", sans-serif;
     font-size: 13px;
-    line-height: 1.5;
-    color: #2d2a26;
-    margin: 0;
+    line-height: 1.4;
+    padding: 5px 0;
+    border-bottom: 1px dotted rgba(45, 90, 61, 0.18);
   }
-  section.appendix .appendix-callout-text .num {
+  section.appendix .appendix-breakdown-row:last-child {
+    border-bottom: none;
+  }
+  section.appendix .appendix-breakdown-name {
+    color: #2d2a26;
+  }
+  section.appendix .appendix-breakdown-value {
     font-family: "Fraunces", Georgia, serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
@@ -814,23 +823,23 @@ style: |
 </li>
 <li class="timeline-item">
 <span class="timeline-dot"></span>
-<div><p class="timeline-date">June 1, 2026</p><p class="timeline-event">First paid user — me.</p></div>
+<div><p class="timeline-date">June 1, 2026</p><p class="timeline-event">First paying user — me.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">September 1, 2026</p><p class="timeline-event future">250 paid engineers.</p></div>
+<div><p class="timeline-date future">September 1, 2026</p><p class="timeline-event future">250 paying engineers.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">December 1, 2026</p><p class="timeline-event future">1,000 paid engineers.</p></div>
+<div><p class="timeline-date future">December 1, 2026</p><p class="timeline-event future">1,000 paying engineers.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">March 1, 2027</p><p class="timeline-event future">2,000 paid engineers.</p></div>
+<div><p class="timeline-date future">March 1, 2027</p><p class="timeline-event future">2,000 paying engineers.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">June 1, 2027</p><p class="timeline-event future">4,000 paid engineers (~$432,000 yearly revenue).</p></div>
+<div><p class="timeline-date future">June 1, 2027</p><p class="timeline-event future">4,000 paying engineers (~$432,000 yearly revenue).</p></div>
 </li>
 </ul>
 
@@ -964,7 +973,13 @@ style: |
 
 <div class="appendix-total"><span class="label">Total ask</span><span class="value">$500,000</span></div>
 
-<div class="appendix-callout">
-<p class="appendix-callout-label">Anthropic API detail</p>
-<p class="appendix-callout-text">Working cost-of-goods estimate: <span class="num">~$9 per active user per year</span>. Sits inside the running-costs lines above. At ~3,000 active by end of Y1: <span class="num">~$27K</span>. Y2 first-half scales ~45% with user growth: <span class="num">~$20K more</span>. The seed and seed+ tiers (hosted founder pages and marketplace) are designed to grow revenue without growing the per-user API spend.</p>
+<div class="appendix-breakdown">
+<p class="appendix-breakdown-label">Year 1 running costs — itemized</p>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Anthropic API (cost-of-goods; $9/user/mo blended down by tier mix)</span><span class="appendix-breakdown-value">$71,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Legal + accounting + banking</span><span class="appendix-breakdown-value">$6,500</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">SF travel — two one-week GTM trips</span><span class="appendix-breakdown-value">$5,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Industrious office ($332/mo × 12)</span><span class="appendix-breakdown-value">$4,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Claude Code Max ($200/mo × 12)</span><span class="appendix-breakdown-value">$2,500</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Stack — Vercel + Neon + Stytch + GitHub + domain</span><span class="appendix-breakdown-value">$1,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Year 1 running costs total</span><span class="appendix-breakdown-value">$90,000</span></div>
 </div>
