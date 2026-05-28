@@ -330,7 +330,7 @@ Pre-seed · $500k
 
 > *Strong builders sometimes never become founders.*
 
-> *The gap is fundraising — $500–$5,000 a month for a fractional coach or deck writer. The ones who can't pay stay builders.*
+> *The only way to learn fundraising today is a $500–$5,000 a month coach. So the people who become founders are the people who can afford one. Talent doesn't decide. Wealth does.*
 
 ---
 
