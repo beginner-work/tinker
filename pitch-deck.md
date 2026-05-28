@@ -22,7 +22,7 @@ style: |
   }
 
   /* Vertically center big-number slides */
-  section.traction, section.market {
+  section.market {
     justify-content: center;
   }
 
@@ -208,21 +208,86 @@ style: |
   /* Mobile-view phone mockup */
   .mobile-mockup {
     display: block;
-    width: auto;
-    max-width: 200px;
+    width: 100%;
+    max-width: 600px;
     height: auto;
-    margin: 12px auto 0;
+    margin: 0 auto;
     filter: drop-shadow(0 16px 32px rgba(45, 42, 38, 0.18));
   }
   .solution-caption {
     text-align: center;
-    font-size: 28px;
+    font-size: 24px;
     font-style: italic;
-    color: #2d2a26;
-    margin: 24px auto 0;
-    max-width: 880px;
-    line-height: 1.4;
+    color: #6f6a65;
+    margin: 20px auto 0;
+    max-width: 620px;
+    line-height: 1.35;
   }
+
+  /* Solution slide — phone fills the slide */
+  section.solution {
+    padding: 56px 40px 40px;
+    justify-content: center;
+  }
+  section.solution > h1 { display: none; }
+  section.solution .mobile-mockup { max-width: 640px; }
+
+  /* Traction timeline */
+  .timeline {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0 0;
+  }
+  .timeline-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    padding-bottom: 36px;
+    position: relative;
+  }
+  .timeline-item:last-child { padding-bottom: 0; }
+  .timeline-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 32px;
+    bottom: 0;
+    width: 2px;
+    background: #ede8e0;
+  }
+  .timeline-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #2d5a3d;
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+  .timeline-dot.future {
+    background: #fffdf7;
+    border: 2px solid #c8b6e2;
+    width: 20px;
+    height: 20px;
+    margin-top: 8px;
+    margin-left: 2px;
+  }
+  .timeline-date {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 30px;
+    color: #2d5a3d;
+    line-height: 1.1;
+    margin: 0 0 6px;
+  }
+  .timeline-date.future { color: #6f6a65; }
+  .timeline-event {
+    font-size: 26px;
+    color: #2d2a26;
+    line-height: 1.35;
+    margin: 0;
+  }
+  .timeline-event.future { color: #6f6a65; }
 
   /* Ask slide — funding breakdown */
   section.ask blockquote {
@@ -332,7 +397,7 @@ style: |
 <div class="meta">
 
 Tyler Lindow · Founder of beginner<br>
-Pre-seed · $215,000
+Pre-seed · $500,000
 
 </div>
 
@@ -367,13 +432,7 @@ Pre-seed · $215,000
 
 ---
 
-<!-- _class: tinker -->
-
-<div class="tinker-badge">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img" aria-label="tinker rainbow-web mark"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62.00" x2="175.94" y2="62.00" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24.00" y1="100.00" x2="176.00" y2="100.00" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138.00" x2="175.94" y2="138.00" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></svg>
-<span class="wm">tinker</span>
-</div>
-<div class="tinker-rainbow"></div>
+<!-- _class: solution -->
 
 # Solution
 
@@ -392,9 +451,24 @@ Pre-seed · $215,000
 
 # Traction
 
-<p class="big-number">10</p>
-
-<p class="big-number-label">developers have used tinker. Live product. Zero revenue today — pricing turns on with the seed.</p>
+<ul class="timeline">
+<li class="timeline-item">
+<span class="timeline-dot"></span>
+<div><p class="timeline-date">May 18, 2026</p><p class="timeline-event">App launched. tinker is live.</p></div>
+</li>
+<li class="timeline-item">
+<span class="timeline-dot"></span>
+<div><p class="timeline-date">Today, May 28, 2026</p><p class="timeline-event">First paid user — the founder.</p></div>
+</li>
+<li class="timeline-item">
+<span class="timeline-dot future"></span>
+<div><p class="timeline-date future">Month 6</p><p class="timeline-event future">Target: 1,000 paid developers.</p></div>
+</li>
+<li class="timeline-item">
+<span class="timeline-dot future"></span>
+<div><p class="timeline-date future">Month 12</p><p class="timeline-event future">Target: 2,000 paid developers (~$216,000 yearly revenue).</p></div>
+</li>
+</ul>
 
 ---
 
@@ -424,21 +498,23 @@ Pre-seed · $215,000
 
 # Ask
 
-> *$215,000 → 12 months runway. San Diego base, San Francisco circuit.*
+> *$500,000 → 12 months. Closing now — savings run out at the end of May.*
 
 <p class="min-line"><strong>$168,000</strong> — founder salary, 12 months ($150,000 base + $18,000 benefits).</p>
 
-<p class="min-line"><strong>$20,000</strong> — Anthropic API (the per-user cost behind the $9 estimate).</p>
+<p class="min-line"><strong>$232,000</strong> — marketing and growth (paid acquisition, dev events, content, community).</p>
 
-<p class="min-line"><strong>$10,000</strong> — travel and lodging, San Francisco (2 trips, 2 weeks each).</p>
+<p class="min-line"><strong>$35,000</strong> — legal, accounting, banking, incorporation.</p>
 
-<p class="min-line"><strong>$4,000</strong> — Industrious San Diego office ($332 a month).</p>
+<p class="min-line"><strong>$25,000</strong> — Anthropic API (the per-user cost behind the $9 estimate).</p>
 
-<p class="min-line"><strong>$3,000</strong> — Vercel + PlanetScale + Stytch + GitHub.</p>
+<p class="min-line"><strong>$20,000</strong> — San Francisco (3 months living + weekly flights home).</p>
+
+<p class="min-line"><strong>$10,000</strong> — office and dev stack (Industrious $332/mo + Claude Code $200/mo + Vercel + PlanetScale + Stytch + GitHub).</p>
 
 <p class="min-line"><strong>$10,000</strong> — buffer.</p>
 
-<p class="incr-lead">Line in the sand: personal runway ends June 2026. If the round doesn't close, I step away.</p>
+<p class="incr-lead">Line in the sand: savings run out end of May 2026. If the round doesn't close, I step away.</p>
 
 ---
 
