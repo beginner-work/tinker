@@ -267,6 +267,78 @@ style: |
   section.solution > h1 { display: none; }
   section.solution .mobile-mockup { max-width: 640px; }
 
+  /* Appendix slide — line item breakdown */
+  section.appendix {
+    padding: 96px 48px 48px;
+  }
+  section.appendix > h1 {
+    font-size: 48px;
+    margin: 0 0 8px;
+  }
+  section.appendix .appendix-sub {
+    font-size: 16px;
+    color: #6f6a65;
+    margin: 0 0 24px;
+    font-family: "Inter", sans-serif;
+  }
+  section.appendix .appendix-row {
+    border-top: 1px solid #ede8e0;
+    padding: 12px 0;
+  }
+  section.appendix .appendix-row:last-child {
+    border-bottom: 1px solid #ede8e0;
+  }
+  section.appendix .appendix-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 4px;
+  }
+  section.appendix .appendix-label {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 18px;
+    color: #2d2a26;
+  }
+  section.appendix .appendix-amount {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 18px;
+    color: #2d5a3d;
+  }
+  section.appendix .appendix-detail {
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #6f6a65;
+    margin: 0;
+  }
+  section.appendix .appendix-total {
+    border-top: 2px solid #2d5a3d;
+    padding-top: 14px;
+    margin-top: 14px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  section.appendix .appendix-total .label {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 20px;
+    color: #2d2a26;
+  }
+  section.appendix .appendix-total .value {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 26px;
+    color: #2d5a3d;
+  }
+
   /* Traction timeline */
   .timeline {
     list-style: none;
@@ -602,7 +674,7 @@ style: |
 
 # Problem
 
-<p class="problem-statement">Builders stay coding while <em>culture dies uninvested.</em></p>
+<p class="problem-statement">Tinkerers stay coding while <em>culture dies uninvested.</em></p>
 
 ---
 
@@ -612,15 +684,15 @@ style: |
 
 <svg class="mobile-mockup" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 540" role="img" aria-label="tinker mobile welcome screen"><rect x="4" y="4" width="312" height="532" rx="38" ry="38" fill="#fffdf7" stroke="#ede8e0" stroke-width="2"/><rect x="124" y="16" width="72" height="20" rx="10" fill="#1a1a1a" opacity="0.95"/><g transform="translate(24, 60)"><g transform="scale(0.13)"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62" x2="175.94" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138" x2="175.94" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></g><text x="36" y="20" font-family="Fraunces, Plus Jakarta Sans, Georgia, serif" font-size="16" font-weight="700" fill="#2d2a26">tinker</text></g><g font-family="Inter, system-ui, sans-serif"><text x="24" y="116" font-size="10" letter-spacing="1.2" fill="#6f6a65">PITCH PROGRESS</text><text x="296" y="116" font-size="10" text-anchor="end" fill="#6f6a65" font-weight="700">0 / 11</text><rect x="24" y="122" width="272" height="3" rx="1.5" fill="#ede8e0"/></g><g text-anchor="middle"><g transform="translate(140, 168) scale(0.2)"><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62" x2="175.94" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138" x2="175.94" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></g><text x="160" y="234" font-family="Fraunces, Georgia, serif" font-size="20" font-weight="700" fill="#2d2a26">Everyone is a founder.</text><text x="160" y="256" font-family="Inter" font-size="12" fill="#6f6a65">You just need a seed to start.</text><text x="160" y="296" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Where are you right now?</text></g><g font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#2d2a26" text-anchor="middle"><rect x="32" y="320" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="94" y="351">Cafe</text><rect x="164" y="320" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="226" y="351">Home</text><rect x="32" y="384" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="94" y="415">Work</text><rect x="164" y="384" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="226" y="415" font-size="12">Somewhere else</text></g><rect x="120" y="510" width="80" height="4" rx="2" fill="#1a1a1a" opacity="0.3"/></svg>
 
-<p class="solution-caption"><strong>The GTM solution</strong>: An app that helps builders discover their pitch over time, on the go.</p>
+<p class="solution-caption"><strong>The GTM solution</strong>: An app that helps tinkerers discover their pitch over time, on the go.</p>
 
 ---
 
 <!-- _class: solution -->
 
-<svg class="mobile-mockup" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 540" role="img" aria-label="beginner marketplace mobile mockup"><rect x="4" y="4" width="312" height="532" rx="38" ry="38" fill="#fffdf7" stroke="#ede8e0" stroke-width="2"/><rect x="124" y="16" width="72" height="20" rx="10" fill="#1a1a1a" opacity="0.95"/><g transform="translate(20, 56)"><g transform="scale(0.11)"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></g><text x="28" y="16" font-family="Fraunces, Plus Jakarta Sans, Georgia, serif" font-size="15" font-weight="700" fill="#2d5a3d">beginner</text></g><g transform="translate(20, 88)"><rect width="280" height="34" rx="17" fill="#f5f3ef" stroke="#ede8e0" stroke-width="1"/><circle cx="18" cy="17" r="5" fill="none" stroke="#6f6a65" stroke-width="1.5"/><line x1="22" y1="21" x2="26" y2="25" stroke="#6f6a65" stroke-width="1.5" stroke-linecap="round"/><text x="36" y="21" font-family="Inter, sans-serif" font-size="11" fill="#6f6a65">Find a maker near you</text></g><g transform="translate(20, 134)" font-family="Inter, sans-serif" font-size="10" font-weight="600"><rect x="0" y="0" width="42" height="22" rx="11" fill="#2d5a3d"/><text x="21" y="14" text-anchor="middle" fill="#fffdf7">All</text><rect x="48" y="0" width="58" height="22" rx="11" fill="#fffdf7" stroke="#ede8e0"/><text x="77" y="14" text-anchor="middle" fill="#2d2a26">Healers</text><rect x="112" y="0" width="38" height="22" rx="11" fill="#fffdf7" stroke="#ede8e0"/><text x="131" y="14" text-anchor="middle" fill="#2d2a26">Tea</text><rect x="156" y="0" width="62" height="22" rx="11" fill="#fffdf7" stroke="#ede8e0"/><text x="187" y="14" text-anchor="middle" fill="#2d2a26">Ceramics</text><rect x="224" y="0" width="48" height="22" rx="11" fill="#fffdf7" stroke="#ede8e0"/><text x="248" y="14" text-anchor="middle" fill="#2d2a26">Bread</text></g><g transform="translate(20, 168)" font-family="Fraunces, Georgia, serif" fill="#2d2a26"><rect x="0" y="0" width="130" height="106" rx="10" fill="#7bc47a"/><text x="65" y="62" text-anchor="middle" font-size="30" fill="#fffdf7" font-weight="700">.t</text><text x="0" y="124" font-size="12" font-weight="700">Tara H. · Herbal teas</text><text x="0" y="139" font-family="Inter, sans-serif" font-size="10" fill="#6f6a65" font-weight="500">★ 4.9 · $35/jar</text><rect x="142" y="0" width="130" height="106" rx="10" fill="#fdba74"/><text x="207" y="62" text-anchor="middle" font-size="30" fill="#fffdf7" font-weight="700">.j</text><text x="142" y="124" font-size="12" font-weight="700">Joe B. · Sourdough</text><text x="142" y="139" font-family="Inter, sans-serif" font-size="10" fill="#6f6a65" font-weight="500">★ 4.8 · $12/loaf</text><rect x="0" y="154" width="130" height="106" rx="10" fill="#fde68a"/><text x="65" y="216" text-anchor="middle" font-size="30" fill="#fffdf7" font-weight="700">.m</text><text x="0" y="278" font-size="12" font-weight="700">Mia P. · Ceramics</text><text x="0" y="293" font-family="Inter, sans-serif" font-size="10" fill="#6f6a65" font-weight="500">★ 5.0 · $60/session</text><rect x="142" y="154" width="130" height="106" rx="10" fill="#c8b6e2"/><text x="207" y="216" text-anchor="middle" font-size="30" fill="#fffdf7" font-weight="700">.c</text><text x="142" y="278" font-size="12" font-weight="700">Carlos M. · Healing</text><text x="142" y="293" font-family="Inter, sans-serif" font-size="10" fill="#6f6a65" font-weight="500">★ 4.9 · $120/sess</text></g><rect x="4" y="492" width="312" height="44" fill="#fffdf7"/><line x1="4" y1="492" x2="316" y2="492" stroke="#ede8e0" stroke-width="1"/><g font-family="Inter, sans-serif" font-size="8" font-weight="600"><text x="42" y="514" text-anchor="middle" fill="#2d5a3d">Explore</text><text x="100" y="514" text-anchor="middle" fill="#6f6a65">Saved</text><text x="160" y="514" text-anchor="middle" fill="#6f6a65">Pitches</text><text x="220" y="514" text-anchor="middle" fill="#6f6a65">Inbox</text><text x="278" y="514" text-anchor="middle" fill="#6f6a65">Profile</text></g></svg>
+<svg class="mobile-mockup" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 540" role="img" aria-label="beginner marketplace mobile mockup"><rect x="4" y="4" width="312" height="532" rx="38" ry="38" fill="#fffdf7" stroke="#ede8e0" stroke-width="2"/><rect x="124" y="16" width="72" height="20" rx="10" fill="#1a1a1a" opacity="0.95"/><g transform="translate(20, 56)"><g transform="scale(0.11)"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></g><text x="28" y="16" font-family="Fraunces, Plus Jakarta Sans, Georgia, serif" font-size="15" font-weight="700" fill="#2d5a3d">beginner</text></g><g transform="translate(20, 88)"><rect width="280" height="34" rx="17" fill="#f5f3ef" stroke="#ede8e0" stroke-width="1"/><circle cx="18" cy="17" r="5" fill="none" stroke="#6f6a65" stroke-width="1.5"/><line x1="22" y1="21" x2="26" y2="25" stroke="#6f6a65" stroke-width="1.5" stroke-linecap="round"/><text x="36" y="21" font-family="Inter, sans-serif" font-size="11" fill="#6f6a65">Find a tinkerer to seed</text></g><g transform="translate(20, 134)" font-family="Inter, sans-serif" font-size="10" font-weight="600"><rect x="0" y="0" width="42" height="22" rx="11" fill="#2d5a3d"/><text x="21" y="14" text-anchor="middle" fill="#fffdf7">All</text><rect x="48" y="0" width="58" height="22" rx="11" fill="#fffdf7" stroke="#ede8e0"/><text x="77" y="14" text-anchor="middle" fill="#2d2a26">Healers</text><rect x="112" y="0" width="38" height="22" rx="11" fill="#fffdf7" stroke="#ede8e0"/><text x="131" y="14" text-anchor="middle" fill="#2d2a26">Tea</text><rect x="156" y="0" width="62" height="22" rx="11" fill="#fffdf7" stroke="#ede8e0"/><text x="187" y="14" text-anchor="middle" fill="#2d2a26">Ceramics</text><rect x="224" y="0" width="48" height="22" rx="11" fill="#fffdf7" stroke="#ede8e0"/><text x="248" y="14" text-anchor="middle" fill="#2d2a26">Bread</text></g><g transform="translate(20, 168)" font-family="Fraunces, Georgia, serif" fill="#2d2a26"><rect x="0" y="0" width="130" height="106" rx="10" fill="#7bc47a"/><text x="65" y="62" text-anchor="middle" font-size="30" fill="#fffdf7" font-weight="700">.t</text><text x="0" y="124" font-size="12" font-weight="700">Tara H. · Herbal teas</text><text x="0" y="139" font-family="Inter, sans-serif" font-size="10" fill="#2d5a3d" font-weight="600">$420 seeded · 12 backers</text><rect x="142" y="0" width="130" height="106" rx="10" fill="#fdba74"/><text x="207" y="62" text-anchor="middle" font-size="30" fill="#fffdf7" font-weight="700">.j</text><text x="142" y="124" font-size="12" font-weight="700">Joe B. · Sourdough</text><text x="142" y="139" font-family="Inter, sans-serif" font-size="10" fill="#2d5a3d" font-weight="600">$180 seeded · 22 backers</text><rect x="0" y="154" width="130" height="106" rx="10" fill="#fde68a"/><text x="65" y="216" text-anchor="middle" font-size="30" fill="#fffdf7" font-weight="700">.m</text><text x="0" y="278" font-size="12" font-weight="700">Mia P. · Ceramics</text><text x="0" y="293" font-family="Inter, sans-serif" font-size="10" fill="#2d5a3d" font-weight="600">$640 seeded · 18 backers</text><rect x="142" y="154" width="130" height="106" rx="10" fill="#c8b6e2"/><text x="207" y="216" text-anchor="middle" font-size="30" fill="#fffdf7" font-weight="700">.c</text><text x="142" y="278" font-size="12" font-weight="700">Carlos M. · Healing</text><text x="142" y="293" font-family="Inter, sans-serif" font-size="10" fill="#2d5a3d" font-weight="600">$320 seeded · 9 backers</text></g><rect x="4" y="492" width="312" height="44" fill="#fffdf7"/><line x1="4" y1="492" x2="316" y2="492" stroke="#ede8e0" stroke-width="1"/><g font-family="Inter, sans-serif" font-size="8" font-weight="600"><text x="42" y="514" text-anchor="middle" fill="#2d5a3d">Explore</text><text x="100" y="514" text-anchor="middle" fill="#6f6a65">Saved</text><text x="160" y="514" text-anchor="middle" fill="#6f6a65">Pitches</text><text x="220" y="514" text-anchor="middle" fill="#6f6a65">Inbox</text><text x="278" y="514" text-anchor="middle" fill="#6f6a65">Profile</text></g></svg>
 
-<p class="solution-caption"><strong>The Vision solution</strong>: A marketplace where culture holders earn from their craft.</p>
+<p class="solution-caption"><strong>The Vision solution</strong>: A marketplace where you seed the tinkerers behind the things you love.</p>
 
 ---
 
@@ -671,11 +743,11 @@ style: |
 
 # GTM Market
 
-<p class="tam-headline">$0.65 billion a year</p>
+<p class="tam-headline">$30.9 billion a year</p>
 
-<p class="tam-math"><strong>The paid developer-tools market today, 2026.</strong></p>
+<p class="tam-math"><strong>All 286 million paid tech professionals on LinkedIn × $9 a month.</strong></p>
 
-<p class="tam-footnote">Developers are the wedge. Direct distribution at $9/month.</p>
+<p class="tam-footnote">22% of LinkedIn's 1.3 billion members are in tech, engineering, or design. The GTM is to get every one of them on tinker.</p>
 
 ---
 
@@ -692,7 +764,7 @@ style: |
 
 <p class="tam-math"><strong>22.5% of Instagram's 3 billion users × $9 a month.</strong></p>
 
-<p class="tam-footnote">Every consumer who follows a creator on Instagram is a potential customer for the maker behind them. beginner is where that exchange becomes a transaction.</p>
+<p class="tam-footnote">22% of LinkedIn members are in tech, engineering, or design. Same ratio applied to Instagram.</p>
 
 ---
 
@@ -744,3 +816,48 @@ style: |
 # Thank you
 
 <p class="closing-tagline">Everyone is a founder</p>
+
+---
+
+<!-- _class: appendix -->
+
+<div class="beginner-badge">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
+<span class="wm">beginner</span>
+</div>
+
+# Appendix
+
+<p class="appendix-sub">Every line item in the $500,000 ask, fully itemized.</p>
+
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">Founder salary</span><span class="appendix-amount">$168,000</span></div>
+<p class="appendix-detail">$150,000 base + $18,000 benefits, 12 months.</p>
+</div>
+
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">Part-time contractor</span><span class="appendix-amount">$112,000</span></div>
+<p class="appendix-detail">≈2/3 of founder salary. Dedicated to maker discovery — running in-person markets, sitting with maker communities, building case studies.</p>
+</div>
+
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">Maker discovery</span><span class="appendix-amount">$100,000</span></div>
+<p class="appendix-detail">Quarterly in-person beginner markets in San Diego (permits, venue, food) + paid pilots with non-developer tinkerers. No paid acquisition until year 2.</p>
+</div>
+
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">Running costs</span><span class="appendix-amount">$90,000</span></div>
+<p class="appendix-detail">Legal + accounting + banking + Anthropic API + SF trips (3 months living, weekly flights home) + Industrious office ($332/mo) + Claude Code ($200/mo) + Vercel + PlanetScale + Stytch + GitHub.</p>
+</div>
+
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">Monthly community events</span><span class="appendix-amount">$20,000</span></div>
+<p class="appendix-detail">Food + space for 12 monthly meetups — devs and makers in the same room.</p>
+</div>
+
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">Reserves</span><span class="appendix-amount">$10,000</span></div>
+<p class="appendix-detail">Small cushion for unexpected costs.</p>
+</div>
+
+<div class="appendix-total"><span class="label">Total</span><span class="value">$500,000</span></div>
