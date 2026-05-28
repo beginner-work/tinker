@@ -267,6 +267,116 @@ style: |
   section.solution > h1 { display: none; }
   section.solution .mobile-mockup { max-width: 640px; }
 
+  /* Appendix slide — line item breakdown */
+  section.appendix {
+    padding: 96px 48px 48px;
+  }
+  section.appendix > h1 {
+    font-size: 48px;
+    margin: 0 0 8px;
+  }
+  section.appendix .appendix-sub {
+    font-size: 16px;
+    color: #6f6a65;
+    margin: 0 0 24px;
+    font-family: "Inter", sans-serif;
+  }
+  section.appendix .appendix-row {
+    border-top: 1px solid #ede8e0;
+    padding: 12px 0;
+  }
+  section.appendix .appendix-row:last-child {
+    border-bottom: 1px solid #ede8e0;
+  }
+  section.appendix .appendix-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 4px;
+  }
+  section.appendix .appendix-label {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 18px;
+    color: #2d2a26;
+  }
+  section.appendix .appendix-amount {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 18px;
+    color: #2d5a3d;
+  }
+  section.appendix .appendix-detail {
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #6f6a65;
+    margin: 0;
+  }
+  section.appendix .appendix-total {
+    border-top: 2px solid #2d5a3d;
+    padding-top: 14px;
+    margin-top: 14px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  section.appendix .appendix-total .label {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 20px;
+    color: #2d2a26;
+  }
+  section.appendix .appendix-total .value {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 26px;
+    color: #2d5a3d;
+  }
+  section.appendix .appendix-breakdown {
+    margin-top: 20px;
+    padding: 14px 16px;
+    background: rgba(45, 90, 61, 0.06);
+    border-left: 3px solid #2d5a3d;
+    border-radius: 0 6px 6px 0;
+  }
+  section.appendix .appendix-breakdown-label {
+    font-family: "Inter", sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #2d5a3d;
+    margin: 0 0 8px;
+  }
+  section.appendix .appendix-breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 5px 0;
+    border-bottom: 1px dotted rgba(45, 90, 61, 0.18);
+  }
+  section.appendix .appendix-breakdown-row:last-child {
+    border-bottom: none;
+  }
+  section.appendix .appendix-breakdown-name {
+    color: #2d2a26;
+  }
+  section.appendix .appendix-breakdown-value {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    color: #2d5a3d;
+  }
+
   /* Traction timeline */
   .timeline {
     list-style: none;
@@ -354,11 +464,41 @@ style: |
     box-shadow: 0 4px 12px rgba(45, 42, 38, 0.08);
   }
   section.ask .ask-bar-segment { height: 100%; }
-  section.ask .ask-bar-segment.salary   { background: #2d5a3d; flex-basis: 33.6%; }
-  section.ask .ask-bar-segment.gtm      { background: #7bc47a; flex-basis: 11.2%; }
-  section.ask .ask-bar-segment.makers   { background: #f9a8d4; flex-basis: 35.2%; }
-  section.ask .ask-bar-segment.running  { background: #fdba74; flex-basis: 18%; }
-  section.ask .ask-bar-segment.reserves { background: #c8b6e2; flex-basis: 2%; }
+  section.ask .ask-bar-segment.year1  { background: #2d5a3d; flex-basis: 62%; }
+  section.ask .ask-bar-segment.year2  { background: #7bc47a; flex-basis: 37%; }
+  section.ask .ask-bar-segment.beyond { background: #f9a8d4; flex-basis: 1%; }
+
+  section.ask .ask-section {
+    margin-top: 22px;
+  }
+  section.ask .ask-section:first-of-type { margin-top: 4px; }
+  section.ask .ask-section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ede8e0;
+    margin-bottom: 6px;
+  }
+  section.ask .ask-section-name {
+    font-family: "Inter", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6f6a65;
+  }
+  section.ask .ask-section-total {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 18px;
+    color: #2d5a3d;
+  }
+  section.ask .ask-section .ask-legend-item {
+    padding: 4px 0;
+  }
   section.ask .ask-legend {
     display: flex;
     flex-direction: column;
@@ -379,11 +519,9 @@ style: |
     flex-shrink: 0;
     transform: translateY(2px);
   }
-  section.ask .ask-legend-dot.salary   { background: #2d5a3d; }
-  section.ask .ask-legend-dot.gtm      { background: #7bc47a; }
-  section.ask .ask-legend-dot.makers   { background: #f9a8d4; }
-  section.ask .ask-legend-dot.running  { background: #fdba74; }
-  section.ask .ask-legend-dot.reserves { background: #c8b6e2; }
+  section.ask .ask-legend-dot.year1  { background: #2d5a3d; }
+  section.ask .ask-legend-dot.year2  { background: #7bc47a; }
+  section.ask .ask-legend-dot.beyond { background: #f9a8d4; }
   section.ask .ask-legend-amount {
     font-family: "Fraunces", serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
@@ -399,28 +537,50 @@ style: |
     margin: 0;
   }
 
-  /* Problem slide — two framings (go-to-market + vision) */
-  section.problem .problem-block {
-    margin-bottom: 36px;
+  /* Transition slide — gentle pivot from problem to solution */
+  section.transition {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 96px 48px;
   }
-  section.problem .problem-block:last-child { margin-bottom: 0; }
-  section.problem .problem-kicker {
+  section.transition .transition-line {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 52px;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    color: #2d5a3d;
+    margin: 0;
+    max-width: 90%;
+  }
+
+  /* Problem slide — one page-filling statement */
+  section.problem {
+    justify-content: center;
+  }
+  section.problem > h1 {
+    font-size: 36px;
+    color: #6f6a65;
+    margin: 0 0 32px;
+    font-weight: 600;
+  }
+  section.problem .problem-statement {
     font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
-    font-style: italic;
-    font-size: 20px;
-    color: #2d5a3d;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin: 0 0 14px;
-  }
-  section.problem blockquote {
-    font-size: 28px;
-    line-height: 1.4;
+    font-size: 84px;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: #2d2a26;
     margin: 0;
-    padding: 0 0 0 24px;
-    border-left: 3px solid #ede8e0;
+    max-width: 100%;
+  }
+  section.problem .problem-statement em {
+    color: #2d5a3d;
+    font-style: italic;
   }
 
   /* Team slide — photo + one statement */
@@ -459,6 +619,19 @@ style: |
     font-size: 56px;
     margin-top: 56px;
   }
+  .team-learned-label {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 56px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: #2d5a3d;
+    text-align: center;
+    margin: 72px auto 0;
+    max-width: 600px;
+  }
   .team-statement {
     font-size: 30px;
     color: #2d2a26;
@@ -468,25 +641,67 @@ style: |
     line-height: 1.4;
   }
 
-  /* Market slide — big TAM number */
+  /* Market slide — two markets, developers + makers */
   section.market .tam-headline {
     font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
-    font-size: 88px;
-    line-height: 1.1;
+    font-size: 80px;
+    line-height: 1.05;
     letter-spacing: -0.02em;
     color: #2d5a3d;
-    margin: 0 0 32px;
+    margin: 0 0 28px;
   }
   section.market .tam-math {
-    font-size: 32px;
-    line-height: 1.45;
+    font-size: 30px;
+    line-height: 1.4;
     color: #2d2a26;
     margin: 0 0 22px;
   }
+  section.market .market-split {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0 0 24px;
+    border: 2px solid #2d5a3d;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  section.market .market-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    background: #fbf8f0;
+  }
+  section.market .market-row + .market-row {
+    border-top: 1px solid #ede8e0;
+  }
+  section.market .market-row .label {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 26px;
+    color: #2d2a26;
+  }
+  section.market .market-row .value {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 28px;
+    color: #2d5a3d;
+  }
+  section.market .market-row .sub {
+    display: block;
+    font-family: "Instrument Sans", "Inter", sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+    color: #6f6a65;
+    margin-top: 4px;
+  }
   section.market .tam-footnote {
-    font-size: 24px;
+    font-size: 22px;
     color: #6f6a65;
     line-height: 1.5;
     margin: 0;
@@ -510,6 +725,34 @@ style: |
     margin: 12px 0 0;
     max-width: 880px;
   }
+  section.traction .evidence-note {
+    margin-top: 28px;
+    padding: 14px 18px;
+    background: rgba(45, 90, 61, 0.06);
+    border-left: 3px solid #2d5a3d;
+    border-radius: 0 6px 6px 0;
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #2d2a26;
+  }
+  section.traction .evidence-note-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #2d5a3d;
+    margin: 0 0 6px;
+  }
+  section.traction .evidence-note-text {
+    margin: 0;
+  }
+  section.traction .evidence-note-text strong {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    color: #2d5a3d;
+  }
 
 ---
 
@@ -522,11 +765,7 @@ style: |
 <span class="wm">beginner</span>
 </div>
 
-<p class="kicker">a pitch deck · 2026</p>
-
 # Everyone is a founder.
-
-<p class="lede">beginner builds tinker — a guided conversation that helps builders discover their pitch over time.</p>
 
 <div class="hero-rainbow"></div>
 
@@ -542,12 +781,14 @@ style: |
 # Team
 
 <div class="team-photo">
-<img src="https://s8kxcopruztkzzgf.public.blob.vercel-storage.com/linkedin-profile" alt="Tyler Lindow" />
+<img src="https://media.licdn.com/dms/image/v2/D5603AQHXoA9e1jmY-g/profile-displayphoto-scale_400_400/B56Zx8ISBgGwAg-/0/1771609072488?e=2147483647&amp;v=beta&amp;t=lpFI6tVSw90oPM76Ja65OQ1cUP5ZcsKtaxYTkaLJHNU" alt="Tyler Lindow" />
 </div>
 
 <p class="team-name">Tyler Lindow</p>
 
-<p class="team-statement">10 years elevating engineers. From museums to IPO.</p>
+<p class="team-statement">10 years elevating engineers. From science museums to IPOs.</p>
+
+<p class="team-learned-label">What have I learned?</p>
 
 ---
 
@@ -560,15 +801,13 @@ style: |
 
 # Problem
 
-<div class="problem-block">
-<p class="problem-kicker">Go-to-market</p>
-<blockquote><p><em>Great builders are not always great founders. Some go a whole career without building something of their own.</em></p></blockquote>
-</div>
+<p class="problem-statement">Engineers stay building while <em>human making becomes a relic of the past…</em></p>
 
-<div class="problem-block">
-<p class="problem-kicker">Vision</p>
-<blockquote><p><em>Our neighborhood culture holders are severely underfunded — barbers, Mexican folk healers. Humanity is dying.</em></p></blockquote>
-</div>
+---
+
+<!-- _class: transition -->
+
+<p class="transition-line">Here's what I built.</p>
 
 ---
 
@@ -578,7 +817,21 @@ style: |
 
 <svg class="mobile-mockup" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 540" role="img" aria-label="tinker mobile welcome screen"><rect x="4" y="4" width="312" height="532" rx="38" ry="38" fill="#fffdf7" stroke="#ede8e0" stroke-width="2"/><rect x="124" y="16" width="72" height="20" rx="10" fill="#1a1a1a" opacity="0.95"/><g transform="translate(24, 60)"><g transform="scale(0.13)"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62" x2="175.94" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138" x2="175.94" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></g><text x="36" y="20" font-family="Fraunces, Plus Jakarta Sans, Georgia, serif" font-size="16" font-weight="700" fill="#2d2a26">tinker</text></g><g font-family="Inter, system-ui, sans-serif"><text x="24" y="116" font-size="10" letter-spacing="1.2" fill="#6f6a65">PITCH PROGRESS</text><text x="296" y="116" font-size="10" text-anchor="end" fill="#6f6a65" font-weight="700">0 / 11</text><rect x="24" y="122" width="272" height="3" rx="1.5" fill="#ede8e0"/></g><g text-anchor="middle"><g transform="translate(140, 168) scale(0.2)"><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62" x2="175.94" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138" x2="175.94" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></g><text x="160" y="234" font-family="Fraunces, Georgia, serif" font-size="20" font-weight="700" fill="#2d2a26">Everyone is a founder.</text><text x="160" y="256" font-family="Inter" font-size="12" fill="#6f6a65">You just need a seed to start.</text><text x="160" y="296" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Where are you right now?</text></g><g font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#2d2a26" text-anchor="middle"><rect x="32" y="320" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="94" y="351">Cafe</text><rect x="164" y="320" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="226" y="351">Home</text><rect x="32" y="384" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="94" y="415">Work</text><rect x="164" y="384" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="226" y="415" font-size="12">Somewhere else</text></g><rect x="120" y="510" width="80" height="4" rx="2" fill="#1a1a1a" opacity="0.3"/></svg>
 
-<p class="solution-caption"><strong>The GTM solution</strong>: An app that helps builders discover their pitch over time, on the go.</p>
+<p class="solution-caption"><strong>The GTM solution</strong>: An app that helps engineers discover their pitch over time, on the go.</p>
+
+---
+
+<!-- _class: transition -->
+
+<p class="transition-line">Here's what I'd like to build.</p>
+
+---
+
+<!-- _class: solution -->
+
+<svg class="mobile-mockup" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 540" role="img" aria-label="beginner marketplace mobile mockup"><rect x="4" y="4" width="312" height="532" rx="38" ry="38" fill="#fffdf7" stroke="#ede8e0" stroke-width="2"/><rect x="124" y="16" width="72" height="20" rx="10" fill="#1a1a1a" opacity="0.95"/><g transform="translate(20, 56)"><g transform="scale(0.11)"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></g><text x="28" y="16" font-family="Fraunces, Plus Jakarta Sans, Georgia, serif" font-size="15" font-weight="700" fill="#2d5a3d">beginner</text></g><g transform="translate(20, 88)"><rect width="280" height="34" rx="17" fill="#f5f3ef" stroke="#ede8e0" stroke-width="1"/><circle cx="18" cy="17" r="5" fill="none" stroke="#6f6a65" stroke-width="1.5"/><line x1="22" y1="21" x2="26" y2="25" stroke="#6f6a65" stroke-width="1.5" stroke-linecap="round"/><text x="36" y="21" font-family="Inter, sans-serif" font-size="11" fill="#6f6a65">Find a maker to seed</text></g><g transform="translate(20, 134)" font-family="Inter, sans-serif" font-size="10" font-weight="600"><rect x="0" y="0" width="42" height="22" rx="11" fill="#2d5a3d"/><text x="21" y="14" text-anchor="middle" fill="#fffdf7">All</text><rect x="48" y="0" width="58" height="22" rx="11" fill="#fffdf7" stroke="#ede8e0"/><text x="77" y="14" text-anchor="middle" fill="#2d2a26">Healers</text><rect x="112" y="0" width="38" height="22" rx="11" fill="#fffdf7" stroke="#ede8e0"/><text x="131" y="14" text-anchor="middle" fill="#2d2a26">Tea</text><rect x="156" y="0" width="62" height="22" rx="11" fill="#fffdf7" stroke="#ede8e0"/><text x="187" y="14" text-anchor="middle" fill="#2d2a26">Ceramics</text><rect x="224" y="0" width="48" height="22" rx="11" fill="#fffdf7" stroke="#ede8e0"/><text x="248" y="14" text-anchor="middle" fill="#2d2a26">Bread</text></g><g transform="translate(20, 168)" font-family="Fraunces, Georgia, serif" fill="#2d2a26"><rect x="0" y="0" width="130" height="106" rx="10" fill="#7bc47a"/><text x="65" y="62" text-anchor="middle" font-size="30" fill="#fffdf7" font-weight="700">.t</text><text x="0" y="124" font-size="12" font-weight="700">Tara H. · Herbal teas</text><text x="0" y="139" font-family="Inter, sans-serif" font-size="10" fill="#2d5a3d" font-weight="600">$420 seeded · 12 backers</text><rect x="142" y="0" width="130" height="106" rx="10" fill="#fdba74"/><text x="207" y="62" text-anchor="middle" font-size="30" fill="#fffdf7" font-weight="700">.j</text><text x="142" y="124" font-size="12" font-weight="700">Joe B. · Sourdough</text><text x="142" y="139" font-family="Inter, sans-serif" font-size="10" fill="#2d5a3d" font-weight="600">$180 seeded · 22 backers</text><rect x="0" y="154" width="130" height="106" rx="10" fill="#fde68a"/><text x="65" y="216" text-anchor="middle" font-size="30" fill="#fffdf7" font-weight="700">.m</text><text x="0" y="278" font-size="12" font-weight="700">Mia P. · Ceramics</text><text x="0" y="293" font-family="Inter, sans-serif" font-size="10" fill="#2d5a3d" font-weight="600">$640 seeded · 18 backers</text><rect x="142" y="154" width="130" height="106" rx="10" fill="#c8b6e2"/><text x="207" y="216" text-anchor="middle" font-size="30" fill="#fffdf7" font-weight="700">.c</text><text x="142" y="278" font-size="12" font-weight="700">Carlos M. · Healing</text><text x="142" y="293" font-family="Inter, sans-serif" font-size="10" fill="#2d5a3d" font-weight="600">$320 seeded · 9 backers</text></g><rect x="4" y="492" width="312" height="44" fill="#fffdf7"/><line x1="4" y1="492" x2="316" y2="492" stroke="#ede8e0" stroke-width="1"/><g font-family="Inter, sans-serif" font-size="8" font-weight="600"><text x="42" y="514" text-anchor="middle" fill="#2d5a3d">Explore</text><text x="100" y="514" text-anchor="middle" fill="#6f6a65">Saved</text><text x="160" y="514" text-anchor="middle" fill="#6f6a65">Pitches</text><text x="220" y="514" text-anchor="middle" fill="#6f6a65">Inbox</text><text x="278" y="514" text-anchor="middle" fill="#6f6a65">Profile</text></g></svg>
+
+<p class="solution-caption"><strong>The Vision solution</strong>: A marketplace where you seed the makers behind the things you love.</p>
 
 ---
 
@@ -598,25 +851,26 @@ style: |
 </li>
 <li class="timeline-item">
 <span class="timeline-dot"></span>
-<div><p class="timeline-date">May 29, 2026</p><p class="timeline-event">First paid user — the founder.</p></div>
+<div><p class="timeline-date">June 1, 2026</p><p class="timeline-event">First paying user — me.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Q1 — August 2026</p><p class="timeline-event future">250 paid developers.</p></div>
+<div><p class="timeline-date future">Dec 1, 2026</p><p class="timeline-event future">$100K/year in subscriptions · 185 paying engineers.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Q2 — November 2026</p><p class="timeline-event future">1,000 paid developers.</p></div>
+<div><p class="timeline-date future">June 1, 2027</p><p class="timeline-event future">$400K/year in subscriptions · 741 paying engineers · monthly revenue covers monthly costs.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Q3 — February 2027</p><p class="timeline-event future">2,000 paid developers.</p></div>
-</li>
-<li class="timeline-item">
-<span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Q4 — May 2027</p><p class="timeline-event future">4,000 paid developers (~$432,000 yearly revenue).</p></div>
+<div><p class="timeline-date future">Dec 1, 2027</p><p class="timeline-event future">$750K/year in subscriptions · 1,400 paying engineers.</p></div>
 </li>
 </ul>
+
+<div class="evidence-note">
+<p class="evidence-note-label">Empirical basis</p>
+<p class="evidence-note-text"><strong>10 people · 11 days · $9.03 in AI costs.</strong> 1 of them paid $9/month inside a week; that same person moved up to $45/month inside two weeks. The 18-month plan grows this same pattern 1,400 times — from ~1 new person a day today to ~45 a day by month 18. Limited by how many people I can reach alone, and the $181K AI budget across those 18 months.</p>
+</div>
 
 ---
 
@@ -627,13 +881,30 @@ style: |
 <span class="wm">beginner</span>
 </div>
 
-# Market
+# GTM Market
 
-<p class="tam-headline">$2.9 billion a year</p>
+<p class="tam-headline">$2.85 billion a year</p>
 
-<p class="tam-math"><strong>27 million developers × $9 a month.</strong></p>
+<p class="tam-math"><strong>22% of LinkedIn's 120 million paying subscribers × $9 a month.</strong></p>
 
-<p class="tam-footnote">Every developer on earth in 2026. For reference: LinkedIn Premium pulls roughly $2 billion a year from 120 million paying subscribers.</p>
+<p class="tam-footnote">~26 million tech, engineering, and design professionals already paying for a professional tool. tinker is the next one.</p>
+
+---
+
+<div class="beginner-badge">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
+<span class="wm">beginner</span>
+</div>
+
+<!-- _class: market -->
+
+# Vision Market
+
+<p class="tam-headline">$71.3 billion a year</p>
+
+<p class="tam-math"><strong>22% of Instagram's 3 billion users × $9 a month.</strong></p>
+
+<p class="tam-footnote">22% of LinkedIn members are in tech, engineering, or design. Same ratio applied to Instagram.</p>
 
 ---
 
@@ -648,22 +919,29 @@ style: |
 
 <p class="ask-amount">$500,000</p>
 
-<p class="ask-period">12 months runway.</p>
+<p class="ask-period">18 months runway.</p>
 
 <div class="ask-bar">
-<span class="ask-bar-segment makers"></span>
-<span class="ask-bar-segment salary"></span>
-<span class="ask-bar-segment running"></span>
-<span class="ask-bar-segment gtm"></span>
-<span class="ask-bar-segment reserves"></span>
+<span class="ask-bar-segment year1"></span>
+<span class="ask-bar-segment year2"></span>
+<span class="ask-bar-segment beyond"></span>
 </div>
 
-<div class="ask-legend">
-<div class="ask-legend-item"><span class="ask-legend-dot makers"></span><span><span class="ask-legend-amount">$176K</span> &nbsp;<span class="ask-legend-label">research for the second GTM (makers)</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot salary"></span><span><span class="ask-legend-amount">$168K</span> &nbsp;<span class="ask-legend-label">founder salary</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot running"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot gtm"></span><span><span class="ask-legend-amount">$56K</span> &nbsp;<span class="ask-legend-label">go-to-market (developers)</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot reserves"></span><span><span class="ask-legend-amount">$10K</span> &nbsp;<span class="ask-legend-label">reserves</span></span></div>
+<div class="ask-section">
+<div class="ask-section-head"><span class="ask-section-name">Year 1</span><span class="ask-section-total">$312K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">my salary</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$137K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
+</div>
+
+<div class="ask-section">
+<div class="ask-section-head"><span class="ask-section-name">Year 2 (first 6 months)</span><span class="ask-section-total">$185K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$95K</span> &nbsp;<span class="ask-legend-label">my salary (~6% inflation)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
+</div>
+
+<div class="ask-section">
+<div class="ask-section-head"><span class="ask-section-name">Beyond</span><span class="ask-section-total">$3K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot beyond"></span><span><span class="ask-legend-amount">$3K</span> &nbsp;<span class="ask-legend-label">cushion for the unexpected</span></span></div>
 </div>
 
 ---
@@ -683,3 +961,55 @@ style: |
 # Thank you
 
 <p class="closing-tagline">Everyone is a founder</p>
+
+---
+
+<!-- _class: appendix -->
+
+<div class="beginner-badge">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
+<span class="wm">beginner</span>
+</div>
+
+# Appendix
+
+<p class="appendix-sub">Every line item in the $500,000 ask, fully itemized.</p>
+
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">My salary, year 1</span><span class="appendix-amount">$175,000</span></div>
+<p class="appendix-detail">12 months. Base + benefits, all in.</p>
+</div>
+
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">Running costs, year 1</span><span class="appendix-amount">$137,000</span></div>
+<p class="appendix-detail">Anthropic API (the dominant line) + Stripe payment processing + legal + accounting + banking + SF travel to build GTM motions (two one-week trips a year; extended stay only if accepted to an incubator) + Industrious office + Claude Code + Vercel + Neon + Stytch + GitHub.</p>
+</div>
+
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">My salary, year 2 (first 6 months)</span><span class="appendix-amount">$95,000</span></div>
+<p class="appendix-detail">~6% inflation built into the year-2 rate. Keeps me in seat through the first half of year 2 without re-raising.</p>
+</div>
+
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">Running costs, year 2 (first 6 months)</span><span class="appendix-amount">$90,000</span></div>
+<p class="appendix-detail">Anthropic API ~$70K (the Y1 cohort ages into low-cost maintenance use as new signups continue) + ~$10K Stripe payment processing (2.7% + $0.30/transaction on a growing subscriber base) + ~$10K for half a year of office, legal, stack, and one SF trip.</p>
+</div>
+
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">Maker discovery seed + cushion</span><span class="appendix-amount">$3,000</span></div>
+<p class="appendix-detail">Everything left after the 18 months of runway costs. A small cushion for the unexpected; maker channel research is funded from the operating cash flow once monthly revenue covers monthly costs (month 12). The engineer-only path is a viable venture business on its own; entering the maker market in scale is an investor decision once engineer GTM is proven.</p>
+</div>
+
+<div class="appendix-total"><span class="label">Total ask</span><span class="value">$500,000</span></div>
+
+<div class="appendix-breakdown">
+<p class="appendix-breakdown-label">Year 1 running costs — itemized</p>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Anthropic API</span><span class="appendix-breakdown-value">$111,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Payment processing (Stripe — 2.7% + $0.30/transaction)</span><span class="appendix-breakdown-value">$7,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Legal + accounting + banking</span><span class="appendix-breakdown-value">$6,500</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">SF travel — two one-week GTM trips</span><span class="appendix-breakdown-value">$5,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Industrious office ($332/mo × 12)</span><span class="appendix-breakdown-value">$4,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Claude Code Max ($200/mo × 12)</span><span class="appendix-breakdown-value">$2,500</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Stack — Vercel + Neon + Stytch + GitHub + domain</span><span class="appendix-breakdown-value">$1,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Year 1 running costs total</span><span class="appendix-breakdown-value">$137,000</span></div>
+</div>
