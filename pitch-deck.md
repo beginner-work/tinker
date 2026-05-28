@@ -354,11 +354,12 @@ style: |
     box-shadow: 0 4px 12px rgba(45, 42, 38, 0.08);
   }
   section.ask .ask-bar-segment { height: 100%; }
-  section.ask .ask-bar-segment.salary   { background: #2d5a3d; flex-basis: 33.6%; }
-  section.ask .ask-bar-segment.gtm      { background: #7bc47a; flex-basis: 11.2%; }
-  section.ask .ask-bar-segment.makers   { background: #f9a8d4; flex-basis: 35.2%; }
-  section.ask .ask-bar-segment.running  { background: #fdba74; flex-basis: 18%; }
-  section.ask .ask-bar-segment.reserves { background: #c8b6e2; flex-basis: 2%; }
+  section.ask .ask-bar-segment.salary     { background: #2d5a3d; flex-basis: 33.6%; }
+  section.ask .ask-bar-segment.contractor { background: #fde68a; flex-basis: 22.4%; }
+  section.ask .ask-bar-segment.makers     { background: #f9a8d4; flex-basis: 20%; }
+  section.ask .ask-bar-segment.running    { background: #fdba74; flex-basis: 18%; }
+  section.ask .ask-bar-segment.events     { background: #7dd3fc; flex-basis: 4%; }
+  section.ask .ask-bar-segment.reserves   { background: #c8b6e2; flex-basis: 2%; }
   section.ask .ask-legend {
     display: flex;
     flex-direction: column;
@@ -379,11 +380,12 @@ style: |
     flex-shrink: 0;
     transform: translateY(2px);
   }
-  section.ask .ask-legend-dot.salary   { background: #2d5a3d; }
-  section.ask .ask-legend-dot.gtm      { background: #7bc47a; }
-  section.ask .ask-legend-dot.makers   { background: #f9a8d4; }
-  section.ask .ask-legend-dot.running  { background: #fdba74; }
-  section.ask .ask-legend-dot.reserves { background: #c8b6e2; }
+  section.ask .ask-legend-dot.salary     { background: #2d5a3d; }
+  section.ask .ask-legend-dot.contractor { background: #fde68a; }
+  section.ask .ask-legend-dot.makers     { background: #f9a8d4; }
+  section.ask .ask-legend-dot.running    { background: #fdba74; }
+  section.ask .ask-legend-dot.events     { background: #7dd3fc; }
+  section.ask .ask-legend-dot.reserves   { background: #c8b6e2; }
   section.ask .ask-legend-amount {
     font-family: "Fraunces", serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
@@ -399,28 +401,30 @@ style: |
     margin: 0;
   }
 
-  /* Problem slide — two framings (go-to-market + vision) */
-  section.problem .problem-block {
-    margin-bottom: 36px;
+  /* Problem slide — one page-filling statement */
+  section.problem {
+    justify-content: center;
   }
-  section.problem .problem-block:last-child { margin-bottom: 0; }
-  section.problem .problem-kicker {
+  section.problem > h1 {
+    font-size: 36px;
+    color: #6f6a65;
+    margin: 0 0 32px;
+    font-weight: 600;
+  }
+  section.problem .problem-statement {
     font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
-    font-style: italic;
-    font-size: 20px;
-    color: #2d5a3d;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin: 0 0 14px;
-  }
-  section.problem blockquote {
-    font-size: 28px;
-    line-height: 1.4;
+    font-size: 84px;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: #2d2a26;
     margin: 0;
-    padding: 0 0 0 24px;
-    border-left: 3px solid #ede8e0;
+    max-width: 100%;
+  }
+  section.problem .problem-statement em {
+    color: #2d5a3d;
+    font-style: italic;
   }
 
   /* Team slide — photo + one statement */
@@ -468,25 +472,67 @@ style: |
     line-height: 1.4;
   }
 
-  /* Market slide — big TAM number */
+  /* Market slide — two markets, developers + makers */
   section.market .tam-headline {
     font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
-    font-size: 88px;
-    line-height: 1.1;
+    font-size: 80px;
+    line-height: 1.05;
     letter-spacing: -0.02em;
     color: #2d5a3d;
-    margin: 0 0 32px;
+    margin: 0 0 28px;
   }
   section.market .tam-math {
-    font-size: 32px;
-    line-height: 1.45;
+    font-size: 30px;
+    line-height: 1.4;
     color: #2d2a26;
     margin: 0 0 22px;
   }
+  section.market .market-split {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0 0 24px;
+    border: 2px solid #2d5a3d;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  section.market .market-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    background: #fbf8f0;
+  }
+  section.market .market-row + .market-row {
+    border-top: 1px solid #ede8e0;
+  }
+  section.market .market-row .label {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 26px;
+    color: #2d2a26;
+  }
+  section.market .market-row .value {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 28px;
+    color: #2d5a3d;
+  }
+  section.market .market-row .sub {
+    display: block;
+    font-family: "Instrument Sans", "Inter", sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+    color: #6f6a65;
+    margin-top: 4px;
+  }
   section.market .tam-footnote {
-    font-size: 24px;
+    font-size: 22px;
     color: #6f6a65;
     line-height: 1.5;
     margin: 0;
@@ -522,8 +568,6 @@ style: |
 <span class="wm">beginner</span>
 </div>
 
-<p class="kicker">a pitch deck · 2026</p>
-
 # Everyone is a founder.
 
 <p class="lede">beginner builds tinker — a guided conversation that helps builders discover their pitch over time.</p>
@@ -547,7 +591,7 @@ style: |
 
 <p class="team-name">Tyler Lindow</p>
 
-<p class="team-statement">10 years elevating engineers. From museums to IPO.</p>
+<p class="team-statement">10 years elevating engineers. From science museums to IPOs.</p>
 
 ---
 
@@ -560,15 +604,7 @@ style: |
 
 # Problem
 
-<div class="problem-block">
-<p class="problem-kicker">Go-to-market</p>
-<blockquote><p><em>Great builders are not always great founders. Some go a whole career without building something of their own.</em></p></blockquote>
-</div>
-
-<div class="problem-block">
-<p class="problem-kicker">Vision</p>
-<blockquote><p><em>Our neighborhood culture holders are severely underfunded — barbers, Mexican folk healers. Humanity is dying.</em></p></blockquote>
-</div>
+<p class="problem-statement">Builders stay coding while <em>culture dies waiting.</em></p>
 
 ---
 
@@ -598,7 +634,7 @@ style: |
 </li>
 <li class="timeline-item">
 <span class="timeline-dot"></span>
-<div><p class="timeline-date">May 29, 2026</p><p class="timeline-event">First paid user — the founder.</p></div>
+<div><p class="timeline-date">June 1, 2026</p><p class="timeline-event">First paid user — the founder.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
@@ -627,13 +663,30 @@ style: |
 <span class="wm">beginner</span>
 </div>
 
-# Market
+# GTM Market
 
 <p class="tam-headline">$0.65 billion a year</p>
 
-<p class="tam-math"><strong>The entire developer market today, 2026.</strong></p>
+<p class="tam-math"><strong>The paid developer-tools market today, 2026.</strong></p>
 
-<p class="tam-footnote">Headroom to grow as AI shifts more engineers from building someone else's product to founding their own.</p>
+<p class="tam-footnote">Developers are the wedge. Direct distribution at $9/month — no paid acquisition required to start.</p>
+
+---
+
+<div class="beginner-badge">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
+<span class="wm">beginner</span>
+</div>
+
+<!-- _class: market -->
+
+# Vision Market
+
+<p class="tam-headline">$16 billion a year</p>
+
+<p class="tam-math"><strong>The same ARR Instagram earns from consumers — captured by the makers who feed those same audiences.</strong></p>
+
+<p class="tam-footnote">Every consumer who follows a creator on Instagram is a potential customer for the maker behind them. beginner is where that exchange becomes a transaction.</p>
 
 ---
 
@@ -651,18 +704,20 @@ style: |
 <p class="ask-period">12 months runway.</p>
 
 <div class="ask-bar">
-<span class="ask-bar-segment makers"></span>
 <span class="ask-bar-segment salary"></span>
+<span class="ask-bar-segment contractor"></span>
+<span class="ask-bar-segment makers"></span>
 <span class="ask-bar-segment running"></span>
-<span class="ask-bar-segment gtm"></span>
+<span class="ask-bar-segment events"></span>
 <span class="ask-bar-segment reserves"></span>
 </div>
 
 <div class="ask-legend">
-<div class="ask-legend-item"><span class="ask-legend-dot makers"></span><span><span class="ask-legend-amount">$176K</span> &nbsp;<span class="ask-legend-label">research for the second GTM (makers)</span></span></div>
 <div class="ask-legend-item"><span class="ask-legend-dot salary"></span><span><span class="ask-legend-amount">$168K</span> &nbsp;<span class="ask-legend-label">founder salary</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot contractor"></span><span><span class="ask-legend-amount">$112K</span> &nbsp;<span class="ask-legend-label">part-time contractor (2/3 founder)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot makers"></span><span><span class="ask-legend-amount">$100K</span> &nbsp;<span class="ask-legend-label">maker discovery (quarterly beginner markets + pilots; no paid acquisition until year 2)</span></span></div>
 <div class="ask-legend-item"><span class="ask-legend-dot running"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot gtm"></span><span><span class="ask-legend-amount">$56K</span> &nbsp;<span class="ask-legend-label">go-to-market (developers)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot events"></span><span><span class="ask-legend-amount">$20K</span> &nbsp;<span class="ask-legend-label">monthly community events</span></span></div>
 <div class="ask-legend-item"><span class="ask-legend-dot reserves"></span><span><span class="ask-legend-amount">$10K</span> &nbsp;<span class="ask-legend-label">reserves</span></span></div>
 </div>
 
