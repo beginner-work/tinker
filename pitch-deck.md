@@ -855,15 +855,15 @@ style: |
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Dec 1, 2026</p><p class="timeline-event future">$100K ARR · 185 paying engineers.</p></div>
+<div><p class="timeline-date future">Dec 1, 2026</p><p class="timeline-event future">$100K/year in subscriptions · 185 paying engineers.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">June 1, 2027</p><p class="timeline-event future">$400K ARR · 741 paying engineers · cash-flow positive (MRR exceeds monthly burn).</p></div>
+<div><p class="timeline-date future">June 1, 2027</p><p class="timeline-event future">$400K/year in subscriptions · 741 paying engineers · monthly revenue covers monthly costs.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Dec 1, 2027</p><p class="timeline-event future">$750K ARR · 1,400 paying engineers.</p></div>
+<div><p class="timeline-date future">Dec 1, 2027</p><p class="timeline-event future">$750K/year in subscriptions · 1,400 paying engineers.</p></div>
 </li>
 </ul>
 
