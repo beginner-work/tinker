@@ -690,7 +690,7 @@ style: |
 
 # Problem
 
-<p class="problem-statement">Tinkerers stay coding while <em>culture dies uninvested.</em></p>
+<p class="problem-statement">Engineers stay building while <em>human making becomes a relic of the past…</em></p>
 
 ---
 
