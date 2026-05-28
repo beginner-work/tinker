@@ -107,13 +107,18 @@
   /* The page title floats fixed at the top of the viewport (see the
    * .…__title block below), so each surface's inner container needs
    * enough padding to clear the ~60px-tall title bar. */
-  .read__body,
   .category-feed__head,
   .writing-fit__inner,
   .post-on-social__inner,
   .pitch-script__inner,
   .founders__inner {
     padding-top: calc(env(safe-area-inset-top, 0px) + 76px);
+  }
+  /* Read surface has an additional fixed subtitle bar below the title
+   * (see .read__author rule further down), so the body needs to clear
+   * both — the title (60px) plus the subtitle row (~32px). */
+  .read__body {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 108px);
   }
 
   /* Floating page-title bar — fixed at the top in the row of the
@@ -205,5 +210,40 @@
     padding-left: 56px;
     padding-right: 56px;
     box-sizing: border-box;
+  }
+
+  /* Pin the kebab menu to the viewport so it stays in the top-right
+   * corner alongside the fixed title bar. Without this it sits absolute
+   * inside .read (which is the overflow:auto scroll container), so it
+   * drifts off-screen as the essay body scrolls. */
+  .read__menu {
+    position: fixed;
+  }
+
+  /* Pin the essay subtitle (pitch · slide label) right below the fixed
+   * title bar so the heading group reads as one unit while the body
+   * scrolls underneath. Same blurred cream wash as the title so the two
+   * bars blend visually. */
+  .read__author {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 60px);
+    left: 0;
+    right: 0;
+    z-index: 54;
+    margin: 0;
+    padding: 4px 56px 12px;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 253, 247, 0.92) 60%,
+      rgba(255, 253, 247, 0)
+    );
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+
+  /* Match the title's drawer-open fade so the subtitle doesn't peek
+   * past the open sidebar's right edge. */
+  body[data-drawer-open] .read__author {
+    opacity: 0;
   }
 }

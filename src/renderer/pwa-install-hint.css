@@ -126,13 +126,17 @@ html.pwa-hint-visible .writing__top {
  * hamburger + floating-title clearance directly. With the install
  * banner visible we add another 64px so the first paragraph still
  * sits below both the banner and the now-lowered title bar. */
-html.pwa-hint-visible .read__body,
 html.pwa-hint-visible .category-feed__head,
 html.pwa-hint-visible .writing-fit__inner,
 html.pwa-hint-visible .post-on-social__inner,
 html.pwa-hint-visible .pitch-script__inner,
 html.pwa-hint-visible .founders__inner {
   padding-top: calc(env(safe-area-inset-top, 0px) + 76px + 64px);
+}
+/* Read body carries 108px of base clearance (title + fixed subtitle),
+ * so its install-banner offset is 108 + 64 rather than 76 + 64. */
+html.pwa-hint-visible .read__body {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 108px + 64px);
 }
 
 /* Slide the floating page-title bar below the install banner, the
@@ -145,6 +149,14 @@ html.pwa-hint-visible .founders__inner {
   html.pwa-hint-visible .pitch-script__title,
   html.pwa-hint-visible .founders__title {
     top: 64px;
+  }
+  /* The fixed subtitle and kebab menu ride along with the title — shift
+   * them down by the same 64px so they sit just below the banner. */
+  html.pwa-hint-visible .read__author {
+    top: calc(env(safe-area-inset-top, 0px) + 60px + 64px);
+  }
+  html.pwa-hint-visible .read__menu {
+    top: calc(env(safe-area-inset-top, 0px) + 12px + 64px);
   }
 }
 
