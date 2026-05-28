@@ -959,10 +959,10 @@ style: |
 
 <div class="appendix-row">
 <div class="appendix-head"><span class="appendix-label">Maker discovery + reserves</span><span class="appendix-amount">$75,000</span></div>
-<p class="appendix-detail">Everything left after the year-1 and year-2 extrapolation. Funds the maker channel research (quarterly beginner markets, paid pilots) and a cushion for the unexpected.</p>
+<p class="appendix-detail">Everything left after the 18 months of runway costs. Funds the maker channel research (quarterly beginner markets, paid pilots) and a cushion for the unexpected.</p>
 </div>
 
-<div class="appendix-total"><span class="label">Total ask (SAFE)</span><span class="value">$500,000</span></div>
+<div class="appendix-total"><span class="label">Total ask</span><span class="value">$500,000</span></div>
 
 <div class="appendix-callout">
 <p class="appendix-callout-label">Anthropic API detail</p>
