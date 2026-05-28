@@ -311,29 +311,41 @@ style: |
     margin: 20px 0 0;
   }
 
-  /* Team slide — verbatim bullets */
-  section.team ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    font-size: 36px;
-    line-height: 1.5;
-  }
-  section.team ul li {
-    position: relative;
-    padding-left: 48px;
-    margin-bottom: 28px;
-  }
-  section.team ul li:last-child { margin-bottom: 0; }
-  section.team ul li::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0.6em;
-    width: 16px;
-    height: 16px;
+  /* Team slide — photo + one statement */
+  section.team { justify-content: flex-start; }
+  .team-photo {
+    display: block;
+    width: 280px;
+    height: 280px;
+    margin: 32px auto 28px;
     border-radius: 50%;
+    overflow: hidden;
     background: #2d5a3d;
+    box-shadow: 0 12px 32px rgba(45, 42, 38, 0.16);
+  }
+  .team-photo svg, .team-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .team-name {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 44px;
+    color: #2d2a26;
+    text-align: center;
+    margin: 0 0 24px;
+    letter-spacing: -0.02em;
+  }
+  .team-statement {
+    font-size: 30px;
+    color: #2d2a26;
+    text-align: center;
+    margin: 0 auto;
+    max-width: 600px;
+    line-height: 1.4;
   }
 
   /* Market slide — big TAM number */
@@ -412,10 +424,13 @@ Pre-seed · $500,000
 
 # Team
 
-- Solo founder.
-- 3.5 years seeing how coaching can be a lever for raising funds.
-- 6.5 years seeing how this works at scale through software.
-- Never the gatekeeper. Always the bridge.
+<div class="team-photo">
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tyler Lindow"><rect width="200" height="200" fill="#2d5a3d"/><text x="100" y="135" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-size="100" font-weight="700" fill="#fffdf7" font-variation-settings="'SOFT' 100, 'opsz' 144">TL</text></svg>
+</div>
+
+<p class="team-name">Tyler Lindow</p>
+
+<p class="team-statement">Solo founder. 10 years bridging makers and money — half through software at scale, half through museums.</p>
 
 ---
 
@@ -426,9 +441,7 @@ Pre-seed · $500,000
 
 # Problem
 
-> *Strong builders sometimes never become founders.*
-
-> *The only way to learn fundraising today is a $500–$5,000 a month coach. So the people who become founders are the people who can afford one. Talent doesn't decide. Wealth does.*
+> *Great builders spend whatever time they have left just trying to get a meal in. How can we expect them to be founders if they're still coding, not founding?*
 
 ---
 
@@ -502,7 +515,9 @@ Pre-seed · $500,000
 
 <p class="min-line"><strong>$168,000</strong> — founder salary, 12 months ($150,000 base + $18,000 benefits).</p>
 
-<p class="min-line"><strong>$232,000</strong> — marketing and growth (paid acquisition, dev events, content, community).</p>
+<p class="min-line"><strong>$50,000</strong> — Instagram ads to non-developer makers (target: 2,000 paid users).</p>
+
+<p class="min-line"><strong>$6,000</strong> — food at monthly community events ($500/month, 12 months).</p>
 
 <p class="min-line"><strong>$35,000</strong> — legal, accounting, banking, incorporation.</p>
 
@@ -512,7 +527,7 @@ Pre-seed · $500,000
 
 <p class="min-line"><strong>$10,000</strong> — office and dev stack (Industrious $332/mo + Claude Code $200/mo + Vercel + PlanetScale + Stytch + GitHub).</p>
 
-<p class="min-line"><strong>$10,000</strong> — buffer.</p>
+<p class="min-line"><strong>$186,000</strong> — reserves (extends runway to ~18 months at current burn).</p>
 
 <p class="incr-lead">Line in the sand: savings run out end of May 2026. If the round doesn't close, I step away.</p>
 
