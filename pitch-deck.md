@@ -338,6 +338,35 @@ style: |
     font-size: 26px;
     color: #2d5a3d;
   }
+  section.appendix .appendix-callout {
+    margin-top: 20px;
+    padding: 14px 16px;
+    background: rgba(45, 90, 61, 0.06);
+    border-left: 3px solid #2d5a3d;
+    border-radius: 0 6px 6px 0;
+  }
+  section.appendix .appendix-callout-label {
+    font-family: "Inter", sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #2d5a3d;
+    margin: 0 0 6px;
+  }
+  section.appendix .appendix-callout-text {
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #2d2a26;
+    margin: 0;
+  }
+  section.appendix .appendix-callout-text .num {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    color: #2d5a3d;
+  }
 
   /* Traction timeline */
   .timeline {
@@ -934,3 +963,8 @@ style: |
 </div>
 
 <div class="appendix-total"><span class="label">Total ask (SAFE)</span><span class="value">$500,000</span></div>
+
+<div class="appendix-callout">
+<p class="appendix-callout-label">Anthropic API detail</p>
+<p class="appendix-callout-text">Working cost-of-goods estimate: <span class="num">~$9 per active user per year</span>. Sits inside the running-costs lines above. At ~3,000 active by end of Y1: <span class="num">~$27K</span>. Y2 first-half scales ~45% with user growth: <span class="num">~$20K more</span>. The seed and seed+ tiers (hosted founder pages and marketplace) are designed to grow revenue without growing the per-user API spend.</p>
+</div>
