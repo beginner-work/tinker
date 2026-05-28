@@ -1,23 +1,29 @@
 ---
 marp: true
-theme: default
+theme: portrait
 paginate: true
-size: 16:9
 backgroundColor: "#fffdf7"
 color: "#2d2a26"
 style: |
   @import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=Instrument+Sans:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
 
   section {
+    width: 720px;
+    height: 1280px;
     font-family: "Instrument Sans", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
     background: #fffdf7;
     color: #2d2a26;
-    padding: 128px 112px 80px;
+    padding: 96px 56px 64px;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
+    font-size: 30px;
+    line-height: 1.45;
+  }
+
+  /* Vertically center big-number slides */
+  section.market {
     justify-content: center;
-    font-size: 22px;
-    line-height: 1.55;
   }
 
   h1, h2, h3 {
@@ -30,18 +36,18 @@ style: |
   }
 
   section > h1 {
-    font-size: 56px;
+    font-size: 72px;
     line-height: 1.05;
     margin: 0 0 40px;
   }
 
   blockquote {
-    border-left: 3px solid #ede8e0;
+    border-left: 4px solid #ede8e0;
     color: #2d2a26;
-    font-size: 30px;
-    line-height: 1.5;
+    font-size: 40px;
+    line-height: 1.45;
     margin: 0 0 26px;
-    padding: 0 0 0 28px;
+    padding: 0 0 0 32px;
     font-style: normal;
     quotes: none;
   }
@@ -58,97 +64,114 @@ style: |
     letter-spacing: 0.08em;
   }
 
-  /* Cover slide — beginner (company) brand */
-  section.cover { padding: 96px 112px; }
+  /* Cover slide — landing-page hero pattern */
+  section.cover {
+    padding: 80px 48px 56px;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+  }
   section.cover .lockup {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 24px;
-    margin: 0 0 44px;
+    gap: 16px;
+    margin: 0 0 32px;
   }
-  section.cover .lockup svg { width: 108px; height: 108px; }
+  section.cover .lockup svg { width: 104px; height: 104px; }
   section.cover .lockup .wm {
     font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 800;
-    font-size: 92px;
-    letter-spacing: -0.04em;
+    font-size: 56px;
+    letter-spacing: -0.03em;
     color: #2d5a3d;
     line-height: 1;
   }
-  section.cover h1 { display: none; }
-  section.cover .tagline {
+  section.cover .kicker {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    color: #6f6a65;
+    margin: 0 0 24px;
+  }
+  section.cover > h1 {
     font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
-    font-size: 44px;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
+    font-size: 64px;
+    line-height: 1.04;
+    letter-spacing: -0.03em;
     color: #2d2a26;
-    margin: 0 0 8px;
-    max-width: 900px;
+    margin: 0 0 24px;
+    max-width: 600px;
+  }
+  section.cover .lede {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 500;
+    font-size: 24px;
+    line-height: 1.45;
+    color: #4a4742;
+    max-width: 540px;
+    margin: 0 auto 32px;
+  }
+  section.cover .hero-rainbow {
+    width: 200px;
+    height: 6px;
+    border-radius: 999px;
+    margin: 0 auto;
+    background: linear-gradient(90deg, #f9a8d4 0%, #fdba74 18%, #fde68a 36%, #7bc47a 55%, #7dd3fc 75%, #c4b5fd 100%);
   }
   section.cover .meta {
-    margin-top: 64px;
-    padding-top: 18px;
+    margin-top: auto;
+    padding-top: 24px;
     border-top: 1px solid #ede8e0;
-    font-size: 14px;
+    font-size: 20px;
     color: #6f6a65;
     letter-spacing: 0.02em;
-    line-height: 1.75;
+    line-height: 1.7;
+    text-align: center;
+    width: 100%;
+    max-width: 480px;
   }
 
   /* Tinker product slides — rainbow-web brand */
-  section.tinker { padding-top: 144px; }
+  section.tinker {
+    padding-top: 116px;
+    justify-content: flex-start;
+  }
   section.tinker .tinker-badge {
     position: absolute;
-    top: 56px;
-    left: 112px;
+    top: 40px;
+    left: 56px;
     display: flex;
     align-items: center;
     gap: 12px;
   }
-  section.tinker .tinker-badge svg { width: 36px; height: 36px; }
+  section.tinker .tinker-badge svg { width: 48px; height: 48px; }
   section.tinker .tinker-badge .wm {
     font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-weight: 700;
-    font-size: 18px;
+    font-size: 26px;
     letter-spacing: -0.01em;
     color: #2d2a26;
   }
   section.tinker .tinker-rainbow {
     position: absolute;
-    top: 70px;
-    right: 112px;
-    width: 200px;
+    top: 54px;
+    right: 56px;
+    width: 160px;
     height: 6px;
     background: linear-gradient(90deg, #f9a8d4 0%, #fdba74 18%, #fde68a 36%, #7bc47a 55%, #7dd3fc 75%, #c4b5fd 100%);
     border-radius: 999px;
   }
   section.tinker blockquote { border-left: 3px solid #c8b6e2; }
   section.tinker blockquote + blockquote { border-left-color: #7dd3fc; }
-
-  /* Title-only slide — h1 centered, oversized */
-  section.title-only { justify-content: center; }
-  section.title-only > h1 {
-    font-size: 96px;
-    text-align: center;
-    margin: 0;
-    line-height: 1;
-  }
-
-  /* Statement slide — title + one-word punch */
-  section.statement > p {
-    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
-    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
-    font-weight: 700;
-    font-size: 88px;
-    letter-spacing: -0.03em;
-    color: #2d2a26;
-    margin: 0;
-    line-height: 1;
-  }
 
   /* Closing — centered "Thank you" bookended with beginner + tinker marks */
   section.closing { justify-content: center; align-items: center; padding-top: 80px; }
@@ -161,8 +184,8 @@ style: |
   }
   .beginner-badge {
     position: absolute;
-    top: 56px;
-    left: 112px;
+    top: 40px;
+    left: 56px;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -179,8 +202,8 @@ style: |
   }
   section.closing .tinker-badge {
     position: absolute;
-    top: 56px;
-    right: 112px;
+    top: 40px;
+    right: 56px;
     left: auto;
     display: flex;
     align-items: center;
@@ -211,75 +234,286 @@ style: |
   .product-shot {
     display: block;
     width: 100%;
-    max-width: 860px;
+    max-width: 640px;
     height: auto;
     margin: 8px auto 0;
     filter: drop-shadow(0 16px 32px rgba(45, 42, 38, 0.18));
   }
 
-  /* Competition slide — Meta logo mark */
-  .meta-logo {
+  /* Mobile-view phone mockup */
+  .mobile-mockup {
     display: block;
-    width: 380px;
+    width: 100%;
+    max-width: 600px;
     height: auto;
-    margin: 0;
+    margin: 0 auto;
+    filter: drop-shadow(0 16px 32px rgba(45, 42, 38, 0.18));
   }
-
-  /* Ask slide — funding breakdown */
-  section.ask blockquote { margin-bottom: 36px; }
-  section.ask p.min-line {
-    font-size: 24px;
-    line-height: 1.4;
-    margin: 0 0 18px;
-  }
-  section.ask p.min-line strong {
-    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
-    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
-    color: #2d5a3d;
-  }
-  section.ask p.incr-lead {
-    font-size: 20px;
-    color: #6f6a65;
-    margin: 0 0 12px;
-  }
-  section.ask ul {
+  .solution-caption {
+    text-align: center;
     font-size: 22px;
-    line-height: 1.55;
-    margin: 0;
-    padding: 0 0 0 24px;
+    color: #2d2a26;
+    margin: 20px auto 0;
+    max-width: 620px;
+    line-height: 1.45;
   }
-  section.ask ul li { margin-bottom: 4px; }
+  .solution-caption strong { font-weight: 700; color: #2d2a26; }
 
-  /* Team slide — two verbatim bullets */
-  section.team ul {
+  /* Solution slide — phone fills the slide */
+  section.solution {
+    padding: 56px 40px 40px;
+    justify-content: center;
+  }
+  section.solution > h1 { display: none; }
+  section.solution .mobile-mockup { max-width: 640px; }
+
+  /* Traction timeline */
+  .timeline {
     list-style: none;
-    margin: 0;
     padding: 0;
-    font-size: 32px;
-    line-height: 1.5;
+    margin: 16px 0 0;
   }
-  section.team ul li {
+  .timeline-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding-bottom: 24px;
     position: relative;
-    padding-left: 44px;
-    margin-bottom: 30px;
   }
-  section.team ul li:last-child { margin-bottom: 0; }
-  section.team ul li::before {
-    content: "";
+  .timeline-item:last-child { padding-bottom: 0; }
+  .timeline-item:not(:last-child)::after {
+    content: '';
     position: absolute;
-    left: 0;
-    top: 0.55em;
-    width: 13px;
-    height: 13px;
+    left: 11px;
+    top: 32px;
+    bottom: 0;
+    width: 2px;
+    background: #ede8e0;
+  }
+  .timeline-dot {
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background: #2d5a3d;
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+  .timeline-dot.future {
+    background: #fffdf7;
+    border: 2px solid #c8b6e2;
+    width: 20px;
+    height: 20px;
+    margin-top: 8px;
+    margin-left: 2px;
+  }
+  .timeline-date {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 30px;
+    color: #2d5a3d;
+    line-height: 1.1;
+    margin: 0 0 6px;
+  }
+  .timeline-date.future { color: #6f6a65; }
+  .timeline-event {
+    font-size: 26px;
+    color: #2d2a26;
+    line-height: 1.35;
+    margin: 0;
+  }
+  .timeline-event.future { color: #6f6a65; }
+
+  /* Ask slide — visual breakdown */
+  section.ask { justify-content: flex-start; }
+  section.ask .ask-amount {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 96px;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: #2d5a3d;
+    margin: 16px 0 12px;
+  }
+  section.ask .ask-period {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 24px;
+    color: #6f6a65;
+    margin: 0 0 32px;
+  }
+  section.ask .ask-bar {
+    display: flex;
+    width: 100%;
+    height: 36px;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 0 0 28px;
+    box-shadow: 0 4px 12px rgba(45, 42, 38, 0.08);
+  }
+  section.ask .ask-bar-segment { height: 100%; }
+  section.ask .ask-bar-segment.salary   { background: #2d5a3d; flex-basis: 33.6%; }
+  section.ask .ask-bar-segment.gtm      { background: #7bc47a; flex-basis: 11.2%; }
+  section.ask .ask-bar-segment.makers   { background: #f9a8d4; flex-basis: 35.2%; }
+  section.ask .ask-bar-segment.running  { background: #fdba74; flex-basis: 18%; }
+  section.ask .ask-bar-segment.reserves { background: #c8b6e2; flex-basis: 2%; }
+  section.ask .ask-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin: 0 0 32px;
+  }
+  section.ask .ask-legend-item {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    font-size: 24px;
+    line-height: 1.3;
+  }
+  section.ask .ask-legend-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transform: translateY(2px);
+  }
+  section.ask .ask-legend-dot.salary   { background: #2d5a3d; }
+  section.ask .ask-legend-dot.gtm      { background: #7bc47a; }
+  section.ask .ask-legend-dot.makers   { background: #f9a8d4; }
+  section.ask .ask-legend-dot.running  { background: #fdba74; }
+  section.ask .ask-legend-dot.reserves { background: #c8b6e2; }
+  section.ask .ask-legend-amount {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    color: #2d2a26;
+  }
+  section.ask .ask-legend-label { color: #2d2a26; }
+  section.ask .ask-footer {
+    font-size: 20px;
+    color: #6f6a65;
+    font-style: italic;
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  /* Problem slide — two framings (go-to-market + vision) */
+  section.problem .problem-block {
+    margin-bottom: 36px;
+  }
+  section.problem .problem-block:last-child { margin-bottom: 0; }
+  section.problem .problem-kicker {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-style: italic;
+    font-size: 20px;
+    color: #2d5a3d;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin: 0 0 14px;
+  }
+  section.problem blockquote {
+    font-size: 28px;
+    line-height: 1.4;
+    margin: 0;
+    padding: 0 0 0 24px;
+    border-left: 3px solid #ede8e0;
+  }
+
+  /* Team slide — photo + one statement */
+  section.team { justify-content: flex-start; }
+  .team-photo {
+    display: block;
+    width: 280px;
+    height: 280px;
+    margin: 32px auto 28px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #2d5a3d;
+    box-shadow: 0 12px 32px rgba(45, 42, 38, 0.16);
+  }
+  .team-photo svg, .team-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .team-photo img {
+    color: transparent;
+    font-size: 0;
+  }
+  .team-name {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 44px;
+    color: #2d2a26;
+    text-align: center;
+    margin: 0 0 24px;
+    letter-spacing: -0.02em;
+  }
+  .team-name--lone {
+    font-size: 56px;
+    margin-top: 56px;
+  }
+  .team-statement {
+    font-size: 30px;
+    color: #2d2a26;
+    text-align: center;
+    margin: 0 auto;
+    max-width: 600px;
+    line-height: 1.4;
+  }
+
+  /* Market slide — big TAM number */
+  section.market .tam-headline {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 88px;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: #2d5a3d;
+    margin: 0 0 32px;
+  }
+  section.market .tam-math {
+    font-size: 32px;
+    line-height: 1.45;
+    color: #2d2a26;
+    margin: 0 0 22px;
+  }
+  section.market .tam-footnote {
+    font-size: 24px;
+    color: #6f6a65;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* Traction slide — one big number */
+  section.traction .big-number {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 144px;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: #2d5a3d;
+    margin: 0;
+  }
+  section.traction .big-number-label {
+    font-size: 36px;
+    line-height: 1.4;
+    color: #2d2a26;
+    margin: 12px 0 0;
+    max-width: 880px;
   }
 
 ---
 
-<!--
-Export to PDF: npx @marp-team/marp-cli@latest pitch-deck.md --pdf --html
--->
+<!-- Export to PDF: npx @marp-team/marp-cli@latest pitch-deck.md --theme-set pitch-portrait-theme.css --pdf --html --allow-local-files -->
 
 <!-- _class: cover -->
 
@@ -288,162 +522,13 @@ Export to PDF: npx @marp-team/marp-cli@latest pitch-deck.md --pdf --html
 <span class="wm">beginner</span>
 </div>
 
-# beginner
+<p class="kicker">a pitch deck · 2026</p>
 
-<p class="tagline">Everyone is a founder</p>
+# Everyone is a founder.
 
-<div class="meta">
+<p class="lede">beginner builds tinker — a guided conversation that helps builders discover their pitch over time.</p>
 
-Tyler Lindow · Founder & CEO of beginner<br>
-Pre-seed · $300k – $950k
-
-</div>
-
----
-
-<div class="beginner-badge">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
-<span class="wm">beginner</span>
-</div>
-
-# The Problem
-
-> *Do you feel like you've worked so hard, but you're still finding yourself stressed about what you're doing?*
-
-> *You thought that this next life change would be the one, but it feels like you're doing the same thing again.*
-
----
-
-<div class="beginner-badge">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
-<span class="wm">beginner</span>
-</div>
-
-# A Persona
-
-> *me, 32 — a family of five: one dog, two chickens, two cats, and my best friend and wife, a Mexican folk healer.*
-
-> *I've been through the razor of a public fintech company. My idea can change the world but I haven't got seeded yet.*
-
----
-
-<div class="beginner-badge">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
-<span class="wm">beginner</span>
-</div>
-
-# Why Now?
-
-> *AI is making our workplace more toxic. The sprint towards figuring out what we can do is insane right now.*
-
-> *People, including myself, need a tool that can help them figure out who they are as a founder.*
-
----
-
-<!-- _class: tinker -->
-
-<div class="tinker-badge">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img" aria-label="tinker rainbow-web mark"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62.00" x2="175.94" y2="62.00" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24.00" y1="100.00" x2="176.00" y2="100.00" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138.00" x2="175.94" y2="138.00" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></svg>
-<span class="wm">tinker</span>
-</div>
-<div class="tinker-rainbow"></div>
-
-# The Product
-
-> *This is the user interface, which is extremely important. On the backend, there's some prompt engineering and context engineering going on.*
-
-<svg class="product-shot" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 400" role="img" aria-label="tinker product screenshot"><rect x="1" y="1" width="1098" height="398" rx="18" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><line x1="260" y1="20" x2="260" y2="380" stroke="#ede8e0" stroke-width="1"/><g font-family="Inter, system-ui, sans-serif" fill="#2d2a26"><g transform="translate(24, 22) scale(0.1)"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62" x2="175.94" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138" x2="175.94" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></g><text x="52" y="36" font-family="Plus Jakarta Sans, Inter" font-size="14" font-weight="700">tinker</text><text x="24" y="72" font-size="9" letter-spacing="1.2" fill="#6f6a65">PITCH PROGRESS</text><text x="236" y="72" font-size="9" text-anchor="end" fill="#6f6a65">4 / 7</text><rect x="24" y="78" width="212" height="3" rx="1.5" fill="#ede8e0"/><rect x="24" y="78" width="121" height="3" rx="1.5" fill="#6366f1"/><text x="24" y="106" font-family="Plus Jakarta Sans, Inter" font-size="11" font-weight="700">1.  The Problem</text><text x="24" y="122" font-size="9.5" fill="#6f6a65">I want to go into the office as</text><text x="24" y="134" font-size="9.5" fill="#6f6a65">easily as a home office</text><text x="24" y="160" font-family="Plus Jakarta Sans, Inter" font-size="11" font-weight="700">3.  The Product</text><text x="24" y="176" font-size="9.5" fill="#6f6a65">I can write for myself</text><text x="24" y="202" font-family="Plus Jakarta Sans, Inter" font-size="11" font-weight="700">5.  The Moat</text><text x="24" y="218" font-size="9.5" fill="#6f6a65">my content and writing verbatim</text><text x="24" y="244" font-family="Plus Jakarta Sans, Inter" font-size="11" font-weight="700">7.  The Ask</text><text x="24" y="260" font-size="9.5" fill="#6f6a65">ready to launch and submit my</text><text x="24" y="272" font-size="9.5" fill="#6f6a65">funding applications</text><line x1="24" y1="310" x2="236" y2="310" stroke="#ede8e0" stroke-width="1"/><text x="24" y="326" font-size="9" letter-spacing="1.2" fill="#6f6a65">ACCOUNT</text><rect x="24" y="341" width="10" height="12" rx="1.5" fill="none" stroke="#2d2a26" stroke-width="1.2"/><line x1="27" y1="345" x2="32" y2="345" stroke="#2d2a26" stroke-width="1"/><line x1="27" y1="348" x2="32" y2="348" stroke="#2d2a26" stroke-width="1"/><text x="42" y="350" font-size="11" fill="#2d2a26">Receipts</text><path d="M24 366 L24 372 L34 372 L34 366 M29 369 L29 360 M26 363 L29 360 L32 363" fill="none" stroke="#2d2a26" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><text x="42" y="370" font-size="11" fill="#2d2a26">Share tinker</text></g><polygon points="260,20 440,20 260,200" fill="#6366f1"/><g text-anchor="middle"><g transform="translate(652, 58) scale(0.26)"><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62" x2="175.94" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138" x2="175.94" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></g><text x="680" y="158" font-family="Plus Jakarta Sans, Inter" font-size="30" font-weight="700" fill="#2d2a26">Everyone is a founder.</text><text x="680" y="184" font-family="Inter" font-size="13" fill="#6f6a65">You just need a seed to start.</text><text x="680" y="226" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Where are you right now?</text><rect x="480" y="244" width="180" height="40" rx="10" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="570" y="269" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Cafe</text><rect x="700" y="244" width="180" height="40" rx="10" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="790" y="269" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Home</text><rect x="480" y="296" width="180" height="40" rx="10" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="570" y="321" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Work</text><rect x="700" y="296" width="180" height="40" rx="10" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="790" y="321" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Somewhere else</text></g></svg>
-
----
-
-<!-- _class: tinker -->
-
-<div class="tinker-badge">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img" aria-label="tinker rainbow-web mark"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62.00" x2="175.94" y2="62.00" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24.00" y1="100.00" x2="176.00" y2="100.00" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138.00" x2="175.94" y2="138.00" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></svg>
-<span class="wm">tinker</span>
-</div>
-<div class="tinker-rainbow"></div>
-
-# Under the Hood
-
-> *Behind the scenes, what we're building is actually a unique type of RAG which helps founders assess idea originality without reading anybody else's thoughts.*
-
----
-
-<!-- _class: tinker -->
-
-<div class="tinker-badge">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img" aria-label="tinker rainbow-web mark"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62.00" x2="175.94" y2="62.00" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24.00" y1="100.00" x2="176.00" y2="100.00" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138.00" x2="175.94" y2="138.00" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></svg>
-<span class="wm">tinker</span>
-</div>
-<div class="tinker-rainbow"></div>
-
-# How We Make Money
-
-> *Free to start, $8 a month once they use it enough.*
-
-> *Tiered monthly subscriptions to get deeper into the writing tools: $8 (sharpen), $40 (seeded), $80 (seeded+) — and enterprise-level pricing beyond that.*
-
----
-
-<!-- _class: tinker -->
-
-<div class="tinker-badge">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img" aria-label="tinker rainbow-web mark"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62.00" x2="175.94" y2="62.00" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24.00" y1="100.00" x2="176.00" y2="100.00" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138.00" x2="175.94" y2="138.00" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></svg>
-<span class="wm">tinker</span>
-</div>
-<div class="tinker-rainbow"></div>
-
-# Go to Market
-
-> *I start by building off of my personal and professional networks in San Diego and San Francisco.*
-
-> *Then I build into the enterprise space by connecting with incubation spaces globally.*
-
----
-
-<!-- _class: tinker -->
-
-<div class="tinker-badge">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img" aria-label="tinker rainbow-web mark"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62.00" x2="175.94" y2="62.00" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24.00" y1="100.00" x2="176.00" y2="100.00" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138.00" x2="175.94" y2="138.00" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></svg>
-<span class="wm">tinker</span>
-</div>
-<div class="tinker-rainbow"></div>
-
-# The Moat
-
-> *Your ideas are woven together with other founders on the platform.*
-
-> *You come because they have what you need, and you stay because everyone's there.*
-
----
-
-<!-- _class: tinker -->
-
-<div class="tinker-badge">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img" aria-label="tinker rainbow-web mark"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62.00" x2="175.94" y2="62.00" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24.00" y1="100.00" x2="176.00" y2="100.00" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138.00" x2="175.94" y2="138.00" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></svg>
-<span class="wm">tinker</span>
-</div>
-<div class="tinker-rainbow"></div>
-
-# The Vision
-
-> *It's a two-sided marketplace and a social network — for the types of craft and the types of founders that have traditionally not been funded.*
-
-> *A marketplace and a social network combined is a payment network — and that's where a lot of money can be made.*
-
----
-
-<!-- _class: statement -->
-
-<div class="beginner-badge">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
-<span class="wm">beginner</span>
-</div>
-
-# Competition
-
-<svg class="meta-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 120" role="img" aria-label="Meta"><defs><linearGradient id="metaG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#0081FB"/><stop offset="50%" stop-color="#0273E6"/><stop offset="100%" stop-color="#0064E0"/></linearGradient></defs><path d="M 50 60 C 50 20, 100 20, 130 60 C 160 100, 210 100, 210 60 C 210 20, 160 20, 130 60 C 100 100, 50 100, 50 60 Z" fill="none" stroke="url(#metaG)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<div class="hero-rainbow"></div>
 
 ---
 
@@ -454,10 +539,101 @@ Pre-seed · $300k – $950k
 <span class="wm">beginner</span>
 </div>
 
-# The Team
+# Team
 
-- Founder: Museums → Onboarding small businesses to a payment network at scale.
-- I'm a solo founder that is in the business of human dignity and distribution of wealth.
+<div class="team-photo">
+<img src="https://s8kxcopruztkzzgf.public.blob.vercel-storage.com/linkedin-profile" alt="Tyler Lindow" />
+</div>
+
+<p class="team-name">Tyler Lindow</p>
+
+<p class="team-statement">10 years elevating engineers. From museums to IPO.</p>
+
+---
+
+<!-- _class: problem -->
+
+<div class="beginner-badge">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
+<span class="wm">beginner</span>
+</div>
+
+# Problem
+
+<div class="problem-block">
+<p class="problem-kicker">Go-to-market</p>
+<blockquote><p><em>Great builders are not always great founders. Some go a whole career without building something of their own.</em></p></blockquote>
+</div>
+
+<div class="problem-block">
+<p class="problem-kicker">Vision</p>
+<blockquote><p><em>Our neighborhood culture holders are severely underfunded — barbers, Mexican folk healers. Humanity is dying.</em></p></blockquote>
+</div>
+
+---
+
+<!-- _class: solution -->
+
+# Solution
+
+<svg class="mobile-mockup" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 540" role="img" aria-label="tinker mobile welcome screen"><rect x="4" y="4" width="312" height="532" rx="38" ry="38" fill="#fffdf7" stroke="#ede8e0" stroke-width="2"/><rect x="124" y="16" width="72" height="20" rx="10" fill="#1a1a1a" opacity="0.95"/><g transform="translate(24, 60)"><g transform="scale(0.13)"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62" x2="175.94" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138" x2="175.94" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></g><text x="36" y="20" font-family="Fraunces, Plus Jakarta Sans, Georgia, serif" font-size="16" font-weight="700" fill="#2d2a26">tinker</text></g><g font-family="Inter, system-ui, sans-serif"><text x="24" y="116" font-size="10" letter-spacing="1.2" fill="#6f6a65">PITCH PROGRESS</text><text x="296" y="116" font-size="10" text-anchor="end" fill="#6f6a65" font-weight="700">0 / 11</text><rect x="24" y="122" width="272" height="3" rx="1.5" fill="#ede8e0"/></g><g text-anchor="middle"><g transform="translate(140, 168) scale(0.2)"><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62" x2="175.94" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138" x2="175.94" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></g><text x="160" y="234" font-family="Fraunces, Georgia, serif" font-size="20" font-weight="700" fill="#2d2a26">Everyone is a founder.</text><text x="160" y="256" font-family="Inter" font-size="12" fill="#6f6a65">You just need a seed to start.</text><text x="160" y="296" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Where are you right now?</text></g><g font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#2d2a26" text-anchor="middle"><rect x="32" y="320" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="94" y="351">Cafe</text><rect x="164" y="320" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="226" y="351">Home</text><rect x="32" y="384" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="94" y="415">Work</text><rect x="164" y="384" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="226" y="415" font-size="12">Somewhere else</text></g><rect x="120" y="510" width="80" height="4" rx="2" fill="#1a1a1a" opacity="0.3"/></svg>
+
+<p class="solution-caption"><strong>The GTM solution</strong>: An app that helps builders discover their pitch over time, on the go.</p>
+
+---
+
+<!-- _class: traction -->
+
+<div class="beginner-badge">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
+<span class="wm">beginner</span>
+</div>
+
+# Traction
+
+<ul class="timeline">
+<li class="timeline-item">
+<span class="timeline-dot"></span>
+<div><p class="timeline-date">May 18, 2026</p><p class="timeline-event">App launched. tinker is live.</p></div>
+</li>
+<li class="timeline-item">
+<span class="timeline-dot"></span>
+<div><p class="timeline-date">May 29, 2026</p><p class="timeline-event">First paid user — the founder.</p></div>
+</li>
+<li class="timeline-item">
+<span class="timeline-dot future"></span>
+<div><p class="timeline-date future">Q1 — August 2026</p><p class="timeline-event future">250 paid developers.</p></div>
+</li>
+<li class="timeline-item">
+<span class="timeline-dot future"></span>
+<div><p class="timeline-date future">Q2 — November 2026</p><p class="timeline-event future">1,000 paid developers.</p></div>
+</li>
+<li class="timeline-item">
+<span class="timeline-dot future"></span>
+<div><p class="timeline-date future">Q3 — February 2027</p><p class="timeline-event future">2,000 paid developers.</p></div>
+</li>
+<li class="timeline-item">
+<span class="timeline-dot future"></span>
+<div><p class="timeline-date future">Q4 — May 2027</p><p class="timeline-event future">4,000 paid developers (~$432,000 yearly revenue).</p></div>
+</li>
+</ul>
+
+---
+
+<!-- _class: market -->
+
+<div class="beginner-badge">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
+<span class="wm">beginner</span>
+</div>
+
+# Market
+
+<p class="tam-headline">$2.9 billion a year</p>
+
+<p class="tam-math"><strong>27 million developers × $9 a month.</strong></p>
+
+<p class="tam-footnote">Every developer on earth in 2026. For reference: LinkedIn Premium pulls roughly $2 billion a year from 120 million paying subscribers.</p>
 
 ---
 
@@ -468,18 +644,27 @@ Pre-seed · $300k – $950k
 <span class="wm">beginner</span>
 </div>
 
-# The Ask
+# Ask
 
-> *Pre-seed: $300k – $950k.*
+<p class="ask-amount">$500,000</p>
 
-<p class="min-line"><strong>$300k</strong> — the minimum: founder's salary so I can keep building full-time.</p>
+<p class="ask-period">12 months runway.</p>
 
-<p class="incr-lead">Each increment above that just speeds it all up (least to most):</p>
+<div class="ask-bar">
+<span class="ask-bar-segment makers"></span>
+<span class="ask-bar-segment salary"></span>
+<span class="ask-bar-segment running"></span>
+<span class="ask-bar-segment gtm"></span>
+<span class="ask-bar-segment reserves"></span>
+</div>
 
-- Travel and office costs
-- Cloud infrastructure costs
-- Marketing
-- AI agentic development costs
+<div class="ask-legend">
+<div class="ask-legend-item"><span class="ask-legend-dot makers"></span><span><span class="ask-legend-amount">$176K</span> &nbsp;<span class="ask-legend-label">research for the second GTM (makers)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot salary"></span><span><span class="ask-legend-amount">$168K</span> &nbsp;<span class="ask-legend-label">founder salary</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot running"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot gtm"></span><span><span class="ask-legend-amount">$56K</span> &nbsp;<span class="ask-legend-label">go-to-market (developers)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot reserves"></span><span><span class="ask-legend-amount">$10K</span> &nbsp;<span class="ask-legend-label">reserves</span></span></div>
+</div>
 
 ---
 
