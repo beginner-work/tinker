@@ -602,19 +602,19 @@ style: |
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Q1 — August 2026</p><p class="timeline-event future">250 paid developers.</p></div>
+<div><p class="timeline-date future">September 1, 2026</p><p class="timeline-event future">250 paid developers.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Q2 — November 2026</p><p class="timeline-event future">1,000 paid developers.</p></div>
+<div><p class="timeline-date future">December 1, 2026</p><p class="timeline-event future">1,000 paid developers.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Q3 — February 2027</p><p class="timeline-event future">2,000 paid developers.</p></div>
+<div><p class="timeline-date future">March 1, 2027</p><p class="timeline-event future">2,000 paid developers.</p></div>
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Q4 — May 2027</p><p class="timeline-event future">4,000 paid developers (~$432,000 yearly revenue).</p></div>
+<div><p class="timeline-date future">June 1, 2027</p><p class="timeline-event future">4,000 paid developers (~$432,000 yearly revenue).</p></div>
 </li>
 </ul>
 
@@ -629,11 +629,11 @@ style: |
 
 # Market
 
-<p class="tam-headline">$2.9 billion a year</p>
+<p class="tam-headline">$0.65 billion a year</p>
 
-<p class="tam-math"><strong>27 million developers × $9 a month.</strong></p>
+<p class="tam-math"><strong>The entire developer market today, 2026.</strong></p>
 
-<p class="tam-footnote">Every developer on earth in 2026. For reference: LinkedIn Premium pulls roughly $2 billion a year from 120 million paying subscribers.</p>
+<p class="tam-footnote">Headroom to grow as AI shifts more engineers from building someone else's product to founding their own.</p>
 
 ---
 
