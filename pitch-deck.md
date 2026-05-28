@@ -760,9 +760,9 @@ style: |
 
 # Vision Market
 
-<p class="tam-headline">$72.9 billion a year</p>
+<p class="tam-headline">$71.3 billion a year</p>
 
-<p class="tam-math"><strong>22.5% of Instagram's 3 billion users × $9 a month.</strong></p>
+<p class="tam-math"><strong>22% of Instagram's 3 billion users × $9 a month.</strong></p>
 
 <p class="tam-footnote">22% of LinkedIn members are in tech, engineering, or design. Same ratio applied to Instagram.</p>
 
