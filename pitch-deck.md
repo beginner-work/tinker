@@ -426,12 +426,10 @@ style: |
     box-shadow: 0 4px 12px rgba(45, 42, 38, 0.08);
   }
   section.ask .ask-bar-segment { height: 100%; }
-  section.ask .ask-bar-segment.salary     { background: #2d5a3d; flex-basis: 33.6%; }
-  section.ask .ask-bar-segment.contractor { background: #fde68a; flex-basis: 22.4%; }
-  section.ask .ask-bar-segment.makers     { background: #f9a8d4; flex-basis: 20%; }
-  section.ask .ask-bar-segment.running    { background: #fdba74; flex-basis: 18%; }
-  section.ask .ask-bar-segment.events     { background: #7dd3fc; flex-basis: 4%; }
-  section.ask .ask-bar-segment.reserves   { background: #c8b6e2; flex-basis: 2%; }
+  section.ask .ask-bar-segment.year2    { background: #f9a8d4; flex-basis: 45%; }
+  section.ask .ask-bar-segment.salary   { background: #2d5a3d; flex-basis: 35%; }
+  section.ask .ask-bar-segment.running  { background: #fdba74; flex-basis: 18%; }
+  section.ask .ask-bar-segment.reserves { background: #c8b6e2; flex-basis: 2%; }
   section.ask .ask-legend {
     display: flex;
     flex-direction: column;
@@ -452,12 +450,10 @@ style: |
     flex-shrink: 0;
     transform: translateY(2px);
   }
-  section.ask .ask-legend-dot.salary     { background: #2d5a3d; }
-  section.ask .ask-legend-dot.contractor { background: #fde68a; }
-  section.ask .ask-legend-dot.makers     { background: #f9a8d4; }
-  section.ask .ask-legend-dot.running    { background: #fdba74; }
-  section.ask .ask-legend-dot.events     { background: #7dd3fc; }
-  section.ask .ask-legend-dot.reserves   { background: #c8b6e2; }
+  section.ask .ask-legend-dot.year2    { background: #f9a8d4; }
+  section.ask .ask-legend-dot.salary   { background: #2d5a3d; }
+  section.ask .ask-legend-dot.running  { background: #fdba74; }
+  section.ask .ask-legend-dot.reserves { background: #c8b6e2; }
   section.ask .ask-legend-amount {
     font-family: "Fraunces", serif;
     font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
@@ -782,20 +778,16 @@ style: |
 <p class="ask-period">12 months runway.</p>
 
 <div class="ask-bar">
+<span class="ask-bar-segment year2"></span>
 <span class="ask-bar-segment salary"></span>
-<span class="ask-bar-segment contractor"></span>
-<span class="ask-bar-segment makers"></span>
 <span class="ask-bar-segment running"></span>
-<span class="ask-bar-segment events"></span>
 <span class="ask-bar-segment reserves"></span>
 </div>
 
 <div class="ask-legend">
-<div class="ask-legend-item"><span class="ask-legend-dot salary"></span><span><span class="ask-legend-amount">$168K</span> &nbsp;<span class="ask-legend-label">founder salary</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot contractor"></span><span><span class="ask-legend-amount">$112K</span> &nbsp;<span class="ask-legend-label">part-time contractor (2/3 founder)</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot makers"></span><span><span class="ask-legend-amount">$100K</span> &nbsp;<span class="ask-legend-label">maker discovery (quarterly beginner markets + pilots; no paid acquisition until year 2)</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot running"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot events"></span><span><span class="ask-legend-amount">$20K</span> &nbsp;<span class="ask-legend-label">monthly community events</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$225K</span> &nbsp;<span class="ask-legend-label">year 2 runway (held on the SAFE)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot salary"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">founder salary (year 1)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot running"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs (year 1)</span></span></div>
 <div class="ask-legend-item"><span class="ask-legend-dot reserves"></span><span><span class="ask-legend-amount">$10K</span> &nbsp;<span class="ask-legend-label">reserves</span></span></div>
 </div>
 
@@ -831,28 +823,13 @@ style: |
 <p class="appendix-sub">Every line item in the $500,000 ask, fully itemized.</p>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Founder salary</span><span class="appendix-amount">$168,000</span></div>
-<p class="appendix-detail">$150,000 base + $18,000 benefits, 12 months.</p>
+<div class="appendix-head"><span class="appendix-label">Founder salary (year 1)</span><span class="appendix-amount">$175,000</span></div>
+<p class="appendix-detail">12 months. Base + benefits, all in.</p>
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Part-time contractor</span><span class="appendix-amount">$112,000</span></div>
-<p class="appendix-detail">≈2/3 of founder salary. Dedicated to maker discovery — running in-person markets, sitting with maker communities, building case studies.</p>
-</div>
-
-<div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Maker discovery</span><span class="appendix-amount">$100,000</span></div>
-<p class="appendix-detail">Quarterly in-person beginner markets in San Diego (permits, venue, food) + paid pilots with non-developer tinkerers. No paid acquisition until year 2.</p>
-</div>
-
-<div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Running costs</span><span class="appendix-amount">$90,000</span></div>
+<div class="appendix-head"><span class="appendix-label">Running costs (year 1)</span><span class="appendix-amount">$90,000</span></div>
 <p class="appendix-detail">Legal + accounting + banking + Anthropic API + SF trips (3 months living, weekly flights home) + Industrious office ($332/mo) + Claude Code ($200/mo) + Vercel + PlanetScale + Stytch + GitHub.</p>
-</div>
-
-<div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Monthly community events</span><span class="appendix-amount">$20,000</span></div>
-<p class="appendix-detail">Food + space for 12 monthly meetups — devs and makers in the same room.</p>
 </div>
 
 <div class="appendix-row">
@@ -860,4 +837,11 @@ style: |
 <p class="appendix-detail">Small cushion for unexpected costs.</p>
 </div>
 
-<div class="appendix-total"><span class="label">Total</span><span class="value">$500,000</span></div>
+<div class="appendix-row">
+<div class="appendix-head"><span class="appendix-label">Year 2 runway</span><span class="appendix-amount">$225,000</span></div>
+<p class="appendix-detail">Held on the SAFE. Funds the founder's year-2 salary and running costs so the company can keep operating without raising again immediately.</p>
+</div>
+
+<div class="appendix-total"><span class="label">Total ask (SAFE)</span><span class="value">$500,000</span></div>
+
+<p class="appendix-detail" style="margin-top: 16px; font-style: italic;">Any capital raised above the valuation cap funds the maker-discovery customer segment — quarterly in-person beginner markets and paid pilots with non-developer tinkerers.</p>
