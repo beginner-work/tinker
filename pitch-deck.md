@@ -464,9 +464,9 @@ style: |
     box-shadow: 0 4px 12px rgba(45, 42, 38, 0.08);
   }
   section.ask .ask-bar-segment { height: 100%; }
-  section.ask .ask-bar-segment.year1  { background: #2d5a3d; flex-basis: 61%; }
-  section.ask .ask-bar-segment.year2  { background: #7bc47a; flex-basis: 35%; }
-  section.ask .ask-bar-segment.beyond { background: #f9a8d4; flex-basis: 4%; }
+  section.ask .ask-bar-segment.year1  { background: #2d5a3d; flex-basis: 62%; }
+  section.ask .ask-bar-segment.year2  { background: #7bc47a; flex-basis: 37%; }
+  section.ask .ask-bar-segment.beyond { background: #f9a8d4; flex-basis: 1%; }
 
   section.ask .ask-section {
     margin-top: 22px;
@@ -928,20 +928,20 @@ style: |
 </div>
 
 <div class="ask-section">
-<div class="ask-section-head"><span class="ask-section-name">Year 1</span><span class="ask-section-total">$305K</span></div>
+<div class="ask-section-head"><span class="ask-section-name">Year 1</span><span class="ask-section-total">$312K</span></div>
 <div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">my salary</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$130K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$137K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
 </div>
 
 <div class="ask-section">
-<div class="ask-section-head"><span class="ask-section-name">Year 2 (first 6 months)</span><span class="ask-section-total">$175K</span></div>
+<div class="ask-section-head"><span class="ask-section-name">Year 2 (first 6 months)</span><span class="ask-section-total">$185K</span></div>
 <div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$95K</span> &nbsp;<span class="ask-legend-label">my salary (~6% inflation)</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$80K</span> &nbsp;<span class="ask-legend-label">running costs (lifetime-curve adj.)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
 </div>
 
 <div class="ask-section">
-<div class="ask-section-head"><span class="ask-section-name">Beyond</span><span class="ask-section-total">$20K</span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot beyond"></span><span><span class="ask-legend-amount">$20K</span> &nbsp;<span class="ask-legend-label">maker discovery seed + cushion</span></span></div>
+<div class="ask-section-head"><span class="ask-section-name">Beyond</span><span class="ask-section-total">$3K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot beyond"></span><span><span class="ask-legend-amount">$3K</span> &nbsp;<span class="ask-legend-label">cushion for the unexpected</span></span></div>
 </div>
 
 ---
@@ -981,8 +981,8 @@ style: |
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Running costs, year 1</span><span class="appendix-amount">$130,000</span></div>
-<p class="appendix-detail">Anthropic API (the dominant line) + legal + accounting + banking + SF travel to build GTM motions (two one-week trips a year; extended stay only if accepted to an incubator) + Industrious office + Claude Code + Vercel + Neon + Stytch + GitHub.</p>
+<div class="appendix-head"><span class="appendix-label">Running costs, year 1</span><span class="appendix-amount">$137,000</span></div>
+<p class="appendix-detail">Anthropic API (the dominant line) + Stripe payment processing + legal + accounting + banking + SF travel to build GTM motions (two one-week trips a year; extended stay only if accepted to an incubator) + Industrious office + Claude Code + Vercel + Neon + Stytch + GitHub.</p>
 </div>
 
 <div class="appendix-row">
@@ -991,13 +991,13 @@ style: |
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Running costs, year 2 (first 6 months)</span><span class="appendix-amount">$80,000</span></div>
-<p class="appendix-detail">Anthropic API ~$70K (the Y1 cohort ages into low-cost maintenance use as new signups continue) + ~$10K for half a year of office, legal, stack, and one SF trip.</p>
+<div class="appendix-head"><span class="appendix-label">Running costs, year 2 (first 6 months)</span><span class="appendix-amount">$90,000</span></div>
+<p class="appendix-detail">Anthropic API ~$70K (the Y1 cohort ages into low-cost maintenance use as new signups continue) + ~$10K Stripe payment processing (2.7% + $0.30/transaction on a growing subscriber base) + ~$10K for half a year of office, legal, stack, and one SF trip.</p>
 </div>
 
 <div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Maker discovery seed + cushion</span><span class="appendix-amount">$20,000</span></div>
-<p class="appendix-detail">Everything left after the 18 months of runway costs. A small seed for maker channel research (one beginner market in the first year) plus a cushion for the unexpected. The engineer-only path is a viable venture business on its own; entering the maker market in scale is an investor decision once engineer GTM is proven.</p>
+<div class="appendix-head"><span class="appendix-label">Maker discovery seed + cushion</span><span class="appendix-amount">$3,000</span></div>
+<p class="appendix-detail">Everything left after the 18 months of runway costs. A small cushion for the unexpected; maker channel research is funded from the operating cash flow once monthly revenue covers monthly costs (month 12). The engineer-only path is a viable venture business on its own; entering the maker market in scale is an investor decision once engineer GTM is proven.</p>
 </div>
 
 <div class="appendix-total"><span class="label">Total ask</span><span class="value">$500,000</span></div>
@@ -1005,10 +1005,11 @@ style: |
 <div class="appendix-breakdown">
 <p class="appendix-breakdown-label">Year 1 running costs — itemized</p>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Anthropic API</span><span class="appendix-breakdown-value">$111,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Payment processing (Stripe — 2.7% + $0.30/transaction)</span><span class="appendix-breakdown-value">$7,000</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Legal + accounting + banking</span><span class="appendix-breakdown-value">$6,500</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">SF travel — two one-week GTM trips</span><span class="appendix-breakdown-value">$5,000</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Industrious office ($332/mo × 12)</span><span class="appendix-breakdown-value">$4,000</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Claude Code Max ($200/mo × 12)</span><span class="appendix-breakdown-value">$2,500</span></div>
 <div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Stack — Vercel + Neon + Stytch + GitHub + domain</span><span class="appendix-breakdown-value">$1,000</span></div>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Year 1 running costs total</span><span class="appendix-breakdown-value">$130,000</span></div>
+<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Year 1 running costs total</span><span class="appendix-breakdown-value">$137,000</span></div>
 </div>
