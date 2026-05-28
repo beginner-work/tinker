@@ -469,6 +469,26 @@ style: |
     margin: 0;
   }
 
+  /* Transition slide — gentle pivot from problem to solution */
+  section.transition {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 96px 48px;
+  }
+  section.transition .transition-line {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 52px;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    color: #2d5a3d;
+    margin: 0;
+    max-width: 90%;
+  }
+
   /* Problem slide — one page-filling statement */
   section.problem {
     justify-content: center;
@@ -671,6 +691,12 @@ style: |
 # Problem
 
 <p class="problem-statement">Tinkerers stay coding while <em>culture dies uninvested.</em></p>
+
+---
+
+<!-- _class: transition -->
+
+<p class="transition-line">Until now.</p>
 
 ---
 
