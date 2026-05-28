@@ -929,13 +929,13 @@ style: |
 
 <div class="ask-section">
 <div class="ask-section-head"><span class="ask-section-name">Year 1</span><span class="ask-section-total">$305K</span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">founder salary</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">my salary</span></span></div>
 <div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$130K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
 </div>
 
 <div class="ask-section">
 <div class="ask-section-head"><span class="ask-section-name">Year 2 (first 6 months)</span><span class="ask-section-total">$175K</span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$95K</span> &nbsp;<span class="ask-legend-label">founder salary (~6% inflation)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$95K</span> &nbsp;<span class="ask-legend-label">my salary (~6% inflation)</span></span></div>
 <div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$80K</span> &nbsp;<span class="ask-legend-label">running costs (lifetime-curve adj.)</span></span></div>
 </div>
 
