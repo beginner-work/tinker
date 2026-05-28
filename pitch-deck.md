@@ -743,11 +743,11 @@ style: |
 
 # GTM Market
 
-<p class="tam-headline">$30.9 billion a year</p>
+<p class="tam-headline">$2.85 billion a year</p>
 
-<p class="tam-math"><strong>All 286 million paid tech professionals on LinkedIn × $9 a month.</strong></p>
+<p class="tam-math"><strong>22% of LinkedIn's 120 million paying subscribers × $9 a month.</strong></p>
 
-<p class="tam-footnote">22% of LinkedIn's 1.3 billion members are in tech, engineering, or design. The GTM is to get every one of them on tinker.</p>
+<p class="tam-footnote">~26 million tech, engineering, and design professionals already paying for a professional tool. tinker is the next one.</p>
 
 ---
 
