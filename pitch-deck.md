@@ -799,9 +799,9 @@ style: |
 <span class="wm">beginner</span>
 </div>
 
-# Problem
+# Problems
 
-<p class="problem-statement">Engineers stay building while <em>human making becomes a relic of the past…</em></p>
+<p class="problem-statement">Engineers stay building and <em>human making becomes a relic of the past…</em></p>
 
 ---
 
