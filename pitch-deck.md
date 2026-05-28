@@ -1,23 +1,24 @@
 ---
 marp: true
-theme: default
+theme: portrait
 paginate: true
-size: 16:9
 backgroundColor: "#fffdf7"
 color: "#2d2a26"
 style: |
   @import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=Instrument+Sans:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
 
   section {
+    width: 720px;
+    height: 1280px;
     font-family: "Instrument Sans", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
     background: #fffdf7;
     color: #2d2a26;
-    padding: 128px 112px 80px;
+    padding: 96px 56px 64px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    font-size: 32px;
-    line-height: 1.5;
+    font-size: 30px;
+    line-height: 1.45;
   }
 
   /* Vertically center big-number slides */
@@ -64,7 +65,7 @@ style: |
   }
 
   /* Cover slide — beginner (company) brand */
-  section.cover { padding: 96px 112px; }
+  section.cover { padding: 96px 56px; }
   section.cover .lockup {
     display: flex;
     align-items: center;
@@ -105,13 +106,13 @@ style: |
 
   /* Tinker product slides — rainbow-web brand */
   section.tinker {
-    padding-top: 144px;
+    padding-top: 116px;
     justify-content: flex-start;
   }
   section.tinker .tinker-badge {
     position: absolute;
-    top: 56px;
-    left: 112px;
+    top: 40px;
+    left: 56px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -127,9 +128,9 @@ style: |
   }
   section.tinker .tinker-rainbow {
     position: absolute;
-    top: 70px;
-    right: 112px;
-    width: 200px;
+    top: 54px;
+    right: 56px;
+    width: 160px;
     height: 6px;
     background: linear-gradient(90deg, #f9a8d4 0%, #fdba74 18%, #fde68a 36%, #7bc47a 55%, #7dd3fc 75%, #c4b5fd 100%);
     border-radius: 999px;
@@ -148,8 +149,8 @@ style: |
   }
   .beginner-badge {
     position: absolute;
-    top: 56px;
-    left: 112px;
+    top: 40px;
+    left: 56px;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -166,8 +167,8 @@ style: |
   }
   section.closing .tinker-badge {
     position: absolute;
-    top: 56px;
-    right: 112px;
+    top: 40px;
+    right: 56px;
     left: auto;
     display: flex;
     align-items: center;
@@ -315,7 +316,7 @@ style: |
 
 ---
 
-<!-- Export to PDF: npx @marp-team/marp-cli@latest pitch-deck.md --pdf --html -->
+<!-- Export to PDF: npx @marp-team/marp-cli@latest pitch-deck.md --theme-set pitch-portrait-theme.css --pdf --html --allow-local-files -->
 
 <!-- _class: cover -->
 
@@ -331,7 +332,7 @@ style: |
 <div class="meta">
 
 Tyler Lindow · Founder of beginner<br>
-Pre-seed · $500,000
+Pre-seed · $215,000
 
 </div>
 
@@ -378,7 +379,7 @@ Pre-seed · $500,000
 
 <svg class="mobile-mockup" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 540" role="img" aria-label="tinker mobile welcome screen"><rect x="4" y="4" width="312" height="532" rx="38" ry="38" fill="#fffdf7" stroke="#ede8e0" stroke-width="2"/><rect x="124" y="16" width="72" height="20" rx="10" fill="#1a1a1a" opacity="0.95"/><g transform="translate(24, 60)"><g transform="scale(0.13)"><rect width="200" height="200" rx="44" fill="#F5F3EF"/><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62" x2="175.94" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138" x2="175.94" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></g><text x="36" y="20" font-family="Fraunces, Plus Jakarta Sans, Georgia, serif" font-size="16" font-weight="700" fill="#2d2a26">tinker</text></g><g font-family="Inter, system-ui, sans-serif"><text x="24" y="116" font-size="10" letter-spacing="1.2" fill="#6f6a65">PITCH PROGRESS</text><text x="296" y="116" font-size="10" text-anchor="end" fill="#6f6a65" font-weight="700">0 / 11</text><rect x="24" y="122" width="272" height="3" rx="1.5" fill="#ede8e0"/></g><g text-anchor="middle"><g transform="translate(140, 168) scale(0.2)"><circle cx="100" cy="100" r="76" fill="none" stroke="#C8B6E2" stroke-width="9"/><line x1="24.06" y1="62" x2="175.94" y2="62" stroke="#F9A8D4" stroke-width="9" stroke-linecap="round"/><line x1="24" y1="100" x2="176" y2="100" stroke="#FDBA74" stroke-width="9" stroke-linecap="round"/><line x1="24.06" y1="138" x2="175.94" y2="138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round"/><ellipse cx="100" cy="100" rx="52" ry="76" fill="none" stroke="#7BC47A" stroke-width="9"/><ellipse cx="100" cy="100" rx="26" ry="76" fill="none" stroke="#7DD3FC" stroke-width="9"/><line x1="100" y1="24" x2="100" y2="176" stroke="#6EE7B7" stroke-width="9" stroke-linecap="round"/></g><text x="160" y="234" font-family="Fraunces, Georgia, serif" font-size="20" font-weight="700" fill="#2d2a26">Everyone is a founder.</text><text x="160" y="256" font-family="Inter" font-size="12" fill="#6f6a65">You just need a seed to start.</text><text x="160" y="296" font-family="Inter" font-size="13" font-weight="600" fill="#2d2a26">Where are you right now?</text></g><g font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#2d2a26" text-anchor="middle"><rect x="32" y="320" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="94" y="351">Cafe</text><rect x="164" y="320" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="226" y="351">Home</text><rect x="32" y="384" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="94" y="415">Work</text><rect x="164" y="384" width="124" height="52" rx="13" fill="#fffdf7" stroke="#ede8e0" stroke-width="1"/><text x="226" y="415" font-size="12">Somewhere else</text></g><rect x="120" y="510" width="80" height="4" rx="2" fill="#1a1a1a" opacity="0.3"/></svg>
 
-<p class="solution-caption">Guided interview. Published page. One-hundredth a coach.</p>
+<p class="solution-caption">A guided interview that helps developers figure out their founder pitch. One-hundredth a coach.</p>
 
 ---
 
@@ -393,7 +394,7 @@ Pre-seed · $500,000
 
 <p class="big-number">10</p>
 
-<p class="big-number-label">paying founders on tinker today. Live product. Live revenue. Sold direct-to-founder; now selling the partnership.</p>
+<p class="big-number-label">developers have used tinker. Live product. Zero revenue today — pricing turns on with the seed.</p>
 
 ---
 
@@ -406,11 +407,11 @@ Pre-seed · $500,000
 
 # Market
 
-<p class="tam-headline">$2.4 billion a year</p>
+<p class="tam-headline">$2.16 billion a year</p>
 
-<p class="tam-math"><strong>10,000 buyers × $240,000 a year.</strong></p>
+<p class="tam-math"><strong>20 million developers × $9 a month.</strong></p>
 
-<p class="tam-footnote">Accelerators, incubators, and university programs buy seats for their founders. Average buyer: 100 founders × $2,400 per year. We sell the seat.</p>
+<p class="tam-footnote">The market is every developer worldwide who could ship a founder pitch. At $9 a month, this is the ceiling — what we capture is what we earn.</p>
 
 ---
 
@@ -423,13 +424,19 @@ Pre-seed · $500,000
 
 # Ask
 
-> *$500,000 → 5 anchor partnerships (~$500,000 yearly revenue) in 12 months.*
+> *$215,000 → 12 months runway. San Diego base, San Francisco circuit.*
 
-<p class="min-line"><strong>$168,000</strong> — founder salary, 12 months ($150,000 base + $18,000 benefits). I need a salary; this is what it is.</p>
+<p class="min-line"><strong>$168,000</strong> — founder salary, 12 months ($150,000 base + $18,000 benefits).</p>
 
-<p class="min-line"><strong>$200,000</strong> — anchor partnerships. 3 to 5 paid pilots with accelerators, incubators, and university programs. Case studies that close the next ten.</p>
+<p class="min-line"><strong>$20,000</strong> — Anthropic API (the per-user cost behind the $9 estimate).</p>
 
-<p class="min-line"><strong>$132,000</strong> — sales engine. Conference presence, founder demos, outbound infrastructure, customer success tooling.</p>
+<p class="min-line"><strong>$10,000</strong> — travel and lodging, San Francisco (2 trips, 2 weeks each).</p>
+
+<p class="min-line"><strong>$4,000</strong> — Industrious San Diego office ($332 a month).</p>
+
+<p class="min-line"><strong>$3,000</strong> — Vercel + PlanetScale + Stytch + GitHub.</p>
+
+<p class="min-line"><strong>$10,000</strong> — buffer.</p>
 
 <p class="incr-lead">Line in the sand: personal runway ends June 2026. If the round doesn't close, I step away.</p>
 
