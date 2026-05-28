@@ -871,13 +871,13 @@ style: |
 </li>
 <li class="timeline-item">
 <span class="timeline-dot future"></span>
-<div><p class="timeline-date future">Dec 1, 2027</p><p class="timeline-event future">$750K ARR · 1,400 paying engineers · Series A from a position of strength.</p></div>
+<div><p class="timeline-date future">Dec 1, 2027</p><p class="timeline-event future">$750K ARR · 1,400 paying engineers.</p></div>
 </li>
 </ul>
 
 <div class="evidence-note">
 <p class="evidence-note-label">Empirical basis</p>
-<p class="evidence-note-text"><strong>10 users · 11 days · $9.03 in model costs.</strong> 10% convert to the $9/mo pre-seed tier inside week 1; 100% of those upgrade to the $45/mo seed tier inside week 2. The 18-month ramp scales that funnel 1,400× and walks signup velocity from ~1/day today to ~45/day by month 18 — bounded by what founder-led GTM and the combined $181K Y1+Y2H1 model-cost budget actually support.</p>
+<p class="evidence-note-text"><strong>10 people · 11 days · $9.03 in AI costs.</strong> 1 of them paid $9/month inside a week; that same person moved up to $45/month inside two weeks. The 18-month plan grows this same pattern 1,400 times — from ~1 new person a day today to ~45 a day by month 18. Limited by how many people I can reach alone, and the $181K AI budget across those 18 months.</p>
 </div>
 
 ---
