@@ -688,9 +688,9 @@ style: |
 
 # Vision Market
 
-<p class="tam-headline">$16 billion a year</p>
+<p class="tam-headline">$72.9 billion a year</p>
 
-<p class="tam-math"><strong>The same ARR Instagram earns from consumers — captured by the makers who feed those same audiences.</strong></p>
+<p class="tam-math"><strong>22.5% of Instagram's 3 billion users × $9 a month.</strong></p>
 
 <p class="tam-footnote">Every consumer who follows a creator on Instagram is a potential customer for the maker behind them. beginner is where that exchange becomes a transaction.</p>
 
