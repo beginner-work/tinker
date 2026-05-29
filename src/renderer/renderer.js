@@ -687,7 +687,7 @@
 
     writingFitContent.innerHTML =
       `<div class="arrangement" data-arrangement-phase="${phase}">` +
-        `<p class="arrangement__crumb">You just published</p>` +
+        `<p class="arrangement__crumb">You created another essay</p>` +
         `<h1 class="arrangement__headline"><span>${escapeHtml(titleText)}</span></h1>` +
         subtitleHtml +
         `<p class="arrangement__phase-line"><span class="arrangement__phase-dot" aria-hidden="true"></span>${escapeHtml(phaseCopy)}</p>` +
