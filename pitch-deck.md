@@ -849,6 +849,10 @@ style: |
 <span class="timeline-dot"></span>
 <div><p class="timeline-date">May 18, 2026</p><p class="timeline-event">App launched. tinker is live.</p></div>
 </li>
+<li class="timeline-item"><!-- LIVE-METRICS -->
+<span class="timeline-dot"></span>
+<div><p class="timeline-date">May 30, 2026</p><p class="timeline-event">10 registered users · 1 paying engineer — live today.</p></div>
+</li>
 <li class="timeline-item">
 <span class="timeline-dot"></span>
 <div><p class="timeline-date">June 1, 2026</p><p class="timeline-event">First seed tier user — me.</p></div>
