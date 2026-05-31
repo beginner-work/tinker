@@ -7,9 +7,12 @@
  * beginner's /unlock page — the page that describes the Pitch feature
  * and offers the pre-seed ($9/month) subscription.
  *
- * On a tinker Vercel preview the button opens the matching beginner
- * branch preview (so the paired PRs can be walked end-to-end); anywhere
- * else it opens the canonical beginner.work.
+ * The button opens the canonical production checkout at
+ * beginner.work/unlock from every tinker surface. tinker has no custom
+ * domain — its own production is served from *.vercel.app — so the URL
+ * must NOT be gated on the hostname (an earlier `.vercel.app` check sent
+ * production founders to a stale beginner branch-preview alias instead
+ * of the live checkout page).
  *
  * The renderer is browser-shaped and the existing sidebar-tree sandbox
  * uses a no-op DOM that can't observe events, so this is a source-level
@@ -70,20 +73,19 @@ test("clicking Pitch opens beginner's /unlock page", () => {
   );
 });
 
-test("the unlock URL is origin-aware: preview vs production", () => {
+test("the unlock URL is the production checkout on every surface", () => {
   assert.match(
     TREE_SRC,
     /https:\/\/beginner\.work\/unlock/,
-    "production opens the canonical beginner.work/unlock",
+    "the button opens the canonical beginner.work/unlock",
   );
-  assert.match(
+  // Regression guard: production tinker is itself on *.vercel.app, so the
+  // unlock target must not depend on the hostname, and must never carry a
+  // hardcoded beginner branch-preview alias (which goes stale the moment
+  // its branch merges).
+  assert.doesNotMatch(
     TREE_SRC,
-    /\.vercel\.app/,
-    "a tinker preview must branch on the *.vercel.app origin",
-  );
-  assert.match(
-    TREE_SRC,
-    /beginner-git-claude-stripe-pitch-payment-p-4a2d76-beginner-work\.vercel\.app\/unlock/,
-    "a tinker preview must open the matching beginner branch preview",
+    /beginner-git-[\w-]*\.vercel\.app/,
+    "the unlock URL must not point at a beginner branch-preview alias",
   );
 });

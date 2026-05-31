@@ -646,19 +646,18 @@
   }
 
   // The beginner repo hosts the page that explains how to unlock Pitch
-  // (the feature description + the pre-seed $9/month subscription). The
-  // renderer runs client-side, so we pick the host from the current
-  // origin: a tinker Vercel preview opens the matching beginner preview
-  // for this branch (so the paired PRs can be walked end-to-end), and
-  // everywhere else — production web, Electron, Capacitor — opens the
-  // canonical beginner.work.
+  // (the feature description + the pre-seed $9/month subscription, with
+  // the Stripe checkout). It now lives on beginner production, so every
+  // tinker surface — production web, Electron, Capacitor — opens the
+  // canonical beginner.work/unlock.
+  //
+  // (We deliberately do *not* branch on the hostname here. tinker has no
+  // custom domain: its own production is served from *.vercel.app
+  // [tinker-theta.vercel.app et al.], so a `host.endsWith(".vercel.app")`
+  // check can't tell production from a preview and would send production
+  // founders off to a stale beginner preview alias rather than the live
+  // checkout page.)
   function unlockUrl() {
-    const host = (window.location && window.location.hostname) || "";
-    if (host.endsWith(".vercel.app")) {
-      // beginner's branch-preview alias for this PR's branch
-      // (claude/stripe-pitch-payment-page-BGw81).
-      return "https://beginner-git-claude-stripe-pitch-payment-p-4a2d76-beginner-work.vercel.app/unlock";
-    }
     return "https://beginner.work/unlock";
   }
 
