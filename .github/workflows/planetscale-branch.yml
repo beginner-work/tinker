@@ -11,6 +11,9 @@ name: PlanetScale Branch
 # Note: PlanetScale deploy requests promote SCHEMA (DDL), not rows. Branch
 # data is ephemeral test data; live user data always lives on production.
 # Branch cleanup on PR close is handled by planetscale-branch-pruning.yml.
+#
+# Until the PLANETSCALE_SERVICE_TOKEN_ID / PLANETSCALE_SERVICE_TOKEN repo
+# secrets are configured, the jobs no-op (and stay green) instead of failing.
 
 on:
   pull_request:
@@ -32,8 +35,19 @@ jobs:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
-      - uses: planetscale/setup-pscale-action@v1
+      - name: Check PlanetScale credentials
+        id: creds
+        run: |
+          if [ -z "$PLANETSCALE_SERVICE_TOKEN_ID" ] || [ -z "$PLANETSCALE_SERVICE_TOKEN" ]; then
+            echo "PlanetScale service token not configured — skipping branch creation."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.creds.outputs.configured == 'true'
+        uses: planetscale/setup-pscale-action@v1
       - name: Branch off production and open a deploy request
+        if: steps.creds.outputs.configured == 'true'
         env:
           BRANCH: pr-${{ github.event.pull_request.number }}
         run: |
@@ -60,8 +74,19 @@ jobs:
     if: github.event.action == 'closed' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - uses: planetscale/setup-pscale-action@v1
+      - name: Check PlanetScale credentials
+        id: creds
+        run: |
+          if [ -z "$PLANETSCALE_SERVICE_TOKEN_ID" ] || [ -z "$PLANETSCALE_SERVICE_TOKEN" ]; then
+            echo "PlanetScale service token not configured — skipping deploy."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.creds.outputs.configured == 'true'
+        uses: planetscale/setup-pscale-action@v1
       - name: Deploy the branch's deploy request to production
+        if: steps.creds.outputs.configured == 'true'
         env:
           BRANCH: pr-${{ github.event.pull_request.number }}
         run: |

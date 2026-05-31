@@ -4,7 +4,7 @@
   "framework": null,
   "outputDirectory": "src/renderer",
   "installCommand": "npm ci",
-  "buildCommand": "prisma migrate deploy",
+  "buildCommand": "prisma generate",
   "headers": [
     {
       "source": "/(.*)",

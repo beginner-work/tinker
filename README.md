@@ -98,11 +98,19 @@ read/write the same rows as production (tinker aliases preview to
 production — there is no per-preview database branch in the request
 path).
 
+**The build does not apply migrations.** On PlanetScale for Postgres the
+app's connection role is DML-only and can't create objects in the
+`public` schema, so `prisma migrate deploy` fails with *permission denied
+for schema public*. The Vercel build therefore only runs `prisma
+generate` (see `vercel.json`); DDL is applied out-of-band — by the
+one-time import below, or by the branch/deploy-request workflow.
+
 **One-time data move.** `scripts/migrate-tinker-to-planetscale.sh` copies
-existing `TinkerUserData` rows from the old Neon endpoint into
+the `TinkerUserData` table (schema + rows) from the old Neon endpoint into
 PlanetScale using PlanetScale's recommended `pg_dump | psql` import path.
-Point `DATABASE_URL` at the old Neon database and `PLANETSCALE_URL` at
-the new one, then run it; Neon is left untouched as a rollback.
+Point `DATABASE_URL` at the old Neon database and `PLANETSCALE_URL` at the
+new one (use PlanetScale's administrative role here — it needs `CREATE` on
+`public`), then run it; Neon is left untouched as a rollback.
 
 **Schema changes go through a PlanetScale branch.** `.github/workflows/`
 runs PlanetScale's recommended GitHub Actions

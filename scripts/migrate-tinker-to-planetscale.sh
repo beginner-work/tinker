@@ -14,14 +14,19 @@
 # https://planetscale.com/migrate
 #
 # Self-contained: checks its prerequisites and the two connection strings,
-# creates the schema on the target with `prisma migrate deploy` (the
-# migration is CREATE TABLE IF NOT EXISTS, so re-runs are safe), then
-# copies the rows. The source (Neon) is never modified, so it stays as a
-# rollback.
+# then copies the TinkerUserData table (schema + data) straight from Neon
+# into PlanetScale with pg_dump | psql. The source (Neon) is never
+# modified, so it stays as a rollback.
+#
+# IMPORTANT: PLANETSCALE_URL must use a role that can create objects in the
+# public schema (PlanetScale's administrative/"Default" role). The runtime
+# app role is DML-only and would fail with "permission denied for schema
+# public" — that is why the app build no longer runs `prisma migrate
+# deploy` (see vercel.json) and DDL is applied here / via deploy requests.
 #
 # Usage:
 #   DATABASE_URL=<neon postgres url> \
-#   PLANETSCALE_URL=<planetscale postgres url> \
+#   PLANETSCALE_URL=<planetscale postgres admin url> \
 #   scripts/migrate-tinker-to-planetscale.sh
 #
 set -euo pipefail
@@ -34,21 +39,14 @@ command -v pg_dump >/dev/null 2>&1 || die "pg_dump not found — install the Pos
 command -v psql    >/dev/null 2>&1 || die "psql not found — install the PostgreSQL client tools."
 
 : "${DATABASE_URL:?set DATABASE_URL to the SOURCE (Neon) Postgres connection string}"
-: "${PLANETSCALE_URL:?set PLANETSCALE_URL to the TARGET (PlanetScale) Postgres connection string}"
+: "${PLANETSCALE_URL:?set PLANETSCALE_URL to the TARGET (PlanetScale) Postgres admin connection string}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-echo "==> Creating TinkerUserData schema on the PlanetScale target (prisma migrate deploy)"
-# `prisma migrate deploy` reads the datasource url from PLANETSCALE_URL
-# (see prisma/schema.prisma). The migration uses CREATE TABLE IF NOT
-# EXISTS, so this is idempotent.
-( cd "$REPO_DIR" && npx --yes prisma migrate deploy )
-
-echo "==> Copying TinkerUserData rows: Neon (source) -> PlanetScale (target)"
-# --data-only: the schema already exists on the target (created above).
+echo "==> Copying TinkerUserData (schema + data): Neon (source) -> PlanetScale (target)"
+# Plain pg_dump of just the one table — includes CREATE TABLE / index / PK
+# plus the rows (PlanetScale's recommended pg_dump | psql import path).
 # --no-owner / --no-privileges: don't carry Neon-specific roles/grants.
-pg_dump --data-only --no-owner --no-privileges \
+# Target table must not already exist (this is a one-time, empty-target load).
+pg_dump --no-owner --no-privileges \
         --table="$TABLE" "$DATABASE_URL" \
   | psql --set ON_ERROR_STOP=on "$PLANETSCALE_URL"
 
