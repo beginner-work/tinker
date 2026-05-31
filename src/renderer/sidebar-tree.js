@@ -645,9 +645,16 @@
     }
   }
 
+  // The beginner repo hosts the page that explains how to unlock Pitch
+  // (the feature description + the pre-seed $9/month subscription). The
+  // renderer runs client-side across Electron / Capacitor / web, so we
+  // can't read VERCEL_ENV here — point at the production canonical URL.
+  const UNLOCK_URL = "https://beginner.work/unlock";
+
   // Renders the indigo "Pitch" button at the bottom of the deck nav.
-  // Permanently locked: the button shows a white lock icon and never
-  // fires — pitching is disabled regardless of completion progress.
+  // The button ships with a white lock icon. Clicking it removes the
+  // lock and opens beginner's /unlock page, which describes the feature
+  // and offers the pre-seed subscription that turns it on.
   function renderPost(pitches) {
     if (!postEl) return;
     if (!pitches || pitches.length === 0) {
@@ -661,7 +668,7 @@
     const post = document.createElement("button");
     post.type = "button";
     post.className = "sidebar__pitch-action sidebar__pitch-action--primary";
-    post.setAttribute("aria-label", "Pitch (locked)");
+    post.setAttribute("aria-label", "Pitch");
     const pitchLabel = document.createElement("span");
     pitchLabel.textContent = "Pitch";
     post.appendChild(pitchLabel);
@@ -670,6 +677,7 @@
     lockIcon.setAttribute("height", "14");
     lockIcon.setAttribute("viewBox", "0 0 24 28");
     lockIcon.setAttribute("aria-hidden", "true");
+    lockIcon.setAttribute("data-pitch-lock", "");
     lockIcon.style.marginLeft = "6px";
     const lockPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
     lockPath.setAttribute(
@@ -682,7 +690,17 @@
     post.style.display = "inline-flex";
     post.style.alignItems = "center";
     post.style.justifyContent = "center";
-    post.disabled = true;
+    post.addEventListener("click", () => {
+      // Remove the lock symbol the moment Pitch is clicked.
+      if (lockIcon.parentNode) lockIcon.parentNode.removeChild(lockIcon);
+      post.setAttribute("aria-busy", "true");
+      // Open beginner's page describing how to unlock the feature.
+      if (window.tinker && typeof window.tinker.openExternal === "function") {
+        window.tinker.openExternal(UNLOCK_URL);
+      } else {
+        window.open(UNLOCK_URL, "_blank", "noopener,noreferrer");
+      }
+    });
     postEl.appendChild(post);
   }
 
