@@ -1549,6 +1549,49 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   flex-direction: column;
   gap: 10px;
 }
+
+/* Skeleton stand-in shown while the arrangement is still settling, so
+ * the existing pitches stay hidden until the lock-in moment. Neutral
+ * shimmer rows — no pitch colour, no name — purely "we're thinking". */
+.arrangement__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+}
+.arrangement__skeleton-line {
+  width: 45%;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+.arrangement__skeleton-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+.arrangement__skeleton-line,
+.arrangement__skeleton-bar {
+  animation: arrangement-skeleton-pulse 1.4s ease-in-out infinite;
+}
+.arrangement__skeleton:nth-child(2) .arrangement__skeleton-line { width: 60%; }
+.arrangement__skeleton:nth-child(2) .arrangement__skeleton-line,
+.arrangement__skeleton:nth-child(2) .arrangement__skeleton-bar {
+  animation-delay: 0.18s;
+}
+.arrangement__skeleton:nth-child(3) .arrangement__skeleton-line { width: 38%; }
+.arrangement__skeleton:nth-child(3) .arrangement__skeleton-line,
+.arrangement__skeleton:nth-child(3) .arrangement__skeleton-bar {
+  animation-delay: 0.36s;
+}
+@keyframes arrangement-skeleton-pulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.85; }
+}
 .arrangement__row {
   display: flex;
   flex-direction: column;
@@ -1859,7 +1902,9 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 
 @media (prefers-reduced-motion: reduce) {
   .arrangement__phase-dot,
-  .arrangement__bar-fill {
+  .arrangement__bar-fill,
+  .arrangement__skeleton-line,
+  .arrangement__skeleton-bar {
     animation: none !important;
   }
   .arrangement__bar-fill { transition: none; }

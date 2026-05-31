@@ -595,15 +595,28 @@
     const colorByPitchId = new Map();
     allPitches.forEach((p, i) => colorByPitchId.set(p.id, pitchColorForIndex(i)));
 
-    // Pitch rows. Each is a card with the pitch's title, a per-pitch
-    // progress bar whose fill is proportional to how complete the pitch
-    // is (covered headings / 11), and a slot for the essay chip when
-    // this pitch is where the essay currently (or finally) lives. Rows
-    // are ordered most-complete first so the strongest pitches lead.
-    const orderedPitches = allPitches.slice()
-      .sort((a, b) => (b.robustness || 0) - (a.robustness || 0));
+    // The existing pitches stay hidden until the very end. During
+    // reconsidering/settling the placement is still tentative — showing
+    // the rows then made it look like the essay locked into one pitch
+    // and then jumped to another, which read as confusing. So we only
+    // reveal the rows once the arrangement is locked (or errored, a
+    // terminal state); until then a neutral skeleton stands in so the
+    // screen still reads as "thinking" without naming a pitch we might
+    // not keep.
+    const showRows = phase === "locked" || phase === "error";
 
-    const rowsHtml = orderedPitches.length === 0
+    // Order: the pitch the essay locked into rises to the very top, then
+    // the rest by completeness (most-covered first). On error there's no
+    // lock, so it's a straight completeness sort.
+    const orderedPitches = allPitches.slice().sort((a, b) => {
+      if (a.id === finalPitchId && b.id !== finalPitchId) return -1;
+      if (b.id === finalPitchId && a.id !== finalPitchId) return 1;
+      return (b.robustness || 0) - (a.robustness || 0);
+    });
+
+    const rowsHtml = !showRows
+      ? ""
+      : orderedPitches.length === 0
       ? `<div class="arrangement__empty">No pitches yet — this essay will seed your first one.</div>`
       : orderedPitches.map((p) => {
           const isFinal = p.id === finalPitchId;
@@ -619,7 +632,7 @@
           // eleven deck headings it covers. No more fake settling
           // percentages — the bar means the same thing in every phase.
           const fillPct = Math.round(((p.robustness || 0) / totalHeadings) * 100);
-          const chipHtml = (isFinal && phase === "locked") || (isTentative && phase === "settling")
+          const chipHtml = isFinal && phase === "locked"
             ? arrangementChipHtml(essay, classifyResult, phase, isTentative)
             : "";
           const beforeName = arrangementState.titlesBefore && arrangementState.titlesBefore[p.id];
@@ -644,6 +657,20 @@
             `</div>`
           );
         }).join("");
+
+    // Skeleton stand-in while the arrangement is still settling — three
+    // neutral shimmer rows so the space reads as "considering your
+    // pitches" without revealing (or prematurely committing to) any.
+    const skeletonHtml = (phase === "reconsidering" || phase === "settling")
+      ? `<div class="arrangement__rows" aria-hidden="true">` +
+          [0, 1, 2].map(() =>
+            `<div class="arrangement__skeleton">` +
+              `<div class="arrangement__skeleton-line"></div>` +
+              `<div class="arrangement__skeleton-bar"></div>` +
+            `</div>`
+          ).join("") +
+        `</div>`
+      : "";
 
     // Dissolved pitches: any id that was in titlesBefore but isn't in
     // the current pitch list. Surfaced as a quiet block so the founder
@@ -762,11 +789,12 @@
         `</div>`
       : "";
 
-    // Subtitle: "<PitchName>. <SlideTitle>" once classify lands. Falls
-    // back to the author label during the reconsidering phase (no
-    // placement yet) so the line is never blank. The slide title is
-    // coloured to match its row in the sidebar.
-    const subtitleInner = pitchSubtitleHtmlFor(essay) || escapeHtml(essay.author || "you");
+    // Subtitle: "<PitchName>. <SlideTitle>", but only once the
+    // arrangement is locked. Before that the placement is tentative, so
+    // naming a pitch here would just be the flip-flop we're trying to
+    // avoid — we hold on the author label until the end.
+    const subtitleInner = (phase === "locked" && pitchSubtitleHtmlFor(essay))
+      || escapeHtml(essay.author || "you");
     const subtitleHtml = `<p class="arrangement__subtitle">${subtitleInner}</p>`;
 
     writingFitContent.innerHTML =
@@ -776,7 +804,8 @@
         subtitleHtml +
         `<p class="arrangement__phase-line"><span class="arrangement__phase-dot" aria-hidden="true"></span>${escapeHtml(phaseCopy)}</p>` +
         newDirectionHtml +
-        `<div class="arrangement__rows">${rowsHtml}</div>` +
+        skeletonHtml +
+        (rowsHtml ? `<div class="arrangement__rows">${rowsHtml}</div>` : "") +
         dissolvedHtml +
         slotHtml +
         actionsHtml +
