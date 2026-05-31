@@ -5,7 +5,7 @@
 
 **This revision (v0.104) replaces v0.103.** One thing changed:
 
-1. **Price reconciled to $9/month.** The sharpening subscription is now **$9/month**, matching the pre-seed plan on beginner's `/unlock` page so there is a single price across the whole product. The price is founder-confirmed; the two payment-screen strings (`$9 / month to add more pitches.` / `One pitch is yours forever. More pitches need $9 / month.`) are no longer `[NEEDS INPUT]` on price (wording is still open to edit).
+1. **Price reconciled to $9/month — one subscription, two capabilities.** The subscription is now **$9/month**, matching the pre-seed plan on beginner's `/unlock` page. Founder-confirmed: this is a **single** $9/month subscription that unlocks **both** multi-pitch sharpening (this spec) **and** the social pitch tool — not two separate prices or SKUs. The same subscription is what beginner's `/unlock` pre-seed card sells. The two payment-screen strings (`$9 / month to add more pitches.` / `One pitch is yours forever. More pitches need $9 / month.`) are no longer `[NEEDS INPUT]` on price (wording is still open to edit).
 
 Carried over from v0.103 (still in scope):
 
