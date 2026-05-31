@@ -43,7 +43,6 @@
   const categoryFeedEmpty = $("#category-feed-empty");
   const writingFitView = $("#writing-fit");
   const writingFitContent = $("#writing-fit-content");
-  const postOnSocialView = $("#post-on-social");
   const foundersView = $("#founders");
   const pitchScriptView = $("#pitch-script");
   const statusComposer = $("#status-composer");
@@ -328,7 +327,6 @@
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
-    if (postOnSocialView) postOnSocialView.hidden = true;
     if (foundersView) foundersView.hidden = true;
     if (pitchScriptView) pitchScriptView.hidden = true;
     activeId = null;
@@ -352,7 +350,6 @@
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
-    if (postOnSocialView) postOnSocialView.hidden = true;
     if (foundersView) foundersView.hidden = true;
     if (pitchScriptView) pitchScriptView.hidden = true;
   }
@@ -363,7 +360,6 @@
     readView.hidden = false;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
-    if (postOnSocialView) postOnSocialView.hidden = true;
     if (foundersView) foundersView.hidden = true;
     if (pitchScriptView) pitchScriptView.hidden = true;
     activeId = null;
@@ -399,7 +395,6 @@
     readView.hidden = true;
     categoryFeedView.hidden = false;
     if (writingFitView) writingFitView.hidden = true;
-    if (postOnSocialView) postOnSocialView.hidden = true;
     if (foundersView) foundersView.hidden = true;
     if (pitchScriptView) pitchScriptView.hidden = true;
     activeId = null;
@@ -467,7 +462,6 @@
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     writingFitView.hidden = false;
-    if (postOnSocialView) postOnSocialView.hidden = true;
     if (foundersView) foundersView.hidden = true;
     if (pitchScriptView) pitchScriptView.hidden = true;
     activeId = null;
@@ -729,26 +723,6 @@
     );
   }
 
-  function showPostOnSocial() {
-    if (!postOnSocialView) return;
-    feedView.removeAttribute("data-active");
-    writingView.hidden = true;
-    readView.hidden = true;
-    if (categoryFeedView) categoryFeedView.hidden = true;
-    if (writingFitView) writingFitView.hidden = true;
-    postOnSocialView.hidden = false;
-    if (foundersView) foundersView.hidden = true;
-    if (pitchScriptView) pitchScriptView.hidden = true;
-    activeId = null;
-    readingEssayId = null;
-    activeCategoryKey = null;
-    activeCategorySeed = null;
-    renderSidebar();
-    if (window.tinkerPostOnSocial && typeof window.tinkerPostOnSocial.render === "function") {
-      window.tinkerPostOnSocial.render();
-    }
-  }
-
   function showFounders() {
     if (!foundersView) return;
     feedView.removeAttribute("data-active");
@@ -756,7 +730,6 @@
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
-    if (postOnSocialView) postOnSocialView.hidden = true;
     if (pitchScriptView) pitchScriptView.hidden = true;
     foundersView.hidden = false;
     activeId = null;
@@ -776,7 +749,6 @@
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
-    if (postOnSocialView) postOnSocialView.hidden = true;
     if (foundersView) foundersView.hidden = true;
     pitchScriptView.hidden = false;
     activeId = null;
@@ -943,9 +915,6 @@
   // ── Wire up ─────────────────────────────────────────────────────────
   navHome.addEventListener("click", () => showFeed());
 
-  const navPostOnSocial = $("#nav-post-on-social");
-  if (navPostOnSocial) navPostOnSocial.addEventListener("click", () => showPostOnSocial());
-
   // Welcome screen: the H1 is the standing line ("Everyone is a
   // founder.") and the question ("Where are you right now?") sits
   // above a 2×2 grid of four locations — Cafe, Home, Work, Somewhere
@@ -1056,9 +1025,6 @@
   window.tinkerOnWritingClose = () => closeActiveDraft();
   window.tinkerOnWritingPublish = (draft, stitched) => store.publish(draft, stitched);
   window.tinkerOnDraftChange = (draftId, patch) => store.updateDraft(draftId, patch);
-  // Used by post-on-social.js after the founder marks a post as
-  // posted — drops them back at the welcome screen.
-  window.tinkerShowFeed = () => showFeed();
 
   // Used by the seed list in the sidebar: open a fresh draft
   // pre-filled with scene context so the founder jumps straight into

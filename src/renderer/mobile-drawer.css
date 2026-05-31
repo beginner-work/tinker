@@ -109,7 +109,6 @@
    * enough padding to clear the ~60px-tall title bar. */
   .category-feed__head,
   .writing-fit__inner,
-  .post-on-social__inner,
   .pitch-script__inner,
   .founders__inner {
     padding-top: calc(env(safe-area-inset-top, 0px) + 76px);
@@ -131,7 +130,6 @@
    * that would otherwise peek out past the drawer's right edge. */
   .category-feed__title,
   .read__title,
-  .post-on-social__title,
   .arrangement__headline,
   .pitch-script__title,
   .founders__title {
@@ -192,7 +190,6 @@
 
   body[data-drawer-open] .category-feed__title,
   body[data-drawer-open] .read__title,
-  body[data-drawer-open] .post-on-social__title,
   body[data-drawer-open] .arrangement__headline,
   body[data-drawer-open] .pitch-script__title,
   body[data-drawer-open] .founders__title {
@@ -213,7 +210,6 @@
    * keep their centered placement so they align under the floating
    * title bar (which has 72px of left/right clearance for the icon). */
   .read__author,
-  .post-on-social__step-indicator,
   .arrangement__crumb,
   .arrangement__subtitle {
     text-align: center;
