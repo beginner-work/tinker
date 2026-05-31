@@ -1431,8 +1431,8 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   margin-bottom: 4px;
 }
 
-/* Shared between the read view's .read__author and the arrangement
- * screen's .arrangement__subtitle. The slide title piece is coloured
+/* Used by the read view's .read__author subtitle (pitch name · slide).
+ * The slide title piece is coloured
  * inline (style="color: var(--logo-…)") to match the slide's row in
  * the sidebar — kept as inline-style so the renderer can mint the
  * exact CSS variable per heading without a class explosion. */
@@ -1463,8 +1463,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 .read__author { text-align: center; }
 .read__body p { margin: 0 0 1em; }
 
-/* ── Category feed (seed → category landing page) ───────────────── */
-/* ── Pitch arrangement (post-publish) ─────────────────────────────── */
+/* ── Pitch assessing (post-publish confirmation) ──────────────────── */
 
 .writing-fit[hidden] { display: none !important; }
 .writing-fit {
@@ -1476,456 +1475,178 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 }
 .writing-fit__inner {
   width: 100%;
-  max-width: 720px;
+  max-width: 620px;
   margin: 0 auto;
   padding: 56px 32px 80px;
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 
-.arrangement {
+.assessing {
+  margin: auto 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
-.arrangement__crumb {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-forest);
-}
-.arrangement__headline {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-  color: var(--color-foreground);
+  align-items: center;
   text-align: center;
+  gap: 14px;
 }
-.arrangement__subtitle { text-align: center; }
-.arrangement__crumb { text-align: center; }
-.arrangement__subtitle {
+.assessing__mark {
+  width: 56px; height: 56px;
+  border-radius: 999px;
+  background: var(--color-accent-dim);
+  display: grid; place-items: center;
+  margin-bottom: 6px;
+}
+.assessing__pulse {
+  width: 14px; height: 14px;
+  border-radius: 999px;
+  background: var(--color-accent-strong);
+  box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.45);
+  animation: assessing-pulse 1.8s ease-out infinite;
+}
+@keyframes assessing-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.45); }
+  70%  { box-shadow: 0 0 0 16px rgba(99, 102, 241, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+}
+.assessing__crumb {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--color-forest);
 }
-.arrangement__phase-line {
+.assessing__headline {
   margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
   font-family: var(--font-display);
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--color-muted);
-}
-.arrangement__phase-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    var(--color-rose)   0%,
-    var(--color-peach)  18%,
-    var(--color-amber)  36%,
-    var(--logo-leaf)    55%,
-    var(--color-sky)    75%,
-    var(--color-violet) 100%
-  );
-  flex: 0 0 auto;
-}
-[data-arrangement-phase="reconsidering"] .arrangement__phase-dot,
-[data-arrangement-phase="settling"] .arrangement__phase-dot {
-  animation: arrangement-dot-pulse 1.4s ease-in-out infinite;
-}
-@keyframes arrangement-dot-pulse {
-  0%, 100% { transform: scale(1);   filter: brightness(1) saturate(1); }
-  50%      { transform: scale(1.35); filter: brightness(1.35) saturate(1.3); }
-}
-
-.arrangement__rows {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* Skeleton stand-in shown while the arrangement is still settling, so
- * the existing pitches stay hidden until the lock-in moment. Neutral
- * shimmer rows — no pitch colour, no name — purely "we're thinking". */
-.arrangement__skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-}
-.arrangement__skeleton-line {
-  width: 45%;
-  height: 12px;
-  border-radius: 999px;
-  background: var(--color-border);
-}
-.arrangement__skeleton-bar {
-  width: 100%;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--color-border);
-}
-.arrangement__skeleton-line,
-.arrangement__skeleton-bar {
-  animation: arrangement-skeleton-pulse 1.4s ease-in-out infinite;
-}
-.arrangement__skeleton:nth-child(2) .arrangement__skeleton-line { width: 60%; }
-.arrangement__skeleton:nth-child(2) .arrangement__skeleton-line,
-.arrangement__skeleton:nth-child(2) .arrangement__skeleton-bar {
-  animation-delay: 0.18s;
-}
-.arrangement__skeleton:nth-child(3) .arrangement__skeleton-line { width: 38%; }
-.arrangement__skeleton:nth-child(3) .arrangement__skeleton-line,
-.arrangement__skeleton:nth-child(3) .arrangement__skeleton-bar {
-  animation-delay: 0.36s;
-}
-@keyframes arrangement-skeleton-pulse {
-  0%, 100% { opacity: 0.45; }
-  50%      { opacity: 0.85; }
-}
-.arrangement__row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  transition: border-color 0.4s ease, background-color 0.4s ease;
-}
-/* Per-pitch hue: each row carries its own --pitch-color (set inline in
- * renderer.js) so the founder can tell pitches apart at a glance. It
- * paints the left edge, the swatch dot, and the progress-bar fill. The
- * active/locked states still tint the rest of the border so the status
- * affordance survives alongside the identity colour. */
-.arrangement__row {
-  border-left: 3px solid var(--pitch-color, var(--color-border));
-}
-.arrangement__row[data-row-state="active"] {
-  border-color: var(--color-accent-strong);
-  border-left-color: var(--pitch-color, var(--color-accent-strong));
-  background: var(--color-surface-alt);
-}
-.arrangement__row[data-row-state="locked"] {
-  border-color: var(--logo-leaf);
-  border-left-color: var(--pitch-color, var(--logo-leaf));
-}
-.arrangement__row-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-.arrangement__row-title {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 32px; font-weight: 700;
+  letter-spacing: -0.01em; line-height: 1.2;
   color: var(--color-foreground);
 }
-.arrangement__row-swatch {
-  flex: 0 0 auto;
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  background: var(--pitch-color, var(--color-border));
-  transform: translateY(-1px);
-}
-.arrangement__row-summary {
+.assessing__sub {
   margin: 0;
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  line-height: 1.45;
+  max-width: 460px;
+  font-size: 15px; line-height: 1.55;
   color: var(--color-muted);
 }
-.arrangement__row-count {
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-muted);
+.assessing__title { color: var(--color-foreground); font-weight: 600; }
+.assessing__actions {
+  margin-top: 18px;
+  display: flex; gap: 12px; align-items: center;
 }
-.arrangement__rename {
-  font-size: 12px;
-  color: var(--color-muted);
-  font-style: italic;
+.assessing__keep,
+.assessing__close {
+  height: 44px;
+  padding: 0 22px;
+  border-radius: 999px;
+  font-weight: 600; font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.arrangement__rename-from {
+.assessing__keep {
+  background: var(--color-accent-strong);
+  color: #fff;
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-purple);
+}
+.assessing__keep:hover { background: #4f46e5; }
+.assessing__keep:active { transform: scale(0.98); }
+.assessing__close {
+  background: var(--color-surface);
   color: var(--color-foreground);
-  text-decoration: line-through;
-  font-style: normal;
-}
-.arrangement__bar {
-  position: relative;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--color-border);
-  overflow: hidden;
-}
-.arrangement__bar-fill {
-  width: 0%;
-  height: 100%;
-  border-radius: 999px;
-  /* Each pitch's bar is its own hue (set inline as --pitch-color), so
-   * the founder can match a bar to its row rather than every pitch
-   * sharing one rainbow. Falls back to the rainbow gradient if a row
-   * somehow renders without a colour. */
-  background: var(--pitch-color, linear-gradient(
-    90deg,
-    var(--color-rose)   0%,
-    var(--color-peach)  18%,
-    var(--color-amber)  36%,
-    var(--logo-leaf)    55%,
-    var(--color-sky)    75%,
-    var(--color-violet) 100%
-  ));
-  transform-origin: left center;
-  transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.arrangement__row[data-row-state="active"] .arrangement__bar-fill {
-  animation: arrangement-bar-breathe 1.8s ease-in-out infinite;
-}
-@keyframes arrangement-bar-breathe {
-  0%, 100% { filter: brightness(1)    saturate(1); }
-  50%      { filter: brightness(1.45) saturate(1.35); }
-}
-.arrangement__row[data-row-state="locked"] .arrangement__bar-fill {
-  animation: arrangement-bar-lock 800ms ease-out;
-}
-@keyframes arrangement-bar-lock {
-  0%   { filter: brightness(1.6) saturate(1.4); }
-  100% { filter: brightness(1)   saturate(1); }
-}
-
-.arrangement__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: var(--color-background);
   border: 1px solid var(--color-border);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--color-foreground);
-  max-width: 100%;
 }
-.arrangement__chip[data-chip-state="considering"],
-.arrangement__chip[data-chip-state="tentative"] {
+.assessing__close:hover {
   border-color: var(--color-accent-strong);
-  border-style: dashed;
+  color: var(--color-accent-strong);
+  background: var(--color-accent-dim);
 }
-.arrangement__chip[data-chip-state="locked"] {
-  border-color: var(--logo-leaf);
-  background: var(--color-surface-alt);
-}
-.arrangement__chip-title {
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 280px;
-}
-.arrangement__chip-heading {
-  color: var(--color-muted);
-  font-weight: 500;
-}
-.arrangement__chip-heading::before {
-  content: "→ ";
-  color: var(--color-muted);
-}
+.assessing__close:active { transform: scale(0.98); }
 
-.arrangement__dissolved {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 14px;
-  background: var(--color-surface-alt);
-  border: 1px dashed var(--color-border);
-  border-radius: 12px;
-}
-.arrangement__dissolved-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-.arrangement__dissolved-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-.arrangement__dissolved-name {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-foreground);
-  text-decoration: line-through;
-  text-decoration-color: var(--color-muted);
-}
+/* ── Toast notifications (native-style placement alerts) ──────────── */
 
-.arrangement__slot {
+.tinker-toasts {
+  position: fixed;
+  top: 16px; right: 16px;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 22px 24px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  pointer-events: none;
+}
+.tinker-toast {
+  pointer-events: auto;
+  display: flex;
+  gap: 12px;
+  padding: 14px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(20, 20, 40, 0.16);
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
-.arrangement__slot-num {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--color-muted);
+.tinker-toast--in { opacity: 1; transform: translateY(0) scale(1); }
+.tinker-toast--leaving { opacity: 0; transform: translateY(-8px) scale(0.98); }
+.tinker-toast--clickable { cursor: pointer; }
+.tinker-toast--clickable:hover { border-color: var(--color-accent-strong); }
+.tinker-toast__icon {
+  width: 34px; height: 34px;
+  flex: none;
+  border-radius: 9px;
+  background: var(--color-accent-dim);
+  padding: 5px;
 }
-.arrangement__slot-heading {
+.tinker-toast__body { flex: 1; min-width: 0; }
+.tinker-toast__head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 3px;
+}
+.tinker-toast__app {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--color-forest);
+}
+.tinker-toast__time { font-size: 11px; color: var(--color-muted); }
+.tinker-toast__title {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  font-size: 14px; font-weight: 600;
+  line-height: 1.3;
   color: var(--color-foreground);
 }
-.arrangement__phrase {
-  margin: 6px 0 0;
-  padding: 12px 16px;
-  border-left: 3px solid var(--color-accent-strong);
-  font-family: var(--font-display);
-  font-size: 18px;
-  line-height: 1.5;
-  color: var(--color-foreground);
-  background: var(--color-surface-alt);
-  border-radius: 0 8px 8px 0;
-}
-/* New-direction callout. Sits at the very top of the screen when the
- * essay started its own pitch rather than slotting into an existing
- * one — the founder asked for this to be impossible to miss. It carries
- * the new pitch's own --pitch-color on the left edge and swatch so it
- * matches that pitch's row in the list below. */
-.arrangement__newdir {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 18px 20px;
-  border: 1px solid var(--color-border);
-  border-left: 4px solid var(--pitch-color, var(--color-accent-strong));
-  border-radius: 16px;
-  background: var(--color-surface-alt);
-}
-.arrangement__newdir-tag {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.tinker-toast__text {
+  margin: 2px 0 0;
+  font-size: 13px; line-height: 1.4;
   color: var(--color-muted);
+  overflow-wrap: anywhere;
 }
-.arrangement__newdir-name {
-  margin: 0;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 9px;
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  color: var(--color-foreground);
-}
-.arrangement__newdir-swatch {
-  flex: 0 0 auto;
-  width: 11px;
-  height: 11px;
-  border-radius: 999px;
-  background: var(--pitch-color, var(--color-accent-strong));
-  transform: translateY(-1px);
-}
-.arrangement__newdir-beat {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 13px;
+.tinker-toast__close {
+  flex: none;
+  width: 22px; height: 22px;
+  border: none; background: transparent;
   color: var(--color-muted);
+  font-size: 18px; line-height: 1;
+  cursor: pointer;
+  border-radius: 6px;
 }
-.arrangement__newdir-heading {
-  font-weight: 700;
-}
-.arrangement__newdir-phrase {
-  margin: 2px 0;
-  padding: 10px 14px;
-  border-left: 3px solid var(--pitch-color, var(--color-accent-strong));
-  font-family: var(--font-display);
-  font-size: 16px;
-  line-height: 1.5;
-  color: var(--color-foreground);
-  background: var(--color-surface);
-  border-radius: 0 8px 8px 0;
-}
-.arrangement__newdir-why {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--color-muted);
-}
-
-.arrangement__actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 12px;
-}
-.arrangement__empty {
-  padding: 24px;
-  text-align: center;
-  font-style: italic;
-  color: var(--color-muted);
-  background: var(--color-surface-alt);
-  border: 1px dashed var(--color-border);
-  border-radius: 14px;
-}
+.tinker-toast__close:hover { background: var(--color-hover); color: var(--color-foreground); }
 
 @media (prefers-reduced-motion: reduce) {
-  .arrangement__phase-dot,
-  .arrangement__bar-fill,
-  .arrangement__skeleton-line,
-  .arrangement__skeleton-bar {
-    animation: none !important;
-  }
-  .arrangement__bar-fill { transition: none; }
+  .assessing__pulse { animation: none; }
+  .tinker-toast { transition: opacity 0.2s ease; transform: none; }
+  .tinker-toast--in,
+  .tinker-toast--leaving { transform: none; }
 }
-
 @media (max-width: 539px) {
   .writing-fit__inner { padding: 32px 18px 60px; }
-  .arrangement__headline { font-size: 26px; }
-  .arrangement__slot { padding: 18px 18px; }
-  .arrangement__slot-heading { font-size: 24px; }
-  .arrangement__phrase { font-size: 16px; }
-  .arrangement__chip-title { max-width: 180px; }
+  .assessing__headline { font-size: 26px; }
+  .tinker-toasts { top: 10px; right: 10px; left: 10px; width: auto; }
 }
 
+/* ── Category feed (seed → category landing page) ───────────────── */
 .category-feed[hidden] { display: none !important; }
 .category-feed {
   display: flex;

@@ -589,10 +589,9 @@
   }
 
   // A snapshot of "where every writing currently lives". Compared
-  // before/after an organize round so the post-publish arrangement
-  // screen can show real swaps — which essay moved between pitches,
-  // which pitch was renamed — instead of guessing from one half of the
-  // state.
+  // before/after an organize round so triggerOrganizeNow can return a
+  // diff — which essay moved between pitches, which pitch was renamed —
+  // instead of guessing from one half of the state.
   function placementSnapshot() {
     const writings = {};   // writingId → { pitchId, deckHeading }
     const titles = {};     // pitchId → displayName

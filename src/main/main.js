@@ -105,6 +105,10 @@ app.on("window-all-closed", () => {
 
 ipcMain.handle("app:version", () => app.getVersion());
 ipcMain.handle("app:platform", () => process.platform);
+ipcMain.handle("app:close", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+  if (win) win.close();
+});
 
 ipcMain.handle("search:query", async (_event, query) => {
   if (typeof query !== "string" || !query.trim()) {

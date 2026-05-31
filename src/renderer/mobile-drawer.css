@@ -130,7 +130,6 @@
    * that would otherwise peek out past the drawer's right edge. */
   .category-feed__title,
   .read__title,
-  .arrangement__headline,
   .pitch-script__title,
   .founders__title {
     position: fixed;
@@ -144,7 +143,7 @@
     box-sizing: border-box;
     /* Layout: flex so the title can be centred AND a long line can
      * still ellipsize. The trick is the inner <span> (added in the
-     * render code for .read__title and .arrangement__headline). The
+     * render code for .read__title). The
      * span is the actual sized child that text-overflow: ellipsis can
      * truncate; the flex container just keeps it centred. */
     display: flex;
@@ -179,8 +178,7 @@
    * shrinks to its content and the flex container centres it. When the
    * title is too long, the span grows to max-width: 100% and the
    * ellipsis renders at its trailing edge. */
-  .read__title > span,
-  .arrangement__headline > span {
+  .read__title > span {
     display: inline-block;
     max-width: 100%;
     overflow: hidden;
@@ -190,7 +188,6 @@
 
   body[data-drawer-open] .category-feed__title,
   body[data-drawer-open] .read__title,
-  body[data-drawer-open] .arrangement__headline,
   body[data-drawer-open] .pitch-script__title,
   body[data-drawer-open] .founders__title {
     opacity: 0;
@@ -209,9 +206,7 @@
   /* Secondary labels that previously sat above/beside a page title
    * keep their centered placement so they align under the floating
    * title bar (which has 72px of left/right clearance for the icon). */
-  .read__author,
-  .arrangement__crumb,
-  .arrangement__subtitle {
+  .read__author {
     text-align: center;
     padding-left: 56px;
     padding-right: 56px;
