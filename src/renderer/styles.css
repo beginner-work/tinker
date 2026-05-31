@@ -1302,7 +1302,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   font-size: 18px;
   line-height: 1.75;
   color: var(--color-foreground);
-  min-height: 360px;
+  min-height: 200px;
   padding: 20px 22px;
 }
 

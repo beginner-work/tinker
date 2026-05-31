@@ -459,7 +459,7 @@
     body.className = "writing-input writing-review__essay-input";
     body.value = active.stitched.body || "";
     body.spellcheck = true;
-    body.rows = 16;
+    body.rows = 8;
     let saveTimer;
     body.addEventListener("input", () => {
       if (!active || !active.stitched) return;
