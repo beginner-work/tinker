@@ -1,0 +1,57 @@
+name: PlanetScale Branch Pruning
+
+# Deletes tinker's per-PR PlanetScale branches so they don't accumulate
+# (the org previously ate a ~$300 bill from orphaned preview DB branches).
+# Uses PlanetScale's recommended setup-pscale-action + pscale CLI; the
+# delete decision lives in scripts/planetscale-prune.mjs (pure, unit-tested).
+
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    # Daily at 3:00 AM UTC to catch orphaned branches.
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}
+
+env:
+  PLANETSCALE_ORG: tyler-lindow
+  PLANETSCALE_DATABASE: tinker
+  PLANETSCALE_SERVICE_TOKEN_ID: ${{ secrets.PLANETSCALE_SERVICE_TOKEN_ID }}
+  PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
+
+jobs:
+  prune-pr:
+    name: Delete PlanetScale branch for closed PR
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: planetscale/setup-pscale-action@v1
+      - run: node scripts/planetscale-prune.mjs close-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+  prune-orphaned:
+    name: Delete orphaned PlanetScale branches
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: planetscale/setup-pscale-action@v1
+      - run: node scripts/planetscale-prune.mjs orphans
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}

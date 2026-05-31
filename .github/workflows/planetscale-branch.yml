@@ -1,0 +1,77 @@
+name: PlanetScale Branch
+
+# tinker's PlanetScale database branching workflow, following PlanetScale's
+# recommended pattern (planetscale/setup-pscale-action + the pscale CLI):
+#
+#   - On PR open/update: branch off production (`pr-<N>`) and open a deploy
+#     request, so schema changes are reviewed and applied in isolation.
+#   - On PR merge: deploy the deploy request, promoting the schema change to
+#     production.
+#
+# Note: PlanetScale deploy requests promote SCHEMA (DDL), not rows. Branch
+# data is ephemeral test data; live user data always lives on production.
+# Branch cleanup on PR close is handled by planetscale-branch-pruning.yml.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: planetscale-branch-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  PLANETSCALE_ORG: tyler-lindow
+  PLANETSCALE_DATABASE: tinker
+  PLANETSCALE_SERVICE_TOKEN_ID: ${{ secrets.PLANETSCALE_SERVICE_TOKEN_ID }}
+  PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
+
+jobs:
+  create-branch:
+    name: Create branch + deploy request
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: planetscale/setup-pscale-action@v1
+      - name: Branch off production and open a deploy request
+        env:
+          BRANCH: pr-${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # Create the branch off the production branch if it doesn't exist yet.
+          if ! pscale branch show "$PLANETSCALE_DATABASE" "$BRANCH" --org "$PLANETSCALE_ORG" >/dev/null 2>&1; then
+            echo "Creating PlanetScale branch $BRANCH"
+            pscale branch create "$PLANETSCALE_DATABASE" "$BRANCH" --org "$PLANETSCALE_ORG" --wait
+          else
+            echo "PlanetScale branch $BRANCH already exists"
+          fi
+          # Open a deploy request for the branch if one isn't already open.
+          existing="$(pscale deploy-request list "$PLANETSCALE_DATABASE" --org "$PLANETSCALE_ORG" --format json \
+            | python3 -c "import sys,json; drs=json.load(sys.stdin); print(next((d['number'] for d in drs if d.get('branch')=='$BRANCH' and d.get('state')=='open'), ''))")"
+          if [ -z "$existing" ]; then
+            echo "Opening deploy request for $BRANCH"
+            pscale deploy-request create "$PLANETSCALE_DATABASE" "$BRANCH" --org "$PLANETSCALE_ORG"
+          else
+            echo "Deploy request #$existing for $BRANCH already open"
+          fi
+
+  deploy-on-merge:
+    name: Deploy schema to production on merge
+    if: github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: planetscale/setup-pscale-action@v1
+      - name: Deploy the branch's deploy request to production
+        env:
+          BRANCH: pr-${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # Find the open deploy request number for this branch.
+          number="$(pscale deploy-request list "$PLANETSCALE_DATABASE" --org "$PLANETSCALE_ORG" --format json \
+            | python3 -c "import sys,json; drs=json.load(sys.stdin); print(next((d['number'] for d in drs if d.get('branch')=='$BRANCH' and d.get('state')=='open'), ''))")"
+          if [ -z "$number" ]; then
+            echo "No open deploy request for $BRANCH — nothing to deploy."
+            exit 0
+          fi
+          echo "Deploying deploy request #$number for $BRANCH"
+          pscale deploy-request deploy "$PLANETSCALE_DATABASE" "$number" --org "$PLANETSCALE_ORG" --wait

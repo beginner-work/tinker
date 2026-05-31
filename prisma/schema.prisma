@@ -1,7 +1,8 @@
-// Web's slice of the schema. The canonical schema lives in the
-// beginner repo at api/prisma/schema.prisma; this file mirrors only
-// the one table the web Vercel functions touch directly. Both repos
-// point at the same Postgres via DATABASE_URL.
+// tinker owns its own database. As of the PlanetScale migration this
+// repo no longer shares a Postgres with the beginner repo — each repo
+// owns its own database. `TinkerUserData` is the one table tinker's web
+// Vercel functions touch, and it now lives in tinker's dedicated
+// PlanetScale for Postgres database, reached via PLANETSCALE_URL.
 
 generator client {
   provider      = "prisma-client-js"
@@ -13,7 +14,10 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // PlanetScale for Postgres connection string. Set in the tinker Vercel
+  // project (production + preview) and in local .env. The old shared-Neon
+  // DATABASE_URL is retired here.
+  url      = env("PLANETSCALE_URL")
 }
 
 model TinkerUserData {

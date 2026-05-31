@@ -64,7 +64,8 @@ Required Vercel env vars:
 - `STYTCH_PROJECT_ID`
 - `STYTCH_SECRET`
 - `ANTHROPIC_API_KEY`
-- `DATABASE_URL`
+- `PLANETSCALE_URL` — Postgres connection string for tinker's own
+  PlanetScale database (see "tinker's PlanetScale database" below)
 - `BROWSERBASE_API_KEY` — used by `scripts/browserbase-debug.js`
 - `BROWSERBASE_PROJECT_ID` — used by `scripts/browserbase-debug.js`
 
@@ -82,17 +83,41 @@ to point at a separate `project-test-*` Stytch project and got its
 localStorage wiped on every load — both are gone now; previews behave
 like a second URL pointing at production.)
 
-### Shared database with the beginner repo
+### tinker's PlanetScale database
 
-`DATABASE_URL` on both tinker (production + preview) and beginner
-production points at the same Neon endpoint
-(`ep-delicate-art-ak2qmsls-pooler`). `TinkerUserData` is the shared
-row store — see `beginner/CLAUDE.md` → "Database topology". One
-asymmetry: beginner's Vercel project has Neon preview-branching
-enabled, so a **beginner preview** reads from a fresh per-deploy
-branch, not the production DB. Cross-project flows (e.g. publishing a
-pitch from tinker preview to `/daily/` on beginner preview) therefore
-won't round-trip in preview; verify on production after merge.
+tinker owns its own database. It used to share a single Neon Postgres
+with the beginner repo, but each repo now owns its own database and
+nothing is shared. tinker's `TinkerUserData` table — the one table its
+Vercel functions touch, via the `api/_lib/db.js` Prisma singleton —
+lives in a dedicated **PlanetScale for Postgres** database (`tinker`,
+org `tyler-lindow`), reached through `PLANETSCALE_URL`. The schema is
+unchanged (`provider = postgresql`); only the connection string moved.
+
+Set `PLANETSCALE_URL` for both Production and Preview so preview deploys
+read/write the same rows as production (tinker aliases preview to
+production — there is no per-preview database branch in the request
+path).
+
+**One-time data move.** `scripts/migrate-tinker-to-planetscale.sh` copies
+existing `TinkerUserData` rows from the old Neon endpoint into
+PlanetScale using PlanetScale's recommended `pg_dump | psql` import path.
+Point `DATABASE_URL` at the old Neon database and `PLANETSCALE_URL` at
+the new one, then run it; Neon is left untouched as a rollback.
+
+**Schema changes go through a PlanetScale branch.** `.github/workflows/`
+runs PlanetScale's recommended GitHub Actions
+(`planetscale/setup-pscale-action`):
+
+- `planetscale-branch.yml` — each PR branches off production (`pr-<N>`)
+  and opens a deploy request; merging the PR deploys the schema change to
+  production. (Deploy requests promote **schema (DDL)**, not rows —
+  branch data is ephemeral test data; live user data always lives on the
+  production branch.)
+- `planetscale-branch-pruning.yml` — deletes the `pr-<N>` branch when the
+  PR closes, plus a daily orphan sweep, so branches don't pile up (the
+  org once ate a ~$300 bill from orphaned preview DB branches). The
+  delete decision is the pure, unit-tested logic in
+  `scripts/planetscale-prune.mjs` (`tests/planetscale-prune.test.js`).
 
 Sign out by clearing `tinker_jwt` (`window.tinkerAuth.signOut()` from the
 inspector, or `localStorage.removeItem("tinker_jwt")`).
