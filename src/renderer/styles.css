@@ -1549,6 +1549,49 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   flex-direction: column;
   gap: 10px;
 }
+
+/* Skeleton stand-in shown while the arrangement is still settling, so
+ * the existing pitches stay hidden until the lock-in moment. Neutral
+ * shimmer rows — no pitch colour, no name — purely "we're thinking". */
+.arrangement__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+}
+.arrangement__skeleton-line {
+  width: 45%;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+.arrangement__skeleton-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+.arrangement__skeleton-line,
+.arrangement__skeleton-bar {
+  animation: arrangement-skeleton-pulse 1.4s ease-in-out infinite;
+}
+.arrangement__skeleton:nth-child(2) .arrangement__skeleton-line { width: 60%; }
+.arrangement__skeleton:nth-child(2) .arrangement__skeleton-line,
+.arrangement__skeleton:nth-child(2) .arrangement__skeleton-bar {
+  animation-delay: 0.18s;
+}
+.arrangement__skeleton:nth-child(3) .arrangement__skeleton-line { width: 38%; }
+.arrangement__skeleton:nth-child(3) .arrangement__skeleton-line,
+.arrangement__skeleton:nth-child(3) .arrangement__skeleton-bar {
+  animation-delay: 0.36s;
+}
+@keyframes arrangement-skeleton-pulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.85; }
+}
 .arrangement__row {
   display: flex;
   flex-direction: column;
@@ -1559,12 +1602,22 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   border-radius: 14px;
   transition: border-color 0.4s ease, background-color 0.4s ease;
 }
+/* Per-pitch hue: each row carries its own --pitch-color (set inline in
+ * renderer.js) so the founder can tell pitches apart at a glance. It
+ * paints the left edge, the swatch dot, and the progress-bar fill. The
+ * active/locked states still tint the rest of the border so the status
+ * affordance survives alongside the identity colour. */
+.arrangement__row {
+  border-left: 3px solid var(--pitch-color, var(--color-border));
+}
 .arrangement__row[data-row-state="active"] {
   border-color: var(--color-accent-strong);
+  border-left-color: var(--pitch-color, var(--color-accent-strong));
   background: var(--color-surface-alt);
 }
 .arrangement__row[data-row-state="locked"] {
   border-color: var(--logo-leaf);
+  border-left-color: var(--pitch-color, var(--logo-leaf));
 }
 .arrangement__row-head {
   display: flex;
@@ -1573,11 +1626,29 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   gap: 10px;
 }
 .arrangement__row-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--color-foreground);
+}
+.arrangement__row-swatch {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--pitch-color, var(--color-border));
+  transform: translateY(-1px);
+}
+.arrangement__row-summary {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
 }
 .arrangement__row-count {
   font-size: 11px;
@@ -1606,7 +1677,11 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   width: 0%;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(
+  /* Each pitch's bar is its own hue (set inline as --pitch-color), so
+   * the founder can match a bar to its row rather than every pitch
+   * sharing one rainbow. Falls back to the rainbow gradient if a row
+   * somehow renders without a colour. */
+  background: var(--pitch-color, linear-gradient(
     90deg,
     var(--color-rose)   0%,
     var(--color-peach)  18%,
@@ -1614,7 +1689,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
     var(--logo-leaf)    55%,
     var(--color-sky)    75%,
     var(--color-violet) 100%
-  );
+  ));
   transform-origin: left center;
   transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -1711,10 +1786,6 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   border: 1px solid var(--color-border);
   border-radius: 16px;
 }
-.arrangement__slot--miss {
-  background: var(--color-surface-alt);
-  border-style: dashed;
-}
 .arrangement__slot-num {
   font-family: var(--font-sans);
   font-size: 12px;
@@ -1731,12 +1802,6 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   line-height: 1.2;
   color: var(--color-foreground);
 }
-.arrangement__slot-sub {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--color-muted);
-}
 .arrangement__phrase {
   margin: 6px 0 0;
   padding: 12px 16px;
@@ -1748,6 +1813,77 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   background: var(--color-surface-alt);
   border-radius: 0 8px 8px 0;
 }
+/* New-direction callout. Sits at the very top of the screen when the
+ * essay started its own pitch rather than slotting into an existing
+ * one — the founder asked for this to be impossible to miss. It carries
+ * the new pitch's own --pitch-color on the left edge and swatch so it
+ * matches that pitch's row in the list below. */
+.arrangement__newdir {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--pitch-color, var(--color-accent-strong));
+  border-radius: 16px;
+  background: var(--color-surface-alt);
+}
+.arrangement__newdir-tag {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.arrangement__newdir-name {
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 9px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--color-foreground);
+}
+.arrangement__newdir-swatch {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--pitch-color, var(--color-accent-strong));
+  transform: translateY(-1px);
+}
+.arrangement__newdir-beat {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.arrangement__newdir-heading {
+  font-weight: 700;
+}
+.arrangement__newdir-phrase {
+  margin: 2px 0;
+  padding: 10px 14px;
+  border-left: 3px solid var(--pitch-color, var(--color-accent-strong));
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--color-foreground);
+  background: var(--color-surface);
+  border-radius: 0 8px 8px 0;
+}
+.arrangement__newdir-why {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
 .arrangement__actions {
   display: flex;
   gap: 10px;
@@ -1766,7 +1902,9 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 
 @media (prefers-reduced-motion: reduce) {
   .arrangement__phase-dot,
-  .arrangement__bar-fill {
+  .arrangement__bar-fill,
+  .arrangement__skeleton-line,
+  .arrangement__skeleton-bar {
     animation: none !important;
   }
   .arrangement__bar-fill { transition: none; }

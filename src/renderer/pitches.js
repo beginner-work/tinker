@@ -273,13 +273,16 @@
 
   // ── Robustness + active selection ─────────────────────────────────
 
-  // Robustness = number of deck headings with at least one phrase
-  // record whose offset still resolves inside its writing. We re-
-  // resolve at read time so an edited writing doesn't keep the old
-  // count.
-  function pitchRobustness(pitch) {
-    if (!pitch) return 0;
-    let n = 0;
+  // The deck headings this pitch has actually filled — i.e. headings
+  // with at least one phrase record whose offset still resolves inside
+  // its writing. Returned in deck order. We re-resolve at read time so
+  // an edited writing doesn't keep a stale heading. This list IS the
+  // pitch's "direction": which slides it leans on. Accepts a pitch id
+  // or a pitch object.
+  function coveredHeadings(pitchOrId) {
+    const pitch = typeof pitchOrId === "string" ? getPitch(pitchOrId) : pitchOrId;
+    if (!pitch || !pitch.deck) return [];
+    const out = [];
     for (const h of DECK_HEADINGS) {
       const recs = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
       for (const rec of recs) {
@@ -287,10 +290,16 @@
         if (!body) continue;
         if (rec.offset < 0 || rec.offset + rec.length > body.length) continue;
         const slice = body.slice(rec.offset, rec.offset + rec.length);
-        if (slice) { n++; break; }
+        if (slice) { out.push(h); break; }
       }
     }
-    return n;
+    return out;
+  }
+
+  // Robustness = number of covered headings. Kept as its own function
+  // for the many callers that just want the count.
+  function pitchRobustness(pitch) {
+    return coveredHeadings(pitch).length;
   }
 
   // Auto-pick: most robust wins (robustness = associated-essay
@@ -878,6 +887,7 @@
     markClassifySucceeded,
     toggleExpanded,
     pitchRobustness,
+    coveredHeadings,
     listOffPitchWritings,
     publishPitch,
     getPitchScript,
