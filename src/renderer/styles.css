@@ -1743,10 +1743,6 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   border: 1px solid var(--color-border);
   border-radius: 16px;
 }
-.arrangement__slot--miss {
-  background: var(--color-surface-alt);
-  border-style: dashed;
-}
 .arrangement__slot-num {
   font-family: var(--font-sans);
   font-size: 12px;
@@ -1763,12 +1759,6 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   line-height: 1.2;
   color: var(--color-foreground);
 }
-.arrangement__slot-sub {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--color-muted);
-}
 .arrangement__phrase {
   margin: 6px 0 0;
   padding: 12px 16px;
@@ -1780,6 +1770,77 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   background: var(--color-surface-alt);
   border-radius: 0 8px 8px 0;
 }
+/* New-direction callout. Sits at the very top of the screen when the
+ * essay started its own pitch rather than slotting into an existing
+ * one — the founder asked for this to be impossible to miss. It carries
+ * the new pitch's own --pitch-color on the left edge and swatch so it
+ * matches that pitch's row in the list below. */
+.arrangement__newdir {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--pitch-color, var(--color-accent-strong));
+  border-radius: 16px;
+  background: var(--color-surface-alt);
+}
+.arrangement__newdir-tag {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.arrangement__newdir-name {
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 9px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--color-foreground);
+}
+.arrangement__newdir-swatch {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--pitch-color, var(--color-accent-strong));
+  transform: translateY(-1px);
+}
+.arrangement__newdir-beat {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.arrangement__newdir-heading {
+  font-weight: 700;
+}
+.arrangement__newdir-phrase {
+  margin: 2px 0;
+  padding: 10px 14px;
+  border-left: 3px solid var(--pitch-color, var(--color-accent-strong));
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--color-foreground);
+  background: var(--color-surface);
+  border-radius: 0 8px 8px 0;
+}
+.arrangement__newdir-why {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
 .arrangement__actions {
   display: flex;
   gap: 10px;

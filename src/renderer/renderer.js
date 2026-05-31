@@ -581,34 +581,44 @@
       }
     }
 
-    // Pitch rows. Each is a card with the pitch's title, a rainbow
-    // progress bar showing its current arrangement state, and a slot
-    // for the essay chip when this pitch is where the essay currently
-    // (or finally) lives.
     const finalPlacement = (phase === "locked" && pitches && typeof pitches.findPitchForWriting === "function")
       ? pitches.findPitchForWriting(essay.id)
       : placement;
     const finalPitchId = finalPlacement ? finalPlacement.pitchId : null;
     const tentativePitchId = (placement && placement.pitchId !== finalPitchId) ? placement.pitchId : null;
 
-    const rowsHtml = allPitches.length === 0
+    // Per-pitch colour is keyed to each pitch's stable position in the
+    // underlying list, captured BEFORE we reorder for display — so a
+    // pitch keeps the same hue across the reconsidering → settling →
+    // locked lifecycle even as the rows shuffle by completeness.
+    const totalHeadings = headings.length || 11;
+    const colorByPitchId = new Map();
+    allPitches.forEach((p, i) => colorByPitchId.set(p.id, pitchColorForIndex(i)));
+
+    // Pitch rows. Each is a card with the pitch's title, a per-pitch
+    // progress bar whose fill is proportional to how complete the pitch
+    // is (covered headings / 11), and a slot for the essay chip when
+    // this pitch is where the essay currently (or finally) lives. Rows
+    // are ordered most-complete first so the strongest pitches lead.
+    const orderedPitches = allPitches.slice()
+      .sort((a, b) => (b.robustness || 0) - (a.robustness || 0));
+
+    const rowsHtml = orderedPitches.length === 0
       ? `<div class="arrangement__empty">No pitches yet — this essay will seed your first one.</div>`
-      : allPitches.map((p, index) => {
+      : orderedPitches.map((p) => {
           const isFinal = p.id === finalPitchId;
           const isTentative = p.id === tentativePitchId;
-          const rowColor = pitchColorForIndex(index);
+          const rowColor = colorByPitchId.get(p.id) || pitchColorForIndex(0);
           const summaryText = pitchDirectionSummary(p.id);
           const wasRenamed = diff && diff.renamedPitches.some((r) => r.pitchId === p.id);
           const rowState =
             phase === "locked" ? (isFinal ? "locked" : "idle")
             : (isFinal || isTentative) ? "active"
             : "idle";
-          const fillPct =
-            phase === "locked" && isFinal ? 100
-            : phase === "settling" && (isFinal || isTentative) ? 65
-            : phase === "reconsidering" ? 25
-            : phase === "locked" ? 100  // other pitches: filled but quiet
-            : 12;
+          // Bar fill is the pitch's real completeness: how many of the
+          // eleven deck headings it covers. No more fake settling
+          // percentages — the bar means the same thing in every phase.
+          const fillPct = Math.round(((p.robustness || 0) / totalHeadings) * 100);
           const chipHtml = (isFinal && phase === "locked") || (isTentative && phase === "settling")
             ? arrangementChipHtml(essay, classifyResult, phase, isTentative)
             : "";
@@ -623,11 +633,11 @@
                   `<span class="arrangement__row-swatch" aria-hidden="true"></span>` +
                   `${escapeHtml(p.displayName || "Untitled pitch")}` +
                 `</span>` +
-                `<span class="arrangement__row-count">${p.robustness} / ${headings.length || 11}</span>` +
+                `<span class="arrangement__row-count">${p.robustness} / ${totalHeadings}</span>` +
               `</div>` +
               `<p class="arrangement__row-summary">${escapeHtml(summaryText)}</p>` +
               renameHtml +
-              `<div class="arrangement__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(fillPct)}">` +
+              `<div class="arrangement__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${fillPct}">` +
                 `<div class="arrangement__bar-fill" style="width: ${fillPct}%"></div>` +
               `</div>` +
               chipHtml +
@@ -653,26 +663,94 @@
         `</div>`
       : "";
 
-    // Slot/heading callout — only at lock time, so we don't repeat the
-    // old screen's premature placement claim.
+    // Did this essay open a NEW direction? Two cases count: organize
+    // minted a brand-new pitch and the essay landed in it, or nothing
+    // could slot it at all. Either way the founder asked for this to be
+    // called out UP TOP — "you thought it was going into pitch X, but
+    // it actually started its own thing" — rather than buried below the
+    // rows. Built in the assembled markup below as newDirectionHtml.
+    const seededNewPitch = !!(diff && finalPitchId
+      && Array.isArray(diff.newPitchIds) && diff.newPitchIds.includes(finalPitchId));
+    const unplaced = phase === "locked" && !(finalPlacement && finalPlacement.deckHeading);
+    const isNewDirection = phase === "locked" && (seededNewPitch || unplaced);
+
+    let newDirectionHtml = "";
+    if (isNewDirection) {
+      const newPitch = finalPitchId ? orderedPitches.find((p) => p.id === finalPitchId) : null;
+      const newName = newPitch ? newPitch.displayName : null;
+      const newColor = (finalPitchId && colorByPitchId.get(finalPitchId)) || pitchColorForIndex(0);
+      const placedHeading = finalPlacement && finalPlacement.deckHeading;
+      const headingColor = placedHeading ? slideColorFor(placedHeading) : null;
+
+      // "Why it doesn't fit": grounded in real data, not an invented
+      // model rationale (the namer only ever returns a one-word title,
+      // and this codebase never fabricates prose for the founder). We
+      // name the pitches that existed beforehand and point out that
+      // none of them were already on this beat.
+      const priorNames = Object.keys(arrangementState.titlesBefore || {})
+        .filter((id) => id !== finalPitchId)
+        .map((id) => arrangementState.titlesBefore[id])
+        .filter(Boolean);
+      // The tail differs by case: a brand-new pitch genuinely "started
+      // its own"; a still-unplaced essay will cluster later. We don't
+      // claim more than actually happened.
+      const outcome = seededNewPitch
+        ? "so it started its own."
+        : "so it'll cluster into one of its own as you keep writing.";
+      let whyText;
+      if (priorNames.length === 0) {
+        whyText = seededNewPitch
+          ? "You didn't have a pitch on this beat yet, so this essay starts one."
+          : "You didn't have a pitch on this beat yet — it'll cluster into one as you keep writing.";
+      } else {
+        const shown = priorNames.slice(0, 3);
+        let list;
+        if (shown.length === 1) list = shown[0];
+        else if (shown.length === 2) list = `${shown[0]} and ${shown[1]}`;
+        else list = `${shown[0]}, ${shown[1]} and ${shown[2]}`;
+        const more = priorNames.length - shown.length;
+        const tail = more > 0 ? `${list}, and ${more} more` : list;
+        whyText = `None of your other pitches — ${tail} — were already making this point, ${outcome}`;
+      }
+
+      const nameHtml = newName
+        ? `<h2 class="arrangement__newdir-name">` +
+            `<span class="arrangement__newdir-swatch" aria-hidden="true"></span>` +
+            escapeHtml(newName) +
+          `</h2>`
+        : `<h2 class="arrangement__newdir-name">A direction of its own</h2>`;
+      const beatHtml = placedHeading
+        ? `<p class="arrangement__newdir-beat">Anchored on ` +
+            `<span class="arrangement__newdir-heading" style="color: ${headingColor}">${escapeHtml(placedHeading)}</span></p>`
+        : "";
+      const quoteHtml = phraseText
+        ? `<blockquote class="arrangement__newdir-phrase">${escapeHtml(phraseText)}</blockquote>`
+        : "";
+
+      newDirectionHtml =
+        `<div class="arrangement__newdir" style="--pitch-color: ${newColor}">` +
+          `<p class="arrangement__newdir-tag">You found a new direction</p>` +
+          nameHtml +
+          beatHtml +
+          quoteHtml +
+          `<p class="arrangement__newdir-why">${escapeHtml(whyText)}</p>` +
+        `</div>`;
+    }
+
+    // Slot/heading callout for the ordinary case — the essay landed in
+    // an existing pitch's slide. The new-direction case is handled up
+    // top by newDirectionHtml instead, so we skip it here.
     let slotHtml = "";
-    if (phase === "locked") {
+    if (phase === "locked" && !isNewDirection) {
       const placedHeading = finalPlacement && finalPlacement.deckHeading;
       if (placedHeading) {
         const slotNum = headings.indexOf(placedHeading) + 1;
-        const slotLabel = slotNum > 0 ? `Slide ${slotNum} of ${headings.length || 11}` : "Pitch slide";
+        const slotLabel = slotNum > 0 ? `Slide ${slotNum} of ${totalHeadings}` : "Pitch slide";
         slotHtml =
           `<div class="arrangement__slot">` +
             `<div class="arrangement__slot-num">${escapeHtml(slotLabel)}</div>` +
             `<h2 class="arrangement__slot-heading">${escapeHtml(placedHeading)}</h2>` +
             (phraseText ? `<blockquote class="arrangement__phrase">${escapeHtml(phraseText)}</blockquote>` : "") +
-          `</div>`;
-      } else {
-        slotHtml =
-          `<div class="arrangement__slot arrangement__slot--miss">` +
-            `<div class="arrangement__slot-num">No slide yet</div>` +
-            `<h2 class="arrangement__slot-heading">You discovered a new direction.</h2>` +
-            `<p class="arrangement__slot-sub">None of your existing pitches caught this one. It'll cluster with others on the same beat as you keep writing.</p>` +
           `</div>`;
       }
     }
@@ -697,6 +775,7 @@
         `<h1 class="arrangement__headline"><span>${escapeHtml(titleText)}</span></h1>` +
         subtitleHtml +
         `<p class="arrangement__phase-line"><span class="arrangement__phase-dot" aria-hidden="true"></span>${escapeHtml(phaseCopy)}</p>` +
+        newDirectionHtml +
         `<div class="arrangement__rows">${rowsHtml}</div>` +
         dissolvedHtml +
         slotHtml +
