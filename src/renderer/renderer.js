@@ -712,17 +712,20 @@
         .filter((id) => id !== finalPitchId)
         .map((id) => arrangementState.titlesBefore[id])
         .filter(Boolean);
-      // The tail differs by case: a brand-new pitch genuinely "started
-      // its own"; a still-unplaced essay will cluster later. We don't
-      // claim more than actually happened.
+      // Additive framing: a new direction is its own thread that stands
+      // beside the founder's other pitches — never a miss, an orphan, or
+      // a thing none of them "caught." It still stays grounded: we name
+      // the pitches that existed beforehand and note they were each on
+      // their own ground (true — none was on this beat), rather than
+      // inventing a model rationale.
       const outcome = seededNewPitch
-        ? "so it started its own."
-        : "so it'll cluster into one of its own as you keep writing.";
+        ? "so this one starts a thread of its own beside them."
+        : "so this one will gather a thread of its own as you keep writing.";
       let whyText;
       if (priorNames.length === 0) {
         whyText = seededNewPitch
-          ? "You didn't have a pitch on this beat yet, so this essay starts one."
-          : "You didn't have a pitch on this beat yet — it'll cluster into one as you keep writing.";
+          ? "Your first pitch on this beat — a thread all its own."
+          : "A thread all its own — it'll gather its pitch as you keep writing.";
       } else {
         const shown = priorNames.slice(0, 3);
         let list;
@@ -731,7 +734,7 @@
         else list = `${shown[0]}, ${shown[1]} and ${shown[2]}`;
         const more = priorNames.length - shown.length;
         const tail = more > 0 ? `${list}, and ${more} more` : list;
-        whyText = `None of your other pitches — ${tail} — were already making this point, ${outcome}`;
+        whyText = `${tail} are each on their own ground, ${outcome}`;
       }
 
       const nameHtml = newName
@@ -776,12 +779,31 @@
       }
     }
 
-    const actionsHtml = phase === "locked"
-      ? `<div class="arrangement__actions">` +
+    // The reveal's one clear door: a single primary action that takes the
+    // founder INTO the pitch this essay just strengthened (the locked
+    // pitch, or — for a new direction — the brand-new pitch), so they keep
+    // building the thread that just grew instead of bouncing to a list.
+    //
+    // [NEEDS INPUT: action set] The founder hadn't confirmed whether the
+    // door replaces "Read it →" or sits beside it. Per the no-dashboard
+    // line we ship one primary door + one quiet secondary ("Done") — a
+    // single calm choice, never a button bar.
+    //
+    // Build step 3 / graceful degrade: if the essay couldn't be slotted
+    // anywhere there's no pitch to open, so the primary falls back to the
+    // existing "Read it →" rather than offering a door that goes nowhere.
+    const doorPitchId = finalPitchId;
+    let actionsHtml = "";
+    if (phase === "locked") {
+      const primaryHtml = doorPitchId
+        ? `<button type="button" class="writing-action writing-action--primary" data-arrangement-action="open">Open this pitch →</button>`
+        : `<button type="button" class="writing-action writing-action--primary" data-arrangement-action="read">Read it →</button>`;
+      actionsHtml =
+        `<div class="arrangement__actions">` +
           `<button type="button" class="writing-action" data-arrangement-action="done">Done</button>` +
-          `<button type="button" class="writing-action writing-action--primary" data-arrangement-action="read">Read it →</button>` +
-        `</div>`
-      : "";
+          primaryHtml +
+        `</div>`;
+    }
 
     // Subtitle: "<PitchName>. <SlideTitle>", but only once the
     // arrangement is locked. Before that the placement is tentative, so
@@ -807,8 +829,24 @@
 
     const doneBtn = writingFitContent.querySelector('[data-arrangement-action="done"]');
     const readBtn = writingFitContent.querySelector('[data-arrangement-action="read"]');
+    const openBtn = writingFitContent.querySelector('[data-arrangement-action="open"]');
     if (doneBtn) doneBtn.addEventListener("click", () => showFeed());
     if (readBtn) readBtn.addEventListener("click", () => showRead(essay));
+    if (openBtn) {
+      openBtn.addEventListener("click", () => {
+        // [NEEDS INPUT: door destination] The founder hadn't decided where
+        // this lands (option 1: pitch-script view; option 2: make active +
+        // home deck; option 3: a new page). Shipping the prompt's
+        // recommended default — option 2: make the pitch active and drop
+        // the founder home into its slide deck, the best surface for "keep
+        // writing into the pitch that just grew." For option 1, swap the
+        // body for window.tinkerShowPitchScript(doorPitchId).
+        if (doorPitchId && pitches && typeof pitches.setActivePitch === "function") {
+          pitches.setActivePitch(doorPitchId);
+        }
+        showFeed();
+      });
+    }
   }
 
   function phaseLabel(phase, classifyResult, organizeError) {
