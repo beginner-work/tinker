@@ -1559,12 +1559,22 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   border-radius: 14px;
   transition: border-color 0.4s ease, background-color 0.4s ease;
 }
+/* Per-pitch hue: each row carries its own --pitch-color (set inline in
+ * renderer.js) so the founder can tell pitches apart at a glance. It
+ * paints the left edge, the swatch dot, and the progress-bar fill. The
+ * active/locked states still tint the rest of the border so the status
+ * affordance survives alongside the identity colour. */
+.arrangement__row {
+  border-left: 3px solid var(--pitch-color, var(--color-border));
+}
 .arrangement__row[data-row-state="active"] {
   border-color: var(--color-accent-strong);
+  border-left-color: var(--pitch-color, var(--color-accent-strong));
   background: var(--color-surface-alt);
 }
 .arrangement__row[data-row-state="locked"] {
   border-color: var(--logo-leaf);
+  border-left-color: var(--pitch-color, var(--logo-leaf));
 }
 .arrangement__row-head {
   display: flex;
@@ -1573,11 +1583,29 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   gap: 10px;
 }
 .arrangement__row-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--color-foreground);
+}
+.arrangement__row-swatch {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--pitch-color, var(--color-border));
+  transform: translateY(-1px);
+}
+.arrangement__row-summary {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
 }
 .arrangement__row-count {
   font-size: 11px;
@@ -1606,7 +1634,11 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   width: 0%;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(
+  /* Each pitch's bar is its own hue (set inline as --pitch-color), so
+   * the founder can match a bar to its row rather than every pitch
+   * sharing one rainbow. Falls back to the rainbow gradient if a row
+   * somehow renders without a colour. */
+  background: var(--pitch-color, linear-gradient(
     90deg,
     var(--color-rose)   0%,
     var(--color-peach)  18%,
@@ -1614,7 +1646,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
     var(--logo-leaf)    55%,
     var(--color-sky)    75%,
     var(--color-violet) 100%
-  );
+  ));
   transform-origin: left center;
   transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
 }

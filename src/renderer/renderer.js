@@ -593,9 +593,11 @@
 
     const rowsHtml = allPitches.length === 0
       ? `<div class="arrangement__empty">No pitches yet — this essay will seed your first one.</div>`
-      : allPitches.map((p) => {
+      : allPitches.map((p, index) => {
           const isFinal = p.id === finalPitchId;
           const isTentative = p.id === tentativePitchId;
+          const rowColor = pitchColorForIndex(index);
+          const summaryText = pitchDirectionSummary(p.id);
           const wasRenamed = diff && diff.renamedPitches.some((r) => r.pitchId === p.id);
           const rowState =
             phase === "locked" ? (isFinal ? "locked" : "idle")
@@ -615,11 +617,15 @@
             ? `<div class="arrangement__rename">renamed from <span class="arrangement__rename-from">${escapeHtml(beforeName)}</span></div>`
             : "";
           return (
-            `<div class="arrangement__row" data-row-state="${rowState}">` +
+            `<div class="arrangement__row" data-row-state="${rowState}" style="--pitch-color: ${rowColor}">` +
               `<div class="arrangement__row-head">` +
-                `<span class="arrangement__row-title">${escapeHtml(p.displayName || "Untitled pitch")}</span>` +
+                `<span class="arrangement__row-title">` +
+                  `<span class="arrangement__row-swatch" aria-hidden="true"></span>` +
+                  `${escapeHtml(p.displayName || "Untitled pitch")}` +
+                `</span>` +
                 `<span class="arrangement__row-count">${p.robustness} / ${headings.length || 11}</span>` +
               `</div>` +
+              `<p class="arrangement__row-summary">${escapeHtml(summaryText)}</p>` +
               renameHtml +
               `<div class="arrangement__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(fillPct)}">` +
                 `<div class="arrangement__bar-fill" style="width: ${fillPct}%"></div>` +
@@ -813,6 +819,42 @@
     const i = headings.indexOf(heading);
     if (i < 0) return SLIDE_COLOR_CYCLE[0];
     return SLIDE_COLOR_CYCLE[i % SLIDE_COLOR_CYCLE.length];
+  }
+
+  // Per-pitch colour for the arrangement screen. The founder asked to
+  // tell their pitches apart at a glance after publishing — so each
+  // pitch row gets its own hue (swatch + progress bar) drawn from the
+  // same logo palette as the slides. Keyed by the pitch's position in
+  // the list rather than a hash of its id, so the first seven pitches
+  // are guaranteed distinct colours (a hash could collide). The cycle
+  // wraps past seven, same rule the sidebar already uses for slides.
+  function pitchColorForIndex(index) {
+    const i = Number.isFinite(index) && index >= 0 ? index : 0;
+    return SLIDE_COLOR_CYCLE[i % SLIDE_COLOR_CYCLE.length];
+  }
+
+  // A one-line "what direction is this pitch taking" summary, built
+  // from the deck headings the pitch has actually filled in. Covered
+  // headings ARE the direction — a pitch leaning on "The Problem" and
+  // "The Product" reads very differently from one built around "The
+  // Vision" and "The Ask". Listed in deck order (stable), capped at
+  // three names with a "+N more" tail so the row stays compact.
+  function pitchDirectionSummary(pitchId) {
+    const pitches = window.tinkerPitches;
+    // Resolve through pitches.coveredHeadings so the summary lists the
+    // exact same headings the "X / 11" count is built from — they can't
+    // drift apart.
+    const covered = (pitches && typeof pitches.coveredHeadings === "function")
+      ? pitches.coveredHeadings(pitchId)
+      : [];
+    if (!covered || covered.length === 0) return "Still wide open — no slides filled in yet.";
+    const shown = covered.slice(0, 3);
+    let list;
+    if (shown.length === 1) list = shown[0];
+    else if (shown.length === 2) list = `${shown[0]} & ${shown[1]}`;
+    else list = `${shown[0]}, ${shown[1]} & ${shown[2]}`;
+    const more = covered.length - shown.length;
+    return more > 0 ? `Leans on ${list} +${more} more` : `Leans on ${list}`;
   }
 
   // Build the per-essay subtitle: "<PitchName>. <SlideTitle>" where
