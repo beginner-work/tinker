@@ -1227,6 +1227,11 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 /* ── Review screen ─────────────────────────────────────────────────── */
 
 .writing-card--review { gap: 24px; }
+/* On the review screen, let the card fill the available height so the essay
+   textarea can grow to fill the screen, while the Save action stays pinned at
+   the bottom and never gets pushed off the page. */
+.writing__body:has(.writing-card--review) { align-items: stretch; }
+.writing-card--review { flex: 1; min-height: 0; }
 .writing-review__head {
   display: flex; flex-direction: column; gap: 4px;
   border-bottom: 1px solid var(--color-border);
@@ -1302,7 +1307,9 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   font-size: 18px;
   line-height: 1.75;
   color: var(--color-foreground);
+  flex: 1;
   min-height: 200px;
+  resize: none;
   padding: 20px 22px;
 }
 
