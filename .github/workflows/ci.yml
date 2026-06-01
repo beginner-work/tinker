@@ -1,0 +1,31 @@
+name: CI
+
+# Runs the unit + UI-contract test suite on every pull request and on
+# pushes to main. The tests include welcome-shell.test.js, the structural
+# guard that fails the build if a change deletes the welcome screen's
+# location seed flow or its glass AI / No AI mode nav — the regression
+# that shipped in PR #208. Without this workflow that guard never runs.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: Unit + UI-contract tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # `npm ci` runs the postinstall `prisma generate`, which the API
+      # tests need; it's schema-only and needs no database or network.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test

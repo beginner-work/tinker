@@ -439,6 +439,14 @@
     activeCategorySeed = null;
     renderSidebar();
     renderHome();
+    // If the "Somewhere else" specify input is already open, drop focus
+    // there; otherwise leave focus on the grid (the tiles are buttons,
+    // so keyboard users land on the first one via Tab).
+    const formEl = document.getElementById("welcome-form");
+    const inputEl = document.getElementById("welcome-input");
+    if (formEl && !formEl.hidden && inputEl) {
+      setTimeout(() => { inputEl.focus(); inputEl.select(); }, 30);
+    }
   }
   function showWriting() {
     feedView.removeAttribute("data-active");
@@ -992,45 +1000,64 @@
   navHome.addEventListener("click", () => showFeed());
 
   // Welcome screen: the H1 is the standing line ("Everyone is a
-  // founder.") above the No AI hero card. The AI path isn't given a
-  // section here — the floating bottom mode nav (#mode-nav) owns it: on
-  // the welcome screen its sparkle starts an AI session, its writing
-  // hand starts a No AI one. freewrite.js still owns the mode toggle
-  // itself; the launch is layered on here, gated to the welcome view so
-  // mid-draft the nav stays a pure mode switch.
-  const modeAiBtn = document.getElementById("mode-ai");
-  const modeNoaiBtn = document.getElementById("mode-noai");
+  // founder.") and the question ("Where are you right now?") sits
+  // above a 2×2 grid of four locations — Cafe, Home, Work, Somewhere
+  // else. The first three drop you straight into a writing session
+  // seeded with that location. "Somewhere else" reveals a small input
+  // so the founder can specify the place themselves.
+  //
+  // The floating bottom mode nav (#mode-nav, owned by freewrite.js) is a
+  // pure mode switch: on the welcome screen tapping AI / No AI has no
+  // immediate effect beyond setting the mode — it only decides which
+  // screen the next session opens into (the AI interview, or the No AI
+  // free-write composer). The launch itself stays here, in the grid.
+  const welcomeGrid = document.getElementById("welcome-grid");
+  const welcomeForm = document.getElementById("welcome-form");
+  const welcomeInput = document.getElementById("welcome-input");
 
-  function launchFromModeNav(wantNoAi) {
-    // Only the welcome/feed uses the nav as a launcher. Elsewhere (mid-
-    // draft, reading) leave it to freewrite.js as a live mode switch.
-    if (!feedView.hasAttribute("data-active")) return;
-    if (window.tinkerFreewrite && typeof window.tinkerFreewrite.setForced === "function") {
-      window.tinkerFreewrite.setForced(wantNoAi);
+  function startSessionWith(seed) {
+    if (window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
+      window.tinkerSeeds.add(seed);
     }
-    newDraft({ activate: true });
+    if (typeof window.tinkerNewSession === "function") {
+      window.tinkerNewSession({ seed });
+    }
   }
 
-  if (modeAiBtn) {
-    modeAiBtn.addEventListener("click", () => {
-      if (modeAiBtn.disabled) return;
-      launchFromModeNav(false);
+  const LOCATION_LABELS = { cafe: "Cafe", home: "Home", work: "Work" };
+
+  if (welcomeGrid) {
+    welcomeGrid.addEventListener("click", (e) => {
+      const tile = e.target.closest("[data-location]");
+      if (!tile) return;
+      const key = tile.getAttribute("data-location");
+      if (key === "other") {
+        if (!welcomeForm || !welcomeInput) return;
+        welcomeForm.hidden = false;
+        // Highlight the chosen tile so the founder knows why the input
+        // appeared, and remember it in case other tiles get aria-pressed.
+        for (const t of welcomeGrid.querySelectorAll("[data-location]")) {
+          t.setAttribute("aria-pressed", t === tile ? "true" : "false");
+        }
+        setTimeout(() => { welcomeInput.focus(); welcomeInput.select(); }, 30);
+        return;
+      }
+      const label = LOCATION_LABELS[key];
+      if (!label) return;
+      if (welcomeForm) welcomeForm.hidden = true;
+      if (welcomeInput) welcomeInput.value = "";
+      startSessionWith(label);
     });
   }
-  if (modeNoaiBtn) {
-    modeNoaiBtn.addEventListener("click", () => launchFromModeNav(true));
-  }
 
-  // No AI mode, front and centre: turn the mode on, then open a blank
-  // draft. writing.js sees No AI mode is on and renders the spectrum
-  // composer instead of the interview — no seed prompt, no questions.
-  const welcomeNoai = document.getElementById("welcome-noai");
-  if (welcomeNoai) {
-    welcomeNoai.addEventListener("click", () => {
-      if (window.tinkerFreewrite && typeof window.tinkerFreewrite.setForced === "function") {
-        window.tinkerFreewrite.setForced(true);
-      }
-      newDraft({ activate: true });
+  if (welcomeForm && welcomeInput) {
+    welcomeForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = welcomeInput.value.trim();
+      if (!name) { welcomeInput.focus(); return; }
+      welcomeInput.value = "";
+      welcomeForm.hidden = true;
+      startSessionWith(name);
     });
   }
 
