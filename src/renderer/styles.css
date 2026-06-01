@@ -199,11 +199,21 @@ html.on-web .sidebar__top {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
   transform: translateX(-50%);
   z-index: 95;
-  display: flex;
+  /* The AI / No AI switch is a pre-session choice that belongs to the
+   * welcome screen only. Hidden by default; revealed below when the
+   * welcome feed is the active view. */
+  display: none;
   flex-direction: column;
   align-items: stretch;
   -webkit-app-region: no-drag;
   pointer-events: none;
+}
+/* Surface the mode switch only on the welcome screen. #welcome carries
+ * data-active solely while the welcome feed is on screen (renderer.js
+ * showFeed); every other view strips it, so the pill never follows the
+ * founder into writing, reading, or the category feeds. */
+body:has(#welcome[data-active]) .mode-nav {
+  display: flex;
 }
 .mode-nav__bar {
   pointer-events: auto;
@@ -271,16 +281,6 @@ html.on-web .sidebar__top {
   box-shadow: 0 8px 18px rgba(20, 20, 40, 0.16);
 }
 .mode-nav__offline[hidden] { display: none; }
-
-/* Stand the nav down while the AI interview is on screen — that flow owns
- * the bottom with its own Next / "This is everything" footer, so the
- * floating pill would collide with it. Keyed off the live DOM (the footer
- * buttons carry `hidden` outside the interview, e.g. in the No AI
- * composer), so no view-switch bookkeeping is needed. */
-body:has(#writing:not([hidden]) #writing-next:not([hidden])) .mode-nav,
-body:has(#writing:not([hidden]) #writing-end:not([hidden])) .mode-nav {
-  display: none;
-}
 
 @media (max-width: 540px) {
   .mode-nav { bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
