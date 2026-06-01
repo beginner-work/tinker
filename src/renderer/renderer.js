@@ -1055,6 +1055,19 @@
     });
   }
 
+  // No AI mode, front and centre: turn the mode on, then open a blank
+  // draft. writing.js sees No AI mode is on and renders the spectrum
+  // composer instead of the interview — no seed prompt, no questions.
+  const welcomeNoai = document.getElementById("welcome-noai");
+  if (welcomeNoai) {
+    welcomeNoai.addEventListener("click", () => {
+      if (window.tinkerFreewrite && typeof window.tinkerFreewrite.setForced === "function") {
+        window.tinkerFreewrite.setForced(true);
+      }
+      newDraft({ activate: true });
+    });
+  }
+
   // Re-render the home list whenever seeds change.
   if (window.tinkerSeeds && typeof window.tinkerSeeds.subscribe === "function") {
     window.tinkerSeeds.subscribe(() => {

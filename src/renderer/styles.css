@@ -185,75 +185,105 @@ html.on-web .sidebar__top {
 }
 .sidebar__account-flash.is-visible { opacity: 1; }
 
-/* Free write mode toggle — a switch row in the account list. The "Off/On"
- * chip sits at the trailing edge; flipping it on tints the row and the
- * chip with the brand accent so the state reads at a glance. */
-.sidebar__account-state {
-  margin-left: auto;
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  background: var(--color-hover);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  padding: 2px 9px;
-  line-height: 1.5;
-}
-.sidebar__account-item--toggle[aria-pressed="true"] {
-  background: var(--color-accent-dim);
-}
-.sidebar__account-item--toggle[aria-pressed="true"] .sidebar__account-icon {
-  color: var(--color-accent-strong);
-}
-.sidebar__account-item--toggle[aria-pressed="true"] .sidebar__account-state {
-  color: var(--color-accent-strong);
-  background: var(--color-surface);
-  border-color: var(--color-accent);
-}
-
-/* Free write mode status pill — a floating, top-centre status surface that
- * persists while the switch is on, with a one-tap exit. Fixed so it
- * never disturbs the sidebar/stage flex layout; clears the iOS safe area
- * and the macOS drag strip. */
-.freewrite-banner {
+/* ── Floating bottom mode nav ──────────────────────────────────────────
+ *
+ * A liquid-glass pill, bottom-centre, that switches between writing with
+ * AI (the Claude interview) and No AI mode (write freely). Two segments —
+ * a sparkle for AI, a writing hand for No AI — with the live one filled
+ * in. The "You're offline" sliver hangs off the bottom edge while the
+ * device is offline. Fixed so it never disturbs the flex layout; clears
+ * the iOS safe area and the macOS drag strip. */
+.mode-nav {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
   left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
   transform: translateX(-50%);
   z-index: 95;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  -webkit-app-region: no-drag;
+  pointer-events: none;
+}
+.mode-nav__bar {
+  pointer-events: auto;
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  border-radius: var(--radius-pill);
+  /* Frosted glass — matches the toast treatment: a translucent cream
+   * pane that blurs whatever sits behind it, a bright top edge and soft
+   * inner highlight so it reads as a sheet of glass. The opaque fallback
+   * keeps it legible where backdrop-filter isn't supported. */
+  background: rgba(255, 253, 247, 0.62);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 12px 32px rgba(20, 20, 40, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .mode-nav__bar { background: var(--color-surface); }
+}
+.mode-nav__btn {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  max-width: min(92vw, 460px);
-  padding: 7px 7px 7px 14px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-accent);
+  gap: 7px;
+  padding: 9px 16px;
   border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-soft);
-  color: var(--color-foreground);
+  background: transparent;
+  color: var(--color-muted);
   font-size: 13px;
-  line-height: 1.35;
-  -webkit-app-region: no-drag;
-}
-.freewrite-banner[hidden] { display: none; }
-.freewrite-banner__icon { color: var(--color-accent-strong); flex-shrink: 0; }
-.freewrite-banner__text { min-width: 0; }
-.freewrite-banner__action {
-  flex-shrink: 0;
-  padding: 5px 13px;
-  border-radius: var(--radius-pill);
-  background: var(--color-accent-dim);
-  color: var(--color-accent-strong);
-  font-size: 12px;
   font-weight: 600;
-  transition: background 0.15s ease, color 0.15s ease;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
-.freewrite-banner__action:hover {
-  background: var(--color-accent);
-  color: var(--color-surface);
+.mode-nav__icon { flex-shrink: 0; }
+.mode-nav__btn:hover { color: var(--color-foreground); }
+.mode-nav__btn[aria-pressed="true"] {
+  background: var(--color-surface);
+  color: var(--color-accent-strong);
+  box-shadow: var(--shadow-button);
+}
+.mode-nav__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.mode-nav__btn:disabled:hover { color: var(--color-muted); }
+/* Offline sliver — a thin strip tucked under the glass bar, narrower than
+ * it so it reads as attached. Top corners square to butt against the bar;
+ * bottom corners round off. */
+.mode-nav__offline {
+  pointer-events: auto;
+  align-self: center;
+  margin-top: -4px;
+  padding: 5px 16px 4px;
+  border-radius: 0 0 var(--radius-pill) var(--radius-pill);
+  background: rgba(45, 42, 38, 0.85);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  box-shadow: 0 8px 18px rgba(20, 20, 40, 0.16);
+}
+.mode-nav__offline[hidden] { display: none; }
+
+/* Stand the nav down while the AI interview is on screen — that flow owns
+ * the bottom with its own Next / "This is everything" footer, so the
+ * floating pill would collide with it. Keyed off the live DOM (the footer
+ * buttons carry `hidden` outside the interview, e.g. in the No AI
+ * composer), so no view-switch bookkeeping is needed. */
+body:has(#writing:not([hidden]) #writing-next:not([hidden])) .mode-nav,
+body:has(#writing:not([hidden]) #writing-end:not([hidden])) .mode-nav {
+  display: none;
+}
+
+@media (max-width: 540px) {
+  .mode-nav { bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
 }
 
 /* ── Sidebar pitch-deck tree (v0.103) ─────────────────────────────
@@ -850,6 +880,72 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   color: var(--color-muted);
   line-height: 1.4;
 }
+
+/* No AI mode, front and centre — the hero action on the welcome page. A
+ * generous tappable card with the writing-hand mark, a title, and a line
+ * of what it is. The location grid below is the AI-guided alternative. */
+.welcome__noai {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: min(380px, 88%);
+  margin: 14px auto 0;
+  padding: 16px 18px;
+  text-align: left;
+  border: 1px solid var(--color-accent);
+  border-radius: 16px;
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.06s ease;
+}
+.welcome__noai:hover {
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+.welcome__noai:active { transform: scale(0.99); }
+.welcome__noai-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--color-accent-dim);
+  color: var(--color-accent-strong);
+}
+.welcome__noai-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.welcome__noai-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.welcome__noai-sub {
+  font-size: 13px;
+  color: var(--color-muted);
+  line-height: 1.35;
+}
+.welcome__noai-go {
+  margin-left: auto;
+  flex: none;
+  font-size: 18px;
+  color: var(--color-accent-strong);
+}
+.welcome__or {
+  margin: 16px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
 .welcome__prompt {
   margin: 10px 0 2px;
   font-size: 15px;
@@ -1350,6 +1446,58 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   line-height: var(--leading-body);
 }
 .writing-card--freewrite .writing-freewrite__input { min-height: 320px; resize: vertical; }
+/* The writing takes the spectrum ink (set inline by writing.js); ease the
+ * change so shifting your emotional centre reads as a soft recolour. */
+.writing-card--freewrite .writing-freewrite__input { transition: color 0.2s ease; }
+
+/* ── Spectrum bar ──────────────────────────────────────────────────────
+ *
+ * The emotional centre. A warm→cool sweep of the brand palette; tapping a
+ * dot tints the live writing with that colour and marks the dot. The act
+ * of adjusting it as you write is the mechanism — not decoration. */
+.spectrum {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.spectrum__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.spectrum__label-text {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.spectrum__hint {
+  font-size: 12px;
+  color: var(--color-muted);
+  line-height: 1.3;
+}
+.spectrum__track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.spectrum__dot {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--swatch);
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 0 0 1px var(--color-border);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.spectrum__dot:hover { transform: scale(1.12); }
+.spectrum__dot[aria-checked="true"] {
+  transform: scale(1.18);
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-accent-strong);
+}
 
 .writing-card--freewrite-saved {
   align-items: center;

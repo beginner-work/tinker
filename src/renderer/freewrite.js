@@ -1,9 +1,9 @@
-/* freewrite.js — free write mode.
+/* freewrite.js — No AI mode.
  *
- * Free write mode turns on automatically the moment the device loses
- * its connection (navigator.onLine), and it's also available as a
- * manual override so you can write freely even with a connection. While
- * it's on:
+ * No AI mode turns on automatically the moment the device loses its
+ * connection (navigator.onLine), and it's also available as a manual
+ * choice — the floating bottom mode nav (#mode-nav) — so you can write
+ * freely even with a connection. While it's on:
  *
  *   - Same-origin /api/* requests are gated at the `fetch` boundary, so
  *     one switch covers Claude calls (platform-mobile.js), sync
@@ -12,18 +12,18 @@
  *     so the existing !res.ok / try-catch paths treat it as a clean
  *     outage rather than throwing. (When genuinely offline this just
  *     turns a raw network failure into a friendlier one.)
- *   - The writing view drops the Claude interview for a single
- *     free-write composer — see writing.js.
- *   - State is painted: a pressed sidebar toggle and a `freewrite-on`
- *     class on <html>. A manual free-write (online) also floats a pill
- *     with a one-tap "Turn off".
- *   - A connection drop fires a toast through the notification component
- *     (notifications.js) so the founder knows they're offline — that
- *     toast stands in for the pill while offline, so the pill stays
- *     hidden then.
+ *   - The writing view drops the Claude interview for a single No AI
+ *     composer with the spectrum bar — see writing.js.
+ *   - State is painted: the bottom mode nav highlights the active segment
+ *     (sparkle = AI, writing hand = No AI) and a `freewrite-on` class
+ *     lands on <html>.
+ *   - A connection drop slides the "You're offline" sliver out of the
+ *     bottom of the mode nav, and fires a toast through the notification
+ *     component (notifications.js) so the founder knows. While offline
+ *     the AI segment is disabled — there's nothing to talk to.
  *
  * State is derived live from connectivity plus an in-session manual
- * override — nothing is persisted, so a reload always reflects the real
+ * choice — nothing is persisted, so a reload always reflects the real
  * connection. The founder's words are safe regardless: the composer
  * autosaves into the draft (writing.js), and essays written offline are
  * flushed to the pitch automatically on reconnect (renderer.js).
@@ -34,7 +34,7 @@
 
   const HTML = document.documentElement;
 
-  // Manual override. Lets the founder choose free write while online;
+  // Manual choice. Lets the founder pick No AI mode while online;
   // connectivity forces it on regardless.
   let forced = false;
 
@@ -61,13 +61,13 @@
   function groundedResponse() {
     const body = JSON.stringify({
       error:
-        "Free write mode is on — your writing is saved on this device and " +
+        "No AI mode is on — your writing is saved on this device and " +
         "syncs when you reconnect.",
       freewrite: true,
     });
     return new Response(body, {
       status: 503,
-      statusText: "Free write mode",
+      statusText: "No AI mode",
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -87,26 +87,27 @@
     const offline = isOffline();
     HTML.classList.toggle("freewrite-on", on);
 
-    const toggle = document.getElementById("nav-freewrite");
-    if (toggle) {
-      toggle.setAttribute("aria-pressed", on ? "true" : "false");
-      // Can't switch off the offline-driven state, so disable the manual
-      // toggle while genuinely offline.
-      toggle.disabled = offline;
-      const state = toggle.querySelector("[data-freewrite-state]");
-      if (state) state.textContent = offline ? "Offline" : on ? "On" : "Off";
-      toggle.title = offline
-        ? "On automatically — you're offline"
-        : "Write freely — no questions, no waiting";
+    // Bottom mode nav: highlight the live segment. No AI is pressed when
+    // the mode is on; AI is pressed otherwise. Offline forces No AI, so
+    // the AI segment is disabled then (there's nothing to talk to).
+    const aiBtn = document.getElementById("mode-ai");
+    const noaiBtn = document.getElementById("mode-noai");
+    if (aiBtn) {
+      aiBtn.setAttribute("aria-pressed", on ? "false" : "true");
+      aiBtn.disabled = offline;
+      aiBtn.title = offline
+        ? "You're offline — No AI mode is on automatically"
+        : "Write with AI — the guided interview";
+    }
+    if (noaiBtn) {
+      noaiBtn.setAttribute("aria-pressed", on ? "true" : "false");
     }
 
-    // The banner is the manual free-write pill, with its one-tap "Turn
-    // off". The offline state is announced by the notification toast
-    // (notifications.js) instead, so we keep the pill hidden while
-    // genuinely offline — its static copy already reads for the manual
-    // case, and "Turn off" is always live there.
-    const banner = document.getElementById("freewrite-banner");
-    if (banner) banner.hidden = !on || offline;
+    // The "You're offline" sliver hangs off the bottom of the nav while
+    // genuinely offline. The toast (notifications.js) announces the drop
+    // once; the sliver is the persistent marker.
+    const sliver = document.querySelector("[data-offline-sliver]");
+    if (sliver) sliver.hidden = !offline;
   }
 
   function emitChanged(on) {
@@ -126,7 +127,7 @@
       kind: "freewrite",
       title: "You're offline",
       body:
-        "Free write mode is on. Your writing is saved on this device and " +
+        "No AI mode is on. Your writing is saved on this device and " +
         "syncs when you reconnect.",
     };
     try {
@@ -171,10 +172,21 @@
   window.addEventListener("offline", settle);
 
   function wire() {
-    const toggle = document.getElementById("nav-freewrite");
-    if (toggle) {
-      toggle.addEventListener("click", () => window.tinkerFreewrite.toggle());
+    // Bottom mode nav: the sparkle picks AI (mode off), the writing hand
+    // picks No AI (mode on). Offline forces No AI, so the AI segment is
+    // inert then — guarded by the disabled flag set in reflect().
+    const aiBtn = document.getElementById("mode-ai");
+    const noaiBtn = document.getElementById("mode-noai");
+    if (aiBtn) {
+      aiBtn.addEventListener("click", () => {
+        if (aiBtn.disabled) return;
+        forced = false; settle();
+      });
     }
+    if (noaiBtn) {
+      noaiBtn.addEventListener("click", () => { forced = true; settle(); });
+    }
+    // Back-compat: any lingering "turn off" affordances still work.
     document.querySelectorAll("[data-freewrite-off]").forEach((el) => {
       el.addEventListener("click", () => { forced = false; settle(); });
     });
