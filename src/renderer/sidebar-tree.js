@@ -526,10 +526,52 @@
     switcherEl.hidden = false;
     switcherEl.innerHTML = "";
 
-    const label = document.createElement("div");
+    // Header row: the "Pitch" caption on the left, and a small refresh
+    // icon button on the right that re-aligns every pitch. It lives up
+    // here (rather than as a full-width button below) because a refresh
+    // is a header-level action over the whole pitch set — sibling to the
+    // "Pitch" label, not to the per-pitch rename/select actions beneath
+    // the chip.
+    const head = document.createElement("div");
+    head.className = "sidebar__pitch-switcher-head";
+    const label = document.createElement("span");
     label.className = "sidebar__pitch-switcher-label";
     label.textContent = "Pitch";
-    switcherEl.appendChild(label);
+    head.appendChild(label);
+
+    const refresh = document.createElement("button");
+    refresh.type = "button";
+    refresh.className = "sidebar__pitch-refresh";
+    if (redistributing) refresh.classList.add("is-busy");
+    refresh.disabled = redistributing;
+    refresh.setAttribute(
+      "aria-label",
+      redistributing ? "Re-aligning pitches…" : "Re-align pitches",
+    );
+    refresh.title = redistributing ? "Re-aligning…" : "Re-align pitches";
+    if (redistributing) refresh.setAttribute("aria-busy", "true");
+    refresh.innerHTML =
+      '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" ' +
+      'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+      'stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+      '<polyline points="23 4 23 10 17 10"></polyline>' +
+      '<polyline points="1 20 1 14 7 14"></polyline>' +
+      '<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>' +
+      "</svg>";
+    refresh.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      runRedistribute();
+    });
+    head.appendChild(refresh);
+    switcherEl.appendChild(head);
+
+    if (redistributeMsg) {
+      const note = document.createElement("p");
+      note.className = "sidebar__pitch-redistribute-note";
+      note.textContent = redistributeMsg;
+      switcherEl.appendChild(note);
+    }
 
     const row = document.createElement("div");
     row.className = "sidebar__pitch-switcher-row";
@@ -668,31 +710,6 @@
         }
       });
       switcherEl.appendChild(form);
-    }
-
-    // "Redistribute" — re-align every writing across pitches in one
-    // pass. The background organize only ever places writings that
-    // aren't slotted yet, so a writing that landed in the wrong pitch
-    // (or a pitch name that got duplicated) stays stuck until the
-    // founder asks for a fresh sweep here.
-    const redistribute = document.createElement("button");
-    redistribute.type = "button";
-    redistribute.className = "sidebar__pitch-action sidebar__pitch-action--secondary";
-    redistribute.textContent = redistributing ? "Re-aligning…" : "Redistribute";
-    redistribute.disabled = redistributing;
-    if (redistributing) redistribute.setAttribute("aria-busy", "true");
-    redistribute.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      runRedistribute();
-    });
-    switcherEl.appendChild(redistribute);
-
-    if (redistributeMsg) {
-      const note = document.createElement("p");
-      note.className = "sidebar__pitch-redistribute-note";
-      note.textContent = redistributeMsg;
-      switcherEl.appendChild(note);
     }
   }
 
