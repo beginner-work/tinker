@@ -4,7 +4,6 @@
   </clipPath>
   <g clip-path="url(#frame)">
     <rect width="200" height="200" fill="#f5f3ef"/>
-    <polygon points="0,0 70,0 0,70" fill="#6366f1"/>
   </g>
   <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="11"/>
   <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="11" stroke-linecap="round"/>
