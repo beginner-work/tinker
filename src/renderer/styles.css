@@ -3035,3 +3035,238 @@ html.seed-modal-open { overflow: hidden; }
   cursor: pointer;
 }
 .pitch-script__copy:hover { background: #000; }
+
+/* ── Profile section (top-right) + share-pitch QR ───────────────────── */
+
+/* Fixed in the top-right corner of the app. Sits above the stage and the
+   mobile drawer backdrop so the avatar and QR tab stay tappable, but
+   below modals/toasts. The cluster lays out as [QR tab][avatar]. */
+.profile-corner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: calc(env(safe-area-inset-right, 0px) + 16px);
+  z-index: 65;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+/* The auth gate owns the screen when signed out — keep the corner out. */
+html.auth-gating .profile-corner { display: none; }
+
+.profile-avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #ede8e0);
+  color: var(--color-foreground, #2d2a26);
+  box-shadow: var(--shadow-button);
+}
+.profile-avatar:hover { background: var(--color-hover, #fff9f0); }
+.profile-avatar:active { transform: scale(0.96); }
+.profile-avatar[aria-expanded="true"] {
+  border-color: var(--color-accent-strong, #6366f1);
+  box-shadow: var(--focus-ring);
+}
+.profile-avatar__glyph { display: inline-flex; align-items: center; justify-content: center; }
+.profile-avatar__glyph--text {
+  font-family: var(--font-display, "Plus Jakarta Sans", sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* The QR tab. Hidden by default; revealed only while the side nav is
+   open — always on desktop (persistent sidebar), and on mobile only
+   while the drawer is open. Reads as a tab that nests against the
+   avatar's left edge. */
+.profile-qr-tab {
+  display: none;
+  align-items: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--color-foreground, #2d2a26);
+  color: var(--color-background, #fffdf7);
+  border: 1px solid var(--color-foreground, #2d2a26);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow-button);
+}
+.profile-qr-tab:hover { background: #000; }
+.profile-qr-tab:active { transform: scale(0.97); }
+.profile-qr-tab svg { flex-shrink: 0; }
+
+@media (min-width: 541px) {
+  /* Desktop: the sidebar is always open, so the tab is always shown. */
+  .profile-qr-tab { display: inline-flex; }
+}
+@media (max-width: 540px) {
+  /* Mobile: only once the drawer (side nav) is opened. */
+  body[data-drawer-open] .profile-qr-tab { display: inline-flex; }
+  .profile-qr-tab__label { display: none; }
+  .profile-qr-tab { padding: 0 12px; }
+}
+
+/* Profile menu — a small popover under the avatar. */
+.profile-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  padding: 6px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #ede8e0);
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(45, 42, 38, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.profile-menu[hidden] { display: none; }
+.profile-menu__id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--color-border, #ede8e0);
+  margin-bottom: 4px;
+}
+.profile-menu__id-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6f6a65);
+}
+.profile-menu__id-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-foreground, #2d2a26);
+}
+.profile-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-foreground, #2d2a26);
+  text-align: left;
+}
+.profile-menu__item:hover { background: var(--color-hover, #fff9f0); }
+.profile-menu__item svg { flex-shrink: 0; color: var(--color-muted, #6f6a65); }
+.profile-menu__item--signout { color: #b23a3a; }
+.profile-menu__item--signout svg { color: #b23a3a; }
+.profile-menu__item[hidden] { display: none; }
+
+/* Read-view three-dot menu sits in the same corner — nudge it left of
+   the profile cluster (QR tab + avatar) so the two never collide. On
+   mobile the tab is hidden unless the drawer is open (which dims the
+   read view behind a backdrop), so it only needs to clear the avatar. */
+.read__menu { right: 208px; }
+@media (max-width: 540px) { .read__menu { right: 64px; } }
+
+/* ── Share-pitch QR modal ───────────────────────────────────────────── */
+.qr-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.qr-modal[hidden] { display: none; }
+.qr-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(45, 42, 38, 0.45);
+  backdrop-filter: blur(2px);
+}
+.qr-modal__card {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #ede8e0);
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(45, 42, 38, 0.25);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.qr-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.qr-modal__title {
+  margin: 0;
+  font-family: var(--font-display, "Plus Jakarta Sans", sans-serif);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.qr-modal__close {
+  background: none;
+  border: 0;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--color-muted, #6f6a65);
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+.qr-modal__close:hover { background: var(--color-hover, #fff9f0); }
+.qr-modal__note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-muted, #6f6a65);
+}
+.qr-modal__code {
+  width: 220px;
+  height: 220px;
+  align-self: center;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid var(--color-border, #ede8e0);
+  border-radius: 14px;
+}
+.qr-modal__code svg { display: block; }
+.qr-modal__link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.qr-modal__link {
+  flex: 1;
+  min-width: 0;
+  font: 12px/1.4 var(--font-mono, ui-monospace, Menlo, monospace);
+  color: var(--color-muted, #6f6a65);
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+.qr-modal__copy {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--color-foreground, #2d2a26);
+  color: var(--color-background, #fffdf7);
+  border: 1px solid var(--color-foreground, #2d2a26);
+  font-size: 13px;
+  font-weight: 600;
+}
+.qr-modal__copy:hover { background: #000; }
+.qr-modal__copy:disabled { opacity: 0.5; cursor: default; }
