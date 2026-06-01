@@ -120,6 +120,21 @@
             <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
           </svg>
         </div>
+        <!-- Step 1: one welcome page everyone passes through before they
+             add any profile details. profile.js shows this first and reveals
+             the details step only when "Begin" is tapped. -->
+        <div id="onboarding-welcome" class="onboarding__welcome">
+          <h1 class="onboarding__title">Welcome to tinker.</h1>
+          <p class="onboarding__lede">You're a founder now. Here's what's ahead — then set up your profile and begin.</p>
+          <ol class="onboarding__steps">
+            <li>Set up your profile — a photo and your name.</li>
+            <li>Answer a few honest questions.</li>
+            <li>Watch them become a pitch you can stand behind.</li>
+          </ol>
+          <button id="onboarding-begin" type="button" class="onboarding__save">Begin &rarr;</button>
+        </div>
+
+        <div id="onboarding-details" class="onboarding__details" hidden>
         <h1 class="onboarding__title">Set up your profile</h1>
         <p class="onboarding__lede">A photo and your name, so your pitches have an author.</p>
         <form id="onboarding-form" class="onboarding__form" novalidate>
@@ -147,6 +162,7 @@
           <div id="onboarding-error" class="onboarding__error" role="alert" hidden></div>
           <button id="onboarding-save" type="submit" class="onboarding__save">Save &amp; continue</button>
         </form>
+        </div>
       </div>
     </div>
 

@@ -45,6 +45,27 @@ test("shell keeps the onboarding capture markup", () => {
   assert.match(html, /id="onboarding-avatar"[^>]*accept="image\/\*"/, "avatar input must accept images");
 });
 
+test("shell keeps the pre-profile welcome step", () => {
+  // One welcome page precedes the profile-details form; "Begin" reveals it.
+  for (const id of ["onboarding-welcome", "onboarding-begin", "onboarding-details"]) {
+    assert.match(html, new RegExp(`id="${id}"`), `#${id} is missing`);
+  }
+  // The details wrapper ships hidden so the welcome step shows first.
+  assert.match(
+    html,
+    /id="onboarding-details"[^>]*hidden/,
+    "onboarding-details must ship hidden behind the welcome step",
+  );
+});
+
+test("profile.js reveals the details form when Begin is tapped", () => {
+  assert.match(js, /onboarding-welcome/, "welcome step ref missing");
+  assert.match(js, /onboarding-begin/, "begin button ref missing");
+  assert.match(js, /onboarding-details/, "details step ref missing");
+  // Begin advances welcome → details.
+  assert.match(js, /beginBtn\.addEventListener\("click"/, "Begin click must be wired");
+});
+
 test("profile.js talks to the claim + profile endpoints", () => {
   assert.match(js, /\/api\/profile\/claim/, "claim endpoint call missing");
   assert.match(js, /\/api\/user-data\/profile/, "profile endpoint call missing");
