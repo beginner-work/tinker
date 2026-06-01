@@ -52,6 +52,7 @@
          Pitch gate survives reloads. Loaded before the surfaces that
          read it. -->
     <script src="./subscription.js" defer></script>
+    <script src="./subscription-status.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
   </head>
   <body>
@@ -120,13 +121,18 @@
       <nav class="sidebar__account" aria-label="Account">
         <h2 class="sidebar__account-head">Account</h2>
         <ul class="sidebar__account-list">
+          <!-- Plan: the founder's current subscription tier (free /
+               pre-seed). Populated by subscription-status.js from the
+               persisted tier, reconciled against Stripe. Tapping it opens
+               the QR code when on pre-seed, or the unlock page when on
+               free. (Replaced the old inert "Receipts" placeholder.) -->
           <li>
-            <button id="nav-receipts" type="button" class="sidebar__account-item">
+            <button id="nav-plan" type="button" class="sidebar__account-item">
               <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
-                <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                <path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.3-4.8-2.5-4.8 2.5.9-5.3L3.2 8.7l5.4-.8L12 3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
               </svg>
-              <span class="sidebar__account-label">Receipts</span>
+              <span class="sidebar__account-label">Plan</span>
+              <span class="sidebar__account-tier" data-plan-tier aria-live="polite"></span>
             </button>
           </li>
           <!-- Share button: revealed by share.js only when the app is

@@ -1164,7 +1164,9 @@
     // Persist the plan tier so the Pitch gate survives reloads/restarts:
     // from now on, tapping Pitch on the pre-seed plan opens the QR code.
     if (window.tinkerSubscription && typeof window.tinkerSubscription.setTier === "function") {
-      window.tinkerSubscription.setTier("pre-seed");
+      // Optimistic: Stripe's webhook reconciles the authoritative tier
+      // moments later; the grace window keeps us unlocked until it lands.
+      window.tinkerSubscription.setTier("pre-seed", { optimistic: true });
     } else {
       try { window.localStorage.setItem("tinker_pitch_unlocked", "1"); } catch { /* ignore */ }
     }

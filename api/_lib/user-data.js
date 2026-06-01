@@ -110,4 +110,4 @@ function makeHandler(kind) {
   });
 }
 
-module.exports = { makeHandler };
+module.exports = { makeHandler, resolveUserId };

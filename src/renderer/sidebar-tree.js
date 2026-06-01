@@ -640,16 +640,35 @@
   // than stranding them on a beginner success banner. tinker has no fixed
   // domain, so the return origin has to ride along with the request — the
   // checkout page can't guess it.
+  // The founder's Stytch user id, fetched once from /api/me so we can tag
+  // the checkout with it (beginner's webhook needs it to write the tier
+  // back under the right user). The id is not a secret — it already rides
+  // in public reader URLs — so passing it as ?uid is fine.
+  let cachedUserId = "";
+  function loadUserId() {
+    let token = "";
+    try { token = window.localStorage.getItem("tinker_jwt") || ""; } catch { /* ignore */ }
+    if (!token) return;
+    fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data && typeof data.userId === "string") cachedUserId = data.userId; })
+      .catch(() => { /* offline / signed out — checkout still works, just untagged */ });
+  }
+
   function unlockUrl() {
     const base = "https://beginner.work/unlock";
+    const params = new URLSearchParams();
     try {
       const origin = window.location && window.location.origin;
-      if (origin && /^https?:/.test(origin)) {
-        return base + "?return=" + encodeURIComponent(origin);
-      }
+      if (origin && /^https?:/.test(origin)) params.set("return", origin);
     } catch { /* ignore */ }
-    return base;
+    if (cachedUserId) params.set("uid", cachedUserId);
+    const qs = params.toString();
+    return qs ? `${base}?${qs}` : base;
   }
+  // Exposed so the sidebar "Plan" row (subscription-status.js) opens the
+  // same return-carrying unlock URL when a free founder taps it.
+  window.tinkerUnlockUrl = unlockUrl;
 
   // Once a founder has come back from checkout on a paid tier, we
   // remember it (subscription.js persists the tier on the ?unlocked=1
@@ -1092,6 +1111,7 @@
     ensureMount();
     render();
     runBackfill();
+    loadUserId();
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot, { once: true });

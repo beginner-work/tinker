@@ -83,8 +83,8 @@ test("pitch-qr prefers the founder's published reader link, falling back to the 
 test("the Pitch button hands beginner a return origin so checkout can route back", () => {
   assert.match(
     SIDEBAR,
-    /return=["']\s*\+\s*encodeURIComponent\(origin\)/,
-    "unlockUrl must append ?return=<tinker-origin>",
+    /set\(\s*["']return["']\s*,\s*origin\s*\)/,
+    "unlockUrl must carry ?return=<tinker-origin>",
   );
 });
 
