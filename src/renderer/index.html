@@ -176,27 +176,25 @@
           </div>
           <h1 class="welcome__question">Everyone is a founder.</h1>
           <p class="welcome__sub">You just need a seed to start.</p>
-          <p class="welcome__prompt" id="welcome-prompt">Where are you right now?</p>
-          <!-- A scrollable dial of locations: spin/scroll through the four
-               options and the one parked in the centre band is selected.
-               Choosing "Somewhere else" reveals the free-text input below
-               so the founder can name the place themselves. -->
-          <div class="welcome__dial-wrap">
-            <div class="welcome__dial-band" aria-hidden="true"></div>
-            <div id="welcome-dial" class="welcome__dial" role="listbox"
-                 tabindex="0" aria-labelledby="welcome-prompt">
-              <ul class="welcome__dial-track">
-                <li class="welcome__dial-option" role="option" data-location="cafe" aria-selected="true">Cafe</li>
-                <li class="welcome__dial-option" role="option" data-location="home" aria-selected="false">Home</li>
-                <li class="welcome__dial-option" role="option" data-location="work" aria-selected="false">Work</li>
-                <li class="welcome__dial-option" role="option" data-location="other" aria-selected="false">Somewhere else</li>
-              </ul>
-            </div>
+          <p class="welcome__prompt">Where are you right now?</p>
+          <div id="welcome-grid" class="welcome__grid" role="group" aria-label="Where are you right now?">
+            <button type="button" class="welcome__tile" data-location="cafe">
+              <span class="welcome__tile-label">Cafe</span>
+            </button>
+            <button type="button" class="welcome__tile" data-location="home">
+              <span class="welcome__tile-label">Home</span>
+            </button>
+            <button type="button" class="welcome__tile" data-location="work">
+              <span class="welcome__tile-label">Work</span>
+            </button>
+            <button type="button" class="welcome__tile" data-location="other">
+              <span class="welcome__tile-label">Somewhere else</span>
+            </button>
           </div>
-          <form id="welcome-form" class="welcome__form" autocomplete="off">
+          <form id="welcome-form" class="welcome__form" autocomplete="off" hidden>
             <input id="welcome-input" class="welcome__input" type="text"
                    placeholder="Where are you?"
-                   autocomplete="off" spellcheck="false" maxlength="120" hidden />
+                   autocomplete="off" spellcheck="false" maxlength="120" />
             <button type="submit" class="welcome__submit">Start →</button>
           </form>
         </div>

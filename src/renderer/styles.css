@@ -199,11 +199,21 @@ html.on-web .sidebar__top {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
   transform: translateX(-50%);
   z-index: 95;
-  display: flex;
+  /* The AI / No AI switch is a pre-session choice that belongs to the
+   * welcome screen only. Hidden by default; revealed below when the
+   * welcome feed is the active view. */
+  display: none;
   flex-direction: column;
   align-items: stretch;
   -webkit-app-region: no-drag;
   pointer-events: none;
+}
+/* Surface the mode switch only on the welcome screen. #welcome carries
+ * data-active solely while the welcome feed is on screen (renderer.js
+ * showFeed); every other view strips it, so the pill never follows the
+ * founder into writing, reading, or the category feeds. */
+body:has(#welcome[data-active]) .mode-nav {
+  display: flex;
 }
 .mode-nav__bar {
   pointer-events: auto;
@@ -271,16 +281,6 @@ html.on-web .sidebar__top {
   box-shadow: 0 8px 18px rgba(20, 20, 40, 0.16);
 }
 .mode-nav__offline[hidden] { display: none; }
-
-/* Stand the nav down while the AI interview is on screen — that flow owns
- * the bottom with its own Next / "This is everything" footer, so the
- * floating pill would collide with it. Keyed off the live DOM (the footer
- * buttons carry `hidden` outside the interview, e.g. in the No AI
- * composer), so no view-switch bookkeeping is needed. */
-body:has(#writing:not([hidden]) #writing-next:not([hidden])) .mode-nav,
-body:has(#writing:not([hidden]) #writing-end:not([hidden])) .mode-nav {
-  display: none;
-}
 
 @media (max-width: 540px) {
   .mode-nav { bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
@@ -934,78 +934,43 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   font-weight: 600;
   line-height: 1.3;
 }
-/* Location dial: a vertical scroll-snap picker. --dial-item drives the
-   row height; the track's top/bottom padding is exactly half a row short
-   of the viewport ((--dial-height − --dial-item) / 2) so the first and
-   last options can park in the centre band. */
-.welcome__dial-wrap {
-  --dial-item: 56px;
-  --dial-height: 168px;
-  position: relative;
+.welcome__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
   width: 100%;
   max-width: min(380px, 88%);
   margin: 6px auto 0;
 }
-.welcome__dial {
-  position: relative;
-  height: var(--dial-height);
-  overflow-y: scroll;
-  scroll-snap-type: y mandatory;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  background: var(--color-surface);
-  /* Fade the rows above and below the centre band. */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 30%, #000 70%, transparent 100%);
-          mask-image: linear-gradient(to bottom, transparent 0, #000 30%, #000 70%, transparent 100%);
-}
-.welcome__dial::-webkit-scrollbar { display: none; }
-.welcome__dial:focus-visible {
-  outline: none;
-  border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
-}
-.welcome__dial-track {
-  list-style: none;
-  margin: 0;
-  padding: calc((var(--dial-height) - var(--dial-item)) / 2) 0;
-}
-.welcome__dial-option {
-  box-sizing: border-box;
-  height: var(--dial-item);
+.welcome__tile {
   display: flex;
   align-items: center;
   justify-content: center;
-  scroll-snap-align: center;
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--color-muted);
-  opacity: 0.45;
-  cursor: pointer;
-  transition: opacity 0.15s ease, color 0.15s ease, transform 0.15s ease;
-}
-.welcome__dial-option[aria-selected="true"] {
+  padding: 18px 12px;
+  min-height: 72px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
   color: var(--color-foreground);
-  opacity: 1;
-  transform: scale(1.04);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.06s ease, background 0.15s ease;
 }
-/* The selection band sits behind the rows, centred in the viewport. */
-.welcome__dial-band {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: var(--dial-item);
-  transform: translateY(-50%);
-  border-radius: 12px;
+.welcome__tile:hover {
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+.welcome__tile:active { transform: scale(0.98); }
+.welcome__tile[aria-pressed="true"] {
+  border-color: var(--color-accent-strong);
   background: rgba(99, 102, 241, 0.08);
-  box-shadow: inset 0 0 0 1px var(--color-accent-strong);
-  pointer-events: none;
+}
+.welcome__tile-label {
+  font-size: 15px;
+  font-weight: 600;
 }
 .welcome__form {
   display: flex;
-  justify-content: center;
   gap: 8px;
   width: 100%;
   /* Cap form width at 88% of the inner column AND a 380px ceiling so
@@ -1019,7 +984,6 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   margin-top: 6px;
 }
 .welcome__form[hidden] { display: none; }
-.welcome__input[hidden] { display: none; }
 .welcome__input {
   flex: 1;
   padding: 14px 18px;
@@ -1068,7 +1032,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
      so it scales the same across mobile and narrow-desktop widths.
      Only the layout + type knobs change here. */
   .welcome__question { font-size: 22px; }
-  .welcome__dial-wrap { --dial-item: 52px; --dial-height: 156px; }
+  .welcome__tile { min-height: 64px; padding: 14px 10px; }
   .welcome__form { flex-direction: column; gap: 10px; }
   .welcome__submit { width: 100%; height: 46px; }
 }
