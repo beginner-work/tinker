@@ -8,9 +8,10 @@ This is the heart of tinker: an onboarding-shaped guided writing flow. Claude
 asks the founder **one question at a time**; the founder answers in their own
 words; Claude **stitches the answers into a single essay using only the
 founder's words** — it never invents prose. The flow opens when a draft tab is
-selected, runs a paginated question loop with progress dots (not a chat), ends
-on a review screen where the founder can edit and publish, and routes the
-published essay onward to the pitch-arrangement reveal. The whole surface is
+selected, runs a paginated question loop with progress dots (not a chat), and
+once the essay is stitched it publishes straight through — there is no separate
+review/Save step — routing the founder to the post-publish "being assessed"
+confirmation. The whole surface is
 already shipped in `src/renderer/writing.js`; this prompt is the imperative form
 of what's there. Read that file end to end before you change anything.
 
@@ -33,14 +34,14 @@ never paraphrase — stitch only.** These come verbatim from
 
 ## Read first
 
-- `src/renderer/writing.js` — **the whole engine.** `window.tinkerWriting.open(draft)`, the `SYSTEM_PROMPT`, `SEED_QUESTION = "What are you learning?"`, the seed pre-prompt (`renderSeedPrompt`), `seedAndRenderInterview` / `moodSeedQuestion` / `applySeed`, the render loop (`renderStep`, `renderPendingQuestion`, `renderAnsweredCard`, `renderReview`, `renderLoading`, `renderError`), the engine (`commitAnswer`, `endNow`, `askNext`, `buildUserMessage`, `parseClaude`), the context builders (`buildTransactionsContext`, `buildUncoveredPitchLines`), and the verifier (`verifyFounderOnly`, `phraseAppearsIn`, `tokens`). `doPublish` hands off at the end.
+- `src/renderer/writing.js` — **the whole engine.** `window.tinkerWriting.open(draft)`, the `SYSTEM_PROMPT`, `SEED_QUESTION = "What are you learning?"`, the seed pre-prompt (`renderSeedPrompt`), `seedAndRenderInterview` / `moodSeedQuestion` / `applySeed`, the render loop (`renderStep`, `renderPendingQuestion`, `renderAnsweredCard`, `renderLoading`, `renderError`), the engine (`commitAnswer`, `endNow`, `askNext`, `buildUserMessage`, `parseClaude`), the context builders (`buildTransactionsContext`, `buildUncoveredPitchLines`), and the verifier (`verifyFounderOnly`, `phraseAppearsIn`, `tokens`). `doPublish` hands off at the end.
 - `src/renderer/index.html` (`<section id="writing">`, lines ~200–219) — the chrome: `#writing-stage`, `#writing-progress`, `#writing-step`, `#writing-close`, and the footer `<footer class="writing__foot">` with `#writing-end` (`This is everything →`) and `#writing-next` (`Next →`).
 - `src/renderer/index.html` (`<section id="read">`, lines ~221–243) — the read view where a finished essay is read: `#read-body`, the actions menu (`#read-menu-trigger`, `#read-menu-pop`) with `Archive` / `Delete`.
-- `src/renderer/renderer.js` — the wire-up. `openDraft(id)` calls `window.tinkerWriting.open(draft)` (~line 313); `newDraft` / `tinkerNewSession` create the draft; the renderer implements `window.tinkerOnDraftChange` (persist), `window.tinkerOnWritingClose`, and `window.tinkerOnWritingPublish` (~lines 1213–1215). `showRead(essay)` (~line 356) renders the read view; `store.publish` (~line 185) creates the essay and calls `showWritingFit(essay)`.
+- `src/renderer/renderer.js` — the wire-up. `openDraft(id)` calls `window.tinkerWriting.open(draft)` (~line 313); `newDraft` / `tinkerNewSession` create the draft; the renderer implements `window.tinkerOnDraftChange` (persist), `window.tinkerOnWritingClose`, and `window.tinkerOnWritingPublish` (~lines 1213–1215). `showRead(essay)` (~line 356) renders the read view; `store.publish` (~line 185) creates the essay and calls `showPitchAssessing(essay)`.
 - `api/claude/converse.js` — the Stytch-gated proxy for the writing turns. Model `claude-opus-4-7`; wraps the system prompt in `cache_control: { type: "ephemeral" }` for prompt caching. The renderer reaches it through `window.tinker.callClaude(...)`.
 - `api/search.js` — the search edge, model `claude-haiku-4-5` (the tinker browser's search engine, a sibling proxy on the same Stytch-auth pattern). Not part of the stitch loop, but the same `api/` Claude-proxy shape.
 - `src/renderer/sidebar-tree.js` — exposes `window.tinkerTree.uncoveredHeadings()`, which feeds RULE 9. The eleven `DECK_HEADINGS` are: The Problem, A Persona, Why Now?, The Team, The Product, How We Make Money, Go to Market, The Moat, The Vision, Competition, The Ask.
-- `build-prompts/pitch-review-reveal.md` — the surface the published essay routes into. This prompt hands off to it at publish; do not rebuild the arrangement reveal here.
+- `build-prompts/pitch-review-reveal.md` — the surface the published essay routes into. This prompt hands off to it at publish; do not rebuild the post-publish confirmation or placement notification here.
 
 ## What you're building, in one paragraph
 
@@ -64,11 +65,11 @@ founder is learning; scene context, recent transactions
 steer, never as facts. When the stitch arrives, the body is verified
 token-by-token against the founder's own words (`verifyFounderOnly`); if it
 fails, the engine falls back to joining the raw answers by paragraph breaks —
-provably founder-only. The founder lands on a **review screen** to edit the
-title (contenteditable, must remain a verbatim phrase) and body, then presses
-`Save` to publish. Publish (`window.tinkerOnWritingPublish`) creates the essay,
-which is later read in the **read view** (`<section id="read">`), and routes the
-founder to the pitch-arrangement reveal (covered by
+provably founder-only. Once the essay is stitched it **publishes straight
+through** (`doPublish` → `window.tinkerOnWritingPublish`) — no review/Save step.
+The essay can later be read in the **read view** (`<section id="read">`), and
+publish routes the founder to the post-publish "being assessed" confirmation
+(covered by
 `build-prompts/pitch-review-reveal.md`).
 
 ## Build sequence
@@ -137,16 +138,13 @@ founder to the pitch-arrangement reveal (covered by
    build the body by joining the founder's trimmed raw answers with paragraph
    breaks, and if the title isn't a verbatim phrase (`phraseAppearsIn`), derive
    it from `firstSentence(body)`. Store `active.stitched = { title, body }` and
-   jump to the review step.
+   publish straight through.
 
-7. **Review screen (`renderReview`).** Render the stitched essay: a
-   contenteditable title (`.writing-review__title`, persisted on blur, must stay a
-   founder phrase) and an editable body `<textarea>` (debounced persistence;
-   editing an upstream answer sets `active.stitched = null` so the engine
-   re-stitches from the new corpus). One primary action button labelled `Save`.
-   Hide `#writing-next` and `#writing-end` on this screen. `Save` calls
-   `doPublish`, which flushes the latest title/body and calls
-   `window.tinkerOnWritingPublish(active, { title, body, author: "you" })`.
+7. **Publish straight through (`doPublish`).** There is no review/Save
+   screen. The moment the essay is stitched (and on reopening a draft that
+   already has `active.stitched`), call `doPublish`, which calls
+   `window.tinkerOnWritingPublish(active, { title, body, author: "you" })`. The
+   founder's next surface is the post-publish "being assessed" confirmation.
 
 8. **Read view + publish handoff.** The published essay is later opened in
    `<section id="read">` via `showRead(essay)` — a `read__head` (subtitle =
@@ -154,14 +152,14 @@ founder to the pitch-arrangement reveal (covered by
    the body paragraphs, plus the actions menu (`Archive` / `Delete`). On publish,
    `store.publish` creates the essay (carrying `seed` through), clears the draft
    from the tree, dispatches `tinker:writing-saved`, and calls
-   `showWritingFit(essay)` to route into the pitch-arrangement reveal. **Do not
-   build the arrangement reveal here** — hand off to
+   `showPitchAssessing(essay)` to route into the post-publish confirmation. **Do
+   not build that confirmation or the placement notification here** — hand off to
    `build-prompts/pitch-review-reveal.md`.
    **CHECKPOINT — stop and report.** Stitch an essay. Confirm: the body contains
    only words the founder typed (force a verification failure with an odd answer
    and confirm the raw-answer fallback fires); the title is a verbatim phrase;
-   editing the body persists; `Save` publishes; the essay opens cleanly in the
-   read view; publish routes onward to the arrangement reveal.
+   stitching publishes straight through with no Save step; the essay opens cleanly
+   in the read view; publish routes onward to the "being assessed" confirmation.
 
 ## Constraints (non-negotiable)
 
@@ -215,13 +213,14 @@ founder to the pitch-arrangement reveal (covered by
   returns strict JSON; no `claude-sonnet-4-6` anywhere.
 - The stitched body passes `verifyFounderOnly`, or the raw-answer fallback fires;
   the title is always a verbatim founder phrase.
-- The review screen lets the founder edit title and body and `Save` to publish;
-  edits to an upstream answer re-stitch.
+- Once stitched, the essay publishes straight through (`doPublish`) — there is
+  no review/Save step.
 - Publishing creates an essay (readable in `<section id="read">`) and routes the
-  founder to the pitch-arrangement reveal (`build-prompts/pitch-review-reveal.md`).
+  founder to the post-publish "being assessed" confirmation
+  (`build-prompts/pitch-review-reveal.md`).
 
 Report back: a description of each surface (seed pre-prompt, question loop, the
-`askNext` engine turn, the stitch + verifier, the review screen, the read view,
+`askNext` engine turn, the stitch + verifier, the straight-through publish, the read view,
 the publish handoff), the exact symbols and paths touched, the models used at
 each call site, and confirmation that no founder-facing text is ever
 model-authored.

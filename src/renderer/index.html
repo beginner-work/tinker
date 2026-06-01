@@ -242,15 +242,14 @@
         <article class="read__body" id="read-body"></article>
       </section>
 
-      <!-- Pitch arrangement view: rendered immediately after publish.
-           Shows the founder's pitches as rows with rainbow progress
-           bars, the new essay entering "reconsideration", and (when
-           the server-side organize round finishes) any swaps, renames,
-           or pitch dissolutions that resulted. Replaces the older
-           writing-fit confirmation that reported a placement up front
-           — that turned out to be premature when organize moved the
-           essay or renamed the pitch a few seconds later. -->
-      <section id="writing-fit" class="writing-fit" hidden aria-label="Pitch arrangement">
+      <!-- Pitch-assessing view: a calm confirmation rendered right after
+           publish ("Your pitch is being assessed"). It makes no claim
+           about where the essay landed — that was the old arrangement
+           screen's mistake, since the organize job re-clusters and moved
+           essays after it had already announced a placement. Instead a
+           background watcher (renderer.js) waits for organize to settle
+           and fires a toast (notifications.js) with the real landing. -->
+      <section id="writing-fit" class="writing-fit" hidden aria-label="Pitch assessment">
         <div class="writing-fit__inner" id="writing-fit-content"></div>
       </section>
 
@@ -550,5 +549,6 @@
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>
     <script src="./update-banner.js" defer></script>
+    <script src="./notifications.js" defer></script>
   </body>
 </html>

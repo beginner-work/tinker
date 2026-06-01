@@ -143,7 +143,6 @@ html.pwa-hint-visible .read__body {
 @media (max-width: 540px) {
   html.pwa-hint-visible .category-feed__title,
   html.pwa-hint-visible .read__title,
-  html.pwa-hint-visible .arrangement__headline,
   html.pwa-hint-visible .pitch-script__title,
   html.pwa-hint-visible .founders__title {
     top: 64px;
