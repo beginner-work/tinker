@@ -13,7 +13,7 @@
  * exact copy or styling — those are free to evolve. Two things must hold
  * together:
  *
- *   1. The location seed flow — the grid of places (Cafe / Home / Work /
+ *   1. The location seed flow — the dial of places (Cafe / Home / Work /
  *      Somewhere else) plus the "Somewhere else" specify form — is the
  *      original, AI-guided way in. Picking a place starts a session.
  *   2. The floating glass mode nav (#mode-nav: AI / No AI) is a pure mode
@@ -33,13 +33,13 @@ const html = fs.readFileSync(path.join(RENDERER, "index.html"), "utf8");
 const rendererJs = fs.readFileSync(path.join(RENDERER, "renderer.js"), "utf8");
 
 test("welcome screen keeps the location seed flow markup", () => {
-  // The grid container and its four locations are the entry point.
-  assert.match(html, /id="welcome-grid"/, "welcome-grid container is missing");
+  // The dial container and its four locations are the entry point.
+  assert.match(html, /id="welcome-dial"/, "welcome-dial container is missing");
   for (const loc of ["cafe", "home", "work", "other"]) {
     assert.match(
       html,
       new RegExp(`data-location="${loc}"`),
-      `welcome grid is missing the "${loc}" location tile`
+      `welcome dial is missing the "${loc}" location option`
     );
   }
   // "Somewhere else" reveals a free-text specify form.
@@ -53,17 +53,17 @@ test("welcome screen keeps the glass AI / No AI mode nav", () => {
   assert.match(html, /id="mode-noai"/, "mode-nav No AI segment is missing");
 });
 
-test("renderer wires the location grid to start a session", () => {
+test("renderer wires the location dial to start a session", () => {
   assert.match(
     rendererJs,
-    /getElementById\("welcome-grid"\)/,
-    "renderer.js no longer reads #welcome-grid"
+    /getElementById\("welcome-dial"\)/,
+    "renderer.js no longer reads #welcome-dial"
   );
   // Picking a place must lead into a session.
   assert.match(
     rendererJs,
     /tinkerNewSession/,
-    "renderer.js no longer starts a session from the welcome grid"
+    "renderer.js no longer starts a session from the welcome dial"
   );
 });
 

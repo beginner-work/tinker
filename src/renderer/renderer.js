@@ -1001,17 +1001,18 @@
 
   // Welcome screen: the H1 is the standing line ("Everyone is a
   // founder.") and the question ("Where are you right now?") sits
-  // above a 2×2 grid of four locations — Cafe, Home, Work, Somewhere
-  // else. The first three drop you straight into a writing session
-  // seeded with that location. "Somewhere else" reveals a small input
-  // so the founder can specify the place themselves.
+  // above a scrollable dial of four locations — Cafe, Home, Work,
+  // Somewhere else. Spin the dial (scroll / arrow keys / tap) to park a
+  // location in the centre band; "Start" then opens a writing session
+  // seeded with it. Landing on "Somewhere else" reveals a small input
+  // so the founder can name the place themselves.
   //
   // The floating bottom mode nav (#mode-nav, owned by freewrite.js) is a
   // pure mode switch: on the welcome screen tapping AI / No AI has no
   // immediate effect beyond setting the mode — it only decides which
   // screen the next session opens into (the AI interview, or the No AI
-  // free-write composer). The launch itself stays here, in the grid.
-  const welcomeGrid = document.getElementById("welcome-grid");
+  // free-write composer). The launch itself stays here, on the dial.
+  const welcomeDial = document.getElementById("welcome-dial");
   const welcomeForm = document.getElementById("welcome-form");
   const welcomeInput = document.getElementById("welcome-input");
 
@@ -1026,38 +1027,87 @@
 
   const LOCATION_LABELS = { cafe: "Cafe", home: "Home", work: "Work" };
 
-  if (welcomeGrid) {
-    welcomeGrid.addEventListener("click", (e) => {
-      const tile = e.target.closest("[data-location]");
-      if (!tile) return;
-      const key = tile.getAttribute("data-location");
-      if (key === "other") {
-        if (!welcomeForm || !welcomeInput) return;
-        welcomeForm.hidden = false;
-        // Highlight the chosen tile so the founder knows why the input
-        // appeared, and remember it in case other tiles get aria-pressed.
-        for (const t of welcomeGrid.querySelectorAll("[data-location]")) {
-          t.setAttribute("aria-pressed", t === tile ? "true" : "false");
-        }
-        setTimeout(() => { welcomeInput.focus(); welcomeInput.select(); }, 30);
-        return;
-      }
-      const label = LOCATION_LABELS[key];
-      if (!label) return;
-      if (welcomeForm) welcomeForm.hidden = true;
-      if (welcomeInput) welcomeInput.value = "";
-      startSessionWith(label);
-    });
-  }
+  if (welcomeDial && welcomeForm && welcomeInput) {
+    const options = Array.from(welcomeDial.querySelectorAll("[data-location]"));
+    let selectedIndex = 0;
 
-  if (welcomeForm && welcomeInput) {
+    // Row height drives both the snap maths and the scroll target. Read
+    // it live so the mobile breakpoint's smaller rows are respected.
+    const rowHeight = () =>
+      (options[0] && options[0].getBoundingClientRect().height) || 56;
+
+    function selectedKey() {
+      return options[selectedIndex].getAttribute("data-location");
+    }
+
+    // Reflect the centred option: mark it selected, and reveal the
+    // free-text field only when "Somewhere else" is parked in the band.
+    function applySelection(index, { scroll = false, smooth = true } = {}) {
+      selectedIndex = Math.max(0, Math.min(options.length - 1, index));
+      options.forEach((opt, i) =>
+        opt.setAttribute("aria-selected", i === selectedIndex ? "true" : "false")
+      );
+      const isOther = selectedKey() === "other";
+      welcomeInput.hidden = !isOther;
+      if (!isOther) welcomeInput.value = "";
+      if (scroll) {
+        welcomeDial.scrollTo({
+          top: selectedIndex * rowHeight(),
+          behavior: smooth ? "smooth" : "auto",
+        });
+      }
+      if (isOther) {
+        // Let any smooth scroll settle before pulling focus to the input.
+        setTimeout(() => { if (!welcomeInput.hidden) welcomeInput.focus(); },
+          smooth ? 220 : 0);
+      }
+    }
+
+    // Derive the selection from where the dial comes to rest.
+    let settle = null;
+    welcomeDial.addEventListener("scroll", () => {
+      if (settle) clearTimeout(settle);
+      settle = setTimeout(() => {
+        applySelection(Math.round(welcomeDial.scrollTop / rowHeight()));
+      }, 90);
+    });
+
+    // Tapping an option snaps it into the centre band.
+    welcomeDial.addEventListener("click", (e) => {
+      const opt = e.target.closest("[data-location]");
+      if (!opt) return;
+      applySelection(options.indexOf(opt), { scroll: true });
+    });
+
+    // The dial is focusable; arrow keys step through, Enter launches.
+    welcomeDial.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        e.preventDefault();
+        applySelection(selectedIndex + 1, { scroll: true });
+      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        applySelection(selectedIndex - 1, { scroll: true });
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        welcomeForm.requestSubmit();
+      }
+    });
+
+    // Start the dial parked on the first location, no input showing.
+    applySelection(0, { scroll: true, smooth: false });
+
     welcomeForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      const name = welcomeInput.value.trim();
-      if (!name) { welcomeInput.focus(); return; }
-      welcomeInput.value = "";
-      welcomeForm.hidden = true;
-      startSessionWith(name);
+      if (selectedKey() === "other") {
+        const name = welcomeInput.value.trim();
+        if (!name) { welcomeInput.focus(); return; }
+        welcomeInput.value = "";
+        startSessionWith(name);
+        return;
+      }
+      const label = LOCATION_LABELS[selectedKey()];
+      if (!label) return;
+      startSessionWith(label);
     });
   }
 
