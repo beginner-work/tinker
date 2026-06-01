@@ -13,7 +13,7 @@
  *     outage rather than throwing. (When genuinely offline this just
  *     turns a raw network failure into a friendlier one.)
  *   - The writing view drops the Claude interview for a single No AI
- *     composer with the spectrum bar — see writing.js.
+ *     composer that mirrors the interview's question card — see writing.js.
  *   - State is painted: the bottom mode nav highlights the active segment
  *     (sparkle = AI, writing hand = No AI) and a `freewrite-on` class
  *     lands on <html>.
