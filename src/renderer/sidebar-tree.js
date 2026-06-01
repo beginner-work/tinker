@@ -634,8 +634,33 @@
   // check can't tell production from a preview and would send production
   // founders off to a stale beginner preview alias rather than the live
   // checkout page.)
+  // We hand beginner our own origin as ?return=… so that, once payment
+  // clears, Stripe's success_url can send the founder straight back into
+  // *this* tinker (production, preview, Electron, or Capacitor) rather
+  // than stranding them on a beginner success banner. tinker has no fixed
+  // domain, so the return origin has to ride along with the request — the
+  // checkout page can't guess it.
   function unlockUrl() {
-    return "https://beginner.work/unlock";
+    const base = "https://beginner.work/unlock";
+    try {
+      const origin = window.location && window.location.origin;
+      if (origin && /^https?:/.test(origin)) {
+        return base + "?return=" + encodeURIComponent(origin);
+      }
+    } catch { /* ignore */ }
+    return base;
+  }
+
+  // Once a founder has come back from checkout unlocked, we remember it
+  // locally (renderer.js sets this on the ?unlocked=1 return). From then
+  // on the Pitch button opens their QR in-app instead of linking back out
+  // to the checkout page.
+  function isPitchUnlocked() {
+    try {
+      return window.localStorage.getItem("tinker_pitch_unlocked") === "1";
+    } catch {
+      return false;
+    }
   }
 
   // Renders the indigo "Pitch" button at the bottom of the deck nav.
@@ -654,42 +679,59 @@
     postEl.hidden = false;
     postEl.innerHTML = "";
 
+    const unlocked = isPitchUnlocked();
+
     const post = document.createElement("button");
     post.type = "button";
     post.className = "sidebar__pitch-action sidebar__pitch-action--primary";
-    post.setAttribute("aria-label", "Pitch — subscribe to unlock");
+    post.setAttribute(
+      "aria-label",
+      unlocked ? "Pitch — show your QR code" : "Pitch — subscribe to unlock"
+    );
     const pitchLabel = document.createElement("span");
     pitchLabel.textContent = "Pitch";
     post.appendChild(pitchLabel);
-    // Link-out (external-link) icon: signals the button takes the
-    // founder off to beginner to subscribe, not that Pitch is locked.
-    const linkIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    linkIcon.setAttribute("width", "13");
-    linkIcon.setAttribute("height", "13");
-    linkIcon.setAttribute("viewBox", "0 0 24 24");
-    linkIcon.setAttribute("fill", "none");
-    linkIcon.setAttribute("stroke", "#fff");
-    linkIcon.setAttribute("stroke-width", "2");
-    linkIcon.setAttribute("stroke-linecap", "round");
-    linkIcon.setAttribute("stroke-linejoin", "round");
-    linkIcon.setAttribute("aria-hidden", "true");
-    linkIcon.setAttribute("data-pitch-linkout", "");
-    linkIcon.style.marginLeft = "6px";
-    for (const d of [
-      "M15 3h6v6",
-      "M10 14 21 3",
-      "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6",
-    ]) {
-      const seg = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      seg.setAttribute("d", d);
-      linkIcon.appendChild(seg);
+
+    // Before unlocking, a link-out (external-link) icon signals the
+    // button takes the founder off to beginner to subscribe (not that
+    // Pitch is locked). Once unlocked, the button stays in-app — it
+    // opens the QR surface — so the icon is dropped.
+    if (!unlocked) {
+      const linkIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      linkIcon.setAttribute("width", "13");
+      linkIcon.setAttribute("height", "13");
+      linkIcon.setAttribute("viewBox", "0 0 24 24");
+      linkIcon.setAttribute("fill", "none");
+      linkIcon.setAttribute("stroke", "#fff");
+      linkIcon.setAttribute("stroke-width", "2");
+      linkIcon.setAttribute("stroke-linecap", "round");
+      linkIcon.setAttribute("stroke-linejoin", "round");
+      linkIcon.setAttribute("aria-hidden", "true");
+      linkIcon.setAttribute("data-pitch-linkout", "");
+      linkIcon.style.marginLeft = "6px";
+      for (const d of [
+        "M15 3h6v6",
+        "M10 14 21 3",
+        "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6",
+      ]) {
+        const seg = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        seg.setAttribute("d", d);
+        linkIcon.appendChild(seg);
+      }
+      post.appendChild(linkIcon);
     }
-    post.appendChild(linkIcon);
+
     post.style.display = "inline-flex";
     post.style.alignItems = "center";
     post.style.justifyContent = "center";
     post.addEventListener("click", () => {
-      // Open beginner's page describing how to unlock the feature.
+      if (isPitchUnlocked() && typeof window.tinkerShowPitchQr === "function") {
+        // Already unlocked — show the founder their QR code in-app.
+        window.tinkerShowPitchQr();
+        return;
+      }
+      // Otherwise open beginner's page describing how to unlock the
+      // feature (carrying our origin so checkout can route us back).
       const url = unlockUrl();
       if (window.tinker && typeof window.tinker.openExternal === "function") {
         window.tinker.openExternal(url);

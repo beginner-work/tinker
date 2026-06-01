@@ -270,6 +270,15 @@
            (today via the founders opt-in). -->
       <section id="pitch-script" class="pitch-script" hidden aria-label="Prepare a script for a video"></section>
 
+      <!-- pitch-qr view: where a founder lands right after they unlock
+           Pitch (pre-seed). Shows the real, scannable QR code they pull
+           out of their pocket, a preview of the "back me" card people
+           see when they scan it, and Share / Copy controls. Rendered by
+           pitch-qr.js; opened on boot when beginner's checkout sends the
+           founder back with ?unlocked=1, or from the sidebar Pitch
+           button once unlocked. -->
+      <section id="pitch-qr" class="pitch-qr" hidden aria-label="Your back-me QR code"></section>
+
       <!-- Category feed view: rendered when a seed is tapped — lists
            every essay whose seed belongs to the same category. The
            composer at the top is a single-textarea "status" entry —
@@ -545,6 +554,9 @@
     <script src="./renderer.js" defer></script>
     <script src="./founders.js" defer></script>
     <script src="./pitch-script.js" defer></script>
+    <!-- qr.js (zero-dep QR generator) must load before pitch-qr.js. -->
+    <script src="./lib/qr.js" defer></script>
+    <script src="./pitch-qr.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>

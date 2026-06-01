@@ -863,6 +863,12 @@
     if (!res.ok || !json || !json.ok) {
       return { ok: false, error: (json && json.error) || `HTTP ${res.status}` };
     }
+    // Remember the public reader link for this pitch so the Pitch QR
+    // surface can point a backer's scan straight at the founder's
+    // published pitch (rather than the bare app start URL).
+    if (json.readerUrl && /^https?:\/\//.test(json.readerUrl)) {
+      try { window.localStorage.setItem("tinker_back_url", json.readerUrl); } catch { /* ignore */ }
+    }
     fire("tinker:pitch-published");
     return {
       ok: true,

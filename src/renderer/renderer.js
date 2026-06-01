@@ -45,6 +45,7 @@
   const writingFitContent = $("#writing-fit-content");
   const foundersView = $("#founders");
   const pitchScriptView = $("#pitch-script");
+  const pitchQrView = $("#pitch-qr");
   const statusComposer = $("#status-composer");
   const statusComposerInput = $("#status-composer-input");
   const statusComposerPost = $("#status-composer-post");
@@ -328,6 +329,7 @@
     if (writingFitView) writingFitView.hidden = true;
     if (foundersView) foundersView.hidden = true;
     if (pitchScriptView) pitchScriptView.hidden = true;
+    if (pitchQrView) pitchQrView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -351,6 +353,7 @@
     if (writingFitView) writingFitView.hidden = true;
     if (foundersView) foundersView.hidden = true;
     if (pitchScriptView) pitchScriptView.hidden = true;
+    if (pitchQrView) pitchQrView.hidden = true;
   }
   function showRead(essay) {
     if (typeof window.tinkerCloseReadMenu === "function") window.tinkerCloseReadMenu();
@@ -361,6 +364,7 @@
     if (writingFitView) writingFitView.hidden = true;
     if (foundersView) foundersView.hidden = true;
     if (pitchScriptView) pitchScriptView.hidden = true;
+    if (pitchQrView) pitchQrView.hidden = true;
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
@@ -380,6 +384,7 @@
     if (writingFitView) writingFitView.hidden = true;
     if (foundersView) foundersView.hidden = true;
     if (pitchScriptView) pitchScriptView.hidden = true;
+    if (pitchQrView) pitchQrView.hidden = true;
     activeId = null;
     activeCategoryKey = categoryKey;
     // Prefer the seed the user just tapped. Fall back to the most-
@@ -449,6 +454,7 @@
     writingFitView.hidden = false;
     if (foundersView) foundersView.hidden = true;
     if (pitchScriptView) pitchScriptView.hidden = true;
+    if (pitchQrView) pitchQrView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -598,6 +604,7 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
     if (pitchScriptView) pitchScriptView.hidden = true;
+    if (pitchQrView) pitchQrView.hidden = true;
     foundersView.hidden = false;
     activeId = null;
     readingEssayId = null;
@@ -617,6 +624,7 @@
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
     if (foundersView) foundersView.hidden = true;
+    if (pitchQrView) pitchQrView.hidden = true;
     pitchScriptView.hidden = false;
     activeId = null;
     readingEssayId = null;
@@ -627,11 +635,37 @@
       window.tinkerPitchScript.show(pitchId);
     }
   }
+
+  // The pitch-qr surface: the founder's freshly-unlocked "back me" QR
+  // code + a preview of what folks see when they scan it. Opened on boot
+  // when beginner sends the founder back from checkout (?unlocked=1), and
+  // from the sidebar Pitch button once unlocked.
+  function showPitchQr() {
+    if (!pitchQrView) return;
+    feedView.removeAttribute("data-active");
+    writingView.hidden = true;
+    readView.hidden = true;
+    if (categoryFeedView) categoryFeedView.hidden = true;
+    if (writingFitView) writingFitView.hidden = true;
+    if (foundersView) foundersView.hidden = true;
+    if (pitchScriptView) pitchScriptView.hidden = true;
+    pitchQrView.hidden = false;
+    activeId = null;
+    readingEssayId = null;
+    activeCategoryKey = null;
+    activeCategorySeed = null;
+    renderSidebar();
+    if (window.tinkerPitchQr && typeof window.tinkerPitchQr.show === "function") {
+      window.tinkerPitchQr.show();
+    }
+  }
+
   // The pitch-script view's "back" button calls this to return to the
   // home view; exposed on window so pitch-script.js (loaded after
   // renderer.js) can reach it without a circular import.
   window.tinkerShowPitch = () => showFeed();
   window.tinkerShowPitchScript = (pitchId) => showPitchScript(pitchId);
+  window.tinkerShowPitchQr = () => showPitchQr();
 
   // The 7-colour rainbow cycle from the sidebar (styles.css:258-264),
   // mirrored here so the same hue follows a given deck heading whether
@@ -1115,8 +1149,31 @@
     renderHome();
   });
 
+  // Did beginner's checkout just send the founder back here unlocked?
+  // The success_url is <tinker-origin>/?unlocked=1. If so, remember it
+  // (so the sidebar Pitch button opens the QR from now on), strip the
+  // param from the URL, and land them on their QR surface. Returns true
+  // when it has taken over the initial view.
+  function handleUnlockReturn() {
+    let unlocked = false;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      unlocked = params.get("unlocked") === "1";
+    } catch { /* ignore */ }
+    if (!unlocked) return false;
+    try { window.localStorage.setItem("tinker_pitch_unlocked", "1"); } catch { /* ignore */ }
+    // Drop ?unlocked=1 so a refresh doesn't re-trigger the landing.
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("unlocked");
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    } catch { /* ignore */ }
+    showPitchQr();
+    return true;
+  }
+
   // ── Boot ────────────────────────────────────────────────────────────
   renderSidebar();
   renderHome();
-  showFeed();
+  if (!handleUnlockReturn()) showFeed();
 })();
