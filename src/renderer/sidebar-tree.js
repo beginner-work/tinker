@@ -651,11 +651,15 @@
     return base;
   }
 
-  // Once a founder has come back from checkout unlocked, we remember it
-  // locally (renderer.js sets this on the ?unlocked=1 return). From then
-  // on the Pitch button opens their QR in-app instead of linking back out
-  // to the checkout page.
+  // Once a founder has come back from checkout on a paid tier, we
+  // remember it (subscription.js persists the tier on the ?unlocked=1
+  // return). From then on the Pitch button opens their QR in-app instead
+  // of linking back out to the checkout page.
   function isPitchUnlocked() {
+    if (window.tinkerSubscription && typeof window.tinkerSubscription.isPitchUnlocked === "function") {
+      return window.tinkerSubscription.isPitchUnlocked();
+    }
+    // Fallback for the bare boolean flag from the first cut.
     try {
       return window.localStorage.getItem("tinker_pitch_unlocked") === "1";
     } catch {

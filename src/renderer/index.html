@@ -48,6 +48,10 @@
          sidebar-tree.js so the tree module's first render can read
          the active pitch's deck out of window.tinkerPitches. -->
     <script src="./pitches.js" defer></script>
+    <!-- Owns the founder's plan tier (free / pre-seed), persisted so the
+         Pitch gate survives reloads. Loaded before the surfaces that
+         read it. -->
+    <script src="./subscription.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
   </head>
   <body>

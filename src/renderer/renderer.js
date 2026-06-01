@@ -1161,7 +1161,13 @@
       unlocked = params.get("unlocked") === "1";
     } catch { /* ignore */ }
     if (!unlocked) return false;
-    try { window.localStorage.setItem("tinker_pitch_unlocked", "1"); } catch { /* ignore */ }
+    // Persist the plan tier so the Pitch gate survives reloads/restarts:
+    // from now on, tapping Pitch on the pre-seed plan opens the QR code.
+    if (window.tinkerSubscription && typeof window.tinkerSubscription.setTier === "function") {
+      window.tinkerSubscription.setTier("pre-seed");
+    } else {
+      try { window.localStorage.setItem("tinker_pitch_unlocked", "1"); } catch { /* ignore */ }
+    }
     // Drop ?unlocked=1 so a refresh doesn't re-trigger the landing.
     try {
       const url = new URL(window.location.href);
