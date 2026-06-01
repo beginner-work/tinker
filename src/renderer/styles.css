@@ -3088,6 +3088,21 @@ html.seed-modal-open { overflow: hidden; }
   -webkit-overflow-scrolling: touch;
 }
 .profile-page[hidden] { display: none; }
+/* The page slides in from the bottom-right corner each time it opens —
+   the one bit of motion in the app (it greets you on first run). Plays
+   whenever the element goes from hidden to shown. */
+@keyframes profile-page-slide-in {
+  from { transform: translate(100%, 100%); opacity: 0.4; }
+  to   { transform: translate(0, 0); opacity: 1; }
+}
+.profile-page:not([hidden]) {
+  animation: profile-page-slide-in 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  transform-origin: bottom right;
+}
+/* Honour a reduced-motion preference — appear instantly, no slide. */
+@media (prefers-reduced-motion: reduce) {
+  .profile-page:not([hidden]) { animation: none; }
+}
 .profile-page__inner {
   max-width: 480px;
   margin: 0 auto;
