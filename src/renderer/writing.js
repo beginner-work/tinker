@@ -67,6 +67,15 @@
   window.tinkerWriting = {
     open(draft) {
       active = draft;
+      // Airplane mode: there's no Claude up here, so drop the back-and-
+      // forth interview entirely. Offer one free-write composer with a
+      // single "This is everything" button that saves to local storage;
+      // the essay flies off to the pitch when we land. See renderer.js'
+      // publishDeferred / flushPendingPitches.
+      if (isAirborne()) {
+        renderAirplaneCompose();
+        return;
+      }
       // Pre-prompt: seed capture (Instagram tag-style) before the
       // question flow. `seed` is undefined on a fresh draft; once the
       // founder commits or skips it becomes a string or null and never
@@ -80,6 +89,10 @@
     },
   };
 
+  function isAirborne() {
+    return !!(window.tinkerAirplane && window.tinkerAirplane.isOn());
+  }
+
   function persist(extraPatch) {
     if (!active) return;
     const patch = {
@@ -91,6 +104,7 @@
       seed: active.seed,
       facing: active.facing,
       lastPurchased: active.lastPurchased,
+      freeform: active.freeform,
       _scratch: active._scratch,
       ...(extraPatch || {}),
     };
@@ -280,6 +294,113 @@
 
     swap(card);
     setTimeout(() => whereInput.focus(), 30);
+  }
+
+  // ── Airplane mode: free-write ────────────────────────────────────────
+  // No interview, no Claude, no progress dots — one big input and one
+  // button. The founder pours it all out; "This is everything" hands the
+  // raw text to renderer.js to save locally and queue for the pitch.
+  const AIRPLANE_GLYPH =
+    '<path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="currentColor"/>';
+
+  function renderAirplaneCompose() {
+    if (!active) return;
+    const card = document.createElement("div");
+    card.className = "writing-card writing-card--airplane";
+
+    const head = document.createElement("div");
+    head.className = "writing-airplane__head";
+    head.innerHTML =
+      `<div class="writing-airplane__crumb">` +
+      `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">${AIRPLANE_GLYPH}</svg>` +
+      `<span>Airplane mode</span></div>` +
+      `<h2 class="writing-question">${escapeHtml(SEED_QUESTION)}</h2>` +
+      `<p class="writing-airplane__sub">No questions up here — just write. When you land, this flies off to your pitch like any other essay.</p>`;
+    card.appendChild(head);
+
+    const ta = document.createElement("textarea");
+    ta.className = "writing-input writing-airplane__input";
+    ta.placeholder = "Write everything. One long stream is fine — you can shape it later.";
+    ta.rows = 14;
+    // Restore an in-progress free-write; if none, fall back to any
+    // answers already given in an interview so going airborne mid-draft
+    // never drops words.
+    ta.value =
+      active.freeform ||
+      (active.transcript || []).map((t) => t.a).filter(Boolean).join("\n\n") ||
+      "";
+    card.appendChild(ta);
+
+    const actions = document.createElement("div");
+    actions.className = "writing-review__actions";
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.className = "writing-action writing-action--primary";
+    saveBtn.textContent = "This is everything";
+    saveBtn.disabled = ta.value.trim().length === 0;
+    saveBtn.addEventListener("click", () => {
+      const body = ta.value.trim();
+      if (!body) return;
+      active.freeform = body;
+      persist();
+      saveAirplaneEssay(body);
+    });
+    actions.appendChild(saveBtn);
+    card.appendChild(actions);
+
+    let saveTimer;
+    ta.addEventListener("input", () => {
+      active.freeform = ta.value;
+      saveBtn.disabled = ta.value.trim().length === 0;
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => persist(), 350);
+    });
+
+    // One button only — hide the top-bar Next / "This is everything"
+    // controls and the progress dots; they don't apply here.
+    progressEl.innerHTML = "";
+    stepEl.textContent = "Airplane mode";
+    nextBtn.hidden = true;
+    endBtn.hidden = true;
+
+    swap(card);
+    setTimeout(() => ta.focus(), 30);
+  }
+
+  function saveAirplaneEssay(body) {
+    const draftRef = active;
+    if (draftRef && typeof window.tinkerOnAirplaneSave === "function") {
+      window.tinkerOnAirplaneSave(draftRef, { body });
+    }
+    // The draft has been folded into a pending essay; stop rendering
+    // against it and show the confirmation.
+    active = null;
+    renderAirplaneSaved();
+  }
+
+  function renderAirplaneSaved() {
+    const card = document.createElement("div");
+    card.className = "writing-card writing-card--airplane-saved";
+    card.innerHTML =
+      `<div class="writing-airplane__badge" aria-hidden="true">` +
+      `<svg viewBox="0 0 24 24" width="26" height="26">${AIRPLANE_GLYPH}</svg>` +
+      `</div>` +
+      `<h2 class="writing-question">Saved on this device.</h2>` +
+      `<p class="writing-airplane__sub">When you turn off airplane mode, this flies off to your pitch like any other essay.</p>`;
+    const done = document.createElement("button");
+    done.type = "button";
+    done.className = "writing-action writing-action--primary";
+    done.textContent = "Done";
+    done.addEventListener("click", () => {
+      if (typeof window.tinkerOnWritingClose === "function") window.tinkerOnWritingClose();
+    });
+    card.appendChild(done);
+
+    progressEl.innerHTML = "";
+    stepEl.textContent = "";
+    nextBtn.hidden = true;
+    endBtn.hidden = true;
+    swap(card);
   }
 
   function renderStep() {

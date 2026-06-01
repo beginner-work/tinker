@@ -1403,6 +1403,52 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 }
 .writing-action--primary:hover { background: #4f46e5; }
 .writing-action--primary:active { transform: scale(0.98); }
+.writing-action:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+/* ── Airplane mode: free-write ─────────────────────────────────────────
+ * The interview collapses to a single composer: a mode crumb, the
+ * canonical prompt, one big input, and one button. The disabled-state
+ * rule above keeps "This is everything" inert until something's typed. */
+.writing-card--airplane { gap: 14px; }
+.writing-airplane__head { display: flex; flex-direction: column; gap: 8px; }
+.writing-airplane__crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 3px 11px 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-dim);
+  color: var(--color-accent-strong);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.writing-airplane__sub {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: var(--leading-body);
+}
+.writing-card--airplane .writing-airplane__input { min-height: 320px; resize: vertical; }
+
+.writing-card--airplane-saved {
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  padding-top: 8px;
+}
+.writing-airplane__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-accent-dim);
+  color: var(--color-accent-strong);
+}
+.writing-card--airplane-saved .writing-airplane__sub { max-width: 32ch; }
 
 /* ── Read view ─────────────────────────────────────────────────────── */
 

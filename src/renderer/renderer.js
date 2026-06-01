@@ -264,6 +264,44 @@
       } catch { /* ignore */ }
       return essay;
     },
+    // Airplane mode: the founder wrote freely and pressed "This is
+    // everything" with no connection. Save the essay to local storage
+    // now — kind "essay", like any other — flagged pendingPitch, and
+    // let flushPendingPitches() send it off to classify + organize the
+    // moment we're back online. No Claude call, no stitching: the body
+    // is exactly what they typed.
+    publishDeferred(draft, { body } = {}) {
+      const text = String(body || "").trim();
+      if (!text || !draft) return null;
+      const title = firstLine(text);
+      const slug = slugify(title || "untitled") + "-" + draft.id.slice(2, 6);
+      const essay = {
+        id: "e_" + Math.random().toString(36).slice(2, 10),
+        slug,
+        author: "you",
+        title: title || "Untitled",
+        body: text,
+        createdAt: Date.now(),
+        url: `/you/${slug}`,
+        sourceDraft: draft.id,
+        kind: "essay",
+        seed: draft.seed || null,
+        pendingPitch: true,
+      };
+      essays = [essay, ...essays];
+      saveEssays(essays);
+      drafts = drafts.filter((d) => d.id !== draft.id);
+      saveDrafts(drafts);
+      activeId = null;
+      renderSidebar();
+      renderHome();
+      if (window.tinkerTree && typeof window.tinkerTree.clearWritingFromTree === "function") {
+        window.tinkerTree.clearWritingFromTree(draft.id);
+      }
+      // Online already? Send it off now. Airborne? It waits for landing.
+      flushPendingPitches();
+      return essay;
+    },
   };
   window.tinkerStore = store;
 
@@ -274,6 +312,35 @@
       .trim()
       .replace(/\s+/g, "-")
       .slice(0, 48) || "untitled";
+  }
+
+  // First line of a free-write, trimmed to a sane title length. Used to
+  // label airplane-mode essays that never went through the interview's
+  // title step.
+  function firstLine(text) {
+    const line = String(text || "").trim().split("\n")[0].trim();
+    if (line.length <= 72) return line;
+    return line.slice(0, 71).trimEnd() + "…";
+  }
+
+  // Send any essays saved while airborne off to be added to a pitch —
+  // the same classify + organize path a normal publish fires (via the
+  // tinker:writing-saved event), just deferred until we're back online.
+  // No-op while airplane mode is on (the network is gated) or when
+  // nothing is waiting.
+  function flushPendingPitches() {
+    if (window.tinkerAirplane && window.tinkerAirplane.isOn()) return;
+    const pending = essays.filter((e) => e && e.pendingPitch);
+    if (!pending.length) return;
+    for (const essay of pending) delete essay.pendingPitch;
+    saveEssays(essays);
+    for (const essay of pending) {
+      try {
+        window.dispatchEvent(new CustomEvent("tinker:writing-saved", {
+          detail: { writingId: essay.id },
+        }));
+      } catch { /* ignore */ }
+    }
   }
 
   // ── Drafts as sidebar tabs ──────────────────────────────────────────
@@ -1213,6 +1280,13 @@
   window.tinkerOnWritingClose = () => closeActiveDraft();
   window.tinkerOnWritingPublish = (draft, stitched) => store.publish(draft, stitched);
   window.tinkerOnDraftChange = (draftId, patch) => store.updateDraft(draftId, patch);
+  // Airplane mode: the free-write composer saves through here. The essay
+  // is held locally and flown off to the pitch when airplane mode goes
+  // back off (or on the next load if we're already online).
+  window.tinkerOnAirplaneSave = (draft, opts) => store.publishDeferred(draft, opts || {});
+  window.addEventListener("tinker:airplane-changed", (e) => {
+    if (e && e.detail && e.detail.on === false) flushPendingPitches();
+  });
 
   // Used by the seed list in the sidebar: open a fresh draft
   // pre-filled with scene context so the founder jumps straight into
@@ -1303,6 +1377,8 @@
   window.addEventListener("tinker:hydrated", () => {
     drafts = loadDrafts();
     essays = loadEssays();
+    // A sign-in may have surfaced essays saved offline on another device.
+    flushPendingPitches();
     if (activeId && !drafts.some((d) => d.id === activeId)) {
       activeId = null;
       showFeed();
@@ -1318,4 +1394,7 @@
   renderSidebar();
   renderHome();
   showFeed();
+  // Catch any essay saved while airborne in a prior session and never
+  // sent off — fly it to the pitch now if we're back online.
+  flushPendingPitches();
 })();
