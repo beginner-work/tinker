@@ -209,6 +209,16 @@
               <span class="sidebar__membership-badge" data-membership-cta hidden></span>
             </button>
           </li>
+          <!-- Restore: links a subscription started outside tinker's own
+               checkout (e.g. the beginner "Back me" page, a Payment Link, or
+               the dashboard) — which carries no tinker user_id for the webhook
+               to key on — to this account. membership.js reveals it only on
+               the free-plan view. -->
+          <li>
+            <button id="nav-membership-restore" type="button" class="sidebar__membership-restore" hidden>
+              Already subscribed? Restore
+            </button>
+          </li>
           <!-- Share button: revealed by share.js only when the app is
                running as an installed PWA (standalone) or inside a
                wrapped runtime (Capacitor). Stays hidden in plain

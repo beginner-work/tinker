@@ -11,7 +11,10 @@
  *
  * Tapping the row when there's nothing to buy is a no-op; on a free account
  * the trailing "Upgrade" badge opens Stripe Checkout via the existing
- * /api/membership/checkout endpoint and redirects the tab to it.
+ * /api/membership/checkout endpoint and redirects the tab to it. A free
+ * account also gets a quiet "Already subscribed? Restore" row beneath, which
+ * links a subscription started elsewhere (e.g. the beginner "Back me" page)
+ * to this account via /api/membership/reconcile.
  *
  * Everything is best-effort and same-origin. We only show the row once a
  * status response has come back, so a signed-out tab — or an Electron /
@@ -64,11 +67,12 @@
       if (status.status === "trialing") sub = when ? "Free trial — renews " + when : "Free trial";
       else if (status.status === "past_due") sub = "Payment past due — update card";
       else sub = when ? "Renews " + when : "Active";
-      return { active: true, label: info.name + " · " + info.monthly, sub: sub, cta: "" };
+      return { active: true, label: info.name + " · " + info.monthly, sub: sub, cta: "", restore: false };
     }
 
-    // Anything not entitled reads as a free account, with a nudge to upgrade.
-    return { active: false, label: "Free plan", sub: "Pre-seed is $9/mo", cta: "Upgrade" };
+    // Anything not entitled reads as a free account, with a nudge to upgrade
+    // and a quiet way to link a subscription that was started elsewhere.
+    return { active: false, label: "Free plan", sub: "Pre-seed is $9/mo", cta: "Upgrade", restore: true };
   }
 
   // ── Network ──────────────────────────────────────────────────────────
@@ -106,6 +110,46 @@
     setTimeout(function () { cta.textContent = prev || "Upgrade"; }, 2200);
   }
 
+  var RESTORE_LABEL = "Already subscribed? Restore";
+
+  function setRestoreText(btn, text, reset) {
+    if (!btn) return;
+    btn.textContent = text;
+    if (reset) setTimeout(function () { btn.textContent = RESTORE_LABEL; }, 2600);
+  }
+
+  function askEmail() {
+    try {
+      var v = window.prompt("Enter the email you used to subscribe:");
+      return v ? v.trim() : "";
+    } catch { return ""; }
+  }
+
+  // Link an already-paid subscription to this account — for memberships
+  // started outside tinker's own checkout (e.g. the beginner "Back me" page),
+  // which carry no tinker user_id for the webhook to key on. Tries the account
+  // email server-side first; if that finds nothing, asks once for the email
+  // used at checkout. On success, re-pull status so the row flips to the tier.
+  function startReconcile(token, btn, emailOverride) {
+    setRestoreText(btn, "Restoring…");
+    return fetch("/api/membership/reconcile", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders(token)),
+      body: JSON.stringify(emailOverride ? { email: emailOverride } : {}),
+    })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (json) {
+        if (json && json.restored) { hydrate(); return; }
+        // Ask for an email at most once — if we already tried one, stop.
+        if (!emailOverride && json && (json.reason === "no-email" || json.reason === "no-subscription")) {
+          var typed = askEmail();
+          if (typed) return startReconcile(token, btn, typed);
+        }
+        setRestoreText(btn, "No subscription found", true);
+      })
+      .catch(function () { setRestoreText(btn, "Try again", true); });
+  }
+
   // ── Render ───────────────────────────────────────────────────────────
 
   function render(btn, status) {
@@ -119,6 +163,14 @@
     if (ctaEl) {
       if (view.cta) { ctaEl.textContent = view.cta; ctaEl.removeAttribute("hidden"); }
       else { ctaEl.textContent = ""; ctaEl.setAttribute("hidden", ""); }
+    }
+
+    // "Already subscribed? Restore" lives in its own row beneath this one;
+    // only the free-plan view offers it.
+    var restoreEl = document.getElementById("nav-membership-restore");
+    if (restoreEl) {
+      if (view.restore) restoreEl.removeAttribute("hidden");
+      else restoreEl.setAttribute("hidden", "");
     }
 
     btn.dataset.active = view.active ? "1" : "0";
@@ -149,6 +201,15 @@
         if (btn.dataset.active === "1") return;
         var t = read(TOKEN_KEY);
         if (t) startCheckout(t, btn);
+      });
+    }
+
+    var restoreBtn = document.getElementById("nav-membership-restore");
+    if (restoreBtn && !restoreBtn.dataset.bound) {
+      restoreBtn.dataset.bound = "1";
+      restoreBtn.addEventListener("click", function () {
+        var t = read(TOKEN_KEY);
+        if (t) startReconcile(t, restoreBtn);
       });
     }
 

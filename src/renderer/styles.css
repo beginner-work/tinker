@@ -214,6 +214,24 @@ html.on-web .sidebar__top {
   font-weight: 600;
   letter-spacing: 0.01em;
 }
+/* "Already subscribed? Restore" — a quiet text button under the free-plan row
+ * that links a subscription started elsewhere to this account. Indented to sit
+ * under the row's label; membership.js toggles it with the free view. */
+.sidebar__membership-restore {
+  width: 100%;
+  margin: -2px 0 2px;
+  padding: 2px 10px 6px 36px;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.sidebar__membership-restore:hover { color: var(--color-foreground); }
 
 /* ── Floating bottom mode nav ──────────────────────────────────────────
  *
