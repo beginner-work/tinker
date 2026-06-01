@@ -341,6 +341,11 @@
       } catch { /* ignore */ }
       emitOfflineEssayNotification(essay);
     }
+    // The normal publish path arms this via showPitchAssessing(); the
+    // deferred path has no confirmation screen, so arm it here so the
+    // founder still gets the "where it landed" note once the organize
+    // round these writing-saved events kicked off settles.
+    watchPlacement(pending);
   }
 
   // A free-write essay written with no connection has just been sent off
@@ -605,7 +610,9 @@
   // read won't be contradicted moments later. A max-wait guards the case
   // where organize never runs (no token, nothing off-pitch), in which case
   // we report wherever the essay currently sits.
-  function watchPlacement(essay) {
+  function watchPlacement(essays) {
+    const list = Array.isArray(essays) ? essays.filter(Boolean) : (essays ? [essays] : []);
+    if (!list.length) return;
     const pitches = window.tinkerPitches;
     if (!pitches || typeof pitches.findPitchForWriting !== "function") return;
 
@@ -627,7 +634,10 @@
       if (done || token !== placementWatchToken) { cleanup(); return; }
       done = true;
       cleanup();
-      emitPlacementNotification(essay);
+      // One organize round settles every essay in the batch at once, so
+      // notify for each — covers a reconnect that flushes several essays
+      // written offline in the same session.
+      for (const essay of list) emitPlacementNotification(essay);
     };
     const onStarted = () => {
       // A new round began — whatever we were about to trust is now stale.
