@@ -94,3 +94,16 @@ test("an unknown tier even if marked active falls back to the free view", () => 
   assert.equal(view.active, false);
   assert.equal(view.label, "Free plan");
 });
+
+test("the free view offers to restore an existing subscription", () => {
+  const formatMembership = loadFormatter();
+  for (const status of [null, {}, { active: false, tier: "pre-seed", status: "canceled" }]) {
+    assert.equal(formatMembership(status).restore, true);
+  }
+});
+
+test("an active member is not offered restore", () => {
+  const formatMembership = loadFormatter();
+  const view = formatMembership({ active: true, tier: "pre-seed", status: "active" });
+  assert.equal(view.restore, false);
+});
