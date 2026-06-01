@@ -45,6 +45,31 @@ function extractBearer(header) {
   return m ? m[1] : "";
 }
 
+// The organize body is tiny (`{}` for the normal debounced trigger,
+// `{ "redistribute": true }` for the founder-pressed re-align button).
+// Vercel may have parsed it already; otherwise read the stream. A
+// missing/blank/garbled body just yields {} — the job runs in its
+// default (rehome-only) mode.
+function readJsonBody(req) {
+  if (req.body && typeof req.body === "object") return Promise.resolve(req.body);
+  return new Promise((resolve) => {
+    const chunks = [];
+    let total = 0;
+    req.on("data", (chunk) => {
+      total += chunk.length;
+      if (total > 4096) { req.destroy(); resolve({}); return; }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      const raw = Buffer.concat(chunks).toString("utf8");
+      if (!raw) return resolve({});
+      try { resolve(JSON.parse(raw)); }
+      catch { resolve({}); }
+    });
+    req.on("error", () => resolve({}));
+  });
+}
+
 async function resolveUserId(req) {
   const token = extractBearer(req.headers && req.headers.authorization);
   const session = await authenticateSession(token);
@@ -90,6 +115,11 @@ const handler = withResponseLogging(async function handler(req, res) {
 
   const isPreview = process.env.VERCEL_ENV === "preview";
 
+  let body = {};
+  try { body = await readJsonBody(req); }
+  catch { body = {}; }
+  const redistribute = !!(body && body.redistribute);
+
   let essays, drafts, storedBlob;
   try {
     [essays, drafts, storedBlob] = await Promise.all([
@@ -111,6 +141,7 @@ const handler = withResponseLogging(async function handler(req, res) {
       storedBlob,
       essays: safeEssays,
       drafts: safeDrafts,
+      redistribute,
       cluster: async ({ writings, existingPitchTitles }) =>
         clusterWritings({
           writings,

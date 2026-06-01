@@ -23,6 +23,8 @@ const {
   foldRehomeResults,
   refreshDeckTimestamps,
   dropStaleDeckRecords,
+  clearAllDecks,
+  dedupeTitles,
   organize,
 } = require("../api/_lib/pitches-organizer.js");
 const { DECK_HEADINGS } = require("../api/_lib/pitches-clusterer.js");
@@ -545,6 +547,113 @@ test("organize: drops stale records but keeps founder-named pitches with survivi
   assert.equal(result.blob.pitches[0].deck["The Problem"].length, 0);
   assert.equal(result.blob.pitches[0].deck["The Vision"].length, 1);
   assert.equal(result.summary.droppedStaleRecords, 1);
+});
+
+test("clearAllDecks empties every heading on every pitch but keeps the shells", () => {
+  const blob = normalizeBlob({
+    pitches: [
+      { id: "p_1", aiTitle: "Growth", deck: { "The Problem": [{ writingId: "e_1", offset: 0, length: 5 }] } },
+      { id: "p_2", personalTitle: "Side Project", deck: { "The Vision": [{ writingId: "e_2", offset: 0, length: 5 }] } },
+    ],
+  });
+  clearAllDecks(blob);
+  assert.equal(blob.pitches.length, 2);
+  for (const p of blob.pitches) {
+    for (const h of DECK_HEADINGS) {
+      assert.equal(Array.isArray(p.deck[h]), true);
+      assert.equal(p.deck[h].length, 0);
+    }
+  }
+  // Titles untouched.
+  assert.equal(blob.pitches[0].aiTitle, "Growth");
+  assert.equal(blob.pitches[1].personalTitle, "Side Project");
+});
+
+test("dedupeTitles drops case-insensitive duplicates, keeps first spelling", () => {
+  assert.deepEqual(
+    dedupeTitles(["Growth", "growth", "GROWTH", "Coffee"]),
+    ["Growth", "Coffee"],
+  );
+  assert.deepEqual(dedupeTitles([]), []);
+});
+
+test("organize redistribute: re-clusters already-slotted writings and collapses duplicate titles", async () => {
+  // Four "Growth" pitches, each holding one writing. A normal run sees
+  // nothing off-pitch and does nothing. A redistribute wipes the decks,
+  // hands all four writings back to the clusterer, and folds them into a
+  // single "Growth" pitch — the three now-empty shells get pruned.
+  const stored = {
+    pitches: [
+      { id: "p_1", aiTitle: "Growth", deck: { "The Problem": [{ writingId: "e_1", offset: 0, length: 5 }] } },
+      { id: "p_2", aiTitle: "Growth", deck: { "The Vision": [{ writingId: "e_2", offset: 0, length: 5 }] } },
+      { id: "p_3", aiTitle: "Growth", deck: { "The Team": [{ writingId: "e_3", offset: 0, length: 5 }] } },
+      { id: "p_4", aiTitle: "Growth", deck: { "The Ask": [{ writingId: "e_4", offset: 0, length: 5 }] } },
+    ],
+    activeId: "p_1",
+  };
+  const essays = [
+    makeEssay("e_1", "alpha beta gamma"),
+    makeEssay("e_2", "delta epsilon zeta"),
+    makeEssay("e_3", "eta theta iota"),
+    makeEssay("e_4", "kappa lambda mu"),
+  ];
+
+  let seenTitles = null;
+  const cluster = async ({ writings, existingPitchTitles }) => {
+    seenTitles = existingPitchTitles.slice();
+    return [{
+      title: "Growth",
+      writings: writings.map((w, i) => ({
+        id: w.id,
+        deckHeading: DECK_HEADINGS[i % DECK_HEADINGS.length],
+        phrase: { writingId: w.id, offset: 0, length: 5 },
+      })),
+    }];
+  };
+  const name = async () => "Growth";
+
+  const result = await organize({
+    storedBlob: stored, essays, drafts: [], cluster, name, redistribute: true,
+  });
+
+  // The hint list the model saw had "Growth" exactly once, not four times.
+  assert.deepEqual(seenTitles, ["Growth"]);
+  // Every writing was treated as off-pitch.
+  assert.equal(result.summary.offPitchCount, 4);
+  assert.equal(result.summary.redistribute, true);
+  // Collapsed to one pitch; the three empty shells were pruned.
+  assert.equal(result.blob.pitches.length, 1);
+  assert.equal(result.summary.prunedEmpty, 3);
+  assert.equal(result.blob.pitches[0].aiTitle, "Growth");
+});
+
+test("organize without redistribute leaves already-slotted writings untouched", async () => {
+  // Same four-Growth blob, but a normal run: nothing is off-pitch, so the
+  // clusterer is never called and the four pitches survive as-is.
+  const stored = {
+    pitches: [
+      { id: "p_1", aiTitle: "Growth", deck: { "The Problem": [{ writingId: "e_1", offset: 0, length: 5 }] } },
+      { id: "p_2", aiTitle: "Growth", deck: { "The Vision": [{ writingId: "e_2", offset: 0, length: 5 }] } },
+    ],
+    activeId: "p_1",
+  };
+  // Pre-seed matching hashes so the rename pass is a no-op too.
+  const blob = normalizeBlob(stored);
+  blob.pitches[0].aiTitleSourceHash = writingsHashForPitch(blob.pitches[0]);
+  blob.pitches[1].aiTitleSourceHash = writingsHashForPitch(blob.pitches[1]);
+
+  const essays = [makeEssay("e_1", "alpha beta gamma"), makeEssay("e_2", "delta epsilon zeta")];
+  let clusterCalls = 0;
+  const result = await organize({
+    storedBlob: blob,
+    essays,
+    drafts: [],
+    cluster: async () => { clusterCalls++; return []; },
+    name: async () => null,
+  });
+  assert.equal(clusterCalls, 0);
+  assert.equal(result.summary.redistribute, false);
+  assert.equal(result.blob.pitches.length, 2);
 });
 
 test("organize: passes existing personalTitle / aiTitle as cluster hints", async () => {

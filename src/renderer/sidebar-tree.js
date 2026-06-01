@@ -424,6 +424,53 @@
   // founder-edited rather than verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
+  // Redistribute ("re-align") button state. `redistributing` flips the
+  // button into its disabled/busy face while the server re-clusters;
+  // `redistributeMsg` holds the one-line outcome shown beneath it after
+  // the round returns (cleared on the next switcher interaction).
+  let redistributing = false;
+  let redistributeMsg = null;
+
+  // Turn an organize diff into the short line shown under the button.
+  // No moves and no removed pitches → the AI judged everything already
+  // in place, which is a valid (and common) outcome, not a failure.
+  function describeRedistribute(diff) {
+    const moved = (diff && Array.isArray(diff.movedWritings)) ? diff.movedWritings.length : 0;
+    const merged = (diff && Array.isArray(diff.removedPitchIds)) ? diff.removedPitchIds.length : 0;
+    if (!moved && !merged) return "Already aligned — nothing moved.";
+    const parts = [];
+    if (moved) parts.push(`moved ${moved} ${moved === 1 ? "essay" : "essays"}`);
+    if (merged) parts.push(`merged ${merged} ${merged === 1 ? "pitch" : "pitches"}`);
+    return `Re-aligned — ${parts.join(", ")}.`;
+  }
+
+  async function runRedistribute() {
+    const pm = pitchesApi();
+    if (!pm || typeof pm.redistributePitches !== "function") return;
+    if (redistributing) return;
+    redistributing = true;
+    redistributeMsg = null;
+    switcherOpen = false;
+    renameOpen = false;
+    render();
+    let result;
+    try {
+      result = await pm.redistributePitches();
+    } catch {
+      result = { ok: false, reason: "error" };
+    }
+    redistributing = false;
+    if (result && result.ok) {
+      redistributeMsg = describeRedistribute(result.diff);
+    } else if (result && result.reason === "no-token") {
+      redistributeMsg = "Sign in to re-align your pitches.";
+    } else if (result && result.reason === "inflight") {
+      redistributeMsg = null; // a round was already running; stay quiet
+    } else {
+      redistributeMsg = "Couldn't re-align — try again in a moment.";
+    }
+    render();
+  }
 
   // Render the two-line title block used in the dropdown face and
   // in each menu item. Personal title on top (the founder's
@@ -479,10 +526,52 @@
     switcherEl.hidden = false;
     switcherEl.innerHTML = "";
 
-    const label = document.createElement("div");
+    // Header row: the "Pitch" caption on the left, and a small refresh
+    // icon button on the right that re-aligns every pitch. It lives up
+    // here (rather than as a full-width button below) because a refresh
+    // is a header-level action over the whole pitch set — sibling to the
+    // "Pitch" label, not to the per-pitch rename/select actions beneath
+    // the chip.
+    const head = document.createElement("div");
+    head.className = "sidebar__pitch-switcher-head";
+    const label = document.createElement("span");
     label.className = "sidebar__pitch-switcher-label";
     label.textContent = "Pitch";
-    switcherEl.appendChild(label);
+    head.appendChild(label);
+
+    const refresh = document.createElement("button");
+    refresh.type = "button";
+    refresh.className = "sidebar__pitch-refresh";
+    if (redistributing) refresh.classList.add("is-busy");
+    refresh.disabled = redistributing;
+    refresh.setAttribute(
+      "aria-label",
+      redistributing ? "Re-aligning pitches…" : "Re-align pitches",
+    );
+    refresh.title = redistributing ? "Re-aligning…" : "Re-align pitches";
+    if (redistributing) refresh.setAttribute("aria-busy", "true");
+    refresh.innerHTML =
+      '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" ' +
+      'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+      'stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+      '<polyline points="23 4 23 10 17 10"></polyline>' +
+      '<polyline points="1 20 1 14 7 14"></polyline>' +
+      '<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>' +
+      "</svg>";
+    refresh.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      runRedistribute();
+    });
+    head.appendChild(refresh);
+    switcherEl.appendChild(head);
+
+    if (redistributeMsg) {
+      const note = document.createElement("p");
+      note.className = "sidebar__pitch-redistribute-note";
+      note.textContent = redistributeMsg;
+      switcherEl.appendChild(note);
+    }
 
     const row = document.createElement("div");
     row.className = "sidebar__pitch-switcher-row";
@@ -518,6 +607,7 @@
       e.stopPropagation();
       switcherOpen = !switcherOpen;
       renameOpen = false;
+      redistributeMsg = null;
       render();
     });
     row.appendChild(face);
@@ -575,6 +665,7 @@
       e.stopPropagation();
       renameOpen = !renameOpen;
       switcherOpen = false;
+      redistributeMsg = null;
       render();
       if (renameOpen) {
         setTimeout(() => {

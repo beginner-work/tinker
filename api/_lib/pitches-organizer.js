@@ -188,6 +188,36 @@ function clearWritingFromAllPitches(blob, writingId) {
   }
 }
 
+// Empty every pitch's deck. Used by the redistribute pass: zeroing the
+// decks turns every writing into an "off-pitch" writing, so the next
+// listOffPitchWritings sweep hands the whole corpus to the clusterer
+// for a from-scratch re-alignment. Pitch shells (and their personal
+// titles) survive; only the phrase records are cleared. The end-of-run
+// empty-pitch prune then drops any auto-named shell the re-cluster left
+// without writings — which is how duplicate AI titles (four "Growth"
+// pitches) collapse back into one.
+function clearAllDecks(blob) {
+  for (const pitch of blob.pitches) pitch.deck = emptyDeck();
+}
+
+// De-duplicate the title hints we feed the clusterer, case-insensitively,
+// preserving the first spelling seen. When the founder has drifted into
+// several identically-named pitches ("Growth" ×4), passing the raw list
+// would list "Growth" four times and reinforce the very split the
+// redistribute is trying to undo. One hint per distinct name lets the
+// model reuse it once and route everything into a single cluster.
+function dedupeTitles(titles) {
+  const out = [];
+  const seen = new Set();
+  for (const t of titles) {
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
+}
+
 function upsertPhrase(blob, { pitchId, deckHeading, writingId, offset, length, addedAt }) {
   if (!DECK_HEADINGS.includes(deckHeading)) return;
   if (typeof writingId !== "string" || !writingId) return;
@@ -357,6 +387,7 @@ async function organize({
   drafts,
   cluster,   // async ({ writings, existingPitchTitles }) → [{ title, writings: [{ id, deckHeading, phrase }] }]
   name,      // async ({ writings }) → string | null
+  redistribute = false, // when true, re-cluster every writing from scratch
 }) {
   const blob = normalizeBlob(storedBlob);
   const safeEssays = Array.isArray(essays) ? essays : [];
@@ -386,6 +417,12 @@ async function organize({
   const droppedStale = dropStaleDeckRecords(blob, knownWritingIds);
   refreshDeckTimestamps(blob, writingTimestamps);
 
+  // Redistribute: wipe every deck before listing off-pitch writings so
+  // the whole corpus (not just newly-added writings) flows back through
+  // the clusterer. This is the founder-triggered "re-align everything"
+  // path; the normal run only rehomes writings that aren't slotted yet.
+  if (redistribute) clearAllDecks(blob);
+
   const off = listOffPitchWritings(blob, safeEssays, safeDrafts);
   const summary = {
     offPitchCount: off.length,
@@ -395,13 +432,16 @@ async function organize({
     pitchesAfter: blob.pitches.length,
     prunedEmpty: 0,
     droppedStaleRecords: droppedStale,
+    redistribute: !!redistribute,
     skippedReason: null,
   };
 
   if (off.length > 0) {
-    const existingPitchTitles = blob.pitches
-      .map((p) => p.personalTitle || p.aiTitle)
-      .filter((t) => typeof t === "string" && t.length > 0);
+    const existingPitchTitles = dedupeTitles(
+      blob.pitches
+        .map((p) => p.personalTitle || p.aiTitle)
+        .filter((t) => typeof t === "string" && t.length > 0),
+    );
 
     const writings = off.slice(0, MAX_WRITINGS).map((w) => ({
       id: w.id,
@@ -477,6 +517,8 @@ module.exports = {
   foldRehomeResults,
   refreshDeckTimestamps,
   dropStaleDeckRecords,
+  clearAllDecks,
+  dedupeTitles,
   upsertPhrase,
   pitchesNeedingName,
   writingsHashForPitch,
