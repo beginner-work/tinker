@@ -13,6 +13,15 @@ const MAX_WRITINGS = 60;
 const MAX_SNIPPET_CHARS = 800;
 const MAX_BUCKETS = 4;
 
+// Both model calls run at temperature 0. Clustering a founder's corpus is
+// not a creative task — it's a routing decision (which pitch, which beat),
+// and the founder reasonably expects the same writings to organize the
+// same way every time. At the API default (1.0) the same corpus could
+// cluster into one pitch on one refresh and several on the next, which is
+// exactly the inconsistency we're removing. 0 makes the model's output as
+// reproducible as the API allows for a given prompt.
+const CLUSTER_TEMPERATURE = 0;
+
 // The eleven universal deck headings. Same list as /api/classify and
 // src/renderer/pitches.js. Duplicated here so this module stands on
 // its own; both endpoints re-export so test code doesn't have to
@@ -241,7 +250,7 @@ function parseClassifierJson(text) {
   }
 }
 
-async function callClusterer({ system, userMessage, model, maxTokens }) {
+async function callClusterer({ system, userMessage, model, maxTokens, temperature }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
     throw Object.assign(new Error("ANTHROPIC_API_KEY is not set."), { status: 503 });
@@ -249,6 +258,7 @@ async function callClusterer({ system, userMessage, model, maxTokens }) {
   const body = {
     model: model || "claude-haiku-4-5-20251001",
     max_tokens: Math.min(Math.max(Number(maxTokens) || 1024, 1), 4096),
+    temperature: Number.isFinite(temperature) ? temperature : CLUSTER_TEMPERATURE,
     system: [
       { type: "text", text: String(system), cache_control: { type: "ephemeral" } },
     ],
@@ -376,6 +386,7 @@ async function clusterWritings({ writings, existingPitchTitles, log }) {
       userMessage,
       model: "claude-haiku-4-5-20251001",
       maxTokens: 2048,
+      temperature: CLUSTER_TEMPERATURE,
     });
     if (typeof log === "function") log(attempt, rawText);
     const parsed = parseClassifierJson(rawText);
@@ -411,6 +422,7 @@ async function nameWritings({ writings, log }) {
       userMessage,
       model: "claude-haiku-4-5-20251001",
       maxTokens: 64,
+      temperature: CLUSTER_TEMPERATURE,
     });
     if (typeof log === "function") log(attempt, rawText);
     const parsed = parseClassifierJson(rawText);
@@ -428,6 +440,7 @@ module.exports = {
   MAX_WRITINGS,
   MAX_SNIPPET_CHARS,
   MAX_BUCKETS,
+  CLUSTER_TEMPERATURE,
   buildClusterPrompt,
   buildNamePrompt,
   buildUserMessage,

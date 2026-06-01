@@ -26,6 +26,7 @@ const {
   clearAllDecks,
   clearOneDeck,
   dedupeTitles,
+  sortWritingsForClustering,
   organize,
 } = require("../api/_lib/pitches-organizer.js");
 const { DECK_HEADINGS } = require("../api/_lib/pitches-clusterer.js");
@@ -748,6 +749,58 @@ test("organize without redistribute leaves already-slotted writings untouched", 
   assert.equal(clusterCalls, 0);
   assert.equal(result.summary.redistribute, false);
   assert.equal(result.blob.pitches.length, 2);
+});
+
+test("sortWritingsForClustering orders newest-first, ties broken by id", () => {
+  const off = [
+    { id: "e_b", body: "b" },
+    { id: "e_a", body: "a" },
+    { id: "e_c", body: "c" },
+    { id: "e_d", body: "d" }, // no stamp → 0, sorts last
+  ];
+  const stamps = new Map([["e_a", 100], ["e_b", 100], ["e_c", 300]]);
+  const sorted = sortWritingsForClustering(off, stamps).map((w) => w.id);
+  // e_c (300) first; then the 100-tie e_a/e_b by id asc; then e_d (no stamp).
+  assert.deepEqual(sorted, ["e_c", "e_a", "e_b", "e_d"]);
+});
+
+test("sortWritingsForClustering does not mutate its input", () => {
+  const off = [{ id: "e_b", body: "b" }, { id: "e_a", body: "a" }];
+  const before = off.map((w) => w.id);
+  sortWritingsForClustering(off, new Map());
+  assert.deepEqual(off.map((w) => w.id), before);
+});
+
+test("organize: clusterer sees writings in canonical order regardless of array order", async () => {
+  // Same three essays, two devices, opposite array orders. The order the
+  // clusterer sees must be identical either way — that's what keeps the
+  // organization reproducible across devices.
+  const essays = [
+    { id: "e_old", body: "alpha beta gamma", createdAt: 100, updatedAt: 100 },
+    { id: "e_mid", body: "delta epsilon zeta", createdAt: 200, updatedAt: 200 },
+    { id: "e_new", body: "eta theta iota", createdAt: 300, updatedAt: 300 },
+  ];
+
+  async function runWith(orderedEssays) {
+    let seen = null;
+    await organize({
+      storedBlob: { pitches: [], activeId: null },
+      essays: orderedEssays,
+      drafts: [],
+      cluster: async ({ writings }) => {
+        seen = writings.map((w) => w.id);
+        return [];
+      },
+      name: async () => null,
+    });
+    return seen;
+  }
+
+  const deviceA = await runWith(essays);
+  const deviceB = await runWith(essays.slice().reverse());
+  // Newest-first by createdAt, identical on both devices.
+  assert.deepEqual(deviceA, ["e_new", "e_mid", "e_old"]);
+  assert.deepEqual(deviceB, ["e_new", "e_mid", "e_old"]);
 });
 
 test("organize: passes existing personalTitle / aiTitle as cluster hints", async () => {
