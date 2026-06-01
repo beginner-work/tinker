@@ -371,10 +371,10 @@
          that expose Add to Home Screen — Safari and Chrome iOS, but
          not in-app webviews — when not already standalone and not
          inside Capacitor, then wires the sheet. -->
-    <!-- Free write mode status pill — floats top-centre while active
-         (offline or manual), with a one-tap exit. Shown/hidden by
-         freewrite.js, which also swaps the copy and hides "Turn off"
-         while genuinely offline. -->
+    <!-- Manual free-write pill — floats top-centre while free write is
+         on by choice (online), with a one-tap exit. Shown/hidden by
+         freewrite.js. While genuinely offline the pill stays hidden and
+         the offline notification toast (notifications.js) stands in. -->
     <div id="freewrite-banner" class="freewrite-banner" role="status" aria-live="polite" hidden>
       <svg class="freewrite-banner__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
         <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>

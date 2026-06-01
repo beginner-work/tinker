@@ -14,10 +14,13 @@
  *     turns a raw network failure into a friendlier one.)
  *   - The writing view drops the Claude interview for a single
  *     free-write composer — see writing.js.
- *   - State is painted: a status pill, a pressed sidebar toggle, and a
- *     `freewrite-on` class on <html>.
- *   - A connection drop also fires a toast through the notification
- *     component (notifications.js) so the founder knows they're offline.
+ *   - State is painted: a pressed sidebar toggle and a `freewrite-on`
+ *     class on <html>. A manual free-write (online) also floats a pill
+ *     with a one-tap "Turn off".
+ *   - A connection drop fires a toast through the notification component
+ *     (notifications.js) so the founder knows they're offline — that
+ *     toast stands in for the pill while offline, so the pill stays
+ *     hidden then.
  *
  * State is derived live from connectivity plus an in-session manual
  * override — nothing is persisted, so a reload always reflects the real
@@ -97,17 +100,13 @@
         : "Write freely — no questions, no waiting";
     }
 
+    // The banner is the manual free-write pill, with its one-tap "Turn
+    // off". The offline state is announced by the notification toast
+    // (notifications.js) instead, so we keep the pill hidden while
+    // genuinely offline — its static copy already reads for the manual
+    // case, and "Turn off" is always live there.
     const banner = document.getElementById("freewrite-banner");
-    if (banner) banner.hidden = !on;
-    const text = banner && banner.querySelector("[data-freewrite-text]");
-    if (text) {
-      text.textContent = offline
-        ? "Free write — you're offline. Saved here; syncs when you reconnect."
-        : "Free write — just write. Saved here, off to your pitch when you stop.";
-    }
-    // No "Turn off" while offline — there's nothing to turn off.
-    const off = banner && banner.querySelector("[data-freewrite-off]");
-    if (off) off.hidden = offline;
+    if (banner) banner.hidden = !on || offline;
   }
 
   function emitChanged(on) {
