@@ -67,6 +67,16 @@
   window.tinkerWriting = {
     open(draft) {
       active = draft;
+      // Free write mode (offline, or the manual override): there's no
+      // Claude to talk to, so drop the back-and-forth interview entirely.
+      // Offer one free-write composer with a single "This is everything"
+      // button that saves to local storage; the essay goes off to the
+      // pitch when we reconnect. See renderer.js' publishDeferred /
+      // flushPendingPitches.
+      if (isFreeWrite()) {
+        renderFreewriteCompose();
+        return;
+      }
       // Pre-prompt: seed capture (Instagram tag-style) before the
       // question flow. `seed` is undefined on a fresh draft; once the
       // founder commits or skips it becomes a string or null and never
@@ -80,6 +90,10 @@
     },
   };
 
+  function isFreeWrite() {
+    return !!(window.tinkerFreewrite && window.tinkerFreewrite.isOn());
+  }
+
   function persist(extraPatch) {
     if (!active) return;
     const patch = {
@@ -91,6 +105,7 @@
       seed: active.seed,
       facing: active.facing,
       lastPurchased: active.lastPurchased,
+      freeform: active.freeform,
       _scratch: active._scratch,
       ...(extraPatch || {}),
     };
@@ -280,6 +295,115 @@
 
     swap(card);
     setTimeout(() => whereInput.focus(), 30);
+  }
+
+  // ── Free write mode ──────────────────────────────────────────────────
+  // No interview, no Claude, no progress dots — one big input and one
+  // button. The founder pours it all out; "This is everything" hands the
+  // raw text to renderer.js to save locally and queue for the pitch.
+  const FREEWRITE_GLYPH =
+    '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>';
+  const CHECK_GLYPH =
+    '<path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
+
+  function renderFreewriteCompose() {
+    if (!active) return;
+    const card = document.createElement("div");
+    card.className = "writing-card writing-card--freewrite";
+
+    const head = document.createElement("div");
+    head.className = "writing-freewrite__head";
+    head.innerHTML =
+      `<div class="writing-freewrite__crumb">` +
+      `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">${FREEWRITE_GLYPH}</svg>` +
+      `<span>Free write</span></div>` +
+      `<h2 class="writing-question">${escapeHtml(SEED_QUESTION)}</h2>` +
+      `<p class="writing-freewrite__sub">No questions here — just write. When you reconnect, this goes to your pitch like any other essay.</p>`;
+    card.appendChild(head);
+
+    const ta = document.createElement("textarea");
+    ta.className = "writing-input writing-freewrite__input";
+    ta.placeholder = "Write everything. One long stream is fine — you can shape it later.";
+    ta.rows = 14;
+    // Restore an in-progress free-write; if none, fall back to any
+    // answers already given in an interview so dropping into free write
+    // mid-draft never loses words.
+    ta.value =
+      active.freeform ||
+      (active.transcript || []).map((t) => t.a).filter(Boolean).join("\n\n") ||
+      "";
+    card.appendChild(ta);
+
+    const actions = document.createElement("div");
+    actions.className = "writing-review__actions";
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.className = "writing-action writing-action--primary";
+    saveBtn.textContent = "This is everything";
+    saveBtn.disabled = ta.value.trim().length === 0;
+    saveBtn.addEventListener("click", () => {
+      const body = ta.value.trim();
+      if (!body) return;
+      active.freeform = body;
+      persist();
+      saveFreewriteEssay(body);
+    });
+    actions.appendChild(saveBtn);
+    card.appendChild(actions);
+
+    let saveTimer;
+    ta.addEventListener("input", () => {
+      active.freeform = ta.value;
+      saveBtn.disabled = ta.value.trim().length === 0;
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => persist(), 350);
+    });
+
+    // One button only — hide the top-bar Next / "This is everything"
+    // controls and the progress dots; they don't apply here.
+    progressEl.innerHTML = "";
+    stepEl.textContent = "Free write";
+    nextBtn.hidden = true;
+    endBtn.hidden = true;
+
+    swap(card);
+    setTimeout(() => ta.focus(), 30);
+  }
+
+  function saveFreewriteEssay(body) {
+    const draftRef = active;
+    if (draftRef && typeof window.tinkerOnFreewriteSave === "function") {
+      window.tinkerOnFreewriteSave(draftRef, { body });
+    }
+    // The draft has been folded into a pending essay; stop rendering
+    // against it and show the confirmation.
+    active = null;
+    renderFreewriteSaved();
+  }
+
+  function renderFreewriteSaved() {
+    const card = document.createElement("div");
+    card.className = "writing-card writing-card--freewrite-saved";
+    card.innerHTML =
+      `<div class="writing-freewrite__badge" aria-hidden="true">` +
+      `<svg viewBox="0 0 24 24" width="26" height="26">${CHECK_GLYPH}</svg>` +
+      `</div>` +
+      `<h2 class="writing-question">Saved on this device.</h2>` +
+      `<p class="writing-freewrite__sub">When you reconnect, this goes to your pitch like any other essay.</p>`;
+    const done = document.createElement("button");
+    done.type = "button";
+    done.className = "writing-action writing-action--primary";
+    done.textContent = "Done";
+    done.addEventListener("click", () => {
+      if (typeof window.tinkerOnWritingClose === "function") window.tinkerOnWritingClose();
+    });
+    card.appendChild(done);
+
+    progressEl.innerHTML = "";
+    stepEl.textContent = "";
+    nextBtn.hidden = true;
+    endBtn.hidden = true;
+    swap(card);
   }
 
   function renderStep() {

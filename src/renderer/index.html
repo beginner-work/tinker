@@ -39,6 +39,10 @@
          seeds.js/heatmap.js/sidebar-tree.js so its hydrate() can fire
          as soon as a token exists; consumer modules subscribe to the
          tinker:hydrated event to re-render from refreshed storage. -->
+    <!-- Free write mode: install the /api/* network gate before sync.js
+         (or anything else) can phone home, so a load taken offline stays
+         grounded. Auto-detects connectivity via navigator.onLine. -->
+    <script src="./freewrite.js" defer></script>
     <script src="./sync.js" defer></script>
     <script src="./transactions.js" defer></script>
     <script src="./seeds.js" defer></script>
@@ -123,6 +127,21 @@
                 <path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
               </svg>
               <span class="sidebar__account-label">Receipts</span>
+            </button>
+          </li>
+          <!-- Free write mode: on automatically when offline, or as a
+               manual override. Wired by freewrite.js, which gates /api/*
+               and paints the state. -->
+          <li>
+            <button id="nav-freewrite" type="button"
+                    class="sidebar__account-item sidebar__account-item--toggle"
+                    aria-pressed="false"
+                    title="Write freely — no questions, no waiting">
+              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+              </svg>
+              <span class="sidebar__account-label">Free write</span>
+              <span class="sidebar__account-state" data-freewrite-state aria-hidden="true">Off</span>
             </button>
           </li>
           <!-- Share button: revealed by share.js only when the app is
@@ -352,6 +371,18 @@
          that expose Add to Home Screen — Safari and Chrome iOS, but
          not in-app webviews — when not already standalone and not
          inside Capacitor, then wires the sheet. -->
+    <!-- Free write mode status pill — floats top-centre while active
+         (offline or manual), with a one-tap exit. Shown/hidden by
+         freewrite.js, which also swaps the copy and hides "Turn off"
+         while genuinely offline. -->
+    <div id="freewrite-banner" class="freewrite-banner" role="status" aria-live="polite" hidden>
+      <svg class="freewrite-banner__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+      </svg>
+      <span class="freewrite-banner__text" data-freewrite-text>Free write — just write. Saved here, off to your pitch when you stop.</span>
+      <button type="button" class="freewrite-banner__action" data-freewrite-off>Turn off</button>
+    </div>
+
     <div id="pwa-hint" class="pwa-hint" role="region" aria-label="Install tinker" hidden>
       <span class="pwa-hint__icon" aria-hidden="true">
         <svg data-rainbow-logo viewBox="0 0 200 200" fill="none">
@@ -550,5 +581,8 @@
     <script src="./share.js" defer></script>
     <script src="./update-banner.js" defer></script>
     <script src="./notifications.js" defer></script>
+    <!-- Offline app shell: registers sw.js so a refresh (and a cold
+         launch of the installed app) still loads with no connection. -->
+    <script src="./pwa-offline.js" defer></script>
   </body>
 </html>
