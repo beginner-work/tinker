@@ -91,9 +91,22 @@
   // malformed value is silently treated as the empty default. Sync
   // preserves that contract: server `null` (the column default) means
   // "no row yet", and we leave localStorage untouched on that branch.
+  //
+  // Boot/publish race: publishing an essay (or adding a pitch, which
+  // publishes the freewrite first) writes the essay to localStorage and
+  // schedules a 1500ms-debounced push, then POSTs /api/pitches/organize.
+  // The organize endpoint only loads essays — it never writes them — so
+  // the server's essays store still reflects the pre-publish state until
+  // that debounce fires. If a hydrate races in between (auth-changed, a
+  // background fetch, the organize-completed refresh), the server returns
+  // its stale essays list and a naive overwrite drops every local-only
+  // essay the push hasn't delivered yet. Merge by id — same protection
+  // applyDraftsFromServer already uses — so the local essays survive
+  // while the server stays authoritative for essays it already knows.
   function applyEssaysFromServer(data) {
     if (!Array.isArray(data)) return false;
-    setLs(LS_ESSAYS, JSON.stringify(data));
+    const local = getLsJson(LS_ESSAYS, []);
+    setLs(LS_ESSAYS, JSON.stringify(mergeById(local, data)));
     return true;
   }
   function applyDraftsFromServer(data) {
