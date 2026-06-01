@@ -3077,69 +3077,103 @@ html.seed-modal-open { overflow: hidden; }
 }
 .welcome__avatar--set .welcome__avatar-add { display: none; }
 
-/* ── Profile page (photo upload + share QR) ─────────────────────────── */
+/* ── Profile sheet (photo upload) ───────────────────────────────────── */
 
+/* A bottom-sheet card that slides up over a dimmed backdrop — the same
+   shape and motion as the "Add to Home Screen" install sheet. */
 .profile-page {
   position: fixed;
   inset: 0;
   z-index: 1100;
-  background: var(--color-background, #fffdf7);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
 }
 .profile-page[hidden] { display: none; }
-/* The page slides in from the bottom-right corner each time it opens —
-   the one bit of motion in the app (it greets you on first run). Plays
-   whenever the element goes from hidden to shown. */
-@keyframes profile-page-slide-in {
-  from { transform: translate(100%, 100%); opacity: 0.4; }
-  to   { transform: translate(0, 0); opacity: 1; }
+.profile-page__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 24, 40, 0.45);
 }
-.profile-page:not([hidden]) {
-  animation: profile-page-slide-in 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  transform-origin: bottom right;
+.profile-page__panel {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  max-height: 92vh;
+  max-height: 92dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--color-surface, #fff);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 40px rgba(45, 42, 38, 0.22);
+  padding: 12px 20px calc(env(safe-area-inset-bottom, 0px) + 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+/* Smooth slide-up on open — the browser restarts the animation each
+   time the sheet leaves display:none. The backdrop fades in alongside. */
+@keyframes profile-sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes profile-sheet-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.profile-page:not([hidden]) .profile-page__panel {
+  animation: profile-sheet-up 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.profile-page:not([hidden]) .profile-page__backdrop {
+  animation: profile-sheet-fade 360ms ease both;
 }
 /* Honour a reduced-motion preference — appear instantly, no slide. */
 @media (prefers-reduced-motion: reduce) {
-  .profile-page:not([hidden]) { animation: none; }
+  .profile-page:not([hidden]) .profile-page__panel,
+  .profile-page:not([hidden]) .profile-page__backdrop { animation: none; }
 }
-.profile-page__inner {
-  max-width: 480px;
-  margin: 0 auto;
-  padding: calc(env(safe-area-inset-top, 0px) + 12px) 20px
-           calc(env(safe-area-inset-bottom, 0px) + 32px);
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+/* Drag-handle grabber at the sheet's top edge (decorative cue). */
+.profile-page__grabber {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-border, #ede8e0);
+  margin: 0 auto 2px;
+  flex-shrink: 0;
 }
 .profile-page__top {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
-.profile-page__back {
-  width: 40px;
-  height: 40px;
+.profile-page__title {
+  margin: 0;
+  font-family: var(--font-display, "Plus Jakarta Sans", sans-serif);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.profile-page__close {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  color: var(--color-foreground, #2d2a26);
+  font-size: 24px;
+  line-height: 1;
+  color: var(--color-muted, #6f6a65);
 }
-.profile-page__back:hover { background: var(--color-hover, #fff9f0); }
-.profile-page__title {
-  margin: 0;
-  font-family: var(--font-display, "Plus Jakarta Sans", sans-serif);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
+.profile-page__close:hover { background: var(--color-hover, #fff9f0); }
 
 .profile-page__photo-block {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
+  padding-bottom: 6px;
 }
 .profile-photo {
   position: relative;

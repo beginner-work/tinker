@@ -72,20 +72,19 @@
     </button>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
-    <!-- Profile page — a full-screen page for your profile photo, opened
-         by tapping the avatar in the centre of the welcome screen, and
-         shown automatically on first run when no photo is set yet. Lets
-         you upload / change / remove your photo. Hidden by default;
-         profile.js opens it. -->
+    <!-- Profile sheet — a bottom-sheet card for your profile photo,
+         opened by tapping the avatar in the centre of the welcome screen,
+         and shown automatically on first run when no photo is set yet. It
+         slides up over a dimmed backdrop (same pattern as the "Add to
+         Home Screen" sheet). Lets you upload / change / remove your
+         photo. Hidden by default; profile.js opens it. -->
     <div id="profile-page" class="profile-page" hidden>
-      <div class="profile-page__inner">
+      <div class="profile-page__backdrop" data-profile-close></div>
+      <div class="profile-page__panel" role="dialog" aria-modal="true" aria-label="Your profile photo">
+        <div class="profile-page__grabber" aria-hidden="true"></div>
         <header class="profile-page__top">
-          <button type="button" class="profile-page__back" data-profile-close aria-label="Back">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
-              <path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-          <h1 class="profile-page__title">Your profile</h1>
+          <h1 class="profile-page__title">Your profile photo</h1>
+          <button type="button" class="profile-page__close" data-profile-close aria-label="Close">&times;</button>
         </header>
 
         <section class="profile-page__photo-block">
