@@ -906,11 +906,6 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   max-width: 480px;
   width: 100%;
 }
-.welcome__logo {
-  opacity: 0.85;
-  margin-bottom: 4px;
-}
-.welcome__logo svg rect { display: none; }
 .welcome__question {
   margin: 0;
   font-family: var(--font-display);
@@ -3097,3 +3092,200 @@ html.seed-modal-open { overflow: hidden; }
   cursor: pointer;
 }
 .pitch-script__copy:hover { background: #000; }
+
+/* ── Welcome avatar (centre profile photo) ──────────────────────────── */
+
+/* Replaces the old rainbow globe at the top of the welcome screen. Shows
+   the founder's photo, or a placeholder prompting them to add one;
+   tapping it opens the profile page. */
+.welcome__avatar {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #ede8e0);
+  color: var(--color-muted, #6f6a65);
+  box-shadow: var(--shadow-button);
+}
+.welcome__avatar:hover { background: var(--color-hover, #fff9f0); }
+.welcome__avatar:active { transform: scale(0.98); }
+.welcome__avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: cover;
+}
+.welcome__avatar-empty { display: inline-flex; align-items: center; justify-content: center; }
+/* Little "+" badge inviting an upload; hidden once a photo is set. */
+.welcome__avatar-add {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--color-foreground, #2d2a26);
+  color: var(--color-background, #fffdf7);
+  border: 2px solid var(--color-background, #fffdf7);
+}
+.welcome__avatar--set .welcome__avatar-add { display: none; }
+
+/* ── Profile sheet (photo upload) ───────────────────────────────────── */
+
+/* A bottom-sheet card that slides up over a dimmed backdrop — the same
+   shape and motion as the "Add to Home Screen" install sheet. */
+.profile-page {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.profile-page[hidden] { display: none; }
+.profile-page__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 24, 40, 0.45);
+}
+.profile-page__panel {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  max-height: 92vh;
+  max-height: 92dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--color-surface, #fff);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 40px rgba(45, 42, 38, 0.22);
+  padding: 12px 20px calc(env(safe-area-inset-bottom, 0px) + 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+/* Smooth slide-up on open — the browser restarts the animation each
+   time the sheet leaves display:none. The backdrop fades in alongside. */
+@keyframes profile-sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes profile-sheet-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.profile-page:not([hidden]) .profile-page__panel {
+  animation: profile-sheet-up 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.profile-page:not([hidden]) .profile-page__backdrop {
+  animation: profile-sheet-fade 360ms ease both;
+}
+/* Honour a reduced-motion preference — appear instantly, no slide. */
+@media (prefers-reduced-motion: reduce) {
+  .profile-page:not([hidden]) .profile-page__panel,
+  .profile-page:not([hidden]) .profile-page__backdrop { animation: none; }
+}
+/* Drag-handle grabber at the sheet's top edge (decorative cue). */
+.profile-page__grabber {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-border, #ede8e0);
+  margin: 0 auto 2px;
+  flex-shrink: 0;
+}
+.profile-page__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.profile-page__title {
+  margin: 0;
+  font-family: var(--font-display, "Plus Jakarta Sans", sans-serif);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.profile-page__close {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--color-muted, #6f6a65);
+}
+.profile-page__close:hover { background: var(--color-hover, #fff9f0); }
+
+.profile-page__photo-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 6px;
+}
+.profile-photo {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #ede8e0);
+  color: var(--color-muted, #6f6a65);
+}
+.profile-photo__img { width: 100%; height: 100%; object-fit: cover; }
+.profile-photo__empty { display: inline-flex; }
+.profile-photo__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.profile-photo__upload {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--color-foreground, #2d2a26);
+  color: var(--color-background, #fffdf7);
+  border: 1px solid var(--color-foreground, #2d2a26);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.profile-photo__upload:hover { background: #000; }
+.profile-photo__remove {
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #ede8e0);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-muted, #6f6a65);
+}
+.profile-photo__remove:hover { background: var(--color-hover, #fff9f0); }
+.profile-photo__remove[hidden] { display: none; }
+.profile-photo__hint {
+  margin: 0;
+  min-height: 16px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #b23a3a;
+  text-align: center;
+}

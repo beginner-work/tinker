@@ -72,6 +72,43 @@
     </button>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
+    <!-- Profile sheet — a bottom-sheet card for your profile photo,
+         opened by tapping the avatar in the centre of the welcome screen,
+         and shown automatically on first run when no photo is set yet. It
+         slides up over a dimmed backdrop (same pattern as the "Add to
+         Home Screen" sheet). Lets you upload / change / remove your
+         photo. Hidden by default; profile.js opens it. -->
+    <div id="profile-page" class="profile-page" hidden>
+      <div class="profile-page__backdrop" data-profile-close></div>
+      <div class="profile-page__panel" role="dialog" aria-modal="true" aria-label="Your profile photo">
+        <div class="profile-page__grabber" aria-hidden="true"></div>
+        <header class="profile-page__top">
+          <h1 class="profile-page__title">Your profile photo</h1>
+          <button type="button" class="profile-page__close" data-profile-close aria-label="Close">&times;</button>
+        </header>
+
+        <section class="profile-page__photo-block">
+          <div class="profile-photo">
+            <img class="profile-photo__img" data-avatar-img alt="Your profile photo" hidden />
+            <span class="profile-photo__empty" data-avatar-empty aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="56" height="56" fill="none">
+                <circle cx="12" cy="8.5" r="3.8" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M4.5 20c0-4 3.4-6 7.5-6s7.5 2 7.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </span>
+          </div>
+          <div class="profile-photo__actions">
+            <label class="profile-photo__upload">
+              <input type="file" accept="image/*" data-avatar-input hidden />
+              <span data-avatar-upload-label>Upload a photo</span>
+            </label>
+            <button type="button" class="profile-photo__remove" data-avatar-remove hidden>Remove</button>
+          </div>
+          <p class="profile-photo__hint" data-avatar-error aria-live="polite"></p>
+        </section>
+      </div>
+    </div>
+
     <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar">
       <header class="sidebar__top">
         <button id="nav-home" class="sidebar__brand" type="button" title="Pick a place to start writing">
@@ -153,19 +190,22 @@
            sidebar. Once a seed is tapped, #writing takes over. -->
       <section id="welcome" class="feed welcome" data-active>
         <div class="welcome__inner">
-          <div class="welcome__logo" aria-hidden="true">
-            <svg data-rainbow-logo viewBox="0 0 200 200" width="56" height="56" fill="none">
-              <rect width="200" height="200" rx="44" fill="#f5f3ef" />
-              <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
-              <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
-              <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
-              <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
-              <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
-              <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
-              <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
-            </svg>
-          </div>
-          <h1 class="welcome__question">Everyone is a founder.</h1>
+          <button type="button" id="welcome-avatar" class="welcome__avatar"
+                  aria-label="Add or change your profile photo">
+            <img class="welcome__avatar-img" data-avatar-img alt="Your profile photo" hidden />
+            <span class="welcome__avatar-empty" data-avatar-empty aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="40" height="40" fill="none">
+                <circle cx="12" cy="8.5" r="3.8" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M4.5 20c0-4 3.4-6 7.5-6s7.5 2 7.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="welcome__avatar-add" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+                <path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              </svg>
+            </span>
+          </button>
+          <h1 class="welcome__question">You are a founder.</h1>
           <p class="welcome__sub">You just need a seed to start.</p>
           <p class="welcome__prompt">Where are you right now?</p>
           <div id="welcome-grid" class="welcome__grid" role="group" aria-label="Where are you right now?">
@@ -581,6 +621,7 @@
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>
+    <script src="./profile.js" defer></script>
     <script src="./update-banner.js" defer></script>
     <script src="./notifications.js" defer></script>
     <!-- Offline app shell: registers sw.js so a refresh (and a cold
