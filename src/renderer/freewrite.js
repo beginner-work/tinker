@@ -16,6 +16,8 @@
  *     free-write composer — see writing.js.
  *   - State is painted: a status pill, a pressed sidebar toggle, and a
  *     `freewrite-on` class on <html>.
+ *   - A connection drop also fires a toast through the notification
+ *     component (notifications.js) so the founder knows they're offline.
  *
  * State is derived live from connectivity plus an in-session manual
  * override — nothing is persisted, so a reload always reflects the real
@@ -116,10 +118,37 @@
     } catch { /* ignore */ }
   }
 
+  // Reuse the notification component (notifications.js) to tell the
+  // founder they've dropped offline. Prefer the direct call; fall back
+  // to the tinker:notify event the same way renderer.js does, so this
+  // works regardless of script load order.
+  function notifyOffline() {
+    const payload = {
+      kind: "freewrite",
+      title: "You're offline",
+      body:
+        "Free write mode is on. Your writing is saved on this device and " +
+        "syncs when you reconnect.",
+    };
+    try {
+      if (typeof window.tinkerNotify === "function") window.tinkerNotify(payload);
+      else window.dispatchEvent(new CustomEvent("tinker:notify", { detail: payload }));
+    } catch { /* ignore */ }
+  }
+
   let lastActive = active();
+  let lastOffline = isOffline();
   function settle() {
     const now = active();
+    const offline = isOffline();
     reflect();
+    // A connection drop flips free write on automatically — surface it
+    // as a toast. Tracked separately from `active` so a manual override
+    // that's already on still gets the offline notice.
+    if (offline !== lastOffline) {
+      lastOffline = offline;
+      if (offline) notifyOffline();
+    }
     if (now === lastActive) return;
     lastActive = now;
     emitChanged(now);
@@ -152,6 +181,7 @@
     });
     reflect();
     lastActive = active();
+    lastOffline = isOffline();
   }
 
   if (document.readyState === "loading") {
