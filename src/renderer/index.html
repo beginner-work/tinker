@@ -39,6 +39,10 @@
          seeds.js/heatmap.js/sidebar-tree.js so its hydrate() can fire
          as soon as a token exists; consumer modules subscribe to the
          tinker:hydrated event to re-render from refreshed storage. -->
+    <!-- Airplane mode: install the /api/* network gate before sync.js
+         (or anything else) can phone home, so a reload taken mid-flight
+         stays grounded. -->
+    <script src="./airplane.js" defer></script>
     <script src="./sync.js" defer></script>
     <script src="./transactions.js" defer></script>
     <script src="./seeds.js" defer></script>
@@ -123,6 +127,20 @@
                 <path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
               </svg>
               <span class="sidebar__account-label">Receipts</span>
+            </button>
+          </li>
+          <!-- Airplane mode: a deliberate offline switch. Wired by
+               airplane.js, which gates /api/* and paints the state. -->
+          <li>
+            <button id="nav-airplane" type="button"
+                    class="sidebar__account-item sidebar__account-item--toggle"
+                    aria-pressed="false"
+                    title="Keep writing offline — pause sync until you land">
+              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="currentColor"/>
+              </svg>
+              <span class="sidebar__account-label">Airplane mode</span>
+              <span class="sidebar__account-state" data-airplane-state aria-hidden="true">Off</span>
             </button>
           </li>
           <!-- Share button: revealed by share.js only when the app is
@@ -353,6 +371,16 @@
          that expose Add to Home Screen — Safari and Chrome iOS, but
          not in-app webviews — when not already standalone and not
          inside Capacitor, then wires the sheet. -->
+    <!-- Airplane mode status pill — floats top-centre while airborne,
+         with a one-tap exit. Shown/hidden by airplane.js. -->
+    <div id="airplane-banner" class="airplane-banner" role="status" aria-live="polite" hidden>
+      <svg class="airplane-banner__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="currentColor"/>
+      </svg>
+      <span class="airplane-banner__text">Airplane mode — saved on this device. Sync resumes when you land.</span>
+      <button type="button" class="airplane-banner__action" data-airplane-off>Turn off</button>
+    </div>
+
     <div id="pwa-hint" class="pwa-hint" role="region" aria-label="Install tinker" hidden>
       <span class="pwa-hint__icon" aria-hidden="true">
         <svg data-rainbow-logo viewBox="0 0 200 200" fill="none">

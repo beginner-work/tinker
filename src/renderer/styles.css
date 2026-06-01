@@ -185,6 +185,77 @@ html.on-web .sidebar__top {
 }
 .sidebar__account-flash.is-visible { opacity: 1; }
 
+/* Airplane mode toggle — a switch row in the account list. The "Off/On"
+ * chip sits at the trailing edge; flipping it on tints the row and the
+ * chip with the brand accent so the state reads at a glance. */
+.sidebar__account-state {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  background: var(--color-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 2px 9px;
+  line-height: 1.5;
+}
+.sidebar__account-item--toggle[aria-pressed="true"] {
+  background: var(--color-accent-dim);
+}
+.sidebar__account-item--toggle[aria-pressed="true"] .sidebar__account-icon {
+  color: var(--color-accent-strong);
+}
+.sidebar__account-item--toggle[aria-pressed="true"] .sidebar__account-state {
+  color: var(--color-accent-strong);
+  background: var(--color-surface);
+  border-color: var(--color-accent);
+}
+
+/* Airplane mode status pill — a floating, top-centre status surface that
+ * persists while the switch is on, with a one-tap exit. Fixed so it
+ * never disturbs the sidebar/stage flex layout; clears the iOS safe area
+ * and the macOS drag strip. */
+.airplane-banner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 95;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(92vw, 460px);
+  padding: 7px 7px 7px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-soft);
+  color: var(--color-foreground);
+  font-size: 13px;
+  line-height: 1.35;
+  -webkit-app-region: no-drag;
+}
+.airplane-banner[hidden] { display: none; }
+.airplane-banner__icon { color: var(--color-accent-strong); flex-shrink: 0; }
+.airplane-banner__text { min-width: 0; }
+.airplane-banner__action {
+  flex-shrink: 0;
+  padding: 5px 13px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-dim);
+  color: var(--color-accent-strong);
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.airplane-banner__action:hover {
+  background: var(--color-accent);
+  color: var(--color-surface);
+}
+
 /* ── Sidebar pitch-deck tree (v0.103) ─────────────────────────────
  *
  * Mirrors pitch-deck.md inside the sidebar. The top tier rows hold one
