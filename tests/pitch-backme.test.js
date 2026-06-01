@@ -1,18 +1,18 @@
-/* Pitch-button unlock contract.
+/* Pitch-button destination contract.
  *
  * The sidebar's bottom-of-nav "Pitch" button used to be permanently
- * locked (disabled, lock icon, never fired). Until the founder is on a
- * paid monthly plan, pitching happens on beginner instead: the button
- * now carries a link-out (external-link) icon and, on click, opens
- * beginner's /unlock page — the page that describes the Pitch feature
- * and offers the pre-seed ($9/month) subscription.
+ * locked (disabled, lock icon, never fired). Pitching happens on
+ * beginner instead: the button now carries a link-out (external-link)
+ * icon and, on click, opens the founder's "Back me" page — their
+ * profile's QR code (deep-linked to the Back me tab at #share) that
+ * backers scan to start the pre-seed ($9/month) subscription.
  *
- * The button opens the canonical production checkout at
- * beginner.work/unlock from every tinker surface. tinker has no custom
- * domain — its own production is served from *.vercel.app — so the URL
- * must NOT be gated on the hostname (an earlier `.vercel.app` check sent
- * production founders to a stale beginner branch-preview alias instead
- * of the live checkout page).
+ * The button opens the canonical production profile at
+ * beginner.work/tyler-lindow#share from every tinker surface. tinker has
+ * no custom domain — its own production is served from *.vercel.app — so
+ * the URL must NOT be gated on the hostname (an earlier `.vercel.app`
+ * check sent production founders to a stale beginner branch-preview alias
+ * instead of the live page).
  *
  * The renderer is browser-shaped and the existing sidebar-tree sandbox
  * uses a no-op DOM that can't observe events, so this is a source-level
@@ -60,7 +60,7 @@ test("the Pitch button carries a link-out icon, not a lock", () => {
   );
 });
 
-test("clicking Pitch opens beginner's /unlock page", () => {
+test("clicking Pitch opens the founder's Back me page", () => {
   assert.match(
     TREE_SRC,
     /post\.addEventListener\(\s*["']click["']/,
@@ -69,23 +69,25 @@ test("clicking Pitch opens beginner's /unlock page", () => {
   assert.match(
     TREE_SRC,
     /openExternal\(url\)/,
-    "must open the unlock page via the platform openExternal shim",
+    "must open the Back me page via the platform openExternal shim",
   );
 });
 
-test("the unlock URL is the production checkout on every surface", () => {
+test("the Back me URL is the production profile QR on every surface", () => {
+  // The Back me tab is deep-linked at #share, so the founder lands on the
+  // QR view ready to be scanned.
   assert.match(
     TREE_SRC,
-    /https:\/\/beginner\.work\/unlock/,
-    "the button opens the canonical beginner.work/unlock",
+    /https:\/\/beginner\.work\/tyler-lindow#share/,
+    "the button opens the canonical beginner.work Back me page (#share)",
   );
   // Regression guard: production tinker is itself on *.vercel.app, so the
-  // unlock target must not depend on the hostname, and must never carry a
+  // target must not depend on the hostname, and must never carry a
   // hardcoded beginner branch-preview alias (which goes stale the moment
   // its branch merges).
   assert.doesNotMatch(
     TREE_SRC,
     /beginner-git-[\w-]*\.vercel\.app/,
-    "the unlock URL must not point at a beginner branch-preview alias",
+    "the Back me URL must not point at a beginner branch-preview alias",
   );
 });
