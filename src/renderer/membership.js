@@ -1,0 +1,177 @@
+/* membership.js — sidebar "Account" plan row.
+ *
+ * Surfaces which membership tier the signed-in founder is on, and what it
+ * costs them each month, right inside the sidebar's Account section. The
+ * server already owns entitlement (api/membership/status reads the one
+ * `membership` row the Stripe webhook writes); this file is the read-only
+ * mirror of that for the eyes.
+ *
+ *   active member  →  "Pre-seed · $9/mo"  +  "Renews Jul 1, 2026"
+ *   free account   →  "Free plan"         +  "Pre-seed is $9/mo" + [Upgrade]
+ *
+ * Tapping the row when there's nothing to buy is a no-op; on a free account
+ * the trailing "Upgrade" badge opens Stripe Checkout via the existing
+ * /api/membership/checkout endpoint and redirects the tab to it.
+ *
+ * Everything is best-effort and same-origin. We only show the row once a
+ * status response has come back, so a signed-out tab — or an Electron /
+ * Capacitor session that authenticates differently and has no token — never
+ * flashes a stale plan. The pure formatter is exposed on
+ * window.tinkerMembership for unit tests.
+ */
+
+(function () {
+  "use strict";
+
+  var TOKEN_KEY = "tinker_jwt";
+
+  // Known tiers and their monthly price, mirroring api/_lib/stripe-checkout.js
+  // (PRESEED_AMOUNT_CENTS = 900). Display copy only — the server is the source
+  // of truth for who's entitled.
+  var TIERS = {
+    "pre-seed": { name: "Pre-seed", monthly: "$9/mo" },
+  };
+
+  function read(key) {
+    try { return localStorage.getItem(key) || ""; } catch { return ""; }
+  }
+  function authHeaders(token) {
+    return { Authorization: "Bearer " + token };
+  }
+
+  // ── Pure formatting ──────────────────────────────────────────────────
+  //
+  // status: { active, tier, status, currentPeriodEnd } — exactly the shape
+  // GET /api/membership/status returns. Returns the three strings the row
+  // renders, plus whether to show the upgrade CTA.
+
+  function formatDate(epochSec) {
+    if (!epochSec) return "";
+    try {
+      var d = new Date(epochSec * 1000);
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    } catch { return ""; }
+  }
+
+  function formatMembership(status) {
+    status = status || {};
+    var info = TIERS[status.tier] || null;
+
+    if (status.active && info) {
+      var when = formatDate(status.currentPeriodEnd);
+      var sub;
+      if (status.status === "trialing") sub = when ? "Free trial — renews " + when : "Free trial";
+      else if (status.status === "past_due") sub = "Payment past due — update card";
+      else sub = when ? "Renews " + when : "Active";
+      return { active: true, label: info.name + " · " + info.monthly, sub: sub, cta: "" };
+    }
+
+    // Anything not entitled reads as a free account, with a nudge to upgrade.
+    return { active: false, label: "Free plan", sub: "Pre-seed is $9/mo", cta: "Upgrade" };
+  }
+
+  // ── Network ──────────────────────────────────────────────────────────
+
+  function loadStatus(token) {
+    return fetch("/api/membership/status", { headers: authHeaders(token) })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .catch(function () { return null; });
+  }
+
+  // Open Stripe Checkout for the pre-seed membership and send the tab there.
+  // The success/cancel URLs bounce back to wherever we are now (returnPath),
+  // and a fresh status fetch on the next load reflects the result.
+  function startCheckout(token, btn) {
+    var returnPath = "/";
+    try { returnPath = window.location.pathname || "/"; } catch { /* ignore */ }
+    return fetch("/api/membership/checkout", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders(token)),
+      body: JSON.stringify({ returnPath: returnPath, origin: window.location.origin }),
+    })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (json) {
+        if (json && json.url) { window.location.href = json.url; return; }
+        if (btn) flashError(btn);
+      })
+      .catch(function () { if (btn) flashError(btn); });
+  }
+
+  function flashError(btn) {
+    var cta = btn.querySelector("[data-membership-cta]");
+    if (!cta) return;
+    var prev = cta.textContent;
+    cta.textContent = "Try again";
+    setTimeout(function () { cta.textContent = prev || "Upgrade"; }, 2200);
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────
+
+  function render(btn, status) {
+    var view = formatMembership(status);
+    var tierEl = btn.querySelector("[data-membership-tier]");
+    var subEl = btn.querySelector("[data-membership-sub]");
+    var ctaEl = btn.querySelector("[data-membership-cta]");
+
+    if (tierEl) tierEl.textContent = view.label;
+    if (subEl) subEl.textContent = view.sub;
+    if (ctaEl) {
+      if (view.cta) { ctaEl.textContent = view.cta; ctaEl.removeAttribute("hidden"); }
+      else { ctaEl.textContent = ""; ctaEl.setAttribute("hidden", ""); }
+    }
+
+    btn.dataset.active = view.active ? "1" : "0";
+    btn.setAttribute(
+      "aria-label",
+      view.active ? "Your plan: " + view.label + ". " + view.sub : "Free plan — upgrade to pre-seed for $9 a month"
+    );
+    btn.removeAttribute("hidden");
+  }
+
+  // ── Orchestration ────────────────────────────────────────────────────
+
+  var inFlight = false;
+  function hydrate() {
+    var btn = document.getElementById("nav-membership");
+    if (!btn) return;
+    var token = read(TOKEN_KEY);
+    // No token → no membership identity (signed-out web, or Electron/Capacitor
+    // which authenticate differently). Keep the row hidden.
+    if (!token) { btn.setAttribute("hidden", ""); return; }
+    if (inFlight) return;
+    inFlight = true;
+
+    if (!btn.dataset.bound) {
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", function () {
+        // Only free accounts have something to do here — start checkout.
+        if (btn.dataset.active === "1") return;
+        var t = read(TOKEN_KEY);
+        if (t) startCheckout(t, btn);
+      });
+    }
+
+    loadStatus(token)
+      .then(function (status) {
+        // A null status (network/5xx) still resolves to the free-plan view —
+        // better a quiet "Free plan" than a missing row mid-session.
+        render(btn, status || {});
+      })
+      .catch(function () { /* best-effort */ })
+      .finally(function () { inFlight = false; });
+  }
+
+  // Pure helper out for tests; refresh out so other modules (e.g. after a
+  // checkout return) can re-pull on demand.
+  window.tinkerMembership = { formatMembership: formatMembership, refresh: hydrate };
+
+  if (typeof document !== "undefined") {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", hydrate, { once: true });
+    } else {
+      hydrate();
+    }
+    window.addEventListener("tinker:auth-changed", hydrate);
+  }
+})();
