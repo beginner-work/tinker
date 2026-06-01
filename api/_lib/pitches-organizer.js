@@ -173,6 +173,27 @@ function listOffPitchWritings(blob, essays, drafts) {
   return out;
 }
 
+// Put the off-pitch writings into a canonical, device-independent order
+// before they go to the clusterer. Two devices can hold the same essays +
+// drafts in different array orders (the sync layer merges by id, not by
+// position), and listOffPitchWritings preserves whatever order it's handed.
+// Feeding the model writings in a different order can produce a different
+// clustering — and, when the corpus exceeds MAX_WRITINGS, the cap would
+// drop a different subset. Sorting first means the prompt (and the cap)
+// depend only on the writings themselves, not on how each device happened
+// to store them: newest first by the writing's own time, ties broken by id
+// so the order is total and stable. Newest-first also means the cap keeps
+// the most recent writings when the corpus is larger than the model budget.
+function sortWritingsForClustering(off, writingTimestamps) {
+  const stamps = writingTimestamps instanceof Map ? writingTimestamps : new Map();
+  return off.slice().sort((a, b) => {
+    const ta = Number(stamps.get(a.id)) || 0;
+    const tb = Number(stamps.get(b.id)) || 0;
+    if (tb !== ta) return tb - ta; // newest first
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0; // stable tiebreak
+  });
+}
+
 function snippetFor(body) {
   const trimmed = String(body || "").trim();
   if (trimmed.length > MAX_SNIPPET_CHARS) return trimmed.slice(0, MAX_SNIPPET_CHARS) + "…";
@@ -445,7 +466,10 @@ async function organize({
   if (redistribute) clearAllDecks(blob);
   else if (refreshPitchId) clearOneDeck(blob, refreshPitchId);
 
-  const off = listOffPitchWritings(blob, safeEssays, safeDrafts);
+  const off = sortWritingsForClustering(
+    listOffPitchWritings(blob, safeEssays, safeDrafts),
+    writingTimestamps,
+  );
   const summary = {
     offPitchCount: off.length,
     rehomed: 0,
@@ -536,6 +560,7 @@ module.exports = {
   emptyDeck,
   normalizeBlob,
   listOffPitchWritings,
+  sortWritingsForClustering,
   writingIdsInAnyPitch,
   foldRehomeResults,
   refreshDeckTimestamps,
