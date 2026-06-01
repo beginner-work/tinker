@@ -8,7 +8,9 @@
  * backers scan to start the pre-seed ($9/month) subscription.
  *
  * The button opens the canonical production profile at
- * beginner.work/tyler-lindow#share from every tinker surface. tinker has
+ * www.beginner.work/tyler-lindow#share from every tinker surface (the bare
+ * apex beginner.work redirects to www, which the PWA in-app iframe can't
+ * follow under tinker's frame-src CSP). tinker has
  * no custom domain — its own production is served from *.vercel.app — so
  * the URL must NOT be gated on the hostname (an earlier `.vercel.app`
  * check sent production founders to a stale beginner branch-preview alias
@@ -85,8 +87,15 @@ test("the Back me URL is the production profile QR on every surface", () => {
   // QR view ready to be scanned.
   assert.match(
     TREE_SRC,
-    /https:\/\/beginner\.work\/tyler-lindow#share/,
-    "the button opens the canonical beginner.work Back me page (#share)",
+    /https:\/\/www\.beginner\.work\/tyler-lindow#share/,
+    "the button opens the canonical www.beginner.work Back me page (#share)",
+  );
+  // The bare apex 308-redirects to www; the PWA iframe can't follow that
+  // cross-origin redirect under tinker's frame-src CSP, so link straight to www.
+  assert.doesNotMatch(
+    TREE_SRC,
+    /["']https:\/\/beginner\.work\/tyler-lindow/,
+    "must not link at the bare apex (it redirects to www)",
   );
   // Regression guard: production tinker is itself on *.vercel.app, so the
   // target must not depend on the hostname, and must never carry a
