@@ -577,10 +577,7 @@
 
     const keepBtn = writingFitContent.querySelector('[data-assessing-action="keep"]');
     const closeBtn = writingFitContent.querySelector('[data-assessing-action="close"]');
-    if (keepBtn) keepBtn.addEventListener("click", () => {
-      if (typeof window.tinkerNewSession === "function") window.tinkerNewSession();
-      else showFeed();
-    });
+    if (keepBtn) keepBtn.addEventListener("click", () => showFeed());
     if (closeBtn) closeBtn.addEventListener("click", () => closeApp());
 
     // Kick off the background settle-watcher — it fires the toast once
