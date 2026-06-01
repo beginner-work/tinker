@@ -707,7 +707,7 @@
   //     tinker:organize-completed with a diff after it returns
   //   - returns { ok, diff?, reason? } instead of throwing, so the
   //     caller can render an error state directly
-  async function triggerOrganizeNow({ force = true } = {}) {
+  async function triggerOrganizeNow({ force = true, redistribute = false } = {}) {
     if (organizeTimer) {
       clearTimeout(organizeTimer);
       organizeTimer = null;
@@ -720,8 +720,11 @@
     catch { /* ignore */ }
     if (!token) return { ok: false, reason: "no-token" };
 
+    // A redistribute re-clusters every writing server-side, so the
+    // organizeHash short-circuit (which only tracks off-pitch drift)
+    // can't tell whether there's work to do — always send it.
     const hash = organizeHash();
-    if (!force && hash === lastOrganizeHash) {
+    if (!force && !redistribute && hash === lastOrganizeHash) {
       return { ok: true, diff: emptyDiff(), skipped: true };
     }
 
@@ -738,7 +741,7 @@
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: "{}",
+        body: JSON.stringify(redistribute ? { redistribute: true } : {}),
       });
       if (!res.ok) {
         lastOrganizeHash = null;
@@ -776,6 +779,18 @@
     // but going through triggerOrganizeNow keeps a single source of
     // truth for the fetch + lifecycle events.
     await triggerOrganizeNow({ force: false });
+  }
+
+  // Founder-pressed "re-align everything". Unlike the background
+  // organize (which only rehomes writings not yet in any pitch), this
+  // asks the server to re-cluster the whole corpus from scratch — every
+  // writing gets reconsidered, duplicate pitch names collapse, and a
+  // writing that drifted into the wrong pitch can move back. If the AI
+  // decides everything's already where it belongs, the diff just comes
+  // back empty. Returns the same { ok, diff?, reason? } shape as
+  // triggerOrganizeNow so the caller can render the outcome.
+  async function redistributePitches() {
+    return triggerOrganizeNow({ force: true, redistribute: true });
   }
 
   // Replace the in-memory blob with the server's authoritative one
@@ -925,6 +940,7 @@
     scheduleOrganize,
     triggerOrganize,
     triggerOrganizeNow,
+    redistributePitches,
     findPitchForWriting,
     placementSnapshot,
     diffSnapshots,

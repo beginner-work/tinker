@@ -424,6 +424,53 @@
   // founder-edited rather than verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
+  // Redistribute ("re-align") button state. `redistributing` flips the
+  // button into its disabled/busy face while the server re-clusters;
+  // `redistributeMsg` holds the one-line outcome shown beneath it after
+  // the round returns (cleared on the next switcher interaction).
+  let redistributing = false;
+  let redistributeMsg = null;
+
+  // Turn an organize diff into the short line shown under the button.
+  // No moves and no removed pitches → the AI judged everything already
+  // in place, which is a valid (and common) outcome, not a failure.
+  function describeRedistribute(diff) {
+    const moved = (diff && Array.isArray(diff.movedWritings)) ? diff.movedWritings.length : 0;
+    const merged = (diff && Array.isArray(diff.removedPitchIds)) ? diff.removedPitchIds.length : 0;
+    if (!moved && !merged) return "Already aligned — nothing moved.";
+    const parts = [];
+    if (moved) parts.push(`moved ${moved} ${moved === 1 ? "essay" : "essays"}`);
+    if (merged) parts.push(`merged ${merged} ${merged === 1 ? "pitch" : "pitches"}`);
+    return `Re-aligned — ${parts.join(", ")}.`;
+  }
+
+  async function runRedistribute() {
+    const pm = pitchesApi();
+    if (!pm || typeof pm.redistributePitches !== "function") return;
+    if (redistributing) return;
+    redistributing = true;
+    redistributeMsg = null;
+    switcherOpen = false;
+    renameOpen = false;
+    render();
+    let result;
+    try {
+      result = await pm.redistributePitches();
+    } catch {
+      result = { ok: false, reason: "error" };
+    }
+    redistributing = false;
+    if (result && result.ok) {
+      redistributeMsg = describeRedistribute(result.diff);
+    } else if (result && result.reason === "no-token") {
+      redistributeMsg = "Sign in to re-align your pitches.";
+    } else if (result && result.reason === "inflight") {
+      redistributeMsg = null; // a round was already running; stay quiet
+    } else {
+      redistributeMsg = "Couldn't re-align — try again in a moment.";
+    }
+    render();
+  }
 
   // Render the two-line title block used in the dropdown face and
   // in each menu item. Personal title on top (the founder's
@@ -518,6 +565,7 @@
       e.stopPropagation();
       switcherOpen = !switcherOpen;
       renameOpen = false;
+      redistributeMsg = null;
       render();
     });
     row.appendChild(face);
@@ -575,6 +623,7 @@
       e.stopPropagation();
       renameOpen = !renameOpen;
       switcherOpen = false;
+      redistributeMsg = null;
       render();
       if (renameOpen) {
         setTimeout(() => {
@@ -619,6 +668,31 @@
         }
       });
       switcherEl.appendChild(form);
+    }
+
+    // "Redistribute" — re-align every writing across pitches in one
+    // pass. The background organize only ever places writings that
+    // aren't slotted yet, so a writing that landed in the wrong pitch
+    // (or a pitch name that got duplicated) stays stuck until the
+    // founder asks for a fresh sweep here.
+    const redistribute = document.createElement("button");
+    redistribute.type = "button";
+    redistribute.className = "sidebar__pitch-action sidebar__pitch-action--secondary";
+    redistribute.textContent = redistributing ? "Re-aligning…" : "Redistribute";
+    redistribute.disabled = redistributing;
+    if (redistributing) redistribute.setAttribute("aria-busy", "true");
+    redistribute.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      runRedistribute();
+    });
+    switcherEl.appendChild(redistribute);
+
+    if (redistributeMsg) {
+      const note = document.createElement("p");
+      note.className = "sidebar__pitch-redistribute-note";
+      note.textContent = redistributeMsg;
+      switcherEl.appendChild(note);
     }
   }
 

@@ -653,6 +653,12 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 .sidebar__pitch-post {
   padding: 6px 10px 10px;
 }
+.sidebar__pitch-redistribute-note {
+  margin: 6px 2px 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
 .sidebar__pitch-rename-form {
   display: flex;
   gap: 4px;
