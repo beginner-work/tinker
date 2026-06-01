@@ -39,9 +39,9 @@
          seeds.js/heatmap.js/sidebar-tree.js so its hydrate() can fire
          as soon as a token exists; consumer modules subscribe to the
          tinker:hydrated event to re-render from refreshed storage. -->
-    <!-- Free write mode: install the /api/* network gate before sync.js
-         (or anything else) can phone home, so a load taken offline stays
-         grounded. Auto-detects connectivity via navigator.onLine. -->
+    <!-- No AI mode (freewrite.js): install the /api/* network gate before
+         sync.js (or anything else) can phone home, so a load taken offline
+         stays grounded. Auto-detects connectivity via navigator.onLine. -->
     <script src="./freewrite.js" defer></script>
     <script src="./sync.js" defer></script>
     <script src="./transactions.js" defer></script>
@@ -129,21 +129,9 @@
               <span class="sidebar__account-label">Receipts</span>
             </button>
           </li>
-          <!-- Free write mode: on automatically when offline, or as a
-               manual override. Wired by freewrite.js, which gates /api/*
-               and paints the state. -->
-          <li>
-            <button id="nav-freewrite" type="button"
-                    class="sidebar__account-item sidebar__account-item--toggle"
-                    aria-pressed="false"
-                    title="Write freely — no questions, no waiting">
-              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
-              </svg>
-              <span class="sidebar__account-label">Free write</span>
-              <span class="sidebar__account-state" data-freewrite-state aria-hidden="true">Off</span>
-            </button>
-          </li>
+          <!-- No AI mode lives front-and-centre on the welcome page and on
+               the floating bottom mode nav (#mode-nav), not here — the
+               sidebar stays out of the way. freewrite.js owns the state. -->
           <!-- Share button: revealed by share.js only when the app is
                running as an installed PWA (standalone) or inside a
                wrapped runtime (Capacitor). Stays hidden in plain
@@ -188,27 +176,26 @@
           </div>
           <h1 class="welcome__question">Everyone is a founder.</h1>
           <p class="welcome__sub">You just need a seed to start.</p>
-          <p class="welcome__prompt">Where are you right now?</p>
-          <div id="welcome-grid" class="welcome__grid" role="group" aria-label="Where are you right now?">
-            <button type="button" class="welcome__tile" data-location="cafe">
-              <span class="welcome__tile-label">Cafe</span>
-            </button>
-            <button type="button" class="welcome__tile" data-location="home">
-              <span class="welcome__tile-label">Home</span>
-            </button>
-            <button type="button" class="welcome__tile" data-location="work">
-              <span class="welcome__tile-label">Work</span>
-            </button>
-            <button type="button" class="welcome__tile" data-location="other">
-              <span class="welcome__tile-label">Somewhere else</span>
-            </button>
-          </div>
-          <form id="welcome-form" class="welcome__form" autocomplete="off" hidden>
-            <input id="welcome-input" class="welcome__input" type="text"
-                   placeholder="Where are you?"
-                   autocomplete="off" spellcheck="false" maxlength="120" />
-            <button type="submit" class="welcome__submit">Start →</button>
-          </form>
+
+          <!-- No AI mode, front and centre: the primary way in. Tapping
+               turns on No AI mode (freewrite.js) and opens a blank
+               composer with the spectrum bar — no questions, no waiting.
+               Wired in renderer.js. The AI path lives on the floating
+               bottom mode nav (#mode-nav), not here. -->
+          <button id="welcome-noai" type="button" class="welcome__noai">
+            <span class="welcome__noai-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+                <path d="M14.5 4.6l3.6 3.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                <path d="M5.2 14l9-9 3.6 3.6-9 9-4.2.9.6-4.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                <path d="M3 21c1.6-1.1 3.4-1.1 5 0s3.4 1.1 5 0 3.4-1.1 5 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="welcome__noai-copy">
+              <span class="welcome__noai-title">Write without AI</span>
+              <span class="welcome__noai-sub">Just you and the page. Set your colour, pour it out.</span>
+            </span>
+            <span class="welcome__noai-go" aria-hidden="true">→</span>
+          </button>
         </div>
       </section>
 
@@ -371,16 +358,39 @@
          that expose Add to Home Screen — Safari and Chrome iOS, but
          not in-app webviews — when not already standalone and not
          inside Capacitor, then wires the sheet. -->
-    <!-- Manual free-write pill — floats top-centre while free write is
-         on by choice (online), with a one-tap exit. Shown/hidden by
-         freewrite.js. While genuinely offline the pill stays hidden and
-         the offline notification toast (notifications.js) stands in. -->
-    <div id="freewrite-banner" class="freewrite-banner" role="status" aria-live="polite" hidden>
-      <svg class="freewrite-banner__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
-      </svg>
-      <span class="freewrite-banner__text" data-freewrite-text>Free write — just write. Saved here, off to your pitch when you stop.</span>
-      <button type="button" class="freewrite-banner__action" data-freewrite-off>Turn off</button>
+    <!-- Floating bottom mode nav — a liquid-glass pill that switches
+         between writing with AI (the Claude interview) and No AI mode
+         (write freely, no questions). Two segments: a sparkle for AI, a
+         writing hand for No AI. The offline sliver below it slides out
+         the bottom edge when the device drops its connection — at which
+         point No AI mode is forced on and the AI segment is disabled.
+         Wired and painted by freewrite.js. -->
+    <div id="mode-nav" class="mode-nav" role="group" aria-label="Writing mode">
+      <div class="mode-nav__bar">
+        <button id="mode-ai" type="button" class="mode-nav__btn" data-mode-ai
+                aria-pressed="true" title="Write with AI — the guided interview">
+          <svg class="mode-nav__icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path d="M12 3l1.7 4.6L18.5 9.3l-4.8 1.7L12 15.7l-1.7-4.7L5.5 9.3l4.8-1.7L12 3z" fill="currentColor"/>
+            <path d="M18.6 14.3l.85 2.25 2.25.85-2.25.85-.85 2.25-.85-2.25-2.25-.85 2.25-.85.85-2.25z" fill="currentColor"/>
+          </svg>
+          <span class="mode-nav__label">AI</span>
+        </button>
+        <button id="mode-noai" type="button" class="mode-nav__btn" data-mode-noai
+                aria-pressed="false" title="No AI — write freely, no questions">
+          <svg class="mode-nav__icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none">
+            <path d="M14.5 4.6l3.6 3.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M5.2 14l9-9 3.6 3.6-9 9-4.2.9.6-4.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M3 21c1.6-1.1 3.4-1.1 5 0s3.4 1.1 5 0 3.4-1.1 5 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+          <span class="mode-nav__label">No AI</span>
+        </button>
+      </div>
+      <!-- Offline sliver — a simple "You're offline" strip attached to
+           the bottom of the glass bar. Revealed by freewrite.js only
+           while navigator.onLine is false. -->
+      <div class="mode-nav__offline" data-offline-sliver role="status" aria-live="polite" hidden>
+        You're offline
+      </div>
     </div>
 
     <div id="pwa-hint" class="pwa-hint" role="region" aria-label="Install tinker" hidden>

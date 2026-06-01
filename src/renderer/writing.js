@@ -67,12 +67,12 @@
   window.tinkerWriting = {
     open(draft) {
       active = draft;
-      // Free write mode (offline, or the manual override): there's no
-      // Claude to talk to, so drop the back-and-forth interview entirely.
-      // Offer one free-write composer with a single "This is everything"
-      // button that saves to local storage; the essay goes off to the
-      // pitch when we reconnect. See renderer.js' publishDeferred /
-      // flushPendingPitches.
+      // No AI mode (offline, or the manual choice): there's no Claude to
+      // talk to, so drop the back-and-forth interview entirely. Offer one
+      // composer — spectrum bar to colour your writing, and a single
+      // "This is everything" button that saves to local storage; the
+      // essay goes off to the pitch when we reconnect. See renderer.js'
+      // publishDeferred / flushPendingPitches.
       if (isFreeWrite()) {
         renderFreewriteCompose();
         return;
@@ -106,6 +106,7 @@
       facing: active.facing,
       lastPurchased: active.lastPurchased,
       freeform: active.freeform,
+      inkColor: active.inkColor,
       _scratch: active._scratch,
       ...(extraPatch || {}),
     };
@@ -297,14 +298,88 @@
     setTimeout(() => whereInput.focus(), 30);
   }
 
-  // ── Free write mode ──────────────────────────────────────────────────
-  // No interview, no Claude, no progress dots — one big input and one
-  // button. The founder pours it all out; "This is everything" hands the
-  // raw text to renderer.js to save locally and queue for the pitch.
+  // ── No AI mode ─────────────────────────────────────────────────────
+  // No interview, no Claude, no progress dots — one big input, the
+  // spectrum bar, and one button. The founder pours it all out;
+  // "This is everything" hands the raw text to renderer.js to save
+  // locally and queue for the pitch.
   const FREEWRITE_GLYPH =
-    '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>';
+    '<path d="M14.5 4.6l3.6 3.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/>' +
+    '<path d="M5.2 14l9-9 3.6 3.6-9 9-4.2.9.6-4.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/>' +
+    '<path d="M3 21c1.6-1.1 3.4-1.1 5 0s3.4 1.1 5 0 3.4-1.1 5 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/>';
   const CHECK_GLYPH =
     '<path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
+
+  // The spectrum bar's emotional centre: a warm→cool sweep of the brand
+  // palette. `swatch` is the pastel shown on the dot; `ink` is the
+  // readable tone the writing takes on when that colour is chosen.
+  const SPECTRUM = [
+    { name: "Rose",   swatch: "#f9a8d4", ink: "#db2777" },
+    { name: "Peach",  swatch: "#fdba74", ink: "#ea580c" },
+    { name: "Amber",  swatch: "#fcd34d", ink: "#b45309" },
+    { name: "Sage",   swatch: "#6ee7b7", ink: "#15803d" },
+    { name: "Sky",    swatch: "#7dd3fc", ink: "#0284c7" },
+    { name: "Indigo", swatch: "#a5b4fc", ink: "#4f46e5" },
+    { name: "Violet", swatch: "#c4b5fd", ink: "#7c3aed" },
+  ];
+  const SPECTRUM_HINT = "Tap a colour as your mood shifts";
+
+  // The spectrum bar — adjust your emotional centre as you write. Picking
+  // a colour tints the live writing (and caret); tapping the same colour
+  // again returns to neutral ink. The chosen ink persists on the draft.
+  function buildSpectrum(ta) {
+    const wrap = document.createElement("div");
+    wrap.className = "spectrum";
+    wrap.setAttribute("role", "radiogroup");
+    wrap.setAttribute("aria-label", "Emotional centre — colour your writing");
+
+    const label = document.createElement("div");
+    label.className = "spectrum__label";
+    label.innerHTML =
+      `<span class="spectrum__label-text">Your emotional centre</span>` +
+      `<span class="spectrum__hint" data-spectrum-hint>${SPECTRUM_HINT}</span>`;
+    wrap.appendChild(label);
+    const hint = label.querySelector("[data-spectrum-hint]");
+
+    const track = document.createElement("div");
+    track.className = "spectrum__track";
+
+    function applyInk(ink) {
+      active.inkColor = ink || null;
+      ta.style.color = ink || "";
+      ta.style.caretColor = ink || "";
+    }
+
+    SPECTRUM.forEach((c) => {
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "spectrum__dot";
+      dot.style.setProperty("--swatch", c.swatch);
+      dot.setAttribute("role", "radio");
+      dot.setAttribute("aria-label", c.name);
+      dot.setAttribute("aria-checked", active.inkColor === c.ink ? "true" : "false");
+      dot.addEventListener("click", () => {
+        const already = active.inkColor === c.ink;
+        const nextInk = already ? null : c.ink;
+        applyInk(nextInk);
+        track.querySelectorAll(".spectrum__dot").forEach((d) =>
+          d.setAttribute("aria-checked", "false"));
+        if (nextInk) dot.setAttribute("aria-checked", "true");
+        if (hint) hint.textContent = nextInk ? c.name : SPECTRUM_HINT;
+        persist();
+      });
+      track.appendChild(dot);
+    });
+    wrap.appendChild(track);
+
+    // Restore the saved emotional centre.
+    applyInk(active.inkColor || null);
+    if (active.inkColor) {
+      const match = SPECTRUM.find((c) => c.ink === active.inkColor);
+      if (match && hint) hint.textContent = match.name;
+    }
+    return wrap;
+  }
 
   function renderFreewriteCompose() {
     if (!active) return;
@@ -315,23 +390,27 @@
     head.className = "writing-freewrite__head";
     head.innerHTML =
       `<div class="writing-freewrite__crumb">` +
-      `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">${FREEWRITE_GLYPH}</svg>` +
-      `<span>Free write</span></div>` +
+      `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none">${FREEWRITE_GLYPH}</svg>` +
+      `<span>No AI</span></div>` +
       `<h2 class="writing-question">${escapeHtml(SEED_QUESTION)}</h2>` +
-      `<p class="writing-freewrite__sub">No questions here — just write. When you reconnect, this goes to your pitch like any other essay.</p>`;
+      `<p class="writing-freewrite__sub">No questions here — just write. Set your colour as your mood moves. When you reconnect, this goes to your pitch like any other essay.</p>`;
     card.appendChild(head);
 
     const ta = document.createElement("textarea");
     ta.className = "writing-input writing-freewrite__input";
     ta.placeholder = "Write everything. One long stream is fine — you can shape it later.";
     ta.rows = 14;
-    // Restore an in-progress free-write; if none, fall back to any
-    // answers already given in an interview so dropping into free write
-    // mid-draft never loses words.
+    // Restore an in-progress draft; if none, fall back to any answers
+    // already given in an interview so dropping into No AI mode mid-draft
+    // never loses words.
     ta.value =
       active.freeform ||
       (active.transcript || []).map((t) => t.a).filter(Boolean).join("\n\n") ||
       "";
+
+    // Spectrum bar sits between the prompt and the page — the founder
+    // adjusts their emotional centre, and the writing takes the colour.
+    card.appendChild(buildSpectrum(ta));
     card.appendChild(ta);
 
     const actions = document.createElement("div");
@@ -362,7 +441,7 @@
     // One button only — hide the top-bar Next / "This is everything"
     // controls and the progress dots; they don't apply here.
     progressEl.innerHTML = "";
-    stepEl.textContent = "Free write";
+    stepEl.textContent = "No AI";
     nextBtn.hidden = true;
     endBtn.hidden = true;
 
