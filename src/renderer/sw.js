@@ -28,7 +28,7 @@
  * precache list or this file's logic changes to evict the old cache.
  */
 
-const CACHE_VERSION = "tinker-shell-v4";
+const CACHE_VERSION = "tinker-shell-v5";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -123,10 +123,18 @@ async function networkFirstDoc(req) {
   const cache = await caches.open(CACHE_VERSION);
   try {
     const fresh = await fetch(req);
-    // Refresh the canonical shell entry so the next offline navigation
-    // gets the latest index.html, regardless of any ?_v= cache-buster
-    // update-banner.js may have appended.
-    if (fresh && fresh.ok) cache.put("/index.html", fresh.clone());
+    // Refresh *both* canonical shell keys so the next offline navigation
+    // gets the latest welcome screen, regardless of any ?_v= cache-buster
+    // update-banner.js may have appended. A navigation to the root requests
+    // "/", and the offline fallback matches that entry first — so updating
+    // only "/index.html" left the "/" entry frozen at install-time bytes.
+    // That stranded installed PWAs on whatever shell was live when the
+    // current CACHE_VERSION was precached (an old "Everyone is a founder"
+    // welcome lingering offline across deploys). Keep the two in lockstep.
+    if (fresh && fresh.ok) {
+      cache.put("/", fresh.clone());
+      cache.put("/index.html", fresh.clone());
+    }
     return fresh;
   } catch {
     return (
