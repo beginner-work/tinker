@@ -1,13 +1,21 @@
-/* profile.js — the top-right profile section and the share-pitch QR.
+/* profile.js — the founder's profile photo, the profile page, and the
+ * share-pitch QR.
  *
- * The profile icon (#profile-avatar, fixed in the top-right corner) IS
- * the share button: tapping it raises #qr-modal — a small sheet that
- * shows a QR encoding the founder's published-pitch reader link, who's
- * signed in, and (web build, with a session token) a sign-out action.
- * Anyone can scan the QR to read the pitch and connect.
+ * The welcome screen's centre avatar (#welcome-avatar) shows the
+ * founder's profile photo — or a placeholder prompting them to add one.
+ * Tapping it opens #profile-page, a full-screen page where they can:
  *
- * The QR itself is drawn with the vendored global `qrcode` (lib/qr.js).
- * The share link comes from /api/feed/published-pitches (most-recently
+ *   • upload / change / remove their photo (stored on the device as a
+ *     downscaled data URL under `tinker_avatar`; broadcast via the
+ *     `tinker:avatar-changed` event so every avatar repaints live), and
+ *   • share their pitch via a QR encoding their published-pitch reader
+ *     link — anyone can scan it to read the pitch and connect.
+ *
+ * The page also shows who's signed in and, on the web build with a live
+ * session token, a sign-out action.
+ *
+ * The QR is drawn with the vendored global `qrcode` (lib/qr.js). The
+ * share link comes from /api/feed/published-pitches (most-recently
  * published first); with nothing published yet we fall back to the app's
  * own URL as a plain invite link and nudge the founder to publish.
  */
@@ -17,6 +25,8 @@
 
   const TOKEN_KEY = "tinker_jwt";
   const PHONE_KEY = "tinker_phone";
+  const AVATAR_KEY = "tinker_avatar";
+  const MAX_DIM = 512; // longest edge after downscale, keeps storage small
 
   function ready(fn) {
     if (document.readyState === "loading") {
@@ -52,33 +62,121 @@
     return window.location.href;
   }
 
-  // ── Identity / avatar monogram ─────────────────────────────────────
+  // ── Profile photo store ────────────────────────────────────────────
 
-  function paintIdentity() {
-    const phone = storedPhone();
-    const pretty = formatPhone(phone);
-    const phoneEl = document.querySelector("[data-profile-phone]");
-    if (phoneEl) phoneEl.textContent = pretty || "Founder";
-
-    // Last two digits make a quiet monogram when we know the number.
-    const mono = document.querySelector("[data-profile-monogram]");
-    if (mono && phone.replace(/\D/g, "").length >= 2) {
-      const digits = phone.replace(/\D/g, "");
-      mono.textContent = digits.slice(-2);
-      mono.classList.add("profile-avatar__glyph--text");
-    }
-
-    // Sign out only makes sense on the web build with a live session.
-    const signout = document.querySelector('[data-profile-action="signout"]');
-    if (signout) signout.hidden = !(isWebPlatform() && token());
+  function getAvatar() {
+    try { return localStorage.getItem(AVATAR_KEY) || ""; }
+    catch { return ""; }
   }
 
-  // ── Profile icon ───────────────────────────────────────────────────
+  function setAvatar(dataUrl) {
+    try {
+      if (dataUrl) localStorage.setItem(AVATAR_KEY, dataUrl);
+      else localStorage.removeItem(AVATAR_KEY);
+    } catch {
+      return false;
+    }
+    try { window.dispatchEvent(new CustomEvent("tinker:avatar-changed")); }
+    catch { /* ignore */ }
+    return true;
+  }
 
-  // The profile icon is the share button — tapping it opens the QR sheet.
-  function wireAvatar() {
-    const avatar = document.getElementById("profile-avatar");
-    if (avatar) avatar.addEventListener("click", openQrModal);
+  // Paint every avatar surface (welcome centre + profile page preview).
+  function paintAvatar() {
+    const url = getAvatar();
+    document.querySelectorAll("[data-avatar-img]").forEach((img) => {
+      if (url) { img.src = url; img.hidden = false; }
+      else { img.removeAttribute("src"); img.hidden = true; }
+    });
+    document.querySelectorAll("[data-avatar-empty]").forEach((el) => {
+      el.hidden = !!url;
+    });
+    const removeBtn = document.querySelector("[data-avatar-remove]");
+    if (removeBtn) removeBtn.hidden = !url;
+    const uploadLabel = document.querySelector("[data-avatar-upload-label]");
+    if (uploadLabel) uploadLabel.textContent = url ? "Change photo" : "Upload a photo";
+    const welcome = document.getElementById("welcome-avatar");
+    if (welcome) welcome.classList.toggle("welcome__avatar--set", !!url);
+  }
+
+  // Downscale a picked file to a square-ish data URL no bigger than
+  // MAX_DIM on its longest edge. Resolves with the data URL, or rejects.
+  function fileToScaledDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      if (!file || !/^image\//.test(file.type)) {
+        reject(new Error("Please choose an image file."));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Couldn't read that file."));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("That image couldn't be loaded."));
+        img.onload = () => {
+          const scale = Math.min(1, MAX_DIM / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { reject(new Error("Couldn't process that image.")); return; }
+          ctx.drawImage(img, 0, 0, w, h);
+          try {
+            resolve(canvas.toDataURL("image/jpeg", 0.85));
+          } catch {
+            reject(new Error("Couldn't process that image."));
+          }
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function wirePhotoControls() {
+    const input = document.querySelector("[data-avatar-input]");
+    const removeBtn = document.querySelector("[data-avatar-remove]");
+    const errEl = document.querySelector("[data-avatar-error]");
+
+    function setError(msg) { if (errEl) errEl.textContent = msg || ""; }
+
+    if (input) {
+      input.addEventListener("change", async () => {
+        const file = input.files && input.files[0];
+        input.value = ""; // allow re-picking the same file later
+        if (!file) return;
+        setError("");
+        try {
+          const dataUrl = await fileToScaledDataUrl(file);
+          if (!setAvatar(dataUrl)) {
+            setError("That photo is too large to save on this device.");
+            return;
+          }
+          paintAvatar();
+        } catch (err) {
+          setError((err && err.message) || "Couldn't use that photo.");
+        }
+      });
+    }
+    if (removeBtn) {
+      removeBtn.addEventListener("click", () => {
+        setError("");
+        setAvatar("");
+        paintAvatar();
+      });
+    }
+  }
+
+  // ── Identity ───────────────────────────────────────────────────────
+
+  function paintIdentity() {
+    const pretty = formatPhone(storedPhone());
+    document.querySelectorAll("[data-profile-phone]").forEach((el) => {
+      el.textContent = pretty || "Founder";
+    });
+    const signout = document.querySelector('[data-profile-action="signout"]');
+    if (signout) signout.hidden = !(isWebPlatform() && token());
   }
 
   // ── QR rendering ───────────────────────────────────────────────────
@@ -144,8 +242,6 @@
     return { url: appUrl(), title: "", published: false };
   }
 
-  // ── QR modal ───────────────────────────────────────────────────────
-
   let lastUrl = "";
 
   function flashCopy(btn, text) {
@@ -157,13 +253,62 @@
     flashCopy._t = setTimeout(() => { btn.textContent = btn.dataset.label; }, 1600);
   }
 
-  function wireModal() {
-    const modal = document.getElementById("qr-modal");
-    if (!modal) return;
-    modal.addEventListener("click", (e) => {
-      if (e.target.closest("[data-qr-close]")) closeQrModal();
+  async function paintShare() {
+    const page = document.getElementById("profile-page");
+    if (!page) return;
+    const canvas = page.querySelector("[data-qr-canvas]");
+    const linkEl = page.querySelector("[data-qr-link]");
+    const noteEl = page.querySelector("[data-qr-note]");
+    const copyBtn = page.querySelector("[data-qr-copy]");
+
+    if (canvas) canvas.innerHTML = "";
+    if (linkEl) linkEl.textContent = "Building your link…";
+    if (copyBtn) copyBtn.disabled = true;
+
+    const target = await resolveShareTarget();
+    if (page.hidden) return; // closed while we were fetching
+
+    lastUrl = target.url;
+    renderQr(canvas, target.url);
+    if (linkEl) linkEl.textContent = target.url;
+    if (copyBtn) copyBtn.disabled = false;
+    if (noteEl) {
+      if (target.published) {
+        noteEl.textContent = target.title
+          ? `Scan to read “${target.title}” — and invite them to connect.`
+          : "Scan to read your pitch — and invite them to connect.";
+      } else {
+        noteEl.textContent =
+          "Publish a pitch to share it directly. For now this links to tinker — invite someone to start.";
+      }
+    }
+  }
+
+  // ── Profile page open/close ────────────────────────────────────────
+
+  function openProfilePage() {
+    const page = document.getElementById("profile-page");
+    if (!page) return;
+    page.hidden = false;
+    paintIdentity();
+    paintAvatar();
+    paintShare();
+  }
+
+  function closeProfilePage() {
+    const page = document.getElementById("profile-page");
+    if (page) page.hidden = true;
+  }
+
+  function wirePage() {
+    const page = document.getElementById("profile-page");
+    if (!page) return;
+
+    page.addEventListener("click", (e) => {
+      if (e.target.closest("[data-profile-close]")) closeProfilePage();
     });
-    const copyBtn = modal.querySelector("[data-qr-copy]");
+
+    const copyBtn = page.querySelector("[data-qr-copy]");
     if (copyBtn) {
       copyBtn.addEventListener("click", async () => {
         if (!lastUrl) return;
@@ -177,7 +322,8 @@
         flashCopy(copyBtn, "Couldn't copy");
       });
     }
-    const signout = modal.querySelector('[data-profile-action="signout"]');
+
+    const signout = page.querySelector('[data-profile-action="signout"]');
     if (signout) {
       signout.addEventListener("click", () => {
         if (window.tinkerAuth && typeof window.tinkerAuth.signOut === "function") {
@@ -185,57 +331,26 @@
         }
       });
     }
+
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && !modal.hidden) closeQrModal();
+      if (e.key === "Escape" && !page.hidden) closeProfilePage();
     });
   }
 
-  function closeQrModal() {
-    const modal = document.getElementById("qr-modal");
-    if (modal) modal.hidden = true;
-  }
-
-  async function openQrModal() {
-    const modal = document.getElementById("qr-modal");
-    if (!modal) return;
-    const canvas = modal.querySelector("[data-qr-canvas]");
-    const linkEl = modal.querySelector("[data-qr-link]");
-    const noteEl = modal.querySelector("[data-qr-note]");
-    const copyBtn = modal.querySelector("[data-qr-copy]");
-
-    modal.hidden = false;
-    if (canvas) canvas.innerHTML = "";
-    if (linkEl) linkEl.textContent = "Building your link…";
-    if (copyBtn) copyBtn.disabled = true;
-
-    const target = await resolveShareTarget();
-    // The modal may have been closed again while we were fetching.
-    if (modal.hidden) return;
-
-    lastUrl = target.url;
-    renderQr(canvas, target.url);
-    if (linkEl) linkEl.textContent = target.url;
-    if (copyBtn) copyBtn.disabled = false;
-
-    if (noteEl) {
-      if (target.published) {
-        noteEl.textContent = target.title
-          ? `Scan to read “${target.title}” — and invite them to connect.`
-          : "Scan to read your pitch — and invite them to connect.";
-      } else {
-        noteEl.textContent =
-          "Publish a pitch to share it directly. For now this links to tinker — invite someone to start.";
-      }
-    }
-  }
+  // ── Init ───────────────────────────────────────────────────────────
 
   ready(() => {
-    if (!document.getElementById("profile-corner")) return;
+    if (!document.getElementById("profile-page")) return;
+    const welcome = document.getElementById("welcome-avatar");
+    if (welcome) welcome.addEventListener("click", openProfilePage);
+    wirePhotoControls();
+    wirePage();
     paintIdentity();
-    wireAvatar();
-    wireModal();
+    paintAvatar();
   });
 
-  // Re-paint identity once auth completes (web sign-in dispatches this).
+  // Keep avatars in sync across surfaces, and re-paint identity after a
+  // web sign-in completes (auth.js dispatches tinker:auth-changed).
+  window.addEventListener("tinker:avatar-changed", paintAvatar);
   window.addEventListener("tinker:auth-changed", paintIdentity);
 })();

@@ -830,11 +830,6 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   max-width: 480px;
   width: 100%;
 }
-.welcome__logo {
-  opacity: 0.85;
-  margin-bottom: 4px;
-}
-.welcome__logo svg rect { display: none; }
 .welcome__question {
   margin: 0;
   font-family: var(--font-display);
@@ -3036,129 +3031,177 @@ html.seed-modal-open { overflow: hidden; }
 }
 .pitch-script__copy:hover { background: #000; }
 
-/* ── Profile section (top-right) + share-pitch QR ───────────────────── */
+/* ── Welcome avatar (centre profile photo) ──────────────────────────── */
 
-/* Fixed in the top-right corner of the app. Sits above the stage and the
-   mobile drawer backdrop so the profile icon stays tappable, but below
-   modals/toasts. The profile icon itself is the share button. */
-.profile-corner {
+/* Replaces the old rainbow globe at the top of the welcome screen. Shows
+   the founder's photo, or a placeholder prompting them to add one;
+   tapping it opens the profile page. */
+.welcome__avatar {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #ede8e0);
+  color: var(--color-muted, #6f6a65);
+  box-shadow: var(--shadow-button);
+}
+.welcome__avatar:hover { background: var(--color-hover, #fff9f0); }
+.welcome__avatar:active { transform: scale(0.98); }
+.welcome__avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: cover;
+}
+.welcome__avatar-empty { display: inline-flex; align-items: center; justify-content: center; }
+/* Little "+" badge inviting an upload; hidden once a photo is set. */
+.welcome__avatar-add {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--color-foreground, #2d2a26);
+  color: var(--color-background, #fffdf7);
+  border: 2px solid var(--color-background, #fffdf7);
+}
+.welcome__avatar--set .welcome__avatar-add { display: none; }
+
+/* ── Profile page (photo upload + share QR) ─────────────────────────── */
+
+.profile-page {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  right: calc(env(safe-area-inset-right, 0px) + 16px);
-  z-index: 65;
+  inset: 0;
+  z-index: 1100;
+  background: var(--color-background, #fffdf7);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.profile-page[hidden] { display: none; }
+.profile-page__inner {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 20px
+           calc(env(safe-area-inset-bottom, 0px) + 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.profile-page__top {
   display: flex;
   align-items: center;
-  -webkit-app-region: no-drag;
+  gap: 8px;
 }
-/* The auth gate owns the screen when signed out — keep the corner out. */
-html.auth-gating .profile-corner { display: none; }
-
-.profile-avatar {
-  position: relative;
+.profile-page__back {
   width: 40px;
   height: 40px;
-  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #ede8e0);
   color: var(--color-foreground, #2d2a26);
-  box-shadow: var(--shadow-button);
 }
-.profile-avatar:hover { background: var(--color-hover, #fff9f0); }
-.profile-avatar:active { transform: scale(0.96); }
-.profile-avatar__glyph { display: inline-flex; align-items: center; justify-content: center; }
-.profile-avatar__glyph--text {
-  font-family: var(--font-display, "Plus Jakarta Sans", sans-serif);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-/* Small QR badge tucked into the avatar's bottom-right — signifies that
-   the profile icon opens the share-pitch QR. */
-.profile-avatar__qr {
-  position: absolute;
-  right: -3px;
-  bottom: -3px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 19px;
-  height: 19px;
-  border-radius: 7px;
-  background: var(--color-foreground, #2d2a26);
-  color: var(--color-background, #fffdf7);
-  border: 2px solid var(--color-surface, #fff);
-}
-.profile-avatar__qr svg { width: 11px; height: 11px; }
-
-/* Read-view three-dot menu sits in the same corner — nudge it left of
-   the profile icon so the two never collide. */
-.read__menu { right: 68px; }
-@media (max-width: 540px) { .read__menu { right: 64px; } }
-
-/* ── Share-pitch QR modal ───────────────────────────────────────────── */
-.qr-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-.qr-modal[hidden] { display: none; }
-.qr-modal__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(45, 42, 38, 0.45);
-  backdrop-filter: blur(2px);
-}
-.qr-modal__card {
-  position: relative;
-  width: 100%;
-  max-width: 360px;
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #ede8e0);
-  border-radius: 18px;
-  box-shadow: 0 24px 80px rgba(45, 42, 38, 0.25);
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.qr-modal__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.qr-modal__title {
+.profile-page__back:hover { background: var(--color-hover, #fff9f0); }
+.profile-page__title {
   margin: 0;
   font-family: var(--font-display, "Plus Jakarta Sans", sans-serif);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
-.qr-modal__close {
-  background: none;
-  border: 0;
-  font-size: 24px;
-  line-height: 1;
-  color: var(--color-muted, #6f6a65);
-  padding: 2px 8px;
-  border-radius: 8px;
+
+.profile-page__photo-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
 }
-.qr-modal__close:hover { background: var(--color-hover, #fff9f0); }
-.qr-modal__note {
+.profile-photo {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #ede8e0);
+  color: var(--color-muted, #6f6a65);
+}
+.profile-photo__img { width: 100%; height: 100%; object-fit: cover; }
+.profile-photo__empty { display: inline-flex; }
+.profile-photo__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.profile-photo__upload {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--color-foreground, #2d2a26);
+  color: var(--color-background, #fffdf7);
+  border: 1px solid var(--color-foreground, #2d2a26);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.profile-photo__upload:hover { background: #000; }
+.profile-photo__remove {
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #ede8e0);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-muted, #6f6a65);
+}
+.profile-photo__remove:hover { background: var(--color-hover, #fff9f0); }
+.profile-photo__remove[hidden] { display: none; }
+.profile-photo__hint {
+  margin: 0;
+  min-height: 16px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #b23a3a;
+  text-align: center;
+}
+
+.profile-page__share {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--color-border, #ede8e0);
+  border-radius: 16px;
+  background: var(--color-surface, #fff);
+}
+.profile-page__share-title {
+  margin: 0;
+  font-family: var(--font-display, "Plus Jakarta Sans", sans-serif);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.profile-page__share-note {
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
   color: var(--color-muted, #6f6a65);
 }
-.qr-modal__code {
+.profile-page__qr {
   width: 220px;
   height: 220px;
   align-self: center;
@@ -3167,13 +3210,9 @@ html.auth-gating .profile-corner { display: none; }
   border: 1px solid var(--color-border, #ede8e0);
   border-radius: 14px;
 }
-.qr-modal__code svg { display: block; }
-.qr-modal__link-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.qr-modal__link {
+.profile-page__qr svg { display: block; }
+.profile-page__link-row { display: flex; align-items: center; gap: 10px; }
+.profile-page__link {
   flex: 1;
   min-width: 0;
   font: 12px/1.4 var(--font-mono, ui-monospace, Menlo, monospace);
@@ -3181,7 +3220,7 @@ html.auth-gating .profile-corner { display: none; }
   word-break: break-all;
   overflow-wrap: anywhere;
 }
-.qr-modal__copy {
+.profile-page__copy {
   flex-shrink: 0;
   padding: 8px 14px;
   border-radius: 999px;
@@ -3191,30 +3230,31 @@ html.auth-gating .profile-corner { display: none; }
   font-size: 13px;
   font-weight: 600;
 }
-.qr-modal__copy:hover { background: #000; }
-.qr-modal__copy:disabled { opacity: 0.5; cursor: default; }
-.qr-modal__foot {
+.profile-page__copy:hover { background: #000; }
+.profile-page__copy:disabled { opacity: 0.5; cursor: default; }
+
+.profile-page__foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding-top: 12px;
+  padding-top: 16px;
   border-top: 1px solid var(--color-border, #ede8e0);
 }
-.qr-modal__id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.qr-modal__id-label {
+.profile-page__id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.profile-page__id-label {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-muted, #6f6a65);
 }
-.qr-modal__id-value {
+.profile-page__id-value {
   font-size: 14px;
   font-weight: 600;
   color: var(--color-foreground, #2d2a26);
 }
-.qr-modal__signout {
+.profile-page__signout {
   flex-shrink: 0;
   padding: 7px 12px;
   border-radius: 999px;
@@ -3224,5 +3264,5 @@ html.auth-gating .profile-corner { display: none; }
   font-weight: 600;
   color: #b23a3a;
 }
-.qr-modal__signout:hover { background: var(--color-hover, #fff9f0); }
-.qr-modal__signout[hidden] { display: none; }
+.profile-page__signout:hover { background: var(--color-hover, #fff9f0); }
+.profile-page__signout[hidden] { display: none; }
