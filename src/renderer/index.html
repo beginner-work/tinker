@@ -180,7 +180,8 @@
           <!-- No AI mode, front and centre: the primary way in. Tapping
                turns on No AI mode (freewrite.js) and opens a blank
                composer with the spectrum bar — no questions, no waiting.
-               Wired in renderer.js. -->
+               Wired in renderer.js. The AI path lives on the floating
+               bottom mode nav (#mode-nav), not here. -->
           <button id="welcome-noai" type="button" class="welcome__noai">
             <span class="welcome__noai-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
@@ -195,29 +196,6 @@
             </span>
             <span class="welcome__noai-go" aria-hidden="true">→</span>
           </button>
-
-          <p class="welcome__or">or write with AI</p>
-          <p class="welcome__prompt">Where are you right now?</p>
-          <div id="welcome-grid" class="welcome__grid" role="group" aria-label="Where are you right now?">
-            <button type="button" class="welcome__tile" data-location="cafe">
-              <span class="welcome__tile-label">Cafe</span>
-            </button>
-            <button type="button" class="welcome__tile" data-location="home">
-              <span class="welcome__tile-label">Home</span>
-            </button>
-            <button type="button" class="welcome__tile" data-location="work">
-              <span class="welcome__tile-label">Work</span>
-            </button>
-            <button type="button" class="welcome__tile" data-location="other">
-              <span class="welcome__tile-label">Somewhere else</span>
-            </button>
-          </div>
-          <form id="welcome-form" class="welcome__form" autocomplete="off" hidden>
-            <input id="welcome-input" class="welcome__input" type="text"
-                   placeholder="Where are you?"
-                   autocomplete="off" spellcheck="false" maxlength="120" />
-            <button type="submit" class="welcome__submit">Start →</button>
-          </form>
         </div>
       </section>
 
