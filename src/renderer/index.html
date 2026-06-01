@@ -73,11 +73,10 @@
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
     <!-- Profile page — a full-screen page for your profile photo, opened
-         by tapping the avatar in the centre of the welcome screen. Lets
-         you upload / change / remove your photo, shows a QR that shares
-         your pitch (scan to read it and connect), and carries identity +
-         sign out on the web build. Hidden by default; profile.js opens it
-         and populates the QR. -->
+         by tapping the avatar in the centre of the welcome screen, and
+         shown automatically on first run when no photo is set yet. Lets
+         you upload / change / remove your photo. Hidden by default;
+         profile.js opens it. -->
     <div id="profile-page" class="profile-page" hidden>
       <div class="profile-page__inner">
         <header class="profile-page__top">
@@ -108,28 +107,6 @@
           </div>
           <p class="profile-photo__hint" data-avatar-error aria-live="polite"></p>
         </section>
-
-        <section class="profile-page__share">
-          <h2 class="profile-page__share-title">Share your pitch</h2>
-          <p class="profile-page__share-note" data-qr-note>
-            Let someone scan this to read your pitch — and invite them to connect.
-          </p>
-          <div class="profile-page__qr" data-qr-canvas aria-hidden="true"></div>
-          <div class="profile-page__link-row">
-            <span class="profile-page__link" data-qr-link></span>
-            <button type="button" class="profile-page__copy" data-qr-copy>Copy link</button>
-          </div>
-        </section>
-
-        <footer class="profile-page__foot">
-          <span class="profile-page__id">
-            <span class="profile-page__id-label">Signed in</span>
-            <span class="profile-page__id-value" data-profile-phone>Founder</span>
-          </span>
-          <button type="button" class="profile-page__signout" data-profile-action="signout" hidden>
-            Sign out
-          </button>
-        </footer>
       </div>
     </div>
 
@@ -643,9 +620,6 @@
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>
-    <!-- Vendored QR encoder (global `qrcode`); loaded before profile.js
-         which renders the founder's share-pitch QR. -->
-    <script src="./lib/qr.js" defer></script>
     <script src="./profile.js" defer></script>
     <script src="./update-banner.js" defer></script>
     <script src="./notifications.js" defer></script>
