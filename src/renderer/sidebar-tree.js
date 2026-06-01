@@ -739,27 +739,28 @@
     }
   }
 
-  // The beginner repo hosts the page that explains how to unlock Pitch
-  // (the feature description + the pre-seed $9/month subscription, with
-  // the Stripe checkout). It now lives on beginner production, so every
-  // tinker surface — production web, Electron, Capacitor — opens the
-  // canonical beginner.work/unlock.
+  // Pitching happens on beginner, where the founder's profile carries a
+  // "Back me" tab: their QR code (deep-linked at #share) that backers scan
+  // to land on the pre-seed ($9/month) subscription. The Pitch button takes
+  // the founder straight to that page so they can show — or share — the code.
+  // This lives on beginner production, so every tinker surface — production
+  // web, Electron, Capacitor — opens the canonical beginner.work back-me URL.
   //
   // (We deliberately do *not* branch on the hostname here. tinker has no
   // custom domain: its own production is served from *.vercel.app
   // [tinker-theta.vercel.app et al.], so a `host.endsWith(".vercel.app")`
   // check can't tell production from a preview and would send production
   // founders off to a stale beginner preview alias rather than the live
-  // checkout page.)
-  function unlockUrl() {
-    return "https://beginner.work/unlock";
+  // back-me page.)
+  function backMeUrl() {
+    return "https://beginner.work/tyler-lindow#share";
   }
 
   // Renders the indigo "Pitch" button at the bottom of the deck nav.
-  // Until the founder is on a paid monthly plan, pitching happens over
-  // on beginner: the button carries a link-out icon — it takes you off
-  // to the /unlock page rather than sitting locked shut — and clicking
-  // it opens that page (the feature description + the pre-seed
+  // Pitching happens over on beginner: the button carries a link-out icon
+  // — it takes you off to your Back me page rather than sitting locked shut
+  // — and clicking it opens that page (your profile's QR code, deep-linked
+  // to the Back me tab, that backers scan to start the pre-seed
   // subscription).
   function renderPost(pitches) {
     if (!postEl) return;
@@ -774,7 +775,7 @@
     const post = document.createElement("button");
     post.type = "button";
     post.className = "sidebar__pitch-action sidebar__pitch-action--primary";
-    post.setAttribute("aria-label", "Pitch — subscribe to unlock");
+    post.setAttribute("aria-label", "Pitch — open your Back me page");
     const pitchLabel = document.createElement("span");
     pitchLabel.textContent = "Pitch";
     post.appendChild(pitchLabel);
@@ -806,8 +807,8 @@
     post.style.alignItems = "center";
     post.style.justifyContent = "center";
     post.addEventListener("click", () => {
-      // Open beginner's page describing how to unlock the feature.
-      const url = unlockUrl();
+      // Open the founder's Back me page on beginner (their QR to share).
+      const url = backMeUrl();
       if (window.tinker && typeof window.tinker.openExternal === "function") {
         window.tinker.openExternal(url);
       } else {
