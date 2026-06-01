@@ -528,7 +528,8 @@
   //
   // The new flow makes no premature claim. Publishing shows a calm
   // confirmation ("Your pitch is being assessed") and lets the founder
-  // keep writing or close the app. A background watcher waits for the
+  // keep writing or re-read the essay they just published. A background
+  // watcher waits for the
   // organize job to actually SETTLE — placement unchanged, nothing
   // pending or in flight — and only then fires a native-style toast
   // notification telling the founder where the essay truly landed, and
@@ -570,53 +571,19 @@
           `against your pitches. You'll get a note the moment it settles into one — keep writing, ` +
           `or step away and we'll let you know where it landed.</p>` +
         `<div class="assessing__actions">` +
-          `<button type="button" class="assessing__close" data-assessing-action="close">Close app</button>` +
+          `<button type="button" class="assessing__read" data-assessing-action="read">Re-read your essay</button>` +
           `<button type="button" class="assessing__keep" data-assessing-action="keep">Keep writing →</button>` +
         `</div>` +
       `</div>`;
 
     const keepBtn = writingFitContent.querySelector('[data-assessing-action="keep"]');
-    const closeBtn = writingFitContent.querySelector('[data-assessing-action="close"]');
+    const readBtn = writingFitContent.querySelector('[data-assessing-action="read"]');
     if (keepBtn) keepBtn.addEventListener("click", () => showFeed());
-    if (closeBtn) closeBtn.addEventListener("click", () => closeApp());
+    if (readBtn) readBtn.addEventListener("click", () => showRead(essay));
 
     // Kick off the background settle-watcher — it fires the toast once
     // the organize job has stopped moving this essay.
     watchPlacement(essay);
-  }
-
-  // Closes the desktop window / standalone PWA. On a plain web tab (where
-  // window.close() is a no-op for tabs the user opened themselves) we fall
-  // back to the feed so the button is never dead.
-  function closeApp() {
-    // Native desktop / Capacitor shell exposes an explicit close.
-    try {
-      if (window.tinker && typeof window.tinker.close === "function") {
-        window.tinker.close();
-        return;
-      }
-    } catch { /* ignore */ }
-
-    // Installed PWA (display-mode: standalone, or navigator.standalone on
-    // iOS). The browser honors window.close() for app windows, so this
-    // actually quits the PWA. We re-mark the window as script-opened first
-    // (window.open("", "_self")) because the sign-in round-trip can leave
-    // history entries, which otherwise makes the window non-script-closable
-    // and turns close() into a silent no-op. In standalone there is nothing
-    // useful to fall back to, so we don't drop to the feed.
-    const standalone =
-      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
-      (window.navigator && window.navigator.standalone === true);
-    if (standalone) {
-      try { window.open("", "_self"); } catch { /* ignore */ }
-      try { window.close(); } catch { /* ignore */ }
-      return;
-    }
-
-    // Plain browser tab: window.close() is a no-op for tabs the user opened
-    // themselves, so fall back to the feed rather than leave a dead button.
-    try { window.close(); } catch { /* ignore */ }
-    setTimeout(() => { try { showFeed(); } catch { /* ignore */ } }, 50);
   }
 
   // Waits for the backend organize job to settle on a final home for the
