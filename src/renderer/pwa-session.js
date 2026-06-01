@@ -46,6 +46,8 @@
 
   const TOKEN_KEY = "tinker_jwt";
   const HASH_PARAM = "ts";
+  const CLAIM_KEY = "tinker_claim";
+  const CLAIM_PARAM = "claim";
 
   function isWrappedRuntime() {
     if (window.Capacitor) return true;
@@ -62,13 +64,26 @@
 
     let params;
     try { params = new URLSearchParams(hash.slice(1)); } catch { return; }
+
+    // `ts` carries an existing session (PWA install handoff); `claim`
+    // carries a one-time landing-form profile token. Either, both, or
+    // neither may be present — the landing form sends only `claim`.
     const token = params.get(HASH_PARAM);
-    if (!token) return;
+    const claim = params.get(CLAIM_PARAM);
+    if (!token && !claim) return;
 
-    try { localStorage.setItem(TOKEN_KEY, token); }
-    catch { /* private mode — nothing we can do */ }
+    if (token) {
+      try { localStorage.setItem(TOKEN_KEY, token); }
+      catch { /* private mode — nothing we can do */ }
+    }
+    if (claim) {
+      try { localStorage.setItem(CLAIM_KEY, claim); }
+      catch { /* private mode — profile.js just won't find a claim */ }
+    }
 
+    // Strip both in one history rewrite so the app sees a clean URL.
     params.delete(HASH_PARAM);
+    params.delete(CLAIM_PARAM);
     const rest = params.toString();
     const cleanHash = rest ? "#" + rest : "";
     try {

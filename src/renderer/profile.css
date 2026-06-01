@@ -1,0 +1,85 @@
+/* profile.css — top-right founder avatar + identity popover.
+ *
+ * The corner is hidden until profile.js loads a profile. It sits opposite
+ * the mobile drawer toggle (top-left), so the placement is free at every
+ * breakpoint. Avatar falls back to an initial badge when there's no photo
+ * or the image fails to decode.
+ */
+
+.profile-corner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
+  z-index: 60;
+}
+.profile-corner[hidden] { display: none; }
+
+.profile-avatar {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-card);
+  color: var(--color-foreground);
+  cursor: pointer;
+  box-shadow: var(--shadow-button);
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+.profile-avatar:hover { box-shadow: var(--shadow-button-hover); }
+.profile-avatar:active { transform: scale(0.96); }
+.profile-avatar:focus-visible {
+  outline: 2px solid var(--color-accent-press, #4f46e5);
+  outline-offset: 2px;
+}
+
+.profile-avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+.profile-avatar__img[hidden] { display: none; }
+
+.profile-avatar__initial {
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--color-foreground);
+}
+.profile-avatar__initial[hidden] { display: none; }
+
+.profile-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  max-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card, 12px);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-button-hover);
+}
+.profile-popover[hidden] { display: none; }
+
+.profile-popover__name {
+  font-weight: 600;
+  font-size: var(--text-body, 14px);
+  color: var(--color-foreground);
+}
+.profile-popover__email {
+  font-size: var(--text-small, 13px);
+  color: var(--color-muted);
+  word-break: break-all;
+}
+.profile-popover__email:empty { display: none; }

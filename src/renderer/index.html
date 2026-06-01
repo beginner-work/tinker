@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="./design-tokens.css" />
     <link rel="stylesheet" href="./mobile-drawer.css" />
     <link rel="stylesheet" href="./pwa-install-hint.css" />
+    <link rel="stylesheet" href="./profile.css" />
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" type="image/svg+xml" href="./icons/tinker-icon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/tinker-icon-192.png" />
@@ -53,6 +54,10 @@
          the active pitch's deck out of window.tinkerPitches. -->
     <script src="./pitches.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
+    <!-- Claims the landing-form profile (#claim=<token>) after sign-in and
+         shows the founder's avatar top-right. Deferred so the DOM (incl.
+         #profile-corner) exists when it runs. -->
+    <script src="./profile.js" defer></script>
   </head>
   <body>
     <svg class="liquid-glass-defs" width="0" height="0" aria-hidden="true" focusable="false">
@@ -71,6 +76,20 @@
       </svg>
     </button>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
+
+    <!-- Top-right founder avatar. Hidden until profile.js loads a profile
+         (claimed from the landing form or read from the account). -->
+    <div id="profile-corner" class="profile-corner" hidden>
+      <button id="profile-avatar" class="profile-avatar" type="button"
+              aria-haspopup="true" aria-expanded="false" aria-label="Your profile">
+        <img class="profile-avatar__img" alt="" hidden />
+        <span class="profile-avatar__initial" aria-hidden="true">·</span>
+      </button>
+      <div id="profile-popover" class="profile-popover" role="menu" hidden>
+        <span class="profile-popover__name"></span>
+        <span class="profile-popover__email"></span>
+      </div>
+    </div>
 
     <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar">
       <header class="sidebar__top">
