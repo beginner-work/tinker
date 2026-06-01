@@ -114,9 +114,10 @@
     padding-top: calc(env(safe-area-inset-top, 0px) + 76px);
   }
   /* Read surface has an additional fixed subtitle bar below the title
-   * (see .read__author rule further down), so the body needs to clear
-   * both — the title (60px) plus the subtitle row (~32px). */
-  .read__body {
+   * (see .read__author rule further down), so the page needs to clear
+   * both — the title (60px) plus the subtitle row (~32px). On mobile
+   * only the current page renders, so targeting .read__page is exact. */
+  .read__page {
     padding-top: calc(env(safe-area-inset-top, 0px) + 108px);
   }
 

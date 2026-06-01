@@ -296,6 +296,37 @@
     return out;
   }
 
+  // The reading order of a pitch: its covered headings resolved to the
+  // writings that back them, in deck order, de-duplicated by writing —
+  // a writing that supplies phrases to several slides appears once, at
+  // its earliest heading. This is the page sequence a reader moves
+  // through, and the read view's book spread uses it to find the essay
+  // that comes *next* after the one being read (and, on the last slide,
+  // the one *before* it). Each entry is { writingId, heading }; the
+  // resolution rules match coveredHeadings exactly so the two can't
+  // drift apart. Accepts a pitch id or a pitch object.
+  function readingOrder(pitchOrId) {
+    const pitch = typeof pitchOrId === "string" ? getPitch(pitchOrId) : pitchOrId;
+    if (!pitch || !pitch.deck) return [];
+    const out = [];
+    const seen = new Set();
+    for (const h of DECK_HEADINGS) {
+      const recs = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
+      for (const rec of recs) {
+        const body = bodyForWriting(rec.writingId);
+        if (!body) continue;
+        if (rec.offset < 0 || rec.offset + rec.length > body.length) continue;
+        if (!body.slice(rec.offset, rec.offset + rec.length)) continue;
+        if (!seen.has(rec.writingId)) {
+          seen.add(rec.writingId);
+          out.push({ writingId: rec.writingId, heading: h });
+        }
+        break; // MAX_PHRASES_PER_HEADING = 1 — one writing per heading
+      }
+    }
+    return out;
+  }
+
   // Robustness = number of covered headings. Kept as its own function
   // for the many callers that just want the count.
   function pitchRobustness(pitch) {
@@ -887,6 +918,7 @@
     toggleExpanded,
     pitchRobustness,
     coveredHeadings,
+    readingOrder,
     listOffPitchWritings,
     publishPitch,
     getPitchScript,

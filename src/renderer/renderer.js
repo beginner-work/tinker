@@ -364,23 +364,7 @@
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
-    // Title wraps the text in an inner span so the mobile floating
-    // title bar can centre with text-overflow: ellipsis — both
-    // properties only behave when applied to a sized child, not to
-    // a flex container directly.
-    const titleHtml = essay.title
-      ? `<h1 class="read__title"><span>${escapeHtml(essay.title)}</span></h1>`
-      : "";
-    // Subtitle: which pitch + which slide this essay sits under. Falls
-    // back to the author label (the older "you" line) when the essay
-    // hasn't been placed in any pitch yet, so the slot is never empty.
-    const subtitle = pitchSubtitleHtmlFor(essay) || escapeHtml(essay.author || "you");
-    readBody.innerHTML =
-      `<header class="read__head">` +
-        `<div class="read__author">${subtitle}</div>` +
-        titleHtml +
-      `</header>` +
-      paragraphs(essay.body);
+    readBody.innerHTML = readBookHtml(essay);
   }
   function showCategoryFeed(categoryKey, originatingSeed) {
     if (!categoryFeedView) return false;
@@ -670,29 +654,145 @@
     return SLIDE_COLOR_CYCLE[i % SLIDE_COLOR_CYCLE.length];
   }
 
-  // Build the per-essay subtitle: "<PitchName>. <SlideTitle>" where
-  // SlideTitle is coloured to match that slide's row in the sidebar.
-  // PitchName prefers the founder's personal title; falls back to the
-  // AI-generated one. Returns the empty string when the essay isn't
-  // slotted anywhere yet (e.g. during the reconsidering phase, or for
-  // essays the classifier couldn't place) so callers can decide on a
-  // fallback themselves.
+  // Build the "<PitchName> · <SlideTitle>" subtitle for a known pitch +
+  // deck heading. SlideTitle is coloured to match that slide's row in
+  // the sidebar; PitchName prefers the founder's personal title and
+  // falls back to the AI-generated one. Returns just the pitch name
+  // when no heading is given, and the empty string when the pitch can't
+  // be resolved (callers decide their own fallback).
+  function subtitleHtmlFor(pitchId, heading) {
+    if (!pitchId || !window.tinkerPitches) return "";
+    const pitches = window.tinkerPitches;
+    const pitch = typeof pitches.getPitch === "function" ? pitches.getPitch(pitchId) : null;
+    const pitchName = (pitch && (pitch.personalTitle || pitch.aiTitle)) || "Untitled pitch";
+    if (!heading) return escapeHtml(pitchName);
+    const color = slideColorFor(heading);
+    return escapeHtml(pitchName)
+      + ` <span class="essay-subtitle__sep" aria-hidden="true">·</span> `
+      + `<span class="essay-subtitle__slide" style="color: ${color}">${escapeHtml(heading)}</span>`;
+  }
+
+  // The per-essay subtitle, resolved through the essay's canonical
+  // placement (the first pitch + slide it's slotted under). Returns the
+  // empty string when the essay isn't slotted anywhere yet (e.g. a
+  // freshly published essay the classifier hasn't placed yet) so callers
+  // can decide on a fallback themselves.
   function pitchSubtitleHtmlFor(essay) {
     if (!essay || !window.tinkerPitches) return "";
     const pitches = window.tinkerPitches;
     if (typeof pitches.findPitchForWriting !== "function") return "";
     const placement = pitches.findPitchForWriting(essay.id);
     if (!placement) return "";
-    const pitch = typeof pitches.getPitch === "function"
-      ? pitches.getPitch(placement.pitchId)
-      : null;
-    const pitchName = (pitch && (pitch.personalTitle || pitch.aiTitle)) || "Untitled pitch";
-    const heading = placement.deckHeading;
-    if (!heading) return escapeHtml(pitchName);
-    const color = slideColorFor(heading);
-    return escapeHtml(pitchName)
-      + ` <span class="essay-subtitle__sep" aria-hidden="true">·</span> `
-      + `<span class="essay-subtitle__slide" style="color: ${color}">${escapeHtml(heading)}</span>`;
+    return subtitleHtmlFor(placement.pitchId, placement.deckHeading);
+  }
+
+  // Resolve a writingId — an essay id, or a not-yet-published draft id —
+  // to a readable { id, title, body, author }. The book spread shows
+  // the *next* writing in a pitch, which is almost always a published
+  // essay but can briefly be a draft before the organize job re-slots
+  // it, so we look in both stores.
+  function readableForWritingId(id) {
+    if (!id) return null;
+    const essay = essays.find((e) => e && e.id === id);
+    if (essay) return essay;
+    const draft = drafts.find((d) => d && d.id === id);
+    if (!draft) return null;
+    return {
+      id: draft.id,
+      author: "you",
+      title: (draft.stitched && draft.stitched.title) || draft.title || null,
+      body: bodyForDraft(draft),
+      kind: "draft",
+    };
+  }
+
+  function bodyForDraft(draft) {
+    if (draft && draft.stitched && draft.stitched.body) return String(draft.stitched.body);
+    const turns = draft && Array.isArray(draft.transcript) ? draft.transcript : [];
+    return turns.map((t) => String((t && t.a) || "").trim()).filter(Boolean).join("\n\n");
+  }
+
+  // One page of the read view: subtitle + title + body wrapped in an
+  // <article class="read__page">. `placement` ({ pitchId, heading })
+  // pins the subtitle to a known slide so a book spread stays in step
+  // with the sequence it was built from; without it we fall back to the
+  // essay's canonical placement.
+  function readPageHtml(essay, placement, extraClass) {
+    const subtitle = (placement
+      ? subtitleHtmlFor(placement.pitchId, placement.heading)
+      : pitchSubtitleHtmlFor(essay)) || escapeHtml(essay.author || "you");
+    // Title wraps the text in an inner span so the mobile floating
+    // title bar can centre with text-overflow: ellipsis — both
+    // properties only behave when applied to a sized child, not to a
+    // flex container directly.
+    const titleHtml = essay.title
+      ? `<h1 class="read__title"><span>${escapeHtml(essay.title)}</span></h1>`
+      : "";
+    return `<article class="read__page${extraClass ? " " + extraClass : ""}">` +
+      `<header class="read__head">` +
+        `<div class="read__author">${subtitle}</div>` +
+        titleHtml +
+      `</header>` +
+      paragraphs(essay.body) +
+    `</article>`;
+  }
+
+  // Work out the book spread for an opened essay: which essay sits on
+  // the left page and which on the right. Normally the opened essay is
+  // on the left and the next essay in the pitch deck is on the right.
+  // On the last slide of a pitch (e.g. The Ask) there's no "next", so
+  // the opened essay closes the book on the RIGHT — the way a printed
+  // deck ends on its final slide — and the preceding essay takes the
+  // left. Returns null when the essay isn't in a pitch or has no
+  // neighbour, in which case the read view shows a single page.
+  function readingSpreadFor(essay) {
+    const pitches = window.tinkerPitches;
+    if (!essay || !pitches) return null;
+    if (typeof pitches.findPitchForWriting !== "function"
+      || typeof pitches.readingOrder !== "function") return null;
+    const placement = pitches.findPitchForWriting(essay.id);
+    if (!placement) return null;
+    const order = pitches.readingOrder(placement.pitchId);
+    if (!Array.isArray(order) || order.length < 2) return null;
+    const i = order.findIndex((o) => o && o.writingId === essay.id);
+    if (i < 0) return null;
+
+    // Resolve a sequence entry to a page descriptor. `known` lets us
+    // reuse the already-in-hand opened essay instead of re-resolving it.
+    const pageFor = (entry, known) => {
+      const readable = known && known.id === entry.writingId
+        ? known
+        : readableForWritingId(entry.writingId);
+      if (!readable) return null;
+      return { essay: readable, placement: { pitchId: placement.pitchId, heading: entry.heading } };
+    };
+
+    if (i < order.length - 1) {
+      const left = pageFor(order[i], essay);
+      const right = pageFor(order[i + 1], null);
+      return left && right ? { left, right, currentSide: "left" } : null;
+    }
+    const left = pageFor(order[i - 1], null);
+    const right = pageFor(order[i], essay);
+    return left && right ? { left, right, currentSide: "right" } : null;
+  }
+
+  // The read view's content: a two-page book on a wide desktop (the
+  // opened essay + its pitch neighbour), collapsing to a single centred
+  // page on narrow screens or when there's nothing to pair with.
+  function readBookHtml(essay) {
+    const spread = readingSpreadFor(essay);
+    if (!spread) {
+      return `<div class="read__book">` +
+        readPageHtml(essay, null, "read__page--current") +
+      `</div>`;
+    }
+    const leftRole = spread.currentSide === "left" ? "read__page--current" : "read__page--adjacent";
+    const rightRole = spread.currentSide === "right" ? "read__page--current" : "read__page--adjacent";
+    return `<div class="read__book read__book--spread">` +
+      readPageHtml(spread.left.essay, spread.left.placement, "read__page--left " + leftRole) +
+      readPageHtml(spread.right.essay, spread.right.placement, "read__page--right " + rightRole) +
+    `</div>`;
   }
 
   function renderFeedCard(essay) {
