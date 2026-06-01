@@ -200,6 +200,19 @@ function clearAllDecks(blob) {
   for (const pitch of blob.pitches) pitch.deck = emptyDeck();
 }
 
+// Empty a single pitch's deck — the scoped sibling of clearAllDecks,
+// used by the per-pitch refresh. Only the target pitch's writings turn
+// "off-pitch", so the next sweep hands just that pitch's corpus back to
+// the clusterer while every other pitch stays put. The clusterer can
+// then route those writings home (the pitch keeps its own line), into a
+// sibling (consolidated), or — if they all land elsewhere and the shell
+// isn't founder-named — leave it empty for the end-of-run prune to drop
+// (the pitch dissolves). A no-op when the id doesn't match a pitch.
+function clearOneDeck(blob, pitchId) {
+  const pitch = blob.pitches.find((p) => p.id === pitchId);
+  if (pitch) pitch.deck = emptyDeck();
+}
+
 // De-duplicate the title hints we feed the clusterer, case-insensitively,
 // preserving the first spelling seen. When the founder has drifted into
 // several identically-named pitches ("Growth" ×4), passing the raw list
@@ -388,6 +401,7 @@ async function organize({
   cluster,   // async ({ writings, existingPitchTitles }) → [{ title, writings: [{ id, deckHeading, phrase }] }]
   name,      // async ({ writings }) → string | null
   redistribute = false, // when true, re-cluster every writing from scratch
+  refreshPitchId = null, // when set, re-cluster only this one pitch's writings
 }) {
   const blob = normalizeBlob(storedBlob);
   const safeEssays = Array.isArray(essays) ? essays : [];
@@ -421,7 +435,15 @@ async function organize({
   // the whole corpus (not just newly-added writings) flows back through
   // the clusterer. This is the founder-triggered "re-align everything"
   // path; the normal run only rehomes writings that aren't slotted yet.
+  //
+  // Refresh-one (refreshPitchId): wipe just that pitch's deck, so only
+  // its writings turn off-pitch and flow back through the clusterer while
+  // every other pitch stays put. The founder is reconsidering a single
+  // pitch — its writings either route home (it keeps its own line), fold
+  // into a sibling (consolidated), or leave it empty for the prune to drop
+  // (dissolved). redistribute wins if both are somehow set.
   if (redistribute) clearAllDecks(blob);
+  else if (refreshPitchId) clearOneDeck(blob, refreshPitchId);
 
   const off = listOffPitchWritings(blob, safeEssays, safeDrafts);
   const summary = {
@@ -433,6 +455,7 @@ async function organize({
     prunedEmpty: 0,
     droppedStaleRecords: droppedStale,
     redistribute: !!redistribute,
+    refreshedPitchId: refreshPitchId || null,
     skippedReason: null,
   };
 
@@ -518,6 +541,7 @@ module.exports = {
   refreshDeckTimestamps,
   dropStaleDeckRecords,
   clearAllDecks,
+  clearOneDeck,
   dedupeTitles,
   upsertPhrase,
   pitchesNeedingName,

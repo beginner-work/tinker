@@ -707,7 +707,7 @@
   //     tinker:organize-completed with a diff after it returns
   //   - returns { ok, diff?, reason? } instead of throwing, so the
   //     caller can render an error state directly
-  async function triggerOrganizeNow({ force = true, redistribute = false } = {}) {
+  async function triggerOrganizeNow({ force = true, redistribute = false, refreshPitchId = null } = {}) {
     if (organizeTimer) {
       clearTimeout(organizeTimer);
       organizeTimer = null;
@@ -720,11 +720,12 @@
     catch { /* ignore */ }
     if (!token) return { ok: false, reason: "no-token" };
 
-    // A redistribute re-clusters every writing server-side, so the
-    // organizeHash short-circuit (which only tracks off-pitch drift)
-    // can't tell whether there's work to do — always send it.
+    // A redistribute (or a per-pitch refresh) re-clusters writings that
+    // are already slotted, so the organizeHash short-circuit (which only
+    // tracks off-pitch drift) can't tell whether there's work to do —
+    // always send those.
     const hash = organizeHash();
-    if (!force && !redistribute && hash === lastOrganizeHash) {
+    if (!force && !redistribute && !refreshPitchId && hash === lastOrganizeHash) {
       return { ok: true, diff: emptyDiff(), skipped: true };
     }
 
@@ -741,7 +742,13 @@
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(redistribute ? { redistribute: true } : {}),
+        body: JSON.stringify(
+          redistribute
+            ? { redistribute: true }
+            : refreshPitchId
+              ? { refreshPitchId }
+              : {},
+        ),
       });
       if (!res.ok) {
         lastOrganizeHash = null;
@@ -791,6 +798,21 @@
   // triggerOrganizeNow so the caller can render the outcome.
   async function redistributePitches() {
     return triggerOrganizeNow({ force: true, redistribute: true });
+  }
+
+  // Founder-pressed per-pitch refresh — the scoped sibling of
+  // redistributePitches. Reconsiders only the currently selected pitch:
+  // the server wipes that one pitch's deck and hands its writings back to
+  // the clusterer, which can route them home (the pitch keeps its own
+  // line), fold them into a sibling (consolidated), or — if they all land
+  // elsewhere and it isn't founder-named — leave it empty to be pruned
+  // (dissolved). Every other pitch stays put. Returns the same
+  // { ok, diff?, reason? } shape; reason "no-active" when nothing is
+  // selected.
+  async function refreshActivePitch() {
+    const id = getActivePitchId();
+    if (!id) return { ok: false, reason: "no-active" };
+    return triggerOrganizeNow({ force: true, refreshPitchId: id });
   }
 
   // Replace the in-memory blob with the server's authoritative one
@@ -941,6 +963,7 @@
     triggerOrganize,
     triggerOrganizeNow,
     redistributePitches,
+    refreshActivePitch,
     findPitchForWriting,
     placementSnapshot,
     diffSnapshots,

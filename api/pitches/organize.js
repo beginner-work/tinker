@@ -46,9 +46,10 @@ function extractBearer(header) {
 }
 
 // The organize body is tiny (`{}` for the normal debounced trigger,
-// `{ "redistribute": true }` for the founder-pressed re-align button).
-// Vercel may have parsed it already; otherwise read the stream. A
-// missing/blank/garbled body just yields {} — the job runs in its
+// `{ "redistribute": true }` for the legacy re-align-everything mode, or
+// `{ "refreshPitchId": "p_…" }` for the founder-pressed per-pitch refresh
+// button). Vercel may have parsed it already; otherwise read the stream.
+// A missing/blank/garbled body just yields {} — the job runs in its
 // default (rehome-only) mode.
 function readJsonBody(req) {
   if (req.body && typeof req.body === "object") return Promise.resolve(req.body);
@@ -119,6 +120,10 @@ const handler = withResponseLogging(async function handler(req, res) {
   try { body = await readJsonBody(req); }
   catch { body = {}; }
   const redistribute = !!(body && body.redistribute);
+  const refreshPitchId =
+    body && typeof body.refreshPitchId === "string" && body.refreshPitchId
+      ? body.refreshPitchId
+      : null;
 
   let essays, drafts, storedBlob;
   try {
@@ -142,6 +147,7 @@ const handler = withResponseLogging(async function handler(req, res) {
       essays: safeEssays,
       drafts: safeDrafts,
       redistribute,
+      refreshPitchId,
       cluster: async ({ writings, existingPitchTitles }) =>
         clusterWritings({
           writings,

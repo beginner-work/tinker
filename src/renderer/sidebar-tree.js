@@ -424,50 +424,59 @@
   // founder-edited rather than verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
-  // Redistribute ("re-align") button state. `redistributing` flips the
-  // button into its disabled/busy face while the server re-clusters;
-  // `redistributeMsg` holds the one-line outcome shown beneath it after
+  // Per-pitch refresh button state. `refreshing` flips the button into
+  // its disabled/busy face while the server re-clusters the selected
+  // pitch; `refreshMsg` holds the one-line outcome shown beneath it after
   // the round returns (cleared on the next switcher interaction).
-  let redistributing = false;
-  let redistributeMsg = null;
+  let refreshing = false;
+  let refreshMsg = null;
 
   // Turn an organize diff into the short line shown under the button.
-  // No moves and no removed pitches → the AI judged everything already
-  // in place, which is a valid (and common) outcome, not a failure.
-  function describeRedistribute(diff) {
+  // A per-pitch refresh has three outcomes: the pitch dissolved or folded
+  // into another (its id shows up in removedPitchIds), some of its essays
+  // moved to siblings but it survived, or nothing moved — the AI judged it
+  // still earns its own line against every other pitch, which is a valid
+  // (and common) outcome, not a failure.
+  function describeRefresh(diff) {
     const moved = (diff && Array.isArray(diff.movedWritings)) ? diff.movedWritings.length : 0;
-    const merged = (diff && Array.isArray(diff.removedPitchIds)) ? diff.removedPitchIds.length : 0;
-    if (!moved && !merged) return "Already aligned — nothing moved.";
-    const parts = [];
-    if (moved) parts.push(`moved ${moved} ${moved === 1 ? "essay" : "essays"}`);
-    if (merged) parts.push(`merged ${merged} ${merged === 1 ? "pitch" : "pitches"}`);
-    return `Re-aligned — ${parts.join(", ")}.`;
+    const dissolved = (diff && Array.isArray(diff.removedPitchIds)) ? diff.removedPitchIds.length : 0;
+    if (dissolved > 0) {
+      return moved
+        ? `Folded in — ${moved} ${moved === 1 ? "essay" : "essays"} moved to other pitches.`
+        : "Folded into another pitch.";
+    }
+    if (moved > 0) {
+      return `Reconsidered — moved ${moved} ${moved === 1 ? "essay" : "essays"}.`;
+    }
+    return "Still its own pitch — nothing moved.";
   }
 
-  async function runRedistribute() {
+  async function runRefresh() {
     const pm = pitchesApi();
-    if (!pm || typeof pm.redistributePitches !== "function") return;
-    if (redistributing) return;
-    redistributing = true;
-    redistributeMsg = null;
+    if (!pm || typeof pm.refreshActivePitch !== "function") return;
+    if (refreshing) return;
+    refreshing = true;
+    refreshMsg = null;
     switcherOpen = false;
     renameOpen = false;
     render();
     let result;
     try {
-      result = await pm.redistributePitches();
+      result = await pm.refreshActivePitch();
     } catch {
       result = { ok: false, reason: "error" };
     }
-    redistributing = false;
+    refreshing = false;
     if (result && result.ok) {
-      redistributeMsg = describeRedistribute(result.diff);
+      refreshMsg = describeRefresh(result.diff);
     } else if (result && result.reason === "no-token") {
-      redistributeMsg = "Sign in to re-align your pitches.";
+      refreshMsg = "Sign in to refresh this pitch.";
+    } else if (result && result.reason === "no-active") {
+      refreshMsg = "Select a pitch to refresh first.";
     } else if (result && result.reason === "inflight") {
-      redistributeMsg = null; // a round was already running; stay quiet
+      refreshMsg = null; // a round was already running; stay quiet
     } else {
-      redistributeMsg = "Couldn't re-align — try again in a moment.";
+      refreshMsg = "Couldn't refresh — try again in a moment.";
     }
     render();
   }
@@ -527,11 +536,10 @@
     switcherEl.innerHTML = "";
 
     // Header row: the "Pitch" caption on the left, and a small refresh
-    // icon button on the right that re-aligns every pitch. It lives up
-    // here (rather than as a full-width button below) because a refresh
-    // is a header-level action over the whole pitch set — sibling to the
-    // "Pitch" label, not to the per-pitch rename/select actions beneath
-    // the chip.
+    // icon button on the right that reconsiders the currently selected
+    // pitch. It lives up here (rather than as a full-width button below)
+    // because it sits beside the "Pitch" label and the active-pitch chip
+    // it acts on, not among the per-pitch rename/select actions.
     const head = document.createElement("div");
     head.className = "sidebar__pitch-switcher-head";
     const label = document.createElement("span");
@@ -542,14 +550,14 @@
     const refresh = document.createElement("button");
     refresh.type = "button";
     refresh.className = "sidebar__pitch-refresh";
-    if (redistributing) refresh.classList.add("is-busy");
-    refresh.disabled = redistributing;
+    if (refreshing) refresh.classList.add("is-busy");
+    refresh.disabled = refreshing;
     refresh.setAttribute(
       "aria-label",
-      redistributing ? "Re-aligning pitches…" : "Re-align pitches",
+      refreshing ? "Refreshing this pitch…" : "Refresh this pitch",
     );
-    refresh.title = redistributing ? "Re-aligning…" : "Re-align pitches";
-    if (redistributing) refresh.setAttribute("aria-busy", "true");
+    refresh.title = refreshing ? "Refreshing…" : "Refresh this pitch";
+    if (refreshing) refresh.setAttribute("aria-busy", "true");
     refresh.innerHTML =
       '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" ' +
       'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
@@ -561,15 +569,15 @@
     refresh.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      runRedistribute();
+      runRefresh();
     });
     head.appendChild(refresh);
     switcherEl.appendChild(head);
 
-    if (redistributeMsg) {
+    if (refreshMsg) {
       const note = document.createElement("p");
       note.className = "sidebar__pitch-redistribute-note";
-      note.textContent = redistributeMsg;
+      note.textContent = refreshMsg;
       switcherEl.appendChild(note);
     }
 
@@ -607,7 +615,7 @@
       e.stopPropagation();
       switcherOpen = !switcherOpen;
       renameOpen = false;
-      redistributeMsg = null;
+      refreshMsg = null;
       render();
     });
     row.appendChild(face);
@@ -665,7 +673,7 @@
       e.stopPropagation();
       renameOpen = !renameOpen;
       switcherOpen = false;
-      redistributeMsg = null;
+      refreshMsg = null;
       render();
       if (renameOpen) {
         setTimeout(() => {
