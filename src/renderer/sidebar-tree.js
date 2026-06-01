@@ -752,8 +752,21 @@
   // check can't tell production from a preview and would send production
   // founders off to a stale beginner preview alias rather than the live
   // back-me page.)
+  //
+  // tinker and beginner are different origins, so a founder signed in here
+  // has no session on beginner — landing on their own profile they'd see the
+  // "back me" pitch, not their QR. We carry the sign-in across in the URL
+  // fragment (`#share&ts=<token>`): the same on-device-only channel
+  // pwa-session.js already uses for the PWA install handoff. A fragment is
+  // never sent to a server (stripped from the request line and Referer), so
+  // the token stays on the device; beginner's profile page reads `ts` to
+  // recognise the owner, shows the QR, then scrubs it from the URL.
   function backMeUrl() {
-    return "https://beginner.work/tyler-lindow#share";
+    const base = "https://beginner.work/tyler-lindow#share";
+    let token = "";
+    try { token = localStorage.getItem("tinker_jwt") || ""; }
+    catch { token = ""; }
+    return token ? base + "&ts=" + encodeURIComponent(token) : base;
   }
 
   // Renders the indigo "Pitch" button at the bottom of the deck nav.

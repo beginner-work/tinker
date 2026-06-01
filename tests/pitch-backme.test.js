@@ -91,3 +91,26 @@ test("the Back me URL is the production profile QR on every surface", () => {
     "the Back me URL must not point at a beginner branch-preview alias",
   );
 });
+
+test("the Back me URL carries the tinker session across to beginner", () => {
+  // tinker and beginner are different origins, so a founder signed in here
+  // has no session there. The button hands the token over in the URL
+  // fragment (`#share&ts=<token>`) — the on-device-only channel pwa-session
+  // uses — so beginner's profile recognises the owner and shows the QR.
+  assert.match(
+    TREE_SRC,
+    /localStorage\.getItem\("tinker_jwt"\)/,
+    "backMeUrl reads the founder's session token",
+  );
+  assert.match(
+    TREE_SRC,
+    /\+\s*"&ts="\s*\+\s*encodeURIComponent\(token\)/,
+    "the token rides in a `ts` fragment param, URL-encoded",
+  );
+  // Signed-out (no token) must still produce the bare Back me URL.
+  assert.match(
+    TREE_SRC,
+    /token\s*\?\s*base\s*\+\s*"&ts="/,
+    "the token is only appended when the founder is signed in",
+  );
+});
