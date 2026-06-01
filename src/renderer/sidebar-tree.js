@@ -744,7 +744,7 @@
   // to land on the pre-seed ($9/month) subscription. The Pitch button takes
   // the founder straight to that page so they can show — or share — the code.
   // This lives on beginner production, so every tinker surface — production
-  // web, Electron, Capacitor — opens the canonical beginner.work back-me URL.
+  // web, Electron, Capacitor — opens the canonical www.beginner.work back-me URL.
   //
   // (We deliberately do *not* branch on the hostname here. tinker has no
   // custom domain: its own production is served from *.vercel.app
@@ -762,7 +762,9 @@
   // the token stays on the device; beginner's profile page reads `ts` to
   // recognise the owner, shows the QR, then scrubs it from the URL.
   function backMeUrl() {
-    const base = "https://beginner.work/tyler-lindow#share";
+    // www, not the bare apex: apex redirects to www and the PWA iframe can't
+    // follow that cross-origin hop under tinker's frame-src CSP (see back-me.js).
+    const base = "https://www.beginner.work/tyler-lindow#share";
     let token = "";
     try { token = localStorage.getItem("tinker_jwt") || ""; }
     catch { token = ""; }

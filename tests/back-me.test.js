@@ -47,8 +47,15 @@ test("the Back me URL carries the tinker session and targets the canonical page"
   );
   assert.match(
     BACKME_SRC,
-    /https:\/\/beginner\.work\/tyler-lindow#share/,
-    "targets the canonical beginner.work Back me page (#share)",
+    /https:\/\/www\.beginner\.work\/tyler-lindow#share/,
+    "targets the canonical www.beginner.work Back me page (#share)",
+  );
+  // The bare apex redirects to www; linking to the apex makes the PWA iframe
+  // follow a cross-origin redirect onto a host frame-src doesn't allow.
+  assert.doesNotMatch(
+    BACKME_SRC,
+    /["']https:\/\/beginner\.work\/tyler-lindow/,
+    "must not link at the bare apex (it redirects to www)",
   );
   // Same regression guard as the Pitch button: production tinker is on
   // *.vercel.app, so the URL must not be a beginner branch-preview alias.
@@ -97,8 +104,8 @@ test("index.html loads back-me.js and lets the iframe frame beginner", () => {
   // The iframe target is cross-origin, so the CSP must allow framing beginner.
   assert.match(
     INDEX_HTML,
-    /frame-src[^;]*https:\/\/beginner\.work/,
-    "CSP frame-src must allow https://beginner.work for the in-app iframe",
+    /frame-src[^;]*https:\/\/www\.beginner\.work/,
+    "CSP frame-src must allow https://www.beginner.work for the in-app iframe",
   );
 });
 
