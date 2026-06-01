@@ -25,6 +25,12 @@ module.exports = withResponseLogging(async function handler(req, res) {
     return;
   }
 
+  // Per-user entitlement, and it flips the moment a member subscribes or
+  // restores — never let a browser/CDN serve a stale "Free plan" read back to a
+  // member who just paid (which is what a cached response would do right after
+  // a restore re-pulls this endpoint).
+  res.setHeader("Cache-Control", "no-store");
+
   let userId;
   try {
     userId = await resolveUserId(req);
