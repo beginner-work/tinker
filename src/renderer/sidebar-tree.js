@@ -821,6 +821,13 @@
     post.style.justifyContent = "center";
     post.addEventListener("click", () => {
       // Open the founder's Back me page on beginner (their QR to share).
+      // back-me.js owns the runtime decision — in-app iframe on an installed
+      // PWA, system browser otherwise — and shares it with the profile menu.
+      if (window.tinkerBackMe && typeof window.tinkerBackMe.open === "function") {
+        window.tinkerBackMe.open();
+        return;
+      }
+      // Fallback if the shared opener didn't load: hand off to the browser.
       const url = backMeUrl();
       if (window.tinker && typeof window.tinker.openExternal === "function") {
         window.tinker.openExternal(url);

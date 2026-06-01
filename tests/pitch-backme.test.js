@@ -66,10 +66,17 @@ test("clicking Pitch opens the founder's Back me page", () => {
     /post\.addEventListener\(\s*["']click["']/,
     "the Pitch button must have a click handler",
   );
+  // Primary path delegates to the shared opener (back-me.js), which decides
+  // in-app iframe vs system browser; the inline openExternal is the fallback.
+  assert.match(
+    TREE_SRC,
+    /window\.tinkerBackMe\.open\(\)/,
+    "must delegate to the shared Back me opener",
+  );
   assert.match(
     TREE_SRC,
     /openExternal\(url\)/,
-    "must open the Back me page via the platform openExternal shim",
+    "keeps a system-browser fallback if the shared opener didn't load",
   );
 });
 

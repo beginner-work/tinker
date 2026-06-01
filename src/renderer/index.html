@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://vercel.live wss://ws-us3.pusher.com; script-src 'self' https://vercel.live; frame-src https://vercel.live; manifest-src 'self' data: blob:;" />
+          content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://vercel.live wss://ws-us3.pusher.com; script-src 'self' https://vercel.live; frame-src https://vercel.live https://beginner.work; manifest-src 'self' data: blob:;" />
     <title>tinker</title>
     <!-- Belt + suspenders: this tag tells well-behaved crawlers not to
          index the app; the X-Robots-Tag header in vercel.json catches
@@ -53,6 +53,12 @@
          sidebar-tree.js so the tree module's first render can read
          the active pitch's deck out of window.tinkerPitches. -->
     <script src="./pitches.js" defer></script>
+    <!-- Shared "Back me" opener (window.tinkerBackMe): the founder's profile
+         QR on beginner. In an installed PWA it opens in an in-app iframe
+         overlay; elsewhere it hands off to the system browser. Used by both
+         the sidebar Pitch button and the profile menu. Loaded before them so
+         the global exists when their click handlers bind. -->
+    <script src="./back-me.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
@@ -88,6 +94,11 @@
       <div id="profile-popover" class="profile-popover" role="menu" hidden>
         <span class="profile-popover__name"></span>
         <span class="profile-popover__email"></span>
+        <!-- A non-Pitch-button way to pull up your own QR: opens your Back me
+             page (in-app iframe on PWA, system browser otherwise). -->
+        <button id="profile-backme" class="profile-popover__action" type="button" role="menuitem">
+          Show my QR code
+        </button>
       </div>
     </div>
 
