@@ -171,6 +171,36 @@ These vars only exist in the Preview scope on purpose: production stays
 unaware of them, so the `/api/dev-bootstrap` endpoint silently 404s on
 the production hostname.
 
+### Testing on a preview as yourself, without re-sending SMS
+
+Because preview shares the **Live** Stytch project and the production
+Postgres (see above), signing into a preview lands you on your real
+production account with real production data — that's the point, and
+it's why preview must *not* be pointed back at a `project-test-*`
+project (that would isolate you onto an empty test user). The catch:
+every preview deploy is a new `*.vercel.app` origin with empty
+localStorage, so the SMS-OTP gate makes you sign in again on each one.
+Each sign-in sends a Stytch code, and after ~24 sends in 24h Stytch
+rate-limits your number.
+
+The same `/api/dev-bootstrap` seam that automation uses fixes this for
+humans too: it reuses the one long-lived `TEST_SESSION_TOKEN` (your real
+Live session, minted once in step 3 above) instead of triggering a new
+code. Mint it once per ~30 days, then on each new preview origin:
+
+```bash
+npx vercel env pull                  # populates TEST_AUTH_TOKEN + bypass secret
+npm run preview:url -- --url https://tinker-abc.vercel.app
+# prints the /api/dev-bootstrap URL — open it in your browser and you're
+# signed in as your production account, no SMS. Pass --next /daily/ to
+# land on a specific path.
+```
+
+So the rule of thumb for real-account preview testing: **mint once with
+your real phone, then re-seed with `preview:url` — never re-run the OTP
+just to get back in.** That keeps you on your real Live user and real
+production data while staying well clear of the 24-in-24h SMS wall.
+
 ### Secrets in Claude Code on the web
 
 Vercel stays the source of truth for everything else.
