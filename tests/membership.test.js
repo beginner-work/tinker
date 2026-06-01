@@ -155,6 +155,24 @@ test("subscription.updated maps Stripe status through and reads metadata identit
   });
 });
 
+test("subscription.updated reads period end off the item when not top-level", () => {
+  // Current Stripe API versions put current_period_end on the subscription
+  // item, not the subscription itself — the shape tinker sees in production.
+  const m = membershipFromEvent({
+    type: "customer.subscription.updated",
+    data: {
+      object: {
+        id: "sub_9",
+        customer: "cus_9",
+        status: "active",
+        metadata: { userId: "user-9" },
+        items: { data: [{ current_period_end: 1782880160 }] },
+      },
+    },
+  });
+  assert.equal(m.data.currentPeriodEnd, 1782880160);
+});
+
 test("subscription.deleted records canceled", () => {
   const m = membershipFromEvent({
     type: "customer.subscription.deleted",
