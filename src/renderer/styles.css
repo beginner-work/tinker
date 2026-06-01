@@ -312,6 +312,20 @@ body:has(#welcome[data-active]) .mode-nav {
 }
 .mode-nav__offline[hidden] { display: none; }
 
+/* Centre the pill over the stage, not the viewport. On desktop the
+ * sidebar sits inline (its --sidebar-width eats the left edge), so the
+ * welcome copy — "You are a founder." — is centred in the space to its
+ * right. A plain left: 50% would centre the switch on the whole window
+ * and leave it sitting noticeably left of that text. Shift it right by
+ * half the sidebar so its centre lands on the stage's centre, under the
+ * heading. The var tracks the 252px/220px breakpoints automatically.
+ * Below 541px the sidebar becomes the off-canvas drawer and the stage
+ * goes full-width, so the base left: 50% is already correct — this
+ * override deliberately doesn't apply there. */
+@media (min-width: 541px) {
+  .mode-nav { left: calc(50% + var(--sidebar-width) / 2); }
+}
+
 @media (max-width: 540px) {
   .mode-nav { bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
 }
