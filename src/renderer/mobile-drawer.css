@@ -50,6 +50,20 @@
     pointer-events: none;
   }
 
+  /* The AI / No AI glass switch floats bottom-centre at z-index 95 —
+   * above the drawer (60) — so when the sidebar pulls out it would
+   * otherwise stay on top of, and peek past, the sliding sidebar.
+   * Fade it out with the rest of the floating chrome (toggle, titles)
+   * so the open drawer covers it for a clean surface. The bar/offline
+   * sliver re-assert pointer-events: auto on themselves, so disable
+   * those explicitly or they'd keep catching taps while invisible. */
+  .mode-nav { transition: opacity 0.18s ease; }
+  body[data-drawer-open] .mode-nav { opacity: 0; }
+  body[data-drawer-open] .mode-nav__bar,
+  body[data-drawer-open] .mode-nav__offline {
+    pointer-events: none;
+  }
+
   .sidebar {
     position: fixed;
     top: 0;
