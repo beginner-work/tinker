@@ -1000,11 +1000,22 @@
   const welcomeInput = document.getElementById("welcome-input");
 
   function startSessionWith(seed) {
-    if (window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
-      window.tinkerSeeds.add(seed);
-    }
-    if (typeof window.tinkerNewSession === "function") {
-      window.tinkerNewSession({ seed });
+    const begin = () => {
+      if (window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
+        window.tinkerSeeds.add(seed);
+      }
+      if (typeof window.tinkerNewSession === "function") {
+        window.tinkerNewSession({ seed });
+      }
+    };
+    // First-time founders go through this location flow before we ask for
+    // their profile: if a capture is still parked, collect it now and open the
+    // seeded session once it's saved. Returning founders begin immediately.
+    const profile = window.tinkerProfile;
+    if (profile && typeof profile.needsOnboarding === "function" && profile.needsOnboarding()) {
+      profile.runOnboarding().then(begin);
+    } else {
+      begin();
     }
   }
 

@@ -17,6 +17,7 @@ const path = require("node:path");
 const RENDERER = path.join(__dirname, "..", "src", "renderer");
 const html = fs.readFileSync(path.join(RENDERER, "index.html"), "utf8");
 const js = fs.readFileSync(path.join(RENDERER, "profile.js"), "utf8");
+const rendererJs = fs.readFileSync(path.join(RENDERER, "renderer.js"), "utf8");
 
 test("shell wires the profile stylesheet and deferred script", () => {
   assert.match(html, /href="\.\/profile\.css"/, "profile.css link missing");
@@ -45,32 +46,35 @@ test("shell keeps the onboarding capture markup", () => {
   assert.match(html, /id="onboarding-avatar"[^>]*accept="image\/\*"/, "avatar input must accept images");
 });
 
-test("shell keeps the pre-profile welcome step", () => {
-  // One welcome page precedes the profile-details form; "Begin" reveals it.
-  for (const id of ["onboarding-welcome", "onboarding-begin", "onboarding-details"]) {
-    assert.match(html, new RegExp(`id="${id}"`), `#${id} is missing`);
-  }
-  // The details wrapper ships hidden so the welcome step shows first.
-  assert.match(
-    html,
-    /id="onboarding-details"[^>]*hidden/,
-    "onboarding-details must ship hidden behind the welcome step",
-  );
-});
-
-test("profile.js reveals the details form when Begin is tapped", () => {
-  assert.match(js, /onboarding-welcome/, "welcome step ref missing");
-  assert.match(js, /onboarding-begin/, "begin button ref missing");
-  assert.match(js, /onboarding-details/, "details step ref missing");
-  // Begin advances welcome → details.
-  assert.match(js, /beginBtn\.addEventListener\("click"/, "Begin click must be wired");
-});
-
 test("profile.js talks to the claim + profile endpoints", () => {
   assert.match(js, /\/api\/profile\/claim/, "claim endpoint call missing");
   assert.match(js, /\/api\/user-data\/profile/, "profile endpoint call missing");
   assert.match(js, /tinker_claim/, "claim localStorage key missing");
   assert.match(js, /tinker_jwt/, "session token key missing");
+});
+
+test("onboarding is parked behind the location flow, not forced on sign-in", () => {
+  // A missing profile parks a token instead of immediately showing the
+  // capture overlay, so the "where are you right now?" location flow comes
+  // first. The public API lets renderer.js drive the order.
+  assert.match(js, /pendingToken\s*=\s*token/, "missing profile must park a pending token");
+  assert.match(js, /window\.tinkerProfile\s*=/, "must expose window.tinkerProfile");
+  assert.match(js, /needsOnboarding/, "API must expose needsOnboarding()");
+  assert.match(js, /runOnboarding/, "API must expose runOnboarding()");
+  // The capture screen is no longer shown straight from hydrate's missing branch.
+  assert.doesNotMatch(
+    js,
+    /state === "missing" && isWebGate\(\)\) showOnboarding/,
+    "hydrate must not force onboarding before the location flow",
+  );
+});
+
+test("renderer starts the location session through the profile gate", () => {
+  // Picking a location runs onboarding first (when pending), then opens the
+  // seeded session — so profile details are asked for after the location flow.
+  assert.match(rendererJs, /window\.tinkerProfile/, "renderer must consult the profile gate");
+  assert.match(rendererJs, /needsOnboarding\(\)/, "renderer must check needsOnboarding()");
+  assert.match(rendererJs, /runOnboarding\(\)\.then\(begin\)/, "renderer must defer the session until onboarding resolves");
 });
 
 test("profile.js saves onboarding via PUT with an avatarUrl", () => {

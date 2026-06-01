@@ -7,11 +7,12 @@
  *      (POST /api/profile/claim — first write wins, single-use), else
  *   2. read the canonical profile (GET /api/user-data/profile);
  *   3a. if a profile exists → render the avatar top-right;
- *   3b. if it's definitively missing (and we're on the web gate) → show the
- *       onboarding overlay: one welcome step everyone reads first, then the
- *       profile-details capture (photo/name/email) revealed on "Begin".
- *       Saving PUTs the same (user_id,"profile") row the claim path writes,
- *       then renders.
+ *   3b. if it's definitively missing (and we're on the web gate) → park the
+ *       onboarding so the founder goes through the "where are you right now?"
+ *       location flow first; renderer.js calls runOnboarding() once a place is
+ *       picked, which shows the capture step (photo/name/email) and resolves
+ *       on save so the seeded session then opens. Saving PUTs the same
+ *       (user_id,"profile") row the claim path writes, then renders.
  *
  * Source of truth: every path ends at one profile blob in the shared
  * TinkerUserData store. The in-app photo is a downscaled data: URL kept in
@@ -189,8 +190,14 @@
   }
 
   // ── Onboarding (first-login capture) ────────────────────────────────
+  // Parked until the founder picks a location (renderer.js drives the order
+  // by calling runOnboarding()); onSavedCb resolves that promise on save so
+  // the seeded writing session opens afterwards.
   var onboardingBound = false;
-  function showOnboarding(token) {
+  var pendingToken = null;
+  var onSavedCb = null;
+  function showOnboarding(token, onSaved) {
+    onSavedCb = typeof onSaved === "function" ? onSaved : null;
     var gate = document.getElementById("profile-onboarding");
     if (!gate) return;
     var form = document.getElementById("onboarding-form");
@@ -202,36 +209,14 @@
     var avatarImg = gate.querySelector(".onboarding__avatar-img");
     var avatarPh = gate.querySelector(".onboarding__avatar-ph");
     var hint = gate.querySelector(".onboarding__photo-hint");
-    var welcome = document.getElementById("onboarding-welcome");
-    var details = document.getElementById("onboarding-details");
-    var beginBtn = document.getElementById("onboarding-begin");
     if (!form || !fileInput || !nameInput) return;
 
     gate.removeAttribute("hidden");
     document.documentElement.classList.add("onboarding-active");
-
-    // Everyone lands on the welcome step first; the profile-details form is
-    // revealed only after "Begin". Reset to the welcome step each time the
-    // overlay opens so a reshow never lands mid-flow.
-    function showWelcome() {
-      if (welcome) welcome.removeAttribute("hidden");
-      if (details) details.setAttribute("hidden", "");
-      var target = beginBtn || nameInput;
-      setTimeout(function () { try { target.focus(); } catch { /* ignore */ } }, 0);
-    }
-    function showDetails() {
-      if (welcome) welcome.setAttribute("hidden", "");
-      if (details) details.removeAttribute("hidden");
-      setTimeout(function () { try { nameInput.focus(); } catch { /* ignore */ } }, 0);
-    }
-    // No welcome markup (older shell) → fall straight to the details form.
-    if (welcome && beginBtn && details) showWelcome();
-    else showDetails();
+    setTimeout(function () { try { nameInput.focus(); } catch { /* ignore */ } }, 0);
 
     if (onboardingBound) return;
     onboardingBound = true;
-
-    if (beginBtn) beginBtn.addEventListener("click", showDetails);
 
     var previewUrl = null;
     var pendingAvatar = null; // downscaled data URL once a file is chosen
@@ -292,6 +277,10 @@
           gate.setAttribute("hidden", "");
           document.documentElement.classList.remove("onboarding-active");
           render(profile);
+          pendingToken = null;
+          var cb = onSavedCb;
+          onSavedCb = null;
+          if (cb) cb();
         })
         .catch(function () {
           setError("Couldn’t save just now — check your connection and try again.");
@@ -300,6 +289,21 @@
         });
     });
   }
+
+  // ── Public API (renderer.js drives the order) ───────────────────────
+  // needsOnboarding(): a profile is missing and a capture is parked.
+  // runOnboarding(): show the capture step now and resolve once it's saved
+  // (resolves immediately if nothing is pending), so the caller can continue
+  // into the seeded session afterwards.
+  window.tinkerProfile = {
+    needsOnboarding: function () { return !!pendingToken; },
+    runOnboarding: function () {
+      return new Promise(function (resolve) {
+        if (!pendingToken) { resolve(); return; }
+        showOnboarding(pendingToken, resolve);
+      });
+    },
+  };
 
   // ── Orchestration ───────────────────────────────────────────────────
   var inFlight = false;
@@ -313,7 +317,10 @@
         if (claimed) { render(claimed); return null; }
         return loadProfile(token).then(function (res) {
           if (res.state === "present") render(res.profile);
-          else if (res.state === "missing" && isWebGate()) showOnboarding(token);
+          // Don't interrupt with the capture screen on sign-in. Park it so the
+          // founder picks a location first; renderer.js prompts via
+          // runOnboarding() once they do.
+          else if (res.state === "missing" && isWebGate()) pendingToken = token;
           return null;
         });
       })
