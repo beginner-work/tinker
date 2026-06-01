@@ -66,10 +66,17 @@ test("clicking Pitch opens the founder's Back me page", () => {
     /post\.addEventListener\(\s*["']click["']/,
     "the Pitch button must have a click handler",
   );
+  // Primary path delegates to the shared opener (back-me.js), which decides
+  // in-app iframe vs system browser; the inline openExternal is the fallback.
+  assert.match(
+    TREE_SRC,
+    /window\.tinkerBackMe\.open\(\)/,
+    "must delegate to the shared Back me opener",
+  );
   assert.match(
     TREE_SRC,
     /openExternal\(url\)/,
-    "must open the Back me page via the platform openExternal shim",
+    "keeps a system-browser fallback if the shared opener didn't load",
   );
 });
 
@@ -89,5 +96,28 @@ test("the Back me URL is the production profile QR on every surface", () => {
     TREE_SRC,
     /beginner-git-[\w-]*\.vercel\.app/,
     "the Back me URL must not point at a beginner branch-preview alias",
+  );
+});
+
+test("the Back me URL carries the tinker session across to beginner", () => {
+  // tinker and beginner are different origins, so a founder signed in here
+  // has no session there. The button hands the token over in the URL
+  // fragment (`#share&ts=<token>`) — the on-device-only channel pwa-session
+  // uses — so beginner's profile recognises the owner and shows the QR.
+  assert.match(
+    TREE_SRC,
+    /localStorage\.getItem\("tinker_jwt"\)/,
+    "backMeUrl reads the founder's session token",
+  );
+  assert.match(
+    TREE_SRC,
+    /\+\s*"&ts="\s*\+\s*encodeURIComponent\(token\)/,
+    "the token rides in a `ts` fragment param, URL-encoded",
+  );
+  // Signed-out (no token) must still produce the bare Back me URL.
+  assert.match(
+    TREE_SRC,
+    /token\s*\?\s*base\s*\+\s*"&ts="/,
+    "the token is only appended when the founder is signed in",
   );
 });

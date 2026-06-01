@@ -170,6 +170,19 @@
           btn.setAttribute("aria-expanded", "false");
         }
       });
+      // "Show my QR code" — a non-Pitch-button entry into the founder's Back
+      // me page. The shared opener decides in-app iframe (PWA) vs system
+      // browser; close the popover first so it isn't left hanging open.
+      var backme = document.getElementById("profile-backme");
+      if (backme) {
+        backme.addEventListener("click", function () {
+          pop.setAttribute("hidden", "");
+          btn.setAttribute("aria-expanded", "false");
+          if (window.tinkerBackMe && typeof window.tinkerBackMe.open === "function") {
+            window.tinkerBackMe.open();
+          }
+        });
+      }
     }
   }
 
