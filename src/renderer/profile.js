@@ -1,19 +1,10 @@
 /* profile.js — the top-right profile section and the share-pitch QR.
  *
- * Two surfaces, both anchored in #profile-corner at the top-right of the
- * app:
- *
- *   1. The avatar button. Tapping it opens a small menu showing who's
- *      signed in (the phone number on the web build), a "Share my pitch"
- *      shortcut, and — on the web build, when a session token exists — a
- *      "Sign out" action wired to window.tinkerAuth.
- *
- *   2. The QR tab, which sits to the LEFT of the avatar. CSS reveals it
- *      only while the side nav is open (always on desktop, where the
- *      sidebar is persistent; on opening the drawer on mobile). Tapping
- *      it — or the menu's "Share my pitch" — raises #qr-modal with a QR
- *      encoding the founder's published-pitch reader link, so anyone can
- *      scan it to read the pitch and connect.
+ * The profile icon (#profile-avatar, fixed in the top-right corner) IS
+ * the share button: tapping it raises #qr-modal — a small sheet that
+ * shows a QR encoding the founder's published-pitch reader link, who's
+ * signed in, and (web build, with a session token) a sign-out action.
+ * Anyone can scan the QR to read the pitch and connect.
  *
  * The QR itself is drawn with the vendored global `qrcode` (lib/qr.js).
  * The share link comes from /api/feed/published-pitches (most-recently
@@ -82,48 +73,12 @@
     if (signout) signout.hidden = !(isWebPlatform() && token());
   }
 
-  // ── Profile menu ───────────────────────────────────────────────────
+  // ── Profile icon ───────────────────────────────────────────────────
 
-  function wireMenu() {
+  // The profile icon is the share button — tapping it opens the QR sheet.
+  function wireAvatar() {
     const avatar = document.getElementById("profile-avatar");
-    const menu = document.getElementById("profile-menu");
-    if (!avatar || !menu) return;
-
-    function open() {
-      menu.hidden = false;
-      avatar.setAttribute("aria-expanded", "true");
-    }
-    function close() {
-      menu.hidden = true;
-      avatar.setAttribute("aria-expanded", "false");
-    }
-    function isOpen() { return !menu.hidden; }
-
-    avatar.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (isOpen()) close(); else open();
-    });
-
-    menu.addEventListener("click", (e) => {
-      const item = e.target.closest("[data-profile-action]");
-      if (!item) return;
-      const action = item.dataset.profileAction;
-      close();
-      if (action === "qr") {
-        openQrModal();
-      } else if (action === "signout") {
-        if (window.tinkerAuth && typeof window.tinkerAuth.signOut === "function") {
-          window.tinkerAuth.signOut();
-        }
-      }
-    });
-
-    document.addEventListener("click", (e) => {
-      if (isOpen() && !e.target.closest("#profile-corner")) close();
-    });
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && isOpen()) close();
-    });
+    if (avatar) avatar.addEventListener("click", openQrModal);
   }
 
   // ── QR rendering ───────────────────────────────────────────────────
@@ -222,6 +177,14 @@
         flashCopy(copyBtn, "Couldn't copy");
       });
     }
+    const signout = modal.querySelector('[data-profile-action="signout"]');
+    if (signout) {
+      signout.addEventListener("click", () => {
+        if (window.tinkerAuth && typeof window.tinkerAuth.signOut === "function") {
+          window.tinkerAuth.signOut();
+        }
+      });
+    }
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !modal.hidden) closeQrModal();
     });
@@ -266,18 +229,10 @@
     }
   }
 
-  // ── QR tab ─────────────────────────────────────────────────────────
-
-  function wireTab() {
-    const tab = document.getElementById("profile-qr-tab");
-    if (tab) tab.addEventListener("click", openQrModal);
-  }
-
   ready(() => {
     if (!document.getElementById("profile-corner")) return;
     paintIdentity();
-    wireMenu();
-    wireTab();
+    wireAvatar();
     wireModal();
   });
 
