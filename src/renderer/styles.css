@@ -706,13 +706,15 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 }
 
 /* Sidebar mirror wedge — top-right of the sidebar, mirroring the
- * welcome corner wedge across the sidebar/stage boundary. On desktop
- * the sidebar is always visible and the two wedges form a "frame"
- * around the top of the layout. On mobile the sidebar is the drawer:
- * the wedge slides in/out with the drawer's translateX transform
- * (defined in mobile-drawer.css), so it's only visible when the
- * drawer is open. Sized via --edge-sidebar-size (80px desktop, 60px
- * mobile) so it doesn't reach the dropdown row below the brand.
+ * welcome corner wedge across the sidebar/stage boundary. Mobile-only:
+ * on mobile the sidebar is the drawer, and the wedge slides in/out
+ * with the drawer's translateX transform (defined in
+ * mobile-drawer.css), so it's only visible when the drawer is open.
+ * On desktop the sidebar is always inline; we deliberately drop this
+ * wedge there (see the min-width: 541px rule below) so the welcome
+ * screen shows only the single top-left corner flag. Sized via
+ * --edge-sidebar-size (60px on mobile) so it doesn't reach the
+ * dropdown row below the brand.
  *
  * isolation: isolate gives .sidebar its own stacking context (only
  * when welcome is active) so the wedge can sit at z-index: -1 —
@@ -735,6 +737,17 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, black calc(var(--edge-sidebar-size) * 0.85));
   pointer-events: none;
   z-index: -1;
+}
+/* Desktop: drop the sidebar's top-right mirror wedge. At >=541px the
+ * sidebar is permanently inline (no drawer), so this wedge would mirror
+ * the welcome corner flag across the sidebar/stage boundary. We instead
+ * keep just the single triangle in the top-left of the main screen. The
+ * base rule above still draws the wedge on mobile, where it rides the
+ * slide-in drawer. */
+@media (min-width: 541px) {
+  body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
+    display: none;
+  }
 }
 .welcome .welcome__inner { position: relative; z-index: 1; }
 .welcome__inner {
