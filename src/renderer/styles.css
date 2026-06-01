@@ -1478,6 +1478,15 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   z-index: 70;
   transition: opacity 0.18s ease;
 }
+/* When the founder avatar is shown (profile.js adds .has-avatar to <html>)
+ * it sits fixed in this same top-right corner — 40px wide at right:12px —
+ * so the two controls overlap and the kebab's dots fall on the photo. Slide
+ * the kebab left to clear the avatar's 52px footprint (12px inset + 40px)
+ * with a 12px gap, leaving the two side by side. Higher specificity than the
+ * base rule and the ≤540px override below, so it holds at every width. */
+.has-avatar .read__menu {
+  right: calc(env(safe-area-inset-right, 0px) + 64px);
+}
 .read__menu-trigger {
   width: 40px;
   height: 40px;

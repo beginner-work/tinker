@@ -153,6 +153,9 @@
     }
 
     corner.removeAttribute("hidden");
+    // Flag that the founder avatar now occupies the top-right corner so the
+    // essay kebab (.read__menu) slides left instead of sitting under it.
+    document.documentElement.classList.add("has-avatar");
 
     if (btn && pop && !btn.dataset.bound) {
       btn.dataset.bound = "1";
