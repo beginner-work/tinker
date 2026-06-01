@@ -1668,7 +1668,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   display: flex; gap: 12px; align-items: center;
 }
 .assessing__keep,
-.assessing__close {
+.assessing__read {
   height: 44px;
   padding: 0 22px;
   border-radius: 999px;
@@ -1684,17 +1684,17 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 }
 .assessing__keep:hover { background: #4f46e5; }
 .assessing__keep:active { transform: scale(0.98); }
-.assessing__close {
+.assessing__read {
   background: var(--color-surface);
   color: var(--color-foreground);
   border: 1px solid var(--color-border);
 }
-.assessing__close:hover {
+.assessing__read:hover {
   border-color: var(--color-accent-strong);
   color: var(--color-accent-strong);
   background: var(--color-accent-dim);
 }
-.assessing__close:active { transform: scale(0.98); }
+.assessing__read:active { transform: scale(0.98); }
 
 /* ── Toast notifications (native-style placement alerts) ──────────── */
 
