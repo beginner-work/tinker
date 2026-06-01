@@ -50,7 +50,7 @@ function makeEl(id) {
 
 // Builds the sandbox + DOM and runs membership.js. `statusFails` makes every
 // GET /api/membership/status come back non-ok (the flaky/stale case).
-function setup({ statusFails }) {
+function setup({ statusFails, reconcileStatus }) {
   const nav = makeEl("nav-membership");
   nav._kids = {
     "[data-membership-tier]": makeEl("tier"),
@@ -64,8 +64,19 @@ function setup({ statusFails }) {
   function fakeFetch(url) {
     calls.push(url);
     if (url.indexOf("/api/membership/reconcile") >= 0) {
+      // reconcileStatus simulates a server/config failure (e.g. 503 when the
+      // deploy has no STRIPE_SECRET_KEY) — a non-ok response carrying a JSON
+      // error body, exactly what the endpoint returns when it can't reach Stripe.
+      if (reconcileStatus) {
+        return Promise.resolve({
+          ok: false,
+          status: reconcileStatus,
+          json: () => Promise.resolve({ error: "Reconciliation isn't available right now." }),
+        });
+      }
       return Promise.resolve({
         ok: true,
+        status: 200,
         json: () => Promise.resolve({
           restored: true, active: true, tier: "pre-seed",
           status: "active", currentPeriodEnd: 1782880160,
@@ -131,4 +142,27 @@ test("restore also works when the status re-read would (misleadingly) report fre
   await tick();
 
   assert.equal(nav._kids["[data-membership-tier]"]._text, "Pre-seed · $9/mo");
+});
+
+test("a 503 from reconcile surfaces a config failure, not a misleading 'No subscription found'", async () => {
+  // When the deploy can't reach Stripe (e.g. STRIPE_SECRET_KEY isn't set, so
+  // the endpoint 503s), the member DOES have a subscription — the server just
+  // can't look it up. Reporting "No subscription found" here hid exactly this
+  // class of misconfiguration through earlier rounds of fixes. The restore link
+  // must instead show a distinct, retry-able state.
+  const { nav, restore } = setup({ statusFails: false, reconcileStatus: 503 });
+  await tick();
+
+  restore.click();
+  await tick();
+  await tick();
+
+  assert.notEqual(
+    restore._text,
+    "No subscription found",
+    "a 503 must not be mislabeled as a genuine empty result",
+  );
+  assert.match(restore._text, /unavailable|try/i, "shows a retry-able billing/config failure");
+  // The row stays on the free view — restore didn't (and shouldn't) flip it.
+  assert.equal(nav.dataset.active, "0");
 });

@@ -137,9 +137,25 @@
       headers: Object.assign({ "Content-Type": "application/json" }, authHeaders(token)),
       body: JSON.stringify(emailOverride ? { email: emailOverride } : {}),
     })
-      .then(function (res) { return res.ok ? res.json() : null; })
-      .then(function (json) {
-        if (json && json.restored) {
+      .then(function (res) {
+        // Keep the HTTP status alongside the body. A *clean* empty result is a
+        // 200 with { restored:false, reason }. A 503 (Stripe key not configured
+        // on this deploy), a 502 (Stripe rejected the request — e.g. a wrong or
+        // test-mode key), or any other 5xx is a SERVER/CONFIG failure, not "you
+        // have no subscription". The old code collapsed every non-ok response to
+        // null and reported "No subscription found" for all of them, so a
+        // misconfigured deploy looked exactly like a genuine miss — which is how
+        // a broken reconcile could survive several rounds of UI fixes unnoticed.
+        var ok = res.ok;
+        var status = res.status;
+        return res.json().then(
+          function (body) { return { ok: ok, status: status, body: body }; },
+          function () { return { ok: ok, status: status, body: null }; }
+        );
+      })
+      .then(function (r) {
+        var json = r.body;
+        if (r.ok && json && json.restored) {
           // Paint the row straight from the reconcile response — it carries the
           // same { active, tier, status, currentPeriodEnd } shape status returns
           // and is the freshly-written source of truth. Re-pulling /status here
@@ -151,7 +167,18 @@
           if (row) render(row, json);
           return;
         }
-        // Ask for an email at most once — if we already tried one, stop.
+        // Server/config failure — surface it as its own state (and leave the
+        // link live to retry) rather than mislabeling it "No subscription found".
+        if (!r.ok) {
+          setRestoreText(
+            btn,
+            r.status === 503 ? "Billing unavailable — try later" : "Couldn’t restore — try again",
+            true
+          );
+          return;
+        }
+        // A genuine empty result (HTTP 200). Ask for an email at most once — if
+        // we already tried one, stop.
         if (!emailOverride && json && (json.reason === "no-email" || json.reason === "no-subscription")) {
           var typed = askEmail();
           if (typed) return startReconcile(token, btn, typed);

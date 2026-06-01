@@ -65,8 +65,22 @@ Required Vercel env vars:
 - `STYTCH_SECRET`
 - `ANTHROPIC_API_KEY`
 - `DATABASE_URL`
+- `STRIPE_SECRET_KEY` — the **live** secret key for the Stripe account that
+  holds the pre-seed subscriptions. Required by the membership endpoints
+  (`api/membership/checkout.js`, `reconcile.js`, `status.js`). Without it,
+  in-app Upgrade returns 503 and **"Already subscribed? Restore" can never
+  link a subscription** — the reconcile call 503s and the row stays on "Free
+  plan". A test-mode key here is just as broken: it queries the wrong Stripe
+  account, finds no customer, and reports the paying member as free. This must
+  be the **same** live account `beginner`'s checkout writes to.
 - `BROWSERBASE_API_KEY` — used by `scripts/browserbase-debug.js`
 - `BROWSERBASE_PROJECT_ID` — used by `scripts/browserbase-debug.js`
+
+Optional:
+
+- `STRIPE_PRICE_PRESEED` — a recurring $9/month Price id for the in-app
+  Upgrade checkout. If unset, the checkout builds the price inline, so the
+  flow still works without dashboard setup.
 
 Optional Preview-only vars (enable the Claude-Code → Browserbase loop;
 see "Closed-loop iteration on a Vercel preview" below):
