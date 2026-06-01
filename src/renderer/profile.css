@@ -1,0 +1,224 @@
+/* profile.css — top-right founder avatar + identity popover.
+ *
+ * The corner is hidden until profile.js loads a profile. It sits opposite
+ * the mobile drawer toggle (top-left), so the placement is free at every
+ * breakpoint. Avatar falls back to an initial badge when there's no photo
+ * or the image fails to decode.
+ */
+
+.profile-corner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
+  z-index: 60;
+}
+.profile-corner[hidden] { display: none; }
+
+.profile-avatar {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-card);
+  color: var(--color-foreground);
+  cursor: pointer;
+  box-shadow: var(--shadow-button);
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+.profile-avatar:hover { box-shadow: var(--shadow-button-hover); }
+.profile-avatar:active { transform: scale(0.96); }
+.profile-avatar:focus-visible {
+  outline: 2px solid var(--color-accent-press, #4f46e5);
+  outline-offset: 2px;
+}
+
+.profile-avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+.profile-avatar__img[hidden] { display: none; }
+
+.profile-avatar__initial {
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--color-foreground);
+}
+.profile-avatar__initial[hidden] { display: none; }
+
+.profile-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  max-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card, 12px);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-button-hover);
+}
+.profile-popover[hidden] { display: none; }
+
+.profile-popover__name {
+  font-weight: 600;
+  font-size: var(--text-body, 14px);
+  color: var(--color-foreground);
+}
+.profile-popover__email {
+  font-size: var(--text-small, 13px);
+  color: var(--color-muted);
+  word-break: break-all;
+}
+.profile-popover__email:empty { display: none; }
+
+/* ── First-login onboarding overlay ─────────────────────────────────── */
+
+.onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 24px) 20px
+           calc(env(safe-area-inset-bottom, 0px) + 24px);
+  background: var(--color-background);
+  overflow-y: auto;
+}
+.onboarding[hidden] { display: none; }
+
+.onboarding__inner {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+.onboarding__brand { margin-bottom: 4px; }
+
+.onboarding__title {
+  margin: 0;
+  font-size: var(--text-display, 22px);
+  font-weight: 700;
+  color: var(--color-foreground);
+}
+.onboarding__lede {
+  margin: 0 0 12px;
+  font-size: var(--text-body, 14px);
+  color: var(--color-muted);
+}
+
+.onboarding__form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.onboarding__photo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+}
+.onboarding__avatar {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  border-radius: 50%;
+  border: 1px dashed var(--color-border);
+  background: var(--color-card);
+  color: var(--color-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: border-color 0.16s ease, color 0.16s ease;
+}
+.onboarding__photo:hover .onboarding__avatar {
+  border-color: var(--color-accent-press, #4f46e5);
+  color: var(--color-accent-press, #4f46e5);
+}
+.onboarding__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+.onboarding__avatar-img[hidden] { display: none; }
+.onboarding__avatar-ph[hidden] { display: none; }
+.onboarding__photo-text { display: flex; flex-direction: column; gap: 2px; }
+.onboarding__photo-title {
+  font-size: var(--text-body, 14px);
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+.onboarding__photo-hint {
+  font-size: var(--text-small, 13px);
+  color: var(--color-muted);
+  word-break: break-word;
+}
+.onboarding__photo input[type="file"] {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.onboarding__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: var(--text-base, 15px);
+  color: var(--color-foreground);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button, 10px);
+}
+.onboarding__input:focus {
+  outline: none;
+  border-color: var(--color-accent-press, #4f46e5);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.onboarding__error {
+  font-size: var(--text-small, 13px);
+  color: #c0392b;
+}
+.onboarding__error[hidden] { display: none; }
+
+.onboarding__save {
+  margin-top: 4px;
+  padding: 12px 16px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--color-accent-press, #4f46e5);
+  border: 0;
+  border-radius: var(--radius-button, 10px);
+  cursor: pointer;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+.onboarding__save:hover { opacity: 0.94; }
+.onboarding__save:active { transform: scale(0.99); }
+.onboarding__save:disabled { opacity: 0.6; cursor: default; }

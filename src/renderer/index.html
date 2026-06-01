@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="./design-tokens.css" />
     <link rel="stylesheet" href="./mobile-drawer.css" />
     <link rel="stylesheet" href="./pwa-install-hint.css" />
+    <link rel="stylesheet" href="./profile.css" />
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" type="image/svg+xml" href="./icons/tinker-icon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/tinker-icon-192.png" />
@@ -53,6 +54,10 @@
          the active pitch's deck out of window.tinkerPitches. -->
     <script src="./pitches.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
+    <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
+         runs first-login onboarding, and shows the avatar top-right.
+         Deferred so the DOM (incl. #profile-corner) exists when it runs. -->
+    <script src="./profile.js" defer></script>
   </head>
   <body>
     <svg class="liquid-glass-defs" width="0" height="0" aria-hidden="true" focusable="false">
@@ -71,6 +76,68 @@
       </svg>
     </button>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
+
+    <!-- Top-right founder avatar. Hidden until profile.js loads a profile
+         (claimed from the landing form or read from the account). -->
+    <div id="profile-corner" class="profile-corner" hidden>
+      <button id="profile-avatar" class="profile-avatar" type="button"
+              aria-haspopup="true" aria-expanded="false" aria-label="Your profile">
+        <img class="profile-avatar__img" alt="" hidden />
+        <span class="profile-avatar__initial" aria-hidden="true">·</span>
+      </button>
+      <div id="profile-popover" class="profile-popover" role="menu" hidden>
+        <span class="profile-popover__name"></span>
+        <span class="profile-popover__email"></span>
+      </div>
+    </div>
+
+    <!-- First-login profile capture. Shown by profile.js to any web account
+         without a profile blob (claim tokens pre-fill the same row, so this
+         is the single source of truth). The avatar is downscaled to a data
+         URL and stored in the profile row. -->
+    <div id="profile-onboarding" class="onboarding" hidden>
+      <div class="onboarding__inner">
+        <div class="onboarding__brand" aria-hidden="true">
+          <svg data-rainbow-logo viewBox="0 0 200 200" width="44" height="44" fill="none">
+            <rect width="200" height="200" rx="44" fill="#f5f3ef" />
+            <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
+            <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
+            <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
+            <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
+            <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
+            <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
+            <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
+          </svg>
+        </div>
+        <h1 class="onboarding__title">Set up your profile</h1>
+        <p class="onboarding__lede">A photo and your name, so your pitches have an author.</p>
+        <form id="onboarding-form" class="onboarding__form" novalidate>
+          <label class="onboarding__photo">
+            <span class="onboarding__avatar">
+              <img class="onboarding__avatar-img" alt="" hidden />
+              <span class="onboarding__avatar-ph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
+                  <circle cx="12" cy="13" r="3"></circle>
+                </svg>
+              </span>
+            </span>
+            <span class="onboarding__photo-text">
+              <span class="onboarding__photo-title">Profile picture</span>
+              <span class="onboarding__photo-hint">Tap to add a photo</span>
+            </span>
+            <input id="onboarding-avatar" type="file" accept="image/*" />
+          </label>
+          <input id="onboarding-name" class="onboarding__input" type="text"
+                 placeholder="Your name" autocomplete="name" maxlength="80" />
+          <input id="onboarding-email" class="onboarding__input" type="email"
+                 placeholder="you@example.com (optional)" autocomplete="email" maxlength="160" />
+          <div id="onboarding-error" class="onboarding__error" role="alert" hidden></div>
+          <button id="onboarding-save" type="submit" class="onboarding__save">Save &amp; continue</button>
+        </form>
+      </div>
+    </div>
 
     <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar">
       <header class="sidebar__top">
