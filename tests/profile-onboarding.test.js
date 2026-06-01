@@ -53,11 +53,11 @@ test("profile.js talks to the claim + profile endpoints", () => {
   assert.match(js, /tinker_jwt/, "session token key missing");
 });
 
-test("onboarding is parked behind the location flow, not forced on sign-in", () => {
-  // A missing profile parks a token instead of immediately showing the
-  // capture overlay, so the "where are you right now?" location flow comes
-  // first. The public API lets renderer.js drive the order.
+test("profile capture is parked, not forced on sign-in", () => {
+  // A missing profile parks a token and announces it instead of showing the
+  // capture overlay up front — founders try the product first.
   assert.match(js, /pendingToken\s*=\s*token/, "missing profile must park a pending token");
+  assert.match(js, /tinker:profile-needed/, "must announce a needed profile");
   assert.match(js, /window\.tinkerProfile\s*=/, "must expose window.tinkerProfile");
   assert.match(js, /needsOnboarding/, "API must expose needsOnboarding()");
   assert.match(js, /runOnboarding/, "API must expose runOnboarding()");
@@ -65,16 +65,18 @@ test("onboarding is parked behind the location flow, not forced on sign-in", () 
   assert.doesNotMatch(
     js,
     /state === "missing" && isWebGate\(\)\) showOnboarding/,
-    "hydrate must not force onboarding before the location flow",
+    "hydrate must not force onboarding on sign-in",
   );
 });
 
-test("renderer starts the location session through the profile gate", () => {
-  // Picking a location runs onboarding first (when pending), then opens the
-  // seeded session — so profile details are asked for after the location flow.
-  assert.match(rendererJs, /window\.tinkerProfile/, "renderer must consult the profile gate");
-  assert.match(rendererJs, /needsOnboarding\(\)/, "renderer must check needsOnboarding()");
-  assert.match(rendererJs, /runOnboarding\(\)\.then\(begin\)/, "renderer must defer the session until onboarding resolves");
+test("renderer prompts only after the first saved essay, at a transition", () => {
+  // The prompt is gated on having written ≥1 essay, and fires at transitions
+  // (return home, start another write, reopen the app) — never mid-essay.
+  assert.match(rendererJs, /function shouldPromptProfile/, "renderer must gate the prompt");
+  assert.match(rendererJs, /essays\.length >= 1/, "prompt requires at least one saved essay");
+  assert.match(rendererJs, /needsOnboarding\(\)/, "must check needsOnboarding()");
+  assert.match(rendererJs, /tinker:profile-needed/, "must re-check on app reopen");
+  assert.match(rendererJs, /maybePromptProfile\(\)/, "must call the prompt at transitions");
 });
 
 test("profile.js saves onboarding via PUT with an avatarUrl", () => {

@@ -8,11 +8,12 @@
  *   2. read the canonical profile (GET /api/user-data/profile);
  *   3a. if a profile exists → render the avatar top-right;
  *   3b. if it's definitively missing (and we're on the web gate) → park the
- *       onboarding so the founder goes through the "where are you right now?"
- *       location flow first; renderer.js calls runOnboarding() once a place is
- *       picked, which shows the capture step (photo/name/email) and resolves
- *       on save so the seeded session then opens. Saving PUTs the same
- *       (user_id,"profile") row the claim path writes, then renders.
+ *       capture and fire `tinker:profile-needed` instead of interrupting.
+ *       Founders try the product first: renderer.js calls runOnboarding()
+ *       only after they've saved their first essay and hit a transition
+ *       (return home, start another write, or reopen the app) — never up
+ *       front. Saving PUTs the same (user_id,"profile") row the claim path
+ *       writes, then renders.
  *
  * Source of truth: every path ends at one profile blob in the shared
  * TinkerUserData store. The in-app photo is a downscaled data: URL kept in
@@ -290,11 +291,10 @@
     });
   }
 
-  // ── Public API (renderer.js drives the order) ───────────────────────
+  // ── Public API (renderer.js decides when to prompt) ─────────────────
   // needsOnboarding(): a profile is missing and a capture is parked.
-  // runOnboarding(): show the capture step now and resolve once it's saved
-  // (resolves immediately if nothing is pending), so the caller can continue
-  // into the seeded session afterwards.
+  // runOnboarding(): show the capture step now (a full-screen overlay) and
+  // resolve once it's saved — resolves immediately if nothing is pending.
   window.tinkerProfile = {
     needsOnboarding: function () { return !!pendingToken; },
     runOnboarding: function () {
@@ -317,10 +317,13 @@
         if (claimed) { render(claimed); return null; }
         return loadProfile(token).then(function (res) {
           if (res.state === "present") render(res.profile);
-          // Don't interrupt with the capture screen on sign-in. Park it so the
-          // founder picks a location first; renderer.js prompts via
-          // runOnboarding() once they do.
-          else if (res.state === "missing" && isWebGate()) pendingToken = token;
+          // Don't interrupt on sign-in — founders try writing first. Park the
+          // capture and announce it; renderer.js decides when to prompt (after
+          // the first saved essay, at the next transition).
+          else if (res.state === "missing" && isWebGate()) {
+            pendingToken = token;
+            try { window.dispatchEvent(new CustomEvent("tinker:profile-needed")); } catch { /* ignore */ }
+          }
           return null;
         });
       })

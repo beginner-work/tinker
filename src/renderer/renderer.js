@@ -405,6 +405,10 @@
     saveDrafts(drafts);
     renderSidebar();
     if (activate) openDraft(draft.id);
+    // Starting another write after the first essay → ask for their profile now
+    // (the overlay sits over the fresh draft). shouldPromptProfile() requires
+    // ≥1 saved essay, so a founder's very first session is never interrupted.
+    if (activate) maybePromptProfile();
     return draft;
   }
 
@@ -422,6 +426,29 @@
     renderSidebar();
     showFeed();
   }
+
+  // ── Deferred profile capture ────────────────────────────────────────
+  // Founders try the product before we ask for their details: two early
+  // testers bounced when handed a profile form up front. So profile.js parks
+  // the capture, and we only prompt it once they've saved their first essay —
+  // and then only at a transition (returning home, starting another write, or
+  // reopening the app), never mid-essay.
+  function shouldPromptProfile() {
+    const p = window.tinkerProfile;
+    return !!(
+      p &&
+      typeof p.needsOnboarding === "function" &&
+      p.needsOnboarding() &&
+      essays.length >= 1
+    );
+  }
+  function maybePromptProfile() {
+    if (shouldPromptProfile()) window.tinkerProfile.runOnboarding();
+  }
+  // Covers "reopen the app after the first essay": on a fresh load the boot
+  // showFeed() runs before profile.js has resolved the (async) profile lookup,
+  // so we re-check when it announces a missing profile.
+  window.addEventListener("tinker:profile-needed", maybePromptProfile);
 
   // ── Views ───────────────────────────────────────────────────────────
   function showFeed() {
@@ -447,6 +474,8 @@
     if (formEl && !formEl.hidden && inputEl) {
       setTimeout(() => { inputEl.focus(); inputEl.select(); }, 30);
     }
+    // Back home after the first essay → now ask for their profile.
+    maybePromptProfile();
   }
   function showWriting() {
     feedView.removeAttribute("data-active");
@@ -1000,22 +1029,11 @@
   const welcomeInput = document.getElementById("welcome-input");
 
   function startSessionWith(seed) {
-    const begin = () => {
-      if (window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
-        window.tinkerSeeds.add(seed);
-      }
-      if (typeof window.tinkerNewSession === "function") {
-        window.tinkerNewSession({ seed });
-      }
-    };
-    // First-time founders go through this location flow before we ask for
-    // their profile: if a capture is still parked, collect it now and open the
-    // seeded session once it's saved. Returning founders begin immediately.
-    const profile = window.tinkerProfile;
-    if (profile && typeof profile.needsOnboarding === "function" && profile.needsOnboarding()) {
-      profile.runOnboarding().then(begin);
-    } else {
-      begin();
+    if (window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
+      window.tinkerSeeds.add(seed);
+    }
+    if (typeof window.tinkerNewSession === "function") {
+      window.tinkerNewSession({ seed });
     }
   }
 
