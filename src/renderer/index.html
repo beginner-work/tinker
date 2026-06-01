@@ -39,10 +39,10 @@
          seeds.js/heatmap.js/sidebar-tree.js so its hydrate() can fire
          as soon as a token exists; consumer modules subscribe to the
          tinker:hydrated event to re-render from refreshed storage. -->
-    <!-- Airplane mode: install the /api/* network gate before sync.js
-         (or anything else) can phone home, so a reload taken mid-flight
-         stays grounded. -->
-    <script src="./airplane.js" defer></script>
+    <!-- Free write mode: install the /api/* network gate before sync.js
+         (or anything else) can phone home, so a load taken offline stays
+         grounded. Auto-detects connectivity via navigator.onLine. -->
+    <script src="./freewrite.js" defer></script>
     <script src="./sync.js" defer></script>
     <script src="./transactions.js" defer></script>
     <script src="./seeds.js" defer></script>
@@ -129,18 +129,19 @@
               <span class="sidebar__account-label">Receipts</span>
             </button>
           </li>
-          <!-- Airplane mode: a deliberate offline switch. Wired by
-               airplane.js, which gates /api/* and paints the state. -->
+          <!-- Free write mode: on automatically when offline, or as a
+               manual override. Wired by freewrite.js, which gates /api/*
+               and paints the state. -->
           <li>
-            <button id="nav-airplane" type="button"
+            <button id="nav-freewrite" type="button"
                     class="sidebar__account-item sidebar__account-item--toggle"
                     aria-pressed="false"
-                    title="Keep writing offline — pause sync until you land">
+                    title="Write freely — no questions, no waiting">
               <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="currentColor"/>
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
               </svg>
-              <span class="sidebar__account-label">Airplane mode</span>
-              <span class="sidebar__account-state" data-airplane-state aria-hidden="true">Off</span>
+              <span class="sidebar__account-label">Free write</span>
+              <span class="sidebar__account-state" data-freewrite-state aria-hidden="true">Off</span>
             </button>
           </li>
           <!-- Share button: revealed by share.js only when the app is
@@ -371,14 +372,16 @@
          that expose Add to Home Screen — Safari and Chrome iOS, but
          not in-app webviews — when not already standalone and not
          inside Capacitor, then wires the sheet. -->
-    <!-- Airplane mode status pill — floats top-centre while airborne,
-         with a one-tap exit. Shown/hidden by airplane.js. -->
-    <div id="airplane-banner" class="airplane-banner" role="status" aria-live="polite" hidden>
-      <svg class="airplane-banner__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-        <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="currentColor"/>
+    <!-- Free write mode status pill — floats top-centre while active
+         (offline or manual), with a one-tap exit. Shown/hidden by
+         freewrite.js, which also swaps the copy and hides "Turn off"
+         while genuinely offline. -->
+    <div id="freewrite-banner" class="freewrite-banner" role="status" aria-live="polite" hidden>
+      <svg class="freewrite-banner__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
       </svg>
-      <span class="airplane-banner__text">Airplane mode — saved on this device. Sync resumes when you land.</span>
-      <button type="button" class="airplane-banner__action" data-airplane-off>Turn off</button>
+      <span class="freewrite-banner__text" data-freewrite-text>Free write — just write. Saved here, off to your pitch when you stop.</span>
+      <button type="button" class="freewrite-banner__action" data-freewrite-off>Turn off</button>
     </div>
 
     <div id="pwa-hint" class="pwa-hint" role="region" aria-label="Install tinker" hidden>

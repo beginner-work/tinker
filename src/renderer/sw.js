@@ -16,7 +16,7 @@
  *     instant paint, refresh the entry from the network in the
  *     background.
  *   - /api/* → never touched. Those stay on the network, where the
- *     page's airplane-mode gate (airplane.js) and the JWT auth live.
+ *     page's free write mode gate (freewrite.js) and the JWT auth live.
  *     Caching user data here would defeat both.
  *   - Cross-origin (Google Fonts, vercel.live) → passed straight
  *     through. The CSP only allows fonts via <link>/@font-face, and the
@@ -28,7 +28,7 @@
  * precache list or this file's logic changes to evict the old cache.
  */
 
-const CACHE_VERSION = "tinker-shell-v1";
+const CACHE_VERSION = "tinker-shell-v2";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -43,7 +43,7 @@ const PRECACHE = [
   "/pwa-install-hint.css",
   // scripts (document order)
   "/pwa-session.js",
-  "/airplane.js",
+  "/freewrite.js",
   "/sync.js",
   "/transactions.js",
   "/seeds.js",
@@ -105,7 +105,7 @@ self.addEventListener("fetch", (event) => {
   try { url = new URL(req.url); } catch { return; }
 
   const sameOrigin = url.origin === self.location.origin;
-  // Leave the API on the network — airplane.js gates it page-side, and
+  // Leave the API on the network — freewrite.js gates it page-side, and
   // it's per-user/authenticated, so it must never be cached.
   if (sameOrigin && url.pathname.startsWith("/api/")) return;
   // Cross-origin (fonts, vercel.live preview comments): pass through.

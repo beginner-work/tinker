@@ -185,7 +185,7 @@ html.on-web .sidebar__top {
 }
 .sidebar__account-flash.is-visible { opacity: 1; }
 
-/* Airplane mode toggle — a switch row in the account list. The "Off/On"
+/* Free write mode toggle — a switch row in the account list. The "Off/On"
  * chip sits at the trailing edge; flipping it on tints the row and the
  * chip with the brand accent so the state reads at a glance. */
 .sidebar__account-state {
@@ -214,11 +214,11 @@ html.on-web .sidebar__top {
   border-color: var(--color-accent);
 }
 
-/* Airplane mode status pill — a floating, top-centre status surface that
+/* Free write mode status pill — a floating, top-centre status surface that
  * persists while the switch is on, with a one-tap exit. Fixed so it
  * never disturbs the sidebar/stage flex layout; clears the iOS safe area
  * and the macOS drag strip. */
-.airplane-banner {
+.freewrite-banner {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 12px);
   left: 50%;
@@ -238,10 +238,10 @@ html.on-web .sidebar__top {
   line-height: 1.35;
   -webkit-app-region: no-drag;
 }
-.airplane-banner[hidden] { display: none; }
-.airplane-banner__icon { color: var(--color-accent-strong); flex-shrink: 0; }
-.airplane-banner__text { min-width: 0; }
-.airplane-banner__action {
+.freewrite-banner[hidden] { display: none; }
+.freewrite-banner__icon { color: var(--color-accent-strong); flex-shrink: 0; }
+.freewrite-banner__text { min-width: 0; }
+.freewrite-banner__action {
   flex-shrink: 0;
   padding: 5px 13px;
   border-radius: var(--radius-pill);
@@ -251,7 +251,7 @@ html.on-web .sidebar__top {
   font-weight: 600;
   transition: background 0.15s ease, color 0.15s ease;
 }
-.airplane-banner__action:hover {
+.freewrite-banner__action:hover {
   background: var(--color-accent);
   color: var(--color-surface);
 }
@@ -1405,13 +1405,13 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 .writing-action--primary:active { transform: scale(0.98); }
 .writing-action:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 
-/* ── Airplane mode: free-write ─────────────────────────────────────────
+/* ── Free write mode composer ─────────────────────────────────────────
  * The interview collapses to a single composer: a mode crumb, the
  * canonical prompt, one big input, and one button. The disabled-state
  * rule above keeps "This is everything" inert until something's typed. */
-.writing-card--airplane { gap: 14px; }
-.writing-airplane__head { display: flex; flex-direction: column; gap: 8px; }
-.writing-airplane__crumb {
+.writing-card--freewrite { gap: 14px; }
+.writing-freewrite__head { display: flex; flex-direction: column; gap: 8px; }
+.writing-freewrite__crumb {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1424,21 +1424,21 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   font-weight: 700;
   letter-spacing: 0.02em;
 }
-.writing-airplane__sub {
+.writing-freewrite__sub {
   margin: 0;
   color: var(--color-muted);
   font-size: 14px;
   line-height: var(--leading-body);
 }
-.writing-card--airplane .writing-airplane__input { min-height: 320px; resize: vertical; }
+.writing-card--freewrite .writing-freewrite__input { min-height: 320px; resize: vertical; }
 
-.writing-card--airplane-saved {
+.writing-card--freewrite-saved {
   align-items: center;
   text-align: center;
   gap: 16px;
   padding-top: 8px;
 }
-.writing-airplane__badge {
+.writing-freewrite__badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1448,7 +1448,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   background: var(--color-accent-dim);
   color: var(--color-accent-strong);
 }
-.writing-card--airplane-saved .writing-airplane__sub { max-width: 32ch; }
+.writing-card--freewrite-saved .writing-freewrite__sub { max-width: 32ch; }
 
 /* ── Read view ─────────────────────────────────────────────────────── */
 
