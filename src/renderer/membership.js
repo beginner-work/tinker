@@ -139,7 +139,18 @@
     })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (json) {
-        if (json && json.restored) { hydrate(); return; }
+        if (json && json.restored) {
+          // Paint the row straight from the reconcile response — it carries the
+          // same { active, tier, status, currentPeriodEnd } shape status returns
+          // and is the freshly-written source of truth. Re-pulling /status here
+          // instead would discard that for a read that can come back stale from
+          // the HTTP cache, lag read-after-write, or blip to a 5xx — and
+          // loadStatus collapses all of those to null, which renders as "Free
+          // plan", bouncing the member we just restored right back to free.
+          var row = document.getElementById("nav-membership");
+          if (row) render(row, json);
+          return;
+        }
         // Ask for an email at most once — if we already tried one, stop.
         if (!emailOverride && json && (json.reason === "no-email" || json.reason === "no-subscription")) {
           var typed = askEmail();
