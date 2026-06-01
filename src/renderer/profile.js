@@ -300,6 +300,24 @@
     if (page) page.hidden = true;
   }
 
+  // First-run nudge: if the founder has no photo yet, open the upload
+  // page straight away so they're asked rather than left looking at a
+  // placeholder. Fires at most once per page load, only once any sign-in
+  // gate is down and the welcome screen is the thing on stage — never
+  // over a draft, a published reader, or the auth gate.
+  let prompted = false;
+  function maybePromptUpload() {
+    if (prompted || getAvatar()) return;
+    if (document.documentElement.classList.contains("auth-gating")) return;
+    if (window.tinkerAuth && !window.tinkerAuth.token && isWebPlatform()) return;
+    const welcome = document.getElementById("welcome");
+    if (!welcome || !welcome.hasAttribute("data-active")) return;
+    const page = document.getElementById("profile-page");
+    if (!page || !page.hidden) return;
+    prompted = true;
+    openProfilePage();
+  }
+
   function wirePage() {
     const page = document.getElementById("profile-page");
     if (!page) return;
@@ -347,10 +365,17 @@
     wirePage();
     paintIdentity();
     paintAvatar();
+    // Returning, already-signed-in founders with no photo get asked now;
+    // web first-timers get asked after the sign-in gate drops (below).
+    maybePromptUpload();
   });
 
   // Keep avatars in sync across surfaces, and re-paint identity after a
   // web sign-in completes (auth.js dispatches tinker:auth-changed).
   window.addEventListener("tinker:avatar-changed", paintAvatar);
-  window.addEventListener("tinker:auth-changed", paintIdentity);
+  window.addEventListener("tinker:auth-changed", () => {
+    paintIdentity();
+    // Wait for auth.js to drop the gate (~350ms) before we ask.
+    setTimeout(maybePromptUpload, 600);
+  });
 })();
