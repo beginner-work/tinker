@@ -10,6 +10,7 @@
 
 const crypto = require("crypto");
 const { PRESEED_TIER } = require("./membership.js");
+const { subscriptionPeriodEnd } = require("./stripe-reconcile.js");
 
 function err(status, message) {
   return Object.assign(new Error(message), { status });
@@ -123,7 +124,9 @@ function membershipFromEvent(event) {
           status,
           stripeCustomerId: obj.customer || null,
           stripeSubscriptionId: obj.id || null,
-          currentPeriodEnd: obj.current_period_end || null,
+          // Period end moved onto the subscription item in recent Stripe API
+          // versions; subscriptionPeriodEnd reads whichever the payload uses.
+          currentPeriodEnd: subscriptionPeriodEnd(obj),
         }),
       };
     }

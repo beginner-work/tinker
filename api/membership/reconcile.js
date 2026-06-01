@@ -27,61 +27,8 @@
 const { withResponseLogging } = require("../_lib/log.js");
 const { resolveUserId, readJsonBody } = require("../_lib/user-data.js");
 const { writeMembership, isActiveMembership } = require("../_lib/membership.js");
-const {
-  normalizeEmail,
-  pickMembershipFromSubscriptions,
-} = require("../_lib/stripe-reconcile.js");
-const prisma = require("../_lib/db.js");
-
-const STRIPE_API = "https://api.stripe.com";
-
-async function stripeGet(path, secretKey) {
-  const res = await fetch(STRIPE_API + path, {
-    headers: { Authorization: `Bearer ${secretKey}` },
-  });
-  let json = null;
-  try {
-    json = await res.json();
-  } catch {
-    json = null;
-  }
-  if (!res.ok) {
-    const message = (json && json.error && json.error.message) || `Stripe ${res.status}`;
-    throw Object.assign(new Error(message), { status: 502 });
-  }
-  return json;
-}
-
-/** The email on the user's tinker profile, if any. */
-async function profileEmail(userId) {
-  try {
-    const row = await prisma.tinkerUserData.findUnique({
-      where: { userId_kind: { userId, kind: "profile" } },
-    });
-    return normalizeEmail(row && row.data && row.data.email);
-  } catch {
-    return "";
-  }
-}
-
-/** Every subscription tied to any Stripe customer with this email. */
-async function subscriptionsForEmail(email, secretKey) {
-  const customers = await stripeGet(
-    `/v1/customers?email=${encodeURIComponent(email)}&limit=20`,
-    secretKey
-  );
-  const list = (customers && customers.data) || [];
-  const subs = [];
-  for (const cust of list) {
-    if (!cust || !cust.id) continue;
-    const r = await stripeGet(
-      `/v1/subscriptions?customer=${encodeURIComponent(cust.id)}&status=all&limit=20`,
-      secretKey
-    );
-    for (const s of (r && r.data) || []) subs.push(s);
-  }
-  return subs;
-}
+const { normalizeEmail, pickMembershipFromSubscriptions } = require("../_lib/stripe-reconcile.js");
+const { profileEmail, subscriptionsForEmail } = require("../_lib/membership-reconcile.js");
 
 module.exports = withResponseLogging(async function handler(req, res) {
   if (req.method !== "POST") {
