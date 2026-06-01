@@ -24,6 +24,7 @@ const {
   refreshDeckTimestamps,
   dropStaleDeckRecords,
   clearAllDecks,
+  clearOneDeck,
   dedupeTitles,
   organize,
 } = require("../api/_lib/pitches-organizer.js");
@@ -625,6 +626,99 @@ test("organize redistribute: re-clusters already-slotted writings and collapses 
   assert.equal(result.blob.pitches.length, 1);
   assert.equal(result.summary.prunedEmpty, 3);
   assert.equal(result.blob.pitches[0].aiTitle, "Growth");
+});
+
+test("clearOneDeck empties only the target pitch", () => {
+  const blob = normalizeBlob({
+    pitches: [
+      { id: "p_1", aiTitle: "Coffee", deck: { "The Problem": [{ writingId: "e_1", offset: 0, length: 5 }] } },
+      { id: "p_2", aiTitle: "Growth", deck: { "The Vision": [{ writingId: "e_2", offset: 0, length: 5 }] } },
+    ],
+  });
+  clearOneDeck(blob, "p_2");
+  assert.equal(writingIdsInAnyPitch(blob).has("e_1"), true, "untouched pitch keeps its writing");
+  assert.equal(writingIdsInAnyPitch(blob).has("e_2"), false, "target pitch's writing is freed");
+  clearOneDeck(blob, "nope"); // unknown id is a no-op
+  assert.equal(writingIdsInAnyPitch(blob).has("e_1"), true);
+});
+
+test("organize refreshPitchId: re-clusters only the selected pitch and folds it into a sibling", async () => {
+  // Two pitches: Coffee (e_1) and the selected Growth (e_2). A per-pitch
+  // refresh of Growth frees only e_2; the clusterer routes it into the
+  // existing Coffee pitch. Growth ends up empty and is pruned — the pitch
+  // consolidated into another. Coffee's own e_1 was never reconsidered.
+  const stored = {
+    pitches: [
+      { id: "p_coffee", aiTitle: "Coffee", deck: { "The Problem": [{ writingId: "e_1", offset: 0, length: 5 }] } },
+      { id: "p_growth", aiTitle: "Growth", deck: { "The Vision": [{ writingId: "e_2", offset: 0, length: 5 }] } },
+    ],
+    activeId: "p_growth",
+  };
+  const essays = [makeEssay("e_1", "alpha beta gamma"), makeEssay("e_2", "delta epsilon zeta")];
+
+  let seenIds = null;
+  const cluster = async ({ writings }) => {
+    seenIds = writings.map((w) => w.id).sort();
+    return [{
+      title: "Coffee",
+      writings: writings.map((w) => ({
+        id: w.id,
+        deckHeading: "The Team",
+        phrase: { writingId: w.id, offset: 0, length: 5 },
+      })),
+    }];
+  };
+  const name = async () => "Coffee";
+
+  const result = await organize({
+    storedBlob: stored, essays, drafts: [], cluster, name, refreshPitchId: "p_growth",
+  });
+
+  // Only the selected pitch's writing was reconsidered — not the whole corpus.
+  assert.deepEqual(seenIds, ["e_2"]);
+  assert.equal(result.summary.offPitchCount, 1);
+  assert.equal(result.summary.refreshedPitchId, "p_growth");
+  assert.equal(result.summary.redistribute, false);
+  // Growth folded into Coffee and was pruned; e_1 stayed put.
+  assert.equal(result.summary.prunedEmpty, 1);
+  assert.equal(result.blob.pitches.length, 1);
+  assert.equal(result.blob.pitches[0].aiTitle, "Coffee");
+  assert.equal(writingIdsInAnyPitch(result.blob).has("e_1"), true);
+  assert.equal(writingIdsInAnyPitch(result.blob).has("e_2"), true);
+});
+
+test("organize refreshPitchId: keeps the pitch when its writing still earns its own line", async () => {
+  // Same two pitches, but the clusterer judges e_2 still belongs in
+  // Growth — it routes back to the Growth title. Both pitches survive.
+  const stored = {
+    pitches: [
+      { id: "p_coffee", aiTitle: "Coffee", deck: { "The Problem": [{ writingId: "e_1", offset: 0, length: 5 }] } },
+      { id: "p_growth", aiTitle: "Growth", deck: { "The Vision": [{ writingId: "e_2", offset: 0, length: 5 }] } },
+    ],
+    activeId: "p_growth",
+  };
+  const essays = [makeEssay("e_1", "alpha beta gamma"), makeEssay("e_2", "delta epsilon zeta")];
+
+  const cluster = async ({ writings }) => [{
+    title: "Growth",
+    writings: writings.map((w) => ({
+      id: w.id,
+      deckHeading: "The Vision",
+      phrase: { writingId: w.id, offset: 0, length: 5 },
+    })),
+  }];
+  const name = async () => "Growth";
+
+  const result = await organize({
+    storedBlob: stored, essays, drafts: [], cluster, name, refreshPitchId: "p_growth",
+  });
+
+  assert.equal(result.summary.refreshedPitchId, "p_growth");
+  assert.equal(result.summary.prunedEmpty, 0);
+  assert.equal(result.blob.pitches.length, 2);
+  const growth = result.blob.pitches.find((p) => p.aiTitle === "Growth");
+  assert.ok(growth, "Growth survived its refresh");
+  assert.equal(writingIdsInAnyPitch(result.blob).has("e_2"), true);
 });
 
 test("organize without redistribute leaves already-slotted writings untouched", async () => {
