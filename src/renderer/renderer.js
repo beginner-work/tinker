@@ -589,12 +589,32 @@
   // window.close() is a no-op for tabs the user opened themselves) we fall
   // back to the feed so the button is never dead.
   function closeApp() {
+    // Native desktop / Capacitor shell exposes an explicit close.
     try {
       if (window.tinker && typeof window.tinker.close === "function") {
         window.tinker.close();
         return;
       }
     } catch { /* ignore */ }
+
+    // Installed PWA (display-mode: standalone, or navigator.standalone on
+    // iOS). The browser honors window.close() for app windows, so this
+    // actually quits the PWA. We re-mark the window as script-opened first
+    // (window.open("", "_self")) because the sign-in round-trip can leave
+    // history entries, which otherwise makes the window non-script-closable
+    // and turns close() into a silent no-op. In standalone there is nothing
+    // useful to fall back to, so we don't drop to the feed.
+    const standalone =
+      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      (window.navigator && window.navigator.standalone === true);
+    if (standalone) {
+      try { window.open("", "_self"); } catch { /* ignore */ }
+      try { window.close(); } catch { /* ignore */ }
+      return;
+    }
+
+    // Plain browser tab: window.close() is a no-op for tabs the user opened
+    // themselves, so fall back to the feed rather than leave a dead button.
     try { window.close(); } catch { /* ignore */ }
     setTimeout(() => { try { showFeed(); } catch { /* ignore */ } }, 50);
   }
