@@ -1,9 +1,11 @@
 /* profile.css — top-right founder avatar + identity popover.
  *
  * The corner is hidden until profile.js loads a profile. It sits opposite
- * the mobile drawer toggle (top-left), so the placement is free at every
- * breakpoint. Avatar falls back to an initial badge when there's no photo
- * or the image fails to decode.
+ * the mobile drawer toggle (top-left). The one other top-right control is
+ * the essay kebab (.read__menu); when this corner shows, profile.js adds
+ * .has-avatar to <html> and styles.css slides that kebab left so the two
+ * don't overlap. Avatar falls back to an initial badge when there's no
+ * photo or the image fails to decode.
  */
 
 .profile-corner {
