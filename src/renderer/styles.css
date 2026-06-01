@@ -1224,100 +1224,6 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 .writing__next:disabled { opacity: 0.5; cursor: default; }
 .writing__next[hidden] { display: none; }
 
-/* ── Review screen ─────────────────────────────────────────────────── */
-
-.writing-card--review { gap: 24px; }
-/* On the review screen, let the card fill the available height so the essay
-   textarea can grow to fill the screen, while the Save action stays pinned at
-   the bottom and never gets pushed off the page. */
-.writing__body:has(.writing-card--review) { align-items: stretch; }
-.writing-card--review { flex: 1; min-height: 0; }
-.writing-review__head {
-  display: flex; flex-direction: column; gap: 4px;
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: 14px;
-}
-.writing-review__crumb {
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--color-forest);
-}
-.writing-review__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  color: var(--color-foreground);
-  outline: none;
-  border-radius: 6px;
-  padding: 4px 6px;
-  margin-left: -6px;
-  transition: background 0.15s ease;
-  min-width: 0;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
-.writing-review__title:hover { background: rgba(45, 90, 61, 0.04); }
-.writing-review__title:focus { background: rgba(99, 102, 241, 0.06); }
-
-.writing-review__answers {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  background: var(--color-surface-alt);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-}
-.writing-review__answer {
-  text-align: left;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas: "q edit" "a edit";
-  gap: 4px 12px;
-  padding: 8px;
-  border-radius: 8px;
-  background: transparent;
-  transition: background 0.12s ease;
-}
-.writing-review__answer:hover { background: rgba(99, 102, 241, 0.06); }
-.writing-review__answer-q {
-  grid-area: q;
-  font-size: 12px; font-weight: 600;
-  color: var(--color-muted);
-  letter-spacing: 0.02em;
-}
-.writing-review__answer-a {
-  grid-area: a;
-  font-size: 13px;
-  color: var(--color-foreground);
-  line-height: 1.5;
-}
-.writing-review__answer-edit {
-  grid-area: edit;
-  align-self: center;
-  font-size: 12px; font-weight: 600;
-  color: var(--color-accent-strong);
-}
-
-.writing-review__essay-input {
-  font-family: var(--font-display);
-  font-size: 18px;
-  line-height: 1.75;
-  color: var(--color-foreground);
-  flex: 1;
-  min-height: 200px;
-  resize: none;
-  padding: 20px 22px;
-}
-
-.writing-review__actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-}
 .writing-action {
   height: 44px;
   padding: 0 20px;
@@ -1581,23 +1487,36 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   display: flex;
   gap: 12px;
   padding: 14px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  /* Frosted glass: a translucent cream pane that blurs whatever sits
+   * behind it (essay cards, the deck), with a bright top edge + soft
+   * inner highlight so it reads as a physical sheet of glass rather than
+   * a flat card. The opaque fallback colour keeps it legible where
+   * backdrop-filter isn't supported. */
+  background: rgba(255, 253, 247, 0.62);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: 16px;
-  box-shadow: 0 12px 32px rgba(20, 20, 40, 0.16);
+  box-shadow:
+    0 12px 32px rgba(20, 20, 40, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
   opacity: 0;
   transform: translateY(-8px) scale(0.98);
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.25s ease, transform 0.25s ease, border-color 0.15s ease;
+}
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .tinker-toast { background: var(--color-surface); }
 }
 .tinker-toast--in { opacity: 1; transform: translateY(0) scale(1); }
 .tinker-toast--leaving { opacity: 0; transform: translateY(-8px) scale(0.98); }
 .tinker-toast--clickable { cursor: pointer; }
-.tinker-toast--clickable:hover { border-color: var(--color-accent-strong); }
+.tinker-toast--clickable:hover { border-color: rgba(99, 102, 241, 0.55); }
 .tinker-toast__icon {
   width: 34px; height: 34px;
   flex: none;
   border-radius: 9px;
-  background: var(--color-accent-dim);
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   padding: 5px;
 }
 .tinker-toast__body { flex: 1; min-width: 0; }
@@ -2037,7 +1956,6 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   .writing__foot { padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 18px); }
   .read__body { padding: 32px 18px 60px; }
   .read__menu { top: calc(env(safe-area-inset-top, 0px) + 14px); right: 14px; }
-  .writing-review__title { font-size: 24px; }
   .category-feed__head { padding: 32px 18px 12px; }
   .category-feed__list { padding: 12px 18px 60px; }
   .category-feed__empty { padding: 8px 18px 60px; }

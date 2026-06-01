@@ -55,7 +55,7 @@ detect the runtime and step out of the way.
   `<script defer>` manifest. The seven stage sections are: `welcome`, `writing`,
   `read`, `writing-fit`, `founders`, `pitch-script`, `category-feed`.
 - `src/renderer/renderer.js` — the view router. The `show*` functions
-  (`showFeed`, `showWriting`, `showRead`, `showCategoryFeed`, `showWritingFit`,
+  (`showFeed`, `showWriting`, `showRead`, `showCategoryFeed`, `showPitchAssessing`,
   `showFounders`, `showPitchScript`) each reveal one section and hide the rest.
   Owns `window.tinkerStore`, the welcome-grid handlers, the read-view action
   menu, the status composer, and the `tinker:hydrated` re-render. Exposes

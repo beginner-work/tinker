@@ -3,8 +3,8 @@
  * Onboarding-shaped guided writing: one question at a time, large input,
  * paginated, progress dots. NOT a chat. Claude asks questions; the founder
  * answers in their own words; Claude stitches the answers into a single
- * essay using ONLY the founder's words. A review screen at the end with
- * per-answer edit affordances and a publish button.
+ * essay using ONLY the founder's words. Once the essay is stitched it
+ * publishes straight through — there is no separate review/Save step.
  *
  * Wire-up: renderer.js calls window.tinkerWriting.open(draft) when a
  * draft tab is selected. We render against a `state` object pulled from
@@ -311,7 +311,9 @@
     refreshEndButton();
 
     if (isReview) {
-      renderReview();
+      // A stitched essay is ready (e.g. a draft reopened after stitching).
+      // The Save step is gone, so it publishes straight through.
+      doPublish();
     } else if (step < transcript.length) {
       renderAnsweredCard(transcript[step], step);
     } else if (active.pending) {
@@ -444,61 +446,6 @@
     swap(card);
   }
 
-  function renderReview() {
-    const card = document.createElement("div");
-    card.className = "writing-card writing-card--review";
-
-    const head = document.createElement("div");
-    head.className = "writing-review__head";
-    head.innerHTML =
-      `<div class="writing-review__crumb">Your essay</div>` +
-      `<h2 class="writing-review__title" contenteditable="true" spellcheck="false">${escapeHtml(active.stitched.title || "Untitled")}</h2>`;
-    card.appendChild(head);
-
-    const body = document.createElement("textarea");
-    body.className = "writing-input writing-review__essay-input";
-    body.value = active.stitched.body || "";
-    body.spellcheck = true;
-    body.rows = 8;
-    let saveTimer;
-    body.addEventListener("input", () => {
-      if (!active || !active.stitched) return;
-      active.stitched.body = body.value;
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => persist(), 350);
-    });
-    card.appendChild(body);
-
-    const actions = document.createElement("div");
-    actions.className = "writing-review__actions";
-    const publish = document.createElement("button");
-    publish.type = "button";
-    publish.className = "writing-action writing-action--primary";
-    publish.textContent = "Save";
-    publish.addEventListener("click", () => {
-      // Flush any pending debounced edits into the model before publish.
-      if (active && active.stitched) active.stitched.body = body.value;
-      doPublish(head);
-    });
-    actions.append(publish);
-    card.appendChild(actions);
-
-    nextBtn.hidden = true;
-    endBtn.hidden = true;
-    swap(card);
-
-    // Persist the editable title on blur.
-    const titleEl = head.querySelector(".writing-review__title");
-    titleEl.addEventListener("blur", () => {
-      const t = titleEl.textContent.trim();
-      if (t && active.stitched) {
-        active.stitched.title = t;
-        active.title = t;
-        persist();
-      }
-    });
-  }
-
   function renderLoading(text) {
     const card = document.createElement("div");
     card.className = "writing-card writing-card--loading";
@@ -617,9 +564,13 @@
       active.stitched = { title, body };
       active.title = title;
       active.pending = null;
-      active.currentStep = (active.transcript || []).length; // jump to review
+      active.currentStep = (active.transcript || []).length;
       persist();
-      renderStep();
+      // No "review + Save" step: once the essay is stitched it publishes
+      // straight away. The founder already wrote every word in the
+      // interview; the post-publish "being assessed" screen is the next
+      // surface they see (and they can still open the essay to read it).
+      doPublish();
       return;
     }
 
@@ -796,14 +747,9 @@
     if (!endBtn.onclick) e.preventDefault();
   });
 
-  function doPublish(reviewHead) {
+  function doPublish() {
     if (!active || !active.stitched) return;
     if (typeof window.tinkerOnWritingPublish !== "function") return;
-    const titleEl = reviewHead && reviewHead.querySelector(".writing-review__title");
-    if (titleEl) {
-      const t = titleEl.textContent.trim();
-      if (t) active.stitched.title = t;
-    }
     window.tinkerOnWritingPublish(active, {
       title: active.stitched.title,
       body: active.stitched.body,

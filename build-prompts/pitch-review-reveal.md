@@ -25,8 +25,8 @@ is settled**, and deliver that claim as a notification rather than a live screen
 
 ## Read first
 
-- `src/renderer/renderer.js` — the post-publish flow lives here: `showPitchAssessing(essay)` renders the confirmation, `watchPlacement(essay)` waits for the organize job to settle, and `emitPlacementNotification(essay)` builds the payload. `closeApp()` backs the "Close app" button. The `tinker:open-pitch` listener routes a clicked toast to the pitch the essay joined.
-- `src/renderer/notifications.js` — the native-style toast component. `window.tinkerNotify(payload)` shows/persists a notification; unseen ones (emitted while the tab was hidden/closed) re-surface on the next visit via `flushUnseen()`.
+- `src/renderer/renderer.js` — the post-publish flow lives here: `showPitchAssessing(essay)` renders the confirmation, `watchPlacement(essay)` waits for the organize job to settle, and `emitPlacementNotification(essay)` builds the payload. `closeApp()` backs the "Close app" button. The `tinker:open-essay` listener opens the essay a clicked toast is about in the read view.
+- `src/renderer/notifications.js` — the native-style **frosted-glass** toast component. `window.tinkerNotify(payload)` shows/persists a notification; unseen ones (emitted while the tab was hidden/closed) re-surface on the next visit via `flushUnseen()`.
 - `src/renderer/pitches.js` — pitch state + API on `window.tinkerPitches`: `findPitchForWriting`, `getPitch`, `setActivePitch`, `triggerOrganizeNow`, `scheduleOrganize`. It fires `tinker:organize-started` / `tinker:organize-completed` around each round.
 - `src/renderer/styles.css` — `.assessing__*` (confirmation screen) and `.tinker-toast*` / `.tinker-toasts` (the toast stack).
 - `src/renderer/index.html` — the `#writing-fit` section (repurposed as the assessing surface) and the `notifications.js` script tag.
@@ -41,9 +41,9 @@ a fresh writing session) and a transparent **"Close app"** (closes the
 window / standalone PWA, falling back to the feed on a plain web tab). In the
 background, watch the organize job. Once it has **settled** — a round completed and
 no further round started within a short grace window — read where the essay
-actually landed and fire a **native-style toast** notification: *"'<title>' found
-its place — Landed in '<pitch>' on the <slide> slide."* Clicking it opens that
-pitch. If the founder has left, the notification is persisted and shown the next
+actually landed and fire a **native-style frosted-glass toast** notification:
+*"'<title>' found its place — Landed in '<pitch>' on the <slide> slide."* Clicking
+it opens that essay. If the founder has left, the notification is persisted and shown the next
 time the site is in front of them.
 
 ## Phase plan
@@ -58,7 +58,7 @@ time the site is in front of them.
 2. **The settle-watcher.** `watchPlacement(essay)` listens for `tinker:organize-started` / `tinker:organize-completed`. On completion it arms a short grace timer (`SETTLE_GRACE_MS`); a new round cancels it. A first-wait timer (`FIRST_WAIT_MS`, longer than `ORGANIZE_DEBOUNCE_MS`) covers the case where no round ever runs (nothing drifted, or no auth token); a `MAX_WAIT_MS` ceiling guarantees it resolves. A monotonically increasing token makes a second publish supersede the first.
    **CHECKPOINT — stop and report.** Confirm the watcher fires exactly once, only after rounds drain, and never contradicts itself when a later round moves the essay.
 
-3. **The notification.** `emitPlacementNotification(essay)` reads `findPitchForWriting`, builds a grounded payload (pitch name + slide, or an "on its own for now" line when unplaced), and calls `window.tinkerNotify`. `notifications.js` shows a native-style toast (slide-in, stack, auto-dismiss, pause-on-hover, dismiss button) and persists it. Clicking a placement toast dispatches `tinker:open-pitch`; the renderer makes that pitch active and goes home. Unseen notifications re-surface on next visit.
+3. **The notification.** `emitPlacementNotification(essay)` reads `findPitchForWriting`, builds a grounded payload (pitch name + slide, or an "on its own for now" line when unplaced), and calls `window.tinkerNotify`. `notifications.js` shows a native-style **frosted-glass** toast (translucent pane, `backdrop-filter` blur, slide-in, stack, auto-dismiss, pause-on-hover, dismiss button) and persists it. Clicking a placement toast dispatches `tinker:open-essay`; the renderer opens that essay in the read view. Unseen notifications re-surface on next visit.
    **CHECKPOINT — stop and report.** Demo: (a) settle while present → toast appears live; (b) settle while the tab is hidden, then return → toast appears on focus; (c) the unplaced case reads as additive, not a miss.
 
 ## Constraints (non-negotiable)
@@ -80,7 +80,8 @@ If you must move forward without an answer, mark `[NEEDS INPUT]` in a code comme
 - Publishing lands on "Your pitch is being assessed." with working "Keep writing →" and "Close app" actions — and names no pitch.
 - A placement toast fires only after the organize job settles, and says where the essay actually landed (pitch + slide), or that it's standing on its own.
 - A placement that settles while the founder is away shows up on their next visit.
-- Clicking a placement toast opens the pitch the essay joined.
+- Clicking a placement toast opens the essay it's about in the read view.
+- The toast is a frosted-glass component (translucent + `backdrop-filter` blur), with an opaque fallback where blur isn't supported.
 - No copy frames any landing as a miss; nothing reads as a dashboard.
 
 Report back: a description of the confirmation screen, when the toast fires

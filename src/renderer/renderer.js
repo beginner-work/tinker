@@ -916,19 +916,18 @@
   window.tinkerShowCategoryFeed = (categoryKey, originatingSeed) =>
     showCategoryFeed(categoryKey, originatingSeed);
 
-  // A placement toast was clicked — take the founder to where the essay
-  // landed: the pitch it joined (made active, then home), or the essay
-  // itself if it never slotted into a pitch.
-  window.addEventListener("tinker:open-pitch", (e) => {
+  // A placement toast was clicked — open the essay it's about in the read
+  // view. Falls back to making its pitch active if the essay can't be found
+  // (e.g. it was deleted between the notification firing and the click).
+  window.addEventListener("tinker:open-essay", (e) => {
     const detail = (e && e.detail) || {};
+    if (detail.essayId) {
+      const essay = essays.find((x) => x.id === detail.essayId);
+      if (essay) { showRead(essay); return; }
+    }
     if (detail.pitchId && window.tinkerPitches && typeof window.tinkerPitches.setActivePitch === "function") {
       window.tinkerPitches.setActivePitch(detail.pitchId);
       showFeed();
-      return;
-    }
-    if (detail.essayId) {
-      const essay = essays.find((x) => x.id === detail.essayId);
-      if (essay) showRead(essay);
     }
   });
 

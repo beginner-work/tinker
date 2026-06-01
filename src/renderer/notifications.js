@@ -82,7 +82,7 @@
     el.setAttribute("role", "alert");
     el.dataset.notifId = n.id;
 
-    const clickable = !!(n.pitchId || n.essayId);
+    const clickable = !!(n.essayId || n.pitchId);
     if (clickable) el.classList.add("tinker-toast--clickable");
 
     el.innerHTML =
@@ -112,8 +112,9 @@
       el.addEventListener("click", () => {
         disarm();
         try {
-          window.dispatchEvent(new CustomEvent("tinker:open-pitch", {
-            detail: { pitchId: n.pitchId || null, essayId: n.essayId || null },
+          // Clicking a placement toast opens the essay it's about.
+          window.dispatchEvent(new CustomEvent("tinker:open-essay", {
+            detail: { essayId: n.essayId || null, pitchId: n.pitchId || null },
           }));
         } catch { /* ignore */ }
         dismiss(el);
