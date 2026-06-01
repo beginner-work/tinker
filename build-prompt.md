@@ -32,7 +32,7 @@ every `CHECKPOINT`.
 | 6 | Writing engine — the guided interview that stitches the founder's own words | [`build-prompts/writing-engine.md`](build-prompts/writing-engine.md) | shipped |
 | 7 | Pitch & script — the eleven-heading pitch, publish, the on-camera script view | [`build-prompts/pitch-and-script.md`](build-prompts/pitch-and-script.md) | shipped |
 | 8 | Sidebar tree — the deck mirror that lights up from the founder's phrases | [`build-prompts/sidebar-tree.md`](build-prompts/sidebar-tree.md) | shipped |
-| 9 | Pitch review reveal — the post-publish "arrangement" screen and its door | [`build-prompts/pitch-review-reveal.md`](build-prompts/pitch-review-reveal.md) | shipped |
+| 9 | Post-publish placement — the "being assessed" confirmation + settle-then-notify toast | [`build-prompts/pitch-review-reveal.md`](build-prompts/pitch-review-reveal.md) | shipped |
 | 10 | Receipts — the transactions surface threaded into the writing interview | [`build-prompts/receipts.md`](build-prompts/receipts.md) | shipped (+ pending account redesign) |
 | 11 | Social feed — the "find my founders" adjacency tool | [`build-prompts/social-feed.md`](build-prompts/social-feed.md) | shipped |
 | 12 | Pitch validation & multi-pitch sharpening — coherence + $9/mo paid decks | [`build-prompts/pitch-validation.md`](build-prompts/pitch-validation.md) | partial (classifier + storage shipped; review/payment/switcher pending) |

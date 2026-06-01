@@ -62,6 +62,7 @@ const PRECACHE = [
   "/pwa-install-hint.js",
   "/share.js",
   "/update-banner.js",
+  "/notifications.js",
   "/pwa-offline.js",
   // shell chrome assets
   "/manifest.json",

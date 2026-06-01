@@ -132,9 +132,9 @@ html.pwa-hint-visible .pitch-script__inner,
 html.pwa-hint-visible .founders__inner {
   padding-top: calc(env(safe-area-inset-top, 0px) + 76px + 64px);
 }
-/* Read body carries 108px of base clearance (title + fixed subtitle),
+/* Read page carries 108px of base clearance (title + fixed subtitle),
  * so its install-banner offset is 108 + 64 rather than 76 + 64. */
-html.pwa-hint-visible .read__body {
+html.pwa-hint-visible .read__page {
   padding-top: calc(env(safe-area-inset-top, 0px) + 108px + 64px);
 }
 
@@ -143,7 +143,6 @@ html.pwa-hint-visible .read__body {
 @media (max-width: 540px) {
   html.pwa-hint-visible .category-feed__title,
   html.pwa-hint-visible .read__title,
-  html.pwa-hint-visible .arrangement__headline,
   html.pwa-hint-visible .pitch-script__title,
   html.pwa-hint-visible .founders__title {
     top: 64px;
@@ -403,5 +402,5 @@ html.pwa-hint-visible .read__body {
   .pwa-hint-sheet { display: none !important; }
   html.pwa-hint-visible .drawer-toggle { top: calc(env(safe-area-inset-top, 0px) + 12px); }
   html.pwa-hint-visible .feed { padding-top: calc(env(safe-area-inset-top, 0px) + 80px); }
-  html.pwa-hint-visible .read__body { padding-top: 56px; }
+  html.pwa-hint-visible .read__page { padding-top: 56px; }
 }
