@@ -339,7 +339,45 @@
           detail: { writingId: essay.id },
         }));
       } catch { /* ignore */ }
+      emitOfflineEssayNotification(essay);
     }
+    // The normal publish path arms this via showPitchAssessing(); the
+    // deferred path has no confirmation screen, so arm it here so the
+    // founder still gets the "where it landed" note once the organize
+    // round these writing-saved events kicked off settles.
+    watchPlacement(pending);
+  }
+
+  // A free-write essay written with no connection has just been sent off
+  // now that we're back online. Reuse the notification component for a
+  // sticky, cross-device notice so the founder knows it made it out —
+  // unlike the auto-dismissing placement toast, this one stays until they
+  // acknowledge it, on whichever device they next open. The id is keyed
+  // to the essay so the same notice never lands twice (e.g. when another
+  // device flushed it first and it arrives over sync).
+  function emitOfflineEssayNotification(essay) {
+    if (!essay) return;
+    const titleText = essay.title || "Your essay";
+    const payload = {
+      id: "offline_" + (essay.id || Date.now().toString(36)),
+      kind: "offline-essay",
+      sticky: true,
+      title: "Back online",
+      body: `“${titleText}” — written offline — is on its way into your pitches.`,
+      essayId: essay.id || null,
+    };
+    const send = () => {
+      if (typeof window.tinkerNotify === "function") window.tinkerNotify(payload);
+      else {
+        try { window.dispatchEvent(new CustomEvent("tinker:notify", { detail: payload })); }
+        catch { /* ignore */ }
+      }
+    };
+    // notifications.js loads after this module, so a synchronous boot-time
+    // flush can land before it's ready — defer to the next tick in that
+    // case so neither the call nor the event fallback is dropped.
+    if (typeof window.tinkerNotify === "function") send();
+    else setTimeout(send, 0);
   }
 
   // ── Drafts as sidebar tabs ──────────────────────────────────────────
@@ -572,7 +610,9 @@
   // read won't be contradicted moments later. A max-wait guards the case
   // where organize never runs (no token, nothing off-pitch), in which case
   // we report wherever the essay currently sits.
-  function watchPlacement(essay) {
+  function watchPlacement(essays) {
+    const list = Array.isArray(essays) ? essays.filter(Boolean) : (essays ? [essays] : []);
+    if (!list.length) return;
     const pitches = window.tinkerPitches;
     if (!pitches || typeof pitches.findPitchForWriting !== "function") return;
 
@@ -594,7 +634,10 @@
       if (done || token !== placementWatchToken) { cleanup(); return; }
       done = true;
       cleanup();
-      emitPlacementNotification(essay);
+      // One organize round settles every essay in the batch at once, so
+      // notify for each — covers a reconnect that flushes several essays
+      // written offline in the same session.
+      for (const essay of list) emitPlacementNotification(essay);
     };
     const onStarted = () => {
       // A new round began — whatever we were about to trust is now stale.

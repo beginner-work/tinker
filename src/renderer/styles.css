@@ -1676,6 +1676,9 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 .tinker-toast--leaving { opacity: 0; transform: translateY(-8px) scale(0.98); }
 .tinker-toast--clickable { cursor: pointer; }
 .tinker-toast--clickable:hover { border-color: rgba(99, 102, 241, 0.55); }
+/* Sticky notices stay until acknowledged — a left accent edge marks them
+ * apart from the auto-dismissing placement toasts. */
+.tinker-toast--sticky { border-left: 3px solid rgba(99, 102, 241, 0.7); }
 .tinker-toast__icon {
   width: 34px; height: 34px;
   flex: none;

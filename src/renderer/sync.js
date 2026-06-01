@@ -27,6 +27,11 @@
  *                fields (personalTitle, activeId, expanded) between
  *                job runs; a hydrate that races a not-yet-pushed
  *                rename gets a local-preferred merge to keep the label.
+ *   - notifications → "tinker.notifications" (array, owned by
+ *                notifications.js). Unioned by id with monotonic
+ *                acknowledged/seen flags, so a notice raised on one
+ *                device surfaces on the others and clears everywhere
+ *                once it's dismissed.
  *
  * Events dispatched on window:
  *   - "tinker:hydrated"  after a successful boot fetch overwrote one or
@@ -46,6 +51,7 @@
   const KIND_TAXONOMY = "taxonomy";
   const KIND_TREE = "tree";
   const KIND_PITCHES = "pitches";
+  const KIND_NOTIFICATIONS = "notifications";
 
   const LS_ESSAYS = "tinker.essays.v1";
   const LS_DRAFTS = "tinker.drafts.v1";
@@ -54,6 +60,11 @@
   const LS_TAXONOMY = "tinker.taxonomy.v1";
   const LS_TREE = "tinker.tree.v1";
   const LS_PITCHES = "tinker.pitches.v1";
+  // Shared with notifications.js' STORE_KEY — sync round-trips the same
+  // array it reads and writes, so an acknowledgement on one device is
+  // honoured on the others.
+  const LS_NOTIFICATIONS = "tinker.notifications";
+  const NOTIFICATIONS_MAX = 30;
 
   // Debounce window per kind. Keystrokes in a textarea hit
   // saveDrafts() at ~3hz; coalescing into one PUT every 1.5s is
@@ -168,6 +179,37 @@
     return true;
   }
 
+  // Notifications are unioned by id rather than overwritten: each device
+  // both raises notices (essays it flushed offline) and clears them, so
+  // neither copy is authoritative on its own. `acknowledged` and `seen`
+  // are monotonic — once true on any device they stay true — so a
+  // dismissal sticks everywhere and a cleared notice never re-pops.
+  function applyNotificationsFromServer(data) {
+    if (!Array.isArray(data)) return false;
+    const localRaw = getLsJson(LS_NOTIFICATIONS, []);
+    const local = Array.isArray(localRaw) ? localRaw : [];
+    const byId = new Map();
+    for (const n of local) {
+      if (n && n.id) byId.set(n.id, n);
+    }
+    for (const n of data) {
+      if (!n || !n.id) continue;
+      const cur = byId.get(n.id);
+      if (!cur) { byId.set(n.id, n); continue; }
+      // Keep the local copy's fields (it may carry this session's edits)
+      // but fold in the monotonic flags from both sides.
+      byId.set(n.id, Object.assign({}, n, cur, {
+        acknowledged: !!(cur.acknowledged || n.acknowledged),
+        seen: !!(cur.seen || n.seen),
+      }));
+    }
+    const merged = Array.from(byId.values())
+      .sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0))
+      .slice(-NOTIFICATIONS_MAX);
+    setLs(LS_NOTIFICATIONS, JSON.stringify(merged));
+    return true;
+  }
+
   function buildSeedsBlob() {
     return {
       explicit: getLsJson(LS_SEEDS, []),
@@ -243,6 +285,9 @@
     pushPitches() {
       schedulePush(KIND_PITCHES, () => getLsJson(LS_PITCHES, null));
     },
+    pushNotifications() {
+      schedulePush(KIND_NOTIFICATIONS, () => getLsJson(LS_NOTIFICATIONS, []));
+    },
     // Force a flush of every pending push immediately — used on auth
     // change and pagehide so the server doesn't drop the tail of a
     // typing burst.
@@ -260,18 +305,20 @@
       if (kinds.includes(KIND_TAXONOMY)) pushKind(KIND_TAXONOMY, getLsJson(LS_TAXONOMY, null));
       if (kinds.includes(KIND_TREE))     pushKind(KIND_TREE,     getLsJson(LS_TREE, null));
       if (kinds.includes(KIND_PITCHES))  pushKind(KIND_PITCHES,  getLsJson(LS_PITCHES, null));
+      if (kinds.includes(KIND_NOTIFICATIONS)) pushKind(KIND_NOTIFICATIONS, getLsJson(LS_NOTIFICATIONS, []));
     },
   };
 
   async function hydrate() {
     if (!token()) return;
-    const [essays, drafts, seeds, taxonomy, tree, pitches] = await Promise.all([
+    const [essays, drafts, seeds, taxonomy, tree, pitches, notifications] = await Promise.all([
       fetchKind(KIND_ESSAYS),
       fetchKind(KIND_DRAFTS),
       fetchKind(KIND_SEEDS),
       fetchKind(KIND_TAXONOMY),
       fetchKind(KIND_TREE),
       fetchKind(KIND_PITCHES),
+      fetchKind(KIND_NOTIFICATIONS),
     ]);
     let changed = false;
     if (applyEssaysFromServer(essays)) changed = true;
@@ -280,6 +327,7 @@
     if (applyTaxonomyFromServer(taxonomy)) changed = true;
     if (applyTreeFromServer(tree)) changed = true;
     if (applyPitchesFromServer(pitches)) changed = true;
+    if (applyNotificationsFromServer(notifications)) changed = true;
     if (changed) {
       try { window.dispatchEvent(new CustomEvent("tinker:hydrated")); }
       catch { /* ignore */ }

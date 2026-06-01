@@ -14,8 +14,13 @@
  *     turns a raw network failure into a friendlier one.)
  *   - The writing view drops the Claude interview for a single
  *     free-write composer — see writing.js.
- *   - State is painted: a status pill, a pressed sidebar toggle, and a
- *     `freewrite-on` class on <html>.
+ *   - State is painted: a pressed sidebar toggle and a `freewrite-on`
+ *     class on <html>. A manual free-write (online) also floats a pill
+ *     with a one-tap "Turn off".
+ *   - A connection drop fires a toast through the notification component
+ *     (notifications.js) so the founder knows they're offline — that
+ *     toast stands in for the pill while offline, so the pill stays
+ *     hidden then.
  *
  * State is derived live from connectivity plus an in-session manual
  * override — nothing is persisted, so a reload always reflects the real
@@ -95,17 +100,13 @@
         : "Write freely — no questions, no waiting";
     }
 
+    // The banner is the manual free-write pill, with its one-tap "Turn
+    // off". The offline state is announced by the notification toast
+    // (notifications.js) instead, so we keep the pill hidden while
+    // genuinely offline — its static copy already reads for the manual
+    // case, and "Turn off" is always live there.
     const banner = document.getElementById("freewrite-banner");
-    if (banner) banner.hidden = !on;
-    const text = banner && banner.querySelector("[data-freewrite-text]");
-    if (text) {
-      text.textContent = offline
-        ? "Free write — you're offline. Saved here; syncs when you reconnect."
-        : "Free write — just write. Saved here, off to your pitch when you stop.";
-    }
-    // No "Turn off" while offline — there's nothing to turn off.
-    const off = banner && banner.querySelector("[data-freewrite-off]");
-    if (off) off.hidden = offline;
+    if (banner) banner.hidden = !on || offline;
   }
 
   function emitChanged(on) {
@@ -116,10 +117,37 @@
     } catch { /* ignore */ }
   }
 
+  // Reuse the notification component (notifications.js) to tell the
+  // founder they've dropped offline. Prefer the direct call; fall back
+  // to the tinker:notify event the same way renderer.js does, so this
+  // works regardless of script load order.
+  function notifyOffline() {
+    const payload = {
+      kind: "freewrite",
+      title: "You're offline",
+      body:
+        "Free write mode is on. Your writing is saved on this device and " +
+        "syncs when you reconnect.",
+    };
+    try {
+      if (typeof window.tinkerNotify === "function") window.tinkerNotify(payload);
+      else window.dispatchEvent(new CustomEvent("tinker:notify", { detail: payload }));
+    } catch { /* ignore */ }
+  }
+
   let lastActive = active();
+  let lastOffline = isOffline();
   function settle() {
     const now = active();
+    const offline = isOffline();
     reflect();
+    // A connection drop flips free write on automatically — surface it
+    // as a toast. Tracked separately from `active` so a manual override
+    // that's already on still gets the offline notice.
+    if (offline !== lastOffline) {
+      lastOffline = offline;
+      if (offline) notifyOffline();
+    }
     if (now === lastActive) return;
     lastActive = now;
     emitChanged(now);
@@ -152,6 +180,7 @@
     });
     reflect();
     lastActive = active();
+    lastOffline = isOffline();
   }
 
   if (document.readyState === "loading") {
