@@ -800,21 +800,6 @@
     return triggerOrganizeNow({ force: true, redistribute: true });
   }
 
-  // Founder-pressed per-pitch refresh — the scoped sibling of
-  // redistributePitches. Reconsiders only the currently selected pitch:
-  // the server wipes that one pitch's deck and hands its writings back to
-  // the clusterer, which can route them home (the pitch keeps its own
-  // line), fold them into a sibling (consolidated), or — if they all land
-  // elsewhere and it isn't founder-named — leave it empty to be pruned
-  // (dissolved). Every other pitch stays put. Returns the same
-  // { ok, diff?, reason? } shape; reason "no-active" when nothing is
-  // selected.
-  async function refreshActivePitch() {
-    const id = getActivePitchId();
-    if (!id) return { ok: false, reason: "no-active" };
-    return triggerOrganizeNow({ force: true, refreshPitchId: id });
-  }
-
   // Replace the in-memory blob with the server's authoritative one
   // and re-mirror to localStorage. The sync layer already wrote it
   // during hydrate; this path covers the case where the organize
@@ -963,7 +948,6 @@
     triggerOrganize,
     triggerOrganizeNow,
     redistributePitches,
-    refreshActivePitch,
     findPitchForWriting,
     placementSnapshot,
     diffSnapshots,
