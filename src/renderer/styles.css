@@ -1323,17 +1323,37 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 .read__menu-item--danger { color: #b23a3a; }
 .read__menu-item--danger:hover { background: rgba(196, 64, 64, 0.08); color: #8f2a2a; }
 
+/* The read view's stage. Holds a single essay page, or — on a wide
+ * desktop — a two-page "book" spread (the opened essay plus the next
+ * essay in the pitch deck). It only frames what it holds; the prose
+ * typography lives on .read__page. */
 .read__body {
   width: 100%;
-  max-width: 720px;
   margin: 0;
+}
+.read__book {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+}
+/* One page of prose — carries the type the single .read__body used to
+ * own, so a lone essay looks exactly as it did before. */
+.read__page {
+  width: 100%;
+  max-width: 720px;
   padding: 56px 32px 80px;
+  box-sizing: border-box;
   font-family: var(--font-display);
   font-size: 18px;
   line-height: 1.75;
   color: var(--color-foreground);
   text-align: left;
 }
+/* The neighbouring page is hidden until there's room to open the book
+ * (see the min-width: 1200px rule). This is also what every narrow
+ * screen gets — including mobile, where the floating title bar needs
+ * exactly one .read__title to pin. */
+.read__page--adjacent { display: none; }
 .read__head { margin-bottom: 24px; }
 .read__author {
   font-family: var(--font-sans);
@@ -1374,7 +1394,28 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   text-align: center;
 }
 .read__author { text-align: center; }
-.read__body p { margin: 0 0 1em; }
+.read__page p { margin: 0 0 1em; }
+
+/* Wide desktop: open the book. The opened essay and its pitch neighbour
+ * sit side by side, centred as a pair and split by a centre spine, each
+ * page capped so a line of prose keeps a comfortable measure. Below this
+ * width the book collapses to the single .read__page--current and sits
+ * where the essay always did. */
+@media (min-width: 1200px) {
+  .read__book--spread {
+    justify-content: center;
+    align-items: stretch;
+  }
+  .read__book--spread .read__page {
+    flex: 1 1 0;
+    max-width: 600px;
+    min-width: 0;
+  }
+  .read__book--spread .read__page--adjacent { display: block; }
+  .read__book--spread .read__page--left {
+    border-right: 1px solid var(--color-border);
+  }
+}
 
 /* ── Pitch assessing (post-publish confirmation) ──────────────────── */
 
@@ -1961,7 +2002,7 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   .writing__top { padding: 14px 16px; }
   .writing__body { padding: 24px 16px calc(env(safe-area-inset-bottom, 0px) + 24px); }
   .writing__foot { padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 18px); }
-  .read__body { padding: 32px 18px 60px; }
+  .read__page { padding: 32px 18px 60px; }
   .read__menu { top: calc(env(safe-area-inset-top, 0px) + 14px); right: 14px; }
   .category-feed__head { padding: 32px 18px 12px; }
   .category-feed__list { padding: 12px 18px 60px; }
