@@ -12,7 +12,13 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
 
-const { isActiveMembership, PRESEED_TIER } = require("../api/_lib/membership.js");
+const {
+  isActiveMembership,
+  isOneTimePass,
+  isPassActive,
+  PRESEED_TIER,
+  ONE_TIME_SOURCE,
+} = require("../api/_lib/membership.js");
 const { buildCheckoutParams } = require("../api/_lib/stripe-checkout.js");
 const { constructEvent, membershipFromEvent } = require("../api/_lib/stripe-webhook.js");
 
@@ -27,6 +33,24 @@ test("isActiveMembership: active/trialing/past_due entitle, others don't", () =>
   assert.equal(isActiveMembership({ status: "active" }), false, "no tier = not a member");
   assert.equal(isActiveMembership(null), false);
   assert.equal(isActiveMembership(undefined), false);
+});
+
+// ── One-time pass entitlement (the 30-day Back-me pass) ────────────────────
+
+test("a one-time pass entitles only inside its 30-day window — not by status", () => {
+  const now = 1_800_000_000_000; // fixed clock (ms)
+  const future = { tier: "pre-seed", status: "active", oneTime: true, source: ONE_TIME_SOURCE, currentPeriodEnd: Math.floor(now / 1000) + 60 };
+  const past = { tier: "pre-seed", status: "active", oneTime: true, currentPeriodEnd: Math.floor(now / 1000) - 60 };
+
+  assert.equal(isOneTimePass(future), true);
+  assert.equal(isOneTimePass({ tier: "pre-seed", status: "active" }), false, "a subscription is not a pass");
+
+  assert.equal(isActiveMembership(future, now), true, "unexpired pass entitles");
+  assert.equal(isActiveMembership(past, now), false, "expired pass does not entitle, even with status active");
+  assert.equal(isPassActive(future, now), true);
+  assert.equal(isPassActive(past, now), false);
+  // A pass with no expiry never entitles (defensive: we always set one).
+  assert.equal(isActiveMembership({ tier: "pre-seed", oneTime: true }, now), false);
 });
 
 // ── Checkout param builder ─────────────────────────────────────────────────

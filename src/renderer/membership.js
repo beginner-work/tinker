@@ -27,6 +27,11 @@
   "use strict";
 
   var TOKEN_KEY = "tinker_jwt";
+  // A one-time pre-seed pass bought anonymously on the beginner Back me page is
+  // parked under this key by pwa-session.js (from the `#claim_pass=` handoff)
+  // and redeemed here at first sign-in. Kept separate from the profile claim
+  // (`tinker_claim`) so it can retry independently until the pass is granted.
+  var PASS_CLAIM_KEY = "tinker_pass_claim";
 
   // Known tiers and their monthly price, mirroring api/_lib/stripe-checkout.js
   // (PRESEED_AMOUNT_CENTS = 900). Display copy only — the server is the source
@@ -63,6 +68,18 @@
 
     if (status.active && info) {
       var when = formatDate(status.currentPeriodEnd);
+      // A one-time pass has no subscription behind it: it expires (it doesn't
+      // renew), there's nothing to pause, and "Restore" would find nothing.
+      if (status.oneTime) {
+        return {
+          active: true,
+          label: info.name + " · 30-day pass",
+          sub: when ? "Pass active — expires " + when : "Pass active",
+          cta: "",
+          restore: false,
+          pause: "",
+        };
+      }
       var sub;
       if (status.status === "trialing") sub = when ? "Free trial — renews " + when : "Free trial";
       else if (status.status === "past_due") sub = "Payment past due — update card";
@@ -90,6 +107,33 @@
     return fetch("/api/membership/status", { headers: authHeaders(token) })
       .then(function (res) { return res.ok ? res.json() : null; })
       .catch(function () { return null; });
+  }
+
+  // Redeem a parked one-time pass against this account. Best-effort: on a
+  // successful claim we drop the token; otherwise we keep it so a pass whose
+  // payment webhook hasn't landed yet is retried on the next load. Resolves to
+  // true only when the pass was actually granted.
+  function claimParkedPass(token) {
+    var claim = read(PASS_CLAIM_KEY);
+    if (!claim) return Promise.resolve(false);
+    return fetch("/api/membership/claim", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders(token)),
+      body: JSON.stringify({ claim_token: claim }),
+    })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (json) {
+        if (json && json.claimed) {
+          try { localStorage.removeItem(PASS_CLAIM_KEY); } catch { /* ignore */ }
+          return true;
+        }
+        return false;
+      })
+      .catch(function () { return false; });
+  }
+
+  function dropParkedPass() {
+    try { localStorage.removeItem(PASS_CLAIM_KEY); } catch { /* ignore */ }
   }
 
   // Open Stripe Checkout for the pre-seed membership and send the tab there.
@@ -328,11 +372,17 @@
       });
     }
 
-    loadStatus(token)
+    // Redeem any parked one-time pass first, so the status read below reflects
+    // a freshly-granted pass on this very load.
+    claimParkedPass(token)
+      .then(function () { return loadStatus(token); })
       .then(function (status) {
         // A null status (network/5xx) still resolves to the free-plan view —
         // better a quiet "Free plan" than a missing row mid-session.
         render(btn, status || {});
+        // Stop retrying a parked pass once the account is entitled (the claim
+        // succeeded, or a subscription/other pass already covers them).
+        if (status && status.active) dropParkedPass();
       })
       .catch(function () { /* best-effort */ })
       .finally(function () { inFlight = false; });
