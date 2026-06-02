@@ -103,6 +103,13 @@
     // The token rides in the fragment (never sent), but keep the Referer
     // clean regardless — beginner only needs the fragment, not who linked in.
     frame.setAttribute("referrerpolicy", "no-referrer");
+    // Delegate the permissions the Back me page's owner actions need. This
+    // frame is cross-origin (tinker → www.beginner.work), and both web-share
+    // and clipboard-write default to a `self`-only allowlist, so the Share and
+    // Copy-link buttons inside the page are blocked unless we hand the features
+    // down explicitly. Without this the Share button's navigator.share() rejects
+    // with NotAllowedError (swallowed by an empty catch) and looks dead.
+    frame.setAttribute("allow", "web-share; clipboard-write");
     frame.src = url;
     panel.appendChild(frame);
 
