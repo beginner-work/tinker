@@ -318,6 +318,95 @@ test("setActivePitch switches the active selection", () => {
   assert.equal(pitches.getActivePitchId(), "p_two");
 });
 
+test("upsertPhrase stamps the pitch's updatedAt and getPitches exposes it", () => {
+  const draft = { id: "d_abc", stitched: { body: "i worked hard but i'm still stressed about it all" } };
+  const { api, pitches } = loadInSandbox({ drafts: [draft] });
+  api.upsertPhrase({
+    deckHeading: "The Problem",
+    writingId: "d_abc",
+    offset: 0,
+    length: 20,
+    addedAt: 4242,
+  });
+  assert.equal(pitches.snapshot().pitches[0].updatedAt, 4242);
+  const listed = pitches.getPitches();
+  assert.equal(listed.length, 1);
+  assert.equal(listed[0].updatedAt, 4242);
+});
+
+test("setPersonalTitle bumps updatedAt past the older edit", () => {
+  const seedPitches = {
+    pitches: [{
+      id: "p_one",
+      aiTitle: "Beans",
+      personalTitle: null,
+      deck: {},
+      meta: {},
+      createdAt: 1000,
+      updatedAt: 1000,
+    }],
+    activeId: "p_one",
+  };
+  const { pitches } = loadInSandbox({ seedPitches });
+  const before = pitches.snapshot().pitches[0].updatedAt;
+  pitches.setPersonalTitle("p_one", "my coffee thing");
+  const after = pitches.snapshot().pitches[0].updatedAt;
+  assert.ok(after > before, "renaming a pitch should advance its updatedAt");
+});
+
+test("legacy pitch without updatedAt derives it from the newest phrase addedAt", () => {
+  const draftA = { id: "d_a", stitched: { body: "alpha body content here for the test run" } };
+  const draftB = { id: "d_b", stitched: { body: "beta body content here for the test run" } };
+  const seedPitches = {
+    pitches: [{
+      id: "p_legacy",
+      aiTitle: "Legacy",
+      personalTitle: null,
+      deck: {
+        "The Problem": [{ writingId: "d_a", offset: 0, length: 5, addedAt: 1000 }],
+        "A Persona": [{ writingId: "d_b", offset: 0, length: 4, addedAt: 9000 }],
+      },
+      meta: {},
+      createdAt: 500,
+      // no updatedAt — pre-dates the field
+    }],
+    activeId: "p_legacy",
+  };
+  const { pitches } = loadInSandbox({ drafts: [draftA, draftB], seedPitches });
+  assert.equal(pitches.getPitches()[0].updatedAt, 9000);
+});
+
+test("getPitches updatedAt reflects recency order across pitches", () => {
+  const draftA = { id: "d_a", stitched: { body: "alpha body content here for the test run" } };
+  const draftB = { id: "d_b", stitched: { body: "beta body content here for the test run" } };
+  const seedPitches = {
+    pitches: [
+      {
+        id: "p_old",
+        aiTitle: "Old",
+        personalTitle: null,
+        deck: { "The Problem": [{ writingId: "d_a", offset: 0, length: 5, addedAt: 100 }] },
+        meta: {},
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      {
+        id: "p_new",
+        aiTitle: "New",
+        personalTitle: null,
+        deck: { "A Persona": [{ writingId: "d_b", offset: 0, length: 4, addedAt: 200 }] },
+        meta: {},
+        createdAt: 200,
+        updatedAt: 200,
+      },
+    ],
+    activeId: "p_old",
+  };
+  const { pitches } = loadInSandbox({ drafts: [draftA, draftB], seedPitches });
+  const byId = Object.fromEntries(pitches.getPitches().map((p) => [p.id, p.updatedAt]));
+  assert.ok(byId.p_new > byId.p_old, "the more recently edited pitch sorts first");
+});
+
 test("default active pick = most robust pitch (most covered headings)", () => {
   const draftA = { id: "d_a", stitched: { body: "alpha body content here for the test" } };
   const draftB = { id: "d_b", stitched: { body: "beta body content here for the test" } };
