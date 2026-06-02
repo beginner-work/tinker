@@ -48,6 +48,10 @@
   const HASH_PARAM = "ts";
   const CLAIM_KEY = "tinker_claim";
   const CLAIM_PARAM = "claim";
+  // A one-time pre-seed pass bought on the beginner Back me page is handed over
+  // as `#claim_pass=<token>`; membership.js redeems it after sign-in.
+  const PASS_CLAIM_KEY = "tinker_pass_claim";
+  const PASS_CLAIM_PARAM = "claim_pass";
 
   function isWrappedRuntime() {
     if (window.Capacitor) return true;
@@ -66,11 +70,13 @@
     try { params = new URLSearchParams(hash.slice(1)); } catch { return; }
 
     // `ts` carries an existing session (PWA install handoff); `claim`
-    // carries a one-time landing-form profile token. Either, both, or
-    // neither may be present — the landing form sends only `claim`.
+    // carries a one-time landing-form profile token; `claim_pass` carries a
+    // one-time pre-seed pass bought on the beginner Back me page. Any, all, or
+    // none may be present — the landing form sends only `claim`.
     const token = params.get(HASH_PARAM);
     const claim = params.get(CLAIM_PARAM);
-    if (!token && !claim) return;
+    const passClaim = params.get(PASS_CLAIM_PARAM);
+    if (!token && !claim && !passClaim) return;
 
     if (token) {
       try { localStorage.setItem(TOKEN_KEY, token); }
@@ -80,10 +86,15 @@
       try { localStorage.setItem(CLAIM_KEY, claim); }
       catch { /* private mode — profile.js just won't find a claim */ }
     }
+    if (passClaim) {
+      try { localStorage.setItem(PASS_CLAIM_KEY, passClaim); }
+      catch { /* private mode — membership.js just won't find a pass */ }
+    }
 
-    // Strip both in one history rewrite so the app sees a clean URL.
+    // Strip them all in one history rewrite so the app sees a clean URL.
     params.delete(HASH_PARAM);
     params.delete(CLAIM_PARAM);
+    params.delete(PASS_CLAIM_PARAM);
     const rest = params.toString();
     const cleanHash = rest ? "#" + rest : "";
     try {

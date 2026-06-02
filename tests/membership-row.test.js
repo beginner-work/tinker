@@ -107,3 +107,14 @@ test("an active member is not offered restore", () => {
   const view = formatMembership({ active: true, tier: "pre-seed", status: "active" });
   assert.equal(view.restore, false);
 });
+
+test("a one-time pass reads as a 30-day pass that expires, with no pause/restore", () => {
+  const formatMembership = loadFormatter();
+  const view = formatMembership({ active: true, tier: "pre-seed", status: "active", oneTime: true, currentPeriodEnd: 1782000000 });
+  assert.equal(view.active, true);
+  assert.equal(view.label, "Pre-seed · 30-day pass");
+  assert.match(view.sub, /^Pass active — expires /);
+  assert.equal(view.cta, "");
+  assert.equal(view.pause, "", "a pass has no subscription to pause");
+  assert.equal(view.restore, false, "a pass has nothing to restore");
+});

@@ -51,6 +51,9 @@ module.exports = withResponseLogging(async function handler(req, res) {
       tier: (data && data.tier) || null,
       status: (data && data.status) || null,
       currentPeriodEnd: (data && data.currentPeriodEnd) || null,
+      // A one-time pass renders differently (it expires, can't be paused), so
+      // the client needs to know which kind of membership this is.
+      oneTime: !!(data && data.oneTime),
     });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message || "Internal error" });
