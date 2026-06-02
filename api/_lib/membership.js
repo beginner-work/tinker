@@ -25,9 +25,20 @@ const PRESEED_TIER = "pre-seed";
 // once dunning is exhausted, and those do lock out.
 const ACTIVE_STATUSES = Object.freeze(["active", "trialing", "past_due"]);
 
+// The member paused billing on their own subscription. It's dormant, not gone:
+// not entitling (so the paid surface locks while they aren't paying), but the
+// subscription is preserved and one tap resumes it. Surfaced as our own status
+// because Stripe keeps a paused subscription's `status` at "active".
+const PAUSED_STATUS = "paused";
+
 /** Pure: does this stored membership blob entitle the user right now? */
 function isActiveMembership(data) {
   return !!(data && data.tier && ACTIVE_STATUSES.includes(data.status));
+}
+
+/** Pure: is this member's subscription paused (dormant but resumable)? */
+function isPausedMembership(data) {
+  return !!(data && data.tier && data.status === PAUSED_STATUS);
 }
 
 async function readMembership(userId) {
@@ -53,7 +64,9 @@ module.exports = {
   MEMBERSHIP_KIND,
   PRESEED_TIER,
   ACTIVE_STATUSES,
+  PAUSED_STATUS,
   isActiveMembership,
+  isPausedMembership,
   readMembership,
   hasActiveMembership,
   writeMembership,

@@ -10,7 +10,7 @@
 
 const crypto = require("crypto");
 const { PRESEED_TIER } = require("./membership.js");
-const { subscriptionPeriodEnd } = require("./stripe-reconcile.js");
+const { subscriptionPeriodEnd, effectiveSubscriptionStatus } = require("./stripe-reconcile.js");
 
 function err(status, message) {
   return Object.assign(new Error(message), { status });
@@ -115,8 +115,14 @@ function membershipFromEvent(event) {
     case "customer.subscription.deleted": {
       const userId = (obj.metadata && obj.metadata.userId) || "";
       if (!userId) return null;
+      // A paused subscription still reports Stripe status "active" (only
+      // `pause_collection` is set), so effectiveSubscriptionStatus surfaces our
+      // "paused" instead — that's how a pause from the dashboard or a resumes_at
+      // expiry flows back to the entitlement row, not just our own pause button.
       const status =
-        event.type === "customer.subscription.deleted" ? "canceled" : obj.status || "canceled";
+        event.type === "customer.subscription.deleted"
+          ? "canceled"
+          : effectiveSubscriptionStatus(obj) || "canceled";
       return {
         userId,
         data: clean({

@@ -230,6 +230,17 @@
               Already subscribed? Restore
             </button>
           </li>
+          <!-- Pause / resume: a quiet text button beneath the plan row.
+               membership.js reveals it as "Pause membership" for an active
+               member and "Resume membership" for a paused one, and hides it
+               for free accounts. Pausing keeps the subscription alive but
+               stops billing via /api/membership/pause until the member
+               resumes. -->
+          <li>
+            <button id="nav-membership-pause" type="button" class="sidebar__membership-restore sidebar__membership-pause" hidden>
+              Pause membership
+            </button>
+          </li>
           <!-- Share button: revealed by share.js only when the app is
                running as an installed PWA (standalone) or inside a
                wrapped runtime (Capacitor). Stays hidden in plain

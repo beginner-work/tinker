@@ -28,6 +28,20 @@ function subscriptionPeriodEnd(sub) {
   return (item && item.current_period_end) || null;
 }
 
+/**
+ * The membership status a Stripe subscription maps to. A paused subscription
+ * keeps Stripe's own `status` as "active" (only billing is suspended via
+ * `pause_collection`), so we surface our own "paused" status for it — that's
+ * what lets feature gates lock the paid surface while billing is stopped, and
+ * what the sidebar reads to offer "Resume" instead of "Pause". Otherwise we
+ * pass Stripe's status straight through.
+ */
+function effectiveSubscriptionStatus(sub) {
+  if (!sub || typeof sub !== "object") return null;
+  if (sub.pause_collection) return "paused";
+  return sub.status || null;
+}
+
 function clean(obj) {
   const out = {};
   for (const k of Object.keys(obj)) {
@@ -36,29 +50,51 @@ function clean(obj) {
   return out;
 }
 
-/**
- * Given every subscription found for a person's Stripe customer(s), return the
- * membership blob to store (keyed later by the tinker user_id), or null when
- * none of them entitle the buyer. Prefers the entitling subscription that
- * renews furthest out, so a fresh re-subscribe wins over a lapsed one.
- */
-function pickMembershipFromSubscriptions(subs) {
-  if (!Array.isArray(subs)) return null;
-  const entitling = subs.filter(
-    (s) => s && s.status && ACTIVE_STATUSES.includes(s.status)
-  );
-  if (entitling.length === 0) return null;
-  entitling.sort(
-    (a, b) => (subscriptionPeriodEnd(b) || 0) - (subscriptionPeriodEnd(a) || 0)
-  );
-  const sub = entitling[0];
+/** Shape one Stripe subscription into the membership blob we persist. */
+function membershipFromSubscription(sub) {
+  if (!sub || typeof sub !== "object") return null;
   return clean({
     tier: PRESEED_TIER,
-    status: sub.status,
+    status: effectiveSubscriptionStatus(sub),
     stripeCustomerId: sub.customer || null,
     stripeSubscriptionId: sub.id || null,
     currentPeriodEnd: subscriptionPeriodEnd(sub),
   });
 }
 
-module.exports = { normalizeEmail, subscriptionPeriodEnd, pickMembershipFromSubscriptions };
+/** Latest-renewing first, so a fresh subscribe wins over a lapsed one. */
+function byPeriodEndDesc(a, b) {
+  return (subscriptionPeriodEnd(b) || 0) - (subscriptionPeriodEnd(a) || 0);
+}
+
+/**
+ * Given every subscription found for a person's Stripe customer(s), return the
+ * membership blob to store (keyed later by the tinker user_id), or null when
+ * none of them are the buyer's to surface. Prefers the entitling subscription
+ * that renews furthest out; failing that, a paused subscription is still the
+ * member's, so we surface it (status "paused") so they can resume it — even
+ * from a device that never saw the original checkout.
+ */
+function pickMembershipFromSubscriptions(subs) {
+  if (!Array.isArray(subs)) return null;
+  const byStatus = (wanted) =>
+    subs
+      .filter((s) => wanted.includes(effectiveSubscriptionStatus(s)))
+      .sort(byPeriodEndDesc);
+
+  const entitling = byStatus(ACTIVE_STATUSES);
+  if (entitling.length) return membershipFromSubscription(entitling[0]);
+
+  const paused = byStatus(["paused"]);
+  if (paused.length) return membershipFromSubscription(paused[0]);
+
+  return null;
+}
+
+module.exports = {
+  normalizeEmail,
+  subscriptionPeriodEnd,
+  effectiveSubscriptionStatus,
+  membershipFromSubscription,
+  pickMembershipFromSubscriptions,
+};
