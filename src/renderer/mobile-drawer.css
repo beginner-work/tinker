@@ -218,6 +218,22 @@
     background: var(--color-background);
   }
 
+  /* The read view is the one surface with TWO top-right controls: the
+   * essay kebab (.read__menu) AND the founder avatar (.profile-corner).
+   * When a profile is loaded, <html> gets .has-avatar and styles.css
+   * slides the kebab left to right: calc(safe-area-right + 64px) so it
+   * clears the avatar — which pushes the kebab's interior edge to
+   * safe-area-right + 104px. The shared floating-title rule only reserves
+   * 72px on the right (sized for a single icon), so the title's ellipsis
+   * edge falls *under* the slid kebab and the two overlap. Widen the
+   * right clearance to clear the kebab's full footprint (64px offset +
+   * 40px trigger + 12px gap = 116px). Two classes outrank the base rule.
+   * Only .read__title needs this — the other floating titles have just
+   * the avatar (right:12..52), which 72px already clears. */
+  .has-avatar .read__title {
+    padding-right: calc(env(safe-area-inset-right, 0px) + 116px);
+  }
+
   /* Secondary labels that previously sat above/beside a page title
    * keep their centered placement so they align under the floating
    * title bar (which has 72px of left/right clearance for the icon). */
