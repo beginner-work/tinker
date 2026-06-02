@@ -245,6 +245,18 @@
               <span class="sidebar__account-flash" data-share-flash aria-live="polite"></span>
             </button>
           </li>
+          <!-- Publish stories: opens the booklet picker (publish-stories.js).
+               The founder chooses which pitches to make public; the full
+               essays behind them publish to their beginner profile page. -->
+          <li>
+            <button id="nav-publish-stories" type="button" class="sidebar__account-item">
+              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                <path d="M5 4h9l5 5v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M14 4v5h5M8 13h8M8 16.5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="sidebar__account-label">Publish stories</span>
+            </button>
+          </li>
         </ul>
       </nav>
 
@@ -688,6 +700,7 @@
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>
+    <script src="./publish-stories.js" defer></script>
     <script src="./membership.js" defer></script>
     <script src="./update-banner.js" defer></script>
     <script src="./notifications.js" defer></script>
