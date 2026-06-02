@@ -27,6 +27,7 @@
  *             deck: { [deckHeading]: [phraseRecord, ...] },
  *             meta: { mostRecentlyTouched, expanded, lastClassifyFailedAt },
  *             createdAt: <ts>,
+ *             updatedAt: <ts>,   // last time the founder edited this pitch
  *           }
  *         ],
  *         activeId: "<pitchId>" | null,   // null → auto-pick most robust
@@ -160,6 +161,36 @@
       && p.length > 0;
   }
 
+  // The pitch's last-edited timestamp. Newer pitch blobs carry an
+  // explicit `updatedAt` that every editing path bumps (see touch()).
+  // Pitches written before this field existed don't have one, so we
+  // recover a sensible value from the data already on hand: the most
+  // recent phrase `addedAt` across the whole deck, falling back to the
+  // pitch's createdAt. This keeps "most recently edited" ordering
+  // stable for legacy blobs without forcing a one-time rewrite.
+  function deriveUpdatedAt(rawPitch, createdAt) {
+    const explicit = Number(rawPitch && rawPitch.updatedAt);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    let latest = Number(createdAt) || 0;
+    const rawDeck = rawPitch && typeof rawPitch.deck === "object" ? rawPitch.deck : {};
+    for (const h of DECK_HEADINGS) {
+      const recs = Array.isArray(rawDeck[h]) ? rawDeck[h] : [];
+      for (const rec of recs) {
+        const at = Number(rec && rec.addedAt);
+        if (Number.isFinite(at) && at > latest) latest = at;
+      }
+    }
+    return latest || Date.now();
+  }
+
+  // Stamp a pitch as just-edited. Called from every founder-facing
+  // mutation (phrase upsert, title change, writing removal, creation)
+  // so the switcher can order pitches most-recently-edited first.
+  function touch(pitch, at) {
+    if (!pitch) return;
+    pitch.updatedAt = Number(at) || Date.now();
+  }
+
   // ── Migration from legacy storage ────────────────────────────────
 
   // If tinker.pitches.v1 is missing but tinker.tree.v1 exists, wrap
@@ -203,6 +234,7 @@
         },
         createdAt: Date.now(),
       };
+      firstPitch.updatedAt = deriveUpdatedAt(firstPitch, firstPitch.createdAt);
       return {
         pitches: [firstPitch],
         activeId: firstPitch.id,
@@ -257,6 +289,7 @@
           ? rawMeta.lastClassifyFailedAt
           : null,
       };
+      const createdAt = Number(p.createdAt) || Date.now();
       pitches.push({
         id,
         aiTitle,
@@ -264,7 +297,8 @@
         aiTitleSourceHash,
         deck,
         meta,
-        createdAt: Number(p.createdAt) || Date.now(),
+        createdAt,
+        updatedAt: deriveUpdatedAt(p, createdAt),
       });
     }
     const activeId = typeof raw.activeId === "string" && pitches.some((p) => p.id === raw.activeId)
@@ -400,6 +434,7 @@
       displayName: p.personalTitle || p.aiTitle || "Untitled",
       robustness: pitchRobustness(p),
       createdAt: p.createdAt,
+      updatedAt: Number(p.updatedAt) || p.createdAt,
     }));
   }
 
@@ -438,6 +473,7 @@
       if (!clean) return false;
       p.personalTitle = clean;
     }
+    touch(p);
     save();
     fire("tinker:pitches-changed");
     return true;
@@ -490,6 +526,7 @@
     pitch.meta.lastClassifyFailedAt = null;
     pitch.meta.expanded = { ...(pitch.meta.expanded || {}) };
     pitch.meta.expanded[deckHeading] = true;
+    touch(pitch, addedAt);
 
     save();
     fire("tinker:pitches-changed");
@@ -512,6 +549,7 @@
         const filtered = list.filter((p) => p.writingId !== writingId);
         if (filtered.length !== list.length) {
           pitch.deck[h] = filtered;
+          touch(pitch);
           touched = true;
         }
       }
@@ -556,6 +594,7 @@
       deck: emptyDeck(),
       meta: { mostRecentlyTouched: null, expanded: {}, lastClassifyFailedAt: null },
       createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
     blob.pitches.push(pitch);
     if (!blob.activeId) blob.activeId = pitch.id;

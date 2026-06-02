@@ -490,11 +490,38 @@
     render();
   }
 
-  // Render the two-line title block used in the dropdown face and
-  // in each menu item. Personal title on top (the founder's
-  // recognition name), AI title underneath as a muted subtitle.
-  // When only one of the two exists, it sits alone — no awkward
-  // empty rows.
+  // A short, human "last edited" label for a pitch — recent edits read
+  // as relative time ("edited just now", "edited 3h ago"), older ones
+  // fall back to a calendar date ("edited Mar 4"). Returns "" for a
+  // missing/invalid timestamp so callers can skip the subtitle.
+  function formatEditedDate(ts) {
+    const ms = Number(ts);
+    if (!Number.isFinite(ms) || ms <= 0) return "";
+    const diff = Date.now() - ms;
+    if (diff < 0) return "edited just now";
+    const min = 60 * 1000;
+    const hour = 60 * min;
+    const day = 24 * hour;
+    if (diff < min) return "edited just now";
+    if (diff < hour) return `edited ${Math.floor(diff / min)}m ago`;
+    if (diff < day) return `edited ${Math.floor(diff / hour)}h ago`;
+    if (diff < 7 * day) return `edited ${Math.floor(diff / day)}d ago`;
+    const d = new Date(ms);
+    const now = new Date();
+    const opts = d.getFullYear() === now.getFullYear()
+      ? { month: "short", day: "numeric" }
+      : { month: "short", day: "numeric", year: "numeric" };
+    let date = "";
+    try { date = d.toLocaleDateString(undefined, opts); }
+    catch { date = d.toDateString(); }
+    return `edited ${date}`;
+  }
+
+  // Render the title block used in the dropdown face and in each menu
+  // item. Personal title on top (the founder's recognition name), AI
+  // title underneath as a muted subtitle, then the last-edited date as
+  // a fainter line below. When only one of the titles exists it sits
+  // alone — no awkward empty rows.
   function renderTitleStack(pitch) {
     const wrap = document.createElement("span");
     wrap.className = "sidebar__pitch-title-stack";
@@ -521,6 +548,13 @@
       fallback.className = "sidebar__pitch-title-ai";
       fallback.textContent = pitch.displayName || "Naming…";
       wrap.appendChild(fallback);
+    }
+    const editedLabel = formatEditedDate(pitch.updatedAt);
+    if (editedLabel) {
+      const dateEl = document.createElement("span");
+      dateEl.className = "sidebar__pitch-title-date";
+      dateEl.textContent = editedLabel;
+      wrap.appendChild(dateEl);
     }
     return wrap;
   }
@@ -646,9 +680,16 @@
       // pitch is the one exception: it stays put so the menu always
       // shows what's currently selected (and never goes empty when every
       // pitch happens to be at 0 / 11).
-      const menuPitches = pitches.filter(
-        (p) => p.id === active.id || (Number(p.robustness) || 0) > 0,
-      );
+      // Most recently edited first, so the pitch the founder just
+      // touched sits at the top of the menu. Ties (and pitches with no
+      // recorded edit) fall back to createdAt so ordering stays stable.
+      const menuPitches = pitches
+        .filter((p) => p.id === active.id || (Number(p.robustness) || 0) > 0)
+        .sort((a, b) => {
+          const at = Number(a.updatedAt) || Number(a.createdAt) || 0;
+          const bt = Number(b.updatedAt) || Number(b.createdAt) || 0;
+          return bt - at;
+        });
       const menu = document.createElement("ul");
       menu.className = "sidebar__pitch-menu";
       menu.setAttribute("role", "listbox");

@@ -735,6 +735,16 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   color: var(--color-muted);
   font-style: italic;
 }
+.sidebar__pitch-title-date {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-muted);
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
 /* Full-width pill button — same outlined / indigo treatment as
  * .writing__end and .writing__next in the onboarding answer flow,
  * scaled down to fit the sidebar. Used for "Rename pitch" inside
