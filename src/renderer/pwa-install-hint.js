@@ -109,10 +109,23 @@
       document.documentElement.classList.remove("pwa-hint-visible");
       if (remember) markDismissed();
     }
-    function openSheet() { if (sheet) sheet.hidden = false; }
+    function openSheet() {
+      if (!sheet) return;
+      // Hide the banner while the sheet is open. The full-viewport sheet
+      // (z-index 100) sits above the banner (z-index 75) with only a 45%
+      // translucent backdrop, so the purple Install button stays dimly
+      // visible at the top — but every tap there lands on the backdrop,
+      // whose handler is closeSheet. A user tapping "Install" again to
+      // proceed would instead dismiss the very instructions they just
+      // opened. Taking the banner out of the layout removes that trap;
+      // closeSheet restores it so they can re-open the instructions.
+      banner.hidden = true;
+      sheet.hidden = false;
+    }
     function closeSheet() {
       if (!sheet) return;
       sheet.hidden = true;
+      banner.hidden = false;
       // Wipe any inline styles the drag-to-close handler may have
       // applied so the next openSheet re-triggers the CSS pull-down
       // keyframe (animations restart on the display: none → flex flip
