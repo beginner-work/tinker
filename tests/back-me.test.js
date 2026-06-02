@@ -100,6 +100,19 @@ test("an installed PWA opens the QR in an in-app iframe; otherwise the browser",
   assert.match(BACKME_SRC, /referrerpolicy/, "the iframe keeps the Referer clean");
 });
 
+test("the overlay iframe delegates web-share and clipboard-write so the Back me Share/Copy buttons work", () => {
+  // The Back me page is cross-origin (tinker → www.beginner.work). Both
+  // web-share and clipboard-write default to a `self`-only Permissions Policy
+  // allowlist, so navigator.share() and navigator.clipboard.writeText() inside
+  // the framed page are blocked unless the embedding iframe hands the features
+  // down with an `allow` attribute. Missing this made the Share button silently
+  // do nothing (navigator.share() rejecting into profile.js's empty catch).
+  const allowMatch = BACKME_SRC.match(/setAttribute\(\s*"allow"\s*,\s*"([^"]*)"\s*\)/);
+  assert.ok(allowMatch, "the overlay iframe must set an `allow` attribute");
+  assert.match(allowMatch[1], /web-share/, "must delegate web-share for the Share button");
+  assert.match(allowMatch[1], /clipboard-write/, "must delegate clipboard-write for the Copy link button");
+});
+
 test("the overlay is dismissable (close button + Escape + backdrop)", () => {
   assert.match(BACKME_SRC, /aria-modal/, "the overlay is a modal dialog");
   assert.match(BACKME_SRC, /backme-overlay__close/, "has a close control");
