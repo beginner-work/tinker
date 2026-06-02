@@ -59,6 +59,7 @@
          the sidebar Pitch button and the profile menu. Loaded before them so
          the global exists when their click handlers bind. -->
     <script src="./back-me.js" defer></script>
+    <script src="./open-beginner.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
@@ -98,6 +99,12 @@
              page (in-app iframe on PWA, system browser otherwise). -->
         <button id="profile-backme" class="profile-popover__action" type="button" role="menuitem">
           Show my QR code
+        </button>
+        <!-- Switch surfaces: hop to the beginner app (the public page + backers).
+             Carries the session in the URL fragment so the founder lands signed
+             in — reciprocal of beginner's drawer "Open tinker". -->
+        <button id="profile-open-beginner" class="profile-popover__action" type="button" role="menuitem">
+          Open beginner
         </button>
       </div>
     </div>

@@ -187,6 +187,18 @@
           }
         });
       }
+      // "Open beginner" — switch surfaces to the beginner app, carrying the
+      // session across so the founder lands signed in (see open-beginner.js).
+      var openBeginner = document.getElementById("profile-open-beginner");
+      if (openBeginner) {
+        openBeginner.addEventListener("click", function () {
+          pop.setAttribute("hidden", "");
+          btn.setAttribute("aria-expanded", "false");
+          if (window.tinkerOpenBeginner && typeof window.tinkerOpenBeginner.open === "function") {
+            window.tinkerOpenBeginner.open();
+          }
+        });
+      }
     }
   }
 
