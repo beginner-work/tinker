@@ -1519,6 +1519,15 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 .has-avatar .read__menu {
   right: calc(env(safe-area-inset-right, 0px) + 64px);
 }
+/* The same fixed avatar overlaps the writing header's step label, which
+ * sits flush at the header's right edge (the rightmost flex child after the
+ * progress dots). Pad the header right to clear the avatar's 52px footprint
+ * (12px inset + 40px) plus a 12px gap, so "Question N" no longer falls under
+ * the photo. Two classes outrank the base and the ≤540px / mobile-drawer
+ * .writing__top rules, so this holds at every width. */
+.has-avatar .writing__top {
+  padding-right: calc(env(safe-area-inset-right, 0px) + 64px);
+}
 .read__menu-trigger {
   width: 40px;
   height: 40px;
