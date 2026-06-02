@@ -189,13 +189,13 @@ test("isSlug accepts slug shape and rejects garbage", () => {
   assert.equal(publish._isSlug("../etc"), false);
 });
 
-test("readerHost defaults to beginner.work and uses the preview alias on previews", () => {
+test("readerHost is always production beginner.work, even on previews", () => {
   const prev = { ...process.env };
-  delete process.env.VERCEL_ENV;
   try {
+    delete process.env.VERCEL_ENV;
     assert.equal(publish._readerHost(), "https://beginner.work");
     process.env.VERCEL_ENV = "preview";
-    assert.equal(publish._readerHost(), "https://beginner-git-main-beginner-work.vercel.app");
+    assert.equal(publish._readerHost(), "https://beginner.work");
   } finally {
     process.env = prev;
   }

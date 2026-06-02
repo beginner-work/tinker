@@ -51,14 +51,15 @@ const MAX_STORIES_PER_PITCH = 64;
 const MAX_TITLE_LEN = 200;
 const MAX_BODY_LEN = 100 * 1024;
 
-// The booklet renders on the founder's beginner profile. Production
-// tinker → https://beginner.work. Preview tinker → beginner's main
-// preview alias. VERCEL_ENV is auto-injected by Vercel. Kept identical
-// to api/publish/pitch.js so every publish flow resolves the same host.
+// The booklet link is the founder's real, public profile — the URL they
+// hand to a customer — so it ALWAYS points at production beginner.work,
+// never an ephemeral preview alias. This is also where the data actually
+// lives: tinker (production AND preview) writes to the same production
+// Neon endpoint, so a booklet published from a tinker preview is readable
+// on beginner production. (Beginner *preview* deploys read a fresh
+// auto-branched DB and so never see it — which is why we don't point
+// here at a beginner preview.)
 function readerHost() {
-  if (process.env.VERCEL_ENV === "preview") {
-    return "https://beginner-git-main-beginner-work.vercel.app";
-  }
   return "https://beginner.work";
 }
 

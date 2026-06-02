@@ -7,9 +7,9 @@
  *   - installed PWA (standalone)  → in-app iframe overlay (stay in the app)
  *   - everywhere else             → system browser via openExternal
  *
- * It's shared by the sidebar Pitch button and the profile menu, so the QR is
- * reachable without the Pitch button. These are source-level contract tests
- * (the renderer sandbox has only a no-op DOM), matching pitch-backme.test.js.
+ * It's reached from the profile menu (the sidebar button was repurposed to
+ * Publish). These are source-level contract tests (the renderer sandbox has
+ * only a no-op DOM), matching pitch-backme.test.js.
  */
 
 "use strict";
@@ -25,7 +25,6 @@ const read = (p) => fs.readFileSync(path.join(SRC_DIR, p), "utf8");
 const BACKME_SRC = read("back-me.js");
 const INDEX_HTML = read("index.html");
 const PROFILE_SRC = read("profile.js");
-const TREE_SRC = read("sidebar-tree.js");
 
 // Pull the host out of the `https://<host>/tyler-lindow#share` Back me URL
 // literal a source file builds. Returns null if the file doesn't define one.
@@ -121,19 +120,11 @@ test("regression: the Back me iframe host is allowlisted by the CSP, so the PWA 
   // The original Pitch-button bug: the in-app iframe pointed at one host
   // (the bare apex, which redirects) while the CSP frame-src allowed a
   // different one, so the cross-origin frame was blocked and the founder saw
-  // a blank white panel. This test wires the three moving parts together so
-  // they can never silently drift apart again:
-  //   1. back-me.js and sidebar-tree.js must build the SAME Back me host, and
-  //   2. that exact host must appear in index.html's frame-src allowlist.
+  // a blank white panel. back-me.js is now the single source of the Back me
+  // URL (the sidebar button was repurposed to Publish), so the contract is
+  // simply: the host back-me.js builds must appear in index.html's frame-src.
   const backmeHost = backMeHost(BACKME_SRC);
-  const treeHost = backMeHost(TREE_SRC);
   assert.ok(backmeHost, "back-me.js must build a Back me URL");
-  assert.ok(treeHost, "sidebar-tree.js must build a Back me URL");
-  assert.equal(
-    backmeHost,
-    treeHost,
-    "the two Back me URLs must share one host (or they'll drift)",
-  );
 
   const cspMatch = INDEX_HTML.match(/frame-src([^;]*)/);
   assert.ok(cspMatch, "index.html must declare a frame-src directive");
