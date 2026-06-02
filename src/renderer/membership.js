@@ -67,12 +67,21 @@
       if (status.status === "trialing") sub = when ? "Free trial — renews " + when : "Free trial";
       else if (status.status === "past_due") sub = "Payment past due — update card";
       else sub = when ? "Renews " + when : "Active";
-      return { active: true, label: info.name + " · " + info.monthly, sub: sub, cta: "", restore: false };
+      // An active member can pause billing — a softer exit than canceling,
+      // since the subscription stays put and one tap brings it back.
+      return { active: true, label: info.name + " · " + info.monthly, sub: sub, cta: "", restore: false, pause: "pause" };
     }
 
-    // Anything not entitled reads as a free account, with a nudge to upgrade
-    // and a quiet way to link a subscription that was started elsewhere.
-    return { active: false, label: "Free plan", sub: "Pre-seed is $9/mo", cta: "Upgrade", restore: true };
+    // Paused: billing is suspended but the subscription is dormant, not gone.
+    // We keep showing the tier (not "Free plan") and offer a one-tap resume so
+    // the member can pick up where they left off.
+    if (status.status === "paused" && info) {
+      return { active: false, label: info.name + " · Paused", sub: "Billing paused — resume anytime", cta: "", restore: false, pause: "resume" };
+    }
+
+    // Anything else not entitled reads as a free account, with a nudge to
+    // upgrade and a quiet way to link a subscription that was started elsewhere.
+    return { active: false, label: "Free plan", sub: "Pre-seed is $9/mo", cta: "Upgrade", restore: true, pause: "" };
   }
 
   // ── Network ──────────────────────────────────────────────────────────
@@ -188,6 +197,45 @@
       .catch(function () { setRestoreText(btn, "Try again", true); });
   }
 
+  // Pause / resume the member's subscription. Pausing keeps the subscription
+  // alive but stops billing until they resume; the endpoint returns the same
+  // { active, tier, status, currentPeriodEnd } shape /status does, freshly
+  // written, so we paint the row straight from it (same reasoning as restore).
+  var PAUSE_LABELS = { pause: "Pause membership", resume: "Resume membership" };
+
+  function setPauseText(btn, text, resetTo) {
+    if (!btn) return;
+    btn.textContent = text;
+    if (resetTo) setTimeout(function () { btn.textContent = PAUSE_LABELS[resetTo] || text; }, 2600);
+  }
+
+  function startPause(token, btn, resume) {
+    // Confirm the pause (not the resume) — it's the one that quietly stops a
+    // member's access, so a stray click shouldn't trigger it silently.
+    if (!resume) {
+      var ok = true;
+      try { ok = window.confirm("Pause your membership? Billing stops until you resume — your access pauses too."); } catch { ok = true; }
+      if (!ok) return;
+    }
+    var action = resume ? "resume" : "pause";
+    setPauseText(btn, resume ? "Resuming…" : "Pausing…");
+    return fetch("/api/membership/pause", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders(token)),
+      body: JSON.stringify({ resume: resume }),
+    })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (json) {
+        if (json) {
+          var row = document.getElementById("nav-membership");
+          if (row) render(row, json);
+          return;
+        }
+        setPauseText(btn, "Couldn’t " + action + " — try again", action);
+      })
+      .catch(function () { setPauseText(btn, "Try again", action); });
+  }
+
   // ── Render ───────────────────────────────────────────────────────────
 
   function render(btn, status) {
@@ -211,7 +259,25 @@
       else restoreEl.setAttribute("hidden", "");
     }
 
+    // Pause / resume lives in its own row too: shown to an active member
+    // ("Pause membership") and to a paused one ("Resume membership"), hidden
+    // for free accounts (which have nothing to pause). Its dataset.resume tells
+    // the click handler which way to flip.
+    var pauseEl = document.getElementById("nav-membership-pause");
+    if (pauseEl) {
+      if (view.pause) {
+        pauseEl.textContent = PAUSE_LABELS[view.pause];
+        pauseEl.dataset.resume = view.pause === "resume" ? "1" : "0";
+        pauseEl.removeAttribute("hidden");
+      } else {
+        pauseEl.setAttribute("hidden", "");
+      }
+    }
+
     btn.dataset.active = view.active ? "1" : "0";
+    // Paused accounts read as inactive but must NOT fall through to checkout on
+    // a row tap — the resume row owns that. Mark them so the handler bails.
+    btn.dataset.paused = view.pause === "resume" ? "1" : "0";
     btn.setAttribute(
       "aria-label",
       view.active ? "Your plan: " + view.label + ". " + view.sub : "Free plan — upgrade to pre-seed for $9 a month"
@@ -235,8 +301,10 @@
     if (!btn.dataset.bound) {
       btn.dataset.bound = "1";
       btn.addEventListener("click", function () {
-        // Only free accounts have something to do here — start checkout.
-        if (btn.dataset.active === "1") return;
+        // Only free accounts have something to do here — start checkout. Active
+        // members (active="1") and paused ones (paused="1", whose resume lives
+        // on its own row) both no-op.
+        if (btn.dataset.active === "1" || btn.dataset.paused === "1") return;
         var t = read(TOKEN_KEY);
         if (t) startCheckout(t, btn);
       });
@@ -248,6 +316,15 @@
       restoreBtn.addEventListener("click", function () {
         var t = read(TOKEN_KEY);
         if (t) startReconcile(t, restoreBtn);
+      });
+    }
+
+    var pauseBtn = document.getElementById("nav-membership-pause");
+    if (pauseBtn && !pauseBtn.dataset.bound) {
+      pauseBtn.dataset.bound = "1";
+      pauseBtn.addEventListener("click", function () {
+        var t = read(TOKEN_KEY);
+        if (t) startPause(t, pauseBtn, pauseBtn.dataset.resume === "1");
       });
     }
 

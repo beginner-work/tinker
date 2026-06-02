@@ -67,10 +67,11 @@ Required Vercel env vars:
 - `DATABASE_URL`
 - `STRIPE_SECRET_KEY` — the **live** secret key for the Stripe account that
   holds the pre-seed subscriptions. Required by the membership endpoints
-  (`api/membership/checkout.js`, `reconcile.js`, `status.js`). Without it,
-  in-app Upgrade returns 503 and **"Already subscribed? Restore" can never
-  link a subscription** — the reconcile call 503s and the row stays on "Free
-  plan". A test-mode key here is just as broken: it queries the wrong Stripe
+  (`api/membership/checkout.js`, `reconcile.js`, `pause.js`, `status.js`).
+  Without it, in-app Upgrade returns 503, **"Already subscribed? Restore" can
+  never link a subscription** — the reconcile call 503s and the row stays on
+  "Free plan" — and Pause/Resume returns 503. A test-mode key here is just as
+  broken: it queries the wrong Stripe
   account, finds no customer, and reports the paying member as free. This must
   be the **same** live account `beginner`'s checkout writes to.
 - `BROWSERBASE_API_KEY` — used by `scripts/browserbase-debug.js`

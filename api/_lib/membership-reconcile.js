@@ -20,7 +20,7 @@
 "use strict";
 
 const prisma = require("./db.js");
-const { isActiveMembership, writeMembership } = require("./membership.js");
+const { isActiveMembership, isPausedMembership, writeMembership } = require("./membership.js");
 const { normalizeEmail, pickMembershipFromSubscriptions } = require("./stripe-reconcile.js");
 
 const STRIPE_API = "https://api.stripe.com";
@@ -102,6 +102,10 @@ async function reconcileByEmail(userId, email, secretKey) {
  */
 function shouldAutoReconcile(data, nowSec) {
   if (isActiveMembership(data)) return false;
+  // A row we already know is paused is the correct answer — bridging exists to
+  // recover MISSING entitlement, not to re-confirm a known-dormant subscription
+  // on every status read.
+  if (isPausedMembership(data)) return false;
   if (
     data &&
     typeof data.checkedAt === "number" &&
