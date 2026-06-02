@@ -118,6 +118,30 @@
     return "";
   }
 
+  // Resolve a writingId to a full story — title + complete body — for the
+  // booklet a founder publishes to their public beginner profile. Unlike
+  // resolveDeckPhrases (which slices out the single verbatim phrase a beat
+  // points at), this carries the whole essay so the public reader shows
+  // the founder's writing in full. Returns null when the writing has no
+  // usable body.
+  function storyForWriting(writingId) {
+    const drafts = loadDrafts();
+    const draft = drafts.find((d) => d && d.id === writingId);
+    if (draft) {
+      const body = bodyForDraft(draft).trim();
+      const title = String((draft.title || (draft.stitched && draft.stitched.title) || "")).trim();
+      return body ? { title, body } : null;
+    }
+    const essays = loadEssays();
+    const essay = essays.find((e) => e && e.id === writingId);
+    if (essay) {
+      const body = String(essay.body || "").trim();
+      const title = String(essay.title || "").trim();
+      return body ? { title, body } : null;
+    }
+    return null;
+  }
+
   function uid() {
     return "p_" + Math.random().toString(36).slice(2, 10);
   }
@@ -895,6 +919,26 @@
     };
   }
 
+  // Collect a pitch's stories — the full essays behind it, in reading
+  // order, de-duplicated by writing — for the booklet the founder
+  // publishes to their public beginner profile. Returns
+  // { id, title, stories: [{ title, body }] }, or null for an unknown
+  // pitch. A pitch with no resolved stories comes back with an empty
+  // array so callers can decide whether to skip it.
+  function getPitchStories(pitchId) {
+    const pitch = getPitch(pitchId);
+    if (!pitch) return null;
+    const stories = [];
+    const seen = new Set();
+    for (const { writingId } of readingOrder(pitch)) {
+      if (seen.has(writingId)) continue;
+      seen.add(writingId);
+      const story = storyForWriting(writingId);
+      if (story && story.body) stories.push(story);
+    }
+    return { id: pitch.id, title: displayTitleFor(pitch), stories };
+  }
+
   // Build the inputs the founders' "prepare a video script" view
   // needs from a pitch: the display title + every slide whose resolved
   // phrases survived the writing-source lookup, plus a per-slide
@@ -943,6 +987,7 @@
     readingOrder,
     listOffPitchWritings,
     publishPitch,
+    getPitchStories,
     getPitchScript,
     scheduleOrganize,
     triggerOrganize,

@@ -1,26 +1,20 @@
-/* Pitch-button destination contract.
+/* Publish-button destination contract.
  *
- * The sidebar's bottom-of-nav "Pitch" button used to be permanently
- * locked (disabled, lock icon, never fired). Pitching happens on
- * beginner instead: the button now carries a link-out (external-link)
- * icon and, on click, opens the founder's "Back me" page — their
- * profile's QR code (deep-linked to the Back me tab at #share) that
- * backers scan to start the pre-seed ($9/month) subscription.
+ * The sidebar's bottom-of-nav button used to open the founder's "Back me"
+ * page on beginner. tinker is now private, and that button is the one seam
+ * where the founder makes writing public: it's labelled "Publish" and, on
+ * click, opens the booklet picker (publish-stories.js) so they can choose
+ * which pitches to surface and publish the essays behind them to their
+ * public profile.
  *
- * The button opens the canonical production profile at
- * www.beginner.work/tyler-lindow#share from every tinker surface (the bare
- * apex beginner.work redirects to www, which the PWA in-app iframe can't
- * follow under tinker's frame-src CSP). tinker has
- * no custom domain — its own production is served from *.vercel.app — so
- * the URL must NOT be gated on the hostname (an earlier `.vercel.app`
- * check sent production founders to a stale beginner branch-preview alias
- * instead of the live page).
+ * (The founder's QR / Back me page still exists — it's reached from the
+ * profile menu, which delegates to back-me.js. Only this sidebar button
+ * was repurposed.)
  *
  * The renderer is browser-shaped and the existing sidebar-tree sandbox
  * uses a no-op DOM that can't observe events, so this is a source-level
- * contract test (same style as the deck/IR regression tests): it pins
- * the moving parts of renderPost so a future edit can't silently
- * re-lock the button or drop the redirect.
+ * contract test: it pins the moving parts of renderPost so a future edit
+ * can't silently send the button back to Back me or drop the publish hook.
  */
 
 "use strict";
@@ -35,25 +29,19 @@ const TREE_SRC = fs.readFileSync(
   "utf8",
 );
 
-test("the Pitch button is no longer disabled/locked", () => {
-  // The old build set `post.disabled = true` and labelled it "(locked)".
-  assert.doesNotMatch(
+test("the sidebar action button is labelled Publish, not Pitch", () => {
+  assert.match(
     TREE_SRC,
-    /post\.disabled\s*=\s*true/,
-    "the Pitch button must not be disabled",
-  );
-  assert.doesNotMatch(
-    TREE_SRC,
-    /Pitch \(locked\)/,
-    'the aria-label must not say "Pitch (locked)"',
+    /pitchLabel\.textContent\s*=\s*["']Publish["']/,
+    'the button label must be "Publish"',
   );
 });
 
-test("the Pitch button carries a link-out icon, not a lock", () => {
-  assert.match(
+test("the button is not disabled/locked", () => {
+  assert.doesNotMatch(
     TREE_SRC,
-    /data-pitch-linkout/,
-    "the button must render the link-out icon",
+    /post\.disabled\s*=\s*true/,
+    "the Publish button must not be disabled",
   );
   assert.doesNotMatch(
     TREE_SRC,
@@ -62,71 +50,25 @@ test("the Pitch button carries a link-out icon, not a lock", () => {
   );
 });
 
-test("clicking Pitch opens the founder's Back me page", () => {
+test("clicking Publish opens the booklet picker", () => {
   assert.match(
     TREE_SRC,
     /post\.addEventListener\(\s*["']click["']/,
-    "the Pitch button must have a click handler",
+    "the Publish button must have a click handler",
   );
-  // Primary path delegates to the shared opener (back-me.js), which decides
-  // in-app iframe vs system browser; the inline openExternal is the fallback.
   assert.match(
+    TREE_SRC,
+    /window\.tinkerPublishStories\.open\(\)/,
+    "must delegate to the publish-stories picker",
+  );
+});
+
+test("the sidebar button no longer routes to the Back me page", () => {
+  // The repurposed button must not reach for the Back me opener — that path
+  // moved to the profile menu (back-me.js / profile.js).
+  assert.doesNotMatch(
     TREE_SRC,
     /window\.tinkerBackMe\.open\(\)/,
-    "must delegate to the shared Back me opener",
-  );
-  assert.match(
-    TREE_SRC,
-    /openExternal\(url\)/,
-    "keeps a system-browser fallback if the shared opener didn't load",
-  );
-});
-
-test("the Back me URL is the production profile QR on every surface", () => {
-  // The Back me tab is deep-linked at #share, so the founder lands on the
-  // QR view ready to be scanned.
-  assert.match(
-    TREE_SRC,
-    /https:\/\/www\.beginner\.work\/tyler-lindow#share/,
-    "the button opens the canonical www.beginner.work Back me page (#share)",
-  );
-  // The bare apex 308-redirects to www; the PWA iframe can't follow that
-  // cross-origin redirect under tinker's frame-src CSP, so link straight to www.
-  assert.doesNotMatch(
-    TREE_SRC,
-    /["']https:\/\/beginner\.work\/tyler-lindow/,
-    "must not link at the bare apex (it redirects to www)",
-  );
-  // Regression guard: production tinker is itself on *.vercel.app, so the
-  // target must not depend on the hostname, and must never carry a
-  // hardcoded beginner branch-preview alias (which goes stale the moment
-  // its branch merges).
-  assert.doesNotMatch(
-    TREE_SRC,
-    /beginner-git-[\w-]*\.vercel\.app/,
-    "the Back me URL must not point at a beginner branch-preview alias",
-  );
-});
-
-test("the Back me URL carries the tinker session across to beginner", () => {
-  // tinker and beginner are different origins, so a founder signed in here
-  // has no session there. The button hands the token over in the URL
-  // fragment (`#share&ts=<token>`) — the on-device-only channel pwa-session
-  // uses — so beginner's profile recognises the owner and shows the QR.
-  assert.match(
-    TREE_SRC,
-    /localStorage\.getItem\("tinker_jwt"\)/,
-    "backMeUrl reads the founder's session token",
-  );
-  assert.match(
-    TREE_SRC,
-    /\+\s*"&ts="\s*\+\s*encodeURIComponent\(token\)/,
-    "the token rides in a `ts` fragment param, URL-encoded",
-  );
-  // Signed-out (no token) must still produce the bare Back me URL.
-  assert.match(
-    TREE_SRC,
-    /token\s*\?\s*base\s*\+\s*"&ts="/,
-    "the token is only appended when the founder is signed in",
+    "the sidebar button must not open Back me anymore",
   );
 });

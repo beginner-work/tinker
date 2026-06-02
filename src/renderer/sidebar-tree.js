@@ -740,43 +740,12 @@
   }
 
   // Pitching happens on beginner, where the founder's profile carries a
-  // "Back me" tab: their QR code (deep-linked at #share) that backers scan
-  // to land on the pre-seed ($9/month) subscription. The Pitch button takes
-  // the founder straight to that page so they can show — or share — the code.
-  // This lives on beginner production, so every tinker surface — production
-  // web, Electron, Capacitor — opens the canonical www.beginner.work back-me URL.
-  //
-  // (We deliberately do *not* branch on the hostname here. tinker has no
-  // custom domain: its own production is served from *.vercel.app
-  // [tinker-theta.vercel.app et al.], so a `host.endsWith(".vercel.app")`
-  // check can't tell production from a preview and would send production
-  // founders off to a stale beginner preview alias rather than the live
-  // back-me page.)
-  //
-  // tinker and beginner are different origins, so a founder signed in here
-  // has no session on beginner — landing on their own profile they'd see the
-  // "back me" pitch, not their QR. We carry the sign-in across in the URL
-  // fragment (`#share&ts=<token>`): the same on-device-only channel
-  // pwa-session.js already uses for the PWA install handoff. A fragment is
-  // never sent to a server (stripped from the request line and Referer), so
-  // the token stays on the device; beginner's profile page reads `ts` to
-  // recognise the owner, shows the QR, then scrubs it from the URL.
-  function backMeUrl() {
-    // www, not the bare apex: apex redirects to www and the PWA iframe can't
-    // follow that cross-origin hop under tinker's frame-src CSP (see back-me.js).
-    const base = "https://www.beginner.work/tyler-lindow#share";
-    let token = "";
-    try { token = localStorage.getItem("tinker_jwt") || ""; }
-    catch { token = ""; }
-    return token ? base + "&ts=" + encodeURIComponent(token) : base;
-  }
-
-  // Renders the indigo "Pitch" button at the bottom of the deck nav.
-  // Pitching happens over on beginner: the button carries a link-out icon
-  // — it takes you off to your Back me page rather than sitting locked shut
-  // — and clicking it opens that page (your profile's QR code, deep-linked
-  // to the Back me tab, that backers scan to start the pre-seed
-  // subscription).
+  // Renders the indigo "Publish" button at the bottom of the deck nav.
+  // tinker stays private; this is the one seam where the founder makes
+  // writing public. Clicking it opens the booklet picker (publish-stories.js)
+  // — they choose which pitches to surface, and the full essays behind them
+  // publish to their public beginner profile. (The founder's QR / Back me
+  // page still lives in the profile menu, which delegates to back-me.js.)
   function renderPost(pitches) {
     if (!postEl) return;
     if (!pitches || pitches.length === 0) {
@@ -790,51 +759,41 @@
     const post = document.createElement("button");
     post.type = "button";
     post.className = "sidebar__pitch-action sidebar__pitch-action--primary";
-    post.setAttribute("aria-label", "Pitch — open your Back me page");
+    post.setAttribute("aria-label", "Publish — share your stories on your profile");
     const pitchLabel = document.createElement("span");
-    pitchLabel.textContent = "Pitch";
+    pitchLabel.textContent = "Publish";
     post.appendChild(pitchLabel);
-    // Link-out (external-link) icon: signals the button takes the
-    // founder off to beginner to subscribe, not that Pitch is locked.
-    const linkIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    linkIcon.setAttribute("width", "13");
-    linkIcon.setAttribute("height", "13");
-    linkIcon.setAttribute("viewBox", "0 0 24 24");
-    linkIcon.setAttribute("fill", "none");
-    linkIcon.setAttribute("stroke", "#fff");
-    linkIcon.setAttribute("stroke-width", "2");
-    linkIcon.setAttribute("stroke-linecap", "round");
-    linkIcon.setAttribute("stroke-linejoin", "round");
-    linkIcon.setAttribute("aria-hidden", "true");
-    linkIcon.setAttribute("data-pitch-linkout", "");
-    linkIcon.style.marginLeft = "6px";
+    // Upload / publish glyph: signals the button pushes the founder's
+    // stories out to their public profile.
+    const pubIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    pubIcon.setAttribute("width", "13");
+    pubIcon.setAttribute("height", "13");
+    pubIcon.setAttribute("viewBox", "0 0 24 24");
+    pubIcon.setAttribute("fill", "none");
+    pubIcon.setAttribute("stroke", "#fff");
+    pubIcon.setAttribute("stroke-width", "2");
+    pubIcon.setAttribute("stroke-linecap", "round");
+    pubIcon.setAttribute("stroke-linejoin", "round");
+    pubIcon.setAttribute("aria-hidden", "true");
+    pubIcon.setAttribute("data-pitch-publish", "");
+    pubIcon.style.marginLeft = "6px";
     for (const d of [
-      "M15 3h6v6",
-      "M10 14 21 3",
-      "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6",
+      "M12 19V5",
+      "M5 12l7-7 7 7",
     ]) {
       const seg = document.createElementNS("http://www.w3.org/2000/svg", "path");
       seg.setAttribute("d", d);
-      linkIcon.appendChild(seg);
+      pubIcon.appendChild(seg);
     }
-    post.appendChild(linkIcon);
+    post.appendChild(pubIcon);
     post.style.display = "inline-flex";
     post.style.alignItems = "center";
     post.style.justifyContent = "center";
     post.addEventListener("click", () => {
-      // Open the founder's Back me page on beginner (their QR to share).
-      // back-me.js owns the runtime decision — in-app iframe on an installed
-      // PWA, system browser otherwise — and shares it with the profile menu.
-      if (window.tinkerBackMe && typeof window.tinkerBackMe.open === "function") {
-        window.tinkerBackMe.open();
-        return;
-      }
-      // Fallback if the shared opener didn't load: hand off to the browser.
-      const url = backMeUrl();
-      if (window.tinker && typeof window.tinker.openExternal === "function") {
-        window.tinker.openExternal(url);
-      } else {
-        window.open(url, "_blank", "noopener,noreferrer");
+      // Open the booklet picker (publish-stories.js owns the modal + the
+      // POST to /api/publish/booklet and the copy-link success state).
+      if (window.tinkerPublishStories && typeof window.tinkerPublishStories.open === "function") {
+        window.tinkerPublishStories.open();
       }
     });
     postEl.appendChild(post);
