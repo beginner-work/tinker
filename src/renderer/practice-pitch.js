@@ -31,6 +31,17 @@
   var BUDGET_BYTES = 3.6 * 1024 * 1024; // keep the PUT under the 4 MB cap
   var ADVANCE_MS = 7000; // auto-advance dwell per slide
 
+  // Bundled sample deck (rendered from the canonical pitch deck). Lets
+  // "Practice my pitch" jump straight to playback before anything is
+  // uploaded — handy for testing and as a first-run demo.
+  var SAMPLE_SLIDES = (function () {
+    var a = [];
+    for (var i = 1; i <= 13; i++) {
+      a.push("./lib/sample-pitch/slide-" + (i < 10 ? "0" + i : i) + ".png");
+    }
+    return a;
+  })();
+
   function token() {
     try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
   }
@@ -235,26 +246,29 @@
 
   // ── Practice (slideshow) flow ───────────────────────────────────────
   function practice() {
-    if (!token()) { toast("Sign in to practice your pitch."); return; }
+    // Always land on the video playback. Use the founder's uploaded deck when
+    // we can fetch one; otherwise fall back to the bundled sample deck so the
+    // button is testable immediately (no upload required).
+    if (!token()) { openStage(SAMPLE_SLIDES, true); return; }
     var t = toast("Loading your deck…", { sticky: true });
     fetch(ENDPOINT, { method: "GET", headers: authHeaders() })
-      .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Couldn't load your deck.")); })
+      .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (json) {
         hideToast();
         var deck = json && json.data;
-        if (!deck || !Array.isArray(deck.slides) || !deck.slides.length) {
-          toast("No deck yet — tap “Upload pitch deck” first.", { ms: 3600 });
-          return;
+        if (deck && Array.isArray(deck.slides) && deck.slides.length) {
+          openStage(deck.slides, false);
+        } else {
+          openStage(SAMPLE_SLIDES, true);
         }
-        openStage(deck.slides);
       })
-      .catch(function (err) {
+      .catch(function () {
         hideToast();
-        toast(err && err.message ? err.message : "Couldn't load your deck.");
+        openStage(SAMPLE_SLIDES, true);
       });
   }
 
-  function openStage(slides) {
+  function openStage(slides, isSample) {
     injectStyles();
     var idx = 0, playing = true, timer = null, raf = null, startTs = 0;
 
@@ -270,7 +284,9 @@
 
     var hint = document.createElement("div");
     hint.className = "pp-hint";
-    hint.textContent = "Practice — talk through each slide";
+    hint.textContent = isSample
+      ? "Sample deck — upload your own to practice it"
+      : "Practice — talk through each slide";
     stage.appendChild(hint);
 
     var close = document.createElement("button");
