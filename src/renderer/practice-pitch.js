@@ -38,7 +38,7 @@
   var SAMPLE_VIDEO = "./lib/sample-pitch/sample.mp4";
   var SAMPLE_SLIDES = (function () {
     var a = [];
-    for (var i = 1; i <= 13; i++) {
+    for (var i = 1; i <= 14; i++) {
       a.push("./lib/sample-pitch/slide-" + (i < 10 ? "0" + i : i) + ".png");
     }
     return a;
