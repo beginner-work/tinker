@@ -65,6 +65,12 @@
          runs first-login onboarding, and shows the avatar top-right.
          Deferred so the DOM (incl. #profile-corner) exists when it runs. -->
     <script src="./profile.js" defer></script>
+    <!-- Voice-to-text dictation (window.TinkerVoiceInput): one mic button
+         that follows the focused writing field (welcome seed, status
+         composer, every step of the guided writing flow) and streams
+         speech into it via the browser's Web Speech API. Self-initialising;
+         renders nothing on browsers without the API. -->
+    <script src="./voice-input.js" defer></script>
   </head>
   <body>
     <svg class="liquid-glass-defs" width="0" height="0" aria-hidden="true" focusable="false">
