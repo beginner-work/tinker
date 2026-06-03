@@ -106,6 +106,83 @@
   outline-offset: 2px;
 }
 
+/* ── A word from the founder (embedded in the popover) ──────────────────
+ * A poster thumbnail at the top of the menu. Clicking it plays the clip
+ * fullscreen; from fullscreen the viewer hands it to the browser/OS native
+ * picture-in-picture control (no custom PiP button). Until the recording is
+ * dropped at ./founder-intro.mp4, profile.js adds .profile-video--soon and
+ * the thumbnail shows the poster + a "coming soon" caption. */
+.profile-video {
+  position: relative;
+  margin: 6px 0 2px;
+  border-radius: var(--radius-button, 10px);
+  overflow: hidden;
+  background: #234731;
+  line-height: 0;
+}
+.profile-video__media {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #234731;
+}
+.profile-video__play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: rgba(31, 29, 26, 0.16);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.profile-video__play:hover { background: rgba(31, 29, 26, 0.28); }
+.profile-video__play:focus-visible {
+  outline: 2px solid var(--color-accent, #6366f1);
+  outline-offset: -3px;
+}
+.profile-video__play svg {
+  width: 22px;
+  height: 22px;
+  margin-left: 2px;
+  padding: 10px;
+  box-sizing: content-box;
+  border-radius: 50%;
+  background: rgba(255, 253, 247, 0.94);
+  color: #2d5a3d;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+.profile-video__cap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16px 10px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f5f3ef;
+  text-align: center;
+  background: linear-gradient(transparent, rgba(20, 33, 25, 0.82));
+  pointer-events: none;
+}
+/* No recording yet: hide the play glyph and relax the caption into a note. */
+.profile-video--soon .profile-video__play {
+  cursor: default;
+  background: rgba(31, 29, 26, 0.1);
+}
+.profile-video--soon .profile-video__play svg { display: none; }
+.profile-video--soon .profile-video__cap {
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
 /* ── Back me overlay (in-app iframe for installed PWAs) ──────────────── */
 
 .backme-overlay {

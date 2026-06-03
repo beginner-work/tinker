@@ -95,6 +95,24 @@
       <div id="profile-popover" class="profile-popover" role="menu" hidden>
         <span class="profile-popover__name"></span>
         <span class="profile-popover__email"></span>
+        <!-- A word from the founder. Clicking the poster plays the clip
+             fullscreen; from there the viewer hands it to the browser/OS
+             native picture-in-picture control — there is no custom PiP button.
+             profile.js shows the poster + a "coming soon" caption until the
+             real recording is dropped at ./founder-intro.mp4, so the menu
+             never renders a broken player. -->
+        <div id="profile-video" class="profile-video">
+          <video class="profile-video__media" playsinline preload="metadata"
+                 poster="./founder-intro-poster.svg">
+            <source src="./founder-intro.webm" type="video/webm" />
+            <source src="./founder-intro.mp4" type="video/mp4" />
+          </video>
+          <button id="profile-video-play" class="profile-video__play" type="button"
+                  role="menuitem" aria-label="Play a word from the founder (opens fullscreen)">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <span class="profile-video__cap" aria-hidden="true">A word from the founder</span>
+        </div>
         <!-- A non-Pitch-button way to pull up your own QR: opens your Back me
              page (in-app iframe on PWA, system browser otherwise). -->
         <button id="profile-backme" class="profile-popover__action" type="button" role="menuitem">

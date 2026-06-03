@@ -199,6 +199,67 @@
           }
         });
       }
+      // ── A word from the founder ──────────────────────────────────────
+      // The popover shows a poster thumbnail; clicking it plays the clip
+      // fullscreen. From fullscreen the viewer hands it to the browser/OS
+      // native picture-in-picture control — we add no PiP button of our own.
+      // Until the recording is dropped at ./founder-intro.mp4 the thumbnail
+      // shows the poster + a "coming soon" hint instead of a broken player.
+      var videoWrap = document.getElementById("profile-video");
+      var fvVideo = videoWrap && videoWrap.querySelector(".profile-video__media");
+      var fvPlay = document.getElementById("profile-video-play");
+      var fvCap = videoWrap && videoWrap.querySelector(".profile-video__cap");
+      if (videoWrap && fvVideo && fvPlay) {
+        var fvReady = false;
+        var fvMarkSoon = function () {
+          videoWrap.classList.add("profile-video--soon");
+          if (fvCap) fvCap.textContent = "A word from the founder — coming soon";
+          fvPlay.disabled = true;
+          fvPlay.setAttribute("aria-label", "A word from the founder — recording coming soon");
+        };
+        var fvEnterFullscreen = function () {
+          // iOS plays fullscreen through the video element itself; every other
+          // engine uses standard / webkit element fullscreen.
+          if (typeof fvVideo.webkitEnterFullscreen === "function") {
+            try { fvVideo.webkitEnterFullscreen(); return; } catch (e) {}
+          }
+          var req = fvVideo.requestFullscreen || fvVideo.webkitRequestFullscreen;
+          if (req) { try { req.call(fvVideo); } catch (e) {} }
+        };
+        var fvReset = function () {
+          // Back from fullscreen without a PiP handoff: pause and drop the
+          // controls so the menu shows its poster again. If the viewer sent it
+          // to picture-in-picture, leave it playing in the floating window.
+          if (document.pictureInPictureElement === fvVideo) return;
+          try { fvVideo.pause(); } catch (e) {}
+          fvVideo.controls = false;
+        };
+        fvVideo.addEventListener("loadedmetadata", function () { fvReady = true; });
+        fvVideo.addEventListener("error", function () { if (!fvReady) fvMarkSoon(); });
+        document.addEventListener("fullscreenchange", function () {
+          if (!document.fullscreenElement) fvReset();
+        });
+        document.addEventListener("webkitfullscreenchange", function () {
+          if (!document.webkitFullscreenElement) fvReset();
+        });
+        fvVideo.addEventListener("webkitendfullscreen", fvReset);
+        fvPlay.addEventListener("click", function () {
+          if (fvPlay.disabled || !fvReady) return;
+          fvVideo.controls = true; // expose native controls (incl. PiP)
+          fvEnterFullscreen();
+          var played = fvVideo.play();
+          if (played && typeof played.catch === "function") played.catch(function () {});
+        });
+        // Kick the load; if no source resolves, fall back to "coming soon"
+        // instead of leaving a dead play button in the menu.
+        try { fvVideo.load(); } catch (e) {}
+        setTimeout(function () {
+          if (fvVideo.networkState === 3 /* NETWORK_NO_SOURCE */ ||
+              (fvVideo.error && !fvReady)) {
+            fvMarkSoon();
+          }
+        }, 1200);
+      }
     }
   }
 
