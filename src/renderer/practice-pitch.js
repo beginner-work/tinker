@@ -35,10 +35,11 @@
   // "Practice my pitch" jump straight to playback before anything is
   // uploaded — handy for testing and as a first-run demo. The MP4 is a real
   // <video>, so it supports native iPhone Picture-in-Picture.
-  var SAMPLE_VIDEO = "./lib/sample-pitch/sample.mp4";
+  // ?v bumps on every re-render so browsers/CDN don't serve a stale MP4.
+  var SAMPLE_VIDEO = "./lib/sample-pitch/sample.mp4?v=3";
   var SAMPLE_SLIDES = (function () {
     var a = [];
-    for (var i = 1; i <= 14; i++) {
+    for (var i = 1; i <= 13; i++) {
       a.push("./lib/sample-pitch/slide-" + (i < 10 ? "0" + i : i) + ".png");
     }
     return a;
