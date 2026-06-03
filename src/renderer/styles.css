@@ -3242,16 +3242,36 @@ html.seed-modal-open { overflow: hidden; }
   .voice-mic--listening { animation: none; }
 }
 
-/* Visually-hidden polite live region — for assistive tech only. */
+/* Error flash: a brief red cast alongside the visible message. */
+.voice-mic--error,
+.voice-mic--error:hover {
+  color: #b42318;
+  border-color: #f5b5ad;
+  background: #fef3f2;
+}
+
+/* The status bubble — sits just left of the fixed mic button, and is also a
+   polite live region for assistive tech. Hidden until there's a message. */
 .voice-status {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  border: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
   white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--color-foreground, #2d2a26);
+  color: var(--color-background, #fffdf7);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  pointer-events: none;
+  box-shadow: var(--shadow-button, 0 1px 2px rgba(45, 42, 38, 0.06));
+}
+
+.voice-status[hidden] { display: none; }
+
+.voice-mic--error .voice-status {
+  background: #b42318;
+  color: #fff;
 }

@@ -127,6 +127,26 @@ test("controller surfaces recognition errors", () => {
   assert.deepEqual(errors, ["not-allowed"]);
 });
 
+test("controller catches a synchronous start() throw and stays idle", () => {
+  // Several browsers throw straight out of .start() (InvalidStateError,
+  // NotAllowedError). That must not bubble out of the click — it should
+  // surface as an error and leave the controller usable.
+  const errors = [];
+  const ctrl = createVoiceController({
+    createRecognition: () => ({
+      start() {
+        const e = new Error("blocked");
+        e.name = "NotAllowedError";
+        throw e;
+      },
+    }),
+    onError: (c) => errors.push(c),
+  });
+  assert.doesNotThrow(() => ctrl.start());
+  assert.equal(ctrl.state, "idle");
+  assert.deepEqual(errors, ["NotAllowedError"]);
+});
+
 // ── mergeTranscript ──────────────────────────────────────────────────────────
 
 test("mergeTranscript renders interim after the committed base", () => {

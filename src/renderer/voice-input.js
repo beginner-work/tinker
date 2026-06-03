@@ -44,15 +44,20 @@
     switch (code) {
       case "not-allowed":
       case "service-not-allowed":
+      case "NotAllowedError":
+      case "SecurityError":
         return "Microphone access was blocked.";
       case "no-speech":
         return "Didn't catch that — try again.";
       case "audio-capture":
+      case "NotFoundError":
         return "No microphone was found.";
       case "network":
         return "Voice needs a connection right now.";
+      case "InvalidStateError":
+        return "Already listening — give it a moment.";
       default:
-        return "Voice input isn't available right now.";
+        return "Voice input isn't available here.";
     }
   }
 
@@ -79,36 +84,47 @@
 
     function start() {
       if (state === "listening") return;
-      recognition = createRecognition();
-      recognition.lang = lang;
-      recognition.interimResults = true;
-      recognition.continuous = false;
+      // The whole setup is guarded: in several browsers `.start()` (and even
+      // touching the recognition object) throws *synchronously* — a second
+      // start (InvalidStateError), a blocked mic (NotAllowedError), an
+      // insecure context (SecurityError). An uncaught throw here would make
+      // the click look like it did nothing, so we route it through onError.
+      try {
+        recognition = createRecognition();
+        recognition.lang = lang;
+        recognition.interimResults = true;
+        recognition.continuous = false;
 
-      recognition.onstart = function () {
-        setState("listening");
-      };
-      recognition.onresult = function (event) {
-        let interim = "";
-        let final = "";
-        const results = event.results || [];
-        for (let i = event.resultIndex || 0; i < results.length; i++) {
-          const res = results[i];
-          const alt = res && res[0];
-          const text = alt && alt.transcript ? alt.transcript : "";
-          if (res && res.isFinal) final += text;
-          else interim += text;
-        }
-        onResult({ interim: interim, final: final });
-      };
-      recognition.onerror = function (event) {
-        onError(event && event.error ? event.error : "unknown");
-      };
-      recognition.onend = function () {
+        recognition.onstart = function () {
+          setState("listening");
+        };
+        recognition.onresult = function (event) {
+          let interim = "";
+          let final = "";
+          const results = event.results || [];
+          for (let i = event.resultIndex || 0; i < results.length; i++) {
+            const res = results[i];
+            const alt = res && res[0];
+            const text = alt && alt.transcript ? alt.transcript : "";
+            if (res && res.isFinal) final += text;
+            else interim += text;
+          }
+          onResult({ interim: interim, final: final });
+        };
+        recognition.onerror = function (event) {
+          onError(event && event.error ? event.error : "unknown");
+        };
+        recognition.onend = function () {
+          recognition = null;
+          setState("idle");
+        };
+
+        recognition.start();
+      } catch (err) {
         recognition = null;
         setState("idle");
-      };
-
-      recognition.start();
+        onError((err && (err.name || err.message)) || "start-failed");
+      }
     }
 
     function stop() {
@@ -176,17 +192,41 @@
     button.hidden = true;
     button.innerHTML = MIC_SVG;
 
+    // A visible bubble that sits to the left of the mic (positioned in CSS,
+    // relative to the fixed button). Doubles as a polite live region. It
+    // stays empty/hidden until there's something to say — "Listening…" or an
+    // error — so the user always gets feedback when they press the mic.
     const status = doc.createElement("span");
     status.className = "voice-status";
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
+    status.hidden = true;
+    button.appendChild(status);
 
     doc.body.appendChild(button);
-    doc.body.appendChild(status);
 
     let target = null; // the field we're dictating into
     let base = ""; // committed text before the live utterance
     let prevPadRight = ""; // field's own padding-right, restored on release
+    let statusTimer = null;
+
+    function setStatus(message, isError) {
+      if (statusTimer) {
+        win.clearTimeout(statusTimer);
+        statusTimer = null;
+      }
+      status.textContent = message || "";
+      status.hidden = !message;
+      button.classList.toggle("voice-mic--error", !!isError);
+      // Errors clear themselves so a stale message doesn't linger.
+      if (isError) {
+        statusTimer = win.setTimeout(function () {
+          status.hidden = true;
+          status.textContent = "";
+          button.classList.remove("voice-mic--error");
+        }, 4000);
+      }
+    }
 
     function position() {
       if (!target || button.hidden || typeof target.getBoundingClientRect !== "function") return;
@@ -234,11 +274,13 @@
         const listening = state === "listening";
         button.classList.toggle("voice-mic--listening", listening);
         button.setAttribute("aria-pressed", String(listening));
-        status.textContent = listening ? "Listening…" : "";
         if (listening) {
+          setStatus("Listening…", false);
           base = target && target.value ? target.value.replace(/\s+$/, "") : "";
-        } else if (target && typeof target.focus === "function") {
-          target.focus();
+        } else {
+          // Leaving an error message in place if one was just set.
+          if (!button.classList.contains("voice-mic--error")) setStatus("", false);
+          if (target && typeof target.focus === "function") target.focus();
         }
       },
       onResult: function (r) {
@@ -252,7 +294,12 @@
         }
       },
       onError: function (code) {
-        status.textContent = errorMessage(code);
+        // Surface it both visibly (the bubble) and in the console so a
+        // "nothing happens" report is diagnosable.
+        if (win.console && typeof win.console.warn === "function") {
+          win.console.warn("[tinker] voice input:", code);
+        }
+        setStatus(errorMessage(code), true);
       },
     });
 
