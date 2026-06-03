@@ -72,6 +72,12 @@
     const onState = opts.onState || function () {};
     const onResult = opts.onResult || function () {};
     const onError = opts.onError || function () {};
+    // Optional: returns a Promise for a microphone MediaStream. Safari will
+    // NOT surface the mic permission prompt from SpeechRecognition.start()
+    // alone — it just answers "not-allowed" — so we request the mic
+    // explicitly first to trigger the real dialog. Harmless elsewhere
+    // (permission is cached per origin, so it prompts at most once).
+    const requestMic = opts.requestMic || null;
 
     let recognition = null;
     let state = "idle";
@@ -82,13 +88,24 @@
       onState(state);
     }
 
-    function start() {
-      if (state === "listening") return;
-      // The whole setup is guarded: in several browsers `.start()` (and even
-      // touching the recognition object) throws *synchronously* — a second
-      // start (InvalidStateError), a blocked mic (NotAllowedError), an
-      // insecure context (SecurityError). An uncaught throw here would make
-      // the click look like it did nothing, so we route it through onError.
+    function stopStream(stream) {
+      try {
+        if (stream && typeof stream.getTracks === "function") {
+          stream.getTracks().forEach(function (t) {
+            if (t && typeof t.stop === "function") t.stop();
+          });
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    // Build the recognition object and start it. Guarded because in several
+    // browsers `.start()` (and even touching the object) throws
+    // *synchronously* — a second start (InvalidStateError), a blocked mic
+    // (NotAllowedError), an insecure context (SecurityError). An uncaught
+    // throw here would make the click look like it did nothing.
+    function beginRecognition() {
       try {
         recognition = createRecognition();
         recognition.lang = lang;
@@ -124,6 +141,36 @@
         recognition = null;
         setState("idle");
         onError((err && (err.name || err.message)) || "start-failed");
+      }
+    }
+
+    function start() {
+      if (state === "listening") return;
+
+      let primer = null;
+      if (typeof requestMic === "function") {
+        try {
+          primer = requestMic();
+        } catch (err) {
+          primer = null;
+        }
+      }
+
+      if (primer && typeof primer.then === "function") {
+        // Prompt for / confirm mic access, then start. We don't keep the
+        // raw stream — recognition opens its own — so release it.
+        primer.then(
+          function (stream) {
+            stopStream(stream);
+            beginRecognition();
+          },
+          function (err) {
+            setState("idle");
+            onError((err && (err.name || err.message)) || "not-allowed");
+          }
+        );
+      } else {
+        beginRecognition();
       }
     }
 
@@ -209,6 +256,7 @@
     let base = ""; // committed text before the live utterance
     let prevPadRight = ""; // field's own padding-right, restored on release
     let statusTimer = null;
+    let engaged = false; // mic in use (priming or listening) — don't hide
 
     function setStatus(message, isError) {
       if (statusTimer) {
@@ -259,7 +307,9 @@
     }
 
     function hide() {
-      if (controller.state === "listening") return;
+      // Never pull the mic out from under an in-flight session: the native
+      // permission prompt can blur the page, which would otherwise hide it.
+      if (engaged) return;
       button.hidden = true;
       releasePadding();
       target = null;
@@ -268,6 +318,15 @@
     const controller = createVoiceController({
       createRecognition: function () {
         return new SpeechRecognition();
+      },
+      // Trigger the real microphone permission dialog before recognition —
+      // the only way Safari will prompt rather than silently deny.
+      requestMic: function () {
+        const md = win.navigator && win.navigator.mediaDevices;
+        if (md && typeof md.getUserMedia === "function") {
+          return md.getUserMedia({ audio: true });
+        }
+        return null;
       },
       lang: doc.documentElement && doc.documentElement.lang ? doc.documentElement.lang : "en-US",
       onState: function (state) {
@@ -278,7 +337,8 @@
           setStatus("Listening…", false);
           base = target && target.value ? target.value.replace(/\s+$/, "") : "";
         } else {
-          // Leaving an error message in place if one was just set.
+          engaged = false;
+          // Leave an error message in place if one was just set.
           if (!button.classList.contains("voice-mic--error")) setStatus("", false);
           if (target && typeof target.focus === "function") target.focus();
         }
@@ -294,6 +354,7 @@
         }
       },
       onError: function (code) {
+        engaged = false;
         // Surface it both visibly (the bubble) and in the console so a
         // "nothing happens" report is diagnosable.
         if (win.console && typeof win.console.warn === "function") {
@@ -308,6 +369,12 @@
       e.preventDefault();
     });
     button.addEventListener("click", function () {
+      if (controller.state !== "listening") {
+        // Immediate feedback: priming the mic / permission prompt can take a
+        // beat, and on Safari it shows a native dialog — say so up front.
+        engaged = true;
+        setStatus("Starting…", false);
+      }
       controller.toggle();
     });
 

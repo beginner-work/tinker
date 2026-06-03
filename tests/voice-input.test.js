@@ -127,6 +127,37 @@ test("controller surfaces recognition errors", () => {
   assert.deepEqual(errors, ["not-allowed"]);
 });
 
+test("controller primes the mic, then starts recognition once granted", async () => {
+  let rec;
+  let stopped = false;
+  const stream = { getTracks: () => [{ stop: () => { stopped = true; } }] };
+  const ctrl = createVoiceController({
+    createRecognition: () => (rec = new FakeRecognition()),
+    requestMic: () => Promise.resolve(stream),
+  });
+  ctrl.start();
+  // Recognition must not start until the mic permission resolves.
+  assert.equal(rec, undefined);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.ok(rec, "recognition should start after the mic is granted");
+  assert.equal(rec.started, true);
+  assert.equal(stopped, true, "the primer stream should be released");
+  assert.equal(ctrl.state, "listening");
+});
+
+test("controller surfaces a denied mic prompt as an error and stays idle", async () => {
+  const errors = [];
+  const ctrl = createVoiceController({
+    createRecognition: () => new FakeRecognition(),
+    requestMic: () => Promise.reject(Object.assign(new Error("denied"), { name: "NotAllowedError" })),
+    onError: (c) => errors.push(c),
+  });
+  ctrl.start();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(errors, ["NotAllowedError"]);
+  assert.equal(ctrl.state, "idle");
+});
+
 test("controller catches a synchronous start() throw and stays idle", () => {
   // Several browsers throw straight out of .start() (InvalidStateError,
   // NotAllowedError). That must not bubble out of the click — it should
