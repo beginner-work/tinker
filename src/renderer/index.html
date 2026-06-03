@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://vercel.live wss://ws-us3.pusher.com; script-src 'self' https://vercel.live; worker-src 'self' blob:; frame-src https://vercel.live https://www.beginner.work https://beginner.work; manifest-src 'self' data: blob:;" />
+          content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://vercel.live wss://ws-us3.pusher.com; script-src 'self' https://vercel.live; worker-src 'self' blob:; media-src 'self' blob:; frame-src https://vercel.live https://www.beginner.work https://beginner.work; manifest-src 'self' data: blob:;" />
     <title>tinker</title>
     <!-- Belt + suspenders: this tag tells well-behaved crawlers not to
          index the app; the X-Robots-Tag header in vercel.json catches
@@ -60,7 +60,7 @@
          the global exists when their click handlers bind. -->
     <script src="./back-me.js" defer></script>
     <script src="./open-beginner.js" defer></script>
-    <!-- Upload + "Practice my pitch" slideshow (window.tinkerPracticePitch);
+    <!-- Upload + "Practice my pitch" recording studio (window.tinkerPracticePitch);
          loaded before profile.js so its menu wiring can find it. pdf.js is
          pulled in lazily on first upload, not on boot. -->
     <script src="./practice-pitch.js" defer></script>
@@ -110,8 +110,8 @@
         <button id="profile-open-beginner" class="profile-popover__action" type="button" role="menuitem">
           Open beginner
         </button>
-        <!-- Upload a pitch deck (PDF), then rehearse it as a full-screen,
-             auto-advancing slideshow. See practice-pitch.js. -->
+        <!-- Upload a pitch deck (PDF), then present + record yourself with it
+             in a full-screen studio (webcam bubble). See practice-pitch.js. -->
         <button id="profile-upload-pitch" class="profile-popover__action" type="button" role="menuitem">
           Upload pitch deck
         </button>
