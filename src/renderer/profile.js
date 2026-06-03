@@ -199,6 +199,28 @@
           }
         });
       }
+      // "Upload pitch deck" / "Practice my pitch" — bring in a PDF deck and
+      // rehearse it as a full-screen auto-advancing slideshow (practice-pitch.js).
+      var uploadPitch = document.getElementById("profile-upload-pitch");
+      if (uploadPitch) {
+        uploadPitch.addEventListener("click", function () {
+          pop.setAttribute("hidden", "");
+          btn.setAttribute("aria-expanded", "false");
+          if (window.tinkerPracticePitch && typeof window.tinkerPracticePitch.upload === "function") {
+            window.tinkerPracticePitch.upload();
+          }
+        });
+      }
+      var practicePitch = document.getElementById("profile-practice-pitch");
+      if (practicePitch) {
+        practicePitch.addEventListener("click", function () {
+          pop.setAttribute("hidden", "");
+          btn.setAttribute("aria-expanded", "false");
+          if (window.tinkerPracticePitch && typeof window.tinkerPracticePitch.practice === "function") {
+            window.tinkerPracticePitch.practice();
+          }
+        });
+      }
     }
   }
 
