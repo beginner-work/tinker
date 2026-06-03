@@ -3274,7 +3274,9 @@ html.seed-modal-open { overflow: hidden; }
   right: calc(100% + 8px);
   top: 50%;
   transform: translateY(-50%);
-  white-space: nowrap;
+  max-width: 72vw;
+  white-space: normal;
+  text-align: right;
   padding: 5px 10px;
   border-radius: var(--radius-pill, 999px);
   background: var(--color-foreground, #2d2a26);

@@ -345,12 +345,12 @@
       }
     }
 
-    function handleError(code) {
+    function handleError(code, detail) {
       engaged = false;
       // Surface it both visibly (the bubble) and in the console so a
       // "nothing happens" report is diagnosable.
       if (win.console && typeof win.console.warn === "function") {
-        win.console.warn("[tinker] voice input:", code);
+        win.console.warn("[tinker] voice input:", code, detail || "");
       }
 
       // Web Speech on Safari: the first denial raises the real mic prompt out
@@ -384,7 +384,12 @@
         }
       }
 
-      setStatus(errorMessage(code), true);
+      // Append the raw reason when we have one — on a phone with no console
+      // this is the only way to see whether it was a blocked host, a CSP
+      // refusal, or a plain network failure.
+      let message = errorMessage(code);
+      if (detail) message += " [" + String(detail).slice(0, 80) + "]";
+      setStatus(message, true);
     }
 
     const controller = useWhisper

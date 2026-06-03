@@ -189,10 +189,10 @@
       stream = null;
     }
 
-    function fail(code) {
+    function fail(code, detail) {
       releaseStream();
       recorder = null;
-      onError(code);
+      onError(code, detail);
       setState("idle");
     }
 
@@ -203,7 +203,7 @@
       try {
         blob = new BlobCtor(chunks, { type: type });
       } catch (e) {
-        return fail("encode-failed");
+        return fail("encode-failed", e && e.message);
       }
       releaseStream();
       recorder = null;
@@ -217,7 +217,10 @@
           setState("idle");
         })
         .catch(function (err) {
-          fail((err && (err.name || err.message)) || "transcribe-failed");
+          // err.name carries the stage code (model-load-failed, …); err.message
+          // carries the raw reason, surfaced on screen so a phone with no
+          // console is still diagnosable.
+          fail((err && err.name) || "transcribe-failed", err && err.message);
         });
     }
 
@@ -242,7 +245,7 @@
           setState("listening");
         })
         .catch(function (err) {
-          fail((err && (err.name || err.message)) || "not-allowed");
+          fail((err && err.name) || "not-allowed", err && err.message);
         });
     }
 
