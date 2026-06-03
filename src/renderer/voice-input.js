@@ -190,8 +190,18 @@
     const doc = opts.doc || (typeof document !== "undefined" ? document : null);
     if (!win || !doc || !doc.body) return null;
 
+    // Pick an engine. Web Speech (live, no download) where it actually works;
+    // the in-browser Whisper recorder (record→transcribe) as a fallback —
+    // notably on Safari, which exposes SpeechRecognition but refuses to run
+    // it even with the mic granted. Whisper also covers Firefox and anywhere
+    // Web Speech is missing.
     const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
-    if (!SpeechRecognition) return null;
+    const Whisper = win.TinkerWhisper;
+    const whisperReady = !!(Whisper && Whisper.isSupported && Whisper.isSupported(win));
+    const ua = (win.navigator && win.navigator.userAgent) || "";
+    const isSafari = /^((?!chrome|chromium|crios|android|fxios|edg|edge|opr).)*safari/i.test(ua);
+    const useWhisper = whisperReady && (!SpeechRecognition || isSafari);
+    if (!SpeechRecognition && !useWhisper) return null;
 
     const button = doc.createElement("button");
     button.type = "button";
@@ -220,6 +230,8 @@
     let prevPadRight = ""; // field's own padding-right, restored on release
     let statusTimer = null;
     let engaged = false; // mic in use (priming or listening) — don't hide
+    let warmed = false; // have we kicked off the Whisper model download?
+    const listenLabel = useWhisper ? "Recording… tap to finish" : "Listening…";
 
     function setStatus(message, isError) {
       if (statusTimer) {
@@ -291,88 +303,127 @@
       return md.getUserMedia({ audio: true });
     }
 
-    const controller = createVoiceController({
-      createRecognition: function () {
-        return new SpeechRecognition();
-      },
-      lang: doc.documentElement && doc.documentElement.lang ? doc.documentElement.lang : "en-US",
-      onState: function (state) {
-        const listening = state === "listening";
-        button.classList.toggle("voice-mic--listening", listening);
-        button.setAttribute("aria-pressed", String(listening));
-        if (listening) {
-          setStatus("Listening…", false);
-          base = target && target.value ? target.value.replace(/\s+$/, "") : "";
-        } else {
-          engaged = false;
-          // Leave an error message in place if one was just set.
-          if (!button.classList.contains("voice-mic--error")) setStatus("", false);
-          if (target && typeof target.focus === "function") target.focus();
-        }
-      },
-      onResult: function (r) {
-        if (!target) return;
-        const merged = mergeTranscript(base, r);
-        base = merged.base;
-        target.value = merged.value;
-        // Let the app react (enable Post/End buttons, autosave drafts).
-        if (typeof win.Event === "function") {
-          target.dispatchEvent(new win.Event("input", { bubbles: true }));
-        }
-      },
-      onError: function (code) {
+    // Shared callbacks — both engines speak the same idle/listening/working
+    // vocabulary, so the glue doesn't care which one is driving.
+    function handleState(state) {
+      const listening = state === "listening";
+      const working = state === "working"; // Whisper: transcribing
+      button.classList.toggle("voice-mic--listening", listening);
+      button.classList.toggle("voice-mic--working", working);
+      button.setAttribute("aria-pressed", String(listening || working));
+      if (listening) {
+        setStatus(listenLabel, false);
+        base = target && target.value ? target.value.replace(/\s+$/, "") : "";
+      } else if (working) {
+        setStatus("Transcribing…", false);
+      } else {
         engaged = false;
-        // Surface it both visibly (the bubble) and in the console so a
-        // "nothing happens" report is diagnosable.
-        if (win.console && typeof win.console.warn === "function") {
-          win.console.warn("[tinker] voice input:", code);
-        }
+        // Leave an error message in place if one was just set.
+        if (!button.classList.contains("voice-mic--error")) setStatus("", false);
+        if (target && typeof target.focus === "function") target.focus();
+      }
+    }
 
-        // First time the mic is blocked, raise the permission prompt out of
-        // band, then ask the founder to tap again (the retry runs inside a
-        // fresh gesture, which Safari requires). Only once — if they truly
-        // denied it, show the plain error on the next failure.
-        const denied =
-          code === "not-allowed" ||
-          code === "service-not-allowed" ||
-          code === "NotAllowedError" ||
-          code === "SecurityError";
-        if (denied && !primed) {
-          const prompt = primeMic();
-          if (prompt && typeof prompt.then === "function") {
-            primed = true;
-            setStatus("Allow the microphone, then tap again.", false);
-            prompt.then(
-              function (stream) {
-                if (stream && typeof stream.getTracks === "function") {
-                  stream.getTracks().forEach(function (t) {
-                    if (t && typeof t.stop === "function") t.stop();
-                  });
-                }
-                setStatus("Microphone ready — tap to dictate.", false);
-              },
-              function () {
-                setStatus(errorMessage("not-allowed"), true);
+    function handleResult(r) {
+      if (!target) return;
+      const merged = mergeTranscript(base, r);
+      base = merged.base;
+      target.value = merged.value;
+      // Let the app react (enable Post/End buttons, autosave drafts).
+      if (typeof win.Event === "function") {
+        target.dispatchEvent(new win.Event("input", { bubbles: true }));
+      }
+    }
+
+    function handleError(code) {
+      engaged = false;
+      // Surface it both visibly (the bubble) and in the console so a
+      // "nothing happens" report is diagnosable.
+      if (win.console && typeof win.console.warn === "function") {
+        win.console.warn("[tinker] voice input:", code);
+      }
+
+      // Web Speech on Safari: the first denial raises the real mic prompt out
+      // of band, then asks the founder to tap again (the retry runs inside a
+      // fresh gesture, which Safari requires). The Whisper engine gets its
+      // permission straight from getUserMedia, so it never needs this.
+      const denied =
+        code === "not-allowed" ||
+        code === "service-not-allowed" ||
+        code === "NotAllowedError" ||
+        code === "SecurityError";
+      if (!useWhisper && denied && !primed) {
+        const prompt = primeMic();
+        if (prompt && typeof prompt.then === "function") {
+          primed = true;
+          setStatus("Allow the microphone, then tap again.", false);
+          prompt.then(
+            function (stream) {
+              if (stream && typeof stream.getTracks === "function") {
+                stream.getTracks().forEach(function (t) {
+                  if (t && typeof t.stop === "function") t.stop();
+                });
               }
-            );
-            return;
-          }
+              setStatus("Microphone ready — tap to dictate.", false);
+            },
+            function () {
+              setStatus(errorMessage("not-allowed"), true);
+            }
+          );
+          return;
         }
+      }
 
-        setStatus(errorMessage(code), true);
-      },
-    });
+      setStatus(errorMessage(code), true);
+    }
+
+    const controller = useWhisper
+      ? Whisper.createRecorderController({
+          getUserMedia: function () {
+            return win.navigator.mediaDevices.getUserMedia({ audio: true });
+          },
+          createRecorder: function (stream) {
+            return new win.MediaRecorder(stream);
+          },
+          decode: function (blob) {
+            return Whisper.decodeBlob(blob, win);
+          },
+          transcribe: function (samples) {
+            return Whisper.transcribe(samples);
+          },
+          onState: handleState,
+          onResult: handleResult,
+          onError: handleError,
+        })
+      : createVoiceController({
+          createRecognition: function () {
+            return new SpeechRecognition();
+          },
+          lang: doc.documentElement && doc.documentElement.lang ? doc.documentElement.lang : "en-US",
+          onState: handleState,
+          onResult: handleResult,
+          onError: handleError,
+        });
 
     // Keep focus in the field when the mic is pressed.
     button.addEventListener("mousedown", function (e) {
       e.preventDefault();
     });
     button.addEventListener("click", function () {
-      if (controller.state !== "listening") {
-        // Immediate feedback: priming the mic / permission prompt can take a
-        // beat, and on Safari it shows a native dialog — say so up front.
+      const st = controller.state;
+      if (st === "working") return; // busy transcribing — ignore taps
+      if (st === "idle") {
+        // Immediate feedback: starting (and on Web Speech/Safari a native
+        // dialog) can take a beat — say so up front.
         engaged = true;
         setStatus("Starting…", false);
+        // Begin the one-time Whisper model download now (intent to dictate),
+        // so it loads alongside the recording rather than only afterwards.
+        // Not on field focus — that would download ~40MB just for typing.
+        if (useWhisper && !warmed && Whisper && typeof Whisper.warmup === "function") {
+          warmed = true;
+          Whisper.warmup();
+        }
       }
       controller.toggle();
     });

@@ -193,6 +193,21 @@ test("index.html loads the voice-input script", () => {
   assert.match(html, /src="\.\/voice-input\.js"/, "voice-input.js is not loaded in index.html");
 });
 
+test("index.html loads the Whisper fallback engine before voice-input", () => {
+  const whisper = html.indexOf('src="./voice-whisper.js"');
+  const input = html.indexOf('src="./voice-input.js"');
+  assert.ok(whisper !== -1, "voice-whisper.js is not loaded in index.html");
+  assert.ok(input !== -1, "voice-input.js is not loaded in index.html");
+  assert.ok(whisper < input, "voice-whisper.js must load before voice-input.js");
+});
+
+test("CSP allows the Whisper library, model host, and WASM", () => {
+  const csp = (html.match(/Content-Security-Policy[\s\S]*?content="([^"]+)"/) || [])[1] || "";
+  assert.match(csp, /script-src[^;]*'wasm-unsafe-eval'/, "WASM execution is blocked by CSP");
+  assert.match(csp, /script-src[^;]*cdn\.jsdelivr\.net/, "the transformers.js CDN is blocked by script-src");
+  assert.match(csp, /connect-src[^;]*huggingface\.co/, "the model host is blocked by connect-src");
+});
+
 test("the eligible dictation fields exist in the renderer", () => {
   // The selector the mic follows must keep matching real fields.
   assert.match(html, /id="welcome-input"/, "welcome-input is missing");

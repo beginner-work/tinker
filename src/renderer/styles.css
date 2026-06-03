@@ -3242,6 +3242,23 @@ html.seed-modal-open { overflow: hidden; }
   .voice-mic--listening { animation: none; }
 }
 
+/* Transcribing (in-browser Whisper): a quiet spinning ring while the model
+   turns the recording into text. */
+.voice-mic--working,
+.voice-mic--working:hover {
+  color: var(--color-accent-strong, #6366f1);
+  border-color: var(--color-accent, #a5b4fc);
+  background: var(--color-accent-dim, #eef2ff);
+}
+
+.voice-mic--working svg { animation: voice-mic-spin 0.8s linear infinite; }
+
+@keyframes voice-mic-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-mic--working svg { animation: none; }
+}
+
 /* Error flash: a brief red cast alongside the visible message. */
 .voice-mic--error,
 .voice-mic--error:hover {
