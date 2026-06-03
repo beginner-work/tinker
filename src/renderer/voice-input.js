@@ -56,6 +56,16 @@
         return "Voice needs a connection right now.";
       case "InvalidStateError":
         return "Already listening — give it a moment.";
+      case "model-load-failed":
+        return "Couldn't load the voice model — check the connection.";
+      case "decode-failed":
+        return "Couldn't read that recording.";
+      case "transcribe-failed":
+        return "Couldn't transcribe that — try again.";
+      case "record-failed":
+      case "stop-failed":
+      case "encode-failed":
+        return "Recording didn't work — try again.";
       default:
         return "Voice input isn't available here.";
     }

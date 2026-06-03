@@ -80,11 +80,34 @@
     }
   }
 
+  // Wrap an error with a stable code (used as the message key) while logging
+  // the real thing to the console, so an on-screen failure is diagnosable.
+  function tagged(code, err) {
+    if (typeof console !== "undefined" && console.error) {
+      console.error("[tinker] whisper " + code + ":", err);
+    }
+    const e = new Error((err && (err.message || err)) || code);
+    e.name = code;
+    return e;
+  }
+
   async function transcribe(samples) {
-    const transcriber = await loadTranscriber();
-    const out = await transcriber(samples);
-    if (!out) return "";
-    return (Array.isArray(out) ? out.map((o) => o.text).join(" ") : out.text) || "";
+    let transcriber;
+    try {
+      transcriber = await loadTranscriber();
+    } catch (err) {
+      // Most likely the CDN/model couldn't be fetched (offline, CSP, ad
+      // blocker), or WASM was refused.
+      transcriberPromise = null; // let a later attempt retry the download
+      throw tagged("model-load-failed", err);
+    }
+    try {
+      const out = await transcriber(samples);
+      if (!out) return "";
+      return (Array.isArray(out) ? out.map((o) => o.text).join(" ") : out.text) || "";
+    } catch (err) {
+      throw tagged("transcribe-failed", err);
+    }
   }
 
   // Decode a recorded Blob to a 16 kHz mono Float32Array, the shape Whisper
@@ -185,7 +208,9 @@
       releaseStream();
       recorder = null;
       Promise.resolve(blob)
-        .then(decode)
+        .then(decode, function (err) {
+          throw tagged("decode-failed", err);
+        })
         .then(transcribe)
         .then(function (text) {
           onResult({ interim: "", final: (text || "").trim() });
