@@ -56,10 +56,8 @@
         return "Voice needs a connection right now.";
       case "InvalidStateError":
         return "Already listening — give it a moment.";
-      case "model-load-failed":
-        return "Couldn't load the voice model — check the connection.";
-      case "decode-failed":
-        return "Couldn't read that recording.";
+      case "unauthorized":
+        return "Sign in to use voice.";
       case "transcribe-failed":
         return "Couldn't transcribe that — try again.";
       case "record-failed":
@@ -240,7 +238,6 @@
     let prevPadRight = ""; // field's own padding-right, restored on release
     let statusTimer = null;
     let engaged = false; // mic in use (priming or listening) — don't hide
-    let warmed = false; // have we kicked off the Whisper model download?
     const listenLabel = useWhisper ? "Recording… tap to finish" : "Listening…";
 
     function setStatus(message, isError) {
@@ -400,11 +397,13 @@
           createRecorder: function (stream) {
             return new win.MediaRecorder(stream);
           },
-          decode: function (blob) {
-            return Whisper.decodeBlob(blob, win);
-          },
-          transcribe: function (samples) {
-            return Whisper.transcribe(samples);
+          transcribe: function (blob) {
+            // Upload the clip to our endpoint, carrying the founder's session
+            // so the server-side transcription key isn't open to the world.
+            return Whisper.transcribeViaServer(blob, {
+              token: win.tinkerAuth && win.tinkerAuth.token,
+              fetch: win.fetch ? win.fetch.bind(win) : undefined,
+            });
           },
           onState: handleState,
           onResult: handleResult,
@@ -429,16 +428,9 @@
       if (st === "working") return; // busy transcribing — ignore taps
       if (st === "idle") {
         // Immediate feedback: starting (and on Web Speech/Safari a native
-        // dialog) can take a beat — say so up front.
+        // permission dialog) can take a beat — say so up front.
         engaged = true;
         setStatus("Starting…", false);
-        // Begin the one-time Whisper model download now (intent to dictate),
-        // so it loads alongside the recording rather than only afterwards.
-        // Not on field focus — that would download ~40MB just for typing.
-        if (useWhisper && !warmed && Whisper && typeof Whisper.warmup === "function") {
-          warmed = true;
-          Whisper.warmup();
-        }
       }
       controller.toggle();
     });

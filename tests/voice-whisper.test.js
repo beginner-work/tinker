@@ -1,12 +1,11 @@
-/* In-browser Whisper engine tests.
+/* Voice recording + server-transcription engine tests.
  *
- * The model and MediaRecorder only exist in the browser, so we drive the
- * record→transcribe state machine (createRecorderController) with fakes:
- * a fake getUserMedia, a fake MediaRecorder whose events we fire by hand,
- * and stubbed decode/transcribe steps. What we pin: the
- * idle→listening→working→idle lifecycle, that the recorded audio flows
- * through decode→transcribe into a final transcript, that the mic stream is
- * released, and that permission / transcription failures surface as errors.
+ * MediaRecorder and the network only exist in the browser, so we drive the
+ * record→upload→transcribe state machine (createRecorderController) and the
+ * upload helper (transcribeViaServer) with fakes. What we pin: the
+ * idle→listening→working→idle lifecycle, that the recorded clip flows into a
+ * final transcript, that the mic stream is released, that mic/transcription
+ * failures surface as errors, and that the upload maps HTTP status to codes.
  */
 
 "use strict";
@@ -14,12 +13,16 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 
-const { createRecorderController, isSupported, MODEL } = require("../src/renderer/voice-whisper.js");
+const {
+  createRecorderController,
+  transcribeViaServer,
+  isSupported,
+} = require("../src/renderer/voice-whisper.js");
 
 class FakeRecorder {
   constructor(stream) {
     this.stream = stream;
-    this.mimeType = "audio/webm";
+    this.mimeType = "audio/mp4";
     this.started = false;
     this.ondataavailable = null;
     this.onstop = null;
@@ -29,7 +32,6 @@ class FakeRecorder {
     this.started = true;
   }
   stop() {
-    // Emulate the browser: emit a chunk, then fire onstop.
     if (this.ondataavailable) this.ondataavailable({ data: { size: 3, type: this.mimeType } });
     if (this.onstop) this.onstop();
   }
@@ -50,7 +52,6 @@ function makeController(over) {
     {
       getUserMedia: () => Promise.resolve(stream),
       createRecorder: (s) => (events.recorder = new FakeRecorder(s)),
-      decode: () => Promise.resolve(new Float32Array([0.1, 0.2])),
       transcribe: () => Promise.resolve("a quiet idea  "),
       onState: (s) => events.states.push(s),
       onResult: (r) => events.results.push(r),
@@ -63,27 +64,19 @@ function makeController(over) {
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-test("isSupported is false without MediaRecorder / getUserMedia", () => {
+test("isSupported needs MediaRecorder + getUserMedia", () => {
   assert.equal(isSupported({}), false);
-  assert.equal(
-    isSupported({ MediaRecorder: function () {}, WebAssembly: {}, navigator: {} }),
-    false
-  );
+  assert.equal(isSupported({ MediaRecorder: function () {}, navigator: {} }), false);
   assert.equal(
     isSupported({
       MediaRecorder: function () {},
-      WebAssembly: {},
       navigator: { mediaDevices: { getUserMedia: function () {} } },
     }),
     true
   );
 });
 
-test("default model is the small English Whisper", () => {
-  assert.match(MODEL, /whisper-tiny\.en/);
-});
-
-test("records, transcribes, and emits the final transcript", async () => {
+test("records, uploads, and emits the final transcript", async () => {
   const { controller, events, stream } = makeController();
   controller.start();
   await tick();
@@ -91,8 +84,7 @@ test("records, transcribes, and emits the final transcript", async () => {
   assert.equal(events.recorder.started, true);
 
   controller.stop();
-  // stop → working → decode → transcribe → idle
-  assert.equal(events.states.includes("working"), true, "should enter the transcribing state");
+  assert.equal(events.states.includes("working"), true, "should enter the uploading state");
   await tick();
   await tick();
 
@@ -114,34 +106,72 @@ test("a denied microphone surfaces as an error and stays idle", async () => {
 
 test("a transcription failure surfaces as an error and stays idle", async () => {
   const { controller, events } = makeController({
-    transcribe: () => Promise.reject(new Error("model exploded")),
+    transcribe: () => Promise.reject(Object.assign(new Error("nope"), { name: "transcribe-failed" })),
   });
   controller.start();
   await tick();
   controller.stop();
   await tick();
   await tick();
-  assert.equal(events.errors.length, 1);
+  assert.deepEqual(events.errors, ["transcribe-failed"]);
   assert.equal(controller.state, "idle");
 });
 
-test("taps are ignored while transcribing", async () => {
+test("taps are ignored while uploading/transcribing", async () => {
   let recorders = 0;
   const { controller } = makeController({
     createRecorder: (s) => {
       recorders++;
       return new FakeRecorder(s);
     },
-    // Never resolve transcription, so we stay in "working".
-    transcribe: () => new Promise(() => {}),
+    transcribe: () => new Promise(() => {}), // hang in "working"
   });
   controller.start();
   await tick();
-  controller.stop(); // → working (transcription hangs)
+  controller.stop();
   await tick();
   assert.equal(controller.state, "working");
-  controller.toggle(); // ignored
+  controller.toggle();
   await tick();
   assert.equal(controller.state, "working");
-  assert.equal(recorders, 1, "no new recording should start while transcribing");
+  assert.equal(recorders, 1);
+});
+
+// ── transcribeViaServer ──────────────────────────────────────────────────────
+
+function fakeFetch(status, body) {
+  return function (url, init) {
+    fakeFetch.last = { url, init };
+    return Promise.resolve({
+      ok: status >= 200 && status < 300,
+      status,
+      json: () => Promise.resolve(body),
+    });
+  };
+}
+
+test("transcribeViaServer returns the text and sends the bearer token", async () => {
+  const fetchImpl = fakeFetch(200, { text: "hello there" });
+  const blob = { type: "audio/mp4" };
+  const text = await transcribeViaServer(blob, { fetch: fetchImpl, token: "sess_123" });
+  assert.equal(text, "hello there");
+  assert.equal(fakeFetch.last.init.headers.Authorization, "Bearer sess_123");
+  assert.equal(fakeFetch.last.init.headers["Content-Type"], "audio/mp4");
+  assert.equal(fakeFetch.last.url, "/api/transcribe");
+});
+
+test("transcribeViaServer maps 401 to an unauthorized error", async () => {
+  const fetchImpl = fakeFetch(401, { error: "Missing token." });
+  await assert.rejects(
+    () => transcribeViaServer({ type: "audio/webm" }, { fetch: fetchImpl }),
+    (err) => err.name === "unauthorized"
+  );
+});
+
+test("transcribeViaServer maps other failures to transcribe-failed", async () => {
+  const fetchImpl = fakeFetch(502, { error: "upstream boom" });
+  await assert.rejects(
+    () => transcribeViaServer({ type: "audio/webm" }, { fetch: fetchImpl }),
+    (err) => err.name === "transcribe-failed" && /upstream boom/.test(err.message)
+  );
 });

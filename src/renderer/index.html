@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://vercel.live wss://ws-us3.pusher.com https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co; script-src 'self' 'wasm-unsafe-eval' https://vercel.live https://cdn.jsdelivr.net; frame-src https://vercel.live https://www.beginner.work https://beginner.work; manifest-src 'self' data: blob:;" />
+          content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://vercel.live wss://ws-us3.pusher.com; script-src 'self' https://vercel.live; frame-src https://vercel.live https://www.beginner.work https://beginner.work; manifest-src 'self' data: blob:;" />
     <title>tinker</title>
     <!-- Belt + suspenders: this tag tells well-behaved crawlers not to
          index the app; the X-Robots-Tag header in vercel.json catches
@@ -65,11 +65,11 @@
          runs first-login onboarding, and shows the avatar top-right.
          Deferred so the DOM (incl. #profile-corner) exists when it runs. -->
     <script src="./profile.js" defer></script>
-    <!-- In-browser Whisper engine (window.TinkerWhisper): the free,
-         on-device speech-to-text fallback for browsers where the Web Speech
-         API doesn't work (notably Safari). Loaded before voice-input.js so
-         the global exists when the mic picks an engine. Pulls the model
-         lazily from a CDN only when voice is actually used. -->
+    <!-- Recording + server transcription engine (window.TinkerWhisper): the
+         fallback for browsers where the Web Speech API doesn't work (notably
+         Safari). Records a clip and POSTs it to /api/transcribe. Loaded
+         before voice-input.js so the global exists when the mic picks an
+         engine. -->
     <script src="./voice-whisper.js" defer></script>
     <!-- Voice-to-text dictation (window.TinkerVoiceInput): one mic button
          that follows the focused writing field (welcome seed, status

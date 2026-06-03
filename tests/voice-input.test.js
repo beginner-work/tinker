@@ -201,11 +201,10 @@ test("index.html loads the Whisper fallback engine before voice-input", () => {
   assert.ok(whisper < input, "voice-whisper.js must load before voice-input.js");
 });
 
-test("CSP allows the Whisper library, model host, and WASM", () => {
+test("CSP stays strict — server transcription needs no CDN/WASM relaxation", () => {
   const csp = (html.match(/Content-Security-Policy[\s\S]*?content="([^"]+)"/) || [])[1] || "";
-  assert.match(csp, /script-src[^;]*'wasm-unsafe-eval'/, "WASM execution is blocked by CSP");
-  assert.match(csp, /script-src[^;]*cdn\.jsdelivr\.net/, "the transformers.js CDN is blocked by script-src");
-  assert.match(csp, /connect-src[^;]*huggingface\.co/, "the model host is blocked by connect-src");
+  assert.doesNotMatch(csp, /wasm-unsafe-eval/, "WASM relaxation should be gone with the server engine");
+  assert.doesNotMatch(csp, /jsdelivr|huggingface/, "external CDN/model hosts should be gone from the CSP");
 });
 
 test("the eligible dictation fields exist in the renderer", () => {

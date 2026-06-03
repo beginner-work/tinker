@@ -1,20 +1,15 @@
-/* tinker — in-browser speech-to-text (Whisper via transformers.js)
+/* tinker — voice recording + server-side transcription
  *
- * A free, private fallback for browsers where the Web Speech API doesn't
- * work — most importantly Safari, which refuses SpeechRecognition even with
- * the microphone granted. Instead of asking the browser to transcribe, we
- * record a short clip (MediaRecorder) and run OpenAI's open-source Whisper
- * model *on the device* with Hugging Face's transformers.js. No API key, no
- * server, no audio ever leaving the machine — at the cost of a one-time
- * model download (cached afterwards) and "record then transcribe" rather
- * than live word-by-word.
- *
- * The library and model are fetched lazily from a CDN the first time voice
- * is used, so the app pays nothing until a founder actually dictates.
+ * The browser-native Web Speech API doesn't work on Safari, and running a
+ * speech model in the page proved too heavy/fragile on phones. So for those
+ * browsers we record a short clip (MediaRecorder) and POST it to
+ * /api/transcribe, which runs it through a Whisper API server-side and
+ * returns the text. Reliable on iPhone Safari, fast, and the page never
+ * needs an external CDN or a relaxed CSP.
  *
  * Exposed as window.TinkerWhisper. The recorder state machine
  * (createRecorderController) takes injected dependencies so it can be unit
- * tested without a microphone, MediaRecorder, or the model.
+ * tested without a microphone, MediaRecorder, or the network.
  */
 
 (function (root, factory) {
@@ -25,141 +20,60 @@
 })(typeof window !== "undefined" ? window : null, function () {
   "use strict";
 
-  // Pinned so a CDN-side major bump can't silently change behaviour. tiny.en
-  // is ~40MB quantized — the smallest usable English model; bump to base.en
-  // for more accuracy at ~3x the download.
-  const LIB_URL = "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
-  const MODEL = "Xenova/whisper-tiny.en";
-  const TARGET_RATE = 16000; // Whisper expects 16 kHz mono
+  const ENDPOINT = "/api/transcribe";
 
   function isSupported(win) {
     win = win || (typeof window !== "undefined" ? window : null);
     if (!win) return false;
     const md = win.navigator && win.navigator.mediaDevices;
-    return !!(
-      win.MediaRecorder &&
-      md &&
-      typeof md.getUserMedia === "function" &&
-      typeof win.WebAssembly !== "undefined"
-    );
+    return !!(win.MediaRecorder && md && typeof md.getUserMedia === "function");
   }
 
-  // ── Model loading (browser only) ──────────────────────────────────────
+  // Upload a recorded clip and get the transcript back. The blob is sent as
+  // the raw request body; the server reads Content-Type to know the format.
+  function transcribeViaServer(blob, opts) {
+    opts = opts || {};
+    const fetchImpl = opts.fetch || (typeof fetch !== "undefined" ? fetch : null);
+    if (!fetchImpl) return Promise.reject(new Error("no-fetch"));
+    const url = opts.url || ENDPOINT;
+    const headers = {};
+    if (blob && blob.type) headers["Content-Type"] = blob.type;
+    if (opts.token) headers["Authorization"] = "Bearer " + opts.token;
 
-  let transcriberPromise = null;
-
-  // Lazily import transformers.js and build the ASR pipeline. Cached: the
-  // model downloads once, then every call resolves instantly.
-  function loadTranscriber() {
-    if (transcriberPromise) return transcriberPromise;
-    transcriberPromise = (async function () {
-      const mod = await import(/* @vite-ignore */ LIB_URL);
-      const pipeline = mod.pipeline;
-      const env = mod.env;
-      // Keep it single-threaded and worker-free: that avoids needing
-      // SharedArrayBuffer / cross-origin isolation (COOP+COEP), which would
-      // break the app's other cross-origin resources.
-      env.allowLocalModels = false;
-      if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
-        env.backends.onnx.wasm.numThreads = 1;
-        env.backends.onnx.wasm.proxy = false;
-      }
-      return pipeline("automatic-speech-recognition", MODEL);
-    })();
-    return transcriberPromise;
+    return fetchImpl(url, { method: "POST", headers: headers, body: blob }).then(function (res) {
+      return res
+        .json()
+        .catch(function () {
+          return {};
+        })
+        .then(function (data) {
+          if (!res.ok) {
+            const err = new Error((data && (data.error || data.detail)) || "HTTP " + res.status);
+            err.name = res.status === 401 ? "unauthorized" : "transcribe-failed";
+            throw err;
+          }
+          return (data && data.text) || "";
+        });
+    });
   }
-
-  // Kick the download off early (e.g. when a field is focused) so the model
-  // is ready by the time the founder finishes speaking. Failures are
-  // swallowed — the real attempt will surface them.
-  function warmup() {
-    try {
-      loadTranscriber().catch(function () {});
-    } catch (e) {
-      /* ignore */
-    }
-  }
-
-  // Wrap an error with a stable code (used as the message key) while logging
-  // the real thing to the console, so an on-screen failure is diagnosable.
-  function tagged(code, err) {
-    if (typeof console !== "undefined" && console.error) {
-      console.error("[tinker] whisper " + code + ":", err);
-    }
-    const e = new Error((err && (err.message || err)) || code);
-    e.name = code;
-    return e;
-  }
-
-  async function transcribe(samples) {
-    let transcriber;
-    try {
-      transcriber = await loadTranscriber();
-    } catch (err) {
-      // Most likely the CDN/model couldn't be fetched (offline, CSP, ad
-      // blocker), or WASM was refused.
-      transcriberPromise = null; // let a later attempt retry the download
-      throw tagged("model-load-failed", err);
-    }
-    try {
-      const out = await transcriber(samples);
-      if (!out) return "";
-      return (Array.isArray(out) ? out.map((o) => o.text).join(" ") : out.text) || "";
-    } catch (err) {
-      throw tagged("transcribe-failed", err);
-    }
-  }
-
-  // Decode a recorded Blob to a 16 kHz mono Float32Array, the shape Whisper
-  // wants. Uses the browser's own decoder (handles Safari's audio/mp4 and
-  // Chrome's audio/webm alike) then resamples with an OfflineAudioContext.
-  async function decodeBlob(blob, win) {
-    win = win || (typeof window !== "undefined" ? window : null);
-    const AudioCtx = win.AudioContext || win.webkitAudioContext;
-    const OfflineCtx = win.OfflineAudioContext || win.webkitOfflineAudioContext;
-    const arrayBuffer = await blob.arrayBuffer();
-
-    const decodeCtx = new AudioCtx();
-    let decoded;
-    try {
-      decoded = await decodeCtx.decodeAudioData(arrayBuffer);
-    } finally {
-      if (typeof decodeCtx.close === "function") decodeCtx.close();
-    }
-
-    if (decoded.sampleRate === TARGET_RATE && decoded.numberOfChannels === 1) {
-      return decoded.getChannelData(0);
-    }
-
-    const frames = Math.max(1, Math.ceil(decoded.duration * TARGET_RATE));
-    const offline = new OfflineCtx(1, frames, TARGET_RATE);
-    const source = offline.createBufferSource();
-    source.buffer = decoded;
-    source.connect(offline.destination);
-    source.start(0);
-    const rendered = await offline.startRendering();
-    return rendered.getChannelData(0);
-  }
-
-  // ── Recorder state machine (testable) ─────────────────────────────────
 
   /**
    * Record → transcribe lifecycle with the same surface as the Web Speech
    * controller (start/stop/toggle/state + onState/onResult/onError), so the
    * mic glue can drive either engine. States: idle → listening (recording) →
-   * working (transcribing) → idle.
+   * working (uploading + transcribing) → idle.
    *
    * @param {Object} opts
    * @param {() => Promise<MediaStream>} opts.getUserMedia
    * @param {(stream: any) => any} opts.createRecorder  → MediaRecorder-like
-   * @param {(blob: Blob) => Promise<Float32Array>} opts.decode
-   * @param {(samples: Float32Array) => Promise<string>} opts.transcribe
+   * @param {(blob: Blob) => Promise<string>} opts.transcribe
+   * @param {(blob: Blob) => (Blob|Promise<Blob>)} [opts.decode]  identity by default
    */
   function createRecorderController(opts) {
     const getUserMedia = opts.getUserMedia;
     const createRecorder = opts.createRecorder;
-    const decode = opts.decode;
     const transcribe = opts.transcribe;
+    const decode = opts.decode || function (blob) { return blob; };
     const BlobCtor = opts.Blob || (typeof Blob !== "undefined" ? Blob : null);
     const onState = opts.onState || function () {};
     const onResult = opts.onResult || function () {};
@@ -208,18 +122,13 @@
       releaseStream();
       recorder = null;
       Promise.resolve(blob)
-        .then(decode, function (err) {
-          throw tagged("decode-failed", err);
-        })
+        .then(decode)
         .then(transcribe)
         .then(function (text) {
           onResult({ interim: "", final: (text || "").trim() });
           setState("idle");
         })
         .catch(function (err) {
-          // err.name carries the stage code (model-load-failed, …); err.message
-          // carries the raw reason, surfaced on screen so a phone with no
-          // console is still diagnosable.
           fail((err && err.name) || "transcribe-failed", err && err.message);
         });
     }
@@ -261,7 +170,7 @@
     function toggle() {
       if (state === "listening") stop();
       else if (state === "idle") start();
-      // "working" (transcribing) ignores taps.
+      // "working" (uploading/transcribing) ignores taps.
     }
 
     return {
@@ -275,13 +184,9 @@
   }
 
   return {
-    LIB_URL: LIB_URL,
-    MODEL: MODEL,
+    ENDPOINT: ENDPOINT,
     isSupported: isSupported,
-    warmup: warmup,
-    transcribe: transcribe,
-    decodeBlob: decodeBlob,
-    loadTranscriber: loadTranscriber,
+    transcribeViaServer: transcribeViaServer,
     createRecorderController: createRecorderController,
   };
 });
