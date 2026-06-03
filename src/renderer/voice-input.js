@@ -72,12 +72,6 @@
     const onState = opts.onState || function () {};
     const onResult = opts.onResult || function () {};
     const onError = opts.onError || function () {};
-    // Optional: returns a Promise for a microphone MediaStream. Safari will
-    // NOT surface the mic permission prompt from SpeechRecognition.start()
-    // alone — it just answers "not-allowed" — so we request the mic
-    // explicitly first to trigger the real dialog. Harmless elsewhere
-    // (permission is cached per origin, so it prompts at most once).
-    const requestMic = opts.requestMic || null;
 
     let recognition = null;
     let state = "idle";
@@ -86,18 +80,6 @@
       if (state === next) return;
       state = next;
       onState(state);
-    }
-
-    function stopStream(stream) {
-      try {
-        if (stream && typeof stream.getTracks === "function") {
-          stream.getTracks().forEach(function (t) {
-            if (t && typeof t.stop === "function") t.stop();
-          });
-        }
-      } catch (e) {
-        /* ignore */
-      }
     }
 
     // Build the recognition object and start it. Guarded because in several
@@ -144,34 +126,15 @@
       }
     }
 
+    // Start synchronously. This is deliberate: Safari only allows
+    // SpeechRecognition.start() inside the user's click gesture ("transient
+    // activation"), so we must NOT await anything (e.g. a getUserMedia
+    // permission prompt) before calling it — doing so loses the gesture and
+    // Safari answers "not-allowed". Microphone permission is handled
+    // separately, out of band, by the caller.
     function start() {
       if (state === "listening") return;
-
-      let primer = null;
-      if (typeof requestMic === "function") {
-        try {
-          primer = requestMic();
-        } catch (err) {
-          primer = null;
-        }
-      }
-
-      if (primer && typeof primer.then === "function") {
-        // Prompt for / confirm mic access, then start. We don't keep the
-        // raw stream — recognition opens its own — so release it.
-        primer.then(
-          function (stream) {
-            stopStream(stream);
-            beginRecognition();
-          },
-          function (err) {
-            setState("idle");
-            onError((err && (err.name || err.message)) || "not-allowed");
-          }
-        );
-      } else {
-        beginRecognition();
-      }
+      beginRecognition();
     }
 
     function stop() {
@@ -315,18 +278,22 @@
       target = null;
     }
 
+    let primed = false; // have we already run the one-time mic prompt?
+
+    // Trigger the OS/browser microphone permission dialog. Safari won't raise
+    // it from SpeechRecognition itself, so we do it here, out of band — never
+    // in the start() path, which must stay synchronous to keep Safari's click
+    // gesture. After a grant the founder taps the mic again and recognition
+    // starts within a fresh gesture, with permission already in hand.
+    function primeMic() {
+      const md = win.navigator && win.navigator.mediaDevices;
+      if (!md || typeof md.getUserMedia !== "function") return null;
+      return md.getUserMedia({ audio: true });
+    }
+
     const controller = createVoiceController({
       createRecognition: function () {
         return new SpeechRecognition();
-      },
-      // Trigger the real microphone permission dialog before recognition —
-      // the only way Safari will prompt rather than silently deny.
-      requestMic: function () {
-        const md = win.navigator && win.navigator.mediaDevices;
-        if (md && typeof md.getUserMedia === "function") {
-          return md.getUserMedia({ audio: true });
-        }
-        return null;
       },
       lang: doc.documentElement && doc.documentElement.lang ? doc.documentElement.lang : "en-US",
       onState: function (state) {
@@ -360,6 +327,38 @@
         if (win.console && typeof win.console.warn === "function") {
           win.console.warn("[tinker] voice input:", code);
         }
+
+        // First time the mic is blocked, raise the permission prompt out of
+        // band, then ask the founder to tap again (the retry runs inside a
+        // fresh gesture, which Safari requires). Only once — if they truly
+        // denied it, show the plain error on the next failure.
+        const denied =
+          code === "not-allowed" ||
+          code === "service-not-allowed" ||
+          code === "NotAllowedError" ||
+          code === "SecurityError";
+        if (denied && !primed) {
+          const prompt = primeMic();
+          if (prompt && typeof prompt.then === "function") {
+            primed = true;
+            setStatus("Allow the microphone, then tap again.", false);
+            prompt.then(
+              function (stream) {
+                if (stream && typeof stream.getTracks === "function") {
+                  stream.getTracks().forEach(function (t) {
+                    if (t && typeof t.stop === "function") t.stop();
+                  });
+                }
+                setStatus("Microphone ready — tap to dictate.", false);
+              },
+              function () {
+                setStatus(errorMessage("not-allowed"), true);
+              }
+            );
+            return;
+          }
+        }
+
         setStatus(errorMessage(code), true);
       },
     });
