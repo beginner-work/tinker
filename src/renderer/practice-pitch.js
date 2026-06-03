@@ -33,7 +33,9 @@
 
   // Bundled sample deck (rendered from the canonical pitch deck). Lets
   // "Practice my pitch" jump straight to playback before anything is
-  // uploaded — handy for testing and as a first-run demo.
+  // uploaded — handy for testing and as a first-run demo. The MP4 is a real
+  // <video>, so it supports native iPhone Picture-in-Picture.
+  var SAMPLE_VIDEO = "./lib/sample-pitch/sample.mp4";
   var SAMPLE_SLIDES = (function () {
     var a = [];
     for (var i = 1; i <= 13; i++) {
@@ -62,8 +64,14 @@
       "#pp-toast .pp-bar span{display:block;height:100%;width:0;background:#7bc47a;transition:width .2s linear;}",
       "#pp-stage{position:fixed;inset:0;z-index:2147483500;background:#1c1a17;display:flex;flex-direction:column;",
       "align-items:center;justify-content:center;font-family:'Instrument Sans',system-ui,sans-serif;}",
-      "#pp-stage .pp-slide{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;",
-      "box-shadow:0 18px 48px rgba(0,0,0,.5);background:#fffdf7;}",
+      "#pp-stage .pp-slide,#pp-stage .pp-video{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;",
+      "box-shadow:0 18px 48px rgba(0,0,0,.5);background:#1c1a17;}",
+      "#pp-stage .pp-video{background:#000;border-radius:6px;}",
+      "#pp-stage .pp-pip{position:absolute;bottom:18px;right:18px;display:inline-flex;align-items:center;gap:8px;",
+      "padding:10px 16px;border:0;border-radius:999px;background:#2d5a3d;color:#fffdf7;font-size:13px;",
+      "font-weight:600;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35);}",
+      "#pp-stage .pp-pip:hover{background:#244b32;}",
+      "#pp-stage .pp-pip[hidden]{display:none;}",
       "#pp-stage .pp-controls{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:14px;",
       "padding:16px 20px;background:linear-gradient(transparent,rgba(0,0,0,.55));color:#fffdf7;}",
       "#pp-stage .pp-controls button{appearance:none;border:0;background:rgba(255,253,247,.14);color:#fffdf7;",
@@ -249,23 +257,106 @@
     // Always land on the video playback. Use the founder's uploaded deck when
     // we can fetch one; otherwise fall back to the bundled sample deck so the
     // button is testable immediately (no upload required).
-    if (!token()) { openStage(SAMPLE_SLIDES, true); return; }
+    if (!token()) { openVideoStage(SAMPLE_VIDEO, true); return; }
     var t = toast("Loading your deck…", { sticky: true });
     fetch(ENDPOINT, { method: "GET", headers: authHeaders() })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (json) {
         hideToast();
         var deck = json && json.data;
-        if (deck && Array.isArray(deck.slides) && deck.slides.length) {
+        if (deck && deck.videoUrl) {
+          openVideoStage(deck.videoUrl, false);
+        } else if (deck && Array.isArray(deck.slides) && deck.slides.length) {
+          // Uploaded decks play as an image slideshow until a real MP4 is
+          // rendered for them (server-side, a follow-up). No native PiP yet.
           openStage(deck.slides, false);
         } else {
-          openStage(SAMPLE_SLIDES, true);
+          // Nothing uploaded → the bundled sample MP4, which supports PiP.
+          openVideoStage(SAMPLE_VIDEO, true);
         }
       })
       .catch(function () {
         hideToast();
-        openStage(SAMPLE_SLIDES, true);
+        openVideoStage(SAMPLE_VIDEO, true);
       });
+  }
+
+  // ── Video stage (real <video>, so iPhone Picture-in-Picture works) ───
+  function openVideoStage(url, isSample) {
+    injectStyles();
+
+    var stage = document.createElement("div");
+    stage.id = "pp-stage";
+    stage.setAttribute("role", "dialog");
+    stage.setAttribute("aria-label", "Practice your pitch");
+
+    var video = document.createElement("video");
+    video.className = "pp-video";
+    video.src = url;
+    video.controls = true;
+    video.autoplay = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+    stage.appendChild(video);
+
+    var hint = document.createElement("div");
+    hint.className = "pp-hint";
+    hint.textContent = isSample
+      ? "Sample deck — upload your own to practice it"
+      : "Practice — talk through your pitch";
+    stage.appendChild(hint);
+
+    var close = document.createElement("button");
+    close.className = "pp-close";
+    close.type = "button";
+    close.setAttribute("aria-label", "Close");
+    close.innerHTML = "&times;";
+    stage.appendChild(close);
+
+    // Picture-in-Picture: float the video so you can record yourself over it.
+    var hasStdPip = "pictureInPictureEnabled" in document && document.pictureInPictureEnabled &&
+      typeof video.requestPictureInPicture === "function";
+    var hasWebkitPip = typeof video.webkitSetPresentationMode === "function" &&
+      typeof video.webkitSupportsPresentationMode === "function" &&
+      video.webkitSupportsPresentationMode("picture-in-picture");
+    var pip = document.createElement("button");
+    pip.className = "pp-pip";
+    pip.type = "button";
+    pip.textContent = "⤢ Picture-in-Picture";
+    if (!hasStdPip && !hasWebkitPip) pip.hidden = true;
+    pip.addEventListener("click", function () {
+      try {
+        if (hasStdPip) {
+          if (document.pictureInPictureElement) document.exitPictureInPicture();
+          else { var p = video.play(); if (p && p.then) p.then(goPip).catch(goPip); else goPip(); }
+        } else {
+          video.webkitSetPresentationMode(
+            video.webkitPresentationMode === "picture-in-picture" ? "inline" : "picture-in-picture"
+          );
+        }
+      } catch (e) { /* native controls still offer PiP */ }
+    });
+    function goPip() { video.requestPictureInPicture().catch(function () {}); }
+    stage.appendChild(pip);
+
+    document.body.appendChild(stage);
+    var prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function onKey(e) { if (e.key === "Escape") teardown(); }
+    document.addEventListener("keydown", onKey);
+    close.addEventListener("click", teardown);
+
+    function teardown() {
+      document.removeEventListener("keydown", onKey);
+      try { if (document.pictureInPictureElement) document.exitPictureInPicture(); } catch (e) {}
+      try { video.pause(); } catch (e) {}
+      document.body.style.overflow = prevOverflow;
+      if (stage.parentNode) stage.parentNode.removeChild(stage);
+    }
+
+    var pr = video.play();
+    if (pr && pr.catch) pr.catch(function () {});
   }
 
   function openStage(slides, isSample) {
