@@ -1076,7 +1076,7 @@ style: |
 
 <p class="team-statement">10 years elevating engineers. From science museums to IPOs.</p>
 
-<p class="team-learned-label">What have I learned?</p>
+<p class="team-learned-label">Where am I?</p>
 
 ---
 
