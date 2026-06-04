@@ -400,6 +400,15 @@
           phraseLabel.className = "sidebar__account-label";
           phraseLabel.textContent = text;
           phraseBtn.appendChild(phraseLabel);
+          // Where & when the founder wrote it — location plus date and time —
+          // sits under the excerpt. Skipped entirely when neither is known.
+          const metaText = formatPhraseMeta(writing);
+          if (metaText) {
+            const metaEl = document.createElement("span");
+            metaEl.className = "sidebar__phrase-meta";
+            metaEl.textContent = metaText;
+            phraseBtn.appendChild(metaEl);
+          }
           phraseBtn.addEventListener("click", () => openWriting(kind, writing));
           phraseLi.appendChild(phraseBtn);
           inner.appendChild(phraseLi);
@@ -518,6 +527,35 @@
     try { date = d.toLocaleDateString(undefined, opts); }
     catch { date = d.toDateString(); }
     return `edited ${date}`;
+  }
+
+  // The "where & when" line shown beneath a sidebar phrase: the location the
+  // founder wrote from (the session seed — Cafe / Home / Work, or whatever
+  // they typed for "Somewhere else") and the date and time the writing was
+  // created. Each part is dropped when missing, so a phrase with neither just
+  // renders the excerpt alone. Joined with middots to match the title stack.
+  function formatPhraseMeta(writing) {
+    if (!writing) return "";
+    const parts = [];
+    const rawWhere = writing.earth || writing.seed;
+    const where = typeof rawWhere === "string" ? rawWhere.trim() : "";
+    if (where) parts.push(where);
+    const ms = Number(writing.createdAt) || Number(writing.updatedAt) || 0;
+    if (ms > 0) {
+      const d = new Date(ms);
+      const now = new Date();
+      const dateOpts = d.getFullYear() === now.getFullYear()
+        ? { month: "short", day: "numeric" }
+        : { month: "short", day: "numeric", year: "numeric" };
+      try {
+        const date = d.toLocaleDateString(undefined, dateOpts);
+        const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        parts.push(date + " · " + time);
+      } catch {
+        parts.push(d.toDateString());
+      }
+    }
+    return parts.join(" · ");
   }
 
   // Render the title block used in the dropdown face and in each menu

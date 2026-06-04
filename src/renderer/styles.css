@@ -431,8 +431,23 @@ body:has(#welcome[data-active]) .mode-nav {
 }
 .sidebar__phrase {
   /* Allow the row's flex container to shrink so wrapping text doesn't
-   * push the row past the sidebar's width. */
+   * push the row past the sidebar's width. Stack the excerpt and its
+   * where/when meta line vertically rather than side by side. */
   align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+}
+/* The location + date/time line under each phrase. Quieter than the
+ * excerpt: smaller and lighter, so it reads as a caption, not the words. */
+.sidebar__phrase-meta {
+  display: block;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--color-muted);
+  opacity: 0.85;
+}
+.sidebar__phrase[data-active] .sidebar__phrase-meta {
+  opacity: 1;
 }
 .sidebar__phrase .sidebar__account-label {
   font-size: 13px;
