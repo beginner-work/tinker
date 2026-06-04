@@ -1148,7 +1148,7 @@ style: |
 # My Ask
 <p class="ask-amount">$500,000</p>
 
-<p class="ask-period">18 months runway.</p>
+<p class="ask-period">To be able to pay for my friends&rsquo; dinner when I visit NYC.</p>
 
 <div class="ask-bar">
 <span class="ask-bar-segment year1"></span>
