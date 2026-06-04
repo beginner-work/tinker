@@ -927,10 +927,17 @@ style: |
     max-width: 600px;
     line-height: 1.4;
   }
-  .team-intro {
-    margin-top: 18px;
+  section.team > h1 { margin-bottom: 14px; }
+  .team-subtitle {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
     font-style: italic;
+    font-size: 32px;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
     color: #6f6a65;
+    margin: 0 0 8px;
+    max-width: 600px;
   }
 
   /* Market slide — two markets, developers + makers */
@@ -1059,6 +1066,8 @@ style: |
 
 # I am beginner
 
+<p class="team-subtitle">A solo-employee company, building towards venture scale.</p>
+
 <div class="team-photo">
 <img src="https://media.licdn.com/dms/image/v2/D5603AQHXoA9e1jmY-g/profile-displayphoto-scale_400_400/B56Zx8ISBgGwAg-/0/1771609072488?e=2147483647&amp;v=beta&amp;t=lpFI6tVSw90oPM76Ja65OQ1cUP5ZcsKtaxYTkaLJHNU" alt="Tyler Lindow" />
 </div>
@@ -1066,8 +1075,6 @@ style: |
 <p class="team-name">Tyler Lindow</p>
 
 <p class="team-statement">10 years elevating engineers. From science museums to IPOs.</p>
-
-<p class="team-statement team-intro">A solo-employee company, building towards venture scale.</p>
 
 <p class="team-learned-label">What have I learned?</p>
 
