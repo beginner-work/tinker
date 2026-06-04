@@ -329,10 +329,14 @@
 
     listEl.innerHTML = "";
     let topRow = null;
-    // The slide nav renders the deck bottom-to-top: "The Ask" first,
-    // "The Problem" last. Coverage/progress above still walk the
-    // canonical DECK_HEADINGS order; only the visible rows reverse.
-    for (const { heading, resolved } of rows.slice().reverse()) {
+    // The slide nav opens on "The Team" and then renders the rest of the
+    // deck bottom-to-top ("The Ask" next, "The Problem" last). Coverage/
+    // progress above still walk the canonical DECK_HEADINGS order; only
+    // the visible rows reorder.
+    const navRows = rows.slice().reverse();
+    const teamIdx = navRows.findIndex((r) => r.heading === "The Team");
+    if (teamIdx > 0) navRows.unshift(navRows.splice(teamIdx, 1)[0]);
+    for (const { heading, resolved } of navRows) {
       const hasPhrases = resolved.length > 0;
       const li = document.createElement("li");
       li.className = "sidebar__deck-heading-row";
