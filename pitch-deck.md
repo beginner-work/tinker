@@ -997,6 +997,11 @@ style: |
     color: #2d2a26;
     margin: 0 0 22px;
   }
+  section.market .tam-math .tam-rate {
+    color: #2d5a3d;
+    box-shadow: inset 0 -0.32em 0 rgba(123, 196, 122, 0.45);
+    white-space: nowrap;
+  }
   section.market .market-split {
     display: flex;
     flex-direction: column;
@@ -1198,9 +1203,9 @@ style: |
 
 # Vision Market
 
-<p class="tam-headline">$71.3 billion a year</p>
+<p class="tam-headline">$356.4 billion a year</p>
 
-<p class="tam-math"><strong>22% of Instagram's 3 billion users × $9 a month.</strong></p>
+<p class="tam-math"><strong>22% of Instagram's 3 billion users × <span class="tam-rate">$45/mo average subscription</span>.</strong></p>
 
 <p class="tam-footnote">22% of LinkedIn members are in tech, engineering, or design. Same ratio applied to Instagram.</p>
 
@@ -1215,9 +1220,9 @@ style: |
 
 # GTM Market
 
-<p class="tam-headline">$2.85 billion a year</p>
+<p class="tam-headline">$14.26 billion a year</p>
 
-<p class="tam-math"><strong>22% of LinkedIn's 120 million paying subscribers × $9 a month.</strong></p>
+<p class="tam-math"><strong>22% of LinkedIn's 120 million paying subscribers × <span class="tam-rate">$45/mo average subscription</span>.</strong></p>
 
 <p class="tam-footnote">~26 million tech, engineering, and design professionals already paying for a professional tool. tinker is the next one.</p>
 
