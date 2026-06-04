@@ -1308,7 +1308,7 @@ style: |
 
 </div>
 
-<p class="solution-caption"><strong>The GTM solution</strong>: An app that helps engineers discover their pitch over time, on the go.</p>
+<p class="solution-caption"><strong>The GTM solution</strong>: A way to raise.</p>
 
 ---
 
