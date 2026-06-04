@@ -1233,11 +1233,16 @@ style: |
 
 # GTM Market
 
-<p class="tam-headline">$14.26 billion a year</p>
+<p class="tam-headline">$16.1 billion a year</p>
 
-<p class="tam-math"><strong>22% of LinkedIn's 120 million paying subscribers × <span class="tam-rate">$45/mo average subscription</span>.</strong></p>
+<div class="market-split">
+<div class="market-row"><span class="label">LinkedIn &mdash; professional tooling</span><span class="value">$14.26B</span></div>
+<div class="market-row"><span class="label">Calm &mdash; mental health</span><span class="value">$1.85B</span></div>
+</div>
 
-<p class="tam-footnote">~26 million tech, engineering, and design professionals already paying for a professional tool. tinker is the next one.</p>
+<p class="tam-math"><strong>~26M tech, engineering &amp; design workers × a <span class="tam-rate">$45/mo</span> tool (LinkedIn) + <span class="tam-rate">~$70/yr</span> for calm (Calm Premium).</strong></p>
+
+<p class="tam-footnote">tinker is mental health, gender-affirming care, and founder tooling &mdash; all in one. It earns across every one.</p>
 
 ---
 
