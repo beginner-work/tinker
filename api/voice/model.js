@@ -44,7 +44,7 @@ const { withResponseLogging } = require("../_lib/log.js");
 
 const VOICE_KIND = "voice-model";
 const ESSAYS_KIND = "essays";
-const MODEL = "claude-opus-4-7";
+const MODEL = "claude-opus-4-8";
 
 // Don't try to model a voice from a sentence or two — the profile would be
 // noise. Wait until the founder has put down a paragraph or so across their
@@ -222,6 +222,43 @@ async function callAnthropic({ system, message }) {
   return { text: textBlock ? textBlock.text : "", usage: data.usage };
 }
 
+// Train a voice profile from a user's raw `essays` blob and return the data
+// object to cache under (userId, "voice-model") — identical in shape to what
+// the route persists. Builds the corpus exactly as the route does (newest
+// first, clamped to the context budget) so the signature it stores is the
+// same one a later GET computes, and the cache reads back as fresh.
+//
+// Shared with the one-time backfill (scripts/retrain-voice-models.js) so a
+// model upgrade can be rolled across every founder's corpus the same way the
+// live route trains. Returns { trained: false, reason } when there isn't
+// enough writing or the analyser gives back nothing usable.
+async function trainFromEssays(essays) {
+  const pieces = clampCorpus(buildCorpus(essays));
+  const wordCount = corpusWordCount(pieces);
+  const essayCount = pieces.length;
+
+  if (wordCount < MIN_WORDS) {
+    return { trained: false, reason: "not_enough_writing", essayCount, wordCount };
+  }
+
+  const result = await callAnthropic({
+    system: ANALYST_SYSTEM,
+    message: buildAnalysisMessage(pieces),
+  });
+  const profile = parseVoiceProfile(result.text);
+  if (!profile) {
+    return { trained: false, reason: "no_usable_profile", essayCount, wordCount };
+  }
+
+  const signature = corpusSignature(pieces);
+  return {
+    trained: true,
+    essayCount,
+    wordCount,
+    data: { signature, essayCount, wordCount, trainedAt: Date.now(), profile, model: MODEL },
+  };
+}
+
 async function resolveUserId(req) {
   const token = extractBearer(req.headers && req.headers.authorization);
   const session = await authenticateSession(token);
@@ -356,7 +393,9 @@ async function handler(req, res) {
   }
 
   const trainedAt = Date.now();
-  const data = { signature, essayCount, wordCount, trainedAt, profile };
+  // Stamp the analyser model so a one-time upgrade backfill
+  // (scripts/retrain-voice-models.js) can tell which profiles predate it.
+  const data = { signature, essayCount, wordCount, trainedAt, profile, model: MODEL };
   try {
     await prisma.tinkerUserData.upsert({
       where: { userId_kind: { userId, kind: VOICE_KIND } },
@@ -381,9 +420,17 @@ async function handler(req, res) {
 module.exports = withResponseLogging(handler);
 // Exported for unit tests that don't want the logging wrapper.
 module.exports._raw = handler;
+// Shared with scripts/retrain-voice-models.js (the one-time model-upgrade
+// backfill) so it trains against the same model, corpus, and signature as the
+// live route — single source of truth for "how a voice is modelled."
+module.exports.MODEL = MODEL;
+module.exports.VOICE_KIND = VOICE_KIND;
+module.exports.ESSAYS_KIND = ESSAYS_KIND;
+module.exports.trainFromEssays = trainFromEssays;
 module.exports.__test__ = {
   MIN_WORDS,
   MAX_CORPUS_CHARS,
+  MODEL,
   ANALYST_SYSTEM,
   essayText,
   buildCorpus,
@@ -392,4 +439,5 @@ module.exports.__test__ = {
   clampCorpus,
   buildAnalysisMessage,
   parseVoiceProfile,
+  trainFromEssays,
 };
