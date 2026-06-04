@@ -794,6 +794,28 @@ style: |
     color: #2d2a26;
   }
   section.ask .ask-legend-label { color: #2d2a26; }
+  section.ask .ask-callout {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin: 10px 0 0 30px;
+    padding: 12px 16px;
+    background: rgba(45, 90, 61, 0.07);
+    border-left: 4px solid #2d5a3d;
+    border-radius: 8px;
+    font-size: 20px;
+    line-height: 1.4;
+    color: #2d2a26;
+  }
+  section.ask .ask-callout-amount {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 24px;
+    color: #2d5a3d;
+    flex-shrink: 0;
+  }
+  section.ask .ask-callout strong { color: #2d5a3d; font-weight: 700; }
   section.ask .ask-footer {
     font-size: 20px;
     color: #6f6a65;
@@ -1023,54 +1045,40 @@ style: |
 
 <!-- Export to PDF: npx @marp-team/marp-cli@latest pitch-deck.md --theme-set pitch-portrait-theme.css --pdf --html --allow-local-files -->
 
-<!-- _class: appendix -->
+<!-- _class: ask -->
 
 <div class="beginner-badge">
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
 <span class="wm">beginner</span>
 </div>
 
-# Appendix
+# My Ask
+<p class="ask-amount">$500,000</p>
 
-<p class="appendix-sub">Every line item in the $500,000 ask, fully itemized.</p>
+<p class="ask-period">18 months runway.</p>
 
-<div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">My salary, year 1</span><span class="appendix-amount">$175,000</span></div>
-<p class="appendix-detail">12 months. Base + benefits, all in.</p>
+<div class="ask-bar">
+<span class="ask-bar-segment year1"></span>
+<span class="ask-bar-segment year2"></span>
+<span class="ask-bar-segment beyond"></span>
 </div>
 
-<div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Running costs, year 1</span><span class="appendix-amount">$137,000</span></div>
-<p class="appendix-detail">Anthropic API (the dominant line) + Stripe payment processing + legal + accounting + banking + SF travel to build GTM motions (two one-week trips a year; extended stay only if accepted to an incubator) + Industrious office + Claude Code + Vercel + Neon + Stytch + GitHub.</p>
+<div class="ask-section">
+<div class="ask-section-head"><span class="ask-section-name">Year 1</span><span class="ask-section-total">$312K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">my salary</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$137K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
+<div class="ask-callout"><span class="ask-callout-amount">$111K</span><span>of that is the <strong>Anthropic API</strong> &mdash; our single largest cost in year one.</span></div>
 </div>
 
-<div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">My salary, year 2 (first 6 months)</span><span class="appendix-amount">$95,000</span></div>
-<p class="appendix-detail">~6% inflation built into the year-2 rate. Keeps me in seat through the first half of year 2 without re-raising.</p>
+<div class="ask-section">
+<div class="ask-section-head"><span class="ask-section-name">Year 2 (first 6 months)</span><span class="ask-section-total">$185K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$95K</span> &nbsp;<span class="ask-legend-label">my salary (~6% inflation)</span></span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
 </div>
 
-<div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Running costs, year 2 (first 6 months)</span><span class="appendix-amount">$90,000</span></div>
-<p class="appendix-detail">Anthropic API ~$70K (the Y1 cohort ages into low-cost maintenance use as new signups continue) + ~$10K Stripe payment processing (2.7% + $0.30/transaction on a growing subscriber base) + ~$10K for half a year of office, legal, stack, and one SF trip.</p>
-</div>
-
-<div class="appendix-row">
-<div class="appendix-head"><span class="appendix-label">Maker discovery seed + cushion</span><span class="appendix-amount">$3,000</span></div>
-<p class="appendix-detail">Everything left after the 18 months of runway costs. A small cushion for the unexpected; maker channel research is funded from the operating cash flow once monthly revenue covers monthly costs (month 12). The engineer-only path is a viable venture business on its own; entering the maker market in scale is an investor decision once engineer GTM is proven.</p>
-</div>
-
-<div class="appendix-total"><span class="label">Total ask</span><span class="value">$500,000</span></div>
-
-<div class="appendix-breakdown">
-<p class="appendix-breakdown-label">Year 1 running costs — itemized</p>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Anthropic API</span><span class="appendix-breakdown-value">$111,000</span></div>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Payment processing (Stripe — 2.7% + $0.30/transaction)</span><span class="appendix-breakdown-value">$7,000</span></div>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Legal + accounting + banking</span><span class="appendix-breakdown-value">$6,500</span></div>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">SF travel — two one-week GTM trips</span><span class="appendix-breakdown-value">$5,000</span></div>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Industrious office ($332/mo × 12)</span><span class="appendix-breakdown-value">$4,000</span></div>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Claude Code Max ($200/mo × 12)</span><span class="appendix-breakdown-value">$2,500</span></div>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Stack — Vercel + Neon + Stytch + GitHub + domain</span><span class="appendix-breakdown-value">$1,000</span></div>
-<div class="appendix-breakdown-row"><span class="appendix-breakdown-name">Year 1 running costs total</span><span class="appendix-breakdown-value">$137,000</span></div>
+<div class="ask-section">
+<div class="ask-section-head"><span class="ask-section-name">Beyond</span><span class="ask-section-total">$3K</span></div>
+<div class="ask-legend-item"><span class="ask-legend-dot beyond"></span><span><span class="ask-legend-amount">$3K</span> &nbsp;<span class="ask-legend-label">cushion for the unexpected</span></span></div>
 </div>
 
 ---
@@ -1090,44 +1098,6 @@ style: |
 # Thank you
 
 <p class="closing-tagline">Everyone is a founder</p>
-
----
-
-<!-- _class: ask -->
-
-<div class="beginner-badge">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
-<span class="wm">beginner</span>
-</div>
-
-# Ask
-
-<p class="ask-amount">$500,000</p>
-
-<p class="ask-period">18 months runway.</p>
-
-<div class="ask-bar">
-<span class="ask-bar-segment year1"></span>
-<span class="ask-bar-segment year2"></span>
-<span class="ask-bar-segment beyond"></span>
-</div>
-
-<div class="ask-section">
-<div class="ask-section-head"><span class="ask-section-name">Year 1</span><span class="ask-section-total">$312K</span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$175K</span> &nbsp;<span class="ask-legend-label">my salary</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year1"></span><span><span class="ask-legend-amount">$137K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
-</div>
-
-<div class="ask-section">
-<div class="ask-section-head"><span class="ask-section-name">Year 2 (first 6 months)</span><span class="ask-section-total">$185K</span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$95K</span> &nbsp;<span class="ask-legend-label">my salary (~6% inflation)</span></span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot year2"></span><span><span class="ask-legend-amount">$90K</span> &nbsp;<span class="ask-legend-label">running costs</span></span></div>
-</div>
-
-<div class="ask-section">
-<div class="ask-section-head"><span class="ask-section-name">Beyond</span><span class="ask-section-total">$3K</span></div>
-<div class="ask-legend-item"><span class="ask-legend-dot beyond"></span><span><span class="ask-legend-amount">$3K</span> &nbsp;<span class="ask-legend-label">cushion for the unexpected</span></span></div>
-</div>
 
 ---
 
