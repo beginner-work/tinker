@@ -329,7 +329,10 @@
 
     listEl.innerHTML = "";
     let topRow = null;
-    for (const { heading, resolved } of rows) {
+    // The slide nav renders the deck bottom-to-top: "The Ask" first,
+    // "The Problem" last. Coverage/progress above still walk the
+    // canonical DECK_HEADINGS order; only the visible rows reverse.
+    for (const { heading, resolved } of rows.slice().reverse()) {
       const hasPhrases = resolved.length > 0;
       const li = document.createElement("li");
       li.className = "sidebar__deck-heading-row";
