@@ -49,7 +49,21 @@
     "",
     "RULE 9 — STEER TOWARD UNEXPLORED PITCH TERRITORY.",
     "If the user message lists 'Starter-pitch slides the founder hasn't written into yet: ...', those are eleven canonical territories the founder's pitch is still missing. When the conversation has settled or is about to drift, let one of those uncovered territories shape what you ask next — pointed at what the founder is learning about that territory, in the founder's own scene and vocabulary. Do NOT name a slide title back to the founder. Do NOT mention the pitch, the deck, the eleven slides, or any of the slide-title literals. Do NOT force the move if the current answer is still alive — finish that thread first. Do NOT cycle through the list mechanically; pick the one nearest to what they're already saying.",
+    "",
+    "RULE 10 — ASK IN THE FOUNDER'S OWN WRITING VOICE.",
+    "If the user message includes a 'THE FOUNDER'S WRITING VOICE' block, it is a profile learned from the founder's own published essays — their tone, cadence, vocabulary, and the moves they reach for. Phrase your questions so they sound like they came from inside that same voice: match the cadence and lean on the words they actually use. This shapes HOW you ask, never WHAT they answer. It does NOT relax any rule above — every question still pursues what they are learning (RULE 4), and the stitched essay is still built only from words the founder typed (RULE 1, RULE 2). Never quote the profile back to the founder, never describe their voice to them.",
   ].join("\n");
+
+  // The founder's learned writing-voice profile, folded into the prompts so
+  // the interview is phrased in their own voice. Empty until enough essays
+  // exist to train on (see voice-model.js / api/voice/model.js).
+  function voiceBlock() {
+    if (window.tinkerVoice && typeof window.tinkerVoice.interviewerBlock === "function") {
+      try { return window.tinkerVoice.interviewerBlock() || ""; }
+      catch { return ""; }
+    }
+    return "";
+  }
 
   const SEED_QUESTION = "What are you learning?";
 
@@ -67,6 +81,12 @@
   window.tinkerWriting = {
     open(draft) {
       active = draft;
+      // Warm the founder's writing-voice model so RULE 10 has a profile to
+      // work from. Non-blocking: if it isn't ready for the first question,
+      // later turns pick it up. No-op when offline or untrained.
+      if (window.tinkerVoice && typeof window.tinkerVoice.ensure === "function") {
+        try { window.tinkerVoice.ensure(); } catch { /* ignore */ }
+      }
       // No AI mode (offline, or the manual choice): there's no Claude to
       // talk to, so drop the back-and-forth interview entirely. Show the
       // same "What are you learning?" question card as the AI interview —
@@ -175,6 +195,10 @@
       "- Match the texture of the place AND the weight of what they're facing AND the residue of what they just bought. If transactions overlap with any of those (e.g. grocery store + grocery rows, or a recent purchase that connects), you may ground the question in that overlap — but stay open, not advisory.",
       "- Output ONLY the question. No quotes, no preamble, no trailing notes.",
     ].join("\n");
+    // Phrase the opening in the founder's own learned writing voice, when
+    // we have one. Appended to the system prompt; intent is unchanged.
+    const voice = voiceBlock();
+    const systemWithVoice = voice ? `${system}\n\n${voice}` : system;
     const ctxLines = [];
     if (seed) ctxLines.push(`Where the founder is right now: ${seed}`);
     if (facing) ctxLines.push(`What the founder is facing: ${facing}`);
@@ -186,7 +210,7 @@
       ctxLines.push(...txLines);
     }
     const result = await window.tinker.callClaude({
-      system,
+      system: systemWithVoice,
       messages: [{ role: "user", content: ctxLines.join("\n") }],
       model: "claude-opus-4-7",
       maxTokens: 80,
@@ -660,8 +684,13 @@
       throw new Error("Anthropic client unavailable. Reload the page.");
     }
     const userMessage = buildUserMessage(active.transcript || [], { forceStitch });
+    // Fold the founder's learned writing voice into the system prompt so
+    // the questions are phrased in their own voice (RULE 10). No voice yet
+    // → the canonical system prompt, unchanged.
+    const voice = voiceBlock();
+    const system = voice ? `${SYSTEM_PROMPT}\n\n${voice}` : SYSTEM_PROMPT;
     const result = await window.tinker.callClaude({
-      system: SYSTEM_PROMPT,
+      system,
       messages: [{ role: "user", content: userMessage }],
       model: "claude-opus-4-7",
       maxTokens: 2048,
