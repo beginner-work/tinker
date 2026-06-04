@@ -968,6 +968,17 @@ style: |
     color: #2d2a26;
   }
   section.location .location-value svg { width: 56px; height: 56px; flex: none; }
+  section.location .location-statement {
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 56px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: #2d2a26;
+    max-width: 580px;
+    margin: 0 auto;
+  }
 
   /* Market slide — two markets, developers + makers */
   section.market .tam-headline {
@@ -1116,9 +1127,9 @@ style: |
 <span class="wm">beginner</span>
 </div>
 
-<p class="location-label">Most recent location</p>
+<p class="location-label">Why now</p>
 
-<div class="location-value"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2d5a3d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>JFK Airport</div>
+<p class="location-statement">Because I don&rsquo;t feel good eating McDonald&rsquo;s.</p>
 
 ---
 
@@ -1316,7 +1327,7 @@ style: |
 
 # Problems
 
-<p class="problem-statement">Engineers stay building and <em>human making becomes a relic of the past…</em></p>
+<p class="problem-statement">People love money.</p>
 
 ---
 
