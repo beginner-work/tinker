@@ -869,7 +869,7 @@ style: |
 
 <div class="evidence-note">
 <p class="evidence-note-label">Empirical basis</p>
-<p class="evidence-note-text"><strong>10 people — including me · 11 days · $9.03 in AI costs.</strong> I paid $9/month inside a week, then moved up to $45/month inside two weeks. The 18-month plan grows this same pattern 1,400 times — from ~1 new person a day today to ~45 a day by month 18. Limited by how many people I can reach alone, and the $181K AI budget across those 18 months.</p>
+<p class="evidence-note-text"><strong>10 people — including me · 11 days · $9.03 in AI costs.</strong> One real — if biased — data point: I'm the founder, and I pay <strong>$45/month</strong> for this myself. I started at $9/month within a week, then moved up to the $45 seed tier within two weeks. The 18-month plan grows this same pattern 1,400 times — from ~1 new person a day today to ~45 a day by month 18. Limited by how many people I can reach alone, and the $181K AI budget across those 18 months.</p>
 </div>
 
 ---
