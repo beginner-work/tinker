@@ -940,6 +940,35 @@ style: |
     max-width: 600px;
   }
 
+  /* Location slide — answers the title slide's "Where am I?" */
+  section.location {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+  section.location .location-label {
+    font-family: "Inter", sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #6f6a65;
+    margin: 0 0 20px;
+  }
+  section.location .location-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+    font-family: "Fraunces", "Plus Jakarta Sans", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144;
+    font-weight: 700;
+    font-size: 72px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: #2d2a26;
+  }
+  section.location .location-value svg { width: 56px; height: 56px; flex: none; }
+
   /* Market slide — two markets, developers + makers */
   section.market .tam-headline {
     font-family: "Fraunces", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
@@ -1077,6 +1106,19 @@ style: |
 <p class="team-statement">10 years elevating engineers. From science museums to IPOs.</p>
 
 <p class="team-learned-label">Where am I?</p>
+
+---
+
+<!-- _class: location -->
+
+<div class="beginner-badge">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="beginner seed mark"><rect width="180" height="180" rx="40" fill="#2d5a3d"/><path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="10.5" stroke-linecap="round"/><path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="10.5" fill="none" stroke-linejoin="round"/><path d="M68 56 C66 44, 78 34, 92 38 C88 44, 74 50, 68 56Z" fill="#7bc47a"/><path d="M68 48 C67 42, 60 38, 54 40 C56 44, 64 47, 68 48Z" fill="#5aad58" opacity="0.7"/></svg>
+<span class="wm">beginner</span>
+</div>
+
+<p class="location-label">Most recent location</p>
+
+<div class="location-value"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2d5a3d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>JFK Airport</div>
 
 ---
 
