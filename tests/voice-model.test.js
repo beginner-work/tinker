@@ -93,6 +93,7 @@ test("parseVoiceProfile parses, clamps, and shapes a profile", () => {
     sentenceRhythm: "short then long",
     signatureMoves: ["asides in dashes", "lists of three"],
     avoids: ["exclamation marks"],
+    excerpts: ["The thing is, I kept going.", "No fanfare. Just the work.", 7, ""],
     interviewerStyle: "Ask plainly, no warm-up.",
     extra: "ignored",
   });
@@ -102,8 +103,19 @@ test("parseVoiceProfile parses, clamps, and shapes a profile", () => {
   // Non-string vocabulary entries and empties are dropped.
   assert.deepEqual(p.vocabulary, ["honestly", "the thing is"]);
   assert.deepEqual(p.signatureMoves, ["asides in dashes", "lists of three"]);
+  // Verbatim excerpts are kept in order; non-strings and empties dropped.
+  assert.deepEqual(p.excerpts, ["The thing is, I kept going.", "No fanfare. Just the work."]);
   assert.equal(p.interviewerStyle, "Ask plainly, no warm-up.");
   assert.equal("extra" in p, false);
+});
+
+test("parseVoiceProfile caps excerpts at four", () => {
+  const raw = JSON.stringify({
+    voiceCard: "x",
+    excerpts: ["one", "two", "three", "four", "five", "six"],
+  });
+  const p = parseVoiceProfile(raw);
+  assert.deepEqual(p.excerpts, ["one", "two", "three", "four"]);
 });
 
 test("parseVoiceProfile tolerates code fences", () => {

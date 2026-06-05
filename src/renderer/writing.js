@@ -212,7 +212,7 @@
     const result = await window.tinker.callClaude({
       system: systemWithVoice,
       messages: [{ role: "user", content: ctxLines.join("\n") }],
-      model: "claude-opus-4-7",
+      model: "claude-opus-4-8",
       maxTokens: 80,
     });
     let text = (result.text || "").trim();
@@ -692,7 +692,7 @@
     const result = await window.tinker.callClaude({
       system,
       messages: [{ role: "user", content: userMessage }],
-      model: "claude-opus-4-7",
+      model: "claude-opus-4-8",
       maxTokens: 2048,
     });
     const parsed = parseClaude(result.text);

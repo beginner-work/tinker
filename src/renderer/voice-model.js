@@ -26,6 +26,13 @@
   const TOKEN_KEY = "tinker_jwt";
   const STORE = window.localStorage;
 
+  // Below this corpus size the profile is real but thin — built from barely
+  // more than the server's MIN_WORDS floor. Rather than an all-or-nothing
+  // cliff (voice vs. no voice), the interviewer block tells the generator to
+  // lean on it lightly in this band, so a sparse corpus nudges phrasing
+  // instead of caricaturing it. Above the floor, apply the voice at full strength.
+  const SOFT_MIN_WORDS = 300;
+
   // Debounce window after a publish before we ask the server to retrain.
   // The essays blob is pushed to the server on its own debounce
   // (sync.js); give that push time to land so the retrain sees the new
@@ -64,10 +71,19 @@
   function interviewerBlock() {
     const profile = getProfile();
     if (!profile) return "";
+    // Thin corpus → soften. The generator gets the same profile but is told
+    // to lean on it lightly and keep the founder's plain default, so a sparse
+    // corpus doesn't get over-fit into a caricature of itself.
+    const thin = wordCount() > 0 && wordCount() < SOFT_MIN_WORDS;
     const lines = [
       "THE FOUNDER'S WRITING VOICE (learned from their own essays).",
       "Phrase your questions so they sound like they came from inside this founder's own head — match the cadence and word choice below. This shapes HOW you ask, never WHAT they should answer. Do not put words in their mouth, do not lead them to a conclusion, and never quote this profile back to them.",
     ];
+    if (thin) {
+      lines.push(
+        "This profile is built from only a little writing so far, so treat it as a light nudge, not a costume. When the signal is faint, favour the founder's plain, default phrasing and lean on these habits only where they are clearly there."
+      );
+    }
     if (profile.voiceCard) lines.push(`- Voice: ${profile.voiceCard}`);
     if (profile.tone) lines.push(`- Tone: ${profile.tone}`);
     if (profile.cadence) lines.push(`- Cadence: ${profile.cadence}`);
@@ -81,6 +97,12 @@
     if (profile.avoids && profile.avoids.length) {
       lines.push(`- They avoid: ${profile.avoids.join("; ")}`);
     }
+    // Few-shot: their own sentences, verbatim, are the truest guide to cadence —
+    // far stronger than the descriptive labels above. Show, don't just tell.
+    if (profile.excerpts && profile.excerpts.length) {
+      lines.push("- Lines they actually wrote (match this cadence; never reuse or quote them back):");
+      for (const ex of profile.excerpts) lines.push(`    "${ex}"`);
+    }
     if (profile.interviewerStyle) {
       lines.push(`- How to ask: ${profile.interviewerStyle}`);
     }
@@ -90,6 +112,13 @@
   function getProfile() {
     if (!cache) cache = loadCache();
     return cache && cache.trained && cache.profile ? cache.profile : null;
+  }
+
+  // Words in the corpus the cached profile was trained on (0 when unknown).
+  // Used to soften the interviewer block while the corpus is still thin.
+  function wordCount() {
+    if (!cache) cache = loadCache();
+    return cache && typeof cache.wordCount === "number" ? cache.wordCount : 0;
   }
 
   function isTrained() {
