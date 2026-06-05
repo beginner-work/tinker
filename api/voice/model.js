@@ -119,6 +119,8 @@ const ANALYST_SYSTEM = [
   "",
   "Your output feeds an interview tool that will ask this author questions. The 'interviewerStyle' field must be concrete, imperative guidance for phrasing questions so they sound like they come from inside this author's own head — matching their cadence and word choice — without ever putting words in their mouth or leading them to an answer.",
   "",
+  "The 'excerpts' field must be 2-4 short, characteristic sentences copied VERBATIM from the author's text — pick the lines that most show their cadence and voice. Do not paraphrase, trim, or clean them up; the interview tool shows these as live examples of how the author writes, so they must be the author's exact words.",
+  "",
   "Respond as a single JSON object with exactly these keys, no code fences, no prose outside the JSON:",
   "{",
   '  "voiceCard": string,        // 1-3 sentences: how this person writes, in plain language',
@@ -128,6 +130,7 @@ const ANALYST_SYSTEM = [
   '  "sentenceRhythm": string,   // how sentences and paragraphs are built and broken',
   '  "signatureMoves": string[], // 3-6 recurring rhetorical habits you can see in the text',
   '  "avoids": string[],         // 2-5 things this author does NOT do (e.g. "exclamation marks", "jargon")',
+  '  "excerpts": string[],       // 2-4 short sentences copied VERBATIM from THEIR text, most characteristic of their voice',
   '  "interviewerStyle": string  // imperative guidance: how to phrase interview questions in this voice',
   "}",
 ].join("\n");
@@ -184,6 +187,7 @@ function parseVoiceProfile(text) {
     sentenceRhythm: clampStr(obj.sentenceRhythm, 300),
     signatureMoves: clampStrArray(obj.signatureMoves, 6, 200),
     avoids: clampStrArray(obj.avoids, 5, 120),
+    excerpts: clampStrArray(obj.excerpts, 4, 240),
     interviewerStyle: clampStr(obj.interviewerStyle, 800),
   };
   // A profile is only useful if it carries at least a voice card or some
