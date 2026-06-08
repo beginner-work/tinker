@@ -17,6 +17,34 @@ npm start
 
 Use `npm run dev` to open with DevTools attached.
 
+## Build it (desktop)
+
+To package the desktop app into a distributable, use
+[electron-builder](https://www.electron.build) — configured in
+[`electron-builder.yml`](electron-builder.yml):
+
+```bash
+npm install
+npm run dist          # package for the current OS
+npm run pack          # unpacked dir only, for a quick smoke test
+```
+
+Artifacts land in `dist/` (git-ignored). Each OS builds its own formats,
+so build on the matching platform (or a CI runner per platform):
+
+| Script | Host OS | Output |
+|--------|---------|--------|
+| `npm run dist:linux` | Linux | `tinker-<version>-x86_64.AppImage`, `tinker-<version>-x64.tar.gz` |
+| `npm run dist:mac` | macOS | `.dmg` + `.zip` |
+| `npm run dist:win` | Windows (or Linux + wine) | NSIS installer + portable `.exe` |
+
+The renderer + main process are plain JS with nothing to compile, so the
+build just collects `src/main/` + `src/renderer/` and the one runtime
+dependency the desktop main needs (`@anthropic-ai/sdk`) into an asar — the
+Prisma + Capacitor trees that belong to the web / mobile variants are left
+out. The Linux `.desktop` entry's `StartupWMClass` is synced to the app's
+`desktopName` so window managers group tinker's windows under its launcher.
+
 ## Run it (web)
 
 The same `src/renderer/` codebase ships as a hosted website — no build step.

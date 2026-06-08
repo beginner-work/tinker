@@ -3,9 +3,15 @@
   "version": "0.1.0",
   "description": "tinker — a quiet place to be on the web",
   "main": "src/main/main.js",
+  "desktopName": "tinker.desktop",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:linux": "electron-builder --linux",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
     "web": "node src/web/server.js",
     "lint": "eslint src/",
     "test": "node --test tests/*.test.js",
@@ -22,7 +28,12 @@
     "mobile:run:ios": "cap run ios",
     "mobile:run:android": "cap run android"
   },
-  "keywords": ["browser", "electron", "capacitor", "tinker"],
+  "keywords": [
+    "browser",
+    "electron",
+    "capacitor",
+    "tinker"
+  ],
   "author": "tinker",
   "license": "UNLICENSED",
   "private": true,
@@ -38,6 +49,7 @@
   "devDependencies": {
     "@capacitor/cli": "^6.2.0",
     "electron": "^33.0.0",
+    "electron-builder": "^26.15.2",
     "eslint": "^9.0.0",
     "prisma": "^5.22.0"
   }
