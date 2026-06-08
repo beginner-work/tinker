@@ -262,6 +262,22 @@
   // pitch. Matches the cap in pitches.js.
   const MAX_PHRASES_PER_HEADING = 1;
 
+  // Padlock glyphs for the per-slide lock toggle. Closed = pinned (kept
+  // exactly as-is when the founder refreshes); open = free to reorganize.
+  // Same stroke treatment as the switcher's refresh icon.
+  const LOCK_CLOSED_SVG =
+    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" ' +
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+    'stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+    '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>' +
+    '<path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+  const LOCK_OPEN_SVG =
+    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" ' +
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+    'stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+    '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>' +
+    '<path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
+
   function render() {
     ensureMount();
     if (!navEl || !listEl) return;
@@ -377,6 +393,41 @@
       }
 
       if (hasPhrases) {
+        // Per-slide lock toggle. A locked beat is kept verbatim when the
+        // founder refreshes (the redistribute re-clusters everything
+        // else around it) and is shielded from auto-classified writing
+        // drifting into it. It's a role=button span (not a nested
+        // <button>) so it can live inside the heading button, mirroring
+        // the retry glyph above. stopPropagation keeps a lock tap from
+        // also toggling the row's expand/collapse.
+        const locked = pm && typeof pm.isSectionLocked === "function"
+          ? pm.isSectionLocked(activeId, heading)
+          : false;
+        if (locked) headBtn.setAttribute("data-locked", "");
+        const lockBtn = document.createElement("span");
+        lockBtn.className = "sidebar__deck-lock" + (locked ? " is-locked" : "");
+        lockBtn.setAttribute("role", "button");
+        lockBtn.tabIndex = 0;
+        lockBtn.setAttribute("aria-pressed", locked ? "true" : "false");
+        lockBtn.setAttribute("aria-label", (locked ? "Unlock " : "Lock ") + heading);
+        lockBtn.title = locked
+          ? "Locked — kept when you refresh. Tap to unlock."
+          : "Lock this slide so a refresh keeps it.";
+        lockBtn.innerHTML = locked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG;
+        const toggleLock = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const pm2 = pitchesApi();
+          if (pm2 && typeof pm2.toggleSectionLock === "function") {
+            pm2.toggleSectionLock(activeId, heading);
+          }
+        };
+        lockBtn.addEventListener("click", toggleLock);
+        lockBtn.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") toggleLock(e);
+        });
+        headBtn.appendChild(lockBtn);
+
         headBtn.addEventListener("click", () => {
           const pm2 = pitchesApi();
           if (pm2 && typeof pm2.toggleExpanded === "function") {
@@ -442,15 +493,25 @@
   // than touch the data, so we call them out as trimmed. When nothing
   // shifts at all the AI judged everything already in place — a valid,
   // common outcome, not a failure.
-  function describeRefresh(diff, trimmed) {
+  function describeRefresh(diff, trimmed, kept) {
     const moved = (diff && Array.isArray(diff.movedWritings)) ? diff.movedWritings.length : 0;
     const dissolved = (diff && Array.isArray(diff.removedPitchIds)) ? diff.removedPitchIds.length : 0;
     const parts = [];
     if (moved > 0) parts.push(`moved ${moved} ${moved === 1 ? "essay" : "essays"}`);
     if (dissolved > 0) parts.push(`folded ${dissolved} ${dissolved === 1 ? "pitch" : "pitches"}`);
     if (trimmed > 0) parts.push(`trimmed ${trimmed} at 0 / ${DECK_HEADINGS.length}`);
+    if (kept > 0) parts.push(`kept ${kept} locked`);
     if (parts.length === 0) return "All pitches refreshed — everything's already in place.";
     return `Refreshed all pitches — ${parts.join(", ")}.`;
+  }
+
+  // Total locked beats across all pitches — the count the refresh held
+  // fixed while re-clustering everything else.
+  function lockedTotal(pm, pitches) {
+    if (!pm || typeof pm.lockedHeadings !== "function" || !Array.isArray(pitches)) return 0;
+    let n = 0;
+    for (const p of pitches) n += pm.lockedHeadings(p.id).length;
+    return n;
   }
 
   // Count pitches the dropdown now hides: those resolving to 0 / 11. The
@@ -482,7 +543,11 @@
     if (result && result.ok) {
       const pitches = typeof pm.getPitches === "function" ? pm.getPitches() : [];
       const activeId = typeof pm.getActivePitchId === "function" ? pm.getActivePitchId() : null;
-      refreshMsg = describeRefresh(result.diff, trimmedCount(pitches, activeId));
+      refreshMsg = describeRefresh(
+        result.diff,
+        trimmedCount(pitches, activeId),
+        lockedTotal(pm, pitches),
+      );
     } else if (result && result.reason === "no-token") {
       refreshMsg = "Sign in to refresh your pitches.";
     } else if (result && result.reason === "inflight") {

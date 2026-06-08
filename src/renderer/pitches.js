@@ -25,7 +25,7 @@
  *             personalTitle: string | null,
  *             aiTitleSourceHash: string | null,
  *             deck: { [deckHeading]: [phraseRecord, ...] },
- *             meta: { mostRecentlyTouched, expanded, lastClassifyFailedAt },
+ *             meta: { mostRecentlyTouched, expanded, locked, lastClassifyFailedAt },
  *             createdAt: <ts>,
  *             updatedAt: <ts>,   // last time the founder edited this pitch
  *           }
@@ -228,6 +228,7 @@
           expanded: legacyMeta.expanded && typeof legacyMeta.expanded === "object"
             ? { ...legacyMeta.expanded }
             : {},
+          locked: {},
           lastClassifyFailedAt: typeof legacyMeta.lastClassifyFailedAt === "number"
             ? legacyMeta.lastClassifyFailedAt
             : null,
@@ -278,6 +279,11 @@
         if (Array.isArray(rawDeck[h])) deck[h] = rawDeck[h].filter(isValidPhraseRecord);
       }
       const rawMeta = p.meta && typeof p.meta === "object" ? p.meta : {};
+      const rawLocked = rawMeta.locked && typeof rawMeta.locked === "object" ? rawMeta.locked : {};
+      const locked = {};
+      for (const h of DECK_HEADINGS) {
+        if (rawLocked[h]) locked[h] = true;
+      }
       const meta = {
         mostRecentlyTouched: DECK_HEADINGS.includes(rawMeta.mostRecentlyTouched)
           ? rawMeta.mostRecentlyTouched
@@ -285,6 +291,7 @@
         expanded: rawMeta.expanded && typeof rawMeta.expanded === "object"
           ? { ...rawMeta.expanded }
           : {},
+        locked,
         lastClassifyFailedAt: typeof rawMeta.lastClassifyFailedAt === "number"
           ? rawMeta.lastClassifyFailedAt
           : null,
@@ -502,6 +509,11 @@
     if (typeof writingId !== "string" || !writingId) return;
     if (!Number.isFinite(offset) || !Number.isFinite(length) || length <= 0) return;
 
+    // A locked beat is frozen against automated placement. If this
+    // writing is already pinned in a locked beat, leave it there — don't
+    // move or duplicate it into deckHeading.
+    if (writingIsLockedSomewhere(writingId)) return;
+
     const targetId = pitchId || effectiveActiveId();
     let pitch = blob.pitches.find((p) => p.id === targetId);
 
@@ -510,6 +522,16 @@
     // the writings now slotted into its deck.
     if (!pitch) {
       pitch = createPitchInternal({ aiTitle: null, personalTitle: null });
+    }
+
+    // Don't evict a pinned phrase from a locked target beat.
+    const lockedMeta = (pitch.meta && pitch.meta.locked) || {};
+    if (
+      lockedMeta[deckHeading] &&
+      Array.isArray(pitch.deck[deckHeading]) &&
+      pitch.deck[deckHeading].length > 0
+    ) {
+      return;
     }
 
     // Remove this writing from every pitch (across the whole blob) so
@@ -544,7 +566,9 @@
   function clearWritingFromAllPitchesInternal(writingId) {
     let touched = false;
     for (const pitch of blob.pitches) {
+      const locked = (pitch.meta && pitch.meta.locked) || {};
       for (const h of DECK_HEADINGS) {
+        if (locked[h]) continue; // a locked beat is frozen — never strip it
         const list = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
         const filtered = list.filter((p) => p.writingId !== writingId);
         if (filtered.length !== list.length) {
@@ -555,6 +579,62 @@
       }
     }
     return touched;
+  }
+
+  // True when `writingId` is the phrase pinned in a locked beat anywhere
+  // in the blob. A locked writing is frozen in place: the engine won't
+  // move it into another beat or duplicate it elsewhere.
+  function writingIsLockedSomewhere(writingId) {
+    for (const pitch of blob.pitches) {
+      const locked = (pitch.meta && pitch.meta.locked) || {};
+      for (const h of DECK_HEADINGS) {
+        if (!locked[h]) continue;
+        for (const rec of (Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [])) {
+          if (rec.writingId === writingId) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // ── Section locking ───────────────────────────────────────────────
+  //
+  // The founder pins a deck beat (one of the eleven headings) that feels
+  // good. A locked beat is frozen against every automated path: the
+  // "Refresh all pitches" redistribute keeps it, a per-pitch refresh
+  // keeps it, and a newly auto-classified writing can't move into or out
+  // of it. Only the founder, by unlocking, lets it move again. Lock
+  // state lives in pitch.meta.locked, persisted + synced with the blob.
+
+  function isSectionLocked(pitchId, deckHeading) {
+    const pitch = blob.pitches.find((p) => p.id === (pitchId || effectiveActiveId()));
+    return !!(pitch && pitch.meta && pitch.meta.locked && pitch.meta.locked[deckHeading]);
+  }
+
+  // The headings currently locked on a pitch, in deck order. Defaults to
+  // the active pitch when no id is given. [] when nothing is locked.
+  function lockedHeadings(pitchId) {
+    const pitch = blob.pitches.find((p) => p.id === (pitchId || effectiveActiveId()));
+    if (!pitch || !pitch.meta || !pitch.meta.locked) return [];
+    return DECK_HEADINGS.filter((h) => !!pitch.meta.locked[h]);
+  }
+
+  function setSectionLock(pitchId, deckHeading, locked) {
+    if (!DECK_HEADINGS.includes(deckHeading)) return false;
+    const pitch = blob.pitches.find((p) => p.id === (pitchId || effectiveActiveId()));
+    if (!pitch) return false;
+    pitch.meta = pitch.meta || {};
+    pitch.meta.locked = { ...(pitch.meta.locked || {}) };
+    if (locked) pitch.meta.locked[deckHeading] = true;
+    else delete pitch.meta.locked[deckHeading];
+    touch(pitch);
+    save();
+    fire("tinker:pitches-changed");
+    return true;
+  }
+
+  function toggleSectionLock(pitchId, deckHeading) {
+    return setSectionLock(pitchId, deckHeading, !isSectionLocked(pitchId, deckHeading));
   }
 
   function markClassifyFailed(pitchId) {
@@ -592,7 +672,7 @@
       personalTitle: personalTitle || null,
       aiTitleSourceHash: null,
       deck: emptyDeck(),
-      meta: { mostRecentlyTouched: null, expanded: {}, lastClassifyFailedAt: null },
+      meta: { mostRecentlyTouched: null, expanded: {}, locked: {}, lastClassifyFailedAt: null },
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -1018,6 +1098,10 @@
     renamePitch,
     upsertPhrase,
     clearWritingFromAllPitches,
+    isSectionLocked,
+    lockedHeadings,
+    setSectionLock,
+    toggleSectionLock,
     markClassifyFailed,
     markClassifySucceeded,
     toggleExpanded,
