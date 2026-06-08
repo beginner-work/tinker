@@ -17,7 +17,7 @@
  *         personalTitle: string | null,
  *         aiTitleSourceHash: string | null,
  *         deck: { [deckHeading]: [{ writingId, offset, length, addedAt }] },
- *         meta: { mostRecentlyTouched, expanded, lastClassifyFailedAt },
+ *         meta: { mostRecentlyTouched, expanded, locked, lastClassifyFailedAt },
  *         createdAt: number,
  *       }
  *     ],
@@ -26,10 +26,13 @@
  *   }
  *
  * Merge semantics: user-controlled fields (personalTitle, activeId,
- * meta.expanded, meta.mostRecentlyTouched, manually-slotted phrases)
- * are preserved across runs. The organizer only touches AI-owned
- * fields (aiTitle, aiTitleSourceHash) and rehomes writings that
- * aren't yet in any pitch's deck.
+ * meta.expanded, meta.mostRecentlyTouched, meta.locked, manually-slotted
+ * phrases) are preserved across runs. The organizer only touches AI-owned
+ * fields (aiTitle, aiTitleSourceHash) and rehomes writings that aren't yet
+ * in any pitch's deck. `meta.locked` is the set of deck headings the
+ * founder has pinned: a locked beat is frozen — refresh/redistribute never
+ * clears it, the fold never evicts it, and its writing stays out of the
+ * cluster input so the model can't move it.
  */
 
 "use strict";
@@ -107,6 +110,11 @@ function normalizeBlob(raw) {
       if (Array.isArray(rawDeck[h])) deck[h] = rawDeck[h].filter(isValidPhraseRecord);
     }
     const rawMeta = p.meta && typeof p.meta === "object" ? p.meta : {};
+    const rawLocked = rawMeta.locked && typeof rawMeta.locked === "object" ? rawMeta.locked : {};
+    const locked = {};
+    for (const h of DECK_HEADINGS) {
+      if (rawLocked[h]) locked[h] = true;
+    }
     const meta = {
       mostRecentlyTouched: DECK_HEADINGS.includes(rawMeta.mostRecentlyTouched)
         ? rawMeta.mostRecentlyTouched
@@ -114,6 +122,7 @@ function normalizeBlob(raw) {
       expanded: rawMeta.expanded && typeof rawMeta.expanded === "object"
         ? { ...rawMeta.expanded }
         : {},
+      locked,
       lastClassifyFailedAt: typeof rawMeta.lastClassifyFailedAt === "number"
         ? rawMeta.lastClassifyFailedAt
         : null,
@@ -202,11 +211,38 @@ function snippetFor(body) {
 
 function clearWritingFromAllPitches(blob, writingId) {
   for (const pitch of blob.pitches) {
+    const locked = (pitch.meta && pitch.meta.locked) || {};
     for (const h of DECK_HEADINGS) {
+      if (locked[h]) continue; // a locked beat is frozen — never strip it
       const list = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
       pitch.deck[h] = list.filter((p) => p.writingId !== writingId);
     }
   }
+}
+
+// The headings the founder has pinned on a pitch, in deck order. Locked
+// beats survive every clear/redistribute pass and their writings are
+// held out of the cluster input. Returns [] when nothing is locked.
+function lockedHeadingsForPitch(pitch) {
+  const locked = pitch && pitch.meta && pitch.meta.locked;
+  if (!locked || typeof locked !== "object") return [];
+  return DECK_HEADINGS.filter((h) => !!locked[h]);
+}
+
+// True when `writingId` is the phrase pinned in a locked beat anywhere
+// in the blob. A locked writing is frozen in place: the organizer won't
+// move it into another beat or duplicate it elsewhere.
+function writingIsLockedSomewhere(blob, writingId) {
+  for (const pitch of blob.pitches) {
+    const locked = (pitch.meta && pitch.meta.locked) || {};
+    for (const h of DECK_HEADINGS) {
+      if (!locked[h]) continue;
+      for (const rec of (Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [])) {
+        if (rec.writingId === writingId) return true;
+      }
+    }
+  }
+  return false;
 }
 
 // Empty every pitch's deck. Used by the redistribute pass: zeroing the
@@ -221,6 +257,25 @@ function clearAllDecks(blob) {
   for (const pitch of blob.pitches) pitch.deck = emptyDeck();
 }
 
+// The lock-aware sibling of clearAllDecks, used by the founder-triggered
+// redistribute. Empties every UNLOCKED heading — turning those writings
+// "off-pitch" so the whole unlocked corpus flows back through the
+// clusterer — while leaving each beat the founder pinned exactly as it
+// is. A locked beat keeps its phrase, so its writing stays slotted and
+// therefore OUT of the cluster input: the model can re-align everything
+// around the founder's locked sections but can't touch them. With no
+// locks set anywhere this reduces to clearAllDecks.
+function clearUnlockedDecks(blob) {
+  for (const pitch of blob.pitches) {
+    const locked = (pitch.meta && pitch.meta.locked) || {};
+    const next = emptyDeck();
+    for (const h of DECK_HEADINGS) {
+      if (locked[h] && Array.isArray(pitch.deck[h])) next[h] = pitch.deck[h];
+    }
+    pitch.deck = next;
+  }
+}
+
 // Empty a single pitch's deck — the scoped sibling of clearAllDecks,
 // used by the per-pitch refresh. Only the target pitch's writings turn
 // "off-pitch", so the next sweep hands just that pitch's corpus back to
@@ -228,10 +283,18 @@ function clearAllDecks(blob) {
 // then route those writings home (the pitch keeps its own line), into a
 // sibling (consolidated), or — if they all land elsewhere and the shell
 // isn't founder-named — leave it empty for the end-of-run prune to drop
-// (the pitch dissolves). A no-op when the id doesn't match a pitch.
+// (the pitch dissolves). Locked beats on the target pitch are preserved
+// (and their writings held out of the recluster), same as redistribute.
+// A no-op when the id doesn't match a pitch.
 function clearOneDeck(blob, pitchId) {
   const pitch = blob.pitches.find((p) => p.id === pitchId);
-  if (pitch) pitch.deck = emptyDeck();
+  if (!pitch) return;
+  const locked = (pitch.meta && pitch.meta.locked) || {};
+  const next = emptyDeck();
+  for (const h of DECK_HEADINGS) {
+    if (locked[h] && Array.isArray(pitch.deck[h])) next[h] = pitch.deck[h];
+  }
+  pitch.deck = next;
 }
 
 // De-duplicate the title hints we feed the clusterer, case-insensitively,
@@ -259,6 +322,19 @@ function upsertPhrase(blob, { pitchId, deckHeading, writingId, offset, length, a
 
   const pitch = blob.pitches.find((p) => p.id === pitchId);
   if (!pitch) return;
+
+  // Locked beats are frozen. Bail before mutating in two cases:
+  //  - this writing is already pinned in a locked beat → leave it there
+  //    (don't move or duplicate it into deckHeading);
+  //  - the target beat is locked and already filled → don't evict the
+  //    pinned phrase.
+  // Returning early (rather than clear-then-skip) keeps the incoming
+  // writing off-pitch instead of orphaning it out of its old slot.
+  if (writingIsLockedSomewhere(blob, writingId)) return;
+  const locked = (pitch.meta && pitch.meta.locked) || {};
+  if (locked[deckHeading] && Array.isArray(pitch.deck[deckHeading]) && pitch.deck[deckHeading].length > 0) {
+    return;
+  }
 
   clearWritingFromAllPitches(blob, writingId);
 
@@ -345,7 +421,7 @@ function foldRehomeResults(blob, rehomedPitches, { writingTimestamps } = {}) {
         personalTitle: null,
         aiTitleSourceHash: null,
         deck: emptyDeck(),
-        meta: { mostRecentlyTouched: null, expanded: {}, lastClassifyFailedAt: null },
+        meta: { mostRecentlyTouched: null, expanded: {}, locked: {}, lastClassifyFailedAt: null },
         createdAt: Date.now(),
       };
       blob.pitches.push(pitch);
@@ -452,18 +528,21 @@ async function organize({
   const droppedStale = dropStaleDeckRecords(blob, knownWritingIds);
   refreshDeckTimestamps(blob, writingTimestamps);
 
-  // Redistribute: wipe every deck before listing off-pitch writings so
-  // the whole corpus (not just newly-added writings) flows back through
-  // the clusterer. This is the founder-triggered "re-align everything"
-  // path; the normal run only rehomes writings that aren't slotted yet.
+  // Redistribute: wipe every UNLOCKED deck beat before listing off-pitch
+  // writings so the whole unlocked corpus (not just newly-added writings)
+  // flows back through the clusterer. This is the founder-triggered
+  // "re-align everything" path; the normal run only rehomes writings that
+  // aren't slotted yet. Beats the founder locked stay put, and their
+  // writings stay slotted — so the model re-aligns everything around the
+  // locked sections without disturbing them.
   //
-  // Refresh-one (refreshPitchId): wipe just that pitch's deck, so only
-  // its writings turn off-pitch and flow back through the clusterer while
-  // every other pitch stays put. The founder is reconsidering a single
-  // pitch — its writings either route home (it keeps its own line), fold
-  // into a sibling (consolidated), or leave it empty for the prune to drop
-  // (dissolved). redistribute wins if both are somehow set.
-  if (redistribute) clearAllDecks(blob);
+  // Refresh-one (refreshPitchId): wipe just that pitch's unlocked beats, so
+  // only its (unlocked) writings turn off-pitch and flow back through the
+  // clusterer while every other pitch stays put. The founder is
+  // reconsidering a single pitch — its writings either route home (it keeps
+  // its own line), fold into a sibling (consolidated), or leave it empty for
+  // the prune to drop (dissolved). redistribute wins if both are somehow set.
+  if (redistribute) clearUnlockedDecks(blob);
   else if (refreshPitchId) clearOneDeck(blob, refreshPitchId);
 
   const off = sortWritingsForClustering(
@@ -566,7 +645,10 @@ module.exports = {
   refreshDeckTimestamps,
   dropStaleDeckRecords,
   clearAllDecks,
+  clearUnlockedDecks,
   clearOneDeck,
+  lockedHeadingsForPitch,
+  writingIsLockedSomewhere,
   dedupeTitles,
   upsertPhrase,
   pitchesNeedingName,

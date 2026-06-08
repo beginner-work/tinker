@@ -463,6 +463,37 @@ body:has(#welcome[data-active]) .mode-nav {
 }
 .sidebar__tree-retry:hover { background: var(--color-hover); color: var(--color-foreground); }
 
+/* Per-slide lock toggle. Sits at the right edge of a covered deck-heading
+ * row. Quiet by default (so it doesn't clutter the outline) but always at
+ * least faintly visible — there's no hover on touch — and full-strength on
+ * hover/focus. A locked beat is pinned: the icon switches to the closed
+ * padlock, takes the brand accent, and the row gets a thin left bar so
+ * pinned beats are scannable even when collapsed. */
+.sidebar__deck-lock {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0.5;
+  transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+.sidebar__deck-lock svg { display: block; }
+.sidebar__deck-heading:hover .sidebar__deck-lock,
+.sidebar__deck-lock:hover,
+.sidebar__deck-lock:focus-visible { opacity: 1; }
+.sidebar__deck-lock:hover { background: var(--color-hover); color: var(--color-foreground); }
+.sidebar__deck-lock.is-locked {
+  opacity: 1;
+  color: var(--color-accent-strong);
+}
+.sidebar__deck-heading[data-locked] {
+  box-shadow: inset 2px 0 0 var(--color-accent-strong);
+}
+
 /* ── Pitch-progress bar ────────────────────────────────────────────
  *
  * Sits at the top of the sidebar tree, above the eleven deck-heading

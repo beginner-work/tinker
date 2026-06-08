@@ -24,7 +24,11 @@ const {
   refreshDeckTimestamps,
   dropStaleDeckRecords,
   clearAllDecks,
+  clearUnlockedDecks,
   clearOneDeck,
+  lockedHeadingsForPitch,
+  writingIsLockedSomewhere,
+  upsertPhrase,
   dedupeTitles,
   sortWritingsForClustering,
   organize,
@@ -822,4 +826,163 @@ test("organize: passes existing personalTitle / aiTitle as cluster hints", async
 
   await organize({ storedBlob: stored, essays, drafts: [], cluster, name });
   assert.deepEqual(seenTitles, ["Side Project", "Tinker"]);
+});
+
+// ── Section locking ──────────────────────────────────────────────────
+
+test("normalizeBlob keeps valid locked headings and drops unknown / falsey ones", () => {
+  const blob = normalizeBlob({
+    pitches: [{
+      id: "p_1",
+      aiTitle: "Coffee",
+      deck: { "The Problem": [{ writingId: "e_1", offset: 0, length: 5 }] },
+      meta: { locked: { "The Problem": true, "Made Up": true, "A Persona": false } },
+    }],
+  });
+  assert.deepEqual(blob.pitches[0].meta.locked, { "The Problem": true });
+});
+
+test("lockedHeadingsForPitch lists locked headings in deck order", () => {
+  const blob = normalizeBlob({
+    pitches: [{
+      id: "p_1",
+      deck: {},
+      meta: { locked: { "The Vision": true, "The Problem": true } },
+    }],
+  });
+  // Deck order, not insertion order: The Problem (idx 0) before The Vision (idx 8).
+  assert.deepEqual(lockedHeadingsForPitch(blob.pitches[0]), ["The Problem", "The Vision"]);
+  assert.deepEqual(lockedHeadingsForPitch({ meta: {} }), []);
+});
+
+test("clearUnlockedDecks empties unlocked beats but keeps locked ones intact", () => {
+  const blob = normalizeBlob({
+    pitches: [{
+      id: "p_1",
+      aiTitle: "Coffee",
+      deck: {
+        "The Problem": [{ writingId: "e_lock", offset: 0, length: 5 }],
+        "The Vision": [{ writingId: "e_free", offset: 0, length: 5 }],
+      },
+      meta: { locked: { "The Problem": true } },
+    }],
+  });
+  clearUnlockedDecks(blob);
+  assert.equal(blob.pitches[0].deck["The Problem"].length, 1);
+  assert.equal(blob.pitches[0].deck["The Problem"][0].writingId, "e_lock");
+  assert.equal(blob.pitches[0].deck["The Vision"].length, 0);
+});
+
+test("clearOneDeck keeps locked beats on the target pitch", () => {
+  const blob = normalizeBlob({
+    pitches: [{
+      id: "p_1",
+      aiTitle: "Coffee",
+      deck: {
+        "The Problem": [{ writingId: "e_lock", offset: 0, length: 5 }],
+        "The Vision": [{ writingId: "e_free", offset: 0, length: 5 }],
+      },
+      meta: { locked: { "The Problem": true } },
+    }],
+  });
+  clearOneDeck(blob, "p_1");
+  assert.equal(writingIdsInAnyPitch(blob).has("e_lock"), true, "locked writing stays slotted");
+  assert.equal(writingIdsInAnyPitch(blob).has("e_free"), false, "unlocked writing is freed");
+});
+
+test("writingIsLockedSomewhere finds a writing pinned in any locked beat", () => {
+  const blob = normalizeBlob({
+    pitches: [{
+      id: "p_1",
+      deck: {
+        "The Problem": [{ writingId: "e_lock", offset: 0, length: 5 }],
+        "The Vision": [{ writingId: "e_free", offset: 0, length: 5 }],
+      },
+      meta: { locked: { "The Problem": true } },
+    }],
+  });
+  assert.equal(writingIsLockedSomewhere(blob, "e_lock"), true);
+  assert.equal(writingIsLockedSomewhere(blob, "e_free"), false);
+});
+
+test("upsertPhrase refuses to evict a phrase pinned in a locked target beat", () => {
+  const blob = normalizeBlob({
+    pitches: [{
+      id: "p_1",
+      aiTitle: "Coffee",
+      deck: { "The Problem": [{ writingId: "e_lock", offset: 0, length: 5 }] },
+      meta: { locked: { "The Problem": true } },
+    }],
+  });
+  upsertPhrase(blob, { pitchId: "p_1", deckHeading: "The Problem", writingId: "e_other", offset: 0, length: 4 });
+  const slot = blob.pitches[0].deck["The Problem"];
+  assert.equal(slot.length, 1);
+  assert.equal(slot[0].writingId, "e_lock", "locked phrase is not evicted");
+});
+
+test("upsertPhrase leaves a locked writing pinned — won't move or duplicate it", () => {
+  const blob = normalizeBlob({
+    pitches: [{
+      id: "p_1",
+      aiTitle: "Coffee",
+      deck: { "The Problem": [{ writingId: "e_lock", offset: 0, length: 5 }] },
+      meta: { locked: { "The Problem": true } },
+    }],
+  });
+  // Try to slot the locked writing into a different (unlocked) beat.
+  upsertPhrase(blob, { pitchId: "p_1", deckHeading: "The Vision", writingId: "e_lock", offset: 0, length: 5 });
+  assert.equal(blob.pitches[0].deck["The Vision"].length, 0, "not moved into the new beat");
+  assert.equal(blob.pitches[0].deck["The Problem"][0].writingId, "e_lock", "stays pinned where it was");
+});
+
+test("organize redistribute keeps locked beats and holds their writings out of the cluster input", async () => {
+  // p_1 "Coffee" pins e_lock under The Problem; e_free sits unlocked under
+  // The Vision. A redistribute should re-cluster only e_free (and any truly
+  // off-pitch writing), never touching the locked beat.
+  const stored = {
+    pitches: [{
+      id: "p_1",
+      aiTitle: "Coffee",
+      deck: {
+        "The Problem": [{ writingId: "e_lock", offset: 0, length: 5 }],
+        "The Vision": [{ writingId: "e_free", offset: 0, length: 5 }],
+      },
+      meta: { locked: { "The Problem": true } },
+    }],
+    activeId: "p_1",
+  };
+  const essays = [
+    makeEssay("e_lock", "alpha beta gamma"),
+    makeEssay("e_free", "delta epsilon zeta"),
+  ];
+
+  let seenIds = null;
+  const cluster = async ({ writings }) => {
+    seenIds = writings.map((w) => w.id).sort();
+    return [{
+      title: "Coffee",
+      writings: writings.map((w) => ({
+        id: w.id,
+        deckHeading: "The Team",
+        phrase: { writingId: w.id, offset: 0, length: 5 },
+      })),
+    }];
+  };
+  const name = async () => "Coffee";
+
+  const result = await organize({
+    storedBlob: stored, essays, drafts: [], cluster, name, redistribute: true,
+  });
+
+  // The locked writing was never handed to the model.
+  assert.deepEqual(seenIds, ["e_free"]);
+  assert.equal(result.summary.offPitchCount, 1);
+  // The locked beat is exactly as it was.
+  const p = result.blob.pitches.find((x) => x.id === "p_1");
+  assert.equal(p.deck["The Problem"].length, 1);
+  assert.equal(p.deck["The Problem"][0].writingId, "e_lock");
+  assert.equal(p.meta.locked["The Problem"], true, "lock state survives the round");
+  // The unlocked writing moved as the model directed.
+  assert.equal(p.deck["The Team"].length, 1);
+  assert.equal(p.deck["The Team"][0].writingId, "e_free");
 });
