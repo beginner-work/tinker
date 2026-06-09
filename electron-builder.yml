@@ -14,6 +14,13 @@ appId: com.beginner.tinker
 productName: tinker
 copyright: © beginner
 
+# Published to GitHub Releases by .github/workflows/release.yml on tag push
+# (electron-builder --publish always uploads the artifacts for the tag).
+publish:
+  provider: github
+  owner: beginner-work
+  repo: tinker
+
 directories:
   output: dist
   buildResources: build
@@ -50,12 +57,20 @@ linux:
   artifactName: ${productName}-${version}-${arch}.${ext}
 
 mac:
+  # One universal (Intel + Apple Silicon) build, so a single download runs on
+  # any Mac — under a stable name the beginner landing page links straight to
+  # (releases/latest/download/tinker-mac.dmg).
   target:
-    - dmg
-    - zip
+    - target: dmg
+      arch: universal
+    - target: zip
+      arch: universal
   category: public.app-category.productivity
   icon: src/renderer/icons/tinker-icon-512.png
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  artifactName: tinker-mac.${ext}
+  # hardenedRuntime + a Developer ID signing identity (provided via CI secrets)
+  # are what let notarization succeed; without secrets the build is unsigned.
+  hardenedRuntime: true
 
 win:
   target:

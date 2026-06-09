@@ -45,6 +45,26 @@ Prisma + Capacitor trees that belong to the web / mobile variants are left
 out. The Linux `.desktop` entry's `StartupWMClass` is synced to the app's
 `desktopName` so window managers group tinker's windows under its launcher.
 
+### Releasing
+
+Pushing a version tag builds every desktop installer on its native runner
+(macOS / Linux / Windows) and uploads them to a GitHub Release — see
+[`.github/workflows/release.yml`](.github/workflows/release.yml):
+
+```bash
+npm version patch        # bumps package.json + creates the v* tag
+git push --follow-tags   # triggers the Release workflow
+```
+
+macOS produces a single **universal** `tinker-mac.dmg` (Intel + Apple
+Silicon) under a stable name, so the beginner landing page can link straight
+to `releases/latest/download/tinker-mac.dmg`. To ship a Gatekeeper-clean
+build (no "unidentified developer" warning), add the Apple signing secrets
+to the repo — `MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`,
+`APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`; without them the build still
+ships, just unsigned. Note that release assets inherit the repo's
+visibility, so a public download needs the asset hosted somewhere public.
+
 ## Run it (web)
 
 The same `src/renderer/` codebase ships as a hosted website — no build step.
