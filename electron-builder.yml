@@ -1,0 +1,80 @@
+# electron-builder configuration for the tinker desktop app.
+#
+# The renderer + main process are plain HTML/CSS/JS — there is no bundler
+# and nothing native to compile, so packaging is just "collect the entry
+# points + the shared renderer + the runtime deps, wrap them in Electron".
+#
+#   npm run dist          # package for the current OS
+#   npm run dist:linux    # AppImage + tar.gz   (build on Linux)
+#   npm run dist:mac      # dmg + zip            (build on macOS)
+#   npm run dist:win      # nsis + portable      (build on Windows / wine)
+#   npm run pack          # unpacked dir only, for a quick smoke test
+#
+appId: com.beginner.tinker
+productName: tinker
+copyright: © beginner
+
+# Published to GitHub Releases by .github/workflows/release.yml on tag push
+# (electron-builder --publish always uploads the artifacts for the tag).
+publish:
+  provider: github
+  owner: beginner-work
+  repo: tinker
+
+directories:
+  output: dist
+  buildResources: build
+
+# Nothing to rebuild — every runtime dependency is pure JS.
+npmRebuild: false
+asar: true
+
+# Ship only the desktop entry points and the shared renderer. Production
+# dependencies are bundled automatically by electron-builder; the desktop
+# main process only needs @anthropic-ai/sdk at runtime, so drop the
+# Prisma + Capacitor trees that belong to the web / mobile variants.
+files:
+  - src/main/**/*
+  - src/renderer/**/*
+  - package.json
+  - "!**/*.map"
+  - "!node_modules/@capacitor/*/**"
+  - "!node_modules/@prisma/**"
+  - "!node_modules/.prisma/**"
+  - "!node_modules/prisma/**"
+
+linux:
+  executableName: tinker
+  # Match the .desktop filename + StartupWMClass to Electron's runtime app_id
+  # (read from package.json "desktopName") so window managers group windows
+  # under this launcher.
+  syncDesktopName: true
+  target:
+    - AppImage
+    - tar.gz
+  category: Network
+  icon: src/renderer/icons/tinker-icon-512.png
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+mac:
+  # One universal (Intel + Apple Silicon) build, so a single download runs on
+  # any Mac — under a stable name the beginner landing page links straight to
+  # (releases/latest/download/tinker-mac.dmg).
+  target:
+    - target: dmg
+      arch: universal
+    - target: zip
+      arch: universal
+  category: public.app-category.productivity
+  icon: src/renderer/icons/tinker-icon-512.png
+  artifactName: tinker-mac.${ext}
+  # hardenedRuntime + a Developer ID signing identity (provided via CI secrets)
+  # are what let notarization succeed; without secrets the build is unsigned.
+  hardenedRuntime: true
+
+win:
+  target:
+    - nsis
+    - portable
+  icon: src/renderer/icons/tinker-icon-512.png
+  artifactName: ${productName}-${version}-${arch}.${ext}
