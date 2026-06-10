@@ -239,11 +239,11 @@ html.on-web .sidebar__top {
  * AI (the Claude interview) and No AI mode (write freely). It wears the
  * same chip treatment as the AI / no-AI mark on beginner's home cover —
  * frosted cream over a 12px blur, hairline border, live segment filled
- * with ink — and keeps its icons: a sparkle for AI, a writing hand for
- * No AI (both design systems document the shared pattern). The "You're
- * offline" sliver hangs off the bottom edge while the device is offline.
- * Fixed so it never disturbs the flex layout; clears the iOS safe area
- * and the macOS drag strip. */
+ * with indigo — and keeps its icons: a sparkle for AI, a writing hand
+ * for No AI (both design systems document the shared pattern). The
+ * "You're offline" sliver hangs off the bottom edge while the device is
+ * offline. Fixed so it never disturbs the flex layout; clears the iOS
+ * safe area and the macOS drag strip. */
 .mode-nav {
   position: fixed;
   left: 50%;
@@ -304,8 +304,8 @@ body:has(#welcome[data-active]) .mode-nav {
 .mode-nav__icon { flex-shrink: 0; }
 .mode-nav__btn:hover { color: var(--color-foreground); }
 .mode-nav__btn[aria-pressed="true"] {
-  background: var(--color-foreground);
-  color: var(--color-background);
+  background: var(--color-accent-strong);
+  color: #fff;
 }
 .mode-nav__btn:disabled {
   opacity: 0.4;
