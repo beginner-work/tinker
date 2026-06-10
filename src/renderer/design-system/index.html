@@ -790,6 +790,59 @@
     </section>
 
     <section>
+      <h2>Components &middot; AI / No AI switch</h2>
+      <p>One chip, two products. The floating writing-mode switch (<code>.mode-nav</code>) wears the same treatment as the AI / no-AI mark on beginner&rsquo;s home cover &mdash; a frosted cream chip with a hairline border, the live segment filled with indigo (the primary CTA colour) over white. The app keeps its icons &mdash; a sparkle for AI, a writing hand for No AI &mdash; and app-sized padding, because the switch is a fixed thumb target. Offline forces No AI on and disables the AI segment. The cover-side mark is documented in beginner&rsquo;s design system.</p>
+      <div class="components">
+        <div class="component-row">
+          <div class="component-row__meta">
+            <strong>Chip</strong>
+            background rgba(255, 253, 247, 0.86)<br>
+            backdrop blur 12px<br>
+            border 1px --color-border<br>
+            shadow 0 6px 18px rgba(45, 42, 38, 0.14)<br>
+            radius --radius-pill &middot; padding 3 &middot; gap 2
+          </div>
+          <div class="component-row__demo">
+            <span style="display: inline-flex; gap: 2px; padding: 3px; background: rgba(255, 253, 247, 0.86); border: 1px solid var(--color-border); border-radius: 999px; box-shadow: 0 6px 18px rgba(45, 42, 38, 0.14);">
+              <span style="display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; background: var(--color-accent-strong); color: #fff; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; line-height: 1;">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3l1.7 4.6L18.5 9.3l-4.8 1.7L12 15.7l-1.7-4.7L5.5 9.3l4.8-1.7L12 3z" fill="currentColor"/><path d="M18.6 14.3l.85 2.25 2.25.85-2.25.85-.85 2.25-.85-2.25-2.25-.85 2.25-.85.85-2.25z" fill="currentColor"/></svg>
+                AI
+              </span>
+              <span style="display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; color: var(--color-muted); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; line-height: 1;">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none"><path d="M14.5 4.6l3.6 3.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M5.2 14l9-9 3.6 3.6-9 9-4.2.9.6-4.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3 21c1.6-1.1 3.4-1.1 5 0s3.4 1.1 5 0 3.4-1.1 5 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                No AI
+              </span>
+            </span>
+          </div>
+        </div>
+        <div class="component-row">
+          <div class="component-row__meta">
+            <strong>Segments</strong>
+            label 12/600, letter-spacing 0.02em<br>
+            live background --color-accent-strong<br>
+            live color #fff<br>
+            idle color --color-muted<br>
+            padding 8 14 &middot; icons md 20 kept<br>
+            (the cover mark is text-only at 4 12)
+          </div>
+          <div class="component-row__demo">
+            <span style="display: inline-flex; gap: 2px; padding: 3px; background: rgba(255, 253, 247, 0.86); border: 1px solid var(--color-border); border-radius: 999px; box-shadow: 0 6px 18px rgba(45, 42, 38, 0.14);">
+              <span style="display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; color: var(--color-muted); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; line-height: 1; opacity: 0.4;">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3l1.7 4.6L18.5 9.3l-4.8 1.7L12 15.7l-1.7-4.7L5.5 9.3l4.8-1.7L12 3z" fill="currentColor"/><path d="M18.6 14.3l.85 2.25 2.25.85-2.25.85-.85 2.25-.85-2.25-2.25-.85 2.25-.85.85-2.25z" fill="currentColor"/></svg>
+                AI
+              </span>
+              <span style="display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; background: var(--color-accent-strong); color: #fff; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; line-height: 1;">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none"><path d="M14.5 4.6l3.6 3.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M5.2 14l9-9 3.6 3.6-9 9-4.2.9.6-4.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3 21c1.6-1.1 3.4-1.1 5 0s3.4 1.1 5 0 3.4-1.1 5 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                No AI
+              </span>
+            </span>
+            <span style="font-size: 12px; color: var(--color-muted);">Offline: No AI live, AI disabled at 0.4</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
       <h2>What this system never does</h2>
       <div class="never">
         <p class="never__title">House rules &mdash; the never-do list.</p>

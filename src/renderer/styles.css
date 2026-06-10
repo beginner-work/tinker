@@ -235,12 +235,15 @@ html.on-web .sidebar__top {
 
 /* ── Floating bottom mode nav ──────────────────────────────────────────
  *
- * A liquid-glass pill, bottom-centre, that switches between writing with
- * AI (the Claude interview) and No AI mode (write freely). Two segments —
- * a sparkle for AI, a writing hand for No AI — with the live one filled
- * in. The "You're offline" sliver hangs off the bottom edge while the
- * device is offline. Fixed so it never disturbs the flex layout; clears
- * the iOS safe area and the macOS drag strip. */
+ * The AI / No AI switch, bottom-centre, that picks between writing with
+ * AI (the Claude interview) and No AI mode (write freely). It wears the
+ * same chip treatment as the AI / no-AI mark on beginner's home cover —
+ * frosted cream over a 12px blur, hairline border, live segment filled
+ * with indigo — and keeps its icons: a sparkle for AI, a writing hand
+ * for No AI (both design systems document the shared pattern). The
+ * "You're offline" sliver hangs off the bottom edge while the device is
+ * offline. Fixed so it never disturbs the flex layout; clears the iOS
+ * safe area and the macOS drag strip. */
 .mode-nav {
   position: fixed;
   left: 50%;
@@ -266,43 +269,43 @@ body:has(#welcome[data-active]) .mode-nav {
 .mode-nav__bar {
   pointer-events: auto;
   display: flex;
-  gap: 4px;
-  padding: 5px;
+  gap: 2px;
+  padding: 3px;
   border-radius: var(--radius-pill);
-  /* Frosted glass — matches the toast treatment: a translucent cream
-   * pane that blurs whatever sits behind it, a bright top edge and soft
-   * inner highlight so it reads as a sheet of glass. The opaque fallback
-   * keeps it legible where backdrop-filter isn't supported. */
-  background: rgba(255, 253, 247, 0.62);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    0 12px 32px rgba(20, 20, 40, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  /* The home page's AI / no-AI mark treatment: 86% warm white over a
+   * 12px blur, a hairline border, one soft drop shadow. The opaque
+   * fallback keeps it legible where backdrop-filter isn't supported. */
+  background: rgba(255, 253, 247, 0.86);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 6px 18px rgba(45, 42, 38, 0.14);
 }
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .mode-nav__bar { background: var(--color-surface); }
+  .mode-nav__bar { background: var(--color-background); }
 }
 .mode-nav__btn {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 9px 16px;
+  /* Wider than the cover mark's 4px/12px text-only segments: this switch
+   * is a fixed thumb target carrying 20px icons, so it keeps app-sized
+   * padding. Type matches the mark (12/600, 0.02em). */
+  padding: 8px 14px;
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   line-height: 1;
   transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 .mode-nav__icon { flex-shrink: 0; }
 .mode-nav__btn:hover { color: var(--color-foreground); }
 .mode-nav__btn[aria-pressed="true"] {
-  background: var(--color-surface);
-  color: var(--color-accent-strong);
-  box-shadow: var(--shadow-button);
+  background: var(--color-accent-strong);
+  color: #fff;
 }
 .mode-nav__btn:disabled {
   opacity: 0.4;
