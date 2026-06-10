@@ -20,6 +20,9 @@ publish:
   provider: github
   owner: beginner-work
   repo: tinker
+  # Publish as a real release, not a draft — the landing page links to
+  # releases/latest/download/…, which never serves draft assets.
+  releaseType: release
 
 directories:
   output: dist
