@@ -2547,6 +2547,106 @@ html.seed-modal-open { overflow: hidden; }
 }
 .story__piece-body p { margin: 0; overflow-wrap: anywhere; }
 
+/* The team block: suggestions (a name + which of YOUR questions they
+ * might be answering — never their words) and your invites. */
+.story__team {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 22px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+}
+.story__team-kicker {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.story__team-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.story__team-sub {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  color: var(--color-muted);
+}
+.story__team-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-background);
+}
+.story__team-name {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+}
+.story__team-asked {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.story__team-question {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--color-border);
+  font-size: 14.5px;
+  line-height: 1.55;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+.story__team-invite {
+  margin-top: 4px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-accent-strong);
+  background: var(--color-accent-strong);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+.story__team-invite:hover { background: #4f46e5; }
+.story__team-invite:active { transform: scale(0.98); }
+.story__team-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.story__team-member {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+.story__team-invited {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-accent-strong);
+}
+
 /* The end of the story: lock it in / the pocket. */
 .story__lock {
   display: flex;

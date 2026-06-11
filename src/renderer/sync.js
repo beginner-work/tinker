@@ -24,6 +24,9 @@
  *                lockedEssayIds, storiesUrl } — the locked-in story;
  *                see story.js). Newer lockedAt wins on hydrate so the
  *                most recent lock survives a cross-device race.
+ *   - team     → "tinker.team.v1"     (object: { invited: [...] } —
+ *                who the founder invited onto their team; union by
+ *                userId on hydrate so invites from two devices merge).
  *   - notifications → "tinker.notifications" (array, owned by
  *                notifications.js). Unioned by id with monotonic
  *                acknowledged/seen flags, so a notice raised on one
@@ -47,6 +50,7 @@
   const KIND_SEEDS = "seeds";
   const KIND_TAXONOMY = "taxonomy";
   const KIND_STORY = "story";
+  const KIND_TEAM = "team";
   const KIND_NOTIFICATIONS = "notifications";
 
   const LS_ESSAYS = "tinker.essays.v1";
@@ -55,6 +59,7 @@
   const LS_SEEDS_HIDDEN = "tinker.seeds.hidden.v1";
   const LS_TAXONOMY = "tinker.taxonomy.v1";
   const LS_STORY = "tinker.story.v1";
+  const LS_TEAM = "tinker.team.v1";
   // Shared with notifications.js' STORE_KEY — sync round-trips the same
   // array it reads and writes, so an acknowledgement on one device is
   // honoured on the others.
@@ -147,6 +152,20 @@
     setLs(LS_TAXONOMY, JSON.stringify(data));
     return true;
   }
+  // Invites are unioned by userId — an invite recorded on either
+  // device sticks.
+  function applyTeamFromServer(data) {
+    if (!data || typeof data !== "object") return false;
+    const server = Array.isArray(data.invited) ? data.invited : [];
+    const localRaw = getLsJson(LS_TEAM, null);
+    const local = (localRaw && Array.isArray(localRaw.invited)) ? localRaw.invited : [];
+    const byId = new Map();
+    for (const i of server) { if (i && i.userId) byId.set(i.userId, i); }
+    for (const i of local) { if (i && i.userId && !byId.has(i.userId)) byId.set(i.userId, i); }
+    setLs(LS_TEAM, JSON.stringify({ invited: Array.from(byId.values()) }));
+    return true;
+  }
+
   // The lock is one small object; the newest lock wins. A hydrate that
   // races a just-pressed local lock (its push still debounced) must not
   // clobber it — compare lockedAt and keep whichever side locked last.
@@ -263,6 +282,9 @@
     pushStory() {
       schedulePush(KIND_STORY, () => getLsJson(LS_STORY, null));
     },
+    pushTeam() {
+      schedulePush(KIND_TEAM, () => getLsJson(LS_TEAM, null));
+    },
     pushNotifications() {
       schedulePush(KIND_NOTIFICATIONS, () => getLsJson(LS_NOTIFICATIONS, []));
     },
@@ -282,18 +304,20 @@
       if (kinds.includes(KIND_SEEDS))    pushKind(KIND_SEEDS,    buildSeedsBlob());
       if (kinds.includes(KIND_TAXONOMY)) pushKind(KIND_TAXONOMY, getLsJson(LS_TAXONOMY, null));
       if (kinds.includes(KIND_STORY))    pushKind(KIND_STORY,    getLsJson(LS_STORY, null));
+      if (kinds.includes(KIND_TEAM))     pushKind(KIND_TEAM,     getLsJson(LS_TEAM, null));
       if (kinds.includes(KIND_NOTIFICATIONS)) pushKind(KIND_NOTIFICATIONS, getLsJson(LS_NOTIFICATIONS, []));
     },
   };
 
   async function hydrate() {
     if (!token()) return;
-    const [essays, drafts, seeds, taxonomy, story, notifications] = await Promise.all([
+    const [essays, drafts, seeds, taxonomy, story, team, notifications] = await Promise.all([
       fetchKind(KIND_ESSAYS),
       fetchKind(KIND_DRAFTS),
       fetchKind(KIND_SEEDS),
       fetchKind(KIND_TAXONOMY),
       fetchKind(KIND_STORY),
+      fetchKind(KIND_TEAM),
       fetchKind(KIND_NOTIFICATIONS),
     ]);
     let changed = false;
@@ -302,6 +326,7 @@
     if (applySeedsFromServer(seeds)) changed = true;
     if (applyTaxonomyFromServer(taxonomy)) changed = true;
     if (applyStoryFromServer(story)) changed = true;
+    if (applyTeamFromServer(team)) changed = true;
     if (applyNotificationsFromServer(notifications)) changed = true;
     if (changed) {
       try { window.dispatchEvent(new CustomEvent("tinker:hydrated")); }

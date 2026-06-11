@@ -308,6 +308,22 @@ test("grownSinceLock reports slides whose piece changed after the lock", async (
   assert.equal(grown[0].id, "e_2");
 });
 
+test("invite records a teammate once and getTeam round-trips it", () => {
+  const { story, store } = loadInSandbox({
+    essays: [essay("e_1", "words", 1, "The Problem")],
+  });
+  assert.equal(story.isInvited("user-aaa"), false);
+  assert.equal(story.invite({ userId: "user-aaa", name: "Sam", question: "Who would pay?" }), true);
+  assert.equal(story.invite({ userId: "user-aaa", name: "Sam", question: "Who would pay?" }), true);
+  const team = story.getTeam();
+  assert.equal(team.invited.length, 1, "double-invite collapses");
+  assert.equal(team.invited[0].name, "Sam");
+  assert.equal(team.invited[0].question, "Who would pay?");
+  assert.ok(story.isInvited("user-aaa"));
+  const saved = JSON.parse(store.get("tinker.team.v1"));
+  assert.equal(saved.invited[0].userId, "user-aaa");
+});
+
 test("a seeded lock round-trips through load", () => {
   const { story } = loadInSandbox({
     essays: [essay("e_1", "words", 1, "The Problem")],

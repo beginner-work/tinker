@@ -28,6 +28,10 @@
  *   - the full story view rendered into #story, and the per-slide
  *     class view (every essay in a category, newest first — the
  *     newest is the one in the pitch)
+ *   - the team block: suggestions for people who might be answering a
+ *     question the founder leaves unanswered in their essays (see
+ *     /api/team/suggest — nothing of theirs is shown), and the
+ *     invites the founder has made (tinker.team.v1, synced as "team")
  *
  * Storage:
  *   - tinker.story.v1 (synced as kind "story")
@@ -50,6 +54,7 @@
 
   const STORY_KEY = "tinker.story.v1";
   const ESSAYS_KEY = "tinker.essays.v1";
+  const TEAM_KEY = "tinker.team.v1";
   const TOKEN_KEY = "tinker_jwt";
   const MAX_ASK_LEN = 24;
   // Sentences per slide in the pitch. 11 slides × 2 = the 22-sentence
@@ -321,6 +326,75 @@
     }
   }
 
+  // ── Team ──────────────────────────────────────────────────────────
+  //
+  // Suggestions come from /api/team/suggest: people who might be
+  // answering a question this founder leaves unanswered in their
+  // essays, matched on what those people are writing in theirs. The
+  // reply carries only my own question + a name — never their words.
+  // Invites are recorded locally and synced (kind "team").
+
+  function loadTeam() {
+    const raw = loadJson(TEAM_KEY, null);
+    const invited = (raw && Array.isArray(raw.invited)) ? raw.invited : [];
+    return {
+      invited: invited.filter((i) => i && typeof i.userId === "string"),
+    };
+  }
+
+  function saveTeam(team) {
+    saveJson(TEAM_KEY, team);
+    if (window.tinkerSync && typeof window.tinkerSync.pushTeam === "function") {
+      window.tinkerSync.pushTeam();
+    }
+  }
+
+  function isInvited(userId) {
+    return loadTeam().invited.some((i) => i.userId === userId);
+  }
+
+  function invite(suggestion) {
+    if (!suggestion || typeof suggestion.userId !== "string") return false;
+    const team = loadTeam();
+    if (team.invited.some((i) => i.userId === suggestion.userId)) return true;
+    team.invited.push({
+      userId: suggestion.userId,
+      name: typeof suggestion.name === "string" ? suggestion.name : "A founder",
+      question: typeof suggestion.question === "string" ? suggestion.question : "",
+      at: Date.now(),
+    });
+    saveTeam(team);
+    fire("tinker:story-changed");
+    return true;
+  }
+
+  // One fetch per session (manual refresh = reopen the story later).
+  let suggestState = { status: "idle", suggestions: [] };
+
+  function fetchSuggestions() {
+    if (suggestState.status !== "idle") return;
+    const t = token();
+    if (!t) return;
+    suggestState = { status: "loading", suggestions: [] };
+    fetch("/api/team/suggest", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${t}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        suggestState = {
+          status: "loaded",
+          suggestions: (json && Array.isArray(json.suggestions)) ? json.suggestions : [],
+        };
+        // Repaint if the founder is still looking at the pitch.
+        ensureView();
+        if (viewEl && !viewEl.hidden && viewMode === "pitch") renderView();
+      })
+      .catch(() => {
+        suggestState = { status: "error", suggestions: [] };
+      });
+  }
+
   // ── Lock it in ────────────────────────────────────────────────────
   //
   // One deliberate act: snapshot the curated story, keep the number,
@@ -504,6 +578,9 @@
   // ── Story view ────────────────────────────────────────────────────
 
   let viewEl = null;
+  // "pitch" (the story) or "slide" (a class view) — used to decide
+  // whether an async suggestions arrival should repaint.
+  let viewMode = "pitch";
 
   function ensureView() {
     viewEl = document.getElementById("story");
@@ -521,6 +598,7 @@
   function renderView(anchorEssayId) {
     ensureView();
     if (!viewEl) return;
+    viewMode = "pitch";
     viewEl.innerHTML = "";
     const pieces = storyPieces();
     const lock = loadLock();
@@ -576,6 +654,10 @@
       inner.appendChild(article);
     }
 
+    const teamBlock = renderTeamBlock();
+    if (teamBlock) inner.appendChild(teamBlock);
+    fetchSuggestions();
+
     inner.appendChild(renderLockBlock(pieces, lock));
 
     if (anchorEssayId) {
@@ -594,6 +676,7 @@
   function renderSlideView(category) {
     ensureView();
     if (!viewEl) return;
+    viewMode = "slide";
     const takes = essaysForSlide(category);
     viewEl.innerHTML = "";
     const inner = el("div", "story__inner");
@@ -634,6 +717,58 @@
       list.appendChild(row);
     }
     inner.appendChild(list);
+  }
+
+  // "Invite others onto your team": the founder's invites, then the
+  // current suggestions. Names + MY questions only — never another
+  // founder's words. Returns null when there's nothing to show yet.
+  function renderTeamBlock() {
+    const team = loadTeam();
+    const fresh = suggestState.suggestions.filter((s) => s && !isInvited(s.userId));
+    if (!team.invited.length && !fresh.length) return null;
+
+    const block = el("section", "story__team");
+    const kicker = el("p", "story__team-kicker", "The Team");
+    kicker.style.color = colorFor("The Team");
+    block.appendChild(kicker);
+    block.appendChild(el("h3", "story__team-title", "Invite others onto your team"));
+
+    if (fresh.length) {
+      block.appendChild(el(
+        "p",
+        "story__team-sub",
+        "People who might be answering a question you've left open:",
+      ));
+      for (const s of fresh) {
+        const card = el("div", "story__team-card");
+        card.appendChild(el("span", "story__team-name", s.name || "A founder"));
+        if (s.question) {
+          card.appendChild(el("span", "story__team-asked", "you asked"));
+          card.appendChild(el("blockquote", "story__team-question", s.question));
+        }
+        const btn = el("button", "story__team-invite", "Invite onto your team");
+        btn.type = "button";
+        btn.addEventListener("click", () => {
+          invite(s);
+          renderView();
+        });
+        card.appendChild(btn);
+        block.appendChild(card);
+      }
+    }
+
+    if (team.invited.length) {
+      block.appendChild(el("p", "story__team-sub", "Your team:"));
+      const list = el("div", "story__team-roster");
+      for (const i of team.invited) {
+        const row = el("div", "story__team-member");
+        row.appendChild(el("span", "story__team-name", i.name || "A founder"));
+        row.appendChild(el("span", "story__team-invited", "Invited"));
+        list.appendChild(row);
+      }
+      block.appendChild(list);
+    }
+    return block;
   }
 
   // The end of the story: lock it in, or — once locked — the pocket.
@@ -730,6 +865,9 @@
     storyPieces,
     essaysForSlide,
     wordCount,
+    invite,
+    isInvited,
+    getTeam() { return loadTeam(); },
     getLock,
     grownSinceLock,
     lockIn,
