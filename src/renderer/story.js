@@ -342,39 +342,27 @@
   //   waiting   — I sent; they haven't sent back
   //   incoming  — they sent me $9; I accept by sending $9 back
 
-  function loadTeam() {
-    const raw = loadJson(TEAM_KEY, null);
-    const invited = (raw && Array.isArray(raw.invited)) ? raw.invited : [];
-    return {
-      invited: invited.filter((i) => i && typeof i.userId === "string"),
-    };
-  }
-
-  function saveTeam(team) {
-    saveJson(TEAM_KEY, team);
-    if (window.tinkerSync && typeof window.tinkerSync.pushTeam === "function") {
-      window.tinkerSync.pushTeam();
-    }
-  }
-
-  function isInvited(userId) {
-    return loadTeam().invited.some((i) => i.userId === userId);
-  }
-
-  function invite(suggestion) {
-    if (!suggestion || typeof suggestion.userId !== "string") return false;
-    const team = loadTeam();
-    if (team.invited.some((i) => i.userId === suggestion.userId)) return true;
-    team.invited.push({
-      userId: suggestion.userId,
-      name: typeof suggestion.name === "string" ? suggestion.name : "A founder",
-      phone: typeof suggestion.phone === "string" ? suggestion.phone : "",
-      question: typeof suggestion.question === "string" ? suggestion.question : "",
-      at: Date.now(),
-    });
-    saveTeam(team);
-    fire("tinker:story-changed");
-    return true;
+  // The pre-handshake local-invite record is undone: the $9 IS the
+  // invite now, and the handshake edges are the only truth. Any invite
+  // stored by the short-lived "Invite onto your team" button is purged
+  // — locally, and on the server so it clears on every device. The
+  // localStorage key doubles as the one-time flag: once removed, the
+  // purge never re-runs (sync no longer hydrates the team kind back).
+  function purgeLegacyInvites() {
+    let had = false;
+    try { had = localStorage.getItem(TEAM_KEY) !== null; } catch { /* ignore */ }
+    if (!had) return;
+    try { localStorage.removeItem(TEAM_KEY); } catch { /* ignore */ }
+    const t = token();
+    if (!t) return;
+    fetch("/api/user-data/team", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${t}`,
+      },
+      body: JSON.stringify({ data: { invited: [] } }),
+    }).catch(() => { /* best-effort — retried next boot if the key returns */ });
   }
 
   // One fetch per session (manual refresh = reopen the story later).
@@ -916,9 +904,6 @@
     storyPieces,
     essaysForSlide,
     wordCount,
-    invite,
-    isInvited,
-    getTeam() { return loadTeam(); },
     getLock,
     grownSinceLock,
     lockIn,
@@ -945,6 +930,7 @@
   window.addEventListener("tinker:story-changed", () => { renderNav(); });
 
   function boot() {
+    purgeLegacyInvites();
     renderNav();
     classifySweep();
   }

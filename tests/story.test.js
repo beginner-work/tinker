@@ -27,6 +27,7 @@ function loadInSandbox({ essays = [], drafts = [], seedStory = null, fetchImpl =
   if (essays.length) store.set("tinker.essays.v1", JSON.stringify(essays));
   if (drafts.length) store.set("tinker.drafts.v1", JSON.stringify(drafts));
   if (seedStory) store.set("tinker.story.v1", JSON.stringify(seedStory));
+  if (arguments[0] && arguments[0].seedTeam) store.set("tinker.team.v1", JSON.stringify(arguments[0].seedTeam));
   if (token) store.set("tinker_jwt", token);
 
   const localStorage = {
@@ -308,21 +309,25 @@ test("grownSinceLock reports slides whose piece changed after the lock", async (
   assert.equal(grown[0].id, "e_2");
 });
 
-test("invite records a teammate once and getTeam round-trips it", () => {
+test("a legacy local invite is purged on boot — locally and on the server", async () => {
+  const puts = [];
+  const fetchImpl = (url, opts) => {
+    puts.push({ url, body: opts && opts.body ? JSON.parse(opts.body) : null, method: opts && opts.method });
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
+  };
+  // Boot with the pre-handshake record the old "Invite onto your team"
+  // button left behind.
   const { story, store } = loadInSandbox({
     essays: [essay("e_1", "words", 1, "The Problem")],
+    fetchImpl,
+    seedTeam: { invited: [{ userId: "user-aaa", name: "Sam" }] },
   });
-  assert.equal(story.isInvited("user-aaa"), false);
-  assert.equal(story.invite({ userId: "user-aaa", name: "Sam", phone: "+15551234567", question: "Who would pay?" }), true);
-  assert.equal(story.invite({ userId: "user-aaa", name: "Sam", phone: "+15551234567", question: "Who would pay?" }), true);
-  const team = story.getTeam();
-  assert.equal(team.invited.length, 1, "double-invite collapses");
-  assert.equal(team.invited[0].name, "Sam");
-  assert.equal(team.invited[0].phone, "+15551234567");
-  assert.equal(team.invited[0].question, "Who would pay?");
-  assert.ok(story.isInvited("user-aaa"));
-  const saved = JSON.parse(store.get("tinker.team.v1"));
-  assert.equal(saved.invited[0].userId, "user-aaa");
+  assert.equal(story.invite, undefined, "the local-invite API is gone — the $9 handshake is the invite");
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(store.has("tinker.team.v1"), false, "the local record is removed");
+  const put = puts.find((c) => c.url === "/api/user-data/team" && c.method === "PUT");
+  assert.ok(put, "the server copy is overwritten");
+  assert.deepEqual(Array.from(put.body.data.invited), [], "with an empty invited list");
 });
 
 test("a seeded lock round-trips through load", () => {
