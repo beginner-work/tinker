@@ -2419,50 +2419,10 @@ html.seed-modal-open { overflow: hidden; }
   flex-direction: column;
   gap: 36px;
 }
-.story__head {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.story__kicker {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-.story__meta {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-muted);
-}
 .story__empty {
   margin: 0;
   font-size: 15px;
   line-height: 1.6;
-  color: var(--color-muted);
-}
-.story__locked-banner {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 14px 16px;
-  border: 1px solid var(--color-accent-strong);
-  border-radius: 14px;
-  background: var(--color-accent-dim);
-}
-.story__locked-ask {
-  font-family: var(--font-display);
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--color-foreground);
-  overflow-wrap: anywhere;
-}
-.story__locked-date {
-  font-size: 12px;
   color: var(--color-muted);
 }
 .story__piece {
@@ -2615,8 +2575,9 @@ html.seed-modal-open { overflow: hidden; }
   min-height: 1em;
 }
 @media (max-width: 720px) {
-  .story__inner { padding: 18px 14px 96px; }
+  /* Top padding clears the floating drawer toggle (fixed, top-left)
+   * so the first piece is never under it. */
+  .story__inner { padding: 76px 14px 96px; }
   .story__piece-title { font-size: 21px; }
-  .story__locked-ask { font-size: 22px; }
   .story__lock-ask { font-size: 28px; }
 }

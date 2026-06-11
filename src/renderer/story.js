@@ -483,29 +483,12 @@
     const pieces = storyPieces();
     const lock = loadLock();
 
+    // No header — the floating drawer toggle owns the top-left corner
+    // on mobile, so the view starts straight at the first piece (each
+    // piece already wears its category kicker). The ask lives in the
+    // sidebar pocket and the lock block at the end.
     const inner = el("div", "story__inner");
     viewEl.appendChild(inner);
-
-    const head = el("header", "story__head");
-    head.appendChild(el("p", "story__kicker", "Your story"));
-    if (lock.lockedAt && lock.ask) {
-      const pocket = el("div", "story__locked-banner");
-      pocket.appendChild(el("span", "story__locked-ask", lock.ask));
-      pocket.appendChild(el(
-        "span",
-        "story__locked-date",
-        `In your pocket since ${formatLockedDate(lock.lockedAt)}`,
-      ));
-      head.appendChild(pocket);
-    }
-    if (pieces.length) {
-      head.appendChild(el(
-        "p",
-        "story__meta",
-        `${pieces.length} of ${SLIDE_CATEGORIES.length} slides · ${wordCount().toLocaleString()} words · your most recent take on each, exactly as you wrote it`,
-      ));
-    }
-    inner.appendChild(head);
 
     if (!pieces.length) {
       const anyWriting = allWritings().length > 0;
