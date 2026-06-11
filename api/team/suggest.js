@@ -6,8 +6,10 @@
  *   suggestions: [
  *     {
  *       userId,     // the suggested founder
- *       name,       // from their profile row ("A founder" fallback)
+ *       name,       // from their profile row ("A founder" when unnamed)
+ *       phone,      // their account phone (E.164) — how you reach them
  *       question,   // MY question, verbatim — the one they might be answering
+ *       reason,     // the matcher's one-line why (its own words, no quotes)
  *     }, ...
  *   ]
  * }
@@ -25,13 +27,18 @@
  *     them. The `question` field is validated to be an exact copy of
  *     one of MY questions and `userId`/`name` identify the person —
  *     structurally, the reply cannot disclose their writing.
- *   - The AI acts as a matcher only: "might this person's writing be
- *     answering this question?" Yes/no pairings, nothing extracted.
+ *   - The AI acts as a matcher: "might this person's writing be
+ *     answering this question?" It returns the pairing plus a one-line
+ *     reason in ITS OWN words — instructed never to quote the
+ *     candidate's writing. Their sentences are never returned.
+ *   - The phone number comes from the suggested founder's Stytch
+ *     account (tinker is phone-first — the phone is how founders
+ *     reach each other inside the same private beta).
  */
 
 "use strict";
 
-const { authenticateSession } = require("../_lib/stytch.js");
+const { authenticateSession, getUser } = require("../_lib/stytch.js");
 const prisma = require("../_lib/db.js");
 const { withResponseLogging } = require("../_lib/log.js");
 
@@ -40,6 +47,7 @@ const MIN_QUESTION_LEN = 12;
 const MAX_CANDIDATES = 12;
 const MAX_CANDIDATE_CHARS = 4000;
 const MAX_SUGGESTIONS = 4;
+const MAX_REASON_LEN = 240;
 
 function extractBearer(header) {
   if (!header || typeof header !== "string") return "";
@@ -92,9 +100,9 @@ function buildSystemPrompt() {
     "Find candidates whose writing suggests they MIGHT BE ANSWERING one of my questions — their experience, work, or hard-won knowledge speaks to what I'm asking. A genuine answer, not merely the same topic.",
     "",
     "Respond as a single JSON object, exactly:",
-    '  { "matches": [ { "candidate": "<letter>", "question": "<EXACT copy of one of my questions>" } ] }',
+    '  { "matches": [ { "candidate": "<letter>", "question": "<EXACT copy of one of my questions>", "reason": "<one short sentence, in your own words, on why this person might be answering it>" } ] }',
     "",
-    "Rules: at most one match per candidate. The question must be copied character-for-character from MY QUESTIONS. Do NOT quote, summarize, or describe any candidate's writing anywhere in your reply. Only include real matches; an empty matches array is a fine response.",
+    "Rules: at most one match per candidate. The question must be copied character-for-character from MY QUESTIONS. The reason must be YOUR OWN words — never quote, excerpt, or closely paraphrase a candidate's sentences; describe the connection at arm's length (e.g. 'they have been working through exactly this kind of pricing decision'). Only include real matches; an empty matches array is a fine response.",
     "Never wrap the JSON in code fences. Never add anything outside the JSON.",
   ].join("\n");
 }
@@ -111,10 +119,13 @@ function buildUserMessage(questions, candidates) {
 
 // Keep only matches whose question is exactly one of mine and whose
 // candidate is known. One match per candidate, capped overall. The
-// output therefore carries nothing but my own words + a user id.
+// question field carries my own words; the reason is the matcher's own
+// one-liner — and as a hard backstop it's dropped whenever it lifts a
+// run of the candidate's text verbatim (the no-quoting rule, enforced).
 function validateMatches(value, questions, candidates) {
   const matches = (value && Array.isArray(value.matches)) ? value.matches : [];
   const byCode = new Map(candidates.map((c) => [c.code, c]));
+  const squash = (t) => String(t).replace(/\s+/g, " ").trim();
   const questionSet = new Set(questions);
   const used = new Set();
   const out = [];
@@ -124,7 +135,11 @@ function validateMatches(value, questions, candidates) {
     if (!cand || used.has(cand.code)) continue;
     if (typeof m.question !== "string" || !questionSet.has(m.question)) continue;
     used.add(cand.code);
-    out.push({ userId: cand.userId, question: m.question });
+    let reason = typeof m.reason === "string" ? m.reason.trim().slice(0, MAX_REASON_LEN) : "";
+    // Backstop: a "reason" that appears verbatim in the candidate's
+    // writing is a quote, not a description — drop it.
+    if (reason && squash(cand.text).includes(squash(reason))) reason = "";
+    out.push({ userId: cand.userId, question: m.question, reason });
     if (out.length >= MAX_SUGGESTIONS) break;
   }
   return out;
@@ -239,7 +254,9 @@ const handler = withResponseLogging(async function handler(req, res) {
     }
     const matches = validateMatches(parseReply(raw), questions, candidates);
 
-    // Names for the matched founders.
+    // Names (profile rows) + phone numbers (Stytch accounts) for the
+    // matched founders. Both best-effort — a missing name falls back to
+    // "A founder", a failed phone lookup just omits the number.
     const ids = matches.map((m) => m.userId);
     const profiles = ids.length
       ? await prisma.tinkerUserData.findMany({
@@ -251,13 +268,26 @@ const handler = withResponseLogging(async function handler(req, res) {
       const name = p && p.data && typeof p.data.name === "string" ? p.data.name.trim() : "";
       if (name) nameById.set(p.userId, name);
     }
+    const phoneById = new Map();
+    await Promise.all(ids.map(async (id) => {
+      try {
+        const user = await getUser(id);
+        const numbers = (user && Array.isArray(user.phone_numbers)) ? user.phone_numbers : [];
+        const phone = numbers.length && typeof numbers[0].phone_number === "string"
+          ? numbers[0].phone_number
+          : "";
+        if (phone) phoneById.set(id, phone);
+      } catch { /* best-effort */ }
+    }));
 
     res.status(200).json({
       questions,
       suggestions: matches.map((m) => ({
         userId: m.userId,
         name: nameById.get(m.userId) || "A founder",
+        phone: phoneById.get(m.userId) || null,
         question: m.question,
+        reason: m.reason || null,
       })),
     });
   } catch (err) {

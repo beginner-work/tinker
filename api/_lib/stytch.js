@@ -31,18 +31,18 @@ function baseUrlFor(projectId) {
     : "https://api.stytch.com";
 }
 
-async function stytchPost(path, body) {
+async function stytchRequest(method, path, body) {
   const { projectId, secret } = readEnv();
   const url = baseUrlFor(projectId) + path;
   const auth = Buffer.from(`${projectId}:${secret}`).toString("base64");
 
   const res = await fetch(url, {
-    method: "POST",
+    method,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Basic ${auth}`,
     },
-    body: JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
 
   let payload = null;
@@ -63,6 +63,20 @@ async function stytchPost(path, body) {
   }
 
   return payload || {};
+}
+
+function stytchPost(path, body) {
+  return stytchRequest("POST", path, body);
+}
+
+// Stytch Users Get — used by /api/team/suggest to surface a suggested
+// founder's phone number (tinker accounts are phone-first; the phone
+// IS how founders reach each other).
+async function getUser(userId) {
+  if (!userId || typeof userId !== "string") {
+    throw Object.assign(new Error("user_id is required."), { status: 400 });
+  }
+  return stytchRequest("GET", `/v1/users/${encodeURIComponent(userId)}`);
 }
 
 // Normalise a 10-digit US phone to E.164. Stytch requires E.164; the
@@ -123,4 +137,4 @@ async function authenticateSession(bearer) {
   }
 }
 
-module.exports = { readEnv, baseUrlFor, sendSmsOtp, authenticateOtp, authenticateSession };
+module.exports = { readEnv, baseUrlFor, sendSmsOtp, authenticateOtp, authenticateSession, getUser };

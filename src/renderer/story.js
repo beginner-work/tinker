@@ -360,6 +360,7 @@
     team.invited.push({
       userId: suggestion.userId,
       name: typeof suggestion.name === "string" ? suggestion.name : "A founder",
+      phone: typeof suggestion.phone === "string" ? suggestion.phone : "",
       question: typeof suggestion.question === "string" ? suggestion.question : "",
       at: Date.now(),
     });
@@ -741,10 +742,21 @@
       ));
       for (const s of fresh) {
         const card = el("div", "story__team-card");
-        card.appendChild(el("span", "story__team-name", s.name || "A founder"));
+        const head = el("div", "story__team-head");
+        head.appendChild(el("span", "story__team-name", s.name || "A founder"));
+        if (s.phone) {
+          const tel = el("a", "story__team-phone", s.phone);
+          tel.href = `sms:${s.phone}`;
+          head.appendChild(tel);
+        }
+        card.appendChild(head);
         if (s.question) {
           card.appendChild(el("span", "story__team-asked", "you asked"));
           card.appendChild(el("blockquote", "story__team-question", s.question));
+        }
+        if (s.reason) {
+          card.appendChild(el("span", "story__team-asked", "why them"));
+          card.appendChild(el("p", "story__team-reason", s.reason));
         }
         const btn = el("button", "story__team-invite", "Invite onto your team");
         btn.type = "button";
@@ -763,6 +775,11 @@
       for (const i of team.invited) {
         const row = el("div", "story__team-member");
         row.appendChild(el("span", "story__team-name", i.name || "A founder"));
+        if (i.phone) {
+          const tel = el("a", "story__team-phone", i.phone);
+          tel.href = `sms:${i.phone}`;
+          row.appendChild(tel);
+        }
         row.appendChild(el("span", "story__team-invited", "Invited"));
         list.appendChild(row);
       }

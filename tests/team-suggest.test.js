@@ -77,7 +77,7 @@ test("validateMatches lets through only my own questions paired with known candi
   const out = validateMatches(
     {
       matches: [
-        { candidate: "A", question: "Who would actually pay for tinker?" },
+        { candidate: "A", question: "Who would actually pay for tinker?", reason: "They've been deciding what tools deserve money." },
         // The model paraphrased my question — dropped.
         { candidate: "B", question: "Who pays for tinker?" },
         // Unknown candidate — dropped.
@@ -89,36 +89,48 @@ test("validateMatches lets through only my own questions paired with known candi
     questions,
     candidates,
   );
-  assert.deepEqual(out, [{ userId: "user-aaa", question: "Who would actually pay for tinker?" }]);
+  assert.deepEqual(out, [{
+    userId: "user-aaa",
+    question: "Who would actually pay for tinker?",
+    reason: "They've been deciding what tools deserve money.",
+  }]);
 });
 
-test("privacy contract: a validated match can never carry a candidate's words", () => {
+test("privacy contract: a candidate's words can't ride out through any field", () => {
   const questions = ["Who would actually pay for tinker?"];
   const candidates = [
     { code: "A", userId: "user-aaa", text: "My secret revenue is $9,000 a month." },
   ];
-  // A misbehaving model tries to leak the candidate's text through the
-  // question field — validation requires an exact copy of MY question,
-  // so the leak is structurally dropped.
+  // Leak attempt via the question field — must be an exact copy of MY
+  // question, so it's dropped.
   const out = validateMatches(
     { matches: [{ candidate: "A", question: "My secret revenue is $9,000 a month." }] },
     questions,
     candidates,
   );
   assert.deepEqual(out, []);
-  // And the shape itself has nowhere else to put text: only userId +
-  // question exist on a validated match.
-  const good = validateMatches(
-    { matches: [{ candidate: "A", question: questions[0], answer: "smuggled text" }] },
+  // Leak attempt via the reason field — a reason that is a verbatim
+  // run of the candidate's text is a quote, not a description: emptied.
+  const quoted = validateMatches(
+    { matches: [{ candidate: "A", question: questions[0], reason: "My secret revenue is $9,000 a month." }] },
     questions,
     candidates,
   );
-  assert.deepEqual(Object.keys(good[0]).sort(), ["question", "userId"]);
+  assert.equal(quoted[0].reason, "");
+  // A described-at-arm's-length reason passes; extra fields are shed.
+  const good = validateMatches(
+    { matches: [{ candidate: "A", question: questions[0], reason: "They think about paying for tools.", answer: "smuggled" }] },
+    questions,
+    candidates,
+  );
+  assert.deepEqual(Object.keys(good[0]).sort(), ["question", "reason", "userId"]);
+  assert.equal(good[0].reason, "They think about paying for tools.");
 });
 
 test("the prompt forbids quoting candidates and the user message carries both sides", () => {
   const sys = buildSystemPrompt();
-  assert.ok(sys.includes("Do NOT quote, summarize, or describe any candidate's writing"));
+  assert.ok(sys.includes("never quote, excerpt, or closely paraphrase a candidate's sentences"));
+  assert.ok(sys.includes("reason"), "the matcher explains why in its own words");
   const msg = buildUserMessage(
     ["Who would actually pay for tinker?"],
     [{ code: "A", userId: "u", text: "candidate words" }],

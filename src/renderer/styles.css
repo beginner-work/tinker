@@ -2589,10 +2589,30 @@ html.seed-modal-open { overflow: hidden; }
   border-radius: 14px;
   background: var(--color-background);
 }
+.story__team-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .story__team-name {
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
+}
+.story__team-phone {
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.story__team-reason {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-foreground);
 }
 .story__team-asked {
   font-size: 11px;

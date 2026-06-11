@@ -313,11 +313,12 @@ test("invite records a teammate once and getTeam round-trips it", () => {
     essays: [essay("e_1", "words", 1, "The Problem")],
   });
   assert.equal(story.isInvited("user-aaa"), false);
-  assert.equal(story.invite({ userId: "user-aaa", name: "Sam", question: "Who would pay?" }), true);
-  assert.equal(story.invite({ userId: "user-aaa", name: "Sam", question: "Who would pay?" }), true);
+  assert.equal(story.invite({ userId: "user-aaa", name: "Sam", phone: "+15551234567", question: "Who would pay?" }), true);
+  assert.equal(story.invite({ userId: "user-aaa", name: "Sam", phone: "+15551234567", question: "Who would pay?" }), true);
   const team = story.getTeam();
   assert.equal(team.invited.length, 1, "double-invite collapses");
   assert.equal(team.invited[0].name, "Sam");
+  assert.equal(team.invited[0].phone, "+15551234567");
   assert.equal(team.invited[0].question, "Who would pay?");
   assert.ok(story.isInvited("user-aaa"));
   const saved = JSON.parse(store.get("tinker.team.v1"));
