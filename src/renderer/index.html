@@ -172,20 +172,21 @@
         </button>
       </header>
 
-      <!-- Your story (v0.106): every published writing, verbatim, in
-           the order it was written — plus in-progress drafts and the
-           pocket (the locked-in ask). The <nav> hides on cold start so
-           brand sits directly above Account until the first writing
-           exists. Essay titles inside are the founder's own words;
-           the labels are developer-authored chrome. -->
+      <!-- Your story (v0.107): the pocket (the locked-in ask) on top,
+           then — for each slide category — the most recent essay that
+           fits it, verbatim, then a short list of worded in-progress
+           drafts. The <nav> hides on cold start so brand sits directly
+           above Account until the first writing exists. Essay titles
+           inside are the founder's own words; the labels are
+           developer-authored chrome. -->
       <nav class="sidebar__story" aria-label="Your story" hidden>
         <div class="sidebar__story-head">
           <span class="sidebar__story-label">Your story</span>
           <span class="sidebar__story-count" data-story-count></span>
         </div>
-        <ul class="sidebar__story-drafts" data-story-drafts></ul>
-        <ul class="sidebar__story-list" data-story-list></ul>
         <div class="sidebar__story-pocket" data-story-pocket></div>
+        <ul class="sidebar__story-list" data-story-list></ul>
+        <ul class="sidebar__story-drafts" data-story-drafts></ul>
       </nav>
 
       <nav class="sidebar__account" aria-label="Account">

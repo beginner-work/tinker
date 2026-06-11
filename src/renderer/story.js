@@ -1,39 +1,41 @@
-/* tinker — your story (v0.106)
+/* tinker — your story (v0.107)
  *
- * The deck is gone. There is one story: every piece of writing the
- * founder has published, verbatim, in the order they wrote it, in one
- * place. Nothing rearranges it, nothing summarizes it, nothing slots it
- * under headings — the story reads exactly as it was written.
+ * One story, verbatim. The story view shows, for each of the eleven
+ * slide categories, the MOST RECENT essay that fits it — full essays,
+ * word for word, in slide order, so the story reads as the founder's
+ * freshest take on every beat. Nothing is rearranged after the fact: a
+ * piece is tagged with its category once, when it's written, and a
+ * newer essay simply takes over its category. Older takes stay in the
+ * archive (category feeds, read view); the story is the current cut.
  *
  * When the story feels done, the founder LOCKS IT IN: they type the
- * number they're asking for, and the whole story publishes to their
- * public beginner profile. From then on it's in their pocket — pull out
- * the phone, the story and the number are already there, the QR is one
- * tap away, and the fundraising is automatic.
+ * number they're asking for, and the curated story publishes to their
+ * public beginner profile. From then on it's in their pocket — pull
+ * out the phone, the story and the number are already there, the QR is
+ * one tap away, and the fundraising is automatic.
  *
  * This module owns:
- *   - the story model (published writings, oldest first, verbatim)
- *   - the lock state (the ask, when it was locked, what it contained)
- *   - the sidebar "Your story" block (in-progress drafts + the story's
- *     essays + the pocket)
+ *   - the story model (most recent essay per slide category)
+ *   - the one-shot classifier client that tags writings (essay.slide)
+ *   - the lock state (the ask, when, what it contained)
+ *   - the sidebar "Your story" block (pocket on top, then the story's
+ *     pieces, then worded in-progress drafts)
  *   - the full story view rendered into #story
  *
  * Storage:
  *   - tinker.story.v1 (synced as kind "story")
- *       {
- *         ask: string | null,          // the number, verbatim as typed
- *         lockedAt: number | null,
- *         lockedEssayIds: [essayId],   // the story as it was when locked
- *         storiesUrl: string | null,   // the public page the lock published
- *       }
+ *       { ask, lockedAt, lockedEssayIds, storiesUrl }
+ *   - the category tag lives ON the essay records (essay.slide,
+ *     essay.slideCheckedAt), synced with the essays blob via
+ *     window.tinkerStore.setEssaySlide.
  *
- * Visible-string contract: essay titles and bodies (and the ask) render
- * verbatim — they are the founder's words. Everything else in this
- * surface is developer-authored chrome.
+ * Visible-string contract: essay titles and bodies (and the ask)
+ * render verbatim — they are the founder's words. The slide-category
+ * kickers and labels are developer-authored chrome.
  *
  * Events:
  *   - listens: tinker:hydrated, tinker:auth-changed, tinker:writing-saved
- *   - fires:   tinker:story-changed (after a lock)
+ *   - fires:   tinker:story-changed (after a lock or a new tag)
  */
 
 (() => {
@@ -44,9 +46,46 @@
   const DRAFTS_KEY = "tinker.drafts.v1";
   const TOKEN_KEY = "tinker_jwt";
   const MAX_ASK_LEN = 24;
-  // Sidebar rows before the list folds into "…and N more". The full
-  // story is always one tap away in the story view.
-  const MAX_SIDEBAR_ROWS = 12;
+  // Worded drafts shown in the sidebar before the list folds. Empty
+  // shells (a tapped welcome tile, nothing typed) never render at all.
+  const MAX_SIDEBAR_DRAFTS = 3;
+  // Gap between backfill classify calls so a large archive tags itself
+  // gently instead of in one burst.
+  const CLASSIFY_GAP_MS = 400;
+
+  // The eleven slide categories, in the order the story reads. Same
+  // literals as /api/classify.
+  const SLIDE_CATEGORIES = [
+    "The Problem",
+    "A Persona",
+    "Why Now?",
+    "The Team",
+    "The Product",
+    "How We Make Money",
+    "Go to Market",
+    "The Moat",
+    "The Vision",
+    "Competition",
+    "The Ask",
+  ];
+
+  // The 7-hue rainbow cycle the old sidebar rows wore — a category
+  // keeps its colour wherever it appears.
+  const SLIDE_COLOR_CYCLE = [
+    "var(--logo-pink)",
+    "var(--logo-orange)",
+    "var(--logo-yellow)",
+    "var(--logo-leaf)",
+    "var(--logo-sky)",
+    "var(--logo-mint)",
+    "var(--logo-purple)",
+  ];
+
+  function colorFor(category) {
+    const i = SLIDE_CATEGORIES.indexOf(category);
+    if (i < 0) return SLIDE_COLOR_CYCLE[0];
+    return SLIDE_COLOR_CYCLE[i % SLIDE_COLOR_CYCLE.length];
+  }
 
   // ── Storage helpers ───────────────────────────────────────────────
 
@@ -101,10 +140,9 @@
     return turns.map((t) => String(t && t.a || "").trim()).filter(Boolean).join("\n\n");
   }
 
-  // Every published writing with words in it — essays and quick
-  // statuses alike — oldest first, so the story reads as the journey it
-  // was. Archived writings stay out (they were put away on purpose).
-  function storyEssays() {
+  // Every published, non-archived writing with words in it — essays and
+  // quick statuses — oldest first. The raw material the story curates.
+  function allWritings() {
     const arr = loadJson(ESSAYS_KEY, []);
     const list = Array.isArray(arr) ? arr : [];
     return list
@@ -117,29 +155,50 @@
         body: String(e.body || ""),
         createdAt: Number(e.createdAt) || 0,
         kind: e.kind === "status" ? "status" : "essay",
+        slide: typeof e.slide === "string" && SLIDE_CATEGORIES.includes(e.slide)
+          ? e.slide
+          : null,
+        slideCheckedAt: Number(e.slideCheckedAt) || 0,
       }));
   }
 
-  // In-progress drafts, newest first — still part of "your writing all
-  // in one place", just not in the story until they're finished.
+  // The story: for each slide category, in slide order, the most
+  // recent writing tagged with it. At most eleven pieces; categories
+  // with nothing yet simply don't appear. Each piece carries its
+  // category so the view can wear it as a kicker.
+  function storyPieces() {
+    const byCategory = new Map();
+    for (const w of allWritings()) { // oldest → newest, so later wins
+      if (!w.slide) continue;
+      byCategory.set(w.slide, w);
+    }
+    const out = [];
+    for (const c of SLIDE_CATEGORIES) {
+      const w = byCategory.get(c);
+      if (w) out.push(w);
+    }
+    return out;
+  }
+
+  // In-progress drafts WITH words, newest first. Empty shells (created
+  // by tapping a welcome tile and walking away) are noise, not story.
   function draftsInProgress() {
     const arr = loadJson(DRAFTS_KEY, []);
     const list = Array.isArray(arr) ? arr : [];
     return list
-      .filter((d) => d && typeof d.id === "string")
+      .filter((d) => d && typeof d.id === "string" && bodyForDraft(d).trim())
       .slice()
       .sort((a, b) => (Number(b.updatedAt) || Number(b.createdAt) || 0)
         - (Number(a.updatedAt) || Number(a.createdAt) || 0))
       .map((d) => ({
         id: d.id,
         title: String(d.title || (d.stitched && d.stitched.title) || "Untitled draft"),
-        hasWords: !!bodyForDraft(d).trim(),
       }));
   }
 
   function wordCount() {
     let n = 0;
-    for (const e of storyEssays()) {
+    for (const e of storyPieces()) {
       n += e.body.trim().split(/\s+/).filter(Boolean).length;
     }
     return n;
@@ -149,14 +208,14 @@
     return loadLock();
   }
 
-  // The writings that joined the story after the founder locked it.
-  // [] when never locked (everything is "new" but there's nothing to
-  // have grown FROM, so the pocket shows the lock-in invite instead).
+  // The story has changed since the lock when the curated selection no
+  // longer matches what was locked — a new category covered, or a newer
+  // essay took over a category. [] when never locked.
   function grownSinceLock() {
     const lock = loadLock();
     if (!lock.lockedAt) return [];
     const known = new Set(lock.lockedEssayIds);
-    return storyEssays().filter((e) => !known.has(e.id));
+    return storyPieces().filter((e) => !known.has(e.id));
   }
 
   function sanitizeAsk(value) {
@@ -165,12 +224,85 @@
     return trimmed.length > MAX_ASK_LEN ? trimmed.slice(0, MAX_ASK_LEN) : trimmed;
   }
 
+  // ── One-shot classifier ───────────────────────────────────────────
+  //
+  // Each writing is tagged once: POST /api/classify → essay.slide.
+  // Recency does the rest — no re-clustering, no moving things around.
+  // The tag is written back through the renderer's store so the essays
+  // blob stays single-owner, then synced like any other essay edit.
+
+  const classifyInflight = new Set();
+
+  function needsTag(w) {
+    return !w.slide && !w.slideCheckedAt;
+  }
+
+  async function classifyWriting(writing) {
+    if (!writing || classifyInflight.has(writing.id)) return;
+    const t = token();
+    if (!t) return;
+    classifyInflight.add(writing.id);
+    let slide = null;
+    let ok = false;
+    try {
+      const res = await fetch("/api/classify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${t}`,
+        },
+        body: JSON.stringify({
+          writingId: writing.id,
+          title: writing.title || undefined,
+          body: writing.body,
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json().catch(() => null);
+        if (json && typeof json === "object") {
+          ok = true;
+          slide = typeof json.slide === "string" && SLIDE_CATEGORIES.includes(json.slide)
+            ? json.slide
+            : null;
+        }
+      }
+    } catch { /* network — retry on a later sweep */ }
+    classifyInflight.delete(writing.id);
+    if (!ok) return;
+    const store = window.tinkerStore;
+    if (store && typeof store.setEssaySlide === "function") {
+      store.setEssaySlide(writing.id, slide);
+    }
+    fire("tinker:story-changed");
+  }
+
+  let backfillRunning = false;
+
+  // Tag anything that hasn't been looked at yet — new publishes land
+  // here via tinker:writing-saved; older archives drain gently on
+  // hydrate/sign-in.
+  async function classifySweep() {
+    if (backfillRunning) return;
+    if (!token()) return;
+    const queue = allWritings().filter(needsTag);
+    if (!queue.length) return;
+    backfillRunning = true;
+    try {
+      for (const w of queue) {
+        await classifyWriting(w);
+        await new Promise((r) => setTimeout(r, CLASSIFY_GAP_MS));
+      }
+    } finally {
+      backfillRunning = false;
+    }
+  }
+
   // ── Lock it in ────────────────────────────────────────────────────
   //
-  // One deliberate act: snapshot the story, keep the number, publish
-  // the whole thing to the founder's public beginner profile (the
-  // existing booklet row that profile already reads). After this the
-  // story is in their pocket: phone out → story, number, QR.
+  // One deliberate act: snapshot the curated story, keep the number,
+  // publish the whole thing to the founder's public beginner profile
+  // (the existing booklet row that profile already reads). After this
+  // the story is in their pocket: phone out → story, number, QR.
 
   let lockInflight = false;
 
@@ -178,8 +310,8 @@
     if (lockInflight) return { ok: false, error: "Already locking" };
     const ask = sanitizeAsk(askValue);
     if (!ask) return { ok: false, error: "Type the number you're asking for first." };
-    const essays = storyEssays();
-    if (!essays.length) return { ok: false, error: "Write your first essay before locking in." };
+    const pieces = storyPieces();
+    if (!pieces.length) return { ok: false, error: "Write your first essay before locking in." };
     const t = token();
     if (!t) return { ok: false, error: "Sign in to lock your story in." };
 
@@ -196,7 +328,7 @@
           pitches: [{
             title: "My story",
             slug: "story",
-            stories: essays.map((e) => ({
+            stories: pieces.map((e) => ({
               title: e.title || undefined,
               body: e.body,
             })),
@@ -216,7 +348,7 @@
     const lock = {
       ask,
       lockedAt: Date.now(),
-      lockedEssayIds: essays.map((e) => e.id),
+      lockedEssayIds: pieces.map((e) => e.id),
       storiesUrl: typeof json.storiesUrl === "string" ? json.storiesUrl : null,
     };
     saveLock(lock);
@@ -230,6 +362,9 @@
   }
 
   // ── Sidebar block ─────────────────────────────────────────────────
+  //
+  // Order matters: the pocket first (phone out → the number is right
+  // there), then the story's pieces, then a short worded-drafts list.
 
   let navEl = null;
   let draftsEl = null;
@@ -256,27 +391,54 @@
   function renderNav() {
     ensureMount();
     if (!navEl) return;
-    const essays = storyEssays();
+    const pieces = storyPieces();
     const drafts = draftsInProgress();
+    const anyWriting = allWritings().length > 0;
 
     // Cold start: nothing written yet — the sidebar stays brand +
     // Account only, same as before.
-    if (!essays.length && !drafts.length) {
+    if (!anyWriting && !drafts.length) {
       navEl.hidden = true;
       return;
     }
     navEl.hidden = false;
 
     if (countEl) {
-      const words = wordCount();
-      countEl.textContent = essays.length
-        ? `${essays.length} ${essays.length === 1 ? "piece" : "pieces"} · ${words.toLocaleString()} words`
+      countEl.textContent = pieces.length
+        ? `${pieces.length} of ${SLIDE_CATEGORIES.length} slides · ${wordCount().toLocaleString()} words`
         : "";
+    }
+
+    renderPocket(pieces);
+
+    if (listEl) {
+      listEl.innerHTML = "";
+      for (const e of pieces) {
+        const li = document.createElement("li");
+        const btn = el("button", "sidebar__account-item sidebar__story-item");
+        btn.type = "button";
+        btn.setAttribute("data-essay-id", e.id);
+        const kicker = el("span", "sidebar__story-kicker", e.slide);
+        kicker.style.color = colorFor(e.slide);
+        btn.appendChild(kicker);
+        const label = el(
+          "span",
+          "sidebar__account-label",
+          e.title || firstWords(e.body, 8),
+        );
+        btn.appendChild(label);
+        btn.addEventListener("click", () => {
+          if (typeof window.tinkerShowStory === "function") window.tinkerShowStory(e.id);
+        });
+        li.appendChild(btn);
+        listEl.appendChild(li);
+      }
     }
 
     if (draftsEl) {
       draftsEl.innerHTML = "";
-      for (const d of drafts) {
+      const shown = drafts.slice(0, MAX_SIDEBAR_DRAFTS);
+      for (const d of shown) {
         const li = document.createElement("li");
         const btn = el("button", "sidebar__account-item sidebar__story-draft");
         btn.type = "button";
@@ -290,54 +452,24 @@
         li.appendChild(btn);
         draftsEl.appendChild(li);
       }
-    }
-
-    if (listEl) {
-      listEl.innerHTML = "";
-      const shown = essays.slice(0, MAX_SIDEBAR_ROWS);
-      for (const e of shown) {
+      if (drafts.length > shown.length) {
         const li = document.createElement("li");
-        const btn = el("button", "sidebar__account-item sidebar__story-item");
-        btn.type = "button";
-        btn.setAttribute("data-essay-id", e.id);
-        const label = el(
+        li.appendChild(el(
           "span",
-          "sidebar__account-label",
-          e.title || firstWords(e.body, 8),
-        );
-        btn.appendChild(label);
-        btn.addEventListener("click", () => {
-          if (typeof window.tinkerShowStory === "function") window.tinkerShowStory(e.id);
-        });
-        li.appendChild(btn);
-        listEl.appendChild(li);
-      }
-      if (essays.length > shown.length) {
-        const li = document.createElement("li");
-        const more = el(
-          "button",
-          "sidebar__account-item sidebar__story-more",
-          `…and ${essays.length - shown.length} more`,
-        );
-        more.type = "button";
-        more.addEventListener("click", () => {
-          if (typeof window.tinkerShowStory === "function") window.tinkerShowStory();
-        });
-        li.appendChild(more);
-        listEl.appendChild(li);
+          "sidebar__story-more",
+          `…and ${drafts.length - shown.length} more in progress`,
+        ));
+        draftsEl.appendChild(li);
       }
     }
-
-    renderPocket();
   }
 
-  // The pocket block at the bottom of the sidebar: the lock state at a
-  // glance. Locked → the number, ready to pull out. Unlocked → the
-  // invitation to read the story and lock it in.
-  function renderPocket() {
+  // The pocket block at the top of the story sidebar: the lock state at
+  // a glance. Locked → the number, ready to pull out. Unlocked → the
+  // invitation to read the story.
+  function renderPocket(pieces) {
     if (!pocketEl) return;
     pocketEl.innerHTML = "";
-    const essays = storyEssays();
     const lock = loadLock();
 
     if (lock.lockedAt && lock.ask) {
@@ -351,14 +483,14 @@
         card.appendChild(el(
           "span",
           "sidebar__pocket-note",
-          `${grown} new ${grown === 1 ? "piece" : "pieces"} since you locked it`,
+          `${grown} ${grown === 1 ? "slide" : "slides"} changed since you locked it`,
         ));
       }
       card.addEventListener("click", () => {
         if (typeof window.tinkerShowStory === "function") window.tinkerShowStory();
       });
       pocketEl.appendChild(card);
-    } else if (essays.length) {
+    } else if (pieces.length) {
       const read = el("button", "sidebar__pitch-action sidebar__pitch-action--primary", "Read your story");
       read.type = "button";
       read.addEventListener("click", () => {
@@ -397,13 +529,13 @@
     }
   }
 
-  // Render the whole story into #story. `anchorEssayId` scrolls that
-  // essay into view after paint.
+  // Render the curated story into #story. `anchorEssayId` scrolls that
+  // piece into view after paint.
   function renderView(anchorEssayId) {
     ensureView();
     if (!viewEl) return;
     viewEl.innerHTML = "";
-    const essays = storyEssays();
+    const pieces = storyPieces();
     const lock = loadLock();
 
     const inner = el("div", "story__inner");
@@ -421,27 +553,33 @@
       ));
       head.appendChild(pocket);
     }
-    if (essays.length) {
+    if (pieces.length) {
       head.appendChild(el(
         "p",
         "story__meta",
-        `${essays.length} ${essays.length === 1 ? "piece" : "pieces"} · ${wordCount().toLocaleString()} words · oldest first, exactly as you wrote them`,
+        `${pieces.length} of ${SLIDE_CATEGORIES.length} slides · ${wordCount().toLocaleString()} words · your most recent take on each, exactly as you wrote it`,
       ));
     }
     inner.appendChild(head);
 
-    if (!essays.length) {
+    if (!pieces.length) {
+      const anyWriting = allWritings().length > 0;
       inner.appendChild(el(
         "p",
         "story__empty",
-        "Your story hasn't started yet. Write your first essay and it will appear here, word for word.",
+        anyWriting
+          ? "Your writing is here — it's being matched to the slides of your story. Give it a moment, then come back."
+          : "Your story hasn't started yet. Write your first essay and it will appear here, word for word.",
       ));
       return;
     }
 
-    for (const e of essays) {
+    for (const e of pieces) {
       const article = el("article", "story__piece");
       article.id = `story-essay-${e.id}`;
+      const kicker = el("p", "story__piece-kicker", e.slide);
+      kicker.style.color = colorFor(e.slide);
+      article.appendChild(kicker);
       if (e.title) article.appendChild(el("h2", "story__piece-title", e.title));
       const body = el("div", "story__piece-body");
       paragraphs(body, e.body);
@@ -449,7 +587,7 @@
       inner.appendChild(article);
     }
 
-    inner.appendChild(renderLockBlock(essays, lock));
+    inner.appendChild(renderLockBlock(pieces, lock));
 
     if (anchorEssayId) {
       setTimeout(() => {
@@ -462,7 +600,7 @@
   }
 
   // The end of the story: lock it in, or — once locked — the pocket.
-  function renderLockBlock(essays, lock) {
+  function renderLockBlock(pieces, lock) {
     const block = el("section", "story__lock");
     const grown = lock.lockedAt ? grownSinceLock().length : 0;
 
@@ -495,7 +633,7 @@
         block.appendChild(el(
           "p",
           "story__lock-grown",
-          `Your story has grown — ${grown} new ${grown === 1 ? "piece" : "pieces"} since you locked it.`,
+          `Your story has moved — ${grown} ${grown === 1 ? "slide has" : "slides have"} a newer take since you locked it.`,
         ));
       }
       block.appendChild(lockForm(lock, grown > 0 ? "Lock it in again" : "Change the number"));
@@ -550,7 +688,9 @@
   // ── Public surface ────────────────────────────────────────────────
 
   const api = {
-    storyEssays,
+    SLIDE_CATEGORIES: SLIDE_CATEGORIES.slice(),
+    allWritings,
+    storyPieces,
     draftsInProgress,
     wordCount,
     getLock,
@@ -564,13 +704,23 @@
 
   // ── Event hooks ───────────────────────────────────────────────────
 
-  window.addEventListener("tinker:hydrated", () => { renderNav(); });
-  window.addEventListener("tinker:auth-changed", () => { renderNav(); });
-  window.addEventListener("tinker:writing-saved", () => { renderNav(); });
+  window.addEventListener("tinker:hydrated", () => {
+    renderNav();
+    classifySweep();
+  });
+  window.addEventListener("tinker:auth-changed", () => {
+    renderNav();
+    classifySweep();
+  });
+  window.addEventListener("tinker:writing-saved", () => {
+    renderNav();
+    classifySweep();
+  });
   window.addEventListener("tinker:story-changed", () => { renderNav(); });
 
   function boot() {
     renderNav();
+    classifySweep();
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot, { once: true });

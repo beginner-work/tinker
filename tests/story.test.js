@@ -1,11 +1,12 @@
-/* Unit tests for src/renderer/story.js — the one verbatim story.
+/* Unit tests for src/renderer/story.js — the curated verbatim story.
  *
- * The story is every published writing, oldest first, exactly as
- * written; locking it in snapshots it with the founder's ask and
- * publishes the whole thing to their public profile via
- * /api/publish/booklet. These tests drive the data API in the same
- * thin VM shim the renderer tests use; the DOM mounts are absent, so
- * render paths no-op and the model logic is what's exercised.
+ * The story shows, per slide category, the MOST RECENT essay that fits
+ * it — full essays, word for word, in slide order. Locking it in
+ * snapshots that selection with the founder's ask and publishes it to
+ * their public profile via /api/publish/booklet. These tests drive the
+ * data API in the same thin VM shim the renderer tests use; the DOM
+ * mounts are absent, so render paths no-op and the model logic is what
+ * gets exercised.
  */
 
 "use strict";
@@ -62,64 +63,93 @@ function loadInSandbox({ essays = [], drafts = [], seedStory = null, fetchImpl =
   return { story: win.tinkerStory, store };
 }
 
-function essay(id, body, createdAt, extra) {
+// A tagged writing: `slide` is the category the one-shot classifier
+// assigned at publish time.
+function essay(id, body, createdAt, slide, extra) {
   return Object.assign(
-    { id, kind: "essay", title: "Title of " + id, body, author: "you", createdAt },
+    {
+      id, kind: "essay", title: "Title of " + id, body, author: "you", createdAt,
+      slide: slide || null, slideCheckedAt: slide === undefined ? 0 : createdAt,
+    },
     extra || {},
   );
 }
 
-test("storyEssays returns every non-archived writing, oldest first, verbatim", () => {
+test("storyPieces: per category, the most recent essay wins, in slide order", () => {
   const { story } = loadInSandbox({
     essays: [
-      essay("e_new", "the newest words, exactly as typed", 3000),
-      essay("e_old", "the OLDEST words —\n\nwith their line breaks", 1000),
-      essay("e_mid", "the middle words", 2000),
-      essay("e_archived", "put away on purpose", 1500, { archived: true }),
-      essay("e_blank", "   ", 1200),
+      essay("e_ask_old", "the old ask", 1000, "The Ask"),
+      essay("e_problem", "the pain, exactly as written", 2000, "The Problem"),
+      essay("e_ask_new", "i need three hundred thousand dollars", 3000, "The Ask"),
+      essay("e_untagged", "fits nothing yet", 1500, null),
     ],
   });
-  const order = story.storyEssays();
-  assert.deepEqual(Array.from(order.map((e) => e.id)), ["e_old", "e_mid", "e_new"]);
+  const pieces = story.storyPieces();
+  assert.deepEqual(
+    Array.from(pieces.map((p) => p.id)),
+    ["e_problem", "e_ask_new"],
+    "slide order (Problem before Ask), newest take per category",
+  );
+  assert.equal(pieces[1].slide, "The Ask");
   assert.equal(
-    order[0].body,
-    "the OLDEST words —\n\nwith their line breaks",
-    "bodies pass through verbatim — punctuation, breaks and all",
+    pieces[1].body,
+    "i need three hundred thousand dollars",
+    "bodies pass through verbatim",
   );
 });
 
-test("statuses (no title) belong to the story too", () => {
+test("storyPieces excludes archived writings even when tagged", () => {
   const { story } = loadInSandbox({
     essays: [
-      { id: "e_status", kind: "status", title: null, body: "a quick thought", createdAt: 50 },
-      essay("e_essay", "a longer essay body", 100),
+      essay("e_live", "alive", 1000, "The Problem"),
+      essay("e_gone", "put away", 2000, "The Problem", { archived: true }),
     ],
   });
-  const order = story.storyEssays();
-  assert.deepEqual(Array.from(order.map((e) => e.id)), ["e_status", "e_essay"]);
-  assert.equal(order[0].kind, "status");
-  assert.equal(order[0].title, "");
+  const pieces = story.storyPieces();
+  assert.equal(pieces.length, 1);
+  assert.equal(pieces[0].id, "e_live", "the archived newer take does not displace the live one");
 });
 
-test("wordCount sums the story's words", () => {
+test("allWritings returns everything non-archived, oldest first, verbatim", () => {
   const { story } = loadInSandbox({
-    essays: [essay("e_1", "one two three", 1), essay("e_2", "four  five", 2)],
+    essays: [
+      essay("e_new", "newest words", 3000, null),
+      essay("e_old", "the OLDEST words —\n\nwith their line breaks", 1000, "The Vision"),
+      { id: "e_status", kind: "status", title: null, body: "a quick thought", createdAt: 2000 },
+    ],
   });
-  assert.equal(story.wordCount(), 5);
+  const order = story.allWritings();
+  assert.deepEqual(Array.from(order.map((e) => e.id)), ["e_old", "e_status", "e_new"]);
+  assert.equal(order[0].body, "the OLDEST words —\n\nwith their line breaks");
+  assert.equal(order[1].kind, "status");
 });
 
-test("draftsInProgress lists drafts newest first with their working titles", () => {
+test("wordCount counts only the curated story", () => {
+  const { story } = loadInSandbox({
+    essays: [
+      essay("e_in", "one two three", 1000, "The Problem"),
+      essay("e_out", "these words are not in the story", 2000, null),
+    ],
+  });
+  assert.equal(story.wordCount(), 3);
+});
+
+test("draftsInProgress lists only drafts with words, newest first", () => {
   const { story } = loadInSandbox({
     drafts: [
-      { id: "d_old", title: "Older draft", updatedAt: 100, transcript: [] },
-      { id: "d_new", title: "Newer draft", updatedAt: 200, transcript: [] },
+      { id: "d_empty", title: "Untitled draft", updatedAt: 300, transcript: [] },
+      { id: "d_old", title: "Older draft", updatedAt: 100, transcript: [{ q: "?", a: "real words" }] },
+      { id: "d_new", title: "Newer draft", updatedAt: 200, stitched: { body: "typed something" } },
     ],
   });
-  assert.deepEqual(Array.from(story.draftsInProgress().map((d) => d.id)), ["d_new", "d_old"]);
-  assert.equal(story.draftsInProgress()[0].title, "Newer draft");
+  assert.deepEqual(
+    Array.from(story.draftsInProgress().map((d) => d.id)),
+    ["d_new", "d_old"],
+    "empty shells (tapped a tile, wrote nothing) never render",
+  );
 });
 
-test("lockIn snapshots the story, keeps the ask verbatim, and publishes the booklet", async () => {
+test("lockIn snapshots the curated story, keeps the ask verbatim, and publishes the booklet", async () => {
   let sentUrl = null;
   let sentBody = null;
   const fetchImpl = (url, opts) => {
@@ -132,7 +162,11 @@ test("lockIn snapshots the story, keeps the ask verbatim, and publishes the book
     });
   };
   const { story, store } = loadInSandbox({
-    essays: [essay("e_1", "first words", 1), essay("e_2", "second words", 2)],
+    essays: [
+      essay("e_ask", "the ask words", 2000, "The Ask"),
+      essay("e_problem", "the problem words", 1000, "The Problem"),
+      essay("e_untagged", "not part of the story", 1500, null),
+    ],
     fetchImpl,
   });
 
@@ -143,14 +177,14 @@ test("lockIn snapshots the story, keeps the ask verbatim, and publishes the book
   assert.equal(sentBody.pitches[0].slug, "story");
   assert.deepEqual(
     Array.from(sentBody.pitches[0].stories.map((s) => s.body)),
-    ["first words", "second words"],
-    "the booklet carries every piece, verbatim, in story order",
+    ["the problem words", "the ask words"],
+    "the booklet carries the curated pieces, verbatim, in slide order",
   );
 
   const lock = story.getLock();
   assert.equal(lock.ask, "$300k", "the ask is kept as typed (trimmed)");
   assert.ok(lock.lockedAt > 0);
-  assert.deepEqual(Array.from(lock.lockedEssayIds), ["e_1", "e_2"]);
+  assert.deepEqual(Array.from(lock.lockedEssayIds), ["e_problem", "e_ask"]);
   assert.equal(lock.storiesUrl, "https://beginner.work/you#stories");
 
   // Persisted for the sync layer to pick up.
@@ -161,7 +195,7 @@ test("lockIn snapshots the story, keeps the ask verbatim, and publishes the book
 test("lockIn refuses an empty ask, an empty story, and a signed-out session", async () => {
   const ok = { ok: true, status: 200, json: () => Promise.resolve({ ok: true }) };
   const { story } = loadInSandbox({
-    essays: [essay("e_1", "words", 1)],
+    essays: [essay("e_1", "words", 1, "The Problem")],
     fetchImpl: () => Promise.resolve(ok),
   });
   const noAsk = await story.lockIn("   ");
@@ -173,7 +207,7 @@ test("lockIn refuses an empty ask, an empty story, and a signed-out session", as
   assert.equal(noStory.ok, false);
 
   const signedOut = loadInSandbox({
-    essays: [essay("e_1", "words", 1)],
+    essays: [essay("e_1", "words", 1, "The Problem")],
     fetchImpl: () => Promise.resolve(ok),
     token: null,
   });
@@ -184,7 +218,7 @@ test("lockIn refuses an empty ask, an empty story, and a signed-out session", as
 
 test("a failed publish leaves the lock unset", async () => {
   const { story } = loadInSandbox({
-    essays: [essay("e_1", "words", 1)],
+    essays: [essay("e_1", "words", 1, "The Problem")],
     fetchImpl: () => Promise.resolve({
       ok: false,
       status: 500,
@@ -196,14 +230,14 @@ test("a failed publish leaves the lock unset", async () => {
   assert.equal(story.getLock().lockedAt, null, "no lock is recorded on failure");
 });
 
-test("grownSinceLock reports the pieces written after the lock", async () => {
+test("grownSinceLock reports slides whose piece changed after the lock", async () => {
   const fetchImpl = () => Promise.resolve({
     ok: true,
     status: 200,
     json: () => Promise.resolve({ ok: true }),
   });
   const { story, store } = loadInSandbox({
-    essays: [essay("e_1", "first", 1)],
+    essays: [essay("e_1", "first take on the ask", 1000, "The Ask")],
     fetchImpl,
   });
   assert.deepEqual(Array.from(story.grownSinceLock()), [], "never locked → nothing has 'grown'");
@@ -211,9 +245,9 @@ test("grownSinceLock reports the pieces written after the lock", async () => {
   await story.lockIn("$10");
   assert.equal(story.grownSinceLock().length, 0);
 
-  // A new essay lands after the lock.
+  // A newer essay takes over The Ask after the lock.
   const essays = JSON.parse(store.get("tinker.essays.v1"));
-  essays.push(essay("e_2", "second", 2));
+  essays.push(essay("e_2", "newer take on the ask", 2000, "The Ask"));
   store.set("tinker.essays.v1", JSON.stringify(essays));
   const grown = story.grownSinceLock();
   assert.equal(grown.length, 1);
@@ -222,7 +256,7 @@ test("grownSinceLock reports the pieces written after the lock", async () => {
 
 test("a seeded lock round-trips through load", () => {
   const { story } = loadInSandbox({
-    essays: [essay("e_1", "words", 1)],
+    essays: [essay("e_1", "words", 1, "The Problem")],
     seedStory: { ask: "$1.2m", lockedAt: 4242, lockedEssayIds: ["e_1"], storiesUrl: "https://beginner.work/you" },
   });
   const lock = story.getLock();

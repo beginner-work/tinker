@@ -158,6 +158,18 @@
       renderSidebar();
       return essay;
     },
+    // The one-shot category tag (see story.js' classifier client).
+    // Stored on the essay so it syncs with the essays blob; null means
+    // "looked at it, fits nothing". Owned here so the in-memory essays
+    // array and localStorage never diverge.
+    setEssaySlide(id, slide) {
+      const essay = essays.find((e) => e.id === id);
+      if (!essay) return null;
+      essay.slide = typeof slide === "string" && slide ? slide : null;
+      essay.slideCheckedAt = Date.now();
+      saveEssays(essays);
+      return essay;
+    },
     // Soft-hide: keeps the essay in the founder's blob (still synced
     // by PUT /api/user-data/essays) but excluded from category feeds
     // and from the story. The founder can ask for an archived view
@@ -648,8 +660,8 @@
   // neighbour, in which case the read view shows a single page.
   function readingSpreadFor(essay) {
     const story = window.tinkerStory;
-    if (!essay || !story || typeof story.storyEssays !== "function") return null;
-    const order = story.storyEssays();
+    if (!essay || !story || typeof story.storyPieces !== "function") return null;
+    const order = story.storyPieces();
     if (!Array.isArray(order) || order.length < 2) return null;
     const i = order.findIndex((o) => o && o.id === essay.id);
     if (i < 0) return null;
