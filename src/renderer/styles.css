@@ -2436,11 +2436,81 @@ html.seed-modal-open { overflow: hidden; }
 }
 .story__piece-kicker {
   margin: 0 0 -2px;
+  padding: 0;
+  border: none;
+  background: none;
   font-family: var(--font-display);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  align-self: flex-start;
+}
+.story__piece-kicker:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Per-slide class view: every essay in one category, newest first. */
+.story__slide-back {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.story__slide-back:hover { color: var(--color-foreground); }
+.story__slide-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.story__slide-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.story__slide-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.05s ease;
+}
+.story__slide-row:hover { border-color: var(--color-foreground); }
+.story__slide-row:active { transform: scale(0.99); }
+.story__slide-row--current { border-color: var(--color-accent-strong); }
+.story__slide-current {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-accent-strong);
+}
+.story__slide-row-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.story__slide-row-date {
+  font-size: 12px;
+  color: var(--color-muted);
 }
 .story__piece-title {
   margin: 0;

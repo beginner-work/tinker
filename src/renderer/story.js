@@ -16,12 +16,16 @@
  *
  * This module owns:
  *   - the story model (most recent essay per slide category)
- *   - the one-shot classifier client that tags writings (essay.slide)
+ *   - the one-shot classifier client that tags writings (essay.slide).
+ *     Classification is ALL the AI does here — selection and display
+ *     are recency and the founder's own words.
  *   - the lock state (the ask, when, what it contained)
  *   - the sidebar "Your story" block (pocket on top, then the story's
  *     pieces — published work only; in-progress drafts live in the
  *     writing flow, not the story)
- *   - the full story view rendered into #story
+ *   - the full story view rendered into #story, and the per-slide
+ *     class view (every essay in a category, newest first — the
+ *     newest is the one in the pitch)
  *
  * Storage:
  *   - tinker.story.v1 (synced as kind "story")
@@ -169,6 +173,16 @@
       if (w) out.push(w);
     }
     return out;
+  }
+
+  // Every writing in one slide category, newest first. The first entry
+  // is the one the story/pitch shows; the rest are the founder's
+  // earlier takes on the same slide.
+  function essaysForSlide(category) {
+    if (!SLIDE_CATEGORIES.includes(category)) return [];
+    return allWritings()
+      .filter((w) => w.slide === category)
+      .sort((a, b) => b.createdAt - a.createdAt);
   }
 
   function wordCount() {
@@ -505,8 +519,16 @@
     for (const e of pieces) {
       const article = el("article", "story__piece");
       article.id = `story-essay-${e.id}`;
-      const kicker = el("p", "story__piece-kicker", e.slide);
+      const takes = essaysForSlide(e.slide).length;
+      const kicker = el(
+        "button",
+        "story__piece-kicker",
+        takes > 1 ? `${e.slide} · ${takes} takes` : e.slide,
+      );
+      kicker.type = "button";
       kicker.style.color = colorFor(e.slide);
+      kicker.setAttribute("aria-label", `All your ${e.slide} essays`);
+      kicker.addEventListener("click", () => { renderSlideView(e.slide); });
       article.appendChild(kicker);
       if (e.title) article.appendChild(el("h2", "story__piece-title", e.title));
       const body = el("div", "story__piece-body");
@@ -525,6 +547,54 @@
         }
       }, 30);
     }
+  }
+
+  // Every essay in one slide category, newest first. The newest is the
+  // one the pitch shows; older takes open in the read view. Rendered
+  // into the same #story surface; the back link returns to the pitch.
+  function renderSlideView(category) {
+    ensureView();
+    if (!viewEl) return;
+    const takes = essaysForSlide(category);
+    viewEl.innerHTML = "";
+    const inner = el("div", "story__inner");
+    viewEl.appendChild(inner);
+
+    const back = el("button", "story__slide-back", "← Your story");
+    back.type = "button";
+    back.addEventListener("click", () => { renderView(); });
+    inner.appendChild(back);
+
+    const title = el("h2", "story__slide-title", category);
+    title.style.color = colorFor(category);
+    inner.appendChild(title);
+
+    if (!takes.length) {
+      inner.appendChild(el("p", "story__empty", "Nothing on this slide yet."));
+      return;
+    }
+
+    const list = el("div", "story__slide-list");
+    for (let i = 0; i < takes.length; i++) {
+      const w = takes[i];
+      const row = el("button", "story__slide-row");
+      row.type = "button";
+      if (i === 0) {
+        row.classList.add("story__slide-row--current");
+        row.appendChild(el("span", "story__slide-current", "In your pitch"));
+      }
+      row.appendChild(el(
+        "span",
+        "story__slide-row-title",
+        w.title || firstWords(w.body, 10),
+      ));
+      row.appendChild(el("span", "story__slide-row-date", formatLockedDate(w.createdAt)));
+      row.addEventListener("click", () => {
+        if (typeof window.tinkerOpenEssay === "function") window.tinkerOpenEssay(w.id);
+      });
+      list.appendChild(row);
+    }
+    inner.appendChild(list);
   }
 
   // The end of the story: lock it in, or — once locked — the pocket.
@@ -619,6 +689,7 @@
     SLIDE_CATEGORIES: SLIDE_CATEGORIES.slice(),
     allWritings,
     storyPieces,
+    essaysForSlide,
     wordCount,
     getLock,
     grownSinceLock,

@@ -124,6 +124,26 @@ test("allWritings returns everything non-archived, oldest first, verbatim", () =
   assert.equal(order[1].kind, "status");
 });
 
+test("essaysForSlide lists every take in a class, newest first; the newest is the pitch", () => {
+  const { story } = loadInSandbox({
+    essays: [
+      essay("e_ask_v1", "first take", 1000, "The Ask"),
+      essay("e_ask_v3", "third take", 3000, "The Ask"),
+      essay("e_ask_v2", "second take", 2000, "The Ask"),
+      essay("e_other", "different slide", 1500, "The Team"),
+    ],
+  });
+  const takes = story.essaysForSlide("The Ask");
+  assert.deepEqual(
+    Array.from(takes.map((t) => t.id)),
+    ["e_ask_v3", "e_ask_v2", "e_ask_v1"],
+    "newest first",
+  );
+  const pitch = story.storyPieces().find((p) => p.slide === "The Ask");
+  assert.equal(pitch.id, takes[0].id, "the pitch shows the newest take");
+  assert.deepEqual(Array.from(story.essaysForSlide("Not A Slide")), []);
+});
+
 test("wordCount counts only the curated story", () => {
   const { story } = loadInSandbox({
     essays: [
