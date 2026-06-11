@@ -331,8 +331,16 @@
   // Suggestions come from /api/team/suggest: people who might be
   // answering a question this founder leaves unanswered in their
   // essays, matched on what those people are writing in theirs. The
-  // reply carries only my own question + a name — never their words.
-  // Invites are recorded locally and synced (kind "team").
+  // reply carries my own question, their name + phone, and the
+  // matcher's one-line why — never their words.
+  //
+  // The connection itself is the mutual $9 handshake, paid on beginner
+  // (all payments surface there): sending someone $9 IS the connection
+  // request; they accept by sending $9 back. /api/team/connections
+  // reads the edges beginner's Stripe webhook wrote into the shared DB:
+  //   connected — $9 both ways
+  //   waiting   — I sent; they haven't sent back
+  //   incoming  — they sent me $9; I accept by sending $9 back
 
   function loadTeam() {
     const raw = loadJson(TEAM_KEY, null);
@@ -370,30 +378,49 @@
   }
 
   // One fetch per session (manual refresh = reopen the story later).
-  let suggestState = { status: "idle", suggestions: [] };
+  let teamState = { status: "idle", suggestions: [], me: "", connections: [] };
 
-  function fetchSuggestions() {
-    if (suggestState.status !== "idle") return;
+  // The beginner page where the $9 actually moves (Apple Pay). `from`
+  // carries my id so the webhook can record my side of the handshake.
+  function sendLinkFor(userId) {
+    let url = "https://beginner.work/tyler-lindow?u=" + encodeURIComponent(userId);
+    if (teamState.me) url += "&from=" + encodeURIComponent(teamState.me);
+    return url + "#send9";
+  }
+
+  function openSendLink(userId) {
+    try { window.open(sendLinkFor(userId), "_blank", "noopener"); }
+    catch { /* ignore */ }
+  }
+
+  function connectionFor(userId) {
+    return teamState.connections.find((c) => c && c.userId === userId) || null;
+  }
+
+  function fetchTeam() {
+    if (teamState.status !== "idle") return;
     const t = token();
     if (!t) return;
-    suggestState = { status: "loading", suggestions: [] };
-    fetch("/api/team/suggest", {
-      method: "GET",
-      headers: { Authorization: `Bearer ${t}` },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        suggestState = {
-          status: "loaded",
-          suggestions: (json && Array.isArray(json.suggestions)) ? json.suggestions : [],
-        };
-        // Repaint if the founder is still looking at the pitch.
-        ensureView();
-        if (viewEl && !viewEl.hidden && viewMode === "pitch") renderView();
-      })
-      .catch(() => {
-        suggestState = { status: "error", suggestions: [] };
-      });
+    teamState = { ...teamState, status: "loading" };
+    const headers = { Authorization: `Bearer ${t}` };
+    Promise.all([
+      fetch("/api/team/suggest", { method: "GET", headers })
+        .then((res) => (res.ok ? res.json() : null))
+        .catch(() => null),
+      fetch("/api/team/connections", { method: "GET", headers })
+        .then((res) => (res.ok ? res.json() : null))
+        .catch(() => null),
+    ]).then(([suggest, conns]) => {
+      teamState = {
+        status: "loaded",
+        suggestions: (suggest && Array.isArray(suggest.suggestions)) ? suggest.suggestions : [],
+        me: (conns && typeof conns.me === "string") ? conns.me : "",
+        connections: (conns && Array.isArray(conns.connections)) ? conns.connections : [],
+      };
+      // Repaint if the founder is still looking at the pitch.
+      ensureView();
+      if (viewEl && !viewEl.hidden && viewMode === "pitch") renderView();
+    });
   }
 
   // ── Lock it in ────────────────────────────────────────────────────
@@ -657,7 +684,7 @@
 
     const teamBlock = renderTeamBlock();
     if (teamBlock) inner.appendChild(teamBlock);
-    fetchSuggestions();
+    fetchTeam();
 
     inner.appendChild(renderLockBlock(pieces, lock));
 
@@ -720,13 +747,14 @@
     inner.appendChild(list);
   }
 
-  // "Invite others onto your team": the founder's invites, then the
-  // current suggestions. Names + MY questions only — never another
-  // founder's words. Returns null when there's nothing to show yet.
+  // "Invite others onto your team": suggestions (a name, phone, my
+  // question, the matcher's why) and the handshake roster. The $9 IS
+  // the invite — every button routes to beginner, where the payment
+  // lives. Returns null when there's nothing to show yet.
   function renderTeamBlock() {
-    const team = loadTeam();
-    const fresh = suggestState.suggestions.filter((s) => s && !isInvited(s.userId));
-    if (!team.invited.length && !fresh.length) return null;
+    const fresh = teamState.suggestions.filter((s) => s && !connectionFor(s.userId));
+    const conns = teamState.connections;
+    if (!fresh.length && !conns.length) return null;
 
     const block = el("section", "story__team");
     const kicker = el("p", "story__team-kicker", "The Team");
@@ -738,7 +766,7 @@
       block.appendChild(el(
         "p",
         "story__team-sub",
-        "People who might be answering a question you've left open:",
+        "People who might be answering a question you've left open. $9 connects you — they accept by sending $9 back.",
       ));
       for (const s of fresh) {
         const card = el("div", "story__team-card");
@@ -758,29 +786,35 @@
           card.appendChild(el("span", "story__team-asked", "why them"));
           card.appendChild(el("p", "story__team-reason", s.reason));
         }
-        const btn = el("button", "story__team-invite", "Invite onto your team");
+        const btn = el("button", "story__team-invite", "Send $9 to connect");
         btn.type = "button";
-        btn.addEventListener("click", () => {
-          invite(s);
-          renderView();
-        });
+        btn.addEventListener("click", () => { openSendLink(s.userId); });
         card.appendChild(btn);
         block.appendChild(card);
       }
     }
 
-    if (team.invited.length) {
+    if (conns.length) {
       block.appendChild(el("p", "story__team-sub", "Your team:"));
       const list = el("div", "story__team-roster");
-      for (const i of team.invited) {
+      for (const c of conns) {
         const row = el("div", "story__team-member");
-        row.appendChild(el("span", "story__team-name", i.name || "A founder"));
-        if (i.phone) {
-          const tel = el("a", "story__team-phone", i.phone);
-          tel.href = `sms:${i.phone}`;
-          row.appendChild(tel);
+        row.appendChild(el("span", "story__team-name", c.name || "A founder"));
+        if (c.state === "connected") {
+          row.appendChild(el("span", "story__team-invited", "Connected"));
+        } else if (c.state === "waiting") {
+          row.appendChild(el(
+            "span",
+            "story__team-pending",
+            "You sent $9 — they accept by sending $9 back",
+          ));
+        } else {
+          row.appendChild(el("span", "story__team-pending", "Sent you $9"));
+          const accept = el("button", "story__team-invite", "Send $9 back to accept");
+          accept.type = "button";
+          accept.addEventListener("click", () => { openSendLink(c.userId); });
+          row.appendChild(accept);
         }
-        row.appendChild(el("span", "story__team-invited", "Invited"));
         list.appendChild(row);
       }
       block.appendChild(list);

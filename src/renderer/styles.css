@@ -2666,6 +2666,11 @@ html.seed-modal-open { overflow: hidden; }
   text-transform: uppercase;
   color: var(--color-accent-strong);
 }
+.story__team-pending {
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+.story__team-member { flex-wrap: wrap; }
 
 /* The end of the story: lock it in / the pocket. */
 .story__lock {
