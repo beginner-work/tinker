@@ -19,7 +19,8 @@
  *   - the one-shot classifier client that tags writings (essay.slide)
  *   - the lock state (the ask, when, what it contained)
  *   - the sidebar "Your story" block (pocket on top, then the story's
- *     pieces, then worded in-progress drafts)
+ *     pieces — published work only; in-progress drafts live in the
+ *     writing flow, not the story)
  *   - the full story view rendered into #story
  *
  * Storage:
@@ -43,12 +44,8 @@
 
   const STORY_KEY = "tinker.story.v1";
   const ESSAYS_KEY = "tinker.essays.v1";
-  const DRAFTS_KEY = "tinker.drafts.v1";
   const TOKEN_KEY = "tinker_jwt";
   const MAX_ASK_LEN = 24;
-  // Worded drafts shown in the sidebar before the list folds. Empty
-  // shells (a tapped welcome tile, nothing typed) never render at all.
-  const MAX_SIDEBAR_DRAFTS = 3;
   // Gap between backfill classify calls so a large archive tags itself
   // gently instead of in one burst.
   const CLASSIFY_GAP_MS = 400;
@@ -134,12 +131,6 @@
 
   // ── The story model ───────────────────────────────────────────────
 
-  function bodyForDraft(draft) {
-    if (draft && draft.stitched && draft.stitched.body) return String(draft.stitched.body);
-    const turns = (draft && Array.isArray(draft.transcript)) ? draft.transcript : [];
-    return turns.map((t) => String(t && t.a || "").trim()).filter(Boolean).join("\n\n");
-  }
-
   // Every published, non-archived writing with words in it — essays and
   // quick statuses — oldest first. The raw material the story curates.
   function allWritings() {
@@ -178,22 +169,6 @@
       if (w) out.push(w);
     }
     return out;
-  }
-
-  // In-progress drafts WITH words, newest first. Empty shells (created
-  // by tapping a welcome tile and walking away) are noise, not story.
-  function draftsInProgress() {
-    const arr = loadJson(DRAFTS_KEY, []);
-    const list = Array.isArray(arr) ? arr : [];
-    return list
-      .filter((d) => d && typeof d.id === "string" && bodyForDraft(d).trim())
-      .slice()
-      .sort((a, b) => (Number(b.updatedAt) || Number(b.createdAt) || 0)
-        - (Number(a.updatedAt) || Number(a.createdAt) || 0))
-      .map((d) => ({
-        id: d.id,
-        title: String(d.title || (d.stitched && d.stitched.title) || "Untitled draft"),
-      }));
   }
 
   function wordCount() {
@@ -363,11 +338,10 @@
 
   // ── Sidebar block ─────────────────────────────────────────────────
   //
-  // Order matters: the pocket first (phone out → the number is right
-  // there), then the story's pieces, then a short worded-drafts list.
+  // The pocket first (phone out → the number is right there), then the
+  // story's pieces. Published work only — no in-progress anything.
 
   let navEl = null;
-  let draftsEl = null;
   let listEl = null;
   let countEl = null;
   let pocketEl = null;
@@ -375,7 +349,6 @@
   function ensureMount() {
     navEl = document.querySelector(".sidebar__story");
     if (!navEl) return;
-    draftsEl = navEl.querySelector("[data-story-drafts]");
     listEl = navEl.querySelector("[data-story-list]");
     countEl = navEl.querySelector("[data-story-count]");
     pocketEl = navEl.querySelector("[data-story-pocket]");
@@ -392,12 +365,11 @@
     ensureMount();
     if (!navEl) return;
     const pieces = storyPieces();
-    const drafts = draftsInProgress();
     const anyWriting = allWritings().length > 0;
 
-    // Cold start: nothing written yet — the sidebar stays brand +
+    // Cold start: nothing published yet — the sidebar stays brand +
     // Account only, same as before.
-    if (!anyWriting && !drafts.length) {
+    if (!anyWriting) {
       navEl.hidden = true;
       return;
     }
@@ -435,33 +407,6 @@
       }
     }
 
-    if (draftsEl) {
-      draftsEl.innerHTML = "";
-      const shown = drafts.slice(0, MAX_SIDEBAR_DRAFTS);
-      for (const d of shown) {
-        const li = document.createElement("li");
-        const btn = el("button", "sidebar__account-item sidebar__story-draft");
-        btn.type = "button";
-        const label = el("span", "sidebar__account-label", d.title);
-        btn.appendChild(label);
-        const tag = el("span", "sidebar__story-draft-tag", "in progress");
-        btn.appendChild(tag);
-        btn.addEventListener("click", () => {
-          if (typeof window.tinkerResumeDraft === "function") window.tinkerResumeDraft(d.id);
-        });
-        li.appendChild(btn);
-        draftsEl.appendChild(li);
-      }
-      if (drafts.length > shown.length) {
-        const li = document.createElement("li");
-        li.appendChild(el(
-          "span",
-          "sidebar__story-more",
-          `…and ${drafts.length - shown.length} more in progress`,
-        ));
-        draftsEl.appendChild(li);
-      }
-    }
   }
 
   // The pocket block at the top of the story sidebar: the lock state at
@@ -691,7 +636,6 @@
     SLIDE_CATEGORIES: SLIDE_CATEGORIES.slice(),
     allWritings,
     storyPieces,
-    draftsInProgress,
     wordCount,
     getLock,
     grownSinceLock,

@@ -134,19 +134,15 @@ test("wordCount counts only the curated story", () => {
   assert.equal(story.wordCount(), 3);
 });
 
-test("draftsInProgress lists only drafts with words, newest first", () => {
+test("the story API exposes no in-progress surface — published work only", () => {
   const { story } = loadInSandbox({
     drafts: [
-      { id: "d_empty", title: "Untitled draft", updatedAt: 300, transcript: [] },
-      { id: "d_old", title: "Older draft", updatedAt: 100, transcript: [{ q: "?", a: "real words" }] },
-      { id: "d_new", title: "Newer draft", updatedAt: 200, stitched: { body: "typed something" } },
+      { id: "d_1", title: "Untitled draft", updatedAt: 300, transcript: [{ q: "?", a: "real words" }] },
     ],
+    essays: [essay("e_1", "published words", 1000, "The Problem")],
   });
-  assert.deepEqual(
-    Array.from(story.draftsInProgress().map((d) => d.id)),
-    ["d_new", "d_old"],
-    "empty shells (tapped a tile, wrote nothing) never render",
-  );
+  assert.equal(story.draftsInProgress, undefined, "drafts never reach the story");
+  assert.deepEqual(Array.from(story.storyPieces().map((p) => p.id)), ["e_1"]);
 });
 
 test("lockIn snapshots the curated story, keeps the ask verbatim, and publishes the booklet", async () => {

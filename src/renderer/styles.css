@@ -2298,7 +2298,6 @@ html.seed-modal-open { overflow: hidden; }
   font-variant-numeric: tabular-nums;
   color: var(--color-muted);
 }
-.sidebar__story-drafts,
 .sidebar__story-list {
   list-style: none;
   margin: 0;
@@ -2307,22 +2306,7 @@ html.seed-modal-open { overflow: hidden; }
   flex-direction: column;
   gap: 1px;
 }
-.sidebar__story-drafts:empty,
 .sidebar__story-list:empty { display: none; }
-.sidebar__story-draft .sidebar__account-label {
-  font-style: italic;
-  color: var(--color-muted);
-}
-.sidebar__story-draft-tag {
-  margin-left: auto;
-  flex: 0 0 auto;
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  opacity: 0.75;
-}
 .sidebar__story-item {
   flex-direction: column;
   align-items: flex-start;
@@ -2342,12 +2326,6 @@ html.seed-modal-open { overflow: hidden; }
   word-break: break-word;
   line-height: 1.35;
   font-size: 13px;
-}
-.sidebar__story-more {
-  display: block;
-  padding: 4px 10px;
-  font-size: 11.5px;
-  color: var(--color-muted);
 }
 .sidebar__story-pocket {
   padding: 4px 10px 4px;
