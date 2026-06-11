@@ -56,7 +56,16 @@ jobs:
         run: npm ci
 
       - name: Build & publish
-        run: npx electron-builder --publish ${{ (startsWith(github.ref, 'refs/tags/') || inputs.publish == true) && 'always' || 'never' }}
+        shell: bash
+        # Unset signing secrets get injected as empty strings, and an empty
+        # CSC_LINK sends electron-builder down the import-a-certificate path,
+        # where "" resolves to the project directory and the build dies with
+        # "<dir> not a file". Drop empty signing vars so unsigned builds work.
+        run: |
+          for v in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!v}" ]; then unset "$v"; fi
+          done
+          npx electron-builder --publish ${{ (startsWith(github.ref, 'refs/tags/') || inputs.publish == true) && 'always' || 'never' }}
         env:
           # GitHub Releases upload.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
