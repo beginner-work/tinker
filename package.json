@@ -1,6 +1,6 @@
 {
   "name": "tinker-browser",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "tinker — a quiet place to be on the web",
   "main": "src/main/main.js",
   "desktopName": "tinker.desktop",
