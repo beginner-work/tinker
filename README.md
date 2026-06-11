@@ -56,6 +56,12 @@ npm version patch        # bumps package.json + creates the v* tag
 git push --follow-tags   # triggers the Release workflow
 ```
 
+A release can also be cut **by PR**, for sessions that can merge to main but
+can't push tags: bump `version` in `package.json` and `.release-version` to
+the same value in the PR. When the merge lands on main,
+[`release-on-marker.yml`](.github/workflows/release-on-marker.yml) verifies
+the two match and runs the same Release workflow with publishing on.
+
 macOS produces a single **universal** `tinker-mac.dmg` (Intel + Apple
 Silicon) under a stable name, so the beginner landing page can link straight
 to `releases/latest/download/tinker-mac.dmg`. To ship a Gatekeeper-clean
