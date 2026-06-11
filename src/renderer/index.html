@@ -48,19 +48,17 @@
     <script src="./transactions.js" defer></script>
     <script src="./seeds.js" defer></script>
     <script src="./heatmap.js" defer></script>
-    <!-- Owns the unified pitches state — every pitch is a full eleven-
-         slide deck, equal-status, renamable. Loaded BEFORE
-         sidebar-tree.js so the tree module's first render can read
-         the active pitch's deck out of window.tinkerPitches. -->
-    <script src="./pitches.js" defer></script>
     <!-- Shared "Back me" opener (window.tinkerBackMe): the founder's profile
          QR on beginner. In an installed PWA it opens in an in-app iframe
-         overlay; elsewhere it hands off to the system browser. Used by both
-         the sidebar Pitch button and the profile menu. Loaded before them so
-         the global exists when their click handlers bind. -->
+         overlay; elsewhere it hands off to the system browser. Used by the
+         story's pocket and the profile menu. Loaded before them so the
+         global exists when their click handlers bind. -->
     <script src="./back-me.js" defer></script>
     <script src="./open-beginner.js" defer></script>
-    <script src="./sidebar-tree.js" defer></script>
+    <!-- Your story: the one verbatim place all published writing lives,
+         plus the lock-it-in pocket. Owns the sidebar story block and the
+         #story view. -->
+    <script src="./story.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
          Deferred so the DOM (incl. #profile-corner) exists when it runs. -->
@@ -128,7 +126,7 @@
           </svg>
         </div>
         <h1 class="onboarding__title">Set up your profile</h1>
-        <p class="onboarding__lede">A photo and your name, so your pitches have an author.</p>
+        <p class="onboarding__lede">A photo and your name, so your story has an author.</p>
         <form id="onboarding-form" class="onboarding__form" novalidate>
           <label class="onboarding__photo">
             <span class="onboarding__avatar">
@@ -174,32 +172,20 @@
         </button>
       </header>
 
-      <!-- The v0.103 sidebar tree: the eleven pitch-deck slide titles
-           as the top tier, verbatim phrases from the founder's own
-           writings as the inner rows. The <nav> is hidden whenever
-           the tree has no resolvable phrases — cold-start state
-           collapses to brand + Account only. -->
-      <nav class="sidebar__tree" aria-label="Pitch deck" hidden>
-        <!-- Overall progress: how many of the eleven deck headings have
-             at least one resolvable phrase. Developer-authored chrome
-             (the literals "Pitch progress" and the "N / 11" count are
-             allow-listed in sidebar-tree.js's audit). -->
-        <div class="sidebar__tree-progress" data-tree-progress data-audit-ignore>
-          <div class="sidebar__tree-progress-meta">
-            <span class="sidebar__tree-progress-label">Pitch progress</span>
-            <span class="sidebar__tree-progress-count" data-tree-progress-count>
-              <span class="sidebar__tree-progress-count-num" data-tree-progress-count-num>0 / 11</span>
-              <span class="sidebar__tree-progress-count-flight" aria-hidden="true">stay tuned…</span>
-            </span>
-          </div>
-          <div class="sidebar__tree-progress-track" role="progressbar"
-               aria-label="Pitch deck completion"
-               aria-valuemin="0" aria-valuemax="11" aria-valuenow="0"
-               data-tree-progress-bar>
-            <div class="sidebar__tree-progress-fill" data-tree-progress-fill></div>
-          </div>
+      <!-- Your story (v0.106): every published writing, verbatim, in
+           the order it was written — plus in-progress drafts and the
+           pocket (the locked-in ask). The <nav> hides on cold start so
+           brand sits directly above Account until the first writing
+           exists. Essay titles inside are the founder's own words;
+           the labels are developer-authored chrome. -->
+      <nav class="sidebar__story" aria-label="Your story" hidden>
+        <div class="sidebar__story-head">
+          <span class="sidebar__story-label">Your story</span>
+          <span class="sidebar__story-count" data-story-count></span>
         </div>
-        <ul class="sidebar__tree-list"></ul>
+        <ul class="sidebar__story-drafts" data-story-drafts></ul>
+        <ul class="sidebar__story-list" data-story-list></ul>
+        <div class="sidebar__story-pocket" data-story-pocket></div>
       </nav>
 
       <nav class="sidebar__account" aria-label="Account">
@@ -376,22 +362,11 @@
         <div class="writing-fit__inner" id="writing-fit-content"></div>
       </section>
 
-      <!-- founders view: the social-feed adjacency tool. Opt-in screen
-           by default; once opted in, a quiet results page with one
-           primary button ("find my founders") that calls
-           /api/feed/adjacent and renders 3–7 adjacent founders as
-           paper cards. List-only — no likes, no comments, no DMs in
-           v1. The whole inside is rendered by founders.js. -->
-      <section id="founders" class="founders" hidden aria-label="founders"></section>
-
-      <!-- pitch-script view: the "prepare a script for a video"
-           storyboard for a single pitch. Opened from the script
-           button on a pitch row in the sidebar. List of slides with
-           the founder's resolved phrases verbatim, plus a suggested
-           on-camera duration per slide and a copy-to-clipboard
-           action. NOT a publish step — publishing happens elsewhere
-           (today via the founders opt-in). -->
-      <section id="pitch-script" class="pitch-script" hidden aria-label="Prepare a script for a video"></section>
+      <!-- Your story view: the whole story in one place, verbatim,
+           oldest first — and at the end, the lock-in block (the number
+           you're asking for) that puts it in your pocket. Rendered by
+           story.js. -->
+      <section id="story" class="story" hidden aria-label="Your story"></section>
 
       <!-- Category feed view: rendered when a seed is tapped — lists
            every essay whose seed belongs to the same category. The
@@ -703,15 +678,9 @@
     <script src="./voice-model.js" defer></script>
     <script src="./writing.js" defer></script>
     <script src="./renderer.js" defer></script>
-    <script src="./founders.js" defer></script>
-    <script src="./pitch-script.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>
-    <script src="./publish-stories.js" defer></script>
-    <!-- Pamphlet read of the active pitch (flashcards + Claude's read),
-         opened from the book icon beside the sidebar's Pitch label. -->
-    <script src="./pitch-pamphlet.js" defer></script>
     <script src="./membership.js" defer></script>
     <script src="./update-banner.js" defer></script>
     <script src="./notifications.js" defer></script>

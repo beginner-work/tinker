@@ -26,7 +26,7 @@
  * choice — nothing is persisted, so a reload always reflects the real
  * connection. The founder's words are safe regardless: the composer
  * autosaves into the draft (writing.js), and essays written offline are
- * flushed to the pitch automatically on reconnect (renderer.js).
+ * synced into the story automatically on reconnect (renderer.js).
  */
 
 (function () {

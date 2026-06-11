@@ -43,8 +43,7 @@
   const categoryFeedEmpty = $("#category-feed-empty");
   const writingFitView = $("#writing-fit");
   const writingFitContent = $("#writing-fit-content");
-  const foundersView = $("#founders");
-  const pitchScriptView = $("#pitch-script");
+  const storyView = $("#story");
   const statusComposer = $("#status-composer");
   const statusComposerInput = $("#status-composer-input");
   const statusComposerPost = $("#status-composer-post");
@@ -148,9 +147,6 @@
       saveDrafts(drafts);
       if (activeId === id) showFeed();
       renderSidebar();
-      if (window.tinkerTree && typeof window.tinkerTree.clearWritingFromTree === "function") {
-        window.tinkerTree.clearWritingFromTree(id);
-      }
     },
     deleteEssay(id) {
       const essay = essays.find((e) => e.id === id);
@@ -159,16 +155,13 @@
       saveEssays(essays);
       if (readingEssayId === id) showFeed();
       renderHome();
-      if (window.tinkerTree && typeof window.tinkerTree.clearWritingFromTree === "function") {
-        window.tinkerTree.clearWritingFromTree(id);
-      }
+      renderSidebar();
       return essay;
     },
     // Soft-hide: keeps the essay in the founder's blob (still synced
     // by PUT /api/user-data/essays) but excluded from category feeds
-    // and detached from any pitch slot. The founder can ask for an
-    // archived view later — for now, archive is "out of sight, not
-    // gone".
+    // and from the story. The founder can ask for an archived view
+    // later — for now, archive is "out of sight, not gone".
     archiveEssay(id) {
       const essay = essays.find((e) => e.id === id);
       if (!essay) return null;
@@ -177,9 +170,7 @@
       saveEssays(essays);
       if (readingEssayId === id) showFeed();
       renderHome();
-      if (window.tinkerTree && typeof window.tinkerTree.clearWritingFromTree === "function") {
-        window.tinkerTree.clearWritingFromTree(id);
-      }
+      renderSidebar();
       return essay;
     },
     publish(draft, stitched) {
@@ -205,24 +196,16 @@
       activeId = null;
       renderSidebar();
       renderHome();
-      // Drop the draft from the tree before classifying the new
-      // essay — the draft no longer exists. Then ask the v0.103
-      // classifier to place the essay under one of the eleven deck
-      // headings.
-      if (window.tinkerTree && typeof window.tinkerTree.clearWritingFromTree === "function") {
-        window.tinkerTree.clearWritingFromTree(draft.id);
-      }
+      // The writing-saved event keeps the voice model training on the
+      // founder's published words; the story sidebar listens too.
       try {
         window.dispatchEvent(new CustomEvent("tinker:writing-saved", {
           detail: { writingId: essay.id },
         }));
       } catch { /* ignore */ }
-      // Drop the founder onto a calm "being assessed" confirmation and
-      // let a background watcher tell them where it landed once the
-      // organize job actually settles (see showPitchAssessing). The
-      // sidebar-tree's classify listener (fired by the event above) and
-      // pitches.scheduleOrganize do the real placement work.
-      showPitchAssessing(essay);
+      // No assessment, no placement, no waiting: the essay is part of
+      // the story the moment it exists. Say exactly that.
+      showStoryAdded(essay);
       return essay;
     },
     // Short-form post: typed straight into the textarea at the top of
@@ -265,10 +248,11 @@
     },
     // Free write mode: the founder wrote freely and pressed "This is
     // everything" with no connection. Save the essay to local storage
-    // now — kind "essay", like any other — flagged pendingPitch, and
-    // let flushPendingPitches() send it off to classify + organize the
-    // moment we're back online. No Claude call, no stitching: the body
-    // is exactly what they typed.
+    // now — kind "essay", like any other; it's part of the story
+    // immediately. The pendingPitch flag (legacy field name, kept so
+    // older synced data round-trips) just marks it for the back-online
+    // notice + sync flush in flushDeferredEssays(). No Claude call, no
+    // stitching: the body is exactly what they typed.
     publishDeferred(draft, { body } = {}) {
       const text = String(body || "").trim();
       if (!text || !draft) return null;
@@ -294,11 +278,8 @@
       activeId = null;
       renderSidebar();
       renderHome();
-      if (window.tinkerTree && typeof window.tinkerTree.clearWritingFromTree === "function") {
-        window.tinkerTree.clearWritingFromTree(draft.id);
-      }
-      // Online already? Send it off now. Offline? It waits for reconnect.
-      flushPendingPitches();
+      // Online already? Flush now. Offline? It waits for reconnect.
+      flushDeferredEssays();
       return essay;
     },
   };
@@ -322,12 +303,12 @@
     return line.slice(0, 71).trimEnd() + "…";
   }
 
-  // Send any essays saved in free write mode off to be added to a pitch
-  // — the same classify + organize path a normal publish fires (via the
-  // tinker:writing-saved event), just deferred until we're back online.
-  // No-op while free write mode is on (the network is gated) or when
-  // nothing is waiting.
-  function flushPendingPitches() {
+  // Essays saved in free write mode become part of the story the moment
+  // they're written; this just clears their offline flag once we're back
+  // online (so the sync layer pushes them) and raises the back-online
+  // notice. No-op while free write mode is on (the network is gated) or
+  // when nothing is waiting.
+  function flushDeferredEssays() {
     if (window.tinkerFreewrite && window.tinkerFreewrite.isOn()) return;
     const pending = essays.filter((e) => e && e.pendingPitch);
     if (!pending.length) return;
@@ -341,20 +322,15 @@
       } catch { /* ignore */ }
       emitOfflineEssayNotification(essay);
     }
-    // The normal publish path arms this via showPitchAssessing(); the
-    // deferred path has no confirmation screen, so arm it here so the
-    // founder still gets the "where it landed" note once the organize
-    // round these writing-saved events kicked off settles.
-    watchPlacement(pending);
   }
 
-  // A free-write essay written with no connection has just been sent off
-  // now that we're back online. Reuse the notification component for a
+  // A free-write essay written with no connection has just synced now
+  // that we're back online. Reuse the notification component for a
   // sticky, cross-device notice so the founder knows it made it out —
-  // unlike the auto-dismissing placement toast, this one stays until they
-  // acknowledge it, on whichever device they next open. The id is keyed
-  // to the essay so the same notice never lands twice (e.g. when another
-  // device flushed it first and it arrives over sync).
+  // it stays until they acknowledge it, on whichever device they next
+  // open. The id is keyed to the essay so the same notice never lands
+  // twice (e.g. when another device flushed it first and it arrives
+  // over sync).
   function emitOfflineEssayNotification(essay) {
     if (!essay) return;
     const titleText = essay.title || "Your essay";
@@ -363,7 +339,7 @@
       kind: "offline-essay",
       sticky: true,
       title: "Back online",
-      body: `“${titleText}” — written offline — is on its way into your pitches.`,
+      body: `“${titleText}” — written offline — is now part of your story.`,
       essayId: essay.id || null,
     };
     const send = () => {
@@ -458,8 +434,7 @@
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
-    if (foundersView) foundersView.hidden = true;
-    if (pitchScriptView) pitchScriptView.hidden = true;
+    if (storyView) storyView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
@@ -483,8 +458,7 @@
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
-    if (foundersView) foundersView.hidden = true;
-    if (pitchScriptView) pitchScriptView.hidden = true;
+    if (storyView) storyView.hidden = true;
   }
   function showRead(essay) {
     if (typeof window.tinkerCloseReadMenu === "function") window.tinkerCloseReadMenu();
@@ -493,13 +467,34 @@
     readView.hidden = false;
     if (categoryFeedView) categoryFeedView.hidden = true;
     if (writingFitView) writingFitView.hidden = true;
-    if (foundersView) foundersView.hidden = true;
-    if (pitchScriptView) pitchScriptView.hidden = true;
+    if (storyView) storyView.hidden = true;
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
     readBody.innerHTML = readBookHtml(essay);
   }
+  // The whole story, verbatim, in one place — rendered by story.js into
+  // #story. `anchorEssayId` scrolls a particular piece into view (the
+  // sidebar's story rows pass it).
+  function showStory(anchorEssayId) {
+    if (!storyView) return;
+    if (typeof window.tinkerCloseReadMenu === "function") window.tinkerCloseReadMenu();
+    feedView.removeAttribute("data-active");
+    writingView.hidden = true;
+    readView.hidden = true;
+    if (categoryFeedView) categoryFeedView.hidden = true;
+    if (writingFitView) writingFitView.hidden = true;
+    storyView.hidden = false;
+    activeId = null;
+    readingEssayId = null;
+    activeCategoryKey = null;
+    activeCategorySeed = null;
+    renderSidebar();
+    if (window.tinkerStory && typeof window.tinkerStory.renderView === "function") {
+      window.tinkerStory.renderView(anchorEssayId || null);
+    }
+  }
+  window.tinkerShowStory = (anchorEssayId) => showStory(anchorEssayId);
   function showCategoryFeed(categoryKey, originatingSeed) {
     if (!categoryFeedView) return false;
     const feed = (window.tinkerHeatmap && typeof window.tinkerHeatmap.getCategoryFeed === "function")
@@ -512,8 +507,7 @@
     readView.hidden = true;
     categoryFeedView.hidden = false;
     if (writingFitView) writingFitView.hidden = true;
-    if (foundersView) foundersView.hidden = true;
-    if (pitchScriptView) pitchScriptView.hidden = true;
+    if (storyView) storyView.hidden = true;
     activeId = null;
     activeCategoryKey = categoryKey;
     // Prefer the seed the user just tapped. Fall back to the most-
@@ -548,32 +542,12 @@
 
   // ── Post-publish flow ────────────────────────────────────────────
   //
-  // Publishing used to drop the founder onto a live "arrangement"
-  // screen that narrated the organize job phase-by-phase and locked in
-  // a placement after a single round. That placement was a lie: the
-  // backend re-clusters on every later writing change, so an essay the
-  // screen announced as "a new direction" could quietly get folded into
-  // another pitch seconds (or a session) later.
-  //
-  // The new flow makes no premature claim. Publishing shows a calm
-  // confirmation ("Your pitch is being assessed") and lets the founder
-  // keep writing or re-read the essay they just published. A background
-  // watcher waits for the
-  // organize job to actually SETTLE — placement unchanged, nothing
-  // pending or in flight — and only then fires a native-style toast
-  // notification telling the founder where the essay truly landed, and
-  // which pitch it became part of. If they've left, the notification is
-  // persisted and waits for them on the next visit.
-
-  // Tracks the in-flight placement watcher so a second publish supersedes
-  // the first rather than racing it.
-  let placementWatchToken = 0;
-
-  function showPitchAssessing(essay) {
+  // There is no assessment and no placement anymore: the essay is part
+  // of the story the moment it exists. The confirmation says exactly
+  // that and offers the two true next steps — read the story, or keep
+  // writing.
+  function showStoryAdded(essay) {
     if (!writingFitView || !writingFitContent) {
-      // No confirmation surface available — still kick off the watcher
-      // so the notification fires, then fall back to the feed.
-      watchPlacement(essay);
       showFeed();
       return;
     }
@@ -582,238 +556,37 @@
     readView.hidden = true;
     if (categoryFeedView) categoryFeedView.hidden = true;
     writingFitView.hidden = false;
-    if (foundersView) foundersView.hidden = true;
-    if (pitchScriptView) pitchScriptView.hidden = true;
+    if (storyView) storyView.hidden = true;
     activeId = null;
     readingEssayId = null;
     activeCategoryKey = null;
     activeCategorySeed = null;
     renderSidebar();
 
-    const titleText = essay.title || "your essay";
+    const titleText = essay.title || "your writing";
     writingFitContent.innerHTML =
       `<div class="assessing">` +
         `<div class="assessing__mark" aria-hidden="true"><span class="assessing__pulse"></span></div>` +
-        `<p class="assessing__crumb">You created another essay</p>` +
-        `<h1 class="assessing__headline">Your pitch is being assessed.</h1>` +
-        `<p class="assessing__sub">We're reading <span class="assessing__title">${escapeHtml(titleText)}</span> ` +
-          `against your pitches. You'll get a note the moment it settles into one — keep writing, ` +
-          `or step away and we'll let you know where it landed.</p>` +
+        `<p class="assessing__crumb">You wrote another piece</p>` +
+        `<h1 class="assessing__headline">It's part of your story.</h1>` +
+        `<p class="assessing__sub"><span class="assessing__title">${escapeHtml(titleText)}</span> ` +
+          `is in, word for word. Read the whole story, or keep writing.</p>` +
         `<div class="assessing__actions">` +
-          `<button type="button" class="assessing__read" data-assessing-action="read">Re-read your essay</button>` +
+          `<button type="button" class="assessing__read" data-assessing-action="story">Read your story</button>` +
           `<button type="button" class="assessing__keep" data-assessing-action="keep">Keep writing →</button>` +
         `</div>` +
       `</div>`;
 
     const keepBtn = writingFitContent.querySelector('[data-assessing-action="keep"]');
-    const readBtn = writingFitContent.querySelector('[data-assessing-action="read"]');
+    const storyBtn = writingFitContent.querySelector('[data-assessing-action="story"]');
     if (keepBtn) keepBtn.addEventListener("click", () => showFeed());
-    if (readBtn) readBtn.addEventListener("click", () => showRead(essay));
-
-    // Kick off the background settle-watcher — it fires the toast once
-    // the organize job has stopped moving this essay.
-    watchPlacement(essay);
-  }
-
-  // Waits for the backend organize job to settle on a final home for the
-  // just-published essay, then emits a placement notification. "Settled"
-  // means an organize round completed and, after a short grace window, no
-  // further round started — so the debounced scheduleOrganize and any
-  // later writing-triggered rounds have all drained and the placement we
-  // read won't be contradicted moments later. A max-wait guards the case
-  // where organize never runs (no token, nothing off-pitch), in which case
-  // we report wherever the essay currently sits.
-  function watchPlacement(essays) {
-    const list = Array.isArray(essays) ? essays.filter(Boolean) : (essays ? [essays] : []);
-    if (!list.length) return;
-    const pitches = window.tinkerPitches;
-    if (!pitches || typeof pitches.findPitchForWriting !== "function") return;
-
-    const token = ++placementWatchToken;
-    const SETTLE_GRACE_MS = 1500;   // quiet window after a round before we trust it
-    const FIRST_WAIT_MS = 7000;     // > ORGANIZE_DEBOUNCE_MS, so the first round can begin
-    const MAX_WAIT_MS = 45000;      // absolute ceiling so we never wait forever
-    let settleTimer = null;
-    let maxTimer = null;
-    let done = false;
-
-    const cleanup = () => {
-      window.removeEventListener("tinker:organize-started", onStarted);
-      window.removeEventListener("tinker:organize-completed", onCompleted);
-      if (settleTimer) clearTimeout(settleTimer);
-      if (maxTimer) clearTimeout(maxTimer);
-    };
-    const finalize = () => {
-      if (done || token !== placementWatchToken) { cleanup(); return; }
-      done = true;
-      cleanup();
-      // One organize round settles every essay in the batch at once, so
-      // notify for each — covers a reconnect that flushes several essays
-      // written offline in the same session.
-      for (const essay of list) emitPlacementNotification(essay);
-    };
-    const onStarted = () => {
-      // A new round began — whatever we were about to trust is now stale.
-      if (settleTimer) { clearTimeout(settleTimer); settleTimer = null; }
-    };
-    const onCompleted = () => {
-      if (token !== placementWatchToken) { cleanup(); return; }
-      if (settleTimer) clearTimeout(settleTimer);
-      settleTimer = setTimeout(finalize, SETTLE_GRACE_MS);
-    };
-
-    window.addEventListener("tinker:organize-started", onStarted);
-    window.addEventListener("tinker:organize-completed", onCompleted);
-
-    // If no organize round ever starts (nothing drifted, or no auth token)
-    // resolve after FIRST_WAIT_MS with whatever placement exists; cap the
-    // total wait either way.
-    settleTimer = setTimeout(finalize, FIRST_WAIT_MS);
-    maxTimer = setTimeout(finalize, MAX_WAIT_MS);
-  }
-
-  // Builds and dispatches the "where it landed" notification for a settled
-  // essay. Reuses the same pitch-name/slide lookup the read view's subtitle
-  // uses, so the label in the toast matches what the founder sees on the
-  // essay itself. When the essay couldn't be slotted we say so plainly
-  // rather than inventing a home.
-  function emitPlacementNotification(essay) {
-    const pitches = window.tinkerPitches;
-    const placement = (pitches && typeof pitches.findPitchForWriting === "function")
-      ? pitches.findPitchForWriting(essay.id)
-      : null;
-    const titleText = essay.title || "Your essay";
-
-    let body;
-    let pitchId = null;
-    if (placement && placement.pitchId) {
-      pitchId = placement.pitchId;
-      const pitch = (typeof pitches.getPitch === "function") ? pitches.getPitch(pitchId) : null;
-      const pitchName = (pitch && (pitch.personalTitle || pitch.aiTitle)) || "a pitch";
-      const heading = placement.deckHeading;
-      body = heading
-        ? `Landed in “${pitchName}” — on the ${heading} slide.`
-        : `Landed in “${pitchName}”.`;
-    } else {
-      body = `It's standing on its own for now — keep writing and it'll gather a pitch of its own.`;
-    }
-
-    const payload = {
-      kind: "placement",
-      title: `“${titleText}” found its place`,
-      body,
-      essayId: essay.id,
-      pitchId,
-    };
-    if (typeof window.tinkerNotify === "function") {
-      window.tinkerNotify(payload);
-    } else {
-      try { window.dispatchEvent(new CustomEvent("tinker:notify", { detail: payload })); }
-      catch { /* ignore */ }
-    }
-  }
-
-  function showFounders() {
-    if (!foundersView) return;
-    feedView.removeAttribute("data-active");
-    writingView.hidden = true;
-    readView.hidden = true;
-    if (categoryFeedView) categoryFeedView.hidden = true;
-    if (writingFitView) writingFitView.hidden = true;
-    if (pitchScriptView) pitchScriptView.hidden = true;
-    foundersView.hidden = false;
-    activeId = null;
-    readingEssayId = null;
-    activeCategoryKey = null;
-    activeCategorySeed = null;
-    renderSidebar();
-    if (window.tinkerFounders && typeof window.tinkerFounders.refresh === "function") {
-      window.tinkerFounders.refresh();
-    }
-  }
-
-  function showPitchScript(pitchId) {
-    if (!pitchScriptView) return;
-    feedView.removeAttribute("data-active");
-    writingView.hidden = true;
-    readView.hidden = true;
-    if (categoryFeedView) categoryFeedView.hidden = true;
-    if (writingFitView) writingFitView.hidden = true;
-    if (foundersView) foundersView.hidden = true;
-    pitchScriptView.hidden = false;
-    activeId = null;
-    readingEssayId = null;
-    activeCategoryKey = null;
-    activeCategorySeed = null;
-    renderSidebar();
-    if (window.tinkerPitchScript && typeof window.tinkerPitchScript.show === "function") {
-      window.tinkerPitchScript.show(pitchId);
-    }
-  }
-  // The pitch-script view's "back" button calls this to return to the
-  // home view; exposed on window so pitch-script.js (loaded after
-  // renderer.js) can reach it without a circular import.
-  window.tinkerShowPitch = () => showFeed();
-  window.tinkerShowPitchScript = (pitchId) => showPitchScript(pitchId);
-
-  // The 7-colour rainbow cycle from the sidebar (styles.css:258-264),
-  // mirrored here so the same hue follows a given deck heading whether
-  // it's surfaced in the sidebar's phrase row or the essay/read view's
-  // subtitle. With 11 headings the cycle wraps; that's the same rule
-  // the sidebar already uses.
-  const SLIDE_COLOR_CYCLE = [
-    "var(--logo-pink)",
-    "var(--logo-orange)",
-    "var(--logo-yellow)",
-    "var(--logo-leaf)",
-    "var(--logo-sky)",
-    "var(--logo-mint)",
-    "var(--logo-purple)",
-  ];
-  function slideColorFor(heading) {
-    const headings = (window.tinkerTree && window.tinkerTree.DECK_HEADINGS) || [];
-    const i = headings.indexOf(heading);
-    if (i < 0) return SLIDE_COLOR_CYCLE[0];
-    return SLIDE_COLOR_CYCLE[i % SLIDE_COLOR_CYCLE.length];
-  }
-
-  // Build the "<PitchName> · <SlideTitle>" subtitle for a known pitch +
-  // deck heading. SlideTitle is coloured to match that slide's row in
-  // the sidebar; PitchName prefers the founder's personal title and
-  // falls back to the AI-generated one. Returns just the pitch name
-  // when no heading is given, and the empty string when the pitch can't
-  // be resolved (callers decide their own fallback).
-  function subtitleHtmlFor(pitchId, heading) {
-    if (!pitchId || !window.tinkerPitches) return "";
-    const pitches = window.tinkerPitches;
-    const pitch = typeof pitches.getPitch === "function" ? pitches.getPitch(pitchId) : null;
-    const pitchName = (pitch && (pitch.personalTitle || pitch.aiTitle)) || "Untitled pitch";
-    if (!heading) return escapeHtml(pitchName);
-    const color = slideColorFor(heading);
-    return escapeHtml(pitchName)
-      + ` <span class="essay-subtitle__sep" aria-hidden="true">·</span> `
-      + `<span class="essay-subtitle__slide" style="color: ${color}">${escapeHtml(heading)}</span>`;
-  }
-
-  // The per-essay subtitle, resolved through the essay's canonical
-  // placement (the first pitch + slide it's slotted under). Returns the
-  // empty string when the essay isn't slotted anywhere yet (e.g. a
-  // freshly published essay the classifier hasn't placed yet) so callers
-  // can decide on a fallback themselves.
-  function pitchSubtitleHtmlFor(essay) {
-    if (!essay || !window.tinkerPitches) return "";
-    const pitches = window.tinkerPitches;
-    if (typeof pitches.findPitchForWriting !== "function") return "";
-    const placement = pitches.findPitchForWriting(essay.id);
-    if (!placement) return "";
-    return subtitleHtmlFor(placement.pitchId, placement.deckHeading);
+    if (storyBtn) storyBtn.addEventListener("click", () => showStory(essay.id));
   }
 
   // Resolve a writingId — an essay id, or a not-yet-published draft id —
   // to a readable { id, title, body, author }. The book spread shows
-  // the *next* writing in a pitch, which is almost always a published
-  // essay but can briefly be a draft before the organize job re-slots
-  // it, so we look in both stores.
+  // the *next* piece of the story; we look in both stores so an id
+  // that's still a draft resolves too.
   function readableForWritingId(id) {
     if (!id) return null;
     const essay = essays.find((e) => e && e.id === id);
@@ -836,14 +609,10 @@
   }
 
   // One page of the read view: subtitle + title + body wrapped in an
-  // <article class="read__page">. `placement` ({ pitchId, heading })
-  // pins the subtitle to a known slide so a book spread stays in step
-  // with the sequence it was built from; without it we fall back to the
-  // essay's canonical placement.
-  function readPageHtml(essay, placement, extraClass) {
-    const subtitle = (placement
-      ? subtitleHtmlFor(placement.pitchId, placement.heading)
-      : pitchSubtitleHtmlFor(essay)) || escapeHtml(essay.author || "you");
+  // <article class="read__page">. The subtitle is the piece's place in
+  // the story ("part N of M · 3d") when it has one, else the author.
+  function readPageHtml(essay, subtitleText, extraClass) {
+    const subtitle = subtitleText || essay.author || "you";
     // Title wraps the text in an inner span so the mobile floating
     // title bar can centre with text-overflow: ellipsis — both
     // properties only behave when applied to a sized child, not to a
@@ -853,41 +622,44 @@
       : "";
     return `<article class="read__page${extraClass ? " " + extraClass : ""}">` +
       `<header class="read__head">` +
-        `<div class="read__author">${subtitle}</div>` +
+        `<div class="read__author">${escapeHtml(subtitle)}</div>` +
         titleHtml +
       `</header>` +
       paragraphs(essay.body) +
     `</article>`;
   }
 
-  // Work out the book spread for an opened essay: which essay sits on
-  // the left page and which on the right. Normally the opened essay is
-  // on the left and the next essay in the pitch deck is on the right.
-  // On the last slide of a pitch (e.g. The Ask) there's no "next", so
-  // the opened essay closes the book on the RIGHT — the way a printed
-  // deck ends on its final slide — and the preceding essay takes the
-  // left. Returns null when the essay isn't in a pitch or has no
+  // "part N of M · <when>" — the piece's position in the story. Empty
+  // string when the essay isn't part of the story (archived, draft).
+  function storySubtitleFor(essayId, order) {
+    const i = order.findIndex((o) => o && o.id === essayId);
+    if (i < 0) return "";
+    const when = order[i].createdAt ? relTime(order[i].createdAt) : "";
+    return `part ${i + 1} of ${order.length}${when ? ` · ${when}` : ""}`;
+  }
+
+  // Work out the book spread for an opened essay: which piece sits on
+  // the left page and which on the right. The order is the story —
+  // chronological, oldest first. Normally the opened essay is on the
+  // left and the next piece on the right; on the story's final piece
+  // there's no "next", so the opened essay closes the book on the
+  // RIGHT — the way a printed story ends on its last page — and the
+  // preceding piece takes the left. Returns null when there's no
   // neighbour, in which case the read view shows a single page.
   function readingSpreadFor(essay) {
-    const pitches = window.tinkerPitches;
-    if (!essay || !pitches) return null;
-    if (typeof pitches.findPitchForWriting !== "function"
-      || typeof pitches.readingOrder !== "function") return null;
-    const placement = pitches.findPitchForWriting(essay.id);
-    if (!placement) return null;
-    const order = pitches.readingOrder(placement.pitchId);
+    const story = window.tinkerStory;
+    if (!essay || !story || typeof story.storyEssays !== "function") return null;
+    const order = story.storyEssays();
     if (!Array.isArray(order) || order.length < 2) return null;
-    const i = order.findIndex((o) => o && o.writingId === essay.id);
+    const i = order.findIndex((o) => o && o.id === essay.id);
     if (i < 0) return null;
 
-    // Resolve a sequence entry to a page descriptor. `known` lets us
-    // reuse the already-in-hand opened essay instead of re-resolving it.
     const pageFor = (entry, known) => {
-      const readable = known && known.id === entry.writingId
+      const readable = known && known.id === entry.id
         ? known
-        : readableForWritingId(entry.writingId);
+        : readableForWritingId(entry.id);
       if (!readable) return null;
-      return { essay: readable, placement: { pitchId: placement.pitchId, heading: entry.heading } };
+      return { essay: readable, subtitle: storySubtitleFor(entry.id, order) };
     };
 
     if (i < order.length - 1) {
@@ -901,20 +673,20 @@
   }
 
   // The read view's content: a two-page book on a wide desktop (the
-  // opened essay + its pitch neighbour), collapsing to a single centred
+  // opened essay + its story neighbour), collapsing to a single centred
   // page on narrow screens or when there's nothing to pair with.
   function readBookHtml(essay) {
     const spread = readingSpreadFor(essay);
     if (!spread) {
       return `<div class="read__book">` +
-        readPageHtml(essay, null, "read__page--current") +
+        readPageHtml(essay, "", "read__page--current") +
       `</div>`;
     }
     const leftRole = spread.currentSide === "left" ? "read__page--current" : "read__page--adjacent";
     const rightRole = spread.currentSide === "right" ? "read__page--current" : "read__page--adjacent";
     return `<div class="read__book read__book--spread">` +
-      readPageHtml(spread.left.essay, spread.left.placement, "read__page--left " + leftRole) +
-      readPageHtml(spread.right.essay, spread.right.placement, "read__page--right " + rightRole) +
+      readPageHtml(spread.left.essay, spread.left.subtitle, "read__page--left " + leftRole) +
+      readPageHtml(spread.right.essay, spread.right.subtitle, "read__page--right " + rightRole) +
     `</div>`;
   }
 
@@ -968,11 +740,13 @@
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
-  // Sidebar's drafts+essays list is gone — the v0.103 pitch-deck tree
-  // owns the sidebar surface between brand and Account (see
-  // sidebar-tree.js). renderSidebar/renderHome are kept as no-ops so
-  // existing call sites compile.
+  // The sidebar surface between brand and Account is the story block,
+  // owned by story.js — renderSidebar just asks it to repaint after a
+  // draft/essay mutation. (sessionsEl is a legacy mount, long gone.)
   function renderSidebar() {
+    if (window.tinkerStory && typeof window.tinkerStory.renderNav === "function") {
+      window.tinkerStory.renderNav();
+    }
     if (!sessionsEl) return;
     sessionsEl.innerHTML = "";
   }
@@ -1129,11 +903,11 @@
   window.tinkerOnWritingPublish = (draft, stitched) => store.publish(draft, stitched);
   window.tinkerOnDraftChange = (draftId, patch) => store.updateDraft(draftId, patch);
   // Free write mode: the free-write composer saves through here. The
-  // essay is held locally and sent off to the pitch when free write mode
-  // ends — i.e. the device reconnects (or the override is switched off).
+  // essay is held locally and syncs out when free write mode ends —
+  // i.e. the device reconnects (or the override is switched off).
   window.tinkerOnFreewriteSave = (draft, opts) => store.publishDeferred(draft, opts || {});
   window.addEventListener("tinker:freewrite-changed", (e) => {
-    if (e && e.detail && e.detail.on === false) flushPendingPitches();
+    if (e && e.detail && e.detail.on === false) flushDeferredEssays();
   });
 
   // Used by the seed list in the sidebar: open a fresh draft
@@ -1152,19 +926,16 @@
   window.tinkerShowCategoryFeed = (categoryKey, originatingSeed) =>
     showCategoryFeed(categoryKey, originatingSeed);
 
-  // A placement toast was clicked — open the essay it's about in the read
-  // view. Falls back to making its pitch active if the essay can't be found
-  // (e.g. it was deleted between the notification firing and the click).
+  // A notification was clicked — open the essay it's about in the read
+  // view. Falls back to the story when the essay can't be found (e.g.
+  // it was deleted between the notice firing and the click).
   window.addEventListener("tinker:open-essay", (e) => {
     const detail = (e && e.detail) || {};
     if (detail.essayId) {
       const essay = essays.find((x) => x.id === detail.essayId);
       if (essay) { showRead(essay); return; }
     }
-    if (detail.pitchId && window.tinkerPitches && typeof window.tinkerPitches.setActivePitch === "function") {
-      window.tinkerPitches.setActivePitch(detail.pitchId);
-      showFeed();
-    }
+    showStory();
   });
 
   // Status composer wiring. The textarea enables the Post button once
@@ -1241,7 +1012,7 @@
     drafts = loadDrafts();
     essays = loadEssays();
     // A sign-in may have surfaced essays saved offline on another device.
-    flushPendingPitches();
+    flushDeferredEssays();
     if (activeId && !drafts.some((d) => d.id === activeId)) {
       activeId = null;
       showFeed();
@@ -1257,7 +1028,7 @@
   renderSidebar();
   renderHome();
   showFeed();
-  // Catch any essay saved offline in a prior session and never sent off
-  // — send it to the pitch now if we're back online.
-  flushPendingPitches();
+  // Catch any essay saved offline in a prior session and never flushed
+  // — sync it out now if we're back online.
+  flushDeferredEssays();
 })();

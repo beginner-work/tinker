@@ -48,10 +48,7 @@
     "RULE 8 — TRANSACTIONS AS A MIRROR FOR FOUNDER IDENTITY.",
     "If the user message includes 'Recent transactions:', treat those rows as concrete moments the founder can reflect on. The goal is NOT bookkeeping, taxes, deductions, or 'ordinary and necessary' classification — those are not the subject. The goal is helping the founder see themselves as a founder, as a person, and as a highly skilled individual claiming an area as their business. When the seed, what they're facing, or the conversation so far overlaps with one or more rows (e.g. grocery store + grocery transactions), your question may ground in those specifics — surfacing what the founder is learning about how the way they spend connects to how they work, where the line between personal and business genuinely blurs (and what they're learning by noticing). Use the data as a mirror, not advice. Do NOT lecture about money or taxes. Do NOT moralise.",
     "",
-    "RULE 9 — STEER TOWARD UNEXPLORED PITCH TERRITORY.",
-    "If the user message lists 'Starter-pitch slides the founder hasn't written into yet: ...', those are eleven canonical territories the founder's pitch is still missing. When the conversation has settled or is about to drift, let one of those uncovered territories shape what you ask next — pointed at what the founder is learning about that territory, in the founder's own scene and vocabulary. Do NOT name a slide title back to the founder. Do NOT mention the pitch, the deck, the eleven slides, or any of the slide-title literals. Do NOT force the move if the current answer is still alive — finish that thread first. Do NOT cycle through the list mechanically; pick the one nearest to what they're already saying.",
-    "",
-    "RULE 10 — ASK IN THE FOUNDER'S OWN WRITING VOICE.",
+    "RULE 9 — ASK IN THE FOUNDER'S OWN WRITING VOICE.",
     "If the user message includes a 'THE FOUNDER'S WRITING VOICE' block, it is a profile learned from the founder's own published essays — their tone, cadence, vocabulary, and the moves they reach for. Phrase your questions so they sound like they came from inside that same voice: match the cadence and lean on the words they actually use. This shapes HOW you ask, never WHAT they answer. It does NOT relax any rule above — every question still pursues what they are learning (RULE 4), and the stitched essay is still built only from words the founder typed (RULE 1, RULE 2). Never quote the profile back to the founder, never describe their voice to them.",
   ].join("\n");
 
@@ -92,8 +89,8 @@
       // talk to, so drop the back-and-forth interview entirely. Show the
       // same "What are you learning?" question card as the AI interview —
       // identical chrome — with one "This is everything" save that writes
-      // to local storage; the essay goes off to the pitch when we
-      // reconnect. See renderer.js' publishDeferred / flushPendingPitches.
+      // to local storage; the essay syncs out (and joins the story)
+      // when we reconnect. See renderer.js' publishDeferred.
       if (isFreeWrite()) {
         renderFreewriteCompose();
         return;
@@ -326,7 +323,7 @@
   // No interview, no Claude — but the founder sees the exact same
   // "What are you learning?" question card as the AI flow. One answer,
   // and the footer "This is everything →" hands the raw text to
-  // renderer.js to save locally and queue for the pitch.
+  // renderer.js to save locally; it joins the story right away.
   const CHECK_GLYPH =
     '<path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
 
@@ -411,7 +408,7 @@
       `<svg viewBox="0 0 24 24" width="26" height="26">${CHECK_GLYPH}</svg>` +
       `</div>` +
       `<h2 class="writing-question">Saved on this device.</h2>` +
-      `<p class="writing-freewrite__sub">When you reconnect, this goes to your pitch like any other essay.</p>`;
+      `<p class="writing-freewrite__sub">It's part of your story — when you reconnect, it syncs like any other essay.</p>`;
     const done = document.createElement("button");
     done.type = "button";
     done.className = "writing-action writing-action--primary";
@@ -755,18 +752,6 @@
     });
   }
 
-  function buildUncoveredPitchLines() {
-    const tree = window.tinkerTree;
-    if (!tree || typeof tree.uncoveredHeadings !== "function") return [];
-    let uncovered;
-    try { uncovered = tree.uncoveredHeadings(); }
-    catch { return []; }
-    if (!Array.isArray(uncovered) || uncovered.length === 0) return [];
-    return [
-      `Starter-pitch slides the founder hasn't written into yet: ${uncovered.join(", ")}.`,
-    ];
-  }
-
   function buildUserMessage(transcript, { forceStitch = false } = {}) {
     const lines = [];
     if (active && active.seed) {
@@ -783,11 +768,6 @@
       if (lines.length) lines.push("");
       lines.push("Recent transactions:");
       lines.push(...txLines);
-    }
-    const uncoveredLines = buildUncoveredPitchLines();
-    if (uncoveredLines.length) {
-      if (lines.length) lines.push("");
-      lines.push(...uncoveredLines);
     }
     if (lines.length) lines.push("");
     if (!transcript || transcript.length === 0) {

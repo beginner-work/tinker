@@ -1,12 +1,12 @@
 /* tinker — user-data sync layer
  *
  * Bridges the client-owned blobs (essays, drafts, seeds, taxonomy,
- * tree) to /api/user-data/<kind>. On boot: when an auth token is
+ * story) to /api/user-data/<kind>. On boot: when an auth token is
  * available, fetch each blob and overwrite the corresponding
  * localStorage key so the consumer modules (seeds.js, heatmap.js,
- * sidebar-tree.js, renderer.js) see the server state on their next
- * read. On every save: push the new blob back, debounced per-kind so a
- * burst of keystrokes coalesces into one write.
+ * story.js, renderer.js) see the server state on their next read. On
+ * every save: push the new blob back, debounced per-kind so a burst of
+ * keystrokes coalesces into one write.
  *
  * The localStorage keys stay the source of truth for the renderer.
  * The server is the source of truth across devices, but locally
@@ -20,13 +20,10 @@
  *   - seeds    → "tinker.seeds.v1" + "tinker.seeds.hidden.v1"
  *                stored on the server as one { explicit, hidden } blob
  *   - taxonomy → "tinker.taxonomy.v1" (object)
- *   - tree     → "tinker.tree.v1"     (object: { [deckHeading]: [...] })
- *   - pitches  → "tinker.pitches.v1"  (object: { pitches, activeId, ... })
- *                authoritatively produced by the backend organize job
- *                (/api/pitches/organize). PUT carries user-controlled
- *                fields (personalTitle, activeId, expanded) between
- *                job runs; a hydrate that races a not-yet-pushed
- *                rename gets a local-preferred merge to keep the label.
+ *   - story    → "tinker.story.v1"    (object: { ask, lockedAt,
+ *                lockedEssayIds, storiesUrl } — the locked-in story;
+ *                see story.js). Newer lockedAt wins on hydrate so the
+ *                most recent lock survives a cross-device race.
  *   - notifications → "tinker.notifications" (array, owned by
  *                notifications.js). Unioned by id with monotonic
  *                acknowledged/seen flags, so a notice raised on one
@@ -49,8 +46,7 @@
   const KIND_DRAFTS = "drafts";
   const KIND_SEEDS = "seeds";
   const KIND_TAXONOMY = "taxonomy";
-  const KIND_TREE = "tree";
-  const KIND_PITCHES = "pitches";
+  const KIND_STORY = "story";
   const KIND_NOTIFICATIONS = "notifications";
 
   const LS_ESSAYS = "tinker.essays.v1";
@@ -58,8 +54,7 @@
   const LS_SEEDS = "tinker.seeds.v1";
   const LS_SEEDS_HIDDEN = "tinker.seeds.hidden.v1";
   const LS_TAXONOMY = "tinker.taxonomy.v1";
-  const LS_TREE = "tinker.tree.v1";
-  const LS_PITCHES = "tinker.pitches.v1";
+  const LS_STORY = "tinker.story.v1";
   // Shared with notifications.js' STORE_KEY — sync round-trips the same
   // array it reads and writes, so an acknowledgement on one device is
   // honoured on the others.
@@ -92,15 +87,11 @@
   // preserves that contract: server `null` (the column default) means
   // "no row yet", and we leave localStorage untouched on that branch.
   //
-  // Boot/publish race: publishing an essay (or adding a pitch, which
-  // publishes the freewrite first) writes the essay to localStorage and
-  // schedules a 1500ms-debounced push, then POSTs /api/pitches/organize.
-  // The organize endpoint only loads essays — it never writes them — so
-  // the server's essays store still reflects the pre-publish state until
-  // that debounce fires. If a hydrate races in between (auth-changed, a
-  // background fetch, the organize-completed refresh), the server returns
-  // its stale essays list and a naive overwrite drops every local-only
-  // essay the push hasn't delivered yet. Merge by id — same protection
+  // Boot/publish race: publishing an essay writes it to localStorage and
+  // schedules a 1500ms-debounced push. If a hydrate races in between
+  // (auth-changed, a background fetch), the server returns its stale
+  // essays list and a naive overwrite drops every local-only essay the
+  // push hasn't delivered yet. Merge by id — same protection
   // applyDraftsFromServer already uses — so the local essays survive
   // while the server stays authoritative for essays it already knows.
   function applyEssaysFromServer(data) {
@@ -156,39 +147,16 @@
     setLs(LS_TAXONOMY, JSON.stringify(data));
     return true;
   }
-  function applyTreeFromServer(data) {
+  // The lock is one small object; the newest lock wins. A hydrate that
+  // races a just-pressed local lock (its push still debounced) must not
+  // clobber it — compare lockedAt and keep whichever side locked last.
+  function applyStoryFromServer(data) {
     if (!data || typeof data !== "object") return false;
-    setLs(LS_TREE, JSON.stringify(data));
-    return true;
-  }
-  // The founder's personalTitle (their label for a pitch) is written
-  // locally and pushed on a 1500ms debounce. A boot or auth-changed
-  // hydrate that races that debounce would otherwise overwrite the
-  // label with a server copy that hasn't seen it yet. Per-pitch fold:
-  // when the server has no personalTitle for an id but localStorage
-  // does, keep the local value — the still-pending push will reconcile.
-  function applyPitchesFromServer(data) {
-    if (!data || typeof data !== "object") return false;
-    if (!Array.isArray(data.pitches)) return false;
-    const local = getLsJson(LS_PITCHES, null);
-    const localPersonalById = new Map();
-    if (local && Array.isArray(local.pitches)) {
-      for (const p of local.pitches) {
-        if (p && typeof p.id === "string" && p.personalTitle) {
-          localPersonalById.set(p.id, p.personalTitle);
-        }
-      }
-    }
-    const merged = { ...data };
-    merged.pitches = data.pitches.map((p) => {
-      if (p && typeof p.id === "string"
-          && (p.personalTitle == null || p.personalTitle === "")
-          && localPersonalById.has(p.id)) {
-        return { ...p, personalTitle: localPersonalById.get(p.id) };
-      }
-      return p;
-    });
-    setLs(LS_PITCHES, JSON.stringify(merged));
+    const local = getLsJson(LS_STORY, null);
+    const localAt = local && Number(local.lockedAt) > 0 ? Number(local.lockedAt) : 0;
+    const serverAt = Number(data.lockedAt) > 0 ? Number(data.lockedAt) : 0;
+    if (localAt > serverAt) return false;
+    setLs(LS_STORY, JSON.stringify(data));
     return true;
   }
 
@@ -292,11 +260,8 @@
     pushTaxonomy() {
       schedulePush(KIND_TAXONOMY, () => getLsJson(LS_TAXONOMY, null));
     },
-    pushTree() {
-      schedulePush(KIND_TREE, () => getLsJson(LS_TREE, null));
-    },
-    pushPitches() {
-      schedulePush(KIND_PITCHES, () => getLsJson(LS_PITCHES, null));
+    pushStory() {
+      schedulePush(KIND_STORY, () => getLsJson(LS_STORY, null));
     },
     pushNotifications() {
       schedulePush(KIND_NOTIFICATIONS, () => getLsJson(LS_NOTIFICATIONS, []));
@@ -316,21 +281,19 @@
       if (kinds.includes(KIND_DRAFTS))   pushKind(KIND_DRAFTS,   getLsJson(LS_DRAFTS, []));
       if (kinds.includes(KIND_SEEDS))    pushKind(KIND_SEEDS,    buildSeedsBlob());
       if (kinds.includes(KIND_TAXONOMY)) pushKind(KIND_TAXONOMY, getLsJson(LS_TAXONOMY, null));
-      if (kinds.includes(KIND_TREE))     pushKind(KIND_TREE,     getLsJson(LS_TREE, null));
-      if (kinds.includes(KIND_PITCHES))  pushKind(KIND_PITCHES,  getLsJson(LS_PITCHES, null));
+      if (kinds.includes(KIND_STORY))    pushKind(KIND_STORY,    getLsJson(LS_STORY, null));
       if (kinds.includes(KIND_NOTIFICATIONS)) pushKind(KIND_NOTIFICATIONS, getLsJson(LS_NOTIFICATIONS, []));
     },
   };
 
   async function hydrate() {
     if (!token()) return;
-    const [essays, drafts, seeds, taxonomy, tree, pitches, notifications] = await Promise.all([
+    const [essays, drafts, seeds, taxonomy, story, notifications] = await Promise.all([
       fetchKind(KIND_ESSAYS),
       fetchKind(KIND_DRAFTS),
       fetchKind(KIND_SEEDS),
       fetchKind(KIND_TAXONOMY),
-      fetchKind(KIND_TREE),
-      fetchKind(KIND_PITCHES),
+      fetchKind(KIND_STORY),
       fetchKind(KIND_NOTIFICATIONS),
     ]);
     let changed = false;
@@ -338,8 +301,7 @@
     if (applyDraftsFromServer(drafts)) changed = true;
     if (applySeedsFromServer(seeds)) changed = true;
     if (applyTaxonomyFromServer(taxonomy)) changed = true;
-    if (applyTreeFromServer(tree)) changed = true;
-    if (applyPitchesFromServer(pitches)) changed = true;
+    if (applyStoryFromServer(story)) changed = true;
     if (applyNotificationsFromServer(notifications)) changed = true;
     if (changed) {
       try { window.dispatchEvent(new CustomEvent("tinker:hydrated")); }

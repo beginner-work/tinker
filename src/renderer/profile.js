@@ -263,7 +263,7 @@
       setError("");
       var name = (nameInput.value || "").trim();
       var email = (emailInput && emailInput.value || "").trim();
-      if (!name) { setError("Add your name so your pitches have an author."); nameInput.focus(); return; }
+      if (!name) { setError("Add your name so your story has an author."); nameInput.focus(); return; }
       if (!(fileInput.files && fileInput.files.length)) { setError("Add a profile picture — this is you, founder."); return; }
       if (email && !EMAIL_RE.test(email)) { setError("That doesn’t look like an email address."); emailInput.focus(); return; }
 

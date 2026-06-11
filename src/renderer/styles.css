@@ -351,644 +351,6 @@ body:has(#welcome[data-active]) .mode-nav {
   .mode-nav { bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
 }
 
-/* ── Sidebar pitch-deck tree (v0.103) ─────────────────────────────
- *
- * Mirrors pitch-deck.md inside the sidebar. The top tier rows hold one
- * of the eleven slide titles; the inner rows hold verbatim phrases
- * lifted from the founder's own writings. Both reuse
- * `.sidebar__account-item` for sizing/hover/spacing so the surface is
- * visually continuous with the Account block below. The nav is hidden
- * (via the [hidden] attribute) on cold-start — no placeholder, no CTA.
- */
-
-.sidebar__tree {
-  padding: 8px 8px 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  -webkit-app-region: no-drag;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-}
-.sidebar__tree-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.sidebar__deck-heading-row { display: contents; }
-.sidebar__deck-heading {
-  /* Top-tier row carries the deck-slide title — a fixed literal from
-   * the renderer's const. The label sits flush with the Account
-   * block's items to read as continuous chrome. */
-  font-weight: 600;
-}
-.sidebar__deck-heading[aria-expanded="false"] .sidebar__account-label {
-  color: var(--color-muted);
-}
-.sidebar__deck-heading[data-active] {
-  background: var(--color-hover);
-}
-.sidebar__deck-heading[data-empty] {
-  /* Slide hasn't earned a phrase yet — render as a grayed-out
-   * placeholder so the founder can see the full eleven-slide outline
-   * from the moment a pitch exists. Not interactive: no hover swap,
-   * default cursor, no click handler bound in the renderer. */
-  cursor: default;
-  opacity: 0.5;
-}
-.sidebar__deck-heading[data-empty]:hover {
-  background: transparent;
-}
-.sidebar__deck-heading[data-empty] .sidebar__account-label {
-  color: var(--color-muted);
-  font-weight: 500;
-}
-.sidebar__phrase-list {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 0 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-/* Each excerpt carries a vertical rainbow-palette line on its left,
- * mirroring the blockquote treatment in pitch-deck.md (section.tinker
- * blockquote { border-left: 2px solid <rainbow> }). The hue is set on
- * the deck-heading-row so every excerpt inside one section shares it,
- * and the cycle advances to the next rainbow-web logo hue on the next
- * section. `display: contents` on the row doesn't affect custom-property
- * inheritance, so the children still pick up --phrase-border-color. */
-.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 1) { --phrase-border-color: var(--logo-pink); }
-.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 2) { --phrase-border-color: var(--logo-orange); }
-.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 3) { --phrase-border-color: var(--logo-yellow); }
-.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 4) { --phrase-border-color: var(--logo-leaf); }
-.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 5) { --phrase-border-color: var(--logo-sky); }
-.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n + 6) { --phrase-border-color: var(--logo-mint); }
-.sidebar__tree-list > .sidebar__deck-heading-row:nth-child(7n)     { --phrase-border-color: var(--logo-purple); }
-.sidebar__phrase-list > li {
-  border-left: 2px solid var(--phrase-border-color, var(--logo-purple));
-}
-.sidebar__phrase {
-  /* Allow the row's flex container to shrink so wrapping text doesn't
-   * push the row past the sidebar's width. */
-  align-items: flex-start;
-}
-.sidebar__phrase .sidebar__account-label {
-  font-size: 13px;
-  color: var(--color-muted);
-  display: block;
-  /* Founder writing wraps instead of truncating — every phrase is a
-   * verbatim slice of their own text, and clipping it hides the words
-   * they wrote. Long phrases break on word boundaries first, then
-   * break out of long unbroken runs as a last resort. */
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  line-height: 1.35;
-}
-.sidebar__phrase[data-active] {
-  background: var(--color-hover);
-}
-.sidebar__phrase[data-active] .sidebar__account-label {
-  color: var(--color-foreground);
-}
-.sidebar__tree-retry {
-  margin-left: auto;
-  font-size: 14px;
-  color: var(--color-muted);
-  cursor: pointer;
-  padding: 0 4px;
-  border-radius: 4px;
-}
-.sidebar__tree-retry:hover { background: var(--color-hover); color: var(--color-foreground); }
-
-/* Per-slide pin toggle. Sits at the right edge of a covered deck-heading
- * row. Quiet by default (so it doesn't clutter the outline) but always at
- * least faintly visible — there's no hover on touch — and full-strength on
- * hover/focus. A pinned beat stays where the founder put it: the pushpin
- * fills with the brand accent and the row gets a thin left bar so pinned
- * beats are scannable even when collapsed. (Class names still say "lock"
- * — the storage field is meta.locked — but the founder-facing language
- * is pin/unpin: nothing is locked away, it's held in place.) */
-.sidebar__deck-lock {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-muted);
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  opacity: 0.5;
-  transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease;
-}
-.sidebar__deck-lock svg { display: block; }
-.sidebar__deck-heading:hover .sidebar__deck-lock,
-.sidebar__deck-lock:hover,
-.sidebar__deck-lock:focus-visible { opacity: 1; }
-.sidebar__deck-lock:hover { background: var(--color-hover); color: var(--color-foreground); }
-.sidebar__deck-lock.is-locked {
-  opacity: 1;
-  color: var(--color-accent-strong);
-}
-.sidebar__deck-heading[data-locked] {
-  box-shadow: inset 2px 0 0 var(--color-accent-strong);
-}
-
-/* Drag-an-essay-to-a-slide. The phrase row is the draggable; every
- * deck-heading row is a drop target. While a row is hovered with a
- * payload it takes the accent outline so the founder can see exactly
- * which slide the essay will land on. */
-.sidebar__phrase { cursor: grab; }
-.sidebar__phrase[data-dragging] {
-  opacity: 0.45;
-  cursor: grabbing;
-}
-.sidebar__deck-heading[data-drop-target] {
-  background: var(--color-accent-dim);
-  box-shadow: inset 0 0 0 1.5px var(--color-accent-strong);
-}
-.sidebar__deck-heading[data-drop-target] .sidebar__account-label {
-  color: var(--color-accent-strong);
-}
-
-/* ── Pitch-progress bar ────────────────────────────────────────────
- *
- * Sits at the top of the sidebar tree, above the eleven deck-heading
- * rows. Shows how many of the eleven headings have at least one
- * resolvable phrase. Hidden alongside the tree on cold-start; visible
- * the moment the classifier lands its first hit.
- */
-.sidebar__tree-progress {
-  padding: 4px 10px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.sidebar__tree-progress-meta {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-.sidebar__tree-progress-label {
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-.sidebar__tree-progress-count {
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-muted);
-}
-.sidebar__tree-progress-track {
-  position: relative;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--color-border);
-  overflow: hidden;
-}
-.sidebar__tree-progress-fill {
-  width: 0%;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    var(--color-rose)   0%,
-    var(--color-peach)  18%,
-    var(--color-amber)  36%,
-    var(--logo-leaf)    55%,
-    var(--color-sky)    75%,
-    var(--color-violet) 100%
-  );
-  transform-origin: left center;
-  transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-  animation: rainbow-draw 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
-}
-@keyframes rainbow-draw {
-  from { transform: scaleX(0); opacity: 0; }
-  to   { transform: scaleX(1); opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sidebar__tree-progress-fill {
-    animation: none;
-    transition: none;
-  }
-}
-
-/* ── In-flight / strengthened / off-pitch states ──────────────────── */
-/* The "stay tuned…" label sits inline alongside the "N / 8" count and
-   is swapped in only while the classifier is reading the just-published
-   writing. Both spans live inside [data-audit-ignore] so the visible-
-   string audit (sidebar-tree.js:554) is unaffected. */
-.sidebar__tree-progress-count-num {
-  display: inline-block;
-  transform-origin: center right;
-}
-.sidebar__tree-progress-count-flight {
-  display: none;
-  color: var(--color-muted);
-  font-style: italic;
-  font-weight: 500;
-  font-variant-numeric: normal;
-  letter-spacing: 0.01em;
-}
-[data-tree-progress-state="classifying"] .sidebar__tree-progress-count-num {
-  display: none;
-}
-[data-tree-progress-state="classifying"] .sidebar__tree-progress-count-flight {
-  display: inline-block;
-}
-
-/* Brand globe spins (and dims) only while a fresh classify is in flight.
-   The selector matches the body-level mirror of the state attribute. */
-[data-rainbow-logo] {
-  transition: opacity 0.4s ease;
-  transform-origin: 50% 50%;
-}
-body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
-  animation: tinker-spin 2.5s linear infinite;
-  opacity: 0.4;
-}
-
-@keyframes tinker-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
-/* Strengthened: the covered count just grew. Count text bumps, bar
-   fill briefly brightens. Lasts ~800ms then returns to idle. */
-@keyframes tinker-count-bump {
-  0%   { transform: scale(1); color: var(--color-muted); }
-  35%  { transform: scale(1.4); color: var(--color-accent-strong); }
-  100% { transform: scale(1); color: var(--color-muted); }
-}
-@keyframes tinker-bar-flash {
-  0%   { filter: brightness(1) saturate(1); }
-  35%  { filter: brightness(1.6) saturate(1.4); }
-  100% { filter: brightness(1) saturate(1); }
-}
-[data-tree-progress-state="strengthened"] .sidebar__tree-progress-count-num {
-  animation: tinker-count-bump 800ms ease-out;
-}
-[data-tree-progress-state="strengthened"] .sidebar__tree-progress-fill {
-  animation: tinker-bar-flash 900ms ease-out;
-}
-
-/* ── Pitch switcher (v0.104) ──────────────────────────────────────
- *
- * A dropdown above the pitch-progress bar. The face button shows the
- * active pitch's title; tapping it expands a menu of all pitches.
- * Beneath the chip, a full-width outlined "Rename pitch" button
- * mirrors the writing-flow step-back treatment. The matching
- * go-forth action — the indigo "Pitch" button — sits separately at
- * the very bottom of the deck nav, below all eleven slide rows.
- * Every pitch is equal-status (no main/alt distinction), so the
- * menu lists them all the same way — title plus a "covered N/11"
- * hint. The whole surface sits inside [data-audit-ignore] because
- * pitch titles are model-generated or founder-edited rather than
- * verbatim founder phrases.
- */
-.sidebar__pitch-switcher {
-  padding: 4px 10px 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  position: relative;
-}
-.sidebar__pitch-switcher-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.sidebar__pitch-switcher-label {
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-.sidebar__pitch-refresh {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 auto;
-  padding: 0;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--color-muted);
-  cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-}
-.sidebar__pitch-refresh:not(:disabled):hover {
-  color: var(--color-accent-strong);
-  background: var(--color-accent-dim);
-  border-color: var(--color-accent-strong);
-}
-.sidebar__pitch-refresh:active { transform: scale(0.94); }
-.sidebar__pitch-refresh:disabled { cursor: default; }
-.sidebar__pitch-refresh.is-busy {
-  color: var(--color-accent-strong);
-}
-.sidebar__pitch-refresh.is-busy svg {
-  animation: sidebar-pitch-refresh-spin 0.8s linear infinite;
-}
-@keyframes sidebar-pitch-refresh-spin {
-  to { transform: rotate(360deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sidebar__pitch-refresh.is-busy svg { animation: none; }
-}
-.sidebar__pitch-switcher-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.sidebar__pitch-dropdown {
-  flex: 1 1 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-foreground);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-.sidebar__pitch-dropdown:hover {
-  background: var(--color-hover);
-}
-.sidebar__pitch-dropdown[aria-expanded="true"] {
-  background: var(--color-hover);
-  border-color: var(--color-foreground);
-}
-.sidebar__pitch-dropdown-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sidebar__pitch-dropdown-caret {
-  font-size: 10px;
-  color: var(--color-muted);
-  flex-shrink: 0;
-}
-/* Two-line title block: personal recognition name on top, AI-
- * generated canonical name underneath as a muted subtitle. Used in
- * both the dropdown face and the menu items. */
-.sidebar__pitch-title-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-width: 0;
-  flex: 1 1 auto;
-  gap: 1px;
-  overflow: hidden;
-}
-.sidebar__pitch-title-personal {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-.sidebar__pitch-title-ai {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-.sidebar__pitch-title-ai--sub {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-muted);
-  font-style: italic;
-}
-.sidebar__pitch-title-date {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--color-muted);
-  opacity: 0.8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-/* Full-width pill button — same outlined / indigo treatment as
- * .writing__end and .writing__next in the onboarding answer flow,
- * scaled down to fit the sidebar. Used for "Rename pitch" inside
- * the switcher and for the "Pitch" go-forth button at the bottom
- * of the deck nav. */
-.sidebar__pitch-action {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  height: 36px;
-  padding: 0 12px;
-  margin-top: 2px;
-  border-radius: 999px;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: background 0.15s ease, transform 0.05s ease, color 0.15s ease, border-color 0.15s ease;
-}
-.sidebar__pitch-action--secondary {
-  background: var(--color-surface);
-  color: var(--color-foreground);
-  border: 1px solid var(--color-border);
-}
-.sidebar__pitch-action--secondary:not(:disabled):hover {
-  border-color: var(--color-accent-strong);
-  color: var(--color-accent-strong);
-  background: var(--color-accent-dim);
-}
-.sidebar__pitch-action--primary {
-  background: var(--color-accent-strong);
-  color: #fff;
-  border: 1px solid var(--color-accent-strong);
-  box-shadow: var(--shadow-purple);
-}
-.sidebar__pitch-action--primary:not(:disabled):hover {
-  background: #4f46e5;
-  border-color: #4f46e5;
-}
-.sidebar__pitch-action:active { transform: scale(0.98); }
-.sidebar__pitch-action:disabled { opacity: 0.55; cursor: not-allowed; }
-/* Bottom-of-nav mount for the indigo "Pitch" go-forth button.
- * Sits below the eleven deck-heading rows. Padding matches the
- * switcher so the button aligns vertically with the chip above. */
-.sidebar__pitch-post {
-  padding: 6px 10px 10px;
-}
-.sidebar__pitch-redistribute-note {
-  margin: 0 2px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--color-muted);
-}
-/* While a round is in flight the note narrates it ("Claude is
- * re-reading your 12 essays…") in italics, swapping to the plain
- * outcome line when the round returns. */
-.sidebar__pitch-redistribute-note.is-busy {
-  font-style: italic;
-  color: var(--color-accent-strong);
-}
-
-/* ── Organize menu ─────────────────────────────────────────────────
- *
- * Opens from the reorganize icon instead of firing an AI pass on
- * sight. Three options, each carrying a one-line explanation of what
- * will happen and whether it costs an AI pass — the founder should
- * never have to guess what the button is about to do.
- */
-.sidebar__organize-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 6px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
-  box-shadow: 0 8px 24px rgba(31, 29, 26, 0.12);
-}
-.sidebar__organize-option {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  width: 100%;
-  padding: 7px 9px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.12s ease;
-}
-.sidebar__organize-option:hover,
-.sidebar__organize-option:focus-visible {
-  background: var(--color-hover);
-}
-.sidebar__organize-option-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-foreground);
-}
-.sidebar__organize-option-detail {
-  font-size: 11px;
-  line-height: 1.45;
-  color: var(--color-muted);
-}
-.sidebar__pitch-rename-form {
-  display: flex;
-  gap: 4px;
-  margin-top: 4px;
-}
-.sidebar__pitch-rename-input {
-  flex: 1 1 auto;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--color-foreground);
-  background: var(--color-background);
-  color: var(--color-foreground);
-  font: inherit;
-  font-size: 13px;
-}
-.sidebar__pitch-rename-input:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--color-accent-strong);
-}
-.sidebar__pitch-rename-save {
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--color-foreground);
-  background: var(--color-foreground);
-  color: var(--color-background);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.sidebar__pitch-menu {
-  list-style: none;
-  margin: 4px 0 0;
-  padding: 4px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 280px;
-  overflow-y: auto;
-}
-.sidebar__pitch-menu-item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-foreground);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.12s ease;
-}
-.sidebar__pitch-menu-item:hover {
-  background: var(--color-hover);
-}
-.sidebar__pitch-menu-item[data-active] {
-  background: var(--color-hover);
-}
-.sidebar__pitch-menu-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sidebar__pitch-menu-meta {
-  font-size: 11px;
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-  flex-shrink: 0;
-}
-
 /* ── Welcome (empty state on main when no draft/read is active) ──── */
 
 .stage > .welcome.feed[data-active] {
@@ -1701,7 +1063,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 
 /* The read view's stage. Holds a single essay page, or — on a wide
  * desktop — a two-page "book" spread (the opened essay plus the next
- * essay in the pitch deck). It only frames what it holds; the prose
+ * piece of the story). It only frames what it holds; the prose
  * typography lives on .read__page. */
 .read__body {
   width: 100%;
@@ -1740,23 +1102,6 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   margin-bottom: 4px;
 }
 
-/* Used by the read view's .read__author subtitle (pitch name · slide).
- * The slide title piece is coloured
- * inline (style="color: var(--logo-…)") to match the slide's row in
- * the sidebar — kept as inline-style so the renderer can mint the
- * exact CSS variable per heading without a class explosion. */
-.essay-subtitle__slide {
-  font-weight: 700;
-}
-/* The middle-dot separator sits between PitchName and SlideTitle.
- * Slightly muted and given a touch of horizontal breathing room so it
- * reads as a floating bullet rather than punctuation. */
-.essay-subtitle__sep {
-  display: inline-block;
-  margin: 0 2px;
-  color: var(--color-muted);
-  opacity: 0.7;
-}
 .read__title {
   margin: 0 0 12px;
   font-family: var(--font-display);
@@ -1772,7 +1117,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 .read__author { text-align: center; }
 .read__page p { margin: 0 0 1em; }
 
-/* Wide desktop: open the book. The opened essay and its pitch neighbour
+/* Wide desktop: open the book. The opened essay and its story neighbour
  * sit side by side, centred as a pair and split by a centre spine, each
  * page capped so a line of prose keeps a comfortable measure. Below this
  * width the book collapses to the single .read__page--current and sits
@@ -1793,7 +1138,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   }
 }
 
-/* ── Pitch assessing (post-publish confirmation) ──────────────────── */
+/* ── Post-publish confirmation ("It's part of your story.") ───────── */
 
 .writing-fit[hidden] { display: none !important; }
 .writing-fit {
@@ -1893,7 +1238,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 }
 .assessing__read:active { transform: scale(0.98); }
 
-/* ── Toast notifications (native-style placement alerts) ──────────── */
+/* ── Toast notifications (native-style notices) ───────────────────── */
 
 .tinker-toasts {
   position: fixed;
@@ -1912,7 +1257,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   gap: 12px;
   padding: 14px;
   /* Frosted glass: a translucent cream pane that blurs whatever sits
-   * behind it (essay cards, the deck), with a bright top edge + soft
+   * behind it (essay cards, the story), with a bright top edge + soft
    * inner highlight so it reads as a physical sheet of glass rather than
    * a flat card. The opaque fallback colour keeps it legible where
    * backdrop-filter isn't supported. */
@@ -2917,597 +2262,360 @@ html.txn-modal-open { overflow: hidden; }
 .seed-modal__btn--primary:hover { background: #4f46e5; }
 html.seed-modal-open { overflow: hidden; }
 
-/* ── founders (social-feed adjacency tool) ─────────────────────────
+/* ── Your story (sidebar block) ────────────────────────────────────
  *
- * A quiet paper-card surface — generous padding (the "quiet home" cue
- * from the spec). No animations, no engagement chrome, no scroll feed. */
-.founders {
-  display: block;
-  width: 100%;
-  min-height: 100%;
-  box-sizing: border-box;
-  padding: 0;
-}
-.founders[hidden] { display: none; }
-
-.founders__inner {
-  width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 56px 32px 80px;
+ * Replaces the deck tree: in-progress drafts, then the story's pieces
+ * (verbatim titles, oldest first), then the pocket — the locked-in
+ * ask, or the invitation to read the story. Owned by story.js.
+ */
+.sidebar__story {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 6px;
+  padding: 4px 0 6px;
+  overflow-y: auto;
+  min-height: 0;
 }
-
-.founders__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-  color: var(--color-foreground);
-}
-
-.founders__lede {
-  margin: 0;
-  font-family: var(--font-body, var(--font-sans));
-  font-size: 16px;
-  line-height: 1.6;
-  color: var(--color-foreground);
-  max-width: 56ch;
-}
-
-.founders__loading,
-.founders__results-loading {
-  padding: 40px 0;
-  text-align: center;
-  color: var(--color-muted);
-  font-family: var(--font-sans);
-  font-size: 14px;
-}
-
-.founders__primary {
-  align-self: flex-start;
-  padding: 14px 24px;
-  border-radius: var(--radius-pill, 999px);
-  border: 1px solid var(--color-accent-strong, var(--color-foreground));
-  background: var(--color-foreground);
-  color: var(--color-background);
-  font-family: var(--font-sans);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease;
-}
-.founders__primary:hover { background: #000; }
-.founders__primary:active { transform: translateY(1px); }
-.founders__primary[disabled] { opacity: 0.55; cursor: default; }
-
-.founders__secondary {
-  align-self: flex-start;
-  padding: 10px 16px;
-  border-radius: var(--radius-pill, 999px);
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-muted);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.founders__secondary:hover {
-  background: var(--color-hover);
-  color: var(--color-foreground);
-}
-.founders__secondary[disabled] { opacity: 0.55; cursor: default; }
-
-.founders__opt-in,
-.founders__find,
-.founders__hide {
+.sidebar__story-head {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 0;
-}
-
-/* Picker: a vertical list of radio rows, one per published pitch. */
-.founders__picker-prompt {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-muted);
-  letter-spacing: 0.01em;
-}
-.founders__picker {
-  display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 8px;
+  padding: 0 10px;
 }
-.founders__picker-option {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  border-radius: var(--radius-card, 12px);
-  border: 1px solid var(--color-border);
-  background: var(--color-background);
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.founders__picker-option:hover {
-  border-color: var(--color-accent-strong);
-  background: var(--color-hover);
-}
-.founders__picker-option input[type="radio"] {
-  margin: 0;
-  accent-color: var(--color-accent-strong);
-}
-.founders__picker-title {
+.sidebar__story-label {
   font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--color-foreground);
-}
-
-/* Inline text-button for "Change pitch" — sits under the shared-pitch
- * card; muted, no border, opens the picker. */
-.founders__inline-link {
-  margin-top: 8px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-muted);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.founders__inline-link:hover { color: var(--color-foreground); }
-.founders__inline-link[disabled] { opacity: 0.55; cursor: default; }
-
-.founders__fineprint {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-.founders__error {
-  margin: 0;
-  padding: 12px 16px;
-  border-radius: var(--radius-card, 12px);
-  background: rgba(176, 58, 46, 0.08);
-  color: #8a2a1f;
-  font-family: var(--font-sans);
-  font-size: 13px;
-}
-
-.founders__own {
-  padding: 20px 24px;
-  border-radius: var(--radius-card, 14px);
-  border: 1px solid var(--color-border);
-  background: var(--color-background);
-}
-.founders__own-label {
-  font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-muted);
-  margin-bottom: 6px;
 }
-.founders__own-title {
-  font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--color-foreground);
-}
-
-.founders__results {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.founders__results-heading {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--color-foreground);
-}
-
-.founders__empty {
-  margin: 0;
-  padding: 24px 0;
-  font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.5;
+.sidebar__story-count {
+  font-size: 10.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   color: var(--color-muted);
-  max-width: 52ch;
 }
-
-.founders__cards {
+.sidebar__story-drafts,
+.sidebar__story-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 1px;
 }
-.founders__card {
-  margin: 0;
-  padding: 0;
-}
-.founders__card-link {
-  display: block;
-  padding: 28px 28px;
-  border-radius: var(--radius-card, 14px);
-  border: 1px solid var(--color-border);
-  background: var(--color-background);
-  color: var(--color-foreground);
-  text-decoration: none;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
-}
-.founders__card-link:hover {
-  border-color: var(--color-accent-strong, var(--color-foreground));
-  background: var(--color-hover);
-}
-.founders__card-link:active { transform: translateY(1px); }
-.founders__card-title {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  margin-bottom: 8px;
-  color: var(--color-foreground);
-}
-.founders__card-summary {
-  font-family: var(--font-body, var(--font-sans));
-  font-size: 15px;
-  line-height: 1.55;
+.sidebar__story-drafts:empty,
+.sidebar__story-list:empty { display: none; }
+.sidebar__story-draft .sidebar__account-label {
+  font-style: italic;
   color: var(--color-muted);
 }
-
-
-/* ── pitch-script ──────────────────────────────────────────────────
- *
- * "Prepare a script for a video" view. Modeled on .founders — same
- * column width, same padding, same typographic scale. One section
- * per slide with the founder's resolved phrases verbatim; a copy
- * button at the bottom for the full plain-text script.
- */
-.pitch-script { display: block; width: 100%; min-height: 100%; box-sizing: border-box; padding: 0; }
-.pitch-script[hidden] { display: none; }
-
-.pitch-script__inner {
-  width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 32px 32px 80px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.pitch-script__back {
-  align-self: flex-start;
-  padding: 6px 12px;
-  border-radius: var(--radius-pill, 999px);
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-muted);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  cursor: pointer;
-}
-.pitch-script__back:hover { background: var(--color-hover); color: var(--color-foreground); }
-
-.pitch-script__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-  color: var(--color-foreground);
-}
-
-.pitch-script__pitch-title {
-  font-family: var(--font-display);
-  font-size: 18px;
+.sidebar__story-draft-tag {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 9.5px;
   font-weight: 600;
-  color: var(--color-foreground);
-}
-
-.pitch-script__total {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--color-muted);
-  letter-spacing: 0.02em;
-}
-
-.pitch-script__empty {
-  margin: 0;
-  font-family: var(--font-body, var(--font-sans));
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--color-muted);
-}
-
-.pitch-script__storyboard {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.pitch-script__slide {
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 16px 18px 8px;
-  background: var(--color-surface, transparent);
-}
-
-.pitch-script__slide-header {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 8px;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--color-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  color: var(--color-muted);
+  opacity: 0.75;
 }
-.pitch-script__slide-index { font-weight: 700; color: var(--color-foreground); }
-.pitch-script__slide-heading { flex: 1; text-transform: none; letter-spacing: 0; color: var(--color-foreground); font-weight: 600; font-size: 14px; }
-.pitch-script__slide-time { color: var(--color-muted); font-variant-numeric: tabular-nums; }
-
-.pitch-script__slide-body { display: flex; flex-direction: column; gap: 8px; }
-
-.pitch-script__phrase {
-  margin: 0;
-  font-family: var(--font-body, var(--font-sans));
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--color-foreground);
+.sidebar__story-item .sidebar__account-label {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
+  font-size: 13px;
 }
-
-.pitch-script__actions { display: flex; gap: 12px; padding-top: 8px; }
-.pitch-script__copy {
-  padding: 10px 18px;
-  border-radius: var(--radius-pill, 999px);
-  border: 1px solid var(--color-accent-strong, var(--color-foreground));
-  background: var(--color-foreground);
-  color: var(--color-background);
-  font-family: var(--font-sans);
-  font-size: 14px;
+.sidebar__story-more {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.sidebar__story-pocket {
+  padding: 4px 10px 4px;
+}
+.sidebar__story-pocket:empty { display: none; }
+/* Full-width pill button — same outlined / indigo treatment as
+ * .writing__end and .writing__next in the answer flow, scaled down to
+ * fit the sidebar. Used for "Read your story". */
+.sidebar__pitch-action {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  margin-top: 2px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s ease, transform 0.05s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.pitch-script__copy:hover { background: #000; }
-
-/* ── Pitch pamphlet ─────────────────────────────────────────────────
- *
- * The flip-through read of the active pitch (pitch-pamphlet.js): a
- * fixed overlay holding one card at a time — cover, Claude's read,
- * then a flashcard per covered slide. Front of a flashcard is the
- * slide title + the essay's own title + the verbatim phrase; tapping
- * flips to the full essay. Arrows + dots underneath page through.
- */
-.pamphlet-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px
-           calc(env(safe-area-inset-bottom, 0px) + 16px);
+.sidebar__pitch-action--primary {
+  background: var(--color-accent-strong);
+  color: #fff;
+  border: 1px solid var(--color-accent-strong);
+  box-shadow: var(--shadow-purple);
 }
-.pamphlet-overlay__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(31, 29, 26, 0.55);
+.sidebar__pitch-action--primary:not(:disabled):hover {
+  background: #4f46e5;
+  border-color: #4f46e5;
 }
-.pamphlet {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 520px;
-  max-height: min(88vh, 700px);
-}
-.pamphlet__close {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  z-index: 2;
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(255, 253, 247, 0.92);
-  box-shadow: 0 2px 8px rgba(31, 29, 26, 0.2);
-  color: var(--color-foreground, #1f1d1a);
-  font-size: 22px;
-  line-height: 1;
-  cursor: pointer;
-}
-.pamphlet__close:focus-visible {
-  outline: 2px solid var(--color-accent-strong, #6366f1);
-  outline-offset: 2px;
-}
-.pamphlet__stage {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-}
-.pamphlet__card {
-  flex: 1 1 auto;
-  min-height: 380px;
-  max-height: 100%;
-  overflow-y: auto;
+.sidebar__pitch-action:active { transform: scale(0.98); }
+/* The pocket card: what's locked in, at a glance. Tapping opens the
+ * story. The ask is the founder's own words, given the room it has
+ * earned. */
+.sidebar__pocket-card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 14px;
-  padding: 30px 28px 26px;
-  background: var(--color-surface, #fffdf7);
-  border-radius: var(--radius-card, 16px);
-  box-shadow: 0 20px 60px rgba(31, 29, 26, 0.35);
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-accent-strong);
+  border-radius: 12px;
+  background: var(--color-accent-dim);
+  font: inherit;
   text-align: left;
+  cursor: pointer;
+  transition: transform 0.05s ease, box-shadow 0.15s ease;
 }
-.pamphlet__card--slide { cursor: pointer; }
-.pamphlet__card--cover {
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-.pamphlet__kicker {
+.sidebar__pocket-card:hover { box-shadow: var(--shadow-purple); }
+.sidebar__pocket-card:active { transform: scale(0.98); }
+.sidebar__pocket-kicker {
   font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-accent-strong);
+}
+.sidebar__pocket-ask {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--color-foreground);
+  overflow-wrap: anywhere;
+}
+.sidebar__pocket-note {
   font-size: 11px;
+  color: var(--color-muted);
+}
+
+/* ── Your story (view) ─────────────────────────────────────────────
+ *
+ * The whole story in one place: every piece verbatim, oldest first,
+ * one continuous read — then the lock block at the end. Owned by
+ * story.js, shown/hidden by renderer.js like every other view.
+ */
+.story { display: block; width: 100%; min-height: 100%; box-sizing: border-box; }
+.story[hidden] { display: none; }
+.story__inner {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: clamp(24px, 6vh, 64px) 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+.story__head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.story__kicker {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-muted);
 }
-.pamphlet__cover-title {
+.story__meta {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-}
-.pamphlet__cover-sub {
-  margin: -8px 0 0;
-  font-size: 14px;
-  font-style: italic;
+  font-size: 13px;
   color: var(--color-muted);
 }
-.pamphlet__cover-count {
+.story__empty {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--color-foreground);
-}
-.pamphlet__hint {
-  margin: auto 0 0;
-  font-size: 12px;
+  font-size: 15px;
+  line-height: 1.6;
   color: var(--color-muted);
 }
-.pamphlet__card--cover .pamphlet__hint { margin: 6px 0 0; }
-.pamphlet__slide-chip {
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+.story__locked-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-accent-strong);
+  border-radius: 14px;
+  background: var(--color-accent-dim);
 }
-.pamphlet__essay-title {
-  margin: 0;
+.story__locked-ask {
   font-family: var(--font-display);
   font-size: 26px;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-.pamphlet__essay-title--back { font-size: 18px; }
-.pamphlet__quote {
-  margin: 0;
-  padding-left: 14px;
-  border-left: 2px solid var(--color-border);
-  font-size: 16px;
-  line-height: 1.6;
+  letter-spacing: -0.01em;
   color: var(--color-foreground);
+  overflow-wrap: anywhere;
 }
-.pamphlet__essay-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  font-size: 14px;
-  line-height: 1.65;
-  color: var(--color-foreground);
+.story__locked-date {
+  font-size: 12px;
+  color: var(--color-muted);
 }
-.pamphlet__essay-body p { margin: 0; }
-.pamphlet__ai-body {
+.story__piece {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-.pamphlet__ai-paragraph {
-  margin: 0;
-  font-size: 14.5px;
-  line-height: 1.65;
-  color: var(--color-foreground);
-}
-.pamphlet__ai-note {
-  margin: 0;
-  font-size: 14px;
-  color: var(--color-muted);
-}
-.pamphlet__ai-note--busy { font-style: italic; }
-.pamphlet__ai-foot {
-  margin: auto 0 0;
-  padding-top: 12px;
-  font-size: 11.5px;
-  line-height: 1.5;
-  color: var(--color-muted);
+.story__piece + .story__piece {
   border-top: 1px solid var(--color-border);
+  padding-top: 32px;
 }
-.pamphlet__nav {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding-top: 14px;
+.story__piece-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
-.pamphlet__arrow {
-  width: 38px;
-  height: 38px;
+.story__piece-body {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(255, 253, 247, 0.92);
-  box-shadow: 0 2px 8px rgba(31, 29, 26, 0.2);
+  flex-direction: column;
+  gap: 12px;
+  font-size: 15.5px;
+  line-height: 1.7;
   color: var(--color-foreground);
-  font-size: 16px;
-  cursor: pointer;
 }
-.pamphlet__arrow:hover { background: #fff; }
-.pamphlet__dots {
+.story__piece-body p { margin: 0; overflow-wrap: anywhere; }
+
+/* The end of the story: lock it in / the pocket. */
+.story__lock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 22px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+}
+.story__lock-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.story__lock-ask {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.story__lock-sub {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-muted);
+}
+.story__lock-grown {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-accent-strong);
+}
+.story__lock-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
 }
-.pamphlet__dot {
-  width: 8px;
-  height: 8px;
-  padding: 0;
-  border: 0;
+.story__lock-button {
+  padding: 10px 18px;
   border-radius: 999px;
-  background: rgba(255, 253, 247, 0.55);
+  border: 1px solid var(--color-accent-strong);
+  background: var(--color-accent-strong);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease;
 }
-.pamphlet__dot[data-active] { background: #fffdf7; }
-@media (max-width: 560px) {
-  .pamphlet { max-width: 100%; }
-  .pamphlet__card { min-height: 320px; padding: 24px 20px 20px; }
-  .pamphlet__cover-title { font-size: 26px; }
-  .pamphlet__essay-title { font-size: 22px; }
+.story__lock-button:hover { background: #4f46e5; }
+.story__lock-button:active { transform: scale(0.98); }
+.story__lock-link {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.story__lock-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.story__lock-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+}
+.story__lock-input:focus {
+  outline: none;
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 2px var(--color-accent-dim);
+}
+.story__lock-submit {
+  flex: 0 0 auto;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 1px solid var(--color-foreground);
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.05s ease;
+}
+.story__lock-submit:hover { opacity: 0.92; }
+.story__lock-submit:active { transform: scale(0.98); }
+.story__lock-submit:disabled { opacity: 0.55; cursor: default; }
+.story__lock-status {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted);
+  min-height: 1em;
+}
+@media (max-width: 720px) {
+  .story__inner { padding: 18px 14px 96px; }
+  .story__piece-title { font-size: 21px; }
+  .story__locked-ask { font-size: 22px; }
+  .story__lock-ask { font-size: 28px; }
 }

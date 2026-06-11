@@ -159,9 +159,9 @@ production points at the same Neon endpoint
 row store — see `beginner/CLAUDE.md` → "Database topology". One
 asymmetry: beginner's Vercel project has Neon preview-branching
 enabled, so a **beginner preview** reads from a fresh per-deploy
-branch, not the production DB. Cross-project flows (e.g. publishing a
-pitch from tinker preview to `/daily/` on beginner preview) therefore
-won't round-trip in preview; verify on production after merge.
+branch, not the production DB. Cross-project flows (e.g. locking in a
+story on tinker preview and reading it on a beginner preview profile)
+therefore won't round-trip in preview; verify on production after merge.
 
 Sign out by clearing `tinker_jwt` (`window.tinkerAuth.signOut()` from the
 inspector, or `localStorage.removeItem("tinker_jwt")`).

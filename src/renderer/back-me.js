@@ -29,7 +29,7 @@
   // straight to www avoids the redirect so the iframe (and the carried `ts`
   // fragment) survive. Kept host-agnostic on the tinker side on purpose:
   // tinker production is itself on *.vercel.app, so we must not gate on the
-  // hostname (see pitch-backme.test.js / sidebar-tree).
+  // hostname.
   var BASE = "https://www.beginner.work/tyler-lindow#share";
 
   function token() {

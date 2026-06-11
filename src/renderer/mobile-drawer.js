@@ -12,7 +12,7 @@
   const toggle = document.getElementById('drawer-toggle');
   const backdrop = document.getElementById('drawer-backdrop');
   const homeListEl = document.getElementById('home-list');
-  const treeNav = document.querySelector('.sidebar__tree');
+  const storyNav = document.querySelector('.sidebar__story');
   const navHome = document.getElementById('nav-home');
 
   function open() {
@@ -38,11 +38,11 @@
   homeListEl && homeListEl.addEventListener('click', (e) => {
     if (isMobile() && e.target.closest('.home-card')) close();
   });
-  // v0.103: same gesture on a sidebar-tree phrase row — tapping a
-  // phrase opens the underlying writing, so on mobile we want the
+  // Same gesture on a story row — tapping a piece (or a draft, or the
+  // pocket) opens the underlying surface, so on mobile we want the
   // drawer to step out of the way.
-  treeNav && treeNav.addEventListener('click', (e) => {
-    if (isMobile() && e.target.closest('.sidebar__phrase')) close();
+  storyNav && storyNav.addEventListener('click', (e) => {
+    if (isMobile() && e.target.closest('.sidebar__account-item, .sidebar__pocket-card, .sidebar__pitch-action')) close();
   });
   navHome && navHome.addEventListener('click', () => {
     if (isMobile()) close();

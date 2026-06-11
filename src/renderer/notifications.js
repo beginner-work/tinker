@@ -1,16 +1,10 @@
 /* notifications.js — native-style toast notifications.
  *
- * Replaces the old post-publish "arrangement" review screen, which
- * narrated the organize job live and locked in a placement after a
- * single round — a placement the backend often moved seconds (or a
- * session) later, so "you found a new direction" routinely turned out
- * to be a lie once the essay got folded into another pitch.
- *
- * The renderer now waits for the organize job to actually SETTLE and
- * then calls window.tinkerNotify(...) with where the essay truly
- * landed. This module turns that into a toast that behaves like an OS
- * notification: it slides in, stacks, auto-dismisses, pauses on hover,
- * and can be clicked to open the pitch the essay joined.
+ * A small, generic notice surface: the renderer calls
+ * window.tinkerNotify(...) (today: the back-online notice for essays
+ * written offline) and this module turns it into a toast that behaves
+ * like an OS notification: it slides in, stacks, auto-dismisses,
+ * pauses on hover, and can be clicked to open the essay it's about.
  *
  * Persistence: every notification is stored (capped) in localStorage.
  * One emitted while the tab is hidden or closed is held "unseen" and
@@ -114,7 +108,7 @@
     el.dataset.notifId = n.id;
     shown.add(n.id);
 
-    const clickable = !!(n.essayId || n.pitchId);
+    const clickable = !!n.essayId;
     if (clickable) el.classList.add("tinker-toast--clickable");
     // Sticky notices stay put until acknowledged — no auto-dismiss
     // timer, and dismissing one records the acknowledgement so it won't
@@ -154,9 +148,9 @@
         disarm();
         if (sticky) acknowledge(n.id);
         try {
-          // Clicking a placement toast opens the essay it's about.
+          // Clicking a toast opens the essay it's about.
           window.dispatchEvent(new CustomEvent("tinker:open-essay", {
-            detail: { essayId: n.essayId || null, pitchId: n.pitchId || null },
+            detail: { essayId: n.essayId || null },
           }));
         } catch { /* ignore */ }
         dismiss(el);
@@ -217,7 +211,6 @@
       title: String(payload.title || "tinker"),
       body: String(payload.body || ""),
       essayId: payload.essayId || null,
-      pitchId: payload.pitchId || null,
       sticky: !!payload.sticky,
       createdAt: Date.now(),
       seen: false,
