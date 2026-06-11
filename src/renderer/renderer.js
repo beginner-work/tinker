@@ -158,14 +158,19 @@
       renderSidebar();
       return essay;
     },
-    // The one-shot category tag (see story.js' classifier client).
-    // Stored on the essay so it syncs with the essays blob; null means
-    // "looked at it, fits nothing". Owned here so the in-memory essays
-    // array and localStorage never diverge.
-    setEssaySlide(id, slide) {
+    // The one-shot category tag + pluck (see story.js' classifier
+    // client). Stored on the essay so they sync with the essays blob;
+    // slide null means "looked at it, fits nothing"; pluck holds the
+    // verbatim sentences that most represent the essay's main idea.
+    // Owned here so the in-memory essays array and localStorage never
+    // diverge.
+    setEssaySlide(id, slide, pluck) {
       const essay = essays.find((e) => e.id === id);
       if (!essay) return null;
       essay.slide = typeof slide === "string" && slide ? slide : null;
+      essay.pluck = Array.isArray(pluck)
+        ? pluck.filter((x) => typeof x === "string" && x.trim()).slice(0, 2)
+        : [];
       essay.slideCheckedAt = Date.now();
       saveEssays(essays);
       return essay;

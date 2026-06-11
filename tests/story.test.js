@@ -64,7 +64,8 @@ function loadInSandbox({ essays = [], drafts = [], seedStory = null, fetchImpl =
 }
 
 // A tagged writing: `slide` is the category the one-shot classifier
-// assigned at publish time.
+// assigned at publish time; `pluck` (via extra) is the verbatim
+// main-idea sentences it selected.
 function essay(id, body, createdAt, slide, extra) {
   return Object.assign(
     {
@@ -95,6 +96,40 @@ test("storyPieces: per category, the most recent essay wins, in slide order", ()
     pieces[1].body,
     "i need three hundred thousand dollars",
     "bodies pass through verbatim",
+  );
+});
+
+test("the pitch shows the stored pluck — verbatim — and at most two sentences", () => {
+  const { story } = loadInSandbox({
+    essays: [
+      essay(
+        "e_1",
+        "Filler one. The line that says it all. Filler two. Another strong line. Filler three.",
+        1000,
+        "The Problem",
+        { pluck: ["The line that says it all.", "Another strong line.", "A third that gets dropped."] },
+      ),
+    ],
+  });
+  const piece = story.storyPieces()[0];
+  assert.deepEqual(
+    Array.from(piece.sentences),
+    ["The line that says it all.", "Another strong line."],
+    "the stored pluck, capped at 2",
+  );
+});
+
+test("until the pluck arrives, the first sentences stand in", () => {
+  const { story } = loadInSandbox({
+    essays: [
+      essay("e_1", "First sentence here. Second one too! Third never shows.", 1000, "The Problem"),
+    ],
+  });
+  const piece = story.storyPieces()[0];
+  assert.deepEqual(
+    Array.from(piece.sentences),
+    ["First sentence here.", "Second one too!"],
+    "mechanical fallback: first two sentences, verbatim",
   );
 });
 
@@ -144,14 +179,15 @@ test("essaysForSlide lists every take in a class, newest first; the newest is th
   assert.deepEqual(Array.from(story.essaysForSlide("Not A Slide")), []);
 });
 
-test("wordCount counts only the curated story", () => {
+test("wordCount counts the pitch as shown, not the essays behind it", () => {
   const { story } = loadInSandbox({
     essays: [
-      essay("e_in", "one two three", 1000, "The Problem"),
+      essay("e_in", "Count these four words. But not these five words here.", 1000, "The Problem",
+        { pluck: ["Count these four words."] }),
       essay("e_out", "these words are not in the story", 2000, null),
     ],
   });
-  assert.equal(story.wordCount(), 3);
+  assert.equal(story.wordCount(), 4);
 });
 
 test("the story API exposes no in-progress surface — published work only", () => {
@@ -179,8 +215,10 @@ test("lockIn snapshots the curated story, keeps the ask verbatim, and publishes 
   };
   const { story, store } = loadInSandbox({
     essays: [
-      essay("e_ask", "the ask words", 2000, "The Ask"),
-      essay("e_problem", "the problem words", 1000, "The Problem"),
+      essay("e_ask", "Give me the money. I mean it.", 2000, "The Ask",
+        { pluck: ["Give me the money."] }),
+      essay("e_problem", "It hurts. Every day it hurts more. Truly.", 1000, "The Problem",
+        { pluck: ["It hurts.", "Every day it hurts more."] }),
       essay("e_untagged", "not part of the story", 1500, null),
     ],
     fetchImpl,
@@ -193,8 +231,8 @@ test("lockIn snapshots the curated story, keeps the ask verbatim, and publishes 
   assert.equal(sentBody.pitches[0].slug, "story");
   assert.deepEqual(
     Array.from(sentBody.pitches[0].stories.map((s) => s.body)),
-    ["the problem words", "the ask words"],
-    "the booklet carries the curated pieces, verbatim, in slide order",
+    ["It hurts.\n\nEvery day it hurts more.", "Give me the money."],
+    "the booklet carries the pitch as shown — plucked sentences, verbatim, slide order",
   );
 
   const lock = story.getLock();

@@ -2,14 +2,25 @@
  *
  * Authorization: Bearer <stytch session_token>
  * Body: { writingId, title?, body }
- * Reply: { slide: "<one of the eleven slide-category literals>" | null }
+ * Reply: {
+ *   slide: "<one of the eleven slide-category literals>" | null,
+ *   sentences: [ up to 2 sentences, each an EXACT verbatim copy of a
+ *                sentence in the body — the ones that most represent
+ *                the main idea of the essay ]
+ * }
  *
  * Tags one piece of writing with the slide category it fits — once,
- * at publish time. This is NOT the old organize machinery: nothing is
- * rearranged, re-clustered, or moved afterwards. The tag is stored on
- * the essay and the story view simply shows, per category, the most
- * recent essay that fits it. Recency does the curating; the model only
- * answers "which slide does this piece fit?".
+ * at publish time — and plucks the sentences that most represent the
+ * essay's main idea. This is NOT the old organize machinery: nothing
+ * is rearranged, re-clustered, or moved afterwards. The tag + pluck
+ * are stored on the essay; the story/pitch shows, per category, the
+ * most recent essay's plucked sentences (max 2 per slide, so the
+ * whole pitch tops out at 22 sentences across the eleven slides).
+ *
+ * Plucking is selection, not writing: every returned sentence is
+ * validated to be a contiguous substring of the body (whitespace-
+ * insensitively) and dropped otherwise — the model chooses among the
+ * founder's sentences but never touches them.
  *
  * The founder's own title is the strongest signal: an essay explicitly
  * about fundraising belongs to The Ask, whatever its themes rhyme
@@ -49,6 +60,8 @@ const CATEGORY_DESCRIPTIONS = {
   "The Ask": "What the founder needs from outside — money, intros, time, partners.",
 };
 
+const MAX_PLUCK = 2;
+
 // Explicit intent beats thematic similarity. Born from a real
 // complaint: an essay explicitly about fundraising kept landing
 // somewhere other than The Ask.
@@ -80,9 +93,12 @@ function buildSystemPrompt() {
     "",
     "Bias toward a category — most founder writing fits SOMEWHERE under one of the eleven; only return null when none applies at all.",
     "",
-    "Respond as a single JSON object, exactly:",
-    '  { "slide": "<one of the eleven literals, or null>" }',
+    "THEN PLUCK: choose the 1\u20132 sentences that MOST REPRESENT THE MAIN IDEA of the essay \u2014 the lines that, standing alone, say what the whole piece is saying. Each must be an EXACT, character-for-character copy of a complete sentence from the body. Do not trim words, fix grammar, merge sentences, or add anything. Selection only \u2014 the founder's sentences, untouched.",
     "",
+    "Respond as a single JSON object, exactly:",
+    '  { "slide": "<one of the eleven literals, or null>", "sentences": ["<verbatim sentence>", "<verbatim sentence>"] }',
+    "",
+    "sentences may hold one or two entries (two when the essay supports it); use [] only when slide is null.",
     "Do not invent new categories. Do not paraphrase the eleven. Never wrap the JSON in code fences. Never add anything outside the JSON.",
   );
   return lines.join("\n");
@@ -100,6 +116,25 @@ function validateSlide(value) {
   if (value === null) return null;
   if (typeof value !== "string") return undefined;
   return SLIDE_CATEGORIES.includes(value) ? value : undefined;
+}
+
+// Selection, not writing: a plucked sentence survives only if it
+// appears verbatim in the body, give or take whitespace runs. Returns
+// at most MAX_PLUCK survivors, in the order given.
+function validateSentences(value, body) {
+  if (!Array.isArray(value)) return [];
+  const squash = (t) => String(t).replace(/\s+/g, " ").trim();
+  const haystack = squash(body);
+  const out = [];
+  for (const s of value) {
+    if (typeof s !== "string") continue;
+    const needle = squash(s);
+    if (!needle) continue;
+    if (!haystack.includes(needle)) continue;
+    out.push(s.trim());
+    if (out.length >= MAX_PLUCK) break;
+  }
+  return out;
 }
 
 function parseReply(text) {
@@ -144,7 +179,7 @@ async function callModel({ system, userMessage }) {
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 64,
+      max_tokens: 300,
       temperature: 0,
       system: [
         { type: "text", text: String(system), cache_control: { type: "ephemeral" } },
@@ -192,6 +227,7 @@ const handler = withResponseLogging(async function handler(req, res) {
 
   const system = buildSystemPrompt();
   let slide = undefined;
+  let sentences = [];
   for (let attempt = 0; attempt < 2 && slide === undefined; attempt++) {
     let rawText = "";
     try {
@@ -206,11 +242,17 @@ const handler = withResponseLogging(async function handler(req, res) {
     const parsed = parseReply(rawText);
     if (parsed && typeof parsed === "object") {
       const validated = validateSlide(parsed.slide);
-      if (validated !== undefined) slide = validated;
+      if (validated !== undefined) {
+        slide = validated;
+        sentences = validateSentences(parsed.sentences, writingBody);
+      }
     }
   }
 
-  res.status(200).json({ slide: slide === undefined ? null : slide });
+  res.status(200).json({
+    slide: slide === undefined ? null : slide,
+    sentences: slide ? sentences : [],
+  });
 });
 
 module.exports = handler;
@@ -218,8 +260,10 @@ module.exports.__test__ = {
   SLIDE_CATEGORIES,
   CATEGORY_DESCRIPTIONS,
   EXPLICIT_TOPIC_RULE,
+  MAX_PLUCK,
   buildSystemPrompt,
   buildUserContent,
   validateSlide,
+  validateSentences,
   parseReply,
 };

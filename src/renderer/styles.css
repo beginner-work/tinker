@@ -2430,6 +2430,22 @@ html.seed-modal-open { overflow: hidden; }
   flex-direction: column;
   gap: 10px;
 }
+/* The piece below the kicker is one tap target: the plucked sentences
+ * are the pitch; tapping opens the full essay in the read view. */
+.story__piece-open {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.story__piece-open:hover .story__piece-title { text-decoration: underline; text-underline-offset: 4px; }
 .story__piece + .story__piece {
   border-top: 1px solid var(--color-border);
   padding-top: 32px;

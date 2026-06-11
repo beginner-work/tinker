@@ -16,9 +16,11 @@ const {
   SLIDE_CATEGORIES,
   CATEGORY_DESCRIPTIONS,
   EXPLICIT_TOPIC_RULE,
+  MAX_PLUCK,
   buildSystemPrompt,
   buildUserContent,
   validateSlide,
+  validateSentences,
   parseReply,
 } = __test__;
 
@@ -72,6 +74,34 @@ test("validateSlide accepts exact literals, allows null, rejects paraphrases", (
   assert.equal(validateSlide("Ask"), undefined);
   assert.equal(validateSlide(""), undefined);
   assert.equal(validateSlide(undefined), undefined);
+});
+
+test("the prompt plucks for the main idea, selection only", () => {
+  const sys = buildSystemPrompt();
+  assert.ok(sys.includes("MOST REPRESENT THE MAIN IDEA"), "the pluck criterion is the essay's main idea");
+  assert.ok(sys.includes("EXACT, character-for-character copy"), "verbatim selection only");
+  assert.equal(MAX_PLUCK, 2, "two sentences per slide → 22 across eleven slides");
+});
+
+test("validateSentences keeps only verbatim substrings of the body, capped at two", () => {
+  const body = "I need to feed my family better.\n\nThat is just what it is. Nothing else matters.";
+  assert.deepEqual(
+    validateSentences(
+      [
+        "I need to feed my family better.",   // exact
+        "That is just  what it is.",           // whitespace-insensitive match
+        "Nothing else matters.",               // valid but over the cap
+      ],
+      body,
+    ),
+    ["I need to feed my family better.", "That is just  what it is."],
+  );
+  assert.deepEqual(
+    validateSentences(["I need to feed my family considerably better."], body),
+    [],
+    "a reworded sentence is dropped — selection, not writing",
+  );
+  assert.deepEqual(validateSentences("not an array", body), []);
 });
 
 test("parseReply tolerates code fences and returns null on garbage", () => {

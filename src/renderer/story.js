@@ -1,12 +1,14 @@
 /* tinker — your story (v0.107)
  *
- * One story, verbatim. The story view shows, for each of the eleven
- * slide categories, the MOST RECENT essay that fits it — full essays,
- * word for word, in slide order, so the story reads as the founder's
- * freshest take on every beat. Nothing is rearranged after the fact: a
- * piece is tagged with its category once, when it's written, and a
- * newer essay simply takes over its category. Older takes stay in the
- * archive (category feeds, read view); the story is the current cut.
+ * One story, verbatim. The story/pitch shows, for each of the eleven
+ * slide categories, the MOST RECENT essay that fits it — distilled to
+ * the 1–2 sentences that most represent the essay's main idea, plucked
+ * verbatim from the body (max 2 per slide, so the whole pitch tops out
+ * at 22 sentences). Tapping a piece opens the full essay. Nothing is
+ * rearranged after the fact: a piece is tagged + plucked once, when
+ * it's written, and a newer essay simply takes over its category.
+ * Older takes stay in the class view (tap the kicker), the category
+ * feeds, and the read view; the story is the current cut.
  *
  * When the story feels done, the founder LOCKS IT IN: they type the
  * number they're asking for, and the curated story publishes to their
@@ -50,6 +52,9 @@
   const ESSAYS_KEY = "tinker.essays.v1";
   const TOKEN_KEY = "tinker_jwt";
   const MAX_ASK_LEN = 24;
+  // Sentences per slide in the pitch. 11 slides × 2 = the 22-sentence
+  // ceiling the founder set.
+  const PLUCK_PER_SLIDE = 2;
   // Gap between backfill classify calls so a large archive tags itself
   // gently instead of in one burst.
   const CLASSIFY_GAP_MS = 400;
@@ -154,13 +159,35 @@
           ? e.slide
           : null,
         slideCheckedAt: Number(e.slideCheckedAt) || 0,
+        pluck: Array.isArray(e.pluck)
+          ? e.pluck.filter((x) => typeof x === "string" && x.trim())
+          : undefined,
       }));
   }
 
+  // Mechanical sentence split — the fallback when no pluck is stored
+  // yet. No lookbehind (older iOS Safari).
+  function splitSentences(body) {
+    const matches = String(body || "").match(/[^.!?…\n]+[.!?…]*/g) || [];
+    return matches.map((t) => t.trim()).filter(Boolean);
+  }
+
+  // The pitch sentences for one writing: the stored pluck (verbatim,
+  // validated against the body at classify time) or, until the pluck
+  // arrives, the first sentences of the body. Never more than
+  // PLUCK_PER_SLIDE.
+  function pitchSentencesFor(w) {
+    const stored = Array.isArray(w.pluck)
+      ? w.pluck.filter((s) => typeof s === "string" && s.trim())
+      : [];
+    if (stored.length) return stored.slice(0, PLUCK_PER_SLIDE);
+    return splitSentences(w.body).slice(0, PLUCK_PER_SLIDE);
+  }
+
   // The story: for each slide category, in slide order, the most
-  // recent writing tagged with it. At most eleven pieces; categories
-  // with nothing yet simply don't appear. Each piece carries its
-  // category so the view can wear it as a kicker.
+  // recent writing tagged with it — carrying its pitch sentences. At
+  // most eleven pieces × two sentences; categories with nothing yet
+  // simply don't appear.
   function storyPieces() {
     const byCategory = new Map();
     for (const w of allWritings()) { // oldest → newest, so later wins
@@ -170,7 +197,7 @@
     const out = [];
     for (const c of SLIDE_CATEGORIES) {
       const w = byCategory.get(c);
-      if (w) out.push(w);
+      if (w) out.push({ ...w, sentences: pitchSentencesFor(w) });
     }
     return out;
   }
@@ -185,10 +212,12 @@
       .sort((a, b) => b.createdAt - a.createdAt);
   }
 
+  // Words in the pitch as shown — the plucked sentences, not the full
+  // essays behind them.
   function wordCount() {
     let n = 0;
     for (const e of storyPieces()) {
-      n += e.body.trim().split(/\s+/).filter(Boolean).length;
+      for (const s of e.sentences) n += s.trim().split(/\s+/).filter(Boolean).length;
     }
     return n;
   }
@@ -223,7 +252,9 @@
   const classifyInflight = new Set();
 
   function needsTag(w) {
-    return !w.slide && !w.slideCheckedAt;
+    if (!w.slide) return !w.slideCheckedAt;
+    // Tagged before plucking existed → one more pass to get the pluck.
+    return w.pluck === undefined;
   }
 
   async function classifyWriting(writing) {
@@ -232,6 +263,7 @@
     if (!t) return;
     classifyInflight.add(writing.id);
     let slide = null;
+    let sentences = [];
     let ok = false;
     try {
       const res = await fetch("/api/classify", {
@@ -253,6 +285,9 @@
           slide = typeof json.slide === "string" && SLIDE_CATEGORIES.includes(json.slide)
             ? json.slide
             : null;
+          sentences = Array.isArray(json.sentences)
+            ? json.sentences.filter((x) => typeof x === "string" && x.trim())
+            : [];
         }
       }
     } catch { /* network — retry on a later sweep */ }
@@ -260,7 +295,7 @@
     if (!ok) return;
     const store = window.tinkerStore;
     if (store && typeof store.setEssaySlide === "function") {
-      store.setEssaySlide(writing.id, slide);
+      store.setEssaySlide(writing.id, slide, sentences);
     }
     fire("tinker:story-changed");
   }
@@ -317,9 +352,10 @@
           pitches: [{
             title: "My story",
             slug: "story",
+            // The pitch as shown: the plucked sentences, verbatim.
             stories: pieces.map((e) => ({
               title: e.title || undefined,
-              body: e.body,
+              body: e.sentences.join("\n\n"),
             })),
           }],
         }),
@@ -480,14 +516,6 @@
     } catch { return d.toDateString(); }
   }
 
-  function paragraphs(mount, body) {
-    const parts = String(body || "").split(/\n{2,}/);
-    for (const p of parts) {
-      const trimmed = p.trim();
-      if (trimmed) mount.appendChild(el("p", null, trimmed));
-    }
-  }
-
   // Render the curated story into #story. `anchorEssayId` scrolls that
   // piece into view after paint.
   function renderView(anchorEssayId) {
@@ -530,10 +558,21 @@
       kicker.setAttribute("aria-label", `All your ${e.slide} essays`);
       kicker.addEventListener("click", () => { renderSlideView(e.slide); });
       article.appendChild(kicker);
-      if (e.title) article.appendChild(el("h2", "story__piece-title", e.title));
+      // The plucked sentences ARE the pitch; the full essay is one tap
+      // away (the whole piece below the kicker opens it).
+      const open = el("button", "story__piece-open");
+      open.type = "button";
+      open.setAttribute("aria-label", `Read the whole essay`);
+      if (e.title) open.appendChild(el("h2", "story__piece-title", e.title));
       const body = el("div", "story__piece-body");
-      paragraphs(body, e.body);
-      article.appendChild(body);
+      for (const sentence of e.sentences) {
+        body.appendChild(el("p", null, sentence));
+      }
+      open.appendChild(body);
+      open.addEventListener("click", () => {
+        if (typeof window.tinkerOpenEssay === "function") window.tinkerOpenEssay(e.id);
+      });
+      article.appendChild(open);
       inner.appendChild(article);
     }
 
