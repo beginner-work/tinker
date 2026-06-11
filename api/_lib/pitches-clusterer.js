@@ -65,12 +65,33 @@ const HEADING_DESCRIPTIONS = {
     "What the founder needs from outside — money, intros, time, partners.",
 };
 
-function buildClusterPrompt(existingPitchTitles) {
+// The explicit-topic rule, shared verbatim between the cluster prompt
+// and /api/classify's prompt intent: when the founder names a slide's
+// territory outright — especially in their own title for the writing —
+// that slide wins over any thematic read. Born from a real complaint:
+// an essay explicitly about fundraising kept landing outside The Ask.
+const EXPLICIT_TOPIC_RULE =
+  "EXPLICIT TOPIC WINS: a writing (or its title) may name a slide's territory outright — " +
+  "fundraising, raising money, investors, what they're asking for → The Ask; " +
+  "competitors or alternatives → Competition; pricing, revenue, subscriptions → How We Make Money; " +
+  "who's building it → The Team; a specific person who feels the problem → A Persona; " +
+  "timing or what just changed → Why Now?; channels, launch, word of mouth → Go to Market; " +
+  "defensibility → The Moat; the long-term picture → The Vision; " +
+  "the thing being built → The Product; the pain itself → The Problem. " +
+  "When the territory is named explicitly, route the writing to that slide — explicit intent outweighs thematic similarity. " +
+  "A writing's `title:` line is the founder's own label for it; treat it as the strongest signal of where they meant it to live.";
+
+function buildClusterPrompt(existingPitchTitles, { gatherTitle = null } = {}) {
+  const gathering = typeof gatherTitle === "string" && gatherTitle.length > 0;
   const lines = [
-    "You group a founder's writings into 1 to 4 pitches. Each pitch is a coherent thread the founder keeps returning to.",
+    gathering
+      ? `You slot a founder's writings into ONE pitch — a single deck the founder is focused on. Return exactly one cluster titled ${JSON.stringify(gatherTitle)}; every writing belongs to it.`
+      : "You group a founder's writings into 1 to 4 pitches. Each pitch is a coherent thread the founder keeps returning to.",
     "",
-    "For each cluster you must:",
-    "  1. Name it with EXACTLY ONE WORD. Capitalized noun, 3 to 14 letters, no spaces, no hyphens, no punctuation (e.g. \"Craft\", \"Money\", \"Doubt\", \"Coffee\").",
+    gathering ? "You must:" : "For each cluster you must:",
+    gathering
+      ? `  1. Use the single title ${JSON.stringify(gatherTitle)} for the one cluster. Do not mint any other title.`
+      : "  1. Name it with EXACTLY ONE WORD. Capitalized noun, 3 to 14 letters, no spaces, no hyphens, no punctuation (e.g. \"Craft\", \"Money\", \"Doubt\", \"Coffee\").",
     "  2. For every writing in the cluster, pick ONE of the eleven universal deck-heading literals below — the beat in the pitch where this writing belongs.",
     "  3. For every writing, copy a verbatim 3-to-18-word phrase from the body that captures the beat. The phrase MUST appear verbatim in that writing.",
     "",
@@ -83,7 +104,9 @@ function buildClusterPrompt(existingPitchTitles) {
     lines.push("");
   }
 
-  if (existingPitchTitles && existingPitchTitles.length > 0) {
+  lines.push(EXPLICIT_TOPIC_RULE, "");
+
+  if (!gathering && existingPitchTitles && existingPitchTitles.length > 0) {
     lines.push(
       "The founder has named these pitches already. STRONGLY PREFER routing writings into one of these titles — only mint a new title when a writing genuinely doesn't fit any existing one. Reuse a title EXACTLY (same casing).",
       "",
@@ -97,9 +120,12 @@ function buildClusterPrompt(existingPitchTitles) {
     "",
     "Every writing MUST be slotted: pick a deckHeading (one of the eleven literals) and a verbatim phraseText for every single writing. Even if the writing only loosely matches a beat, pick the closest one — there are no orphan writings. Do not return null for deckHeading or phraseText.",
     "",
-    "Some writings may be iterations of the same pitch line — different drafts of the same beat. Put iterations of the same idea under the same pitch's same heading; the deck retains only the most recent so older drafts naturally fall away. Writings on genuinely different topics belong in different pitches.",
+    "Some writings may be iterations of the same pitch line — different drafts of the same beat. Put iterations of the same idea under the same pitch's same heading; the deck retains only the most recent so older drafts naturally fall away."
+      + (gathering ? "" : " Writings on genuinely different topics belong in different pitches."),
     "",
-    "Prefer fewer clusters when the writings share a thread. Only split when threads are clearly different.",
+    gathering
+      ? "Return exactly ONE cluster. Do not split, no matter how different the threads feel — the founder asked for one pitch."
+      : "Prefer fewer clusters when the writings share a thread. Only split when threads are clearly different.",
     "",
     "Respond as a single JSON object, with exactly this shape:",
     '  { "pitches": [ { "title": "<OneWord>", "writings": [ { "id": "<id>", "deckHeading": "<one of the eleven literals>", "phraseText": "<verbatim 3-to-18-word substring of the writing>" } ] } ] }',
@@ -126,6 +152,12 @@ function buildUserMessage(writings) {
   const lines = ["The founder's writings:", ""];
   for (const w of writings) {
     lines.push(`id: ${w.id}`);
+    // The founder's own title rides along when there is one — it's
+    // their label for the writing and the explicit-topic rule treats
+    // it as the strongest routing signal.
+    if (typeof w.title === "string" && w.title.trim()) {
+      lines.push(`title: ${w.title.trim()}`);
+    }
     lines.push(`---`);
     lines.push(w.snippet);
     lines.push("");
@@ -295,12 +327,15 @@ function normalizeInputs(rawWritings) {
     const trimmed = snippet.trim();
     if (!trimmed) continue;
     seen.add(id);
-    out.push({
+    const entry = {
       id,
       snippet: trimmed.length > MAX_SNIPPET_CHARS
         ? trimmed.slice(0, MAX_SNIPPET_CHARS) + "…"
         : trimmed,
-    });
+    };
+    const title = typeof w.title === "string" ? w.title.trim() : "";
+    if (title) entry.title = title.slice(0, 120);
+    out.push(entry);
     if (out.length >= MAX_WRITINGS) break;
   }
   return out;
@@ -376,8 +411,8 @@ function reconcileClusters(parsed, inputs) {
 // phrase | null }] }] }` for cluster, `{ title }` for name. Callers
 // own how the result folds back into local/server state.
 
-async function clusterWritings({ writings, existingPitchTitles, log }) {
-  const system = buildClusterPrompt(existingPitchTitles || []);
+async function clusterWritings({ writings, existingPitchTitles, gatherTitle, log }) {
+  const system = buildClusterPrompt(existingPitchTitles || [], { gatherTitle: gatherTitle || null });
   const userMessage = buildUserMessage(writings);
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -441,6 +476,7 @@ module.exports = {
   MAX_SNIPPET_CHARS,
   MAX_BUCKETS,
   CLUSTER_TEMPERATURE,
+  EXPLICIT_TOPIC_RULE,
   buildClusterPrompt,
   buildNamePrompt,
   buildUserMessage,

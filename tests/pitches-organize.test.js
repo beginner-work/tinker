@@ -986,3 +986,201 @@ test("organize redistribute keeps locked beats and holds their writings out of t
   assert.equal(p.deck["The Team"].length, 1);
   assert.equal(p.deck["The Team"][0].writingId, "e_free");
 });
+
+// ── Gather mode (focusPitchId) ────────────────────────────────────────
+
+test("normalizeBlob carries focusPitchId and clears it when the pitch is gone", () => {
+  const kept = normalizeBlob({
+    pitches: [{ id: "p_1", aiTitle: "Coffee", deck: {} }],
+    focusPitchId: "p_1",
+  });
+  assert.equal(kept.focusPitchId, "p_1");
+
+  const cleared = normalizeBlob({
+    pitches: [{ id: "p_1", aiTitle: "Coffee", deck: {} }],
+    focusPitchId: "p_gone",
+  });
+  assert.equal(cleared.focusPitchId, null);
+});
+
+test("organize gather: routes every writing into the chosen pitch even when the model splits", async () => {
+  const stored = {
+    pitches: [
+      { id: "p_coffee", aiTitle: "Coffee", deck: { "The Problem": [{ writingId: "e_1", offset: 0, length: 5 }] } },
+      { id: "p_growth", aiTitle: "Growth", deck: { "The Vision": [{ writingId: "e_2", offset: 0, length: 5 }] } },
+    ],
+    activeId: "p_coffee",
+  };
+  const essays = [makeEssay("e_1", "alpha beta gamma"), makeEssay("e_2", "delta epsilon zeta")];
+
+  let seenGatherTitle = null;
+  // The model misbehaves: two buckets, one with a foreign title. The
+  // forced fold must still land everything in p_coffee.
+  const cluster = async ({ writings, gatherTitle }) => {
+    seenGatherTitle = gatherTitle;
+    return writings.map((w, i) => ({
+      title: i === 0 ? "Coffee" : "Elsewhere",
+      writings: [{
+        id: w.id,
+        deckHeading: DECK_HEADINGS[i % DECK_HEADINGS.length],
+        phrase: { writingId: w.id, offset: 0, length: 5 },
+      }],
+    }));
+  };
+  const name = async () => "Coffee";
+
+  const result = await organize({
+    storedBlob: stored, essays, drafts: [], cluster, name, gatherPitchId: "p_coffee",
+  });
+
+  assert.equal(seenGatherTitle, "Coffee", "cluster ran in gather mode with the pitch's title");
+  assert.equal(result.summary.gatheredPitchId, "p_coffee");
+  assert.equal(result.blob.focusPitchId, "p_coffee", "the gather choice is remembered");
+  assert.equal(result.blob.pitches.length, 1, "the emptied sibling was pruned");
+  const coffee = result.blob.pitches[0];
+  assert.equal(coffee.id, "p_coffee");
+  const ids = Array.from(writingIdsInAnyPitch(result.blob)).sort();
+  assert.deepEqual(ids, ["e_1", "e_2"], "every writing lives in the gathered pitch");
+  // No "Elsewhere" pitch was minted despite the model's reply.
+  assert.equal(result.blob.pitches.some((p) => p.aiTitle === "Elsewhere"), false);
+});
+
+test("organize: a stored focusPitchId keeps gathering on default runs", async () => {
+  const stored = {
+    pitches: [
+      { id: "p_one", aiTitle: "Coffee", deck: { "The Problem": [{ writingId: "e_1", offset: 0, length: 5 }] } },
+    ],
+    activeId: "p_one",
+    focusPitchId: "p_one",
+  };
+  const essays = [makeEssay("e_1", "alpha beta gamma"), makeEssay("e_new", "fresh thought about something new")];
+
+  let seenGatherTitle = null;
+  const cluster = async ({ writings, gatherTitle }) => {
+    seenGatherTitle = gatherTitle;
+    // Model tries to mint a brand-new pitch for the new essay.
+    return [{
+      title: "Novelty",
+      writings: writings.map((w) => ({
+        id: w.id,
+        deckHeading: "The Vision",
+        phrase: { writingId: w.id, offset: 0, length: 5 },
+      })),
+    }];
+  };
+  const name = async () => "Coffee";
+
+  const result = await organize({
+    storedBlob: stored, essays, drafts: [], cluster, name,
+  });
+
+  assert.equal(seenGatherTitle, "Coffee", "default run still clusters in gather mode");
+  assert.equal(result.blob.focusPitchId, "p_one", "focus survives the default run");
+  assert.equal(result.blob.pitches.length, 1, "no new pitch was minted");
+  assert.equal(writingIdsInAnyPitch(result.blob).has("e_new"), true, "the new essay joined the focus pitch");
+});
+
+test("organize redistribute clears focusPitchId — multiple pitches come back", async () => {
+  const stored = {
+    pitches: [
+      { id: "p_one", aiTitle: "Coffee", deck: { "The Problem": [{ writingId: "e_1", offset: 0, length: 5 }] } },
+    ],
+    activeId: "p_one",
+    focusPitchId: "p_one",
+  };
+  const essays = [makeEssay("e_1", "alpha beta gamma")];
+
+  let seenGatherTitle = "unset";
+  const cluster = async ({ writings, gatherTitle }) => {
+    seenGatherTitle = gatherTitle;
+    return [{
+      title: "Coffee",
+      writings: writings.map((w) => ({
+        id: w.id,
+        deckHeading: "The Problem",
+        phrase: { writingId: w.id, offset: 0, length: 5 },
+      })),
+    }];
+  };
+  const name = async () => "Coffee";
+
+  const result = await organize({
+    storedBlob: stored, essays, drafts: [], cluster, name, redistribute: true,
+  });
+
+  assert.equal(seenGatherTitle, null, "redistribute clusters multi-pitch again");
+  assert.equal(result.blob.focusPitchId, null, "redistribute turns gathering off");
+});
+
+test("organize gather: pinned beats on other pitches stay put", async () => {
+  const stored = {
+    pitches: [
+      { id: "p_coffee", aiTitle: "Coffee", deck: { "The Problem": [{ writingId: "e_1", offset: 0, length: 5 }] } },
+      {
+        id: "p_growth",
+        aiTitle: "Growth",
+        deck: { "The Vision": [{ writingId: "e_pinned", offset: 0, length: 5 }] },
+        meta: { locked: { "The Vision": true } },
+      },
+    ],
+    activeId: "p_coffee",
+  };
+  const essays = [makeEssay("e_1", "alpha beta gamma"), makeEssay("e_pinned", "delta epsilon zeta")];
+
+  let seenIds = null;
+  const cluster = async ({ writings }) => {
+    seenIds = writings.map((w) => w.id).sort();
+    return [{
+      title: "Coffee",
+      writings: writings.map((w) => ({
+        id: w.id,
+        deckHeading: "The Team",
+        phrase: { writingId: w.id, offset: 0, length: 5 },
+      })),
+    }];
+  };
+  const name = async () => "Coffee";
+
+  const result = await organize({
+    storedBlob: stored, essays, drafts: [], cluster, name, gatherPitchId: "p_coffee",
+  });
+
+  assert.deepEqual(seenIds, ["e_1"], "the pinned writing was held out of the cluster input");
+  const growth = result.blob.pitches.find((p) => p.id === "p_growth");
+  assert.ok(growth, "the pitch holding a pinned beat survives the gather");
+  assert.equal(growth.deck["The Vision"][0].writingId, "e_pinned");
+});
+
+test("organize: founder essay titles ride into the cluster and name inputs", async () => {
+  const stored = { pitches: [], activeId: null };
+  const essays = [
+    { id: "e_titled", title: "Fundraising", body: "i need three hundred thousand dollars to start", createdAt: 5, updatedAt: 5 },
+    { id: "e_untitled", body: "another plain thought goes here", createdAt: 4, updatedAt: 4 },
+  ];
+
+  let clusterWritings = null;
+  let nameWritings = null;
+  const cluster = async ({ writings }) => {
+    clusterWritings = writings;
+    return [{
+      title: "Money",
+      writings: writings.map((w) => ({
+        id: w.id,
+        deckHeading: "The Ask",
+        phrase: { writingId: w.id, offset: 0, length: 6 },
+      })),
+    }];
+  };
+  const name = async ({ writings }) => {
+    nameWritings = writings;
+    return "Money";
+  };
+
+  await organize({ storedBlob: stored, essays, drafts: [], cluster, name });
+
+  const titled = clusterWritings.find((w) => w.id === "e_titled");
+  const untitled = clusterWritings.find((w) => w.id === "e_untitled");
+  assert.equal(titled.title, "Fundraising", "the founder's title reaches the clusterer");
+  assert.equal(untitled.title, undefined, "untitled writings carry no title field");
+  assert.ok(nameWritings.some((w) => w.title === "Fundraising"), "the namer sees titles too");
+});

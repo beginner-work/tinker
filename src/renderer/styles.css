@@ -466,12 +466,14 @@ body:has(#welcome[data-active]) .mode-nav {
 }
 .sidebar__tree-retry:hover { background: var(--color-hover); color: var(--color-foreground); }
 
-/* Per-slide lock toggle. Sits at the right edge of a covered deck-heading
+/* Per-slide pin toggle. Sits at the right edge of a covered deck-heading
  * row. Quiet by default (so it doesn't clutter the outline) but always at
  * least faintly visible — there's no hover on touch — and full-strength on
- * hover/focus. A locked beat is pinned: the icon switches to the closed
- * padlock, takes the brand accent, and the row gets a thin left bar so
- * pinned beats are scannable even when collapsed. */
+ * hover/focus. A pinned beat stays where the founder put it: the pushpin
+ * fills with the brand accent and the row gets a thin left bar so pinned
+ * beats are scannable even when collapsed. (Class names still say "lock"
+ * — the storage field is meta.locked — but the founder-facing language
+ * is pin/unpin: nothing is locked away, it's held in place.) */
 .sidebar__deck-lock {
   margin-left: auto;
   display: inline-flex;
@@ -495,6 +497,23 @@ body:has(#welcome[data-active]) .mode-nav {
 }
 .sidebar__deck-heading[data-locked] {
   box-shadow: inset 2px 0 0 var(--color-accent-strong);
+}
+
+/* Drag-an-essay-to-a-slide. The phrase row is the draggable; every
+ * deck-heading row is a drop target. While a row is hovered with a
+ * payload it takes the accent outline so the founder can see exactly
+ * which slide the essay will land on. */
+.sidebar__phrase { cursor: grab; }
+.sidebar__phrase[data-dragging] {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+.sidebar__deck-heading[data-drop-target] {
+  background: var(--color-accent-dim);
+  box-shadow: inset 0 0 0 1.5px var(--color-accent-strong);
+}
+.sidebar__deck-heading[data-drop-target] .sidebar__account-label {
+  color: var(--color-accent-strong);
 }
 
 /* ── Pitch-progress bar ────────────────────────────────────────────
@@ -833,6 +852,60 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   margin: 0 2px;
   font-size: 11px;
   line-height: 1.4;
+  color: var(--color-muted);
+}
+/* While a round is in flight the note narrates it ("Claude is
+ * re-reading your 12 essays…") in italics, swapping to the plain
+ * outcome line when the round returns. */
+.sidebar__pitch-redistribute-note.is-busy {
+  font-style: italic;
+  color: var(--color-accent-strong);
+}
+
+/* ── Organize menu ─────────────────────────────────────────────────
+ *
+ * Opens from the reorganize icon instead of firing an AI pass on
+ * sight. Three options, each carrying a one-line explanation of what
+ * will happen and whether it costs an AI pass — the founder should
+ * never have to guess what the button is about to do.
+ */
+.sidebar__organize-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgba(31, 29, 26, 0.12);
+}
+.sidebar__organize-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.sidebar__organize-option:hover,
+.sidebar__organize-option:focus-visible {
+  background: var(--color-hover);
+}
+.sidebar__organize-option-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+.sidebar__organize-option-detail {
+  font-size: 11px;
+  line-height: 1.45;
   color: var(--color-muted);
 }
 .sidebar__pitch-rename-form {
@@ -3221,3 +3294,220 @@ html.seed-modal-open { overflow: hidden; }
   cursor: pointer;
 }
 .pitch-script__copy:hover { background: #000; }
+
+/* ── Pitch pamphlet ─────────────────────────────────────────────────
+ *
+ * The flip-through read of the active pitch (pitch-pamphlet.js): a
+ * fixed overlay holding one card at a time — cover, Claude's read,
+ * then a flashcard per covered slide. Front of a flashcard is the
+ * slide title + the essay's own title + the verbatim phrase; tapping
+ * flips to the full essay. Arrows + dots underneath page through.
+ */
+.pamphlet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px
+           calc(env(safe-area-inset-bottom, 0px) + 16px);
+}
+.pamphlet-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(31, 29, 26, 0.55);
+}
+.pamphlet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 520px;
+  max-height: min(88vh, 700px);
+}
+.pamphlet__close {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 253, 247, 0.92);
+  box-shadow: 0 2px 8px rgba(31, 29, 26, 0.2);
+  color: var(--color-foreground, #1f1d1a);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.pamphlet__close:focus-visible {
+  outline: 2px solid var(--color-accent-strong, #6366f1);
+  outline-offset: 2px;
+}
+.pamphlet__stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+.pamphlet__card {
+  flex: 1 1 auto;
+  min-height: 380px;
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 30px 28px 26px;
+  background: var(--color-surface, #fffdf7);
+  border-radius: var(--radius-card, 16px);
+  box-shadow: 0 20px 60px rgba(31, 29, 26, 0.35);
+  text-align: left;
+}
+.pamphlet__card--slide { cursor: pointer; }
+.pamphlet__card--cover {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.pamphlet__kicker {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.pamphlet__cover-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.pamphlet__cover-sub {
+  margin: -8px 0 0;
+  font-size: 14px;
+  font-style: italic;
+  color: var(--color-muted);
+}
+.pamphlet__cover-count {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-foreground);
+}
+.pamphlet__hint {
+  margin: auto 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.pamphlet__card--cover .pamphlet__hint { margin: 6px 0 0; }
+.pamphlet__slide-chip {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.pamphlet__essay-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.pamphlet__essay-title--back { font-size: 18px; }
+.pamphlet__quote {
+  margin: 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--color-border);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-foreground);
+}
+.pamphlet__essay-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--color-foreground);
+}
+.pamphlet__essay-body p { margin: 0; }
+.pamphlet__ai-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pamphlet__ai-paragraph {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--color-foreground);
+}
+.pamphlet__ai-note {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-muted);
+}
+.pamphlet__ai-note--busy { font-style: italic; }
+.pamphlet__ai-foot {
+  margin: auto 0 0;
+  padding-top: 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+  border-top: 1px solid var(--color-border);
+}
+.pamphlet__nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding-top: 14px;
+}
+.pamphlet__arrow {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 253, 247, 0.92);
+  box-shadow: 0 2px 8px rgba(31, 29, 26, 0.2);
+  color: var(--color-foreground);
+  font-size: 16px;
+  cursor: pointer;
+}
+.pamphlet__arrow:hover { background: #fff; }
+.pamphlet__dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pamphlet__dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 253, 247, 0.55);
+  cursor: pointer;
+}
+.pamphlet__dot[data-active] { background: #fffdf7; }
+@media (max-width: 560px) {
+  .pamphlet { max-width: 100%; }
+  .pamphlet__card { min-height: 320px; padding: 24px 20px 20px; }
+  .pamphlet__cover-title { font-size: 26px; }
+  .pamphlet__essay-title { font-size: 22px; }
+}

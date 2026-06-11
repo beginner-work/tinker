@@ -222,3 +222,20 @@ test("resolvePhraseText trims a stray leading/trailing space from the model", ()
   const r = resolvePhraseText(body, "  the barber gave me a hundred  ");
   assert.deepEqual(r, { offset: 0, length: "the barber gave me a hundred".length });
 });
+
+test("system prompt routes explicit topics — a fundraising essay belongs in The Ask", () => {
+  const sys = buildSystemPrompt();
+  assert.ok(sys.includes("EXPLICIT TOPIC WINS"), "explicit-topic rule present");
+  assert.ok(sys.includes("fundraising"), "rule names fundraising");
+  assert.ok(sys.includes("strongest signal"), "title called out as the strongest signal");
+});
+
+test("buildUserContent puts the founder's title above the body, when there is one", () => {
+  const { buildUserContent } = __test__;
+  const body = "the barber gave me a hundred bucks";
+  assert.equal(buildUserContent(body, ""), body);
+  assert.equal(buildUserContent(body, null), body);
+  const withTitle = buildUserContent(body, "  Fundraising  ");
+  assert.ok(withTitle.startsWith("title: Fundraising\n"));
+  assert.ok(withTitle.endsWith(body), "body is intact so phrase offsets still resolve");
+});

@@ -117,6 +117,17 @@
     return null;
   }
 
+  // The founder's own title for a writing — the strongest signal of
+  // where they meant it to live, so the classifier gets it alongside
+  // the body. Essays carry `title`; drafts may have a top-level title
+  // or one on the stitched output.
+  function titleForWriting(found) {
+    if (!found || !found.record) return "";
+    const rec = found.record;
+    const t = rec.title || (rec.stitched && rec.stitched.title) || "";
+    return String(t).trim();
+  }
+
   function resolvePhraseText(rec) {
     if (!rec) return null;
     const found = findWriting(rec.writingId);
@@ -262,21 +273,29 @@
   // pitch. Matches the cap in pitches.js.
   const MAX_PHRASES_PER_HEADING = 1;
 
-  // Padlock glyphs for the per-slide lock toggle. Closed = pinned (kept
-  // exactly as-is when the founder refreshes); open = free to reorganize.
-  // Same stroke treatment as the switcher's refresh icon.
-  const LOCK_CLOSED_SVG =
+  // The essay currently being dragged between slides, or null. Lives at
+  // module scope because dataTransfer payloads aren't readable during
+  // dragover — the heading rows need it to light up as drop targets.
+  let dragState = null;
+
+  // Pushpin glyphs for the per-slide pin toggle. The old padlock read as
+  // "this slide is locked away" — the founder's complaint was exactly
+  // that. A pin says what the feature actually does: "this stays where I
+  // put it" while everything else is free to reorganize. Pinned = solid
+  // pin; unpinned = hollow outline of the same pin.
+  const PIN_PATH =
+    '<path d="M12 17v5"></path>' +
+    '<path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"></path>';
+  const PIN_SET_SVG =
+    '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" ' +
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+    'stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+    PIN_PATH + "</svg>";
+  const PIN_UNSET_SVG =
     '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" ' +
     'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
     'stroke-linejoin="round" aria-hidden="true" focusable="false">' +
-    '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>' +
-    '<path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
-  const LOCK_OPEN_SVG =
-    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" ' +
-    'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
-    'stroke-linejoin="round" aria-hidden="true" focusable="false">' +
-    '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>' +
-    '<path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
+    PIN_PATH + "</svg>";
 
   function render() {
     ensureMount();
@@ -393,13 +412,14 @@
       }
 
       if (hasPhrases) {
-        // Per-slide lock toggle. A locked beat is kept verbatim when the
-        // founder refreshes (the redistribute re-clusters everything
-        // else around it) and is shielded from auto-classified writing
-        // drifting into it. It's a role=button span (not a nested
-        // <button>) so it can live inside the heading button, mirroring
-        // the retry glyph above. stopPropagation keeps a lock tap from
-        // also toggling the row's expand/collapse.
+        // Per-slide pin toggle. A pinned beat stays exactly where the
+        // founder put it: reorganizing re-clusters everything else
+        // around it, and auto-classified writings can't drift into or
+        // out of it. The slide isn't locked away — it's held in place.
+        // It's a role=button span (not a nested <button>) so it can
+        // live inside the heading button, mirroring the retry glyph
+        // above. stopPropagation keeps a pin tap from also toggling
+        // the row's expand/collapse.
         const locked = pm && typeof pm.isSectionLocked === "function"
           ? pm.isSectionLocked(activeId, heading)
           : false;
@@ -409,11 +429,14 @@
         lockBtn.setAttribute("role", "button");
         lockBtn.tabIndex = 0;
         lockBtn.setAttribute("aria-pressed", locked ? "true" : "false");
-        lockBtn.setAttribute("aria-label", (locked ? "Unlock " : "Lock ") + heading);
+        lockBtn.setAttribute(
+          "aria-label",
+          locked ? `Let ${heading} move again` : `Pin ${heading} where it is`,
+        );
         lockBtn.title = locked
-          ? "Locked — kept when you refresh. Tap to unlock."
-          : "Lock this slide so a refresh keeps it.";
-        lockBtn.innerHTML = locked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG;
+          ? "Pinned where you put it — reorganizing keeps this slide. Tap to let it move again."
+          : "Pin this slide so it stays where you put it.";
+        lockBtn.innerHTML = locked ? PIN_SET_SVG : PIN_UNSET_SVG;
         const toggleLock = (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -435,6 +458,32 @@
           }
         });
       }
+
+      // Every heading row — covered or empty — accepts an essay dropped
+      // from another slide. The drop is the founder placing the essay
+      // by hand, so moveWriting pins the destination afterwards.
+      headBtn.addEventListener("dragover", (e) => {
+        if (!dragState || dragState.fromHeading === heading) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        headBtn.setAttribute("data-drop-target", "");
+      });
+      headBtn.addEventListener("dragleave", () => {
+        headBtn.removeAttribute("data-drop-target");
+      });
+      headBtn.addEventListener("drop", (e) => {
+        if (!dragState) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const { writingId } = dragState;
+        dragState = null;
+        headBtn.removeAttribute("data-drop-target");
+        const pm2 = pitchesApi();
+        if (pm2 && typeof pm2.moveWriting === "function") {
+          pm2.moveWriting({ writingId, deckHeading: heading });
+        }
+      });
+
       li.appendChild(headBtn);
       if (topRow === null) topRow = li;
 
@@ -452,6 +501,28 @@
           phraseLabel.textContent = text;
           phraseBtn.appendChild(phraseLabel);
           phraseBtn.addEventListener("click", () => openWriting(kind, writing));
+          // Draggable: the founder can pick an essay up and drop it on
+          // the slide they think it belongs to (see the heading rows'
+          // drop handlers above). The drop pins the destination.
+          phraseBtn.draggable = true;
+          phraseBtn.addEventListener("dragstart", (e) => {
+            dragState = { writingId: rec.writingId, fromHeading: heading };
+            if (e.dataTransfer) {
+              e.dataTransfer.effectAllowed = "move";
+              try { e.dataTransfer.setData("text/plain", rec.writingId); }
+              catch { /* ignore */ }
+            }
+            phraseBtn.setAttribute("data-dragging", "");
+          });
+          phraseBtn.addEventListener("dragend", () => {
+            dragState = null;
+            phraseBtn.removeAttribute("data-dragging");
+            if (listEl) {
+              for (const t of listEl.querySelectorAll("[data-drop-target]")) {
+                t.removeAttribute("data-drop-target");
+              }
+            }
+          });
           phraseLi.appendChild(phraseBtn);
           inner.appendChild(phraseLi);
         }
@@ -478,11 +549,16 @@
   // founder-edited rather than verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
-  // Refresh button state. `refreshing` flips the button into its
-  // disabled/busy face while the server re-clusters every pitch;
-  // `refreshMsg` holds the one-line outcome shown beneath it after the
-  // round returns (cleared on the next switcher interaction).
+  // Reorganize state. The refresh icon no longer fires an AI round on
+  // sight — it opens a small menu (`organizeMenuOpen`) that says what
+  // each option does and what it costs before anything runs. While a
+  // round is in flight, `refreshing` disables the button and
+  // `refreshStatus` narrates exactly what is happening; `refreshMsg`
+  // holds the one-line outcome afterwards (cleared on the next
+  // switcher interaction).
+  let organizeMenuOpen = false;
   let refreshing = false;
+  let refreshStatus = null;
   let refreshMsg = null;
 
   // Turn an all-pitches organize diff (plus the count we trimmed from the
@@ -524,36 +600,98 @@
     ).length;
   }
 
-  async function runRefresh() {
+  // How many writings an AI pass would actually re-read: every essay or
+  // draft with a non-empty body. Quoted in the menu and the in-flight
+  // status line so the founder knows the size of what they're sending.
+  function corpusCount() {
+    let n = 0;
+    for (const e of loadEssays()) {
+      if (e && typeof e.id === "string" && String(e.body || "").trim()) n++;
+    }
+    for (const d of loadDrafts()) {
+      if (d && typeof d.id === "string" && bodyForDraft(d).trim()) n++;
+    }
+    return n;
+  }
+
+  function essaysNoun(n) {
+    return n === 1 ? "essay" : "essays";
+  }
+
+  // One line for the no-AI tidy outcome. Always says "no AI" so the
+  // founder can see this path never spent anything.
+  function describeTidy(result) {
+    const dropped = (result && result.droppedRecords) || 0;
+    const pruned = (result && result.prunedPitches) || 0;
+    const parts = [];
+    if (dropped > 0) parts.push(`cleared ${dropped} stale ${dropped === 1 ? "row" : "rows"}`);
+    if (pruned > 0) parts.push(`dropped ${pruned} empty ${pruned === 1 ? "pitch" : "pitches"}`);
+    if (parts.length === 0) return "Tidied without AI — everything was already clean.";
+    return `Tidied without AI — ${parts.join(", ")}.`;
+  }
+
+  // One line for the gather outcome: which pitch everything now lives
+  // in and how covered it ended up.
+  function describeGather(pm) {
+    const focusId = typeof pm.getFocusPitchId === "function" ? pm.getFocusPitchId() : null;
+    const pitches = typeof pm.getPitches === "function" ? pm.getPitches() : [];
+    const focus = pitches.find((p) => p.id === focusId) || null;
+    const name = focus ? focus.displayName : "one pitch";
+    const robust = focus ? (Number(focus.robustness) || 0) : 0;
+    return `Gathered everything into “${name}” — ${robust} / ${DECK_HEADINGS.length} slides covered. New essays will join it too.`;
+  }
+
+  async function runOrganize(mode) {
     const pm = pitchesApi();
-    if (!pm || typeof pm.redistributePitches !== "function") return;
-    if (refreshing) return;
-    refreshing = true;
-    refreshMsg = null;
+    if (!pm || refreshing) return;
+    organizeMenuOpen = false;
     switcherOpen = false;
     renameOpen = false;
+
+    // Tidy is local and instant — no network, no AI, no busy state.
+    if (mode === "tidy") {
+      refreshMsg = typeof pm.tidyPitches === "function"
+        ? describeTidy(pm.tidyPitches())
+        : null;
+      render();
+      return;
+    }
+
+    refreshing = true;
+    refreshMsg = null;
+    const n = corpusCount();
+    refreshStatus = mode === "gather"
+      ? `Claude is re-reading your ${n} ${essaysNoun(n)} and gathering them into one pitch…`
+      : `Claude is re-reading your ${n} ${essaysNoun(n)} and re-sorting every slide…`;
     render();
     let result;
     try {
-      result = await pm.redistributePitches();
+      result = mode === "gather" && typeof pm.gatherIntoPitch === "function"
+        ? await pm.gatherIntoPitch()
+        : await pm.redistributePitches();
     } catch {
       result = { ok: false, reason: "error" };
     }
     refreshing = false;
+    refreshStatus = null;
     if (result && result.ok) {
-      const pitches = typeof pm.getPitches === "function" ? pm.getPitches() : [];
-      const activeId = typeof pm.getActivePitchId === "function" ? pm.getActivePitchId() : null;
-      refreshMsg = describeRefresh(
-        result.diff,
-        trimmedCount(pitches, activeId),
-        lockedTotal(pm, pitches),
-      );
+      if (mode === "gather") {
+        refreshMsg = describeGather(pm);
+      } else {
+        const pitches = typeof pm.getPitches === "function" ? pm.getPitches() : [];
+        const activeId = typeof pm.getActivePitchId === "function" ? pm.getActivePitchId() : null;
+        refreshMsg = describeRefresh(
+          result.diff,
+          trimmedCount(pitches, activeId),
+          lockedTotal(pm, pitches),
+        );
+      }
     } else if (result && result.reason === "no-token") {
-      refreshMsg = "Sign in to refresh your pitches.";
+      refreshMsg = "Sign in to reorganize your pitches.";
     } else if (result && result.reason === "inflight") {
       refreshMsg = null; // a round was already running; stay quiet
     } else {
-      refreshMsg = "Couldn't refresh — try again in a moment.";
+      refreshMsg = "Couldn't reorganize — try again in a moment.";
     }
     render();
   }
@@ -627,6 +765,71 @@
     return wrap;
   }
 
+  // The organize menu: three spelled-out options instead of one
+  // mystery refresh. Each row says what will happen and whether it
+  // costs an AI pass, so pressing it is never a leap of faith.
+  function renderOrganizeMenu(active) {
+    const pm = pitchesApi();
+    const focusId = pm && typeof pm.getFocusPitchId === "function" ? pm.getFocusPitchId() : null;
+    const n = corpusCount();
+    const activeName = active ? active.displayName : "this pitch";
+    // When gathering is already on, name the pitch actually being
+    // gathered into — it may not be the one on screen. Picking "Gather
+    // again" re-targets gathering at the active pitch.
+    const allPitches = pm && typeof pm.getPitches === "function" ? pm.getPitches() : [];
+    const focusPitch = focusId ? allPitches.find((p) => p.id === focusId) : null;
+    const focusName = focusPitch ? focusPitch.displayName : activeName;
+
+    const menu = document.createElement("div");
+    menu.className = "sidebar__organize-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Reorganize options");
+
+    const addOption = ({ title, detail, onPick }) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "sidebar__organize-option";
+      btn.setAttribute("role", "menuitem");
+      const t = document.createElement("span");
+      t.className = "sidebar__organize-option-title";
+      t.textContent = title;
+      btn.appendChild(t);
+      const d = document.createElement("span");
+      d.className = "sidebar__organize-option-detail";
+      d.textContent = detail;
+      btn.appendChild(d);
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onPick();
+      });
+      menu.appendChild(btn);
+    };
+
+    addOption({
+      title: "Reorganize with AI",
+      detail:
+        `Claude re-reads your ${n} ${essaysNoun(n)} and re-sorts every slide. ` +
+        "Pinned slides stay where you put them. One AI pass." +
+        (focusId ? " Brings back multiple pitches." : ""),
+      onPick: () => runOrganize("redistribute"),
+    });
+    addOption({
+      title: focusId ? "Gather again" : "Gather into one pitch",
+      detail: focusId
+        ? `Already gathering into “${focusName}” — new essays join it. Run again to gather into “${activeName}”. One AI pass.`
+        : `Claude routes everything into “${activeName}” — the most recent essay wins each slide. New essays join it from then on. One AI pass.`,
+      onPick: () => runOrganize("gather"),
+    });
+    addOption({
+      title: "Tidy up — no AI",
+      detail: "Clears stale rows and empty pitches. Free — nothing is sent to AI.",
+      onPick: () => runOrganize("tidy"),
+    });
+
+    return menu;
+  }
+
   function renderSwitcher(pitches, activeId) {
     if (!switcherEl) return;
     if (!pitches || pitches.length === 0) {
@@ -646,17 +849,40 @@
     switcherEl.hidden = false;
     switcherEl.innerHTML = "";
 
-    // Header row: the "Pitch" caption on the left, and a small refresh
-    // icon button on the right that reconsiders every pitch at once
-    // (re-clustering the whole corpus). It lives up here (rather than as a
-    // full-width button below) because it sits beside the "Pitch" label
-    // and the switcher it acts on, not among the rename/select actions.
+    const active = pitches.find((p) => p.id === activeId) || pitches[0];
+
+    // Header row: the "Pitch" caption on the left; on the right a book
+    // icon that opens the pamphlet read of the active pitch, and a
+    // reorganize icon that opens the menu of organize options (it never
+    // fires an AI round directly — the menu says what each option does,
+    // and what it costs, first).
     const head = document.createElement("div");
     head.className = "sidebar__pitch-switcher-head";
     const label = document.createElement("span");
     label.className = "sidebar__pitch-switcher-label";
     label.textContent = "Pitch";
     head.appendChild(label);
+
+    const readBtn = document.createElement("button");
+    readBtn.type = "button";
+    readBtn.className = "sidebar__pitch-refresh sidebar__pitch-read";
+    readBtn.setAttribute("aria-label", "Read this pitch as a pamphlet");
+    readBtn.title = "Read this pitch as a pamphlet";
+    readBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" ' +
+      'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+      'stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+      '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>' +
+      '<path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>' +
+      "</svg>";
+    readBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.tinkerPamphlet && typeof window.tinkerPamphlet.open === "function") {
+        window.tinkerPamphlet.open();
+      }
+    });
+    head.appendChild(readBtn);
 
     const refresh = document.createElement("button");
     refresh.type = "button";
@@ -665,9 +891,11 @@
     refresh.disabled = refreshing;
     refresh.setAttribute(
       "aria-label",
-      refreshing ? "Refreshing all pitches…" : "Refresh all pitches",
+      refreshing ? "Reorganizing…" : "Reorganize this deck",
     );
-    refresh.title = refreshing ? "Refreshing…" : "Refresh all pitches";
+    refresh.title = refreshing ? "Reorganizing…" : "Reorganize — with AI, or without";
+    refresh.setAttribute("aria-haspopup", "menu");
+    refresh.setAttribute("aria-expanded", organizeMenuOpen ? "true" : "false");
     if (refreshing) refresh.setAttribute("aria-busy", "true");
     refresh.innerHTML =
       '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" ' +
@@ -680,23 +908,35 @@
     refresh.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      runRefresh();
+      if (refreshing) return;
+      organizeMenuOpen = !organizeMenuOpen;
+      switcherOpen = false;
+      renameOpen = false;
+      refreshMsg = null;
+      render();
     });
     head.appendChild(refresh);
     switcherEl.appendChild(head);
 
-    if (refreshMsg) {
+    // While a round runs, narrate it; afterwards, report what changed.
+    const noteText = refreshing ? refreshStatus : refreshMsg;
+    if (noteText) {
       const note = document.createElement("p");
       note.className = "sidebar__pitch-redistribute-note";
-      note.textContent = refreshMsg;
+      if (refreshing) note.classList.add("is-busy");
+      note.setAttribute("role", "status");
+      note.setAttribute("aria-live", "polite");
+      note.textContent = noteText;
       switcherEl.appendChild(note);
+    }
+
+    if (organizeMenuOpen && !refreshing) {
+      switcherEl.appendChild(renderOrganizeMenu(active));
     }
 
     const row = document.createElement("div");
     row.className = "sidebar__pitch-switcher-row";
     switcherEl.appendChild(row);
-
-    const active = pitches.find((p) => p.id === activeId) || pitches[0];
 
     // The face button: shows both the founder's personal recognition
     // name (if set) and the AI-generated canonical name. Layout is
@@ -726,6 +966,7 @@
       e.stopPropagation();
       switcherOpen = !switcherOpen;
       renameOpen = false;
+      organizeMenuOpen = false;
       refreshMsg = null;
       render();
     });
@@ -800,6 +1041,7 @@
       e.stopPropagation();
       renameOpen = !renameOpen;
       switcherOpen = false;
+      organizeMenuOpen = false;
       refreshMsg = null;
       render();
       if (renameOpen) {
@@ -1067,7 +1309,11 @@
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ writingId, body: found.body }),
+          body: JSON.stringify({
+            writingId,
+            body: found.body,
+            title: titleForWriting(found) || undefined,
+          }),
         });
       } catch (err) {
         api.markClassifyFailed();
@@ -1235,16 +1481,18 @@
   window.addEventListener("tinker:active-pitch-changed", () => {
     switcherOpen = false;
     renameOpen = false;
+    organizeMenuOpen = false;
     render();
   });
 
-  // Close the dropdown / rename if the user clicks outside.
+  // Close the dropdown / rename / organize menu if the user clicks outside.
   document.addEventListener("click", (e) => {
-    if (!switcherOpen && !renameOpen) return;
+    if (!switcherOpen && !renameOpen && !organizeMenuOpen) return;
     if (!switcherEl) return;
     if (switcherEl.contains(e.target)) return;
     switcherOpen = false;
     renameOpen = false;
+    organizeMenuOpen = false;
     render();
   });
 

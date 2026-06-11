@@ -24,6 +24,9 @@
 
 const { authenticateSession } = require("../_lib/stytch.js");
 const { withResponseLogging } = require("../_lib/log.js");
+// Shared with the cluster prompt so the two AI paths route explicit
+// topics ("an essay about fundraising") to the same slide.
+const { EXPLICIT_TOPIC_RULE } = require("../_lib/pitches-clusterer.js");
 
 const DECK_HEADINGS = [
   "The Problem",
@@ -97,6 +100,8 @@ function buildSystemPrompt() {
   }
   lines.push(
     "Given a single piece of writing, decide which slide title best fits its central beat. Bias toward returning a heading — most founder writing fits SOMEWHERE under one of the eleven; only return null when truly none of the eleven applies.",
+    "",
+    EXPLICIT_TOPIC_RULE,
     "",
     "Then COPY a short phrase from the writing — 3 to 18 words — that captures that beat in the founder's own words. The phrase MUST appear verbatim in the writing body. Copy it exactly as it appears (same letters, same spacing, same punctuation). Aim for 6 to 12 words. Do not include a leading/trailing space, do not include a line break inside the phrase, do not summarise.",
     "",
@@ -230,6 +235,17 @@ function validateHeading(value) {
   return DECK_HEADINGS.includes(value) ? value : undefined;
 }
 
+// The user message the classifier reads: the founder's own title for
+// the writing (their strongest statement of intent — see the explicit-
+// topic rule) above the body. The phrase contract is unchanged: the
+// verbatim phrase must come from the BODY, which is the text the
+// offsets resolve against.
+function buildUserContent(writingBody, title) {
+  const t = typeof title === "string" ? title.trim() : "";
+  if (!t) return writingBody;
+  return `title: ${t.slice(0, 120)}\n\nThe writing (copy the verbatim phrase from here):\n${writingBody}`;
+}
+
 function parseClassifierJson(text) {
   const trimmed = (text || "").trim();
   const stripped = trimmed
@@ -301,6 +317,7 @@ const handler = withResponseLogging(async function handler(req, res) {
   }
   const writingId = typeof body.writingId === "string" ? body.writingId : null;
   const writingBody = typeof body.body === "string" ? body.body : "";
+  const writingTitle = typeof body.title === "string" ? body.title : "";
   if (!writingId || !writingBody.trim()) {
     res.status(400).json({ error: "writingId and non-empty body are required" });
     return;
@@ -317,7 +334,7 @@ const handler = withResponseLogging(async function handler(req, res) {
     try {
       rawText = await callClassifier({
         system,
-        userMessage: writingBody,
+        userMessage: buildUserContent(writingBody, writingTitle),
         model: "claude-haiku-4-5-20251001",
         maxTokens: 256,
       });
@@ -394,4 +411,5 @@ module.exports.__test__ = {
   validateHeading,
   parseClassifierJson,
   buildSystemPrompt,
+  buildUserContent,
 };

@@ -31,6 +31,9 @@
  *           }
  *         ],
  *         activeId: "<pitchId>" | null,   // null → auto-pick most robust
+ *         focusPitchId: "<pitchId>" | null, // gather mode — the organize job
+ *                                           // routes every writing into this
+ *                                           // one pitch until it's cleared
  *         _migratedFromTree: bool,
  *       }
  *
@@ -239,11 +242,12 @@
       return {
         pitches: [firstPitch],
         activeId: firstPitch.id,
+        focusPitchId: null,
         _migratedFromTree: true,
       };
     }
 
-    return { pitches: [], activeId: null, _migratedFromTree: false };
+    return { pitches: [], activeId: null, focusPitchId: null, _migratedFromTree: false };
   }
 
   function normalizeBlob(raw) {
@@ -311,7 +315,13 @@
     const activeId = typeof raw.activeId === "string" && pitches.some((p) => p.id === raw.activeId)
       ? raw.activeId
       : null;
-    return { pitches, activeId, _migratedFromTree: !!raw._migratedFromTree };
+    // Gather mode survives the round-trip: the server organizer owns
+    // setting/clearing focusPitchId, but every local save rewrites the
+    // whole blob, so dropping it here would silently turn gathering off.
+    const focusPitchId = typeof raw.focusPitchId === "string" && pitches.some((p) => p.id === raw.focusPitchId)
+      ? raw.focusPitchId
+      : null;
+    return { pitches, activeId, focusPitchId, _migratedFromTree: !!raw._migratedFromTree };
   }
 
   // ── State ──────────────────────────────────────────────────────────
@@ -637,6 +647,110 @@
     return setSectionLock(pitchId, deckHeading, !isSectionLocked(pitchId, deckHeading));
   }
 
+  // ── Manual placement ──────────────────────────────────────────────
+  //
+  // The founder drags an essay onto a slide. Unlike upsertPhrase (the
+  // automated path, which defers to pins), a manual move is the founder
+  // speaking — it always wins. The writing keeps its verbatim phrase
+  // record and lands under the target heading; if another writing
+  // already holds that slide the two swap, so nothing the founder can
+  // see falls off the deck. The target slide is pinned afterwards:
+  // "I put this here" is exactly what a pin means, and the next AI
+  // reorganization keeps it.
+  function moveWriting({ pitchId, writingId, deckHeading }) {
+    if (!DECK_HEADINGS.includes(deckHeading)) return false;
+    if (typeof writingId !== "string" || !writingId) return false;
+    const pitch = blob.pitches.find((p) => p.id === (pitchId || effectiveActiveId()));
+    if (!pitch) return false;
+
+    // Find the writing's current slot on this pitch.
+    let fromHeading = null;
+    let movedRec = null;
+    for (const h of DECK_HEADINGS) {
+      const list = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
+      const rec = list.find((r) => r.writingId === writingId);
+      if (rec) { fromHeading = h; movedRec = rec; break; }
+    }
+    if (!movedRec || fromHeading === deckHeading) return false;
+
+    const targetList = Array.isArray(pitch.deck[deckHeading]) ? pitch.deck[deckHeading] : [];
+    const displaced = targetList.length > 0 ? targetList[0] : null;
+
+    pitch.deck[fromHeading] = pitch.deck[fromHeading].filter((r) => r.writingId !== writingId);
+    pitch.deck[deckHeading] = [movedRec];
+    if (displaced) pitch.deck[fromHeading] = [displaced];
+
+    pitch.meta = pitch.meta || {};
+    pitch.meta.locked = { ...(pitch.meta.locked || {}) };
+    pitch.meta.locked[deckHeading] = true;
+    pitch.meta.mostRecentlyTouched = deckHeading;
+    pitch.meta.expanded = { ...(pitch.meta.expanded || {}) };
+    pitch.meta.expanded[deckHeading] = true;
+    touch(pitch);
+
+    save();
+    fire("tinker:pitches-changed");
+    return true;
+  }
+
+  // ── Tidy (no AI) ─────────────────────────────────────────────────
+  //
+  // The deterministic half of "reorganize": clean up what's provably
+  // stale without sending a single byte to a model. Drops phrase
+  // records whose writing no longer exists (or whose offsets no longer
+  // resolve to text), then prunes pitches that ended up with nothing —
+  // keeping any pitch the founder personally named. Returns counts so
+  // the caller can say exactly what happened.
+  function tidyPitches() {
+    let droppedRecords = 0;
+    for (const pitch of blob.pitches) {
+      for (const h of DECK_HEADINGS) {
+        const list = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
+        const kept = list.filter((rec) => {
+          const body = bodyForWriting(rec.writingId);
+          if (!body) return false;
+          if (rec.offset < 0 || rec.offset + rec.length > body.length) return false;
+          return !!body.slice(rec.offset, rec.offset + rec.length);
+        });
+        if (kept.length !== list.length) {
+          droppedRecords += list.length - kept.length;
+          pitch.deck[h] = kept;
+          touch(pitch);
+        }
+      }
+    }
+    const before = blob.pitches.length;
+    blob.pitches = blob.pitches.filter((pitch) => {
+      const hasWritings = DECK_HEADINGS.some(
+        (h) => Array.isArray(pitch.deck[h]) && pitch.deck[h].length > 0,
+      );
+      const hasPersonalTitle =
+        typeof pitch.personalTitle === "string" && pitch.personalTitle.trim().length > 0;
+      return hasWritings || hasPersonalTitle;
+    });
+    const prunedPitches = before - blob.pitches.length;
+    if (blob.activeId && !blob.pitches.some((p) => p.id === blob.activeId)) {
+      blob.activeId = null;
+    }
+    if (blob.focusPitchId && !blob.pitches.some((p) => p.id === blob.focusPitchId)) {
+      blob.focusPitchId = null;
+    }
+    if (droppedRecords > 0 || prunedPitches > 0) {
+      save();
+      fire("tinker:pitches-changed");
+    }
+    return { droppedRecords, prunedPitches };
+  }
+
+  // Gather mode state. Set server-side by the organize job when the
+  // founder gathers everything into one pitch; null means multi-pitch.
+  function getFocusPitchId() {
+    if (blob.focusPitchId && blob.pitches.some((p) => p.id === blob.focusPitchId)) {
+      return blob.focusPitchId;
+    }
+    return null;
+  }
+
   function markClassifyFailed(pitchId) {
     const pitch = blob.pitches.find((p) => p.id === (pitchId || effectiveActiveId()));
     if (!pitch) return;
@@ -850,7 +964,7 @@
   //     tinker:organize-completed with a diff after it returns
   //   - returns { ok, diff?, reason? } instead of throwing, so the
   //     caller can render an error state directly
-  async function triggerOrganizeNow({ force = true, redistribute = false, refreshPitchId = null } = {}) {
+  async function triggerOrganizeNow({ force = true, redistribute = false, refreshPitchId = null, gatherPitchId = null } = {}) {
     if (organizeTimer) {
       clearTimeout(organizeTimer);
       organizeTimer = null;
@@ -863,12 +977,12 @@
     catch { /* ignore */ }
     if (!token) return { ok: false, reason: "no-token" };
 
-    // A redistribute (or a per-pitch refresh) re-clusters writings that
-    // are already slotted, so the organizeHash short-circuit (which only
-    // tracks off-pitch drift) can't tell whether there's work to do —
-    // always send those.
+    // A redistribute, a per-pitch refresh, or a gather re-clusters
+    // writings that are already slotted, so the organizeHash
+    // short-circuit (which only tracks off-pitch drift) can't tell
+    // whether there's work to do — always send those.
     const hash = organizeHash();
-    if (!force && !redistribute && !refreshPitchId && hash === lastOrganizeHash) {
+    if (!force && !redistribute && !refreshPitchId && !gatherPitchId && hash === lastOrganizeHash) {
       return { ok: true, diff: emptyDiff(), skipped: true };
     }
 
@@ -886,11 +1000,13 @@
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(
-          redistribute
-            ? { redistribute: true }
-            : refreshPitchId
-              ? { refreshPitchId }
-              : {},
+          gatherPitchId
+            ? { gather: true, pitchId: gatherPitchId }
+            : redistribute
+              ? { redistribute: true }
+              : refreshPitchId
+                ? { refreshPitchId }
+                : {},
         ),
       });
       if (!res.ok) {
@@ -941,6 +1057,18 @@
   // triggerOrganizeNow so the caller can render the outcome.
   async function redistributePitches() {
     return triggerOrganizeNow({ force: true, redistribute: true });
+  }
+
+  // Founder-pressed "gather into one pitch". Every writing flows back
+  // through the clusterer with a single destination: the given pitch
+  // (defaulting to the active one). Most-recent wins each slide, so the
+  // founder ends up with one pitch carrying their latest considerations.
+  // The server also remembers the choice (focusPitchId) — new essays keep
+  // joining this pitch until the founder reorganizes multi-pitch again.
+  async function gatherIntoPitch(pitchId) {
+    const target = pitchId || effectiveActiveId();
+    if (!target) return { ok: false, reason: "no-pitch" };
+    return triggerOrganizeNow({ force: true, gatherPitchId: target });
   }
 
   // Replace the in-memory blob with the server's authoritative one
@@ -1085,6 +1213,44 @@
     return { title: displayTitleFor(pitch), slides };
   }
 
+  // Everything the pamphlet view needs to lay a pitch out as flippable
+  // cards, resolved in one pass: per covered heading (deck order) the
+  // slide title, the essay's own title, the verbatim phrase, and the
+  // full essay body for the card's flip side. Returns null for an
+  // unknown pitch; slides is [] when nothing resolves yet.
+  function getPitchPamphlet(pitchId) {
+    const pitch = pitchId ? getPitch(pitchId) : getActivePitch();
+    if (!pitch) return null;
+    const slides = [];
+    for (const h of DECK_HEADINGS) {
+      const recs = Array.isArray(pitch.deck[h]) ? pitch.deck[h] : [];
+      for (const rec of recs) {
+        const body = bodyForWriting(rec.writingId);
+        if (!body) continue;
+        if (rec.offset < 0 || rec.offset + rec.length > body.length) continue;
+        const slice = body.slice(rec.offset, rec.offset + rec.length);
+        const phrase = String(slice).replace(/\s+/g, " ").trim();
+        if (!phrase) continue;
+        const story = storyForWriting(rec.writingId);
+        slides.push({
+          heading: h,
+          writingId: rec.writingId,
+          phrase,
+          title: (story && story.title) || "",
+          body: (story && story.body) || body,
+        });
+        break; // MAX_PHRASES_PER_HEADING = 1
+      }
+    }
+    return {
+      id: pitch.id,
+      title: displayTitleFor(pitch),
+      personalTitle: pitch.personalTitle || null,
+      aiTitle: pitch.aiTitle || null,
+      slides,
+    };
+  }
+
   // ── Public surface ────────────────────────────────────────────────
 
   const api = {
@@ -1102,6 +1268,9 @@
     lockedHeadings,
     setSectionLock,
     toggleSectionLock,
+    moveWriting,
+    tidyPitches,
+    getFocusPitchId,
     markClassifyFailed,
     markClassifySucceeded,
     toggleExpanded,
@@ -1112,10 +1281,12 @@
     publishPitch,
     getPitchStories,
     getPitchScript,
+    getPitchPamphlet,
     scheduleOrganize,
     triggerOrganize,
     triggerOrganizeNow,
     redistributePitches,
+    gatherIntoPitch,
     findPitchForWriting,
     placementSnapshot,
     diffSnapshots,

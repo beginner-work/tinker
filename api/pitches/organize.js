@@ -46,11 +46,12 @@ function extractBearer(header) {
 }
 
 // The organize body is tiny (`{}` for the normal debounced trigger,
-// `{ "redistribute": true }` for the legacy re-align-everything mode, or
-// `{ "refreshPitchId": "p_…" }` for the founder-pressed per-pitch refresh
-// button). Vercel may have parsed it already; otherwise read the stream.
-// A missing/blank/garbled body just yields {} — the job runs in its
-// default (rehome-only) mode.
+// `{ "redistribute": true }` for re-align-everything,
+// `{ "gather": true, "pitchId": "p_…" }` for the founder-pressed
+// gather-into-one-pitch, or `{ "refreshPitchId": "p_…" }` for the
+// per-pitch refresh). Vercel may have parsed it already; otherwise read
+// the stream. A missing/blank/garbled body just yields {} — the job
+// runs in its default (rehome-only) mode.
 function readJsonBody(req) {
   if (req.body && typeof req.body === "object") return Promise.resolve(req.body);
   return new Promise((resolve) => {
@@ -124,6 +125,10 @@ const handler = withResponseLogging(async function handler(req, res) {
     body && typeof body.refreshPitchId === "string" && body.refreshPitchId
       ? body.refreshPitchId
       : null;
+  const gatherPitchId =
+    body && body.gather && typeof body.pitchId === "string" && body.pitchId
+      ? body.pitchId
+      : null;
 
   let essays, drafts, storedBlob;
   try {
@@ -148,10 +153,12 @@ const handler = withResponseLogging(async function handler(req, res) {
       drafts: safeDrafts,
       redistribute,
       refreshPitchId,
-      cluster: async ({ writings, existingPitchTitles }) =>
+      gatherPitchId,
+      cluster: async ({ writings, existingPitchTitles, gatherTitle }) =>
         clusterWritings({
           writings,
           existingPitchTitles,
+          gatherTitle,
           log: isPreview
             ? (attempt, raw) => {
                 try { console.log(`[pitches.organize.cluster] user=${userId} attempt=${attempt} raw=${String(raw).slice(0, 400)}`); }

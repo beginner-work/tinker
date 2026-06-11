@@ -141,9 +141,16 @@ function normalizeBlob(raw) {
   const activeId = typeof safe.activeId === "string" && pitches.some((p) => p.id === safe.activeId)
     ? safe.activeId
     : null;
+  // Gather mode: while set, every cluster pass routes writings into
+  // this one pitch instead of splitting into multiple. Dropped when
+  // the pitch it points at no longer exists.
+  const focusPitchId = typeof safe.focusPitchId === "string" && pitches.some((p) => p.id === safe.focusPitchId)
+    ? safe.focusPitchId
+    : null;
   return {
     pitches,
     activeId,
+    focusPitchId,
     _migratedFromTree: !!safe._migratedFromTree,
   };
 }
@@ -162,6 +169,15 @@ function writingIdsInAnyPitch(blob) {
   return ids;
 }
 
+// The founder's own title for a writing, when they gave it one. It
+// rides into the cluster prompt as a `title:` line — the explicit-topic
+// rule treats it as the strongest signal of where the writing belongs.
+function titleForWriting(record) {
+  if (!record || typeof record !== "object") return "";
+  const t = record.title || (record.stitched && record.stitched.title) || "";
+  return String(t).trim();
+}
+
 function listOffPitchWritings(blob, essays, drafts) {
   const known = writingIdsInAnyPitch(blob);
   const out = [];
@@ -170,14 +186,14 @@ function listOffPitchWritings(blob, essays, drafts) {
     const body = String((e && e.body) || "").trim();
     if (!body) continue;
     if (known.has(e.id)) continue;
-    out.push({ id: e.id, body });
+    out.push({ id: e.id, body, title: titleForWriting(e) });
   }
   for (const d of drafts) {
     if (!d || typeof d.id !== "string") continue;
     const body = bodyForDraft(d).trim();
     if (!body) continue;
     if (known.has(d.id)) continue;
-    out.push({ id: d.id, body });
+    out.push({ id: d.id, body, title: titleForWriting(d) });
   }
   return out;
 }
@@ -407,27 +423,38 @@ function dropStaleDeckRecords(blob, knownWritingIds) {
 // every call inside the loop shared one millisecond and the stable sort
 // kept whichever writing happened to be iterated first, even when an
 // older essay was placed ahead of a newer one.
-function foldRehomeResults(blob, rehomedPitches, { writingTimestamps } = {}) {
+//
+// `forcePitchId` is the gather-mode fold: every writing lands in that
+// one pitch no matter how the model bucketed or titled its reply, so a
+// model that splits anyway (or mints a title that doesn't validate)
+// can't fracture the founder's single pitch.
+function foldRehomeResults(blob, rehomedPitches, { writingTimestamps, forcePitchId = null } = {}) {
   const stamps = writingTimestamps instanceof Map ? writingTimestamps : null;
+  const forced = forcePitchId
+    ? blob.pitches.find((p) => p.id === forcePitchId) || null
+    : null;
   for (const incoming of rehomedPitches) {
     if (!incoming || typeof incoming !== "object") continue;
-    const title = validateTitle(incoming.title);
-    if (!title) continue;
-    let pitch = blob.pitches.find((p) => titlesMatch(p, title));
+    let pitch = forced;
     if (!pitch) {
-      pitch = {
-        id: uid(),
-        aiTitle: title,
-        personalTitle: null,
-        aiTitleSourceHash: null,
-        deck: emptyDeck(),
-        meta: { mostRecentlyTouched: null, expanded: {}, locked: {}, lastClassifyFailedAt: null },
-        createdAt: Date.now(),
-      };
-      blob.pitches.push(pitch);
-      if (!blob.activeId) blob.activeId = pitch.id;
-    } else if (!pitch.aiTitle) {
-      pitch.aiTitle = title;
+      const title = validateTitle(incoming.title);
+      if (!title) continue;
+      pitch = blob.pitches.find((p) => titlesMatch(p, title));
+      if (!pitch) {
+        pitch = {
+          id: uid(),
+          aiTitle: title,
+          personalTitle: null,
+          aiTitleSourceHash: null,
+          deck: emptyDeck(),
+          meta: { mostRecentlyTouched: null, expanded: {}, locked: {}, lastClassifyFailedAt: null },
+          createdAt: Date.now(),
+        };
+        blob.pitches.push(pitch);
+        if (!blob.activeId) blob.activeId = pitch.id;
+      } else if (!pitch.aiTitle) {
+        pitch.aiTitle = title;
+      }
     }
 
     const writings = Array.isArray(incoming.writings) ? incoming.writings : [];
@@ -495,14 +522,35 @@ async function organize({
   storedBlob,
   essays,
   drafts,
-  cluster,   // async ({ writings, existingPitchTitles }) → [{ title, writings: [{ id, deckHeading, phrase }] }]
+  cluster,   // async ({ writings, existingPitchTitles, gatherTitle }) → [{ title, writings: [{ id, deckHeading, phrase }] }]
   name,      // async ({ writings }) → string | null
   redistribute = false, // when true, re-cluster every writing from scratch
   refreshPitchId = null, // when set, re-cluster only this one pitch's writings
+  gatherPitchId = null, // when set, re-cluster everything into this ONE pitch and remember the choice
 }) {
   const blob = normalizeBlob(storedBlob);
   const safeEssays = Array.isArray(essays) ? essays : [];
   const safeDrafts = Array.isArray(drafts) ? drafts : [];
+
+  // Gather mode bookkeeping. An explicit gather points focusPitchId at
+  // the chosen pitch; an explicit multi-pitch redistribute clears it
+  // (that's the founder saying "split things up again"); the default
+  // debounced runs keep whatever is stored, so a founder who gathered
+  // stays gathered — new essays keep joining the one pitch.
+  if (gatherPitchId && blob.pitches.some((p) => p.id === gatherPitchId)) {
+    blob.focusPitchId = gatherPitchId;
+  } else if (redistribute) {
+    blob.focusPitchId = null;
+  }
+  const focusPitch = blob.focusPitchId
+    ? blob.pitches.find((p) => p.id === blob.focusPitchId) || null
+    : null;
+  // The title the gather prompt names its single cluster with. Cosmetic
+  // — the fold forces the pitch by id — but a familiar word keeps the
+  // model anchored. validateTitle guards the one-word contract.
+  const gatherTitle = focusPitch
+    ? (validateTitle(focusPitch.aiTitle) || "Pitch")
+    : null;
 
   // Build two side-tables off the essays + drafts: the set of writing
   // ids still alive, and a stamp map for the fold + the deck refresh.
@@ -542,7 +590,11 @@ async function organize({
   // reconsidering a single pitch — its writings either route home (it keeps
   // its own line), fold into a sibling (consolidated), or leave it empty for
   // the prune to drop (dissolved). redistribute wins if both are somehow set.
-  if (redistribute) clearUnlockedDecks(blob);
+  //
+  // Gather (gatherPitchId): clears like a redistribute — the whole unlocked
+  // corpus flows back through the clusterer — but the fold sends every
+  // writing into the one focus pitch.
+  if (redistribute || (gatherPitchId && focusPitch)) clearUnlockedDecks(blob);
   else if (refreshPitchId) clearOneDeck(blob, refreshPitchId);
 
   const off = sortWritingsForClustering(
@@ -559,6 +611,8 @@ async function organize({
     droppedStaleRecords: droppedStale,
     redistribute: !!redistribute,
     refreshedPitchId: refreshPitchId || null,
+    gatheredPitchId: (gatherPitchId && focusPitch) ? focusPitch.id : null,
+    focusPitchId: blob.focusPitchId || null,
     skippedReason: null,
   };
 
@@ -569,14 +623,18 @@ async function organize({
         .filter((t) => typeof t === "string" && t.length > 0),
     );
 
-    const writings = off.slice(0, MAX_WRITINGS).map((w) => ({
-      id: w.id,
-      snippet: snippetFor(w.body),
-    }));
+    const writings = off.slice(0, MAX_WRITINGS).map((w) => {
+      const entry = { id: w.id, snippet: snippetFor(w.body) };
+      if (w.title) entry.title = String(w.title).slice(0, 120);
+      return entry;
+    });
 
     try {
-      const rehomed = await cluster({ writings, existingPitchTitles });
-      foldRehomeResults(blob, rehomed, { writingTimestamps });
+      const rehomed = await cluster({ writings, existingPitchTitles, gatherTitle });
+      foldRehomeResults(blob, rehomed, {
+        writingTimestamps,
+        forcePitchId: focusPitch ? focusPitch.id : null,
+      });
       summary.rehomed = writings.length;
     } catch (err) {
       summary.skippedReason = `cluster_failed:${err && err.message ? err.message : "unknown"}`;
@@ -593,7 +651,15 @@ async function organize({
     const writings = [];
     for (const id of entry.writingIds) {
       const body = bodyForWriting(id, safeEssays, safeDrafts);
-      if (body && body.trim()) writings.push({ id, snippet: snippetFor(body) });
+      if (body && body.trim()) {
+        const record = safeDrafts.find((d) => d && d.id === id)
+          || safeEssays.find((e) => e && e.id === id)
+          || null;
+        const item = { id, snippet: snippetFor(body) };
+        const title = titleForWriting(record);
+        if (title) item.title = title.slice(0, 120);
+        writings.push(item);
+      }
       if (writings.length >= MAX_WRITINGS) break;
     }
     if (writings.length === 0) continue;
@@ -629,6 +695,10 @@ async function organize({
   if (blob.activeId && !blob.pitches.some((p) => p.id === blob.activeId)) {
     blob.activeId = null;
   }
+  if (blob.focusPitchId && !blob.pitches.some((p) => p.id === blob.focusPitchId)) {
+    blob.focusPitchId = null;
+    summary.focusPitchId = null;
+  }
 
   summary.pitchesAfter = blob.pitches.length;
   return { blob, summary };
@@ -655,5 +725,6 @@ module.exports = {
   writingsHashForPitch,
   bodyForDraft,
   bodyForWriting,
+  titleForWriting,
   organize,
 };
