@@ -697,7 +697,14 @@
       maxTokens: 2048,
     });
     const parsed = parseClaude(result.text);
-    const stitchNow = (parsed.done && parsed.stitched_body) || forceStitch;
+    // "done" is the close-out signal, body or no body — RULE 4's END
+    // BEFORE THE LOOP means a circling interview ends NOW, not after
+    // one more filler question. When the model says done but forgot
+    // the stitched body, the strict founder-only fallback below joins
+    // their answers verbatim, which is always publishable. The one
+    // guard: no answers yet → nothing to stitch, keep interviewing.
+    const hasAnswers = (active.transcript || []).length > 0;
+    const stitchNow = forceStitch || (parsed.done && (!!parsed.stitched_body || hasAnswers));
 
     if (stitchNow) {
       // Hard verify: stitched body must use only words the founder typed.
