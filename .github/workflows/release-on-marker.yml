@@ -1,0 +1,44 @@
+name: Release on marker
+
+# Cut a desktop release by merging a PR — no tag push or manual dispatch
+# needed. In the PR, bump `version` in package.json and `.release-version`
+# to the same value; when the merge lands on main this workflow checks the
+# two match, then calls release.yml with publish=true, which builds the
+# installers on every OS and publishes the GitHub Release (tinker-mac.dmg
+# et al.) for that version. Exists because remote Claude sessions can merge
+# PRs but can't push v* tags or trigger workflow_dispatch — the tag-push and
+# manual-run paths in release.yml still work unchanged.
+on:
+  push:
+    branches: [main]
+    paths: ['.release-version']
+
+# A called workflow can't exceed the caller's token grant, and
+# electron-builder needs contents: write to create the release and upload
+# its assets.
+permissions:
+  contents: write
+
+jobs:
+  verify-marker:
+    name: Marker matches package.json
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare versions
+        run: |
+          marker="$(tr -d '[:space:]' < .release-version)"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$marker" != "$pkg" ]; then
+            echo "::error file=.release-version::.release-version ($marker) doesn't match package.json version ($pkg) — bump both together."
+            exit 1
+          fi
+          echo "Releasing v$pkg"
+
+  release:
+    name: Build & publish
+    needs: verify-marker
+    uses: ./.github/workflows/release.yml
+    with:
+      publish: true
+    secrets: inherit

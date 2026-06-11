@@ -23,6 +23,15 @@ on:
         description: "Publish the release (not just build)"
         type: boolean
         default: false
+  # Reusable entry point for release-on-marker.yml, which publishes on a
+  # version-marker bump merged to main — the release path for sessions that
+  # can merge PRs but can't push tags or dispatch workflows.
+  workflow_call:
+    inputs:
+      publish:
+        description: "Publish the release (not just build)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
