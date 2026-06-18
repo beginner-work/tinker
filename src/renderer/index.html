@@ -60,6 +60,9 @@
          the global exists when their click handlers bind. -->
     <script src="./back-me.js" defer></script>
     <script src="./open-beginner.js" defer></script>
+    <!-- Receives a beginner backer card deposited from /investor-relations
+         (#deposit_card=) into the local wallet, and shows it. -->
+    <script src="./wallet.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
@@ -105,6 +108,11 @@
              in — reciprocal of beginner's drawer "Open tinker". -->
         <button id="profile-open-beginner" class="profile-popover__action" type="button" role="menuitem">
           Open beginner
+        </button>
+        <!-- Open the wallet: beginner backer cards deposited from
+             /investor-relations (#deposit_card=). See wallet.js. -->
+        <button id="profile-wallet" class="profile-popover__action" type="button" role="menuitem">
+          Wallet
         </button>
       </div>
     </div>
