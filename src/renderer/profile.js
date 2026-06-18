@@ -199,6 +199,19 @@
           }
         });
       }
+      // "Wallet" — open the local wallet of beginner backer cards deposited
+      // from /investor-relations (see wallet.js). No-op if the module didn't
+      // load; the overlay shows an empty state when there are no cards.
+      var wallet = document.getElementById("profile-wallet");
+      if (wallet) {
+        wallet.addEventListener("click", function () {
+          pop.setAttribute("hidden", "");
+          btn.setAttribute("aria-expanded", "false");
+          if (window.tinkerWallet && typeof window.tinkerWallet.open === "function") {
+            window.tinkerWallet.open();
+          }
+        });
+      }
     }
   }
 
