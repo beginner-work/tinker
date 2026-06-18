@@ -11,6 +11,15 @@
  * Phase B (separate PR) will replace the manual-entry path with a
  * Plaid Link flow + server-side storage. The list() shape stays the
  * same so writing.js doesn't need to change.
+ *
+ * Beginner card deposits: a backer who fills out beginner's "You are an
+ * investor" flow mints a beginner card and taps "Deposit into your tinker
+ * wallet". beginner hands the card over as `#deposit=<base64url-json>` — the
+ * same on-device-only fragment channel as #ts / #claim_pass (a fragment is
+ * never sent to a server). redeemBeginnerDeposit() reads it on load and lands
+ * it in the wallet as a money-in deposit (a positive amount), so the backing
+ * shows up in the Money market funds surface as a Deposit toward the founder's
+ * Balance. No real money moves; this is the same local transaction store.
  */
 
 (() => {
@@ -108,6 +117,20 @@
       }
     },
     openAddModal() { openModal(); },
+    // Add a money-in deposit to the wallet (positive amount). Used by the
+    // beginner-card hand-off; safe to call directly with a normalised row.
+    deposit(input) {
+      const row = (input && input._beginner) ? input : normalise(input);
+      if (!row) return null;
+      row.amount = Math.abs(Number(row.amount) || 0);
+      txns = [row].concat(txns);
+      save(txns);
+      notify();
+      return row;
+    },
+    // Pure: decode a beginner `#deposit=` payload into a deposit row, or null
+    // if it isn't a valid beginner backing. Exposed for tests.
+    parseBeginnerDeposit(payload) { return parseBeginnerDeposit(payload); },
   };
 
   // ── Parsing ─────────────────────────────────────────────────────────
@@ -165,6 +188,66 @@
     const date = String(raw.date || "").trim() || new Date().toISOString().slice(0, 10);
     const category = String(raw.category || "").trim();
     return { id: nextId(), date, merchant, amount, category };
+  }
+
+  // ── Beginner card deposits ───────────────────────────────────────────
+  // base64url (no padding) decode → UTF-8 string. atob in the browser; Buffer
+  // in the node test sandbox.
+  function b64urlDecode(s) {
+    let t = String(s || "").replace(/-/g, "+").replace(/_/g, "/");
+    while (t.length % 4) t += "=";
+    let bin;
+    if (typeof atob === "function") bin = atob(t);
+    else if (typeof Buffer !== "undefined") bin = Buffer.from(t, "base64").toString("binary");
+    else return "";
+    try { return decodeURIComponent(escape(bin)); } catch { return bin; }
+  }
+
+  // Decode a beginner `#deposit=` payload into a normalised deposit row, or
+  // null if it isn't a valid beginner backing. A backing is money INTO the
+  // writing-investment fund, so it lands as a positive (money-in) deposit.
+  function parseBeginnerDeposit(payload) {
+    let json;
+    try { json = JSON.parse(b64urlDecode(payload)); }
+    catch { return null; }
+    if (!json || typeof json !== "object") return null;
+    if (json.src !== "beginner") return null;
+    const amount = Number(json.amount);
+    if (!Number.isFinite(amount)) return null;
+    const merchant = String(json.label || "Backed beginner").trim() || "Backed beginner";
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(json.date || ""))
+      ? json.date
+      : new Date().toISOString().slice(0, 10);
+    return { id: nextId(), date, merchant, amount: Math.abs(amount), category: "beginner", _beginner: true };
+  }
+
+  // Read `#deposit=` on load, land it in the wallet, strip it so a refresh
+  // can't re-deposit, then confirm with a small toast.
+  function redeemBeginnerDeposit() {
+    if (typeof location === "undefined" || typeof document === "undefined") return;
+    let payload = "";
+    try {
+      payload = new URLSearchParams(String(location.hash || "").replace(/^#/, "")).get("deposit") || "";
+    } catch { payload = ""; }
+    if (!payload) return;
+
+    const row = parseBeginnerDeposit(payload);
+
+    // Strip the param from the fragment regardless of validity.
+    try {
+      const params = new URLSearchParams(String(location.hash || "").replace(/^#/, ""));
+      params.delete("deposit");
+      const rest = params.toString();
+      if (typeof history !== "undefined" && history.replaceState) {
+        history.replaceState(null, "", location.pathname + location.search + (rest ? "#" + rest : ""));
+      }
+    } catch { /* ignore */ }
+
+    if (!row) return;
+    txns = [row].concat(txns);
+    save(txns);
+    notify();
+    showDepositToast(row);
   }
 
   // ── Modal ────────────────────────────────────────────────────────────
@@ -323,6 +406,54 @@ date,merchant,amount,category
     if (e.key === "Escape") closeModal();
   }
 
+  // ── Deposit confirmation toast ───────────────────────────────────────
+  // A quiet, self-dismissing confirmation that a beginner card just landed
+  // in the wallet. Styles are injected once (CSP allows inline <style>).
+  function injectToastStyles() {
+    if (document.getElementById("beginner-deposit-toast-styles")) return;
+    const css = [
+      ".beginner-deposit-toast{position:fixed;left:50%;bottom:24px;z-index:2147483600;",
+      "transform:translateX(-50%) translateY(12px);opacity:0;",
+      "display:flex;align-items:center;gap:10px;max-width:calc(100vw - 32px);",
+      "padding:12px 16px;border-radius:14px;background:#2d5a3d;color:#f5f3ef;",
+      "font-family:'Instrument Sans','Inter',system-ui,-apple-system,sans-serif;",
+      "font-size:14px;font-weight:600;line-height:1.4;",
+      "box-shadow:0 12px 32px rgba(31,63,43,.34),0 4px 12px rgba(31,63,43,.22);",
+      "transition:transform .28s cubic-bezier(.2,.7,.2,1),opacity .28s ease;}",
+      ".beginner-deposit-toast.is-in{transform:translateX(-50%) translateY(0);opacity:1;}",
+      ".beginner-deposit-toast__mark{width:20px;height:20px;flex:none;}",
+      "@media (prefers-reduced-motion:reduce){.beginner-deposit-toast{transition:opacity .2s ease;transform:translateX(-50%);}",
+      ".beginner-deposit-toast.is-in{transform:translateX(-50%);}}",
+    ].join("");
+    const style = document.createElement("style");
+    style.id = "beginner-deposit-toast-styles";
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  function showDepositToast(row) {
+    if (typeof document === "undefined" || !document.body) return;
+    injectToastStyles();
+    const toast = document.createElement("div");
+    toast.className = "beginner-deposit-toast";
+    toast.setAttribute("role", "status");
+    const amt = Number(row && row.amount);
+    const figure = Number.isFinite(amt) && amt > 0 ? " " + formatAmount(amt) : "";
+    toast.innerHTML =
+      '<svg class="beginner-deposit-toast__mark" viewBox="0 0 180 180" fill="none" aria-hidden="true">' +
+      '<rect width="180" height="180" rx="40" fill="#f5f3ef" opacity="0.16"></rect>' +
+      '<path d="M68 38 L68 138" stroke="#f5f3ef" stroke-width="12" stroke-linecap="round"></path>' +
+      '<path d="M68 82 C68 68, 82 58, 100 58 C122 58, 132 72, 132 90 C132 108, 122 122, 100 122 C82 122, 68 112, 68 98Z" stroke="#f5f3ef" stroke-width="12" fill="none" stroke-linejoin="round"></path>' +
+      "</svg>" +
+      "<span>Deposited" + escapeHtml(figure) + " from beginner into your wallet</span>";
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add("is-in")));
+    setTimeout(() => {
+      toast.classList.remove("is-in");
+      setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 320);
+    }, 4200);
+  }
+
   // ── Helpers ─────────────────────────────────────────────────────────
   function escapeHtml(s) {
     return String(s || "").replace(/[&<>"']/g, (c) =>
@@ -335,5 +466,8 @@ date,merchant,amount,category
     const sign = v < 0 ? "−" : "";
     return `${sign}$${Math.abs(v).toFixed(2)}`;
   }
+
+  // Redeem a beginner card hand-off, if one rode in on the fragment.
+  redeemBeginnerDeposit();
 
 })();
