@@ -3,12 +3,13 @@
  * When someone backs beginner, the /investor-relations reveal mints them a
  * "beginner card" and offers to deposit it here. The card rides across in the
  * URL fragment (#deposit_card=base64url(json)) — the same on-device channel as
- * the Back-me pass — and wallet.js decodes it, stores it locally, and shows the
- * wallet. The profile menu's "Wallet" reopens it any time.
+ * the Back-me pass — and wallet.js stores it locally (tinker is the wallet's
+ * source of truth). The beginner-card visual lives in the beginner repo, so the
+ * wallet is shown by embedding beginner's /wallet page in an iframe (the
+ * reciprocal of back-me.js), with the cards passed in the fragment.
  *
  * Source-level contract tests (the renderer sandbox has only a no-op DOM),
- * matching open-beginner.test.js / back-me.test.js. The pure base64url codec is
- * exercised directly against a fixture beginner encodes the same way.
+ * matching open-beginner.test.js / back-me.test.js.
  */
 
 "use strict";
@@ -38,20 +39,39 @@ test("the wallet receives a deposit from the URL fragment and persists it locall
   assert.match(
     SRC,
     /"tinker\.wallet\.v1"/,
-    "stores cards under the tinker.wallet.v1 localStorage key",
+    "stores cards under the tinker.wallet.v1 localStorage key (tinker owns the wallet)",
   );
   // The deposit must be stripped after import so a refresh doesn't replay it.
   assert.match(SRC, /history\.replaceState/, "scrubs the fragment after importing");
 });
 
-test("deposited card data is treated as untrusted text, never markup", () => {
-  // The payload comes from anyone who can craft a #deposit_card= URL, so card
-  // fields must be set via textContent, never innerHTML.
-  assert.match(SRC, /textContent/, "renders card fields as text");
+test("deposited card data is treated as untrusted, coerced to bounded strings", () => {
+  // The payload comes from anyone who can craft a #deposit_card= URL.
+  assert.match(SRC, /\.slice\(/, "clamps field lengths when decoding");
+});
+
+test("the wallet is shown by embedding beginner's /wallet page in an iframe", () => {
+  assert.match(
+    SRC,
+    /https:\/\/www\.beginner\.work\/wallet/,
+    "targets the canonical www.beginner.work/wallet page",
+  );
+  assert.match(SRC, /createElement\("iframe"\)/, "embeds the page as an in-app iframe");
+  assert.match(
+    SRC,
+    /"#cards="\s*\+/,
+    "passes the wallet's cards to the page in the fragment (never sent to a server)",
+  );
+  // The bare apex 308-redirects to www; framing it would break the iframe.
   assert.doesNotMatch(
     SRC,
-    /\.innerHTML\s*=\s*(?:card|obj|entry)\b/,
-    "must not assign card data through innerHTML",
+    /["']https:\/\/beginner\.work\//,
+    "must not frame the bare apex (it redirects to www)",
+  );
+  assert.doesNotMatch(
+    SRC,
+    /beginner-git-[\w-]*\.vercel\.app/,
+    "must not point at a beginner branch-preview alias",
   );
 });
 
@@ -69,28 +89,26 @@ test("the profile menu opens the wallet through the shared opener", () => {
 });
 
 // ── The base64url codec round-trips with what beginner encodes ──────────────
-// beginner's investor-onboarding.js does:
+// beginner's investor-onboarding.js encodes a card as:
 //   btoa(unescape(encodeURIComponent(JSON.stringify(card))))
 //   .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")
-// wallet.js must decode exactly that, including unicode, without padding.
-function encodeCardLikeBeginner(card) {
-  const b64 = Buffer.from(JSON.stringify(card), "utf8").toString("base64");
+// wallet.js must decode exactly that (and re-encode the list the same way for
+// the iframe), including unicode, without padding.
+function encodeBase64Url(value) {
+  const b64 = Buffer.from(JSON.stringify(value), "utf8").toString("base64");
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 test("a beginner-encoded card is fragment-safe and decodes back unchanged", () => {
   const card = {
-    v: 1,
     name: "José Café 🌱",
     amount: "$5,000",
     tier: "Founding Backer",
     no: "0420 1337 2026",
-    issued: "Jun 18, 2026",
   };
-  const enc = encodeCardLikeBeginner(card);
+  const enc = encodeBase64Url(card);
   assert.match(enc, /^[A-Za-z0-9_-]+$/, "no +, /, or = to be mangled in a URL fragment");
 
-  // Decode the same way wallet.js does (base64url → utf8 → JSON).
   let b64 = enc.replace(/-/g, "+").replace(/_/g, "/");
   while (b64.length % 4) b64 += "=";
   const back = JSON.parse(Buffer.from(b64, "base64").toString("utf8"));
