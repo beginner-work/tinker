@@ -163,6 +163,15 @@
   display: block;
 }
 
+/* The wallet wants as much screen real estate as it can get — it's a wall of
+   cards, not the single card-sized Back-me pass. Widen the cap and let the
+   panel fill the padded viewport top to bottom. */
+.backme-overlay--wallet .backme-overlay__panel {
+  max-width: 720px;
+  height: 100%;
+  max-height: 100%;
+}
+
 /* ── First-login onboarding overlay ─────────────────────────────────── */
 
 .onboarding {

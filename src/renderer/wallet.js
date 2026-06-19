@@ -20,9 +20,12 @@
  *     wallet is shown by embedding beginner's /wallet page (the reciprocal of
  *     back-me.js's in-app iframe). We pass the stored cards into the iframe in
  *     the fragment (#cards=<base64url(json array)>); the page is a pure
- *     renderer. Auto-opens once right after a fresh deposit. In wrapped
- *     runtimes (Capacitor/Electron) we hand off to the system browser instead
- *     of framing, matching back-me/open-beginner.
+ *     renderer. The signed-in user always carries their own beginner card, so
+ *     we prepend it to whatever's been deposited — the wallet is never empty
+ *     for them. The overlay takes the whole screen (a wall of cards, not the
+ *     single card-sized Back-me pass). Auto-opens once right after a fresh
+ *     deposit. In wrapped runtimes (Capacitor/Electron) we hand off to the
+ *     system browser instead of framing, matching back-me/open-beginner.
  *
  * window.tinkerWallet = { list, open, close } exposes the read API; the profile
  * menu's "Wallet" calls open().
@@ -116,8 +119,40 @@
     }
   }
 
+  // ── The signed-in user's own beginner card ───────────────────────────
+  // A stable, card-shaped id from the holder's name — same hash beginner's
+  // investor-onboarding.js mints with, so the format matches the backer cards.
+  function cardNumber(seed) {
+    var s = String(seed || "");
+    var h = 0;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    var a = String(h % 10000);
+    while (a.length < 4) a = "0" + a;
+    var b = String(Math.floor(h / 10000) % 10000);
+    while (b.length < 4) b = "0" + b;
+    return a + " " + b + " " + new Date().getFullYear();
+  }
+
+  // The card the current user owns by default — their beginner card, named
+  // after their profile (falling back to "Founder", as the profile menu does).
+  function ownCard() {
+    var name = "";
+    try {
+      var p = window.tinkerProfile && window.tinkerProfile.current;
+      if (p && p.name) name = String(p.name).slice(0, 80);
+    } catch (e) { name = ""; }
+    return {
+      name: name || "Founder",
+      amount: "",
+      tier: "Beginner",
+      no: cardNumber(name || "beginner"),
+    };
+  }
+
   function walletUrl() {
-    var enc = encodeCards(load());
+    // tinker renders newest-last → top, so appending the own card floats it
+    // above the deposited backer cards.
+    var enc = encodeCards(load().concat([ownCard()]));
     return enc ? WALLET_PAGE + "#cards=" + enc : WALLET_PAGE;
   }
 
@@ -181,7 +216,9 @@
   function openOverlay(url) {
     close();
     overlay = document.createElement("div");
-    overlay.className = "backme-overlay";
+    // Reuse the Back-me overlay chrome, but the --wallet modifier lets the
+    // panel fill the screen — the wallet is a wall of cards, not one pass.
+    overlay.className = "backme-overlay backme-overlay--wallet";
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-label", "Your wallet");

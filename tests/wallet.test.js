@@ -88,6 +88,33 @@ test("the profile menu opens the wallet through the shared opener", () => {
   );
 });
 
+test("the signed-in user carries their own beginner card by default", () => {
+  // Even with nothing deposited, the wallet shows the user's own card, named
+  // after their profile (via window.tinkerProfile.current) with the Beginner tier.
+  assert.match(SRC, /ownCard/, "builds a default own card");
+  assert.match(SRC, /window\.tinkerProfile/, "names it after the signed-in profile");
+  assert.match(SRC, /"Beginner"/, "the default card is a Beginner card");
+  assert.match(
+    SRC,
+    /load\(\)\.concat\(\[ownCard\(\)\]\)/,
+    "the own card is merged into the wallet shown in the iframe",
+  );
+  // profile.js must expose the resolved profile for the wallet to read.
+  assert.match(
+    PROFILE_SRC,
+    /window\.tinkerProfile\.current\s*=\s*profile/,
+    "profile.js exposes the current profile for the wallet's own card",
+  );
+});
+
+test("the wallet overlay claims the whole screen, not the card-sized pass", () => {
+  assert.match(
+    SRC,
+    /backme-overlay--wallet/,
+    "the wallet overlay opts into the fullscreen modifier",
+  );
+});
+
 // ── The base64url codec round-trips with what beginner encodes ──────────────
 // beginner's investor-onboarding.js encodes a card as:
 //   btoa(unescape(encodeURIComponent(JSON.stringify(card))))

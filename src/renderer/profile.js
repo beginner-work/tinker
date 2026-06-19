@@ -123,6 +123,9 @@
   }
 
   function render(profile) {
+    // Expose the resolved profile so other modules (the wallet's own beginner
+    // card) can name themselves after the signed-in user.
+    if (window.tinkerProfile) window.tinkerProfile.current = profile;
     var corner = document.getElementById("profile-corner");
     if (!corner || !profile) return;
     var btn = document.getElementById("profile-avatar");
@@ -321,6 +324,7 @@
   // runOnboarding(): show the capture step now (a full-screen overlay) and
   // resolve once it's saved — resolves immediately if nothing is pending.
   window.tinkerProfile = {
+    current: null,
     needsOnboarding: function () { return !!pendingToken; },
     runOnboarding: function () {
       return new Promise(function (resolve) {
