@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>tinker — Add to Home Screen</title>
+    <script src="./gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #f5f3ef;
+        font-family: "Inter", system-ui, sans-serif;
+        color: #1f1b29;
+      }
+
+      #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
+
+      /* Warm cream stage with a faint lavender glow up top. */
+      .stage-bg {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(120% 70% at 50% 8%, #fbf6ef 0%, #f5f3ef 55%, #efe9e2 100%);
+      }
+
+      .clip { position: absolute; inset: 0; }
+
+      /* ---- shared tinker rainbow-globe mark ---- */
+      .mark { display: block; }
+
+      /* ---------- Scene A: hero ---------- */
+      .hero {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        padding: 0 120px;
+      }
+      .hero__icon {
+        width: 300px;
+        height: 300px;
+        border-radius: 70px;
+        background: #f5f3ef;
+        box-shadow: 0 40px 90px rgba(120, 100, 160, 0.28),
+          0 4px 0 rgba(255, 255, 255, 0.6) inset;
+        display: grid;
+        place-items: center;
+        margin-bottom: 64px;
+      }
+      .hero__icon .mark { width: 210px; height: 210px; }
+      .hero__word {
+        font-family: "Inter", system-ui, sans-serif;
+        font-weight: 800;
+        font-size: 132px;
+        letter-spacing: -0.04em;
+        color: #2b2733;
+      }
+      .hero__tag {
+        margin-top: 20px;
+        font-size: 50px;
+        font-weight: 500;
+        color: #8a8594;
+        letter-spacing: -0.01em;
+      }
+
+      /* ---------- Scene B: install sheet ---------- */
+      .sheet-scene { display: block; }
+      .sheet-scene__hint {
+        position: absolute;
+        top: 200px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-family: "Inter", system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 64px;
+        letter-spacing: -0.03em;
+        color: #2b2733;
+        padding: 0 110px;
+      }
+      .sheet-scene__hint small {
+        display: block;
+        margin-top: 22px;
+        font-family: "Inter", sans-serif;
+        font-weight: 500;
+        font-size: 38px;
+        color: #726b7d;
+      }
+
+      .sheet {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #ffffff;
+        border-radius: 56px 56px 0 0;
+        box-shadow: 0 -30px 90px rgba(80, 60, 120, 0.18);
+        padding: 40px 64px 96px;
+      }
+      .sheet__grabber {
+        width: 120px;
+        height: 10px;
+        border-radius: 999px;
+        background: #e4dfea;
+        margin: 0 auto 44px;
+      }
+      .sheet__title {
+        font-family: "Inter", system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 64px;
+        letter-spacing: -0.02em;
+        color: #1f1b29;
+        margin-bottom: 44px;
+      }
+
+      .sheet__app {
+        display: flex;
+        align-items: center;
+        gap: 36px;
+        padding: 28px 0 40px;
+        border-bottom: 2px solid #f0ecf4;
+        margin-bottom: 44px;
+      }
+      .sheet__app-icon {
+        width: 132px;
+        height: 132px;
+        border-radius: 32px;
+        background: #f5f3ef;
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+      .sheet__app-icon .mark { width: 96px; height: 96px; }
+      .sheet__app-name {
+        font-family: "Inter", system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 56px;
+        color: #1f1b29;
+      }
+      .sheet__app-url {
+        font-size: 40px;
+        color: #726b7d;
+        margin-top: 8px;
+      }
+
+      .steps { display: flex; flex-direction: column; gap: 40px; }
+      .step {
+        display: flex;
+        align-items: flex-start;
+        gap: 36px;
+      }
+      .step__num {
+        flex: none;
+        width: 74px;
+        height: 74px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #d9caee, #c8b6e2);
+        color: #4a3c6b;
+        font-family: "Inter", system-ui, sans-serif;
+        font-weight: 800;
+        font-size: 42px;
+        display: grid;
+        place-items: center;
+        box-shadow: 0 8px 22px rgba(150, 120, 200, 0.3);
+      }
+      .step__text {
+        font-size: 46px;
+        font-weight: 500;
+        line-height: 1.45;
+        color: #3a3543;
+        padding-top: 6px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        vertical-align: middle;
+        background: #f2eef8;
+        color: #5a5168;
+        border: 2px solid #e7e0f0;
+        border-radius: 16px;
+        padding: 8px 18px;
+        font-weight: 600;
+        font-size: 40px;
+        white-space: nowrap;
+      }
+      .chip svg { display: block; }
+
+      /* ---------- Scene C: installed on home screen ---------- */
+      .installed {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+      }
+      .installed__icon {
+        width: 280px;
+        height: 280px;
+        border-radius: 64px;
+        background: #f5f3ef;
+        box-shadow: 0 36px 80px rgba(120, 100, 160, 0.3);
+        display: grid;
+        place-items: center;
+      }
+      .installed__icon .mark { width: 196px; height: 196px; }
+      .installed__label {
+        margin-top: 44px;
+        font-family: "Inter", system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 58px;
+        color: #2b2733;
+      }
+      .installed__sub {
+        margin-top: 18px;
+        font-size: 42px;
+        font-weight: 500;
+        color: #726b7d;
+      }
+      /* faint dock of placeholder app tiles under the installed icon */
+      .installed__dock {
+        position: absolute;
+        bottom: 220px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        gap: 48px;
+      }
+      .installed__dock span {
+        width: 150px;
+        height: 150px;
+        border-radius: 38px;
+        background: rgba(200, 182, 226, 0.18);
+        border: 2px dashed rgba(160, 140, 190, 0.4);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="15"
+      data-width="1080"
+      data-height="1920"
+    >
+      <!-- Track 1: persistent cream stage -->
+      <div class="clip stage-bg" id="stage-bg" data-start="0" data-duration="15" data-track-index="1"></div>
+
+      <!-- Track 2: hero -->
+      <div class="clip hero" id="hero" data-start="0" data-duration="4.6" data-track-index="2">
+        <div class="hero__icon" id="hero-icon">
+          <svg class="mark" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+            <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
+            <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
+            <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
+            <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
+            <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
+            <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
+            <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
+          </svg>
+        </div>
+        <div class="hero__word" id="hero-word">tinker</div>
+        <div class="hero__tag" id="hero-tag">A new way to web</div>
+      </div>
+
+      <!-- Track 3: install sheet -->
+      <div class="clip sheet-scene" id="sheet-scene" data-start="4.4" data-duration="7.2" data-track-index="3">
+        <div class="sheet-scene__hint" id="sheet-hint">
+          Keep tinker one tap away
+          <small>Add it to your Home Screen</small>
+        </div>
+
+        <div class="sheet" id="sheet">
+          <div class="sheet__grabber"></div>
+          <div class="sheet__title" id="sheet-title">Install the app</div>
+
+          <div class="sheet__app" id="sheet-app">
+            <div class="sheet__app-icon">
+              <svg class="mark" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+                <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
+                <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
+                <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
+                <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
+                <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
+                <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
+                <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
+              </svg>
+            </div>
+            <div>
+              <div class="sheet__app-name">tinker</div>
+              <div class="sheet__app-url">tinker.beginner-work.com</div>
+            </div>
+          </div>
+
+          <div class="steps">
+            <div class="step" id="step-1">
+              <div class="step__num">1</div>
+              <div class="step__text">
+                Tap
+                <span class="chip">
+                  <svg viewBox="0 0 16 16" width="30" height="30" aria-hidden="true">
+                    <circle cx="3" cy="8" r="1.6" fill="currentColor" />
+                    <circle cx="8" cy="8" r="1.6" fill="currentColor" />
+                    <circle cx="13" cy="8" r="1.6" fill="currentColor" />
+                  </svg>
+                </span>
+                in your browser's URL bar
+              </div>
+            </div>
+
+            <div class="step" id="step-2">
+              <div class="step__num">2</div>
+              <div class="step__text">
+                Tap
+                <span class="chip">
+                  <svg viewBox="0 0 16 16" width="28" height="28" fill="none" aria-hidden="true">
+                    <path d="M8 2 V10 M5.5 4.5 L8 2 L10.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M4.5 7.5 V12.5 H11.5 V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  Share
+                </span>
+              </div>
+            </div>
+
+            <div class="step" id="step-3">
+              <div class="step__num">3</div>
+              <div class="step__text">
+                Tap
+                <span class="chip">
+                  <svg viewBox="0 0 16 16" width="28" height="28" fill="none" aria-hidden="true">
+                    <path d="M4 6 L8 10 L12 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  View more
+                </span>
+                then
+                <span class="chip" id="chip-ath">
+                  <svg viewBox="0 0 16 16" width="28" height="28" fill="none" aria-hidden="true">
+                    <rect x="2.5" y="2.5" width="11" height="11" rx="2.5" stroke="currentColor" stroke-width="1.4" />
+                    <path d="M8 5.5 V10.5 M5.5 8 H10.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                  </svg>
+                  Add to Home Screen
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Track 4: installed beauty shot -->
+      <div class="clip installed" id="installed" data-start="11.4" data-duration="3.6" data-track-index="4">
+        <div class="installed__icon" id="installed-icon">
+          <svg class="mark" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+            <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
+            <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
+            <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
+            <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
+            <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
+            <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
+            <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
+          </svg>
+        </div>
+        <div class="installed__label" id="installed-label">tinker</div>
+        <div class="installed__sub" id="installed-sub">On your Home Screen</div>
+        <div class="installed__dock" id="installed-dock">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // ---------- Scene A: hero (0 – 4.6) ----------
+      tl.fromTo("#hero-icon",
+        { scale: 0.6, opacity: 0, y: 40 },
+        { scale: 1, opacity: 1, y: 0, duration: 0.9, ease: "back.out(1.6)" }, 0.3);
+      tl.fromTo("#hero-word",
+        { y: 60, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 0.9);
+      tl.fromTo("#hero-tag",
+        { y: 40, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 1.25);
+      // gentle drift, then exit
+      tl.to("#hero", { y: -50, opacity: 0, duration: 0.6, ease: "power2.in" }, 3.9);
+
+      // ---------- Scene B: install sheet (4.4 – 11.6) ----------
+      tl.fromTo("#sheet-hint",
+        { y: 30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.6, ease: "power2.out" }, 4.7);
+      tl.fromTo("#sheet",
+        { yPercent: 100 },
+        { yPercent: 0, duration: 0.9, ease: "power3.out" }, 4.6);
+      tl.fromTo("#sheet-title",
+        { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 5.25);
+      tl.fromTo("#sheet-app",
+        { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 5.55);
+      tl.fromTo("#step-1",
+        { x: 40, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 5.95);
+      tl.fromTo("#step-2",
+        { x: 40, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 6.55);
+      tl.fromTo("#step-3",
+        { x: 40, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 7.15);
+      // highlight the "Add to Home Screen" chip
+      tl.fromTo("#chip-ath",
+        { backgroundColor: "#f2eef8", borderColor: "#e7e0f0", color: "#5a5168" },
+        { backgroundColor: "#e9defb", borderColor: "#c8b6e2", color: "#4a3c6b", duration: 0.5, ease: "power2.out" }, 8.0);
+      tl.to("#chip-ath",
+        { scale: 1.06, duration: 0.45, yoyo: true, repeat: 1, ease: "sine.inOut", transformOrigin: "center" }, 8.5);
+      // exit the sheet scene
+      tl.to("#sheet-scene", { opacity: 0, duration: 0.6, ease: "power2.in" }, 11.0);
+      tl.to("#sheet", { yPercent: 40, duration: 0.6, ease: "power2.in" }, 11.0);
+
+      // ---------- Scene C: installed (11.4 – 15) ----------
+      tl.fromTo("#installed-dock",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.6, ease: "power2.out" }, 11.6);
+      tl.fromTo("#installed-icon",
+        { scale: 0.4, opacity: 0, y: -60 },
+        { scale: 1, opacity: 1, y: 0, duration: 0.8, ease: "back.out(1.8)" }, 11.7);
+      tl.fromTo("#installed-label",
+        { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 12.35);
+      tl.fromTo("#installed-sub",
+        { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 12.65);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
