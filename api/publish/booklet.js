@@ -26,7 +26,7 @@
  * pitch are published as a "booklet" to their public beginner profile
  * page. Beginner is the public-facing service — it reads this row back
  * through the public /api/publish/booklets endpoint and renders the
- * booklet on /tyler-lindow (the founder's profile). Re-publishing
+ * booklet on /beginner (the founder's page). Re-publishing
  * replaces the whole booklet (whole-document semantics), so unchecking
  * a pitch in tinker removes it from the public profile on the next
  * publish.
@@ -210,7 +210,7 @@ async function handler(req, res) {
     });
     // The founder shares their profile with this id so a logged-out
     // customer can read the booklet without being the page's owner.
-    const storiesUrl = `${readerHost()}/tyler-lindow?u=${encodeURIComponent(userId)}#stories`;
+    const storiesUrl = `${readerHost()}/beginner?u=${encodeURIComponent(userId)}#stories`;
     res.status(200).json({
       ok: true,
       count: parsed.pitches.length,

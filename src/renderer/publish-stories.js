@@ -3,7 +3,7 @@
  * tinker stays private. This is the one seam where a founder chooses to
  * make some of their writing public: they pick which pitches to surface,
  * and the full essays behind those pitches publish as a "booklet" to
- * their public beginner profile page (/tyler-lindow → Stories tab).
+ * their public beginner page (/beginner).
  *
  * Flow:
  *   1. The sidebar "Publish stories" button opens a modal.

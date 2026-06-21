@@ -26,10 +26,10 @@ const BACKME_SRC = read("back-me.js");
 const INDEX_HTML = read("index.html");
 const PROFILE_SRC = read("profile.js");
 
-// Pull the host out of the `https://<host>/tyler-lindow#share` Back me URL
+// Pull the host out of the `https://<host>/beginner#ask` Back me URL
 // literal a source file builds. Returns null if the file doesn't define one.
 function backMeHost(src) {
-  const m = src.match(/https:\/\/([^/"'\s]+)\/tyler-lindow#share/);
+  const m = src.match(/https:\/\/([^/"'\s]+)\/beginner#ask/);
   return m ? m[1] : null;
 }
 
@@ -54,14 +54,14 @@ test("the Back me URL carries the tinker session and targets the canonical page"
   );
   assert.match(
     BACKME_SRC,
-    /https:\/\/www\.beginner\.work\/tyler-lindow#share/,
-    "targets the canonical www.beginner.work Back me page (#share)",
+    /https:\/\/www\.beginner\.work\/beginner#ask/,
+    "targets the canonical www.beginner.work Back me page (#ask)",
   );
   // The bare apex redirects to www; linking to the apex makes the PWA iframe
   // follow a cross-origin redirect onto a host frame-src doesn't allow.
   assert.doesNotMatch(
     BACKME_SRC,
-    /["']https:\/\/beginner\.work\/tyler-lindow/,
+    /["']https:\/\/beginner\.work\/beginner/,
     "must not link at the bare apex (it redirects to www)",
   );
   // Same regression guard as the Pitch button: production tinker is on

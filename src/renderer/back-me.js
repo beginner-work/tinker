@@ -21,16 +21,16 @@
 (function () {
   "use strict";
 
-  // Canonical production Back me page, deep-linked to the QR (#share). We point
-  // at the profile's own canonical host — www.beginner.work (its og:url) — and
-  // NOT the bare apex beginner.work: the apex 308-redirects to www, and in the
-  // PWA the in-app iframe follows that cross-origin redirect onto a host that
-  // tinker's `frame-src` CSP doesn't allow, leaving a blank panel. Linking
-  // straight to www avoids the redirect so the iframe (and the carried `ts`
-  // fragment) survive. Kept host-agnostic on the tinker side on purpose:
-  // tinker production is itself on *.vercel.app, so we must not gate on the
-  // hostname (see pitch-backme.test.js / sidebar-tree).
-  var BASE = "https://www.beginner.work/tyler-lindow#share";
+  // Canonical production Back me page on beginner, deep-linked to the Ask tab's
+  // QR (#ask). We point at the canonical host — www.beginner.work — and NOT the
+  // bare apex beginner.work: the apex 308-redirects to www, and in the PWA the
+  // in-app iframe follows that cross-origin redirect onto a host that tinker's
+  // `frame-src` CSP doesn't allow, leaving a blank panel. Linking straight to
+  // www avoids the redirect so the iframe (and the carried `ts` fragment)
+  // survive. Kept host-agnostic on the tinker side on purpose: tinker production
+  // is itself on *.vercel.app, so we must not gate on the hostname (see
+  // pitch-backme.test.js / sidebar-tree).
+  var BASE = "https://www.beginner.work/beginner#ask";
 
   function token() {
     try { return localStorage.getItem("tinker_jwt") || ""; }

@@ -153,7 +153,7 @@ test("POST upserts the booklets row and returns the profile link", async () => {
   assert.equal(res.captured.body.storyCount, 1);
   assert.equal(
     res.captured.body.storiesUrl,
-    "https://beginner.work/tyler-lindow?u=user-test-abc#stories",
+    "https://beginner.work/beginner?u=user-test-abc#stories",
   );
   assert.equal(prismaCalls.length, 1);
   assert.equal(prismaCalls[0][2], "booklets");
