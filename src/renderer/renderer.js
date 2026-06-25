@@ -214,7 +214,9 @@
       }
       try {
         window.dispatchEvent(new CustomEvent("tinker:writing-saved", {
-          detail: { writingId: essay.id },
+          // newEssay → pitches.js runs a full refresh (re-cluster every
+          // pitch), not just a rehome of off-pitch writings.
+          detail: { writingId: essay.id, newEssay: true },
         }));
       } catch { /* ignore */ }
       // Drop the founder onto a calm "being assessed" confirmation and
@@ -336,7 +338,9 @@
     for (const essay of pending) {
       try {
         window.dispatchEvent(new CustomEvent("tinker:writing-saved", {
-          detail: { writingId: essay.id },
+          // A deferred free-write is still a brand-new essay — refresh
+          // every pitch once it's flushed online (see publishDeferred).
+          detail: { writingId: essay.id, newEssay: true },
         }));
       } catch { /* ignore */ }
       emitOfflineEssayNotification(essay);
