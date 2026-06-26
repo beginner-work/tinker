@@ -25,13 +25,17 @@ const TREE_SRC = fs.readFileSync(
   "utf8",
 );
 
-function loadInSandbox({ drafts = [], essays = [], hidden = [], seedTree = null, seedPitches = null } = {}) {
+function loadInSandbox({
+  drafts = [], essays = [], hidden = [], seedTree = null, seedPitches = null,
+  token = null, fetchImpl = null, instantTimers = false,
+} = {}) {
   const store = new Map();
   if (drafts.length) store.set("tinker.drafts.v1", JSON.stringify(drafts));
   if (essays.length) store.set("tinker.essays.v1", JSON.stringify(essays));
   if (hidden.length) store.set("tinker.seeds.hidden.v1", JSON.stringify(hidden));
   if (seedTree) store.set("tinker.tree.v1", JSON.stringify(seedTree));
   if (seedPitches) store.set("tinker.pitches.v1", JSON.stringify(seedPitches));
+  if (token) store.set("tinker_jwt", token);
 
   const localStorage = {
     getItem(k) { return store.has(k) ? store.get(k) : null; },
@@ -76,10 +80,10 @@ function loadInSandbox({ drafts = [], essays = [], hidden = [], seedTree = null,
     localStorage,
     NodeFilter: { SHOW_TEXT: 0x4 },
     console,
-    setTimeout,
-    clearTimeout,
+    setTimeout: instantTimers ? (fn) => { fn(); return 0; } : setTimeout,
+    clearTimeout: instantTimers ? () => {} : clearTimeout,
     requestAnimationFrame: (fn) => fn(),
-    fetch: () => Promise.reject(new Error("network disabled in tests")),
+    fetch: fetchImpl || (() => Promise.reject(new Error("network disabled in tests"))),
     CustomEvent: function CustomEvent(name, init) { this.type = name; this.detail = init && init.detail; },
   };
   vm.createContext(sandbox);
@@ -439,4 +443,32 @@ test("default active pick = most robust pitch (most covered headings)", () => {
   };
   const { pitches } = loadInSandbox({ drafts: [draftA, draftB], seedPitches });
   assert.equal(pitches.getActivePitchId(), "p_robust");
+});
+
+// ── Auto-refresh on new essay (no manual button) ──────────────────────
+
+test("pitches API exposes scheduleRedistribute", () => {
+  const { pitches } = loadInSandbox();
+  assert.equal(typeof pitches.scheduleRedistribute, "function");
+});
+
+test("scheduleRedistribute fires a debounced redistribute POST", async () => {
+  const calls = [];
+  const fetchImpl = (url, opts) => {
+    calls.push({ url, body: JSON.parse((opts && opts.body) || "{}") });
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ pitches: { pitches: [], activeId: null } }),
+    });
+  };
+  const { pitches } = loadInSandbox({
+    token: "jwt-test", fetchImpl, instantTimers: true,
+  });
+  pitches.scheduleRedistribute();
+  // instantTimers runs the debounce body synchronously; let the async
+  // fetch chain inside triggerOrganizeNow settle.
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(calls.length, 1, "exactly one organize round");
+  assert.equal(calls[0].url, "/api/pitches/organize");
+  assert.equal(calls[0].body.redistribute, true, "redistribute mode, not a plain rehome");
 });

@@ -318,6 +318,7 @@
 
   let blob = loadPitchesBlob();
   let organizeTimer = null;
+  let redistributeTimer = null;
   let organizeInflight = false;
   // Stable hash of the last set of off-pitch ids we sent to the
   // backend job. Re-firing for the same set is a no-op on the
@@ -762,6 +763,25 @@
     }, ORGANIZE_DEBOUNCE_MS);
   }
 
+  // Debounced full refresh, fired automatically when a new essay is
+  // added to the corpus. Unlike scheduleOrganize (which only rehomes
+  // writings not yet in any pitch), this re-clusters the whole corpus
+  // — the same work the old manual "Refresh all pitches" button did —
+  // so a fresh essay can reshape every pitch, not just slot in beside
+  // them. There's no button anymore: adding an essay is the trigger.
+  // Locked beats are held fixed across the re-cluster (see the organizer).
+  function scheduleRedistribute() {
+    if (redistributeTimer) clearTimeout(redistributeTimer);
+    redistributeTimer = setTimeout(() => {
+      redistributeTimer = null;
+      // A round is already mid-flight; re-arm so this essay's refresh
+      // isn't dropped on the floor when triggerOrganizeNow early-returns.
+      if (organizeInflight) { scheduleRedistribute(); return; }
+      triggerOrganizeNow({ force: true, redistribute: true })
+        .catch(() => { /* logged inside */ });
+    }, ORGANIZE_DEBOUNCE_MS);
+  }
+
   // A snapshot of "where every writing currently lives". Compared
   // before/after an organize round so triggerOrganizeNow can return a
   // diff — which essay moved between pitches, which pitch was renamed —
@@ -1113,6 +1133,7 @@
     getPitchStories,
     getPitchScript,
     scheduleOrganize,
+    scheduleRedistribute,
     triggerOrganize,
     triggerOrganizeNow,
     redistributePitches,
@@ -1139,8 +1160,11 @@
   // writing event because a fresh sign-in might surface essays /
   // drafts the local browser has never seen before.
 
-  window.addEventListener("tinker:writing-saved", () => {
-    scheduleOrganize();
+  window.addEventListener("tinker:writing-saved", (e) => {
+    // A brand-new essay refreshes every pitch (full re-cluster); an
+    // edit/draft-save just rehomes whatever drifted off-pitch.
+    if (e && e.detail && e.detail.newEssay) scheduleRedistribute();
+    else scheduleOrganize();
   });
 
   window.addEventListener("tinker:hydrated", () => {
