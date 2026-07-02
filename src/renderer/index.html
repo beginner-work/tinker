@@ -428,9 +428,11 @@
       </section>
     </main>
 
-    <!-- Phone/PIN auth gate. Hidden by default; auth.js shows it on the
-         web (when there is no JWT in localStorage) and stays out of the
-         way on Electron desktop. -->
+    <!-- Phone/PIN auth gate. Hidden by default and raised on demand:
+         a signed-out web visitor starts on the welcome grid and gets
+         three interview questions first — writing.js shows the gate
+         when that budget runs out (and platform-mobile.js on a 401).
+         Stays out of the way on Electron desktop. -->
     <div id="auth-gate" class="auth-gate" hidden>
       <div class="auth-gate__inner">
         <div class="auth-gate__brand" aria-hidden="true">
@@ -705,6 +707,12 @@
 
     <!-- Platform shim runs first. -->
     <script src="./platform-mobile.js" defer></script>
+    <!-- Anonymous first-entry attribution: mints an entry id before
+         sign-in, records the welcome-grid location + the three guest
+         interview answers, and attaches the entry to the account via
+         /api/entry/attach on verify. Must load after platform-mobile.js
+         (needs the .on-web class) and before auth.js/writing.js. -->
+    <script src="./guest-entry.js" defer></script>
     <script src="./auth.js" defer></script>
     <script src="./lib/rainbow-web.js" defer></script>
     <script src="./icon-init.js" defer></script>

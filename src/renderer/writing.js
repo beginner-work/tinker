@@ -67,6 +67,24 @@
 
   const SEED_QUESTION = "What are you learning?";
 
+  // Signed-out (guest) interview: on the plain web build the founder
+  // starts writing before they sign in, so the first questions can't
+  // come from Claude (the /api/claude proxy is Stytch-gated). These
+  // three fixed questions carry the opening instead — same learning
+  // spine as the AI interview (see RULE 4). After the last one the
+  // sign-in card takes over; the transcript survives verify and Claude
+  // picks the interview up from question four with full context.
+  // guest-entry.js records each answer for attribution on sign-in.
+  const GUEST_QUESTIONS = [
+    SEED_QUESTION,
+    "What are you noticing that you didn't expect?",
+    "What's getting clearer — and what are you still figuring out?",
+  ];
+
+  function isGuest() {
+    return !!(window.tinkerGuestEntry && window.tinkerGuestEntry.isGuest());
+  }
+
   // ── DOM refs ─────────────────────────────────────────────────────────
   const stage = document.getElementById("writing-stage");
   const progressEl = document.getElementById("writing-progress");
@@ -135,11 +153,22 @@
   }
 
   function seedAndRenderInterview() {
-    // First-time seed with scene context (place and/or what they're
-    // facing): ask Claude to mood the canonical "What are you
-    // learning?" to fit. Failures and no-context cases fall through to
-    // the canonical seed.
-    if ((active.transcript || []).length === 0 && !active.pending && (active.seed || active.facing || active.lastPurchased)) {
+    const fresh = (active.transcript || []).length === 0 && !active.pending;
+    // Signed-out: the Claude proxy is Stytch-gated, so the mood-tuned
+    // opener is out of reach. Serve the fixed guest opener locally; a
+    // spent question budget leaves pending unset and renderStep routes
+    // to the sign-in card via askNext → guestNext.
+    if (fresh && isGuest()) {
+      const q = nextGuestQuestion();
+      if (q) {
+        active.pending = q;
+        persist();
+      }
+    } else if (fresh && (active.seed || active.facing || active.lastPurchased)) {
+      // First-time seed with scene context (place and/or what they're
+      // facing): ask Claude to mood the canonical "What are you
+      // learning?" to fit. Failures and no-context cases fall through to
+      // the canonical seed.
       const draftId = active.id;
       renderLoading("Setting the scene…");
       moodSeedQuestion(active.seed, active.facing, active.lastPurchased)
@@ -152,8 +181,7 @@
           applySeed(SEED_QUESTION);
         });
       return;
-    }
-    if ((active.transcript || []).length === 0 && !active.pending) {
+    } else if (fresh) {
       active.pending = SEED_QUESTION;
       persist();
     }
@@ -648,8 +676,15 @@
     if (active.transcript.length === 1) {
       active.title = firstSentence(a) || active.title;
     }
+    // Attribution: while signed out, every committed answer lands in the
+    // anonymous entry so it can be tied to the account on verify.
+    // No-ops once a token exists (and on Electron/Capacitor).
+    if (window.tinkerGuestEntry && typeof window.tinkerGuestEntry.recordAnswer === "function") {
+      window.tinkerGuestEntry.recordAnswer(question, a);
+    }
     persist();
-    renderLoading("Thinking through what to ask next…");
+    // Guest turns resolve locally and synchronously — no loading beat.
+    if (!isGuest()) renderLoading("Thinking through what to ask next…");
     askNext().catch((err) => renderError(err));
   }
 
@@ -673,13 +708,119 @@
     active.pending = null;
     active.stitched = null;
     active.currentStep = active.transcript.length;
+    if (a && window.tinkerGuestEntry && typeof window.tinkerGuestEntry.recordAnswer === "function") {
+      window.tinkerGuestEntry.recordAnswer(question, a);
+    }
     persist();
-    renderLoading("Stitching your essay…");
+    // Stitching needs Claude, so a signed-out "This is everything" goes
+    // to the sign-in card instead of the loading beat.
+    if (!isGuest()) renderLoading("Stitching your essay…");
     askNext({ forceStitch: true }).catch((err) => renderError(err));
+  }
+
+  // ── Guest (signed-out) engine ───────────────────────────────────────
+  // The pre-login interview never talks to Claude: questions come off
+  // the fixed GUEST_QUESTIONS list, capped by the global budget in
+  // guest-entry.js (three answers per device, across drafts). When the
+  // budget runs out — or the founder asks to stitch, which always needs
+  // Claude — the sign-in card takes over and the flow resumes on the
+  // other side of verify.
+
+  function guestBudgetLeft() {
+    if (window.tinkerGuestEntry && typeof window.tinkerGuestEntry.questionsRemaining === "function") {
+      return window.tinkerGuestEntry.questionsRemaining();
+    }
+    return Math.max(0, GUEST_QUESTIONS.length - (active.transcript || []).length);
+  }
+
+  function nextGuestQuestion() {
+    if (guestBudgetLeft() <= 0) return null;
+    const idx = Math.min((active.transcript || []).length, GUEST_QUESTIONS.length - 1);
+    return GUEST_QUESTIONS[idx];
+  }
+
+  function guestNext({ forceStitch = false } = {}) {
+    if (!forceStitch) {
+      const q = nextGuestQuestion();
+      if (q) {
+        active.pending = q;
+        active.currentStep = (active.transcript || []).length;
+        persist();
+        renderStep();
+        return;
+      }
+    }
+    renderSignIn({ forceStitch });
+  }
+
+  // At most one auth-resume listener at a time — re-rendering the card
+  // (close/reopen the draft) must not stack listeners, or a single
+  // verify would fire askNext twice.
+  let signInResume = null;
+
+  function renderSignIn({ forceStitch = false } = {}) {
+    if (signInResume) {
+      window.removeEventListener("tinker:auth-changed", signInResume);
+      signInResume = null;
+    }
+    const draftId = active && active.id;
+    const card = document.createElement("div");
+    card.className = "writing-card writing-card--signin";
+
+    const h = document.createElement("h2");
+    h.className = "writing-question";
+    h.textContent = forceStitch
+      ? "Sign in to finish your essay."
+      : "That's three questions — sign in to keep going.";
+    card.appendChild(h);
+
+    const sub = document.createElement("p");
+    sub.className = "writing-signin__sub";
+    sub.textContent =
+      "Everything you've written is saved on this device and comes with you the moment you verify.";
+    card.appendChild(sub);
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "writing-action writing-action--primary";
+    btn.textContent = "Sign in with your phone";
+    btn.addEventListener("click", () => {
+      if (window.tinkerAuth && typeof window.tinkerAuth.showGate === "function") {
+        window.tinkerAuth.showGate();
+      }
+    });
+    card.appendChild(btn);
+
+    // Resume exactly where the founder left off once the verify lands:
+    // stitch if they were finishing, otherwise let Claude take over the
+    // interview with the guest transcript as context. The listener is
+    // draft-scoped — if this draft is no longer active by then, the
+    // reopened draft will route itself.
+    const onAuth = () => {
+      window.removeEventListener("tinker:auth-changed", onAuth);
+      if (signInResume === onAuth) signInResume = null;
+      if (!active || active.id !== draftId) return;
+      renderLoading(forceStitch ? "Stitching your essay…" : "Asking the next question…");
+      askNext({ forceStitch }).catch((err) => renderError(err));
+    };
+    signInResume = onAuth;
+    window.addEventListener("tinker:auth-changed", onAuth);
+
+    progressEl.innerHTML = "";
+    stepEl.textContent = "Sign in";
+    nextBtn.hidden = true;
+    endBtn.hidden = true;
+    swap(card);
   }
 
   async function askNext({ forceStitch = false } = {}) {
     if (!active) return;
+    // Signed out → the local guest engine decides: another fixed
+    // question, or the sign-in card.
+    if (isGuest()) {
+      guestNext({ forceStitch });
+      return;
+    }
     if (!window.tinker || typeof window.tinker.callClaude !== "function") {
       throw new Error("Anthropic client unavailable. Reload the page.");
     }

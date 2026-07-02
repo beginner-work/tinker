@@ -1029,6 +1029,13 @@
   const welcomeInput = document.getElementById("welcome-input");
 
   function startSessionWith(seed) {
+    // Attribution: a signed-out founder's first touch is the location
+    // they pick here. guest-entry.js records it under the anonymous
+    // entry id and ties it to their account when they sign in.
+    // No-ops when already signed in (and on Electron/Capacitor).
+    if (window.tinkerGuestEntry && typeof window.tinkerGuestEntry.recordLocation === "function") {
+      window.tinkerGuestEntry.recordLocation(seed);
+    }
     if (window.tinkerSeeds && typeof window.tinkerSeeds.add === "function") {
       window.tinkerSeeds.add(seed);
     }
