@@ -17,8 +17,10 @@
  *   - Inputs are hard-capped (3 turns, 120-char seed, 4000-char
  *     answers) and a transcript that already holds three answers is
  *     refused — mirroring the client-side cap.
- *   - Output is one short question (max_tokens 80) from Haiku — the
- *     cheap tier, deliberately, for an unauthenticated surface.
+ *   - Output is one short question (max_tokens 80) from the same model
+ *     the signed-in interview uses, so guest questions read exactly
+ *     like the normal flow's. The 80-token cap + input caps + rate
+ *     limit keep the worst-case cost of the open route bounded.
  *   - Best-effort per-IP rate limit (in-memory token bucket per warm
  *     serverless instance). Not bulletproof across instances, but with
  *     the caps above the worst case is bounded and tiny.
@@ -152,9 +154,10 @@ async function askClaude(input) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      // Haiku on purpose: this route is unauthenticated, and one short
-      // question doesn't need the big model.
-      model: "claude-haiku-4-5",
+      // Same model as the signed-in interview (writing.js) so the guest
+      // questions match the normal flow. The route stays safe to expose
+      // unauthenticated because the caps bound the spend, not the tier.
+      model: "claude-opus-4-8",
       max_tokens: 80,
       system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: buildUserMessage(input) }],
