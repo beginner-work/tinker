@@ -50,8 +50,15 @@ test("index.html loads guest-entry.js between platform-mobile.js and auth.js", (
   assert.ok(guest < auth, "guest-entry.js must load before auth.js");
 });
 
-test("the guest interview serves three fixed questions per signed-out session", () => {
-  assert.match(writingJs, /GUEST_QUESTIONS\s*=\s*\[/, "writing.js lost the fixed guest question list");
+test("the guest interview serves three AI-phrased questions per signed-out session", () => {
+  // Questions come from the capped unauthenticated endpoint…
+  assert.match(writingJs, /\/api\/claude\/guest/, "writing.js no longer asks the guest question endpoint");
+  assert.ok(
+    fs.existsSync(path.join(__dirname, "..", "api", "claude", "guest.js")),
+    "api/claude/guest.js endpoint is missing"
+  );
+  // …with the fixed list as the offline/error fallback.
+  assert.match(writingJs, /GUEST_QUESTIONS\s*=\s*\[/, "writing.js lost the fixed guest question fallback");
   // Exactly three entries in the list.
   const block = writingJs.match(/GUEST_QUESTIONS\s*=\s*\[([\s\S]*?)\];/);
   assert.ok(block, "GUEST_QUESTIONS array not found");

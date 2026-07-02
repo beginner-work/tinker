@@ -68,14 +68,18 @@
   const SEED_QUESTION = "What are you learning?";
 
   // Signed-out (guest) interview: on the plain web build the founder
-  // starts writing before they sign in, so the first questions can't
-  // come from Claude (the /api/claude proxy is Stytch-gated). These
-  // three fixed questions carry the opening instead — same learning
-  // spine as the AI interview (see RULE 4). Every signed-out session
-  // gets all three; after the last one the sign-in gate comes up, the
-  // transcript survives verify, and Claude picks the interview up from
-  // question four with full context. guest-entry.js records each
-  // answer for attribution on sign-in.
+  // starts writing before they sign in, so the questions can't come
+  // through the Stytch-gated /api/claude/converse proxy. Instead they
+  // come from /api/claude/guest — a capped, unauthenticated endpoint
+  // whose prompt lives server-side — so the opener is mood-tuned to
+  // the location and each follow-up follows from what the founder
+  // actually wrote. These three fixed questions are the offline/error
+  // fallback (same learning spine as the AI interview, see RULE 4).
+  // Every signed-out session gets three questions; after the last one
+  // the sign-in gate comes up, the transcript survives verify, and
+  // Claude picks the interview up from question four with full
+  // context. guest-entry.js records each answer for attribution on
+  // sign-in.
   const GUEST_QUESTIONS = [
     SEED_QUESTION,
     "What are you noticing that you didn't expect?",
@@ -155,16 +159,12 @@
 
   function seedAndRenderInterview() {
     const fresh = (active.transcript || []).length === 0 && !active.pending;
-    // Signed-out: the Claude proxy is Stytch-gated, so the mood-tuned
-    // opener is out of reach. Serve the fixed guest opener locally; a
-    // spent question budget leaves pending unset and renderStep routes
-    // to the sign-in card via askNext → guestNext.
+    // Signed-out: leave pending unset and let renderStep route into the
+    // guest engine (askNext → guestNext), which asks the capped guest
+    // endpoint for a mood-tuned opener and falls back to the fixed
+    // list. A spent draft routes to the sign-in gate the same way.
     if (fresh && isGuest()) {
-      const q = nextGuestQuestion();
-      if (q) {
-        active.pending = q;
-        persist();
-      }
+      // fall through to renderStep
     } else if (fresh && (active.seed || active.facing || active.lastPurchased)) {
       // First-time seed with scene context (place and/or what they're
       // facing): ask Claude to mood the canonical "What are you
@@ -739,14 +739,47 @@
     return GUEST_QUESTIONS[idx];
   }
 
+  /** One AI-phrased guest question from the capped, unauthenticated
+   *  endpoint. The server owns the prompt; we only send the scene and
+   *  the founder's own turns. Throws on any failure — callers fall
+   *  back to the fixed list. */
+  async function fetchGuestQuestion() {
+    const entry =
+      (window.tinkerGuestEntry && typeof window.tinkerGuestEntry.entry === "function"
+        ? window.tinkerGuestEntry.entry()
+        : null) || null;
+    const res = await fetch("/api/claude/guest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entryId: entry ? entry.id : null,
+        seed: active.seed || null,
+        transcript: (active.transcript || []).map((t) => ({ q: t.q, a: t.a })),
+      }),
+    });
+    if (!res.ok) throw new Error(`Guest question failed (${res.status})`);
+    const data = await res.json().catch(() => ({}));
+    const q = data && typeof data.question === "string" ? data.question.trim() : "";
+    if (!q) throw new Error("Empty guest question.");
+    return q;
+  }
+
   function guestNext({ forceStitch = false } = {}) {
     if (!forceStitch) {
-      const q = nextGuestQuestion();
-      if (q) {
-        active.pending = q;
-        active.currentStep = (active.transcript || []).length;
-        persist();
-        renderStep();
+      const fallback = nextGuestQuestion();
+      if (fallback) {
+        const draftId = active.id;
+        const opening = (active.transcript || []).length === 0;
+        renderLoading(opening ? "Setting the scene…" : "Thinking through what to ask next…");
+        fetchGuestQuestion()
+          .catch(() => fallback)
+          .then((q) => {
+            if (!active || active.id !== draftId) return;
+            active.pending = q || fallback;
+            active.currentStep = (active.transcript || []).length;
+            persist();
+            renderStep();
+          });
         return;
       }
     }
