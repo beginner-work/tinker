@@ -920,16 +920,12 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
 
 .stage > .welcome.feed[data-active] {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   min-height: 100%;
-  /* Fluid padding tuned so the form sits visually centred with the
-     same breathing room as the login pill on the auth-gate. The
-     auth-gate pill has 16px outer padding + 8px inner pill padding
-     before the input border — ~24px effective on mobile. Without a
-     pill wrapper here, we lean harder on outer padding (40px min on
-     small screens) to land in the same visual neighbourhood. */
-  padding: clamp(40px, 6vh, 64px) clamp(40px, 10vw, 96px);
+  /* No padding here: the higher-specificity #welcome.feed[data-active]
+     rule (the section's layout owner, further down) carries the frame
+     padding and the column direction. */
   background: var(--color-background);
   position: relative;
   overflow: hidden;
@@ -1003,21 +999,23 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   }
 }
 .welcome .welcome__inner { position: relative; z-index: 1; }
+/* The inner column stretches to the full stage (inside the section's
+   clamp padding) so the location grid can fill everything below the
+   prompt. */
 .welcome__inner {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 14px;
-  max-width: 480px;
+  gap: 18px;
   width: 100%;
+  min-height: 0;
+  flex: 1;
 }
-.welcome__logo {
-  opacity: 0.85;
-  margin-bottom: 4px;
-}
-.welcome__logo svg rect { display: none; }
-.welcome__question {
+
+/* The prompt is the only text on the landing screen, so it wears the
+   headline treatment. */
+.welcome__prompt {
   margin: 0;
   font-family: var(--font-display);
   font-size: 26px;
@@ -1026,27 +1024,15 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   color: var(--color-foreground);
   line-height: 1.25;
 }
-.welcome__sub {
-  margin: -4px 0 0;
-  font-size: 15px;
-  color: var(--color-muted);
-  line-height: 1.4;
-}
-
-.welcome__prompt {
-  margin: 10px 0 2px;
-  font-size: 15px;
-  color: var(--color-foreground);
-  font-weight: 600;
-  line-height: 1.3;
-}
 .welcome__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-rows: 1fr 1fr;
+  gap: 14px;
   width: 100%;
-  max-width: min(460px, 92%);
-  margin: 6px auto 0;
+  margin: 0;
+  flex: 1;
+  min-height: 0;
 }
 .welcome__tile {
   display: flex;
@@ -1137,7 +1123,7 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   /* Horizontal + vertical padding handled by the clamp() on .welcome
      so it scales the same across mobile and narrow-desktop widths.
      Only the layout + type knobs change here. */
-  .welcome__question { font-size: 22px; }
+  .welcome__prompt { font-size: 22px; }
   .welcome__tile { min-height: 84px; padding: 18px 12px; }
   .welcome__form { flex-direction: column; gap: 10px; }
   .welcome__submit { width: 100%; height: 46px; }
@@ -2602,7 +2588,13 @@ html.txn-modal-open { overflow: hidden; }
   background: var(--color-background);
   display: flex;
   flex-direction: column;
-  padding: 0;
+  /* The location grid fills the stage below the prompt, so this
+     padding is the frame: a modest top + sides, and enough at the
+     bottom to keep the tiles clear of the floating AI / No AI glass
+     bar (fixed at safe-area + 18px, ~74px tall). */
+  padding: clamp(28px, 5vh, 48px)
+           clamp(24px, 5vw, 64px)
+           calc(env(safe-area-inset-bottom, 0px) + 110px);
 }
 
 .home-list {
