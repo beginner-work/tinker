@@ -50,18 +50,22 @@ test("index.html loads guest-entry.js between platform-mobile.js and auth.js", (
   assert.ok(guest < auth, "guest-entry.js must load before auth.js");
 });
 
-test("the guest interview is capped at three fixed questions", () => {
-  assert.match(guestJs, /QUESTION_LIMIT\s*=\s*3/, "guest question budget is no longer 3");
+test("the guest interview serves three fixed questions per signed-out session", () => {
   assert.match(writingJs, /GUEST_QUESTIONS\s*=\s*\[/, "writing.js lost the fixed guest question list");
   // Exactly three entries in the list.
   const block = writingJs.match(/GUEST_QUESTIONS\s*=\s*\[([\s\S]*?)\];/);
   assert.ok(block, "GUEST_QUESTIONS array not found");
   const count = (block[1].match(/,\s*$/gm) || []).length;
   assert.equal(count, 3, `expected 3 guest questions, found ${count}`);
-  // The guest engine gates on the budget and routes to the sign-in card.
-  assert.match(writingJs, /questionsRemaining/, "writing.js no longer consults the global guest budget");
-  assert.match(writingJs, /renderSignIn/, "writing.js lost the sign-in hand-off card");
-  assert.match(writingJs, /tinkerAuth[\s\S]{0,80}showGate/, "the sign-in card no longer raises the auth gate");
+  // The cap is per draft/session (transcript-based), not a lifetime
+  // device budget — every logged-out session gets all three questions.
+  assert.match(
+    writingJs,
+    /GUEST_QUESTIONS\.length\s*-\s*\(active\.transcript/,
+    "the guest cap is no longer per-session (draft transcript based)"
+  );
+  assert.match(writingJs, /renderSignIn/, "writing.js lost the sign-in hand-off");
+  assert.match(writingJs, /tinkerAuth[\s\S]{0,80}showGate/, "the guest engine no longer raises the auth gate");
 });
 
 test("attribution: location + answers are recorded and attached to the session", () => {

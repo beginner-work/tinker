@@ -2,21 +2,25 @@
  *
  * On the plain web build the app now opens straight onto the welcome
  * screen (the location grid) instead of the phone/PIN gate, and a
- * signed-out founder can answer up to three interview questions before
- * being asked to sign in. This module is how that pre-login work gets
- * attributed: at first touch it mints an anonymous entry id, records
- * the location the founder picked and each answer they typed, and —
- * the moment a verify lands (tinker:auth-changed) — POSTs the whole
- * entry to /api/entry/attach so the server can tie it to the Stytch
- * user + session that just signed in.
+ * signed-out founder answers three interview questions (the
+ * per-session cap lives in writing.js) before being asked to sign in.
+ * This module is how that pre-login work gets attributed: at first
+ * touch it mints an anonymous entry id, records the location the
+ * founder picked and each answer they typed, and — the moment a verify
+ * lands (tinker:auth-changed) — POSTs the whole entry to
+ * /api/entry/attach so the server can tie it to the Stytch user +
+ * session that just signed in.
  *
  * Storage: one JSON blob under "tinker.guest-entry.v1" —
  *   { id, createdAt, location, answers: [{ q, a, at }], attachedAt }
  *
  * The blob survives reloads, so a founder who answers two questions,
  * closes the tab, and comes back tomorrow still gets their entry
- * attributed when they eventually sign in. Attach is idempotent —
- * the server merges by entry id — so retrying is always safe.
+ * attributed when they eventually sign in. Once an entry is attached
+ * it is history — the next signed-out stint mints a fresh entry id, so
+ * every logged-out session gets its own attributable entry. Attach is
+ * idempotent — the server merges by entry id — so retrying is always
+ * safe.
  *
  * Electron desktop and Capacitor mobile never gate on Stytch, so
  * isGuest() is false there and every recorder no-ops.
@@ -27,10 +31,6 @@
 
   const TOKEN_KEY = "tinker_jwt";
   const ENTRY_KEY = "tinker.guest-entry.v1";
-
-  // How many interview questions a signed-out founder can answer before
-  // the auth gate takes over. writing.js reads this via the public api.
-  const QUESTION_LIMIT = 3;
 
   // ── Platform / auth state ────────────────────────────────────────────
   // Same detection auth.js uses: the platform-mobile shim adds .on-web
@@ -73,7 +73,10 @@
 
   function ensure() {
     let entry = read();
-    if (!entry || typeof entry.id !== "string" || !entry.id) {
+    // An attached entry is history: it already belongs to an account +
+    // session. A new signed-out stint (e.g. after signing out) starts a
+    // fresh entry so its work gets attributed on the next verify too.
+    if (!entry || typeof entry.id !== "string" || !entry.id || entry.attachedAt) {
       entry = {
         id: makeId(),
         createdAt: Date.now(),
@@ -90,8 +93,6 @@
   // ── Public API ───────────────────────────────────────────────────────
 
   const api = {
-    limit: QUESTION_LIMIT,
-
     /** True when the pre-login (guest) flow applies: plain web, no token. */
     isGuest() {
       return isWebPlatform() && !token();
@@ -100,15 +101,6 @@
     /** The raw entry blob, or null if nothing has been recorded yet. */
     entry() {
       return read();
-    },
-
-    questionsUsed() {
-      const entry = read();
-      return entry && Array.isArray(entry.answers) ? entry.answers.length : 0;
-    },
-
-    questionsRemaining() {
-      return Math.max(0, QUESTION_LIMIT - api.questionsUsed());
     },
 
     /** The founder tapped a location on the welcome grid while signed out. */

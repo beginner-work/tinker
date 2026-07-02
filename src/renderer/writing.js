@@ -71,10 +71,11 @@
   // starts writing before they sign in, so the first questions can't
   // come from Claude (the /api/claude proxy is Stytch-gated). These
   // three fixed questions carry the opening instead — same learning
-  // spine as the AI interview (see RULE 4). After the last one the
-  // sign-in card takes over; the transcript survives verify and Claude
-  // picks the interview up from question four with full context.
-  // guest-entry.js records each answer for attribution on sign-in.
+  // spine as the AI interview (see RULE 4). Every signed-out session
+  // gets all three; after the last one the sign-in gate comes up, the
+  // transcript survives verify, and Claude picks the interview up from
+  // question four with full context. guest-entry.js records each
+  // answer for attribution on sign-in.
   const GUEST_QUESTIONS = [
     SEED_QUESTION,
     "What are you noticing that you didn't expect?",
@@ -720,16 +721,15 @@
 
   // ── Guest (signed-out) engine ───────────────────────────────────────
   // The pre-login interview never talks to Claude: questions come off
-  // the fixed GUEST_QUESTIONS list, capped by the global budget in
-  // guest-entry.js (three answers per device, across drafts). When the
-  // budget runs out — or the founder asks to stitch, which always needs
-  // Claude — the sign-in card takes over and the flow resumes on the
-  // other side of verify.
+  // the fixed GUEST_QUESTIONS list. The cap is per session — every
+  // draft started while signed out gets the full three questions, so a
+  // founder who signs out (or comes back later still logged out) gets
+  // three fresh questions each time. When this draft's three are spent
+  // — or the founder asks to stitch, which always needs Claude — the
+  // sign-in gate takes over and the flow resumes on the other side of
+  // verify.
 
   function guestBudgetLeft() {
-    if (window.tinkerGuestEntry && typeof window.tinkerGuestEntry.questionsRemaining === "function") {
-      return window.tinkerGuestEntry.questionsRemaining();
-    }
     return Math.max(0, GUEST_QUESTIONS.length - (active.transcript || []).length);
   }
 
