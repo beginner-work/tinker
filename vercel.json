@@ -5,6 +5,7 @@
   "outputDirectory": "src/renderer",
   "installCommand": "npm ci",
   "buildCommand": "prisma migrate deploy",
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"main\" ] || [ \"$VERCEL_GIT_COMMIT_REF\" = \"crafting\" ]; then exit 1; else exit 0; fi",
   "headers": [
     {
       "source": "/(.*)",
