@@ -753,11 +753,15 @@
     renderSignIn({ forceStitch });
   }
 
-  // At most one auth-resume listener at a time — re-rendering the card
+  // At most one auth-resume listener at a time — re-raising the gate
   // (close/reopen the draft) must not stack listeners, or a single
   // verify would fire askNext twice.
   let signInResume = null;
 
+  // Guest budget spent (or a pre-login stitch): no interstitial — the
+  // phone/PIN gate itself comes up immediately, with only a quiet
+  // context card left behind it in the writing stage. The flow resumes
+  // the moment the verify lands.
   function renderSignIn({ forceStitch = false } = {}) {
     if (signInResume) {
       window.removeEventListener("tinker:auth-changed", signInResume);
@@ -771,7 +775,7 @@
     h.className = "writing-question";
     h.textContent = forceStitch
       ? "Sign in to finish your essay."
-      : "That's three questions — sign in to keep going.";
+      : "Sign in to keep going.";
     card.appendChild(h);
 
     const sub = document.createElement("p");
@@ -779,17 +783,6 @@
     sub.textContent =
       "Everything you've written is saved on this device and comes with you the moment you verify.";
     card.appendChild(sub);
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "writing-action writing-action--primary";
-    btn.textContent = "Sign in with your phone";
-    btn.addEventListener("click", () => {
-      if (window.tinkerAuth && typeof window.tinkerAuth.showGate === "function") {
-        window.tinkerAuth.showGate();
-      }
-    });
-    card.appendChild(btn);
 
     // Resume exactly where the founder left off once the verify lands:
     // stitch if they were finishing, otherwise let Claude take over the
@@ -811,6 +804,12 @@
     nextBtn.hidden = true;
     endBtn.hidden = true;
     swap(card);
+
+    // Straight to the sign-in screen — the card above is just the
+    // backdrop the founder returns to while the gate animates away.
+    if (window.tinkerAuth && typeof window.tinkerAuth.showGate === "function") {
+      window.tinkerAuth.showGate();
+    }
   }
 
   async function askNext({ forceStitch = false } = {}) {
