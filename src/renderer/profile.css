@@ -457,3 +457,128 @@
   padding: 8px 14px;
   cursor: pointer;
 }
+
+/* ── Founder coins panel (stakes.js) ─────────────────────────────────
+   Rides inside the backme-overlay shell; only the inner layout is new. */
+.stakes-panel {
+  height: auto;
+  max-height: min(88vh, 760px);
+  display: flex;
+}
+.stakes-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 20px calc(env(safe-area-inset-bottom, 0px) + 22px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stakes-title {
+  margin: 0 28px 0 0;
+  font-family: var(--font-display, "Plus Jakarta Sans", sans-serif);
+  font-size: 20px;
+}
+.stakes-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted, #6b6357);
+}
+.stakes-heading {
+  margin: 12px 0 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted, #6b6357);
+}
+.stakes-coin {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.stakes-coin__symbol {
+  font-family: var(--font-display, "Plus Jakarta Sans", sans-serif);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+}
+.stakes-coin__meta {
+  font-size: 13px;
+  color: var(--color-muted, #6b6357);
+}
+.stakes-balance {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border, #e7e0d2);
+  border-radius: var(--radius-card, 12px);
+}
+.stakes-balance__label { font-size: 13px; }
+.stakes-balance__value { font-weight: 600; }
+.stakes-row,
+.stakes-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border, #e7e0d2);
+  border-radius: var(--radius-card, 12px);
+}
+.stakes-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.stakes-row__label { min-width: 0; }
+.stakes-row__title {
+  font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stakes-row__sub {
+  font-size: 12px;
+  color: var(--color-muted, #6b6357);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stakes-row__button,
+.stakes-form__button {
+  border: 1px solid var(--color-border, #e7e0d2);
+  border-radius: 999px;
+  background: var(--color-surface, #fffdf7);
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.stakes-row__button:disabled,
+.stakes-form__button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.stakes-form {
+  display: flex;
+  gap: 8px;
+}
+.stakes-form__input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--color-border, #e7e0d2);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  background: var(--color-surface, #fffdf7);
+}
+.stakes-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted, #6b6357);
+}
+.stakes-error {
+  margin: 0;
+  font-size: 12px;
+  color: #b3423f;
+}

@@ -63,6 +63,7 @@
     <!-- Receives a beginner backer card deposited from /investor-relations
          (#deposit_card=) into the local wallet, and shows it. -->
     <script src="./wallet.js" defer></script>
+    <script src="./stakes.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
@@ -113,6 +114,11 @@
              /investor-relations (#deposit_card=). See wallet.js. -->
         <button id="profile-wallet" class="profile-popover__action" type="button" role="menuitem">
           Wallet
+        </button>
+        <!-- Founder coins: stake the practice balance on other founders.
+             See stakes.js + api/stakes/*. -->
+        <button id="profile-stakes" class="profile-popover__action" type="button" role="menuitem">
+          Founder coins
         </button>
       </div>
     </div>
