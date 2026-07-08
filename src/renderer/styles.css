@@ -659,40 +659,6 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   text-transform: uppercase;
   color: var(--color-muted);
 }
-.sidebar__pitch-refresh {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 auto;
-  padding: 0;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--color-muted);
-  cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-}
-.sidebar__pitch-refresh:not(:disabled):hover {
-  color: var(--color-accent-strong);
-  background: var(--color-accent-dim);
-  border-color: var(--color-accent-strong);
-}
-.sidebar__pitch-refresh:active { transform: scale(0.94); }
-.sidebar__pitch-refresh:disabled { cursor: default; }
-.sidebar__pitch-refresh.is-busy {
-  color: var(--color-accent-strong);
-}
-.sidebar__pitch-refresh.is-busy svg {
-  animation: sidebar-pitch-refresh-spin 0.8s linear infinite;
-}
-@keyframes sidebar-pitch-refresh-spin {
-  to { transform: rotate(360deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sidebar__pitch-refresh.is-busy svg { animation: none; }
-}
 .sidebar__pitch-switcher-row {
   display: flex;
   align-items: center;
@@ -828,12 +794,6 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
  * switcher so the button aligns vertically with the chip above. */
 .sidebar__pitch-post {
   padding: 6px 10px 10px;
-}
-.sidebar__pitch-redistribute-note {
-  margin: 0 2px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--color-muted);
 }
 .sidebar__pitch-rename-form {
   display: flex;

@@ -212,6 +212,18 @@
           }
         });
       }
+      // "Founder coins" — open the staking panel (see stakes.js). Same
+      // no-op guard as the wallet if the module didn't load.
+      var stakes = document.getElementById("profile-stakes");
+      if (stakes) {
+        stakes.addEventListener("click", function () {
+          pop.setAttribute("hidden", "");
+          btn.setAttribute("aria-expanded", "false");
+          if (window.tinkerStakes && typeof window.tinkerStakes.open === "function") {
+            window.tinkerStakes.open();
+          }
+        });
+      }
     }
   }
 

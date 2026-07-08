@@ -478,85 +478,10 @@
   // founder-edited rather than verbatim founder phrases.
   let switcherOpen = false;
   let renameOpen = false;
-  // Refresh button state. `refreshing` flips the button into its
-  // disabled/busy face while the server re-clusters every pitch;
-  // `refreshMsg` holds the one-line outcome shown beneath it after the
-  // round returns (cleared on the next switcher interaction).
-  let refreshing = false;
-  let refreshMsg = null;
-
-  // Turn an all-pitches organize diff (plus the count we trimmed from the
-  // dropdown) into the short line shown under the button. The whole-corpus
-  // refresh can move essays between pitches, fold duplicate/empty pitches
-  // into siblings (their ids land in removedPitchIds), and leave some
-  // pitches resolving to 0 / 11 — those we hide from the dropdown rather
-  // than touch the data, so we call them out as trimmed. When nothing
-  // shifts at all the AI judged everything already in place — a valid,
-  // common outcome, not a failure.
-  function describeRefresh(diff, trimmed, kept) {
-    const moved = (diff && Array.isArray(diff.movedWritings)) ? diff.movedWritings.length : 0;
-    const dissolved = (diff && Array.isArray(diff.removedPitchIds)) ? diff.removedPitchIds.length : 0;
-    const parts = [];
-    if (moved > 0) parts.push(`moved ${moved} ${moved === 1 ? "essay" : "essays"}`);
-    if (dissolved > 0) parts.push(`folded ${dissolved} ${dissolved === 1 ? "pitch" : "pitches"}`);
-    if (trimmed > 0) parts.push(`trimmed ${trimmed} at 0 / ${DECK_HEADINGS.length}`);
-    if (kept > 0) parts.push(`kept ${kept} locked`);
-    if (parts.length === 0) return "All pitches refreshed — everything's already in place.";
-    return `Refreshed all pitches — ${parts.join(", ")}.`;
-  }
-
-  // Total locked beats across all pitches — the count the refresh held
-  // fixed while re-clustering everything else.
-  function lockedTotal(pm, pitches) {
-    if (!pm || typeof pm.lockedHeadings !== "function" || !Array.isArray(pitches)) return 0;
-    let n = 0;
-    for (const p of pitches) n += pm.lockedHeadings(p.id).length;
-    return n;
-  }
-
-  // Count pitches the dropdown now hides: those resolving to 0 / 11. The
-  // active pitch is never hidden (it stays visible as the selected face),
-  // so it never counts as trimmed.
-  function trimmedCount(pitches, activeId) {
-    if (!Array.isArray(pitches)) return 0;
-    return pitches.filter(
-      (p) => p.id !== activeId && (Number(p.robustness) || 0) === 0,
-    ).length;
-  }
-
-  async function runRefresh() {
-    const pm = pitchesApi();
-    if (!pm || typeof pm.redistributePitches !== "function") return;
-    if (refreshing) return;
-    refreshing = true;
-    refreshMsg = null;
-    switcherOpen = false;
-    renameOpen = false;
-    render();
-    let result;
-    try {
-      result = await pm.redistributePitches();
-    } catch {
-      result = { ok: false, reason: "error" };
-    }
-    refreshing = false;
-    if (result && result.ok) {
-      const pitches = typeof pm.getPitches === "function" ? pm.getPitches() : [];
-      const activeId = typeof pm.getActivePitchId === "function" ? pm.getActivePitchId() : null;
-      refreshMsg = describeRefresh(
-        result.diff,
-        trimmedCount(pitches, activeId),
-        lockedTotal(pm, pitches),
-      );
-    } else if (result && result.reason === "no-token") {
-      refreshMsg = "Sign in to refresh your pitches.";
-    } else if (result && result.reason === "inflight") {
-      refreshMsg = null; // a round was already running; stay quiet
-    } else {
-      refreshMsg = "Couldn't refresh — try again in a moment.";
-    }
-    render();
-  }
+  // Pitches now refresh themselves: adding an essay fires a full
+  // re-cluster automatically (see pitches.js → scheduleRedistribute),
+  // so there's no manual "Refresh all pitches" button or its busy /
+  // outcome state to track here anymore.
 
   // A short, human "last edited" label for a pitch — recent edits read
   // as relative time ("edited just now", "edited 3h ago"), older ones
@@ -646,51 +571,16 @@
     switcherEl.hidden = false;
     switcherEl.innerHTML = "";
 
-    // Header row: the "Pitch" caption on the left, and a small refresh
-    // icon button on the right that reconsiders every pitch at once
-    // (re-clustering the whole corpus). It lives up here (rather than as a
-    // full-width button below) because it sits beside the "Pitch" label
-    // and the switcher it acts on, not among the rename/select actions.
+    // Header row: just the "Pitch" caption. Pitches re-cluster
+    // themselves whenever an essay is added (no manual refresh control),
+    // so there's nothing else to hang here.
     const head = document.createElement("div");
     head.className = "sidebar__pitch-switcher-head";
     const label = document.createElement("span");
     label.className = "sidebar__pitch-switcher-label";
     label.textContent = "Pitch";
     head.appendChild(label);
-
-    const refresh = document.createElement("button");
-    refresh.type = "button";
-    refresh.className = "sidebar__pitch-refresh";
-    if (refreshing) refresh.classList.add("is-busy");
-    refresh.disabled = refreshing;
-    refresh.setAttribute(
-      "aria-label",
-      refreshing ? "Refreshing all pitches…" : "Refresh all pitches",
-    );
-    refresh.title = refreshing ? "Refreshing…" : "Refresh all pitches";
-    if (refreshing) refresh.setAttribute("aria-busy", "true");
-    refresh.innerHTML =
-      '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" ' +
-      'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
-      'stroke-linejoin="round" aria-hidden="true" focusable="false">' +
-      '<polyline points="23 4 23 10 17 10"></polyline>' +
-      '<polyline points="1 20 1 14 7 14"></polyline>' +
-      '<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>' +
-      "</svg>";
-    refresh.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      runRefresh();
-    });
-    head.appendChild(refresh);
     switcherEl.appendChild(head);
-
-    if (refreshMsg) {
-      const note = document.createElement("p");
-      note.className = "sidebar__pitch-redistribute-note";
-      note.textContent = refreshMsg;
-      switcherEl.appendChild(note);
-    }
 
     const row = document.createElement("div");
     row.className = "sidebar__pitch-switcher-row";
@@ -726,7 +616,6 @@
       e.stopPropagation();
       switcherOpen = !switcherOpen;
       renameOpen = false;
-      refreshMsg = null;
       render();
     });
     row.appendChild(face);
@@ -800,7 +689,6 @@
       e.stopPropagation();
       renameOpen = !renameOpen;
       switcherOpen = false;
-      refreshMsg = null;
       render();
       if (renameOpen) {
         setTimeout(() => {
