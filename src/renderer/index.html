@@ -64,6 +64,9 @@
          (#deposit_card=) into the local wallet, and shows it. -->
     <script src="./wallet.js" defer></script>
     <script src="./stakes.js" defer></script>
+    <!-- Compose overlay: send an email from the founder's beginner.work
+         address through /api/email/send. -->
+    <script src="./email.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
@@ -119,6 +122,11 @@
              See stakes.js + api/stakes/*. -->
         <button id="profile-stakes" class="profile-popover__action" type="button" role="menuitem">
           Founder coins
+        </button>
+        <!-- Compose an email sent from the founder's beginner.work address
+             via /api/email/send. See email.js. -->
+        <button id="profile-email" class="profile-popover__action" type="button" role="menuitem">
+          Send an email
         </button>
       </div>
     </div>
