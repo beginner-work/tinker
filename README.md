@@ -136,6 +136,17 @@ Optional:
 - `STRIPE_PRICE_PRESEED` — a recurring $9/month Price id for the in-app
   Upgrade checkout. If unset, the checkout builds the price inline, so the
   flow still works without dashboard setup.
+- `BEGINNER_MCP_TOKEN` (or `CLOUDFLARE_API_TOKEN`) — enables the in-app email
+  composer (profile menu → "Send an email", `api/email/send.js`). The function
+  relays to the beginner mcp Worker's `POST /email/send` (canonical URL
+  `https://beginner-mcp.tyler-lindow.workers.dev`, hardcoded default;
+  `BEGINNER_MCP_URL` overrides), which sends from the founder's
+  `beginner.work` address via Cloudflare Email Routing. The bearer can be the
+  Worker's `MCP_BEARER_TOKEN` or — since the Worker accepts it on the email
+  route — the account's default `CLOUDFLARE_API_TOKEN`, so an existing secret
+  can be reused as-is. No token → the composer gets a friendly 503. Inherited
+  constraint: Email Routing only delivers to **verified destination
+  addresses** on the Cloudflare account.
 
 Optional Preview-only vars (enable the Claude-Code → Browserbase loop;
 see "Closed-loop iteration on a Vercel preview" below):

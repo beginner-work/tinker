@@ -212,6 +212,18 @@
           }
         });
       }
+      // "Send an email" — compose mail sent from the founder's beginner.work
+      // address (see email.js). No-op if the module didn't load.
+      var email = document.getElementById("profile-email");
+      if (email) {
+        email.addEventListener("click", function () {
+          pop.setAttribute("hidden", "");
+          btn.setAttribute("aria-expanded", "false");
+          if (window.tinkerEmail && typeof window.tinkerEmail.open === "function") {
+            window.tinkerEmail.open();
+          }
+        });
+      }
     }
   }
 
