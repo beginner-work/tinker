@@ -15,8 +15,12 @@
  * address itself is the Worker's configured beginner.work sender —
  * clients can pick a display name and Reply-To, never the address.
  *
- * Env: BEGINNER_MCP_URL (e.g. https://beginner-mcp.<sub>.workers.dev)
- * and BEGINNER_MCP_TOKEN (the Worker's MCP_BEARER_TOKEN). Unset →
+ * Env: BEGINNER_MCP_TOKEN — the bearer the Worker accepts, which for
+ * this route is either its MCP_BEARER_TOKEN or its CLOUDFLARE_API_TOKEN
+ * (the Worker deliberately accepts the default Cloudflare token on
+ * /email/send so no new secret needs minting); CLOUDFLARE_API_TOKEN is
+ * read as a fallback env name so an existing var can be reused as-is.
+ * BEGINNER_MCP_URL overrides the canonical Worker URL below. No token →
  * friendly 503, nothing breaks.
  *
  * Inherited constraint (Cloudflare Email Routing): delivery only works
@@ -29,6 +33,9 @@
 
 const { authenticateSession } = require("../_lib/stytch.js");
 const { withResponseLogging } = require("../_lib/log.js");
+
+// The deployed beginner mcp Worker — the one backend that can send mail.
+const DEFAULT_MCP_URL = "https://beginner-mcp.tyler-lindow.workers.dev";
 
 // A whole email (headers + text + optional HTML) comfortably fits; anything
 // larger than 512 KB is almost certainly a bug or abuse.
@@ -79,12 +86,12 @@ module.exports = withResponseLogging(async function handler(req, res) {
     return;
   }
 
-  const mcpUrl = (process.env.BEGINNER_MCP_URL || "").replace(/\/+$/, "");
-  const mcpToken = process.env.BEGINNER_MCP_TOKEN || "";
-  if (!mcpUrl || !mcpToken) {
+  const mcpUrl = (process.env.BEGINNER_MCP_URL || DEFAULT_MCP_URL).replace(/\/+$/, "");
+  const mcpToken = process.env.BEGINNER_MCP_TOKEN || process.env.CLOUDFLARE_API_TOKEN || "";
+  if (!mcpToken) {
     res.status(503).json({
       error: "Sending email isn't configured on this deployment.",
-      detail: "Set BEGINNER_MCP_URL and BEGINNER_MCP_TOKEN to the beginner mcp Worker.",
+      detail: "Set BEGINNER_MCP_TOKEN (or CLOUDFLARE_API_TOKEN) to a bearer the beginner mcp Worker accepts.",
     });
     return;
   }

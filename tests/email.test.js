@@ -87,6 +87,7 @@ function reset({ configured = true } = {}) {
     delete process.env.BEGINNER_MCP_URL;
     delete process.env.BEGINNER_MCP_TOKEN;
   }
+  delete process.env.CLOUDFLARE_API_TOKEN;
   stubFetch();
 }
 const GOOD_BODY = { to: "friend@example.com", subject: "hi", text: "hello there" };
@@ -103,13 +104,24 @@ test("rejects non-POST methods", async () => {
   assert.equal(res.captured.status, 405);
 });
 
-test("503s with a friendly error when the mcp Worker isn't configured", async () => {
+test("503s with a friendly error when no bearer token is configured", async () => {
   reset({ configured: false });
   const res = fakeRes();
   await handler(fakeReq({ body: GOOD_BODY, headers: AUTHED }), res);
   assert.equal(res.captured.status, 503);
   assert.match(res.captured.body.error, /isn't configured/);
   assert.equal(fetchCalls.length, 0, "must not call upstream");
+});
+
+test("defaults to the canonical Worker URL and reuses CLOUDFLARE_API_TOKEN as the bearer", async () => {
+  reset({ configured: false });
+  process.env.CLOUDFLARE_API_TOKEN = "cf-default-token";
+  const res = fakeRes();
+  await handler(fakeReq({ body: GOOD_BODY, headers: AUTHED }), res);
+  assert.equal(res.captured.status, 200);
+  assert.equal(fetchCalls.length, 1);
+  assert.equal(fetchCalls[0].url, "https://beginner-mcp.tyler-lindow.workers.dev/email/send");
+  assert.equal(fetchCalls[0].opts.headers.authorization, "Bearer cf-default-token");
 });
 
 test("401s when the session doesn't validate", async () => {
