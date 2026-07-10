@@ -1,10 +1,14 @@
-# GitHub sign-in for developers
+# GitHub + LinkedIn sign-in
 
-The auth gate offers **Continue with GitHub** alongside phone/PIN. It's
-aimed at developers: after the OAuth round-trip they land on a repo
-picker and choose which repositories tinker may access. The selection
-is stored per user; everything they don't pick stays off-limits to
-tinker's features even though the OAuth grant itself is broader.
+The auth gate offers **Continue with GitHub** and **Continue with
+LinkedIn** alongside phone/PIN, riding the same endpoints (the
+`/api/auth/github/*` routes keep their historical name; `?provider=`
+picks the provider). GitHub is aimed at developers: after the OAuth
+round-trip they land on a repo picker and choose which repositories
+tinker may access. The selection is stored per user; everything they
+don't pick stays off-limits to tinker's features even though the OAuth
+grant itself is broader. LinkedIn has no follow-up step — verify and
+you're in.
 
 ## How it works
 
@@ -58,6 +62,14 @@ is unaffected.
 
    then paste the app's client id/secret into Stytch's GitHub provider
    config.
+
+   **LinkedIn**: same shape — create an app at
+   developer.linkedin.com (Products → "Sign In with LinkedIn using
+   OpenID Connect"), set its authorized redirect URL to the same
+   Stytch callback above, and paste its client id/secret into Stytch's
+   LinkedIn provider config. Until then the LinkedIn button reports
+   Stytch's "provider not configured" error and everything else keeps
+   working.
 2. **Redirect URLs** — already registered via the Stytch API for
    `https://tinker.beginner.work/api/auth/github/callback` (default)
    and `https://crafting-tinker.beginner.work/api/auth/github/callback`,

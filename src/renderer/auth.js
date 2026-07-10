@@ -74,6 +74,7 @@
   const finePrintEl = gate.querySelector("[data-step-fineprint]");
   const githubBlock = document.getElementById("auth-github-block");
   const githubBtn = document.getElementById("auth-github-btn");
+  const linkedinBtn = document.getElementById("auth-linkedin-btn");
   const reposForm = document.getElementById("auth-repos-form");
   const reposFilter = document.getElementById("auth-repos-filter");
   const reposList = document.getElementById("auth-repos-list");
@@ -106,6 +107,7 @@
     return {
       token: params.get("gh") || "",
       isNew: params.get("gh_new") === "1",
+      provider: params.get("gh_provider") || "github",
       error: params.get("gh_error") || "",
     };
   })();
@@ -113,10 +115,19 @@
   if (oauthReturn && oauthReturn.token) {
     auth.token = oauthReturn.token;
     try { window.dispatchEvent(new CustomEvent("tinker:auth-changed")); } catch { /* ignore */ }
-    showGate();
-    showStep("repos");
-    setStatus(oauthReturn.isNew ? "Welcome to tinker!" : "Welcome back.", "ok");
-    loadRepos();
+    if (oauthReturn.provider === "github") {
+      // Developers pick the repos tinker may touch before entering.
+      showGate();
+      showStep("repos");
+      setStatus(oauthReturn.isNew ? "Welcome to tinker!" : "Welcome back.", "ok");
+      loadRepos();
+    } else {
+      // LinkedIn (and any provider without a follow-up step): straight in.
+      showGate();
+      showStep("phone");
+      setStatus(oauthReturn.isNew ? "Welcome to tinker!" : "Welcome back.", "ok");
+      dismissGate();
+    }
   } else if (oauthReturn && oauthReturn.error) {
     showGate();
     setStatus(oauthReturn.error, "error");
@@ -275,23 +286,24 @@
 
   // ── GitHub sign-in + repo picker ─────────────────────────────────────
 
-  async function startGitHubFlow() {
-    setStatus("Heading to GitHub…", "info");
-    try {
-      const data = await getJson("/api/auth/github/start");
-      window.location.assign(data.url);
-    } catch (err) {
-      setStatus(err.message, "error");
-    }
+  function startOAuthFlow(provider) {
+    const label = provider === "linkedin" ? "LinkedIn" : "GitHub";
+    setStatus(`Heading to ${label}…`, "info");
+    return getJson(`/api/auth/github/start?provider=${provider}`)
+      .then((data) => { window.location.assign(data.url); })
+      .catch((err) => { setStatus(err.message, "error"); });
   }
+  function startGitHubFlow() { return startOAuthFlow("github"); }
 
   githubBtn.addEventListener("click", startGitHubFlow);
+  linkedinBtn.addEventListener("click", () => startOAuthFlow("linkedin"));
 
   // Expose for signed-in surfaces (settings, repo picker) that want to
-  // connect GitHub to the current account. The Bearer token below makes
-  // the server mint an attach token, so the round-trip links GitHub to
-  // this user instead of creating a second one.
+  // connect a provider to the current account. The Bearer token below
+  // makes the server mint an attach token, so the round-trip links the
+  // provider to this user instead of creating a second one.
   auth.connectGitHub = startGitHubFlow;
+  auth.connectLinkedIn = () => startOAuthFlow("linkedin");
 
   // /start is a GET that returns JSON (so a missing config can degrade
   // to a friendly message instead of a broken redirect). Sends the
