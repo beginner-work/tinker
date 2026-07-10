@@ -71,18 +71,56 @@
   const statusEl = document.getElementById("auth-status");
   const titleEl = gate.querySelector("[data-step-title]");
   const ledeEl = gate.querySelector("[data-step-lede]");
+  const finePrintEl = gate.querySelector("[data-step-fineprint]");
+  const githubBlock = document.getElementById("auth-github-block");
+  const githubBtn = document.getElementById("auth-github-btn");
+  const reposForm = document.getElementById("auth-repos-form");
+  const reposFilter = document.getElementById("auth-repos-filter");
+  const reposList = document.getElementById("auth-repos-list");
+  const reposSkip = document.getElementById("auth-repos-skip");
 
   function showGate() {
     gate.hidden = false;
     document.documentElement.classList.add("auth-gating");
-    setTimeout(() => phoneInput.focus(), 0);
+    setTimeout(() => { if (!phoneForm.hidden) phoneInput.focus(); }, 0);
   }
 
   // Expose for mid-session reauth (platform-mobile.js calls this when a
   // proxied request 401s, instead of reloading the page).
   auth.showGate = showGate;
 
-  if (!auth.token) {
+  // ── GitHub OAuth return trip ─────────────────────────────────────────
+  //
+  // /api/auth/github/callback lands back on the app with the outcome in
+  // the URL fragment (never sent to servers): #gh=<session_token> on
+  // success, #gh_error=<message> on failure. Store the token, scrub the
+  // address bar, then walk the developer through the repo picker.
+
+  const oauthReturn = (() => {
+    const raw = (window.location.hash || "").replace(/^#/, "");
+    if (!/(^|&)(gh|gh_error)=/.test(raw)) return null;
+    const params = new URLSearchParams(raw);
+    try {
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+    } catch { /* ignore */ }
+    return {
+      token: params.get("gh") || "",
+      isNew: params.get("gh_new") === "1",
+      error: params.get("gh_error") || "",
+    };
+  })();
+
+  if (oauthReturn && oauthReturn.token) {
+    auth.token = oauthReturn.token;
+    try { window.dispatchEvent(new CustomEvent("tinker:auth-changed")); } catch { /* ignore */ }
+    showGate();
+    showStep("repos");
+    setStatus(oauthReturn.isNew ? "Welcome to tinker!" : "Welcome back.", "ok");
+    loadRepos();
+  } else if (oauthReturn && oauthReturn.error) {
+    showGate();
+    setStatus(oauthReturn.error, "error");
+  } else if (!auth.token) {
     showGate();
   }
 
@@ -101,7 +139,18 @@
   }
 
   function showStep(step) {
-    if (step === "pin") {
+    // The GitHub button and fine print belong to the phone step only.
+    githubBlock.hidden = step !== "phone";
+    if (finePrintEl) finePrintEl.hidden = step !== "phone";
+    reposForm.hidden = step !== "repos";
+    if (step === "repos") {
+      phoneForm.hidden = true;
+      pinForm.hidden = true;
+      backBtn.hidden = true;
+      titleEl.textContent = "Choose your repositories";
+      ledeEl.textContent =
+        "Pick the repos tinker can access. It won't touch anything you don't select, and you can change this later.";
+    } else if (step === "pin") {
       phoneForm.hidden = true;
       pinForm.hidden = false;
       backBtn.hidden = false;
@@ -131,6 +180,32 @@
       throw new Error(msg);
     }
     return data;
+  }
+
+  async function authedJson(path, method, body) {
+    const res = await fetch(path, {
+      method: method || "GET",
+      headers: {
+        Authorization: `Bearer ${auth.token}`,
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    let data = null;
+    try { data = await res.json(); } catch { data = {}; }
+    if (!res.ok) {
+      const msg = (data && data.error) || `Request failed (${res.status})`;
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  // Brief beat so the success message lands, then drop the gate.
+  function dismissGate() {
+    setTimeout(() => {
+      document.documentElement.classList.remove("auth-gating");
+      gate.hidden = true;
+    }, 350);
   }
 
   // ── Event wiring ─────────────────────────────────────────────────────
@@ -186,11 +261,7 @@
       // session into the standalone PWA.
       try { window.dispatchEvent(new CustomEvent("tinker:auth-changed")); } catch { /* ignore */ }
       setStatus(data.isNew ? "Welcome to tinker!" : "Welcome back.", "ok");
-      // Brief beat so the success message lands, then drop the gate.
-      setTimeout(() => {
-        document.documentElement.classList.remove("auth-gating");
-        gate.hidden = true;
-      }, 350);
+      dismissGate();
     } catch (err) {
       setStatus(err.message, "error");
       pinInput.select();
@@ -200,5 +271,115 @@
   backBtn.addEventListener("click", () => {
     setStatus("", "");
     showStep("phone");
+  });
+
+  // ── GitHub sign-in + repo picker ─────────────────────────────────────
+
+  githubBtn.addEventListener("click", async () => {
+    setStatus("Heading to GitHub…", "info");
+    try {
+      const data = await getJson("/api/auth/github/start");
+      window.location.assign(data.url);
+    } catch (err) {
+      setStatus(err.message, "error");
+    }
+  });
+
+  // /start is a GET that returns JSON (so a missing config can degrade
+  // to a friendly message instead of a broken redirect).
+  async function getJson(path) {
+    const res = await fetch(path);
+    let data = null;
+    try { data = await res.json(); } catch { data = {}; }
+    if (!res.ok || !data.url) {
+      throw new Error((data && data.error) || `Request failed (${res.status})`);
+    }
+    return data;
+  }
+
+  function renderRepos(repos, selected) {
+    const chosen = new Set(selected || []);
+    reposList.textContent = "";
+    if (!repos.length) {
+      const empty = document.createElement("p");
+      empty.className = "auth-gate__repo-empty";
+      empty.textContent = "No repositories found on this GitHub account.";
+      reposList.appendChild(empty);
+      return;
+    }
+    for (const repo of repos) {
+      const row = document.createElement("label");
+      row.className = "auth-gate__repo";
+      row.dataset.name = repo.fullName.toLowerCase();
+
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.value = repo.fullName;
+      box.checked = chosen.has(repo.fullName);
+
+      const name = document.createElement("span");
+      name.className = "auth-gate__repo-name";
+      name.textContent = repo.fullName;
+
+      row.append(box, name);
+      if (repo.private) {
+        const chip = document.createElement("span");
+        chip.className = "auth-gate__repo-chip";
+        chip.textContent = "private";
+        row.appendChild(chip);
+      }
+      reposList.appendChild(row);
+    }
+  }
+
+  async function loadRepos() {
+    reposList.textContent = "";
+    const loading = document.createElement("p");
+    loading.className = "auth-gate__repo-empty";
+    loading.textContent = "Loading your repositories…";
+    reposList.appendChild(loading);
+    try {
+      const data = await authedJson("/api/auth/github/repos");
+      renderRepos(data.repos || [], data.selected || []);
+    } catch (err) {
+      reposList.textContent = "";
+      const failed = document.createElement("p");
+      failed.className = "auth-gate__repo-empty";
+      failed.textContent = `Couldn't load repositories — ${err.message}`;
+      reposList.appendChild(failed);
+    }
+  }
+
+  reposFilter.addEventListener("input", () => {
+    const q = reposFilter.value.trim().toLowerCase();
+    for (const row of reposList.querySelectorAll(".auth-gate__repo")) {
+      row.hidden = Boolean(q) && !row.dataset.name.includes(q);
+    }
+  });
+
+  reposForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const picked = Array.from(
+      reposList.querySelectorAll("input[type=checkbox]:checked"),
+      (box) => box.value,
+    );
+    setStatus("Saving…", "info");
+    try {
+      await authedJson("/api/auth/github/repos", "PUT", { repos: picked });
+      setStatus(
+        picked.length
+          ? `Connected — tinker can use ${picked.length} ${picked.length === 1 ? "repo" : "repos"}.`
+          : "Connected — no repos shared yet.",
+        "ok",
+      );
+      dismissGate();
+    } catch (err) {
+      setStatus(err.message, "error");
+    }
+  });
+
+  reposSkip.addEventListener("click", () => {
+    setStatus("You can connect repositories later.", "ok");
+    dismissGate();
   });
 })();
