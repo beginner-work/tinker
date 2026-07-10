@@ -2248,6 +2248,9 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
 .auth-gate__github:active { transform: scale(0.98); }
 .auth-gate__github svg { flex-shrink: 0; }
 
+.auth-gate__linkedin { background: #0a66c2; }
+.auth-gate__linkedin:hover { background: #0b5cad; }
+
 .auth-gate__alt-hint {
   margin: 0;
   max-width: 360px;

@@ -228,7 +228,7 @@ test("callback: success stores the connection and redirects with the session tok
   assert.equal(res.statusCode, 302);
   assert.equal(
     res.captured.headers.Location,
-    "/#gh=sess-token-1&gh_new=1",
+    "/#gh=sess-token-1&gh_new=1&gh_provider=github",
   );
   const row = fakeStore.get("user-test-abc::github");
   assert.equal(row.data.accessToken, "gho_secret");
@@ -252,7 +252,10 @@ test("callback: a returning user keeps their previous repo selection", async () 
     fakeReq({ url: "/api/auth/github/callback?token=oauth-two" }),
     res,
   );
-  assert.equal(res.captured.headers.Location, "/#gh=sess-token-2&gh_new=0");
+  assert.equal(
+    res.captured.headers.Location,
+    "/#gh=sess-token-2&gh_new=0&gh_provider=github",
+  );
   const row = fakeStore.get("user-test-abc::github");
   assert.equal(row.data.accessToken, "gho_new");
   assert.deepEqual(row.data.selectedRepos, ["octo/kept"]);
@@ -268,6 +271,62 @@ test("callback: Stytch failure redirects home with gh_error", async () => {
   );
   assert.equal(res.statusCode, 302);
   assert.match(res.captured.headers.Location, /gh_error=Magic%20token%20invalid/);
+});
+
+test("start: provider=linkedin builds the LinkedIn start URL without repo scopes", async () => {
+  reset();
+  process.env.STYTCH_PROJECT_ID = "project-test-123";
+  process.env.STYTCH_PUBLIC_TOKEN = "public-token-test-xyz";
+  const res = fakeRes();
+  await startHandler(
+    fakeReq({
+      url: "/api/auth/github/start?provider=linkedin",
+      headers: { host: "tinker.example" },
+    }),
+    res,
+  );
+  assert.equal(res.captured.status, 200);
+  const url = new URL(res.captured.body.url);
+  assert.equal(url.pathname, "/v1/public/oauth/linkedin/start");
+  assert.equal(url.searchParams.get("custom_scopes"), null);
+});
+
+test("start: an unknown provider is rejected", async () => {
+  reset();
+  process.env.STYTCH_PROJECT_ID = "project-test-123";
+  process.env.STYTCH_PUBLIC_TOKEN = "public-token-test-xyz";
+  const res = fakeRes();
+  await startHandler(
+    fakeReq({
+      url: "/api/auth/github/start?provider=myspace",
+      headers: { host: "tinker.example" },
+    }),
+    res,
+  );
+  assert.equal(res.captured.status, 400);
+});
+
+test("callback: a LinkedIn round-trip stores a linkedin row and tags the redirect", async () => {
+  reset();
+  oauthResult = {
+    session_token: "sess-token-3",
+    provider_type: "LinkedIn",
+    user: { user_id: "user-test-abc", created_at: "2026-01-01T00:00:00Z" },
+    provider_values: { access_token: "li_secret", scopes: [] },
+  };
+  const res = fakeRes();
+  await callbackHandler(
+    fakeReq({ url: "/api/auth/github/callback?token=oauth-li" }),
+    res,
+  );
+  assert.equal(
+    res.captured.headers.Location,
+    "/#gh=sess-token-3&gh_new=0&gh_provider=linkedin",
+  );
+  const row = fakeStore.get("user-test-abc::linkedin");
+  assert.equal(row.data.provider, "linkedin");
+  assert.equal(row.data.accessToken, "li_secret");
+  assert.equal(fakeStore.has("user-test-abc::github"), false);
 });
 
 // ── /repos ─────────────────────────────────────────────────────────────
