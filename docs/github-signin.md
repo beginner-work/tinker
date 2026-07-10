@@ -34,17 +34,26 @@ Everything degrades gracefully when unconfigured: the button surfaces
 "GitHub sign-in isn't configured on this deployment." and phone sign-in
 is unaffected.
 
-1. **Stytch dashboard → OAuth → GitHub**: create a GitHub OAuth app
-   (github.com → Settings → Developer settings → OAuth Apps) with
-   Stytch's authorize callback as the app's callback URL, then paste
-   the client id/secret into Stytch's GitHub provider config.
-2. **Stytch dashboard → Redirect URLs**: register
-   `https://<host>/api/auth/github/callback` as a Login **and** Signup
-   redirect URL for every host that should offer the button
-   (production domain; the `crafting` preview URL if you want it there).
-3. **Vercel env var**: set `STYTCH_PUBLIC_TOKEN` (dashboard → API keys →
-   Public tokens) on the tinker project. `STYTCH_PROJECT_ID` /
-   `STYTCH_SECRET` are already required by the phone flow.
+1. **Stytch dashboard → OAuth → GitHub** (the one manual step): create
+   a GitHub OAuth app (github.com → Settings → Developer settings →
+   OAuth Apps) whose **Authorization callback URL** is Stytch's live
+   OAuth callback:
+
+   ```
+   https://api.stytch.com/v1/oauth/callback/oauth-callback-live-47cf4ec0-e78e-454f-b093-2643ae4280b0
+   ```
+
+   then paste the app's client id/secret into Stytch's GitHub provider
+   config.
+2. **Redirect URLs** — already registered via the Stytch API for
+   `https://tinker.beginner.work/api/auth/github/callback` (default)
+   and `https://crafting-tinker.beginner.work/api/auth/github/callback`,
+   both as Login + Signup types. Any new host needs its own entry.
+3. **Public token** — no env config needed: the live project's public
+   token (client-visible by design) is checked in as a fallback in
+   `api/auth/github/start.js`, keyed by `STYTCH_PROJECT_ID` so a test
+   project never borrows it. Setting `STYTCH_PUBLIC_TOKEN` on Vercel
+   overrides the fallback.
 
 Test-vs-live routing follows the existing convention: a
 `project-test-*` project id sends the browser to `test.stytch.com`,

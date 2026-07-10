@@ -133,12 +133,13 @@ Required Vercel env vars:
 
 Optional:
 
-- `STYTCH_PUBLIC_TOKEN` — enables **Continue with GitHub** on the auth
-  gate (developer sign-up + repo picker). Also requires the GitHub OAuth
-  provider and the `/api/auth/github/callback` redirect URL to be
-  configured in the Stytch dashboard — see `docs/github-signin.md`.
-  Unset, the button reports "isn't configured" and phone sign-in is
-  unaffected.
+- `STYTCH_PUBLIC_TOKEN` — overrides the checked-in public token used by
+  **Continue with GitHub** on the auth gate (developer sign-up + repo
+  picker). The live project's public token ships as a code fallback, so
+  this is only needed for a different Stytch project. The GitHub OAuth
+  provider must be configured in the Stytch dashboard — see
+  `docs/github-signin.md`. Unconfigured, the button reports "isn't
+  configured" and phone sign-in is unaffected.
 - `STRIPE_PRICE_PRESEED` — a recurring $9/month Price id for the in-app
   Upgrade checkout. If unset, the checkout builds the price inline, so the
   flow still works without dashboard setup.

@@ -135,6 +135,28 @@ test("start: returns the Stytch-hosted GitHub start URL", async () => {
   assert.match(url.searchParams.get("custom_scopes"), /\brepo\b/);
 });
 
+test("start: falls back to the checked-in public token for the known live project", async () => {
+  reset();
+  process.env.STYTCH_PROJECT_ID = "project-live-ce45a753-a6a3-4af2-b25b-6be3aa6d8c34";
+  const res = fakeRes();
+  await startHandler(fakeReq({ headers: { host: "tinker.beginner.work" } }), res);
+  assert.equal(res.captured.status, 200);
+  const url = new URL(res.captured.body.url);
+  assert.equal(url.origin, "https://api.stytch.com");
+  assert.equal(
+    url.searchParams.get("public_token"),
+    "public-token-live-6387bc22-d8b7-43d9-ac28-ea82915c2255",
+  );
+});
+
+test("start: an unknown project without STYTCH_PUBLIC_TOKEN still 503s", async () => {
+  reset();
+  process.env.STYTCH_PROJECT_ID = "project-test-something-else";
+  const res = fakeRes();
+  await startHandler(fakeReq({ headers: { host: "tinker.example" } }), res);
+  assert.equal(res.captured.status, 503);
+});
+
 // ── /callback ──────────────────────────────────────────────────────────
 
 test("callback: missing token redirects home with gh_error", async () => {
