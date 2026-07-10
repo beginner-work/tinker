@@ -1,10 +1,17 @@
 /* GET /api/auth/github/start
  *
- * Reply: { url }  — the Stytch-hosted GitHub OAuth start URL the
- * browser should navigate to. Returning JSON (instead of 302ing
+ * Reply: { url, linked }  — the Stytch-hosted GitHub OAuth start URL
+ * the browser should navigate to. Returning JSON (instead of 302ing
  * directly) lets the auth gate surface a friendly message when the
  * flow isn't configured, rather than stranding the user on an error
  * page mid-redirect.
+ *
+ * Account linking: when the request carries a valid Bearer session
+ * (an already-signed-in user connecting GitHub), we mint a one-shot
+ * oauth_attach_token so Stytch links GitHub to that existing user
+ * instead of creating a second account. `linked: true` in the reply
+ * says the round-trip will attach. Without a (valid) session the flow
+ * is a plain sign-in/sign-up.
  *
  * The public token comes from STYTCH_PUBLIC_TOKEN when set, else from
  * the checked-in fallback for the known project — public tokens are
@@ -22,7 +29,8 @@
 
 "use strict";
 
-const { baseUrlFor } = require("../../_lib/stytch.js");
+const { baseUrlFor, attachOauth } = require("../../_lib/stytch.js");
+const { extractBearer } = require("../../_lib/user-data.js");
 const { withResponseLogging } = require("../../_lib/log.js");
 
 // Public (not secret) tokens, keyed by project so a test-project
@@ -69,5 +77,22 @@ module.exports = withResponseLogging(async function handler(req, res) {
   url.searchParams.set("signup_redirect_url", callback);
   url.searchParams.set("custom_scopes", "repo read:user");
 
-  res.status(200).json({ url: url.toString() });
+  // Link rather than fork: a signed-in caller gets an attach token.
+  // Best-effort — a stale session just falls back to plain sign-in
+  // rather than blocking the button.
+  let linked = false;
+  const bearer = extractBearer(req.headers && req.headers.authorization);
+  if (bearer) {
+    try {
+      const attach = await attachOauth("github", bearer);
+      if (attach && attach.oauth_attach_token) {
+        url.searchParams.set("oauth_attach_token", attach.oauth_attach_token);
+        linked = true;
+      }
+    } catch {
+      /* fall back to plain sign-in */
+    }
+  }
+
+  res.status(200).json({ url: url.toString(), linked });
 });

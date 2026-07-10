@@ -195,7 +195,7 @@
     try { data = await res.json(); } catch { data = {}; }
     if (!res.ok) {
       const msg = (data && data.error) || `Request failed (${res.status})`;
-      throw new Error(msg);
+      throw Object.assign(new Error(msg), { status: res.status });
     }
     return data;
   }
@@ -275,7 +275,7 @@
 
   // ── GitHub sign-in + repo picker ─────────────────────────────────────
 
-  githubBtn.addEventListener("click", async () => {
+  async function startGitHubFlow() {
     setStatus("Heading to GitHub…", "info");
     try {
       const data = await getJson("/api/auth/github/start");
@@ -283,12 +283,24 @@
     } catch (err) {
       setStatus(err.message, "error");
     }
-  });
+  }
+
+  githubBtn.addEventListener("click", startGitHubFlow);
+
+  // Expose for signed-in surfaces (settings, repo picker) that want to
+  // connect GitHub to the current account. The Bearer token below makes
+  // the server mint an attach token, so the round-trip links GitHub to
+  // this user instead of creating a second one.
+  auth.connectGitHub = startGitHubFlow;
 
   // /start is a GET that returns JSON (so a missing config can degrade
-  // to a friendly message instead of a broken redirect).
+  // to a friendly message instead of a broken redirect). Sends the
+  // session token when we have one, to link rather than fork accounts.
   async function getJson(path) {
-    const res = await fetch(path);
+    const res = await fetch(
+      path,
+      auth.token ? { headers: { Authorization: `Bearer ${auth.token}` } } : undefined,
+    );
     let data = null;
     try { data = await res.json(); } catch { data = {}; }
     if (!res.ok || !data.url) {
@@ -345,6 +357,18 @@
       reposList.textContent = "";
       const failed = document.createElement("p");
       failed.className = "auth-gate__repo-empty";
+      if (err.status === 409) {
+        // Signed in (by phone) but no GitHub linked yet — offer to
+        // connect it to this same account.
+        failed.textContent = "No GitHub account is connected yet.";
+        const connect = document.createElement("button");
+        connect.type = "button";
+        connect.className = "auth-gate__link";
+        connect.textContent = "Connect GitHub to this account";
+        connect.addEventListener("click", startGitHubFlow);
+        reposList.append(failed, connect);
+        return;
+      }
       failed.textContent = `Couldn't load repositories — ${err.message}`;
       reposList.appendChild(failed);
     }

@@ -17,10 +17,17 @@ const Module = require("node:module");
 let stytchUserId = "user-test-abc";
 let oauthResult = null;
 let oauthShouldThrow = null;
+let attachShouldThrow = null;
+const attachCalls = [];
 let githubRepos = [];
 const fakeStore = new Map(); // `${userId}::${kind}` → row
 
 const stytchStub = {
+  attachOauth: async (provider, sessionToken) => {
+    attachCalls.push([provider, sessionToken]);
+    if (attachShouldThrow) throw attachShouldThrow;
+    return { oauth_attach_token: "attach-token-123" };
+  },
   baseUrlFor: (projectId) =>
     projectId.startsWith("project-test-")
       ? "https://test.stytch.com"
@@ -95,6 +102,8 @@ function reset() {
   stytchUserId = "user-test-abc";
   oauthResult = null;
   oauthShouldThrow = null;
+  attachShouldThrow = null;
+  attachCalls.length = 0;
   githubRepos = [];
   fakeStore.clear();
   delete process.env.STYTCH_PROJECT_ID;
@@ -147,6 +156,42 @@ test("start: falls back to the checked-in public token for the known live projec
     url.searchParams.get("public_token"),
     "public-token-live-6387bc22-d8b7-43d9-ac28-ea82915c2255",
   );
+});
+
+test("start: a signed-in caller gets an attach token so GitHub links to their account", async () => {
+  reset();
+  process.env.STYTCH_PROJECT_ID = "project-test-123";
+  process.env.STYTCH_PUBLIC_TOKEN = "public-token-test-xyz";
+  const res = fakeRes();
+  await startHandler(
+    fakeReq({
+      headers: { host: "tinker.example", authorization: "Bearer sess-abc" },
+    }),
+    res,
+  );
+  assert.equal(res.captured.status, 200);
+  assert.equal(res.captured.body.linked, true);
+  assert.deepEqual(attachCalls, [["github", "sess-abc"]]);
+  const url = new URL(res.captured.body.url);
+  assert.equal(url.searchParams.get("oauth_attach_token"), "attach-token-123");
+});
+
+test("start: a stale session falls back to plain sign-in instead of failing", async () => {
+  reset();
+  process.env.STYTCH_PROJECT_ID = "project-test-123";
+  process.env.STYTCH_PUBLIC_TOKEN = "public-token-test-xyz";
+  attachShouldThrow = Object.assign(new Error("Session expired."), { status: 401 });
+  const res = fakeRes();
+  await startHandler(
+    fakeReq({
+      headers: { host: "tinker.example", authorization: "Bearer stale" },
+    }),
+    res,
+  );
+  assert.equal(res.captured.status, 200);
+  assert.equal(res.captured.body.linked, false);
+  const url = new URL(res.captured.body.url);
+  assert.equal(url.searchParams.get("oauth_attach_token"), null);
 });
 
 test("start: an unknown project without STYTCH_PUBLIC_TOKEN still 503s", async () => {
