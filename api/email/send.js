@@ -15,13 +15,13 @@
  * address itself is the Worker's configured beginner.work sender —
  * clients can pick a display name and Reply-To, never the address.
  *
- * Env: BEGINNER_MCP_TOKEN — the bearer the Worker accepts, which for
- * this route is either its MCP_BEARER_TOKEN or its CLOUDFLARE_API_TOKEN
- * (the Worker deliberately accepts the default Cloudflare token on
- * /email/send so no new secret needs minting); CLOUDFLARE_API_TOKEN is
- * read as a fallback env name so an existing var can be reused as-is.
- * BEGINNER_MCP_URL overrides the canonical Worker URL below. No token →
- * friendly 503, nothing breaks.
+ * Auth to the Worker: none needed. The Worker's /email/send validates a
+ * founder's Stytch session token directly (its STYTCH_* secrets are the
+ * same project tinker uses), so this function simply forwards the
+ * signed-in user's own bearer — no cross-cloud server secret exists.
+ * BEGINNER_MCP_TOKEN / CLOUDFLARE_API_TOKEN are still read as optional
+ * overrides (the Worker also accepts those static bearers), and
+ * BEGINNER_MCP_URL overrides the canonical Worker URL below.
  *
  * Inherited constraint (Cloudflare Email Routing): delivery only works
  * to *verified destination addresses* on the account. The Worker
@@ -87,19 +87,14 @@ module.exports = withResponseLogging(async function handler(req, res) {
   }
 
   const mcpUrl = (process.env.BEGINNER_MCP_URL || DEFAULT_MCP_URL).replace(/\/+$/, "");
-  const mcpToken = process.env.BEGINNER_MCP_TOKEN || process.env.CLOUDFLARE_API_TOKEN || "";
-  if (!mcpToken) {
-    res.status(503).json({
-      error: "Sending email isn't configured on this deployment.",
-      detail: "Set BEGINNER_MCP_TOKEN (or CLOUDFLARE_API_TOKEN) to a bearer the beginner mcp Worker accepts.",
-    });
-    return;
-  }
+  const serverToken = process.env.BEGINNER_MCP_TOKEN || process.env.CLOUDFLARE_API_TOKEN || "";
 
   // Auth — the server is the source of truth, same as /api/user-data/*.
+  // The validated session token doubles as the upstream bearer: the Worker
+  // re-validates it against the same Stytch project.
+  const userToken = extractBearer(req.headers && req.headers.authorization);
   try {
-    const token = extractBearer(req.headers && req.headers.authorization);
-    const session = await authenticateSession(token);
+    const session = await authenticateSession(userToken);
     const userId =
       (session && session.session && session.session.user_id) ||
       (session && session.user && session.user.user_id) ||
@@ -157,7 +152,7 @@ module.exports = withResponseLogging(async function handler(req, res) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${mcpToken}`,
+        authorization: `Bearer ${serverToken || userToken}`,
       },
       body: JSON.stringify(payload),
     });
@@ -168,9 +163,16 @@ module.exports = withResponseLogging(async function handler(req, res) {
   }
 
   if (!upstream.ok) {
+    // A Worker 401 means it accepted none of the bearers — with the
+    // founder-token path that's almost always the Worker missing its
+    // STYTCH_* secrets, not the founder's input.
+    if (upstream.status === 401 || upstream.status === 403) {
+      res.status(502).json({
+        error: "The mail service didn't accept the session. If this persists, the Worker's Stytch secrets aren't configured.",
+      });
+      return;
+    }
     const message = (result && result.error) || `Send failed (${upstream.status}).`;
-    // 401/403/5xx from the Worker are our misconfiguration, not the
-    // founder's input — don't blame the request.
     const status = upstream.status === 400 || upstream.status === 413 ? 400 : 502;
     res.status(status).json({ error: message });
     return;

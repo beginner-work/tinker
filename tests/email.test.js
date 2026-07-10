@@ -104,16 +104,30 @@ test("rejects non-POST methods", async () => {
   assert.equal(res.captured.status, 405);
 });
 
-test("503s with a friendly error when no bearer token is configured", async () => {
+test("with no server secret, forwards the founder's own session token to the Worker", async () => {
   reset({ configured: false });
   const res = fakeRes();
   await handler(fakeReq({ body: GOOD_BODY, headers: AUTHED }), res);
-  assert.equal(res.captured.status, 503);
-  assert.match(res.captured.body.error, /isn't configured/);
-  assert.equal(fetchCalls.length, 0, "must not call upstream");
+  assert.equal(res.captured.status, 200);
+  assert.equal(fetchCalls.length, 1);
+  assert.equal(fetchCalls[0].url, "https://beginner-mcp.tyler-lindow.workers.dev/email/send");
+  assert.equal(
+    fetchCalls[0].opts.headers.authorization,
+    "Bearer session-token-1",
+    "the signed-in user's bearer is the upstream credential",
+  );
 });
 
-test("defaults to the canonical Worker URL and reuses CLOUDFLARE_API_TOKEN as the bearer", async () => {
+test("maps a Worker 401 to a 502 with a pointer at the Worker's Stytch config", async () => {
+  reset({ configured: false });
+  fetchResponse = jsonResponse(401, null);
+  const res = fakeRes();
+  await handler(fakeReq({ body: GOOD_BODY, headers: AUTHED }), res);
+  assert.equal(res.captured.status, 502);
+  assert.match(res.captured.body.error, /Stytch secrets/);
+});
+
+test("a configured server secret (CLOUDFLARE_API_TOKEN) overrides the forwarded session token", async () => {
   reset({ configured: false });
   process.env.CLOUDFLARE_API_TOKEN = "cf-default-token";
   const res = fakeRes();
