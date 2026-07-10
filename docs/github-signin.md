@@ -24,9 +24,22 @@ gate ── Continue with GitHub
 
 The session token minted here is the same Stytch `session_token` the
 phone flow hands out, so the Claude proxy, search, and user-data
-endpoints all work unchanged. Signing in with GitHub and signing in by
-phone create **separate Stytch users** unless the same person links
-both methods — that's fine for now; the GitHub path is for developers.
+endpoints all work unchanged.
+
+## Account linking (linked OAuth)
+
+A signed-in caller of `/api/auth/github/start` (Bearer session token —
+the gate sends it automatically when one exists) gets a one-shot
+`oauth_attach_token` minted via Stytch's `/v1/oauth/attach`, and the
+OAuth round-trip then **links GitHub to that existing user** instead of
+creating a second Stytch account. So a founder who signed up by phone
+keeps one identity when they connect GitHub — same user id, same
+essays, same membership row. A stale session silently falls back to
+plain sign-in/sign-up. The repo picker offers "Connect GitHub to this
+account" when a phone-signed-in user has no GitHub linked yet, and
+`window.tinkerAuth.connectGitHub()` exposes the same flow to any future
+settings surface. Linking needs no extra Stytch dashboard config — the
+attach API is enabled by the same provider setup as sign-in.
 
 ## Configuration
 

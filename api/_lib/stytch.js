@@ -118,6 +118,24 @@ async function authenticateOauth(token) {
   });
 }
 
+// Mint a one-shot attach token that ties the upcoming OAuth round-trip
+// to an existing user. Passed as `oauth_attach_token` on the public
+// start URL, it makes Stytch link the provider to that user instead of
+// creating a second account — this is how a phone-signed-in founder
+// connects GitHub without forking their identity.
+async function attachOauth(provider, sessionToken) {
+  if (!provider || typeof provider !== "string") {
+    throw Object.assign(new Error("provider is required."), { status: 400 });
+  }
+  if (!sessionToken || typeof sessionToken !== "string") {
+    throw Object.assign(new Error("Missing token."), { status: 401 });
+  }
+  const body = sessionToken.includes(".")
+    ? { provider, session_jwt: sessionToken }
+    : { provider, session_token: sessionToken };
+  return stytchPost("/v1/oauth/attach", body);
+}
+
 // Validate whatever bearer string the renderer is holding — long-lived
 // `session_token` (what we now hand out) or short-lived `session_jwt`
 // (legacy clients). Stytch accepts either at the same endpoint and
@@ -146,5 +164,6 @@ module.exports = {
   sendSmsOtp,
   authenticateOtp,
   authenticateOauth,
+  attachOauth,
   authenticateSession,
 };
