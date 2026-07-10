@@ -2197,6 +2197,159 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   text-align: center;
 }
 
+/* ── GitHub sign-in + repo picker ─────────────────────────────────── */
+
+.auth-gate__alt {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.auth-gate__alt[hidden],
+.auth-gate__repos[hidden] { display: none !important; }
+
+.auth-gate__divider {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.auth-gate__divider::before,
+.auth-gate__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.auth-gate__github {
+  width: 100%;
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: #24292f;
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  transition: background 0.15s ease, transform 0.05s ease;
+  box-shadow: var(--shadow-soft);
+}
+.auth-gate__github:hover { background: #32383f; }
+.auth-gate__github:active { transform: scale(0.98); }
+.auth-gate__github svg { flex-shrink: 0; }
+
+.auth-gate__alt-hint {
+  margin: 0;
+  max-width: 360px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.auth-gate__repos {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-gate__repo-filter {
+  width: 100%;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+  color: var(--color-foreground);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.auth-gate__repo-filter:focus {
+  outline: none;
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18);
+}
+.auth-gate__repo-filter::placeholder { color: var(--color-muted); }
+
+.auth-gate__repo-list {
+  width: 100%;
+  max-height: min(300px, 38dvh);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.auth-gate__repo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.auth-gate__repo:hover { background: rgba(99, 102, 241, 0.07); }
+.auth-gate__repo[hidden] { display: none !important; }
+
+.auth-gate__repo input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: var(--color-accent-strong);
+}
+
+.auth-gate__repo-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--color-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-gate__repo-chip {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.auth-gate__repo-empty {
+  margin: 0;
+  padding: 18px 12px;
+  font-size: 13px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+/* The repo picker owns its own primary button width. */
+.auth-gate__repos .auth-gate__begin { width: 100%; flex: none; }
+
 @media (min-width: 540px) {
   .auth-gate { align-items: center; }
   .auth-gate__inner {

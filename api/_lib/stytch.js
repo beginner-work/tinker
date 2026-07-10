@@ -6,9 +6,10 @@
  * same behaviour the Stytch SDKs implement; doing it explicitly here keeps
  * us dependency-free.
  *
- * Only the two endpoints we actually use: SMS OTP login_or_create, and
- * authenticate. Everything else (passwords, magic links, oauth) is out of
- * scope for the phone-gated PWA.
+ * Only the endpoints we actually use: SMS OTP login_or_create, OTP
+ * authenticate, session authenticate, and OAuth authenticate (the
+ * GitHub sign-in flow). Everything else (passwords, magic links) is out
+ * of scope for the phone-gated PWA.
  */
 
 "use strict";
@@ -101,6 +102,22 @@ async function authenticateOtp(phoneId, code) {
   });
 }
 
+// Exchange the one-shot OAuth token Stytch appends to our callback URL
+// for a session. The response carries `provider_values` — including the
+// GitHub access token the repos endpoint uses — alongside the same
+// long-lived `session_token` the phone flow hands out, so everything
+// downstream (Claude proxy, user-data, search) works identically.
+async function authenticateOauth(token) {
+  if (!token || typeof token !== "string") {
+    throw Object.assign(new Error("OAuth token is required."), { status: 400 });
+  }
+  // Same 30-day session as the phone flow.
+  return stytchPost("/v1/oauth/authenticate", {
+    token,
+    session_duration_minutes: 60 * 24 * 30,
+  });
+}
+
 // Validate whatever bearer string the renderer is holding — long-lived
 // `session_token` (what we now hand out) or short-lived `session_jwt`
 // (legacy clients). Stytch accepts either at the same endpoint and
@@ -123,4 +140,11 @@ async function authenticateSession(bearer) {
   }
 }
 
-module.exports = { readEnv, baseUrlFor, sendSmsOtp, authenticateOtp, authenticateSession };
+module.exports = {
+  readEnv,
+  baseUrlFor,
+  sendSmsOtp,
+  authenticateOtp,
+  authenticateOauth,
+  authenticateSession,
+};
