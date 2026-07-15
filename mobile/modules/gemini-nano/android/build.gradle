@@ -1,0 +1,44 @@
+// Local Expo module: Gemini Nano via ML Kit's GenAI Prompt API.
+//
+// The genai-prompt artifact is in beta — check the current version at
+// https://developers.google.com/ml-kit/genai/prompt/android/get-started
+// before a release build and bump the pin below to match.
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+group = 'expo.modules.gemininano'
+version = '0.1.0'
+
+android {
+  namespace 'expo.modules.gemininano'
+  compileSdk safeExtGet('compileSdkVersion', 36)
+
+  defaultConfig {
+    minSdk safeExtGet('minSdkVersion', 24)
+    targetSdk safeExtGet('targetSdkVersion', 36)
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+
+  kotlinOptions {
+    jvmTarget = '17'
+  }
+}
+
+def safeExtGet(prop, fallback) {
+  rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+}
+
+dependencies {
+  implementation project(':expo-modules-core')
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
+
+  // ML Kit GenAI Prompt API (Gemini Nano on-device). Requires a device
+  // with AICore (Pixel 9+, recent Galaxy S/Z series, …); the module
+  // reports "unavailable" everywhere else.
+  implementation 'com.google.mlkit:genai-prompt:1.0.0-beta2'
+}

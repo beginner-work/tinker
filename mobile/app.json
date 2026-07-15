@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "tinker",
+    "slug": "tinker",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "tinker",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FFFDF7",
+    "ios": {
+      "bundleIdentifier": "co.tinker.browser",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "tinker listens while you dictate an answer, so you can write out loud.",
+        "NSSpeechRecognitionUsageDescription": "tinker transcribes your voice on this device so your spoken answers become written words."
+      }
+    },
+    "android": {
+      "package": "co.tinker.browser",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFDF7",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["android.permission.RECORD_AUDIO"],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "tinker listens while you dictate an answer.",
+          "speechRecognitionPermission": "tinker transcribes your voice on this device.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+        }
+      ]
+    ],
+    "extra": {
+      "apiBase": "https://tinker-abc.vercel.app"
+    }
+  }
+}
