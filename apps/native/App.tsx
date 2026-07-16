@@ -3,19 +3,27 @@ import { ActivityIndicator, SafeAreaView, StyleSheet, View } from "react-native"
 import { StatusBar } from "expo-status-bar";
 import { FirstOpenScreen } from "./src/screens/FirstOpenScreen";
 import { FeedScreen } from "./src/screens/FeedScreen";
+import { ConnectScreen } from "./src/screens/ConnectScreen";
 import { useTinkerFonts } from "./src/fonts";
 import { colorsFor, type ColorMode } from "./src/theme";
+import {
+  EMPTY_CONNECTION,
+  type ConnectionState,
+} from "./src/data/connectSeeds";
+
+type Screen = "firstOpen" | "explore" | "connect";
 
 /**
- * View 1 — first-open quote, then GitHub Explore–shaped progress surface.
+ * Views 1–2: first-open quote → Explore → Connect (pitch + MCP repo).
  * Fonts: Fraunces + Instrument Sans (tinker design system).
  * Build prompt: build-prompts/product-oriented-dev-feed.md
  */
 export default function App() {
   const fontsLoaded = useTinkerFonts();
-  const [phase, setPhase] = useState<"firstOpen" | "feed">("firstOpen");
-  // Light matches the GitHub Explore reference; Dark remains a toggle.
+  const [screen, setScreen] = useState<Screen>("firstOpen");
   const [mode, setMode] = useState<ColorMode>("light");
+  const [connection, setConnection] =
+    useState<ConnectionState>(EMPTY_CONNECTION);
   const c = colorsFor(mode);
 
   if (!fontsLoaded) {
@@ -27,14 +35,32 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: c.background }]} testID="tinker-native-root">
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: c.background }]}
+      testID="tinker-native-root"
+    >
       <StatusBar style={mode === "dark" ? "light" : "dark"} />
-      {phase === "firstOpen" ? (
-        <FirstOpenScreen mode={mode} onContinue={() => setPhase("feed")} />
+      {screen === "firstOpen" ? (
+        <FirstOpenScreen mode={mode} onContinue={() => setScreen("explore")} />
+      ) : screen === "connect" ? (
+        <ConnectScreen
+          mode={mode}
+          connection={connection}
+          onConnectionChange={setConnection}
+          onBack={() => setScreen("explore")}
+        />
       ) : (
         <FeedScreen
           mode={mode}
+          connected={Boolean(connection.connectedAt)}
           onToggleMode={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
+          onNavigate={(target) => {
+            if (target === "connect") setScreen("connect");
+            else if (target === "explore" || target === "feed" || target === "home") {
+              setScreen("explore");
+            }
+            // coverage / progress — View 3–4; stay on explore until those ship
+          }}
         />
       )}
     </SafeAreaView>

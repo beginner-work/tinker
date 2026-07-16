@@ -4,13 +4,22 @@ Native iOS shell for the product-oriented development feed — a GitHub
 alternative where founders explore progress against pitch, without sharing
 source in the feed. Spec: [`../../build-prompts/product-oriented-dev-feed.md`](../../build-prompts/product-oriented-dev-feed.md).
 
-## View 1 (current)
+## Views (current)
 
-- GitHub mobile Explore–shaped layout (Discover + Activity + floating pill nav)
-- Fonts: **Fraunces** (display) + **Instrument Sans** (UI) — tinker design system
-- Light default to match Explore reference; Dark remains a toggle
-- First open: a quote from the founder's own pitch / writings
-- Progress / coverage activity — **no source code** in the feed
+1. **First open** — quote from pitch / writings  
+2. **Explore** — GitHub-shaped Discover + Activity + floating pill nav  
+3. **Connect** — pick a pitch + pull a repository (MCP hub source of truth)
+
+Fonts: **Fraunces** + **Instrument Sans**. Light default; Dark toggle.
+
+Optional live hub:
+
+```bash
+export EXPO_PUBLIC_MCP_URL="https://beginner-mcp.<sub>.workers.dev"
+export EXPO_PUBLIC_MCP_BEARER_TOKEN="…"
+```
+
+Without those, Connect uses local seed repos with the same manifest shape.
 
 ## Run
 
@@ -23,5 +32,5 @@ npm run web      # review / screenshots on non-macOS agents
 
 ## Later views
 
-Connect repo/pitch → coverage (on-device Gemma) → live progress feed → MCP hub.
+Coverage (on-device Gemma) → live progress feed.  
 Each view pauses for Cursor screenshot/video review before the next.

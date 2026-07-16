@@ -137,6 +137,28 @@ organization of founder source ideas and repository source code.
 - Any verbatim line loaded from the founder's pitch / writings store
 - **Type:** Fraunces (display) + Instrument Sans (UI) — tinker design system only
 
+### Visible-string allowlist (View 2 — Connect)
+
+- `Back`
+- `Pitch`
+- `Repository`
+- `Pick a pitch`
+- `Pull from MCP`
+- `Connected`
+- `Not connected`
+- `Install tool`
+- `Source of truth`
+- `Save connection`
+- `Clear connection`
+- `No pitches yet`
+- `No repositories yet`
+- `Connect a pitch to a repository. The MCP hub is the source of truth.`
+- `MCP hub`
+- `Local seeds — set MCP URL to pull live`
+- `Manifest pulled`
+- Pitch titles / bodies from the founder's pitch store (verbatim)
+- Repository titles / slugs / install tool names from the MCP hub
+
 ## Open questions — ask the founder, don't invent
 
 - **[NEEDS INPUT: success signal in one week]** — interview stopped before F3.

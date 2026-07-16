@@ -22,17 +22,23 @@ import {
 } from "../data/seedProgress";
 import { DISCOVER_ICONS, Ionicons, TAB_ICONS, UI_ICONS } from "../icons";
 
+type NavTarget = "explore" | "connect" | "coverage" | "progress" | "home" | "feed";
+
 type Props = {
   mode: ColorMode;
   onToggleMode: () => void;
+  onNavigate: (target: NavTarget) => void;
+  connected?: boolean;
 };
 
 function DiscoverRow({
   item,
   mode,
+  onPress,
 }: {
   item: DiscoverItem;
   mode: ColorMode;
+  onPress: () => void;
 }) {
   const c = colorsFor(mode);
   const tint =
@@ -43,6 +49,7 @@ function DiscoverRow({
         : c.iconProgress;
   return (
     <Pressable
+      onPress={onPress}
       style={({ pressed }) => [
         styles.discoverRow,
         pressed && { opacity: 0.72 },
@@ -143,7 +150,7 @@ function ActivityCard({
  * View 1 — GitHub Explore–shaped progress surface (tinker fonts + tokens).
  * Discover + Activity; floating pill tab bar; no source in the feed.
  */
-export function FeedScreen({ mode, onToggleMode }: Props) {
+export function FeedScreen({ mode, onToggleMode, onNavigate, connected }: Props) {
   const c = colorsFor(mode);
   const tabs = [
     { key: "home" as const, label: STR.home },
@@ -151,6 +158,12 @@ export function FeedScreen({ mode, onToggleMode }: Props) {
     { key: "explore" as const, label: STR.explore, active: true },
     { key: "progress" as const, label: STR.progress },
   ];
+
+  function onDiscoverPress(item: DiscoverItem) {
+    if (item.tint === "connect") onNavigate("connect");
+    else if (item.tint === "coverage") onNavigate("coverage");
+    else onNavigate("progress");
+  }
 
   return (
     <View
@@ -205,13 +218,36 @@ export function FeedScreen({ mode, onToggleMode }: Props) {
         >
           {DISCOVER_ITEMS.map((item, i) => (
             <View key={item.id}>
-              <DiscoverRow item={item} mode={mode} />
+              <DiscoverRow
+                item={item}
+                mode={mode}
+                onPress={() => onDiscoverPress(item)}
+              />
               {i < DISCOVER_ITEMS.length - 1 ? (
                 <View style={[styles.hairline, { backgroundColor: c.hairline }]} />
               ) : null}
             </View>
           ))}
         </View>
+
+        {connected ? (
+          <View
+            style={[
+              styles.connectedBanner,
+              { backgroundColor: c.accentMuted, borderColor: c.border },
+            ]}
+          >
+            <Ionicons name="link" size={16} color={c.accent} />
+            <Text
+              style={[
+                styles.connectedText,
+                { color: c.accent, fontFamily: fonts.sansSemi },
+              ]}
+            >
+              {STR.connected}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.activityHeading}>
           <Text
@@ -251,7 +287,13 @@ export function FeedScreen({ mode, onToggleMode }: Props) {
           const active = "active" in tab && Boolean(tab.active);
           const iconSet = TAB_ICONS[tab.key];
           return (
-            <View key={tab.key} style={styles.tabItem}>
+            <Pressable
+              key={tab.key}
+              style={styles.tabItem}
+              onPress={() => onNavigate(tab.key)}
+              accessibilityRole="button"
+              accessibilityLabel={tab.label}
+            >
               <View
                 style={[
                   styles.tabIconWrap,
@@ -275,7 +317,7 @@ export function FeedScreen({ mode, onToggleMode }: Props) {
               >
                 {tab.label}
               </Text>
-            </View>
+            </Pressable>
           );
         })}
       </View>
@@ -327,9 +369,20 @@ const styles = StyleSheet.create({
   discoverCard: {
     borderRadius: radius.card,
     borderWidth: 1,
-    marginBottom: space[6],
+    marginBottom: space[4],
     overflow: "hidden",
   },
+  connectedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space[2],
+    borderWidth: 1,
+    borderRadius: radius.card,
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
+    marginBottom: space[5],
+  },
+  connectedText: { fontSize: text.small },
   discoverRow: {
     flexDirection: "row",
     alignItems: "center",
