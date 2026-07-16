@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=430, initial-scale=1" />
+  <title>tinker View 1 — bottom nav</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f2f1ef;
+      --surface: #ffffff;
+      --border: #e5e1d8;
+      --ink: #2d2a26;
+      --muted: #6f6a65;
+      --soft: #a39e96;
+      --forest: #2d5a3d;
+      --accent-muted: rgba(45, 90, 61, 0.12);
+      --nav: rgba(255, 253, 247, 0.92);
+      --display: "Fraunces", Georgia, serif;
+      --sans: "Instrument Sans", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      background: #e8e4dc;
+      font-family: var(--sans);
+      padding: 40px 24px 48px;
+    }
+    .frame {
+      width: 390px;
+      background: var(--bg);
+      border-radius: 36px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(45, 42, 38, 0.08);
+      position: relative;
+    }
+    /* Cropped phone body — activity tail + full floating nav */
+    .body {
+      padding: 28px 20px 110px;
+      min-height: 420px;
+    }
+    .fade {
+      height: 48px;
+      background: linear-gradient(to bottom, transparent, var(--bg));
+      margin: -28px -20px 16px;
+    }
+    .act-h {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .avatar {
+      width: 28px; height: 28px;
+      border-radius: 999px;
+      background: #7bc47a;
+      color: #fffdf7;
+      display: grid; place-items: center;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .meta { flex: 1; font-size: 14px; line-height: 1.35; color: var(--ink); }
+    .meta strong { font-weight: 700; }
+    .when { font-size: 13px; color: var(--soft); }
+    .act-card {
+      margin-left: 38px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+    .repo { font-size: 13px; color: var(--muted); font-weight: 500; margin: 0 0 6px; }
+    .act-title {
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.35;
+      margin: 0 0 10px;
+    }
+    .badge {
+      display: inline-block;
+      background: #eef2ff;
+      color: #4f46e5;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+    }
+    .detail { font-size: 13px; color: var(--muted); line-height: 1.4; margin: 0; }
+    .caption {
+      text-align: center;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--soft);
+      font-weight: 600;
+      margin: 0 0 16px;
+    }
+    .tabs {
+      position: absolute;
+      left: 20px; right: 20px; bottom: 22px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      background: var(--nav);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 12px 6px 10px;
+      box-shadow: 0 4px 16px rgba(45, 42, 38, 0.12);
+      backdrop-filter: blur(12px);
+    }
+    .tab { text-align: center; min-width: 68px; color: var(--soft); }
+    .tab .ico {
+      width: 40px; height: 28px; margin: 0 auto 3px;
+      border-radius: 999px;
+      display: grid; place-items: center;
+      font-weight: 700; font-size: 12px;
+    }
+    .tab .lbl { font-size: 11px; }
+    .tab.on { color: var(--forest); }
+    .tab.on .ico { background: var(--accent-muted); }
+    .tab.on .lbl { font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div>
+    <p class="caption">View 1 — floating bottom menu</p>
+    <div class="frame" id="nav-closeup">
+      <div class="body">
+        <div class="fade"></div>
+        <div class="act-h">
+          <span class="avatar">t</span>
+          <p class="meta">tinker contributed to <strong>Progress</strong></p>
+          <span class="when">Today</span>
+        </div>
+        <div class="act-card">
+          <p class="repo">tinker / Progress</p>
+          <p class="act-title">An app that helps engineers discover their pitch over time, on the go.</p>
+          <span class="badge">Aligned</span>
+          <p class="detail">No source in the feed — only progress.</p>
+        </div>
+      </div>
+      <div class="tabs" aria-label="Feed">
+        <div class="tab"><div class="ico">H</div><div class="lbl">Home</div></div>
+        <div class="tab"><div class="ico">F</div><div class="lbl">Feed</div></div>
+        <div class="tab on"><div class="ico">E</div><div class="lbl">Explore</div></div>
+        <div class="tab"><div class="ico">P</div><div class="lbl">Progress</div></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
