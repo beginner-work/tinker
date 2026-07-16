@@ -6,9 +6,11 @@ source in the feed. Spec: [`../../build-prompts/product-oriented-dev-feed.md`](.
 
 ## View 1 (current)
 
-- Dark mode first
+- GitHub mobile Explore–shaped layout (Discover + Activity + floating pill nav)
+- Fonts: **Fraunces** (display) + **Instrument Sans** (UI) — tinker design system
+- Light default to match Explore reference; Dark remains a toggle
 - First open: a quote from the founder's own pitch / writings
-- LinkedIn-style progress feed shell (no source code)
+- Progress / coverage activity — **no source code** in the feed
 
 ## Run
 

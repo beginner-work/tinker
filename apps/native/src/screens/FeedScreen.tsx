@@ -1,153 +1,474 @@
-import { FlatList, StyleSheet, Text, View } from "react-native";
-import { theme } from "../theme";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import {
+  colorsFor,
+  fonts,
+  radius,
+  space,
+  text,
+  type ColorMode,
+} from "../theme";
 import { STR } from "../strings";
-import { SEED_PROGRESS, type ProgressItem } from "../data/seedProgress";
+import {
+  ACTIVITY_ITEMS,
+  DISCOVER_ITEMS,
+  type ActivityItem,
+  type DiscoverItem,
+} from "../data/seedProgress";
 
-function ProgressRow({ item }: { item: ProgressItem }) {
+type Props = {
+  mode: ColorMode;
+  onToggleMode: () => void;
+};
+
+function DiscoverRow({
+  item,
+  mode,
+}: {
+  item: DiscoverItem;
+  mode: ColorMode;
+}) {
+  const c = colorsFor(mode);
+  const tint =
+    item.tint === "coverage"
+      ? c.iconCoverage
+      : item.tint === "connect"
+        ? c.iconConnect
+        : c.iconProgress;
   return (
-    <View style={styles.row}>
-      <View style={styles.rowHeader}>
-        <Text style={styles.kind}>{item.kind}</Text>
-        <Text style={styles.when}>{item.when}</Text>
+    <Pressable
+      style={({ pressed }) => [
+        styles.discoverRow,
+        pressed && { opacity: 0.72 },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={item.label}
+    >
+      <View style={[styles.discoverIcon, { backgroundColor: tint }]}>
+        <Text style={[styles.discoverGlyph, { fontFamily: fonts.sansBold }]}>
+          {item.label.slice(0, 1)}
+        </Text>
       </View>
-      <Text style={styles.body}>{item.body}</Text>
+      <Text
+        style={[styles.discoverLabel, { color: c.ink, fontFamily: fonts.sansMed }]}
+      >
+        {item.label}
+      </Text>
+      <Text style={[styles.chevron, { color: c.inkSoft, fontFamily: fonts.sans }]}>
+        ›
+      </Text>
+    </Pressable>
+  );
+}
+
+function ActivityCard({
+  item,
+  mode,
+}: {
+  item: ActivityItem;
+  mode: ColorMode;
+}) {
+  const c = colorsFor(mode);
+  return (
+    <View style={styles.activityBlock}>
+      <View style={styles.activityHeader}>
+        <View style={[styles.avatar, { backgroundColor: c.avatarBg }]}>
+          <Text
+            style={[
+              styles.avatarLetter,
+              { color: c.avatarInk, fontFamily: fonts.sansBold },
+            ]}
+          >
+            {item.actor.slice(0, 1)}
+          </Text>
+        </View>
+        <Text
+          style={[styles.activityMeta, { color: c.ink, fontFamily: fonts.sans }]}
+          numberOfLines={2}
+        >
+          {item.actor} {STR.contributedTo}{" "}
+          <Text style={{ fontFamily: fonts.sansBold }}>{item.target}</Text>
+        </Text>
+        <Text
+          style={[styles.when, { color: c.inkSoft, fontFamily: fonts.sans }]}
+        >
+          {item.when}
+        </Text>
+      </View>
+      <View
+        style={[
+          styles.activityCard,
+          { backgroundColor: c.surface, borderColor: c.border },
+        ]}
+      >
+        <Text
+          style={[
+            styles.repoLine,
+            { color: c.inkMuted, fontFamily: fonts.sansMed },
+          ]}
+        >
+          {STR.brand} / {item.kind}
+        </Text>
+        <Text
+          style={[styles.activityTitle, { color: c.ink, fontFamily: fonts.sansSemi }]}
+        >
+          {item.title}
+        </Text>
+        <View style={styles.badgeRow}>
+          <View style={[styles.badge, { backgroundColor: c.badge }]}>
+            <Text
+              style={[
+                styles.badgeText,
+                { color: c.badgeInk, fontFamily: fonts.sansSemi },
+              ]}
+            >
+              {item.badge}
+            </Text>
+          </View>
+        </View>
+        <Text
+          style={[styles.activityDetail, { color: c.inkMuted, fontFamily: fonts.sans }]}
+          numberOfLines={3}
+        >
+          {item.detail}
+        </Text>
+      </View>
     </View>
   );
 }
 
 /**
- * View 1 — LinkedIn-style progress feed shell (tinker dark).
- * Shows progress related to pitch — never source code.
+ * View 1 — GitHub Explore–shaped progress surface (tinker fonts + tokens).
+ * Discover + Activity; floating pill tab bar; no source in the feed.
  */
-export function FeedScreen() {
+export function FeedScreen({ mode, onToggleMode }: Props) {
+  const c = colorsFor(mode);
+  const tabs = [
+    { key: "home", label: STR.home },
+    { key: "feed", label: STR.feed },
+    { key: "explore", label: STR.explore, active: true },
+    { key: "progress", label: STR.progress },
+  ] as const;
+
   return (
-    <View style={styles.root} accessibilityLabel={STR.feed}>
-      <View style={styles.topBar}>
-        <Text style={styles.brand}>{STR.brand}</Text>
-        <Text style={styles.modeChip}>{STR.dark}</Text>
-      </View>
-      <Text style={styles.heading}>{STR.feed}</Text>
-      <Text style={styles.sub}>{STR.noSourceInFeed}</Text>
-      <FlatList
-        data={SEED_PROGRESS}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        ItemSeparatorComponent={() => <View style={styles.sep} />}
-        ListEmptyComponent={
-          <Text style={styles.empty}>{STR.emptyFeed}</Text>
-        }
-        renderItem={({ item }) => <ProgressRow item={item} />}
-      />
-      <View style={styles.tabBar}>
-        <Text style={[styles.tab, styles.tabActive]}>{STR.feed}</Text>
-        <Text style={styles.tab}>{STR.coverage}</Text>
-        <Text style={styles.tab}>{STR.connect}</Text>
-        <Text style={styles.tab}>{STR.progress}</Text>
+    <View
+      style={[styles.root, { backgroundColor: c.background }]}
+      accessibilityLabel={STR.explore}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.topBar}>
+          <Text
+            style={[styles.title, { color: c.ink, fontFamily: fonts.display }]}
+          >
+            {STR.explore}
+          </Text>
+          <View style={styles.topActions}>
+            <Pressable
+              onPress={onToggleMode}
+              style={[styles.modeChip, { borderColor: c.border }]}
+              accessibilityRole="button"
+              accessibilityLabel={mode === "dark" ? STR.light : STR.dark}
+            >
+              <Text
+                style={[
+                  styles.modeChipText,
+                  { color: c.inkMuted, fontFamily: fonts.sansSemi },
+                ]}
+              >
+                {mode === "dark" ? STR.light : STR.dark}
+              </Text>
+            </Pressable>
+            <View
+              style={[styles.searchBtn, { backgroundColor: c.surface, borderColor: c.border }]}
+              accessibilityLabel={STR.search}
+            >
+              <Text style={[styles.searchGlyph, { color: c.ink, fontFamily: fonts.sans }]}>
+                ⌕
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <Text
+          style={[styles.section, { color: c.ink, fontFamily: fonts.sansSemi }]}
+        >
+          {STR.discover}
+        </Text>
+        <View
+          style={[
+            styles.discoverCard,
+            { backgroundColor: c.surface, borderColor: c.border },
+          ]}
+        >
+          {DISCOVER_ITEMS.map((item, i) => (
+            <View key={item.id}>
+              <DiscoverRow item={item} mode={mode} />
+              {i < DISCOVER_ITEMS.length - 1 ? (
+                <View style={[styles.hairline, { backgroundColor: c.hairline }]} />
+              ) : null}
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.activityHeading}>
+          <Text
+            style={[styles.section, { color: c.ink, fontFamily: fonts.sansSemi, marginBottom: 0 }]}
+          >
+            {STR.activity}
+          </Text>
+        </View>
+        <Text
+          style={[styles.sub, { color: c.inkMuted, fontFamily: fonts.sans }]}
+        >
+          {STR.noSourceInFeed}
+        </Text>
+
+        {ACTIVITY_ITEMS.length === 0 ? (
+          <Text style={[styles.empty, { color: c.inkMuted, fontFamily: fonts.sans }]}>
+            {STR.emptyFeed}
+          </Text>
+        ) : (
+          ACTIVITY_ITEMS.map((item) => (
+            <ActivityCard key={item.id} item={item} mode={mode} />
+          ))
+        )}
+      </ScrollView>
+
+      <View
+        style={[
+          styles.tabBar,
+          {
+            backgroundColor: c.navBg,
+            shadowColor: c.navShadow,
+            borderColor: c.border,
+          },
+        ]}
+      >
+        {tabs.map((tab) => {
+          const active = "active" in tab && tab.active;
+          return (
+            <View key={tab.key} style={styles.tabItem}>
+              <View
+                style={[
+                  styles.tabIconWrap,
+                  active && { backgroundColor: c.accentMuted },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabIcon,
+                    {
+                      color: active ? c.accent : c.inkSoft,
+                      fontFamily: fonts.sansBold,
+                    },
+                  ]}
+                >
+                  {tab.label.slice(0, 1)}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.tabLabel,
+                  {
+                    color: active ? c.accent : c.inkSoft,
+                    fontFamily: active ? fonts.sansSemi : fonts.sans,
+                  },
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </View>
+          );
+        })}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    paddingTop: theme.space.8,
+  root: { flex: 1 },
+  scroll: {
+    paddingHorizontal: space[5],
+    paddingTop: space[6],
+    paddingBottom: 120,
   },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: theme.space.6,
-    marginBottom: theme.space.5,
+    marginBottom: space[6],
   },
-  brand: {
-    fontFamily: theme.fonts.display,
-    fontSize: theme.text.display,
-    fontWeight: "700",
-    color: theme.colors.ink,
+  title: {
+    fontSize: text.title,
+    letterSpacing: -0.5,
+  },
+  topActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space[3],
   },
   modeChip: {
-    fontSize: theme.text.micro,
-    fontWeight: "600",
-    color: theme.colors.inkMuted,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    paddingHorizontal: theme.space.3,
-    paddingVertical: theme.space.1,
-    borderRadius: theme.radius.chip,
+    paddingHorizontal: space[3],
+    paddingVertical: space[1],
+    borderRadius: radius.chip,
+  },
+  modeChipText: { fontSize: text.micro },
+  searchBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  searchGlyph: { fontSize: 18, marginTop: -2 },
+  section: {
+    fontSize: text.section,
+    marginBottom: space[3],
+  },
+  discoverCard: {
+    borderRadius: radius.card,
+    borderWidth: 1,
+    marginBottom: space[6],
     overflow: "hidden",
   },
-  heading: {
-    fontFamily: theme.fonts.display,
-    fontSize: theme.text.display,
-    fontWeight: "700",
-    color: theme.colors.ink,
-    paddingHorizontal: theme.space.6,
-    marginBottom: theme.space.2,
+  discoverRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: space[4],
+    paddingVertical: space[4],
+    gap: space[4],
+  },
+  discoverIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.icon,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  discoverGlyph: {
+    color: "#fffdf7",
+    fontSize: text.small,
+  },
+  discoverLabel: {
+    flex: 1,
+    fontSize: text.base,
+  },
+  chevron: {
+    fontSize: 22,
+    lineHeight: 24,
+  },
+  hairline: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 56,
+  },
+  activityHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: space[2],
   },
   sub: {
-    fontSize: theme.text.small,
-    color: theme.colors.inkMuted,
-    paddingHorizontal: theme.space.6,
-    marginBottom: theme.space.5,
-  },
-  list: {
-    paddingHorizontal: theme.space.6,
-    paddingBottom: theme.space.8,
-    gap: 0,
-  },
-  sep: {
-    height: theme.space.5,
-  },
-  row: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.card,
-    padding: theme.space.6,
-  },
-  rowHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: theme.space.3,
-  },
-  kind: {
-    fontSize: theme.text.micro,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    color: theme.colors.forest,
-  },
-  when: {
-    fontSize: theme.text.micro,
-    color: theme.colors.inkSoft,
-  },
-  body: {
-    fontSize: theme.text.essay,
-    lineHeight: 26,
-    color: theme.colors.ink,
+    fontSize: text.small,
+    marginBottom: space[5],
   },
   empty: {
-    fontSize: theme.text.body,
-    color: theme.colors.inkMuted,
-    paddingVertical: theme.space.8,
+    fontSize: text.body,
+    paddingVertical: space[8],
+  },
+  activityBlock: {
+    marginBottom: space[6],
+  },
+  activityHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: space[3],
+    marginBottom: space[3],
+  },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarLetter: { fontSize: text.small },
+  activityMeta: {
+    flex: 1,
+    fontSize: text.body,
+    lineHeight: 20,
+  },
+  when: {
+    fontSize: text.small,
+    marginTop: 2,
+  },
+  activityCard: {
+    marginLeft: 40,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    padding: space[4],
+  },
+  repoLine: {
+    fontSize: text.small,
+    marginBottom: space[2],
+  },
+  activityTitle: {
+    fontSize: text.essay,
+    lineHeight: 22,
+    marginBottom: space[3],
+  },
+  badgeRow: {
+    flexDirection: "row",
+    marginBottom: space[3],
+  },
+  badge: {
+    paddingHorizontal: space[3],
+    paddingVertical: space[1],
+    borderRadius: radius.pill,
+  },
+  badgeText: { fontSize: text.micro },
+  activityDetail: {
+    fontSize: text.small,
+    lineHeight: 18,
   },
   tabBar: {
+    position: "absolute",
+    left: space[5],
+    right: space[5],
+    bottom: space[5],
     flexDirection: "row",
     justifyContent: "space-around",
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    paddingVertical: theme.space.4,
-    paddingBottom: theme.space.6,
-    backgroundColor: theme.colors.surface,
+    alignItems: "center",
+    paddingVertical: space[3],
+    paddingHorizontal: space[2],
+    borderRadius: radius.nav,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  tab: {
-    fontSize: theme.text.small,
-    color: theme.colors.inkSoft,
-    fontWeight: "600",
+  tabItem: {
+    alignItems: "center",
+    minWidth: 64,
+    gap: 2,
   },
-  tabActive: {
-    color: theme.colors.forest,
+  tabIconWrap: {
+    width: 40,
+    height: 28,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  tabIcon: { fontSize: text.small },
+  tabLabel: { fontSize: text.micro },
 });

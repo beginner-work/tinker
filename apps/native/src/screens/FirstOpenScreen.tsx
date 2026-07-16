@@ -1,30 +1,64 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { theme } from "../theme";
+import { colorsFor, fonts, radius, space, text, type ColorMode } from "../theme";
 import { STR } from "../strings";
 
 type Props = {
   onContinue: () => void;
+  mode: ColorMode;
 };
 
 /**
  * View 1 — first open: a quote from themselves (pitch reflections / writings).
- * Dark mode. Welcoming and grounded.
+ * Tinker type: Fraunces display + Instrument Sans UI.
  */
-export function FirstOpenScreen({ onContinue }: Props) {
+export function FirstOpenScreen({ onContinue, mode }: Props) {
+  const c = colorsFor(mode);
   return (
-    <View style={styles.root} accessibilityLabel={STR.yourWords}>
+    <View
+      style={[styles.root, { backgroundColor: c.background }]}
+      accessibilityLabel={STR.yourWords}
+    >
       <View style={styles.rainbow} />
-      <Text style={styles.brand}>{STR.brand}</Text>
-      <Text style={styles.eyebrow}>{STR.yourWords}</Text>
-      <Text style={styles.quote}>{STR.pitchProblem}</Text>
-      <Text style={styles.tagline}>{STR.pitchTagline}</Text>
+      <Text style={[styles.brand, { color: c.ink, fontFamily: fonts.display }]}>
+        {STR.brand}
+      </Text>
+      <Text
+        style={[
+          styles.eyebrow,
+          { color: c.inkSoft, fontFamily: fonts.sansSemi },
+        ]}
+      >
+        {STR.yourWords}
+      </Text>
+      <Text
+        style={[styles.quote, { color: c.ink, fontFamily: fonts.displaySemi }]}
+      >
+        {STR.pitchProblem}
+      </Text>
+      <Text
+        style={[styles.tagline, { color: c.forest, fontFamily: fonts.sansMed }]}
+      >
+        {STR.pitchTagline}
+      </Text>
       <Pressable
-        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+        style={({ pressed }) => [
+          styles.button,
+          {
+            backgroundColor: pressed ? c.accentPress : c.accent,
+          },
+        ]}
         onPress={onContinue}
         accessibilityRole="button"
         accessibilityLabel={STR.continueLabel}
       >
-        <Text style={styles.buttonLabel}>{STR.continueLabel}</Text>
+        <Text
+          style={[
+            styles.buttonLabel,
+            { color: mode === "dark" ? c.background : "#fffdf7", fontFamily: fonts.sansBold },
+          ]}
+        >
+          {STR.continueLabel}
+        </Text>
       </Pressable>
     </View>
   );
@@ -33,63 +67,47 @@ export function FirstOpenScreen({ onContinue }: Props) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-    paddingHorizontal: theme.space.6,
-    paddingTop: theme.space.8 + 24,
-    paddingBottom: theme.space.8,
+    paddingHorizontal: space[6],
+    paddingTop: space[8] + 24,
+    paddingBottom: space[8],
     justifyContent: "center",
   },
   rainbow: {
     position: "absolute",
     top: 56,
-    left: theme.space.6,
-    right: theme.space.6,
+    left: space[6],
+    right: space[6],
     height: 4,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.violet,
+    borderRadius: radius.pill,
+    backgroundColor: "#c8b6e2",
   },
   brand: {
-    fontFamily: theme.fonts.display,
-    fontSize: theme.text.display,
-    fontWeight: "700",
-    color: theme.colors.ink,
+    fontSize: text.display,
     letterSpacing: -0.4,
-    marginBottom: theme.space.7,
+    marginBottom: space[7],
   },
   eyebrow: {
-    fontSize: theme.text.micro,
-    fontWeight: "600",
+    fontSize: text.micro,
     letterSpacing: 1.2,
     textTransform: "uppercase",
-    color: theme.colors.inkSoft,
-    marginBottom: theme.space.4,
+    marginBottom: space[4],
   },
   quote: {
-    fontFamily: theme.fonts.display,
-    fontSize: theme.text.displayLg,
+    fontSize: text.displayLg,
     lineHeight: 42,
-    fontWeight: "600",
-    color: theme.colors.ink,
-    marginBottom: theme.space.6,
+    marginBottom: space[6],
   },
   tagline: {
-    fontSize: theme.text.essay,
-    color: theme.colors.forest,
-    marginBottom: theme.space.8,
+    fontSize: text.essay,
+    marginBottom: space[8],
   },
   button: {
     alignSelf: "flex-start",
-    backgroundColor: theme.colors.accent,
-    paddingVertical: theme.space.4,
-    paddingHorizontal: theme.space.6,
-    borderRadius: theme.radius.button,
-  },
-  buttonPressed: {
-    backgroundColor: theme.colors.accentPress,
+    paddingVertical: space[4],
+    paddingHorizontal: space[6],
+    borderRadius: radius.button,
   },
   buttonLabel: {
-    color: theme.colors.background,
-    fontSize: theme.text.base,
-    fontWeight: "700",
+    fontSize: text.base,
   },
 });

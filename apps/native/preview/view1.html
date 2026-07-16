@@ -3,26 +3,30 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=390, initial-scale=1" />
-  <title>tinker View 1 — review</title>
+  <title>tinker View 1 — GitHub Explore layout</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Instrument+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #141210;
-      --surface: #1c1916;
-      --border: #3a342c;
-      --ink: #f5f3ef;
-      --muted: #a39e96;
-      --soft: #6f6a65;
-      --forest: #7bc47a;
-      --accent-press: #5aad58;
+      --bg: #f2f1ef;
+      --surface: #ffffff;
+      --border: #e5e1d8;
+      --hairline: #ede8e0;
+      --ink: #2d2a26;
+      --muted: #6f6a65;
+      --soft: #a39e96;
+      --forest: #2d5a3d;
+      --accent-muted: rgba(45, 90, 61, 0.12);
+      --nav: rgba(255, 253, 247, 0.92);
+      --display: "Fraunces", Georgia, serif;
+      --sans: "Instrument Sans", system-ui, sans-serif;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: "Instrument Sans", system-ui, sans-serif;
-      background: #0a0908;
+      font-family: var(--sans);
+      background: #e8e4dc;
       color: var(--ink);
       display: flex;
       gap: 32px;
@@ -30,16 +34,7 @@
       padding: 32px 16px 64px;
       flex-wrap: wrap;
     }
-    .phone {
-      width: 390px;
-      min-height: 780px;
-      background: var(--bg);
-      border-radius: 36px;
-      border: 1px solid var(--border);
-      padding: 48px 24px 28px;
-      position: relative;
-      overflow: hidden;
-    }
+    .wrap { display: flex; flex-direction: column; }
     .label {
       width: 390px;
       font-size: 12px;
@@ -47,8 +42,20 @@
       text-transform: uppercase;
       color: var(--soft);
       margin: 0 0 8px;
+      font-family: var(--sans);
+      font-weight: 600;
     }
-    .wrap { display: flex; flex-direction: column; }
+    .phone {
+      width: 390px;
+      min-height: 780px;
+      background: var(--bg);
+      border-radius: 36px;
+      border: 1px solid var(--border);
+      padding: 48px 20px 28px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(45, 42, 38, 0.08);
+    }
     .rainbow {
       height: 4px;
       border-radius: 999px;
@@ -56,7 +63,7 @@
       margin-bottom: 28px;
     }
     .brand {
-      font-family: "Fraunces", Georgia, serif;
+      font-family: var(--display);
       font-size: 22px;
       font-weight: 700;
       margin: 0 0 32px;
@@ -70,7 +77,7 @@
       margin: 0 0 12px;
     }
     .quote {
-      font-family: "Fraunces", Georgia, serif;
+      font-family: var(--display);
       font-size: 32px;
       line-height: 1.2;
       font-weight: 600;
@@ -78,25 +85,35 @@
     }
     .tagline {
       font-size: 17px;
+      font-weight: 500;
       color: var(--forest);
       margin: 0 0 48px;
     }
     .btn {
       display: inline-block;
       background: var(--forest);
-      color: var(--bg);
+      color: #fffdf7;
       font-weight: 700;
       font-size: 15px;
       padding: 12px 24px;
       border-radius: 10px;
       border: none;
+      font-family: var(--sans);
     }
     .top {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
+      margin-bottom: 24px;
     }
+    .title {
+      font-family: var(--display);
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+    .top-actions { display: flex; gap: 8px; align-items: center; }
     .chip {
       font-size: 11px;
       font-weight: 600;
@@ -104,57 +121,125 @@
       border: 1px solid var(--border);
       padding: 4px 8px;
       border-radius: 9px;
+      background: var(--surface);
     }
-    h1 {
-      font-family: "Fraunces", Georgia, serif;
-      font-size: 22px;
-      margin: 0 0 6px;
+    .search {
+      width: 36px; height: 36px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      display: grid; place-items: center;
+      font-size: 16px;
+      color: var(--ink);
     }
-    .sub {
-      font-size: 13px;
-      color: var(--muted);
-      margin: 0 0 20px;
+    .section {
+      font-size: 17px;
+      font-weight: 600;
+      margin: 0 0 10px;
     }
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 16px;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 24px;
     }
-    .card-h {
+    .row {
       display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
-      font-size: 11px;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
     }
-    .kind {
-      color: var(--forest);
+    .row + .row { border-top: 1px solid var(--hairline); }
+    .icon {
+      width: 32px; height: 32px;
+      border-radius: 10px;
+      display: grid; place-items: center;
+      color: #fffdf7;
       font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      font-size: 13px;
+      flex-shrink: 0;
     }
-    .when { color: var(--soft); }
-    .body { font-size: 17px; line-height: 1.5; }
+    .icon.c { background: #c8b6e2; }
+    .icon.k { background: #f9a8d4; }
+    .icon.p { background: #fdba74; }
+    .row-label { flex: 1; font-size: 15px; font-weight: 500; }
+    .chev { color: var(--soft); font-size: 22px; }
+    .sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0 0 16px;
+    }
+    .act { margin-bottom: 22px; }
+    .act-h {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .avatar {
+      width: 28px; height: 28px;
+      border-radius: 999px;
+      background: #7bc47a;
+      color: #fffdf7;
+      display: grid; place-items: center;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .meta { flex: 1; font-size: 14px; line-height: 1.35; }
+    .meta strong { font-weight: 700; }
+    .when { font-size: 13px; color: var(--soft); }
+    .act-card {
+      margin-left: 38px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .repo { font-size: 13px; color: var(--muted); font-weight: 500; margin: 0 0 6px; }
+    .act-title { font-size: 16px; font-weight: 600; line-height: 1.35; margin: 0 0 10px; }
+    .badge {
+      display: inline-block;
+      background: #eef2ff;
+      color: #4f46e5;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+    }
+    .detail { font-size: 13px; color: var(--muted); line-height: 1.4; margin: 0; }
     .tabs {
       position: absolute;
-      left: 0; right: 0; bottom: 0;
+      left: 20px; right: 20px; bottom: 18px;
       display: flex;
       justify-content: space-around;
-      border-top: 1px solid var(--border);
-      background: var(--surface);
-      padding: 14px 8px 22px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--soft);
+      align-items: center;
+      background: var(--nav);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 10px 6px 8px;
+      box-shadow: 0 4px 16px rgba(45, 42, 38, 0.12);
+      backdrop-filter: blur(12px);
     }
-    .tabs .on { color: var(--forest); }
-    .feed-body { padding-bottom: 72px; }
+    .tab { text-align: center; min-width: 64px; color: var(--soft); }
+    .tab .ico {
+      width: 40px; height: 28px; margin: 0 auto 2px;
+      border-radius: 999px;
+      display: grid; place-items: center;
+      font-weight: 700; font-size: 12px;
+    }
+    .tab .lbl { font-size: 11px; }
+    .tab.on { color: var(--forest); }
+    .tab.on .ico { background: var(--accent-muted); }
+    .tab.on .lbl { font-weight: 600; }
+    .feed-pad { padding-bottom: 88px; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <p class="label">View 1A — First open</p>
+    <p class="label">View 1A — First open · Fraunces + Instrument Sans</p>
     <div class="phone" id="first-open">
       <div class="rainbow"></div>
       <p class="brand">tinker</p>
@@ -165,33 +250,61 @@
     </div>
   </div>
   <div class="wrap">
-    <p class="label">View 1B — Progress feed</p>
+    <p class="label">View 1B — Explore (GitHub-shaped) · tinker type</p>
     <div class="phone" id="feed">
-      <div class="feed-body">
+      <div class="feed-pad">
         <div class="top">
-          <p class="brand" style="margin:0">tinker</p>
-          <span class="chip">Dark</span>
+          <h1 class="title">Explore</h1>
+          <div class="top-actions">
+            <span class="chip">Dark</span>
+            <span class="search" aria-label="Search">⌕</span>
+          </div>
         </div>
-        <h1>Feed</h1>
+
+        <p class="section">Discover</p>
+        <div class="card">
+          <div class="row"><span class="icon c">C</span><span class="row-label">Coverage</span><span class="chev">›</span></div>
+          <div class="row"><span class="icon k">C</span><span class="row-label">Connect</span><span class="chev">›</span></div>
+          <div class="row"><span class="icon p">P</span><span class="row-label">Progress</span><span class="chev">›</span></div>
+        </div>
+
+        <p class="section">Activity</p>
         <p class="sub">No source in the feed — only progress.</p>
-        <div class="card">
-          <div class="card-h"><span class="kind">Coverage</span><span class="when">Just now</span></div>
-          <div class="body">Everyone is a founder.</div>
+
+        <div class="act">
+          <div class="act-h">
+            <span class="avatar">t</span>
+            <p class="meta">tinker contributed to <strong>Coverage</strong></p>
+            <span class="when">Just now</span>
+          </div>
+          <div class="act-card">
+            <p class="repo">tinker / Coverage</p>
+            <p class="act-title">Everyone is a founder.</p>
+            <span class="badge">Aligned</span>
+            <p class="detail">No source in the feed — only progress.</p>
+          </div>
         </div>
-        <div class="card">
-          <div class="card-h"><span class="kind">Progress</span><span class="when">Today</span></div>
-          <div class="body">An app that helps engineers discover their pitch over time, on the go.</div>
-        </div>
-        <div class="card">
-          <div class="card-h"><span class="kind">Connect</span><span class="when">Today</span></div>
-          <div class="body">No source in the feed — only progress.</div>
+
+        <div class="act">
+          <div class="act-h">
+            <span class="avatar">t</span>
+            <p class="meta">tinker contributed to <strong>Progress</strong></p>
+            <span class="when">Today</span>
+          </div>
+          <div class="act-card">
+            <p class="repo">tinker / Progress</p>
+            <p class="act-title">An app that helps engineers discover their pitch over time, on the go.</p>
+            <span class="badge">Aligned</span>
+            <p class="detail">Engineers stay building and human making becomes a relic of the past…</p>
+          </div>
         </div>
       </div>
+
       <div class="tabs">
-        <span class="on">Feed</span>
-        <span>Coverage</span>
-        <span>Connect</span>
-        <span>Progress</span>
+        <div class="tab"><div class="ico">H</div><div class="lbl">Home</div></div>
+        <div class="tab"><div class="ico">F</div><div class="lbl">Feed</div></div>
+        <div class="tab on"><div class="ico">E</div><div class="lbl">Explore</div></div>
+        <div class="tab"><div class="ico">P</div><div class="lbl">Progress</div></div>
       </div>
     </div>
   </div>

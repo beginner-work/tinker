@@ -1,38 +1,62 @@
 /**
- * Demo progress rows for View 1 feed shell.
- * Bodies are either allowlisted UI strings or verbatim pitch lines —
- * never model-authored narrative about fictional founders.
+ * Demo Explore / Activity rows for View 1.
+ * Bodies are allowlisted UI strings or verbatim pitch lines.
  */
 
 import { STR } from "../strings";
 
-export type ProgressItem = {
+export type DiscoverItem = {
   id: string;
-  /** Fixed UI section label from allowlist */
-  kind: typeof STR.progress | typeof STR.coverage | typeof STR.connect;
-  /** Verbatim founder / pitch line or allowlisted empty line */
-  body: string;
-  /** Relative time label — fixed microcopy only */
-  when: string;
+  label: typeof STR.coverage | typeof STR.connect | typeof STR.progress;
+  tint: "coverage" | "connect" | "progress";
 };
 
-export const SEED_PROGRESS: ProgressItem[] = [
+export type ActivityItem = {
+  id: string;
+  actor: string;
+  target: string;
+  when: string;
+  kind: typeof STR.progress | typeof STR.coverage | typeof STR.connect;
+  title: string;
+  detail: string;
+  badge: typeof STR.aligned;
+};
+
+export const DISCOVER_ITEMS: DiscoverItem[] = [
+  { id: "d1", label: STR.coverage, tint: "coverage" },
+  { id: "d2", label: STR.connect, tint: "connect" },
+  { id: "d3", label: STR.progress, tint: "progress" },
+];
+
+export const ACTIVITY_ITEMS: ActivityItem[] = [
   {
-    id: "1",
-    kind: STR.coverage,
-    body: STR.pitchTagline,
+    id: "a1",
+    actor: STR.brand,
+    target: STR.coverage,
     when: STR.justNow,
+    kind: STR.coverage,
+    title: STR.pitchTagline,
+    detail: STR.noSourceInFeed,
+    badge: STR.aligned,
   },
   {
-    id: "2",
+    id: "a2",
+    actor: STR.brand,
+    target: STR.progress,
+    when: STR.today,
     kind: STR.progress,
-    body: STR.pitchSolution,
-    when: STR.today,
+    title: STR.pitchSolution,
+    detail: STR.pitchProblem,
+    badge: STR.aligned,
   },
   {
-    id: "3",
+    id: "a3",
+    actor: STR.brand,
+    target: STR.connect,
+    when: STR.days3,
     kind: STR.connect,
-    body: STR.noSourceInFeed,
-    when: STR.today,
+    title: STR.noSourceInFeed,
+    detail: STR.emptyFeed,
+    badge: STR.aligned,
   },
 ];

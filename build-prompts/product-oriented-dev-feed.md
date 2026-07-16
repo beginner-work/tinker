@@ -119,12 +119,23 @@ organization of founder source ideas and repository source code.
 - `Connect`
 - `Feed`
 - `Dark`
+- `Light`
+- `Home`
+- `Explore`
+- `Discover`
+- `Activity`
+- `Search`
+- `Aligned`
+- `contributed to`
 - `Continue`
 - `Just now`
 - `Today`
+- `3d`
+- `6d`
 - `No source in the feed — only progress.`
 - Cold/empty: `When people you care about share progress, it shows up here.`
 - Any verbatim line loaded from the founder's pitch / writings store
+- **Type:** Fraunces (display) + Instrument Sans (UI) — tinker design system only
 
 ## Open questions — ask the founder, don't invent
 
