@@ -20,6 +20,7 @@ import {
   type ActivityItem,
   type DiscoverItem,
 } from "../data/seedProgress";
+import { DISCOVER_ICONS, Ionicons, TAB_ICONS, UI_ICONS } from "../icons";
 
 type Props = {
   mode: ColorMode;
@@ -50,18 +51,14 @@ function DiscoverRow({
       accessibilityLabel={item.label}
     >
       <View style={[styles.discoverIcon, { backgroundColor: tint }]}>
-        <Text style={[styles.discoverGlyph, { fontFamily: fonts.sansBold }]}>
-          {item.label.slice(0, 1)}
-        </Text>
+        <Ionicons name={DISCOVER_ICONS[item.tint]} size={18} color="#fffdf7" />
       </View>
       <Text
         style={[styles.discoverLabel, { color: c.ink, fontFamily: fonts.sansMed }]}
       >
         {item.label}
       </Text>
-      <Text style={[styles.chevron, { color: c.inkSoft, fontFamily: fonts.sans }]}>
-        ›
-      </Text>
+      <Ionicons name={UI_ICONS.chevron} size={18} color={c.inkSoft} />
     </Pressable>
   );
 }
@@ -149,11 +146,11 @@ function ActivityCard({
 export function FeedScreen({ mode, onToggleMode }: Props) {
   const c = colorsFor(mode);
   const tabs = [
-    { key: "home", label: STR.home },
-    { key: "feed", label: STR.feed },
-    { key: "explore", label: STR.explore, active: true },
-    { key: "progress", label: STR.progress },
-  ] as const;
+    { key: "home" as const, label: STR.home },
+    { key: "feed" as const, label: STR.feed },
+    { key: "explore" as const, label: STR.explore, active: true },
+    { key: "progress" as const, label: STR.progress },
+  ];
 
   return (
     <View
@@ -190,9 +187,7 @@ export function FeedScreen({ mode, onToggleMode }: Props) {
               style={[styles.searchBtn, { backgroundColor: c.surface, borderColor: c.border }]}
               accessibilityLabel={STR.search}
             >
-              <Text style={[styles.searchGlyph, { color: c.ink, fontFamily: fonts.sans }]}>
-                ⌕
-              </Text>
+              <Ionicons name={UI_ICONS.search} size={18} color={c.ink} />
             </View>
           </View>
         </View>
@@ -253,7 +248,8 @@ export function FeedScreen({ mode, onToggleMode }: Props) {
         ]}
       >
         {tabs.map((tab) => {
-          const active = "active" in tab && tab.active;
+          const active = "active" in tab && Boolean(tab.active);
+          const iconSet = TAB_ICONS[tab.key];
           return (
             <View key={tab.key} style={styles.tabItem}>
               <View
@@ -262,17 +258,11 @@ export function FeedScreen({ mode, onToggleMode }: Props) {
                   active && { backgroundColor: c.accentMuted },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.tabIcon,
-                    {
-                      color: active ? c.accent : c.inkSoft,
-                      fontFamily: fonts.sansBold,
-                    },
-                  ]}
-                >
-                  {tab.label.slice(0, 1)}
-                </Text>
+                <Ionicons
+                  name={active ? iconSet.filled : iconSet.outline}
+                  size={20}
+                  color={active ? c.accent : c.inkSoft}
+                />
               </View>
               <Text
                 style={[
@@ -330,7 +320,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  searchGlyph: { fontSize: 18, marginTop: -2 },
   section: {
     fontSize: text.section,
     marginBottom: space[3],
@@ -355,17 +344,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  discoverGlyph: {
-    color: "#fffdf7",
-    fontSize: text.small,
-  },
   discoverLabel: {
     flex: 1,
     fontSize: text.base,
-  },
-  chevron: {
-    fontSize: 22,
-    lineHeight: 24,
   },
   hairline: {
     height: StyleSheet.hairlineWidth,
@@ -469,6 +450,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  tabIcon: { fontSize: text.small },
   tabLabel: { fontSize: text.micro },
 });

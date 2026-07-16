@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=430, initial-scale=1" />
-  <title>tinker View 1 — bottom nav</title>
+  <title>tinker View 1 — bottom nav icons</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg: #f2f1ef;
@@ -18,7 +18,6 @@
       --forest: #2d5a3d;
       --accent-muted: rgba(45, 90, 61, 0.12);
       --nav: rgba(255, 253, 247, 0.92);
-      --display: "Fraunces", Georgia, serif;
       --sans: "Instrument Sans", system-ui, sans-serif;
     }
     * { box-sizing: border-box; }
@@ -41,90 +40,48 @@
       box-shadow: 0 12px 40px rgba(45, 42, 38, 0.08);
       position: relative;
     }
-    /* Cropped phone body — activity tail + full floating nav */
-    .body {
-      padding: 28px 20px 110px;
-      min-height: 420px;
-    }
+    .body { padding: 28px 20px 110px; min-height: 420px; }
     .fade {
       height: 48px;
       background: linear-gradient(to bottom, transparent, var(--bg));
       margin: -28px -20px 16px;
     }
-    .act-h {
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-      margin-bottom: 10px;
-    }
+    .act-h { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
     .avatar {
-      width: 28px; height: 28px;
-      border-radius: 999px;
-      background: #7bc47a;
-      color: #fffdf7;
-      display: grid; place-items: center;
-      font-weight: 700;
-      font-size: 13px;
+      width: 28px; height: 28px; border-radius: 999px;
+      background: #7bc47a; color: #fffdf7;
+      display: grid; place-items: center; font-weight: 700; font-size: 13px;
     }
     .meta { flex: 1; font-size: 14px; line-height: 1.35; color: var(--ink); }
     .meta strong { font-weight: 700; }
     .when { font-size: 13px; color: var(--soft); }
     .act-card {
-      margin-left: 38px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px;
-      margin-bottom: 20px;
+      margin-left: 38px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 14px; padding: 14px;
     }
     .repo { font-size: 13px; color: var(--muted); font-weight: 500; margin: 0 0 6px; }
-    .act-title {
-      font-family: var(--sans);
-      font-size: 16px;
-      font-weight: 600;
-      line-height: 1.35;
-      margin: 0 0 10px;
-    }
+    .act-title { font-size: 16px; font-weight: 600; line-height: 1.35; margin: 0 0 10px; }
     .badge {
-      display: inline-block;
-      background: #eef2ff;
-      color: #4f46e5;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 3px 10px;
-      border-radius: 999px;
-      margin-bottom: 10px;
+      display: inline-block; background: #eef2ff; color: #4f46e5;
+      font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; margin-bottom: 10px;
     }
     .detail { font-size: 13px; color: var(--muted); line-height: 1.4; margin: 0; }
     .caption {
-      text-align: center;
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--soft);
-      font-weight: 600;
-      margin: 0 0 16px;
+      text-align: center; font-size: 12px; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--soft); font-weight: 600; margin: 0 0 16px;
     }
     .tabs {
-      position: absolute;
-      left: 20px; right: 20px; bottom: 22px;
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      background: var(--nav);
-      border: 1px solid var(--border);
-      border-radius: 28px;
-      padding: 12px 6px 10px;
-      box-shadow: 0 4px 16px rgba(45, 42, 38, 0.12);
-      backdrop-filter: blur(12px);
+      position: absolute; left: 20px; right: 20px; bottom: 22px;
+      display: flex; justify-content: space-around; align-items: center;
+      background: var(--nav); border: 1px solid var(--border); border-radius: 28px;
+      padding: 12px 6px 10px; box-shadow: 0 4px 16px rgba(45, 42, 38, 0.12);
     }
     .tab { text-align: center; min-width: 68px; color: var(--soft); }
     .tab .ico {
-      width: 40px; height: 28px; margin: 0 auto 3px;
-      border-radius: 999px;
+      width: 40px; height: 28px; margin: 0 auto 3px; border-radius: 999px;
       display: grid; place-items: center;
-      font-weight: 700; font-size: 12px;
     }
+    .tab .ico svg { display: block; }
     .tab .lbl { font-size: 11px; }
     .tab.on { color: var(--forest); }
     .tab.on .ico { background: var(--accent-muted); }
@@ -150,10 +107,30 @@
         </div>
       </div>
       <div class="tabs" aria-label="Feed">
-        <div class="tab"><div class="ico">H</div><div class="lbl">Home</div></div>
-        <div class="tab"><div class="ico">F</div><div class="lbl">Feed</div></div>
-        <div class="tab on"><div class="ico">E</div><div class="lbl">Explore</div></div>
-        <div class="tab"><div class="ico">P</div><div class="lbl">Progress</div></div>
+        <div class="tab">
+          <div class="ico" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a39e96" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+          </div>
+          <div class="lbl">Home</div>
+        </div>
+        <div class="tab">
+          <div class="ico" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a39e96" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12a2 2 0 0 1 2 2v14l-4-2-4 2-4-2-4 2V6a2 2 0 0 1 2-2z"/><path d="M8 9h8M8 13h6"/></svg>
+          </div>
+          <div class="lbl">Feed</div>
+        </div>
+        <div class="tab on">
+          <div class="ico" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2d5a3d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+          </div>
+          <div class="lbl">Explore</div>
+        </div>
+        <div class="tab">
+          <div class="ico" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a39e96" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14c2-1 3.5-4 4-7 1 4 2.5 7 4 7s3-3 4-7c.5 3 2 6 4 7"/><path d="M4 18h16"/></svg>
+          </div>
+          <div class="lbl">Progress</div>
+        </div>
       </div>
     </div>
   </div>
