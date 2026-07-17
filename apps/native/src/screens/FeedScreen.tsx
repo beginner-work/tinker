@@ -70,7 +70,8 @@ function DiscoverRow({
   );
 }
 
-const STACK_STEP = 8;
+const STACK_Y = 10;
+const STACK_X = 4;
 const MAX_BACK = 3;
 
 function ActivityCard({
@@ -85,7 +86,7 @@ function ActivityCard({
   const depth = back.length;
 
   return (
-    <View style={[styles.activityBlock, { marginBottom: space[6] + depth * STACK_STEP }]}>
+    <View style={[styles.activityBlock, { marginBottom: space[6] + depth * STACK_Y }]}>
       <View style={styles.activityHeader}>
         <View style={[styles.avatar, { backgroundColor: c.avatarBg }]}>
           <Text
@@ -122,9 +123,9 @@ function ActivityCard({
                 {
                   backgroundColor: c.surface,
                   borderColor: c.border,
-                  top: (fromFront + 1) * STACK_STEP,
-                  left: (fromFront + 1) * STACK_STEP,
-                  right: -(fromFront + 1) * STACK_STEP,
+                  top: (fromFront + 1) * STACK_Y,
+                  left: (fromFront + 1) * STACK_X,
+                  right: (fromFront + 1) * STACK_X,
                   zIndex: revIndex,
                 },
               ]}

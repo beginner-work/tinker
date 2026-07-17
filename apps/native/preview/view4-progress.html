@@ -84,20 +84,24 @@
       .stack {
         margin-left: 38px;
         position: relative;
-        padding-bottom: 44px;
+        padding-bottom: 36px;
       }
       .tech {
         position: absolute;
-        left: 0; right: 0;
+        left: 0; right: 0; bottom: 0;
         background: var(--surface);
         border: 1px solid var(--line);
         border-radius: 14px;
-        padding: 12px 14px;
-        min-height: 88px;
+        padding: 0 14px 8px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        gap: 2px;
       }
-      .tech.t1 { top: 14px; left: 14px; right: -14px; z-index: 2; }
-      .tech.t2 { top: 28px; left: 28px; right: -28px; z-index: 1; }
-      .tech.t3 { top: 42px; left: 42px; right: -42px; z-index: 0; }
+      /* Stacked behind: peek from bottom edge under the source card */
+      .tech.t1 { top: 12px; left: 4px; right: 4px; z-index: 2; }
+      .tech.t2 { top: 24px; left: 8px; right: 8px; z-index: 1; }
+      .tech.t3 { top: 36px; left: 12px; right: 12px; z-index: 0; }
       .source {
         position: relative;
         z-index: 3;

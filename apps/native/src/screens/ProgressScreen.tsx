@@ -36,7 +36,9 @@ type Props = {
   activeTab?: "feed" | "progress";
 };
 
-const STACK_STEP = 14;
+/** Downward depth so tech cards sit behind the source card (not a side fan). */
+const STACK_Y = 12;
+const STACK_X = 4;
 const MAX_BACK_CARDS = 3;
 
 /**
@@ -53,7 +55,6 @@ function ProgressCardView({
   const c = colorsFor(mode);
   const backTechs = item.techIdeas.slice(0, MAX_BACK_CARDS);
   const depth = backTechs.length;
-  const stackPad = depth * STACK_STEP;
 
   return (
     <View style={styles.block}>
@@ -80,11 +81,10 @@ function ProgressCardView({
         </Text>
       </View>
 
-      <View style={[styles.stackWrap, { marginBottom: stackPad }]}>
-        {/* Back → front: furthest tech first so source sits on top */}
+      {/* Source in front; tech cards extend below so they read as stacked behind */}
+      <View style={[styles.stackWrap, { paddingBottom: depth * STACK_Y }]}>
         {[...backTechs].reverse().map((tech, revIndex) => {
-          const fromBack = revIndex;
-          const fromFront = depth - 1 - fromBack;
+          const fromFront = depth - 1 - revIndex;
           return (
             <View
               key={`${item.id}-tech-${fromFront}`}
@@ -93,10 +93,12 @@ function ProgressCardView({
                 {
                   backgroundColor: c.surface,
                   borderColor: c.border,
-                  top: (fromFront + 1) * STACK_STEP,
-                  left: (fromFront + 1) * STACK_STEP,
-                  right: -(fromFront + 1) * STACK_STEP,
-                  zIndex: fromBack,
+                  top: (fromFront + 1) * STACK_Y,
+                  bottom: 0,
+                  left: (fromFront + 1) * STACK_X,
+                  right: (fromFront + 1) * STACK_X,
+                  zIndex: revIndex,
+                  justifyContent: "flex-end",
                 },
               ]}
               accessibilityLabel={`${STR.techIdea}: ${tech}`}
@@ -114,7 +116,7 @@ function ProgressCardView({
                   styles.techBody,
                   { color: c.inkMuted, fontFamily: fonts.sansSemi },
                 ]}
-                numberOfLines={2}
+                numberOfLines={1}
               >
                 {tech}
               </Text>
@@ -446,9 +448,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     borderWidth: 1,
     paddingHorizontal: space[4],
-    paddingVertical: space[3],
-    gap: space[1],
-    minHeight: 72,
+    paddingBottom: space[2],
+    gap: 2,
   },
   sourceCard: {
     borderRadius: radius.card,
