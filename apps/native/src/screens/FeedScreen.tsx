@@ -133,14 +133,6 @@ function ActivityCard({
             >
               <Text
                 style={[
-                  styles.laneLabel,
-                  { color: techCard.label, fontFamily: fonts.sansSemi },
-                ]}
-              >
-                {STR.techIdea}
-              </Text>
-              <Text
-                style={[
                   styles.activityDetail,
                   { color: techCard.body, fontFamily: fonts.sans },
                 ]}

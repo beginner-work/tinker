@@ -104,14 +104,6 @@ function ProgressCardView({
             >
               <Text
                 style={[
-                  styles.laneLabel,
-                  { color: techCard.label, fontFamily: fonts.sansSemi },
-                ]}
-              >
-                {STR.techIdea}
-              </Text>
-              <Text
-                style={[
                   styles.techBody,
                   { color: techCard.body, fontFamily: fonts.sansSemi },
                 ]}
