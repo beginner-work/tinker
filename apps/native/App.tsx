@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { FirstOpenScreen } from "./src/screens/FirstOpenScreen";
 import { FeedScreen } from "./src/screens/FeedScreen";
 import { ConnectScreen } from "./src/screens/ConnectScreen";
+import { CoverageScreen } from "./src/screens/CoverageScreen";
 import { useTinkerFonts } from "./src/fonts";
 import { colorsFor, type ColorMode } from "./src/theme";
 import {
@@ -11,10 +12,10 @@ import {
   type ConnectionState,
 } from "./src/data/connectSeeds";
 
-type Screen = "firstOpen" | "explore" | "connect";
+type Screen = "firstOpen" | "explore" | "connect" | "coverage";
 
 /**
- * Views 1–2: first-open quote → Explore → Connect (pitch + MCP repo).
+ * Views 1–3: first-open → Explore → Connect → Coverage (Peep side-by-side).
  * Fonts: Fraunces + Instrument Sans (tinker design system).
  * Build prompt: build-prompts/product-oriented-dev-feed.md
  */
@@ -49,6 +50,13 @@ export default function App() {
           onConnectionChange={setConnection}
           onBack={() => setScreen("explore")}
         />
+      ) : screen === "coverage" ? (
+        <CoverageScreen
+          mode={mode}
+          connection={connection}
+          onBack={() => setScreen("explore")}
+          onConnect={() => setScreen("connect")}
+        />
       ) : (
         <FeedScreen
           mode={mode}
@@ -56,10 +64,14 @@ export default function App() {
           onToggleMode={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
           onNavigate={(target) => {
             if (target === "connect") setScreen("connect");
-            else if (target === "explore" || target === "feed" || target === "home") {
+            else if (target === "coverage") setScreen("coverage");
+            else if (
+              target === "explore" ||
+              target === "feed" ||
+              target === "home"
+            ) {
               setScreen("explore");
             }
-            // coverage / progress — View 3–4; stay on explore until those ship
           }}
         />
       )}

@@ -72,10 +72,11 @@ organization of founder source ideas and repository source code.
    state only — no AI prose.
    **CHECKPOINT — pause for review.**
 
-3. **View 3 — Coverage view.** Examine repository source against founder
-   source ideas; show covered / unaligned sections as a view (not a chat).
-   Gemma on-device organizes the mapping; labels on screen are allowlisted or
-   verbatim founder phrases / file path names from the repo.
+3. **View 3 — Coverage view (Peep-style side by side).** Examine repository
+   source against founder source ideas in a **side-by-side** split: left pane
+   = pitch ideas (verbatim), right pane = source map + Aligned / Unaligned.
+   Not a chat. Gemma on-device organizes the mapping later; labels on screen
+   are allowlisted or verbatim founder phrases / file path names from the repo.
    **CHECKPOINT — pause for review.**
 
 4. **View 4 — Progress feed.** LinkedIn-style feed of other founders'
@@ -158,6 +159,18 @@ organization of founder source ideas and repository source code.
 - `Manifest pulled`
 - Pitch titles / bodies from the founder's pitch store (verbatim)
 - Repository titles / slugs / install tool names from the MCP hub
+
+### Visible-string allowlist (View 3 — Coverage)
+
+- `Unaligned`
+- `Side by side`
+- `Pitch ideas`
+- `Source map`
+- `Connect a pitch first`
+- `Covered`
+- `Gap`
+- File paths from the connected repository manifest
+- Verbatim pitch / founder idea lines in the left pane
 
 ## Open questions — ask the founder, don't invent
 

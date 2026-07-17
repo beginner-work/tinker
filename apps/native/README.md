@@ -8,7 +8,8 @@ source in the feed. Spec: [`../../build-prompts/product-oriented-dev-feed.md`](.
 
 1. **First open** — quote from pitch / writings  
 2. **Explore** — GitHub-shaped Discover + Activity + floating pill nav  
-3. **Connect** — pick a pitch + pull a repository (MCP hub source of truth)
+3. **Connect** — pick a pitch + pull a repository (MCP hub source of truth)  
+4. **Coverage** — Peep-style **side by side**: pitch ideas | source map + Aligned / Unaligned
 
 Fonts: **Fraunces** + **Instrument Sans**. Light default; Dark toggle.
 

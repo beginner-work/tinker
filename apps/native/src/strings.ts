@@ -46,6 +46,14 @@ export const STR = {
   mcpHubLive: "MCP hub",
   mcpHubLocal: "Local seeds — set MCP URL to pull live",
   manifestPulled: "Manifest pulled",
+  // View 3 — Coverage (Peep-style side by side)
+  unaligned: "Unaligned",
+  sideBySide: "Side by side",
+  pitchIdeas: "Pitch ideas",
+  sourceMap: "Source map",
+  connectPitchFirst: "Connect a pitch first",
+  covered: "Covered",
+  gap: "Gap",
   // Verbatim from pitch-deck.md
   pitchTagline: "Everyone is a founder.",
   pitchProblem:

@@ -36,7 +36,7 @@ every `CHECKPOINT`.
 | 10 | Receipts — the transactions surface threaded into the writing interview | [`build-prompts/receipts.md`](build-prompts/receipts.md) | shipped (+ pending account redesign) |
 | 11 | Social feed — the "find my founders" adjacency tool | [`build-prompts/social-feed.md`](build-prompts/social-feed.md) | shipped |
 | 12 | Pitch validation & multi-pitch sharpening — coherence + $9/mo paid decks | [`build-prompts/pitch-validation.md`](build-prompts/pitch-validation.md) | partial (classifier + storage shipped; review/payment/switcher pending) |
-| 13 | Product-oriented dev feed — Expo iOS GitHub alternative (MCP hub, coverage, progress feed) | [`build-prompts/product-oriented-dev-feed.md`](build-prompts/product-oriented-dev-feed.md) | in progress (Views 1–2) |
+| 13 | Product-oriented dev feed — Expo iOS GitHub alternative (MCP hub, coverage, progress feed) | [`build-prompts/product-oriented-dev-feed.md`](build-prompts/product-oriented-dev-feed.md) | in progress (Views 1–3) |
 
 ## Conventions
 

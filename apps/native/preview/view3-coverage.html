@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=390, initial-scale=1" />
+  <title>tinker View 3 — Coverage side by side</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f2f1ef; --surface: #fff; --border: #e5e1d8; --hair: #ede8e0;
+      --ink: #2d2a26; --muted: #6f6a65; --soft: #a39e96; --forest: #2d5a3d;
+      --accent-muted: rgba(45, 90, 61, 0.12);
+      --gap-bg: rgba(196, 100, 80, 0.12); --gap: #b4533c;
+      --display: "Fraunces", Georgia, serif;
+      --sans: "Instrument Sans", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: var(--sans); background: #e8e4dc; color: var(--ink);
+      display: flex; justify-content: center; padding: 40px 16px 64px;
+    }
+    .phone {
+      width: 390px; height: 780px; background: var(--bg);
+      border-radius: 36px; border: 1px solid var(--border);
+      padding: 44px 16px 20px; box-shadow: 0 12px 40px rgba(45,42,38,.08);
+      position: relative; display: flex; flex-direction: column;
+    }
+    .label {
+      position: absolute; top: -28px; left: 0; right: 0; text-align: center;
+      font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--soft); font-weight: 600;
+    }
+    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .back { display: flex; align-items: center; gap: 2px; font-weight: 500; font-size: 15px; }
+    .search {
+      width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--border);
+      background: var(--surface); display: grid; place-items: center;
+    }
+    h1 {
+      font-family: var(--display); font-size: 28px; font-weight: 700;
+      letter-spacing: -.02em; margin: 0 0 4px;
+    }
+    .sub { font-size: 13px; color: var(--muted); margin: 0 0 10px; }
+    .meta { font-size: 11px; color: var(--soft); font-weight: 500; margin: 0 0 8px; }
+    .counts { display: flex; gap: 16px; margin-bottom: 12px; font-size: 13px; font-weight: 600; }
+    .counts .ok { color: var(--forest); }
+    .counts .bad { color: var(--gap); }
+    .split {
+      flex: 1; display: flex; border: 1px solid var(--border); border-radius: 14px;
+      overflow: hidden; background: var(--surface); min-height: 0;
+    }
+    .pane { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .pane.left { border-right: 1px solid var(--hair); }
+    .pane-head {
+      display: flex; align-items: center; gap: 6px;
+      padding: 10px 10px; border-bottom: 1px solid var(--hair);
+      font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    }
+    .pane-body { flex: 1; overflow: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+    .card {
+      border: 1px solid var(--border); border-radius: 9px; padding: 10px;
+      font-size: 12px; line-height: 1.4;
+    }
+    .path { font-size: 11px; font-weight: 600; margin: 0 0 8px; word-break: break-all; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
+    }
+    .chip.ok { background: var(--accent-muted); color: var(--forest); }
+    .chip.bad { background: var(--gap-bg); color: var(--gap); }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <p class="label">View 3 — Coverage · Peep side by side</p>
+    <div class="top">
+      <div class="back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2d2a26" stroke-width="2"><path d="m15 6-6 6 6 6"/></svg>
+        Back
+      </div>
+      <div class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2d2a26" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      </div>
+    </div>
+    <h1>Coverage</h1>
+    <p class="sub">Side by side</p>
+    <p class="meta">Everyone is a founder. · tinker-native</p>
+    <div class="counts">
+      <span class="ok">Covered: 3</span>
+      <span class="bad">Gap: 1</span>
+    </div>
+
+    <div class="split">
+      <div class="pane left">
+        <div class="pane-head">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5a3d" stroke-width="2"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+          Pitch ideas
+        </div>
+        <div class="pane-body">
+          <div class="card">Everyone is a founder.</div>
+          <div class="card">Engineers stay building and human making becomes a relic of the past…</div>
+          <div class="card">An app that helps engineers discover their pitch over time, on the go.</div>
+          <div class="card">No source in the feed — only progress.</div>
+        </div>
+      </div>
+      <div class="pane">
+        <div class="pane-head">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5a3d" stroke-width="2"><path d="M6 3v12"/><circle cx="6" cy="18" r="3"/><path d="M18 9a3 3 0 1 0-3-3"/><path d="M6 6h6a3 3 0 0 1 3 3v6"/></svg>
+          Source map
+        </div>
+        <div class="pane-body">
+          <div class="card">
+            <p class="path">apps/native/App.tsx</p>
+            <span class="chip ok">Aligned</span>
+          </div>
+          <div class="card">
+            <p class="path">apps/native/src/screens/FirstOpenScreen.tsx</p>
+            <span class="chip ok">Aligned</span>
+          </div>
+          <div class="card">
+            <p class="path">apps/native/src/screens/FeedScreen.tsx</p>
+            <span class="chip ok">Aligned</span>
+          </div>
+          <div class="card">
+            <p class="path">apps/native/src/mcp/client.ts</p>
+            <span class="chip bad">Unaligned</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
