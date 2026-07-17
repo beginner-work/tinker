@@ -36,7 +36,7 @@ type Props = {
   activeTab?: "feed" | "progress";
 };
 
-const STACK_STEP = 10;
+const STACK_STEP = 14;
 const MAX_BACK_CARDS = 3;
 
 /**
