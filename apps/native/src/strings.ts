@@ -46,20 +46,30 @@ export const STR = {
   mcpHubLive: "MCP hub",
   mcpHubLocal: "Local seeds — set MCP URL to pull live",
   manifestPulled: "Manifest pulled",
-  // View 3 — Coverage (one side-by-side pair per swipe)
+  // View 3 — Coverage (one pitch idea → many code files)
   unaligned: "Unaligned",
   sideBySide: "Side by side",
   swipePairs: "One pair at a time — swipe through",
-  oneAtATime: "One at a time — swipe through",
-  swipeHint: "Swipe for the next one",
+  oneAtATime: "One pitch idea — swipe through",
+  swipeHint: "Swipe for the next idea",
   of: "of",
   pitchIdeas: "Pitch ideas",
   sourceMap: "Source map",
   inYourApp: "In your app",
+  codeFiles: "Code files",
   connectPitchFirst: "Connect a pitch first",
   covered: "Covered",
   gap: "Gap",
+  filesLabel: "files",
   surfaceFirstOpen: "First open",
+  // High-level file summaries (allowlisted)
+  fileSumFirstOpen: "Shows your words on first open",
+  fileSumAppShell: "App shell and screen routing",
+  fileSumStrings: "Fixed UI strings and pitch lines",
+  fileSumSeedProgress: "Seed progress for the feed",
+  fileSumExplore: "Explore feed of progress",
+  fileSumConnect: "Connects a pitch to a repository",
+  fileSumMcp: "Pulls repositories from the MCP hub",
   // Verbatim from pitch-deck.md
   pitchTagline: "Everyone is a founder.",
   pitchProblem:

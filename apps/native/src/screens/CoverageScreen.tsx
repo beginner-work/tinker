@@ -5,6 +5,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -19,7 +20,12 @@ import {
 } from "../theme";
 import { STR } from "../strings";
 import { Ionicons, UI_ICONS } from "../icons";
-import { COVERAGE_ROWS, type CoverageRow } from "../data/coverageSeeds";
+import {
+  COVERAGE_PAGES,
+  type CoverageFile,
+  type CoveragePage,
+  type CoverageStatus,
+} from "../data/coverageSeeds";
 import type { ConnectionState } from "../data/connectSeeds";
 import { PITCH_OPTIONS, REPO_OPTIONS } from "../data/connectSeeds";
 
@@ -34,7 +40,7 @@ function StatusChip({
   status,
   mode,
 }: {
-  status: CoverageRow["status"];
+  status: CoverageStatus;
   mode: ColorMode;
 }) {
   const c = colorsFor(mode);
@@ -68,9 +74,63 @@ function StatusChip({
   );
 }
 
+function FileRow({
+  file,
+  mode,
+}: {
+  file: CoverageFile;
+  mode: ColorMode;
+}) {
+  const c = colorsFor(mode);
+  const aligned = file.status === "aligned";
+  return (
+    <View
+      style={[
+        styles.fileRow,
+        { backgroundColor: c.background, borderColor: c.border },
+      ]}
+    >
+      <View style={styles.fileHead}>
+        <Ionicons
+          name="document-outline"
+          size={14}
+          color={aligned ? c.accent : "#b4533c"}
+        />
+        <Text
+          style={[styles.filePath, { color: c.ink, fontFamily: fonts.sansSemi }]}
+          numberOfLines={1}
+        >
+          {file.path.split("/").slice(-2).join("/")}
+        </Text>
+        <Text
+          style={[
+            styles.fileStatus,
+            {
+              color: aligned ? c.accent : "#b4533c",
+              fontFamily: fonts.sansMed,
+            },
+          ]}
+        >
+          {aligned ? STR.aligned : STR.unaligned}
+        </Text>
+      </View>
+      <Text
+        style={[styles.fileSummary, { color: c.inkMuted, fontFamily: fonts.sans }]}
+      >
+        {file.summary}
+      </Text>
+      <Text
+        style={[styles.fileFullPath, { color: c.inkSoft, fontFamily: fonts.sans }]}
+        numberOfLines={1}
+      >
+        {file.path}
+      </Text>
+    </View>
+  );
+}
+
 /**
- * View 3 — one coverage item at a time (swipe). Single composition per page:
- * your words + where it shows in the app. No side-by-side columns.
+ * View 3 — one pitch idea per swipe → multiple code files with summaries.
  */
 export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
   const c = colorsFor(mode);
@@ -79,16 +139,16 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
   const connected = Boolean(connection.connectedAt && pitch && repo);
 
   const [index, setIndex] = useState(0);
-  const listRef = useRef<FlatList<CoverageRow>>(null);
+  const listRef = useRef<FlatList<CoveragePage>>(null);
   const pageWidth = Dimensions.get("window").width;
 
-  const alignedCount = COVERAGE_ROWS.filter((r) => r.status === "aligned").length;
-  const gapCount = COVERAGE_ROWS.length - alignedCount;
-  const current = COVERAGE_ROWS[index];
+  const alignedCount = COVERAGE_PAGES.filter((r) => r.status === "aligned").length;
+  const gapCount = COVERAGE_PAGES.length - alignedCount;
+  const current = COVERAGE_PAGES[index];
 
   function onMomentumEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const next = Math.round(e.nativeEvent.contentOffset.x / pageWidth);
-    setIndex(Math.max(0, Math.min(COVERAGE_ROWS.length - 1, next)));
+    setIndex(Math.max(0, Math.min(COVERAGE_PAGES.length - 1, next)));
   }
 
   return (
@@ -179,7 +239,7 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
 
           <FlatList
             ref={listRef}
-            data={COVERAGE_ROWS}
+            data={COVERAGE_PAGES}
             keyExtractor={(item) => item.id}
             horizontal
             pagingEnabled
@@ -210,27 +270,38 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
                   >
                     {item.idea}
                   </Text>
+                  <StatusChip status={item.status} mode={mode} />
 
                   <View style={[styles.rule, { backgroundColor: c.hairline }]} />
 
-                  <Text
-                    style={[
-                      styles.eyebrow,
-                      { color: c.inkSoft, fontFamily: fonts.sansSemi },
-                    ]}
-                  >
-                    {STR.inYourApp}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.surfaceText,
-                      { color: c.ink, fontFamily: fonts.sansSemi },
-                    ]}
-                  >
-                    {item.surface}
-                  </Text>
+                  <View style={styles.filesHead}>
+                    <Text
+                      style={[
+                        styles.eyebrow,
+                        { color: c.inkSoft, fontFamily: fonts.sansSemi },
+                      ]}
+                    >
+                      {STR.codeFiles}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.filesCount,
+                        { color: c.inkMuted, fontFamily: fonts.sansMed },
+                      ]}
+                    >
+                      {item.files.length} {STR.filesLabel}
+                    </Text>
+                  </View>
 
-                  <StatusChip status={item.status} mode={mode} />
+                  <ScrollView
+                    style={styles.fileList}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {item.files.map((file) => (
+                      <FileRow key={file.path + file.summary} file={file} mode={mode} />
+                    ))}
+                  </ScrollView>
                 </View>
               </View>
             )}
@@ -240,11 +311,13 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
             <Text
               style={[styles.pageLabel, { color: c.inkMuted, fontFamily: fonts.sansMed }]}
             >
-              {index + 1} {STR.of} {COVERAGE_ROWS.length}
-              {current ? ` · ${current.status === "aligned" ? STR.aligned : STR.unaligned}` : ""}
+              {index + 1} {STR.of} {COVERAGE_PAGES.length}
+              {current
+                ? ` · ${current.status === "aligned" ? STR.aligned : STR.unaligned}`
+                : ""}
             </Text>
             <View style={styles.dots}>
-              {COVERAGE_ROWS.map((row, i) => (
+              {COVERAGE_PAGES.map((row, i) => (
                 <Pressable
                   key={row.id}
                   onPress={() => {
@@ -326,17 +399,18 @@ const styles = StyleSheet.create({
     marginBottom: space[4],
   },
   count: { fontSize: text.small },
-  pager: { flexGrow: 0 },
+  pager: { flexGrow: 1 },
   page: {
     paddingHorizontal: space[5],
+    flex: 1,
   },
   card: {
     borderWidth: 1,
     borderRadius: radius.card,
     padding: space[5],
     gap: space[3],
-    minHeight: 320,
-    justifyContent: "flex-start",
+    flex: 1,
+    maxHeight: 440,
   },
   eyebrow: {
     fontSize: text.micro,
@@ -344,19 +418,51 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   ideaText: {
-    fontSize: text.title,
-    lineHeight: 32,
-    letterSpacing: -0.4,
+    fontSize: text.essay,
+    lineHeight: 26,
+    letterSpacing: -0.3,
   },
   rule: {
     height: StyleSheet.hairlineWidth,
-    marginVertical: space[2],
+    marginVertical: space[1],
   },
-  surfaceText: {
-    fontSize: text.display,
-    lineHeight: 28,
-    letterSpacing: -0.3,
+  filesHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  filesCount: { fontSize: text.micro },
+  fileList: {
+    flexGrow: 0,
+    maxHeight: 220,
+  },
+  fileRow: {
+    borderWidth: 1,
+    borderRadius: radius.chip,
+    padding: space[3],
     marginBottom: space[2],
+    gap: 4,
+  },
+  fileHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space[2],
+  },
+  filePath: {
+    flex: 1,
+    fontSize: text.small,
+  },
+  fileStatus: {
+    fontSize: text.micro,
+  },
+  fileSummary: {
+    fontSize: text.small,
+    lineHeight: 18,
+    paddingLeft: 22,
+  },
+  fileFullPath: {
+    fontSize: 11,
+    paddingLeft: 22,
   },
   chip: {
     alignSelf: "flex-start",
@@ -366,12 +472,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[3],
     paddingVertical: space[1],
     borderRadius: radius.pill,
-    marginTop: "auto",
   },
   chipText: { fontSize: text.micro },
   footer: {
     alignItems: "center",
-    paddingTop: space[5],
+    paddingTop: space[4],
     paddingBottom: space[6],
     gap: space[3],
   },

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>tinker · Coverage (one at a time)</title>
+    <title>tinker · Coverage (idea → files)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -53,41 +53,25 @@
         letter-spacing: -0.03em;
         margin: 0 0 4px;
       }
-      .sub {
-        margin: 0 0 10px;
-        color: var(--muted);
-        font-size: 13px;
-      }
-      .meta {
-        margin: 0;
-        color: var(--muted);
-        font-size: 13px;
-        line-height: 1.45;
-      }
+      .sub { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+      .meta { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
       .meta strong { color: var(--ink); font-weight: 600; }
       .counts {
-        display: flex;
-        gap: 16px;
-        padding: 14px 20px 0;
-        font-size: 13px;
-        font-weight: 600;
+        display: flex; gap: 16px; padding: 12px 20px 0;
+        font-size: 13px; font-weight: 600;
       }
       .ok { color: var(--ok); }
       .gap { color: #b4533c; }
-      .stage {
-        flex: 1;
-        padding: 16px 20px 0;
-        min-height: 0;
-      }
+      .stage { flex: 1; padding: 12px 20px 0; min-height: 0; }
       .card {
         background: var(--surface);
         border: 1px solid var(--line);
         border-radius: 14px;
-        padding: 22px 20px;
-        min-height: 340px;
+        padding: 18px 16px;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 10px;
+        height: 480px;
       }
       .eyebrow {
         margin: 0;
@@ -100,48 +84,50 @@
       .idea {
         margin: 0;
         font-family: Fraunces, Georgia, serif;
-        font-size: 26px;
-        font-weight: 600;
-        letter-spacing: -0.03em;
-        line-height: 1.25;
-      }
-      .rule {
-        height: 1px;
-        background: var(--line);
-        margin: 6px 0;
-      }
-      .surface {
-        margin: 0;
         font-size: 22px;
         font-weight: 600;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.03em;
+        line-height: 1.3;
       }
       .badge {
-        margin-top: auto;
         align-self: flex-start;
         display: inline-flex;
-        padding: 6px 12px;
+        padding: 5px 10px;
         border-radius: 999px;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 600;
         background: #dafbe1;
         color: var(--ok);
         border: 1px solid #4ac26b66;
       }
+      .rule { height: 1px; background: var(--line); margin: 4px 0; }
+      .files-head {
+        display: flex; justify-content: space-between; align-items: center;
+      }
+      .files-count { font-size: 11px; color: var(--muted); font-weight: 500; }
+      .files { display: flex; flex-direction: column; gap: 8px; overflow: auto; }
+      .file {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: var(--bg);
+      }
+      .file-top {
+        display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+      }
+      .file-name {
+        flex: 1; font-size: 13px; font-weight: 600;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .file-st { font-size: 11px; font-weight: 500; color: var(--ok); }
+      .file-sum { margin: 0 0 2px 0; font-size: 13px; color: var(--muted); line-height: 1.35; }
+      .file-path { margin: 0; font-size: 11px; color: #8c959f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .footer {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-        padding: 18px 16px 28px;
+        display: flex; flex-direction: column; align-items: center; gap: 10px;
+        padding: 14px 16px 28px;
       }
       .dots { display: flex; align-items: center; gap: 6px; }
-      .dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--line);
-      }
+      .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
       .dot.on { background: var(--accent); width: 18px; border-radius: 4px; }
       .hint, .counter { margin: 0; font-size: 12px; color: var(--muted); }
     </style>
@@ -150,7 +136,7 @@
     <div class="phone">
       <header class="top">
         <p class="brand">Coverage</p>
-        <p class="sub">One at a time — swipe through</p>
+        <p class="sub">One pitch idea — swipe through</p>
         <p class="meta">
           <strong>Pitch · Everyone is a founder.</strong><br />
           Repository · tinker
@@ -164,10 +150,38 @@
         <article class="card">
           <p class="eyebrow">Your words</p>
           <p class="idea">Everyone is a founder.</p>
-          <div class="rule"></div>
-          <p class="eyebrow">In your app</p>
-          <p class="surface">First open</p>
           <span class="badge">Aligned</span>
+          <div class="rule"></div>
+          <div class="files-head">
+            <p class="eyebrow">Code files</p>
+            <span class="files-count">3 files</span>
+          </div>
+          <div class="files">
+            <div class="file">
+              <div class="file-top">
+                <span class="file-name">screens/FirstOpenScreen.tsx</span>
+                <span class="file-st">Aligned</span>
+              </div>
+              <p class="file-sum">Shows your words on first open</p>
+              <p class="file-path">apps/native/src/screens/FirstOpenScreen.tsx</p>
+            </div>
+            <div class="file">
+              <div class="file-top">
+                <span class="file-name">native/App.tsx</span>
+                <span class="file-st">Aligned</span>
+              </div>
+              <p class="file-sum">App shell and screen routing</p>
+              <p class="file-path">apps/native/App.tsx</p>
+            </div>
+            <div class="file">
+              <div class="file-top">
+                <span class="file-name">src/strings.ts</span>
+                <span class="file-st">Aligned</span>
+              </div>
+              <p class="file-sum">Fixed UI strings and pitch lines</p>
+              <p class="file-path">apps/native/src/strings.ts</p>
+            </div>
+          </div>
         </article>
       </div>
       <footer class="footer">
@@ -178,7 +192,7 @@
           <span class="dot"></span>
           <span class="dot"></span>
         </div>
-        <p class="hint">Swipe for the next one</p>
+        <p class="hint">Swipe for the next idea</p>
       </footer>
     </div>
   </body>

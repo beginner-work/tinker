@@ -166,11 +166,16 @@ organization of founder source ideas and repository source code.
 - `Side by side`
 - `Pitch ideas`
 - `Source map`
+- `Code files`
+- `files`
+- `One pitch idea — swipe through`
+- `Swipe for the next idea`
 - `Connect a pitch first`
 - `Covered`
 - `Gap`
 - File paths from the connected repository manifest
-- Verbatim pitch / founder idea lines in the left pane
+- High-level file summaries (fixed allowlist in `apps/native/src/strings.ts`)
+- Verbatim pitch / founder idea lines (one idea per swipe → many files)
 
 ## Open questions — ask the founder, don't invent
 
