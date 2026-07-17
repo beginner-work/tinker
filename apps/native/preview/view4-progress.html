@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tinker · Progress feed</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f6f8fa;
+        --ink: #1f2328;
+        --muted: #656d76;
+        --line: #d0d7de;
+        --surface: #ffffff;
+        --accent: #0969da;
+        --ok: #1a7f37;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #0d1117;
+        font-family: "Instrument Sans", system-ui, sans-serif;
+        color: var(--ink);
+      }
+      .phone {
+        width: 390px;
+        height: 844px;
+        border-radius: 36px;
+        overflow: hidden;
+        background: var(--bg);
+        border: 1px solid #30363d;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+      .scroll {
+        flex: 1;
+        overflow: auto;
+        padding: 54px 20px 110px;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .title {
+        margin: 0;
+        font-family: Fraunces, Georgia, serif;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+      }
+      .chip {
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .sub { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+      .someone { margin: 0 0 14px; font-size: 16px; font-weight: 600; }
+      .banner {
+        display: flex; align-items: center; gap: 8px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        border-radius: 14px;
+        padding: 10px 12px;
+        margin-bottom: 18px;
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .block { margin-bottom: 22px; }
+      .head {
+        display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;
+      }
+      .avatar {
+        width: 28px; height: 28px; border-radius: 999px;
+        background: #ddf4ff; color: var(--accent);
+        display: grid; place-items: center;
+        font-size: 13px; font-weight: 700;
+      }
+      .meta { flex: 1; font-size: 14px; line-height: 1.35; }
+      .meta strong { font-weight: 700; }
+      .when { font-size: 13px; color: var(--muted); margin-top: 2px; }
+      .card {
+        margin-left: 38px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+      .repo { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 500; }
+      .body {
+        margin: 0 0 10px;
+        font-family: Fraunces, Georgia, serif;
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.35;
+      }
+      .badge {
+        display: inline-flex;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        background: #dafbe1;
+        color: var(--ok);
+      }
+      .tabbar {
+        position: absolute;
+        left: 20px; right: 20px; bottom: 18px;
+        display: flex; justify-content: space-around;
+        background: rgba(255,255,255,0.96);
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        padding: 10px 6px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      }
+      .tab {
+        display: flex; flex-direction: column; align-items: center; gap: 2px;
+        min-width: 64px; font-size: 11px; color: var(--muted);
+      }
+      .tab.on { color: var(--accent); font-weight: 600; }
+      .dot {
+        width: 40px; height: 28px; border-radius: 999px;
+        display: grid; place-items: center;
+      }
+      .tab.on .dot { background: #ddf4ff; }
+    </style>
+  </head>
+  <body>
+    <div class="phone">
+      <div class="scroll">
+        <div class="top">
+          <p class="title">Progress</p>
+          <span class="chip">Light</span>
+        </div>
+        <p class="sub">No source in the feed — only progress.</p>
+        <p class="someone">Someone you care about is here</p>
+        <div class="banner">Local seeds — set MCP URL for live feed</div>
+
+        <div class="block">
+          <div class="head">
+            <div class="avatar">M</div>
+            <p class="meta">Maya contributed to <strong>Progress</strong></p>
+            <span class="when">Just now</span>
+          </div>
+          <div class="card">
+            <p class="repo">tinker / Progress</p>
+            <p class="body">Everyone is a founder.</p>
+            <span class="badge">Aligned</span>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="head">
+            <div class="avatar">J</div>
+            <p class="meta">Jordan contributed to <strong>Coverage</strong></p>
+            <span class="when">Today</span>
+          </div>
+          <div class="card">
+            <p class="repo">tinker / Coverage</p>
+            <p class="body">No source in the feed — only progress.</p>
+            <span class="badge">Aligned</span>
+          </div>
+        </div>
+      </div>
+      <nav class="tabbar" aria-label="Primary">
+        <div class="tab"><span class="dot">⌂</span>Home</div>
+        <div class="tab"><span class="dot">☰</span>Feed</div>
+        <div class="tab"><span class="dot">◎</span>Explore</div>
+        <div class="tab on"><span class="dot">●</span>Progress</div>
+      </nav>
+    </div>
+  </body>
+</html>

@@ -5,6 +5,7 @@ import { FirstOpenScreen } from "./src/screens/FirstOpenScreen";
 import { FeedScreen } from "./src/screens/FeedScreen";
 import { ConnectScreen } from "./src/screens/ConnectScreen";
 import { CoverageScreen } from "./src/screens/CoverageScreen";
+import { ProgressScreen } from "./src/screens/ProgressScreen";
 import { useTinkerFonts } from "./src/fonts";
 import { colorsFor, type ColorMode } from "./src/theme";
 import {
@@ -12,10 +13,16 @@ import {
   type ConnectionState,
 } from "./src/data/connectSeeds";
 
-type Screen = "firstOpen" | "explore" | "connect" | "coverage";
+type Screen =
+  | "firstOpen"
+  | "explore"
+  | "connect"
+  | "coverage"
+  | "progress"
+  | "feed";
 
 /**
- * Views 1–3: first-open → Explore → Connect → Coverage (Peep side-by-side).
+ * Views 1–4: first-open → Explore → Connect → Coverage → Progress feed.
  * Fonts: Fraunces + Instrument Sans (tinker design system).
  * Build prompt: build-prompts/product-oriented-dev-feed.md
  */
@@ -26,6 +33,7 @@ export default function App() {
   const [connection, setConnection] =
     useState<ConnectionState>(EMPTY_CONNECTION);
   const c = colorsFor(mode);
+  const connected = Boolean(connection.connectedAt);
 
   if (!fontsLoaded) {
     return (
@@ -33,6 +41,13 @@ export default function App() {
         <ActivityIndicator color={c.accent} />
       </View>
     );
+  }
+
+  function onNavigate(target: string) {
+    if (target === "connect") setScreen("connect");
+    else if (target === "coverage") setScreen("coverage");
+    else if (target === "progress" || target === "feed") setScreen(target as Screen);
+    else if (target === "explore" || target === "home") setScreen("explore");
   }
 
   return (
@@ -57,22 +72,20 @@ export default function App() {
           onBack={() => setScreen("explore")}
           onConnect={() => setScreen("connect")}
         />
+      ) : screen === "progress" || screen === "feed" ? (
+        <ProgressScreen
+          mode={mode}
+          connected={connected}
+          activeTab={screen === "feed" ? "feed" : "progress"}
+          onToggleMode={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
+          onNavigate={onNavigate}
+        />
       ) : (
         <FeedScreen
           mode={mode}
-          connected={Boolean(connection.connectedAt)}
+          connected={connected}
           onToggleMode={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
-          onNavigate={(target) => {
-            if (target === "connect") setScreen("connect");
-            else if (target === "coverage") setScreen("coverage");
-            else if (
-              target === "explore" ||
-              target === "feed" ||
-              target === "home"
-            ) {
-              setScreen("explore");
-            }
-          }}
+          onNavigate={onNavigate}
         />
       )}
     </SafeAreaView>

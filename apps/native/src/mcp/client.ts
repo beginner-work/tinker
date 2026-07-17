@@ -1,11 +1,12 @@
 /**
- * Thin MCP hub client for repository pull/list.
+ * Thin MCP hub client for repository pull/list + progress feed.
  * When EXPO_PUBLIC_MCP_URL + EXPO_PUBLIC_MCP_BEARER_TOKEN are set, calls the
- * Worker tools. Otherwise returns null so the UI uses local seed repos
- * (still the same manifest shape as the hub).
+ * Worker tools. Otherwise returns null so the UI uses local seeds
+ * (same shapes as the hub).
  */
 
 import type { RepoOption } from "../data/connectSeeds";
+import type { ProgressEvent } from "../data/progressSeeds";
 
 type McpToolResult = {
   content?: Array<{ type: string; text?: string }>;
@@ -96,4 +97,25 @@ export async function pullRepoFromHub(
 
 export function isMcpConfigured(): boolean {
   return Boolean(mcpConfig());
+}
+
+/** Read progress feed from MCP hub, or null to fall back to seeds. */
+export async function fetchProgressFeed(opts?: {
+  limit?: number;
+  owner?: string;
+}): Promise<ProgressEvent[] | null> {
+  const args: Record<string, unknown> = { limit: opts?.limit ?? 30 };
+  if (opts?.owner) args.owner = opts.owner;
+  const data = (await callTool("progress_feed", args)) as {
+    events?: Array<Record<string, unknown>>;
+  } | null;
+  if (!data?.events || !Array.isArray(data.events)) return null;
+  return data.events.map((raw) => ({
+    id: String(raw.id),
+    repositoryId: String(raw.repositoryId ?? raw.repository_id ?? ""),
+    owner: raw.owner != null ? String(raw.owner) : null,
+    kind: String(raw.kind ?? "Progress"),
+    body: String(raw.body ?? ""),
+    createdAt: String(raw.createdAt ?? raw.created_at ?? new Date().toISOString()),
+  }));
 }

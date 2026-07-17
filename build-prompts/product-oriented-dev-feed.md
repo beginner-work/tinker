@@ -177,6 +177,18 @@ organization of founder source ideas and repository source code.
 - High-level file summaries (fixed allowlist in `apps/native/src/strings.ts`)
 - Verbatim pitch / founder idea lines (one idea per swipe → many files)
 
+### Visible-string allowlist (View 4 — Progress feed)
+
+- `Someone you care about is here`
+- `Pull live feed`
+- `Local seeds — set MCP URL for live feed`
+- `Refresh`
+- `Maya`
+- `Jordan`
+- Progress event bodies from MCP hub (verbatim founder lines / allowlisted UI)
+- Owner display names from MCP progress events
+- Kind labels reuse: `Progress`, `Coverage`, `Connect`
+
 ## Open questions — ask the founder, don't invent
 
 - **[NEEDS INPUT: success signal in one week]** — interview stopped before F3.

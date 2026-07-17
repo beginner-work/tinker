@@ -76,4 +76,11 @@ export const STR = {
     "Engineers stay building and human making becomes a relic of the past…",
   pitchSolution:
     "An app that helps engineers discover their pitch over time, on the go.",
+  // View 4 — Progress feed (people you care about)
+  maya: "Maya",
+  jordan: "Jordan",
+  someoneHere: "Someone you care about is here",
+  pullLiveFeed: "Pull live feed",
+  localFeed: "Local seeds — set MCP URL for live feed",
+  refresh: "Refresh",
 } as const;
