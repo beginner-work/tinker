@@ -88,17 +88,16 @@
       }
       .tech {
         position: absolute;
-        left: 0; right: 0; bottom: 0;
         background: var(--surface);
         border: 1px solid var(--line);
         border-radius: 14px;
-        padding: 0 14px 8px;
+        padding: 12px 14px;
+        min-height: 140px;
         display: flex;
         flex-direction: column;
-        justify-content: flex-end;
-        gap: 2px;
+        gap: 4px;
       }
-      /* Stacked behind: peek from bottom edge under the source card */
+      /* Full cards stacked behind; offset down so edges peek under source */
       .tech.t1 { top: 12px; left: 4px; right: 4px; z-index: 2; }
       .tech.t2 { top: 24px; left: 8px; right: 8px; z-index: 1; }
       .tech.t3 { top: 36px; left: 12px; right: 12px; z-index: 0; }

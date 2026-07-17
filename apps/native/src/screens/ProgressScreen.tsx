@@ -81,7 +81,7 @@ function ProgressCardView({
         </Text>
       </View>
 
-      {/* Source in front; tech cards extend below so they read as stacked behind */}
+      {/* Full tech cards offset behind; bottom edges peek under the source card */}
       <View style={[styles.stackWrap, { paddingBottom: depth * STACK_Y }]}>
         {[...backTechs].reverse().map((tech, revIndex) => {
           const fromFront = depth - 1 - revIndex;
@@ -94,11 +94,9 @@ function ProgressCardView({
                   backgroundColor: c.surface,
                   borderColor: c.border,
                   top: (fromFront + 1) * STACK_Y,
-                  bottom: 0,
                   left: (fromFront + 1) * STACK_X,
                   right: (fromFront + 1) * STACK_X,
                   zIndex: revIndex,
-                  justifyContent: "flex-end",
                 },
               ]}
               accessibilityLabel={`${STR.techIdea}: ${tech}`}
@@ -116,7 +114,7 @@ function ProgressCardView({
                   styles.techBody,
                   { color: c.inkMuted, fontFamily: fonts.sansSemi },
                 ]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {tech}
               </Text>
