@@ -10,6 +10,7 @@ import {
   fonts,
   radius,
   space,
+  techCard,
   text,
   type ColorMode,
 } from "../theme";
@@ -82,7 +83,6 @@ function ActivityCard({
   mode: ColorMode;
 }) {
   const c = colorsFor(mode);
-  const techTheme = colorsFor("dark");
   const back = item.techIdeas.slice(0, MAX_BACK);
   const depth = back.length;
 
@@ -122,8 +122,8 @@ function ActivityCard({
               style={[
                 styles.techBackCard,
                 {
-                  backgroundColor: techTheme.surface,
-                  borderColor: techTheme.border,
+                  backgroundColor: techCard.surface,
+                  borderColor: techCard.border,
                   top: (fromFront + 1) * STACK_Y,
                   left: (fromFront + 1) * STACK_X,
                   right: (fromFront + 1) * STACK_X,
@@ -134,7 +134,7 @@ function ActivityCard({
               <Text
                 style={[
                   styles.laneLabel,
-                  { color: techTheme.forestSoft, fontFamily: fonts.sansSemi },
+                  { color: techCard.label, fontFamily: fonts.sansSemi },
                 ]}
               >
                 {STR.techIdea}
@@ -142,7 +142,7 @@ function ActivityCard({
               <Text
                 style={[
                   styles.activityDetail,
-                  { color: techTheme.inkMuted, fontFamily: fonts.sans },
+                  { color: techCard.body, fontFamily: fonts.sans },
                 ]}
                 numberOfLines={2}
               >
@@ -185,11 +185,6 @@ function ActivityCard({
             ]}
           >
             {item.sourceIdea}
-          </Text>
-          <Text
-            style={[styles.stackHint, { color: c.inkSoft, fontFamily: fonts.sans }]}
-          >
-            {item.techIdeas.length} {STR.techCards}
           </Text>
         </View>
       </View>
@@ -505,9 +500,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     borderWidth: 1,
     paddingHorizontal: space[4],
-    paddingVertical: space[3],
+    paddingVertical: space[2],
     gap: 4,
-    minHeight: 64,
   },
   activityCard: {
     borderRadius: radius.card,
@@ -535,10 +529,6 @@ const styles = StyleSheet.create({
   activityDetail: {
     fontSize: text.small,
     lineHeight: 18,
-  },
-  stackHint: {
-    fontSize: text.micro,
-    marginTop: space[1],
   },
   tabBar: {
     position: "absolute",

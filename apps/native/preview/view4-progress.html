@@ -19,10 +19,9 @@
         --line: #e5e1d8;
         --surface: #ffffff;
         --accent: #2d5a3d;
-        --tech-bg: #1c1916;
-        --tech-border: #3a342c;
-        --tech-ink: #a39e96;
-        --tech-label: #7bc47a;
+        --tech-bg: #9a9590;
+        --tech-border: #857f78;
+        --tech-body: #f0ece6;
       }
       * { box-sizing: border-box; }
       body {
@@ -97,11 +96,10 @@
         background: var(--tech-bg);
         border: 1px solid var(--tech-border);
         border-radius: 14px;
-        padding: 12px 14px;
-        min-height: 140px;
+        padding: 8px 14px;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
       }
       .tech.t1 { top: 12px; left: 4px; right: 4px; z-index: 2; }
       .tech.t2 { top: 24px; left: 8px; right: 8px; z-index: 1; }
@@ -127,7 +125,7 @@
         text-transform: uppercase;
       }
       .lane.source { color: var(--accent); }
-      .lane.tech { color: var(--tech-label); }
+      .lane.tech { color: #fffdf7; }
       .body {
         margin: 0;
         font-family: Fraunces, Georgia, serif;
@@ -140,10 +138,9 @@
         margin: 0;
         font-size: 13px;
         font-weight: 600;
-        color: var(--tech-ink);
+        color: var(--tech-body);
         line-height: 1.35;
       }
-      .hint { margin: 0; font-size: 11px; color: var(--soft); }
     </style>
   </head>
   <body>
@@ -179,7 +176,6 @@
               <p class="repo">tinker / Progress</p>
               <p class="lane source">Source idea</p>
               <p class="body">Everyone is a founder.</p>
-              <p class="hint">3 tech cards</p>
             </article>
           </div>
         </div>
@@ -203,7 +199,6 @@
               <p class="repo">tinker / Coverage</p>
               <p class="lane source">Source idea</p>
               <p class="body">An app that helps engineers discover their pitch over time, on the go.</p>
-              <p class="hint">2 tech cards</p>
             </article>
           </div>
         </div>

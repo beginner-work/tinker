@@ -103,6 +103,14 @@ export function colorsFor(mode: ColorMode) {
   return mode === "dark" ? dark : light;
 }
 
+/** Stacked tech-idea cards — warm gray deck behind source (not black). */
+export const techCard = {
+  surface: "#9a9590",
+  border: "#857f78",
+  label: "#fffdf7",
+  body: "#f0ece6",
+} as const;
+
 export const theme = {
   fonts,
   space,

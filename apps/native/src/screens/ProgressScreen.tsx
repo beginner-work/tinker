@@ -13,6 +13,7 @@ import {
   fonts,
   radius,
   space,
+  techCard,
   text,
   type ColorMode,
 } from "../theme";
@@ -43,7 +44,7 @@ const MAX_BACK_CARDS = 3;
 
 /**
  * Founder source-idea card in front (follows app mode);
- * tech idea cards stacked behind always use dark theme.
+ * tech idea cards stacked behind in warm gray (content-sized — no bottom slab).
  * No bottom tabs on this surface.
  */
 function ProgressCardView({
@@ -54,7 +55,6 @@ function ProgressCardView({
   mode: ColorMode;
 }) {
   const c = colorsFor(mode);
-  const tech = colorsFor("dark");
   const backTechs = item.techIdeas.slice(0, MAX_BACK_CARDS);
   const depth = backTechs.length;
 
@@ -92,8 +92,8 @@ function ProgressCardView({
               style={[
                 styles.techBackCard,
                 {
-                  backgroundColor: tech.surface,
-                  borderColor: tech.border,
+                  backgroundColor: techCard.surface,
+                  borderColor: techCard.border,
                   top: (fromFront + 1) * STACK_Y,
                   left: (fromFront + 1) * STACK_X,
                   right: (fromFront + 1) * STACK_X,
@@ -105,7 +105,7 @@ function ProgressCardView({
               <Text
                 style={[
                   styles.laneLabel,
-                  { color: tech.forestSoft, fontFamily: fonts.sansSemi },
+                  { color: techCard.label, fontFamily: fonts.sansSemi },
                 ]}
               >
                 {STR.techIdea}
@@ -113,7 +113,7 @@ function ProgressCardView({
               <Text
                 style={[
                   styles.techBody,
-                  { color: tech.inkMuted, fontFamily: fonts.sansSemi },
+                  { color: techCard.body, fontFamily: fonts.sansSemi },
                 ]}
                 numberOfLines={2}
               >
@@ -157,16 +157,6 @@ function ProgressCardView({
           >
             {item.sourceIdea}
           </Text>
-          {item.techIdeas.length > 0 ? (
-            <Text
-              style={[
-                styles.stackHint,
-                { color: c.inkSoft, fontFamily: fonts.sans },
-              ]}
-            >
-              {item.techIdeas.length} {STR.techCards}
-            </Text>
-          ) : null}
         </View>
       </View>
     </View>
@@ -408,9 +398,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     borderWidth: 1,
     paddingHorizontal: space[4],
-    paddingVertical: space[3],
-    gap: space[1],
-    minHeight: 140,
+    paddingVertical: space[2],
+    gap: 2,
   },
   sourceCard: {
     borderRadius: radius.card,
@@ -437,9 +426,5 @@ const styles = StyleSheet.create({
   techBody: {
     fontSize: text.body,
     lineHeight: 20,
-  },
-  stackHint: {
-    fontSize: text.micro,
-    marginTop: space[1],
   },
 });
