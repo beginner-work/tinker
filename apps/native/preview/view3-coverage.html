@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>tinker · Coverage (swipe pairs)</title>
+    <title>tinker · Coverage (one at a time)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -19,8 +19,6 @@
         --surface: #ffffff;
         --accent: #0969da;
         --ok: #1a7f37;
-        --warn: #9a6700;
-        --pill: #eaeef2;
       }
       * { box-sizing: border-box; }
       body {
@@ -44,7 +42,7 @@
         flex-direction: column;
       }
       .top {
-        padding: 54px 20px 14px;
+        padding: 54px 20px 12px;
         background: var(--surface);
         border-bottom: 1px solid var(--line);
       }
@@ -53,7 +51,12 @@
         font-size: 28px;
         font-weight: 600;
         letter-spacing: -0.03em;
-        margin: 0 0 6px;
+        margin: 0 0 4px;
+      }
+      .sub {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 13px;
       }
       .meta {
         margin: 0;
@@ -62,62 +65,61 @@
         line-height: 1.45;
       }
       .meta strong { color: var(--ink); font-weight: 600; }
+      .counts {
+        display: flex;
+        gap: 16px;
+        padding: 14px 20px 0;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .ok { color: var(--ok); }
+      .gap { color: #b4533c; }
       .stage {
         flex: 1;
-        display: flex;
-        flex-direction: column;
-        padding: 16px 16px 0;
+        padding: 16px 20px 0;
         min-height: 0;
       }
-      .pair {
-        flex: 1;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        min-height: 0;
-      }
-      .pane {
+      .card {
         background: var(--surface);
         border: 1px solid var(--line);
         border-radius: 14px;
-        padding: 14px 12px;
+        padding: 22px 20px;
+        min-height: 340px;
         display: flex;
         flex-direction: column;
-        min-height: 0;
+        gap: 12px;
       }
-      .label {
+      .eyebrow {
+        margin: 0;
         font-size: 11px;
         font-weight: 600;
         letter-spacing: 0.06em;
         text-transform: uppercase;
         color: var(--muted);
-        margin-bottom: 10px;
       }
-      .body {
+      .idea {
         margin: 0;
-        font-size: 16px;
-        line-height: 1.45;
-        color: var(--ink);
-        flex: 1;
-      }
-      .surface-name {
         font-family: Fraunces, Georgia, serif;
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 1.25;
+      }
+      .rule {
+        height: 1px;
+        background: var(--line);
+        margin: 6px 0;
+      }
+      .surface {
+        margin: 0;
         font-size: 22px;
         font-weight: 600;
         letter-spacing: -0.02em;
-        margin: 0;
-        flex: 1;
-      }
-      .footer {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-        padding: 16px 16px 28px;
       }
       .badge {
+        margin-top: auto;
+        align-self: flex-start;
         display: inline-flex;
-        align-items: center;
         padding: 6px 12px;
         border-radius: 999px;
         font-size: 13px;
@@ -126,7 +128,14 @@
         color: var(--ok);
         border: 1px solid #4ac26b66;
       }
-      .dots { display: flex; gap: 6px; }
+      .footer {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 18px 16px 28px;
+      }
+      .dots { display: flex; align-items: center; gap: 6px; }
       .dot {
         width: 7px;
         height: 7px;
@@ -134,41 +143,42 @@
         background: var(--line);
       }
       .dot.on { background: var(--accent); width: 18px; border-radius: 4px; }
-      .hint { margin: 0; font-size: 12px; color: var(--muted); }
-      .counter { margin: 0; font-size: 12px; color: var(--muted); font-weight: 500; }
+      .hint, .counter { margin: 0; font-size: 12px; color: var(--muted); }
     </style>
   </head>
   <body>
     <div class="phone">
       <header class="top">
-        <p class="brand">tinker</p>
+        <p class="brand">Coverage</p>
+        <p class="sub">One at a time — swipe through</p>
         <p class="meta">
-          <strong>Pitch · no AI-written content</strong><br />
+          <strong>Pitch · Everyone is a founder.</strong><br />
           Repository · tinker
         </p>
       </header>
+      <div class="counts">
+        <span class="ok">Covered: 3</span>
+        <span class="gap">Gap: 1</span>
+      </div>
       <div class="stage">
-        <div class="pair">
-          <section class="pane">
-            <p class="label">Your words</p>
-            <p class="body">no AI-written content</p>
-          </section>
-          <section class="pane">
-            <p class="label">In your app</p>
-            <p class="surface-name">First open</p>
-          </section>
-        </div>
+        <article class="card">
+          <p class="eyebrow">Your words</p>
+          <p class="idea">Everyone is a founder.</p>
+          <div class="rule"></div>
+          <p class="eyebrow">In your app</p>
+          <p class="surface">First open</p>
+          <span class="badge">Aligned</span>
+        </article>
       </div>
       <footer class="footer">
-        <span class="badge">Aligned</span>
+        <p class="counter">1 of 4 · Aligned</p>
         <div class="dots" aria-hidden="true">
           <span class="dot on"></span>
           <span class="dot"></span>
           <span class="dot"></span>
           <span class="dot"></span>
         </div>
-        <p class="counter">1 of 4</p>
-        <p class="hint">Swipe for the next pair</p>
+        <p class="hint">Swipe for the next one</p>
       </footer>
     </div>
   </body>

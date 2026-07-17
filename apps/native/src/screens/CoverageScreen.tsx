@@ -69,9 +69,8 @@ function StatusChip({
 }
 
 /**
- * View 3 — one orthogonal side-by-side pair at a time; swipe through pairs.
- * Left: one pitch idea. Right: one source surface + alignment.
- * Meta uses human labels (Pitch / Repository titles) — never opaque slugs.
+ * View 3 — one coverage item at a time (swipe). Single composition per page:
+ * your words + where it shows in the app. No side-by-side columns.
  */
 export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
   const c = colorsFor(mode);
@@ -85,6 +84,7 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
 
   const alignedCount = COVERAGE_ROWS.filter((r) => r.status === "aligned").length;
   const gapCount = COVERAGE_ROWS.length - alignedCount;
+  const current = COVERAGE_ROWS[index];
 
   function onMomentumEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const next = Math.round(e.nativeEvent.contentOffset.x / pageWidth);
@@ -121,7 +121,7 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
           {STR.coverage}
         </Text>
         <Text style={[styles.sub, { color: c.inkMuted, fontFamily: fonts.sans }]}>
-          {STR.swipePairs}
+          {STR.oneAtATime}
         </Text>
       </View>
 
@@ -190,68 +190,47 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
               <View style={[styles.page, { width: pageWidth }]}>
                 <View
                   style={[
-                    styles.pairCard,
+                    styles.card,
                     { backgroundColor: c.surface, borderColor: c.border },
                   ]}
                 >
-                  <View
+                  <Text
                     style={[
-                      styles.half,
-                      styles.halfLeft,
-                      { borderRightColor: c.hairline },
+                      styles.eyebrow,
+                      { color: c.inkSoft, fontFamily: fonts.sansSemi },
                     ]}
                   >
-                    <View style={styles.halfHead}>
-                      <Ionicons
-                        name="document-text-outline"
-                        size={14}
-                        color={c.forest}
-                      />
-                      <Text
-                        style={[
-                          styles.halfTitle,
-                          { color: c.ink, fontFamily: fonts.sansSemi },
-                        ]}
-                      >
-                        {STR.yourWords}
-                      </Text>
-                    </View>
-                    <Text
-                      style={[
-                        styles.ideaText,
-                        { color: c.ink, fontFamily: fonts.displaySemi },
-                      ]}
-                    >
-                      {item.idea}
-                    </Text>
-                  </View>
+                    {STR.yourWords}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.ideaText,
+                      { color: c.ink, fontFamily: fonts.displaySemi },
+                    ]}
+                  >
+                    {item.idea}
+                  </Text>
 
-                  <View style={styles.half}>
-                    <View style={styles.halfHead}>
-                      <Ionicons
-                        name="git-branch-outline"
-                        size={14}
-                        color={c.forest}
-                      />
-                      <Text
-                        style={[
-                          styles.halfTitle,
-                          { color: c.ink, fontFamily: fonts.sansSemi },
-                        ]}
-                      >
-                        {STR.inYourApp}
-                      </Text>
-                    </View>
-                    <Text
-                      style={[
-                        styles.surfaceText,
-                        { color: c.ink, fontFamily: fonts.sansSemi },
-                      ]}
-                    >
-                      {item.surface}
-                    </Text>
-                    <StatusChip status={item.status} mode={mode} />
-                  </View>
+                  <View style={[styles.rule, { backgroundColor: c.hairline }]} />
+
+                  <Text
+                    style={[
+                      styles.eyebrow,
+                      { color: c.inkSoft, fontFamily: fonts.sansSemi },
+                    ]}
+                  >
+                    {STR.inYourApp}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.surfaceText,
+                      { color: c.ink, fontFamily: fonts.sansSemi },
+                    ]}
+                  >
+                    {item.surface}
+                  </Text>
+
+                  <StatusChip status={item.status} mode={mode} />
                 </View>
               </View>
             )}
@@ -262,6 +241,7 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
               style={[styles.pageLabel, { color: c.inkMuted, fontFamily: fonts.sansMed }]}
             >
               {index + 1} {STR.of} {COVERAGE_ROWS.length}
+              {current ? ` · ${current.status === "aligned" ? STR.aligned : STR.unaligned}` : ""}
             </Text>
             <View style={styles.dots}>
               {COVERAGE_ROWS.map((row, i) => (
@@ -277,6 +257,7 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
                     styles.dot,
                     {
                       backgroundColor: i === index ? c.accent : c.border,
+                      width: i === index ? 18 : 8,
                     },
                   ]}
                 />
@@ -349,42 +330,33 @@ const styles = StyleSheet.create({
   page: {
     paddingHorizontal: space[5],
   },
-  pairCard: {
-    flexDirection: "row",
+  card: {
     borderWidth: 1,
     borderRadius: radius.card,
-    overflow: "hidden",
-    minHeight: 280,
-  },
-  half: {
-    flex: 1,
-    minWidth: 0,
-    padding: space[4],
+    padding: space[5],
     gap: space[3],
+    minHeight: 320,
+    justifyContent: "flex-start",
   },
-  halfLeft: {
-    borderRightWidth: StyleSheet.hairlineWidth,
-  },
-  halfHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space[2],
-  },
-  halfTitle: {
+  eyebrow: {
     fontSize: text.micro,
     letterSpacing: 0.5,
     textTransform: "uppercase",
   },
   ideaText: {
-    fontSize: text.essay,
-    lineHeight: 24,
-    flex: 1,
+    fontSize: text.title,
+    lineHeight: 32,
+    letterSpacing: -0.4,
+  },
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: space[2],
   },
   surfaceText: {
     fontSize: text.display,
     lineHeight: 28,
     letterSpacing: -0.3,
-    flex: 1,
+    marginBottom: space[2],
   },
   chip: {
     alignSelf: "flex-start",
@@ -394,6 +366,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[3],
     paddingVertical: space[1],
     borderRadius: radius.pill,
+    marginTop: "auto",
   },
   chipText: { fontSize: text.micro },
   footer: {
@@ -405,10 +378,10 @@ const styles = StyleSheet.create({
   pageLabel: { fontSize: text.small },
   dots: {
     flexDirection: "row",
+    alignItems: "center",
     gap: space[2],
   },
   dot: {
-    width: 8,
     height: 8,
     borderRadius: radius.pill,
   },
