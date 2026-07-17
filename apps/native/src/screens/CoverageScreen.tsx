@@ -1,4 +1,14 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import {
+  Dimensions,
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import {
   colorsFor,
   fonts,
@@ -40,7 +50,7 @@ function StatusChip({
     >
       <Ionicons
         name={aligned ? "checkmark-circle" : "alert-circle-outline"}
-        size={12}
+        size={14}
         color={aligned ? c.accent : "#b4533c"}
       />
       <Text
@@ -59,8 +69,9 @@ function StatusChip({
 }
 
 /**
- * View 3 — Peep-style side-by-side coverage.
- * Left: founder source ideas (verbatim). Right: repository map + alignment.
+ * View 3 — one orthogonal side-by-side pair at a time; swipe through pairs.
+ * Left: one pitch idea. Right: one source surface + alignment.
+ * Meta uses human labels (Pitch / Repository titles) — never opaque slugs.
  */
 export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
   const c = colorsFor(mode);
@@ -68,8 +79,17 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
   const repo = REPO_OPTIONS.find((r) => r.slug === connection.repoSlug);
   const connected = Boolean(connection.connectedAt && pitch && repo);
 
+  const [index, setIndex] = useState(0);
+  const listRef = useRef<FlatList<CoverageRow>>(null);
+  const pageWidth = Dimensions.get("window").width;
+
   const alignedCount = COVERAGE_ROWS.filter((r) => r.status === "aligned").length;
   const gapCount = COVERAGE_ROWS.length - alignedCount;
+
+  function onMomentumEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const next = Math.round(e.nativeEvent.contentOffset.x / pageWidth);
+    setIndex(Math.max(0, Math.min(COVERAGE_ROWS.length - 1, next)));
+  }
 
   return (
     <View
@@ -101,7 +121,7 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
           {STR.coverage}
         </Text>
         <Text style={[styles.sub, { color: c.inkMuted, fontFamily: fonts.sans }]}>
-          {STR.sideBySide}
+          {STR.swipePairs}
         </Text>
       </View>
 
@@ -131,21 +151,23 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
         </View>
       ) : (
         <>
-          <View style={styles.metaRow}>
-            <Text
-              style={[styles.metaText, { color: c.inkSoft, fontFamily: fonts.sansMed }]}
-              numberOfLines={1}
-            >
+          <View style={styles.metaBlock}>
+            <Text style={[styles.metaLine, { color: c.inkSoft, fontFamily: fonts.sans }]}>
+              <Text style={{ fontFamily: fonts.sansSemi, color: c.inkMuted }}>
+                {STR.pitch}
+              </Text>
+              {" · "}
               {pitch?.title}
             </Text>
-            <Text style={[styles.metaSep, { color: c.inkSoft }]}>·</Text>
-            <Text
-              style={[styles.metaText, { color: c.inkSoft, fontFamily: fonts.sansMed }]}
-              numberOfLines={1}
-            >
-              {repo?.slug}
+            <Text style={[styles.metaLine, { color: c.inkSoft, fontFamily: fonts.sans }]}>
+              <Text style={{ fontFamily: fonts.sansSemi, color: c.inkMuted }}>
+                {STR.repository}
+              </Text>
+              {" · "}
+              {repo?.title}
             </Text>
           </View>
+
           <View style={styles.counts}>
             <Text style={[styles.count, { color: c.accent, fontFamily: fonts.sansSemi }]}>
               {STR.covered}: {alignedCount}
@@ -155,84 +177,116 @@ export function CoverageScreen({ mode, connection, onBack, onConnect }: Props) {
             </Text>
           </View>
 
-          {/* Peep-style side-by-side panes */}
-          <View
-            style={[
-              styles.split,
-              { borderColor: c.border, backgroundColor: c.surface },
-            ]}
-          >
-            <View style={[styles.pane, styles.paneLeft, { borderRightColor: c.hairline }]}>
-              <View style={[styles.paneHead, { borderBottomColor: c.hairline }]}>
-                <Ionicons name="document-text-outline" size={14} color={c.forest} />
-                <Text
+          <FlatList
+            ref={listRef}
+            data={COVERAGE_ROWS}
+            keyExtractor={(item) => item.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onMomentumEnd}
+            style={styles.pager}
+            renderItem={({ item }) => (
+              <View style={[styles.page, { width: pageWidth }]}>
+                <View
                   style={[
-                    styles.paneTitle,
-                    { color: c.ink, fontFamily: fonts.sansSemi },
+                    styles.pairCard,
+                    { backgroundColor: c.surface, borderColor: c.border },
                   ]}
                 >
-                  {STR.pitchIdeas}
-                </Text>
-              </View>
-              <ScrollView
-                style={styles.paneScroll}
-                contentContainerStyle={styles.paneContent}
-                showsVerticalScrollIndicator={false}
-              >
-                {COVERAGE_ROWS.map((row) => (
                   <View
-                    key={`idea-${row.id}`}
-                    style={[styles.ideaCard, { borderColor: c.border }]}
+                    style={[
+                      styles.half,
+                      styles.halfLeft,
+                      { borderRightColor: c.hairline },
+                    ]}
                   >
+                    <View style={styles.halfHead}>
+                      <Ionicons
+                        name="document-text-outline"
+                        size={14}
+                        color={c.forest}
+                      />
+                      <Text
+                        style={[
+                          styles.halfTitle,
+                          { color: c.ink, fontFamily: fonts.sansSemi },
+                        ]}
+                      >
+                        {STR.yourWords}
+                      </Text>
+                    </View>
                     <Text
                       style={[
                         styles.ideaText,
-                        { color: c.ink, fontFamily: fonts.sans },
+                        { color: c.ink, fontFamily: fonts.displaySemi },
                       ]}
                     >
-                      {row.idea}
+                      {item.idea}
                     </Text>
                   </View>
-                ))}
-              </ScrollView>
-            </View>
 
-            <View style={styles.pane}>
-              <View style={[styles.paneHead, { borderBottomColor: c.hairline }]}>
-                <Ionicons name="git-branch-outline" size={14} color={c.forest} />
-                <Text
-                  style={[
-                    styles.paneTitle,
-                    { color: c.ink, fontFamily: fonts.sansSemi },
-                  ]}
-                >
-                  {STR.sourceMap}
-                </Text>
-              </View>
-              <ScrollView
-                style={styles.paneScroll}
-                contentContainerStyle={styles.paneContent}
-                showsVerticalScrollIndicator={false}
-              >
-                {COVERAGE_ROWS.map((row) => (
-                  <View
-                    key={`src-${row.id}`}
-                    style={[styles.sourceCard, { borderColor: c.border }]}
-                  >
+                  <View style={styles.half}>
+                    <View style={styles.halfHead}>
+                      <Ionicons
+                        name="git-branch-outline"
+                        size={14}
+                        color={c.forest}
+                      />
+                      <Text
+                        style={[
+                          styles.halfTitle,
+                          { color: c.ink, fontFamily: fonts.sansSemi },
+                        ]}
+                      >
+                        {STR.inYourApp}
+                      </Text>
+                    </View>
                     <Text
                       style={[
-                        styles.pathText,
+                        styles.surfaceText,
                         { color: c.ink, fontFamily: fonts.sansSemi },
                       ]}
-                      numberOfLines={2}
                     >
-                      {row.sourcePath}
+                      {item.surface}
                     </Text>
-                    <StatusChip status={row.status} mode={mode} />
+                    <StatusChip status={item.status} mode={mode} />
                   </View>
-                ))}
-              </ScrollView>
+                </View>
+              </View>
+            )}
+          />
+
+          <View style={styles.footer}>
+            <Text
+              style={[styles.pageLabel, { color: c.inkMuted, fontFamily: fonts.sansMed }]}
+            >
+              {index + 1} {STR.of} {COVERAGE_ROWS.length}
+            </Text>
+            <View style={styles.dots}>
+              {COVERAGE_ROWS.map((row, i) => (
+                <Pressable
+                  key={row.id}
+                  onPress={() => {
+                    listRef.current?.scrollToIndex({ index: i, animated: true });
+                    setIndex(i);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${STR.coverage} ${i + 1}`}
+                  style={[
+                    styles.dot,
+                    {
+                      backgroundColor: i === index ? c.accent : c.border,
+                    },
+                  ]}
+                />
+              ))}
             </View>
+            <Text
+              style={[styles.hint, { color: c.inkSoft, fontFamily: fonts.sans }]}
+            >
+              {STR.swipeHint}
+            </Text>
           </View>
         </>
       )}
@@ -274,93 +328,91 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginBottom: space[1],
   },
-  sub: {
-    fontSize: text.small,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  sub: { fontSize: text.small },
+  metaBlock: {
     paddingHorizontal: space[5],
-    marginBottom: space[2],
-    gap: space[2],
+    marginBottom: space[3],
+    gap: 4,
   },
-  metaText: {
-    fontSize: text.micro,
-    flexShrink: 1,
+  metaLine: {
+    fontSize: text.small,
+    lineHeight: 18,
   },
-  metaSep: { fontSize: text.micro },
   counts: {
     flexDirection: "row",
     gap: space[4],
     paddingHorizontal: space[5],
-    marginBottom: space[3],
+    marginBottom: space[4],
   },
   count: { fontSize: text.small },
-  split: {
-    flex: 1,
+  pager: { flexGrow: 0 },
+  page: {
+    paddingHorizontal: space[5],
+  },
+  pairCard: {
     flexDirection: "row",
-    marginHorizontal: space[4],
-    marginBottom: space[5],
     borderWidth: 1,
     borderRadius: radius.card,
     overflow: "hidden",
-    minHeight: 360,
+    minHeight: 280,
   },
-  pane: {
+  half: {
     flex: 1,
     minWidth: 0,
+    padding: space[4],
+    gap: space[3],
   },
-  paneLeft: {
+  halfLeft: {
     borderRightWidth: StyleSheet.hairlineWidth,
   },
-  paneHead: {
+  halfHead: {
     flexDirection: "row",
     alignItems: "center",
     gap: space[2],
-    paddingHorizontal: space[3],
-    paddingVertical: space[3],
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  paneTitle: {
+  halfTitle: {
     fontSize: text.micro,
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
     textTransform: "uppercase",
   },
-  paneScroll: { flex: 1 },
-  paneContent: {
-    padding: space[3],
-    gap: space[3],
-    paddingBottom: space[6],
-  },
-  ideaCard: {
-    borderWidth: 1,
-    borderRadius: radius.chip,
-    padding: space[3],
-  },
   ideaText: {
-    fontSize: text.small,
-    lineHeight: 18,
+    fontSize: text.essay,
+    lineHeight: 24,
+    flex: 1,
   },
-  sourceCard: {
-    borderWidth: 1,
-    borderRadius: radius.chip,
-    padding: space[3],
-    gap: space[2],
-  },
-  pathText: {
-    fontSize: text.micro,
-    lineHeight: 16,
+  surfaceText: {
+    fontSize: text.display,
+    lineHeight: 28,
+    letterSpacing: -0.3,
+    flex: 1,
   },
   chip: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: space[2],
-    paddingVertical: 3,
+    paddingHorizontal: space[3],
+    paddingVertical: space[1],
     borderRadius: radius.pill,
   },
-  chipText: { fontSize: 10 },
+  chipText: { fontSize: text.micro },
+  footer: {
+    alignItems: "center",
+    paddingTop: space[5],
+    paddingBottom: space[6],
+    gap: space[3],
+  },
+  pageLabel: { fontSize: text.small },
+  dots: {
+    flexDirection: "row",
+    gap: space[2],
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: radius.pill,
+  },
+  hint: { fontSize: text.micro },
   emptyWrap: {
     flex: 1,
     paddingHorizontal: space[6],

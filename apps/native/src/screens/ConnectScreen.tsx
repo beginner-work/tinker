@@ -293,11 +293,19 @@ export function ConnectScreen({
             <Text style={[styles.summaryLabel, { color: c.inkSoft, fontFamily: fonts.sansMed }]}>
               {STR.sourceOfTruth}
             </Text>
-            <Text style={[styles.summaryLine, { color: c.ink, fontFamily: fonts.sansSemi }]}>
-              {selectedPitch.title}
+            <Text style={[styles.summaryLine, { color: c.inkMuted, fontFamily: fonts.sans }]}>
+              {STR.pitch}
+              {" · "}
+              <Text style={{ color: c.ink, fontFamily: fonts.sansSemi }}>
+                {selectedPitch.title}
+              </Text>
             </Text>
             <Text style={[styles.summaryLine, { color: c.inkMuted, fontFamily: fonts.sans }]}>
-              {selectedRepo.slug}
+              {STR.repository}
+              {" · "}
+              <Text style={{ color: c.ink, fontFamily: fonts.sansSemi }}>
+                {selectedRepo.title}
+              </Text>
             </Text>
           </View>
         ) : null}

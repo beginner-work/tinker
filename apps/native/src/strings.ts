@@ -46,14 +46,19 @@ export const STR = {
   mcpHubLive: "MCP hub",
   mcpHubLocal: "Local seeds — set MCP URL to pull live",
   manifestPulled: "Manifest pulled",
-  // View 3 — Coverage (Peep-style side by side)
+  // View 3 — Coverage (one side-by-side pair per swipe)
   unaligned: "Unaligned",
   sideBySide: "Side by side",
+  swipePairs: "One pair at a time — swipe through",
+  swipeHint: "Swipe for the next pair",
+  of: "of",
   pitchIdeas: "Pitch ideas",
   sourceMap: "Source map",
+  inYourApp: "In your app",
   connectPitchFirst: "Connect a pitch first",
   covered: "Covered",
   gap: "Gap",
+  surfaceFirstOpen: "First open",
   // Verbatim from pitch-deck.md
   pitchTagline: "Everyone is a founder.",
   pitchProblem:
