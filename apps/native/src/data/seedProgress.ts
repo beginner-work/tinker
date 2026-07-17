@@ -1,5 +1,5 @@
 /**
- * Demo Explore / Activity rows — each item pairs source idea + tech idea.
+ * Demo Explore / Activity — source idea in front, tech ideas stacked behind.
  */
 
 import { STR } from "../strings";
@@ -17,7 +17,7 @@ export type ActivityItem = {
   when: string;
   kind: typeof STR.progress | typeof STR.coverage | typeof STR.connect;
   sourceIdea: string;
-  techIdea: string;
+  techIdeas: string[];
 };
 
 export const DISCOVER_ITEMS: DiscoverItem[] = [
@@ -34,7 +34,7 @@ export const ACTIVITY_ITEMS: ActivityItem[] = [
     when: STR.justNow,
     kind: STR.progress,
     sourceIdea: STR.pitchTagline,
-    techIdea: STR.techExpoShell,
+    techIdeas: [STR.techExpoShell, STR.techFeedNoSource, STR.techCoverageMap],
   },
   {
     id: "a2",
@@ -43,7 +43,7 @@ export const ACTIVITY_ITEMS: ActivityItem[] = [
     when: STR.today,
     kind: STR.coverage,
     sourceIdea: STR.pitchSolution,
-    techIdea: STR.techCoverageMap,
+    techIdeas: [STR.techCoverageMap, STR.techConnectFlow],
   },
   {
     id: "a3",
@@ -52,15 +52,6 @@ export const ACTIVITY_ITEMS: ActivityItem[] = [
     when: STR.days3,
     kind: STR.connect,
     sourceIdea: STR.noSourceInFeed,
-    techIdea: STR.techConnectFlow,
-  },
-  {
-    id: "a4",
-    actor: STR.jordan,
-    target: STR.progress,
-    when: STR.days6,
-    kind: STR.progress,
-    sourceIdea: STR.pitchProblem,
-    techIdea: STR.techFeedNoSource,
+    techIdeas: [STR.techConnectFlow, STR.techFeedNoSource],
   },
 ];

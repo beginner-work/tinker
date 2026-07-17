@@ -185,6 +185,7 @@ organization of founder source ideas and repository source code.
 - `Jordan`
 - `Source idea`
 - `Tech idea`
+- `tech cards`
 - `Native shell on Expo`
 - `Coverage maps a pitch idea to code files`
 - `Connect links a pitch to a repository`

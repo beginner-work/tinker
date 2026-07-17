@@ -36,6 +36,13 @@ type Props = {
   activeTab?: "feed" | "progress";
 };
 
+const STACK_STEP = 10;
+const MAX_BACK_CARDS = 3;
+
+/**
+ * Founder source-idea card in front; tech idea cards stacked behind
+ * (edges peek out — deck depth, not a split layout).
+ */
 function ProgressCardView({
   item,
   mode,
@@ -44,6 +51,10 @@ function ProgressCardView({
   mode: ColorMode;
 }) {
   const c = colorsFor(mode);
+  const backTechs = item.techIdeas.slice(0, MAX_BACK_CARDS);
+  const depth = backTechs.length;
+  const stackPad = depth * STACK_STEP;
+
   return (
     <View style={styles.block}>
       <View style={styles.header}>
@@ -68,41 +79,94 @@ function ProgressCardView({
           {item.when}
         </Text>
       </View>
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: c.surface, borderColor: c.border },
-        ]}
-      >
-        <Text
-          style={[styles.repoLine, { color: c.inkMuted, fontFamily: fonts.sansMed }]}
-        >
-          {item.repoTitle} / {item.kind}
-        </Text>
 
-        <Text
-          style={[styles.laneLabel, { color: c.accent, fontFamily: fonts.sansSemi }]}
-        >
-          {STR.sourceIdea}
-        </Text>
-        <Text
-          style={[styles.body, { color: c.ink, fontFamily: fonts.displaySemi }]}
-        >
-          {item.sourceIdea}
-        </Text>
+      <View style={[styles.stackWrap, { marginBottom: stackPad }]}>
+        {/* Back → front: furthest tech first so source sits on top */}
+        {[...backTechs].reverse().map((tech, revIndex) => {
+          const fromBack = revIndex;
+          const fromFront = depth - 1 - fromBack;
+          return (
+            <View
+              key={`${item.id}-tech-${fromFront}`}
+              style={[
+                styles.techBackCard,
+                {
+                  backgroundColor: c.surface,
+                  borderColor: c.border,
+                  top: (fromFront + 1) * STACK_STEP,
+                  left: (fromFront + 1) * STACK_STEP,
+                  right: -(fromFront + 1) * STACK_STEP,
+                  zIndex: fromBack,
+                },
+              ]}
+              accessibilityLabel={`${STR.techIdea}: ${tech}`}
+            >
+              <Text
+                style={[
+                  styles.laneLabel,
+                  { color: c.forest, fontFamily: fonts.sansSemi },
+                ]}
+              >
+                {STR.techIdea}
+              </Text>
+              <Text
+                style={[
+                  styles.techBody,
+                  { color: c.inkMuted, fontFamily: fonts.sansSemi },
+                ]}
+                numberOfLines={2}
+              >
+                {tech}
+              </Text>
+            </View>
+          );
+        })}
 
-        <View style={[styles.rule, { backgroundColor: c.hairline }]} />
-
-        <Text
-          style={[styles.laneLabel, { color: c.forest, fontFamily: fonts.sansSemi }]}
+        <View
+          style={[
+            styles.sourceCard,
+            {
+              backgroundColor: c.surface,
+              borderColor: c.border,
+              zIndex: depth + 1,
+            },
+          ]}
         >
-          {STR.techIdea}
-        </Text>
-        <Text
-          style={[styles.techBody, { color: c.ink, fontFamily: fonts.sansSemi }]}
-        >
-          {item.techIdea}
-        </Text>
+          <Text
+            style={[
+              styles.repoLine,
+              { color: c.inkMuted, fontFamily: fonts.sansMed },
+            ]}
+          >
+            {item.repoTitle} / {item.kind}
+          </Text>
+          <Text
+            style={[
+              styles.laneLabel,
+              { color: c.accent, fontFamily: fonts.sansSemi },
+            ]}
+          >
+            {STR.sourceIdea}
+          </Text>
+          <Text
+            style={[
+              styles.body,
+              { color: c.ink, fontFamily: fonts.displaySemi },
+            ]}
+          >
+            {item.sourceIdea}
+          </Text>
+          {item.techIdeas.length > 0 ? (
+            <Text
+              style={[
+                styles.stackHint,
+                { color: c.inkSoft, fontFamily: fonts.sans },
+              ]}
+            >
+              {item.techIdeas.length} {STR.techCards}
+            </Text>
+          ) : null}
+        </View>
       </View>
     </View>
   );
@@ -349,7 +413,7 @@ const styles = StyleSheet.create({
     fontSize: text.body,
     paddingVertical: space[8],
   },
-  block: { marginBottom: space[6] },
+  block: { marginBottom: space[7] },
   header: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -373,12 +437,29 @@ const styles = StyleSheet.create({
     fontSize: text.small,
     marginTop: 2,
   },
-  card: {
+  stackWrap: {
     marginLeft: 40,
+    position: "relative",
+  },
+  techBackCard: {
+    position: "absolute",
+    borderRadius: radius.card,
+    borderWidth: 1,
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
+    gap: space[1],
+    minHeight: 72,
+  },
+  sourceCard: {
     borderRadius: radius.card,
     borderWidth: 1,
     padding: space[4],
-    gap: space[3],
+    gap: space[2],
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
   },
   repoLine: { fontSize: text.small },
   laneLabel: {
@@ -395,9 +476,9 @@ const styles = StyleSheet.create({
     fontSize: text.body,
     lineHeight: 20,
   },
-  rule: {
-    height: StyleSheet.hairlineWidth,
-    marginVertical: space[1],
+  stackHint: {
+    fontSize: text.micro,
+    marginTop: space[1],
   },
   tabBar: {
     position: "absolute",

@@ -1,5 +1,5 @@
 /**
- * Progress feed cards — each item pairs a source idea with a tech idea.
+ * Progress feed — each founder source-idea card has multiple tech cards stacked behind it.
  * Bodies are verbatim pitch lines or allowlisted UI strings (never model prose).
  */
 
@@ -8,7 +8,7 @@ import { STR } from "../strings";
 export type ProgressKind = "Progress" | "Coverage" | "Connect";
 export type IdeaLane = "source" | "tech";
 
-/** Hub event shape from progress_feed (single body; paired in the client). */
+/** Hub event shape from progress_feed. */
 export type ProgressEvent = {
   id: string;
   repositoryId: string;
@@ -19,7 +19,7 @@ export type ProgressEvent = {
   lane?: IdeaLane;
 };
 
-/** One feed card: source idea + tech idea together. */
+/** One feed post: founder source idea in front, tech ideas stacked behind. */
 export type ProgressCard = {
   id: string;
   actor: string;
@@ -27,17 +27,13 @@ export type ProgressCard = {
   when: string;
   repoTitle: string;
   sourceIdea: string;
-  techIdea: string;
+  techIdeas: string[];
 };
 
 const NOW = Date.now();
 
 function hoursAgo(h: number): string {
   return new Date(NOW - h * 3600_000).toISOString();
-}
-
-function daysAgo(d: number): string {
-  return new Date(NOW - d * 86400_000).toISOString();
 }
 
 const SOURCE_BODIES = new Set<string>([
@@ -48,7 +44,7 @@ const SOURCE_BODIES = new Set<string>([
   STR.yourWords,
 ]);
 
-/** Seed cards already paired (source + tech on one post). */
+/** Seed posts: one source card + multiple tech cards behind. */
 export const SEED_PROGRESS_CARDS: ProgressCard[] = [
   {
     id: "card_1",
@@ -57,7 +53,11 @@ export const SEED_PROGRESS_CARDS: ProgressCard[] = [
     when: STR.justNow,
     repoTitle: STR.brand,
     sourceIdea: STR.pitchTagline,
-    techIdea: STR.techExpoShell,
+    techIdeas: [
+      STR.techExpoShell,
+      STR.techFeedNoSource,
+      STR.techCoverageMap,
+    ],
   },
   {
     id: "card_2",
@@ -66,7 +66,7 @@ export const SEED_PROGRESS_CARDS: ProgressCard[] = [
     when: STR.today,
     repoTitle: STR.brand,
     sourceIdea: STR.pitchSolution,
-    techIdea: STR.techCoverageMap,
+    techIdeas: [STR.techCoverageMap, STR.techConnectFlow],
   },
   {
     id: "card_3",
@@ -75,7 +75,7 @@ export const SEED_PROGRESS_CARDS: ProgressCard[] = [
     when: STR.days3,
     repoTitle: STR.feed,
     sourceIdea: STR.noSourceInFeed,
-    techIdea: STR.techConnectFlow,
+    techIdeas: [STR.techConnectFlow, STR.techFeedNoSource],
   },
   {
     id: "card_4",
@@ -84,47 +84,7 @@ export const SEED_PROGRESS_CARDS: ProgressCard[] = [
     when: STR.days6,
     repoTitle: STR.brand,
     sourceIdea: STR.pitchProblem,
-    techIdea: STR.techFeedNoSource,
-  },
-];
-
-/** Flat hub-shaped seeds (used when pairing live events). */
-export const SEED_PROGRESS_EVENTS: ProgressEvent[] = [
-  {
-    id: "evt_seed_1",
-    repositoryId: "repo_tinker",
-    owner: STR.maya,
-    kind: "Progress",
-    body: STR.pitchTagline,
-    createdAt: hoursAgo(0.2),
-    lane: "source",
-  },
-  {
-    id: "evt_seed_1b",
-    repositoryId: "repo_tinker",
-    owner: STR.maya,
-    kind: "Progress",
-    body: STR.techExpoShell,
-    createdAt: hoursAgo(0.2),
-    lane: "tech",
-  },
-  {
-    id: "evt_seed_2",
-    repositoryId: "repo_tinker",
-    owner: STR.jordan,
-    kind: "Coverage",
-    body: STR.pitchSolution,
-    createdAt: hoursAgo(5),
-    lane: "source",
-  },
-  {
-    id: "evt_seed_2b",
-    repositoryId: "repo_tinker",
-    owner: STR.jordan,
-    kind: "Coverage",
-    body: STR.techCoverageMap,
-    createdAt: hoursAgo(5),
-    lane: "tech",
+    techIdeas: [STR.techExpoShell, STR.techFeedNoSource],
   },
 ];
 
@@ -156,8 +116,8 @@ export function inferLane(event: ProgressEvent): IdeaLane {
 }
 
 /**
- * Pair hub events into cards with source idea + tech idea together.
- * Groups by owner+repo; zips source bodies with tech bodies.
+ * Group hub events: each source idea becomes a front card with all
+ * matching tech ideas stacked behind (same owner + repo).
  */
 export function cardsFromEvents(events: ProgressEvent[]): ProgressCard[] {
   if (events.length === 0) return [];
@@ -176,22 +136,47 @@ export function cardsFromEvents(events: ProgressEvent[]): ProgressCard[] {
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
     const sources = sorted.filter((e) => inferLane(e) === "source");
-    const techs = sorted.filter((e) => inferLane(e) === "tech");
-    const n = Math.min(sources.length, techs.length);
-    for (let i = 0; i < n; i++) {
-      const src = sources[i]!;
-      const tech = techs[i]!;
+    const techs = sorted
+      .filter((e) => inferLane(e) === "tech")
+      .map((e) => e.body)
+      .filter(Boolean);
+
+    if (sources.length === 0 || techs.length === 0) continue;
+
+    for (const src of sources) {
       cards.push({
-        id: `${src.id}_${tech.id}`,
+        id: src.id,
         actor: src.owner?.trim() || STR.brand,
         kind: kindLabel(src.kind),
         when: formatWhen(src.createdAt),
         repoTitle: repoTitleFor(src.repositoryId),
         sourceIdea: src.body,
-        techIdea: tech.body,
+        techIdeas: techs,
       });
     }
   }
 
   return cards.length > 0 ? cards : SEED_PROGRESS_CARDS;
 }
+
+/** @deprecated unused — kept for event-shaped fixtures */
+export const SEED_PROGRESS_EVENTS: ProgressEvent[] = [
+  {
+    id: "evt_seed_1",
+    repositoryId: "repo_tinker",
+    owner: STR.maya,
+    kind: "Progress",
+    body: STR.pitchTagline,
+    createdAt: hoursAgo(0.2),
+    lane: "source",
+  },
+  {
+    id: "evt_seed_1b",
+    repositoryId: "repo_tinker",
+    owner: STR.maya,
+    kind: "Progress",
+    body: STR.techExpoShell,
+    createdAt: hoursAgo(0.2),
+    lane: "tech",
+  },
+];

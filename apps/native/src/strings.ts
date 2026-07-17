@@ -85,6 +85,7 @@ export const STR = {
   refresh: "Refresh",
   sourceIdea: "Source idea",
   techIdea: "Tech idea",
+  techCards: "tech cards",
   // Tech idea lines (allowlisted — product progress, not source dumps)
   techExpoShell: "Native shell on Expo",
   techCoverageMap: "Coverage maps a pitch idea to code files",

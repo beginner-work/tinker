@@ -70,6 +70,9 @@ function DiscoverRow({
   );
 }
 
+const STACK_STEP = 8;
+const MAX_BACK = 3;
+
 function ActivityCard({
   item,
   mode,
@@ -78,8 +81,11 @@ function ActivityCard({
   mode: ColorMode;
 }) {
   const c = colorsFor(mode);
+  const back = item.techIdeas.slice(0, MAX_BACK);
+  const depth = back.length;
+
   return (
-    <View style={styles.activityBlock}>
+    <View style={[styles.activityBlock, { marginBottom: space[6] + depth * STACK_STEP }]}>
       <View style={styles.activityHeader}>
         <View style={[styles.avatar, { backgroundColor: c.avatarBg }]}>
           <Text
@@ -104,48 +110,86 @@ function ActivityCard({
           {item.when}
         </Text>
       </View>
-      <View
-        style={[
-          styles.activityCard,
-          { backgroundColor: c.surface, borderColor: c.border },
-        ]}
-      >
-        <Text
+
+      <View style={styles.stackWrap}>
+        {[...back].reverse().map((tech, revIndex) => {
+          const fromFront = depth - 1 - revIndex;
+          return (
+            <View
+              key={`${item.id}-t-${fromFront}`}
+              style={[
+                styles.techBackCard,
+                {
+                  backgroundColor: c.surface,
+                  borderColor: c.border,
+                  top: (fromFront + 1) * STACK_STEP,
+                  left: (fromFront + 1) * STACK_STEP,
+                  right: -(fromFront + 1) * STACK_STEP,
+                  zIndex: revIndex,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.laneLabel,
+                  { color: c.forest, fontFamily: fonts.sansSemi },
+                ]}
+              >
+                {STR.techIdea}
+              </Text>
+              <Text
+                style={[
+                  styles.activityDetail,
+                  { color: c.inkMuted, fontFamily: fonts.sans },
+                ]}
+                numberOfLines={2}
+              >
+                {tech}
+              </Text>
+            </View>
+          );
+        })}
+
+        <View
           style={[
-            styles.repoLine,
-            { color: c.inkMuted, fontFamily: fonts.sansMed },
+            styles.activityCard,
+            {
+              backgroundColor: c.surface,
+              borderColor: c.border,
+              zIndex: depth + 1,
+            },
           ]}
         >
-          {STR.brand} / {item.kind}
-        </Text>
-        <Text
-          style={[
-            styles.laneLabel,
-            { color: c.accent, fontFamily: fonts.sansSemi },
-          ]}
-        >
-          {STR.sourceIdea}
-        </Text>
-        <Text
-          style={[styles.activityTitle, { color: c.ink, fontFamily: fonts.sansSemi }]}
-        >
-          {item.sourceIdea}
-        </Text>
-        <View style={[styles.hairlineInCard, { backgroundColor: c.hairline }]} />
-        <Text
-          style={[
-            styles.laneLabel,
-            { color: c.forest, fontFamily: fonts.sansSemi },
-          ]}
-        >
-          {STR.techIdea}
-        </Text>
-        <Text
-          style={[styles.activityDetail, { color: c.inkMuted, fontFamily: fonts.sans }]}
-          numberOfLines={3}
-        >
-          {item.techIdea}
-        </Text>
+          <Text
+            style={[
+              styles.repoLine,
+              { color: c.inkMuted, fontFamily: fonts.sansMed },
+            ]}
+          >
+            {STR.brand} / {item.kind}
+          </Text>
+          <Text
+            style={[
+              styles.laneLabel,
+              { color: c.accent, fontFamily: fonts.sansSemi },
+            ]}
+          >
+            {STR.sourceIdea}
+          </Text>
+          <Text
+            style={[
+              styles.activityTitle,
+              { color: c.ink, fontFamily: fonts.sansSemi },
+            ]}
+          >
+            {item.sourceIdea}
+          </Text>
+          <Text
+            style={[styles.stackHint, { color: c.inkSoft, fontFamily: fonts.sans }]}
+          >
+            {item.techIdeas.length} {STR.techCards}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -450,16 +494,32 @@ const styles = StyleSheet.create({
     fontSize: text.small,
     marginTop: 2,
   },
-  activityCard: {
+  stackWrap: {
     marginLeft: 40,
+    position: "relative",
+  },
+  techBackCard: {
+    position: "absolute",
+    borderRadius: radius.card,
+    borderWidth: 1,
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
+    gap: 4,
+    minHeight: 64,
+  },
+  activityCard: {
     borderRadius: radius.card,
     borderWidth: 1,
     padding: space[4],
     gap: space[2],
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
   },
   repoLine: {
     fontSize: text.small,
-    marginBottom: space[1],
   },
   laneLabel: {
     fontSize: text.micro,
@@ -470,13 +530,13 @@ const styles = StyleSheet.create({
     fontSize: text.essay,
     lineHeight: 22,
   },
-  hairlineInCard: {
-    height: StyleSheet.hairlineWidth,
-    marginVertical: space[1],
-  },
   activityDetail: {
     fontSize: text.small,
     lineHeight: 18,
+  },
+  stackHint: {
+    fontSize: text.micro,
+    marginTop: space[1],
   },
   tabBar: {
     position: "absolute",

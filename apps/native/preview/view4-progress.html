@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>tinker · Progress feed</title>
+    <title>tinker · Progress feed (stacked tech)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -12,14 +12,14 @@
     />
     <style>
       :root {
-        --bg: #f6f8fa;
-        --ink: #1f2328;
-        --muted: #656d76;
-        --line: #d0d7de;
-        --surface: #ffffff;
-        --accent: #0969da;
-        --forest: #1a7f37;
+        --bg: #f2f1ef;
+        --ink: #2d2a26;
+        --muted: #6f6a65;
         --soft: #a39e96;
+        --line: #e5e1d8;
+        --surface: #ffffff;
+        --accent: #2d5a3d;
+        --forest: #2d5a3d;
       }
       * { box-sizing: border-box; }
       body {
@@ -39,12 +39,10 @@
         background: var(--bg);
         border: 1px solid #30363d;
         box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
-        display: flex;
-        flex-direction: column;
         position: relative;
       }
       .scroll {
-        flex: 1;
+        height: 100%;
         overflow: auto;
         padding: 54px 20px 110px;
       }
@@ -69,26 +67,45 @@
         font-weight: 600;
         color: var(--muted);
       }
-      .sub { margin: 0 0 18px; font-size: 13px; color: var(--muted); }
-      .block { margin-bottom: 22px; }
+      .sub { margin: 0 0 20px; font-size: 13px; color: var(--muted); }
+      .block { margin-bottom: 36px; }
       .head {
         display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;
       }
       .avatar {
         width: 28px; height: 28px; border-radius: 999px;
-        background: #ddf4ff; color: var(--accent);
+        background: #7bc47a; color: #fffdf7;
         display: grid; place-items: center;
         font-size: 13px; font-weight: 700;
       }
       .meta { flex: 1; font-size: 14px; line-height: 1.35; }
       .meta strong { font-weight: 700; }
-      .when { font-size: 13px; color: var(--muted); margin-top: 2px; }
-      .card {
+      .when { font-size: 13px; color: var(--soft); margin-top: 2px; }
+      .stack {
         margin-left: 38px;
+        position: relative;
+        padding-bottom: 30px;
+      }
+      .tech {
+        position: absolute;
+        left: 0; right: 0;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px 14px;
+        min-height: 72px;
+      }
+      .tech.t1 { top: 10px; left: 10px; right: -10px; z-index: 1; }
+      .tech.t2 { top: 20px; left: 20px; right: -20px; z-index: 0; }
+      .tech.t3 { top: 30px; left: 30px; right: -30px; z-index: -1; }
+      .source {
+        position: relative;
+        z-index: 3;
         background: var(--surface);
         border: 1px solid var(--line);
         border-radius: 14px;
         padding: 14px;
+        box-shadow: 0 2px 10px rgba(45, 42, 38, 0.08);
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -106,27 +123,28 @@
       .body {
         margin: 0;
         font-family: Fraunces, Georgia, serif;
-        font-size: 17px;
+        font-size: 18px;
         font-weight: 600;
         letter-spacing: -0.02em;
+        line-height: 1.3;
+      }
+      .tech-body {
+        margin: 4px 0 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
         line-height: 1.35;
       }
-      .tech {
-        margin: 0;
-        font-size: 14px;
-        font-weight: 600;
-        line-height: 1.4;
-      }
-      .rule { height: 1px; background: var(--line); margin: 2px 0; }
+      .hint { margin: 0; font-size: 11px; color: var(--soft); }
       .tabbar {
         position: absolute;
         left: 20px; right: 20px; bottom: 18px;
         display: flex; justify-content: space-around; align-items: center;
-        background: rgba(255,255,255,0.96);
+        background: rgba(255,253,247,0.96);
         border: 1px solid var(--line);
         border-radius: 28px;
         padding: 10px 6px 8px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        box-shadow: 0 4px 16px rgba(45,42,38,0.12);
       }
       .tab {
         display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -137,7 +155,7 @@
         display: grid; place-items: center;
       }
       .tab.on { color: var(--accent); font-weight: 600; }
-      .tab.on .ico { background: #ddf4ff; }
+      .tab.on .ico { background: rgba(45, 90, 61, 0.12); }
     </style>
   </head>
   <body>
@@ -155,13 +173,25 @@
             <p class="meta">Maya contributed to <strong>Progress</strong></p>
             <span class="when">Just now</span>
           </div>
-          <div class="card">
-            <p class="repo">tinker / Progress</p>
-            <p class="lane source">Source idea</p>
-            <p class="body">Everyone is a founder.</p>
-            <div class="rule"></div>
-            <p class="lane tech">Tech idea</p>
-            <p class="tech">Native shell on Expo</p>
+          <div class="stack">
+            <div class="tech t3">
+              <p class="lane tech">Tech idea</p>
+              <p class="tech-body">Coverage maps a pitch idea to code files</p>
+            </div>
+            <div class="tech t2">
+              <p class="lane tech">Tech idea</p>
+              <p class="tech-body">Feed shows progress without source</p>
+            </div>
+            <div class="tech t1">
+              <p class="lane tech">Tech idea</p>
+              <p class="tech-body">Native shell on Expo</p>
+            </div>
+            <article class="source">
+              <p class="repo">tinker / Progress</p>
+              <p class="lane source">Source idea</p>
+              <p class="body">Everyone is a founder.</p>
+              <p class="hint">3 tech cards</p>
+            </article>
           </div>
         </div>
 
@@ -171,13 +201,21 @@
             <p class="meta">Jordan contributed to <strong>Coverage</strong></p>
             <span class="when">Today</span>
           </div>
-          <div class="card">
-            <p class="repo">tinker / Coverage</p>
-            <p class="lane source">Source idea</p>
-            <p class="body">An app that helps engineers discover their pitch over time, on the go.</p>
-            <div class="rule"></div>
-            <p class="lane tech">Tech idea</p>
-            <p class="tech">Coverage maps a pitch idea to code files</p>
+          <div class="stack">
+            <div class="tech t2">
+              <p class="lane tech">Tech idea</p>
+              <p class="tech-body">Connect links a pitch to a repository</p>
+            </div>
+            <div class="tech t1">
+              <p class="lane tech">Tech idea</p>
+              <p class="tech-body">Coverage maps a pitch idea to code files</p>
+            </div>
+            <article class="source">
+              <p class="repo">tinker / Coverage</p>
+              <p class="lane source">Source idea</p>
+              <p class="body">An app that helps engineers discover their pitch over time, on the go.</p>
+              <p class="hint">2 tech cards</p>
+            </article>
           </div>
         </div>
       </div>
