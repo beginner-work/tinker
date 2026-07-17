@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>tinker · Progress feed (stacked tech)</title>
+    <title>tinker · Progress feed</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -19,7 +19,10 @@
         --line: #e5e1d8;
         --surface: #ffffff;
         --accent: #2d5a3d;
-        --forest: #2d5a3d;
+        --tech-bg: #1c1916;
+        --tech-border: #3a342c;
+        --tech-ink: #a39e96;
+        --tech-label: #7bc47a;
       }
       * { box-sizing: border-box; }
       body {
@@ -39,25 +42,21 @@
         background: var(--bg);
         border: 1px solid #30363d;
         box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
-        position: relative;
       }
       .scroll {
         height: 100%;
         overflow: auto;
-        padding: 54px 20px 110px;
+        padding: 54px 20px 40px;
       }
       .top {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 14px;
       }
-      .title {
-        margin: 0;
-        font-family: Fraunces, Georgia, serif;
-        font-size: 28px;
-        font-weight: 600;
-        letter-spacing: -0.03em;
+      .back {
+        display: flex; align-items: center; gap: 2px;
+        font-size: 15px; font-weight: 500; color: var(--ink);
       }
       .chip {
         border: 1px solid var(--line);
@@ -66,6 +65,13 @@
         font-size: 11px;
         font-weight: 600;
         color: var(--muted);
+      }
+      .title {
+        margin: 0 0 6px;
+        font-family: Fraunces, Georgia, serif;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
       }
       .sub { margin: 0 0 20px; font-size: 13px; color: var(--muted); }
       .block { margin-bottom: 36px; }
@@ -88,8 +94,8 @@
       }
       .tech {
         position: absolute;
-        background: var(--surface);
-        border: 1px solid var(--line);
+        background: var(--tech-bg);
+        border: 1px solid var(--tech-border);
         border-radius: 14px;
         padding: 12px 14px;
         min-height: 140px;
@@ -97,7 +103,6 @@
         flex-direction: column;
         gap: 4px;
       }
-      /* Full cards stacked behind; offset down so edges peek under source */
       .tech.t1 { top: 12px; left: 4px; right: 4px; z-index: 2; }
       .tech.t2 { top: 24px; left: 8px; right: 8px; z-index: 1; }
       .tech.t3 { top: 36px; left: 12px; right: 12px; z-index: 0; }
@@ -122,7 +127,7 @@
         text-transform: uppercase;
       }
       .lane.source { color: var(--accent); }
-      .lane.tech { color: var(--forest); }
+      .lane.tech { color: var(--tech-label); }
       .body {
         margin: 0;
         font-family: Fraunces, Georgia, serif;
@@ -132,42 +137,23 @@
         line-height: 1.3;
       }
       .tech-body {
-        margin: 4px 0 0;
+        margin: 0;
         font-size: 13px;
         font-weight: 600;
-        color: var(--muted);
+        color: var(--tech-ink);
         line-height: 1.35;
       }
       .hint { margin: 0; font-size: 11px; color: var(--soft); }
-      .tabbar {
-        position: absolute;
-        left: 20px; right: 20px; bottom: 18px;
-        display: flex; justify-content: space-around; align-items: center;
-        background: rgba(255,253,247,0.96);
-        border: 1px solid var(--line);
-        border-radius: 28px;
-        padding: 10px 6px 8px;
-        box-shadow: 0 4px 16px rgba(45,42,38,0.12);
-      }
-      .tab {
-        display: flex; flex-direction: column; align-items: center; gap: 2px;
-        min-width: 64px; font-size: 11px; color: var(--soft);
-      }
-      .tab .ico {
-        width: 40px; height: 28px; border-radius: 999px;
-        display: grid; place-items: center;
-      }
-      .tab.on { color: var(--accent); font-weight: 600; }
-      .tab.on .ico { background: rgba(45, 90, 61, 0.12); }
     </style>
   </head>
   <body>
     <div class="phone">
       <div class="scroll">
         <div class="top">
-          <p class="title">Progress</p>
+          <span class="back">← Back</span>
           <span class="chip">Light</span>
         </div>
+        <p class="title">Progress</p>
         <p class="sub">No source in the feed — only progress.</p>
 
         <div class="block">
@@ -222,32 +208,6 @@
           </div>
         </div>
       </div>
-      <nav class="tabbar" aria-label="Primary">
-        <div class="tab">
-          <div class="ico" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
-          </div>
-          Home
-        </div>
-        <div class="tab">
-          <div class="ico" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12a2 2 0 0 1 2 2v14l-4-2-4 2-4-2-4 2V6a2 2 0 0 1 2-2z"/><path d="M8 9h8M8 13h6"/></svg>
-          </div>
-          Feed
-        </div>
-        <div class="tab">
-          <div class="ico" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
-          </div>
-          Explore
-        </div>
-        <div class="tab on">
-          <div class="ico" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14c2-1 3.5-4 4-7 1 4 2.5 7 4 7s3-3 4-7c.5 3 2 6 4 7"/><path d="M4 18h16"/></svg>
-          </div>
-          Progress
-        </div>
-      </nav>
     </div>
   </body>
 </html>

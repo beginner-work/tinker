@@ -82,6 +82,7 @@ function ActivityCard({
   mode: ColorMode;
 }) {
   const c = colorsFor(mode);
+  const techTheme = colorsFor("dark");
   const back = item.techIdeas.slice(0, MAX_BACK);
   const depth = back.length;
 
@@ -113,7 +114,7 @@ function ActivityCard({
       </View>
 
       <View style={styles.stackWrap}>
-        {[...back].reverse().map((tech, revIndex) => {
+        {[...back].reverse().map((line, revIndex) => {
           const fromFront = depth - 1 - revIndex;
           return (
             <View
@@ -121,8 +122,8 @@ function ActivityCard({
               style={[
                 styles.techBackCard,
                 {
-                  backgroundColor: c.surface,
-                  borderColor: c.border,
+                  backgroundColor: techTheme.surface,
+                  borderColor: techTheme.border,
                   top: (fromFront + 1) * STACK_Y,
                   left: (fromFront + 1) * STACK_X,
                   right: (fromFront + 1) * STACK_X,
@@ -133,7 +134,7 @@ function ActivityCard({
               <Text
                 style={[
                   styles.laneLabel,
-                  { color: c.forest, fontFamily: fonts.sansSemi },
+                  { color: techTheme.forestSoft, fontFamily: fonts.sansSemi },
                 ]}
               >
                 {STR.techIdea}
@@ -141,11 +142,11 @@ function ActivityCard({
               <Text
                 style={[
                   styles.activityDetail,
-                  { color: c.inkMuted, fontFamily: fonts.sans },
+                  { color: techTheme.inkMuted, fontFamily: fonts.sans },
                 ]}
                 numberOfLines={2}
               >
-                {tech}
+                {line}
               </Text>
             </View>
           );

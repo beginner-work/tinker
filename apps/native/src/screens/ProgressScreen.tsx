@@ -17,7 +17,7 @@ import {
   type ColorMode,
 } from "../theme";
 import { STR } from "../strings";
-import { Ionicons, TAB_ICONS } from "../icons";
+import { Ionicons } from "../icons";
 import {
   cardsFromEvents,
   SEED_PROGRESS_CARDS,
@@ -32,7 +32,7 @@ type Props = {
   onToggleMode: () => void;
   onNavigate: (target: NavTarget) => void;
   connected?: boolean;
-  /** Which bottom-tab opened this surface */
+  /** Which bottom-tab opened this surface (kept for App wiring) */
   activeTab?: "feed" | "progress";
 };
 
@@ -42,8 +42,9 @@ const STACK_X = 4;
 const MAX_BACK_CARDS = 3;
 
 /**
- * Founder source-idea card in front; tech idea cards stacked behind
- * (edges peek out — deck depth, not a split layout).
+ * Founder source-idea card in front (follows app mode);
+ * tech idea cards stacked behind always use dark theme.
+ * No bottom tabs on this surface.
  */
 function ProgressCardView({
   item,
@@ -53,6 +54,7 @@ function ProgressCardView({
   mode: ColorMode;
 }) {
   const c = colorsFor(mode);
+  const tech = colorsFor("dark");
   const backTechs = item.techIdeas.slice(0, MAX_BACK_CARDS);
   const depth = backTechs.length;
 
@@ -81,9 +83,8 @@ function ProgressCardView({
         </Text>
       </View>
 
-      {/* Full tech cards offset behind; bottom edges peek under the source card */}
       <View style={[styles.stackWrap, { paddingBottom: depth * STACK_Y }]}>
-        {[...backTechs].reverse().map((tech, revIndex) => {
+        {[...backTechs].reverse().map((line, revIndex) => {
           const fromFront = depth - 1 - revIndex;
           return (
             <View
@@ -91,20 +92,20 @@ function ProgressCardView({
               style={[
                 styles.techBackCard,
                 {
-                  backgroundColor: c.surface,
-                  borderColor: c.border,
+                  backgroundColor: tech.surface,
+                  borderColor: tech.border,
                   top: (fromFront + 1) * STACK_Y,
                   left: (fromFront + 1) * STACK_X,
                   right: (fromFront + 1) * STACK_X,
                   zIndex: revIndex,
                 },
               ]}
-              accessibilityLabel={`${STR.techIdea}: ${tech}`}
+              accessibilityLabel={`${STR.techIdea}: ${line}`}
             >
               <Text
                 style={[
                   styles.laneLabel,
-                  { color: c.forest, fontFamily: fonts.sansSemi },
+                  { color: tech.forestSoft, fontFamily: fonts.sansSemi },
                 ]}
               >
                 {STR.techIdea}
@@ -112,11 +113,11 @@ function ProgressCardView({
               <Text
                 style={[
                   styles.techBody,
-                  { color: c.inkMuted, fontFamily: fonts.sansSemi },
+                  { color: tech.inkMuted, fontFamily: fonts.sansSemi },
                 ]}
                 numberOfLines={2}
               >
-                {tech}
+                {line}
               </Text>
             </View>
           );
@@ -173,15 +174,14 @@ function ProgressCardView({
 }
 
 /**
- * View 4 — LinkedIn-style progress feed (no source).
- * Lives on MCP progress_feed when configured; otherwise seed events.
+ * View 4 — progress feed (no source, no bottom tabs).
+ * Hub progress_feed when configured; otherwise seeds.
  */
 export function ProgressScreen({
   mode,
   onToggleMode,
   onNavigate,
   connected,
-  activeTab = "progress",
 }: Props) {
   const c = colorsFor(mode);
   const [cards, setCards] = useState<ProgressCard[]>(SEED_PROGRESS_CARDS);
@@ -215,17 +215,6 @@ export function ProgressScreen({
     setRefreshing(false);
   }
 
-  const tabs = [
-    { key: "home" as const, label: STR.home },
-    { key: "feed" as const, label: STR.feed },
-    { key: "explore" as const, label: STR.explore },
-    { key: "progress" as const, label: STR.progress },
-  ];
-
-  function tabActive(key: string): boolean {
-    return key === activeTab;
-  }
-
   return (
     <View
       style={[styles.root, { backgroundColor: c.background }]}
@@ -239,9 +228,17 @@ export function ProgressScreen({
         }
       >
         <View style={styles.topBar}>
-          <Text style={[styles.title, { color: c.ink, fontFamily: fonts.display }]}>
-            {STR.progress}
-          </Text>
+          <Pressable
+            onPress={() => onNavigate("explore")}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel={STR.back}
+          >
+            <Ionicons name="chevron-back" size={22} color={c.ink} />
+            <Text style={[styles.backLabel, { color: c.ink, fontFamily: fonts.sansMed }]}>
+              {STR.back}
+            </Text>
+          </Pressable>
           <View style={styles.topActions}>
             <Pressable
               onPress={onToggleMode}
@@ -260,7 +257,10 @@ export function ProgressScreen({
             </Pressable>
             <Pressable
               onPress={onRefresh}
-              style={[styles.searchBtn, { backgroundColor: c.surface, borderColor: c.border }]}
+              style={[
+                styles.searchBtn,
+                { backgroundColor: c.surface, borderColor: c.border },
+              ]}
               accessibilityRole="button"
               accessibilityLabel={STR.refresh}
             >
@@ -269,6 +269,9 @@ export function ProgressScreen({
           </View>
         </View>
 
+        <Text style={[styles.title, { color: c.ink, fontFamily: fonts.display }]}>
+          {STR.progress}
+        </Text>
         <Text style={[styles.sub, { color: c.inkMuted, fontFamily: fonts.sans }]}>
           {STR.noSourceInFeed}
         </Text>
@@ -304,55 +307,6 @@ export function ProgressScreen({
           ))
         )}
       </ScrollView>
-
-      <View
-        style={[
-          styles.tabBar,
-          {
-            backgroundColor: c.navBg,
-            shadowColor: c.navShadow,
-            borderColor: c.border,
-          },
-        ]}
-      >
-        {tabs.map((tab) => {
-          const active = tabActive(tab.key);
-          const iconSet = TAB_ICONS[tab.key];
-          return (
-            <Pressable
-              key={tab.key}
-              style={styles.tabItem}
-              onPress={() => onNavigate(tab.key)}
-              accessibilityRole="button"
-              accessibilityLabel={tab.label}
-            >
-              <View
-                style={[
-                  styles.tabIconWrap,
-                  active && { backgroundColor: c.accentMuted },
-                ]}
-              >
-                <Ionicons
-                  name={active ? iconSet.filled : iconSet.outline}
-                  size={20}
-                  color={active ? c.accent : c.inkSoft}
-                />
-              </View>
-              <Text
-                style={[
-                  styles.tabLabel,
-                  {
-                    color: active ? c.accent : c.inkSoft,
-                    fontFamily: active ? fonts.sansSemi : fonts.sans,
-                  },
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
     </View>
   );
 }
@@ -361,18 +315,26 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: {
     paddingHorizontal: space[5],
-    paddingTop: space[6],
-    paddingBottom: 120,
+    paddingTop: space[5],
+    paddingBottom: space[8],
   },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: space[3],
+    marginBottom: space[4],
   },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingVertical: space[2],
+  },
+  backLabel: { fontSize: text.base },
   title: {
     fontSize: text.title,
     letterSpacing: -0.5,
+    marginBottom: space[2],
   },
   topActions: {
     flexDirection: "row",
@@ -446,8 +408,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     borderWidth: 1,
     paddingHorizontal: space[4],
-    paddingBottom: space[2],
-    gap: 2,
+    paddingVertical: space[3],
+    gap: space[1],
+    minHeight: 140,
   },
   sourceCard: {
     borderRadius: radius.card,
@@ -479,34 +442,4 @@ const styles = StyleSheet.create({
     fontSize: text.micro,
     marginTop: space[1],
   },
-  tabBar: {
-    position: "absolute",
-    left: space[5],
-    right: space[5],
-    bottom: space[5],
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingVertical: space[3],
-    paddingHorizontal: space[2],
-    borderRadius: radius.nav,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  tabItem: {
-    alignItems: "center",
-    minWidth: 64,
-    gap: 2,
-  },
-  tabIconWrap: {
-    width: 40,
-    height: 28,
-    borderRadius: radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabLabel: { fontSize: text.micro },
 });
