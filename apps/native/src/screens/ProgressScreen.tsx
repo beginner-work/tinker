@@ -37,9 +37,9 @@ type Props = {
   activeTab?: "feed" | "progress";
 };
 
-/** Downward depth so tech cards sit behind the source card (not a side fan). */
-const STACK_Y = 12;
-const STACK_X = 4;
+/** Gray tech cards peek from under the source card (small strip per layer). */
+const STACK_PEEK = 8;
+const STACK_X = 5;
 const MAX_BACK_CARDS = 3;
 
 /**
@@ -83,9 +83,9 @@ function ProgressCardView({
         </Text>
       </View>
 
-      <View style={[styles.stackWrap, { paddingBottom: depth * STACK_Y }]}>
+      <View style={[styles.stackWrap, { paddingBottom: depth * STACK_PEEK }]}>
         {[...backTechs].reverse().map((line, revIndex) => {
-          const fromFront = depth - 1 - revIndex;
+          const fromFront = revIndex;
           return (
             <View
               key={`${item.id}-tech-${fromFront}`}
@@ -94,9 +94,9 @@ function ProgressCardView({
                 {
                   backgroundColor: techCard.surface,
                   borderColor: techCard.border,
-                  top: (fromFront + 1) * STACK_Y,
-                  left: (fromFront + 1) * STACK_X,
-                  right: (fromFront + 1) * STACK_X,
+                  bottom: fromFront * STACK_PEEK,
+                  left: fromFront * STACK_X,
+                  right: fromFront * STACK_X,
                   zIndex: revIndex,
                 },
               ]}

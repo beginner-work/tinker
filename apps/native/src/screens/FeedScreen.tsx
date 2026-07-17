@@ -71,8 +71,8 @@ function DiscoverRow({
   );
 }
 
-const STACK_Y = 10;
-const STACK_X = 4;
+const STACK_PEEK = 8;
+const STACK_X = 5;
 const MAX_BACK = 3;
 
 function ActivityCard({
@@ -87,7 +87,7 @@ function ActivityCard({
   const depth = back.length;
 
   return (
-    <View style={[styles.activityBlock, { marginBottom: space[6] + depth * STACK_Y }]}>
+    <View style={[styles.activityBlock, { marginBottom: space[6] + depth * STACK_PEEK }]}>
       <View style={styles.activityHeader}>
         <View style={[styles.avatar, { backgroundColor: c.avatarBg }]}>
           <Text
@@ -113,9 +113,9 @@ function ActivityCard({
         </Text>
       </View>
 
-      <View style={styles.stackWrap}>
+      <View style={[styles.stackWrap, { paddingBottom: depth * STACK_PEEK }]}>
         {[...back].reverse().map((line, revIndex) => {
-          const fromFront = depth - 1 - revIndex;
+          const fromFront = revIndex;
           return (
             <View
               key={`${item.id}-t-${fromFront}`}
@@ -124,9 +124,9 @@ function ActivityCard({
                 {
                   backgroundColor: techCard.surface,
                   borderColor: techCard.border,
-                  top: (fromFront + 1) * STACK_Y,
-                  left: (fromFront + 1) * STACK_X,
-                  right: (fromFront + 1) * STACK_X,
+                  bottom: fromFront * STACK_PEEK,
+                  left: fromFront * STACK_X,
+                  right: fromFront * STACK_X,
                   zIndex: revIndex,
                 },
               ]}
