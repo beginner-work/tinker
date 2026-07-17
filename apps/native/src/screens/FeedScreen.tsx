@@ -119,38 +119,32 @@ function ActivityCard({
           {STR.brand} / {item.kind}
         </Text>
         <Text
+          style={[
+            styles.laneLabel,
+            { color: c.accent, fontFamily: fonts.sansSemi },
+          ]}
+        >
+          {STR.sourceIdea}
+        </Text>
+        <Text
           style={[styles.activityTitle, { color: c.ink, fontFamily: fonts.sansSemi }]}
         >
-          {item.title}
+          {item.sourceIdea}
         </Text>
-        <View style={styles.badgeRow}>
-          <View
-            style={[
-              styles.badge,
-              {
-                backgroundColor:
-                  item.lane === "source" ? c.accentMuted : c.badge,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.badgeText,
-                {
-                  color: item.lane === "source" ? c.accent : c.badgeInk,
-                  fontFamily: fonts.sansSemi,
-                },
-              ]}
-            >
-              {item.badge}
-            </Text>
-          </View>
-        </View>
+        <View style={[styles.hairlineInCard, { backgroundColor: c.hairline }]} />
+        <Text
+          style={[
+            styles.laneLabel,
+            { color: c.forest, fontFamily: fonts.sansSemi },
+          ]}
+        >
+          {STR.techIdea}
+        </Text>
         <Text
           style={[styles.activityDetail, { color: c.inkMuted, fontFamily: fonts.sans }]}
           numberOfLines={3}
         >
-          {item.detail}
+          {item.techIdea}
         </Text>
       </View>
     </View>
@@ -461,26 +455,25 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     borderWidth: 1,
     padding: space[4],
+    gap: space[2],
   },
   repoLine: {
     fontSize: text.small,
-    marginBottom: space[2],
+    marginBottom: space[1],
+  },
+  laneLabel: {
+    fontSize: text.micro,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
   },
   activityTitle: {
     fontSize: text.essay,
     lineHeight: 22,
-    marginBottom: space[3],
   },
-  badgeRow: {
-    flexDirection: "row",
-    marginBottom: space[3],
+  hairlineInCard: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: space[1],
   },
-  badge: {
-    paddingHorizontal: space[3],
-    paddingVertical: space[1],
-    borderRadius: radius.pill,
-  },
-  badgeText: { fontSize: text.micro },
   activityDetail: {
     fontSize: text.small,
     lineHeight: 18,

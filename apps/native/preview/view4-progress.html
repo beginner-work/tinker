@@ -18,7 +18,7 @@
         --line: #d0d7de;
         --surface: #ffffff;
         --accent: #0969da;
-        --ok: #1a7f37;
+        --forest: #1a7f37;
         --soft: #a39e96;
       }
       * { box-sizing: border-box; }
@@ -69,8 +69,7 @@
         font-weight: 600;
         color: var(--muted);
       }
-      .sub { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
-      .someone { margin: 0 0 18px; font-size: 16px; font-weight: 600; }
+      .sub { margin: 0 0 18px; font-size: 13px; color: var(--muted); }
       .block { margin-bottom: 22px; }
       .head {
         display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;
@@ -90,25 +89,35 @@
         border: 1px solid var(--line);
         border-radius: 14px;
         padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
       }
-      .repo { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 500; }
+      .repo { margin: 0; font-size: 13px; color: var(--muted); font-weight: 500; }
+      .lane {
+        margin: 0;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .lane.source { color: var(--accent); }
+      .lane.tech { color: var(--forest); }
       .body {
-        margin: 0 0 10px;
+        margin: 0;
         font-family: Fraunces, Georgia, serif;
         font-size: 17px;
         font-weight: 600;
         letter-spacing: -0.02em;
         line-height: 1.35;
       }
-      .badge {
-        display: inline-flex;
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 11px;
+      .tech {
+        margin: 0;
+        font-size: 14px;
         font-weight: 600;
+        line-height: 1.4;
       }
-      .badge.source { background: #ddf4ff; color: var(--accent); }
-      .badge.tech { background: #dafbe1; color: var(--ok); }
+      .rule { height: 1px; background: var(--line); margin: 2px 0; }
       .tabbar {
         position: absolute;
         left: 20px; right: 20px; bottom: 18px;
@@ -139,7 +148,6 @@
           <span class="chip">Light</span>
         </div>
         <p class="sub">No source in the feed — only progress.</p>
-        <p class="someone">Someone you care about is here</p>
 
         <div class="block">
           <div class="head">
@@ -149,8 +157,11 @@
           </div>
           <div class="card">
             <p class="repo">tinker / Progress</p>
+            <p class="lane source">Source idea</p>
             <p class="body">Everyone is a founder.</p>
-            <span class="badge source">Source idea</span>
+            <div class="rule"></div>
+            <p class="lane tech">Tech idea</p>
+            <p class="tech">Native shell on Expo</p>
           </div>
         </div>
 
@@ -162,8 +173,11 @@
           </div>
           <div class="card">
             <p class="repo">tinker / Coverage</p>
-            <p class="body">Coverage maps a pitch idea to code files</p>
-            <span class="badge tech">Tech idea</span>
+            <p class="lane source">Source idea</p>
+            <p class="body">An app that helps engineers discover their pitch over time, on the go.</p>
+            <div class="rule"></div>
+            <p class="lane tech">Tech idea</p>
+            <p class="tech">Coverage maps a pitch idea to code files</p>
           </div>
         </div>
       </div>

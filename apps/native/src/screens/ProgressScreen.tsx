@@ -20,7 +20,7 @@ import { STR } from "../strings";
 import { Ionicons, TAB_ICONS } from "../icons";
 import {
   cardsFromEvents,
-  SEED_PROGRESS_EVENTS,
+  SEED_PROGRESS_CARDS,
   type ProgressCard,
 } from "../data/progressSeeds";
 import { fetchProgressFeed } from "../mcp/client";
@@ -79,34 +79,30 @@ function ProgressCardView({
         >
           {item.repoTitle} / {item.kind}
         </Text>
+
+        <Text
+          style={[styles.laneLabel, { color: c.accent, fontFamily: fonts.sansSemi }]}
+        >
+          {STR.sourceIdea}
+        </Text>
         <Text
           style={[styles.body, { color: c.ink, fontFamily: fonts.displaySemi }]}
         >
-          {item.body}
+          {item.sourceIdea}
         </Text>
-        <View style={styles.badgeRow}>
-          <View
-            style={[
-              styles.badge,
-              {
-                backgroundColor:
-                  item.lane === "source" ? c.accentMuted : c.badge,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.badgeText,
-                {
-                  color: item.lane === "source" ? c.accent : c.badgeInk,
-                  fontFamily: fonts.sansSemi,
-                },
-              ]}
-            >
-              {item.laneLabel}
-            </Text>
-          </View>
-        </View>
+
+        <View style={[styles.rule, { backgroundColor: c.hairline }]} />
+
+        <Text
+          style={[styles.laneLabel, { color: c.forest, fontFamily: fonts.sansSemi }]}
+        >
+          {STR.techIdea}
+        </Text>
+        <Text
+          style={[styles.techBody, { color: c.ink, fontFamily: fonts.sansSemi }]}
+        >
+          {item.techIdea}
+        </Text>
       </View>
     </View>
   );
@@ -124,9 +120,7 @@ export function ProgressScreen({
   activeTab = "progress",
 }: Props) {
   const c = colorsFor(mode);
-  const [cards, setCards] = useState<ProgressCard[]>(() =>
-    cardsFromEvents(SEED_PROGRESS_EVENTS),
-  );
+  const [cards, setCards] = useState<ProgressCard[]>(SEED_PROGRESS_CARDS);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -135,7 +129,7 @@ export function ProgressScreen({
     if (events && events.length > 0) {
       setCards(cardsFromEvents(events));
     } else {
-      setCards(cardsFromEvents(SEED_PROGRESS_EVENTS));
+      setCards(SEED_PROGRESS_CARDS);
     }
   }, []);
 
@@ -213,11 +207,6 @@ export function ProgressScreen({
 
         <Text style={[styles.sub, { color: c.inkMuted, fontFamily: fonts.sans }]}>
           {STR.noSourceInFeed}
-        </Text>
-        <Text
-          style={[styles.someone, { color: c.ink, fontFamily: fonts.sansSemi }]}
-        >
-          {STR.someoneHere}
         </Text>
 
         {connected ? (
@@ -343,10 +332,6 @@ const styles = StyleSheet.create({
   },
   sub: {
     fontSize: text.small,
-    marginBottom: space[2],
-  },
-  someone: {
-    fontSize: text.essay,
     marginBottom: space[5],
   },
   connectedBanner: {
@@ -396,18 +381,24 @@ const styles = StyleSheet.create({
     gap: space[3],
   },
   repoLine: { fontSize: text.small },
+  laneLabel: {
+    fontSize: text.micro,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
   body: {
     fontSize: text.essay,
     lineHeight: 24,
     letterSpacing: -0.2,
   },
-  badgeRow: { flexDirection: "row" },
-  badge: {
-    paddingHorizontal: space[3],
-    paddingVertical: space[1],
-    borderRadius: radius.pill,
+  techBody: {
+    fontSize: text.body,
+    lineHeight: 20,
   },
-  badgeText: { fontSize: text.micro },
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: space[1],
+  },
   tabBar: {
     position: "absolute",
     left: space[5],

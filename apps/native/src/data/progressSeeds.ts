@@ -1,6 +1,5 @@
 /**
- * Seed progress events for View 4 — same shape as hub progress_feed.
- * Feed mixes source ideas (pitch / founder words) and tech ideas (product progress).
+ * Progress feed cards — each item pairs a source idea with a tech idea.
  * Bodies are verbatim pitch lines or allowlisted UI strings (never model prose).
  */
 
@@ -9,7 +8,7 @@ import { STR } from "../strings";
 export type ProgressKind = "Progress" | "Coverage" | "Connect";
 export type IdeaLane = "source" | "tech";
 
-/** Hub event shape from progress_feed. */
+/** Hub event shape from progress_feed (single body; paired in the client). */
 export type ProgressEvent = {
   id: string;
   repositoryId: string;
@@ -17,20 +16,18 @@ export type ProgressEvent = {
   kind: ProgressKind | string;
   body: string;
   createdAt: string;
-  /** Optional lane from hub; inferred when missing */
   lane?: IdeaLane;
 };
 
-/** Display row for LinkedIn-style cards (no source code). */
+/** One feed card: source idea + tech idea together. */
 export type ProgressCard = {
   id: string;
   actor: string;
   kind: string;
-  body: string;
   when: string;
   repoTitle: string;
-  lane: IdeaLane;
-  laneLabel: string;
+  sourceIdea: string;
+  techIdea: string;
 };
 
 const NOW = Date.now();
@@ -51,6 +48,47 @@ const SOURCE_BODIES = new Set<string>([
   STR.yourWords,
 ]);
 
+/** Seed cards already paired (source + tech on one post). */
+export const SEED_PROGRESS_CARDS: ProgressCard[] = [
+  {
+    id: "card_1",
+    actor: STR.maya,
+    kind: STR.progress,
+    when: STR.justNow,
+    repoTitle: STR.brand,
+    sourceIdea: STR.pitchTagline,
+    techIdea: STR.techExpoShell,
+  },
+  {
+    id: "card_2",
+    actor: STR.jordan,
+    kind: STR.coverage,
+    when: STR.today,
+    repoTitle: STR.brand,
+    sourceIdea: STR.pitchSolution,
+    techIdea: STR.techCoverageMap,
+  },
+  {
+    id: "card_3",
+    actor: STR.maya,
+    kind: STR.connect,
+    when: STR.days3,
+    repoTitle: STR.feed,
+    sourceIdea: STR.noSourceInFeed,
+    techIdea: STR.techConnectFlow,
+  },
+  {
+    id: "card_4",
+    actor: STR.jordan,
+    kind: STR.progress,
+    when: STR.days6,
+    repoTitle: STR.brand,
+    sourceIdea: STR.pitchProblem,
+    techIdea: STR.techFeedNoSource,
+  },
+];
+
+/** Flat hub-shaped seeds (used when pairing live events). */
 export const SEED_PROGRESS_EVENTS: ProgressEvent[] = [
   {
     id: "evt_seed_1",
@@ -62,62 +100,34 @@ export const SEED_PROGRESS_EVENTS: ProgressEvent[] = [
     lane: "source",
   },
   {
-    id: "evt_seed_2",
-    repositoryId: "repo_tinker",
-    owner: STR.jordan,
-    kind: "Coverage",
-    body: STR.techCoverageMap,
-    createdAt: hoursAgo(3),
-    lane: "tech",
-  },
-  {
-    id: "evt_seed_3",
-    repositoryId: "repo_feed",
-    owner: STR.maya,
-    kind: "Progress",
-    body: STR.pitchSolution,
-    createdAt: hoursAgo(8),
-    lane: "source",
-  },
-  {
-    id: "evt_seed_4",
-    repositoryId: "repo_tinker",
-    owner: STR.jordan,
-    kind: "Connect",
-    body: STR.techConnectFlow,
-    createdAt: daysAgo(2),
-    lane: "tech",
-  },
-  {
-    id: "evt_seed_5",
+    id: "evt_seed_1b",
     repositoryId: "repo_tinker",
     owner: STR.maya,
     kind: "Progress",
     body: STR.techExpoShell,
-    createdAt: daysAgo(3),
+    createdAt: hoursAgo(0.2),
     lane: "tech",
   },
   {
-    id: "evt_seed_6",
-    repositoryId: "repo_feed",
+    id: "evt_seed_2",
+    repositoryId: "repo_tinker",
     owner: STR.jordan,
-    kind: "Progress",
-    body: STR.pitchProblem,
-    createdAt: daysAgo(6),
+    kind: "Coverage",
+    body: STR.pitchSolution,
+    createdAt: hoursAgo(5),
     lane: "source",
   },
   {
-    id: "evt_seed_7",
-    repositoryId: "repo_feed",
-    owner: STR.maya,
-    kind: "Progress",
-    body: STR.techFeedNoSource,
-    createdAt: daysAgo(6),
+    id: "evt_seed_2b",
+    repositoryId: "repo_tinker",
+    owner: STR.jordan,
+    kind: "Coverage",
+    body: STR.techCoverageMap,
+    createdAt: hoursAgo(5),
     lane: "tech",
   },
 ];
 
-/** Map ISO timestamp → allowlisted relative label. */
 export function formatWhen(iso: string, nowMs = Date.now()): string {
   const ms = nowMs - new Date(iso).getTime();
   if (!Number.isFinite(ms) || ms < 0) return STR.justNow;
@@ -142,24 +152,46 @@ function repoTitleFor(repositoryId: string): string {
 export function inferLane(event: ProgressEvent): IdeaLane {
   if (event.lane === "source" || event.lane === "tech") return event.lane;
   if (SOURCE_BODIES.has(event.body)) return "source";
-  if (event.kind === "Coverage" || event.kind === "Connect") return "tech";
   return "tech";
 }
 
-export function toProgressCard(event: ProgressEvent): ProgressCard {
-  const lane = inferLane(event);
-  return {
-    id: event.id,
-    actor: event.owner?.trim() || STR.brand,
-    kind: kindLabel(event.kind),
-    body: event.body,
-    when: formatWhen(event.createdAt),
-    repoTitle: repoTitleFor(event.repositoryId),
-    lane,
-    laneLabel: lane === "source" ? STR.sourceIdea : STR.techIdea,
-  };
-}
-
+/**
+ * Pair hub events into cards with source idea + tech idea together.
+ * Groups by owner+repo; zips source bodies with tech bodies.
+ */
 export function cardsFromEvents(events: ProgressEvent[]): ProgressCard[] {
-  return events.map(toProgressCard);
+  if (events.length === 0) return [];
+
+  const byOwner = new Map<string, ProgressEvent[]>();
+  for (const e of events) {
+    const key = (e.owner?.trim() || STR.brand) + "|" + e.repositoryId;
+    const list = byOwner.get(key) ?? [];
+    list.push(e);
+    byOwner.set(key, list);
+  }
+
+  const cards: ProgressCard[] = [];
+  for (const [, group] of byOwner) {
+    const sorted = [...group].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    const sources = sorted.filter((e) => inferLane(e) === "source");
+    const techs = sorted.filter((e) => inferLane(e) === "tech");
+    const n = Math.min(sources.length, techs.length);
+    for (let i = 0; i < n; i++) {
+      const src = sources[i]!;
+      const tech = techs[i]!;
+      cards.push({
+        id: `${src.id}_${tech.id}`,
+        actor: src.owner?.trim() || STR.brand,
+        kind: kindLabel(src.kind),
+        when: formatWhen(src.createdAt),
+        repoTitle: repoTitleFor(src.repositoryId),
+        sourceIdea: src.body,
+        techIdea: tech.body,
+      });
+    }
+  }
+
+  return cards.length > 0 ? cards : SEED_PROGRESS_CARDS;
 }

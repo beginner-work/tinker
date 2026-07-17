@@ -1,6 +1,5 @@
 /**
- * Demo Explore / Activity rows for View 1.
- * Mix of source ideas (pitch) and tech ideas (product progress).
+ * Demo Explore / Activity rows — each item pairs source idea + tech idea.
  */
 
 import { STR } from "../strings";
@@ -17,10 +16,8 @@ export type ActivityItem = {
   target: string;
   when: string;
   kind: typeof STR.progress | typeof STR.coverage | typeof STR.connect;
-  title: string;
-  detail: string;
-  badge: typeof STR.aligned | typeof STR.sourceIdea | typeof STR.techIdea;
-  lane: "source" | "tech";
+  sourceIdea: string;
+  techIdea: string;
 };
 
 export const DISCOVER_ITEMS: DiscoverItem[] = [
@@ -36,10 +33,8 @@ export const ACTIVITY_ITEMS: ActivityItem[] = [
     target: STR.progress,
     when: STR.justNow,
     kind: STR.progress,
-    title: STR.pitchTagline,
-    detail: STR.someoneHere,
-    badge: STR.sourceIdea,
-    lane: "source",
+    sourceIdea: STR.pitchTagline,
+    techIdea: STR.techExpoShell,
   },
   {
     id: "a2",
@@ -47,10 +42,8 @@ export const ACTIVITY_ITEMS: ActivityItem[] = [
     target: STR.coverage,
     when: STR.today,
     kind: STR.coverage,
-    title: STR.techCoverageMap,
-    detail: STR.techFeedNoSource,
-    badge: STR.techIdea,
-    lane: "tech",
+    sourceIdea: STR.pitchSolution,
+    techIdea: STR.techCoverageMap,
   },
   {
     id: "a3",
@@ -58,10 +51,8 @@ export const ACTIVITY_ITEMS: ActivityItem[] = [
     target: STR.connect,
     when: STR.days3,
     kind: STR.connect,
-    title: STR.pitchSolution,
-    detail: STR.techConnectFlow,
-    badge: STR.sourceIdea,
-    lane: "source",
+    sourceIdea: STR.noSourceInFeed,
+    techIdea: STR.techConnectFlow,
   },
   {
     id: "a4",
@@ -69,9 +60,7 @@ export const ACTIVITY_ITEMS: ActivityItem[] = [
     target: STR.progress,
     when: STR.days6,
     kind: STR.progress,
-    title: STR.techExpoShell,
-    detail: STR.noSourceInFeed,
-    badge: STR.techIdea,
-    lane: "tech",
+    sourceIdea: STR.pitchProblem,
+    techIdea: STR.techFeedNoSource,
   },
 ];

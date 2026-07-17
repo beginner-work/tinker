@@ -179,7 +179,7 @@ organization of founder source ideas and repository source code.
 
 ### Visible-string allowlist (View 4 — Progress feed)
 
-- `Someone you care about is here`
+- `Someone you care about is here` *(return-loop copy; not shown on Progress surface)*
 - `Refresh`
 - `Maya`
 - `Jordan`
