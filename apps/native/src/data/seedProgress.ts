@@ -1,6 +1,6 @@
 /**
  * Demo Explore / Activity rows for View 1.
- * Bodies are allowlisted UI strings or verbatim pitch lines.
+ * Mix of source ideas (pitch) and tech ideas (product progress).
  */
 
 import { STR } from "../strings";
@@ -19,7 +19,8 @@ export type ActivityItem = {
   kind: typeof STR.progress | typeof STR.coverage | typeof STR.connect;
   title: string;
   detail: string;
-  badge: typeof STR.aligned;
+  badge: typeof STR.aligned | typeof STR.sourceIdea | typeof STR.techIdea;
+  lane: "source" | "tech";
 };
 
 export const DISCOVER_ITEMS: DiscoverItem[] = [
@@ -31,32 +32,46 @@ export const DISCOVER_ITEMS: DiscoverItem[] = [
 export const ACTIVITY_ITEMS: ActivityItem[] = [
   {
     id: "a1",
-    actor: STR.brand,
-    target: STR.coverage,
+    actor: STR.maya,
+    target: STR.progress,
     when: STR.justNow,
-    kind: STR.coverage,
+    kind: STR.progress,
     title: STR.pitchTagline,
-    detail: STR.noSourceInFeed,
-    badge: STR.aligned,
+    detail: STR.someoneHere,
+    badge: STR.sourceIdea,
+    lane: "source",
   },
   {
     id: "a2",
-    actor: STR.brand,
-    target: STR.progress,
+    actor: STR.jordan,
+    target: STR.coverage,
     when: STR.today,
-    kind: STR.progress,
-    title: STR.pitchSolution,
-    detail: STR.pitchProblem,
-    badge: STR.aligned,
+    kind: STR.coverage,
+    title: STR.techCoverageMap,
+    detail: STR.techFeedNoSource,
+    badge: STR.techIdea,
+    lane: "tech",
   },
   {
     id: "a3",
-    actor: STR.brand,
+    actor: STR.maya,
     target: STR.connect,
     when: STR.days3,
     kind: STR.connect,
-    title: STR.noSourceInFeed,
-    detail: STR.emptyFeed,
-    badge: STR.aligned,
+    title: STR.pitchSolution,
+    detail: STR.techConnectFlow,
+    badge: STR.sourceIdea,
+    lane: "source",
+  },
+  {
+    id: "a4",
+    actor: STR.jordan,
+    target: STR.progress,
+    when: STR.days6,
+    kind: STR.progress,
+    title: STR.techExpoShell,
+    detail: STR.noSourceInFeed,
+    badge: STR.techIdea,
+    lane: "tech",
   },
 ];

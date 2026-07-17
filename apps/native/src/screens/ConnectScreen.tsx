@@ -219,7 +219,7 @@ export function ConnectScreen({
             </Text>
           </View>
           <Text style={[styles.statusMeta, { color: c.inkSoft, fontFamily: fonts.sans }]}>
-            {hubLive ? STR.mcpHubLive : STR.mcpHubLocal}
+            {hubLive ? STR.hubLive : STR.hubLocal}
           </Text>
           {pulledNote ? (
             <Text style={[styles.statusMeta, { color: c.forest, fontFamily: fonts.sansMed }]}>

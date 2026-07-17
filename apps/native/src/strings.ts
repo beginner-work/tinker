@@ -32,7 +32,7 @@ export const STR = {
   pitch: "Pitch",
   repository: "Repository",
   pickPitch: "Pick a pitch",
-  pullFromMcp: "Pull from MCP",
+  pullFromMcp: "Pull repository",
   connected: "Connected",
   notConnected: "Not connected",
   installTool: "Install tool",
@@ -41,11 +41,13 @@ export const STR = {
   clearConnection: "Clear connection",
   noPitchesYet: "No pitches yet",
   noReposYet: "No repositories yet",
-  connectExplain:
-    "Connect a pitch to a repository. The MCP hub is the source of truth.",
-  mcpHubLive: "MCP hub",
-  mcpHubLocal: "Local seeds — set MCP URL to pull live",
+  connectExplain: "Connect a pitch to a repository.",
+  hubLive: "Live repositories",
+  hubLocal: "Saved repositories",
   manifestPulled: "Manifest pulled",
+  // keep keys for any lingering refs
+  mcpHubLive: "Live repositories",
+  mcpHubLocal: "Saved repositories",
   // View 3 — Coverage (one pitch idea → many code files)
   unaligned: "Unaligned",
   sideBySide: "Side by side",
@@ -69,18 +71,23 @@ export const STR = {
   fileSumSeedProgress: "Seed progress for the feed",
   fileSumExplore: "Explore feed of progress",
   fileSumConnect: "Connects a pitch to a repository",
-  fileSumMcp: "Pulls repositories from the MCP hub",
+  fileSumMcp: "Pulls repositories from the hub",
   // Verbatim from pitch-deck.md
   pitchTagline: "Everyone is a founder.",
   pitchProblem:
     "Engineers stay building and human making becomes a relic of the past…",
   pitchSolution:
     "An app that helps engineers discover their pitch over time, on the go.",
-  // View 4 — Progress feed (people you care about)
+  // View 4 — Progress feed (source ideas + tech ideas)
   maya: "Maya",
   jordan: "Jordan",
   someoneHere: "Someone you care about is here",
-  pullLiveFeed: "Pull live feed",
-  localFeed: "Local seeds — set MCP URL for live feed",
   refresh: "Refresh",
+  sourceIdea: "Source idea",
+  techIdea: "Tech idea",
+  // Tech idea lines (allowlisted — product progress, not source dumps)
+  techExpoShell: "Native shell on Expo",
+  techCoverageMap: "Coverage maps a pitch idea to code files",
+  techConnectFlow: "Connect links a pitch to a repository",
+  techFeedNoSource: "Feed shows progress without source",
 } as const;

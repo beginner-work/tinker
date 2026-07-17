@@ -19,6 +19,7 @@
         --surface: #ffffff;
         --accent: #0969da;
         --ok: #1a7f37;
+        --soft: #a39e96;
       }
       * { box-sizing: border-box; }
       body {
@@ -69,18 +70,7 @@
         color: var(--muted);
       }
       .sub { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
-      .someone { margin: 0 0 14px; font-size: 16px; font-weight: 600; }
-      .banner {
-        display: flex; align-items: center; gap: 8px;
-        border: 1px solid var(--line);
-        background: var(--surface);
-        border-radius: 14px;
-        padding: 10px 12px;
-        margin-bottom: 18px;
-        font-size: 13px;
-        color: var(--muted);
-        font-weight: 500;
-      }
+      .someone { margin: 0 0 18px; font-size: 16px; font-weight: 600; }
       .block { margin-bottom: 22px; }
       .head {
         display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;
@@ -116,29 +106,29 @@
         border-radius: 999px;
         font-size: 11px;
         font-weight: 600;
-        background: #dafbe1;
-        color: var(--ok);
       }
+      .badge.source { background: #ddf4ff; color: var(--accent); }
+      .badge.tech { background: #dafbe1; color: var(--ok); }
       .tabbar {
         position: absolute;
         left: 20px; right: 20px; bottom: 18px;
-        display: flex; justify-content: space-around;
+        display: flex; justify-content: space-around; align-items: center;
         background: rgba(255,255,255,0.96);
         border: 1px solid var(--line);
         border-radius: 28px;
-        padding: 10px 6px;
+        padding: 10px 6px 8px;
         box-shadow: 0 8px 24px rgba(0,0,0,0.12);
       }
       .tab {
         display: flex; flex-direction: column; align-items: center; gap: 2px;
-        min-width: 64px; font-size: 11px; color: var(--muted);
+        min-width: 64px; font-size: 11px; color: var(--soft);
       }
-      .tab.on { color: var(--accent); font-weight: 600; }
-      .dot {
+      .tab .ico {
         width: 40px; height: 28px; border-radius: 999px;
         display: grid; place-items: center;
       }
-      .tab.on .dot { background: #ddf4ff; }
+      .tab.on { color: var(--accent); font-weight: 600; }
+      .tab.on .ico { background: #ddf4ff; }
     </style>
   </head>
   <body>
@@ -150,7 +140,6 @@
         </div>
         <p class="sub">No source in the feed — only progress.</p>
         <p class="someone">Someone you care about is here</p>
-        <div class="banner">Local seeds — set MCP URL for live feed</div>
 
         <div class="block">
           <div class="head">
@@ -161,7 +150,7 @@
           <div class="card">
             <p class="repo">tinker / Progress</p>
             <p class="body">Everyone is a founder.</p>
-            <span class="badge">Aligned</span>
+            <span class="badge source">Source idea</span>
           </div>
         </div>
 
@@ -173,16 +162,36 @@
           </div>
           <div class="card">
             <p class="repo">tinker / Coverage</p>
-            <p class="body">No source in the feed — only progress.</p>
-            <span class="badge">Aligned</span>
+            <p class="body">Coverage maps a pitch idea to code files</p>
+            <span class="badge tech">Tech idea</span>
           </div>
         </div>
       </div>
       <nav class="tabbar" aria-label="Primary">
-        <div class="tab"><span class="dot">⌂</span>Home</div>
-        <div class="tab"><span class="dot">☰</span>Feed</div>
-        <div class="tab"><span class="dot">◎</span>Explore</div>
-        <div class="tab on"><span class="dot">●</span>Progress</div>
+        <div class="tab">
+          <div class="ico" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+          </div>
+          Home
+        </div>
+        <div class="tab">
+          <div class="ico" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12a2 2 0 0 1 2 2v14l-4-2-4 2-4-2-4 2V6a2 2 0 0 1 2-2z"/><path d="M8 9h8M8 13h6"/></svg>
+          </div>
+          Feed
+        </div>
+        <div class="tab">
+          <div class="ico" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+          </div>
+          Explore
+        </div>
+        <div class="tab on">
+          <div class="ico" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14c2-1 3.5-4 4-7 1 4 2.5 7 4 7s3-3 4-7c.5 3 2 6 4 7"/><path d="M4 18h16"/></svg>
+          </div>
+          Progress
+        </div>
       </nav>
     </div>
   </body>

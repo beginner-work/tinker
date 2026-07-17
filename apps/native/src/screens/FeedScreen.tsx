@@ -124,11 +124,22 @@ function ActivityCard({
           {item.title}
         </Text>
         <View style={styles.badgeRow}>
-          <View style={[styles.badge, { backgroundColor: c.badge }]}>
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor:
+                  item.lane === "source" ? c.accentMuted : c.badge,
+              },
+            ]}
+          >
             <Text
               style={[
                 styles.badgeText,
-                { color: c.badgeInk, fontFamily: fonts.sansSemi },
+                {
+                  color: item.lane === "source" ? c.accent : c.badgeInk,
+                  fontFamily: fonts.sansSemi,
+                },
               ]}
             >
               {item.badge}

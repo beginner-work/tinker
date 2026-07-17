@@ -110,12 +110,22 @@ export async function fetchProgressFeed(opts?: {
     events?: Array<Record<string, unknown>>;
   } | null;
   if (!data?.events || !Array.isArray(data.events)) return null;
-  return data.events.map((raw) => ({
-    id: String(raw.id),
-    repositoryId: String(raw.repositoryId ?? raw.repository_id ?? ""),
-    owner: raw.owner != null ? String(raw.owner) : null,
-    kind: String(raw.kind ?? "Progress"),
-    body: String(raw.body ?? ""),
-    createdAt: String(raw.createdAt ?? raw.created_at ?? new Date().toISOString()),
-  }));
+  return data.events.map((raw) => {
+    const laneRaw = raw.lane != null ? String(raw.lane) : "";
+    const lane =
+      laneRaw === "source" || laneRaw === "tech"
+        ? (laneRaw as "source" | "tech")
+        : undefined;
+    return {
+      id: String(raw.id),
+      repositoryId: String(raw.repositoryId ?? raw.repository_id ?? ""),
+      owner: raw.owner != null ? String(raw.owner) : null,
+      kind: String(raw.kind ?? "Progress"),
+      body: String(raw.body ?? ""),
+      createdAt: String(
+        raw.createdAt ?? raw.created_at ?? new Date().toISOString(),
+      ),
+      lane,
+    };
+  });
 }

@@ -180,14 +180,19 @@ organization of founder source ideas and repository source code.
 ### Visible-string allowlist (View 4 — Progress feed)
 
 - `Someone you care about is here`
-- `Pull live feed`
-- `Local seeds — set MCP URL for live feed`
 - `Refresh`
 - `Maya`
 - `Jordan`
-- Progress event bodies from MCP hub (verbatim founder lines / allowlisted UI)
-- Owner display names from MCP progress events
+- `Source idea`
+- `Tech idea`
+- `Native shell on Expo`
+- `Coverage maps a pitch idea to code files`
+- `Connect links a pitch to a repository`
+- `Feed shows progress without source`
+- Progress event bodies from the hub (verbatim founder lines / allowlisted UI)
+- Owner display names from progress events
 - Kind labels reuse: `Progress`, `Coverage`, `Connect`
+- Do not surface “MCP” in product UI copy (hub stays infrastructure-only)
 
 ## Open questions — ask the founder, don't invent
 

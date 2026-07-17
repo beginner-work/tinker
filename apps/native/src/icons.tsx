@@ -3,10 +3,13 @@ import type { ComponentProps } from "react";
 
 type IonName = ComponentProps<typeof Ionicons>["name"];
 
-/** Tab + Discover icon names — Ionicons, GitHub Explore–adjacent, no letter glyphs. */
+/**
+ * Tab icons aligned with View 1 nav close-up:
+ * Home house · Feed document · Explore compass · Progress activity wave.
+ */
 export const TAB_ICONS = {
   home: { outline: "home-outline", filled: "home" },
-  feed: { outline: "newspaper-outline", filled: "newspaper" },
+  feed: { outline: "document-text-outline", filled: "document-text" },
   explore: { outline: "compass-outline", filled: "compass" },
   progress: { outline: "pulse-outline", filled: "pulse" },
 } as const satisfies Record<string, { outline: IonName; filled: IonName }>;

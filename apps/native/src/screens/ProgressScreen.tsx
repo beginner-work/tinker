@@ -23,7 +23,7 @@ import {
   SEED_PROGRESS_EVENTS,
   type ProgressCard,
 } from "../data/progressSeeds";
-import { fetchProgressFeed, isMcpConfigured } from "../mcp/client";
+import { fetchProgressFeed } from "../mcp/client";
 
 type NavTarget = "explore" | "connect" | "coverage" | "progress" | "home" | "feed";
 
@@ -85,14 +85,25 @@ function ProgressCardView({
           {item.body}
         </Text>
         <View style={styles.badgeRow}>
-          <View style={[styles.badge, { backgroundColor: c.badge }]}>
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor:
+                  item.lane === "source" ? c.accentMuted : c.badge,
+              },
+            ]}
+          >
             <Text
               style={[
                 styles.badgeText,
-                { color: c.badgeInk, fontFamily: fonts.sansSemi },
+                {
+                  color: item.lane === "source" ? c.accent : c.badgeInk,
+                  fontFamily: fonts.sansSemi,
+                },
               ]}
             >
-              {STR.aligned}
+              {item.laneLabel}
             </Text>
           </View>
         </View>
@@ -116,7 +127,6 @@ export function ProgressScreen({
   const [cards, setCards] = useState<ProgressCard[]>(() =>
     cardsFromEvents(SEED_PROGRESS_EVENTS),
   );
-  const [live, setLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -124,10 +134,8 @@ export function ProgressScreen({
     const events = await fetchProgressFeed({ limit: 40 });
     if (events && events.length > 0) {
       setCards(cardsFromEvents(events));
-      setLive(true);
     } else {
       setCards(cardsFromEvents(SEED_PROGRESS_EVENTS));
-      setLive(false);
     }
   }, []);
 
@@ -211,37 +219,6 @@ export function ProgressScreen({
         >
           {STR.someoneHere}
         </Text>
-
-        <View
-          style={[
-            styles.sourceBanner,
-            {
-              backgroundColor: live ? c.accentMuted : c.surface,
-              borderColor: c.border,
-            },
-          ]}
-        >
-          <Ionicons
-            name={live ? "cloud-done-outline" : "cloud-offline-outline"}
-            size={16}
-            color={live ? c.accent : c.inkSoft}
-          />
-          <Text
-            style={[
-              styles.sourceText,
-              {
-                color: live ? c.accent : c.inkMuted,
-                fontFamily: fonts.sansMed,
-              },
-            ]}
-          >
-            {live
-              ? STR.mcpHubLive
-              : isMcpConfigured()
-                ? STR.pullLiveFeed
-                : STR.localFeed}
-          </Text>
-        </View>
 
         {connected ? (
           <View
@@ -370,19 +347,8 @@ const styles = StyleSheet.create({
   },
   someone: {
     fontSize: text.essay,
-    marginBottom: space[4],
+    marginBottom: space[5],
   },
-  sourceBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space[2],
-    borderWidth: 1,
-    borderRadius: radius.card,
-    paddingHorizontal: space[4],
-    paddingVertical: space[3],
-    marginBottom: space[4],
-  },
-  sourceText: { fontSize: text.small, flex: 1 },
   connectedBanner: {
     flexDirection: "row",
     alignItems: "center",
