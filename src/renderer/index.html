@@ -190,32 +190,12 @@
         </button>
       </header>
 
-      <!-- The v0.103 sidebar tree: the eleven pitch-deck slide titles
-           as the top tier, verbatim phrases from the founder's own
-           writings as the inner rows. The <nav> is hidden whenever
-           the tree has no resolvable phrases — cold-start state
-           collapses to brand + Account only. -->
-      <nav class="sidebar__tree" aria-label="Pitch deck" hidden>
-        <!-- Overall progress: how many of the eleven deck headings have
-             at least one resolvable phrase. Developer-authored chrome
-             (the literals "Pitch progress" and the "N / 11" count are
-             allow-listed in sidebar-tree.js's audit). -->
-        <div class="sidebar__tree-progress" data-tree-progress data-audit-ignore>
-          <div class="sidebar__tree-progress-meta">
-            <span class="sidebar__tree-progress-label">Pitch progress</span>
-            <span class="sidebar__tree-progress-count" data-tree-progress-count>
-              <span class="sidebar__tree-progress-count-num" data-tree-progress-count-num>0 / 11</span>
-              <span class="sidebar__tree-progress-count-flight" aria-hidden="true">stay tuned…</span>
-            </span>
-          </div>
-          <div class="sidebar__tree-progress-track" role="progressbar"
-               aria-label="Pitch deck completion"
-               aria-valuemin="0" aria-valuemax="11" aria-valuenow="0"
-               data-tree-progress-bar>
-            <div class="sidebar__tree-progress-fill" data-tree-progress-fill></div>
-          </div>
-        </div>
-        <ul class="sidebar__tree-list"></ul>
+      <!-- Cursor-mobile-shaped agents list: every pitch is a row, like
+           Cursor's agent inbox. The eleven deck sections live in the
+           main workspace (#workspace), not here. sidebar-tree.js fills
+           [data-pitch-switcher]. Hidden on cold-start (no pitches). -->
+      <nav class="sidebar__agents" aria-label="Pitches" hidden>
+        <div class="sidebar__pitch-switcher" data-pitch-switcher data-audit-ignore hidden></div>
       </nav>
 
       <nav class="sidebar__account" aria-label="Account">
@@ -290,10 +270,11 @@
     </aside>
 
     <main class="stage" id="stage" role="main">
-      <!-- Default landing: a quiet empty state that points back at the
-           sidebar. Once a seed is tapped, #writing takes over. -->
+      <!-- Default landing. Cold-start shows the place grid; once a pitch
+           exists, #workspace takes over as the Cursor-mobile-shaped
+           main column — pitch sections live here, not in the drawer. -->
       <section id="welcome" class="feed welcome" data-active>
-        <div class="welcome__inner">
+        <div class="welcome__inner" data-welcome-cold>
           <div class="welcome__logo" aria-hidden="true">
             <svg data-rainbow-logo viewBox="0 0 200 200" width="56" height="56" fill="none">
               <rect width="200" height="200" rx="44" fill="#f5f3ef" />
@@ -329,6 +310,44 @@
                    autocomplete="off" spellcheck="false" maxlength="120" />
             <button type="submit" class="welcome__submit">Start →</button>
           </form>
+        </div>
+
+        <!-- Workspace: the active pitch's eleven sections. Filled by
+             sidebar-tree.js. Hidden until at least one pitch exists. -->
+        <div id="workspace" class="workspace" hidden>
+          <header class="workspace__top" data-audit-ignore>
+            <div class="workspace__titles">
+              <p class="workspace__eyebrow">Workspace</p>
+              <h1 class="workspace__title" data-workspace-title>Pitch</h1>
+              <p class="workspace__subtitle" data-workspace-subtitle hidden></p>
+            </div>
+            <button type="button" class="workspace__new" id="workspace-new"
+                    title="Start writing" aria-label="Start writing">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </header>
+
+          <nav class="workspace__deck sidebar__tree" aria-label="Pitch deck" hidden>
+            <div class="sidebar__tree-progress" data-tree-progress data-audit-ignore>
+              <div class="sidebar__tree-progress-meta">
+                <span class="sidebar__tree-progress-label">Pitch progress</span>
+                <span class="sidebar__tree-progress-count" data-tree-progress-count>
+                  <span class="sidebar__tree-progress-count-num" data-tree-progress-count-num>0 / 11</span>
+                  <span class="sidebar__tree-progress-count-flight" aria-hidden="true">stay tuned…</span>
+                </span>
+              </div>
+              <div class="sidebar__tree-progress-track" role="progressbar"
+                   aria-label="Pitch deck completion"
+                   aria-valuemin="0" aria-valuemax="11" aria-valuenow="0"
+                   data-tree-progress-bar>
+                <div class="sidebar__tree-progress-fill" data-tree-progress-fill></div>
+              </div>
+            </div>
+            <ul class="sidebar__tree-list workspace__section-list"></ul>
+            <div class="sidebar__pitch-post" data-pitch-post data-audit-ignore hidden></div>
+          </nav>
         </div>
       </section>
 

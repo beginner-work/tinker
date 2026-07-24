@@ -1,9 +1,12 @@
-/* tinker — sidebar tree (v0.105)
+/* tinker — sidebar tree / workspace deck (v0.106)
  *
- * Renders the active pitch's eleven-slide deck inside the sidebar.
+ * Cursor-mobile-shaped chrome with tinker styling:
+ *   - Sidebar drawer lists pitches (agents inbox).
+ *   - Main workspace hosts the active pitch's eleven deck sections.
+ *
  * Every pitch follows the same shape (deck headings + verbatim
- * phrases lifted from the founder's drafts and essays); the pitch
- * dropdown at the top swaps which pitch's deck is on screen. All
+ * phrases lifted from the founder's drafts and essays); picking a
+ * pitch in the sidebar swaps which deck fills the workspace. All
  * eleven slide titles render the moment a pitch exists — headings
  * with no resolved phrases are flagged with [data-empty] so the CSS
  * can gray them out as placeholders.
@@ -17,9 +20,9 @@
  * Visible-string contract: the eleven deck-heading literals are
  * developer-authored chrome; every other visible string under a
  * phrase row must be a verbatim slice of the founder's writing at
- * the recorded offset. The dropdown + rename action + bottom-of-nav
- * Pitch button live inside [data-audit-ignore] wrappers because
- * pitch titles are model-generated (or founder-edited) rather than
+ * the recorded offset. The pitch list + rename action + Publish
+ * button live inside [data-audit-ignore] wrappers because pitch
+ * titles are model-generated (or founder-edited) rather than
  * verbatim phrases.
  */
 
@@ -148,34 +151,56 @@
   let progressCountEl = null;
   let progressFillEl = null;
   let progressBarEl = null;
-  // Switcher = dropdown + rename UI. Created lazily inside navEl.
+  // Agents list (pitch rows) lives in the sidebar drawer.
+  let agentsEl = null;
   let switcherEl = null;
-  // Post button sits at the very bottom of the deck nav, below the
+  // Workspace chrome around the deck sections.
+  let workspaceEl = null;
+  let workspaceTitleEl = null;
+  let workspaceSubtitleEl = null;
+  let welcomeColdEl = null;
+  // Post button sits at the bottom of the workspace deck, below the
   // eleven slide rows. Created lazily inside navEl.
   let postEl = null;
 
   function ensureMount() {
-    navEl = document.querySelector(".sidebar__tree");
+    // Prefer querySelector over getElementById so the node:test sandbox
+    // (which only stubs querySelector) can still boot the module.
+    workspaceEl = document.querySelector("#workspace");
+    workspaceTitleEl = workspaceEl
+      ? workspaceEl.querySelector("[data-workspace-title]")
+      : null;
+    workspaceSubtitleEl = workspaceEl
+      ? workspaceEl.querySelector("[data-workspace-subtitle]")
+      : null;
+    welcomeColdEl = document.querySelector("[data-welcome-cold]");
+    agentsEl = document.querySelector(".sidebar__agents");
+
+    navEl = document.querySelector(".workspace__deck")
+      || document.querySelector(".sidebar__tree");
     listEl = navEl ? navEl.querySelector(".sidebar__tree-list") : null;
     progressEl = navEl ? navEl.querySelector("[data-tree-progress]") : null;
     progressCountEl = navEl ? navEl.querySelector("[data-tree-progress-count-num]") : null;
     progressFillEl = navEl ? navEl.querySelector("[data-tree-progress-fill]") : null;
     progressBarEl = navEl ? navEl.querySelector("[data-tree-progress-bar]") : null;
-    if (!navEl) return;
 
-    if (!switcherEl || !navEl.contains(switcherEl)) {
-      switcherEl = navEl.querySelector("[data-pitch-switcher]");
-      if (!switcherEl) {
-        switcherEl = document.createElement("div");
-        switcherEl.className = "sidebar__pitch-switcher";
-        switcherEl.setAttribute("data-pitch-switcher", "");
-        switcherEl.setAttribute("data-audit-ignore", "");
-        switcherEl.hidden = true;
-        navEl.insertBefore(switcherEl, navEl.firstChild);
+    // Pitch list mounts in the sidebar agents nav (Cursor inbox).
+    const switcherHost = agentsEl || navEl;
+    if (switcherHost) {
+      if (!switcherEl || !switcherHost.contains(switcherEl)) {
+        switcherEl = switcherHost.querySelector("[data-pitch-switcher]");
+        if (!switcherEl) {
+          switcherEl = document.createElement("div");
+          switcherEl.className = "sidebar__pitch-switcher";
+          switcherEl.setAttribute("data-pitch-switcher", "");
+          switcherEl.setAttribute("data-audit-ignore", "");
+          switcherEl.hidden = true;
+          switcherHost.insertBefore(switcherEl, switcherHost.firstChild);
+        }
       }
     }
 
-    if (!postEl || !navEl.contains(postEl)) {
+    if (navEl && (!postEl || !navEl.contains(postEl))) {
       postEl = navEl.querySelector("[data-pitch-post]");
       if (!postEl) {
         postEl = document.createElement("div");
@@ -184,6 +209,42 @@
         postEl.setAttribute("data-audit-ignore", "");
         postEl.hidden = true;
         navEl.appendChild(postEl);
+      }
+    }
+  }
+
+  function syncWorkspaceChrome(pitches, activeId) {
+    const hasPitches = Array.isArray(pitches) && pitches.length > 0;
+    if (welcomeColdEl) welcomeColdEl.hidden = hasPitches;
+    if (workspaceEl) workspaceEl.hidden = !hasPitches;
+    if (agentsEl) agentsEl.hidden = !hasPitches;
+    if (navEl) navEl.hidden = !hasPitches;
+
+    const welcome = document.querySelector("#welcome");
+    if (welcome) {
+      if (hasPitches) welcome.setAttribute("data-workspace", "");
+      else welcome.removeAttribute("data-workspace");
+    }
+
+    if (!hasPitches || !workspaceTitleEl) return;
+    const active = pitches.find((p) => p.id === activeId) || pitches[0];
+    if (!active) return;
+    const personal = active.personalTitle || null;
+    const ai = active.aiTitle || null;
+    workspaceTitleEl.textContent = personal || ai || active.displayName || "Pitch";
+    if (workspaceSubtitleEl) {
+      if (personal && ai) {
+        workspaceSubtitleEl.hidden = false;
+        workspaceSubtitleEl.textContent = ai;
+      } else {
+        const edited = formatEditedDate(active.updatedAt);
+        if (edited) {
+          workspaceSubtitleEl.hidden = false;
+          workspaceSubtitleEl.textContent = edited;
+        } else {
+          workspaceSubtitleEl.hidden = true;
+          workspaceSubtitleEl.textContent = "";
+        }
       }
     }
   }
@@ -312,17 +373,17 @@
       rows.push({ heading, resolved });
     }
 
-    // Cold-start: no pitches at all. Hide the whole nav so brand sits
-    // directly above Account until the founder has at least one pitch.
+    // Cold-start: no pitches at all. Hide workspace + agents list so
+    // the place grid stays front-and-centre until the first pitch lands.
     if (pitches.length === 0) {
-      navEl.hidden = true;
-      listEl.innerHTML = "";
+      syncWorkspaceChrome([], null);
+      if (listEl) listEl.innerHTML = "";
       if (switcherEl) { switcherEl.hidden = true; switcherEl.innerHTML = ""; }
       if (postEl) { postEl.hidden = true; postEl.innerHTML = ""; }
       updateProgress(0);
       return;
     }
-    navEl.hidden = false;
+    syncWorkspaceChrome(pitches, activeId);
 
     renderSwitcher(pitches, activeId);
     renderPost(pitches);
@@ -464,19 +525,14 @@
     refreshActive();
   }
 
-  // ── Switcher: dropdown + actions ──────────────────────────────────
+  // ── Agents list (pitch rows) + rename ─────────────────────────────
   //
-  // Always visible once at least one pitch exists. The dropdown chip
-  // shows the active pitch's title; tapping it expands the menu of
-  // all pitches. Beneath the chip, a full-width outlined "Rename
-  // pitch" button opens an inline rename input — same step-back
-  // treatment as .writing__end. The matching go-forth action — the
-  // indigo "Pitch" button — sits separately, at the very bottom of
-  // the deck nav (below all eleven slide rows), rendered via
-  // renderPost into its own mount. The whole surface sits inside
-  // [data-audit-ignore] because titles are model-generated or
-  // founder-edited rather than verbatim founder phrases.
-  let switcherOpen = false;
+  // Cursor-mobile inbox shape: every pitch is a selectable row in the
+  // sidebar. The active pitch's deck fills the workspace. Beneath the
+  // list, a full-width outlined "Rename pitch" button opens an inline
+  // rename input. Publish sits at the bottom of the workspace deck.
+  // The whole surface sits inside [data-audit-ignore] because titles
+  // are model-generated or founder-edited rather than verbatim phrases.
   let renameOpen = false;
   // Pitches now refresh themselves: adding an essay fires a full
   // re-cluster automatically (see pitches.js → scheduleRedistribute),
@@ -571,112 +627,64 @@
     switcherEl.hidden = false;
     switcherEl.innerHTML = "";
 
-    // Header row: just the "Pitch" caption. Pitches re-cluster
-    // themselves whenever an essay is added (no manual refresh control),
-    // so there's nothing else to hang here.
+    const active = pitches.find((p) => p.id === activeId) || pitches[0];
+
+    // Header: "Pitches" — Cursor-mobile inbox caption, tinker type.
     const head = document.createElement("div");
     head.className = "sidebar__pitch-switcher-head";
     const label = document.createElement("span");
     label.className = "sidebar__pitch-switcher-label";
-    label.textContent = "Pitch";
+    label.textContent = "Pitches";
     head.appendChild(label);
     switcherEl.appendChild(head);
 
-    const row = document.createElement("div");
-    row.className = "sidebar__pitch-switcher-row";
-    switcherEl.appendChild(row);
-
-    const active = pitches.find((p) => p.id === activeId) || pitches[0];
-
-    // The face button: shows both the founder's personal recognition
-    // name (if set) and the AI-generated canonical name. Layout is
-    // two lines — personal as the prominent label (that's what the
-    // founder spots fast), AI as a muted subtitle (the canonical
-    // identifier that evolves as the pitch's writings change). If
-    // only one of the two exists, it sits alone.
-    const face = document.createElement("button");
-    face.type = "button";
-    face.className = "sidebar__pitch-dropdown";
-    face.setAttribute("aria-haspopup", "listbox");
-    face.setAttribute("aria-expanded", switcherOpen ? "true" : "false");
-    const titles = renderTitleStack(active);
-    face.appendChild(titles);
-    const caret = document.createElement("span");
-    caret.className = "sidebar__pitch-dropdown-caret";
-    caret.setAttribute("aria-hidden", "true");
-    caret.textContent = "▾";
-    face.appendChild(caret);
-    face.addEventListener("click", (e) => {
-      // Stop bubbling: the document-level "click outside to close"
-      // listener also fires on the same event, and by the time it
-      // runs the render() below has already detached the face button
-      // from the DOM — so switcherEl.contains(e.target) would return
-      // false and the menu would close immediately.
-      e.preventDefault();
-      e.stopPropagation();
-      switcherOpen = !switcherOpen;
-      renameOpen = false;
-      render();
-    });
-    row.appendChild(face);
-
-    // When the dropdown is open, the menu of pitches sits directly
-    // under the chip so the active pitch and the alternatives stay
-    // visually connected. The "Rename pitch" button then slides below
-    // the menu — the step-back action stays anchored to the bottom of
-    // the switcher block rather than getting trapped above the list.
-    if (switcherOpen) {
-      // Every pitch in the menu is sharp and selectable — the
-      // multi-pitch switcher is free for everyone. The founder can jump
-      // to any of their pitches from here; the active one is marked, and
-      // each one's robustness ("n / headings") rides along as a quiet
-      // signal rather than a gate.
-      //
-      // Pitches that resolve to 0 / 11 are trimmed from the list — an
-      // empty pitch is noise the founder can't act on yet. The active
-      // pitch is the one exception: it stays put so the menu always
-      // shows what's currently selected (and never goes empty when every
-      // pitch happens to be at 0 / 11).
-      // Most recently edited first, so the pitch the founder just
-      // touched sits at the top of the menu. Ties (and pitches with no
-      // recorded edit) fall back to createdAt so ordering stays stable.
-      const menuPitches = pitches
-        .filter((p) => p.id === active.id || (Number(p.robustness) || 0) > 0)
-        .sort((a, b) => {
-          const at = Number(a.updatedAt) || Number(a.createdAt) || 0;
-          const bt = Number(b.updatedAt) || Number(b.createdAt) || 0;
-          return bt - at;
-        });
-      const menu = document.createElement("ul");
-      menu.className = "sidebar__pitch-menu";
-      menu.setAttribute("role", "listbox");
-      for (const p of menuPitches) {
-        const li = document.createElement("li");
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "sidebar__pitch-menu-item";
-        btn.setAttribute("data-pitch-id", p.id);
-        if (p.id === active.id) btn.setAttribute("data-active", "");
-        btn.appendChild(renderTitleStack(p));
-        const itemMeta = document.createElement("span");
-        itemMeta.className = "sidebar__pitch-menu-meta";
-        const robust = Number(p.robustness) || 0;
-        itemMeta.textContent = `${robust} / ${DECK_HEADINGS.length}`;
-        btn.appendChild(itemMeta);
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const pm = pitchesApi();
-          if (pm && typeof pm.setActivePitch === "function") {
-            pm.setActivePitch(p.id);
-          }
-          switcherOpen = false;
-          render();
-        });
-        li.appendChild(btn);
-        menu.appendChild(li);
-      }
-      switcherEl.appendChild(menu);
+    // Always-visible agents list. Empty pitches (0 / 11) are trimmed
+    // except the active one, so the inbox never goes blank.
+    const menuPitches = pitches
+      .filter((p) => p.id === active.id || (Number(p.robustness) || 0) > 0)
+      .sort((a, b) => {
+        const at = Number(a.updatedAt) || Number(a.createdAt) || 0;
+        const bt = Number(b.updatedAt) || Number(b.createdAt) || 0;
+        return bt - at;
+      });
+    const menu = document.createElement("ul");
+    menu.className = "sidebar__pitch-menu sidebar__pitch-menu--agents";
+    menu.setAttribute("role", "listbox");
+    menu.setAttribute("aria-label", "Pitches");
+    for (const p of menuPitches) {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "sidebar__pitch-menu-item";
+      btn.setAttribute("data-pitch-id", p.id);
+      btn.setAttribute("role", "option");
+      if (p.id === active.id) btn.setAttribute("data-active", "");
+      btn.appendChild(renderTitleStack(p));
+      const itemMeta = document.createElement("span");
+      itemMeta.className = "sidebar__pitch-menu-meta";
+      const robust = Number(p.robustness) || 0;
+      itemMeta.textContent = `${robust} / ${DECK_HEADINGS.length}`;
+      btn.appendChild(itemMeta);
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const pm = pitchesApi();
+        if (pm && typeof pm.setActivePitch === "function") {
+          pm.setActivePitch(p.id);
+        }
+        renameOpen = false;
+        render();
+        // Cursor mobile: picking an agent closes the drawer so the
+        // workspace comes forward.
+        if (document.body && document.body.dataset && "drawerOpen" in document.body.dataset) {
+          delete document.body.dataset.drawerOpen;
+          const toggle = document.querySelector("#drawer-toggle");
+          if (toggle) toggle.setAttribute("aria-expanded", "false");
+        }
+      });
+      li.appendChild(btn);
+      menu.appendChild(li);
     }
+    switcherEl.appendChild(menu);
 
     // Full-width "Rename pitch" button. Outlined treatment matches
     // .writing__end in the answer flow.
@@ -688,7 +696,6 @@
       e.preventDefault();
       e.stopPropagation();
       renameOpen = !renameOpen;
-      switcherOpen = false;
       render();
       if (renameOpen) {
         setTimeout(() => {
@@ -1121,19 +1128,28 @@
 
   window.addEventListener("tinker:pitches-changed", () => { render(); });
   window.addEventListener("tinker:active-pitch-changed", () => {
-    switcherOpen = false;
     renameOpen = false;
     render();
   });
 
-  // Close the dropdown / rename if the user clicks outside.
+  // Close rename if the user clicks outside the agents list.
   document.addEventListener("click", (e) => {
-    if (!switcherOpen && !renameOpen) return;
+    if (!renameOpen) return;
     if (!switcherEl) return;
     if (switcherEl.contains(e.target)) return;
-    switcherOpen = false;
     renameOpen = false;
     render();
+  });
+
+  // Workspace "+" — Cursor-mobile "new agent" affordance. Opens a new
+  // writing session so the founder can keep filling the active pitch.
+  document.addEventListener("click", (e) => {
+    const btn = e.target && e.target.closest && e.target.closest("#workspace-new");
+    if (!btn) return;
+    e.preventDefault();
+    if (typeof window.tinkerNewSession === "function") {
+      window.tinkerNewSession();
+    }
   });
 
   // ── Boot ──────────────────────────────────────────────────────────

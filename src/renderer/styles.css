@@ -624,19 +624,29 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   animation: tinker-bar-flash 900ms ease-out;
 }
 
-/* ── Pitch switcher (v0.104) ──────────────────────────────────────
+/* ── Sidebar agents list (pitches) ────────────────────────────────
  *
- * A dropdown above the pitch-progress bar. The face button shows the
- * active pitch's title; tapping it expands a menu of all pitches.
- * Beneath the chip, a full-width outlined "Rename pitch" button
- * mirrors the writing-flow step-back treatment. The matching
- * go-forth action — the indigo "Pitch" button — sits separately at
- * the very bottom of the deck nav, below all eleven slide rows.
- * Every pitch is equal-status (no main/alt distinction), so the
- * menu lists them all the same way — title plus a "covered N/11"
- * hint. The whole surface sits inside [data-audit-ignore] because
- * pitch titles are model-generated or founder-edited rather than
- * verbatim founder phrases.
+ * Cursor-mobile inbox shape: a vertical list of pitches in the
+ * drawer. Selecting one fills the workspace deck. Tinker styling
+ * throughout — warm paper, Fraunces labels, hairline borders.
+ */
+.sidebar__agents {
+  padding: 4px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.sidebar__agents[hidden] { display: none !important; }
+
+/* ── Pitch switcher / agents list (v0.106) ────────────────────────
+ *
+ * Always-visible pitch rows in the sidebar (Cursor agents inbox).
+ * Rename sits beneath the list. Publish lives at the bottom of the
+ * workspace deck. Titles sit inside [data-audit-ignore].
  */
 .sidebar__pitch-switcher {
   padding: 4px 10px 6px;
@@ -832,12 +842,22 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-background);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   gap: 2px;
   max-height: 280px;
   overflow-y: auto;
+}
+/* Agents inbox: flat list, no dropdown chrome, fills the drawer. */
+.sidebar__pitch-menu--agents {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  max-height: none;
+  flex: 1 1 auto;
+  gap: 2px;
 }
 .sidebar__pitch-menu-item {
   width: 100%;
@@ -845,9 +865,9 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 6px 10px;
+  padding: 10px 12px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-card, 12px);
   background: transparent;
   color: var(--color-foreground);
   font: inherit;
@@ -855,13 +875,13 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   font-weight: 600;
   text-align: left;
   cursor: pointer;
-  transition: background 0.12s ease;
 }
 .sidebar__pitch-menu-item:hover {
   background: var(--color-hover);
 }
 .sidebar__pitch-menu-item[data-active] {
-  background: var(--color-hover);
+  background: var(--color-card);
+  box-shadow: inset 0 0 0 1px var(--color-border);
 }
 .sidebar__pitch-menu-title {
   overflow: hidden;
@@ -893,6 +913,118 @@ body[data-tree-progress-state="classifying"] [data-rainbow-logo] {
   background: var(--color-background);
   position: relative;
   overflow: hidden;
+}
+/* Workspace mode: pitch sections fill the stage (Cursor mobile
+ * conversation column). Drop the centred cold-start padding. */
+.stage > .welcome.feed[data-active][data-workspace] {
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  overflow: auto;
+}
+
+/* ── Workspace (pitch sections in the main column) ────────────────
+ *
+ * Cursor-mobile workspace shape, tinker tokens: Fraunces title,
+ * Instrument Sans body, warm paper, rainbow progress, hairline
+ * section cards. The eleven deck headings live here — not in the
+ * sidebar drawer.
+ */
+.workspace {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 56px)
+    clamp(16px, 4vw, 32px)
+    calc(env(safe-area-inset-bottom, 0px) + 96px);
+  box-sizing: border-box;
+}
+.workspace[hidden] { display: none !important; }
+.workspace__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.workspace__eyebrow {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.workspace__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: var(--font-display-settings);
+  font-size: var(--text-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-foreground);
+  line-height: 1.2;
+}
+.workspace__subtitle {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--color-muted);
+  font-style: italic;
+}
+.workspace__new {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-foreground);
+  cursor: pointer;
+}
+.workspace__new:hover {
+  border-color: var(--color-accent-strong);
+  color: var(--color-accent-strong);
+}
+.workspace__new:active { transform: scale(0.98); }
+.workspace__deck {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+}
+.workspace__deck .sidebar__tree-progress {
+  padding: 0 4px 16px;
+}
+.workspace__section-list {
+  gap: 8px;
+}
+.workspace__deck .sidebar__deck-heading-row {
+  display: block;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card, 12px);
+  overflow: hidden;
+}
+.workspace__deck .sidebar__deck-heading {
+  width: 100%;
+  border-radius: 0;
+  padding: 14px 16px;
+  font-size: 15px;
+}
+.workspace__deck .sidebar__phrase-list {
+  padding: 0 8px 10px 16px;
+}
+.workspace__deck .sidebar__pitch-post {
+  padding: 16px 4px 0;
 }
 /* Prism wedge hugging the top-left corner of the welcome page.
  * Consumes the design-system Edge tokens
@@ -971,6 +1103,14 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   gap: 14px;
   max-width: 480px;
   width: 100%;
+}
+/* Author display:flex would otherwise beat the UA [hidden] rule and
+ * leave the cold-start grid stacked above the workspace. */
+.welcome__inner[hidden],
+.workspace[hidden],
+.sidebar__agents[hidden],
+.workspace__deck[hidden] {
+  display: none !important;
 }
 .welcome__logo {
   opacity: 0.85;
