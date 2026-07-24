@@ -226,12 +226,19 @@
       else welcome.removeAttribute("data-workspace");
     }
 
-    if (!hasPitches || !workspaceTitleEl) return;
+    const nativeTitle = document.querySelector("[data-native-title]");
+    if (!hasPitches) {
+      if (nativeTitle) nativeTitle.textContent = "tinker";
+      if (workspaceTitleEl) workspaceTitleEl.textContent = "Pitch";
+      return;
+    }
     const active = pitches.find((p) => p.id === activeId) || pitches[0];
     if (!active) return;
     const personal = active.personalTitle || null;
     const ai = active.aiTitle || null;
-    workspaceTitleEl.textContent = personal || ai || active.displayName || "Pitch";
+    const label = personal || ai || active.displayName || "Pitch";
+    if (workspaceTitleEl) workspaceTitleEl.textContent = label;
+    if (nativeTitle) nativeTitle.textContent = label;
     if (workspaceSubtitleEl) {
       if (personal && ai) {
         workspaceSubtitleEl.hidden = false;

@@ -5,8 +5,8 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#F5F3EF",
-  "theme_color": "#F5F3EF",
+  "background_color": "#fffdf7",
+  "theme_color": "#fffdf7",
   "icons": [
     {
       "src": "/icons/tinker-icon-192.png",

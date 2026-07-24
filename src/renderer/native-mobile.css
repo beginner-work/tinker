@@ -1,0 +1,335 @@
+/* native-mobile.css — native-app chrome over the tinker paper shell.
+ *
+ * Cursor-mobile layout (pitches drawer + workspace deck) with iOS /
+ * Android app-bar conventions. Keeps tinker tokens: cream paper
+ * (#fffdf7), Fraunces display, Instrument Sans, rainbow progress —
+ * never Cursor dark.
+ *
+ * Active under:
+ *   - max-width 540px (phone / narrow PWA)
+ *   - html.on-capacitor (native wrapper, any width)
+ */
+
+:root {
+  --native-bar-h: 56px;
+  --native-hit: 44px;
+}
+
+/* Cap rubber-band scroll past chrome on iOS standalone / Capacitor. */
+html.on-capacitor,
+html.on-capacitor body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 540px) {
+  html, body { overscroll-behavior: none; }
+}
+
+/* ── Shared native shell (phone + Capacitor) ─────────────────────── */
+
+@media (max-width: 540px) {
+  :root {
+    --native-shell: 1;
+  }
+}
+
+html.on-capacitor {
+  --native-shell: 1;
+}
+
+/* Top app bar — solid cream strip under the status bar. */
+.native-topbar {
+  display: none;
+}
+
+@media (max-width: 540px) {
+  .native-topbar {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 56;
+    height: calc(env(safe-area-inset-top, 0px) + var(--native-bar-h));
+    padding-top: env(safe-area-inset-top, 0px);
+    box-sizing: border-box;
+    background: var(--color-background);
+    border-bottom: 1px solid var(--color-border);
+    pointer-events: none;
+  }
+  .native-topbar__title {
+    margin: 0;
+    height: var(--native-bar-h);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 calc(var(--native-hit) + 20px);
+    font-family: var(--font-display);
+    font-variation-settings: var(--font-display-settings, "SOFT" 100, "WONK" 0);
+    font-size: var(--text-essay, 17px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--color-foreground);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+  }
+
+  /* Flatten floating glass controls into the app bar. */
+  .drawer-toggle {
+    top: calc(env(safe-area-inset-top, 0px) + (var(--native-bar-h) - var(--native-hit)) / 2);
+    left: calc(env(safe-area-inset-left, 0px) + 6px);
+    width: var(--native-hit);
+    height: var(--native-hit);
+    border-radius: var(--radius-button, 10px);
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    color: var(--color-foreground);
+  }
+  .drawer-toggle:hover,
+  .drawer-toggle:active {
+    background: var(--color-hover);
+  }
+
+  .profile-corner {
+    top: calc(env(safe-area-inset-top, 0px) + (var(--native-bar-h) - 40px) / 2);
+    right: calc(env(safe-area-inset-right, 0px) + 10px);
+  }
+  .profile-avatar {
+    width: 36px;
+    height: 36px;
+    box-shadow: none;
+  }
+
+  /* Soft cream scrim — native sheet feel without Cursor black. */
+  .drawer-backdrop {
+    background: rgba(45, 42, 38, 0.18);
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    pointer-events: none;
+  }
+  body[data-drawer-open] .drawer-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sidebar {
+    width: min(86vw, 340px);
+    border-right: 1px solid var(--color-border);
+    background: var(--color-background);
+  }
+  body[data-drawer-open] .sidebar {
+    box-shadow: 8px 0 32px rgba(45, 42, 38, 0.12);
+  }
+  body[data-drawer-open] .native-topbar {
+    opacity: 0;
+  }
+
+  /* Workspace: app-bar clears content; drop duplicate title chrome. */
+  .workspace {
+    padding-top: calc(env(safe-area-inset-top, 0px) + var(--native-bar-h) + 12px);
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
+    max-width: none;
+  }
+  .workspace__top {
+    display: none;
+  }
+  .workspace__deck .sidebar__deck-heading {
+    min-height: var(--native-hit);
+    padding: 16px;
+    font-size: var(--text-base, 15px);
+  }
+  .workspace__deck .sidebar__deck-heading-row {
+    border-radius: var(--radius-card, 12px);
+  }
+  .workspace__deck .sidebar__phrase .sidebar__account-label {
+    font-size: var(--text-body, 14px);
+    line-height: 1.4;
+  }
+
+  /* Welcome cold-start clears the app bar. */
+  .stage > .welcome.feed[data-active]:not([data-workspace]) {
+    padding-top: calc(env(safe-area-inset-top, 0px) + var(--native-bar-h) + 24px);
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  .stage > .welcome.feed[data-active][data-workspace] {
+    padding: 0;
+  }
+  /* Feed padding from mobile-drawer — tighten under the solid bar. */
+  .feed {
+    padding-top: calc(env(safe-area-inset-top, 0px) + var(--native-bar-h) + 12px) !important;
+  }
+  .stage > .welcome.feed[data-active][data-workspace].feed {
+    padding: 0 !important;
+  }
+
+  /* Bottom mode nav — docked tab-bar strip, still tinker glass indigo. */
+  .mode-nav {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    padding: 0;
+    z-index: 58;
+  }
+  body:has(#welcome[data-active]) .mode-nav {
+    display: block;
+  }
+  .mode-nav__bar {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    background: rgba(255, 253, 247, 0.94);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    box-shadow: none;
+    padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 8px);
+    justify-content: center;
+    gap: 8px;
+  }
+  .mode-nav__btn {
+    min-height: var(--native-hit);
+    min-width: 120px;
+    padding: 0 18px;
+    border-radius: var(--radius-button, 10px);
+    font-size: var(--text-body, 14px);
+  }
+  .mode-nav__offline {
+    border-radius: 0;
+    margin: 0;
+  }
+
+  /* Writing / read surfaces clear the native bar. */
+  .writing__top {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+    padding-left: 56px;
+    min-height: calc(env(safe-area-inset-top, 0px) + var(--native-bar-h));
+  }
+  .category-feed__title,
+  .read__title,
+  .pitch-script__title,
+  .founders__title {
+    /* Sit in the native bar row; solid paper, no floating gradient. */
+    top: 0;
+    height: calc(env(safe-area-inset-top, 0px) + var(--native-bar-h));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: 0;
+    line-height: var(--native-bar-h);
+    background: var(--color-background) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-bottom: 1px solid var(--color-border);
+    font-size: var(--text-essay, 17px);
+  }
+  .category-feed__head,
+  .writing-fit__inner,
+  .pitch-script__inner,
+  .founders__inner {
+    padding-top: calc(env(safe-area-inset-top, 0px) + var(--native-bar-h) + 16px);
+  }
+  .read__page {
+    padding-top: calc(env(safe-area-inset-top, 0px) + var(--native-bar-h) + 48px);
+  }
+  .read__menu {
+    top: calc(env(safe-area-inset-top, 0px) + (var(--native-bar-h) - 40px) / 2);
+  }
+
+  /* Pitch rows in the drawer — larger thumb targets. */
+  .sidebar__pitch-menu-item {
+    min-height: 56px;
+    padding: 12px 14px;
+    border-radius: var(--radius-card, 12px);
+  }
+  .sidebar__account-item {
+    min-height: var(--native-hit);
+  }
+}
+
+/* Capacitor: same native shell even on wider tablets in landscape. */
+html.on-capacitor .native-topbar {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 56;
+  height: calc(env(safe-area-inset-top, 0px) + var(--native-bar-h));
+  padding-top: env(safe-area-inset-top, 0px);
+  box-sizing: border-box;
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+  pointer-events: none;
+}
+html.on-capacitor .native-topbar__title {
+  margin: 0;
+  height: var(--native-bar-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 calc(var(--native-hit) + 20px);
+  font-family: var(--font-display);
+  font-size: var(--text-essay, 17px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-foreground);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+html.on-capacitor .drawer-toggle {
+  display: inline-flex !important;
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + (var(--native-bar-h) - var(--native-hit)) / 2);
+  left: calc(env(safe-area-inset-left, 0px) + 6px);
+  z-index: 70;
+  width: var(--native-hit);
+  height: var(--native-hit);
+  border-radius: var(--radius-button, 10px);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  color: var(--color-foreground);
+}
+html.on-capacitor .drawer-backdrop {
+  display: block !important;
+  background: rgba(45, 42, 38, 0.18);
+}
+html.on-capacitor .sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(86vw, 340px);
+  z-index: 60;
+  transform: translateX(-100%);
+  transition: transform 0.22s ease;
+  border-right: 1px solid var(--color-border);
+}
+html.on-capacitor body[data-drawer-open] .sidebar {
+  transform: translateX(0);
+  box-shadow: 8px 0 32px rgba(45, 42, 38, 0.12);
+}
+html.on-capacitor .stage {
+  width: 100%;
+}
+html.on-capacitor .workspace__top {
+  display: none;
+}
+html.on-capacitor .workspace {
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--native-bar-h) + 12px);
+  max-width: none;
+}

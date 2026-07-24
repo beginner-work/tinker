@@ -1,64 +1,66 @@
 /* mobile-drawer.js — open/close logic for the mobile sidebar drawer.
  *
- * The CSS in mobile-drawer.css handles styling and transitions; this
- * file toggles body[data-drawer-open] in response to the hamburger,
- * the backdrop, Escape, and selecting a pitch. Inert on ≥541px.
+ * The CSS in mobile-drawer.css / native-mobile.css handles styling;
+ * this file toggles body[data-drawer-open] in response to the
+ * hamburger, the backdrop, Escape, and selecting a pitch.
  *
- * Cursor-mobile shape: the drawer is the pitches (agents) inbox; the
- * workspace (pitch sections) lives in the main column. Picking a
- * pitch closes the drawer so the workspace comes forward.
+ * Active on:
+ *   - viewports ≤540px
+ *   - Capacitor (html.on-capacitor) at any width — native shell always
+ *     uses the drawer, matching a phone app.
  */
 
 (function () {
   const MOBILE_BREAKPOINT = 540;
-  const isMobile = () => window.innerWidth <= MOBILE_BREAKPOINT;
 
-  const toggle = document.getElementById('drawer-toggle');
-  const backdrop = document.getElementById('drawer-backdrop');
-  const homeListEl = document.getElementById('home-list');
-  const agentsNav = document.querySelector('.sidebar__agents');
-  const navHome = document.getElementById('nav-home');
+  function isNativeShell() {
+    return window.innerWidth <= MOBILE_BREAKPOINT
+      || document.documentElement.classList.contains("on-capacitor");
+  }
+
+  const toggle = document.getElementById("drawer-toggle");
+  const backdrop = document.getElementById("drawer-backdrop");
+  const homeListEl = document.getElementById("home-list");
+  const agentsNav = document.querySelector(".sidebar__agents");
+  const navHome = document.getElementById("nav-home");
+  const topbar = document.getElementById("native-topbar");
 
   function open() {
-    document.body.dataset.drawerOpen = '';
-    toggle && toggle.setAttribute('aria-expanded', 'true');
+    document.body.dataset.drawerOpen = "";
+    toggle && toggle.setAttribute("aria-expanded", "true");
+    if (topbar) topbar.setAttribute("aria-hidden", "true");
   }
   function close() {
     delete document.body.dataset.drawerOpen;
-    toggle && toggle.setAttribute('aria-expanded', 'false');
+    toggle && toggle.setAttribute("aria-expanded", "false");
+    if (topbar) topbar.setAttribute("aria-hidden", "false");
   }
   function isOpen() {
-    return 'drawerOpen' in document.body.dataset;
+    return "drawerOpen" in document.body.dataset;
   }
 
-  toggle && toggle.addEventListener('click', () => {
+  toggle && toggle.addEventListener("click", () => {
+    if (!isNativeShell()) return;
     if (isOpen()) close(); else open();
   });
 
-  backdrop && backdrop.addEventListener('click', close);
+  backdrop && backdrop.addEventListener("click", close);
 
-  // Auto-close after picking a seed or tapping the brand — the
-  // user wants the stage back.
-  homeListEl && homeListEl.addEventListener('click', (e) => {
-    if (isMobile() && e.target.closest('.home-card')) close();
+  homeListEl && homeListEl.addEventListener("click", (e) => {
+    if (isNativeShell() && e.target.closest(".home-card")) close();
   });
-  // Pitch row in the agents inbox — same gesture as Cursor mobile
-  // picking an agent from the drawer.
-  agentsNav && agentsNav.addEventListener('click', (e) => {
-    if (isMobile() && e.target.closest('.sidebar__pitch-menu-item')) close();
+  agentsNav && agentsNav.addEventListener("click", (e) => {
+    if (isNativeShell() && e.target.closest(".sidebar__pitch-menu-item")) close();
   });
-  navHome && navHome.addEventListener('click', () => {
-    if (isMobile()) close();
+  navHome && navHome.addEventListener("click", () => {
+    if (isNativeShell()) close();
   });
 
-  // Resizing from mobile to desktop drops the open state.
-  window.addEventListener('resize', () => {
-    if (!isMobile() && isOpen()) close();
+  window.addEventListener("resize", () => {
+    if (!isNativeShell() && isOpen()) close();
   });
 
-  // Escape closes the drawer.
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && isOpen()) close();
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isOpen()) close();
   });
-
 })();

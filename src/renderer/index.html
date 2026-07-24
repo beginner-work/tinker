@@ -22,13 +22,17 @@
     <link rel="stylesheet" href="./mobile-drawer.css" />
     <link rel="stylesheet" href="./pwa-install-hint.css" />
     <link rel="stylesheet" href="./profile.css" />
+    <!-- Native shell last so its top-bar / drawer overrides win over
+         floating chrome in profile.css and mobile-drawer.css. -->
+    <link rel="stylesheet" href="./native-mobile.css" />
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" type="image/svg+xml" href="./icons/tinker-icon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/tinker-icon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="./icons/tinker-icon-180.png" />
-    <meta name="theme-color" content="#F5F3EF" />
+    <meta name="theme-color" content="#fffdf7" />
     <meta name="apple-mobile-web-app-title" content="tinker" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="mobile-web-app-capable" content="yes" />
     <!-- Reads `?#ts=<jwt>` off the PWA's launch URL into localStorage and
          rewrites the manifest with the current JWT in start_url, so a
@@ -84,10 +88,17 @@
     </svg>
     <button id="drawer-toggle" class="drawer-toggle" type="button"
             aria-label="Open sidebar" aria-controls="sidebar" aria-expanded="false">
-      <svg viewBox="0 0 24 24" width="29" height="29" fill="none" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
         <path d="M5 8h14M5 12h10M5 16h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
       </svg>
     </button>
+    <!-- Native mobile top app bar. Visible under the mobile / Capacitor
+         shell (native-mobile.css). Holds the centred title between the
+         hamburger and the avatar; drawer-toggle + profile-corner stay
+         as siblings so existing JS keeps working. -->
+    <header id="native-topbar" class="native-topbar" aria-hidden="true">
+      <h1 class="native-topbar__title" data-native-title>tinker</h1>
+    </header>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
     <!-- Top-right founder avatar. Hidden until profile.js loads a profile
