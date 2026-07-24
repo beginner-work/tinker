@@ -355,6 +355,20 @@ bundler, no build step. After editing renderer code, run
 `npm run mobile:sync` to copy the latest `src/renderer/` into the
 native projects.
 
+### Expo Go preview (Liquid Glass)
+
+A React Native / Expo shell lives in `mobile/` so the floating chrome can
+be opened in **Expo Go** without Xcode. It uses `expo-glass-effect` for
+native Liquid Glass on iOS 26+ (frosted fallback elsewhere).
+
+```bash
+cd mobile && npm install && npx expo start
+# or from repo root: npm run expo:start
+```
+
+Scan the QR code with Expo Go. See `mobile/README.md`. This is a chrome
+preview — not a full rewrite of auth, writing, or pitches yet.
+
 ### How the platforms differ
 
 | | Electron desktop | Capacitor mobile / web |

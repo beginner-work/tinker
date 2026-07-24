@@ -26,7 +26,9 @@
     "mobile:open:ios": "cap open ios",
     "mobile:open:android": "cap open android",
     "mobile:run:ios": "cap run ios",
-    "mobile:run:android": "cap run android"
+    "mobile:run:android": "cap run android",
+    "expo:start": "npm --prefix mobile start",
+    "expo:web": "npm --prefix mobile run web"
   },
   "keywords": [
     "browser",
