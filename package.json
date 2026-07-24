@@ -44,7 +44,8 @@
     "@capacitor/core": "^6.2.0",
     "@capacitor/ios": "^6.2.0",
     "@capacitor/preferences": "^6.0.0",
-    "@prisma/client": "^5.22.0"
+    "@prisma/client": "^5.22.0",
+    "tinker-glass-chrome": "file:plugins/tinker-glass-chrome"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.2.0",

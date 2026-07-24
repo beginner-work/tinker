@@ -355,6 +355,19 @@ bundler, no build step. After editing renderer code, run
 `npm run mobile:sync` to copy the latest `src/renderer/` into the
 native projects.
 
+### iOS Liquid Glass chrome
+
+On iOS, the floating navigation chrome (drawer toggle + AI / No AI mode
+nav) is drawn by a native SwiftUI overlay via the local Capacitor plugin
+`plugins/tinker-glass-chrome`. It uses Apple’s `glassEffect` on iOS 26+
+(Xcode 26+) and falls back to `.ultraThinMaterial` on earlier OS
+versions. The WebView keeps product state; `native-glass-chrome.js`
+hides the CSS chips while the overlay is live and forwards native taps
+into the existing DOM handlers.
+
+See `plugins/tinker-glass-chrome/README.md` and
+`docs/ios-liquid-glass-chrome.md`.
+
 ### How the platforms differ
 
 | | Electron desktop | Capacitor mobile / web |

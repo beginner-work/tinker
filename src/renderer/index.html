@@ -713,6 +713,10 @@
 
     <!-- Platform shim runs first. -->
     <script src="./platform-mobile.js" defer></script>
+    <!-- iOS Liquid Glass chrome overlay (Capacitor). No-ops elsewhere.
+         Loads after platform-mobile so Capacitor is detectable, and after
+         freewrite.js (head) so mode state exists when the bridge syncs. -->
+    <script src="./native-glass-chrome.js" defer></script>
     <script src="./auth.js" defer></script>
     <script src="./lib/rainbow-web.js" defer></script>
     <script src="./icon-init.js" defer></script>

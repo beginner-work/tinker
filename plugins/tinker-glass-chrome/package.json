@@ -1,0 +1,36 @@
+{
+  "name": "tinker-glass-chrome",
+  "version": "0.1.0",
+  "description": "Native iOS Liquid Glass chrome overlay for tinker — drawer toggle and AI / No AI mode nav via SwiftUI glassEffect.",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "files": [
+    "android/src/main/",
+    "android/build.gradle",
+    "ios/Sources",
+    "src/",
+    "Package.swift",
+    "TinkerGlassChrome.podspec"
+  ],
+  "author": "tinker",
+  "license": "UNLICENSED",
+  "private": true,
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=6.0.0"
+  },
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "ios",
+    "liquid-glass",
+    "tinker"
+  ]
+}

@@ -14,5 +14,10 @@
   "server": {
     "androidScheme": "https",
     "iosScheme": "https"
+  },
+  "plugins": {
+    "GlassChrome": {
+      "enabled": true
+    }
   }
 }

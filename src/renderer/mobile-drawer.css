@@ -5,7 +5,15 @@
  * backdrop. Tapping outside, picking a session, or pressing Escape
  * closes it. On ≥541px screens this file is inert and the sidebar
  * sits inline as on desktop.
+ *
+ * On iOS Capacitor with the GlassChrome plugin, the hamburger and
+ * mode-nav are drawn natively (Liquid Glass). Hide the CSS chips so
+ * they don't double-paint — see native-glass-chrome.js.
  */
+html.native-glass-chrome .drawer-toggle,
+html.native-glass-chrome .mode-nav {
+  display: none !important;
+}
 
 @media (min-width: 541px) {
   .drawer-toggle,
