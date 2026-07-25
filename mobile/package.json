@@ -27,11 +27,11 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "eas:whoami": "eas whoami",
-    "eas:init": "eas init --non-interactive",
-    "eas:configure": "eas update:configure --non-interactive",
-    "publish:preview": "eas update --branch preview --message \"tinker glass chrome preview\" --non-interactive",
-    "deploy:web": "expo export -p web && eas deploy --non-interactive"
+    "eas:whoami": "npx --yes eas-cli whoami",
+    "eas:init": "npx --yes eas-cli init --non-interactive",
+    "eas:configure": "npx --yes eas-cli update:configure --non-interactive",
+    "publish:preview": "npx --yes eas-cli update --branch preview --environment preview --message \"tinker glass chrome preview\" --non-interactive",
+    "deploy:web": "expo export -p web && npx --yes eas-cli deploy --non-interactive"
   },
   "private": true
 }

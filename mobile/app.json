@@ -35,6 +35,15 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "76dac9bb-b869-4c67-a318-cb3e89d1fcf3"
+      }
+    },
+    "owner": "tlindows-organization",
+    "updates": {
+      "url": "https://u.expo.dev/76dac9bb-b869-4c67-a318-cb3e89d1fcf3"
+    }
   }
 }
