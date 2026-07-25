@@ -13,24 +13,25 @@ product yet — welcome surface + glass chrome.
 - Runtime guards: `isLiquidGlassAvailable`, `isGlassEffectAPIAvailable`, and Reduce Transparency
 - Frosted cream fallback on Android, web, older iOS, and a11y-limited devices
 
-## Run locally in Expo Go
+## Development build (recommended for Liquid Glass)
 
-From this folder:
+Expo Go is enough for a quick look, but a **dev client** ships the native
+`expo-glass-effect` binary in your own build:
 
 ```bash
 cd mobile
-npm install
-npx expo start
+npm run build:dev            # iOS simulator + Android APK (EAS cloud)
+# npm run build:dev:device   # iOS device — needs Apple creds on the Expo account
 ```
 
-Scan the QR code with **Expo Go** on your phone.
+Install the artifact from the EAS dashboard / QR, then:
 
-To see **real** Liquid Glass you need:
+```bash
+npx expo start --dev-client
+```
 
-- iPhone (or simulator) on **iOS 26+**
-- Current Expo Go that includes SDK 57 / `expo-glass-effect`
+Profiles live in `eas.json` (`development`, `development-device`).
 
-On anything else the chips still render, using the CSS-like fallback.
 
 ## Publish to Expo Cloud (review links)
 

@@ -1,0 +1,42 @@
+{
+  "name": "mobile",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@expo-google-fonts/fraunces": "^0.4.1",
+    "@expo-google-fonts/instrument-sans": "^0.4.2",
+    "@expo/vector-icons": "^15.0.2",
+    "expo": "~57.0.8",
+    "expo-dev-client": "~57.0.9",
+    "expo-font": "~57.0.1",
+    "expo-glass-effect": "~57.0.1",
+    "expo-linear-gradient": "~57.0.1",
+    "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.10",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.0",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "eas:whoami": "npx --yes eas-cli whoami",
+    "eas:init": "npx --yes eas-cli init --non-interactive",
+    "eas:configure": "npx --yes eas-cli update:configure --non-interactive",
+    "publish:preview": "npx --yes eas-cli update --branch preview --environment preview --message \"tinker glass chrome preview\" --non-interactive",
+    "deploy:web": "expo export -p web && npx --yes eas-cli deploy --non-interactive",
+    "build:dev": "npx --yes eas-cli build --profile development --platform all --non-interactive --no-wait",
+    "build:dev:ios": "npx --yes eas-cli build --profile development --platform ios --non-interactive --no-wait",
+    "build:dev:android": "npx --yes eas-cli build --profile development --platform android --non-interactive --no-wait",
+    "build:dev:device": "npx --yes eas-cli build --profile development-device --platform ios --non-interactive --no-wait"
+  },
+  "private": true
+}
