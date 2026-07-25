@@ -32,6 +32,15 @@ npx expo start --dev-client
 
 Profiles live in `eas.json` (`development`, `development-device`).
 
+### Latest development builds
+
+| Platform | Build |
+|---|---|
+| Android APK | https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/b57a49b8-b13f-4459-9b6d-b02af5482fe2 |
+| iOS Simulator | https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/35ca9652-a960-46c5-b537-36186bdc9e56 |
+
+iOS **device** builds need Apple credentials on the Expo account (`npm run build:dev:device`).
+
 
 ## Publish to Expo Cloud (review links)
 

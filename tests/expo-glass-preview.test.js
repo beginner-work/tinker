@@ -78,8 +78,20 @@ test("EAS publish scripts are wired", () => {
   );
   assert.ok(pkg.scripts["publish:preview"], "publish:preview missing");
   assert.ok(pkg.scripts["deploy:web"], "deploy:web missing");
+  assert.ok(pkg.scripts["build:dev"], "build:dev missing");
+  assert.ok(
+    pkg.dependencies["expo-dev-client"],
+    "expo-dev-client missing from dependencies",
+  );
   assert.ok(
     fs.existsSync(path.join(MOBILE, "eas.json")),
     "eas.json missing",
+  );
+  const eas = JSON.parse(
+    fs.readFileSync(path.join(MOBILE, "eas.json"), "utf8"),
+  );
+  assert.ok(
+    eas.build?.development?.developmentClient,
+    "development profile must set developmentClient",
   );
 });
