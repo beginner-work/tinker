@@ -56,7 +56,7 @@ From the repo root: `npm run expo:publish` / `npm run expo:deploy`.
 | Surface | URL |
 |---|---|
 | Expo project | https://expo.dev/accounts/tlindows-organization/projects/tinker |
-| EAS Update (preview) | https://expo.dev/accounts/tlindows-organization/projects/tinker/updates/3b357df4-76e5-45c4-b8e6-31f3a0b12cb9 |
+| EAS Update (preview, Expo Go SDK 57) | https://expo.dev/accounts/tlindows-organization/projects/tinker/updates/bc83e9fb-157a-485d-beca-cef92f971937 |
 | Web hosting preview | https://tinker--3dfoe3snxo.expo.app |
 
 After publish, open the update on [expo.dev](https://expo.dev) → project →

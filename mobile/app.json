@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "scheme": "tinker",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "sdkVersion"
     },
     "splash": {
       "image": "./assets/splash-icon.png",
