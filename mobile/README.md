@@ -34,10 +34,10 @@ Profiles live in `eas.json` (`development`, `development-device`).
 
 ### Latest development builds
 
-| Platform | Build |
-|---|---|
-| Android APK | https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/b57a49b8-b13f-4459-9b6d-b02af5482fe2 |
-| iOS Simulator | https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/35ca9652-a960-46c5-b537-36186bdc9e56 |
+| Platform | Status | Install |
+|---|---|---|
+| Android APK | ✅ finished | [EAS page](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/b57a49b8-b13f-4459-9b6d-b02af5482fe2) · [download APK](https://expo.dev/artifacts/eas/y6I40k02tLF4m5peysVmaQXohmpmJ2qgouZ8zteSkGs.apk) |
+| iOS Simulator | ✅ finished | [EAS page](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/35ca9652-a960-46c5-b537-36186bdc9e56) · [download .tar.gz](https://expo.dev/artifacts/eas/3nzReRxgPHEsmfR7OBoWXE4Xa4_O9t21nCPlda6idlk.tar.gz) |
 
 iOS **device** builds need Apple credentials on the Expo account (`npm run build:dev:device`).
 
