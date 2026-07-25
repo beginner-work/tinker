@@ -56,8 +56,9 @@ Do not paste an `expo.dev/builds/...` URL into the client.
 
 | Platform | Link |
 |---|---|
-| **iOS Simulator (embedded JS)** | [EAS](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/3278d695-9d30-4087-aeb2-46f5d87bc422) · [download](https://expo.dev/artifacts/eas/ZyGODIEVYYdnveHouktf2DGwC4MrINtwSxlL9PH_lns.tar.gz) |
+| **iOS Simulator (embedded JS — screens)** | [EAS](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/8623e47e-d7ee-49b9-be70-2a3f8df64d9d) · [download](https://expo.dev/artifacts/eas/ktF16RhiGwRdAyRmwbUvNEn2aU_RvaV5vQBt6QWOR_0.tar.gz) |
 | Android APK | [EAS](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/b57a49b8-b13f-4459-9b6d-b02af5482fe2) |
+| Prior embedded sim | [EAS](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/3278d695-9d30-4087-aeb2-46f5d87bc422) |
 | iOS Simulator (dev client) | [EAS](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/fd487703-64cb-4b8a-b56b-23bf433476e3) |
 
 ## Expo Cloud
