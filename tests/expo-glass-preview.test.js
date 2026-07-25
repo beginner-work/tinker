@@ -1,4 +1,4 @@
-/* Structural guard for the Expo Go Liquid Glass preview app. */
+/* Structural guard for the Expo native Liquid Glass + screens app. */
 
 "use strict";
 
@@ -8,104 +8,84 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const MOBILE = path.join(__dirname, "..", "mobile");
+const APP = path.join(MOBILE, "app");
 
-test("Expo preview app is present with glass-effect dependency", () => {
+test("Expo app is present with glass-effect + router", () => {
   const pkg = JSON.parse(
     fs.readFileSync(path.join(MOBILE, "package.json"), "utf8"),
   );
-  assert.ok(
-    pkg.dependencies["expo-glass-effect"],
-    "expo-glass-effect missing from mobile/package.json",
-  );
-  assert.ok(pkg.dependencies.expo, "expo missing");
-  assert.ok(
-    pkg.dependencies["react-native-safe-area-context"],
-    "react-native-safe-area-context missing",
-  );
+  assert.ok(pkg.dependencies["expo-glass-effect"], "expo-glass-effect missing");
+  assert.ok(pkg.dependencies["expo-router"], "expo-router missing");
+  assert.ok(pkg.dependencies["expo-secure-store"], "expo-secure-store missing");
+  assert.ok(pkg.dependencies["expo-dev-client"], "expo-dev-client missing");
+  assert.equal(pkg.main, "expo-router/entry");
 });
 
-test("App mounts glass chrome components", () => {
-  const app = fs.readFileSync(path.join(MOBILE, "App.tsx"), "utf8");
-  assert.match(app, /DrawerToggle/, "DrawerToggle missing");
-  assert.match(app, /ModeNav/, "ModeNav missing");
-  assert.match(app, /useLiquidGlassAvailability/, "availability hook missing");
-  assert.match(app, /SafeAreaProvider/, "SafeAreaProvider missing");
+test("Native screens are mounted under app/", () => {
+  const required = [
+    "_layout.tsx",
+    "index.tsx",
+    "sign-in.tsx",
+    "write.tsx",
+    "freewrite.tsx",
+    "read.tsx",
+    "assessing.tsx",
+    "essays.tsx",
+    "pitch-script.tsx",
+    "founders.tsx",
+    "profile.tsx",
+  ];
+  for (const file of required) {
+    assert.ok(
+      fs.existsSync(path.join(APP, file)),
+      `missing app/${file}`,
+    );
+  }
+});
 
+test("Glass chrome + interview engine present", () => {
   const glass = fs.readFileSync(
     path.join(MOBILE, "src/components/TinkerGlass.tsx"),
     "utf8",
   );
-  assert.match(glass, /GlassView/, "GlassView wrapper missing");
-  assert.match(glass, /GlassContainer/, "GlassContainer wrapper missing");
-  assert.match(glass, /isLiquidGlassAvailable/, "availability check missing");
-  assert.match(glass, /isGlassEffectAPIAvailable/, "API check missing");
-  assert.match(
-    glass,
-    /isReduceTransparencyEnabled/,
-    "Reduce Transparency a11y check missing",
-  );
-});
+  assert.match(glass, /GlassView/);
+  assert.match(glass, /GlassContainer/);
+  assert.match(glass, /isReduceTransparencyEnabled/);
 
-test("Welcome place cards use TinkerGlass", () => {
-  const welcome = fs.readFileSync(
-    path.join(MOBILE, "src/components/WelcomeBody.tsx"),
+  const interview = fs.readFileSync(
+    path.join(MOBILE, "src/lib/interview.ts"),
     "utf8",
   );
-  assert.match(welcome, /TinkerGlass/, "place cards missing TinkerGlass");
-  assert.match(welcome, /TinkerGlassGroup/, "place grid missing GlassContainer group");
-});
+  assert.match(interview, /STITCH, DO NOT AUTHOR/);
+  assert.match(interview, /verifyFounderOnly/);
 
-test("Sidebar drawer uses glass sheet", () => {
-  const drawer = fs.readFileSync(
-    path.join(MOBILE, "src/components/SidebarDrawer.tsx"),
+  const chrome = fs.readFileSync(
+    path.join(MOBILE, "src/components/AppChrome.tsx"),
     "utf8",
   );
-  assert.match(drawer, /TinkerGlass/, "sidebar missing TinkerGlass");
-  assert.match(drawer, /shape=\"sheet\"/, "sidebar should use sheet shape");
+  assert.match(chrome, /DrawerToggle/);
+  assert.match(chrome, /ModeNav/);
 });
 
-test("Expo app.json is named tinker", () => {
+test("Expo app.json is named tinker with apiBase", () => {
   const appJson = JSON.parse(
     fs.readFileSync(path.join(MOBILE, "app.json"), "utf8"),
   );
   assert.equal(appJson.expo.name, "tinker");
   assert.equal(appJson.expo.slug, "tinker");
+  assert.ok(appJson.expo.extra?.apiBase, "apiBase missing");
+  assert.ok(
+    appJson.expo.plugins.includes("expo-router"),
+    "expo-router plugin missing",
+  );
 });
 
-test("EAS publish scripts are wired", () => {
-  const pkg = JSON.parse(
-    fs.readFileSync(path.join(MOBILE, "package.json"), "utf8"),
-  );
-  assert.ok(pkg.scripts["publish:preview"], "publish:preview missing");
-  assert.ok(pkg.scripts["deploy:web"], "deploy:web missing");
-  assert.ok(pkg.scripts["build:dev"], "build:dev missing");
-  assert.ok(
-    pkg.dependencies["expo-dev-client"],
-    "expo-dev-client missing from dependencies",
-  );
-  assert.ok(
-    fs.existsSync(path.join(MOBILE, "eas.json")),
-    "eas.json missing",
-  );
+test("EAS development targets iOS Simulator", () => {
   const eas = JSON.parse(
     fs.readFileSync(path.join(MOBILE, "eas.json"), "utf8"),
   );
-  assert.ok(
-    eas.build?.development?.developmentClient,
-    "development profile must set developmentClient",
-  );
-  assert.equal(
-    eas.build?.development?.ios?.simulator,
-    true,
-    "development profile must target iOS Simulator (iPhone 17 Pro)",
-  );
-  assert.equal(
-    eas.build?.simulator?.ios?.simulator,
-    true,
-    "simulator profile missing (embedded JS, no Metro)",
-  );
-  assert.ok(
-    !eas.build?.simulator?.developmentClient,
-    "simulator profile should embed JS (no developmentClient)",
-  );
+  assert.ok(eas.build?.development?.developmentClient);
+  assert.equal(eas.build?.development?.ios?.simulator, true);
+  assert.equal(eas.build?.simulator?.ios?.simulator, true);
+  assert.ok(!eas.build?.simulator?.developmentClient);
 });

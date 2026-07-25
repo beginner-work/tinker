@@ -8,23 +8,33 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TinkerGlass } from "./TinkerGlass";
-import { colors, space } from "../theme";
+import { colors, fonts, space, type } from "../theme";
 
 type Props = {
   open: boolean;
   onClose: () => void;
+  signedIn?: boolean;
+  onSignOut?: () => void;
+  onNavigate?: (route: string) => void;
 };
 
-const LINKS = [
-  "Cafe",
-  "Home",
-  "Work",
-  "Somewhere else",
-  "Pitches",
-  "Wallet",
+const LINKS: { label: string; route: string }[] = [
+  { label: "Home", route: "/" },
+  { label: "Write (AI)", route: "/write" },
+  { label: "No AI", route: "/freewrite" },
+  { label: "Essays", route: "/essays" },
+  { label: "Pitch script", route: "/pitch-script" },
+  { label: "Find founders", route: "/founders" },
+  { label: "Profile", route: "/profile" },
 ];
 
-export function SidebarDrawer({ open, onClose }: Props) {
+export function SidebarDrawer({
+  open,
+  onClose,
+  signedIn,
+  onSignOut,
+  onNavigate,
+}: Props) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const panelWidth = Math.min(width * 0.82, 320);
@@ -62,23 +72,39 @@ export function SidebarDrawer({ open, onClose }: Props) {
             <Text style={styles.brand}>tinker</Text>
             <Text style={styles.tag}>a quiet place to be on the web</Text>
             <View style={styles.list}>
-              {LINKS.map((label) => (
+              {LINKS.map((item) => (
                 <Pressable
-                  key={label}
+                  key={item.route}
                   style={({ pressed }) => [
                     styles.row,
                     pressed && styles.rowPressed,
                   ]}
-                  onPress={onClose}
+                  onPress={() => onNavigate?.(item.route)}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.rowText}>{label}</Text>
+                  <Text style={styles.rowText}>{item.label}</Text>
                 </Pressable>
               ))}
             </View>
+            {signedIn ? (
+              <Pressable
+                style={styles.signOut}
+                onPress={onSignOut}
+                accessibilityRole="button"
+              >
+                <Text style={styles.signOutText}>Sign out</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                style={styles.signOut}
+                onPress={() => onNavigate?.("/sign-in")}
+                accessibilityRole="button"
+              >
+                <Text style={styles.signOutText}>Sign in</Text>
+              </Pressable>
+            )}
             <Text style={styles.note}>
-              Expo Go preview — native Liquid Glass chrome. Full product stays
-              in the Capacitor / web app for now.
+              Native Expo shell — Liquid Glass chrome + writing surfaces.
             </Text>
           </TinkerGlass>
         </View>
@@ -109,21 +135,19 @@ const styles = StyleSheet.create({
     paddingBottom: space[5],
   },
   brand: {
-    fontFamily: "Fraunces_500Medium",
+    fontFamily: fonts.display,
     fontSize: 28,
     color: colors.foreground,
     letterSpacing: -0.4,
   },
   tag: {
-    fontFamily: "InstrumentSans_400Regular",
-    fontSize: 13,
+    fontFamily: fonts.sans,
+    fontSize: type.small,
     color: colors.muted,
     marginTop: 4,
     marginBottom: space[6],
   },
-  list: {
-    gap: 2,
-  },
+  list: { gap: 2 },
   row: {
     paddingVertical: 12,
     paddingHorizontal: 10,
@@ -133,13 +157,23 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(99, 102, 241, 0.12)",
   },
   rowText: {
-    fontFamily: "InstrumentSans_500Medium",
-    fontSize: 15,
+    fontFamily: fonts.sansMedium,
+    fontSize: type.base,
     color: colors.foreground,
+  },
+  signOut: {
+    marginTop: space[4],
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  signOutText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: type.body,
+    color: colors.accentStrong,
   },
   note: {
     marginTop: "auto",
-    fontFamily: "InstrumentSans_400Regular",
+    fontFamily: fonts.sans,
     fontSize: 12,
     lineHeight: 18,
     color: colors.muted,
