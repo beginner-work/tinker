@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "tinker",
+    "slug": "tinker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "tinker",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#fffdf7",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "work.beginner.tinker"
+    },
+    "android": {
+      "package": "work.beginner.tinker",
+      "adaptiveIcon": {
+        "backgroundColor": "#fffdf7",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": ["expo-font"],
+    "extra": {
+      "tinkerApiBase": "",
+      "tinkerToken": ""
+    }
+  }
+}
