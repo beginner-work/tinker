@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TinkerGlass } from "./TinkerGlass";
 import { colors } from "../theme";
 
@@ -18,11 +19,15 @@ export function ModeNav({
   visible = true,
   onChange,
 }: Props) {
+  const insets = useSafeAreaInsets();
   if (!visible) return null;
 
   return (
-    <View style={styles.wrap} pointerEvents="box-none">
-      <TinkerGlass shape="capsule" style={styles.bar}>
+    <View
+      style={[styles.wrap, { bottom: Math.max(insets.bottom, 8) + 4 }]}
+      pointerEvents="box-none"
+    >
+      <TinkerGlass shape="capsule" glassStyle="regular" style={styles.bar}>
         <Segment
           label="AI"
           icon="sparkles"
@@ -89,7 +94,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 12,
     alignItems: "center",
     zIndex: 40,
   },

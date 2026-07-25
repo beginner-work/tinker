@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TinkerGlass } from "./TinkerGlass";
 import { colors } from "../theme";
 
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export function DrawerToggle({ onPress, hidden }: Props) {
+  const insets = useSafeAreaInsets();
   if (hidden) return null;
 
   return (
@@ -16,9 +18,9 @@ export function DrawerToggle({ onPress, hidden }: Props) {
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel="Open sidebar"
-      style={styles.wrap}
+      style={[styles.wrap, { top: Math.max(insets.top, 8) + 4 }]}
     >
-      <TinkerGlass shape="circle" style={styles.glass}>
+      <TinkerGlass shape="circle" glassStyle="regular" style={styles.glass}>
         <Ionicons name="menu" size={22} color={colors.foreground} />
       </TinkerGlass>
     </Pressable>
@@ -28,7 +30,6 @@ export function DrawerToggle({ onPress, hidden }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     position: "absolute",
-    top: 12,
     left: 12,
     zIndex: 40,
   },

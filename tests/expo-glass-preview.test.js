@@ -18,20 +18,50 @@ test("Expo preview app is present with glass-effect dependency", () => {
     "expo-glass-effect missing from mobile/package.json",
   );
   assert.ok(pkg.dependencies.expo, "expo missing");
+  assert.ok(
+    pkg.dependencies["react-native-safe-area-context"],
+    "react-native-safe-area-context missing",
+  );
 });
 
 test("App mounts glass chrome components", () => {
   const app = fs.readFileSync(path.join(MOBILE, "App.tsx"), "utf8");
   assert.match(app, /DrawerToggle/, "DrawerToggle missing");
   assert.match(app, /ModeNav/, "ModeNav missing");
-  assert.match(app, /expo-glass-effect/, "glass-effect import missing");
+  assert.match(app, /useLiquidGlassAvailability/, "availability hook missing");
+  assert.match(app, /SafeAreaProvider/, "SafeAreaProvider missing");
 
   const glass = fs.readFileSync(
     path.join(MOBILE, "src/components/TinkerGlass.tsx"),
     "utf8",
   );
   assert.match(glass, /GlassView/, "GlassView wrapper missing");
+  assert.match(glass, /GlassContainer/, "GlassContainer wrapper missing");
   assert.match(glass, /isLiquidGlassAvailable/, "availability check missing");
+  assert.match(glass, /isGlassEffectAPIAvailable/, "API check missing");
+  assert.match(
+    glass,
+    /isReduceTransparencyEnabled/,
+    "Reduce Transparency a11y check missing",
+  );
+});
+
+test("Welcome place cards use TinkerGlass", () => {
+  const welcome = fs.readFileSync(
+    path.join(MOBILE, "src/components/WelcomeBody.tsx"),
+    "utf8",
+  );
+  assert.match(welcome, /TinkerGlass/, "place cards missing TinkerGlass");
+  assert.match(welcome, /TinkerGlassGroup/, "place grid missing GlassContainer group");
+});
+
+test("Sidebar drawer uses glass sheet", () => {
+  const drawer = fs.readFileSync(
+    path.join(MOBILE, "src/components/SidebarDrawer.tsx"),
+    "utf8",
+  );
+  assert.match(drawer, /TinkerGlass/, "sidebar missing TinkerGlass");
+  assert.match(drawer, /shape=\"sheet\"/, "sidebar should use sheet shape");
 });
 
 test("Expo app.json is named tinker", () => {
@@ -40,4 +70,16 @@ test("Expo app.json is named tinker", () => {
   );
   assert.equal(appJson.expo.name, "tinker");
   assert.equal(appJson.expo.slug, "tinker");
+});
+
+test("EAS publish scripts are wired", () => {
+  const pkg = JSON.parse(
+    fs.readFileSync(path.join(MOBILE, "package.json"), "utf8"),
+  );
+  assert.ok(pkg.scripts["publish:preview"], "publish:preview missing");
+  assert.ok(pkg.scripts["deploy:web"], "deploy:web missing");
+  assert.ok(
+    fs.existsSync(path.join(MOBILE, "eas.json")),
+    "eas.json missing",
+  );
 });

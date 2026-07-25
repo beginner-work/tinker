@@ -2,37 +2,27 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts, Fraunces_500Medium } from "@expo-google-fonts/fraunces";
 import {
   InstrumentSans_400Regular,
   InstrumentSans_500Medium,
   InstrumentSans_600SemiBold,
 } from "@expo-google-fonts/instrument-sans";
-import {
-  isGlassEffectAPIAvailable,
-  isLiquidGlassAvailable,
-} from "expo-glass-effect";
 import { DrawerToggle } from "./src/components/DrawerToggle";
 import { ModeNav, WritingMode } from "./src/components/ModeNav";
 import { SidebarDrawer } from "./src/components/SidebarDrawer";
 import { WelcomeBody } from "./src/components/WelcomeBody";
-import { canUseLiquidGlass } from "./src/components/TinkerGlass";
+import { useLiquidGlassAvailability } from "./src/components/TinkerGlass";
 import { colors, space } from "./src/theme";
 
-export default function App() {
-  const [fontsLoaded] = useFonts({
-    Fraunces_500Medium,
-    InstrumentSans_400Regular,
-    InstrumentSans_500Medium,
-    InstrumentSans_600SemiBold,
-  });
-
+function AppShell() {
+  const glass = useLiquidGlassAvailability();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mode, setMode] = useState<WritingMode>("ai");
   const [picked, setPicked] = useState<string | null>(null);
@@ -41,24 +31,18 @@ export default function App() {
     setPicked(id);
   }, []);
 
-  if (!fontsLoaded) {
-    return (
-      <View style={styles.boot}>
-        <ActivityIndicator color={colors.accentStrong} />
-      </View>
-    );
-  }
-
-  const glassLive = canUseLiquidGlass();
   const liquidFlag =
-    Platform.OS === "ios" ? String(isLiquidGlassAvailable()) : "n/a";
-  const apiFlag =
-    Platform.OS === "ios" ? String(isGlassEffectAPIAvailable()) : "n/a";
+    Platform.OS === "ios" ? String(glass.liquid) : "n/a";
+  const apiFlag = Platform.OS === "ios" ? String(glass.api) : "n/a";
 
   return (
-    <SafeAreaView style={styles.root}>
+    <View style={styles.root}>
       <StatusBar barStyle="dark-content" />
-      <WelcomeBody mode={mode} onPickPlace={onPickPlace} />
+      <WelcomeBody
+        mode={mode}
+        onPickPlace={onPickPlace}
+        selectedId={picked}
+      />
 
       <DrawerToggle
         hidden={drawerOpen}
@@ -74,16 +58,43 @@ export default function App() {
 
       <View style={styles.status} pointerEvents="none">
         <Text style={styles.statusText}>
-          {glassLive
-            ? "Liquid Glass: live (native)"
-            : "Liquid Glass: fallback chip (need iOS 26 + Expo Go)"}
+          {!glass.ready
+            ? "Liquid Glass: checking…"
+            : glass.live
+              ? "Liquid Glass: live (native)"
+              : glass.reduceTransparency
+                ? "Liquid Glass: fallback (Reduce Transparency)"
+                : "Liquid Glass: fallback chip (need iOS 26 + Expo Go)"}
         </Text>
         <Text style={styles.statusMeta}>
           platform {Platform.OS} · liquid={liquidFlag} · api={apiFlag}
           {picked ? ` · picked ${picked}` : ""}
         </Text>
       </View>
-    </SafeAreaView>
+    </View>
+  );
+}
+
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    Fraunces_500Medium,
+    InstrumentSans_400Regular,
+    InstrumentSans_500Medium,
+    InstrumentSans_600SemiBold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.boot}>
+        <ActivityIndicator color={colors.accentStrong} />
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaProvider>
+      <AppShell />
+    </SafeAreaProvider>
   );
 }
 
