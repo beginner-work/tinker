@@ -94,4 +94,9 @@ test("EAS publish scripts are wired", () => {
     eas.build?.development?.developmentClient,
     "development profile must set developmentClient",
   );
+  assert.equal(
+    eas.build?.development?.ios?.simulator,
+    true,
+    "development profile must target iOS Simulator (iPhone 17 Pro)",
+  );
 });

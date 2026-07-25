@@ -1,8 +1,9 @@
 # tinker — Expo Go preview
 
 React Native / Expo shell so **native Liquid Glass** can be opened in
-**Expo Go** on an iOS 26 device. This is not a full port of the Capacitor
-product yet — welcome surface + glass chrome.
+**Expo Go** or an **iPhone 17 Pro simulator** via a development build.
+This is not a full port of the Capacitor product yet — welcome surface +
+glass chrome.
 
 ## What you get
 
@@ -13,34 +14,46 @@ product yet — welcome surface + glass chrome.
 - Runtime guards: `isLiquidGlassAvailable`, `isGlassEffectAPIAvailable`, and Reduce Transparency
 - Frosted cream fallback on Android, web, older iOS, and a11y-limited devices
 
-## Development build (recommended for Liquid Glass)
+## Development build — iPhone 17 Pro Simulator
 
-Expo Go is enough for a quick look, but a **dev client** ships the native
-`expo-glass-effect` binary in your own build:
+The `development` profile builds an **iOS Simulator** `.app` (no Apple
+Developer account required) with Xcode `latest` (SDK 57 / Xcode 26.x),
+which includes the **iPhone 17 Pro** simulator runtime.
 
 ```bash
 cd mobile
-npm run build:dev            # iOS simulator + Android APK (EAS cloud)
-# npm run build:dev:device   # iOS device — needs Apple creds on the Expo account
+npm run build:dev:ios          # EAS cloud → iOS Simulator artifact
 ```
 
-Install the artifact from the EAS dashboard / QR, then:
+### Install on iPhone 17 Pro simulator (Mac)
+
+```bash
+# Boot the iPhone 17 Pro simulator first (Xcode → Open Developer Tool → Simulator)
+xcrun simctl boot "iPhone 17 Pro" 2>/dev/null || true
+open -a Simulator
+
+# Download + install the latest simulator build
+npx eas-cli build:run -p ios --latest
+# or: npm run run:ios:sim
+```
+
+Then start Metro against the installed dev client:
 
 ```bash
 npx expo start --dev-client
 ```
 
-Profiles live in `eas.json` (`development`, `development-device`).
-
-### Latest development builds
+### Latest simulator builds
 
 | Platform | Status | Install |
 |---|---|---|
-| Android APK | ✅ finished | [EAS page](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/b57a49b8-b13f-4459-9b6d-b02af5482fe2) · [download APK](https://expo.dev/artifacts/eas/y6I40k02tLF4m5peysVmaQXohmpmJ2qgouZ8zteSkGs.apk) |
-| iOS Simulator | ✅ finished | [EAS page](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/35ca9652-a960-46c5-b537-36186bdc9e56) · [download .tar.gz](https://expo.dev/artifacts/eas/3nzReRxgPHEsmfR7OBoWXE4Xa4_O9t21nCPlda6idlk.tar.gz) |
+| Android APK | ✅ finished | [EAS](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/b57a49b8-b13f-4459-9b6d-b02af5482fe2) · [APK](https://expo.dev/artifacts/eas/y6I40k02tLF4m5peysVmaQXohmpmJ2qgouZ8zteSkGs.apk) |
+| iOS Simulator | ✅ finished | [EAS](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/35ca9652-a960-46c5-b537-36186bdc9e56) · [tar.gz](https://expo.dev/artifacts/eas/3nzReRxgPHEsmfR7OBoWXE4Xa4_O9t21nCPlda6idlk.tar.gz) |
 
-iOS **device** builds need Apple credentials on the Expo account (`npm run build:dev:device`).
+A fresh simulator build pinned to `image: latest` is queued when this
+README is updated — check the EAS project builds list for the newest one.
 
+Physical **iPhone** installs need Apple credentials (`npm run build:dev:device`).
 
 ## Publish to Expo Cloud (review links)
 

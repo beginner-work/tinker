@@ -36,7 +36,8 @@
     "build:dev": "npx --yes eas-cli build --profile development --platform all --non-interactive --no-wait",
     "build:dev:ios": "npx --yes eas-cli build --profile development --platform ios --non-interactive --no-wait",
     "build:dev:android": "npx --yes eas-cli build --profile development --platform android --non-interactive --no-wait",
-    "build:dev:device": "npx --yes eas-cli build --profile development-device --platform ios --non-interactive --no-wait"
+    "build:dev:device": "npx --yes eas-cli build --profile development-device --platform ios --non-interactive --no-wait",
+    "run:ios:sim": "npx --yes eas-cli build:run -p ios --latest --profile development"
   },
   "private": true
 }
