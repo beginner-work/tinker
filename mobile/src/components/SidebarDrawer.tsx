@@ -23,6 +23,7 @@ const LINKS: { label: string; route: string }[] = [
   { label: "Write (AI)", route: "/write" },
   { label: "No AI", route: "/freewrite" },
   { label: "Essays", route: "/essays" },
+  { label: "GitHub repo", route: "/connect-repo" },
   { label: "Pitch script", route: "/pitch-script" },
   { label: "Find founders", route: "/founders" },
   { label: "Profile", route: "/profile" },

@@ -63,6 +63,11 @@ export default function EssaysScreen() {
                 {item.title || "Untitled"}
               </Text>
               <Text style={styles.rowMeta} numberOfLines={2}>
+                {item.github?.prNumber
+                  ? `PR #${item.github.prNumber} · `
+                  : item.github?.prUrl
+                    ? "PR open · "
+                    : ""}
                 {item.body}
               </Text>
             </Pressable>

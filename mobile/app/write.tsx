@@ -27,7 +27,8 @@ import {
   openingQuestion,
   slugify,
 } from "../src/lib/interview";
-import { createDraft, saveEssay } from "../src/lib/drafts";
+import { createDraft, publishEssayWithPullRequest } from "../src/lib/drafts";
+import { isGitHubConnected } from "../src/lib/github";
 import { colors, fonts, radius, type } from "../src/theme";
 
 export default function WriteScreen() {
@@ -44,15 +45,39 @@ export default function WriteScreen() {
     title: string;
     body: string;
     essayId: string;
+    prUrl?: string;
+    prError?: string;
   } | null>(null);
   const draftRef = useRef<Draft | null>(null);
   draftRef.current = draft;
+
+  const [githubReady, setGithubReady] = useState(false);
 
   useEffect(() => {
     if (signedIn === false) router.replace("/sign-in");
   }, [signedIn]);
 
   useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const ok = await isGitHubConnected();
+      if (!mounted) return;
+      if (!ok) {
+        router.replace({
+          pathname: "/connect-repo",
+          params: { next: "write", seed: seed || "", mode: "ai" },
+        });
+        return;
+      }
+      setGithubReady(true);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [seed]);
+
+  useEffect(() => {
+    if (!githubReady) return;
     let mounted = true;
     (async () => {
       try {
@@ -89,7 +114,7 @@ export default function WriteScreen() {
       mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, githubReady]);
 
   async function persist(next: Draft) {
     next.updatedAt = Date.now();
@@ -139,8 +164,17 @@ export default function WriteScreen() {
       kind: "essay",
       seed: d.seed || null,
     };
-    await saveEssay(essay, d.id);
-    setPublished({ title: essay.title, body: essay.body, essayId: essay.id });
+    const { essay: saved, prError } = await publishEssayWithPullRequest(
+      essay,
+      d.id,
+    );
+    setPublished({
+      title: saved.title,
+      body: saved.body,
+      essayId: saved.id,
+      prUrl: saved.github?.prUrl,
+      prError: prError ?? undefined,
+    });
     setPhase("published");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
       () => {},
@@ -202,6 +236,11 @@ export default function WriteScreen() {
           >
             <Text style={styles.readTitle}>{published.title}</Text>
             <Text style={styles.readBody}>{published.body}</Text>
+            {published.prUrl ? (
+              <Text style={styles.prOk}>Opened as a pull request on GitHub.</Text>
+            ) : published.prError ? (
+              <Text style={styles.error}>{published.prError}</Text>
+            ) : null}
             <Pressable
               style={({ pressed }) => [
                 styles.button,
@@ -210,7 +249,11 @@ export default function WriteScreen() {
               onPress={() =>
                 router.replace({
                   pathname: "/assessing",
-                  params: { id: published.essayId },
+                  params: {
+                    id: published.essayId,
+                    prUrl: published.prUrl || "",
+                    prError: published.prError || "",
+                  },
                 })
               }
             >
@@ -363,5 +406,11 @@ const styles = StyleSheet.create({
     lineHeight: type.essay * 1.7,
     color: colors.foreground,
     marginBottom: 28,
+  },
+  prOk: {
+    fontFamily: fonts.sansMedium,
+    fontSize: type.small,
+    color: colors.forest,
+    marginBottom: 16,
   },
 });

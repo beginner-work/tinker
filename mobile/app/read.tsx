@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -54,6 +55,17 @@ export default function ReadScreen() {
               {essay.seed ? `${essay.seed} · ` : ""}
               {new Date(essay.createdAt).toLocaleDateString()}
             </Text>
+            {essay.github?.prUrl ? (
+              <Pressable
+                onPress={() => Linking.openURL(essay.github!.prUrl)}
+                style={{ marginBottom: 20 }}
+              >
+                <Text style={styles.prLink}>
+                  Open pull request
+                  {essay.github.prNumber ? ` #${essay.github.prNumber}` : ""} →
+                </Text>
+              </Pressable>
+            ) : null}
             <Text style={styles.prose}>{essay.body}</Text>
           </>
         ) : !error ? (
@@ -89,7 +101,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sans,
     fontSize: type.small,
     color: colors.muted,
-    marginBottom: 24,
+    marginBottom: 12,
+  },
+  prLink: {
+    fontFamily: fonts.sansMedium,
+    fontSize: type.body,
+    color: colors.accentStrong,
   },
   prose: {
     fontFamily: fonts.sans,

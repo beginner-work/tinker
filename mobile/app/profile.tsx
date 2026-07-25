@@ -1,11 +1,18 @@
+import { useCallback, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { AppChrome } from "../src/components/AppChrome";
 import { useAuth } from "../src/auth/AuthContext";
 import { colors, fonts, radius, type } from "../src/theme";
 import { TinkerGlass } from "../src/components/TinkerGlass";
 import { API_BASE } from "../src/api/client";
+import {
+  clearGitHubConnection,
+  getGitHubConfig,
+  repoLabel,
+  type GitHubConfig,
+} from "../src/lib/github";
 
 const LINKS = [
   {
@@ -27,6 +34,13 @@ const LINKS = [
 
 export default function ProfileScreen() {
   const { signedIn, signOut } = useAuth();
+  const [github, setGithub] = useState<GitHubConfig | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      getGitHubConfig().then(setGithub).catch(() => setGithub(null));
+    }, []),
+  );
 
   return (
     <AppChrome showModeNav={false}>
@@ -35,11 +49,44 @@ export default function ProfileScreen() {
           <Text style={styles.title}>Account</Text>
           <Text style={styles.lede}>
             {signedIn
-              ? "Signed in. Overlays for wallet and Back me open in the browser for now."
+              ? "Signed in. Essays publish as pull requests into your linked GitHub repo."
               : "Sign in to sync drafts and essays with the web app."}
           </Text>
 
           <Text style={styles.meta}>API {API_BASE}</Text>
+
+          <Text style={styles.section}>GitHub repo</Text>
+          <View style={styles.row}>
+            <Text style={styles.rowTitle}>
+              {github ? repoLabel(github) : "Not connected"}
+            </Text>
+            <Text style={styles.rowBlurb}>
+              {github
+                ? `Writings land under ${github.pathTemplate}${
+                    github.login ? ` · @${github.login}` : ""
+                  }`
+                : "Connect a repo before writing — every essay opens a PR."}
+            </Text>
+            <Pressable
+              onPress={() => router.push("/connect-repo")}
+              style={{ marginTop: 10 }}
+            >
+              <Text style={styles.link}>
+                {github ? "Change repo →" : "Connect repo →"}
+              </Text>
+            </Pressable>
+            {github ? (
+              <Pressable
+                onPress={async () => {
+                  await clearGitHubConnection();
+                  setGithub(null);
+                }}
+                style={{ marginTop: 8 }}
+              >
+                <Text style={styles.disconnect}>Disconnect</Text>
+              </Pressable>
+            ) : null}
+          </View>
 
           {!signedIn ? (
             <Pressable
@@ -102,6 +149,12 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginBottom: 20,
   },
+  section: {
+    fontFamily: fonts.sansSemiBold,
+    fontSize: type.small,
+    color: colors.foreground,
+    marginBottom: 8,
+  },
   cta: {
     alignItems: "center",
     paddingVertical: 14,
@@ -126,6 +179,16 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   rowBlurb: {
+    fontFamily: fonts.sans,
+    fontSize: type.small,
+    color: colors.muted,
+  },
+  link: {
+    fontFamily: fonts.sansMedium,
+    fontSize: type.body,
+    color: colors.accentStrong,
+  },
+  disconnect: {
     fontFamily: fonts.sans,
     fontSize: type.small,
     color: colors.muted,

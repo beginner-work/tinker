@@ -30,6 +30,12 @@ export type Essay = {
   sourceDraft: string;
   kind: "essay";
   seed?: string | null;
+  github?: {
+    prUrl: string;
+    prNumber: number;
+    branch: string;
+    path: string;
+  } | null;
 };
 
 type Blob<T> = { data: T | null; updatedAt: number | null };

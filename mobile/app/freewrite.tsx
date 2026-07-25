@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -14,7 +14,8 @@ import * as Haptics from "expo-haptics";
 import { useAuth } from "../src/auth/AuthContext";
 import { Essay, essayId } from "../src/api/userData";
 import { firstSentence, slugify } from "../src/lib/interview";
-import { saveEssay } from "../src/lib/drafts";
+import { publishEssayWithPullRequest } from "../src/lib/drafts";
+import { isGitHubConnected } from "../src/lib/github";
 import { colors, fonts, radius, type } from "../src/theme";
 import { AppChrome } from "../src/components/AppChrome";
 
@@ -25,6 +26,30 @@ export default function FreewriteScreen() {
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gated, setGated] = useState(true);
+
+  useEffect(() => {
+    if (signedIn === false) {
+      router.replace("/sign-in");
+      return;
+    }
+    let mounted = true;
+    (async () => {
+      const ok = await isGitHubConnected();
+      if (!mounted) return;
+      if (!ok) {
+        router.replace({
+          pathname: "/connect-repo",
+          params: { next: "write", seed: seed || "", mode: "noai" },
+        });
+        return;
+      }
+      setGated(false);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [signedIn, seed]);
 
   async function publish() {
     if (signedIn === false) {
@@ -51,16 +76,33 @@ export default function FreewriteScreen() {
         kind: "essay",
         seed: seed || null,
       };
-      await saveEssay(essay);
+      const { essay: saved, prError } = await publishEssayWithPullRequest(essay);
       Haptics.notificationAsync(
         Haptics.NotificationFeedbackType.Success,
       ).catch(() => {});
-      router.replace({ pathname: "/assessing", params: { id } });
+      router.replace({
+        pathname: "/assessing",
+        params: {
+          id: saved.id,
+          prUrl: saved.github?.prUrl || "",
+          prError: prError || "",
+        },
+      });
     } catch (e: any) {
       setError(e?.message || "Couldn't save — try again.");
     } finally {
       setBusy(false);
     }
+  }
+
+  if (gated) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.center}>
+          <Text style={styles.meta}>Checking GitHub repo…</Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -101,7 +143,7 @@ export default function FreewriteScreen() {
             disabled={!body.trim() || busy}
           >
             <Text style={styles.buttonText}>
-              {busy ? "Saving…" : "Publish →"}
+              {busy ? "Publishing as PR…" : "Publish →"}
             </Text>
           </Pressable>
         </KeyboardAvoidingView>
@@ -112,6 +154,8 @@ export default function FreewriteScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 24 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  meta: { fontFamily: fonts.sans, fontSize: type.body, color: colors.muted },
   topBar: {
     flexDirection: "row",
     alignItems: "center",

@@ -1,16 +1,16 @@
 import { useCallback, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, Platform } from "react-native";
 import { router } from "expo-router";
 import { AppChrome } from "../src/components/AppChrome";
 import { WelcomeBody } from "../src/components/WelcomeBody";
 import { useAuth } from "../src/auth/AuthContext";
 import { createDraft } from "../src/lib/drafts";
+import { isGitHubConnected } from "../src/lib/github";
 import { colors, fonts, space, type } from "../src/theme";
 import {
   canUseLiquidGlass,
   useLiquidGlassAvailability,
 } from "../src/components/TinkerGlass";
-import { Platform } from "react-native";
 import type { WritingMode } from "../src/components/ModeNav";
 
 const PLACE_LABELS: Record<string, string> = {
@@ -38,6 +38,14 @@ export default function WelcomeScreen() {
       setBusy(true);
       try {
         const seed = PLACE_LABELS[id] || id;
+        const connected = await isGitHubConnected();
+        if (!connected) {
+          router.push({
+            pathname: "/connect-repo",
+            params: { next: "write", seed, mode },
+          });
+          return;
+        }
         if (mode === "noai") {
           router.push({ pathname: "/freewrite", params: { seed } });
           return;

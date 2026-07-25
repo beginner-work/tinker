@@ -34,6 +34,7 @@ test("Native screens are mounted under app/", () => {
     "pitch-script.tsx",
     "founders.tsx",
     "profile.tsx",
+    "connect-repo.tsx",
   ];
   for (const file of required) {
     assert.ok(
@@ -41,6 +42,39 @@ test("Native screens are mounted under app/", () => {
       `missing app/${file}`,
     );
   }
+});
+
+test("GitHub repo is required before writing and essays open PRs", () => {
+  const github = fs.readFileSync(
+    path.join(MOBILE, "src/lib/github.ts"),
+    "utf8",
+  );
+  assert.match(github, /createEssayPullRequest/);
+  assert.match(github, /connectGitHubRepo/);
+  assert.match(github, /tinker_github_token_v1/);
+
+  const drafts = fs.readFileSync(
+    path.join(MOBILE, "src/lib/drafts.ts"),
+    "utf8",
+  );
+  assert.match(drafts, /publishEssayWithPullRequest/);
+  assert.match(drafts, /retryEssayPullRequest/);
+
+  const index = fs.readFileSync(path.join(APP, "index.tsx"), "utf8");
+  assert.match(index, /isGitHubConnected/);
+  assert.match(index, /connect-repo/);
+
+  const write = fs.readFileSync(path.join(APP, "write.tsx"), "utf8");
+  assert.match(write, /isGitHubConnected/);
+  assert.match(write, /publishEssayWithPullRequest/);
+
+  const freewrite = fs.readFileSync(path.join(APP, "freewrite.tsx"), "utf8");
+  assert.match(freewrite, /isGitHubConnected/);
+  assert.match(freewrite, /publishEssayWithPullRequest/);
+
+  const assessing = fs.readFileSync(path.join(APP, "assessing.tsx"), "utf8");
+  assert.match(assessing, /Open PR/);
+  assert.match(assessing, /retryEssayPullRequest/);
 });
 
 test("Glass chrome + interview engine present", () => {
