@@ -24,9 +24,10 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "start": "expo start --dev-client --localhost",
+    "start:tunnel": "expo start --dev-client --tunnel",
+    "android": "expo start --dev-client --android",
+    "ios": "expo start --dev-client --ios --localhost",
     "web": "expo start --web",
     "eas:whoami": "npx --yes eas-cli whoami",
     "eas:init": "npx --yes eas-cli init --non-interactive",
@@ -37,7 +38,8 @@
     "build:dev:ios": "npx --yes eas-cli build --profile development --platform ios --non-interactive --no-wait",
     "build:dev:android": "npx --yes eas-cli build --profile development --platform android --non-interactive --no-wait",
     "build:dev:device": "npx --yes eas-cli build --profile development-device --platform ios --non-interactive --no-wait",
-    "run:ios:sim": "npx --yes eas-cli build:run -p ios --latest --profile development"
+    "build:simulator": "npx --yes eas-cli build --profile simulator --platform ios --non-interactive --no-wait",
+    "run:ios:sim": "npx --yes eas-cli build:run -p ios --latest"
   },
   "private": true
 }

@@ -99,4 +99,13 @@ test("EAS publish scripts are wired", () => {
     true,
     "development profile must target iOS Simulator (iPhone 17 Pro)",
   );
+  assert.equal(
+    eas.build?.simulator?.ios?.simulator,
+    true,
+    "simulator profile missing (embedded JS, no Metro)",
+  );
+  assert.ok(
+    !eas.build?.simulator?.developmentClient,
+    "simulator profile should embed JS (no developmentClient)",
+  );
 });
