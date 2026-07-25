@@ -63,6 +63,7 @@ Builds use EAS `image: latest` (Xcode 26.x / iPhone 17 Pro runtime).
 
 | Platform | Link |
 |---|---|
+| **iOS Simulator (embedded JS — use this)** | [EAS](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/3278d695-9d30-4087-aeb2-46f5d87bc422) · [download](https://expo.dev/artifacts/eas/ZyGODIEVYYdnveHouktf2DGwC4MrINtwSxlL9PH_lns.tar.gz) |
 | Android APK | [EAS](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/b57a49b8-b13f-4459-9b6d-b02af5482fe2) |
 | iOS Simulator (dev client) | [EAS](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/fd487703-64cb-4b8a-b56b-23bf433476e3) |
 | Prior sim build | [EAS](https://expo.dev/accounts/tlindows-organization/projects/tinker/builds/35ca9652-a960-46c5-b537-36186bdc9e56) |
