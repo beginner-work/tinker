@@ -11,7 +11,7 @@ Capacitor product yet — only the welcome surface + glass chrome.
 - Native Liquid Glass via [`expo-glass-effect`](https://docs.expo.dev/versions/v57.0.0/sdk/glass-effect/) when the API is available
 - Frosted cream fallback on Android, web, and older iOS
 
-## Run in Expo Go
+## Run locally in Expo Go
 
 From this folder:
 
@@ -29,6 +29,31 @@ To see **real** Liquid Glass you need:
 - Current Expo Go that includes SDK 57 / `expo-glass-effect`
 
 On anything else the chips still render, using the CSS-like fallback.
+
+## Publish to Expo Cloud (review links)
+
+Needs an Expo account robot token as Cursor secret `EXPO_TOKEN`
+([create one](https://expo.dev/settings/access-tokens)). **New secrets only
+appear after a fresh Cloud Agent run** (or “Update Existing Env” on the
+environment page).
+
+```bash
+cd mobile
+npx eas-cli whoami                 # should show the robot user
+npx eas-cli init --non-interactive # once — links expo.dev project
+npx eas-cli update:configure --non-interactive
+
+# Native OTA preview (Expo Go / dev build QR from the dashboard)
+npm run publish:preview
+
+# Web review URL on *.expo.app (layout only — no real Liquid Glass)
+npm run deploy:web
+```
+
+From the repo root: `npm run expo:publish` / `npm run expo:deploy`.
+
+After publish, open the update on [expo.dev](https://expo.dev) → project →
+**Updates** (or the Hosting URL printed by `eas deploy`).
 
 ## Status strip
 

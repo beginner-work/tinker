@@ -11,8 +11,11 @@
     "expo-glass-effect": "~57.0.1",
     "expo-linear-gradient": "~57.0.1",
     "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.10",
     "react": "19.2.3",
-    "react-native": "0.86.0"
+    "react-dom": "19.2.3",
+    "react-native": "0.86.0",
+    "react-native-web": "^0.21.2"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
@@ -22,7 +25,12 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "eas:whoami": "eas whoami",
+    "eas:init": "eas init --non-interactive",
+    "eas:configure": "eas update:configure --non-interactive",
+    "publish:preview": "eas update --branch preview --message \"tinker glass chrome preview\" --non-interactive",
+    "deploy:web": "expo export -p web && eas deploy --non-interactive"
   },
   "private": true
 }
