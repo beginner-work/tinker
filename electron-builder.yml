@@ -35,13 +35,12 @@ asar: true
 # Ship only the desktop entry points and the shared renderer. Production
 # dependencies are bundled automatically by electron-builder; the desktop
 # main process only needs @anthropic-ai/sdk at runtime, so drop the
-# Prisma + Capacitor trees that belong to the web / mobile variants.
+# Prisma tree that belongs to the web / API variant.
 files:
   - src/main/**/*
   - src/renderer/**/*
   - package.json
   - "!**/*.map"
-  - "!node_modules/@capacitor/*/**"
   - "!node_modules/@prisma/**"
   - "!node_modules/.prisma/**"
   - "!node_modules/prisma/**"

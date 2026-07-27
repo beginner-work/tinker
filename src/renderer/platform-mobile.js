@@ -1,4 +1,4 @@
-/* Platform shim — runs on Capacitor (iOS/Android) and on plain web,
+/* Platform shim — runs on plain web (and inside the Expo WebView shell),
  * but stays out of the way when Electron's preload has already
  * installed window.tinker. Exposes the same window.tinker.* surface
  * the renderer relies on.
@@ -13,9 +13,7 @@
     return; // Electron preload already wired things up.
   }
 
-  const isCapacitor = !!window.Capacitor;
-  const isWeb = !isCapacitor;
-  document.documentElement.classList.add(isCapacitor ? "on-capacitor" : "on-web");
+  document.documentElement.classList.add("on-web");
 
   const STORE = window.localStorage;
   const get = (k) => STORE.getItem(k) || "";
@@ -70,20 +68,12 @@
   }
 
   async function openExternal(url) {
-    if (isCapacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
-      try {
-        await window.Capacitor.Plugins.Browser.open({ url });
-        return;
-      } catch {
-        // fall through
-      }
-    }
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
   window.tinker = {
     version: () => Promise.resolve("0.1.0-tinker-v1"),
-    platform: () => Promise.resolve(isCapacitor ? "capacitor" : isWeb ? "web" : "unknown"),
+    platform: () => Promise.resolve("web"),
     setIcon: () => Promise.resolve(true),
     callClaude,
     openExternal,

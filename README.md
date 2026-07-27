@@ -2,10 +2,10 @@
 
 tinker — a quiet place to be on the web.
 
-A minimal desktop browser built on Electron, with mobile (Capacitor) and
-plain-web variants that share the same renderer. The chrome wears tinker's
-multi-colored globe mark on a warm cream background, with Plus Jakarta
-Sans for display and Inter for body.
+A minimal desktop browser built on Electron, with a Vercel-hosted web
+app and Expo native shells that share the same renderer. The chrome
+wears tinker's multi-colored globe mark on a warm cream background,
+with Plus Jakarta Sans for display and Inter for body.
 
 ## Run it (desktop)
 
@@ -41,8 +41,8 @@ so build on the matching platform (or a CI runner per platform):
 The renderer + main process are plain JS with nothing to compile, so the
 build just collects `src/main/` + `src/renderer/` and the one runtime
 dependency the desktop main needs (`@anthropic-ai/sdk`) into an asar — the
-Prisma + Capacitor trees that belong to the web / mobile variants are left
-out. The Linux `.desktop` entry's `StartupWMClass` is synced to the app's
+Prisma tree that belongs to the web / API variant is left out. The Linux
+`.desktop` entry's `StartupWMClass` is synced to the app's
 `desktopName` so window managers group tinker's windows under its launcher.
 
 ### Releasing
@@ -324,62 +324,24 @@ caching, so repeat queries skip the cold-start cost.
 If `ANTHROPIC_API_KEY` isn't set, the search pane shows a friendly
 error explaining how to fix it.
 
-## Mobile (Capacitor)
+## Mobile (Expo)
 
-The same `src/renderer/` codebase ships as an iOS / Android app via
-[Capacitor](https://capacitorjs.com). One-time setup:
+Native iOS / Android builds ship via [Expo](https://expo.dev), wrapping
+the same `src/renderer/` web surface that Vercel hosts. Capacitor is no
+longer part of this repo — there is no `capacitor.config.json`, no
+`@capacitor/*` packages, and no `mobile:*` npm scripts.
 
-```bash
-npm install
-npx cap add ios          # macOS + Xcode required
-npx cap add android      # Android Studio required
-npx cap sync
-```
-
-Then either open the native project in its IDE…
-
-```bash
-npm run mobile:open:ios
-npm run mobile:open:android
-```
-
-…or build and run on a connected device:
-
-```bash
-npm run mobile:run:ios
-npm run mobile:run:android
-```
-
-`capacitor.config.json` points the web layer at `src/renderer/` — no
-bundler, no build step. After editing renderer code, run
-`npm run mobile:sync` to copy the latest `src/renderer/` into the
-native projects.
-
-### How the platforms differ
-
-| | Electron desktop | Capacitor mobile / web |
+| | Electron desktop | Web (Vercel) / Expo |
 |---|---|---|
 | Tabs / sessions | Yes — left sidebar | Yes (collapsed rail on phones) |
-| In-app browsing | Native `<webview>` | External — opens in iOS/Android system browser via `@capacitor/browser` |
-| Search engine | IPC → main process → Anthropic SDK | Direct browser-side fetch with prompt caching |
-| API key storage | `ANTHROPIC_API_KEY` env var | `localStorage` (open the inspector and run `localStorage.setItem(...)`) |
+| In-app browsing | Native `<webview>` | External — opens in the system browser |
+| Search / Claude | IPC → main process → Anthropic SDK | Same-origin `/api/*` on Vercel, JWT-gated |
+| Auth | Local `ANTHROPIC_API_KEY` env var | Phone/PIN via Stytch (`tinker_jwt`) |
 
 The `src/renderer/platform-mobile.js` shim detects the runtime —
-Electron preload short-circuits it; on Capacitor and on the plain
-web it polyfills the same `window.tinker.*` surface so the rest
+Electron preload short-circuits it; on the plain web (and inside the
+Expo shell) it polyfills the same `window.tinker.*` surface so the rest
 of the renderer code path is identical.
-
-### Setting keys on mobile
-
-For now, paste the key into `localStorage` from the Capacitor
-WebView inspector (Safari Web Inspector on iOS, `chrome://inspect`
-on Android):
-
-```js
-localStorage.setItem("ANTHROPIC_API_KEY", "sk-ant-...");
-```
-
-A proper in-app settings panel is on the list.
 
 ## Style dictionary
 

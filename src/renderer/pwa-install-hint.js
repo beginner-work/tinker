@@ -10,8 +10,8 @@
  * Add to Home Screen (Safari or Chrome — every iOS browser is
  * WebKit-backed, but in-app webviews like DuckDuckGo / GSA hide
  * the share-sheet entry, so those stay excluded), not running
- * standalone, not inside Capacitor / Electron, not previously
- * dismissed. Tap Install → open the instructions sheet. Tap X →
+ * standalone, not inside Electron, not previously dismissed.
+ * Tap Install → open the instructions sheet. Tap X →
  * dismiss (persisted in localStorage). Installing the PWA
  * mid-session flips the display-mode media query and the whole
  * thing disappears.
@@ -47,7 +47,7 @@
   }
 
   function isWrappedRuntime() {
-    if (window.Capacitor) return true;
+    // Electron desktop — has its own install / update path.
     if (window.tinker && window.tinker.supportsWebview === true) return true;
     return false;
   }

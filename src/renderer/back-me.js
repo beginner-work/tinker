@@ -11,7 +11,7 @@
  *   - Installed PWA (display-mode: standalone / navigator.standalone): open
  *     it in an in-app overlay iframe, so the founder never leaves the app to
  *     show their code — they pull it up, someone scans it, done.
- *   - Everywhere else (plain browser tab, Electron, Capacitor): hand off to
+ *   - Everywhere else (plain browser tab, Electron): hand off to
  *     the system browser via the platform openExternal shim (or window.open).
  *
  * Exposed as window.tinkerBackMe so the sidebar Pitch button and the profile
@@ -43,8 +43,8 @@
   }
 
   // Matches share.js: an installed PWA reports standalone display-mode (or
-  // navigator.standalone on iOS). Wrapped runtimes (Capacitor/Electron) have
-  // their own browser handoff, so they fall through to openExternal.
+  // navigator.standalone on iOS). Electron has its own browser handoff,
+  // so it falls through to openExternal.
   function isStandalone() {
     if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
     if (window.navigator && window.navigator.standalone === true) return true;

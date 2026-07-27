@@ -6,8 +6,8 @@
  * (online-only).
  *
  * Skipped where a service worker is the wrong tool or unavailable:
- *   - Electron / Capacitor — they ship their own shells and updaters,
- *     and run from file:// where SW isn't available anyway.
+ *   - Electron — it ships its own shell and updater, and runs from
+ *     file:// where SW isn't available anyway.
  *   - Browsers without serviceWorker support, or non-secure contexts.
  */
 
@@ -15,7 +15,6 @@
   "use strict";
 
   function isWrappedRuntime() {
-    if (window.Capacitor) return true;
     if (window.tinker && window.tinker.supportsWebview === true) return true;
     return false;
   }

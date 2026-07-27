@@ -2,17 +2,16 @@
  *
  * The button lives in the sidebar account list and is `hidden` by
  * default. We only reveal it when the app is running as an installed
- * PWA (display-mode: standalone, or navigator.standalone on iOS) or
- * inside a wrapped runtime (Capacitor). In a plain browser tab the
- * URL bar already exposes Share / Copy Link, so a second control
- * would be noise; on Electron desktop the OS menu covers it.
+ * PWA (display-mode: standalone, or navigator.standalone on iOS). In a
+ * plain browser tab the URL bar already exposes Share / Copy Link, so a
+ * second control would be noise; on Electron desktop the OS menu covers
+ * it.
  *
  * On click we call navigator.share() — which raises the native iOS /
  * Android share sheet, or the Web Share polyfill where present.
- * When the Web Share API isn't available (older Chromium on Linux,
- * some Capacitor builds without the Share plugin), we fall back to
- * writing the URL to the clipboard and flashing "Copied" beside the
- * label so the tap still produces something useful.
+ * When the Web Share API isn't available (older Chromium on Linux),
+ * we fall back to writing the URL to the clipboard and flashing
+ * "Copied" beside the label so the tap still produces something useful.
  */
 
 (function () {
@@ -23,7 +22,7 @@
   }
 
   function isWrappedRuntime() {
-    if (window.Capacitor) return true;
+    // Electron desktop — OS menus cover Share; skip the in-app control.
     if (window.tinker && window.tinker.supportsWebview === true) return true;
     return false;
   }

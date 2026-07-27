@@ -7,7 +7,7 @@
  * Re-validates the session against Stytch on every request, then proxies
  * a one-shot search to Claude Haiku 4.5. The system prompt is marked
  * ephemeral for prompt caching; if the prompt ever moves, mirror the
- * change to src/renderer/platform-mobile.js (Capacitor path).
+ * change to src/renderer/platform-mobile.js (web path).
  *
  * Zero external deps — uses Node 18+ global fetch.
  */

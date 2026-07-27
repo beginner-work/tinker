@@ -9,11 +9,10 @@
  * on every request via Stytch's /sessions/authenticate, so there is no
  * client-side `exp` to check — the server is the source of truth.
  *
- * On Electron desktop and on Capacitor mobile this file is loaded too but
- * the gate is skipped — desktop already has its own ANTHROPIC_API_KEY env
- * var, and Capacitor pulls a key from localStorage. Only the plain web
- * build (`html.on-web` and `window.tinker.platform === "web"`) shows the
- * gate.
+ * On Electron desktop this file is loaded too but the gate is
+ * skipped — desktop already has its own ANTHROPIC_API_KEY env var.
+ * Only the plain web build (`html.on-web` and
+ * `window.tinker.platform === "web"`) shows the gate.
  */
 
 (function () {

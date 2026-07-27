@@ -20,9 +20,9 @@
  *     wallet is shown by embedding beginner's /wallet page (the reciprocal of
  *     back-me.js's in-app iframe). We pass the stored cards into the iframe in
  *     the fragment (#cards=<base64url(json array)>); the page is a pure
- *     renderer. Auto-opens once right after a fresh deposit. In wrapped
- *     runtimes (Capacitor/Electron) we hand off to the system browser instead
- *     of framing, matching back-me/open-beginner.
+ *     renderer. Auto-opens once right after a fresh deposit. In Electron
+ *     we hand off to the system browser instead of framing, matching
+ *     back-me/open-beginner.
  *
  * window.tinkerWallet = { list, open, close } exposes the read API; the profile
  * menu's "Wallet" calls open().
@@ -151,7 +151,6 @@
 
   // ── Runtime handoff ──────────────────────────────────────────────────
   function isWrappedRuntime() {
-    if (window.Capacitor) return true;
     if (window.tinker && window.tinker.supportsWebview === true) return true;
     return false;
   }

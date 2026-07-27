@@ -39,8 +39,8 @@
   function authHeaders(token) {
     return { Authorization: "Bearer " + token };
   }
-  // Onboarding only belongs on the plain web sign-in gate. Electron/Capacitor
-  // authenticate differently; we still render an avatar there if a profile
+  // Onboarding only belongs on the plain web sign-in gate. Electron
+  // authenticates differently; we still render an avatar there if a profile
   // happens to exist, but never force the capture screen.
   function isWebGate() {
     try {
