@@ -7,6 +7,24 @@ app and Expo native shells that share the same renderer. The chrome
 wears tinker's multi-colored globe mark on a warm cream background,
 with Plus Jakarta Sans for display and Inter for body.
 
+## What's in this repo
+
+This is one full product app — there is no separate MCP repo anymore.
+The core surfaces live here together:
+
+- **Front ends** — web (Vercel) and native mobile (Expo), plus the
+  Electron desktop shell. All three share `src/renderer/`.
+- **Product back ends** — the non-payments / non-identity systems under
+  `api/` (Claude, search, pitches, publish, feed, user-data, voice,
+  email, and the rest of the product surface).
+- **Developer-facing APIs** — that same `api/` layer is what agents and
+  tooling call; project MCP config (e.g. Browserbase) is for debugging
+  against this app, not a sibling product repo.
+
+Payments (Stripe) and identity (Stytch) stay as external services wired
+in where the product needs them. They are not carved out into their own
+repos either — just not what this tree *is*.
+
 ## Run it (desktop)
 
 ```bash
@@ -354,21 +372,25 @@ that wants the mark as an SVG string.
 ## What's inside
 
 ```
-web/
+.
+├── api/                 # Product + developer-facing APIs (Vercel)
+│   ├── auth/            # Phone/PIN via Stytch (identity wire-up)
+│   ├── claude/          # Proxied Claude converse
+│   ├── search.js        # Search essays
+│   ├── pitches/ …       # Pitch / publish / feed / user-data / …
+│   └── membership/ …    # Stripe membership wire-up
 ├── src/
-│   ├── main/
-│   │   ├── main.js         # Electron main process — window, session, IPC
-│   │   └── preload.js      # contextBridge exposing the `tinker` API
-│   └── renderer/
-│       ├── index.html      # Browser chrome shell
-│       ├── styles.css      # Brand styling
-│       └── renderer.js     # Tabs, address bar, navigation
+│   ├── main/            # Electron main + preload
+│   ├── renderer/        # Shared web / Expo / Electron UI
+│   └── web/             # Static local host (`npm run web`)
+├── prisma/              # Shared Postgres schema
 └── package.json
 ```
 
 The renderer is plain HTML/CSS/JS — no build step, no bundler. Each
-tab maps to either the welcome page (in-DOM) or an Electron
-`<webview>` mounted lazily on first navigation.
+Electron tab maps to either the welcome page (in-DOM) or a
+`<webview>` mounted lazily on first navigation. Web and Expo load the
+same `src/renderer/` files against the Vercel `api/` back end.
 
 ## Shortcuts
 
