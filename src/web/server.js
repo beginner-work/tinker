@@ -1,8 +1,8 @@
 /* tinker — web host (static)
  *
- * Serves the renderer (the same files Electron and Capacitor load) over HTTP.
- * No build step, no proxy. The renderer talks to Anthropic directly using a
- * key it reads from localStorage — see src/renderer/platform-mobile.js.
+ * Serves the renderer (the same files Electron and the Expo shell load) over HTTP.
+ * No build step, no proxy. Auth and Claude calls go through Vercel `/api/*`
+ * — see src/renderer/platform-mobile.js.
  */
 
 "use strict";

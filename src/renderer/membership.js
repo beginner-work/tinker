@@ -17,8 +17,8 @@
  * to this account via /api/membership/reconcile.
  *
  * Everything is best-effort and same-origin. We only show the row once a
- * status response has come back, so a signed-out tab — or an Electron /
- * Capacitor session that authenticates differently and has no token — never
+ * status response has come back, so a signed-out tab — or an Electron
+ * session that authenticates differently and has no token — never
  * flashes a stale plan. The pure formatter is exposed on
  * window.tinkerMembership for unit tests.
  */
@@ -336,8 +336,8 @@
     var btn = document.getElementById("nav-membership");
     if (!btn) return;
     var token = read(TOKEN_KEY);
-    // No token → no membership identity (signed-out web, or Electron/Capacitor
-    // which authenticate differently). Keep the row hidden.
+    // No token → no membership identity (signed-out web, or Electron
+    // which authenticates differently). Keep the row hidden.
     if (!token) { btn.setAttribute("hidden", ""); return; }
     if (inFlight) return;
     inFlight = true;

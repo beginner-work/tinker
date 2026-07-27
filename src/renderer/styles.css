@@ -76,7 +76,7 @@ input:focus, button:focus, textarea:focus { outline: none; }
   position: relative;
   -webkit-app-region: drag;
   /* Keep the bottom rows (account list + footer) above the iOS home
-     indicator when running as an installed PWA / Capacitor app. */
+     indicator when running as an installed PWA. */
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -87,7 +87,6 @@ input:focus, button:focus, textarea:focus { outline: none; }
   align-items: center;
   gap: 10px;
 }
-html.on-capacitor .sidebar__top,
 html.on-web .sidebar__top {
   padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
 }

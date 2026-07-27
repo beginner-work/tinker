@@ -5,7 +5,7 @@ describes a single mark; the renderer reads it via
 `src/renderer/lib/<name>.js` to build the SVG.
 
 Living inside `src/renderer/` means these files travel with both
-the Electron renderer and the Capacitor `webDir`, so the same
+the Electron renderer and the Vercel / Expo web layer, so the same
 fetch path works on desktop and mobile.
 
 ## Files

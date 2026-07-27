@@ -8,9 +8,8 @@
  * are renamed at the same time so pwa-install-hint.js's delegated
  * click handler doesn't double-fire on update-mode clicks.
  *
- * Capacitor (mobile shell) and Electron desktop are skipped — their
- * updates ship through their own channels (App Store / auto-updater),
- * not via a web reload.
+ * Electron desktop is skipped — its updates ship through its own
+ * channel (auto-updater), not via a web reload.
  *
  * Per-version dismiss: clicking × in update mode hides the banner and
  * remembers the version that was dismissed. A subsequent deploy bumps
@@ -22,7 +21,6 @@
   const POLL_MS = 60_000;
 
   function isWrappedRuntime() {
-    if (window.Capacitor) return true;
     if (window.tinker && window.tinker.supportsWebview === true) return true;
     return false;
   }

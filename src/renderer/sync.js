@@ -354,7 +354,7 @@
   // Hydrate as soon as a token is present. On the plain web build
   // auth.js shows a gate when there's no token; the auth-changed
   // event fires after a successful PIN verify. Hydrating then catches
-  // first-time sign-in too. On Electron / Capacitor there's no Stytch
+  // first-time sign-in too. On Electron there's no Stytch
   // token and hydrate() returns early.
   //
   // Wait for DOMContentLoaded so consumer modules (seeds.js,

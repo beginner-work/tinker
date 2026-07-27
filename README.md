@@ -2,10 +2,28 @@
 
 tinker — a quiet place to be on the web.
 
-A minimal desktop browser built on Electron, with mobile (Capacitor) and
-plain-web variants that share the same renderer. The chrome wears tinker's
-multi-colored globe mark on a warm cream background, with Plus Jakarta
-Sans for display and Inter for body.
+A minimal desktop browser built on Electron, with a Vercel-hosted web
+app and Expo native shells that share the same renderer. The chrome
+wears tinker's multi-colored globe mark on a warm cream background,
+with Plus Jakarta Sans for display and Inter for body.
+
+## What's in this repo
+
+This is one full product app — there is no separate MCP repo anymore.
+The core surfaces live here together:
+
+- **Front ends** — web (Vercel) and native mobile (Expo), plus the
+  Electron desktop shell. All three share `src/renderer/`.
+- **Product back ends** — the non-payments / non-identity systems under
+  `api/` (Claude, search, pitches, publish, feed, user-data, voice,
+  email, and the rest of the product surface).
+- **Developer-facing APIs** — that same `api/` layer is what agents and
+  tooling call; project MCP config (e.g. Browserbase) is for debugging
+  against this app, not a sibling product repo.
+
+Payments (Stripe) and identity (Stytch) stay as external services wired
+in where the product needs them. They are not carved out into their own
+repos either — just not what this tree *is*.
 
 ## Run it (desktop)
 
@@ -41,8 +59,8 @@ so build on the matching platform (or a CI runner per platform):
 The renderer + main process are plain JS with nothing to compile, so the
 build just collects `src/main/` + `src/renderer/` and the one runtime
 dependency the desktop main needs (`@anthropic-ai/sdk`) into an asar — the
-Prisma + Capacitor trees that belong to the web / mobile variants are left
-out. The Linux `.desktop` entry's `StartupWMClass` is synced to the app's
+Prisma tree that belongs to the web / API variant is left out. The Linux
+`.desktop` entry's `StartupWMClass` is synced to the app's
 `desktopName` so window managers group tinker's windows under its launcher.
 
 ### Releasing
@@ -324,62 +342,24 @@ caching, so repeat queries skip the cold-start cost.
 If `ANTHROPIC_API_KEY` isn't set, the search pane shows a friendly
 error explaining how to fix it.
 
-## Mobile (Capacitor)
+## Mobile (Expo)
 
-The same `src/renderer/` codebase ships as an iOS / Android app via
-[Capacitor](https://capacitorjs.com). One-time setup:
+Native iOS / Android builds ship via [Expo](https://expo.dev), wrapping
+the same `src/renderer/` web surface that Vercel hosts. Capacitor is no
+longer part of this repo — there is no `capacitor.config.json`, no
+`@capacitor/*` packages, and no `mobile:*` npm scripts.
 
-```bash
-npm install
-npx cap add ios          # macOS + Xcode required
-npx cap add android      # Android Studio required
-npx cap sync
-```
-
-Then either open the native project in its IDE…
-
-```bash
-npm run mobile:open:ios
-npm run mobile:open:android
-```
-
-…or build and run on a connected device:
-
-```bash
-npm run mobile:run:ios
-npm run mobile:run:android
-```
-
-`capacitor.config.json` points the web layer at `src/renderer/` — no
-bundler, no build step. After editing renderer code, run
-`npm run mobile:sync` to copy the latest `src/renderer/` into the
-native projects.
-
-### How the platforms differ
-
-| | Electron desktop | Capacitor mobile / web |
+| | Electron desktop | Web (Vercel) / Expo |
 |---|---|---|
 | Tabs / sessions | Yes — left sidebar | Yes (collapsed rail on phones) |
-| In-app browsing | Native `<webview>` | External — opens in iOS/Android system browser via `@capacitor/browser` |
-| Search engine | IPC → main process → Anthropic SDK | Direct browser-side fetch with prompt caching |
-| API key storage | `ANTHROPIC_API_KEY` env var | `localStorage` (open the inspector and run `localStorage.setItem(...)`) |
+| In-app browsing | Native `<webview>` | External — opens in the system browser |
+| Search / Claude | IPC → main process → Anthropic SDK | Same-origin `/api/*` on Vercel, JWT-gated |
+| Auth | Local `ANTHROPIC_API_KEY` env var | Phone/PIN via Stytch (`tinker_jwt`) |
 
 The `src/renderer/platform-mobile.js` shim detects the runtime —
-Electron preload short-circuits it; on Capacitor and on the plain
-web it polyfills the same `window.tinker.*` surface so the rest
+Electron preload short-circuits it; on the plain web (and inside the
+Expo shell) it polyfills the same `window.tinker.*` surface so the rest
 of the renderer code path is identical.
-
-### Setting keys on mobile
-
-For now, paste the key into `localStorage` from the Capacitor
-WebView inspector (Safari Web Inspector on iOS, `chrome://inspect`
-on Android):
-
-```js
-localStorage.setItem("ANTHROPIC_API_KEY", "sk-ant-...");
-```
-
-A proper in-app settings panel is on the list.
 
 ## Style dictionary
 
@@ -392,21 +372,25 @@ that wants the mark as an SVG string.
 ## What's inside
 
 ```
-web/
+.
+├── api/                 # Product + developer-facing APIs (Vercel)
+│   ├── auth/            # Phone/PIN via Stytch (identity wire-up)
+│   ├── claude/          # Proxied Claude converse
+│   ├── search.js        # Search essays
+│   ├── pitches/ …       # Pitch / publish / feed / user-data / …
+│   └── membership/ …    # Stripe membership wire-up
 ├── src/
-│   ├── main/
-│   │   ├── main.js         # Electron main process — window, session, IPC
-│   │   └── preload.js      # contextBridge exposing the `tinker` API
-│   └── renderer/
-│       ├── index.html      # Browser chrome shell
-│       ├── styles.css      # Brand styling
-│       └── renderer.js     # Tabs, address bar, navigation
+│   ├── main/            # Electron main + preload
+│   ├── renderer/        # Shared web / Expo / Electron UI
+│   └── web/             # Static local host (`npm run web`)
+├── prisma/              # Shared Postgres schema
 └── package.json
 ```
 
 The renderer is plain HTML/CSS/JS — no build step, no bundler. Each
-tab maps to either the welcome page (in-DOM) or an Electron
-`<webview>` mounted lazily on first navigation.
+Electron tab maps to either the welcome page (in-DOM) or a
+`<webview>` mounted lazily on first navigation. Web and Expo load the
+same `src/renderer/` files against the Vercel `api/` back end.
 
 ## Shortcuts
 

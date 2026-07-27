@@ -265,10 +265,9 @@
             </button>
           </li>
           <!-- Share button: revealed by share.js only when the app is
-               running as an installed PWA (standalone) or inside a
-               wrapped runtime (Capacitor). Stays hidden in plain
-               browser tabs and on Electron desktop, where the OS
-               already exposes "Share Link" through the URL bar. -->
+               running as an installed PWA (standalone). Stays hidden
+               in plain browser tabs and on Electron desktop, where
+               the OS already exposes "Share Link" through the URL bar. -->
           <li>
             <button id="nav-share" type="button" class="sidebar__account-item" hidden>
               <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
@@ -490,7 +489,7 @@
          pwa-install-hint.js reveals the banner on iOS WebKit browsers
          that expose Add to Home Screen — Safari and Chrome iOS, but
          not in-app webviews — when not already standalone and not
-         inside Capacitor, then wires the sheet. -->
+         inside Electron, then wires the sheet. -->
     <!-- Floating bottom mode nav — the AI / No AI switch, wearing the
          same frosted-chip treatment as the mark on beginner's home cover
          (live segment filled with indigo; see both design systems). Two

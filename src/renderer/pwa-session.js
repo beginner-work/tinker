@@ -35,8 +35,8 @@
  * and never appear in HTTP request lines. The JWT therefore stays on
  * the device throughout the install flow.
  *
- * No-op on Capacitor / Electron (those have their own session model)
- * and a graceful no-op when localStorage is unavailable or when the
+ * No-op on Electron (it has its own session model) and a graceful
+ * no-op when localStorage is unavailable or when the
  * manifest fetch fails. The worst-case fallback in any failure mode
  * is today's behaviour: re-sign-in after install.
  */
@@ -54,7 +54,6 @@
   const PASS_CLAIM_PARAM = "claim_pass";
 
   function isWrappedRuntime() {
-    if (window.Capacitor) return true;
     if (window.tinker && window.tinker.supportsWebview === true) return true;
     return false;
   }
