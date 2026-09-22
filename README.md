@@ -18,8 +18,10 @@ The core surfaces live here together:
   `api/` (Claude, search, pitches, publish, feed, user-data, voice,
   email, and the rest of the product surface).
 - **Developer-facing APIs** — that same `api/` layer is what agents and
-  tooling call; project MCP config (e.g. Browserbase) is for debugging
-  against this app, not a sibling product repo.
+  tooling call. `/api/mcp` is a Streamable HTTP MCP façade on this
+  deploy (follow-up questions, Stytch session). Project MCP config
+  (e.g. Browserbase) is for debugging against this app. Neither one is
+  the beginner mail/domains Worker.
 
 Payments (Stripe) and identity (Stytch) stay as external services wired
 in where the product needs them. They are not carved out into their own
@@ -342,6 +344,78 @@ caching, so repeat queries skip the cold-start cost.
 If `ANTHROPIC_API_KEY` isn't set, the search pane shows a friendly
 error explaining how to fix it.
 
+## MCP (Cursor and Stanley)
+
+The writing UI is unchanged. The same Vercel deploy exposes a stateless
+[Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)
+MCP endpoint at `/api/mcp` so Cursor, Stanley, and other MCP clients can
+ask for follow-up questions. Responses are single JSON-RPC documents.
+A missing or expired bearer is 401 on every method except CORS preflight.
+Authenticated GET and DELETE return 405 — there is no server-push SSE session.
+
+Auth is the existing Stytch session, the same bearer
+`POST /api/claude/converse` accepts. Send either the long-lived
+`session_token` or a `session_jwt`. The writing app stores the
+`session_token` in `localStorage` under the legacy key `tinker_jwt`
+(phone verify returns a 30-day opaque token, not a JWT).
+
+While signed in on the tinker site, copy it from the browser console:
+
+```js
+copy(localStorage.getItem("tinker_jwt"))
+```
+
+Point the client at your tinker host (production or a preview), not at
+the beginner mail/domains Worker:
+
+```json
+{
+  "mcpServers": {
+    "tinker": {
+      "url": "https://<your-tinker-host>/api/mcp",
+      "headers": {
+        "Authorization": "Bearer <stytch session_token or session_jwt>"
+      }
+    }
+  }
+}
+```
+
+Stanley uses the same URL and `Authorization` header on its HTTP MCP
+connector.
+
+Sessions expire. The opaque `session_token` lasts 30 days; a
+`session_jwt` is short-lived (about five minutes unless something
+refreshes it). Every MCP request calls Stytch `/sessions/authenticate`.
+A 401 means the session is missing or expired — sign in again in the
+writing UI and copy the new `tinker_jwt`. The server answers 401 with
+`WWW-Authenticate: Bearer` and `{ "error": "..." }`, same shape as the
+converse proxy.
+
+Tool:
+
+- `ask_followups` — pass a founder `transcript` (`[{ "q", "a" }]`, or
+  `[]` to open the interview) and the server runs the same interview
+  contract the writing UI uses. The result is JSON:
+  `{ mode, next_question, questions, stitched_title, stitched_body, done }`.
+  Pass a freeform `draft` string instead (not both) for three to five
+  learning questions. Optional `priorTurns` avoids repeats. Optional
+  `seed`, `facing`, `lastPurchased`, `voice`, `transactions`, and
+  `uncoveredSlides` are the same scene cues the browser interview
+  already sends. `forceStitch: true` asks for the essay instead of
+  another question.
+
+There is no raw `converse` tool. Clients cannot supply a system prompt;
+the prompt lives in `src/renderer/interview-prompt.js` and is what both
+the browser and `ask_followups` use. The writing UI still checks that a
+stitched essay uses only the founder's words before it publishes. MCP
+returns the model's JSON; it does not publish.
+
+No new environment variables. `/api/mcp` uses the existing
+`STYTCH_PROJECT_ID`, `STYTCH_SECRET`, and `ANTHROPIC_API_KEY`.
+`BEGINNER_MCP_TOKEN` / `BEGINNER_MCP_URL` are only the in-app email
+relay to the beginner Worker — they are not this endpoint.
+
 ## Mobile (Expo)
 
 Native iOS / Android builds ship via [Expo](https://expo.dev), wrapping
@@ -376,6 +450,7 @@ that wants the mark as an SVG string.
 ├── api/                 # Product + developer-facing APIs (Vercel)
 │   ├── auth/            # Phone/PIN via Stytch (identity wire-up)
 │   ├── claude/          # Proxied Claude converse
+│   ├── mcp.js           # Streamable HTTP MCP (ask_followups)
 │   ├── search.js        # Search essays
 │   ├── pitches/ …       # Pitch / publish / feed / user-data / …
 │   └── membership/ …    # Stripe membership wire-up
