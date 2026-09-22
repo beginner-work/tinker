@@ -14,13 +14,15 @@
  *
  * Caching: whatever system prompt the renderer sends is wrapped in
  * cache_control ephemeral, so repeat turns within the same draft (or
- * back-to-back classifications) hit the prompt cache.
+ * back-to-back classifications) hit the prompt cache. The Messages
+ * call itself lives in api/_lib/anthropic.js so /api/mcp can reuse it.
  */
 
 "use strict";
 
 const { authenticateSession } = require("../_lib/stytch.js");
 const { withResponseLogging } = require("../_lib/log.js");
+const { callAnthropic } = require("../_lib/anthropic.js");
 
 function parseBody(req) {
   if (req.body && typeof req.body === "object") return req.body;
@@ -35,43 +37,6 @@ function extractBearer(header) {
   if (!header || typeof header !== "string") return "";
   const m = header.match(/^Bearer\s+(\S+)$/i);
   return m ? m[1] : "";
-}
-
-async function callAnthropic({ system, messages, model, maxTokens }) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) {
-    throw Object.assign(new Error("ANTHROPIC_API_KEY is not set."), {
-      status: 503,
-    });
-  }
-  const body = {
-    model: model || "claude-opus-4-7",
-    max_tokens: Math.min(Math.max(Number(maxTokens) || 2048, 1), 8192),
-    messages,
-  };
-  if (system) {
-    body.system = [
-      { type: "text", text: String(system), cache_control: { type: "ephemeral" } },
-    ];
-  }
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    const message =
-      (data && (data.error?.message || data.error)) || `Anthropic ${res.status}`;
-    throw Object.assign(new Error(message), { status: 502 });
-  }
-  const textBlock = (data.content || []).find((b) => b.type === "text");
-  return { text: textBlock ? textBlock.text : "", usage: data.usage };
 }
 
 module.exports = withResponseLogging(async function handler(req, res) {
