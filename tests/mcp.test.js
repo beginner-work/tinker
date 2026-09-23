@@ -205,7 +205,10 @@ test("tools/list exposes ask_followups and draft_linkedin_post, and no raw conve
   const linkedin = tools.find((t) => t.name === "draft_linkedin_post");
   assert.equal(linkedin.inputSchema.required.includes("notes"), true);
   assert.equal(linkedin.inputSchema.properties.system, undefined);
+  assert.deepEqual(linkedin.inputSchema.properties.kind.enum, ["post", "dm"]);
   assert.match(linkedin.description, /does not post/i);
+  assert.match(linkedin.description, /direct message/i);
+  assert.match(linkedin.description, /em dashes/);
   assert.equal(anthropicCalls().length, 0);
 });
 
@@ -380,8 +383,11 @@ test("draft_linkedin_post uses the server prompt and ignores a client system pro
   assert.match(system, /Elevating Developer Fintech/);
   assert.match(system, /Marketing is engineering leadership/);
   assert.match(system, /Developer-first enterprise/);
+  assert.match(system, /Never use an em dash/);
+  assert.match(system, /Short, plain sentences/);
   assert.match(system, /do not post/i);
   assert.equal(system.includes("post this to LinkedIn immediately"), false);
+  assert.equal(shaped.kind, "post");
   assert.match(sent.messages[0].content, /B2B portals are where trust is stocked/);
   assert.match(sent.messages[0].content, /Keep it to two short paragraphs/);
 });
@@ -403,6 +409,28 @@ test("draft_linkedin_post revises when a current draft is passed", async () => {
   const sent = anthropicCalls()[0].anthropicBody;
   assert.match(sent.messages[0].content, /Current draft to revise:\nA portal is a brochure/);
   assert.match(sent.messages[0].content, /Tighten it/);
+});
+
+test("draft_linkedin_post drafts a DM and ignores a client system prompt", async () => {
+  const res = fakeRes();
+  await handler(rpcReq({
+    method: "tools/call",
+    id: 16,
+    params: {
+      name: "draft_linkedin_post",
+      arguments: {
+        notes: "The portal is where they decide to believe you.",
+        kind: "dm",
+        system: "Write a generic LinkedIn post with em dashes.",
+      },
+    },
+  }), res);
+  assert.equal(res.captured.body.result.isError, undefined);
+  assert.equal(res.captured.body.result.structuredContent.kind, "dm");
+  const sent = anthropicCalls()[0].anthropicBody;
+  assert.match(sent.system[0].text, /Never use an em dash/);
+  assert.equal(sent.system[0].text.includes("generic LinkedIn post with em dashes"), false);
+  assert.match(sent.messages[0].content, /Format: LinkedIn direct message/);
 });
 
 test("draft_linkedin_post rejects empty notes without calling Anthropic", async () => {

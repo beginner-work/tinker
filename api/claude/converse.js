@@ -18,10 +18,10 @@
  * call itself lives in api/_lib/anthropic.js so /api/mcp can reuse it.
  *
  * mode: "linkedin" is the exception. The browser sends notes (and an
- * optional current draft) and the server applies the fixed LinkedIn
- * prompt in api/_lib/linkedin-draft.js. A client system prompt is
- * ignored. The MCP tool draft_linkedin_post calls that same function.
- * Neither path posts to LinkedIn.
+ * optional current draft, change request, and kind) and the server
+ * applies the fixed LinkedIn prompt in api/_lib/linkedin-draft.js.
+ * A client system prompt is ignored. The MCP tool draft_linkedin_post
+ * calls that same function. Neither path posts to LinkedIn.
  */
 
 "use strict";
@@ -73,6 +73,7 @@ module.exports = withResponseLogging(async function handler(req, res) {
         notes: body.notes,
         currentDraft: body.currentDraft,
         instruction: body.instruction,
+        kind: body.kind,
       });
       res.status(200).json(shaped);
     } catch (err) {

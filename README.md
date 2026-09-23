@@ -406,9 +406,11 @@ Tools:
   another question.
 - `draft_linkedin_post` — pass `notes` (a topic or bullets) and the
   server drafts a LinkedIn post in Tyler's voice for Elevating Developer
-  Fintech. Pass `currentDraft` to revise, and an optional `instruction`
-  for what to change. The result is `{ post, revised }`. The tool
-  returns copy only. It does not post to LinkedIn; Stanley still posts.
+  Fintech: short plain sentences, contractions OK, no em dashes. Pass
+  `kind: "dm"` for a direct message (or start the notes with `DM:`).
+  Pass `currentDraft` to revise, and an optional `instruction` for what
+  to change. The result is `{ post, revised, kind }`. The tool returns
+  copy only. It does not post to LinkedIn; Stanley still posts.
 
 There is no raw `converse` tool. Clients cannot supply a system prompt.
 The interview prompt lives in `src/renderer/interview-prompt.js` and is
@@ -427,9 +429,17 @@ relay to the beginner Worker — they are not this endpoint.
 
 The sidebar row **LinkedIn draft** opens on the writing stage — the
 same header, card, inputs, and pill buttons as an essay. Topic or
-bullet notes in, a post out. Revise by editing the draft (or adding
-"what to change") and submitting again. Copy the result; posting still
-goes through Stanley.
+bullet notes in, a post out. Start the notes with `DM:` (or pass
+`kind: "dm"` on the API) for a direct message. Revise by editing the
+draft (or adding "what to change") and submitting again. Copy the
+result; posting still goes through Stanley.
+
+The shared prompt in `api/_lib/linkedin-draft.js` is the only voice.
+It asks for short plain sentences, Tyler's Elevating Developer Fintech
+niche, and no em dashes (periods, commas, parentheses, or separate
+sentences). A caller cannot replace that system prompt. If the model
+still returns an em dash, the server rewrites it before the copy is
+returned.
 
 The panel calls the existing converse proxy with `mode: "linkedin"`.
 That mode ignores any client system prompt and runs

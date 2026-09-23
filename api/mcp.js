@@ -30,8 +30,9 @@ const INSTRUCTIONS = [
   "Call ask_followups with a transcript of {q, a} turns to run the founder interview",
   "(one next question, or a stitch when the draft is ready), or with a draft string",
   "for freeform follow-up questions. Optional priorTurns avoids repeats.",
-  "Call draft_linkedin_post with notes (a topic or bullets) to draft a LinkedIn post in Tyler's voice.",
-  "Pass currentDraft and an optional instruction to revise. This drafts copy only; it does not post to LinkedIn.",
+  "Call draft_linkedin_post with notes (a topic or bullets) to draft a LinkedIn post or direct message in Tyler's voice.",
+  "Pass kind \"dm\" for a direct message, or start the notes with \"DM:\". Pass currentDraft and an optional instruction to revise.",
+  "This drafts copy only. It does not post to LinkedIn.",
   "This server does not accept a custom system prompt.",
   "Authenticate with the same Stytch bearer the writing app uses (session_token or session_jwt).",
   "Sessions expire; a 401 means sign in again.",
@@ -121,12 +122,13 @@ const ASK_FOLLOWUPS_TOOL = {
 
 const DRAFT_LINKEDIN_TOOL = {
   name: "draft_linkedin_post",
-  title: "Draft a LinkedIn post",
+  title: "Draft a LinkedIn post or DM",
   description: [
-    "Draft or revise a LinkedIn post in Tyler's voice for Elevating Developer Fintech.",
-    "Pass notes: a topic or bullet points. The server owns the voice and niche prompt.",
+    "Draft or revise a LinkedIn post or direct message in Tyler's voice for Elevating Developer Fintech.",
+    "Pass notes: a topic or bullet points. The server owns the voice and niche prompt (short plain sentences, no em dashes).",
+    "Pass kind \"dm\" for a direct message. Omit kind, or pass \"post\", for a feed post. Notes that start with \"DM:\" also draft a message.",
     "Pass currentDraft to revise an existing draft, and an optional instruction for what to change.",
-    "Returns the post copy only. Does not post, schedule, or publish to LinkedIn — Stanley posts.",
+    "Returns the copy only. Does not post, schedule, or publish to LinkedIn. Stanley posts.",
     "Do not send a system prompt.",
   ].join(" "),
   inputSchema: {
@@ -135,15 +137,20 @@ const DRAFT_LINKEDIN_TOOL = {
     properties: {
       notes: {
         type: "string",
-        description: "Topic or bullet notes the post should be built from.",
+        description: "Topic or bullet notes the post or DM should be built from.",
+      },
+      kind: {
+        type: "string",
+        enum: ["post", "dm"],
+        description: "post (default) or dm. A direct message uses the same voice and does not read like a feed post.",
       },
       currentDraft: {
         type: "string",
-        description: "Existing draft to revise. Omit to write a new post from the notes.",
+        description: "Existing draft to revise. Omit to write a new post or DM from the notes.",
       },
       instruction: {
         type: "string",
-        description: "Optional change request: length, emphasis, or what to cut. Cannot ask the tool to publish.",
+        description: "Optional change request: length, emphasis, post vs DM, or what to cut. Cannot ask the tool to publish.",
       },
     },
     required: ["notes"],

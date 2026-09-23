@@ -1,11 +1,14 @@
-/* LinkedIn draft — topic or bullets in, copy out.
+/* LinkedIn draft: topic or bullets in, copy out.
  *
- * Sidebar → LinkedIn draft. The surface is the writing stage: it reuses
+ * Sidebar, LinkedIn draft. The surface is the writing stage: it reuses
  * .writing, .writing-card, .writing-input, and the pill footer. No
  * private stylesheet. Posts to /api/claude/converse with mode
  * "linkedin", so the server owns the voice and niche. The same function
  * backs the MCP tool draft_linkedin_post. This panel does not post;
  * Stanley still publishes.
+ *
+ * A direct message is the same panel. Start the notes with "DM:" or
+ * put "DM" in What to change. wantsDm matches notesAskForDm on the server.
  *
  * Auth is the Stytch session already in localStorage (tinker_jwt), the
  * same bearer the writing UI sends.
@@ -56,6 +59,32 @@
 
   function onKeydown(e) {
     if (e.key === "Escape") { e.stopPropagation(); close(); }
+  }
+
+  // Keep in sync with notesAskForDm in api/_lib/linkedin-draft.js.
+  function wantsDm(notes, instruction) {
+    var head = String(notes || "").split(/\r?\n/, 1)[0].trim();
+    if (/^(dm|direct message)\b/i.test(head)) return true;
+    var change = String(instruction || "").trim();
+    if (/^(dm|direct message)\b/i.test(change)) return true;
+    if (/\b(?:as|into) a (?:dm|direct message)\b/i.test(change)) return true;
+    if (/\bmake (?:this|it) a (?:dm|direct message)\b/i.test(change)) return true;
+    return false;
+  }
+
+  function copyWithSelection(text) {
+    var area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.left = "-9999px";
+    document.body.appendChild(area);
+    area.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); }
+    catch (e) { ok = false; }
+    area.remove();
+    return ok ? Promise.resolve() : Promise.reject(new Error("copy failed"));
   }
 
   function el(tag, className, attrs) {
@@ -113,7 +142,7 @@
     var title = el("h2", "writing-question");
     title.textContent = "What should this post say?";
     var sub = el("p", "writing-note");
-    sub.textContent = "Topic or bullets in. Draft out. Posting still goes through Stanley.";
+    sub.textContent = "Topic or bullets in. A post or a DM out. Start the notes with DM: for a message. Posting still goes through Stanley.";
 
     var notesLabel = el("p", "writing-note");
     notesLabel.textContent = "Topic or bullet notes";
@@ -198,7 +227,9 @@
 
     function syncButtons() {
       var revising = draft.value.trim().length > 0;
-      submit.textContent = revising ? "Revise draft" : "Draft post";
+      var dm = wantsDm(notes.value, instruction.value);
+      submit.textContent = revising ? "Revise draft" : (dm ? "Draft DM" : "Draft post");
+      title.textContent = dm ? "What should this message say?" : "What should this post say?";
       copy.disabled = !revising;
       clearBtn.disabled = !revising;
     }
@@ -223,13 +254,13 @@
       var text = draft.value.trim();
       if (!text) return;
       var done = function () { showStatus("Copied. Stanley still posts this.", "ok"); };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done).catch(function () {
-          showStatus("Couldn’t copy. Select the draft and copy it yourself.", "error");
-        });
-        return;
-      }
-      showStatus("Couldn’t copy. Select the draft and copy it yourself.", "error");
+      var fail = function () {
+        showStatus("Couldn’t copy. Select the draft and copy it yourself.", "error");
+      };
+      var write = navigator.clipboard && navigator.clipboard.writeText
+        ? navigator.clipboard.writeText(text).catch(function () { return copyWithSelection(text); })
+        : copyWithSelection(text);
+      Promise.resolve(write).then(done).catch(fail);
     });
 
     function submitDraft() {
@@ -253,7 +284,11 @@
       }
 
       var revising = state.draft.trim().length > 0;
-      var payload = { mode: "linkedin", notes: state.notes };
+      var payload = {
+        mode: "linkedin",
+        notes: state.notes,
+        kind: wantsDm(state.notes, state.instruction) ? "dm" : "post",
+      };
       if (revising) payload.currentDraft = state.draft;
       if (state.instruction.trim()) payload.instruction = state.instruction.trim();
 
@@ -277,14 +312,14 @@
         .then(function (r) {
           if (r.status === 401) {
             try { localStorage.removeItem(TOKEN_KEY); } catch (err) { /* ignore */ }
-            showStatus("Session expired — sign in again.", "error");
+            showStatus("Session expired. Sign in again.", "error");
             if (window.tinkerAuth && typeof window.tinkerAuth.showGate === "function") {
               window.tinkerAuth.showGate();
             }
           } else if (r.ok && r.json && typeof r.json.post === "string" && r.json.post.trim()) {
             draft.value = r.json.post.trim();
             persist();
-            showStatus(r.json.revised ? "Revised. Copy it when it’s ready — Stanley posts." : "Draft ready. Copy it when it’s ready — Stanley posts.", "ok");
+            showStatus(r.json.revised ? "Revised. Copy it when it’s ready. Stanley posts." : "Draft ready. Copy it when it’s ready. Stanley posts.", "ok");
           } else {
             var msg = (r.json && r.json.error) || "Couldn’t draft that. Try again in a moment.";
             showStatus(msg, "error");
