@@ -140,6 +140,15 @@ test.beforeEach(() => {
   process.env.ANTHROPIC_API_KEY = "sk-ant-test-not-real";
 });
 
+test("a malformed mcp_ bearer is rejected and is not sent to Stytch", async () => {
+  const res = fakeRes();
+  await handler(rpcReq({ method: "tools/list", id: 1, token: "mcp_not-a-real-key" }), res);
+  assert.equal(res.captured.status, 401);
+  assert.equal(res.captured.body.error, "Invalid API key.");
+  assert.equal(res.captured.headers["www-authenticate"], "Bearer");
+  assert.equal(fetchCalls.length, 0);
+});
+
 test("missing bearer is rejected before any upstream call", async () => {
   const res = fakeRes();
   await handler({

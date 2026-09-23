@@ -351,22 +351,63 @@ The writing UI is unchanged. The same Vercel deploy exposes a stateless
 MCP endpoint at `/api/mcp` so Cursor, Stanley, and other MCP clients can
 ask for follow-up questions. Responses are single JSON-RPC documents.
 A missing or expired bearer is 401 on every method except CORS preflight.
-Authenticated GET and DELETE return 405 — there is no server-push SSE session.
+Authenticated GET and DELETE return 405. There is no server-push SSE session.
 
-Auth is the existing Stytch session, the same bearer
-`POST /api/claude/converse` accepts. Send either the long-lived
-`session_token` or a `session_jwt`. The writing app stores the
-`session_token` in `localStorage` under the legacy key `tinker_jwt`
-(phone verify returns a 30-day opaque token, not a JWT).
+Two bearers work on `POST /api/mcp`. They do not overlap.
 
-While signed in on the tinker site, copy it from the browser console:
+- A Stytch `session_token` or `session_jwt`, the same bearer
+  `POST /api/claude/converse` accepts. The writing app stores the
+  `session_token` in `localStorage` under the legacy key `tinker_jwt`
+  (phone verify returns a 30-day opaque token, not a JWT). Dotted
+  bearers are session JWTs.
+- A durable MCP API key that starts with `mcp_` (no dots). Keys are
+  stored as a SHA-256 hash. The plaintext is shown once at mint.
+  Revoking sets revokedAt and the key fails on the next request.
+  An `mcp_` bearer is never sent to Stytch, so it works after the
+  session that minted it has expired.
+
+While signed in on the tinker site, copy the session from the browser
+console. You need it to mint a key, not to call Clay afterwards:
 
 ```js
 copy(localStorage.getItem("tinker_jwt"))
 ```
 
-Point the client at your tinker host (production or a preview), not at
-the beginner mail/domains Worker:
+Minting is owner-only. Set `MCP_KEY_OWNER_USER_ID` (Vercel Production
+and Preview) to your Stytch user id. To learn that id before the
+variable is set:
+
+```bash
+curl -s https://<your-tinker-host>/api/mcp-keys \
+  -H "Authorization: Bearer <tinker_jwt>"
+```
+
+The response includes `userId` when minting is not configured yet.
+Set the env var to that id and redeploy, then mint:
+
+```bash
+curl -s -X POST https://<your-tinker-host>/api/mcp-keys \
+  -H "Authorization: Bearer <tinker_jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"label":"clay"}'
+```
+
+Copy `key` from the response. It is not shown again. List keys with
+GET, and revoke with DELETE `{"id":"<id>"}` on the same path. The
+same commands exist locally after `npx vercel env pull`:
+
+```bash
+node scripts/mcp-keys.js whoami --session "<tinker_jwt>"
+node scripts/mcp-keys.js mint --label clay --session "<tinker_jwt>"
+node scripts/mcp-keys.js revoke --id <id> --session "<tinker_jwt>"
+```
+
+Point Clay (AddMcpServer) at your tinker host, not at the beginner
+mail/domains Worker. The header is the `mcp_` key:
+
+```
+Authorization: Bearer mcp_...
+```
 
 ```json
 {
@@ -374,23 +415,20 @@ the beginner mail/domains Worker:
     "tinker": {
       "url": "https://<your-tinker-host>/api/mcp",
       "headers": {
-        "Authorization": "Bearer <stytch session_token or session_jwt>"
+        "Authorization": "Bearer mcp_..."
       }
     }
   }
 }
 ```
 
-Stanley uses the same URL and `Authorization` header on its HTTP MCP
-connector.
-
-Sessions expire. The opaque `session_token` lasts 30 days; a
+A Stytch session still works in that same header if you would rather
+not mint a key. The opaque `session_token` lasts 30 days; a
 `session_jwt` is short-lived (about five minutes unless something
-refreshes it). Every MCP request calls Stytch `/sessions/authenticate`.
-A 401 means the session is missing or expired — sign in again in the
-writing UI and copy the new `tinker_jwt`. The server answers 401 with
-`WWW-Authenticate: Bearer` and `{ "error": "..." }`, same shape as the
-converse proxy.
+refreshes it). Session bearers call Stytch `/sessions/authenticate`.
+A 401 means the credential is missing, expired, or revoked. The server
+answers 401 with `WWW-Authenticate: Bearer` and `{ "error": "..." }`,
+same shape as the converse proxy.
 
 Tools:
 
@@ -420,10 +458,12 @@ in `api/_lib/linkedin-draft.js` and is what both the in-app composer and
 essay uses only the founder's words before it publishes. MCP returns the
 model's JSON; it does not publish.
 
-No new environment variables. `/api/mcp` uses the existing
-`STYTCH_PROJECT_ID`, `STYTCH_SECRET`, and `ANTHROPIC_API_KEY`.
+`/api/mcp` uses the existing `STYTCH_PROJECT_ID`, `STYTCH_SECRET`,
+`ANTHROPIC_API_KEY`, and `DATABASE_URL`. Minting also needs
+`MCP_KEY_OWNER_USER_ID` (the owner's Stytch user id). The key table
+is created on first use if `prisma migrate deploy` has not been run.
 `BEGINNER_MCP_TOKEN` / `BEGINNER_MCP_URL` are only the in-app email
-relay to the beginner Worker — they are not this endpoint.
+relay to the beginner Worker. They are not this endpoint.
 
 ## LinkedIn drafts
 
@@ -454,12 +494,12 @@ npx vercel dev      # http://localhost:3000
 ```
 
 Sign in, open **LinkedIn draft** in the sidebar, and submit a few
-bullets. To hit the same path Stanley will use, once `/api/mcp` answers
-on that host:
+bullets. To hit the same path Clay or Stanley will use, once `/api/mcp`
+answers on that host, send either a Stytch session or an `mcp_` key:
 
 ```bash
 curl -s http://localhost:3000/api/mcp \
-  -H "Authorization: Bearer <tinker_jwt>" \
+  -H "Authorization: Bearer <tinker_jwt or mcp_ key>" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"draft_linkedin_post","arguments":{"notes":"A portal is where a buyer decides to trust you."}}}'
@@ -500,6 +540,7 @@ that wants the mark as an SVG string.
 │   ├── auth/            # Phone/PIN via Stytch (identity wire-up)
 │   ├── claude/          # Proxied Claude converse (linkedin mode included)
 │   ├── mcp.js           # Streamable HTTP MCP (ask_followups, draft_linkedin_post)
+│   ├── mcp-keys.js      # Owner-only mint, list, and revoke for mcp_ keys
 │   ├── _lib/linkedin-draft.js  # Shared LinkedIn prompt + draft call
 │   ├── search.js        # Search essays
 │   ├── pitches/ …       # Pitch / publish / feed / user-data / …
