@@ -19,7 +19,7 @@ The core surfaces live here together:
   email, and the rest of the product surface).
 - **Developer-facing APIs** — that same `api/` layer is what agents and
   tooling call. `/api/mcp` is a Streamable HTTP MCP façade on this
-  deploy (follow-up questions, Stytch session). Project MCP config
+  deploy (follow-up questions, Clay connector key). Project MCP config
   (e.g. Browserbase) is for debugging against this app. Neither one is
   the beginner mail/domains Worker.
 
@@ -344,66 +344,17 @@ caching, so repeat queries skip the cold-start cost.
 If `ANTHROPIC_API_KEY` isn't set, the search pane shows a friendly
 error explaining how to fix it.
 
-## MCP (Cursor and Stanley)
+## MCP (Clay)
 
-The writing UI is unchanged. The same Vercel deploy exposes a stateless
-[Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)
-MCP endpoint at `/api/mcp` so Cursor, Stanley, and other MCP clients can
-ask for follow-up questions. Responses are single JSON-RPC documents.
-A missing or expired bearer is 401 on every method except CORS preflight.
-Authenticated GET and DELETE return 405. There is no server-push SSE session.
+Clay connects to tinker like any other MCP server. The connector is a URL and one header.
 
-Two bearers work on `POST /api/mcp`. They do not overlap.
+1. Open [tinker](https://tinker.beginner.work) and use **Connect Clay** in the profile menu.
+2. Mint a key. Copy the header. Leave the screen and the full key is gone. A refresh will not show it again.
+3. In Clay, AddMcpServer with only these two fields:
 
-- A Stytch `session_token` or `session_jwt`, the same bearer
-  `POST /api/claude/converse` accepts. The writing app stores the
-  `session_token` in `localStorage` under the legacy key `tinker_jwt`
-  (phone verify returns a 30-day opaque token, not a JWT). Dotted
-  bearers are session JWTs.
-- A durable MCP API key that starts with `mcp_` (no dots). Keys are
-  stored as a SHA-256 hash. The plaintext is shown once at mint.
-  Revoking sets revokedAt and the key fails on the next request.
-  An `mcp_` bearer is never sent to Stytch, so it works after the
-  session that minted it has expired.
-
-While signed in on the tinker site, copy the session from the browser
-console. You need it to mint a key, not to call Clay afterwards:
-
-```js
-copy(localStorage.getItem("tinker_jwt"))
 ```
-
-Minting is owner-only. Set `MCP_KEY_OWNER_USER_ID` (Vercel Production
-and Preview) to your Stytch user id. To learn that id before the
-variable is set:
-
-```bash
-curl -s https://<your-tinker-host>/api/mcp-keys \
-  -H "Authorization: Bearer <tinker_jwt>"
+https://tinker.beginner.work/api/mcp
 ```
-
-The response includes `userId` when minting is not configured yet.
-Set the env var to that id and redeploy, then mint:
-
-```bash
-curl -s -X POST https://<your-tinker-host>/api/mcp-keys \
-  -H "Authorization: Bearer <tinker_jwt>" \
-  -H "Content-Type: application/json" \
-  -d '{"label":"clay"}'
-```
-
-Copy `key` from the response. It is not shown again. List keys with
-GET, and revoke with DELETE `{"id":"<id>"}` on the same path. The
-same commands exist locally after `npx vercel env pull`:
-
-```bash
-node scripts/mcp-keys.js whoami --session "<tinker_jwt>"
-node scripts/mcp-keys.js mint --label clay --session "<tinker_jwt>"
-node scripts/mcp-keys.js revoke --id <id> --session "<tinker_jwt>"
-```
-
-Point Clay (AddMcpServer) at your tinker host, not at the beginner
-mail/domains Worker. The header is the `mcp_` key:
 
 ```
 Authorization: Bearer mcp_...
@@ -413,7 +364,7 @@ Authorization: Bearer mcp_...
 {
   "mcpServers": {
     "tinker": {
-      "url": "https://<your-tinker-host>/api/mcp",
+      "url": "https://tinker.beginner.work/api/mcp",
       "headers": {
         "Authorization": "Bearer mcp_..."
       }
@@ -422,17 +373,17 @@ Authorization: Bearer mcp_...
 }
 ```
 
-A Stytch session still works in that same header if you would rather
-not mint a key. The opaque `session_token` lasts 30 days; a
-`session_jwt` is short-lived (about five minutes unless something
-refreshes it). Session bearers call Stytch `/sessions/authenticate`.
-A 401 means the credential is missing, expired, or revoked. The server
-answers 401 with `WWW-Authenticate: Bearer` and `{ "error": "..." }`,
-same shape as the converse proxy.
+Revoke on that same screen. The key stops working on the next request.
+
+The server stores a SHA-256 hash, a label, and the time the key was created or revoked. It does not keep the plaintext.
+
+Connect Clay is for the owner account (`MCP_KEY_OWNER_USER_ID` on the deploy). If the screen says minting is not configured, it shows the account id to set. The writing app's own sign-in can still call `/api/mcp`. That path is for the app, not for Clay.
+
+The endpoint is stateless JSON. A missing, expired, or revoked bearer is 401. Authenticated GET and DELETE return 405. There is no server-push session.
 
 Tools:
 
-- `ask_followups` — pass a founder `transcript` (`[{ "q", "a" }]`, or
+- `ask_followups`. Pass a founder `transcript` (`[{ "q", "a" }]`, or
   `[]` to open the interview) and the server runs the same interview
   contract the writing UI uses. The result is JSON:
   `{ mode, next_question, questions, stitched_title, stitched_body, done }`.
@@ -442,7 +393,7 @@ Tools:
   `uncoveredSlides` are the same scene cues the browser interview
   already sends. `forceStitch: true` asks for the essay instead of
   another question.
-- `draft_linkedin_post` — pass `notes` (a topic or bullets) and the
+- `draft_linkedin_post`. Pass `notes` (a topic or bullets) and the
   server drafts a LinkedIn post in Tyler's voice for Elevating Developer
   Fintech: short plain sentences, contractions OK, no em dashes. Pass
   `kind: "dm"` for a direct message (or start the notes with `DM:`).
@@ -459,9 +410,9 @@ essay uses only the founder's words before it publishes. MCP returns the
 model's JSON; it does not publish.
 
 `/api/mcp` uses the existing `STYTCH_PROJECT_ID`, `STYTCH_SECRET`,
-`ANTHROPIC_API_KEY`, and `DATABASE_URL`. Minting also needs
-`MCP_KEY_OWNER_USER_ID` (the owner's Stytch user id). The key table
-is created on first use if `prisma migrate deploy` has not been run.
+`ANTHROPIC_API_KEY`, and `DATABASE_URL`. Connect Clay also needs
+`MCP_KEY_OWNER_USER_ID` set to the owner account. The key table is
+created on first use if `prisma migrate deploy` has not been run.
 `BEGINNER_MCP_TOKEN` / `BEGINNER_MCP_URL` are only the in-app email
 relay to the beginner Worker. They are not this endpoint.
 
@@ -494,12 +445,11 @@ npx vercel dev      # http://localhost:3000
 ```
 
 Sign in, open **LinkedIn draft** in the sidebar, and submit a few
-bullets. To hit the same path Clay or Stanley will use, once `/api/mcp`
-answers on that host, send either a Stytch session or an `mcp_` key:
+bullets. Clay uses the key from Connect Clay:
 
 ```bash
-curl -s http://localhost:3000/api/mcp \
-  -H "Authorization: Bearer <tinker_jwt or mcp_ key>" \
+curl -s https://tinker.beginner.work/api/mcp \
+  -H "Authorization: Bearer mcp_..." \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"draft_linkedin_post","arguments":{"notes":"A portal is where a buyer decides to trust you."}}}'

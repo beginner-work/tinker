@@ -11,7 +11,8 @@
  *   GET                         -> { userId, keys: [{ id, label, createdAt, revokedAt }] }
  *   DELETE { "id": "<id>" }     -> { id, label, createdAt, revokedAt }
  *
- * Clay then sends Authorization: Bearer <mcp_...> to POST /api/mcp.
+ * The Connect Clay screen in the app is the mint UI. Clay then sends
+ * Authorization: Bearer <mcp_...> to https://tinker.beginner.work/api/mcp.
  * That header does not use a Stytch session.
  */
 

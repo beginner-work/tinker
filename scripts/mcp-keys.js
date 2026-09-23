@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Mint, list, and revoke durable MCP API keys.
- *
- * Uses the same library as POST /api/mcp-keys. Requires a Stytch session
- * for the owner (the tinker_jwt from the signed-in writing app), plus
- * DATABASE_URL, STYTCH_PROJECT_ID, STYTCH_SECRET, and MCP_KEY_OWNER_USER_ID.
+ * Operator fallback for MCP API keys. Clay does not use this script.
+ * Mint in the app: profile menu, Connect Clay. The screen shows the
+ * plaintext once. This script talks to the same library when you already
+ * have a signed-in session on the machine (DATABASE_URL, Stytch env,
+ * MCP_KEY_OWNER_USER_ID).
  *
  *   node scripts/mcp-keys.js whoami --session <tinker_jwt>
  *   node scripts/mcp-keys.js mint --label clay --session <tinker_jwt>
@@ -72,19 +72,20 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(
     [
+      "Clay connects in the app: profile menu, Connect Clay.",
+      "This script is an operator fallback, not the Clay setup.",
+      "",
       "Usage:",
-      "  node scripts/mcp-keys.js whoami --session <tinker_jwt>",
-      "  node scripts/mcp-keys.js mint --label <label> --session <tinker_jwt>",
-      "  node scripts/mcp-keys.js list --session <tinker_jwt>",
-      "  node scripts/mcp-keys.js revoke --id <id> --session <tinker_jwt>",
+      "  node scripts/mcp-keys.js whoami --session <session>",
+      "  node scripts/mcp-keys.js mint --label <label> --session <session>",
+      "  node scripts/mcp-keys.js list --session <session>",
+      "  node scripts/mcp-keys.js revoke --id <id> --session <session>",
       "",
-      "Session: --session, or TINKER_SESSION.",
-      "Copy the session from the signed-in site:",
-      '  copy(localStorage.getItem("tinker_jwt"))',
-      "",
+      "Session: --session, or TINKER_SESSION. For the owner account only.",
       "Env: STYTCH_PROJECT_ID, STYTCH_SECRET, DATABASE_URL, MCP_KEY_OWNER_USER_ID",
       "",
-      "Clay AddMcpServer header (the mcp_ key, not the session):",
+      "Clay AddMcpServer:",
+      "  URL https://tinker.beginner.work/api/mcp",
       "  Authorization: Bearer mcp_...",
     ].join("\n"),
   );
@@ -100,7 +101,7 @@ async function requireSession(sessionToken) {
   const token = sessionToken || process.env.TINKER_SESSION || "";
   if (!token) {
     throw new Error(
-      'Pass the tinker session with --session or TINKER_SESSION. Copy it from the signed-in site: copy(localStorage.getItem("tinker_jwt"))',
+      "This fallback needs the owner session in --session or TINKER_SESSION. Clay uses Connect Clay instead.",
     );
   }
   const session = await authenticateSession(token);

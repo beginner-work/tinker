@@ -39,8 +39,8 @@ const INSTRUCTIONS = [
   "Pass kind \"dm\" for a direct message, or start the notes with \"DM:\". Pass currentDraft and an optional instruction to revise.",
   "This drafts copy only. It does not post to LinkedIn.",
   "This server does not accept a custom system prompt.",
-  "Authenticate with a Stytch session (session_token or session_jwt) or a durable MCP API key that starts with mcp_.",
-  "Sessions expire. An API key works until it is revoked. A 401 means the credential is missing, expired, or revoked.",
+  "Authenticate with a durable MCP API key that starts with mcp_. Clay uses Authorization: Bearer mcp_… and nothing else.",
+  "A Stytch session still works for the writing app. An API key works until it is revoked. A 401 means the credential is missing, expired, or revoked.",
 ].join(" ");
 
 const ASK_FOLLOWUPS_TOOL = {

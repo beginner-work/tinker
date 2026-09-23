@@ -224,6 +224,17 @@
           }
         });
       }
+      // "Connect Clay" mints a connector key once. See mcp-keys.js.
+      var mcp = document.getElementById("profile-mcp");
+      if (mcp) {
+        mcp.addEventListener("click", function () {
+          pop.setAttribute("hidden", "");
+          btn.setAttribute("aria-expanded", "false");
+          if (window.tinkerMcpKeys && typeof window.tinkerMcpKeys.open === "function") {
+            window.tinkerMcpKeys.open();
+          }
+        });
+      }
     }
   }
 

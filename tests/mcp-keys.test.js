@@ -475,6 +475,42 @@ test("initialize tells clients about mcp_ keys without an em dash", async () => 
   assert.equal(instructions.includes("\u2014"), false);
 });
 
+test("Connect Clay is the mint UI and the docs do not ask Clay to paste a session", () => {
+  const root = path.join(__dirname, "..");
+  const ui = fs.readFileSync(path.join(root, "src/renderer/mcp-keys.js"), "utf8");
+  const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
+  const profile = fs.readFileSync(path.join(root, "src/renderer/profile.js"), "utf8");
+  const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+  const mcpSection = readme.split("## MCP (Clay)")[1].split("## ")[0];
+
+  assert.match(ui, /https:\/\/tinker\.beginner\.work\/api\/mcp/);
+  assert.match(ui, /Authorization: Bearer /);
+  assert.match(ui, /will not be shown again/);
+  assert.match(ui, /Revoke now/);
+  assert.match(ui, /window\.tinkerMcpKeys\s*=\s*\{[^}]*open/);
+  assert.equal(ui.includes("localStorage.setItem"), false);
+  assert.equal(ui.includes("sessionStorage"), false);
+  assert.equal(/copy\s*\(\s*localStorage/.test(ui), false);
+  assert.equal(ui.includes("\u2014"), false);
+
+  assert.match(html, /id="profile-mcp"/);
+  assert.match(html, /Connect Clay/);
+  assert.match(html, /<script src="\.\/mcp-keys\.js" defer><\/script>/);
+  assert.match(profile, /getElementById\("profile-mcp"\)/);
+  assert.match(profile, /window\.tinkerMcpKeys[\s\S]{0,80}\.open/);
+
+  assert.match(mcpSection, /https:\/\/tinker\.beginner\.work\/api\/mcp/);
+  assert.match(mcpSection, /Authorization: Bearer mcp_/);
+  assert.match(mcpSection, /Connect Clay/);
+  assert.match(mcpSection, /shown once|will not be shown again|full key is gone/);
+  assert.match(mcpSection, /Revoke/);
+  assert.equal(mcpSection.includes("tinker_jwt"), false);
+  assert.equal(mcpSection.includes("localStorage"), false);
+  assert.equal(/copy\s*\(/.test(mcpSection), false);
+  assert.equal(mcpSection.includes("DevTools"), false);
+  assert.equal(mcpSection.includes("\u2014"), false);
+});
+
 test("cli help shows the Clay header and does not use an em dash", () => {
   const result = spawnSync(process.execPath, ["scripts/mcp-keys.js", "--help"], {
     cwd: path.join(__dirname, ".."),
