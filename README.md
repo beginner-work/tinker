@@ -425,10 +425,11 @@ relay to the beginner Worker — they are not this endpoint.
 
 ## LinkedIn drafts
 
-The sidebar row **LinkedIn draft** opens a composer: topic or bullet
-notes in, a post out. Revise by editing the draft (or adding "what to
-change") and submitting again. Copy the result; posting still goes
-through Stanley.
+The sidebar row **LinkedIn draft** opens on the writing stage — the
+same header, card, inputs, and pill buttons as an essay. Topic or
+bullet notes in, a post out. Revise by editing the draft (or adding
+"what to change") and submitting again. Copy the result; posting still
+goes through Stanley.
 
 The panel calls the existing converse proxy with `mode: "linkedin"`.
 That mode ignores any client system prompt and runs

@@ -1,9 +1,10 @@
 /* LinkedIn draft — topic or bullets in, copy out.
  *
- * Sidebar → LinkedIn draft. Posts to the existing /api/claude/converse
- * route with mode "linkedin", so the server owns the voice and niche.
- * The same function backs the MCP
- * tool draft_linkedin_post. This panel does not post to LinkedIn;
+ * Sidebar → LinkedIn draft. The surface is the writing stage: it reuses
+ * .writing, .writing-card, .writing-input, and the pill footer. No
+ * private stylesheet. Posts to /api/claude/converse with mode
+ * "linkedin", so the server owns the voice and niche. The same function
+ * backs the MCP tool draft_linkedin_post. This panel does not post;
  * Stanley still publishes.
  *
  * Auth is the Stytch session already in localStorage (tinker_jwt), the
@@ -68,92 +69,106 @@
     return node;
   }
 
-  function field(labelText, input) {
-    var wrap = el("label", "linkedin-draft__field");
-    var label = el("span", "linkedin-draft__label");
-    label.textContent = labelText;
-    wrap.appendChild(label);
-    wrap.appendChild(input);
-    return wrap;
+  function closeIcon() {
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", "18");
+    svg.setAttribute("height", "18");
+    svg.setAttribute("aria-hidden", "true");
+    var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M6 6l12 12M18 6L6 18");
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "2");
+    path.setAttribute("stroke-linecap", "round");
+    svg.appendChild(path);
+    return svg;
   }
 
   function open() {
     close();
     var saved = loadState();
+    var stage = document.getElementById("stage") || document.body;
 
-    overlay = el("div", "linkedin-draft-overlay", {
-      role: "dialog",
-      "aria-modal": "true",
+    overlay = el("section", "writing", {
+      role: "region",
       "aria-label": "LinkedIn draft",
     });
 
-    var backdrop = el("div", "linkedin-draft-overlay__backdrop");
-    backdrop.addEventListener("click", close);
-    overlay.appendChild(backdrop);
-
-    var panel = el("div", "linkedin-draft-overlay__panel");
-
-    var closeBtn = el("button", "linkedin-draft-overlay__close", {
+    var header = el("header", "writing__top");
+    var closeBtn = el("button", "writing__close", {
       type: "button",
       "aria-label": "Close",
     });
-    closeBtn.textContent = "×";
+    closeBtn.appendChild(closeIcon());
     closeBtn.addEventListener("click", close);
-    panel.appendChild(closeBtn);
+    var step = el("div", "writing__step");
+    step.textContent = "LinkedIn draft";
+    header.appendChild(closeBtn);
+    header.appendChild(step);
 
-    var title = el("h2", "linkedin-draft__title");
-    title.textContent = "LinkedIn draft";
-    panel.appendChild(title);
+    var body = el("div", "writing__body");
+    var column = el("div", "writing__stage");
+    var card = el("div", "writing-card");
 
-    var sub = el("p", "linkedin-draft__sub");
-    sub.textContent = "Topic or bullets in. Draft out, in your LinkedIn voice. Posting still goes through Stanley.";
-    panel.appendChild(sub);
+    var title = el("h2", "writing-question");
+    title.textContent = "What should this post say?";
+    var sub = el("p", "writing-note");
+    sub.textContent = "Topic or bullets in. Draft out. Posting still goes through Stanley.";
 
-    var form = el("form", "linkedin-draft", { novalidate: "" });
-
-    var notes = el("textarea", "linkedin-draft__input linkedin-draft__notes", {
+    var notesLabel = el("p", "writing-note");
+    notesLabel.textContent = "Topic or bullet notes";
+    var notes = el("textarea", "writing-input", {
       name: "notes",
-      rows: "5",
+      rows: "6",
       placeholder: "The point, or a few bullets.",
-      required: "",
     });
     notes.value = saved.notes;
 
-    var draft = el("textarea", "linkedin-draft__input linkedin-draft__post", {
+    var draftLabel = el("p", "writing-note");
+    draftLabel.textContent = "Draft";
+    var draft = el("textarea", "writing-input", {
       name: "currentDraft",
       rows: "8",
       placeholder: "A draft lands here. Edit it, then revise.",
     });
     draft.value = saved.draft;
 
-    var instruction = el("input", "linkedin-draft__input", {
-      type: "text",
+    var changeLabel = el("p", "writing-note");
+    changeLabel.textContent = "What to change";
+    var instruction = el("textarea", "writing-input", {
       name: "instruction",
+      rows: "3",
       placeholder: "Shorter, or lead with the portal.",
       maxlength: "1000",
     });
     instruction.value = saved.instruction;
 
-    form.appendChild(field("Topic or bullet notes", notes));
-    form.appendChild(field("Draft", draft));
+    var statusWrap = el("div");
+    var status = el("p", "writing-note", { role: "status", "aria-live": "polite" });
+    statusWrap.hidden = true;
+    statusWrap.appendChild(status);
 
-    var clearBtn = el("button", "linkedin-draft__clear", { type: "button" });
+    card.appendChild(title);
+    card.appendChild(sub);
+    card.appendChild(notesLabel);
+    card.appendChild(notes);
+    card.appendChild(draftLabel);
+    card.appendChild(draft);
+    card.appendChild(changeLabel);
+    card.appendChild(instruction);
+    card.appendChild(statusWrap);
+    column.appendChild(card);
+    body.appendChild(column);
+
+    var foot = el("footer", "writing__foot");
+    var clearBtn = el("button", "writing__end", { type: "button" });
     clearBtn.textContent = "Clear draft";
-    form.appendChild(clearBtn);
-
-    form.appendChild(field("What to change (optional)", instruction));
-
-    var status = el("p", "linkedin-draft__status", { role: "status", "aria-live": "polite" });
-    status.setAttribute("hidden", "");
-    form.appendChild(status);
-
-    var actions = el("div", "linkedin-draft__actions");
-    var submit = el("button", "linkedin-draft__submit", { type: "submit" });
-    var copy = el("button", "linkedin-draft__copy", { type: "button" });
+    var copy = el("button", "writing__end", { type: "button" });
     copy.textContent = "Copy";
-    actions.appendChild(submit);
-    actions.appendChild(copy);
-    form.appendChild(actions);
+    var submit = el("button", "writing__next", { type: "button" });
+    foot.appendChild(clearBtn);
+    foot.appendChild(copy);
+    foot.appendChild(submit);
 
     function snapshot() {
       return {
@@ -165,9 +180,20 @@
 
     function showStatus(text, kind) {
       status.textContent = text;
-      status.classList.toggle("linkedin-draft__status--error", kind === "error");
-      status.classList.toggle("linkedin-draft__status--ok", kind === "ok");
-      status.removeAttribute("hidden");
+      if (kind === "error") {
+        status.className = "writing-error";
+        statusWrap.className = "writing-card writing-card--error";
+      } else {
+        status.className = "writing-note";
+        statusWrap.className = "";
+      }
+      statusWrap.hidden = false;
+      try { status.scrollIntoView({ block: "nearest" }); } catch (e) { /* ignore */ }
+    }
+
+    function hideStatus() {
+      statusWrap.hidden = true;
+      status.textContent = "";
     }
 
     function syncButtons() {
@@ -206,8 +232,7 @@
       showStatus("Couldn’t copy. Select the draft and copy it yourself.", "error");
     });
 
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
+    function submitDraft() {
       var state = snapshot();
       if (!state.notes.trim()) {
         showStatus("Add a topic or some bullet notes.", "error");
@@ -234,7 +259,7 @@
 
       submit.disabled = true;
       submit.textContent = revising ? "Revising…" : "Drafting…";
-      status.setAttribute("hidden", "");
+      hideStatus();
 
       fetch("/api/claude/converse", {
         method: "POST",
@@ -272,22 +297,35 @@
           submit.disabled = false;
           syncButtons();
         });
-    });
+    }
 
-    panel.appendChild(form);
-    overlay.appendChild(panel);
-    document.body.appendChild(overlay);
+    submit.addEventListener("click", submitDraft);
+
+    overlay.appendChild(header);
+    overlay.appendChild(body);
+    overlay.appendChild(foot);
+    stage.appendChild(overlay);
     document.addEventListener("keydown", onKeydown, true);
     setTimeout(function () { try { notes.focus(); } catch (e) { /* ignore */ } }, 0);
   }
 
   function bind() {
     var btn = document.getElementById("nav-linkedin-draft");
-    if (!btn || btn.dataset.bound === "1") return;
-    btn.dataset.bound = "1";
-    btn.addEventListener("click", function () {
-      open();
-    });
+    if (btn && btn.dataset.bound !== "1") {
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", function () {
+        open();
+      });
+    }
+    var sidebar = document.getElementById("sidebar");
+    if (sidebar && sidebar.dataset.linkedinBound !== "1") {
+      sidebar.dataset.linkedinBound = "1";
+      sidebar.addEventListener("click", function (e) {
+        if (!overlay) return;
+        if (e.target.closest && e.target.closest("#nav-linkedin-draft")) return;
+        close();
+      });
+    }
   }
 
   if (document.readyState === "loading") {

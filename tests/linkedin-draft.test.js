@@ -205,7 +205,13 @@ test("the sidebar composer posts to converse and does not own the prompt", () =>
   assert.equal(ui.includes("Elevating Developer Fintech"), false);
   assert.equal(ui.includes("api.linkedin.com"), false);
   assert.equal(ui.includes("linkedin.com/v2"), false);
-  assert.match(css, /\.linkedin-draft-overlay/);
+  assert.match(ui, /el\("section", "writing"/);
+  assert.match(ui, /writing-input/);
+  assert.match(ui, /writing__next/);
+  assert.match(ui, /writing__end/);
+  assert.match(ui, /writing__close/);
+  assert.equal(ui.includes("linkedin-draft-overlay"), false);
+  assert.equal(css.includes("linkedin-draft-overlay"), false);
   assert.match(converse, /draftLinkedInPost/);
   assert.match(mcp, /draft_linkedin_post/);
   assert.match(mcp, /draftLinkedInPost/);
