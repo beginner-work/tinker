@@ -392,7 +392,7 @@ writing UI and copy the new `tinker_jwt`. The server answers 401 with
 `WWW-Authenticate: Bearer` and `{ "error": "..." }`, same shape as the
 converse proxy.
 
-Tool:
+Tools:
 
 - `ask_followups` — pass a founder `transcript` (`[{ "q", "a" }]`, or
   `[]` to open the interview) and the server runs the same interview
@@ -404,17 +404,55 @@ Tool:
   `uncoveredSlides` are the same scene cues the browser interview
   already sends. `forceStitch: true` asks for the essay instead of
   another question.
+- `draft_linkedin_post` — pass `notes` (a topic or bullets) and the
+  server drafts a LinkedIn post in Tyler's voice for Elevating Developer
+  Fintech. Pass `currentDraft` to revise, and an optional `instruction`
+  for what to change. The result is `{ post, revised }`. The tool
+  returns copy only. It does not post to LinkedIn; Stanley still posts.
 
-There is no raw `converse` tool. Clients cannot supply a system prompt;
-the prompt lives in `src/renderer/interview-prompt.js` and is what both
-the browser and `ask_followups` use. The writing UI still checks that a
-stitched essay uses only the founder's words before it publishes. MCP
-returns the model's JSON; it does not publish.
+There is no raw `converse` tool. Clients cannot supply a system prompt.
+The interview prompt lives in `src/renderer/interview-prompt.js` and is
+what both the browser and `ask_followups` use. The LinkedIn prompt lives
+in `api/_lib/linkedin-draft.js` and is what both the in-app composer and
+`draft_linkedin_post` use. The writing UI still checks that a stitched
+essay uses only the founder's words before it publishes. MCP returns the
+model's JSON; it does not publish.
 
 No new environment variables. `/api/mcp` uses the existing
 `STYTCH_PROJECT_ID`, `STYTCH_SECRET`, and `ANTHROPIC_API_KEY`.
 `BEGINNER_MCP_TOKEN` / `BEGINNER_MCP_URL` are only the in-app email
 relay to the beginner Worker — they are not this endpoint.
+
+## LinkedIn drafts
+
+The sidebar row **LinkedIn draft** opens a composer: topic or bullet
+notes in, a post out. Revise by editing the draft (or adding "what to
+change") and submitting again. Copy the result; posting still goes
+through Stanley.
+
+The panel calls the existing converse proxy with `mode: "linkedin"`.
+That mode ignores any client system prompt and runs
+`draftLinkedInPost` in `api/_lib/linkedin-draft.js`. The MCP tool calls
+the same function. No new serverless route.
+
+Try it locally with the auth emulator (static `npm run web` has no
+`/api`):
+
+```bash
+npx vercel dev      # http://localhost:3000
+```
+
+Sign in, open **LinkedIn draft** in the sidebar, and submit a few
+bullets. To hit the same path Stanley will use, once `/api/mcp` answers
+on that host:
+
+```bash
+curl -s http://localhost:3000/api/mcp \
+  -H "Authorization: Bearer <tinker_jwt>" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"draft_linkedin_post","arguments":{"notes":"A portal is where a buyer decides to trust you."}}}'
+```
 
 ## Mobile (Expo)
 
@@ -449,8 +487,9 @@ that wants the mark as an SVG string.
 .
 ├── api/                 # Product + developer-facing APIs (Vercel)
 │   ├── auth/            # Phone/PIN via Stytch (identity wire-up)
-│   ├── claude/          # Proxied Claude converse
-│   ├── mcp.js           # Streamable HTTP MCP (ask_followups)
+│   ├── claude/          # Proxied Claude converse (linkedin mode included)
+│   ├── mcp.js           # Streamable HTTP MCP (ask_followups, draft_linkedin_post)
+│   ├── _lib/linkedin-draft.js  # Shared LinkedIn prompt + draft call
 │   ├── search.js        # Search essays
 │   ├── pitches/ …       # Pitch / publish / feed / user-data / …
 │   └── membership/ …    # Stripe membership wire-up

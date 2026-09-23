@@ -4,9 +4,11 @@
  * Authorization: Bearer <stytch session_token | session_jwt>
  *   — the same check as POST /api/claude/converse.
  *
- * Tools are fixed-prompt follow-ups (ask_followups). There is no raw
- * converse proxy. GET/DELETE return 405: this server does not keep an
- * SSE session. The writing UI is not involved.
+ * Tools are fixed-prompt follow-ups (ask_followups) and LinkedIn drafts
+ * (draft_linkedin_post). There is no raw converse proxy. GET/DELETE
+ * return 405: this server does not keep an SSE session. The writing UI
+ * is not involved. draft_linkedin_post shares api/_lib/linkedin-draft.js
+ * with POST /api/claude/converse mode "linkedin". It does not post.
  *
  * No new environment variables. Uses STYTCH_PROJECT_ID, STYTCH_SECRET,
  * and ANTHROPIC_API_KEY.
@@ -17,16 +19,19 @@
 const { authenticateSession } = require("./_lib/stytch.js");
 const { withResponseLogging } = require("./_lib/log.js");
 const { askFollowups } = require("./_lib/followups.js");
+const { draftLinkedInPost } = require("./_lib/linkedin-draft.js");
 const pkg = require("../package.json");
 
 const SUPPORTED_PROTOCOLS = ["2025-03-26", "2025-06-18"];
 const DEFAULT_PROTOCOL = "2025-03-26";
 
 const INSTRUCTIONS = [
-  "tinker follow-ups for founder writing. The writing UI is separate and unchanged.",
+  "tinker tools for founder writing and Tyler's LinkedIn drafts. The writing UI is separate and unchanged.",
   "Call ask_followups with a transcript of {q, a} turns to run the founder interview",
   "(one next question, or a stitch when the draft is ready), or with a draft string",
   "for freeform follow-up questions. Optional priorTurns avoids repeats.",
+  "Call draft_linkedin_post with notes (a topic or bullets) to draft a LinkedIn post in Tyler's voice.",
+  "Pass currentDraft and an optional instruction to revise. This drafts copy only; it does not post to LinkedIn.",
   "This server does not accept a custom system prompt.",
   "Authenticate with the same Stytch bearer the writing app uses (session_token or session_jwt).",
   "Sessions expire; a 401 means sign in again.",
@@ -106,6 +111,42 @@ const ASK_FOLLOWUPS_TOOL = {
         description: "Interview mode only. Skip further questions and stitch the essay.",
       },
     },
+  },
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    openWorldHint: true,
+  },
+};
+
+const DRAFT_LINKEDIN_TOOL = {
+  name: "draft_linkedin_post",
+  title: "Draft a LinkedIn post",
+  description: [
+    "Draft or revise a LinkedIn post in Tyler's voice for Elevating Developer Fintech.",
+    "Pass notes: a topic or bullet points. The server owns the voice and niche prompt.",
+    "Pass currentDraft to revise an existing draft, and an optional instruction for what to change.",
+    "Returns the post copy only. Does not post, schedule, or publish to LinkedIn — Stanley posts.",
+    "Do not send a system prompt.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      notes: {
+        type: "string",
+        description: "Topic or bullet notes the post should be built from.",
+      },
+      currentDraft: {
+        type: "string",
+        description: "Existing draft to revise. Omit to write a new post from the notes.",
+      },
+      instruction: {
+        type: "string",
+        description: "Optional change request: length, emphasis, or what to cut. Cannot ask the tool to publish.",
+      },
+    },
+    required: ["notes"],
   },
   annotations: {
     readOnlyHint: true,
@@ -215,7 +256,7 @@ async function handleRpc(msg) {
     return { status: 200, body: rpcOk(msg.id, {}) };
   }
   if (method === "tools/list") {
-    return { status: 200, body: rpcOk(msg.id, { tools: [ASK_FOLLOWUPS_TOOL] }) };
+    return { status: 200, body: rpcOk(msg.id, { tools: [ASK_FOLLOWUPS_TOOL, DRAFT_LINKEDIN_TOOL] }) };
   }
   if (method === "prompts/list") {
     return { status: 200, body: rpcOk(msg.id, { prompts: [] }) };
@@ -227,13 +268,23 @@ async function handleRpc(msg) {
     const params = msg.params && typeof msg.params === "object" ? msg.params : {};
     const name = params.name;
     const args = params.arguments && typeof params.arguments === "object" ? params.arguments : {};
-    if (name !== "ask_followups") {
+    if (name !== "ask_followups" && name !== "draft_linkedin_post") {
       return {
         status: 200,
         body: rpcOk(msg.id, toolError(`Unknown tool: ${name || "(missing)"}`)),
       };
     }
     try {
+      if (name === "draft_linkedin_post") {
+        const shaped = await draftLinkedInPost(args);
+        return {
+          status: 200,
+          body: rpcOk(msg.id, {
+            content: [{ type: "text", text: shaped.post }],
+            structuredContent: shaped,
+          }),
+        };
+      }
       const shaped = await askFollowups(args);
       return {
         status: 200,

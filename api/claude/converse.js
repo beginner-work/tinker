@@ -16,6 +16,12 @@
  * cache_control ephemeral, so repeat turns within the same draft (or
  * back-to-back classifications) hit the prompt cache. The Messages
  * call itself lives in api/_lib/anthropic.js so /api/mcp can reuse it.
+ *
+ * mode: "linkedin" is the exception. The browser sends notes (and an
+ * optional current draft) and the server applies the fixed LinkedIn
+ * prompt in api/_lib/linkedin-draft.js. A client system prompt is
+ * ignored. The MCP tool draft_linkedin_post calls that same function.
+ * Neither path posts to LinkedIn.
  */
 
 "use strict";
@@ -23,6 +29,7 @@
 const { authenticateSession } = require("../_lib/stytch.js");
 const { withResponseLogging } = require("../_lib/log.js");
 const { callAnthropic } = require("../_lib/anthropic.js");
+const { draftLinkedInPost } = require("../_lib/linkedin-draft.js");
 
 function parseBody(req) {
   if (req.body && typeof req.body === "object") return req.body;
@@ -59,6 +66,22 @@ module.exports = withResponseLogging(async function handler(req, res) {
     res.status(400).json({ error: "Invalid JSON" });
     return;
   }
+
+  if (body.mode === "linkedin") {
+    try {
+      const shaped = await draftLinkedInPost({
+        notes: body.notes,
+        currentDraft: body.currentDraft,
+        instruction: body.instruction,
+      });
+      res.status(200).json(shaped);
+    } catch (err) {
+      const status = err.status || (err.toolError ? 400 : 502);
+      res.status(status).json({ error: err.message || "Upstream error" });
+    }
+    return;
+  }
+
   const messages = Array.isArray(body.messages) ? body.messages : null;
   if (!messages || messages.length === 0) {
     res.status(400).json({ error: "messages array is required" });

@@ -66,6 +66,10 @@
     <!-- Compose overlay: send an email from the founder's beginner.work
          address through /api/email/send. -->
     <script src="./email.js" defer></script>
+    <!-- LinkedIn drafts: sidebar "LinkedIn draft" opens the composer.
+         The prompt stays on the server (converse mode "linkedin" and
+         the MCP tool draft_linkedin_post). Does not post. -->
+    <script src="./linkedin-draft.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
@@ -221,6 +225,17 @@
       <nav class="sidebar__account" aria-label="Account">
         <h2 class="sidebar__account-head">Account</h2>
         <ul class="sidebar__account-list">
+          <!-- LinkedIn drafts: topic or bullets in, copy out. Posting
+               still goes through Stanley. linkedin-draft.js owns the panel. -->
+          <li>
+            <button id="nav-linkedin-draft" type="button" class="sidebar__account-item">
+              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M13.5 6.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <span class="sidebar__account-label">LinkedIn draft</span>
+            </button>
+          </li>
           <!-- No AI mode lives front-and-centre on the welcome page and on
                the floating bottom mode nav (#mode-nav), not here — the
                sidebar stays out of the way. freewrite.js owns the state. -->
