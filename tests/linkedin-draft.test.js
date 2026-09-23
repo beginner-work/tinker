@@ -315,9 +315,16 @@ test("the sidebar composer posts to converse and does not own the prompt", () =>
   assert.match(ui, /kind: wantsDm/);
   assert.match(ui, /function wantsDm/);
   assert.match(ui, /copyWithSelection/);
-  assert.match(ui, /getElementById\("welcome"\)/);
+  assert.match(ui, /function concealSurfaces/);
+  assert.match(ui, /getElementById\("mode-nav"\)/);
   assert.match(ui, /removeAttribute\("data-active"\)/);
   assert.match(ui, /setAttribute\("data-active", ""\)/);
+  assert.match(ui, /setAttribute\("inert", ""\)/);
+  const styles = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
+  assert.match(styles, /#stage > \[aria-label="LinkedIn draft"\]/);
+  assert.match(styles, /#stage > :not\(\[aria-label="LinkedIn draft"\]\)/);
+  assert.match(styles, /body:has\(#stage > \[aria-label="LinkedIn draft"\]\) \.mode-nav/);
+  assert.match(styles, /pointer-events:\s*none !important/);
   assert.match(ui, /tinker_jwt/);
   assert.match(ui, /Stanley/);
   assert.equal(ui.includes("\u2014"), false);
@@ -335,4 +342,200 @@ test("the sidebar composer posts to converse and does not own the prompt", () =>
   assert.match(converse, /draftLinkedInPost/);
   assert.match(mcp, /draft_linkedin_post/);
   assert.match(mcp, /draftLinkedInPost/);
+});
+
+function makeEl(tag) {
+  return {
+    tagName: String(tag).toUpperCase(),
+    className: "",
+    id: "",
+    hidden: false,
+    value: "",
+    textContent: "",
+    disabled: false,
+    style: { display: "", pointerEvents: "" },
+    dataset: {},
+    children: [],
+    parentNode: null,
+    attributes: {},
+    listeners: {},
+    setAttribute(name, value) {
+      this.attributes[name] = String(value);
+      if (name === "id") this.id = String(value);
+    },
+    getAttribute(name) {
+      return Object.prototype.hasOwnProperty.call(this.attributes, name) ? this.attributes[name] : null;
+    },
+    hasAttribute(name) {
+      return Object.prototype.hasOwnProperty.call(this.attributes, name);
+    },
+    removeAttribute(name) {
+      delete this.attributes[name];
+      if (name === "id") this.id = "";
+    },
+    appendChild(child) {
+      if (child.parentNode) child.remove();
+      child.parentNode = this;
+      this.children.push(child);
+      return child;
+    },
+    remove() {
+      if (!this.parentNode) return;
+      const index = this.parentNode.children.indexOf(this);
+      if (index >= 0) this.parentNode.children.splice(index, 1);
+      this.parentNode = null;
+    },
+    addEventListener(type, fn) {
+      (this.listeners[type] || (this.listeners[type] = [])).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const list = this.listeners[type] || [];
+      const index = list.indexOf(fn);
+      if (index >= 0) list.splice(index, 1);
+    },
+    focus() {},
+    closest() { return null; },
+    scrollIntoView() {},
+  };
+}
+
+function findId(node, id) {
+  if (!node) return null;
+  if (node.id === id) return node;
+  const kids = node.children || [];
+  for (let i = 0; i < kids.length; i++) {
+    const found = findId(kids[i], id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function stageSection(doc, id) {
+  return findId(doc.body, id);
+}
+
+test("opening LinkedIn draft hides the location grid and mode switch, and close restores them", () => {
+  const body = makeEl("body");
+  const stage = makeEl("section");
+  stage.setAttribute("id", "stage");
+  const welcome = makeEl("section");
+  welcome.setAttribute("id", "welcome");
+  welcome.setAttribute("data-active", "");
+  const grid = makeEl("div");
+  grid.setAttribute("id", "welcome-grid");
+  const work = makeEl("button");
+  work.setAttribute("data-location", "work");
+  work.textContent = "Work";
+  grid.appendChild(work);
+  welcome.appendChild(grid);
+  const writing = makeEl("section");
+  writing.setAttribute("id", "writing");
+  writing.hidden = true;
+  stage.appendChild(welcome);
+  stage.appendChild(writing);
+  const modeNav = makeEl("div");
+  modeNav.setAttribute("id", "mode-nav");
+  const modeAi = makeEl("button");
+  modeAi.setAttribute("id", "mode-ai");
+  modeNav.appendChild(modeAi);
+  const sidebar = makeEl("aside");
+  sidebar.setAttribute("id", "sidebar");
+  const nav = makeEl("button");
+  nav.setAttribute("id", "nav-linkedin-draft");
+  sidebar.appendChild(nav);
+  body.appendChild(stage);
+  body.appendChild(modeNav);
+  body.appendChild(sidebar);
+
+  const doc = {
+    readyState: "complete",
+    body,
+    documentElement: makeEl("html"),
+    getElementById(id) { return findId(body, id); },
+    createElement: makeEl,
+    createElementNS(_ns, tag) { return makeEl(tag); },
+    addEventListener(type, fn) { body.addEventListener(type, fn); },
+    removeEventListener(type, fn) { body.removeEventListener(type, fn); },
+  };
+
+  const previous = {
+    document: global.document,
+    window: global.window,
+    localStorage: global.localStorage,
+  };
+  global.document = doc;
+  global.window = global;
+  global.localStorage = {
+    getItem() { return null; },
+    setItem() {},
+    removeItem() {},
+  };
+  const clientPath = require.resolve("../src/renderer/linkedin-draft.js");
+  delete require.cache[clientPath];
+  try {
+    require(clientPath);
+    const api = global.window.tinkerLinkedInDraft;
+    api.open();
+
+    const draft = stage.children.find((node) => node.getAttribute("aria-label") === "LinkedIn draft");
+    assert.ok(draft, "draft section is mounted");
+    assert.equal(draft.style.display, "");
+    assert.equal(welcome.style.display, "none");
+    assert.equal(welcome.style.pointerEvents, "none");
+    assert.equal(welcome.hidden, true);
+    assert.equal(welcome.hasAttribute("inert"), true);
+    assert.equal(welcome.hasAttribute("data-active"), false);
+    assert.equal(welcome.hasAttribute("aria-hidden"), true);
+    assert.equal(grid.parentNode, welcome);
+    assert.equal(writing.style.display, "none");
+    assert.equal(writing.hasAttribute("inert"), true);
+    assert.equal(modeNav.style.display, "none");
+    assert.equal(modeNav.style.pointerEvents, "none");
+    assert.equal(modeNav.hidden, true);
+    assert.equal(modeNav.hasAttribute("inert"), true);
+    assert.equal(modeAi.parentNode, modeNav);
+
+    api.close();
+
+    assert.equal(stage.children.some((node) => node.getAttribute("aria-label") === "LinkedIn draft"), false);
+    assert.equal(welcome.style.display, "");
+    assert.equal(welcome.style.pointerEvents, "");
+    assert.equal(welcome.hidden, false);
+    assert.equal(welcome.hasAttribute("inert"), false);
+    assert.equal(welcome.hasAttribute("data-active"), true);
+    assert.equal(welcome.getAttribute("aria-hidden"), null);
+    assert.equal(grid.parentNode, welcome);
+    assert.equal(work.parentNode, grid);
+    assert.equal(writing.hidden, true);
+    assert.equal(writing.style.display, "");
+    assert.equal(writing.hasAttribute("inert"), false);
+    assert.equal(modeNav.style.display, "");
+    assert.equal(modeNav.hidden, false);
+    assert.equal(modeNav.hasAttribute("inert"), false);
+    assert.equal(modeNav.hasAttribute("aria-hidden"), false);
+
+    welcome.removeAttribute("data-active");
+    writing.hidden = false;
+    api.open();
+    assert.equal(writing.style.display, "none");
+    assert.equal(writing.hasAttribute("inert"), true);
+    assert.equal(welcome.style.display, "none");
+    assert.equal(modeNav.style.display, "none");
+    api.close();
+    assert.equal(writing.hidden, false);
+    assert.equal(writing.style.display, "");
+    assert.equal(writing.hasAttribute("inert"), false);
+    assert.equal(welcome.hasAttribute("data-active"), false);
+    assert.equal(welcome.style.display, "");
+    assert.equal(modeNav.style.display, "");
+    assert.equal(stageSection(doc, "welcome-grid"), grid);
+  } finally {
+    delete require.cache[clientPath];
+    if (previous.document === undefined) delete global.document;
+    else global.document = previous.document;
+    if (previous.window === undefined) delete global.window;
+    else global.window = previous.window;
+    if (previous.localStorage === undefined) delete global.localStorage;
+    else global.localStorage = previous.localStorage;
+  }
 });

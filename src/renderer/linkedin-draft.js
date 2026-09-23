@@ -49,22 +49,71 @@
   }
 
   var overlay = null;
-  // The welcome screen keeps #welcome[data-active], which is what shows
-  // the fixed AI / No AI switch. That switch sits on the draft footer
-  // and steals clicks from Copy and Draft post. Drop the flag while
-  // this panel is open, and put it back on close. Same rule the essay
-  // view already uses.
-  var welcomeWasActive = false;
+  // Stage sections under the draft (welcome location grid, essay
+  // #writing, read) and the fixed mode switch. Restored on close.
+  var concealed = [];
 
-  function restoreWelcome() {
-    if (!welcomeWasActive) return;
-    welcomeWasActive = false;
-    var welcome = document.getElementById("welcome");
-    if (welcome) welcome.setAttribute("data-active", "");
+  function surfaceSnapshot(node) {
+    return {
+      node: node,
+      display: node.style.display,
+      pointerEvents: node.style.pointerEvents,
+      hidden: !!node.hidden,
+      active: node.hasAttribute("data-active"),
+      inert: node.hasAttribute("inert"),
+      ariaHidden: node.getAttribute("aria-hidden"),
+    };
+  }
+
+  function concealNode(node) {
+    if (node.hasAttribute("data-active")) node.removeAttribute("data-active");
+    node.hidden = true;
+    node.setAttribute("inert", "");
+    node.setAttribute("aria-hidden", "true");
+    node.style.display = "none";
+    node.style.pointerEvents = "none";
+  }
+
+  function concealSurfaces() {
+    var saved = [];
+    var stage = document.getElementById("stage");
+    if (stage) {
+      for (var i = 0; i < stage.children.length; i++) {
+        var child = stage.children[i];
+        if (child.getAttribute("aria-label") === "LinkedIn draft") continue;
+        saved.push(surfaceSnapshot(child));
+        concealNode(child);
+      }
+    }
+    var modeNav = document.getElementById("mode-nav");
+    if (modeNav) {
+      saved.push(surfaceSnapshot(modeNav));
+      concealNode(modeNav);
+    }
+    return saved;
+  }
+
+  function restoreSurfaces(saved) {
+    for (var i = 0; i < saved.length; i++) {
+      var item = saved[i];
+      var node = item.node;
+      node.style.display = item.display;
+      node.style.pointerEvents = item.pointerEvents;
+      node.hidden = item.hidden;
+      if (item.inert) node.setAttribute("inert", "");
+      else node.removeAttribute("inert");
+      if (item.ariaHidden == null) node.removeAttribute("aria-hidden");
+      else node.setAttribute("aria-hidden", item.ariaHidden);
+      if (item.active) node.setAttribute("data-active", "");
+      else node.removeAttribute("data-active");
+    }
   }
 
   function close() {
-    restoreWelcome();
+    if (concealed.length) {
+      restoreSurfaces(concealed);
+      concealed = [];
+    }
     if (!overlay) return;
     document.removeEventListener("keydown", onKeydown, true);
     overlay.remove();
@@ -129,11 +178,6 @@
 
   function open() {
     close();
-    var welcome = document.getElementById("welcome");
-    if (welcome && welcome.hasAttribute("data-active")) {
-      welcomeWasActive = true;
-      welcome.removeAttribute("data-active");
-    }
     var saved = loadState();
     var stage = document.getElementById("stage") || document.body;
 
@@ -358,6 +402,7 @@
     overlay.appendChild(header);
     overlay.appendChild(body);
     overlay.appendChild(foot);
+    concealed = concealSurfaces();
     stage.appendChild(overlay);
     document.addEventListener("keydown", onKeydown, true);
     setTimeout(function () { try { notes.focus(); } catch (e) { /* ignore */ } }, 0);
