@@ -315,6 +315,9 @@ test("the sidebar composer posts to converse and does not own the prompt", () =>
   assert.match(ui, /kind: wantsDm/);
   assert.match(ui, /function wantsDm/);
   assert.match(ui, /copyWithSelection/);
+  assert.match(ui, /getElementById\("welcome"\)/);
+  assert.match(ui, /removeAttribute\("data-active"\)/);
+  assert.match(ui, /setAttribute\("data-active", ""\)/);
   assert.match(ui, /tinker_jwt/);
   assert.match(ui, /Stanley/);
   assert.equal(ui.includes("\u2014"), false);

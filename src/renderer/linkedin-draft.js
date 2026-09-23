@@ -49,8 +49,22 @@
   }
 
   var overlay = null;
+  // The welcome screen keeps #welcome[data-active], which is what shows
+  // the fixed AI / No AI switch. That switch sits on the draft footer
+  // and steals clicks from Copy and Draft post. Drop the flag while
+  // this panel is open, and put it back on close. Same rule the essay
+  // view already uses.
+  var welcomeWasActive = false;
+
+  function restoreWelcome() {
+    if (!welcomeWasActive) return;
+    welcomeWasActive = false;
+    var welcome = document.getElementById("welcome");
+    if (welcome) welcome.setAttribute("data-active", "");
+  }
 
   function close() {
+    restoreWelcome();
     if (!overlay) return;
     document.removeEventListener("keydown", onKeydown, true);
     overlay.remove();
@@ -115,6 +129,11 @@
 
   function open() {
     close();
+    var welcome = document.getElementById("welcome");
+    if (welcome && welcome.hasAttribute("data-active")) {
+      welcomeWasActive = true;
+      welcome.removeAttribute("data-active");
+    }
     var saved = loadState();
     var stage = document.getElementById("stage") || document.body;
 
