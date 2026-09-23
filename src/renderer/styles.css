@@ -265,6 +265,22 @@ html.on-web .sidebar__top {
 body:has(#welcome[data-active]) .mode-nav {
   display: flex;
 }
+/* LinkedIn draft owns the stage while its section is mounted.
+   .welcome__inner is position:relative with z-index:1, so the location
+   grid paints over a later .writing sibling. The mode switch is
+   position:fixed, and this display:flex rule overrides the hidden
+   attribute. Both stay out of the way until the draft section is gone. */
+body:has(#stage > [aria-label="LinkedIn draft"]) #stage > :not([aria-label="LinkedIn draft"]) {
+  display: none !important;
+  pointer-events: none !important;
+}
+body:has(#stage > [aria-label="LinkedIn draft"]) .mode-nav {
+  display: none !important;
+  pointer-events: none !important;
+}
+body:has(#stage > [aria-label="LinkedIn draft"]) #stage > [aria-label="LinkedIn draft"] {
+  z-index: 3;
+}
 .mode-nav__bar {
   pointer-events: auto;
   display: flex;
