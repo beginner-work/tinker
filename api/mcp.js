@@ -13,7 +13,8 @@
  * (draft_linkedin_post). There is no raw converse proxy. GET/DELETE
  * return 405: this server does not keep an SSE session. The writing UI
  * is not involved. draft_linkedin_post shares api/_lib/linkedin-draft.js
- * with POST /api/claude/converse mode "linkedin". It does not post.
+ * with POST /api/claude/converse mode "linkedin". A successful call
+ * saves a row for the approving user and returns its id. It does not post.
  *
  * Session auth uses STYTCH_PROJECT_ID and STYTCH_SECRET. Tool calls use
  * ANTHROPIC_API_KEY. Credentials use the existing DATABASE_URL.
@@ -39,8 +40,9 @@ const INSTRUCTIONS = [
   "(one next question, or a stitch when the draft is ready), or with a draft string",
   "for freeform follow-up questions. Optional priorTurns avoids repeats.",
   "Call draft_linkedin_post with notes (a topic or bullets) to draft a LinkedIn post or direct message in Tyler's voice.",
+  "The draft is saved on that user's list and the result includes id. Pass id to update a saved draft.",
   "Pass kind \"dm\" for a direct message, or start the notes with \"DM:\". Pass currentDraft and an optional instruction to revise.",
-  "This drafts copy only. It does not post to LinkedIn.",
+  "This drafts copy only. It does not post to LinkedIn. Tinker keeps the list. Tyler posts.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -137,7 +139,8 @@ const DRAFT_LINKEDIN_TOOL = {
     "Pass notes: a topic or bullet points. The server owns the voice and niche prompt (short plain sentences, no em dashes).",
     "Pass kind \"dm\" for a direct message. Omit kind, or pass \"post\", for a feed post. Notes that start with \"DM:\" also draft a message.",
     "Pass currentDraft to revise an existing draft, and an optional instruction for what to change.",
-    "Returns the copy only. Does not post, schedule, or publish to LinkedIn. Stanley posts.",
+    "Pass id to update that saved draft. Omit id to save a new row.",
+    "Saves the draft on the signed-in user's list and returns id. Does not post, schedule, or publish to LinkedIn. Tinker keeps the list. Tyler posts.",
     "Do not send a system prompt.",
   ].join(" "),
   inputSchema: {
@@ -161,11 +164,14 @@ const DRAFT_LINKEDIN_TOOL = {
         type: "string",
         description: "Optional change request: length, emphasis, post vs DM, or what to cut. Cannot ask the tool to publish.",
       },
+      id: {
+        type: "string",
+        description: "Saved draft id to update. Omit to save a new draft. A revision with id updates that row.",
+      },
     },
     required: ["notes"],
   },
   annotations: {
-    readOnlyHint: true,
     destructiveHint: false,
     openWorldHint: true,
   },
@@ -243,6 +249,27 @@ function toolError(message) {
   };
 }
 
+async function persistLinkedInDraft(userId, args, shaped) {
+  const store = require("./_lib/linkedin-drafts-store.js");
+  const notes = typeof args.notes === "string" ? args.notes : "";
+  const id = typeof args.id === "string" ? args.id.trim() : "";
+  if (id) {
+    return store.updateDraftContent({
+      id,
+      userId,
+      body: shaped.post,
+      notes,
+      kind: shaped.kind,
+    });
+  }
+  return store.createDraft({
+    userId,
+    body: shaped.post,
+    notes,
+    kind: shaped.kind,
+  });
+}
+
 function readMessage(req) {
   let body = req.body;
   if (Buffer.isBuffer(body)) body = body.toString("utf8");
@@ -260,7 +287,7 @@ function readMessage(req) {
   return { message: body };
 }
 
-async function handleRpc(msg) {
+async function handleRpc(msg, userId) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
   }
@@ -311,14 +338,23 @@ async function handleRpc(msg) {
     }
     try {
       if (name === "draft_linkedin_post") {
-        const shaped = await draftLinkedInPost(args);
-        return {
-          status: 200,
-          body: rpcOk(msg.id, {
-            content: [{ type: "text", text: shaped.post }],
-            structuredContent: shaped,
-          }),
-        };
+        try {
+          const shaped = await draftLinkedInPost(args);
+          const saved = await persistLinkedInDraft(userId, args, shaped);
+          const content = Object.assign({}, shaped, { id: saved.id });
+          return {
+            status: 200,
+            body: rpcOk(msg.id, {
+              content: [{ type: "text", text: content.post }],
+              structuredContent: content,
+            }),
+          };
+        } catch (err) {
+          if (err && (err.toolError || err.status === 400 || err.status === 404 || err.status === 502 || err.status === 503)) {
+            return { status: 200, body: rpcOk(msg.id, toolError(err.message || "Tool failed")) };
+          }
+          return { status: 500, body: rpcErr(msg.id, -32603, "Internal error") };
+        }
       }
       const shaped = await askFollowups(args);
       return {
@@ -352,8 +388,9 @@ module.exports = withResponseLogging(async function handler(req, res) {
   }
 
   const token = extractBearer(req.headers && req.headers.authorization);
+  let auth;
   try {
-    await authorize(token); // principal is the approving user, or the session user
+    auth = await authorize(token); // principal is the approving user, or the session user
   } catch (err) {
     const status = err.status || 401;
     const extra = status === 401 ? { "WWW-Authenticate": wwwAuthenticate(req) } : undefined;
@@ -381,7 +418,7 @@ module.exports = withResponseLogging(async function handler(req, res) {
     return;
   }
 
-  const outcome = await handleRpc(parsed.message);
+  const outcome = await handleRpc(parsed.message, auth.userId);
   const protocol = outcome.protocol || protocolFrom(req);
   if (outcome.empty) {
     sendEmpty(res, outcome.status, protocol);

@@ -66,3 +66,20 @@ model McpOAuthCode {
   usedAt        DateTime?
   createdAt     DateTime  @default(now())
 }
+
+// LinkedIn posts and DMs Tyler keeps in tinker. kind is post or dm.
+// status is draft, approved, scheduled, or posted. scheduledAt is a
+// stored date and time; nothing here posts to LinkedIn.
+model LinkedInDraft {
+  id          String    @id @default(cuid())
+  userId      String
+  body        String
+  notes       String    @default("")
+  kind        String
+  status      String
+  scheduledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+}

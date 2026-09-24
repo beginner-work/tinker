@@ -4,8 +4,8 @@
  * .writing, .writing-card, .writing-input, and the pill footer. No
  * private stylesheet. Posts to /api/claude/converse with mode
  * "linkedin", so the server owns the voice and niche. The same function
- * backs the MCP tool draft_linkedin_post. This panel does not post;
- * Stanley still publishes.
+ * backs the MCP tool draft_linkedin_post. This panel does not post.
+ * Tinker keeps the list. You post it on LinkedIn.
  *
  * A direct message is the same panel. Start the notes with "DM:" or
  * put "DM" in What to change. wantsDm matches notesAskForDm on the server.
@@ -52,6 +52,250 @@
   // Stage sections under the draft (welcome location grid, essay
   // #writing, read) and the fixed mode switch. Restored on close.
   var concealed = [];
+  var migrationFlight = null;
+
+  function apiSend(method, payload) {
+    var t = token();
+    if (!t) return Promise.resolve({ ok: false, status: 401, json: { error: "Sign in to keep drafts." } });
+    var opts = { method: method, headers: { Authorization: "Bearer " + t } };
+    if (payload) {
+      opts.headers["content-type"] = "application/json";
+      opts.body = JSON.stringify(payload);
+    }
+    return fetch("/api/linkedin-drafts", opts).then(function (res) {
+      return res.json().catch(function () { return null; }).then(function (json) {
+        return { ok: res.ok, status: res.status, json: json };
+      });
+    });
+  }
+
+  function attachList(p) {
+    var rows = [];
+    var selectedId = "";
+    var filterKind = "all";
+    var listBox = el("div");
+    var detail = el("p", "writing-note");
+    var approveBtn = el("button", "writing-action", { type: "button" });
+    approveBtn.textContent = "Approve";
+    var saveBtn = el("button", "writing-action", { type: "button" });
+    saveBtn.textContent = "Save text";
+    var postedBtn = el("button", "writing-action", { type: "button" });
+    postedBtn.textContent = "Mark posted";
+    var whenWrap = el("div");
+    var whenLabel = el("p", "writing-note");
+    whenLabel.textContent = "Scheduled date and time";
+    var whenInput = el("input", "writing-input", { type: "datetime-local", name: "scheduledAt" });
+    whenWrap.appendChild(whenLabel);
+    whenWrap.appendChild(whenInput);
+    var listCard = el("div", "writing-card");
+    var listTitle = el("h2", "writing-question");
+    listTitle.textContent = "Drafts";
+    var listNote = el("p", "writing-note");
+    listNote.textContent = "Posts and DMs in one list. Tinker keeps the list. You post on LinkedIn.";
+    var filterRow = el("div");
+    [["all", "All"], ["post", "Posts"], ["dm", "DMs"]].forEach(function (pair) {
+      var button = el("button", "writing-action", { type: "button" });
+      button.textContent = pair[1];
+      button.setAttribute("data-kind", pair[0]);
+      button.addEventListener("click", function () { filterKind = pair[0]; renderList(); });
+      filterRow.appendChild(button);
+    });
+    var newBtn = el("button", "writing-action", { type: "button" });
+    newBtn.textContent = "New draft";
+    listCard.appendChild(listTitle);
+    listCard.appendChild(listNote);
+    listCard.appendChild(filterRow);
+    listCard.appendChild(newBtn);
+    listCard.appendChild(listBox);
+    function place(parent, node, before) {
+      if (typeof parent.insertBefore === "function") parent.insertBefore(node, before);
+      else parent.appendChild(node);
+    }
+    place(p.column, listCard, p.card);
+    place(p.card, detail, p.notesLabel);
+    place(p.card, approveBtn, p.notesLabel);
+    place(p.card, saveBtn, p.notesLabel);
+    place(p.card, postedBtn, p.notesLabel);
+    place(p.card, whenWrap, p.notesLabel);
+
+    function current() {
+      for (var i = 0; i < rows.length; i++) if (rows[i].id === selectedId) return rows[i];
+      return null;
+    }
+    function renderList() {
+      while (listBox.children.length) listBox.children[0].remove();
+      var shown = [];
+      for (var i = 0; i < rows.length; i++) {
+        if (filterKind === "all" || rows[i].kind === filterKind) shown.push(rows[i]);
+      }
+      if (!shown.length) {
+        var empty = el("p", "writing-note");
+        empty.textContent = "No drafts in this filter yet.";
+        listBox.appendChild(empty);
+        return;
+      }
+      for (var j = 0; j < shown.length; j++) {
+        var row = shown[j];
+        var kind = row.kind === "dm" ? "DM" : "Post";
+        var state = row.status === "approved" ? "Approved" : row.status === "scheduled" ? "Scheduled" : row.status === "posted" ? "Posted" : "Draft";
+        var when = "";
+        if (row.scheduledAt) {
+          var at = new Date(row.scheduledAt);
+          if (!isNaN(at.getTime())) when = " · " + at.toLocaleString();
+        }
+        var line = String(row.body || "").trim().split("\n")[0];
+        var btn = el("button", "writing-action", { type: "button" });
+        btn.className = row.id === selectedId ? "writing-action writing-action--primary" : "writing-action";
+        btn.style.height = "auto";
+        btn.style.whiteSpace = "normal";
+        btn.style.textAlign = "left";
+        btn.style.width = "100%";
+        btn.textContent = kind + " · " + state + when + " · " + line.slice(0, 72);
+        btn.addEventListener("click", (function (id) { return function () { selectRow(id); }; })(row.id));
+        listBox.appendChild(btn);
+      }
+    }
+    function syncDetail() {
+      var row = current();
+      var state = row ? row.status : "";
+      approveBtn.hidden = !row || state !== "draft";
+      postedBtn.hidden = !row || state === "posted";
+      whenWrap.hidden = !row || (state !== "approved" && state !== "scheduled");
+      if (!row) detail.textContent = "New draft. It joins the list when you save or draft.";
+      else if (state === "draft") detail.textContent = "Draft. Approve it before you set a time.";
+      else if (state === "approved") detail.textContent = "Approved. Set a date and time, or mark it posted after you paste it.";
+      else if (state === "scheduled") detail.textContent = "Scheduled. Tinker stores the time. It does not post.";
+      else detail.textContent = "Posted. Marked by hand. Tinker did not send it.";
+      if (row && !whenWrap.hidden) {
+        var d = row.scheduledAt ? new Date(row.scheduledAt) : null;
+        if (d && !isNaN(d.getTime())) {
+          function pad(n) { return (n < 10 ? "0" : "") + n; }
+          whenInput.value = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+        } else whenInput.value = "";
+      }
+    }
+    function remember(row) {
+      var next = [];
+      var found = false;
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].id === row.id) { next.push(row); found = true; }
+        else next.push(rows[i]);
+      }
+      if (!found) next.unshift(row);
+      rows = next;
+      selectedId = row.id;
+      p.draft.value = row.body || "";
+      p.notes.value = row.notes || "";
+      renderList();
+      syncDetail();
+      p.syncButtons();
+    }
+    function selectRow(id) {
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].id !== id) continue;
+        selectedId = id;
+        p.notes.value = rows[i].notes || "";
+        p.draft.value = rows[i].body || "";
+        p.instruction.value = "";
+        renderList();
+        syncDetail();
+        p.syncButtons();
+        return;
+      }
+    }
+    function apply(r, okText) {
+      if (r.status === 401) {
+        try { localStorage.removeItem(TOKEN_KEY); } catch (err) { /* ignore */ }
+        p.showStatus("Session expired. Sign in again.", "error");
+        if (window.tinkerAuth && typeof window.tinkerAuth.showGate === "function") window.tinkerAuth.showGate();
+        return;
+      }
+      if (!r.ok || !r.json || !r.json.draft) {
+        p.showStatus((r.json && r.json.error) || "Couldn’t update that draft.", "error");
+        return;
+      }
+      remember(r.json.draft);
+      if (okText) p.showStatus(okText, "ok");
+    }
+    function send(method, payload, okText) {
+      p.hideStatus();
+      return apiSend(method, payload).then(function (r) { apply(r, okText); });
+    }
+    newBtn.addEventListener("click", function () {
+      selectedId = "";
+      p.notes.value = "";
+      p.draft.value = "";
+      p.instruction.value = "";
+      p.hideStatus();
+      renderList();
+      syncDetail();
+      p.syncButtons();
+    });
+    approveBtn.addEventListener("click", function () {
+      if (selectedId) send("PATCH", { id: selectedId, status: "approved" }, "Approved. Set a time, or mark it posted when you have pasted it.");
+    });
+    postedBtn.addEventListener("click", function () {
+      if (selectedId) send("PATCH", { id: selectedId, status: "posted" }, "Marked posted. Tinker did not send it.");
+    });
+    saveBtn.addEventListener("click", function () {
+      var body = p.draft.value.trim();
+      if (!body) { p.showStatus("Draft text is required.", "error"); return; }
+      var payload = { body: body, notes: p.notes.value, kind: wantsDm(p.notes.value, p.instruction.value) ? "dm" : "post" };
+      if (selectedId) send("PATCH", Object.assign({ id: selectedId }, payload), "Saved. Tinker keeps it until you post it.");
+      else send("POST", payload, "Saved. Tinker keeps it until you post it.");
+    });
+    whenInput.addEventListener("change", function () {
+      if (!selectedId) return;
+      send("PATCH", { id: selectedId, scheduledAt: whenInput.value ? new Date(whenInput.value).toISOString() : null }, whenInput.value ? "Time stored. Tinker does not post it." : "Schedule cleared.");
+    });
+    renderList();
+    syncDetail();
+    var saved = p.saved;
+    var chain = Promise.resolve(null);
+    if (token() && saved.draft && saved.draft.trim()) {
+      if (!migrationFlight) {
+        migrationFlight = apiSend("POST", {
+          body: saved.draft.trim(),
+          notes: saved.notes,
+          kind: wantsDm(saved.notes, saved.instruction) ? "dm" : "post",
+        }).then(function (r) {
+          if (!r.ok || !r.json || !r.json.draft) { migrationFlight = null; throw new Error((r.json && r.json.error) || "Couldn’t save the on-device draft."); }
+          try { localStorage.removeItem(STORE_KEY); } catch (e2) { /* ignore */ }
+          return r.json.draft;
+        });
+      }
+      chain = migrationFlight;
+    }
+    var mine = overlay;
+    chain.then(function (migrated) {
+      if (!token()) return { migrated: migrated, list: [] };
+      return apiSend("GET").then(function (r) {
+        if (!r.ok) throw new Error((r.json && r.json.error) || "Couldn’t load drafts.");
+        return { migrated: migrated, list: (r.json && r.json.drafts) || [] };
+      });
+    }).then(function (packed) {
+      if (!packed || overlay !== mine) return;
+      rows = packed.list || [];
+      if (packed.migrated) remember(packed.migrated);
+      else { renderList(); syncDetail(); }
+    }).catch(function (err) {
+      if (overlay !== mine) return;
+      p.showStatus(err.message || "Couldn’t load drafts.", "error");
+    });
+    return function saveGenerated(json) {
+      var payload = {
+        body: p.draft.value.trim(),
+        notes: p.notes.value,
+        kind: json && json.kind === "dm" ? "dm" : "post",
+      };
+      if (selectedId) payload.id = selectedId;
+      return apiSend(selectedId ? "PATCH" : "POST", payload).then(function (r) {
+        apply(r, json && json.revised
+          ? "Revised and saved. Tinker keeps it until you post it."
+          : "Draft saved. Tinker keeps it until you post it.");
+      });
+    };
+  }
 
   function surfaceSnapshot(node) {
     return {
@@ -205,7 +449,7 @@
     var title = el("h2", "writing-question");
     title.textContent = "What should this post say?";
     var sub = el("p", "writing-note");
-    sub.textContent = "Topic or bullets in. A post or a DM out. Start the notes with DM: for a message. Posting still goes through Stanley.";
+    sub.textContent = "Topic or bullets in. A post or a DM out. Start the notes with DM: for a message. Tinker keeps the list. You post it on LinkedIn.";
 
     var notesLabel = el("p", "writing-note");
     notesLabel.textContent = "Topic or bullet notes";
@@ -298,9 +542,22 @@
     }
 
     function persist() {
-      saveState(snapshot());
+      if (!token()) saveState(snapshot());
       syncButtons();
     }
+
+    var saveGenerated = attachList({
+      column: column,
+      card: card,
+      notesLabel: notesLabel,
+      notes: notes,
+      draft: draft,
+      instruction: instruction,
+      showStatus: showStatus,
+      hideStatus: hideStatus,
+      syncButtons: syncButtons,
+      saved: saved,
+    });
 
     notes.addEventListener("input", persist);
     draft.addEventListener("input", persist);
@@ -316,7 +573,7 @@
     copy.addEventListener("click", function () {
       var text = draft.value.trim();
       if (!text) return;
-      var done = function () { showStatus("Copied. Stanley still posts this.", "ok"); };
+      var done = function () { showStatus("Copied. Tinker does not post this.", "ok"); };
       var fail = function () {
         showStatus("Couldn’t copy. Select the draft and copy it yourself.", "error");
       };
@@ -381,12 +638,13 @@
             }
           } else if (r.ok && r.json && typeof r.json.post === "string" && r.json.post.trim()) {
             draft.value = r.json.post.trim();
-            persist();
-            showStatus(r.json.revised ? "Revised. Copy it when it’s ready. Stanley posts." : "Draft ready. Copy it when it’s ready. Stanley posts.", "ok");
+            return saveGenerated(r.json);
           } else {
             var msg = (r.json && r.json.error) || "Couldn’t draft that. Try again in a moment.";
             showStatus(msg, "error");
           }
+        })
+        .then(function () {
           submit.disabled = false;
           syncButtons();
         })
