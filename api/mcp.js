@@ -1,8 +1,13 @@
 /* POST /api/mcp
  *
  * Streamable HTTP MCP (stateless JSON responses) on the tinker deploy.
- * Authorization: Bearer <stytch session_token | session_jwt>
- *   — the same check as POST /api/claude/converse.
+ * Authorization: Bearer <stytch session_token | session_jwt | mcp_ credential>
+ *   Session bearers use authenticateSession, the same check as
+ *   POST /api/claude/converse. A bearer that starts with mcp_ is checked
+ *   against the hashed McpApiKey row and is never sent to Stytch.
+ *   Revoked credentials fail on the next request.
+ *   A missing or rejected bearer is 401 with resource_metadata so an
+ *   MCP client can send the user to /mcp/authorize.
  *
  * Tools are fixed-prompt follow-ups (ask_followups) and LinkedIn drafts
  * (draft_linkedin_post). There is no raw converse proxy. GET/DELETE
@@ -10,13 +15,16 @@
  * is not involved. draft_linkedin_post shares api/_lib/linkedin-draft.js
  * with POST /api/claude/converse mode "linkedin". It does not post.
  *
- * No new environment variables. Uses STYTCH_PROJECT_ID, STYTCH_SECRET,
- * and ANTHROPIC_API_KEY.
+ * Session auth uses STYTCH_PROJECT_ID and STYTCH_SECRET. Tool calls use
+ * ANTHROPIC_API_KEY. Credentials use the existing DATABASE_URL.
+ * Approve and revoke live on /mcp/authorize and /mcp/access.
  */
 
 "use strict";
 
 const { authenticateSession } = require("./_lib/stytch.js");
+const { isMcpApiKey, authenticateMcpKey, userIdFromSession } = require("./_lib/mcp-keys.js");
+const { wwwAuthenticate } = require("./_lib/mcp-origin.js");
 const { withResponseLogging } = require("./_lib/log.js");
 const { askFollowups } = require("./_lib/followups.js");
 const { draftLinkedInPost } = require("./_lib/linkedin-draft.js");
@@ -34,8 +42,9 @@ const INSTRUCTIONS = [
   "Pass kind \"dm\" for a direct message, or start the notes with \"DM:\". Pass currentDraft and an optional instruction to revise.",
   "This drafts copy only. It does not post to LinkedIn.",
   "This server does not accept a custom system prompt.",
-  "Authenticate with the same Stytch bearer the writing app uses (session_token or session_jwt).",
-  "Sessions expire; a 401 means sign in again.",
+  "Add this server by its URL. The client sends you to tinker to approve access.",
+  "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
+  "A Stytch session still works for the writing app. A 401 means the credential is missing or revoked.",
 ].join(" ");
 
 const ASK_FOLLOWUPS_TOOL = {
@@ -166,6 +175,25 @@ function extractBearer(header) {
   if (!header || typeof header !== "string") return "";
   const m = header.match(/^Bearer\s+(\S+)$/i);
   return m ? m[1] : "";
+}
+
+// mcp_ keys stay off the Stytch path, including typos. A dotted session
+// JWT never starts with mcp_, so the two bearers do not overlap.
+// Either bearer resolves to the Tinker user it belongs to.
+async function authorize(token) {
+  if (!token) {
+    throw Object.assign(new Error("Missing token."), { status: 401 });
+  }
+  if (isMcpApiKey(token)) {
+    const key = await authenticateMcpKey(token);
+    return { userId: key.userId };
+  }
+  const session = await authenticateSession(token);
+  const userId = userIdFromSession(session);
+  if (!userId) {
+    throw Object.assign(new Error("Session missing user id."), { status: 401 });
+  }
+  return { userId };
 }
 
 function protocolFrom(req) {
@@ -325,11 +353,11 @@ module.exports = withResponseLogging(async function handler(req, res) {
 
   const token = extractBearer(req.headers && req.headers.authorization);
   try {
-    await authenticateSession(token);
+    await authorize(token); // principal is the approving user, or the session user
   } catch (err) {
-    sendJson(res, err.status || 401, { error: err.message || "Unauthorized" }, protocolFrom(req), {
-      "WWW-Authenticate": "Bearer",
-    });
+    const status = err.status || 401;
+    const extra = status === 401 ? { "WWW-Authenticate": wwwAuthenticate(req) } : undefined;
+    sendJson(res, status, { error: err.message || "Unauthorized" }, protocolFrom(req), extra);
     return;
   }
 

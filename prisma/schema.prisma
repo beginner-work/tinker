@@ -1,7 +1,7 @@
 // Web's slice of the schema. The canonical schema lives in the
-// beginner repo at api/prisma/schema.prisma; this file mirrors only
-// the one table the web Vercel functions touch directly. Both repos
-// point at the same Postgres via DATABASE_URL.
+// beginner repo at api/prisma/schema.prisma; this file mirrors the
+// tables the web Vercel functions touch directly. Both repos point
+// at the same Postgres via DATABASE_URL.
 
 generator client {
   provider      = "prisma-client-js"
@@ -24,4 +24,45 @@ model TinkerUserData {
 
   @@id([userId, kind])
   @@index([userId])
+}
+
+// Durable MCP bearer keys. The plaintext is returned once, to the
+// connector's token endpoint or to the one-time fallback on MCP access.
+// keyHash is the SHA-256 hex of the full mcp_ key. revokedAt stays null
+// until revoke.
+model McpApiKey {
+  id        String    @id @default(cuid())
+  keyHash   String    @unique
+  label     String
+  userId    String
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@index([userId])
+}
+
+// Public OAuth clients for MCP. redirectUris is a JSON array of exact
+// callback URLs. No client secret; PKCE S256 is required.
+model McpOAuthClient {
+  id           String   @id @default(cuid())
+  clientId     String   @unique
+  clientName   String
+  redirectUris String
+  createdAt    DateTime @default(now())
+}
+
+// One-time authorization codes. codeHash is the SHA-256 hex of the code.
+// usedAt is set when the code is exchanged.
+model McpOAuthCode {
+  id            String    @id @default(cuid())
+  codeHash      String    @unique
+  clientId      String
+  redirectUri   String
+  codeChallenge String
+  resource      String
+  userId        String
+  label         String
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
 }

@@ -224,6 +224,15 @@
           }
         });
       }
+      // MCP access lists and revokes connector credentials.
+      var mcp = document.getElementById("profile-mcp-access");
+      if (mcp) {
+        mcp.addEventListener("click", function () {
+          pop.setAttribute("hidden", "");
+          btn.setAttribute("aria-expanded", "false");
+          window.location.assign("/mcp/access");
+        });
+      }
     }
   }
 
