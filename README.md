@@ -385,8 +385,9 @@ Tools:
   Fintech: short plain sentences, contractions OK, no em dashes. Pass
   `kind: "dm"` for a direct message (or start the notes with `DM:`).
   Pass `currentDraft` to revise, and an optional `instruction` for what
-  to change. The result is `{ post, revised, kind }`. The tool returns
-  copy only. It does not post to LinkedIn; Stanley still posts.
+  to change. Pass `id` to update a saved draft. The result is
+  `{ id, post, revised, kind }`. The tool saves the row. It does not
+  post to LinkedIn. Tinker keeps the list.
 
 There is no raw `converse` tool. Clients cannot supply a system prompt.
 The interview prompt lives in `src/renderer/interview-prompt.js` and is
@@ -408,8 +409,9 @@ The sidebar row **LinkedIn draft** opens on the writing stage — the
 same header, card, inputs, and pill buttons as an essay. Topic or
 bullet notes in, a post out. Start the notes with `DM:` (or pass
 `kind: "dm"` on the API) for a direct message. Revise by editing the
-draft (or adding "what to change") and submitting again. Copy the
-result; posting still goes through Stanley.
+draft (or adding "what to change") and submitting again. Tinker keeps
+the list: approve a draft, store a date and time, and mark it posted
+by hand. Tinker does not post to LinkedIn.
 
 The shared prompt in `api/_lib/linkedin-draft.js` is the only voice.
 It asks for short plain sentences, Tyler's Elevating Developer Fintech
@@ -421,7 +423,8 @@ returned.
 The panel calls the existing converse proxy with `mode: "linkedin"`.
 That mode ignores any client system prompt and runs
 `draftLinkedInPost` in `api/_lib/linkedin-draft.js`. The MCP tool calls
-the same function. No new serverless route.
+the same function, then saves the row. The list is
+`/api/linkedin-drafts`. Tinker does not post to LinkedIn.
 
 Try it locally with the auth emulator (static `npm run web` has no
 `/api`):
