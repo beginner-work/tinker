@@ -599,6 +599,212 @@ test("sign-in returns to the same authorize URL, query string included", () => {
   assert.equal(readBack(), "");
 });
 
+test("approve 401 clears the stale token and returns through sign-in", async () => {
+  const headers = { host: "tinker.test", "x-forwarded-proto": "https" };
+  const redirectUri = "http://127.0.0.1:9/callback";
+  const resource = "https://tinker.test/api/mcp";
+  const challenge = crypto.createHash("sha256").update(`v${"a".repeat(50)}`).digest("base64url");
+
+  const registered = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "register",
+    headers,
+    body: {
+      client_name: "Notebook",
+      redirect_uris: [redirectUri],
+      token_endpoint_auth_method: "none",
+      grant_types: ["authorization_code"],
+      response_types: ["code"],
+    },
+  }), registered);
+  assert.equal(registered.captured.status, 201);
+
+  const query = {
+    response_type: "code",
+    client_id: registered.captured.body.client_id,
+    redirect_uri: redirectUri,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    resource,
+    scope: "mcp",
+    state: "xyz",
+  };
+  const denied = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "authorize",
+    token: "stale-session",
+    headers,
+    body: { ...query, decision: "approve" },
+  }), denied);
+  assert.equal(denied.captured.status, 401);
+  assert.equal(denied.captured.body.error, "Session expired.");
+
+  const page = fakeRes();
+  await oauth(oauthReq({ method: "GET", op: "authorize", headers, query }), page);
+  assert.equal(page.captured.status, 200);
+  assert.equal((page.captured.body.match(/<button\b/gi) || []).length, 1);
+  assert.match(page.captured.body, /<button id="mcp-approve" type="button">Approve<\/button>/);
+  assert.equal(/<form\b/i.test(page.captured.body), false);
+  assert.equal(/type="checkbox"/i.test(page.captured.body), false);
+
+  const search = `?${new URLSearchParams(query).toString()}`;
+  const expectedReturn = `/mcp/authorize${search}`;
+  for (const key of ["client_id", "redirect_uri", "state", "code_challenge", "code_challenge_method"]) {
+    assert.equal(new URLSearchParams(search.slice(1)).get(key), query[key]);
+  }
+
+  const stale = await driveAuthorizePage(page.captured.body, {
+    token: "stale-session",
+    search,
+    response: { status: 401, body: { error: "Session expired." } },
+  });
+  assert.equal(stale.clicked, true);
+  assert.equal(stale.fetches.length, 1);
+  assert.equal(stale.fetches[0].url, "/mcp/authorize");
+  assert.equal(stale.fetches[0].opts.method, "POST");
+  assert.equal(stale.fetches[0].opts.headers.Authorization, "Bearer stale-session");
+  assert.equal(JSON.parse(stale.fetches[0].opts.body).decision, "approve");
+  assert.equal(stale.store.tinker_jwt, undefined);
+  assert.equal(stale.assigned, "/");
+  assert.equal(stale.assigns.length, 1);
+  assert.equal(stale.session.tinker_mcp_return, expectedReturn);
+  assert.equal(stale.session.tinker_mcp_signin_retry, expectedReturn);
+  assert.equal(stale.statusText.includes("Session expired"), false);
+
+  const auth = fs.readFileSync(path.join(__dirname, "..", "src/renderer/auth.js"), "utf8");
+  const start = auth.indexOf("const MCP_RETURN_KEY");
+  const end = auth.indexOf("function resumeMcpReturn()");
+  const kept = { tinker_mcp_return: stale.session.tinker_mcp_return };
+  const takeMcpReturn = new Function(
+    "sessionStorage",
+    `${auth.slice(start, end)}\nreturn takeMcpReturn;`,
+  )({
+    getItem(key) { return Object.prototype.hasOwnProperty.call(kept, key) ? kept[key] : null; },
+    removeItem(key) { delete kept[key]; },
+  });
+  assert.equal(takeMcpReturn(), expectedReturn);
+
+  const expiredExp = Math.floor(Date.now() / 1000) - 120;
+  const expired = await driveAuthorizePage(page.captured.body, {
+    token: jwtWithExp(expiredExp),
+    search,
+  });
+  assert.equal(expired.clicked, false);
+  assert.equal(expired.fetches.length, 0);
+  assert.equal(expired.store.tinker_jwt, undefined);
+  assert.equal(expired.assigned, "/");
+  assert.equal(expired.session.tinker_mcp_return, expectedReturn);
+
+  const fresh = await driveAuthorizePage(page.captured.body, {
+    token: jwtWithExp(Math.floor(Date.now() / 1000) + 3600),
+    search,
+  });
+  assert.equal(fresh.clicked, true);
+  assert.equal(fresh.assigned, "");
+  assert.equal(fresh.fetches.length, 0);
+  assert.equal(fresh.store.tinker_jwt.split(".").length, 3);
+
+  const rejected = await driveAuthorizePage(page.captured.body, {
+    token: "still-good",
+    search,
+    response: { status: 400, body: { error: "redirect_uri is not allowed." } },
+    click: true,
+  });
+  assert.equal(rejected.store.tinker_jwt, "still-good");
+  assert.equal(rejected.assigned, "");
+  assert.equal(rejected.session.tinker_mcp_return, undefined);
+  assert.equal(rejected.statusText, "redirect_uri is not allowed.");
+});
+
+test("approve 401 after a fresh sign-in shows an error instead of looping", async () => {
+  const headers = { host: "tinker.test", "x-forwarded-proto": "https" };
+  const redirectUri = "http://127.0.0.1:9/callback";
+  const resource = "https://tinker.test/api/mcp";
+  const challenge = crypto.createHash("sha256").update(`v${"b".repeat(50)}`).digest("base64url");
+  const registered = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "register",
+    headers,
+    body: {
+      client_name: "Notebook",
+      redirect_uris: [redirectUri],
+      token_endpoint_auth_method: "none",
+      grant_types: ["authorization_code"],
+      response_types: ["code"],
+    },
+  }), registered);
+  const query = {
+    response_type: "code",
+    client_id: registered.captured.body.client_id,
+    redirect_uri: redirectUri,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    resource,
+    scope: "mcp",
+    state: "xyz",
+  };
+  const page = fakeRes();
+  await oauth(oauthReq({ method: "GET", op: "authorize", headers, query }), page);
+  assert.equal((page.captured.body.match(/<button\b/gi) || []).length, 1);
+  assert.equal(/<form\b/i.test(page.captured.body), false);
+  const search = `?${new URLSearchParams(query).toString()}`;
+  const expectedReturn = `/mcp/authorize${search}`;
+  const signInError = "Couldn't confirm your Tinker sign-in. Try signing out and back in.";
+  const denied = { status: 401, body: { error: "Session expired." } };
+
+  const first = await driveAuthorizePage(page.captured.body, {
+    token: "stale-session",
+    search,
+    response: denied,
+  });
+  assert.equal(first.assigns.length, 1);
+  assert.equal(first.assigned, "/");
+  assert.equal(first.session.tinker_mcp_signin_retry, expectedReturn);
+
+  const returned = await driveAuthorizePage(page.captured.body, {
+    token: "fresh-session",
+    search,
+    session: { tinker_mcp_signin_retry: expectedReturn },
+    response: denied,
+  });
+  assert.equal(returned.clicked, true);
+  assert.equal(returned.fetches.length, 1);
+  assert.equal(returned.fetches[0].opts.headers.Authorization, "Bearer fresh-session");
+  assert.equal(returned.assigns.length, 0);
+  assert.equal(returned.assigned, "");
+  assert.equal(returned.store.tinker_jwt, "fresh-session");
+  assert.equal(returned.session.tinker_mcp_signin_retry, undefined);
+  assert.equal(returned.session.tinker_mcp_return, undefined);
+  assert.equal(returned.statusText, signInError);
+
+  const stillExpired = await driveAuthorizePage(page.captured.body, {
+    token: jwtWithExp(Math.floor(Date.now() / 1000) - 120),
+    search,
+    session: { tinker_mcp_signin_retry: expectedReturn },
+  });
+  assert.equal(stillExpired.clicked, false);
+  assert.equal(stillExpired.fetches.length, 0);
+  assert.equal(stillExpired.assigns.length, 0);
+  assert.equal(stillExpired.assigned, "");
+  assert.equal(stillExpired.session.tinker_mcp_signin_retry, undefined);
+  assert.equal(stillExpired.session.tinker_mcp_return, undefined);
+  assert.equal(stillExpired.statusText, signInError);
+  assert.equal(stillExpired.store.tinker_jwt.split(".").length, 3);
+
+  const otherUrl = await driveAuthorizePage(page.captured.body, {
+    token: "stale-session",
+    search,
+    session: { tinker_mcp_signin_retry: "/mcp/authorize?client_id=someone-else" },
+    response: denied,
+  });
+  assert.equal(otherUrl.assigns.length, 1);
+  assert.equal(otherUrl.assigned, "/");
+  assert.equal(otherUrl.session.tinker_mcp_signin_retry, expectedReturn);
+});
+
 test("MCP naming is generic and there is no CLI mint path", () => {
   const root = path.join(__dirname, "..");
   const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
@@ -631,6 +837,82 @@ test("MCP naming is generic and there is no CLI mint path", () => {
   assert.equal(/paste a sign-in token/i.test(mcpSection), true);
   assert.equal(mcpSection.includes("\u2014"), false);
 });
+
+function jwtWithExp(exp) {
+  const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ exp })).toString("base64url");
+  return `${header}.${payload}.sig`;
+}
+
+async function driveAuthorizePage(html, { token, search, response, click = false, session: initialSession } = {}) {
+  const match = html.match(/<script>([\s\S]*?)<\/script>/);
+  assert.ok(match, "page has an inline script");
+  const config = html.match(/id="mcp-config">([\s\S]*?)<\/script>/);
+  assert.ok(config, "page has mcp-config");
+  const store = { tinker_jwt: token };
+  const session = { ...(initialSession || {}) };
+  const fetches = [];
+  const assigns = [];
+  let assigned = "";
+  const statusEl = { textContent: "" };
+  const listeners = {};
+  const sandbox = {
+    Object,
+    JSON,
+    Date,
+    atob,
+    localStorage: {
+      getItem(key) { return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : ""; },
+      removeItem(key) { delete store[key]; },
+    },
+    sessionStorage: {
+      getItem(key) { return Object.prototype.hasOwnProperty.call(session, key) ? session[key] : null; },
+      setItem(key, value) { session[key] = String(value); },
+      removeItem(key) { delete session[key]; },
+    },
+    location: {
+      pathname: "/mcp/authorize",
+      search,
+      assign(url) {
+        assigned = String(url);
+        assigns.push(assigned);
+      },
+    },
+    document: {
+      getElementById(id) {
+        if (id === "mcp-status") return statusEl;
+        if (id === "mcp-approve") {
+          return { addEventListener(type, fn) { listeners[type] = fn; } };
+        }
+        if (id === "mcp-config") return { textContent: config[1] };
+        return null;
+      },
+    },
+    fetch(url, opts) {
+      fetches.push({ url: String(url), opts });
+      const status = response ? response.status : 200;
+      const body = response ? response.body : {};
+      return Promise.resolve({
+        status,
+        ok: status >= 200 && status < 300,
+        json() { return Promise.resolve(body); },
+      });
+    },
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(match[1], sandbox);
+  if (click || (response && listeners.click)) listeners.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  return {
+    assigned,
+    assigns,
+    session,
+    store,
+    fetches,
+    clicked: typeof listeners.click === "function",
+    statusText: statusEl.textContent,
+  };
+}
 
 function runInlineScript(html, token) {
   const match = html.match(/<script>([\s\S]*?)<\/script>/);

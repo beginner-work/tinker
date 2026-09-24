@@ -207,6 +207,31 @@ function mcpSendHome() {
   catch (e) {}
   location.assign("/");
 }
+function mcpClearToken() {
+  try { localStorage.removeItem("tinker_jwt"); }
+  catch (e) {}
+}
+function mcpTokenExpired(token) {
+  var parts = String(token || "").split(".");
+  if (parts.length !== 3) return false;
+  try {
+    var segment = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    while (segment.length % 4) segment += "=";
+    var payload = JSON.parse(atob(segment));
+    return typeof payload.exp === "number" && payload.exp * 1000 <= Date.now();
+  } catch (e) {
+    return false;
+  }
+}
+function mcpHere() {
+  return location.pathname + location.search;
+}
+function mcpRequireSignIn() {
+  mcpClearToken();
+  try { sessionStorage.setItem("tinker_mcp_signin_retry", mcpHere()); }
+  catch (e) {}
+  mcpSendHome();
+}
 function mcpConfig() {
   return JSON.parse(document.getElementById("mcp-config").textContent);
 }
@@ -219,8 +244,21 @@ function authorizeHtml(clientName, approve) {
     <script>
       (function () {
       ${SESSION_SCRIPT}
+      var here = mcpHere();
+      var justReturned = false;
+      try {
+        justReturned = sessionStorage.getItem("tinker_mcp_signin_retry") === here;
+        if (justReturned) sessionStorage.removeItem("tinker_mcp_signin_retry");
+      } catch (e) {}
+      function mcpSignInFailed() {
+        document.getElementById("mcp-status").textContent = "Couldn't confirm your Tinker sign-in. Try signing out and back in.";
+      }
       var token = mcpToken();
-      if (!token) { mcpSendHome(); return; }
+      if (!token || mcpTokenExpired(token)) {
+        if (justReturned) { mcpSignInFailed(); return; }
+        mcpRequireSignIn();
+        return;
+      }
       var status = document.getElementById("mcp-status");
       document.getElementById("mcp-approve").addEventListener("click", function () {
         var cfg = mcpConfig();
@@ -230,8 +268,17 @@ function authorizeHtml(clientName, approve) {
           headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
           body: JSON.stringify(Object.assign({ decision: "approve" }, cfg.approve))
         }).then(function (res) {
-          return res.json().then(function (body) { return { body: body }; });
+          return res.json().then(function (body) {
+            return { status: res.status, body: body };
+          }, function () {
+            return { status: res.status, body: null };
+          });
         }).then(function (result) {
+          if (result.status === 401) {
+            if (justReturned) { mcpSignInFailed(); return; }
+            mcpRequireSignIn();
+            return;
+          }
           if (result.body && result.body.redirect) {
             location.assign(result.body.redirect);
             return;
