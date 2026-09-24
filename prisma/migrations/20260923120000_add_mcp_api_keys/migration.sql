@@ -7,10 +7,15 @@ CREATE TABLE IF NOT EXISTS "McpApiKey" (
     "id" TEXT NOT NULL,
     "keyHash" TEXT NOT NULL,
     "label" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "revokedAt" TIMESTAMP(3),
 
     CONSTRAINT "McpApiKey_pkey" PRIMARY KEY ("id")
 );
 
+ALTER TABLE "McpApiKey" ADD COLUMN IF NOT EXISTS "userId" TEXT;
+
 CREATE UNIQUE INDEX IF NOT EXISTS "McpApiKey_keyHash_key" ON "McpApiKey"("keyHash");
+
+CREATE INDEX IF NOT EXISTS "McpApiKey_userId_idx" ON "McpApiKey"("userId");

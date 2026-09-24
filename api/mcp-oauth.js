@@ -11,7 +11,6 @@
 
 const { authenticateSession } = require("./_lib/stytch.js");
 const {
-  assertOwner,
   isMcpApiKey,
   listMcpKeys,
   mintMcpKey,
@@ -124,9 +123,7 @@ function sendError(res, err) {
     });
     return;
   }
-  const body = { error: err.message || "Internal error" };
-  if (err.userId && status === 503) body.userId = err.userId;
-  sendJson(res, status, body);
+  sendJson(res, status, { error: err.message || "Internal error" });
 }
 
 async function sessionUser(req) {
@@ -216,23 +213,20 @@ function mcpConfig() {
 
 function authorizeHtml(clientName, approve) {
   const body = `
-    <p>Allow <strong>${esc(clientName)}</strong> to use tinker MCP tools.</p>
-    <p class="muted">Approve sends this connector back with a credential it stores. You can revoke that credential from <a href="/mcp/access">MCP access</a>. This is not a sign-in token.</p>
     <button id="mcp-approve" type="button">Approve</button>
-    <button id="mcp-deny" class="ghost" type="button">Deny</button>
     <p id="mcp-status" class="error" role="status"></p>
     <script>
       ${SESSION_SCRIPT}
       var token = mcpToken();
       if (!token) { mcpSendHome(); return; }
       var status = document.getElementById("mcp-status");
-      function finish(decision) {
+      document.getElementById("mcp-approve").addEventListener("click", function () {
         var cfg = mcpConfig();
-        status.textContent = decision === "approve" ? "Approving…" : "Sending you back…";
+        status.textContent = "Approving…";
         fetch("/mcp/authorize", {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-          body: JSON.stringify(Object.assign({ decision: decision }, cfg.approve))
+          body: JSON.stringify(Object.assign({ decision: "approve" }, cfg.approve))
         }).then(function (res) {
           return res.json().then(function (body) { return { body: body }; });
         }).then(function (result) {
@@ -240,15 +234,11 @@ function authorizeHtml(clientName, approve) {
             location.assign(result.body.redirect);
             return;
           }
-          var message = (result.body && (result.body.error_description || result.body.error)) || "Could not finish.";
-          if (result.body && result.body.userId) message += " Account id: " + result.body.userId;
-          status.textContent = message;
+          status.textContent = (result.body && (result.body.error_description || result.body.error)) || "Could not finish.";
         }).catch(function () { status.textContent = "Could not finish."; });
-      }
-      document.getElementById("mcp-approve").addEventListener("click", function () { finish("approve"); });
-      document.getElementById("mcp-deny").addEventListener("click", function () { finish("deny"); });
+      });
     </script>`;
-  return page("Approve MCP access", body, { approve });
+  return page(`${clientName} wants to use tinker.`, body, { approve });
 }
 
 function accessHtml(resource) {
@@ -277,9 +267,7 @@ function accessHtml(resource) {
         return { "Authorization": "Bearer " + token, "Content-Type": "application/json" };
       }
       function showError(body) {
-        var message = (body && body.error) || "Could not load MCP access.";
-        if (body && body.userId) message += " Account id: " + body.userId;
-        status.textContent = message;
+        status.textContent = (body && body.error) || "Could not load MCP access.";
       }
       function render(keys) {
         list.replaceChildren();
@@ -440,7 +428,6 @@ module.exports = async function handler(req, res) {
       }
       const body = readBody(req);
       const userId = await sessionUser(req);
-      assertOwner(userId);
       const decision = body.decision === "deny" ? "deny" : "approve";
       const parsed = parseAuthorizeParams(body, origin);
       const result = await decideAuthorization({ userId, decision, params: parsed });
@@ -470,10 +457,9 @@ module.exports = async function handler(req, res) {
         return;
       }
       const userId = await sessionUser(req);
-      assertOwner(userId);
       if (req.method === "GET") {
-        const keys = await listMcpKeys();
-        sendJson(res, 200, { userId, resource, keys: keys.map(publicKey) });
+        const keys = await listMcpKeys(userId);
+        sendJson(res, 200, { resource, keys: keys.map(publicKey) });
         return;
       }
       if (req.method !== "POST") {
@@ -483,7 +469,7 @@ module.exports = async function handler(req, res) {
       }
       const body = readBody(req);
       if (body.action === "mint") {
-        const minted = await mintMcpKey({ label: body.label });
+        const minted = await mintMcpKey({ label: body.label, userId });
         sendJson(res, 200, {
           id: minted.id,
           label: minted.label,
@@ -494,7 +480,7 @@ module.exports = async function handler(req, res) {
         return;
       }
       if (body.action === "revoke") {
-        const revoked = await revokeMcpKey(body.id);
+        const revoked = await revokeMcpKey(body.id, userId);
         sendJson(res, 200, publicKey(revoked));
         return;
       }

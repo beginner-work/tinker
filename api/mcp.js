@@ -23,7 +23,7 @@
 "use strict";
 
 const { authenticateSession } = require("./_lib/stytch.js");
-const { isMcpApiKey, authenticateMcpKey } = require("./_lib/mcp-keys.js");
+const { isMcpApiKey, authenticateMcpKey, userIdFromSession } = require("./_lib/mcp-keys.js");
 const { wwwAuthenticate } = require("./_lib/mcp-origin.js");
 const { withResponseLogging } = require("./_lib/log.js");
 const { askFollowups } = require("./_lib/followups.js");
@@ -179,15 +179,21 @@ function extractBearer(header) {
 
 // mcp_ keys stay off the Stytch path, including typos. A dotted session
 // JWT never starts with mcp_, so the two bearers do not overlap.
+// Either bearer resolves to the Tinker user it belongs to.
 async function authorize(token) {
   if (!token) {
     throw Object.assign(new Error("Missing token."), { status: 401 });
   }
   if (isMcpApiKey(token)) {
-    await authenticateMcpKey(token);
-    return;
+    const key = await authenticateMcpKey(token);
+    return { userId: key.userId };
   }
-  await authenticateSession(token);
+  const session = await authenticateSession(token);
+  const userId = userIdFromSession(session);
+  if (!userId) {
+    throw Object.assign(new Error("Session missing user id."), { status: 401 });
+  }
+  return { userId };
 }
 
 function protocolFrom(req) {
@@ -347,7 +353,7 @@ module.exports = withResponseLogging(async function handler(req, res) {
 
   const token = extractBearer(req.headers && req.headers.authorization);
   try {
-    await authorize(token);
+    await authorize(token); // principal is the approving user, or the session user
   } catch (err) {
     const status = err.status || 401;
     const extra = status === 401 ? { "WWW-Authenticate": wwwAuthenticate(req) } : undefined;

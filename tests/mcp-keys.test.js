@@ -15,7 +15,6 @@ const Module = require("node:module");
 process.env.STYTCH_PROJECT_ID = "project-test-mcp-keys";
 process.env.STYTCH_SECRET = "secret-test-not-real";
 process.env.ANTHROPIC_API_KEY = "sk-ant-test-not-real";
-process.env.MCP_KEY_OWNER_USER_ID = "user-owner";
 
 const stytchCalls = [];
 const creates = [];
@@ -54,6 +53,7 @@ const dbStub = {
         id: `key_${rows.length + 1}`,
         keyHash: data.keyHash,
         label: data.label,
+        userId: data.userId,
         createdAt: new Date(Date.UTC(2026, 8, 23, 12, 0, rows.length)),
         revokedAt: null,
       };
@@ -67,9 +67,10 @@ const dbStub = {
       if (where.id) return rows.find((row) => row.id === where.id) || null;
       return null;
     },
-    findMany: async () => {
+    findMany: async ({ where } = {}) => {
       if (storeShouldThrow) throw storeShouldThrow;
       return rows
+        .filter((row) => !where || row.userId === where.userId)
         .slice()
         .sort((a, b) => b.createdAt - a.createdAt)
         .map((row) => ({
@@ -230,7 +231,6 @@ function reset() {
   stytchUserId = "user-owner";
   stytchShouldThrow = null;
   storeShouldThrow = null;
-  process.env.MCP_KEY_OWNER_USER_ID = "user-owner";
   process.env.ANTHROPIC_API_KEY = "sk-ant-test-not-real";
   resetTableCache();
   resetOauthCache();
@@ -260,10 +260,11 @@ test("oauth migration SQL matches the statements the server applies", () => {
 });
 
 test("mint stores the hash only and shows the plaintext once", async () => {
-  const direct = await mintMcpKey({ label: " notebook " });
+  const direct = await mintMcpKey({ label: " notebook ", userId: "user-owner" });
   assert.match(direct.key, /^mcp_[A-Za-z0-9_-]{43}$/);
   assert.equal(direct.key.includes("."), false);
-  assert.deepEqual(Object.keys(creates[0]).sort(), ["keyHash", "label"]);
+  assert.deepEqual(Object.keys(creates[0]).sort(), ["keyHash", "label", "userId"]);
+  assert.equal(creates[0].userId, "user-owner");
   assert.equal(creates[0].label, "notebook");
   assert.equal(creates[0].keyHash, hashKey(direct.key));
   assert.equal(creates[0].keyHash.includes(direct.key), false);
@@ -505,22 +506,37 @@ test("unauthenticated /api/mcp and MCP access are rejected", async () => {
   assert.equal(creates.length, 0);
 });
 
-test("only the owner can mint, and an unconfigured owner id explains how", async () => {
-  stytchUserId = "user-other";
-  const denied = fakeRes();
-  await oauth(accessReq({ body: { action: "mint", label: "notebook" } }), denied);
-  assert.equal(denied.captured.status, 403);
-  assert.equal(denied.captured.body.error, "Only the owner can approve MCP access.");
-  assert.equal(creates.length, 0);
+test("a credential is bound to the approving user and hidden from everyone else", async () => {
+  const minted = fakeRes();
+  await oauth(accessReq({ body: { action: "mint", label: "notebook" } }), minted);
+  assert.equal(minted.captured.status, 200);
+  assert.equal(creates[0].userId, "user-owner");
+  const key = minted.captured.body.key;
 
-  delete process.env.MCP_KEY_OWNER_USER_ID;
-  const unconfigured = fakeRes();
-  await oauth(accessReq({ method: "GET", format: "json" }), unconfigured);
-  assert.equal(unconfigured.captured.status, 503);
-  assert.match(unconfigured.captured.body.error, /MCP_KEY_OWNER_USER_ID/);
-  assert.match(unconfigured.captured.body.error, /account id/);
-  assert.equal(unconfigured.captured.body.userId, "user-other");
-  assert.equal(unconfigured.captured.body.error.includes("\u2014"), false);
+  stytchUserId = "user-other";
+  const hidden = fakeRes();
+  await oauth(accessReq({ method: "GET", format: "json" }), hidden);
+  assert.equal(hidden.captured.status, 200);
+  assert.deepEqual(hidden.captured.body.keys, []);
+  assert.equal(hidden.captured.body.userId, undefined);
+
+  const stolen = fakeRes();
+  await oauth(accessReq({ body: { action: "revoke", id: minted.captured.body.id } }), stolen);
+  assert.equal(stolen.captured.status, 404);
+  assert.equal(rows[0].revokedAt, null);
+
+  const still = fakeRes();
+  await mcp(mcpReq({
+    token: key,
+    body: { jsonrpc: "2.0", id: 30, method: "tools/list" },
+  }), still);
+  assert.equal(still.captured.status, 200);
+
+  stytchUserId = "user-owner";
+  const revoked = fakeRes();
+  await oauth(accessReq({ body: { action: "revoke", id: minted.captured.body.id } }), revoked);
+  assert.equal(revoked.captured.status, 200);
+  assert.ok(revoked.captured.body.revokedAt);
 });
 
 test("a key store outage is 503, not an invalid key", async () => {
@@ -553,6 +569,33 @@ test("initialize tells clients about mcp_ keys without an em dash", async () => 
   assert.match(instructions, /mcp_/);
   assert.equal(instructions.includes("Connect Clay"), false);
   assert.equal(instructions.includes("\u2014"), false);
+});
+
+test("sign-in returns to the same authorize URL, query string included", () => {
+  const auth = fs.readFileSync(path.join(__dirname, "..", "src/renderer/auth.js"), "utf8");
+  const start = auth.indexOf("const MCP_RETURN_KEY");
+  const end = auth.indexOf("function resumeMcpReturn()");
+  assert.ok(start > 0 && end > start);
+  const tokenAt = auth.indexOf("auth.token = data.token");
+  const resumeAt = auth.indexOf("if (resumeMcpReturn()) return;", tokenAt);
+  assert.ok(tokenAt > 0 && resumeAt > tokenAt);
+  const map = {};
+  const sessionStorage = {
+    getItem(key) { return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null; },
+    removeItem(key) { delete map[key]; },
+  };
+  const readBack = new Function(
+    "sessionStorage",
+    `${auth.slice(start, end)}\nreturn takeMcpReturn;`,
+  )(sessionStorage);
+  const back = "/mcp/authorize?response_type=code&redirect_uri="
+    + encodeURIComponent("http://127.0.0.1:9/callback")
+    + "&state=xyz";
+  map.tinker_mcp_return = back;
+  assert.equal(readBack(), back);
+  assert.equal(sessionStorage.getItem("tinker_mcp_return"), null);
+  map.tinker_mcp_return = "/elsewhere";
+  assert.equal(readBack(), "");
 });
 
 test("MCP naming is generic and there is no CLI mint path", () => {
@@ -645,8 +688,12 @@ test("authorization code with PKCE mints a bearer the client stores", async () =
   const page = fakeRes();
   await oauth(oauthReq({ method: "GET", op: "authorize", headers, query }), page);
   assert.equal(page.captured.status, 200);
-  assert.match(page.captured.body, /Notebook/);
-  assert.match(page.captured.body, /Approve/);
+  assert.match(page.captured.body, /Notebook wants to use tinker\./);
+  assert.equal((page.captured.body.match(/<button\b/gi) || []).length, 1);
+  assert.match(page.captured.body, /<button id="mcp-approve" type="button">Approve<\/button>/);
+  assert.equal(page.captured.body.includes("Deny"), false);
+  assert.equal(/<form\b/i.test(page.captured.body), false);
+  assert.equal(/type="checkbox"/i.test(page.captured.body), false);
   assert.equal(page.captured.body.includes("Connect Clay"), false);
   assert.equal(/mcp_[A-Za-z0-9_-]{20,}/.test(page.captured.body), false);
   assert.ok(page.captured.body.indexOf('id="mcp-config"') < page.captured.body.indexOf("mcpConfig()"));
@@ -719,6 +766,7 @@ test("authorization code with PKCE mints a bearer the client stores", async () =
   assert.equal(tokenRes.captured.body.refresh_token, undefined);
   assert.equal(creates[0].keyHash, hashKey(access));
   assert.equal(creates[0].label, "Notebook");
+  assert.equal(creates[0].userId, "user-owner");
 
   const replay = fakeRes();
   await oauth(oauthReq({ method: "POST", op: "token", headers, body: form }), replay);

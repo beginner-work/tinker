@@ -34,8 +34,11 @@ model McpApiKey {
   id        String    @id @default(cuid())
   keyHash   String    @unique
   label     String
+  userId    String
   createdAt DateTime  @default(now())
   revokedAt DateTime?
+
+  @@index([userId])
 }
 
 // Public OAuth clients for MCP. redirectUris is a JSON array of exact

@@ -364,7 +364,7 @@ Clients that cannot finish that redirect, and only accept a static `Authorizatio
 Authorization: Bearer mcp_...
 ```
 
-Approval is for the owner account (`MCP_KEY_OWNER_USER_ID` on the deploy). If the screen says access is not configured, it shows the account id to set. The writing app's own sign-in can still call `/api/mcp`. That path is for the app, not for a connector.
+The credential belongs to the tinker account that approved it. MCP access lists and revokes only that account's credentials. The writing app's own sign-in can still call `/api/mcp`. That path is for the app, not for a connector.
 
 The endpoint is stateless JSON. A missing or revoked bearer is 401. Authenticated GET and DELETE return 405. There is no server-push session.
 
@@ -397,10 +397,8 @@ essay uses only the founder's words before it publishes. MCP returns the
 model's JSON; it does not publish.
 
 `/api/mcp` uses the existing `STYTCH_PROJECT_ID`, `STYTCH_SECRET`,
-`ANTHROPIC_API_KEY`, and `DATABASE_URL`. Approval also needs
-`MCP_KEY_OWNER_USER_ID` set to the owner account. The credential
-tables are created on first use if `prisma migrate deploy` has not
-been run.
+`ANTHROPIC_API_KEY`, and `DATABASE_URL`. The credential tables are
+created on first use if `prisma migrate deploy` has not been run.
 `BEGINNER_MCP_TOKEN` / `BEGINNER_MCP_URL` are only the in-app email
 relay to the beginner Worker. They are not this endpoint.
 

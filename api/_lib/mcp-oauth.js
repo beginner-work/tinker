@@ -378,7 +378,8 @@ async function exchangeCode({ origin, body }) {
   } catch (err) {
     throw storeDown(err);
   }
-  const minted = await mintMcpKey({ label: stored.label });
+  if (!stored.userId) throw invalidGrant();
+  const minted = await mintMcpKey({ label: stored.label, userId: stored.userId });
   return {
     access_token: minted.key,
     token_type: "Bearer",

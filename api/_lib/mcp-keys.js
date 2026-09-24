@@ -1,9 +1,10 @@
 /* Durable MCP API keys.
  *
  * Plaintext keys are shown once, at mint, and never stored. Postgres
- * keeps the SHA-256 hex hash, a label, createdAt, and revokedAt
- * (null until revoke). Lookup is by hash. A non-null revokedAt
- * rejects the key on the next request.
+ * keeps the SHA-256 hex hash, a label, the approving user's id,
+ * createdAt, and revokedAt (null until revoke). Lookup is by hash.
+ * A non-null revokedAt rejects the key on the next request.
+ * List and revoke only see rows for that user.
  *
  * The table matches prisma/migrations/20260923120000_add_mcp_api_keys.
  * Vercel builds do not run migrate deploy (the Neon pooler advisory
@@ -25,12 +26,15 @@ const TABLE_STATEMENTS = [
     "id" TEXT NOT NULL,
     "keyHash" TEXT NOT NULL,
     "label" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "revokedAt" TIMESTAMP(3),
 
     CONSTRAINT "McpApiKey_pkey" PRIMARY KEY ("id")
 )`,
+  `ALTER TABLE "McpApiKey" ADD COLUMN IF NOT EXISTS "userId" TEXT`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "McpApiKey_keyHash_key" ON "McpApiKey"("keyHash")`,
+  `CREATE INDEX IF NOT EXISTS "McpApiKey_userId_idx" ON "McpApiKey"("userId")`,
 ];
 
 let ensuring = null;
@@ -57,11 +61,6 @@ function generateKey() {
   return KEY_PREFIX + crypto.randomBytes(32).toString("base64url");
 }
 
-function ownerIds() {
-  const raw = process.env.MCP_KEY_OWNER_USER_ID || "";
-  return raw.split(",").map((part) => part.trim()).filter(Boolean);
-}
-
 function userIdFromSession(session) {
   return (
     (session && session.session && session.session.user_id) ||
@@ -70,29 +69,11 @@ function userIdFromSession(session) {
   );
 }
 
-function ownerStatus(userId) {
-  const ids = ownerIds();
-  return {
-    configured: ids.length > 0,
-    isOwner: Boolean(userId) && ids.includes(userId),
-  };
-}
-
-function assertOwner(userId) {
-  const status = ownerStatus(userId);
-  if (!status.configured) {
-    throw Object.assign(
-      new Error(
-        "MCP access is not configured. Set MCP_KEY_OWNER_USER_ID to your account id.",
-      ),
-      { status: 503, userId },
-    );
+function requireUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw Object.assign(new Error("Sign in to tinker first."), { status: 401 });
   }
-  if (!status.isOwner) {
-    throw Object.assign(new Error("Only the owner can approve MCP access."), {
-      status: 403,
-    });
-  }
+  return userId.trim();
 }
 
 function normalizeLabel(label) {
@@ -142,15 +123,16 @@ function resetTableCache() {
   ensuring = null;
 }
 
-async function mintMcpKey({ label }) {
+async function mintMcpKey({ label, userId }) {
   const clean = normalizeLabel(label);
+  const owner = requireUserId(userId);
   const key = generateKey();
   const keyHash = hashKey(key);
   await ensureTable();
   let row;
   try {
     row = await db().mcpApiKey.create({
-      data: { keyHash, label: clean },
+      data: { keyHash, label: clean, userId: owner },
     });
   } catch (err) {
     throw storeDown(err);
@@ -158,12 +140,14 @@ async function mintMcpKey({ label }) {
   return {
     id: row.id,
     label: row.label,
+    userId: row.userId,
     createdAt: row.createdAt,
     key,
   };
 }
 
-async function revokeMcpKey(id) {
+async function revokeMcpKey(id, userId) {
+  const owner = requireUserId(userId);
   if (typeof id !== "string" || !id.trim()) {
     throw Object.assign(new Error("Key id is required."), { status: 400 });
   }
@@ -175,7 +159,7 @@ async function revokeMcpKey(id) {
   } catch (err) {
     throw storeDown(err);
   }
-  if (!existing) {
+  if (!existing || existing.userId !== owner) {
     throw Object.assign(new Error("No API key with that id."), { status: 404 });
   }
   if (existing.revokedAt) return existing;
@@ -189,10 +173,12 @@ async function revokeMcpKey(id) {
   }
 }
 
-async function listMcpKeys() {
+async function listMcpKeys(userId) {
+  const owner = requireUserId(userId);
   await ensureTable();
   try {
     return await db().mcpApiKey.findMany({
+      where: { userId: owner },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -217,8 +203,8 @@ async function authenticateMcpKey(token) {
   } catch (err) {
     throw storeDown(err);
   }
-  if (!row || row.revokedAt) throw invalidKey();
-  return { id: row.id, label: row.label };
+  if (!row || row.revokedAt || !row.userId) throw invalidKey();
+  return { id: row.id, label: row.label, userId: row.userId };
 }
 
 module.exports = {
@@ -228,10 +214,7 @@ module.exports = {
   hashKey,
   isMcpApiKey,
   isWellFormedMcpKey,
-  ownerIds,
   userIdFromSession,
-  ownerStatus,
-  assertOwner,
   ensureTable,
   resetTableCache,
   mintMcpKey,
