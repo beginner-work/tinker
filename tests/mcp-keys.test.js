@@ -668,7 +668,9 @@ test("approve 401 clears the stale token and returns through sign-in", async () 
   assert.equal(JSON.parse(stale.fetches[0].opts.body).decision, "approve");
   assert.equal(stale.store.tinker_jwt, undefined);
   assert.equal(stale.assigned, "/");
+  assert.equal(stale.assigns.length, 1);
   assert.equal(stale.session.tinker_mcp_return, expectedReturn);
+  assert.equal(stale.session.tinker_mcp_signin_retry, expectedReturn);
   assert.equal(stale.statusText.includes("Session expired"), false);
 
   const auth = fs.readFileSync(path.join(__dirname, "..", "src/renderer/auth.js"), "utf8");
@@ -716,6 +718,93 @@ test("approve 401 clears the stale token and returns through sign-in", async () 
   assert.equal(rejected.statusText, "redirect_uri is not allowed.");
 });
 
+test("approve 401 after a fresh sign-in shows an error instead of looping", async () => {
+  const headers = { host: "tinker.test", "x-forwarded-proto": "https" };
+  const redirectUri = "http://127.0.0.1:9/callback";
+  const resource = "https://tinker.test/api/mcp";
+  const challenge = crypto.createHash("sha256").update(`v${"b".repeat(50)}`).digest("base64url");
+  const registered = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "register",
+    headers,
+    body: {
+      client_name: "Notebook",
+      redirect_uris: [redirectUri],
+      token_endpoint_auth_method: "none",
+      grant_types: ["authorization_code"],
+      response_types: ["code"],
+    },
+  }), registered);
+  const query = {
+    response_type: "code",
+    client_id: registered.captured.body.client_id,
+    redirect_uri: redirectUri,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    resource,
+    scope: "mcp",
+    state: "xyz",
+  };
+  const page = fakeRes();
+  await oauth(oauthReq({ method: "GET", op: "authorize", headers, query }), page);
+  assert.equal((page.captured.body.match(/<button\b/gi) || []).length, 1);
+  assert.equal(/<form\b/i.test(page.captured.body), false);
+  const search = `?${new URLSearchParams(query).toString()}`;
+  const expectedReturn = `/mcp/authorize${search}`;
+  const signInError = "Couldn't confirm your Tinker sign-in. Try signing out and back in.";
+  const denied = { status: 401, body: { error: "Session expired." } };
+
+  const first = await driveAuthorizePage(page.captured.body, {
+    token: "stale-session",
+    search,
+    response: denied,
+  });
+  assert.equal(first.assigns.length, 1);
+  assert.equal(first.assigned, "/");
+  assert.equal(first.session.tinker_mcp_signin_retry, expectedReturn);
+
+  const returned = await driveAuthorizePage(page.captured.body, {
+    token: "fresh-session",
+    search,
+    session: { tinker_mcp_signin_retry: expectedReturn },
+    response: denied,
+  });
+  assert.equal(returned.clicked, true);
+  assert.equal(returned.fetches.length, 1);
+  assert.equal(returned.fetches[0].opts.headers.Authorization, "Bearer fresh-session");
+  assert.equal(returned.assigns.length, 0);
+  assert.equal(returned.assigned, "");
+  assert.equal(returned.store.tinker_jwt, "fresh-session");
+  assert.equal(returned.session.tinker_mcp_signin_retry, undefined);
+  assert.equal(returned.session.tinker_mcp_return, undefined);
+  assert.equal(returned.statusText, signInError);
+
+  const stillExpired = await driveAuthorizePage(page.captured.body, {
+    token: jwtWithExp(Math.floor(Date.now() / 1000) - 120),
+    search,
+    session: { tinker_mcp_signin_retry: expectedReturn },
+  });
+  assert.equal(stillExpired.clicked, false);
+  assert.equal(stillExpired.fetches.length, 0);
+  assert.equal(stillExpired.assigns.length, 0);
+  assert.equal(stillExpired.assigned, "");
+  assert.equal(stillExpired.session.tinker_mcp_signin_retry, undefined);
+  assert.equal(stillExpired.session.tinker_mcp_return, undefined);
+  assert.equal(stillExpired.statusText, signInError);
+  assert.equal(stillExpired.store.tinker_jwt.split(".").length, 3);
+
+  const otherUrl = await driveAuthorizePage(page.captured.body, {
+    token: "stale-session",
+    search,
+    session: { tinker_mcp_signin_retry: "/mcp/authorize?client_id=someone-else" },
+    response: denied,
+  });
+  assert.equal(otherUrl.assigns.length, 1);
+  assert.equal(otherUrl.assigned, "/");
+  assert.equal(otherUrl.session.tinker_mcp_signin_retry, expectedReturn);
+});
+
 test("MCP naming is generic and there is no CLI mint path", () => {
   const root = path.join(__dirname, "..");
   const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
@@ -755,14 +844,15 @@ function jwtWithExp(exp) {
   return `${header}.${payload}.sig`;
 }
 
-async function driveAuthorizePage(html, { token, search, response, click = false } = {}) {
+async function driveAuthorizePage(html, { token, search, response, click = false, session: initialSession } = {}) {
   const match = html.match(/<script>([\s\S]*?)<\/script>/);
   assert.ok(match, "page has an inline script");
   const config = html.match(/id="mcp-config">([\s\S]*?)<\/script>/);
   assert.ok(config, "page has mcp-config");
   const store = { tinker_jwt: token };
-  const session = {};
+  const session = { ...(initialSession || {}) };
   const fetches = [];
+  const assigns = [];
   let assigned = "";
   const statusEl = { textContent: "" };
   const listeners = {};
@@ -778,11 +868,15 @@ async function driveAuthorizePage(html, { token, search, response, click = false
     sessionStorage: {
       getItem(key) { return Object.prototype.hasOwnProperty.call(session, key) ? session[key] : null; },
       setItem(key, value) { session[key] = String(value); },
+      removeItem(key) { delete session[key]; },
     },
     location: {
       pathname: "/mcp/authorize",
       search,
-      assign(url) { assigned = String(url); },
+      assign(url) {
+        assigned = String(url);
+        assigns.push(assigned);
+      },
     },
     document: {
       getElementById(id) {
@@ -811,6 +905,7 @@ async function driveAuthorizePage(html, { token, search, response, click = false
   await new Promise((resolve) => setImmediate(resolve));
   return {
     assigned,
+    assigns,
     session,
     store,
     fetches,
