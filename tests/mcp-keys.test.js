@@ -698,6 +698,38 @@ test("authorization code with PKCE mints a bearer the client stores", async () =
   assert.equal(rejected.captured.status, 400);
   assert.equal(rejected.captured.body.error, "invalid_redirect_uri");
 
+  const plainHttp = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "register",
+    body: { redirect_uris: ["http://evil.example/callback"] },
+  }), plainHttp);
+  assert.equal(plainHttp.captured.status, 400);
+  assert.equal(plainHttp.captured.body.error, "invalid_redirect_uri");
+
+  const httpsRedirect = "https://hooks.grok-bot.example/oauth/callback";
+  const grok = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "register",
+    headers,
+    body: {
+      client_name: "Grok Bot",
+      redirect_uris: [httpsRedirect],
+      token_endpoint_auth_method: "none",
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      scope: "mcp",
+    },
+  }), grok);
+  assert.equal(grok.captured.status, 201);
+  assert.equal(grok.captured.body.client_secret, undefined);
+  assert.deepEqual(grok.captured.body.grant_types, ["authorization_code"]);
+  assert.deepEqual(grok.captured.body.redirect_uris, [httpsRedirect]);
+  assert.equal(grok.captured.body.token_endpoint_auth_method, "none");
+  assert.equal(grok.captured.headers["access-control-allow-origin"], "*");
+  assert.equal(grok.captured.headers["content-type"], "application/json");
+
   const meta = fakeRes();
   await oauth(oauthReq({ method: "GET", op: "resource", headers }), meta);
   assert.equal(meta.captured.body.resource, resource);
@@ -717,6 +749,7 @@ test("authorization code with PKCE mints a bearer the client stores", async () =
     code_challenge: challenge,
     code_challenge_method: "S256",
     resource,
+    scope: "mcp",
     state: "xyz",
   };
   const page = fakeRes();
@@ -774,6 +807,8 @@ test("authorization code with PKCE mints a bearer the client stores", async () =
   const redir = new URL(approved.captured.body.redirect);
   assert.equal(redir.origin + redir.pathname, "http://127.0.0.1:9/callback");
   assert.equal(redir.searchParams.get("state"), "xyz");
+  assert.deepEqual([...redir.searchParams.keys()].sort(), ["code", "state"]);
+  assert.equal(approved.captured.headers["content-type"], "application/json");
   const code = redir.searchParams.get("code");
   assert.ok(code);
   assert.equal(JSON.stringify(codes).includes(code), false);
@@ -808,7 +843,12 @@ test("authorization code with PKCE mints a bearer the client stores", async () =
   const access = tokenRes.captured.body.access_token;
   assert.match(access, /^mcp_[A-Za-z0-9_-]{43}$/);
   assert.equal(tokenRes.captured.body.token_type, "Bearer");
+  assert.equal(tokenRes.captured.body.scope, "mcp");
+  assert.equal(tokenRes.captured.body.resource, resource);
+  assert.equal(tokenRes.captured.body.expires_in, undefined);
   assert.equal(tokenRes.captured.body.refresh_token, undefined);
+  assert.equal(tokenRes.captured.headers["cache-control"], "no-store");
+  assert.equal(tokenRes.captured.headers["content-type"], "application/json");
   assert.equal(creates[0].keyHash, hashKey(access));
   assert.equal(creates[0].label, "Notebook");
   assert.equal(creates[0].userId, "user-owner");
@@ -850,4 +890,82 @@ test("authorization code with PKCE mints a bearer the client stores", async () =
   }), after);
   assert.equal(after.captured.status, 401);
   assert.equal(after.captured.body.error, "Invalid API key.");
+
+  const grokVerifier = `g${"b".repeat(50)}`;
+  const grokChallenge = crypto.createHash("sha256").update(grokVerifier).digest("base64url");
+  const grokQuery = {
+    response_type: "code",
+    client_id: grok.captured.body.client_id,
+    redirect_uri: httpsRedirect,
+    code_challenge: grokChallenge,
+    code_challenge_method: "S256",
+    resource,
+    state: "grok-state",
+  };
+  const grokPage = fakeRes();
+  await oauth(oauthReq({ method: "GET", op: "authorize", headers, query: grokQuery }), grokPage);
+  assert.equal(grokPage.captured.status, 200);
+  assert.match(grokPage.captured.body, /Grok Bot wants to use tinker\./);
+  assert.equal((grokPage.captured.body.match(/<button\b/gi) || []).length, 1);
+  assert.equal(grokPage.captured.body.includes("safe to close"), false);
+
+  const badScope = fakeRes();
+  await oauth(oauthReq({
+    method: "GET",
+    op: "authorize",
+    headers,
+    query: { ...grokQuery, scope: "openid" },
+  }), badScope);
+  assert.equal(badScope.captured.status, 400);
+  assert.match(badScope.captured.body, /scope must be mcp/);
+
+  const grokApproved = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "authorize",
+    token: "good-token",
+    headers,
+    body: { ...grokQuery, decision: "approve" },
+  }), grokApproved);
+  const grokRedir = new URL(grokApproved.captured.body.redirect);
+  assert.equal(grokRedir.origin + grokRedir.pathname, "https://hooks.grok-bot.example/oauth/callback");
+  assert.equal(grokRedir.searchParams.get("state"), "grok-state");
+  assert.deepEqual([...grokRedir.searchParams.keys()].sort(), ["code", "state"]);
+  const grokCode = grokRedir.searchParams.get("code");
+
+  const grokToken = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "token",
+    headers,
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code: grokCode,
+      redirect_uri: httpsRedirect,
+      client_id: grokQuery.client_id,
+      code_verifier: grokVerifier,
+      resource,
+      scope: "mcp",
+    }).toString(),
+  }), grokToken);
+  assert.equal(grokToken.captured.status, 200);
+  assert.equal(grokToken.captured.body.token_type, "Bearer");
+  assert.equal(grokToken.captured.body.resource, resource);
+  assert.equal(grokToken.captured.body.expires_in, undefined);
+  assert.equal(grokToken.captured.body.refresh_token, undefined);
+  assert.match(grokToken.captured.body.access_token, /^mcp_/);
+
+  const preflight = fakeRes();
+  await oauth(oauthReq({ method: "OPTIONS", op: "token" }), preflight);
+  assert.equal(preflight.captured.status, 204);
+  assert.equal(preflight.captured.headers["access-control-allow-origin"], "*");
+  assert.match(preflight.captured.headers["access-control-allow-headers"], /Content-Type/);
+  assert.match(preflight.captured.headers["access-control-allow-methods"], /POST/);
+
+  const mcpPreflight = fakeRes();
+  await mcp(mcpReq({ method: "OPTIONS" }), mcpPreflight);
+  assert.equal(mcpPreflight.captured.status, 204);
+  assert.equal(mcpPreflight.captured.headers["access-control-allow-origin"], "*");
+  assert.match(mcpPreflight.captured.headers["access-control-expose-headers"], /WWW-Authenticate/);
+  assert.match(mcpPreflight.captured.headers["access-control-allow-headers"], /Authorization/);
 });

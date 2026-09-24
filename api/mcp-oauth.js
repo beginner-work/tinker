@@ -99,6 +99,7 @@ function publicKey(row) {
 function sendJson(res, status, body) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
   res.setHeader("Content-Type", "application/json");
   res.status(status).json(body);
 }
@@ -378,7 +379,10 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Authorization, Content-Type, Accept, MCP-Protocol-Version",
+    );
     res.setHeader("Access-Control-Max-Age", "86400");
     res.status(204).end();
     return;
@@ -414,7 +418,7 @@ module.exports = async function handler(req, res) {
       if (req.method === "GET") {
         const parsed = parseAuthorizeParams(params, origin);
         const client = await clientForAuthorize(parsed);
-        sendHtml(res, 200, authorizeHtml(client.clientName, {
+        const approve = {
           response_type: "code",
           client_id: parsed.clientId,
           redirect_uri: parsed.redirectUri,
@@ -422,7 +426,9 @@ module.exports = async function handler(req, res) {
           code_challenge_method: "S256",
           resource: parsed.resource,
           state: parsed.state,
-        }));
+        };
+        if (params.scope) approve.scope = parsed.scope;
+        sendHtml(res, 200, authorizeHtml(client.clientName, approve));
         return;
       }
       if (req.method !== "POST") {

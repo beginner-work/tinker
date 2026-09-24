@@ -140,20 +140,34 @@ function normalizeRedirects(uris) {
   return clean;
 }
 
+function acceptedScope(scope) {
+  if (scope == null || scope === "") return "mcp";
+  const tokens = String(scope).trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 1 && tokens[0] === "mcp") return "mcp";
+  throw oauthError(400, "invalid_scope", "scope must be mcp.");
+}
+
 function metadataGrants(body) {
   const grants = body.grant_types;
-  if (grants == null) return;
-  if (!Array.isArray(grants) || grants.length !== 1 || grants[0] !== "authorization_code") {
-    throw oauthError(
-      400,
-      "invalid_client_metadata",
-      "grant_types must be authorization_code. This server does not issue refresh tokens.",
-    );
+  if (grants != null) {
+    const allowed = new Set(["authorization_code", "refresh_token"]);
+    const ok = Array.isArray(grants)
+      && grants.length > 0
+      && grants.includes("authorization_code")
+      && grants.every((grant) => allowed.has(grant));
+    if (!ok) {
+      throw oauthError(
+        400,
+        "invalid_client_metadata",
+        "grant_types must include authorization_code. This server does not issue refresh tokens.",
+      );
+    }
   }
   const responses = body.response_types;
-  if (responses == null) return;
-  if (!Array.isArray(responses) || responses.length !== 1 || responses[0] !== "code") {
-    throw oauthError(400, "invalid_client_metadata", "response_types must be code.");
+  if (responses != null) {
+    if (!Array.isArray(responses) || responses.length !== 1 || responses[0] !== "code") {
+      throw oauthError(400, "invalid_client_metadata", "response_types must be code.");
+    }
   }
   const method = body.token_endpoint_auth_method;
   if (method != null && method !== "none") {
@@ -162,6 +176,13 @@ function metadataGrants(body) {
       "invalid_client_metadata",
       "token_endpoint_auth_method must be none. Use PKCE.",
     );
+  }
+  if (body.scope != null && body.scope !== "") {
+    try {
+      acceptedScope(body.scope);
+    } catch (err) {
+      throw oauthError(400, "invalid_client_metadata", err.message);
+    }
   }
 }
 
@@ -242,6 +263,7 @@ function parseAuthorizeParams(input, origin) {
   if (source.resource !== expected) {
     throw oauthError(400, "invalid_target", `resource must be ${expected}`);
   }
+  const scope = acceptedScope(source.scope);
   let state = "";
   if (source.state != null && source.state !== "") {
     state = String(source.state);
@@ -254,6 +276,7 @@ function parseAuthorizeParams(input, origin) {
     redirectUri,
     codeChallenge,
     resource: expected,
+    scope,
     state,
   };
 }
@@ -354,6 +377,7 @@ async function exchangeCode({ origin, body }) {
   if (source.resource !== expected) {
     throw oauthError(400, "invalid_target", `resource must be ${expected}`);
   }
+  acceptedScope(source.scope);
   const code = typeof source.code === "string" ? source.code : "";
   if (!code || code.length > 200) throw invalidGrant();
   await ensureOauthTables();
@@ -384,6 +408,7 @@ async function exchangeCode({ origin, body }) {
     access_token: minted.key,
     token_type: "Bearer",
     scope: "mcp",
+    resource: expected,
   };
 }
 

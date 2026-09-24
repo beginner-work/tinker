@@ -352,7 +352,7 @@ Add this URL in the connector:
 https://tinker.beginner.work/api/mcp
 ```
 
-A client that speaks MCP OAuth gets a 401 whose `WWW-Authenticate` header points at the protected-resource metadata. It registers, sends you to tinker to sign in, and you approve. The client stores the credential. You do not paste a sign-in token.
+A client that speaks MCP OAuth gets a 401 whose `WWW-Authenticate` header points at the protected-resource metadata. It registers any https redirect URI, or an http loopback, with no client secret and no host allowlist. Tinker sends you to sign in, then one Approve button. The browser goes straight back to the client's redirect URI with `code` and `state`. The token response is `access_token` and `token_type` of `Bearer`, plus the `resource`. There is no `expires_in` and no refresh token. The client stores the credential. You do not paste a sign-in token.
 
 Revoke from **MCP access** in the profile menu, or open `/mcp/access`. A revoked credential fails on the next request.
 
