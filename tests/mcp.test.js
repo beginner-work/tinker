@@ -126,8 +126,48 @@ function anthropicCalls() {
   return fetchCalls.filter((c) => c.url.includes("api.anthropic.com"));
 }
 
+function installLinkedInDraftDb() {
+  const Module = require("node:module");
+  const abs = path.join(__dirname, "..", "api", "_lib", "db.js");
+  const draftRows = [];
+  let n = 0;
+  const mod = new Module(abs);
+  mod.filename = abs;
+  mod.loaded = true;
+  mod.exports = {
+    $executeRawUnsafe: async () => 0,
+    linkedInDraft: {
+      async create({ data }) {
+        const row = Object.assign({
+          id: `draft_${++n}`,
+          notes: "",
+          scheduledAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }, data);
+        draftRows.push(row);
+        return row;
+      },
+      async findUnique({ where }) {
+        return draftRows.find((row) => row.id === where.id) || null;
+      },
+      async findMany({ where } = {}) {
+        return draftRows.filter((row) => !where || !where.userId || row.userId === where.userId);
+      },
+      async update({ where, data }) {
+        const row = draftRows.find((item) => item.id === where.id);
+        if (!row) throw Object.assign(new Error("not found"), { code: "P2025" });
+        Object.assign(row, data, { updatedAt: new Date() });
+        return row;
+      },
+    },
+  };
+  require.cache[abs] = mod;
+}
+
 test.before(() => {
   global.fetch = mockFetch;
+  installLinkedInDraftDb();
 });
 
 test.after(() => {

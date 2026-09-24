@@ -118,7 +118,8 @@ test("the server prompt encodes voice, niche, and draft-only", () => {
   assert.match(SYSTEM_PROMPT, /B2B portals are trust stores/);
   assert.match(SYSTEM_PROMPT, /Developer-first enterprise/);
   assert.match(SYSTEM_PROMPT, /direct message/i);
-  assert.match(SYSTEM_PROMPT, /Stanley posts later/);
+  assert.match(SYSTEM_PROMPT, /Tinker stores the draft/);
+  assert.equal(SYSTEM_PROMPT.includes("Stanley"), false);
   assert.match(SYSTEM_PROMPT, /do not post/i);
   assert.match(SYSTEM_PROMPT, /no client system prompt/i);
   assert.equal(SYSTEM_PROMPT.includes("api.linkedin.com"), false);
@@ -326,7 +327,8 @@ test("the sidebar composer posts to converse and does not own the prompt", () =>
   assert.match(styles, /body:has\(#stage > \[aria-label="LinkedIn draft"\]\) \.mode-nav/);
   assert.match(styles, /pointer-events:\s*none !important/);
   assert.match(ui, /tinker_jwt/);
-  assert.match(ui, /Stanley/);
+  assert.match(ui, /Tinker keeps/);
+  assert.equal(ui.includes("Stanley"), false);
   assert.equal(ui.includes("\u2014"), false);
   assert.equal(ui.includes("Elevating Developer Fintech"), false);
   assert.equal(/system\s*:/.test(ui), false);

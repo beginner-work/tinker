@@ -26,6 +26,7 @@ let stytchUserId = "user-owner";
 let stytchShouldThrow = null;
 let storeShouldThrow = null;
 const rows = [];
+const draftRows = [];
 const clients = [];
 const codes = [];
 
@@ -91,6 +92,28 @@ const dbStub = {
         throw err;
       }
       if (data.revokedAt) row.revokedAt = data.revokedAt;
+      return row;
+    },
+  },
+  linkedInDraft: {
+    create: async ({ data }) => {
+      if (storeShouldThrow) throw storeShouldThrow;
+      const row = Object.assign({
+        id: `ld_${draftRows.length + 1}`,
+        notes: "",
+        scheduledAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }, data);
+      draftRows.push(row);
+      return row;
+    },
+    findUnique: async ({ where }) => draftRows.find((row) => row.id === where.id) || null,
+    findMany: async ({ where } = {}) => draftRows.filter((row) => !where || row.userId === where.userId),
+    update: async ({ where, data }) => {
+      const row = draftRows.find((item) => item.id === where.id);
+      if (!row) throw Object.assign(new Error("not found"), { code: "P2025" });
+      Object.assign(row, data, { updatedAt: new Date() });
       return row;
     },
   },
@@ -227,6 +250,7 @@ function reset() {
   findUniques.length = 0;
   sql.length = 0;
   rows.length = 0;
+  draftRows.length = 0;
   clients.length = 0;
   codes.length = 0;
   stytchUserId = "user-owner";
