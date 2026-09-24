@@ -207,6 +207,26 @@ function mcpSendHome() {
   catch (e) {}
   location.assign("/");
 }
+function mcpClearToken() {
+  try { localStorage.removeItem("tinker_jwt"); }
+  catch (e) {}
+}
+function mcpTokenExpired(token) {
+  var parts = String(token || "").split(".");
+  if (parts.length !== 3) return false;
+  try {
+    var segment = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    while (segment.length % 4) segment += "=";
+    var payload = JSON.parse(atob(segment));
+    return typeof payload.exp === "number" && payload.exp * 1000 <= Date.now();
+  } catch (e) {
+    return false;
+  }
+}
+function mcpRequireSignIn() {
+  mcpClearToken();
+  mcpSendHome();
+}
 function mcpConfig() {
   return JSON.parse(document.getElementById("mcp-config").textContent);
 }
@@ -220,7 +240,7 @@ function authorizeHtml(clientName, approve) {
       (function () {
       ${SESSION_SCRIPT}
       var token = mcpToken();
-      if (!token) { mcpSendHome(); return; }
+      if (!token || mcpTokenExpired(token)) { mcpRequireSignIn(); return; }
       var status = document.getElementById("mcp-status");
       document.getElementById("mcp-approve").addEventListener("click", function () {
         var cfg = mcpConfig();
@@ -230,8 +250,13 @@ function authorizeHtml(clientName, approve) {
           headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
           body: JSON.stringify(Object.assign({ decision: "approve" }, cfg.approve))
         }).then(function (res) {
-          return res.json().then(function (body) { return { body: body }; });
+          return res.json().then(function (body) {
+            return { status: res.status, body: body };
+          }, function () {
+            return { status: res.status, body: null };
+          });
         }).then(function (result) {
+          if (result.status === 401) { mcpRequireSignIn(); return; }
           if (result.body && result.body.redirect) {
             location.assign(result.body.redirect);
             return;
