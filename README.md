@@ -19,7 +19,7 @@ The core surfaces live here together:
   email, and the rest of the product surface).
 - **Developer-facing APIs** — that same `api/` layer is what agents and
   tooling call. `/api/mcp` is a Streamable HTTP MCP façade on this
-  deploy (follow-up questions, Clay connector key). Project MCP config
+  deploy (follow-up questions and LinkedIn drafts). Project MCP config
   (e.g. Browserbase) is for debugging against this app. Neither one is
   the beginner mail/domains Worker.
 
@@ -344,42 +344,29 @@ caching, so repeat queries skip the cold-start cost.
 If `ANTHROPIC_API_KEY` isn't set, the search pane shows a friendly
 error explaining how to fix it.
 
-## MCP (Clay)
+## MCP
 
-Clay connects to tinker like any other MCP server. The connector is a URL and one header.
-
-1. Open [tinker](https://tinker.beginner.work) and use **Connect Clay** in the profile menu.
-2. Mint a key. Copy the header. Leave the screen and the full key is gone. A refresh will not show it again.
-3. In Clay, AddMcpServer with only these two fields:
+Add this URL in the connector:
 
 ```
 https://tinker.beginner.work/api/mcp
 ```
 
+A client that speaks MCP OAuth gets a 401 whose `WWW-Authenticate` header points at the protected-resource metadata. It registers, sends you to tinker to sign in, and you approve. The client stores the credential. You do not paste a sign-in token.
+
+Revoke from **MCP access** in the profile menu, or open `/mcp/access`. A revoked credential fails on the next request.
+
+The happy path is authorization code with PKCE S256 and dynamic client registration. The access token is an opaque `mcp_` bearer. The server stores a SHA-256 hash, a label, and the time it was created or revoked. It does not keep the plaintext, and it does not issue a refresh token. The credential lasts until you revoke it.
+
+Clients that cannot finish that redirect, and only accept a static `Authorization` header, use the same MCP access page. Create a credential there. It is shown once, for that header only.
+
 ```
 Authorization: Bearer mcp_...
 ```
 
-```json
-{
-  "mcpServers": {
-    "tinker": {
-      "url": "https://tinker.beginner.work/api/mcp",
-      "headers": {
-        "Authorization": "Bearer mcp_..."
-      }
-    }
-  }
-}
-```
+Approval is for the owner account (`MCP_KEY_OWNER_USER_ID` on the deploy). If the screen says access is not configured, it shows the account id to set. The writing app's own sign-in can still call `/api/mcp`. That path is for the app, not for a connector.
 
-Revoke on that same screen. The key stops working on the next request.
-
-The server stores a SHA-256 hash, a label, and the time the key was created or revoked. It does not keep the plaintext.
-
-Connect Clay is for the owner account (`MCP_KEY_OWNER_USER_ID` on the deploy). If the screen says minting is not configured, it shows the account id to set. The writing app's own sign-in can still call `/api/mcp`. That path is for the app, not for Clay.
-
-The endpoint is stateless JSON. A missing, expired, or revoked bearer is 401. Authenticated GET and DELETE return 405. There is no server-push session.
+The endpoint is stateless JSON. A missing or revoked bearer is 401. Authenticated GET and DELETE return 405. There is no server-push session.
 
 Tools:
 
@@ -410,9 +397,10 @@ essay uses only the founder's words before it publishes. MCP returns the
 model's JSON; it does not publish.
 
 `/api/mcp` uses the existing `STYTCH_PROJECT_ID`, `STYTCH_SECRET`,
-`ANTHROPIC_API_KEY`, and `DATABASE_URL`. Connect Clay also needs
-`MCP_KEY_OWNER_USER_ID` set to the owner account. The key table is
-created on first use if `prisma migrate deploy` has not been run.
+`ANTHROPIC_API_KEY`, and `DATABASE_URL`. Approval also needs
+`MCP_KEY_OWNER_USER_ID` set to the owner account. The credential
+tables are created on first use if `prisma migrate deploy` has not
+been run.
 `BEGINNER_MCP_TOKEN` / `BEGINNER_MCP_URL` are only the in-app email
 relay to the beginner Worker. They are not this endpoint.
 
@@ -445,7 +433,7 @@ npx vercel dev      # http://localhost:3000
 ```
 
 Sign in, open **LinkedIn draft** in the sidebar, and submit a few
-bullets. Clay uses the key from Connect Clay:
+bullets. A connector that has been approved calls the same tool:
 
 ```bash
 curl -s https://tinker.beginner.work/api/mcp \
@@ -490,7 +478,7 @@ that wants the mark as an SVG string.
 │   ├── auth/            # Phone/PIN via Stytch (identity wire-up)
 │   ├── claude/          # Proxied Claude converse (linkedin mode included)
 │   ├── mcp.js           # Streamable HTTP MCP (ask_followups, draft_linkedin_post)
-│   ├── mcp-keys.js      # Owner-only mint, list, and revoke for mcp_ keys
+│   ├── mcp-oauth.js     # MCP authorize, token, and revoke
 │   ├── _lib/linkedin-draft.js  # Shared LinkedIn prompt + draft call
 │   ├── search.js        # Search essays
 │   ├── pitches/ …       # Pitch / publish / feed / user-data / …

@@ -145,7 +145,10 @@ test("a malformed mcp_ bearer is rejected and is not sent to Stytch", async () =
   await handler(rpcReq({ method: "tools/list", id: 1, token: "mcp_not-a-real-key" }), res);
   assert.equal(res.captured.status, 401);
   assert.equal(res.captured.body.error, "Invalid API key.");
-  assert.equal(res.captured.headers["www-authenticate"], "Bearer");
+  assert.match(
+    res.captured.headers["www-authenticate"],
+    /^Bearer resource_metadata="https:\/\/tinker\.beginner\.work\/\.well-known\/oauth-protected-resource\/api\/mcp"$/,
+  );
   assert.equal(fetchCalls.length, 0);
 });
 
@@ -159,7 +162,10 @@ test("missing bearer is rejected before any upstream call", async () => {
   }, res);
   assert.equal(res.captured.status, 401);
   assert.equal(res.captured.body.error, "Missing token.");
-  assert.equal(res.captured.headers["www-authenticate"], "Bearer");
+  assert.match(
+    res.captured.headers["www-authenticate"],
+    /^Bearer resource_metadata="https:\/\/tinker\.beginner\.work\/\.well-known\/oauth-protected-resource\/api\/mcp"$/,
+  );
   assert.equal(fetchCalls.length, 0);
 });
 

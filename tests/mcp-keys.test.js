@@ -9,7 +9,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { spawnSync } = require("node:child_process");
+const crypto = require("node:crypto");
 const Module = require("node:module");
 
 process.env.STYTCH_PROJECT_ID = "project-test-mcp-keys";
@@ -26,6 +26,8 @@ let stytchUserId = "user-owner";
 let stytchShouldThrow = null;
 let storeShouldThrow = null;
 const rows = [];
+const clients = [];
+const codes = [];
 
 const stytchStub = {
   authenticateSession: async (token) => {
@@ -90,6 +92,52 @@ const dbStub = {
       return row;
     },
   },
+  mcpOAuthClient: {
+    create: async ({ data }) => {
+      if (storeShouldThrow) throw storeShouldThrow;
+      const row = {
+        id: `client_${clients.length + 1}`,
+        clientId: data.clientId,
+        clientName: data.clientName,
+        redirectUris: data.redirectUris,
+        createdAt: new Date(),
+      };
+      clients.push(row);
+      return row;
+    },
+    findUnique: async ({ where }) => {
+      if (storeShouldThrow) throw storeShouldThrow;
+      return clients.find((row) => row.clientId === where.clientId) || null;
+    },
+  },
+  mcpOAuthCode: {
+    create: async ({ data }) => {
+      if (storeShouldThrow) throw storeShouldThrow;
+      const row = {
+        id: `code_${codes.length + 1}`,
+        usedAt: null,
+        createdAt: new Date(),
+        ...data,
+      };
+      codes.push(row);
+      return row;
+    },
+    findUnique: async ({ where }) => {
+      if (storeShouldThrow) throw storeShouldThrow;
+      return codes.find((row) => row.codeHash === where.codeHash) || null;
+    },
+    update: async ({ where, data }) => {
+      if (storeShouldThrow) throw storeShouldThrow;
+      const row = codes.find((item) => item.id === where.id);
+      if (!row) {
+        const err = new Error("not found");
+        err.code = "P2025";
+        throw err;
+      }
+      if (data.usedAt) row.usedAt = data.usedAt;
+      return row;
+    },
+  },
 };
 
 function stubAt(absPath, exports) {
@@ -110,8 +158,9 @@ const {
   resetTableCache,
   mintMcpKey,
 } = require("../api/_lib/mcp-keys.js");
+const { OAUTH_TABLE_STATEMENTS, resetOauthCache } = require("../api/_lib/mcp-oauth.js");
 const mcp = require("../api/mcp.js");
-const keys = require("../api/mcp-keys.js");
+const oauth = require("../api/mcp-oauth.js");
 
 function fakeRes() {
   const captured = { status: null, body: undefined, headers: {} };
@@ -121,7 +170,7 @@ function fakeRes() {
     setHeader(name, value) { captured.headers[String(name).toLowerCase()] = value; },
     status(code) { captured.status = code; this.statusCode = code; return this; },
     json(body) { captured.body = body; return this; },
-    end() { return this; },
+    end(body) { if (body !== undefined) captured.body = body; return this; },
   };
 }
 
@@ -139,17 +188,34 @@ function mcpReq({ method = "POST", token, body, headers = {} } = {}) {
   };
 }
 
-function keysReq({ method, token = "good-token", body, query } = {}) {
+function oauthReq({ method, op, token = "", body, query = {}, headers = {} } = {}) {
+  const params = new URLSearchParams();
+  params.set("op", op);
+  for (const [key, value] of Object.entries(query)) {
+    if (value != null) params.set(key, value);
+  }
   return {
     method,
-    url: "/api/mcp-keys",
+    url: `/api/mcp-oauth?${params.toString()}`,
     headers: {
       authorization: token ? `Bearer ${token}` : "",
-      "content-type": "application/json",
+      "content-type": typeof body === "string"
+        ? "application/x-www-form-urlencoded"
+        : "application/json",
+      ...headers,
     },
     body,
-    query,
   };
+}
+
+function accessReq({ method = "POST", token = "good-token", body, format } = {}) {
+  return oauthReq({
+    method,
+    op: "access",
+    token,
+    body,
+    query: format ? { format } : {},
+  });
 }
 
 function reset() {
@@ -159,12 +225,15 @@ function reset() {
   findUniques.length = 0;
   sql.length = 0;
   rows.length = 0;
+  clients.length = 0;
+  codes.length = 0;
   stytchUserId = "user-owner";
   stytchShouldThrow = null;
   storeShouldThrow = null;
   process.env.MCP_KEY_OWNER_USER_ID = "user-owner";
   process.env.ANTHROPIC_API_KEY = "sk-ant-test-not-real";
   resetTableCache();
+  resetOauthCache();
 }
 
 test.beforeEach(reset);
@@ -180,12 +249,22 @@ test("migration SQL matches the statements the server applies", () => {
   assert.equal(file.includes("\u2014"), false);
 });
 
+test("oauth migration SQL matches the statements the server applies", () => {
+  const file = fs.readFileSync(
+    path.join(__dirname, "..", "prisma", "migrations", "20260924120000_add_mcp_oauth", "migration.sql"),
+    "utf8",
+  );
+  for (const statement of OAUTH_TABLE_STATEMENTS) {
+    assert.ok(file.includes(statement), statement.slice(0, 60));
+  }
+});
+
 test("mint stores the hash only and shows the plaintext once", async () => {
-  const direct = await mintMcpKey({ label: " clay " });
+  const direct = await mintMcpKey({ label: " notebook " });
   assert.match(direct.key, /^mcp_[A-Za-z0-9_-]{43}$/);
   assert.equal(direct.key.includes("."), false);
   assert.deepEqual(Object.keys(creates[0]).sort(), ["keyHash", "label"]);
-  assert.equal(creates[0].label, "clay");
+  assert.equal(creates[0].label, "notebook");
   assert.equal(creates[0].keyHash, hashKey(direct.key));
   assert.equal(creates[0].keyHash.includes(direct.key), false);
   assert.equal(JSON.stringify(creates[0]).includes(direct.key), false);
@@ -196,17 +275,17 @@ test("mint stores the hash only and shows the plaintext once", async () => {
 
   reset();
   const res = fakeRes();
-  await keys(keysReq({ method: "POST", body: { label: "clay" } }), res);
+  await oauth(accessReq({ body: { action: "mint", label: "notebook" } }), res);
   assert.equal(res.captured.status, 200);
   assert.match(res.captured.body.key, /^mcp_[A-Za-z0-9_-]{43}$/);
-  assert.equal(res.captured.body.note, "Copy this key now. It will not be shown again.");
+  assert.equal(res.captured.body.note, "Copy this credential now. It will not be shown again.");
   assert.equal(res.captured.body.note.includes("\u2014"), false);
   assert.equal(res.captured.body.keyHash, undefined);
   assert.equal(JSON.stringify(res.captured.body).includes(creates[0].keyHash), false);
   assert.equal(creates[0].keyHash, hashKey(res.captured.body.key));
 
   const listed = fakeRes();
-  await keys(keysReq({ method: "GET" }), listed);
+  await oauth(accessReq({ method: "GET", format: "json" }), listed);
   assert.equal(listed.captured.status, 200);
   assert.equal(listed.captured.body.keys.length, 1);
   assert.equal(listed.captured.body.keys[0].id, res.captured.body.id);
@@ -217,7 +296,7 @@ test("mint stores the hash only and shows the plaintext once", async () => {
 
 test("a minted key can list and call tools, and Stytch is not contacted", async () => {
   const minted = fakeRes();
-  await keys(keysReq({ method: "POST", body: { label: "clay" } }), minted);
+  await oauth(accessReq({ body: { action: "mint", label: "notebook" } }), minted);
   const key = minted.captured.body.key;
   stytchCalls.length = 0;
   findUniques.length = 0;
@@ -254,7 +333,7 @@ test("a minted key can list and call tools, and Stytch is not contacted", async 
 
 test("a minted key can run draft_linkedin_post when Anthropic answers", async () => {
   const minted = fakeRes();
-  await keys(keysReq({ method: "POST", body: { label: "clay" } }), minted);
+  await oauth(accessReq({ body: { action: "mint", label: "notebook" } }), minted);
   const originalFetch = global.fetch;
   global.fetch = async (url) => {
     assert.match(String(url), /api\.anthropic\.com/);
@@ -292,12 +371,12 @@ test("a minted key can run draft_linkedin_post when Anthropic answers", async ()
 
 test("a revoked key is rejected immediately", async () => {
   const minted = fakeRes();
-  await keys(keysReq({ method: "POST", body: { label: "clay" } }), minted);
+  await oauth(accessReq({ body: { action: "mint", label: "notebook" } }), minted);
   const key = minted.captured.body.key;
   const id = minted.captured.body.id;
 
   const revoked = fakeRes();
-  await keys(keysReq({ method: "DELETE", body: { id } }), revoked);
+  await oauth(accessReq({ body: { action: "revoke", id } }), revoked);
   assert.equal(revoked.captured.status, 200);
   assert.equal(revoked.captured.body.revokedAt == null, false);
   assert.equal(revoked.captured.body.key, undefined);
@@ -305,7 +384,7 @@ test("a revoked key is rejected immediately", async () => {
 
   const again = fakeRes();
   const updatesBefore = updates.length;
-  await keys(keysReq({ method: "DELETE", query: { id } }), again);
+  await oauth(accessReq({ body: { action: "revoke", id } }), again);
   assert.equal(again.captured.status, 200);
   assert.equal(again.captured.body.revokedAt, revoked.captured.body.revokedAt);
   assert.equal(updates.length, updatesBefore);
@@ -385,33 +464,31 @@ test("a Stytch session bearer still lists tools and does not touch the key store
 
 test("an mcp_ key cannot mint or revoke, and is not sent to Stytch", async () => {
   const minted = fakeRes();
-  await keys(keysReq({ method: "POST", body: { label: "clay" } }), minted);
+  await oauth(accessReq({ body: { action: "mint", label: "notebook" } }), minted);
   const key = minted.captured.body.key;
   stytchCalls.length = 0;
 
   const again = fakeRes();
-  await keys(keysReq({
-    method: "POST",
+  await oauth(accessReq({
     token: key,
-    body: { label: "again" },
+    body: { action: "mint", label: "again" },
   }), again);
   assert.equal(again.captured.status, 401);
-  assert.match(again.captured.body.error, /Stytch session/);
+  assert.match(again.captured.body.error, /Sign in to tinker/);
   assert.equal(stytchCalls.length, 0);
   assert.equal(creates.length, 1);
 
   const revoked = fakeRes();
-  await keys(keysReq({
-    method: "DELETE",
+  await oauth(accessReq({
     token: key,
-    body: { id: minted.captured.body.id },
+    body: { action: "revoke", id: minted.captured.body.id },
   }), revoked);
   assert.equal(revoked.captured.status, 401);
   assert.equal(rows[0].revokedAt, null);
   assert.equal(stytchCalls.length, 0);
 });
 
-test("unauthenticated /api/mcp and /api/mcp-keys are rejected", async () => {
+test("unauthenticated /api/mcp and MCP access are rejected", async () => {
   const mcpRes = fakeRes();
   await mcp({
     method: "POST",
@@ -423,7 +500,7 @@ test("unauthenticated /api/mcp and /api/mcp-keys are rejected", async () => {
   assert.equal(mcpRes.captured.body.error, "Missing token.");
 
   const keysRes = fakeRes();
-  await keys(keysReq({ method: "POST", token: "", body: { label: "clay" } }), keysRes);
+  await oauth(accessReq({ token: "", body: { action: "mint", label: "notebook" } }), keysRes);
   assert.equal(keysRes.captured.status, 401);
   assert.equal(creates.length, 0);
 });
@@ -431,23 +508,24 @@ test("unauthenticated /api/mcp and /api/mcp-keys are rejected", async () => {
 test("only the owner can mint, and an unconfigured owner id explains how", async () => {
   stytchUserId = "user-other";
   const denied = fakeRes();
-  await keys(keysReq({ method: "POST", body: { label: "clay" } }), denied);
+  await oauth(accessReq({ body: { action: "mint", label: "notebook" } }), denied);
   assert.equal(denied.captured.status, 403);
-  assert.equal(denied.captured.body.error, "Only the owner can manage MCP API keys.");
+  assert.equal(denied.captured.body.error, "Only the owner can approve MCP access.");
   assert.equal(creates.length, 0);
 
   delete process.env.MCP_KEY_OWNER_USER_ID;
   const unconfigured = fakeRes();
-  await keys(keysReq({ method: "GET" }), unconfigured);
+  await oauth(accessReq({ method: "GET", format: "json" }), unconfigured);
   assert.equal(unconfigured.captured.status, 503);
   assert.match(unconfigured.captured.body.error, /MCP_KEY_OWNER_USER_ID/);
+  assert.match(unconfigured.captured.body.error, /account id/);
   assert.equal(unconfigured.captured.body.userId, "user-other");
   assert.equal(unconfigured.captured.body.error.includes("\u2014"), false);
 });
 
 test("a key store outage is 503, not an invalid key", async () => {
   const minted = fakeRes();
-  await keys(keysReq({ method: "POST", body: { label: "clay" } }), minted);
+  await oauth(accessReq({ body: { action: "mint", label: "notebook" } }), minted);
   storeShouldThrow = new Error("connection reset");
   const res = fakeRes();
   await mcp(mcpReq({
@@ -471,54 +549,212 @@ test("initialize tells clients about mcp_ keys without an em dash", async () => 
     },
   }), res);
   const instructions = res.captured.body.result.instructions;
+  assert.match(instructions, /approve/);
   assert.match(instructions, /mcp_/);
+  assert.equal(instructions.includes("Connect Clay"), false);
   assert.equal(instructions.includes("\u2014"), false);
 });
 
-test("Connect Clay is the mint UI and the docs do not ask Clay to paste a session", () => {
+test("MCP naming is generic and there is no CLI mint path", () => {
   const root = path.join(__dirname, "..");
-  const ui = fs.readFileSync(path.join(root, "src/renderer/mcp-keys.js"), "utf8");
   const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
   const profile = fs.readFileSync(path.join(root, "src/renderer/profile.js"), "utf8");
+  const auth = fs.readFileSync(path.join(root, "src/renderer/auth.js"), "utf8");
   const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
-  const mcpSection = readme.split("## MCP (Clay)")[1].split("## ")[0];
+  const pkg = fs.readFileSync(path.join(root, "package.json"), "utf8");
+  const mcpSection = readme.split("## MCP\n")[1].split("\n## ")[0];
 
-  assert.match(ui, /https:\/\/tinker\.beginner\.work\/api\/mcp/);
-  assert.match(ui, /Authorization: Bearer /);
-  assert.match(ui, /will not be shown again/);
-  assert.match(ui, /Revoke now/);
-  assert.match(ui, /window\.tinkerMcpKeys\s*=\s*\{[^}]*open/);
-  assert.equal(ui.includes("localStorage.setItem"), false);
-  assert.equal(ui.includes("sessionStorage"), false);
-  assert.equal(/copy\s*\(\s*localStorage/.test(ui), false);
-  assert.equal(ui.includes("\u2014"), false);
-
-  assert.match(html, /id="profile-mcp"/);
-  assert.match(html, /Connect Clay/);
-  assert.match(html, /<script src="\.\/mcp-keys\.js" defer><\/script>/);
-  assert.match(profile, /getElementById\("profile-mcp"\)/);
-  assert.match(profile, /window\.tinkerMcpKeys[\s\S]{0,80}\.open/);
+  assert.equal(fs.existsSync(path.join(root, "src/renderer/mcp-keys.js")), false);
+  assert.equal(fs.existsSync(path.join(root, "scripts/mcp-keys.js")), false);
+  assert.equal(fs.existsSync(path.join(root, "api/mcp-keys.js")), false);
+  assert.equal(pkg.includes("mcp-keys"), false);
+  assert.equal(html.includes("Connect Clay"), false);
+  assert.equal(html.includes("mcp-keys.js"), false);
+  assert.match(html, /id="profile-mcp-access"/);
+  assert.match(html, /MCP access/);
+  assert.match(profile, /getElementById\("profile-mcp-access"\)/);
+  assert.match(profile, /location\.assign\("\/mcp\/access"\)/);
+  assert.match(auth, /\/mcp\/authorize/);
 
   assert.match(mcpSection, /https:\/\/tinker\.beginner\.work\/api\/mcp/);
-  assert.match(mcpSection, /Authorization: Bearer mcp_/);
-  assert.match(mcpSection, /Connect Clay/);
-  assert.match(mcpSection, /shown once|will not be shown again|full key is gone/);
-  assert.match(mcpSection, /Revoke/);
+  assert.match(mcpSection, /approve/i);
+  assert.match(mcpSection, /MCP access/);
+  assert.match(mcpSection, /shown once/);
+  assert.equal(mcpSection.includes("Connect Clay"), false);
   assert.equal(mcpSection.includes("tinker_jwt"), false);
   assert.equal(mcpSection.includes("localStorage"), false);
-  assert.equal(/copy\s*\(/.test(mcpSection), false);
   assert.equal(mcpSection.includes("DevTools"), false);
+  assert.equal(/paste a sign-in token/i.test(mcpSection), true);
   assert.equal(mcpSection.includes("\u2014"), false);
 });
 
-test("cli help shows the Clay header and does not use an em dash", () => {
-  const result = spawnSync(process.execPath, ["scripts/mcp-keys.js", "--help"], {
-    cwd: path.join(__dirname, ".."),
-    encoding: "utf8",
-  });
-  assert.equal(result.status, 0);
-  assert.match(result.stdout, /Authorization: Bearer mcp_/);
-  assert.match(result.stdout, /AddMcpServer/);
-  assert.equal(result.stdout.includes("\u2014"), false);
-  assert.equal(result.stderr.includes("\u2014"), false);
+test("authorization code with PKCE mints a bearer the client stores", async () => {
+  const headers = { host: "tinker.test", "x-forwarded-proto": "https" };
+  const resource = "https://tinker.test/api/mcp";
+  const redirectUri = "http://127.0.0.1:9/callback";
+  const verifier = `v${"a".repeat(50)}`;
+  const challenge = crypto.createHash("sha256").update(verifier).digest("base64url");
+
+  const registered = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "register",
+    headers,
+    body: {
+      client_name: "Notebook",
+      redirect_uris: [redirectUri],
+      token_endpoint_auth_method: "none",
+      grant_types: ["authorization_code"],
+      response_types: ["code"],
+    },
+  }), registered);
+  assert.equal(registered.captured.status, 201);
+  assert.match(registered.captured.body.client_id, /^tkncl_[a-f0-9]{32}$/);
+  assert.equal(registered.captured.body.client_secret, undefined);
+
+  const rejected = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "register",
+    body: { redirect_uris: ["javascript:alert(1)"] },
+  }), rejected);
+  assert.equal(rejected.captured.status, 400);
+  assert.equal(rejected.captured.body.error, "invalid_redirect_uri");
+
+  const meta = fakeRes();
+  await oauth(oauthReq({ method: "GET", op: "resource", headers }), meta);
+  assert.equal(meta.captured.body.resource, resource);
+  assert.deepEqual(meta.captured.body.authorization_servers, ["https://tinker.test"]);
+
+  const asMeta = fakeRes();
+  await oauth(oauthReq({ method: "GET", op: "as", headers }), asMeta);
+  assert.equal(asMeta.captured.body.authorization_endpoint, "https://tinker.test/mcp/authorize");
+  assert.equal(asMeta.captured.body.token_endpoint, "https://tinker.test/mcp/token");
+  assert.equal(asMeta.captured.body.registration_endpoint, "https://tinker.test/mcp/register");
+  assert.deepEqual(asMeta.captured.body.code_challenge_methods_supported, ["S256"]);
+
+  const query = {
+    response_type: "code",
+    client_id: registered.captured.body.client_id,
+    redirect_uri: redirectUri,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    resource,
+    state: "xyz",
+  };
+  const page = fakeRes();
+  await oauth(oauthReq({ method: "GET", op: "authorize", headers, query }), page);
+  assert.equal(page.captured.status, 200);
+  assert.match(page.captured.body, /Notebook/);
+  assert.match(page.captured.body, /Approve/);
+  assert.equal(page.captured.body.includes("Connect Clay"), false);
+  assert.equal(/mcp_[A-Za-z0-9_-]{20,}/.test(page.captured.body), false);
+  assert.ok(page.captured.body.indexOf('id="mcp-config"') < page.captured.body.indexOf("mcpConfig()"));
+
+  const accessPage = fakeRes();
+  await oauth(oauthReq({ method: "GET", op: "access", headers }), accessPage);
+  assert.equal(accessPage.captured.status, 200);
+  assert.match(accessPage.captured.body, /Revoke/);
+  assert.match(accessPage.captured.body, /shown once/);
+  assert.equal(accessPage.captured.body.includes("Connect Clay"), false);
+  assert.ok(accessPage.captured.body.indexOf('id="mcp-config"') < accessPage.captured.body.indexOf("mcpConfig()"));
+
+  const open = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "authorize",
+    token: "good-token",
+    headers,
+    body: { ...query, redirect_uri: "https://evil.example/steal", decision: "approve" },
+  }), open);
+  assert.equal(open.captured.status, 400);
+  assert.equal(open.captured.body.redirect, undefined);
+
+  const approved = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "authorize",
+    token: "good-token",
+    headers,
+    body: { ...query, decision: "approve" },
+  }), approved);
+  assert.equal(approved.captured.status, 200);
+  const redir = new URL(approved.captured.body.redirect);
+  assert.equal(redir.origin + redir.pathname, "http://127.0.0.1:9/callback");
+  assert.equal(redir.searchParams.get("state"), "xyz");
+  const code = redir.searchParams.get("code");
+  assert.ok(code);
+  assert.equal(JSON.stringify(codes).includes(code), false);
+
+  const form = new URLSearchParams({
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: redirectUri,
+    client_id: query.client_id,
+    code_verifier: verifier,
+    resource,
+  }).toString();
+  const badVerifier = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "token",
+    headers,
+    body: form.replace(verifier, `${verifier}no`),
+  }), badVerifier);
+  assert.equal(badVerifier.captured.status, 400);
+  assert.equal(badVerifier.captured.body.error, "invalid_grant");
+  assert.equal(creates.length, 0);
+
+  const tokenRes = fakeRes();
+  await oauth(oauthReq({
+    method: "POST",
+    op: "token",
+    headers,
+    body: form,
+  }), tokenRes);
+  assert.equal(tokenRes.captured.status, 200);
+  const access = tokenRes.captured.body.access_token;
+  assert.match(access, /^mcp_[A-Za-z0-9_-]{43}$/);
+  assert.equal(tokenRes.captured.body.token_type, "Bearer");
+  assert.equal(tokenRes.captured.body.refresh_token, undefined);
+  assert.equal(creates[0].keyHash, hashKey(access));
+  assert.equal(creates[0].label, "Notebook");
+
+  const replay = fakeRes();
+  await oauth(oauthReq({ method: "POST", op: "token", headers, body: form }), replay);
+  assert.equal(replay.captured.status, 400);
+  assert.equal(replay.captured.body.error, "invalid_grant");
+  assert.equal(creates.length, 1);
+
+  stytchCalls.length = 0;
+  const listed = fakeRes();
+  await mcp(mcpReq({
+    token: access,
+    headers,
+    body: { jsonrpc: "2.0", id: 21, method: "tools/list" },
+  }), listed);
+  assert.equal(listed.captured.status, 200);
+  assert.match(listed.captured.headers["www-authenticate"] || "", /^$/);
+  assert.equal(stytchCalls.length, 0);
+
+  const missing = fakeRes();
+  await mcp(mcpReq({
+    token: "",
+    headers,
+    body: { jsonrpc: "2.0", id: 22, method: "tools/list" },
+  }), missing);
+  assert.match(missing.captured.headers["www-authenticate"], /resource_metadata="https:\/\/tinker\.test\/\.well-known\/oauth-protected-resource\/api\/mcp"/);
+
+  const revoked = fakeRes();
+  await oauth(accessReq({ body: { action: "revoke", id: rows[0].id } }), revoked);
+  assert.equal(revoked.captured.status, 200);
+  assert.ok(revoked.captured.body.revokedAt);
+
+  const after = fakeRes();
+  await mcp(mcpReq({
+    token: access,
+    body: { jsonrpc: "2.0", id: 23, method: "tools/list" },
+  }), after);
+  assert.equal(after.captured.status, 401);
+  assert.equal(after.captured.body.error, "Invalid API key.");
 });

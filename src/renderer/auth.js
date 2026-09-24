@@ -58,6 +58,31 @@
   if (!isWebPlatform()) return;
   if (auth.token && looksLikeLegacyJwt(auth.token)) auth.token = "";
 
+  // MCP approve and MCP access send a signed-out browser here, then
+  // need to land back on the same /mcp/ page after the phone code.
+  const MCP_RETURN_KEY = "tinker_mcp_return";
+
+  function takeMcpReturn() {
+    let value = "";
+    try { value = sessionStorage.getItem(MCP_RETURN_KEY) || ""; } catch { return ""; }
+    try { sessionStorage.removeItem(MCP_RETURN_KEY); } catch { /* ignore */ }
+    if (!value.startsWith("/mcp/") || value.startsWith("//") || value.includes("\\")) return "";
+    if (value.includes("\n") || value.includes("\r")) return "";
+    const path = value.split("?")[0];
+    if (path !== "/mcp/authorize" && path !== "/mcp/access") return "";
+    return value;
+  }
+
+  function resumeMcpReturn() {
+    if (!auth.token) return false;
+    const next = takeMcpReturn();
+    if (!next) return false;
+    window.location.assign(next);
+    return true;
+  }
+
+  if (resumeMcpReturn()) return;
+
   // ── DOM refs ─────────────────────────────────────────────────────────
 
   const gate = document.getElementById("auth-gate");
@@ -184,6 +209,7 @@
       // start_url so an immediate "Add to Home Screen" carries the
       // session into the standalone PWA.
       try { window.dispatchEvent(new CustomEvent("tinker:auth-changed")); } catch { /* ignore */ }
+      if (resumeMcpReturn()) return;
       setStatus(data.isNew ? "Welcome to tinker!" : "Welcome back.", "ok");
       // Brief beat so the success message lands, then drop the gate.
       setTimeout(() => {

@@ -66,9 +66,6 @@
     <!-- Compose overlay: send an email from the founder's beginner.work
          address through /api/email/send. -->
     <script src="./email.js" defer></script>
-    <!-- Connect Clay: profile menu mints an mcp_ key once. The plaintext
-         stays on this screen only. Clay uses the URL and header, not a session. -->
-    <script src="./mcp-keys.js" defer></script>
     <!-- LinkedIn drafts: sidebar "LinkedIn draft" opens the composer.
          The prompt stays on the server (converse mode "linkedin" and
          the MCP tool draft_linkedin_post). Does not post. -->
@@ -129,9 +126,9 @@
         <button id="profile-email" class="profile-popover__action" type="button" role="menuitem">
           Send an email
         </button>
-        <!-- Mint a Clay connector key. The key is shown once. See mcp-keys.js. -->
-        <button id="profile-mcp" class="profile-popover__action" type="button" role="menuitem">
-          Connect Clay
+        <!-- Revoke MCP credentials, or mint one for a client that cannot sign in. -->
+        <button id="profile-mcp-access" class="profile-popover__action" type="button" role="menuitem">
+          MCP access
         </button>
       </div>
     </div>

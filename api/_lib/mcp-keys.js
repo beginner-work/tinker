@@ -83,13 +83,13 @@ function assertOwner(userId) {
   if (!status.configured) {
     throw Object.assign(
       new Error(
-        "MCP key minting is not configured. Set MCP_KEY_OWNER_USER_ID to your Stytch user id.",
+        "MCP access is not configured. Set MCP_KEY_OWNER_USER_ID to your account id.",
       ),
       { status: 503, userId },
     );
   }
   if (!status.isOwner) {
-    throw Object.assign(new Error("Only the owner can manage MCP API keys."), {
+    throw Object.assign(new Error("Only the owner can approve MCP access."), {
       status: 403,
     });
   }

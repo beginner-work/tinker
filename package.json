@@ -17,7 +17,6 @@
     "test": "node --test tests/*.test.js",
     "debug:preview": "node scripts/browserbase-debug.js",
     "preview:url": "node scripts/preview-bootstrap-url.js",
-    "mcp-keys": "node scripts/mcp-keys.js",
     "eval:product-spec": "node .claude/skills/product-spec/evals/run-evals.mjs",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy"

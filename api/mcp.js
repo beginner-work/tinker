@@ -1,11 +1,13 @@
 /* POST /api/mcp
  *
  * Streamable HTTP MCP (stateless JSON responses) on the tinker deploy.
- * Authorization: Bearer <stytch session_token | session_jwt | mcp_ API key>
+ * Authorization: Bearer <stytch session_token | session_jwt | mcp_ credential>
  *   Session bearers use authenticateSession, the same check as
  *   POST /api/claude/converse. A bearer that starts with mcp_ is checked
  *   against the hashed McpApiKey row and is never sent to Stytch.
- *   Revoked keys fail on the next request.
+ *   Revoked credentials fail on the next request.
+ *   A missing or rejected bearer is 401 with resource_metadata so an
+ *   MCP client can send the user to /mcp/authorize.
  *
  * Tools are fixed-prompt follow-ups (ask_followups) and LinkedIn drafts
  * (draft_linkedin_post). There is no raw converse proxy. GET/DELETE
@@ -14,14 +16,15 @@
  * with POST /api/claude/converse mode "linkedin". It does not post.
  *
  * Session auth uses STYTCH_PROJECT_ID and STYTCH_SECRET. Tool calls use
- * ANTHROPIC_API_KEY. API keys use the existing DATABASE_URL. Mint and
- * revoke live on /api/mcp-keys (owner session only).
+ * ANTHROPIC_API_KEY. Credentials use the existing DATABASE_URL.
+ * Approve and revoke live on /mcp/authorize and /mcp/access.
  */
 
 "use strict";
 
 const { authenticateSession } = require("./_lib/stytch.js");
 const { isMcpApiKey, authenticateMcpKey } = require("./_lib/mcp-keys.js");
+const { wwwAuthenticate } = require("./_lib/mcp-origin.js");
 const { withResponseLogging } = require("./_lib/log.js");
 const { askFollowups } = require("./_lib/followups.js");
 const { draftLinkedInPost } = require("./_lib/linkedin-draft.js");
@@ -39,8 +42,9 @@ const INSTRUCTIONS = [
   "Pass kind \"dm\" for a direct message, or start the notes with \"DM:\". Pass currentDraft and an optional instruction to revise.",
   "This drafts copy only. It does not post to LinkedIn.",
   "This server does not accept a custom system prompt.",
-  "Authenticate with a durable MCP API key that starts with mcp_. Clay uses Authorization: Bearer mcp_… and nothing else.",
-  "A Stytch session still works for the writing app. An API key works until it is revoked. A 401 means the credential is missing, expired, or revoked.",
+  "Add this server by its URL. The client sends you to tinker to approve access.",
+  "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
+  "A Stytch session still works for the writing app. A 401 means the credential is missing or revoked.",
 ].join(" ");
 
 const ASK_FOLLOWUPS_TOOL = {
@@ -345,9 +349,9 @@ module.exports = withResponseLogging(async function handler(req, res) {
   try {
     await authorize(token);
   } catch (err) {
-    sendJson(res, err.status || 401, { error: err.message || "Unauthorized" }, protocolFrom(req), {
-      "WWW-Authenticate": "Bearer",
-    });
+    const status = err.status || 401;
+    const extra = status === 401 ? { "WWW-Authenticate": wwwAuthenticate(req) } : undefined;
+    sendJson(res, status, { error: err.message || "Unauthorized" }, protocolFrom(req), extra);
     return;
   }
 
