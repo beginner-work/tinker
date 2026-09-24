@@ -216,6 +216,7 @@ function authorizeHtml(clientName, approve) {
     <button id="mcp-approve" type="button">Approve</button>
     <p id="mcp-status" class="error" role="status"></p>
     <script>
+      (function () {
       ${SESSION_SCRIPT}
       var token = mcpToken();
       if (!token) { mcpSendHome(); return; }
@@ -237,6 +238,7 @@ function authorizeHtml(clientName, approve) {
           status.textContent = (result.body && (result.body.error_description || result.body.error)) || "Could not finish.";
         }).catch(function () { status.textContent = "Could not finish."; });
       });
+      })();
     </script>`;
   return page(`${clientName} wants to use tinker.`, body, { approve });
 }
@@ -256,6 +258,7 @@ function accessHtml(resource) {
     </div>
     <p id="mcp-status" class="error" role="status"></p>
     <script>
+      (function () {
       ${SESSION_SCRIPT}
       var token = mcpToken();
       if (!token) { mcpSendHome(); return; }
@@ -337,6 +340,7 @@ function accessHtml(resource) {
           .catch(function () { status.textContent = "Could not create a credential."; });
       });
       load();
+      })();
     </script>`;
   return page("MCP access", body, { resource });
 }

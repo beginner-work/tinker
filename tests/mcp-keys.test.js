@@ -10,6 +10,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const vm = require("node:vm");
 const Module = require("node:module");
 
 process.env.STYTCH_PROJECT_ID = "project-test-mcp-keys";
@@ -631,6 +632,39 @@ test("MCP naming is generic and there is no CLI mint path", () => {
   assert.equal(mcpSection.includes("\u2014"), false);
 });
 
+function runInlineScript(html, token) {
+  const match = html.match(/<script>([\s\S]*?)<\/script>/);
+  assert.ok(match, "page has an inline script");
+  const session = {};
+  let assigned = "";
+  let clicks = 0;
+  const sandbox = {
+    localStorage: {
+      getItem(key) { return key === "tinker_jwt" ? token : ""; },
+    },
+    sessionStorage: {
+      getItem(key) { return Object.prototype.hasOwnProperty.call(session, key) ? session[key] : null; },
+      setItem(key, value) { session[key] = String(value); },
+    },
+    location: {
+      pathname: "/mcp/authorize",
+      search: "?response_type=code&client_id=abc",
+      assign(url) { assigned = String(url); },
+    },
+    document: {
+      getElementById() {
+        return {
+          textContent: "{}",
+          addEventListener() { clicks += 1; },
+        };
+      },
+    },
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(match[1], sandbox);
+  return { assigned, session, clicks };
+}
+
 test("authorization code with PKCE mints a bearer the client stores", async () => {
   const headers = { host: "tinker.test", "x-forwarded-proto": "https" };
   const resource = "https://tinker.test/api/mcp";
@@ -697,6 +731,15 @@ test("authorization code with PKCE mints a bearer the client stores", async () =
   assert.equal(page.captured.body.includes("Connect Clay"), false);
   assert.equal(/mcp_[A-Za-z0-9_-]{20,}/.test(page.captured.body), false);
   assert.ok(page.captured.body.indexOf('id="mcp-config"') < page.captured.body.indexOf("mcpConfig()"));
+  const signedOut = runInlineScript(page.captured.body, "");
+  assert.equal(signedOut.assigned, "/");
+  assert.equal(
+    signedOut.session.tinker_mcp_return,
+    "/mcp/authorize?response_type=code&client_id=abc",
+  );
+  const signedIn = runInlineScript(page.captured.body, "session-token");
+  assert.equal(signedIn.assigned, "");
+  assert.equal(signedIn.clicks, 1);
 
   const accessPage = fakeRes();
   await oauth(oauthReq({ method: "GET", op: "access", headers }), accessPage);
@@ -705,6 +748,8 @@ test("authorization code with PKCE mints a bearer the client stores", async () =
   assert.match(accessPage.captured.body, /shown once/);
   assert.equal(accessPage.captured.body.includes("Connect Clay"), false);
   assert.ok(accessPage.captured.body.indexOf('id="mcp-config"') < accessPage.captured.body.indexOf("mcpConfig()"));
+  const accessSignedOut = runInlineScript(accessPage.captured.body, "");
+  assert.equal(accessSignedOut.assigned, "/");
 
   const open = fakeRes();
   await oauth(oauthReq({
