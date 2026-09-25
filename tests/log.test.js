@@ -94,6 +94,29 @@ test("preview env truncates very large bodies", async () => {
   }
 });
 
+test("preview logs omit your_user_id while the response keeps it", async () => {
+  const prev = process.env.VERCEL_ENV;
+  process.env.VERCEL_ENV = "preview";
+  try {
+    const res = fakeRes();
+    const handler = withResponseLogging((req, r) => {
+      r.status(403).json({
+        error: "Not allowed to change autonomy.",
+        your_user_id: "user-live-not-in-logs",
+      });
+    });
+    const lines = await captureConsole(() => handler(fakeReq({ method: "PUT" }), res));
+    assert.equal(lines.join("\n").includes("user-live-not-in-logs"), false);
+    assert.deepEqual(res.captured.body, {
+      error: "Not allowed to change autonomy.",
+      your_user_id: "user-live-not-in-logs",
+    });
+  } finally {
+    if (prev === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = prev;
+  }
+});
+
 test("response body still reaches res.json (logging is a side effect)", async () => {
   const prev = process.env.VERCEL_ENV;
   process.env.VERCEL_ENV = "preview";

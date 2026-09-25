@@ -27,6 +27,14 @@ function isPreview() {
   return process.env.VERCEL_ENV === "preview";
 }
 
+function logBody(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  if (!Object.prototype.hasOwnProperty.call(body, "your_user_id")) return body;
+  const copy = { ...body };
+  delete copy.your_user_id;
+  return copy;
+}
+
 function withResponseLogging(handler) {
   return async function wrappedHandler(req, res) {
     if (!isPreview()) return handler(req, res);
@@ -37,7 +45,7 @@ function withResponseLogging(handler) {
         const method = (req && req.method) || "?";
         const url = (req && req.url) || "?";
         const status = res.statusCode || 200;
-        const serialized = JSON.stringify(body);
+        const serialized = JSON.stringify(logBody(body));
         const trimmed =
           serialized && serialized.length > MAX_BODY_CHARS
             ? serialized.slice(0, MAX_BODY_CHARS) + "…[truncated]"

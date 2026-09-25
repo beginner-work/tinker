@@ -250,16 +250,22 @@ test("PUT signed out is 401 and does not write", async () => {
   const res = fakeRes();
   await handler(putReq({ token: "" }), res);
   assert.equal(res.captured.status, 401);
+  assert.equal(Object.prototype.hasOwnProperty.call(res.captured.body, "your_user_id"), false);
   assert.equal(patches.length, 0);
   assert.equal(store.get(edge.edgeKey("linkedin_posts")).autonomous, false);
 });
 
-test("PUT signed in but not allowlisted is 403", async () => {
-  stytchUserId = "user-stranger";
+test("PUT signed in but not allowlisted is 403 and returns that caller's user id", async () => {
+  stytchUserId = "user-live-abc";
+  stytchEmails = ["tyler@lindowlabs.dev"];
   const res = fakeRes();
   await handler(putReq({ token: "good-token", body: { autonomous: true } }), res);
   assert.equal(res.captured.status, 403);
-  assert.equal(res.captured.body.error, "Not allowed to change autonomy.");
+  assert.deepEqual(res.captured.body, {
+    error: "Not allowed to change autonomy.",
+    your_user_id: "user-live-abc",
+  });
+  assert.equal(JSON.stringify(res.captured.body).includes("tyler@lindowlabs.dev"), false);
   assert.equal(patches.length, 0);
 });
 
@@ -268,6 +274,7 @@ test("PUT unknown key is 404", async () => {
   await handler(putReq({ token: "good-token", key: "not_a_real_toggle", body: { autonomous: true } }), res);
   assert.equal(res.captured.status, 404);
   assert.equal(res.captured.body.error, "Unknown autonomy setting.");
+  assert.equal(Object.prototype.hasOwnProperty.call(res.captured.body, "your_user_id"), false);
   assert.equal(patches.length, 0);
   assert.equal(stytchCalls.length, 0);
 });
@@ -300,6 +307,7 @@ test("PUT sends one upsert for that key and merges a note onto the current toggl
   assert.equal(res.captured.body.note, "only after the draft is reviewed");
   assert.equal(res.captured.body.updated_by, "tyler");
   assert.equal(res.captured.body.updated_at, patches[0].body.items[0].value.updated_at);
+  assert.equal(Object.prototype.hasOwnProperty.call(res.captured.body, "your_user_id"), false);
   assertNoToken(res.captured.body);
 
   const listed = fakeRes();
@@ -354,6 +362,112 @@ test("the write token is not in the response or the logs when the PATCH fails", 
   } finally {
     for (const key of Object.keys(originals)) console[key] = originals[key];
   }
+});
+
+test("the preview logger is not called with your_user_id", async () => {
+  stytchUserId = "user-live-not-in-logs";
+  process.env.VERCEL_ENV = "preview";
+  const lines = [];
+  const originals = {
+    log: console.log,
+    error: console.error,
+    warn: console.warn,
+    info: console.info,
+  };
+  for (const key of Object.keys(originals)) {
+    console[key] = (...args) => lines.push(args.map(String).join(" "));
+  }
+  try {
+    const res = fakeRes();
+    await handler(putReq({ token: "good-token", body: { autonomous: true } }), res);
+    assert.equal(res.captured.body.your_user_id, "user-live-not-in-logs");
+    assert.ok(lines.some((line) => line.includes("[preview]") && line.includes("403")));
+    assert.equal(lines.join("\n").includes("user-live-not-in-logs"), false);
+  } finally {
+    for (const key of Object.keys(originals)) console[key] = originals[key];
+  }
+});
+
+test("a 403 account id is shown as text", async () => {
+  const page = fs.readFileSync(
+    path.join(__dirname, "..", "src", "renderer", "autonomy", "autonomy.js"),
+    "utf8",
+  );
+  const hostile = "<img src=x onerror=alert(1)>";
+  const nodes = [];
+  function makeEl(tag) {
+    const node = {
+      tag,
+      className: "",
+      children: [],
+      attrs: {},
+      value: "only after X",
+      disabled: false,
+      listeners: {},
+      _text: "",
+      set textContent(value) { this._text = String(value); },
+      get textContent() { return this._text; },
+      set innerHTML(_value) { throw new Error("innerHTML used"); },
+      setAttribute(name, value) { this.attrs[name] = String(value); },
+      addEventListener(type, fn) { this.listeners[type] = fn; },
+      appendChild(child) { this.children.push(child); return child; },
+      replaceChildren() { this.children = []; },
+    };
+    nodes.push(node);
+    return node;
+  }
+  const list = makeEl("ul");
+  const status = makeEl("p");
+  let fetches = 0;
+  vm.runInNewContext(page, vm.createContext({
+    localStorage: { getItem() { return "signed-in"; }, setItem() {}, removeItem() {} },
+    sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+    document: {
+      getElementById(id) { return id === "autonomy-list" ? list : status; },
+      createElement: makeEl,
+    },
+    window: { location: { assign() {} } },
+    fetch() {
+      fetches += 1;
+      if (fetches === 1) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json() {
+            return Promise.resolve({
+              items: [{
+                key: "linkedin_posts",
+                label: "LinkedIn posts",
+                autonomous: false,
+                note: "only after X",
+                updated_by: null,
+                updated_at: null,
+              }],
+            });
+          },
+        });
+      }
+      return Promise.resolve({
+        ok: false,
+        status: 403,
+        json() {
+          return Promise.resolve({
+            error: "Not allowed to change autonomy.",
+            your_user_id: hostile,
+          });
+        },
+      });
+    },
+  }));
+  await new Promise((resolve) => setImmediate(resolve));
+  const button = nodes.find((node) => node.attrs.role === "switch");
+  button.listeners.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(status._text, "You're not on the allowlist. Your account id is " + hostile + ".");
+  assert.equal(nodes.some((node) => node.tag === "img" || node.tag === "script"), false);
+  const switches = nodes.filter((node) => node.attrs.role === "switch");
+  assert.equal(switches[switches.length - 1].attrs["aria-checked"], "false");
 });
 
 test("PUT note longer than 500 characters is 400 and does not write", async () => {

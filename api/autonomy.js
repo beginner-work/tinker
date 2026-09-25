@@ -81,7 +81,11 @@ function sendJson(res, status, body, headers) {
 function sendError(res, err, fallback) {
   const status = err.status || 500;
   const message = status >= 500 ? fallback : err.message || fallback;
-  sendJson(res, status, { error: message }, { "Cache-Control": NO_STORE });
+  const body = { error: message };
+  if (status === 403 && typeof err.yourUserId === "string" && err.yourUserId) {
+    body.your_user_id = err.yourUserId;
+  }
+  sendJson(res, status, body, { "Cache-Control": NO_STORE });
 }
 
 async function requireEditor(req) {

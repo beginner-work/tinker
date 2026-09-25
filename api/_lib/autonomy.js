@@ -196,7 +196,10 @@ function editorFromSession(session) {
   const entries = parseAllowlist(process.env.AUTONOMY_ALLOWLIST);
   const match = entries.find((entry) => matchesEntry(entry, identity));
   if (!match) {
-    throw Object.assign(new Error("Not allowed to change autonomy."), { status: 403 });
+    throw Object.assign(new Error("Not allowed to change autonomy."), {
+      status: 403,
+      yourUserId: identity.userId,
+    });
   }
   return { updatedBy: editorName(match, identity) };
 }

@@ -35,6 +35,12 @@
     statusEl.textContent = text || "";
   }
 
+  function allowlistLine(body) {
+    var id = body && typeof body.your_user_id === "string" ? body.your_user_id : "";
+    if (!id) return "";
+    return "You're not on the allowlist. Your account id is " + id + ".";
+  }
+
   function changedLine(item) {
     if (!item.updated_by && !item.updated_at) return "Default, never changed";
     var who = item.updated_by || "someone";
@@ -163,6 +169,15 @@
         sendHome();
         return;
       }
+      if (result.status === 403) {
+        item.autonomous = previous.autonomous;
+        item.note = previous.note;
+        item.updated_by = previous.updated_by;
+        item.updated_at = previous.updated_at;
+        render();
+        setStatus(allowlistLine(result.body) || (result.body && result.body.error) || "Could not save. The switch was put back.");
+        return;
+      }
       if (result.status !== 200 || !result.body || typeof result.body.autonomous !== "boolean") {
         item.autonomous = previous.autonomous;
         item.note = previous.note;
@@ -192,6 +207,10 @@
       if (result.status === 401) {
         try { localStorage.removeItem(TOKEN_KEY); } catch (err) { /* ignore */ }
         sendHome();
+        return;
+      }
+      if (result.status === 403) {
+        setStatus(allowlistLine(result.body) || (result.body && result.body.error) || "Could not save the note.");
         return;
       }
       if (result.status !== 200 || !result.body) {
