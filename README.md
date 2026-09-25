@@ -199,6 +199,15 @@ npm run autonomy:seed
 
 Until a store is connected, `GET /api/autonomy` fails closed and every item is not autonomous.
 
+A signed-in person who is not on the allowlist sees "You're not on the allowlist yet. Keep this tab open." The server writes one Edge Config item, `autonomy_last_denied`, with exactly `{user_id, at}`: that caller's Stytch user id and an ISO time. It does not store an email, and it does not put the id in the 403 body or in `GET /api/autonomy`. The same id inside 10 minutes does not write again. The seed script does not create this item.
+
+Read it with the write token. Leave off `teamId` when the store is not on a team:
+
+```bash
+curl -sS -H "Authorization: Bearer $EDGE_CONFIG_WRITE_TOKEN" \
+  "https://api.vercel.com/v1/edge-config/$EDGE_CONFIG_ID/item/autonomy_last_denied?teamId=$VERCEL_TEAM_ID"
+```
+
 ### Shared database with the beginner repo
 
 `DATABASE_URL` on both tinker (production + preview) and beginner

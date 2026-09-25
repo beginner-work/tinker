@@ -35,11 +35,7 @@
     statusEl.textContent = text || "";
   }
 
-  function allowlistLine(body) {
-    var id = body && typeof body.your_user_id === "string" ? body.your_user_id : "";
-    if (!id) return "";
-    return "You're not on the allowlist. Your account id is " + id + ".";
-  }
+  var DENIED_LINE = "You're not on the allowlist yet. Keep this tab open.";
 
   function changedLine(item) {
     if (!item.updated_by && !item.updated_at) return "Default, never changed";
@@ -175,7 +171,7 @@
         item.updated_by = previous.updated_by;
         item.updated_at = previous.updated_at;
         render();
-        setStatus(allowlistLine(result.body) || (result.body && result.body.error) || "Could not save. The switch was put back.");
+        setStatus(DENIED_LINE);
         return;
       }
       if (result.status !== 200 || !result.body || typeof result.body.autonomous !== "boolean") {
@@ -210,7 +206,7 @@
         return;
       }
       if (result.status === 403) {
-        setStatus(allowlistLine(result.body) || (result.body && result.body.error) || "Could not save the note.");
+        setStatus(DENIED_LINE);
         return;
       }
       if (result.status !== 200 || !result.body) {

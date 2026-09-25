@@ -255,18 +255,41 @@ test("PUT signed out is 401 and does not write", async () => {
   assert.equal(store.get(edge.edgeKey("linkedin_posts")).autonomous, false);
 });
 
-test("PUT signed in but not allowlisted is 403 and returns that caller's user id", async () => {
+test("a 403 records only user_id and at, and skips a repeat inside 10 minutes", async () => {
   stytchUserId = "user-live-abc";
   stytchEmails = ["tyler@lindowlabs.dev"];
-  const res = fakeRes();
-  await handler(putReq({ token: "good-token", body: { autonomous: true } }), res);
-  assert.equal(res.captured.status, 403);
-  assert.deepEqual(res.captured.body, {
-    error: "Not allowed to change autonomy.",
-    your_user_id: "user-live-abc",
+  const first = fakeRes();
+  await handler(putReq({ token: "good-token", body: { autonomous: true } }), first);
+  assert.equal(first.captured.status, 403);
+  assert.deepEqual(first.captured.body, { error: "Not allowed to change autonomy." });
+  assert.equal(Object.prototype.hasOwnProperty.call(first.captured.body, "your_user_id"), false);
+  assert.equal(patches.length, 1);
+  const item = patches[0].body.items[0];
+  assert.equal(patches[0].body.items.length, 1);
+  assert.equal(item.operation, "upsert");
+  assert.equal(item.key, edge.LAST_DENIED_KEY);
+  assert.deepEqual(Object.keys(item.value).sort(), ["at", "user_id"]);
+  assert.equal(item.value.user_id, "user-live-abc");
+  assert.equal(JSON.stringify(item.value).includes("tyler@lindowlabs.dev"), false);
+  assert.equal(JSON.stringify(item.value).includes(WRITE_TOKEN), false);
+  assert.equal(store.get(edge.edgeKey("linkedin_posts")).autonomous, false);
+
+  const second = fakeRes();
+  await handler(putReq({ token: "good-token", body: { note: "tell me first" } }), second);
+  assert.equal(second.captured.status, 403);
+  assert.deepEqual(second.captured.body, { error: "Not allowed to change autonomy." });
+  assert.equal(patches.length, 1);
+
+  store.set(edge.LAST_DENIED_KEY, {
+    user_id: "user-live-abc",
+    at: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
   });
-  assert.equal(JSON.stringify(res.captured.body).includes("tyler@lindowlabs.dev"), false);
-  assert.equal(patches.length, 0);
+  const third = fakeRes();
+  await handler(putReq({ token: "good-token", body: { autonomous: true } }), third);
+  assert.equal(third.captured.status, 403);
+  assert.equal(patches.length, 2);
+  assert.equal(patches[1].body.items[0].key, edge.LAST_DENIED_KEY);
+  assert.equal(patches[1].body.items[0].value.user_id, "user-live-abc");
 });
 
 test("PUT unknown key is 404", async () => {
@@ -294,6 +317,7 @@ test("PUT sends one upsert for that key and merges a note onto the current toggl
   assert.equal(patches[0].body.items.length, 1);
   assert.equal(patches[0].body.items[0].operation, "upsert");
   assert.equal(patches[0].body.items[0].key, "autonomy_linkedin_posts");
+  assert.equal(patches.some((call) => call.body.items[0].key === edge.LAST_DENIED_KEY), false);
   assert.equal(patches[0].body.items[0].value.autonomous, false);
   assert.equal(patches[0].body.items[0].value.note, "only after the draft is reviewed");
   assert.equal(patches[0].body.items[0].value.updated_by, "tyler");
@@ -364,8 +388,10 @@ test("the write token is not in the response or the logs when the PATCH fails", 
   }
 });
 
-test("the preview logger is not called with your_user_id", async () => {
+test("a failed denial write still returns 403 and does not log the id", async () => {
   stytchUserId = "user-live-not-in-logs";
+  stytchEmails = ["secret@example.com"];
+  patchStatus = 500;
   process.env.VERCEL_ENV = "preview";
   const lines = [];
   const originals = {
@@ -380,15 +406,43 @@ test("the preview logger is not called with your_user_id", async () => {
   try {
     const res = fakeRes();
     await handler(putReq({ token: "good-token", body: { autonomous: true } }), res);
-    assert.equal(res.captured.body.your_user_id, "user-live-not-in-logs");
-    assert.ok(lines.some((line) => line.includes("[preview]") && line.includes("403")));
-    assert.equal(lines.join("\n").includes("user-live-not-in-logs"), false);
+    assert.equal(res.captured.status, 403);
+    assert.deepEqual(res.captured.body, { error: "Not allowed to change autonomy." });
+    const logged = lines.join("\n");
+    assert.match(logged, /Could not record the autonomy denial\./);
+    assert.equal(logged.includes("user-live-not-in-logs"), false);
+    assert.equal(logged.includes("secret@example.com"), false);
+    assert.equal(logged.includes(WRITE_TOKEN), false);
   } finally {
     for (const key of Object.keys(originals)) console[key] = originals[key];
   }
 });
 
-test("a 403 account id is shown as text", async () => {
+test("GET does not include autonomy_last_denied", async () => {
+  store.set(edge.LAST_DENIED_KEY, {
+    user_id: "user-live-hidden",
+    at: "2026-09-25T18:00:00.000Z",
+  });
+  const res = fakeRes();
+  await handler(getReq(), res);
+  assert.equal(res.captured.body.items.length, 14);
+  assert.equal(JSON.stringify(res.captured.body).includes("autonomy_last_denied"), false);
+  assert.equal(JSON.stringify(res.captured.body).includes("user-live-hidden"), false);
+  assert.equal(getAllCalls[0].includes(edge.LAST_DENIED_KEY), false);
+});
+
+test("the seed script does not create autonomy_last_denied", async () => {
+  const keys = [];
+  const written = await seedMissing({
+    getAll: async () => ({}),
+    upsert: async (name) => keys.push(name),
+  });
+  assert.equal(keys.includes(edge.LAST_DENIED_KEY), false);
+  assert.equal(written.includes(edge.LAST_DENIED_KEY), false);
+  assert.equal(written.length, catalog.AUTONOMY_ITEMS.length);
+});
+
+test("a 403 tells the page to keep the tab open", async () => {
   const page = fs.readFileSync(
     path.join(__dirname, "..", "src", "renderer", "autonomy", "autonomy.js"),
     "utf8",
@@ -464,7 +518,8 @@ test("a 403 account id is shown as text", async () => {
   button.listeners.click();
   await new Promise((resolve) => setImmediate(resolve));
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(status._text, "You're not on the allowlist. Your account id is " + hostile + ".");
+  assert.equal(status._text, "You're not on the allowlist yet. Keep this tab open.");
+  assert.equal(status._text.includes(hostile), false);
   assert.equal(nodes.some((node) => node.tag === "img" || node.tag === "script"), false);
   const switches = nodes.filter((node) => node.attrs.role === "switch");
   assert.equal(switches[switches.length - 1].attrs["aria-checked"], "false");

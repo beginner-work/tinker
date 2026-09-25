@@ -26,6 +26,7 @@ const {
   rowFromValue,
   readAll,
   readOne,
+  rememberDenied,
   upsertEdgeItem,
 } = require("./_lib/autonomy-edge.js");
 
@@ -81,11 +82,7 @@ function sendJson(res, status, body, headers) {
 function sendError(res, err, fallback) {
   const status = err.status || 500;
   const message = status >= 500 ? fallback : err.message || fallback;
-  const body = { error: message };
-  if (status === 403 && typeof err.yourUserId === "string" && err.yourUserId) {
-    body.your_user_id = err.yourUserId;
-  }
-  sendJson(res, status, body, { "Cache-Control": NO_STORE });
+  sendJson(res, status, { error: message }, { "Cache-Control": NO_STORE });
 }
 
 async function requireEditor(req) {
@@ -205,6 +202,19 @@ module.exports = withResponseLogging(async function handler(req, res) {
     res.setHeader("Allow", "GET, PUT");
     sendJson(res, 405, { error: "Method not allowed" }, { "Cache-Control": NO_STORE });
   } catch (err) {
+    if (
+      req.method === "PUT" &&
+      err &&
+      err.status === 403 &&
+      typeof err.yourUserId === "string" &&
+      err.yourUserId
+    ) {
+      try {
+        await rememberDenied(err.yourUserId);
+      } catch {
+        console.error("Could not record the autonomy denial.");
+      }
+    }
     sendError(res, err, req.method === "PUT" ? "Could not save autonomy." : "Could not load autonomy.");
   }
 });

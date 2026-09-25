@@ -12,6 +12,8 @@ const { getAll } = require("@vercel/edge-config");
 const { AUTONOMY_ITEMS } = require("./autonomy.js");
 
 const WRITE_URL = "https://api.vercel.com/v1/edge-config";
+const LAST_DENIED_KEY = "autonomy_last_denied";
+const DENIED_WINDOW_MS = 10 * 60 * 1000;
 
 function edgeKey(key) {
   return "autonomy_" + key;
@@ -94,6 +96,27 @@ function writeUrl() {
   return { url, token };
 }
 
+function recentDenial(value, userId, now) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  if (value.user_id !== userId || typeof value.at !== "string") return false;
+  const then = Date.parse(value.at);
+  if (Number.isNaN(then)) return false;
+  const age = now - then;
+  return age >= 0 && age < DENIED_WINDOW_MS;
+}
+
+async function rememberDenied(userId) {
+  const now = new Date();
+  const raw = await readItems([LAST_DENIED_KEY]);
+  const current = raw && raw[LAST_DENIED_KEY];
+  if (recentDenial(current, userId, now.getTime())) return false;
+  await upsertEdgeItem(LAST_DENIED_KEY, {
+    user_id: userId,
+    at: now.toISOString(),
+  });
+  return true;
+}
+
 async function upsertEdgeItem(name, value) {
   const { url, token } = writeUrl();
   let response;
@@ -125,7 +148,9 @@ module.exports = {
   blankValue,
   parseValue,
   rowFromValue,
+  LAST_DENIED_KEY,
   readAll,
   readOne,
+  rememberDenied,
   upsertEdgeItem,
 };
