@@ -7,8 +7,9 @@
  * never comes from the body or the URL.
  *
  * A missing hash, a missing field, a bad value, or any store error
- * reads as not autonomous. GET is not cached. A store error on PUT
- * saves nothing.
+ * reads as not autonomous. GET uses the read-only Redis token and
+ * does not fall back to the write token. GET is not cached. A store
+ * error on PUT saves nothing.
  */
 
 "use strict";

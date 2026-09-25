@@ -188,12 +188,13 @@ like a second URL pointing at production.)
 
 Both `GET /api/autonomy` and `PUT /api/autonomy/:key` require a signed-in session. A signed-out request is 401. There is no public list and no allowlist. A person with nothing stored yet reads every item off, including LinkedIn profile edits. There is no seed.
 
-Connect the store on the Vercel project environment. The Marketplace may set either pair. The app uses the first pair that is fully set:
+Connect the store on the Vercel project environment. The Marketplace injects `KV_REST_API_URL`, `KV_REST_API_TOKEN`, and `KV_REST_API_READ_ONLY_TOKEN`.
 
-- `KV_REST_API_URL` and `KV_REST_API_TOKEN`
-- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
+`GET /api/autonomy` uses `KV_REST_API_URL` with `KV_REST_API_READ_ONLY_TOKEN` only. If that read-only token is missing, GET returns every item off. It does not use the write token.
 
-The app does not log the URL or the token, and it does not put them in an error. If the store is missing or cannot be reached, GET still returns 200 and every item is off. PUT returns 503 with `Autonomy settings are unavailable right now.` and writes nothing.
+`PUT /api/autonomy/:key` uses `KV_REST_API_URL` with `KV_REST_API_TOKEN`, including the read of the one field it merges before writing. If that write pair is not fully set, the save may use `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` instead. That fallback is for writes only. GET never uses it.
+
+The app does not read `KV_URL` or `REDIS_URL`. It does not log the REST URL or either token, and it does not put them in an error or in the page. If the store is missing or cannot be reached, GET still returns 200 and every item is off. PUT returns 503 with `Autonomy settings are unavailable right now.` and writes nothing.
 
 ### Shared database with the beginner repo
 

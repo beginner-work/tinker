@@ -15,10 +15,13 @@ const Module = require("node:module");
 const SEND_NOTE =
   "Even when this is on, bots only prepare a draft card. You always press Send.";
 const UNAVAILABLE = "Autonomy settings are unavailable right now.";
-const KV_URL = "https://secret-kv.upstash.io";
-const KV_TOKEN = "kv-token-do-not-leak";
+const REST_URL = "https://secret-kv.upstash.io";
+const WRITE_TOKEN = "kv-write-token-do-not-leak";
+const READ_TOKEN = "kv-read-token-do-not-leak";
 const UPSTASH_URL = "https://secret-upstash.upstash.io";
 const UPSTASH_TOKEN = "upstash-token-do-not-leak";
+const DECOY_TCP = "redis://decoy-tcp.internal";
+const DECOY_REDIS = "rediss://decoy-redis.internal";
 
 const USERS = {
   "token-a": {
@@ -56,6 +59,7 @@ let upstashError = null;
 let hgetallAsObject = false;
 const logs = [];
 let originalError;
+let originalLog;
 
 const stytchStub = {
   authenticateSession: async (token) => {
@@ -142,8 +146,11 @@ function reset() {
   upstashError = null;
   hgetallAsObject = false;
   logs.length = 0;
-  process.env.KV_REST_API_URL = KV_URL;
-  process.env.KV_REST_API_TOKEN = KV_TOKEN;
+  process.env.KV_REST_API_URL = REST_URL;
+  process.env.KV_REST_API_TOKEN = WRITE_TOKEN;
+  process.env.KV_REST_API_READ_ONLY_TOKEN = READ_TOKEN;
+  process.env.KV_URL = DECOY_TCP;
+  process.env.REDIS_URL = DECOY_REDIS;
   delete process.env.UPSTASH_REDIS_REST_URL;
   delete process.env.UPSTASH_REDIS_REST_TOKEN;
   delete process.env.EDGE_CONFIG;
@@ -152,7 +159,11 @@ function reset() {
   delete process.env.AUTONOMY_ALLOWLIST;
   delete process.env.VERCEL_ENV;
   if (!originalError) originalError = console.error;
+  if (!originalLog) originalLog = console.log;
   console.error = (...args) => {
+    logs.push(args.map(String).join(" "));
+  };
+  console.log = (...args) => {
     logs.push(args.map(String).join(" "));
   };
   global.fetch = async (url, options) => {
@@ -168,7 +179,7 @@ function reset() {
       return {
         ok: false,
         status: fetchStatus,
-        json: async () => ({ error: "upstream " + KV_TOKEN + " " + KV_URL }),
+        json: async () => ({ error: "upstream " + WRITE_TOKEN + " " + READ_TOKEN + " " + REST_URL }),
       };
     }
     if (upstashError) {
@@ -225,19 +236,24 @@ function putReq({
   };
 }
 
+const SECRETS = [REST_URL, WRITE_TOKEN, READ_TOKEN, UPSTASH_URL, UPSTASH_TOKEN, DECOY_TCP, DECOY_REDIS];
+
 function assertNoSecret(value) {
   const text = JSON.stringify(value);
-  assert.equal(text.includes(KV_TOKEN), false);
-  assert.equal(text.includes(KV_URL), false);
-  assert.equal(text.includes(UPSTASH_TOKEN), false);
-  assert.equal(text.includes(UPSTASH_URL), false);
+  for (const secret of SECRETS) assert.equal(text.includes(secret), false);
 }
 
-function assertOnlyCaller(userId) {
+function assertLogsClean() {
+  const text = logs.join("\n");
+  for (const secret of SECRETS) assert.equal(text.includes(secret), false);
+}
+
+function assertClient(userId, token) {
   for (const call of commands) {
     assert.equal(call.args[1], redis.hashKey(userId));
-    assert.equal(call.url, KV_URL);
-    assert.equal(call.authorization, "Bearer " + KV_TOKEN);
+    assert.equal(call.url, REST_URL);
+    assert.equal(call.authorization, "Bearer " + token);
+    assert.equal(call.url === DECOY_TCP || call.url === DECOY_REDIS, false);
   }
 }
 
@@ -265,6 +281,7 @@ function assertAllOff(body) {
 test.beforeEach(reset);
 test.after(() => {
   if (originalError) console.error = originalError;
+  if (originalLog) console.log = originalLog;
 });
 
 test("a new user reads every item off, including linkedin_profile_edits", async () => {
@@ -274,6 +291,7 @@ test("a new user reads every item off, including linkedin_profile_edits", async 
   assert.equal(res.captured.headers["cache-control"], "no-store");
   assertAllOff(res.captured.body);
   assert.deepEqual(commands.map((call) => call.args), [["HGETALL", "autonomy:user-a"]]);
+  assert.equal(commands[0].authorization, "Bearer " + READ_TOKEN);
   assert.equal(commands[0].signal instanceof AbortSignal, true);
   assert.equal(stytchCalls.length, 1);
 });
@@ -308,7 +326,7 @@ test("user A cannot read or write user B's settings", async () => {
   assert.equal(profile.autonomous, false);
   assert.equal(profile.note, null);
   assert.equal(JSON.stringify(listed.captured.body).includes("secret-from-b"), false);
-  assertOnlyCaller("user-a");
+  assertClient("user-a", READ_TOKEN);
 
   commands.length = 0;
   const written = fakeRes();
@@ -325,6 +343,7 @@ test("user A cannot read or write user B's settings", async () => {
     ["HSET", "autonomy:user-a", "linkedin_posts"],
   ]);
   assert.equal(commands[1].args.length, 4);
+  assertClient("user-a", WRITE_TOKEN);
   const stored = JSON.parse(commands[1].args[3]);
   assert.equal(stored.autonomous, true);
   assert.equal(stored.note, "from-a");
@@ -342,7 +361,7 @@ test("user A cannot read or write user B's settings", async () => {
   const otherPosts = other.captured.body.items.find((item) => item.key === "linkedin_posts");
   assert.equal(otherPosts.note, "also-secret");
   assert.equal(JSON.stringify(other.captured.body).includes("from-a"), false);
-  assert.equal(commands[0].args[1], "autonomy:user-b");
+  assertClient("user-b", READ_TOKEN);
 });
 
 test("signed-out GET and PUT return 401 and do not touch Redis", async () => {
@@ -371,10 +390,14 @@ test("a rejected session is 401 and does not touch Redis", async () => {
 });
 
 test("a store outage makes GET read all off and PUT return 503", async () => {
+  process.env.VERCEL_ENV = "preview";
   seedUser("user-a", {
     linkedin_posts: fieldJson({ autonomous: true, note: "keep" }),
   });
-  fetchError = Object.assign(new Error("aborted " + KV_URL + " " + KV_TOKEN), { name: "AbortError" });
+  fetchError = Object.assign(
+    new Error("aborted " + REST_URL + " " + WRITE_TOKEN + " " + READ_TOKEN),
+    { name: "AbortError" },
+  );
 
   const listed = fakeRes();
   await handler(getReq(), listed);
@@ -382,33 +405,41 @@ test("a store outage makes GET read all off and PUT return 503", async () => {
   assert.equal(listed.captured.headers["cache-control"], "no-store");
   assertAllOff(listed.captured.body);
   assertNoSecret(listed.captured.body);
-  assert.equal(logs.join("\n").includes(KV_TOKEN), false);
-  assert.equal(logs.join("\n").includes(KV_URL), false);
+  assertLogsClean();
+  assert.match(logs.join("\n"), /\[preview\] GET \/api\/autonomy 200/);
+  assert.equal(commands[0].authorization, "Bearer " + READ_TOKEN);
   assert.equal(commands.some((call) => call.args[0] === "HSET"), false);
 
+  logs.length = 0;
   commands.length = 0;
   const written = fakeRes();
   await handler(putReq({ body: { autonomous: false } }), written);
   assert.equal(written.captured.status, 503);
   assert.deepEqual(written.captured.body, { error: UNAVAILABLE });
   assertNoSecret(written.captured.body);
+  assertLogsClean();
+  assert.match(logs.join("\n"), /\[preview\] PUT .* 503/);
+  assert.equal(commands[0].authorization, "Bearer " + WRITE_TOKEN);
   assert.equal(commands.some((call) => call.args[0] === "HSET"), false);
   assert.equal(hashes.get("autonomy:user-a").get("linkedin_posts").includes('"keep"'), true);
 
   fetchError = null;
   fetchStatus = 500;
+  logs.length = 0;
   commands.length = 0;
   const again = fakeRes();
   await handler(putReq({ body: { note: "nope" } }), again);
   assert.equal(again.captured.status, 503);
   assert.deepEqual(again.captured.body, { error: UNAVAILABLE });
   assertNoSecret(again.captured.body);
+  assertLogsClean();
   assert.equal(commands.some((call) => call.args[0] === "HSET"), false);
 });
 
 test("an unconfigured store fails closed and does not call fetch", async () => {
   delete process.env.KV_REST_API_URL;
   delete process.env.KV_REST_API_TOKEN;
+  delete process.env.KV_REST_API_READ_ONLY_TOKEN;
   const listed = fakeRes();
   await handler(getReq(), listed);
   assert.equal(listed.captured.status, 200);
@@ -418,6 +449,25 @@ test("an unconfigured store fails closed and does not call fetch", async () => {
   assert.equal(written.captured.status, 503);
   assert.deepEqual(written.captured.body, { error: UNAVAILABLE });
   assert.equal(commands.length, 0);
+});
+
+test("a missing read-only token fails GET closed and does not use the write token", async () => {
+  delete process.env.KV_REST_API_READ_ONLY_TOKEN;
+  seedUser("user-a", {
+    linkedin_profile_edits: fieldJson({ autonomous: true, note: "hidden" }),
+  });
+  const listed = fakeRes();
+  await handler(getReq(), listed);
+  assert.equal(listed.captured.status, 200);
+  assertAllOff(listed.captured.body);
+  assert.equal(commands.length, 0);
+  assertNoSecret(listed.captured.body);
+
+  const written = fakeRes();
+  await handler(putReq({ body: { autonomous: true } }), written);
+  assert.equal(written.captured.status, 200);
+  assertClient("user-a", WRITE_TOKEN);
+  assert.equal(commands.some((call) => call.authorization.includes(READ_TOKEN)), false);
 });
 
 test("a PUT is one HSET on the caller's field and keeps the other half", async () => {
@@ -442,6 +492,7 @@ test("a PUT is one HSET on the caller's field and keeps the other half", async (
     ["HSET", "autonomy:user-a", "linkedin_posts"],
   ]);
   assert.equal(commands[1].args.length, 4);
+  assertClient("user-a", WRITE_TOKEN);
   assert.equal(JSON.parse(commands[1].args[3]).note, "tell me first");
   assert.equal(hashes.get("autonomy:user-a").get("linkedin_messages").includes("leave-this"), true);
 
@@ -544,23 +595,45 @@ test("updated_by comes from the session and is capped at 80 characters", async (
   assert.equal(long.captured.body.updated_by.length, 80);
 });
 
-test("Redis commands use a two second timeout and prefer the KV pair", async () => {
+test("Redis commands use a two second timeout and split read and write clients", async () => {
   assert.equal(redis.TIMEOUT_MS, 2000);
   process.env.UPSTASH_REDIS_REST_URL = UPSTASH_URL;
   process.env.UPSTASH_REDIS_REST_TOKEN = UPSTASH_TOKEN;
   const preferred = fakeRes();
   await handler(getReq(), preferred);
-  assert.equal(commands[0].url, KV_URL);
-  assert.equal(commands[0].authorization, "Bearer " + KV_TOKEN);
+  assert.equal(commands[0].url, REST_URL);
+  assert.equal(commands[0].authorization, "Bearer " + READ_TOKEN);
 
-  delete process.env.KV_REST_API_URL;
+  commands.length = 0;
+  const saved = fakeRes();
+  await handler(putReq({ body: { note: "write-pair" } }), saved);
+  assert.equal(saved.captured.status, 200);
+  assert.equal(commands.length, 2);
+  assert.equal(commands[0].args[0], "HGET");
+  assert.equal(commands[1].args[0], "HSET");
+  assert.equal(commands[0].authorization, "Bearer " + WRITE_TOKEN);
+  assert.equal(commands[1].authorization, "Bearer " + WRITE_TOKEN);
+  assert.equal(commands[0].url, REST_URL);
+
   delete process.env.KV_REST_API_TOKEN;
+  delete process.env.KV_REST_API_READ_ONLY_TOKEN;
+  commands.length = 0;
+  const closed = fakeRes();
+  await handler(getReq(), closed);
+  assert.equal(closed.captured.status, 200);
+  assertAllOff(closed.captured.body);
+  assert.equal(commands.length, 0);
+
   commands.length = 0;
   const fallback = fakeRes();
-  await handler(getReq(), fallback);
+  await handler(putReq({ body: { note: "upstash-write" } }), fallback);
+  assert.equal(fallback.captured.status, 200);
   assert.equal(commands[0].url, UPSTASH_URL);
+  assert.equal(commands[1].url, UPSTASH_URL);
   assert.equal(commands[0].authorization, "Bearer " + UPSTASH_TOKEN);
+  assert.equal(commands[1].authorization, "Bearer " + UPSTASH_TOKEN);
   assertNoSecret(fallback.captured.body);
+  assertNoSecret(closed.captured.body);
 });
 
 test("send_note stays on the JSON item when it is autonomous", async () => {
@@ -586,17 +659,72 @@ test("edge config, the allowlist, and the seed script are gone", () => {
   assert.match(readme, /autonomy:<user id>/);
   assert.match(readme, /KV_REST_API_URL/);
   assert.match(readme, /KV_REST_API_TOKEN/);
+  assert.match(readme, /KV_REST_API_READ_ONLY_TOKEN/);
   assert.match(readme, /UPSTASH_REDIS_REST_URL/);
   assert.match(readme, /UPSTASH_REDIS_REST_TOKEN/);
+  assert.match(readme, /GET never uses it/);
   assert.match(readme, /Autonomy settings are unavailable right now/);
   assert.equal(readme.includes("AUTONOMY_ALLOWLIST"), false);
   assert.equal(readme.includes("EDGE_CONFIG"), false);
   assert.equal(readme.includes("autonomy:seed"), false);
   assert.equal(readme.includes("autonomy_last_denied"), false);
   assert.match(env, /KV_REST_API_URL=/);
+  assert.match(env, /KV_REST_API_READ_ONLY_TOKEN=/);
   assert.match(env, /UPSTASH_REDIS_REST_TOKEN=/);
   assert.equal(env.includes("EDGE_CONFIG"), false);
   assert.equal(env.includes("AUTONOMY_ALLOWLIST"), false);
+});
+
+test("application code does not reference the tcp redis urls", () => {
+  const root = path.join(__dirname, "..");
+  const needles = ["KV_URL", "REDIS_URL"];
+  const files = [];
+  function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === "node_modules" || entry.name === ".git") continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(js|mjs|html|css)$/.test(entry.name)) files.push(full);
+    }
+  }
+  walk(path.join(root, "api"));
+  walk(path.join(root, "src"));
+  walk(path.join(root, "scripts"));
+  for (const file of files) {
+    const text = fs.readFileSync(file, "utf8");
+    for (const needle of needles) {
+      assert.equal(text.includes(needle), false, `${file} references ${needle}`);
+    }
+  }
+});
+
+test("the page and static assets do not mention redis credentials", () => {
+  const renderer = path.join(__dirname, "..", "src", "renderer");
+  const banned = [
+    "KV_REST_API_URL",
+    "KV_REST_API_TOKEN",
+    "KV_REST_API_READ_ONLY_TOKEN",
+    "UPSTASH_REDIS_REST_URL",
+    "UPSTASH_REDIS_REST_TOKEN",
+    "KV_URL",
+    "REDIS_URL",
+  ];
+  const files = [];
+  function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else files.push(full);
+    }
+  }
+  walk(renderer);
+  assert.ok(files.length > 0);
+  for (const file of files) {
+    const text = fs.readFileSync(file, "utf8");
+    for (const needle of banned) {
+      assert.equal(text.includes(needle), false, `${file} mentions ${needle}`);
+    }
+  }
 });
 
 test("the page is a plain list that returns through the existing sign-in", () => {

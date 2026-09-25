@@ -4,8 +4,14 @@
  * is an item key. The value is JSON
  * {autonomous, note, updated_by, updated_at}. A save is one HSET on
  * that field, after an HGET when the change has to keep the other
- * half. The REST URL and token are never placed on an error, a
+ * half. The REST URL and tokens are never placed on an error, a
  * response, or a log.
+ *
+ * GET uses KV_REST_API_URL with KV_REST_API_READ_ONLY_TOKEN. PUT uses
+ * KV_REST_API_URL with KV_REST_API_TOKEN, including the HGET that
+ * merges a partial update. If that write pair is missing, PUT may use
+ * UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. GET never uses
+ * the write token or that fallback.
  */
 
 "use strict";
@@ -13,14 +19,20 @@
 const TIMEOUT_MS = 2000;
 const UNAVAILABLE = "Autonomy settings are unavailable right now.";
 
-function redisConfig() {
-  const kvUrl = String(process.env.KV_REST_API_URL || "").trim();
-  const kvToken = String(process.env.KV_REST_API_TOKEN || "").trim();
-  if (kvUrl && kvToken) return { url: kvUrl, token: kvToken };
-  const upstashUrl = String(process.env.UPSTASH_REDIS_REST_URL || "").trim();
-  const upstashToken = String(process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
-  if (upstashUrl && upstashToken) return { url: upstashUrl, token: upstashToken };
-  return null;
+function pair(urlName, tokenName) {
+  const url = String(process.env[urlName] || "").trim();
+  const token = String(process.env[tokenName] || "").trim();
+  if (!url || !token) return null;
+  return { url, token };
+}
+
+function readConfig() {
+  return pair("KV_REST_API_URL", "KV_REST_API_READ_ONLY_TOKEN");
+}
+
+function writeConfig() {
+  return pair("KV_REST_API_URL", "KV_REST_API_TOKEN")
+    || pair("UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN");
 }
 
 function unavailable() {
@@ -31,8 +43,7 @@ function hashKey(userId) {
   return "autonomy:" + userId;
 }
 
-async function command(args) {
-  const config = redisConfig();
+async function command(config, args) {
   if (!config) throw unavailable();
   let response;
   try {
@@ -104,7 +115,7 @@ function blankValue() {
 }
 
 async function readAll(userId) {
-  const result = await command(["HGETALL", hashKey(userId)]);
+  const result = await command(readConfig(), ["HGETALL", hashKey(userId)]);
   const rows = new Map();
   for (const [field, raw] of pairsFrom(result)) {
     const parsed = parseStored(raw);
@@ -114,7 +125,8 @@ async function readAll(userId) {
 }
 
 async function readField(userId, itemKey) {
-  const result = await command(["HGET", hashKey(userId), itemKey]);
+  const config = writeConfig();
+  const result = await command(config, ["HGET", hashKey(userId), itemKey]);
   if (result == null) return blankValue();
   return parseStored(result) || blankValue();
 }
@@ -126,13 +138,14 @@ async function writeField(userId, itemKey, value) {
     updated_by: value.updated_by,
     updated_at: value.updated_at,
   };
-  await command(["HSET", hashKey(userId), itemKey, JSON.stringify(stored)]);
+  await command(writeConfig(), ["HSET", hashKey(userId), itemKey, JSON.stringify(stored)]);
 }
 
 module.exports = {
   TIMEOUT_MS,
   UNAVAILABLE,
-  redisConfig,
+  readConfig,
+  writeConfig,
   hashKey,
   parseStored,
   readAll,
