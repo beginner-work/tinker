@@ -271,7 +271,13 @@ test("tools/list exposes ask_followups and draft_linkedin_post, and no raw conve
   await handler(rpcReq({ method: "tools/list", id: 2 }), res);
   const tools = res.captured.body.result.tools;
   const names = tools.map((t) => t.name);
-  assert.deepEqual(names, ["ask_followups", "draft_linkedin_post", "get_autonomy_settings"]);
+  assert.deepEqual(names, [
+    "ask_followups",
+    "draft_linkedin_post",
+    "get_autonomy_settings",
+    "get_career_record",
+    "check_text",
+  ]);
   const autonomy = tools.find((t) => t.name === "get_autonomy_settings");
   assert.equal(autonomy.annotations.readOnlyHint, true);
   assert.deepEqual(autonomy.inputSchema, {
@@ -554,7 +560,13 @@ test("get_autonomy_settings returns this user's 14 settings and no write tool", 
   const listed = fakeRes();
   await handler(rpcReq({ method: "tools/list", id: 21 }), listed);
   const names = listed.captured.body.result.tools.map((tool) => tool.name);
-  assert.deepEqual(names, ["ask_followups", "draft_linkedin_post", "get_autonomy_settings"]);
+  assert.deepEqual(names, [
+    "ask_followups",
+    "draft_linkedin_post",
+    "get_autonomy_settings",
+    "get_career_record",
+    "check_text",
+  ]);
   assert.equal(names.includes("set_autonomy_settings"), false);
   assert.equal(names.includes("update_autonomy_settings"), false);
 

@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
+    <title>Career record</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <style>
+      html, body.career-page {
+        height: auto;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow: auto;
+        display: block;
+      }
+      .career {
+        max-width: 52rem;
+        margin: 0 auto;
+        padding: 48px 20px 80px;
+      }
+      .career__title {
+        margin: 0;
+        font-family: var(--font-display);
+        font-variation-settings: var(--font-display-settings);
+        font-size: 32px;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+      }
+      .career__lede {
+        margin: 8px 0 20px;
+        color: var(--color-muted);
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      .career__status {
+        min-height: 1.2em;
+        margin: 0 0 16px;
+        color: #b3261e;
+        font-size: 14px;
+      }
+      .career__upload {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 0 0 28px;
+        padding: 14px 16px;
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-card);
+      }
+      .career__file { font-size: 14px; }
+      .career__button, .career__confirm, .career__reject, .career__restore {
+        padding: 8px 12px;
+        border-radius: var(--radius-button);
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .career__button, .career__confirm {
+        background: var(--color-accent-strong);
+        color: #fff;
+      }
+      .career__reject, .career__restore {
+        background: transparent;
+        border: 1px solid var(--color-border);
+        color: var(--color-foreground);
+      }
+      .career__button:disabled, .career__confirm:disabled, .career__reject:disabled, .career__restore:disabled {
+        opacity: 0.55;
+        cursor: progress;
+      }
+      .career__rejected > summary {
+        cursor: pointer;
+      }
+      .career__rejected .career__list {
+        margin-top: 10px;
+      }
+      .career__section {
+        margin: 0 0 28px;
+      }
+      .career__heading {
+        margin: 0 0 10px;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--color-muted);
+      }
+      .career__list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .career__fact, .career__rule {
+        padding: 14px 16px;
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-card);
+      }
+      .career__pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px 20px;
+      }
+      .career__kind {
+        margin: 0 0 6px;
+        color: var(--color-muted);
+        font-size: 12px;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+      .career__value, .career__excerpt, .career__doc, .career__ruletext {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.45;
+      }
+      .career__excerpt {
+        color: var(--color-muted);
+      }
+      .career__doc {
+        margin-top: 6px;
+        color: var(--color-muted);
+        font-size: 12px;
+      }
+      .career__input {
+        width: 100%;
+        min-height: 38px;
+        margin-top: 6px;
+        padding: 8px 10px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-button);
+        background: var(--color-surface);
+        font: inherit;
+        font-size: 14px;
+      }
+      .career__actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .career__empty {
+        margin: 0;
+        color: var(--color-muted);
+        font-size: 14px;
+      }
+      @media (max-width: 700px) {
+        .career__pair { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body class="career-page">
+    <main class="career">
+      <h1 class="career__title">Career record</h1>
+      <p class="career__lede">Upload a resume, then confirm each fact. Nothing is verified until you click. A one-page resume is about a 30 minute sitting.</p>
+      <p id="career-status" class="career__status" role="status"></p>
+      <form id="career-upload" class="career__upload">
+        <input id="career-file" class="career__file" type="file" accept=".pdf,.md,.markdown,.txt,application/pdf,text/markdown,text/plain" multiple />
+        <button id="career-upload-button" class="career__button" type="submit">Extract facts</button>
+      </form>
+      <section class="career__section">
+        <h2 class="career__heading">Needs your confirmation</h2>
+        <ul id="career-proposed" class="career__list"></ul>
+      </section>
+      <section class="career__section">
+        <h2 class="career__heading">Verified</h2>
+        <ul id="career-verified" class="career__list"></ul>
+      </section>
+      <details id="career-rejected-section" class="career__section career__rejected">
+        <summary class="career__heading">Rejected</summary>
+        <ul id="career-rejected" class="career__list"></ul>
+      </details>
+      <section class="career__section">
+        <h2 class="career__heading">Answer rules</h2>
+        <ul id="career-rules" class="career__list"></ul>
+      </section>
+    </main>
+    <script src="/career/catalog.js"></script>
+    <script src="/career/career.js"></script>
+  </body>
+</html>
