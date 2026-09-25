@@ -345,6 +345,7 @@ test("an mcp_ bearer is 401 before Stytch and does not touch Redis", async () =>
     careerReq({ token }),
     careerReq({ method: "POST", token, action: "extract", body: { documents: [] } }),
     careerReq({ method: "POST", token, action: "fact", body: { id: "x", action: "verify" } }),
+    careerReq({ method: "POST", token, action: "fact", body: { id: "x", action: "restore" } }),
   ]) {
     stytchCalls.length = 0;
     commands.length = 0;
@@ -412,6 +413,52 @@ test("confirm and reject change only the signed-in user's fact", async () => {
   assert.equal(tool.verified_facts.some((fact) => fact.id === "seed_same_team_span"), false);
   assert.equal(tool.verified_facts.some((fact) => fact.id === "seed_l7_people_leadership"), true);
   assert.equal(tool.unverified_facts.every((fact) => fact.unverified === true), true);
+});
+
+test("reject then restore returns the fact to proposed", async () => {
+  await handler(careerReq(), fakeRes());
+  const rejected = fakeRes();
+  await handler(careerReq({
+    method: "POST",
+    action: "fact",
+    body: { id: "seed_same_team_span", action: "reject" },
+  }), rejected);
+  assert.equal(rejected.captured.status, 200);
+  assert.equal(rejected.captured.body.rejected_facts.some((fact) => fact.id === "seed_same_team_span"), true);
+  assert.equal(rejected.captured.body.proposed_facts.some((fact) => fact.id === "seed_same_team_span"), false);
+
+  const whileRejected = fakeRes();
+  await mcp(rpcReq("tools/call", { name: "get_career_record", arguments: {} }), whileRejected);
+  const hidden = whileRejected.captured.body.result.structuredContent;
+  assert.equal(hidden.unverified_facts.some((fact) => fact.id === "seed_same_team_span"), false);
+  assert.equal(hidden.verified_facts.some((fact) => fact.id === "seed_same_team_span"), false);
+  assert.equal(JSON.stringify(hidden).includes("seed_same_team_span"), false);
+
+  const restored = fakeRes();
+  await handler(careerReq({
+    method: "POST",
+    action: "fact",
+    body: { id: "seed_same_team_span", action: "restore" },
+  }), restored);
+  assert.equal(restored.captured.status, 200);
+  const back = restored.captured.body.proposed_facts.find((fact) => fact.id === "seed_same_team_span");
+  assert.equal(back.status, "proposed");
+  assert.equal(restored.captured.body.rejected_facts.some((fact) => fact.id === "seed_same_team_span"), false);
+  assert.equal(restored.captured.body.verified_facts.some((fact) => fact.id === "seed_same_team_span"), false);
+
+  const read = fakeRes();
+  await mcp(rpcReq("tools/call", { name: "get_career_record", arguments: {} }), read);
+  const shaped = read.captured.body.result.structuredContent;
+  const fact = shaped.unverified_facts.find((item) => item.id === "seed_same_team_span");
+  assert.equal(fact.unverified, true);
+  assert.equal(fact.status, "proposed");
+  assert.equal(shaped.verified_facts.some((item) => item.id === "seed_same_team_span"), false);
+
+  const listed = fakeRes();
+  await mcp(rpcReq("tools/list"), listed);
+  const names = listed.captured.body.result.tools.map((tool) => tool.name);
+  assert.equal(names.includes("restore"), false);
+  assert.equal(names.some((name) => /set_|update_|verify|reject|restore|write/.test(name)), false);
 });
 
 test("extract stores proposed excerpts and not the rest of the upload", async () => {
@@ -506,7 +553,7 @@ test("get_career_record reads only this user and check_text does not write", asy
     assert.equal(tool.annotations.readOnlyHint, true);
     assert.equal(tool.annotations.destructiveHint, false);
   }
-  assert.equal(names.some((name) => /set_|update_|verify|reject|write/.test(name)), false);
+  assert.equal(names.some((name) => /set_|update_|verify|reject|restore|write/.test(name)), false);
 
   commands.length = 0;
   const read = fakeRes();
@@ -583,6 +630,10 @@ test("the career page uses the existing sign-in and does not render HTML from fa
   const sw = fs.readFileSync(path.join(root, "src", "renderer", "sw.js"), "utf8");
   const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
   assert.match(html, /Nothing is verified until you click/);
+  assert.match(html, /<summary class="career__heading">Rejected<\/summary>/);
+  assert.equal(/<details id="career-rejected-section"[^>]*\sopen[\s>]/.test(html), false);
+  assert.match(page, /action: "restore"/);
+  assert.match(page, /textContent = "Restore"/);
   assert.match(html, /src="\/career\/career\.js"/);
   assert.equal(html.includes("\u2014"), false);
   assert.match(page, /textContent/);

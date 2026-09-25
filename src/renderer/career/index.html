@@ -58,7 +58,7 @@
         border-radius: var(--radius-card);
       }
       .career__file { font-size: 14px; }
-      .career__button, .career__confirm, .career__reject {
+      .career__button, .career__confirm, .career__reject, .career__restore {
         padding: 8px 12px;
         border-radius: var(--radius-button);
         font-size: 13px;
@@ -68,14 +68,20 @@
         background: var(--color-accent-strong);
         color: #fff;
       }
-      .career__reject {
+      .career__reject, .career__restore {
         background: transparent;
         border: 1px solid var(--color-border);
         color: var(--color-foreground);
       }
-      .career__button:disabled, .career__confirm:disabled, .career__reject:disabled {
+      .career__button:disabled, .career__confirm:disabled, .career__reject:disabled, .career__restore:disabled {
         opacity: 0.55;
         cursor: progress;
+      }
+      .career__rejected > summary {
+        cursor: pointer;
+      }
+      .career__rejected .career__list {
+        margin-top: 10px;
       }
       .career__section {
         margin: 0 0 28px;
@@ -170,6 +176,10 @@
         <h2 class="career__heading">Verified</h2>
         <ul id="career-verified" class="career__list"></ul>
       </section>
+      <details id="career-rejected-section" class="career__section career__rejected">
+        <summary class="career__heading">Rejected</summary>
+        <ul id="career-rejected" class="career__list"></ul>
+      </details>
       <section class="career__section">
         <h2 class="career__heading">Answer rules</h2>
         <ul id="career-rules" class="career__list"></ul>

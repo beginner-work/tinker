@@ -3,7 +3,8 @@
  * Facts and rules live in Redis under career:<user id>. The browser
  * seeds on first load and is the only writer. The connector reads
  * through get_career_record and check_text. Rejected facts are omitted
- * from the tool. Proposed facts stay marked unverified.
+ * from the tool. Restore sends a rejected fact back to proposed.
+ * Proposed facts stay marked unverified.
  */
 
 "use strict";
@@ -185,11 +186,19 @@ function applyFactAction(record, body) {
   if (!fact) {
     throw Object.assign(new Error("Unknown fact."), { status: 404 });
   }
-  if (action !== "verify" && action !== "reject" && action !== "edit") {
-    throw Object.assign(new Error("Action must be verify, edit, or reject."), { status: 400 });
+  if (action !== "verify" && action !== "reject" && action !== "edit" && action !== "restore") {
+    throw Object.assign(new Error("Action must be verify, edit, reject, or restore."), { status: 400 });
   }
   if (action === "reject") {
     fact.status = "rejected";
+    fact.updated_at = nowIso();
+    return record;
+  }
+  if (action === "restore") {
+    if (fact.status !== "rejected") {
+      throw Object.assign(new Error("Only a rejected fact can be restored."), { status: 400 });
+    }
+    fact.status = "proposed";
     fact.updated_at = nowIso();
     return record;
   }

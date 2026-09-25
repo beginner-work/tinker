@@ -3,7 +3,8 @@
  * Same sign-in as the rest of tinker: a Stytch session in
  * localStorage.tinker_jwt. The record comes from GET /api/career.
  * Confirm, edit, and reject are the only way a fact becomes verified
- * or rejected. Text is assigned with textContent.
+ * or rejected. Restore sends a rejected fact back to proposed.
+ * Text is assigned with textContent.
  */
 
 (function () {
@@ -14,6 +15,7 @@
   var statusEl = document.getElementById("career-status");
   var proposedEl = document.getElementById("career-proposed");
   var verifiedEl = document.getElementById("career-verified");
+  var rejectedEl = document.getElementById("career-rejected");
   var rulesEl = document.getElementById("career-rules");
   var uploadForm = document.getElementById("career-upload");
   var fileInput = document.getElementById("career-file");
@@ -79,7 +81,9 @@
     return el;
   }
 
-  function renderFact(fact, proposed) {
+  function renderFact(fact, mode) {
+    var proposed = mode === "proposed";
+    var rejected = mode === "rejected";
     var row = document.createElement("li");
     row.className = "career__fact";
     var pair = document.createElement("div");
@@ -126,10 +130,10 @@
         var body = { id: fact.id, action: "verify", value: value.value };
         if (baseline) body.baseline = baseline.value;
         if (mechanism) body.mechanism = mechanism.value;
-        saveFact(body, confirm, reject);
+        saveFact(body, [confirm, reject]);
       });
       reject.addEventListener("click", function () {
-        saveFact({ id: fact.id, action: "reject" }, confirm, reject);
+        saveFact({ id: fact.id, action: "reject" }, [confirm, reject]);
       });
       actions.appendChild(confirm);
       actions.appendChild(reject);
@@ -138,6 +142,19 @@
       addText(left, "career__value", fact.value);
       if (fact.kind === "metric" && (fact.baseline || fact.mechanism)) {
         addText(left, "career__doc", "Baseline: " + (fact.baseline || "none") + ". Mechanism: " + (fact.mechanism || "none") + ".");
+      }
+      if (rejected) {
+        var restoreActions = document.createElement("div");
+        restoreActions.className = "career__actions";
+        var restore = document.createElement("button");
+        restore.type = "button";
+        restore.className = "career__restore";
+        restore.textContent = "Restore";
+        restore.addEventListener("click", function () {
+          saveFact({ id: fact.id, action: "restore" }, [restore]);
+        });
+        restoreActions.appendChild(restore);
+        left.appendChild(restoreActions);
       }
     }
 
@@ -163,7 +180,7 @@
     });
   }
 
-  function renderList(el, facts, proposed, emptyText) {
+  function renderList(el, facts, mode, emptyText) {
     el.replaceChildren();
     if (!facts || !facts.length) {
       var empty = document.createElement("li");
@@ -173,14 +190,15 @@
       return;
     }
     facts.forEach(function (fact) {
-      el.appendChild(renderFact(fact, proposed));
+      el.appendChild(renderFact(fact, mode));
     });
   }
 
   function render() {
     if (!record) return;
-    renderList(proposedEl, record.proposed_facts, true, "Nothing waiting. Upload a resume to propose facts.");
-    renderList(verifiedEl, record.verified_facts, false, "None yet.");
+    renderList(proposedEl, record.proposed_facts, "proposed", "Nothing waiting. Upload a resume to propose facts.");
+    renderList(verifiedEl, record.verified_facts, "verified", "None yet.");
+    renderList(rejectedEl, record.rejected_facts, "rejected", "None.");
     renderRules(record.rules);
   }
 
@@ -189,9 +207,9 @@
     render();
   }
 
-  function saveFact(body, confirm, reject) {
-    confirm.disabled = true;
-    reject.disabled = true;
+  function saveFact(body, buttons) {
+    var controls = buttons || [];
+    controls.forEach(function (button) { button.disabled = true; });
     setStatus("");
     fetch("/api/career?action=fact", {
       method: "POST",
@@ -200,15 +218,13 @@
     }).then(readJson).then(function (result) {
       if (handleAuth(result)) return;
       if (result.status !== 200 || !result.body || !Array.isArray(result.body.proposed_facts)) {
-        confirm.disabled = false;
-        reject.disabled = false;
+        controls.forEach(function (button) { button.disabled = false; });
         setStatus((result.body && result.body.error) || "Could not save that fact.");
         return;
       }
       applyRecord(result.body);
     }).catch(function () {
-      confirm.disabled = false;
-      reject.disabled = false;
+      controls.forEach(function (button) { button.disabled = false; });
       setStatus("Could not save that fact.");
     });
   }
