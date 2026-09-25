@@ -9,9 +9,8 @@
  *
  * GET uses KV_REST_API_URL with KV_REST_API_READ_ONLY_TOKEN. PUT uses
  * KV_REST_API_URL with KV_REST_API_TOKEN, including the HGET that
- * merges a partial update. If that write pair is missing, PUT may use
- * UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. GET never uses
- * the write token or that fallback.
+ * merges a partial update. If that write pair is missing, PUT saves
+ * nothing. GET does not use the write token.
  */
 
 "use strict";
@@ -31,8 +30,7 @@ function readConfig() {
 }
 
 function writeConfig() {
-  return pair("KV_REST_API_URL", "KV_REST_API_TOKEN")
-    || pair("UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN");
+  return pair("KV_REST_API_URL", "KV_REST_API_TOKEN");
 }
 
 function unavailable() {

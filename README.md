@@ -192,7 +192,7 @@ Connect the store on the Vercel project environment. The Marketplace injects `KV
 
 `GET /api/autonomy` uses `KV_REST_API_URL` with `KV_REST_API_READ_ONLY_TOKEN` only. If that read-only token is missing, GET returns every item off. It does not use the write token.
 
-`PUT /api/autonomy/:key` uses `KV_REST_API_URL` with `KV_REST_API_TOKEN`, including the read of the one field it merges before writing. If that write pair is not fully set, the save may use `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` instead. That fallback is for writes only. GET never uses it.
+`PUT /api/autonomy/:key` uses `KV_REST_API_URL` with `KV_REST_API_TOKEN`, including the read of the one field it merges before writing. If that write pair is missing, PUT returns 503 and saves nothing.
 
 The app does not read `KV_URL` or `REDIS_URL`. It does not log the REST URL or either token, and it does not put them in an error or in the page. If the store is missing or cannot be reached, GET still returns 200 and every item is off. PUT returns 503 with `Autonomy settings are unavailable right now.` and writes nothing.
 

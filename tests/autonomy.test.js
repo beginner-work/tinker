@@ -623,17 +623,23 @@ test("Redis commands use a two second timeout and split read and write clients",
   assert.equal(closed.captured.status, 200);
   assertAllOff(closed.captured.body);
   assert.equal(commands.length, 0);
-
-  commands.length = 0;
-  const fallback = fakeRes();
-  await handler(putReq({ body: { note: "upstash-write" } }), fallback);
-  assert.equal(fallback.captured.status, 200);
-  assert.equal(commands[0].url, UPSTASH_URL);
-  assert.equal(commands[1].url, UPSTASH_URL);
-  assert.equal(commands[0].authorization, "Bearer " + UPSTASH_TOKEN);
-  assert.equal(commands[1].authorization, "Bearer " + UPSTASH_TOKEN);
-  assertNoSecret(fallback.captured.body);
   assertNoSecret(closed.captured.body);
+});
+
+test("PUT with only the UPSTASH vars set returns 503 and saves nothing", async () => {
+  delete process.env.KV_REST_API_URL;
+  delete process.env.KV_REST_API_TOKEN;
+  delete process.env.KV_REST_API_READ_ONLY_TOKEN;
+  process.env.UPSTASH_REDIS_REST_URL = UPSTASH_URL;
+  process.env.UPSTASH_REDIS_REST_TOKEN = UPSTASH_TOKEN;
+  seedUser("user-a", { linkedin_posts: fieldJson({ autonomous: false, note: "keep" }) });
+  const res = fakeRes();
+  await handler(putReq({ body: { autonomous: true } }), res);
+  assert.equal(res.captured.status, 503);
+  assert.deepEqual(res.captured.body, { error: UNAVAILABLE });
+  assert.equal(commands.length, 0);
+  assertNoSecret(res.captured.body);
+  assert.equal(hashes.get("autonomy:user-a").get("linkedin_posts").includes("keep"), true);
 });
 
 test("send_note stays on the JSON item when it is autonomous", async () => {
@@ -660,9 +666,7 @@ test("edge config, the allowlist, and the seed script are gone", () => {
   assert.match(readme, /KV_REST_API_URL/);
   assert.match(readme, /KV_REST_API_TOKEN/);
   assert.match(readme, /KV_REST_API_READ_ONLY_TOKEN/);
-  assert.match(readme, /UPSTASH_REDIS_REST_URL/);
-  assert.match(readme, /UPSTASH_REDIS_REST_TOKEN/);
-  assert.match(readme, /GET never uses it/);
+  assert.equal(readme.includes("UPSTASH_REDIS_REST_"), false);
   assert.match(readme, /Autonomy settings are unavailable right now/);
   assert.equal(readme.includes("AUTONOMY_ALLOWLIST"), false);
   assert.equal(readme.includes("EDGE_CONFIG"), false);
@@ -670,14 +674,14 @@ test("edge config, the allowlist, and the seed script are gone", () => {
   assert.equal(readme.includes("autonomy_last_denied"), false);
   assert.match(env, /KV_REST_API_URL=/);
   assert.match(env, /KV_REST_API_READ_ONLY_TOKEN=/);
-  assert.match(env, /UPSTASH_REDIS_REST_TOKEN=/);
+  assert.equal(env.includes("UPSTASH_REDIS_REST_"), false);
   assert.equal(env.includes("EDGE_CONFIG"), false);
   assert.equal(env.includes("AUTONOMY_ALLOWLIST"), false);
 });
 
 test("application code does not reference the tcp redis urls", () => {
   const root = path.join(__dirname, "..");
-  const needles = ["KV_URL", "REDIS_URL"];
+  const needles = ["KV_URL", "REDIS_URL", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"];
   const files = [];
   function walk(dir) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
