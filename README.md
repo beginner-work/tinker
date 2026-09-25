@@ -182,6 +182,20 @@ to point at a separate `project-test-*` Stytch project and got its
 localStorage wiped on every load — both are gone now; previews behave
 like a second URL pointing at production.)
 
+### Autonomy
+
+`/autonomy` stores each signed-in person's toggles in Upstash Redis, not Postgres. One hash per Stytch user id, named `autonomy:<user id>`. The id comes from the verified session. Each field is one of the 14 item keys, and the value is JSON with `autonomous`, `note`, `updated_by`, and `updated_at`. A save writes that one field, so two toggles do not overwrite each other.
+
+Both `GET /api/autonomy` and `PUT /api/autonomy/:key` require a signed-in session. A signed-out request is 401. There is no public list and no allowlist. A person with nothing stored yet reads every item off, including LinkedIn profile edits. There is no seed.
+
+Connect the store on the Vercel project environment. The Marketplace injects `KV_REST_API_URL`, `KV_REST_API_TOKEN`, and `KV_REST_API_READ_ONLY_TOKEN`.
+
+`GET /api/autonomy` uses `KV_REST_API_URL` with `KV_REST_API_READ_ONLY_TOKEN` only. If that read-only token is missing, GET returns every item off. It does not use the write token.
+
+`PUT /api/autonomy/:key` uses `KV_REST_API_URL` with `KV_REST_API_TOKEN`, including the read of the one field it merges before writing. If that write pair is missing, PUT returns 503 and saves nothing.
+
+The app does not read `KV_URL` or `REDIS_URL`. It does not log the REST URL or either token, and it does not put them in an error or in the page. If the store is missing or cannot be reached, GET still returns 200 and every item is off. PUT returns 503 with `Autonomy settings are unavailable right now.` and writes nothing.
+
 ### Shared database with the beginner repo
 
 `DATABASE_URL` on both tinker (production + preview) and beginner
