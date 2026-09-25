@@ -2,6 +2,8 @@
  *
  * Same sign-in as the rest of tinker: a Stytch session in
  * localStorage.tinker_jwt. The list comes from GET /api/autonomy.
+ * Labels, scope lines, and the send note come from catalog.js
+ * (window.tinkerAutonomy), the same list the connector tool reads.
  * Each switch PUTs {autonomous}. A note PUTs {note}. Text is assigned
  * with textContent so a note cannot become HTML.
  */
@@ -33,6 +35,14 @@
 
   function setStatus(text) {
     statusEl.textContent = text || "";
+  }
+
+  function catalogDef(key) {
+    var items = (window.tinkerAutonomy && window.tinkerAutonomy.AUTONOMY_ITEMS) || [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].key === key) return items[i];
+    }
+    return null;
   }
 
   function changedLine(item) {
@@ -83,10 +93,16 @@
       var row = document.createElement("li");
       row.className = "autonomy__row";
 
+      var def = catalogDef(item.key);
+      var labelText = def ? def.label : item.label;
+      var description = def && def.description ? def.description : "";
+      var sendNote = def ? def.send_note : item.send_note;
+
       var label = document.createElement("span");
       label.className = "autonomy__label";
       label.id = "autonomy-label-" + index;
-      label.textContent = item.label;
+      label.textContent = labelText;
+      if (description) label.setAttribute("data-scope", description);
 
       var button = document.createElement("button");
       button.type = "button";
@@ -104,10 +120,10 @@
       row.appendChild(button);
       row.appendChild(meta);
 
-      if (item.send_note) {
+      if (sendNote) {
         var send = document.createElement("p");
         send.className = "autonomy__send";
-        send.textContent = item.send_note;
+        send.textContent = sendNote;
         row.appendChild(send);
       }
 
@@ -120,7 +136,7 @@
         input.maxLength = 500;
         input.placeholder = "only after X, or tell me first when Y";
         input.value = item.note || "";
-        input.setAttribute("aria-label", "Instructions for " + item.label);
+        input.setAttribute("aria-label", "Instructions for " + labelText);
         var save = document.createElement("button");
         save.type = "submit";
         save.className = "autonomy__save";

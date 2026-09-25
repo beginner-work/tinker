@@ -381,6 +381,31 @@ test("signed-out GET and PUT return 401 and do not touch Redis", async () => {
   assert.equal(hashes.get("autonomy:user-a").get("linkedin_posts").includes("keep"), true);
 });
 
+test("an mcp_ bearer on PUT and GET is 401 before Stytch and does not touch Redis", async () => {
+  seedUser("user-a", { linkedin_posts: fieldJson({ autonomous: true, note: "keep" }) });
+  const token = "mcp_super-secret-token";
+
+  const putRes = fakeRes();
+  await handler(putReq({ token, body: { autonomous: false } }), putRes);
+  assert.equal(putRes.captured.status, 401);
+  assert.equal(putRes.captured.body.error, "Connector credentials cannot change autonomy.");
+  assert.equal(putRes.captured.headers["cache-control"], "no-store");
+  assert.equal(JSON.stringify(putRes.captured.body).includes(token), false);
+  assert.equal(stytchCalls.length, 0);
+  assert.equal(commands.length, 0);
+  assert.equal(hashes.get("autonomy:user-a").get("linkedin_posts").includes("keep"), true);
+  assertNoSecret(putRes.captured.body);
+  assertLogsClean();
+
+  const getRes = fakeRes();
+  await handler(getReq(token), getRes);
+  assert.equal(getRes.captured.status, 401);
+  assert.equal(getRes.captured.body.error, "Connector credentials cannot change autonomy.");
+  assert.equal(stytchCalls.length, 0);
+  assert.equal(commands.length, 0);
+  assert.equal(JSON.stringify(getRes.captured.body).includes(token), false);
+});
+
 test("a rejected session is 401 and does not touch Redis", async () => {
   const res = fakeRes();
   await handler(putReq({ token: "expired" }), res);
@@ -984,6 +1009,149 @@ test("a 401 on GET clears the session and sends the user home", async () => {
   assert.equal(fetches[0].options.headers.Authorization, "Bearer signed-in");
   assert.deepEqual(removed, ["tinker_jwt"]);
   assert.deepEqual(assigns, ["/"]);
+});
+
+test("the connector user id is the same id the autonomy hash uses", () => {
+  const { userIdFromSession } = require("../api/_lib/mcp-keys.js");
+  const fromSession = {
+    session: { user_id: "user-live-123" },
+    user: {
+      user_id: "user-other",
+      emails: [{ email: "a@example.com" }],
+      name: { first_name: "Ada", last_name: "Lovelace" },
+    },
+  };
+  assert.equal(userIdFromSession(fromSession), catalog.callerFromSession(fromSession).userId);
+  assert.equal(catalog.callerFromSession(fromSession).userId, "user-live-123");
+
+  const fromUser = { user: { user_id: "user-from-user", emails: [], name: {} } };
+  assert.equal(userIdFromSession(fromUser), catalog.callerFromSession(fromUser).userId);
+});
+
+test("the page and the connector tool read one catalog", async () => {
+  const shared = require("../src/renderer/autonomy/catalog.js");
+  assert.equal(catalog.AUTONOMY_ITEMS, shared.AUTONOMY_ITEMS);
+  assert.equal(catalog.SEND_NOTE, SEND_NOTE);
+  assert.equal(shared.AUTONOMY_ITEMS.length, 14);
+  const descriptions = new Set();
+  for (const def of shared.AUTONOMY_ITEMS) {
+    assert.equal(typeof def.description, "string");
+    assert.equal(def.description.length > 0, true);
+    assert.equal(def.description.includes("\n"), false);
+    assert.equal(def.description.includes("\u2014"), false);
+    descriptions.add(def.description);
+    assert.equal(def.label.includes("\u2014"), false);
+  }
+  assert.equal(descriptions.size, 14);
+
+  const catalogSource = fs.readFileSync(
+    path.join(__dirname, "..", "src", "renderer", "autonomy", "catalog.js"),
+    "utf8",
+  );
+  const browserWindow = {};
+  vm.runInNewContext(catalogSource, vm.createContext({
+    window: browserWindow,
+    globalThis: browserWindow,
+  }));
+  assert.equal(browserWindow.tinkerAutonomy.AUTONOMY_ITEMS.length, 14);
+  assert.equal(browserWindow.tinkerAutonomy.AUTONOMY_ITEMS[0].label, "LinkedIn profile edits");
+  assert.equal(
+    browserWindow.tinkerAutonomy.AUTONOMY_ITEMS[3].description,
+    shared.AUTONOMY_ITEMS[3].description,
+  );
+
+  const html = fs.readFileSync(
+    path.join(__dirname, "..", "src", "renderer", "autonomy", "index.html"),
+    "utf8",
+  );
+  const page = fs.readFileSync(
+    path.join(__dirname, "..", "src", "renderer", "autonomy", "autonomy.js"),
+    "utf8",
+  );
+  const catalogAt = html.indexOf('src="/autonomy/catalog.js"');
+  const pageAt = html.indexOf('src="/autonomy/autonomy.js"');
+  assert.ok(catalogAt > 0 && pageAt > catalogAt);
+  assert.match(page, /window\.tinkerAutonomy/);
+  assert.match(page, /data-scope/);
+  assert.equal(page.includes("LinkedIn profile edits"), false);
+
+  const nodes = [];
+  function makeEl(tag) {
+    const node = {
+      tag,
+      className: "",
+      children: [],
+      attrs: {},
+      _text: "",
+      set textContent(value) { this._text = String(value); },
+      get textContent() { return this._text; },
+      set innerHTML(_value) { throw new Error("innerHTML used"); },
+      setAttribute(name, value) { this.attrs[name] = String(value); },
+      addEventListener() {},
+      appendChild(child) { this.children.push(child); return child; },
+      replaceChildren() { this.children = []; },
+    };
+    nodes.push(node);
+    return node;
+  }
+  const list = makeEl("ul");
+  const status = makeEl("p");
+  vm.runInNewContext(page, vm.createContext({
+    localStorage: { getItem() { return "signed-in"; }, setItem() {}, removeItem() {} },
+    sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+    document: {
+      getElementById(id) { return id === "autonomy-list" ? list : status; },
+      createElement: makeEl,
+    },
+    window: { location: { assign() {} }, tinkerAutonomy: shared },
+    fetch() {
+      return Promise.resolve({
+        status: 200,
+        json() {
+          return Promise.resolve({
+            items: shared.AUTONOMY_ITEMS.map((def) => ({
+              key: def.key,
+              label: "NOT THE PAGE LABEL",
+              autonomous: false,
+              note: null,
+              updated_by: null,
+              updated_at: null,
+              send_note: "WRONG NOTE",
+            })),
+          });
+        },
+      });
+    },
+  }));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const labels = nodes.filter((node) => node.className === "autonomy__label");
+  assert.equal(labels.length, 14);
+  labels.forEach((node, index) => {
+    const def = shared.AUTONOMY_ITEMS[index];
+    assert.equal(node._text, def.label);
+    assert.equal(node.attrs["data-scope"], def.description);
+  });
+  const sends = nodes.filter((node) => node.className === "autonomy__send").map((node) => node._text);
+  assert.deepEqual(sends, [SEND_NOTE, SEND_NOTE, SEND_NOTE]);
+  assert.equal(nodes.some((node) => node._text === "NOT THE PAGE LABEL" || node._text === "WRONG NOTE"), false);
+
+  const shaped = catalog.toolSettings(new Map([
+    ["linkedin_posts", {
+      autonomous: true,
+      note: "",
+      updatedBy: "a@example.com",
+      updatedAt: "2026-09-25T14:45:00.000Z",
+    }],
+  ]));
+  assert.equal(shaped.settings.length, 14);
+  shaped.settings.forEach((item, index) => {
+    const def = shared.AUTONOMY_ITEMS[index];
+    assert.equal(item.label, def.label);
+    assert.equal(item.description, def.description);
+    assert.equal(item.label, labels[index]._text);
+    assert.equal(item.description, labels[index].attrs["data-scope"]);
+  });
 });
 
 test("signed-out /autonomy comes back to /autonomy after sign-in", () => {
