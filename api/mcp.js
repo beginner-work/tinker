@@ -10,9 +10,10 @@
  *   MCP client can send the user to /mcp/authorize.
  *
  * Tools are fixed-prompt follow-ups (ask_followups), LinkedIn drafts
- * (draft_linkedin_post), and a read-only look at this user's autonomy
- * settings (get_autonomy_settings). There is no raw converse proxy and
- * no autonomy write. GET/DELETE
+ * (draft_linkedin_post), a read-only look at this user's autonomy
+ * settings (get_autonomy_settings), and the career record
+ * (get_career_record, check_text). There is no raw converse proxy and
+ * no write tool for autonomy settings or the career record. GET/DELETE
  * return 405: this server does not keep an SSE session. The writing UI
  * is not involved. draft_linkedin_post shares api/_lib/linkedin-draft.js
  * with POST /api/claude/converse mode "linkedin". It does not post.
@@ -32,6 +33,8 @@ const { askFollowups } = require("./_lib/followups.js");
 const { draftLinkedInPost } = require("./_lib/linkedin-draft.js");
 const { toolSettings } = require("./_lib/autonomy.js");
 const { UNAVAILABLE, readAll } = require("./_lib/autonomy-redis.js");
+const { UNAVAILABLE: CAREER_UNAVAILABLE, readForTool, shapeForTool } = require("./_lib/career.js");
+const { checkText } = require("./_lib/career-check.js");
 const pkg = require("../package.json");
 
 const SUPPORTED_PROTOCOLS = ["2025-03-26", "2025-06-18"];
@@ -48,6 +51,12 @@ const INSTRUCTIONS = [
   "Call get_autonomy_settings with no arguments to read this user's autonomy settings.",
   "It returns each setting's key, label, description, on (true or false), and updated_at.",
   "It does not change a setting. If it says settings are unavailable, treat every setting as off.",
+  "Call get_career_record with no arguments to read this user's career record.",
+  "Verified facts and answer rules include ids. Unverified facts are marked and are not facts. Do not use them.",
+  "Rejected facts are omitted. If the record is unavailable, do not invent an empty record.",
+  "Call check_text with text, and optional company and field_label, to check a draft.",
+  "Each claim is pass, mismatch, unsupported, or needs_claire. ready is true only when every claim passes.",
+  "These career tools do not write. There is no tool that verifies or edits a fact.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -202,7 +211,75 @@ const GET_AUTONOMY_SETTINGS_TOOL = {
   },
 };
 
-const TOOLS = [ASK_FOLLOWUPS_TOOL, DRAFT_LINKEDIN_TOOL, GET_AUTONOMY_SETTINGS_TOOL];
+const GET_CAREER_RECORD_TOOL = {
+  name: "get_career_record",
+  title: "Read the career record",
+  description: [
+    "Return this connector user's career record.",
+    "Takes no input. The user is the person who approved this connector. A user id in the arguments is ignored.",
+    "verified_facts and rules include ids and may be used as facts.",
+    "unverified_facts are proposed only. They are not facts. Do not use them in applications or outreach.",
+    "Rejected facts are omitted.",
+    "If the tool returns an error that the career record is unavailable, do not treat that as an empty record.",
+    "This does not verify, edit, or reject anything.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {},
+  },
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    openWorldHint: false,
+  },
+};
+
+const CHECK_TEXT_TOOL = {
+  name: "check_text",
+  title: "Check a draft against the career record",
+  description: [
+    "Check a draft application answer or outreach note against this connector user's career record.",
+    "Pass text. Optional company and field_label add form context.",
+    "Returns every factual claim with verdict pass, mismatch, unsupported, or needs_claire.",
+    "pass and mismatch include the matching fact or rule id. mismatch includes the correct value.",
+    "ready is true only when every claim passes.",
+    "Visa, work authorization, EEO, demographic answers, and a field with no rule return needs_claire.",
+    "This does not write to the record.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      text: {
+        type: "string",
+        description: "Draft application answer or outreach note to check.",
+      },
+      company: {
+        type: "string",
+        description: "Optional company the draft is for.",
+      },
+      field_label: {
+        type: "string",
+        description: "Optional form field label, such as Current location or Work authorization.",
+      },
+    },
+    required: ["text"],
+  },
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    openWorldHint: true,
+  },
+};
+
+const TOOLS = [
+  ASK_FOLLOWUPS_TOOL,
+  DRAFT_LINKEDIN_TOOL,
+  GET_AUTONOMY_SETTINGS_TOOL,
+  GET_CAREER_RECORD_TOOL,
+  CHECK_TEXT_TOOL,
+];
 const NO_STORE = { "Cache-Control": "no-store" };
 
 function extractBearer(header) {
@@ -320,6 +397,72 @@ async function autonomyCall(msg, user) {
   }
 }
 
+async function careerReadCall(msg, user) {
+  try {
+    const userId = user && typeof user.userId === "string" ? user.userId : "";
+    if (!userId) throw new Error("missing user");
+    const shaped = shapeForTool(await readForTool(userId));
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, {
+        content: [{ type: "text", text: JSON.stringify(shaped, null, 2) }],
+        structuredContent: shaped,
+      }),
+    };
+  } catch {
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(CAREER_UNAVAILABLE)),
+    };
+  }
+}
+
+async function careerCheckCall(msg, user, args) {
+  if (!args || typeof args.text !== "string") {
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError("text is required.")),
+    };
+  }
+  try {
+    const userId = user && typeof user.userId === "string" ? user.userId : "";
+    if (!userId) throw new Error("missing user");
+    const record = await readForTool(userId);
+    let shaped;
+    try {
+      shaped = await checkText({
+        record,
+        text: args.text,
+        company: typeof args.company === "string" ? args.company : "",
+        field_label: typeof args.field_label === "string" ? args.field_label : "",
+      });
+    } catch {
+      return {
+        status: 200,
+        headers: NO_STORE,
+        body: rpcOk(msg.id, toolError("Could not check that text.")),
+      };
+    }
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, {
+        content: [{ type: "text", text: JSON.stringify(shaped, null, 2) }],
+        structuredContent: shaped,
+      }),
+    };
+  } catch {
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(CAREER_UNAVAILABLE)),
+    };
+  }
+}
+
 async function handleRpc(msg, user) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
@@ -363,7 +506,13 @@ async function handleRpc(msg, user) {
     const params = msg.params && typeof msg.params === "object" ? msg.params : {};
     const name = params.name;
     const args = params.arguments && typeof params.arguments === "object" ? params.arguments : {};
-    if (name !== "ask_followups" && name !== "draft_linkedin_post" && name !== "get_autonomy_settings") {
+    if (
+      name !== "ask_followups"
+      && name !== "draft_linkedin_post"
+      && name !== "get_autonomy_settings"
+      && name !== "get_career_record"
+      && name !== "check_text"
+    ) {
       return {
         status: 200,
         body: rpcOk(msg.id, toolError(`Unknown tool: ${name || "(missing)"}`)),
@@ -371,6 +520,12 @@ async function handleRpc(msg, user) {
     }
     if (name === "get_autonomy_settings") {
       return autonomyCall(msg, user);
+    }
+    if (name === "get_career_record") {
+      return careerReadCall(msg, user);
+    }
+    if (name === "check_text") {
+      return careerCheckCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {

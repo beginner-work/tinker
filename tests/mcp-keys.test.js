@@ -311,7 +311,7 @@ test("a minted key can list and call tools, and Stytch is not contacted", async 
   assert.equal(listed.captured.status, 200);
   assert.deepEqual(
     listed.captured.body.result.tools.map((tool) => tool.name),
-    ["ask_followups", "draft_linkedin_post", "get_autonomy_settings"],
+    ["ask_followups", "draft_linkedin_post", "get_autonomy_settings", "get_career_record", "check_text"],
   );
   assert.equal(stytchCalls.length, 0);
   assert.equal(findUniques.length, 1);

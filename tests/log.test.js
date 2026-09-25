@@ -117,6 +117,36 @@ test("preview logs omit your_user_id while the response keeps it", async () => {
   }
 });
 
+test("preview logs redact career facts and checked text", async () => {
+  const prev = process.env.VERCEL_ENV;
+  process.env.VERCEL_ENV = "preview";
+  try {
+    const excerpt = "Grew the developer-support engineering function from 1 to 9 engineers";
+    const draft = "I grew the team from 1 to 12.";
+    const res = fakeRes();
+    const handler = withResponseLogging((req, r) => {
+      r.status(200).json({
+        result: {
+          content: [{ type: "text", text: JSON.stringify({ verified_facts: [{ excerpt }] }) }],
+          structuredContent: {
+            ready: false,
+            claims: [{ text: draft, verdict: "mismatch", correct: "1 to 9" }],
+          },
+        },
+      });
+    });
+    const lines = await captureConsole(() => handler(fakeReq({ method: "POST", url: "/api/mcp" }), res));
+    assert.equal(lines.join("\n").includes(excerpt), false);
+    assert.equal(lines.join("\n").includes(draft), false);
+    assert.equal(lines.join("\n").includes("1 to 9"), false);
+    assert.match(lines[0], /"redacted":"career"/);
+    assert.equal(res.captured.body.result.structuredContent.claims[0].text, draft);
+  } finally {
+    if (prev === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = prev;
+  }
+});
+
 test("response body still reaches res.json (logging is a side effect)", async () => {
   const prev = process.env.VERCEL_ENV;
   process.env.VERCEL_ENV = "preview";
