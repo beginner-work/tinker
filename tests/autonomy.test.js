@@ -12,7 +12,7 @@ const vm = require("node:vm");
 const Module = require("node:module");
 
 const SEND_NOTE =
-  "The draft card with its Send button always stays, even when this is on.";
+  "Even when this is on, bots only prepare a draft card. You always press Send.";
 
 const stytchCalls = [];
 let stytchUserId = "user-owner";
@@ -85,7 +85,7 @@ function seedRows() {
   for (const item of catalog.AUTONOMY_ITEMS) {
     rows.set(item.key, {
       key: item.key,
-      autonomous: item.autonomous,
+      autonomous: item.key === "linkedin_profile_edits",
       note: null,
       updatedBy: null,
       updatedAt: null,
@@ -163,7 +163,8 @@ test("GET returns 14 defaults, send_note on three keys, and a 60s cache", async 
     if (def.send_note) fields.push("send_note");
     assert.deepEqual(Object.keys(item), fields);
     assert.equal(item.label, def.label);
-    assert.equal(item.autonomous, def.autonomous);
+    assert.equal(item.autonomous, item.key === "linkedin_profile_edits");
+    assert.equal(Object.prototype.hasOwnProperty.call(def, "autonomous"), false);
     assert.equal(item.note, null);
     assert.equal(item.updated_by, null);
     assert.equal(item.updated_at, null);
@@ -322,6 +323,15 @@ test("PUT note of 500 characters is saved", async () => {
   assert.equal(res.captured.body.note, note);
 });
 
+test("send_note stays on the JSON item when it is autonomous", async () => {
+  rows.get("linkedin_messages").autonomous = true;
+  const res = fakeRes();
+  await handler(getReq(), res);
+  const item = res.captured.body.items.find((entry) => entry.key === "linkedin_messages");
+  assert.equal(item.autonomous, true);
+  assert.equal(item.send_note, SEND_NOTE);
+});
+
 test("flipping autonomous keeps the saved note", async () => {
   rows.get("linkedin_posts").note = "only after X";
   const res = fakeRes();
@@ -399,8 +409,9 @@ test("migration seeds the same 14 keys and defaults, without labels or the send 
   assert.equal(sql.includes("LinkedIn posts"), false);
   assert.equal(sql.includes("required"), false);
   for (const item of catalog.AUTONOMY_ITEMS) {
-    const literal = item.autonomous ? "true" : "false";
+    const literal = item.key === "linkedin_profile_edits" ? "true" : "false";
     assert.match(sql, new RegExp(`\\('${item.key}', ${literal}\\)`));
+    assert.equal(Object.prototype.hasOwnProperty.call(item, "autonomous"), false);
   }
   assert.equal(sql.includes("\u2014"), false);
   assert.equal(
@@ -529,6 +540,15 @@ test("a note renders as text and never as HTML", async () => {
                 updated_by: "tyler",
                 updated_at: "2026-09-25T14:45:00.000Z",
               },
+              {
+                key: "linkedin_messages",
+                label: "LinkedIn messages and follow-ups",
+                autonomous: true,
+                note: null,
+                updated_by: null,
+                updated_at: null,
+                send_note: SEND_NOTE,
+              },
             ],
           });
         },
@@ -541,6 +561,7 @@ test("a note renders as text and never as HTML", async () => {
   const values = nodes.map((node) => node.value);
   assert.ok(values.includes(hostile));
   assert.ok(texts.includes(hostileSaved));
+  assert.ok(texts.includes(SEND_NOTE));
   assert.equal(nodes.some((node) => node.tag === "script" || node.tag === "img"), false);
 });
 

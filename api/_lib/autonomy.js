@@ -1,15 +1,16 @@
 /* Autonomy catalog and allowlist.
  *
- * AUTONOMY_ITEMS is the only place labels, order, seed defaults, and
- * the send note live. The autonomy_settings table stores the current
- * boolean, Tyler's note, and who last changed the row. A missing row,
- * a missing table, or a database error is not autonomous.
+ * AUTONOMY_ITEMS is the only place labels, order, and the send note
+ * live. It does not hold a read-time default for autonomous. The
+ * migration seeds the rows. The autonomy_settings table stores the
+ * current boolean, Tyler's note, and who last changed the row. A
+ * missing row, a missing table, or a database error is not autonomous.
  */
 
 "use strict";
 
 const SEND_NOTE =
-  "The draft card with its Send button always stays, even when this is on.";
+  "Even when this is on, bots only prepare a draft card. You always press Send.";
 
 const NOTE_MAX = 500;
 
@@ -17,75 +18,61 @@ const AUTONOMY_ITEMS = [
   {
     key: "linkedin_profile_edits",
     label: "LinkedIn profile edits",
-    autonomous: true,
   },
   {
     key: "linkedin_posts",
     label: "LinkedIn posts",
-    autonomous: false,
   },
   {
     key: "linkedin_connection_requests",
     label: "LinkedIn connection requests and notes",
-    autonomous: false,
   },
   {
     key: "linkedin_messages",
     label: "LinkedIn messages and follow-ups",
-    autonomous: false,
     send_note: SEND_NOTE,
   },
   {
     key: "outreach_emails",
     label: "Outreach and follow-up emails from Tyler's accounts",
-    autonomous: false,
     send_note: SEND_NOTE,
   },
   {
     key: "other_public_profiles",
     label: "Other public profiles (Calendly, GitHub, Otta)",
-    autonomous: false,
   },
   {
     key: "site_content_live",
     label: "Blog and site content going live on lindowlabs.dev",
-    autonomous: false,
   },
   {
     key: "code_pr_merges",
     label: "Merging code PRs",
-    autonomous: false,
   },
   {
     key: "dns_domain_changes",
     label: "lindowlabs.dev DNS and domain changes",
-    autonomous: false,
   },
   {
     key: "purchases_subscriptions",
     label: "Purchases and subscriptions",
-    autonomous: false,
   },
   {
     key: "calendar_invites_others",
     label: "Calendar invites to other people",
-    autonomous: false,
   },
   {
     key: "family_admin_messages",
     label: "Family admin messages",
-    autonomous: false,
     send_note: SEND_NOTE,
   },
   {
     key: "resume_changes",
     label: "Resume changes",
-    autonomous: false,
   },
   {
     key: "bot_routines_rules",
     label: "New bot routines and rule changes",
-    autonomous: false,
   },
 ];
 
