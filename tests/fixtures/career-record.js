@@ -58,7 +58,7 @@ const VERIFIED_FACTS = [
   verified({
     id: "fact_title_l7",
     kind: "title",
-    value: "Software Engineering Manager",
+    value: "Software Engineering Manager at Affirm",
     excerpt: "Software Engineering Manager (L7), Merchant Advocacy",
   }),
   verified({

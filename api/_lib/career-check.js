@@ -4,7 +4,10 @@
  * verdict. Numbers, dates, titles, and employer names are normalized
  * and compared exactly here. A verdict field on a claim is ignored.
  *
- * ready is true only when every claim is a pass.
+ * ready is true only when every claim is a pass. An empty draft, or a
+ * draft that yields no claims, is not ready.
+ * A title passes only when the employer on that same fact matches.
+ * Baseline and mechanism claims compare amount, percentage, and baseline.
  */
 
 "use strict";
@@ -235,11 +238,80 @@ function isSensitive(claim, context) {
   return SENSITIVE_PATTERNS.some((pattern) => blob.includes(pattern));
 }
 
-function isOpenBaseline(text) {
+function mentionsBaseline(text) {
+  return /\b(baseline|mechanism)\b/.test(norm(text));
+}
+
+function isBaselineFact(fact) {
+  if (!fact || fact.kind !== "metric") return false;
+  if (mentionsBaseline(fact.value)) return true;
+  if (typeof fact.baseline === "string" && fact.baseline.trim()) return true;
+  if (typeof fact.mechanism === "string" && fact.mechanism.trim()) return true;
+  return false;
+}
+
+function canonicalPercent(raw) {
+  const amount = Number(raw);
+  if (!Number.isFinite(amount)) return "";
+  return String(amount) + "%";
+}
+
+function canonicalAmounts(text) {
   const raw = String(text || "");
   const folded = norm(raw);
-  if (!/\b(baseline|mechanism)\b/.test(folded)) return false;
-  return /500\s*k|\$\s*500|99\.9|99\.7/.test(raw.toLowerCase()) || /500k|99\.9|99\.7/.test(folded);
+  const found = new Set();
+  for (const match of folded.matchAll(/(\d+(?:\.\d+)?)\s*%/g)) {
+    const token = canonicalPercent(match[1]);
+    if (token) found.add(token);
+  }
+  const money = /\$\s*\d{1,3}(?:,\d{3})*(?:\.\d+)?\s*[kmb]?|\b\d+(?:\.\d+)?\s*[kmb]\b/gi;
+  for (const match of raw.matchAll(money)) {
+    const token = normalizeMoney(match[0]);
+    if (token) found.add(token);
+  }
+  return [...found].sort();
+}
+
+function factAmounts(fact) {
+  const parts = [fact.value, fact.baseline, fact.mechanism].filter((part) => {
+    return typeof part === "string" && part.trim();
+  });
+  return canonicalAmounts(parts.join(" "));
+}
+
+function sameAmountSet(left, right) {
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    if (left[i] !== right[i]) return false;
+  }
+  return true;
+}
+
+function amountSubject(text) {
+  const raw = String(text || "");
+  const folded = norm(raw);
+  const money = /\$\s*\d/.test(raw) || /\b\d+(?:\.\d+)?\s*[kmb]\b/.test(folded) || /\bgmv\b/.test(folded);
+  const percent = /\d+(?:\.\d+)?\s*%/.test(folded) || /\bavailability\b/.test(folded);
+  if (money && percent) return "mixed";
+  if (money) return "money";
+  if (percent) return "percent";
+  return "";
+}
+
+function subjectsCompatible(claimText, fact) {
+  const claim = amountSubject(claimText);
+  const factBlob = [fact.value, fact.baseline, fact.mechanism].filter((part) => part != null).join(" ");
+  const factSubject = amountSubject(factBlob);
+  if (!claim || !factSubject || claim === "mixed" || factSubject === "mixed") return true;
+  return claim === factSubject;
+}
+
+function baselineCorrect(fact) {
+  const parts = [];
+  if (fact.value) parts.push(String(fact.value));
+  if (typeof fact.baseline === "string" && fact.baseline.trim()) parts.push("baseline " + fact.baseline.trim());
+  if (typeof fact.mechanism === "string" && fact.mechanism.trim()) parts.push("mechanism " + fact.mechanism.trim());
+  return parts.join("; ");
 }
 
 function labeledValue(text) {
@@ -446,11 +518,24 @@ function employerToken(text) {
 }
 
 function judgeTitle(text, facts) {
-  const folded = normalizeTitle(text);
-  const titles = facts.filter((fact) => fact.kind === "title" && fact.value);
-  const exact = titles.find((fact) => folded.includes(normalizeTitle(fact.value)));
-  if (exact) return pass(text, exact.id);
-  return unsupported(text);
+  const claimTitle = titleOf(text);
+  const claimEmployer = employerOf(text);
+  const hits = facts.filter((fact) => {
+    if (fact.kind !== "title" || !fact.value) return false;
+    const title = titleOf(fact.value);
+    return title && claimTitle.includes(title);
+  });
+  if (!hits.length) return unsupported(text);
+  hits.sort((a, b) => titleOf(b.value).length - titleOf(a.value).length);
+  const aligned = hits.find((fact) => {
+    const employer = employerOf(fact.value);
+    return employer && claimEmployer === employer;
+  });
+  if (aligned) return pass(text, aligned.id);
+  const best = hits[0];
+  const employer = employerOf(best.value);
+  if (!employer && !claimEmployer) return pass(text, best.id);
+  return mismatch(text, best.id, best.value);
 }
 
 function judgeEmployer(text, facts) {
@@ -514,18 +599,32 @@ function sameMeasureFamily(left, right) {
   return false;
 }
 
-function judgeMetric(text, facts) {
-  if (isOpenBaseline(text)) {
-    const opened = facts.find((fact) => fact.kind === "metric" && /\b(baseline|mechanism)\b/.test(norm(fact.value)));
-    if (!opened) return unsupported(text);
-    return pass(text, opened.id);
+function judgeBaseline(text, facts) {
+  const candidates = facts.filter((fact) => isBaselineFact(fact) && subjectsCompatible(text, fact));
+  if (!candidates.length) return unsupported(text);
+  const claimSet = canonicalAmounts(text);
+  const exact = candidates.find((fact) => sameAmountSet(claimSet, factAmounts(fact)));
+  if (exact) return pass(text, exact.id);
+  let best = candidates[0];
+  let bestOverlap = -1;
+  for (const fact of candidates) {
+    const overlap = factAmounts(fact).filter((token) => claimSet.includes(token)).length;
+    if (overlap > bestOverlap) {
+      best = fact;
+      bestOverlap = overlap;
+    }
   }
+  return mismatch(text, best.id, baselineCorrect(best));
+}
+
+function judgeMetric(text, facts) {
+  if (mentionsBaseline(text)) return judgeBaseline(text, facts);
   const claimMeasures = measuresOf(text);
   const claimNorm = norm(text);
   let partial = null;
   for (const fact of facts) {
     if (fact.kind !== "metric") continue;
-    if (/\b(baseline|mechanism)\b/.test(norm(fact.value))) continue;
+    if (isBaselineFact(fact)) continue;
     const factMeasures = measuresOf(fact.value).filter((token) => !/^\d$/.test(token));
     const distinctive = factMeasures.filter((token) => !/^\d$/.test(token));
     const needed = distinctive.length ? distinctive : factMeasures;
@@ -680,6 +779,20 @@ async function defaultFindClaims({ text, company, field_label }) {
   return parseClaims(result.text);
 }
 
+function usableClaims(list) {
+  if (!Array.isArray(list)) return [];
+  return list.filter((claim) => claim && String(claim.text || "").trim());
+}
+
+function notReady(reason) {
+  return {
+    ready: false,
+    claims: [],
+    reason,
+    unverified_note: UNVERIFIED_NOTE,
+  };
+}
+
 async function checkText({ record, text, company, field_label, findClaims }) {
   const draft = typeof text === "string" ? text : "";
   const context = {
@@ -687,21 +800,22 @@ async function checkText({ record, text, company, field_label, findClaims }) {
     company: typeof company === "string" ? company : "",
   };
   let found = [];
-  if (draft.trim()) {
+  if (!draft.trim() && !context.field_label) return notReady("No draft to check.");
+  if (!draft.trim()) {
+    found = [{ text: "", kind: "", field: context.field_label }];
+  } else {
     const finder = findClaims || defaultFindClaims;
     const listed = await finder({
       text: draft,
       company: context.company,
       field_label: context.field_label,
     });
-    found = Array.isArray(listed) ? listed : [];
-  }
-  if (!found.length && (draft.trim() || context.field_label)) {
-    found = [{ text: draft, kind: "", field: "" }];
+    found = usableClaims(listed);
+    if (!found.length) return notReady("No factual claims were found in the draft.");
   }
   const claims = judgeClaims(record, found, context);
   return {
-    ready: claims.every((claim) => claim.verdict === "pass"),
+    ready: claims.length > 0 && claims.every((claim) => claim.verdict === "pass"),
     claims,
     unverified_note: UNVERIFIED_NOTE,
   };

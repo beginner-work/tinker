@@ -78,12 +78,23 @@ test("the combined same-team claim passes only after it is verified", () => {
   assert.equal(after[0].id, "seed_same_team_span");
 });
 
+function recordFor(item) {
+  if (!item.verify) return record;
+  return {
+    rules: record.rules,
+    facts: record.facts.map((fact) => {
+      if (!Object.prototype.hasOwnProperty.call(item.verify, fact.id)) return fact;
+      return { ...fact, status: "verified", ...item.verify[fact.id] };
+    }),
+  };
+}
+
 test("check_text fixture set scores every known answer", async () => {
   assert.ok(cases.length >= 20, "expected at least 20 cases, got " + cases.length);
   const failures = [];
   for (const item of cases) {
     const result = await checkText({
-      record,
+      record: recordFor(item),
       text: item.text,
       company: item.company || "",
       field_label: item.field_label || "",
@@ -95,14 +106,17 @@ test("check_text fixture set scores every known answer", async () => {
       if (Object.prototype.hasOwnProperty.call(claim, "correct")) shaped.correct = claim.correct;
       return shaped;
     });
-    const same = result.ready === item.ready && JSON.stringify(actual) === JSON.stringify(item.expect);
+    const reasonOk = item.reason == null || result.reason === item.reason;
+    const same = reasonOk && result.ready === item.ready && JSON.stringify(actual) === JSON.stringify(item.expect);
     if (!same) {
-      failures.push(item.name + "\n  expected ready=" + item.ready + " " + JSON.stringify(item.expect)
-        + "\n  actual   ready=" + result.ready + " " + JSON.stringify(actual));
+      failures.push(item.name + "\n  expected ready=" + item.ready + " reason=" + (item.reason || "")
+        + " " + JSON.stringify(item.expect)
+        + "\n  actual   ready=" + result.ready + " reason=" + (result.reason || "")
+        + " " + JSON.stringify(actual));
     }
   }
-  assert.equal(failures.length, 0, failures.join("\n\n"));
-  assert.equal(failures.length, 0);
+  const score = cases.length - failures.length;
+  assert.equal(failures.length, 0, score + "/" + cases.length + "\n" + failures.join("\n\n"));
 });
 
 test("parseClaims drops a model verdict", () => {

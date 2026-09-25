@@ -6,7 +6,7 @@
 
 "use strict";
 
-const SENTRY = [
+const ANSWER_SENTENCES = [
   "At Affirm I owned technical operations and SLA reliability for our largest partner, Amazon, at over $10B in GMV",
   "plus merchant accounts above $100M",
   "Our 99.9% availability target was also our partner commitment",
@@ -276,11 +276,18 @@ module.exports = [
     expect: [{ verdict: "pass", id: "fact_dates_partner" }],
   },
   {
-    name: "Software Engineering Manager passes as a title",
+    name: "title with the right employer passes",
     text: "Software Engineering Manager at Affirm",
     claims: [{ text: "Software Engineering Manager at Affirm", kind: "title" }],
     ready: true,
     expect: [{ verdict: "pass", id: "fact_title_l7" }],
+  },
+  {
+    name: "title with a wrong employer is a mismatch",
+    text: "Software Engineering Manager at Northwind",
+    claims: [{ text: "Software Engineering Manager at Northwind", kind: "title" }],
+    ready: false,
+    expect: [{ verdict: "mismatch", id: "fact_title_l7", correct: "Software Engineering Manager at Affirm" }],
   },
   {
     name: "San Francisco, CA passes as a past location",
@@ -298,8 +305,8 @@ module.exports = [
     expect: [{ verdict: "needs_claire", id: "rule_needs_claire" }],
   },
   {
-    name: "the Sentry answer sentences pass together",
-    text: SENTRY,
+    name: "the application answer sentences pass together",
+    text: ANSWER_SENTENCES,
     claims: [
       { text: "At Affirm I owned technical operations and SLA reliability for our largest partner, Amazon, at over $10B in GMV", kind: "metric" },
       { text: "plus merchant accounts above $100M", kind: "metric" },
@@ -330,5 +337,73 @@ module.exports = [
       { verdict: "pass", id: "fact_metric_999_target" },
       { verdict: "mismatch", id: "fact_team_1_to_9", correct: "1 to 9" },
     ],
+  },
+  {
+    name: "a changed $500K amount is a mismatch",
+    text: "The mechanism and baseline behind the additional $500K GMV were actually $600K.",
+    claims: [{ text: "The mechanism and baseline behind the additional $500K GMV were actually $600K.", kind: "metric" }],
+    verify: { seed_500k_baseline_mechanism: {} },
+    ready: false,
+    expect: [{
+      verdict: "mismatch",
+      id: "seed_500k_baseline_mechanism",
+      correct: "Mechanism and baseline behind the additional $500K GMV",
+    }],
+  },
+  {
+    name: "a changed 99.9% is a mismatch",
+    text: "The mechanism and baseline behind the 99.9% availability figure was 99.5%.",
+    claims: [{ text: "The mechanism and baseline behind the 99.9% availability figure was 99.5%.", kind: "metric" }],
+    verify: { seed_999_baseline_mechanism: {} },
+    ready: false,
+    expect: [{
+      verdict: "mismatch",
+      id: "seed_999_baseline_mechanism",
+      correct: "Mechanism and baseline behind the 99.9% availability figure",
+    }],
+  },
+  {
+    name: "a different baseline behind 99.9% is a mismatch",
+    text: "The baseline behind the 99.9% availability figure was 98%.",
+    claims: [{ text: "The baseline behind the 99.9% availability figure was 98%.", kind: "metric" }],
+    verify: { seed_999_baseline_mechanism: { baseline: "99.7%" } },
+    ready: false,
+    expect: [{
+      verdict: "mismatch",
+      id: "seed_999_baseline_mechanism",
+      correct: "Mechanism and baseline behind the 99.9% availability figure; baseline 99.7%",
+    }],
+  },
+  {
+    name: "the verified $500K baseline passes when the amount matches",
+    text: "The mechanism and baseline behind the additional $500K GMV.",
+    claims: [{ text: "The mechanism and baseline behind the additional $500K GMV.", kind: "metric" }],
+    verify: { seed_500k_baseline_mechanism: {} },
+    ready: true,
+    expect: [{ verdict: "pass", id: "seed_500k_baseline_mechanism" }],
+  },
+  {
+    name: "the verified 99.9% baseline passes when the percentage matches",
+    text: "The mechanism and baseline behind the 99.9% availability figure.",
+    claims: [{ text: "The mechanism and baseline behind the 99.9% availability figure.", kind: "metric" }],
+    verify: { seed_999_baseline_mechanism: {} },
+    ready: true,
+    expect: [{ verdict: "pass", id: "seed_999_baseline_mechanism" }],
+  },
+  {
+    name: "an empty draft returns ready false",
+    text: "",
+    claims: [],
+    ready: false,
+    reason: "No draft to check.",
+    expect: [],
+  },
+  {
+    name: "a draft with no extracted claims returns ready false",
+    text: "Thanks for your time.",
+    claims: [],
+    ready: false,
+    reason: "No factual claims were found in the draft.",
+    expect: [],
   },
 ];
