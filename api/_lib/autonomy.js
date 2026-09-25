@@ -1,95 +1,95 @@
-/* Approval catalog and allowlist.
+/* Autonomy catalog and allowlist.
  *
- * APPROVAL_ITEMS is the only place labels, order, defaults, and the
- * send note live. The approval_settings table stores the current
- * boolean plus who last changed it. A missing row falls back to the
- * default in this list. A key that is not in this list does not exist.
+ * AUTONOMY_ITEMS is the only place labels, order, seed defaults, and
+ * the send note live. The autonomy_settings table stores the current
+ * boolean, Tyler's note, and who last changed the row. A missing row,
+ * a missing table, or a database error is not autonomous.
  */
 
 "use strict";
 
 const SEND_NOTE =
-  "The draft card with its Send button always stays, even when this is off.";
+  "The draft card with its Send button always stays, even when this is on.";
 
-const APPROVAL_ITEMS = [
+const NOTE_MAX = 500;
+
+const AUTONOMY_ITEMS = [
   {
     key: "linkedin_profile_edits",
     label: "LinkedIn profile edits",
-    required: false,
+    autonomous: true,
   },
   {
     key: "linkedin_posts",
     label: "LinkedIn posts",
-    required: true,
+    autonomous: false,
   },
   {
     key: "linkedin_connection_requests",
     label: "LinkedIn connection requests and notes",
-    required: true,
+    autonomous: false,
   },
   {
     key: "linkedin_messages",
     label: "LinkedIn messages and follow-ups",
-    required: true,
+    autonomous: false,
     send_note: SEND_NOTE,
   },
   {
     key: "outreach_emails",
     label: "Outreach and follow-up emails from Tyler's accounts",
-    required: true,
+    autonomous: false,
     send_note: SEND_NOTE,
   },
   {
     key: "other_public_profiles",
     label: "Other public profiles (Calendly, GitHub, Otta)",
-    required: true,
+    autonomous: false,
   },
   {
     key: "site_content_live",
     label: "Blog and site content going live on lindowlabs.dev",
-    required: true,
+    autonomous: false,
   },
   {
     key: "code_pr_merges",
     label: "Merging code PRs",
-    required: true,
+    autonomous: false,
   },
   {
     key: "dns_domain_changes",
     label: "lindowlabs.dev DNS and domain changes",
-    required: true,
+    autonomous: false,
   },
   {
     key: "purchases_subscriptions",
     label: "Purchases and subscriptions",
-    required: true,
+    autonomous: false,
   },
   {
     key: "calendar_invites_others",
     label: "Calendar invites to other people",
-    required: true,
+    autonomous: false,
   },
   {
     key: "family_admin_messages",
     label: "Family admin messages",
-    required: true,
+    autonomous: false,
     send_note: SEND_NOTE,
   },
   {
     key: "resume_changes",
     label: "Resume changes",
-    required: true,
+    autonomous: false,
   },
   {
     key: "bot_routines_rules",
     label: "New bot routines and rule changes",
-    required: true,
+    autonomous: false,
   },
 ];
 
-const BY_KEY = new Map(APPROVAL_ITEMS.map((item) => [item.key, item]));
-
-const SEND_NOTE_KEYS = APPROVAL_ITEMS.filter((item) => item.send_note).map((item) => item.key);
+const BY_KEY = new Map(AUTONOMY_ITEMS.map((item) => [item.key, item]));
 
 function itemFor(key) {
   return BY_KEY.get(key) || null;
@@ -102,13 +102,29 @@ function iso(value) {
   return date.toISOString();
 }
 
-function shapeItem(def, row) {
+function closedItem(def) {
   const item = {
     key: def.key,
     label: def.label,
-    required: row ? Boolean(row.required) : Boolean(def.required),
-    updated_by: row && row.updatedBy ? String(row.updatedBy) : null,
-    updated_at: row && row.updatedAt ? iso(row.updatedAt) : null,
+    autonomous: false,
+    note: null,
+    updated_by: null,
+    updated_at: null,
+  };
+  if (def.send_note) item.send_note = def.send_note;
+  return item;
+}
+
+function shapeItem(def, row) {
+  if (!row) return closedItem(def);
+  const note = row.note && String(row.note).trim() ? String(row.note) : null;
+  const item = {
+    key: def.key,
+    label: def.label,
+    autonomous: Boolean(row.autonomous),
+    note,
+    updated_by: row.updatedBy ? String(row.updatedBy) : null,
+    updated_at: row.updatedAt ? iso(row.updatedAt) : null,
   };
   if (def.send_note) item.send_note = def.send_note;
   return item;
@@ -120,12 +136,19 @@ function shapeList(rows) {
     if (row && row.key) byKey.set(row.key, row);
   }
   return {
-    default_if_missing: "required",
-    items: APPROVAL_ITEMS.map((def) => shapeItem(def, byKey.get(def.key) || null)),
+    default_if_missing: "not_autonomous",
+    items: AUTONOMY_ITEMS.map((def) => shapeItem(def, byKey.get(def.key) || null)),
   };
 }
 
-// APPROVAL_ALLOWLIST is a comma-separated list. Each entry is a Stytch
+function closedList() {
+  return {
+    default_if_missing: "not_autonomous",
+    items: AUTONOMY_ITEMS.map((def) => closedItem(def)),
+  };
+}
+
+// AUTONOMY_ALLOWLIST is a comma-separated list. Each entry is a Stytch
 // user id or email, optionally followed by ":" and the short name to
 // store in updated_by. Example: user-live-abc:tyler
 function parseAllowlist(raw) {
@@ -179,28 +202,40 @@ function editorName(entry, identity) {
   return identity.userId.slice(0, 80);
 }
 
-// Fail closed: an empty or unset allowlist lets nobody write.
 function editorFromSession(session) {
   const identity = sessionIdentity(session);
   if (!identity.userId) {
     throw Object.assign(new Error("Session missing user id."), { status: 401 });
   }
-  const entries = parseAllowlist(process.env.APPROVAL_ALLOWLIST);
+  const entries = parseAllowlist(process.env.AUTONOMY_ALLOWLIST);
   const match = entries.find((entry) => matchesEntry(entry, identity));
   if (!match) {
-    throw Object.assign(new Error("Not allowed to change approvals."), { status: 403 });
+    throw Object.assign(new Error("Not allowed to change autonomy."), { status: 403 });
   }
   return { updatedBy: editorName(match, identity) };
 }
 
+function parseNote(value) {
+  if (typeof value !== "string") {
+    throw Object.assign(new Error("Note must be a string."), { status: 400 });
+  }
+  const trimmed = value.trim();
+  if (trimmed.length > NOTE_MAX) {
+    throw Object.assign(new Error("Note must be 500 characters or fewer."), { status: 400 });
+  }
+  return trimmed ? trimmed : null;
+}
+
 module.exports = {
   SEND_NOTE,
-  SEND_NOTE_KEYS,
-  APPROVAL_ITEMS,
+  NOTE_MAX,
+  AUTONOMY_ITEMS,
   itemFor,
   shapeItem,
   shapeList,
+  closedList,
   parseAllowlist,
   sessionIdentity,
   editorFromSession,
+  parseNote,
 };

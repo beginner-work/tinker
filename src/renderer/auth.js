@@ -58,9 +58,9 @@
   if (!isWebPlatform()) return;
   if (auth.token && looksLikeLegacyJwt(auth.token)) auth.token = "";
 
-  // MCP approve, MCP access, and /approvals send a signed-out browser
+  // MCP approve, MCP access, and /autonomy send a signed-out browser
   // here, then need to land back on that same path after the phone code.
-  // Strict allowlist: exact /approvals, /mcp/authorize, or /mcp/access.
+  // Strict allowlist: exact /autonomy, /mcp/authorize, or /mcp/access.
   // Reject scheme-relative URLs, backslashes, and a scheme in the path.
   const MCP_RETURN_KEY = "tinker_mcp_return";
 
@@ -68,12 +68,12 @@
     let value = "";
     try { value = sessionStorage.getItem(MCP_RETURN_KEY) || ""; } catch { return ""; }
     try { sessionStorage.removeItem(MCP_RETURN_KEY); } catch { /* ignore */ }
-    if (!value.startsWith("/approvals") && !value.startsWith("/mcp/")) return "";
+    if (!value.startsWith("/autonomy") && !value.startsWith("/mcp/")) return "";
     if (value.startsWith("//") || value.includes("\\")) return "";
     if (value.includes("\n") || value.includes("\r")) return "";
     const path = value.split("?")[0];
     if (path.includes(":")) return "";
-    if (path !== "/mcp/authorize" && path !== "/mcp/access" && path !== "/approvals") return "";
+    if (path !== "/mcp/authorize" && path !== "/mcp/access" && path !== "/autonomy") return "";
     return value;
   }
 

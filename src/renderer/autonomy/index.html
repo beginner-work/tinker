@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex, nofollow" />
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
-    <title>Approvals</title>
+    <title>Autonomy</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet"
@@ -14,19 +14,19 @@
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/design-tokens.css" />
     <style>
-      html, body.approvals-page {
+      html, body.autonomy-page {
         height: auto;
         min-height: 100vh;
         min-height: 100dvh;
         overflow: auto;
         display: block;
       }
-      .approvals {
+      .autonomy {
         max-width: 40rem;
         margin: 0 auto;
         padding: 48px 20px 72px;
       }
-      .approvals__title {
+      .autonomy__title {
         margin: 0;
         font-family: var(--font-display);
         font-variation-settings: var(--font-display-settings);
@@ -34,19 +34,19 @@
         font-weight: 650;
         letter-spacing: -0.02em;
       }
-      .approvals__lede {
+      .autonomy__lede {
         margin: 8px 0 28px;
         color: var(--color-muted);
         font-size: 15px;
         line-height: 1.5;
       }
-      .approvals__status {
+      .autonomy__status {
         min-height: 1.2em;
         margin: 0 0 16px;
         color: #b3261e;
         font-size: 14px;
       }
-      .approvals__list {
+      .autonomy__list {
         list-style: none;
         margin: 0;
         padding: 0;
@@ -54,7 +54,7 @@
         flex-direction: column;
         gap: 10px;
       }
-      .approvals__row {
+      .autonomy__row {
         display: grid;
         grid-template-columns: 1fr auto;
         gap: 4px 16px;
@@ -64,21 +64,49 @@
         border: 1px solid var(--color-border);
         border-radius: var(--radius-card);
       }
-      .approvals__label {
+      .autonomy__label {
         font-size: 15px;
         font-weight: 500;
         line-height: 1.35;
       }
-      .approvals__meta,
-      .approvals__note {
+      .autonomy__meta,
+      .autonomy__send,
+      .autonomy__saved {
         grid-column: 1 / -1;
         margin: 0;
         color: var(--color-muted);
         font-size: 13px;
         line-height: 1.45;
       }
-      .approvals__note { margin-top: 2px; }
-      .approvals__switch {
+      .autonomy__saved { color: var(--color-foreground); }
+      .autonomy__form {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+        margin-top: 6px;
+      }
+      .autonomy__input {
+        flex: 1;
+        min-height: 38px;
+        padding: 8px 10px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-button);
+        background: var(--color-surface);
+        font: inherit;
+        font-size: 14px;
+        resize: vertical;
+      }
+      .autonomy__save {
+        padding: 8px 12px;
+        border-radius: var(--radius-button);
+        background: var(--color-accent-strong);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .autonomy__save:disabled { opacity: 0.55; cursor: progress; }
+      .autonomy__switch {
         width: 44px;
         height: 26px;
         padding: 0;
@@ -88,7 +116,7 @@
         position: relative;
         flex-shrink: 0;
       }
-      .approvals__switch::after {
+      .autonomy__switch::after {
         content: "";
         position: absolute;
         top: 2px;
@@ -100,25 +128,25 @@
         box-shadow: 0 1px 2px rgba(45, 42, 38, 0.18);
         transition: transform 0.15s ease;
       }
-      .approvals__switch[aria-checked="true"] {
+      .autonomy__switch[aria-checked="true"] {
         background: var(--color-accent-strong);
         border-color: var(--color-accent-strong);
       }
-      .approvals__switch[aria-checked="true"]::after { transform: translateX(18px); }
-      .approvals__switch:focus-visible {
+      .autonomy__switch[aria-checked="true"]::after { transform: translateX(18px); }
+      .autonomy__switch:focus-visible {
         outline: 2px solid var(--color-accent-strong);
         outline-offset: 2px;
       }
-      .approvals__switch:disabled { opacity: 0.55; cursor: progress; }
+      .autonomy__switch:disabled { opacity: 0.55; cursor: progress; }
     </style>
   </head>
-  <body class="approvals-page">
-    <main class="approvals">
-      <h1 class="approvals__title">Approvals</h1>
-      <p class="approvals__lede">On means your approval is needed.</p>
-      <p id="approvals-status" class="approvals__status" role="status"></p>
-      <ul id="approvals-list" class="approvals__list"></ul>
+  <body class="autonomy-page">
+    <main class="autonomy">
+      <h1 class="autonomy__title">Autonomy</h1>
+      <p class="autonomy__lede">On means a bot may do this on its own.</p>
+      <p id="autonomy-status" class="autonomy__status" role="status"></p>
+      <ul id="autonomy-list" class="autonomy__list"></ul>
     </main>
-    <script src="/approvals/approvals.js"></script>
+    <script src="/autonomy/autonomy.js"></script>
   </body>
 </html>
