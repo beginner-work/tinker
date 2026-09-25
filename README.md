@@ -182,6 +182,23 @@ to point at a separate `project-test-*` Stytch project and got its
 localStorage wiped on every load — both are gone now; previews behave
 like a second URL pointing at production.)
 
+### Autonomy
+
+`/autonomy` stores each toggle in Vercel Edge Config, not Postgres. Preview and production use separate stores. Connect a store to that environment and Vercel sets `EDGE_CONFIG`, the read connection string. Also set:
+
+- `EDGE_CONFIG_ID`: the store id used in `PATCH /v1/edge-config/{id}/items`
+- `VERCEL_TEAM_ID`: sent as `teamId` when the store is on a team. Leave it unset otherwise.
+- `EDGE_CONFIG_WRITE_TOKEN`: Sensitive. Bearer token for that PATCH. The app does not log it or put it in an error.
+- `AUTONOMY_ALLOWLIST`: comma-separated Stytch user id or email, with an optional `:short-name`. Example: `user-live-abc:tyler`
+
+Seed a store once. The script inserts only items that are missing, so running it again does not replace a value Tyler already changed. Only `linkedin_profile_edits` is seeded on.
+
+```bash
+npm run autonomy:seed
+```
+
+Until a store is connected, `GET /api/autonomy` fails closed and every item is not autonomous.
+
 ### Shared database with the beginner repo
 
 `DATABASE_URL` on both tinker (production + preview) and beginner

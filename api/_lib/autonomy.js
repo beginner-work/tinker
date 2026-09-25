@@ -1,10 +1,9 @@
 /* Autonomy catalog and allowlist.
  *
  * AUTONOMY_ITEMS is the only place labels, order, and the send note
- * live. It does not hold a read-time default for autonomous. The
- * migration seeds the rows. The autonomy_settings table stores the
- * current boolean, Tyler's note, and who last changed the row. A
- * missing row, a missing table, or a database error is not autonomous.
+ * live. It does not hold a read-time default for autonomous. Stored
+ * values live in Vercel Edge Config. A missing item, a bad value, or
+ * a read error is not autonomous.
  */
 
 "use strict";

@@ -5,24 +5,31 @@
  * with ?key=. GET is public and read-only. PUT checks the Stytch
  * session, then AUTONOMY_ALLOWLIST. There is no auth middleware on GET.
  *
- * A missing table, a missing row, or any read error is not autonomous.
+ * A missing Edge Config, a missing item, a bad value, or any read
+ * error is not autonomous. GET is not cached.
  */
 
 "use strict";
 
 const { authenticateSession } = require("./_lib/stytch.js");
-const prisma = require("./_lib/db.js");
 const { withResponseLogging } = require("./_lib/log.js");
 const {
   itemFor,
   shapeItem,
-  shapeList,
   closedList,
   editorFromSession,
   parseNote,
+  AUTONOMY_ITEMS,
 } = require("./_lib/autonomy.js");
+const {
+  edgeKey,
+  rowFromValue,
+  readAll,
+  readOne,
+  upsertEdgeItem,
+} = require("./_lib/autonomy-edge.js");
 
-const CACHE_CONTROL = "public, max-age=60";
+const NO_STORE = "no-store";
 
 function extractBearer(header) {
   if (!header || typeof header !== "string") return "";
@@ -74,7 +81,7 @@ function sendJson(res, status, body, headers) {
 function sendError(res, err, fallback) {
   const status = err.status || 500;
   const message = status >= 500 ? fallback : err.message || fallback;
-  sendJson(res, status, { error: message }, { "Cache-Control": "no-store" });
+  sendJson(res, status, { error: message }, { "Cache-Control": NO_STORE });
 }
 
 async function requireEditor(req) {
@@ -94,30 +101,29 @@ async function requireEditor(req) {
   return editorFromSession(session);
 }
 
-function tableMissing(err) {
-  if (!err) return false;
-  if (err.code === "P2021") return true;
-  if (err.meta && err.meta.code === "42P01") return true;
-  const message = String(err.message || "");
-  return /does not exist/i.test(message) && /autonomy_settings|AutonomySetting/.test(message);
+function listFromItems(raw) {
+  return {
+    default_if_missing: "not_autonomous",
+    items: AUTONOMY_ITEMS.map((def) => {
+      const value = raw && Object.prototype.hasOwnProperty.call(raw, edgeKey(def.key))
+        ? raw[edgeKey(def.key)]
+        : undefined;
+      return shapeItem(def, rowFromValue(value));
+    }),
+  };
 }
 
 async function listAutonomy(res) {
-  let rows;
-  try {
-    rows = await prisma.autonomySetting.findMany();
-  } catch {
-    sendJson(res, 200, closedList(), { "Cache-Control": CACHE_CONTROL });
-    return;
-  }
-  sendJson(res, 200, shapeList(rows), { "Cache-Control": CACHE_CONTROL });
+  const raw = await readAll();
+  const body = raw ? listFromItems(raw) : closedList();
+  sendJson(res, 200, body, { "Cache-Control": NO_STORE });
 }
 
 async function updateAutonomy(req, res) {
   const key = keyFrom(req);
   const def = itemFor(key);
   if (!def) {
-    sendJson(res, 404, { error: "Unknown autonomy setting." }, { "Cache-Control": "no-store" });
+    sendJson(res, 404, { error: "Unknown autonomy setting." }, { "Cache-Control": NO_STORE });
     return;
   }
 
@@ -130,7 +136,7 @@ async function updateAutonomy(req, res) {
       res,
       400,
       { error: "Body must include autonomous, note, or both." },
-      { "Cache-Control": "no-store" },
+      { "Cache-Control": NO_STORE },
     );
     return;
   }
@@ -139,35 +145,47 @@ async function updateAutonomy(req, res) {
       res,
       400,
       { error: "autonomous must be true or false." },
-      { "Cache-Control": "no-store" },
+      { "Cache-Control": NO_STORE },
     );
     return;
   }
 
-  const data = {
-    updatedBy: editor.updatedBy,
-    updatedAt: new Date(),
-  };
-  if (hasAutonomous) data.autonomous = body.autonomous;
-  if (hasNote) data.note = parseNote(body.note);
+  let note;
+  if (hasNote) note = parseNote(body.note);
 
-  let saved;
+  let current;
   try {
-    saved = await prisma.autonomySetting.update({ where: { key }, data });
+    current = await readOne(key);
   } catch (err) {
-    if (err && (err.code === "P2025" || tableMissing(err))) {
-      sendJson(
-        res,
-        503,
-        { error: "Autonomy settings are not ready." },
-        { "Cache-Control": "no-store" },
-      );
+    if (err && err.status === 503) {
+      sendJson(res, 503, { error: "Autonomy settings are not ready." }, { "Cache-Control": NO_STORE });
       return;
     }
     throw err;
   }
 
-  sendJson(res, 200, shapeItem(def, saved), { "Cache-Control": "no-store" });
+  const written = {
+    autonomous: hasAutonomous ? body.autonomous : current.autonomous,
+    note: hasNote ? note || "" : current.note,
+    updated_by: editor.updatedBy,
+    updated_at: new Date().toISOString(),
+  };
+  try {
+    await upsertEdgeItem(edgeKey(key), written);
+  } catch (err) {
+    if (err && err.status === 503) {
+      sendJson(res, 503, { error: "Autonomy settings are not ready." }, { "Cache-Control": NO_STORE });
+      return;
+    }
+    throw err;
+  }
+
+  sendJson(res, 200, shapeItem(def, {
+    autonomous: written.autonomous,
+    note: written.note,
+    updatedBy: written.updated_by,
+    updatedAt: written.updated_at,
+  }), { "Cache-Control": NO_STORE });
 }
 
 module.exports = withResponseLogging(async function handler(req, res) {
@@ -181,7 +199,7 @@ module.exports = withResponseLogging(async function handler(req, res) {
       return;
     }
     res.setHeader("Allow", "GET, PUT");
-    sendJson(res, 405, { error: "Method not allowed" }, { "Cache-Control": "no-store" });
+    sendJson(res, 405, { error: "Method not allowed" }, { "Cache-Control": NO_STORE });
   } catch (err) {
     sendError(res, err, req.method === "PUT" ? "Could not save autonomy." : "Could not load autonomy.");
   }

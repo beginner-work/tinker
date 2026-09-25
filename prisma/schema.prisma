@@ -66,15 +66,3 @@ model McpOAuthCode {
   usedAt        DateTime?
   createdAt     DateTime  @default(now())
 }
-
-// Tyler's autonomy toggles. One row per item. Labels, order, and the
-// send note live in api/_lib/autonomy.js, not in this table.
-model AutonomySetting {
-  key        String    @id
-  autonomous Boolean
-  note       String?   @db.Text
-  updatedBy  String?   @map("updated_by")
-  updatedAt  DateTime? @map("updated_at") @db.Timestamptz(6)
-
-  @@map("autonomy_settings")
-}
