@@ -69,7 +69,7 @@
     if (!value.startsWith("/mcp/") || value.startsWith("//") || value.includes("\\")) return "";
     if (value.includes("\n") || value.includes("\r")) return "";
     const path = value.split("?")[0];
-    if (path !== "/mcp/authorize" && path !== "/mcp/access") return "";
+    if (path !== "/mcp/authorize" && path !== "/mcp/access" && path !== "/approvals") return "";
     return value;
   }
 

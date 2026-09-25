@@ -13,7 +13,8 @@
     { "source": "/mcp/register", "destination": "/api/mcp-oauth?op=register" },
     { "source": "/mcp/authorize", "destination": "/api/mcp-oauth?op=authorize" },
     { "source": "/mcp/token", "destination": "/api/mcp-oauth?op=token" },
-    { "source": "/mcp/access", "destination": "/api/mcp-oauth?op=access" }
+    { "source": "/mcp/access", "destination": "/api/mcp-oauth?op=access" },
+    { "source": "/api/approvals/:key", "destination": "/api/approvals?key=:key" }
   ],
   "headers": [
     {

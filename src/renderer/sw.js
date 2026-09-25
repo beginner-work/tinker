@@ -110,6 +110,9 @@ self.addEventListener("fetch", (event) => {
   // Leave the API on the network — freewrite.js gates it page-side, and
   // it's per-user/authenticated, so it must never be cached.
   if (sameOrigin && url.pathname.startsWith("/api/")) return;
+  // /approvals is its own page. Leave it on the network so a visit does
+  // not get stored as the offline shell for "/".
+  if (sameOrigin && (url.pathname === "/approvals" || url.pathname.startsWith("/approvals/"))) return;
   // Cross-origin (fonts, vercel.live preview comments): pass through.
   if (!sameOrigin) return;
 
