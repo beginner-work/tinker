@@ -8,6 +8,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 const Module = require("node:module");
 
 const SEND_NOTE =
@@ -17,6 +18,7 @@ const stytchCalls = [];
 let stytchUserId = "user-owner";
 let stytchEmails = [];
 let stytchShouldThrow = null;
+let findManyError = null;
 
 const rows = new Map();
 
@@ -41,7 +43,10 @@ const stytchStub = {
 
 const dbStub = {
   approvalSetting: {
-    findMany: async () => [...rows.values()].map((row) => ({ ...row })),
+    findMany: async () => {
+      if (findManyError) throw findManyError;
+      return [...rows.values()].map((row) => ({ ...row }));
+    },
     update: async ({ where, data }) => {
       const row = rows.get(where.key);
       if (!row) {
@@ -89,6 +94,7 @@ function reset() {
   stytchUserId = "user-owner";
   stytchEmails = [];
   stytchShouldThrow = null;
+  findManyError = null;
   process.env.APPROVAL_ALLOWLIST = "user-owner:tyler";
   seedRows();
 }
@@ -177,6 +183,35 @@ test("GET keeps catalog order when the table comes back shuffled", async () => {
     res.captured.body.items.map((item) => item.key),
     catalog.APPROVAL_ITEMS.map((item) => item.key),
   );
+});
+
+test("GET returns catalog defaults when the table is missing", async () => {
+  findManyError = Object.assign(
+    new Error('relation "approval_settings" does not exist'),
+    { code: "P2021" },
+  );
+  const res = fakeRes();
+  await handler(getReq(), res);
+  assert.equal(res.captured.status, 200);
+  assert.equal(res.captured.headers["cache-control"], "public, max-age=60");
+  assert.equal(res.captured.body.default_if_missing, "required");
+  assert.equal(res.captured.body.items.length, 14);
+  assert.equal(res.captured.body.items[0].key, "linkedin_profile_edits");
+  assert.equal(res.captured.body.items[0].required, false);
+  assert.equal(res.captured.body.items[0].updated_by, null);
+  const posts = res.captured.body.items.find((item) => item.key === "linkedin_posts");
+  assert.equal(posts.required, true);
+  assert.equal(posts.updated_by, null);
+  const notes = res.captured.body.items.filter((item) => item.send_note).map((item) => item.key);
+  assert.deepEqual(notes, ["linkedin_messages", "outreach_emails", "family_admin_messages"]);
+});
+
+test("GET still fails when the database error is not a missing table", async () => {
+  findManyError = Object.assign(new Error("connection reset"), { code: "P1001" });
+  const res = fakeRes();
+  await handler(getReq(), res);
+  assert.equal(res.captured.status, 500);
+  assert.equal(res.captured.body.error, "Could not load approvals.");
 });
 
 test("GET uses the catalog default when a seeded row is missing", async () => {
@@ -318,7 +353,87 @@ test("the page is a plain list that returns through the existing sign-in", () =>
   assert.match(page, /item\.send_note/);
   assert.match(auth, /path !== "\/approvals"/);
   assert.match(sw, /pathname === "\/approvals"/);
+  assert.match(page, /timeZone:\s*"America\/Los_Angeles"/);
+  assert.match(page, / \+ " PT"/);
   assert.equal(page.includes(SEND_NOTE), false);
   assert.equal(page.includes("\u2014"), false);
   assert.equal(html.includes("\u2014"), false);
+});
+
+test("changed-by time is Pacific Time and ends with PT", () => {
+  const page = fs.readFileSync(
+    path.join(__dirname, "..", "src", "renderer", "approvals", "approvals.js"),
+    "utf8",
+  );
+  const start = page.indexOf("function changedLine");
+  const end = page.indexOf("function render");
+  assert.ok(start > 0 && end > start);
+  const changedLine = new Function(`${page.slice(start, end)}\nreturn changedLine;`)();
+  assert.equal(
+    changedLine({ updated_by: "tyler", updated_at: "2026-09-25T14:45:00.000Z" }),
+    "Changed by tyler on Sep 25, 2026, 7:45 AM PT",
+  );
+  assert.equal(
+    changedLine({ updated_by: "tyler", updated_at: "2026-01-15T18:05:00.000Z" }),
+    "Changed by tyler on Jan 15, 2026, 10:05 AM PT",
+  );
+  assert.equal(changedLine({ updated_by: null, updated_at: null }), "Default, never changed");
+});
+
+test("signed-out /approvals comes back to /approvals after sign-in", () => {
+  const page = fs.readFileSync(
+    path.join(__dirname, "..", "src", "renderer", "approvals", "approvals.js"),
+    "utf8",
+  );
+  const auth = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "auth.js"), "utf8");
+  const map = {};
+  const assigns = [];
+  const sessionStorage = {
+    getItem(key) { return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null; },
+    setItem(key, value) { map[key] = String(value); },
+    removeItem(key) { delete map[key]; },
+  };
+  const window = { location: { assign(url) { assigns.push(String(url)); } } };
+  vm.runInNewContext(page, vm.createContext({
+    localStorage: {
+      getItem() { return ""; },
+      setItem() {},
+      removeItem() {},
+    },
+    sessionStorage,
+    document: { getElementById() { return {}; } },
+    window,
+  }));
+  assert.deepEqual(assigns, ["/"]);
+  assert.equal(map.tinker_mcp_return, "/approvals");
+
+  const start = auth.indexOf("const MCP_RETURN_KEY");
+  const call = "if (resumeMcpReturn()) return;";
+  const end = auth.indexOf(call) + call.length;
+  assert.ok(start > 0 && end > start);
+  vm.runInNewContext(`(function () {\n${auth.slice(start, end)}\n})();`, vm.createContext({
+    sessionStorage,
+    window,
+    auth: { token: "signed-in-session" },
+  }));
+  assert.deepEqual(assigns, ["/", "/approvals"]);
+  assert.equal(map.tinker_mcp_return, undefined);
+
+  function readBack(value) {
+    map.tinker_mcp_return = value;
+    const take = new Function(
+      "sessionStorage",
+      `${auth.slice(start, auth.indexOf("function resumeMcpReturn()"))}\nreturn takeMcpReturn;`,
+    )(sessionStorage);
+    return take();
+  }
+  assert.equal(readBack("/approvals"), "/approvals");
+  assert.equal(readBack("//approvals"), "");
+  assert.equal(readBack("//evil.example/approvals"), "");
+  assert.equal(readBack("https://evil.example/approvals"), "");
+  assert.equal(readBack("/approvals\\evil"), "");
+  assert.equal(readBack("\\\\approvals"), "");
+  assert.equal(readBack("/elsewhere"), "");
+  assert.equal(readBack("/approvals/extra"), "");
+  assert.equal(readBack("/mcp/authorize?state=abc"), "/mcp/authorize?state=abc");
 });

@@ -87,8 +87,23 @@ async function requireEditor(req) {
   return editorFromSession(session);
 }
 
+function tableMissing(err) {
+  if (!err) return false;
+  if (err.code === "P2021") return true;
+  if (err.meta && err.meta.code === "42P01") return true;
+  const message = String(err.message || "");
+  return /does not exist/i.test(message) && /approval_settings|ApprovalSetting/.test(message);
+}
+
 async function listApprovals(res) {
-  const rows = await prisma.approvalSetting.findMany();
+  let rows = [];
+  try {
+    rows = await prisma.approvalSetting.findMany();
+  } catch (err) {
+    // Migrate does not run on the Vercel build. Until the table exists,
+    // bots still get the catalog defaults (same booleans as the seed).
+    if (!tableMissing(err)) throw err;
+  }
   sendJson(res, 200, shapeList(rows), { "Cache-Control": CACHE_CONTROL });
 }
 
@@ -123,7 +138,7 @@ async function updateApproval(req, res) {
       },
     });
   } catch (err) {
-    if (err && err.code === "P2025") {
+    if (err && (err.code === "P2025" || tableMissing(err))) {
       throw Object.assign(new Error("Approval settings are not ready."), { status: 503 });
     }
     throw err;

@@ -47,8 +47,9 @@
       year: "numeric",
       hour: "numeric",
       minute: "2-digit",
+      timeZone: "America/Los_Angeles",
     });
-    return "Changed by " + who + " on " + date;
+    return "Changed by " + who + " on " + date + " PT";
   }
 
   function render() {
