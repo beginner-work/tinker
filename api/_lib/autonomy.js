@@ -1,79 +1,19 @@
-/* Autonomy catalog.
+/* Autonomy catalog and response shapes.
  *
- * AUTONOMY_ITEMS is the only place labels, order, and the send note
- * live. It does not hold a read-time default for autonomous. Stored
- * values live in one Redis hash per signed-in user. A missing item,
- * a bad value, or a read error is not autonomous.
+ * Labels, descriptions, order, and the send note live in
+ * src/renderer/autonomy/catalog.js. The autonomy page and
+ * get_autonomy_settings both read that file. It does not hold a
+ * read-time default for autonomous. Stored values live in one Redis
+ * hash per signed-in user. A missing item or a bad value is not
+ * autonomous. GET turns a store error into that same closed list.
+ * The connector tool does not: a store error stays an error.
  */
 
 "use strict";
 
-const SEND_NOTE =
-  "Even when this is on, bots only prepare a draft card. You always press Send.";
+const { SEND_NOTE, AUTONOMY_ITEMS } = require("../../src/renderer/autonomy/catalog.js");
 
 const NOTE_MAX = 500;
-
-const AUTONOMY_ITEMS = [
-  {
-    key: "linkedin_profile_edits",
-    label: "LinkedIn profile edits",
-  },
-  {
-    key: "linkedin_posts",
-    label: "LinkedIn posts",
-  },
-  {
-    key: "linkedin_connection_requests",
-    label: "LinkedIn connection requests and notes",
-  },
-  {
-    key: "linkedin_messages",
-    label: "LinkedIn messages and follow-ups",
-    send_note: SEND_NOTE,
-  },
-  {
-    key: "outreach_emails",
-    label: "Outreach and follow-up emails from Tyler's accounts",
-    send_note: SEND_NOTE,
-  },
-  {
-    key: "other_public_profiles",
-    label: "Other public profiles (Calendly, GitHub, Otta)",
-  },
-  {
-    key: "site_content_live",
-    label: "Blog and site content going live on lindowlabs.dev",
-  },
-  {
-    key: "code_pr_merges",
-    label: "Merging code PRs",
-  },
-  {
-    key: "dns_domain_changes",
-    label: "lindowlabs.dev DNS and domain changes",
-  },
-  {
-    key: "purchases_subscriptions",
-    label: "Purchases and subscriptions",
-  },
-  {
-    key: "calendar_invites_others",
-    label: "Calendar invites to other people",
-  },
-  {
-    key: "family_admin_messages",
-    label: "Family admin messages",
-    send_note: SEND_NOTE,
-  },
-  {
-    key: "resume_changes",
-    label: "Resume changes",
-  },
-  {
-    key: "bot_routines_rules",
-    label: "New bot routines and rule changes",
-  },
-];
 
 const BY_KEY = new Map(AUTONOMY_ITEMS.map((item) => [item.key, item]));
 
@@ -134,6 +74,30 @@ function closedList() {
   };
 }
 
+function toolItem(def, row) {
+  const item = {
+    key: def.key,
+    label: def.label,
+    description: def.description,
+    on: Boolean(row && row.autonomous),
+    updated_at: row && row.updatedAt ? iso(row.updatedAt) : null,
+  };
+  if (def.send_note) item.send_note = def.send_note;
+  return item;
+}
+
+function toolSettings(rows) {
+  const byKey = rows instanceof Map ? rows : new Map();
+  if (!(rows instanceof Map)) {
+    for (const row of rows || []) {
+      if (row && row.key) byKey.set(row.key, row);
+    }
+  }
+  return {
+    settings: AUTONOMY_ITEMS.map((def) => toolItem(def, byKey.get(def.key) || null)),
+  };
+}
+
 function sessionIdentity(session) {
   const user = (session && session.user) || {};
   const userId =
@@ -191,6 +155,7 @@ module.exports = {
   shapeItem,
   shapeList,
   closedList,
+  toolSettings,
   sessionIdentity,
   callerFromSession,
   parseNote,

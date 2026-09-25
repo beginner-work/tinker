@@ -9,8 +9,10 @@
  *   A missing or rejected bearer is 401 with resource_metadata so an
  *   MCP client can send the user to /mcp/authorize.
  *
- * Tools are fixed-prompt follow-ups (ask_followups) and LinkedIn drafts
- * (draft_linkedin_post). There is no raw converse proxy. GET/DELETE
+ * Tools are fixed-prompt follow-ups (ask_followups), LinkedIn drafts
+ * (draft_linkedin_post), and a read-only look at this user's autonomy
+ * settings (get_autonomy_settings). There is no raw converse proxy and
+ * no autonomy write. GET/DELETE
  * return 405: this server does not keep an SSE session. The writing UI
  * is not involved. draft_linkedin_post shares api/_lib/linkedin-draft.js
  * with POST /api/claude/converse mode "linkedin". It does not post.
@@ -28,6 +30,8 @@ const { wwwAuthenticate } = require("./_lib/mcp-origin.js");
 const { withResponseLogging } = require("./_lib/log.js");
 const { askFollowups } = require("./_lib/followups.js");
 const { draftLinkedInPost } = require("./_lib/linkedin-draft.js");
+const { toolSettings } = require("./_lib/autonomy.js");
+const { UNAVAILABLE, readAll } = require("./_lib/autonomy-redis.js");
 const pkg = require("../package.json");
 
 const SUPPORTED_PROTOCOLS = ["2025-03-26", "2025-06-18"];
@@ -41,6 +45,9 @@ const INSTRUCTIONS = [
   "Call draft_linkedin_post with notes (a topic or bullets) to draft a LinkedIn post or direct message in Tyler's voice.",
   "Pass kind \"dm\" for a direct message, or start the notes with \"DM:\". Pass currentDraft and an optional instruction to revise.",
   "This drafts copy only. It does not post to LinkedIn.",
+  "Call get_autonomy_settings with no arguments to read this user's autonomy settings.",
+  "It returns each setting's key, label, description, on (true or false), and updated_at.",
+  "It does not change a setting. If it says settings are unavailable, treat every setting as off.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -171,6 +178,33 @@ const DRAFT_LINKEDIN_TOOL = {
   },
 };
 
+const GET_AUTONOMY_SETTINGS_TOOL = {
+  name: "get_autonomy_settings",
+  title: "Read autonomy settings",
+  description: [
+    "Return the on or off state of this connector user's 14 autonomy settings.",
+    "Takes no input. The user is the person who approved this connector, not a user id in the arguments.",
+    "Each setting includes key, label, description, on, and updated_at (when it last changed, or null).",
+    "Three sending settings also include send_note.",
+    "on true means a bot may do that item on its own. A setting with nothing stored is off.",
+    "If the tool returns an error that settings are unavailable, treat every setting as off.",
+    "This does not change any setting.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {},
+  },
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    openWorldHint: false,
+  },
+};
+
+const TOOLS = [ASK_FOLLOWUPS_TOOL, DRAFT_LINKEDIN_TOOL, GET_AUTONOMY_SETTINGS_TOOL];
+const NO_STORE = { "Cache-Control": "no-store" };
+
 function extractBearer(header) {
   if (!header || typeof header !== "string") return "";
   const m = header.match(/^Bearer\s+(\S+)$/i);
@@ -260,7 +294,33 @@ function readMessage(req) {
   return { message: body };
 }
 
-async function handleRpc(msg) {
+// McpApiKey.userId is session.user_id from connector approval
+// (userIdFromSession). Autonomy hashes use that same session.user_id
+// (callerFromSession). The tool reads autonomy:<that id> and ignores
+// any user id in the arguments.
+async function autonomyCall(msg, user) {
+  try {
+    const userId = user && typeof user.userId === "string" ? user.userId : "";
+    if (!userId) throw new Error("missing user");
+    const shaped = toolSettings(await readAll(userId));
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, {
+        content: [{ type: "text", text: JSON.stringify(shaped, null, 2) }],
+        structuredContent: shaped,
+      }),
+    };
+  } catch {
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(UNAVAILABLE)),
+    };
+  }
+}
+
+async function handleRpc(msg, user) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
   }
@@ -291,7 +351,7 @@ async function handleRpc(msg) {
     return { status: 200, body: rpcOk(msg.id, {}) };
   }
   if (method === "tools/list") {
-    return { status: 200, body: rpcOk(msg.id, { tools: [ASK_FOLLOWUPS_TOOL, DRAFT_LINKEDIN_TOOL] }) };
+    return { status: 200, body: rpcOk(msg.id, { tools: TOOLS }) };
   }
   if (method === "prompts/list") {
     return { status: 200, body: rpcOk(msg.id, { prompts: [] }) };
@@ -303,11 +363,14 @@ async function handleRpc(msg) {
     const params = msg.params && typeof msg.params === "object" ? msg.params : {};
     const name = params.name;
     const args = params.arguments && typeof params.arguments === "object" ? params.arguments : {};
-    if (name !== "ask_followups" && name !== "draft_linkedin_post") {
+    if (name !== "ask_followups" && name !== "draft_linkedin_post" && name !== "get_autonomy_settings") {
       return {
         status: 200,
         body: rpcOk(msg.id, toolError(`Unknown tool: ${name || "(missing)"}`)),
       };
+    }
+    if (name === "get_autonomy_settings") {
+      return autonomyCall(msg, user);
     }
     try {
       if (name === "draft_linkedin_post") {
@@ -352,8 +415,9 @@ module.exports = withResponseLogging(async function handler(req, res) {
   }
 
   const token = extractBearer(req.headers && req.headers.authorization);
+  let caller;
   try {
-    await authorize(token); // principal is the approving user, or the session user
+    caller = await authorize(token); // principal is the approving user, or the session user
   } catch (err) {
     const status = err.status || 401;
     const extra = status === 401 ? { "WWW-Authenticate": wwwAuthenticate(req) } : undefined;
@@ -381,11 +445,11 @@ module.exports = withResponseLogging(async function handler(req, res) {
     return;
   }
 
-  const outcome = await handleRpc(parsed.message);
+  const outcome = await handleRpc(parsed.message, caller);
   const protocol = outcome.protocol || protocolFrom(req);
   if (outcome.empty) {
     sendEmpty(res, outcome.status, protocol);
     return;
   }
-  sendJson(res, outcome.status, outcome.body, protocol);
+  sendJson(res, outcome.status, outcome.body, protocol, outcome.headers);
 });

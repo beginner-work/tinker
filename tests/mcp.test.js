@@ -21,6 +21,13 @@ const handler = require("../api/mcp.js");
 const fetchCalls = [];
 let anthropicMode = "ok";
 const originalFetch = global.fetch;
+const autonomyHashes = new Map();
+let autonomyFetchError = null;
+let autonomyFetchStatus = 200;
+const UNAVAILABLE = "Autonomy settings are unavailable right now.";
+const REST_URL = "https://secret-kv.upstash.io";
+const READ_TOKEN = "kv-read-token-do-not-leak";
+const WRITE_TOKEN = "kv-write-token-do-not-leak";
 
 function jsonResponse(status, body) {
   return {
@@ -90,6 +97,23 @@ async function mockFetch(url, opts) {
     }
     return jsonResponse(500, { error: { message: "unexpected system prompt" } });
   }
+  if (process.env.KV_REST_API_URL && u === process.env.KV_REST_API_URL) {
+    const args = JSON.parse(opts.body);
+    entry.redisArgs = args;
+    entry.authorization = opts.headers && opts.headers.Authorization;
+    if (autonomyFetchError) throw autonomyFetchError;
+    if (autonomyFetchStatus !== 200) {
+      return jsonResponse(autonomyFetchStatus, {
+        error: "upstream " + WRITE_TOKEN + " " + READ_TOKEN + " " + REST_URL,
+      });
+    }
+    const hash = autonomyHashes.get(args[1]);
+    const flat = [];
+    if (hash) {
+      for (const [name, raw] of hash) flat.push(name, raw);
+    }
+    return jsonResponse(200, { result: args[0] === "HGETALL" ? flat : null });
+  }
   throw new Error(`unexpected fetch ${u}`);
 }
 
@@ -134,10 +158,41 @@ test.after(() => {
   global.fetch = originalFetch;
 });
 
+function resetAutonomyStore() {
+  autonomyHashes.clear();
+  autonomyFetchError = null;
+  autonomyFetchStatus = 200;
+  delete process.env.KV_REST_API_URL;
+  delete process.env.KV_REST_API_TOKEN;
+  delete process.env.KV_REST_API_READ_ONLY_TOKEN;
+  delete process.env.VERCEL_ENV;
+}
+
+function seedAutonomy(userId, fields) {
+  const hash = new Map();
+  for (const [key, value] of Object.entries(fields)) {
+    hash.set(key, JSON.stringify({
+      autonomous: false,
+      note: "",
+      updated_by: null,
+      updated_at: null,
+      ...value,
+    }));
+  }
+  autonomyHashes.set("autonomy:" + userId, hash);
+}
+
+function useReadStore() {
+  process.env.KV_REST_API_URL = REST_URL;
+  process.env.KV_REST_API_TOKEN = WRITE_TOKEN;
+  process.env.KV_REST_API_READ_ONLY_TOKEN = READ_TOKEN;
+}
+
 test.beforeEach(() => {
   fetchCalls.length = 0;
   anthropicMode = "ok";
   process.env.ANTHROPIC_API_KEY = "sk-ant-test-not-real";
+  resetAutonomyStore();
 });
 
 test("a malformed mcp_ bearer is rejected and is not sent to Stytch", async () => {
@@ -216,7 +271,15 @@ test("tools/list exposes ask_followups and draft_linkedin_post, and no raw conve
   await handler(rpcReq({ method: "tools/list", id: 2 }), res);
   const tools = res.captured.body.result.tools;
   const names = tools.map((t) => t.name);
-  assert.deepEqual(names, ["ask_followups", "draft_linkedin_post"]);
+  assert.deepEqual(names, ["ask_followups", "draft_linkedin_post", "get_autonomy_settings"]);
+  const autonomy = tools.find((t) => t.name === "get_autonomy_settings");
+  assert.equal(autonomy.annotations.readOnlyHint, true);
+  assert.deepEqual(autonomy.inputSchema, {
+    type: "object",
+    additionalProperties: false,
+    properties: {},
+  });
+  assert.equal(tools.some((t) => /set_|update_|toggle|write/i.test(t.name) && /autonomy/.test(t.name)), false);
   const linkedin = tools.find((t) => t.name === "draft_linkedin_post");
   assert.equal(linkedin.inputSchema.required.includes("notes"), true);
   assert.equal(linkedin.inputSchema.properties.system, undefined);
@@ -458,6 +521,199 @@ test("draft_linkedin_post rejects empty notes without calling Anthropic", async 
   assert.equal(res.captured.body.result.isError, true);
   assert.match(res.captured.body.result.content[0].text, /bullet notes/);
   assert.equal(anthropicCalls().length, 0);
+});
+
+function autonomyResult(res) {
+  return res.captured.body.result;
+}
+
+function redisCalls() {
+  return fetchCalls.filter((call) => call.redisArgs);
+}
+
+test("get_autonomy_settings returns this user's 14 settings and no write tool", async () => {
+  useReadStore();
+  seedAutonomy("user-1", {
+    linkedin_posts: {
+      autonomous: true,
+      note: "only after I say so",
+      updated_by: "tyler@example.com",
+      updated_at: "2026-09-25T14:45:00.000Z",
+    },
+    linkedin_messages: {
+      autonomous: false,
+      updated_by: "tyler@example.com",
+      updated_at: "2026-09-25T15:00:00.000Z",
+    },
+  });
+  seedAutonomy("user-other", {
+    linkedin_posts: { autonomous: false, note: "secret-from-other", updated_at: "2026-01-01T00:00:00.000Z" },
+    code_pr_merges: { autonomous: true, updated_at: "2026-09-25T16:00:00.000Z" },
+  });
+
+  const listed = fakeRes();
+  await handler(rpcReq({ method: "tools/list", id: 21 }), listed);
+  const names = listed.captured.body.result.tools.map((tool) => tool.name);
+  assert.deepEqual(names, ["ask_followups", "draft_linkedin_post", "get_autonomy_settings"]);
+  assert.equal(names.includes("set_autonomy_settings"), false);
+  assert.equal(names.includes("update_autonomy_settings"), false);
+
+  const res = fakeRes();
+  await handler(rpcReq({
+    method: "tools/call",
+    id: 22,
+    params: {
+      name: "get_autonomy_settings",
+      arguments: { userId: "user-other", user_id: "user-other" },
+    },
+  }), res);
+  assert.equal(res.captured.status, 200);
+  assert.equal(res.captured.headers["cache-control"], "no-store");
+  const result = autonomyResult(res);
+  assert.equal(result.isError, undefined);
+  const shaped = result.structuredContent;
+  assert.equal(JSON.parse(result.content[0].text).settings.length, 14);
+  assert.equal(shaped.settings.length, 14);
+  const catalog = require("../src/renderer/autonomy/catalog.js");
+  const notes = [];
+  shaped.settings.forEach((item, index) => {
+    const def = catalog.AUTONOMY_ITEMS[index];
+    const fields = ["key", "label", "description", "on", "updated_at"];
+    if (def.send_note) fields.push("send_note");
+    assert.deepEqual(Object.keys(item), fields);
+    assert.equal(item.key, def.key);
+    assert.equal(item.label, def.label);
+    assert.equal(item.description, def.description);
+    if (def.send_note) {
+      assert.equal(item.send_note, catalog.SEND_NOTE);
+      notes.push(item.key);
+    }
+  });
+  assert.deepEqual(notes, ["linkedin_messages", "outreach_emails", "family_admin_messages"]);
+  const posts = shaped.settings.find((item) => item.key === "linkedin_posts");
+  assert.equal(posts.on, true);
+  assert.equal(posts.updated_at, "2026-09-25T14:45:00.000Z");
+  assert.equal(JSON.stringify(shaped).includes("only after I say so"), false);
+  assert.equal(JSON.stringify(shaped).includes("tyler@example.com"), false);
+  assert.equal(JSON.stringify(shaped).includes("secret-from-other"), false);
+  assert.equal(JSON.stringify(shaped).includes("user-other"), false);
+  const merges = shaped.settings.find((item) => item.key === "code_pr_merges");
+  assert.equal(merges.on, false);
+  assert.equal(merges.updated_at, null);
+  const profile = shaped.settings.find((item) => item.key === "linkedin_profile_edits");
+  assert.equal(profile.on, false);
+
+  assert.deepEqual(redisCalls().map((call) => call.redisArgs), [["HGETALL", "autonomy:user-1"]]);
+  assert.equal(redisCalls()[0].authorization, "Bearer " + READ_TOKEN);
+  assert.equal(redisCalls().some((call) => call.authorization === "Bearer " + WRITE_TOKEN), false);
+  assert.equal(anthropicCalls().length, 0);
+  const leaked = JSON.stringify(res.captured.body);
+  assert.equal(leaked.includes(REST_URL), false);
+  assert.equal(leaked.includes(READ_TOKEN), false);
+  assert.equal(leaked.includes(WRITE_TOKEN), false);
+  assert.equal(leaked.includes("good-token"), false);
+});
+
+test("a flip is visible on the next read, with no cache", async () => {
+  useReadStore();
+  seedAutonomy("user-1", {
+    linkedin_posts: { autonomous: true, updated_at: "2026-09-25T14:45:00.000Z" },
+  });
+  const first = fakeRes();
+  await handler(rpcReq({
+    method: "tools/call",
+    id: 23,
+    params: { name: "get_autonomy_settings", arguments: {} },
+  }), first);
+  assert.equal(
+    autonomyResult(first).structuredContent.settings.find((item) => item.key === "linkedin_posts").on,
+    true,
+  );
+
+  seedAutonomy("user-1", {
+    linkedin_posts: { autonomous: false, updated_at: "2026-09-25T14:46:00.000Z" },
+  });
+  const second = fakeRes();
+  await handler(rpcReq({
+    method: "tools/call",
+    id: 24,
+    params: { name: "get_autonomy_settings" },
+  }), second);
+  const posts = autonomyResult(second).structuredContent.settings.find((item) => item.key === "linkedin_posts");
+  assert.equal(posts.on, false);
+  assert.equal(posts.updated_at, "2026-09-25T14:46:00.000Z");
+  assert.equal(redisCalls().length, 2);
+});
+
+test("an unconfigured or unreachable store returns the unavailable error and no values", async () => {
+  const logs = [];
+  const originalLog = console.log;
+  console.log = (...args) => { logs.push(args.map(String).join(" ")); };
+  try {
+    process.env.VERCEL_ENV = "preview";
+    const missing = fakeRes();
+    await handler(rpcReq({
+      method: "tools/call",
+      id: 25,
+      params: { name: "get_autonomy_settings" },
+    }), missing);
+    assert.equal(missing.captured.status, 200);
+    assert.equal(autonomyResult(missing).isError, true);
+    assert.equal(autonomyResult(missing).content[0].text, UNAVAILABLE);
+    assert.equal(autonomyResult(missing).structuredContent, undefined);
+    assert.equal(redisCalls().length, 0);
+
+    process.env.KV_REST_API_URL = REST_URL;
+    process.env.KV_REST_API_TOKEN = WRITE_TOKEN;
+    const writeOnly = fakeRes();
+    await handler(rpcReq({
+      method: "tools/call",
+      id: 26,
+      params: { name: "get_autonomy_settings" },
+    }), writeOnly);
+    assert.equal(autonomyResult(writeOnly).isError, true);
+    assert.equal(autonomyResult(writeOnly).content[0].text, UNAVAILABLE);
+    assert.equal(autonomyResult(writeOnly).structuredContent, undefined);
+    assert.equal(redisCalls().length, 0);
+
+    useReadStore();
+    autonomyFetchError = Object.assign(
+      new Error("aborted " + REST_URL + " " + READ_TOKEN + " " + WRITE_TOKEN),
+      { name: "AbortError" },
+    );
+    const down = fakeRes();
+    await handler(rpcReq({
+      method: "tools/call",
+      id: 27,
+      params: { name: "get_autonomy_settings" },
+    }), down);
+    assert.equal(autonomyResult(down).isError, true);
+    assert.equal(autonomyResult(down).content[0].text, UNAVAILABLE);
+    assert.equal(autonomyResult(down).structuredContent, undefined);
+    assert.equal(JSON.stringify(down.captured.body).includes(REST_URL), false);
+    assert.equal(JSON.stringify(down.captured.body).includes(READ_TOKEN), false);
+    assert.equal(JSON.stringify(down.captured.body).includes(WRITE_TOKEN), false);
+
+    autonomyFetchError = null;
+    autonomyFetchStatus = 500;
+    const upstream = fakeRes();
+    await handler(rpcReq({
+      method: "tools/call",
+      id: 28,
+      params: { name: "get_autonomy_settings" },
+    }), upstream);
+    assert.equal(autonomyResult(upstream).content[0].text, UNAVAILABLE);
+    assert.equal(JSON.stringify(upstream.captured.body).includes(REST_URL), false);
+    assert.equal(redisCalls().every((call) => call.authorization === "Bearer " + READ_TOKEN), true);
+
+    const text = logs.join("\n") + JSON.stringify(upstream.captured.body);
+    assert.equal(text.includes(REST_URL), false);
+    assert.equal(text.includes(READ_TOKEN), false);
+    assert.equal(text.includes(WRITE_TOKEN), false);
+    assert.match(logs.join("\n"), /settings are unavailable/);
+  } finally {
+    console.log = originalLog;
+  }
 });
 
 test("the browser interview loads the shared prompt and does not inline a second copy", () => {

@@ -90,6 +90,14 @@ async function requireCaller(req) {
   if (!token) {
     throw Object.assign(new Error("Sign in to tinker first."), { status: 401 });
   }
+  // Connector credentials are not a browser session. Reject them before
+  // Stytch so a bot token cannot read or change settings on this route.
+  if (token.startsWith("mcp_")) {
+    throw Object.assign(
+      new Error("Connector credentials cannot change autonomy."),
+      { status: 401 },
+    );
+  }
   let session;
   try {
     session = await authenticateSession(token);

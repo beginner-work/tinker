@@ -196,6 +196,8 @@ Connect the store on the Vercel project environment. The Marketplace injects `KV
 
 The app does not read `KV_URL` or `REDIS_URL`. It does not log the REST URL or either token, and it does not put them in an error or in the page. If the store is missing or cannot be reached, GET still returns 200 and every item is off. PUT returns 503 with `Autonomy settings are unavailable right now.` and writes nothing.
 
+`get_autonomy_settings` on `POST /api/mcp` reads that same hash for the connector user. The id on the `mcp_` credential is the Stytch `session.user_id` saved at approval, and the hash is keyed by that same id. The tool takes no input and no user id. It uses `KV_REST_API_READ_ONLY_TOKEN` on every call, with no cache. If the store is missing or cannot be reached, the tool returns an error, `Autonomy settings are unavailable right now.`, and no values. A caller treats that error as every setting off. `PUT /api/autonomy` rejects a bearer that starts with `mcp_` before it calls Stytch. Labels and the one-line scope text live in `src/renderer/autonomy/catalog.js`, which the page and the tool both read.
+
 ### Shared database with the beginner repo
 
 `DATABASE_URL` on both tinker (production + preview) and beginner

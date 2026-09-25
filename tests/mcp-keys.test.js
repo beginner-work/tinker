@@ -311,7 +311,7 @@ test("a minted key can list and call tools, and Stytch is not contacted", async 
   assert.equal(listed.captured.status, 200);
   assert.deepEqual(
     listed.captured.body.result.tools.map((tool) => tool.name),
-    ["ask_followups", "draft_linkedin_post"],
+    ["ask_followups", "draft_linkedin_post", "get_autonomy_settings"],
   );
   assert.equal(stytchCalls.length, 0);
   assert.equal(findUniques.length, 1);
@@ -331,6 +331,131 @@ test("a minted key can list and call tools, and Stytch is not contacted", async 
   assert.equal(called.captured.body.result.isError, true);
   assert.match(called.captured.body.result.content[0].text, /bullet notes/);
   assert.equal(stytchCalls.length, 0);
+});
+
+test("a connector key reads only that user's autonomy settings", async () => {
+  const REST_URL = "https://secret-kv.upstash.io";
+  const READ_TOKEN = "kv-read-token-do-not-leak";
+  const WRITE_TOKEN = "kv-write-token-do-not-leak";
+  process.env.KV_REST_API_URL = REST_URL;
+  process.env.KV_REST_API_TOKEN = WRITE_TOKEN;
+  process.env.KV_REST_API_READ_ONLY_TOKEN = READ_TOKEN;
+
+  const ownerMint = fakeRes();
+  await oauth(accessReq({ body: { action: "mint", label: "notebook" } }), ownerMint);
+  const ownerKey = ownerMint.captured.body.key;
+
+  stytchUserId = "user-other";
+  const otherMint = fakeRes();
+  await oauth(accessReq({ body: { action: "mint", label: "other bot" } }), otherMint);
+  const otherKey = otherMint.captured.body.key;
+
+  function stored(extra) {
+    return JSON.stringify({
+      autonomous: false,
+      note: "",
+      updated_by: null,
+      updated_at: null,
+      ...extra,
+    });
+  }
+  const hashes = new Map([
+    ["autonomy:user-owner", new Map([
+      ["linkedin_posts", stored({
+        autonomous: true,
+        note: "owner-private-note",
+        updated_by: "owner@example.com",
+        updated_at: "2026-09-25T14:45:00.000Z",
+      })],
+      ["code_pr_merges", stored({ autonomous: false, updated_at: "2026-09-25T12:00:00.000Z" })],
+    ])],
+    ["autonomy:user-other", new Map([
+      ["linkedin_posts", stored({
+        autonomous: false,
+        note: "secret-from-other",
+        updated_at: "2026-09-25T15:00:00.000Z",
+      })],
+      ["code_pr_merges", stored({ autonomous: true, updated_at: "2026-09-25T16:00:00.000Z" })],
+    ])],
+  ]);
+  const calls = [];
+  const originalFetch = global.fetch;
+  global.fetch = async (url, options) => {
+    const args = JSON.parse(options.body);
+    calls.push({
+      url: String(url),
+      authorization: options.headers && options.headers.Authorization,
+      args,
+    });
+    const hash = hashes.get(args[1]);
+    const flat = [];
+    if (hash) {
+      for (const [name, raw] of hash) flat.push(name, raw);
+    }
+    return { ok: true, status: 200, json: async () => ({ result: flat }) };
+  };
+
+  try {
+    stytchCalls.length = 0;
+    const owner = fakeRes();
+    await mcp(mcpReq({
+      token: ownerKey,
+      body: {
+        jsonrpc: "2.0",
+        id: 40,
+        method: "tools/call",
+        params: {
+          name: "get_autonomy_settings",
+          arguments: { userId: "user-other" },
+        },
+      },
+    }), owner);
+    assert.equal(owner.captured.status, 200);
+    assert.equal(owner.captured.headers["cache-control"], "no-store");
+    const ownerBody = owner.captured.body.result;
+    assert.equal(ownerBody.isError, undefined);
+    assert.equal(stytchCalls.length, 0);
+    assert.deepEqual(calls.map((call) => call.args), [["HGETALL", "autonomy:user-owner"]]);
+    assert.equal(calls[0].authorization, "Bearer " + READ_TOKEN);
+    assert.equal(calls[0].url, REST_URL);
+    const posts = ownerBody.structuredContent.settings.find((item) => item.key === "linkedin_posts");
+    assert.equal(posts.on, true);
+    assert.equal(posts.updated_at, "2026-09-25T14:45:00.000Z");
+    const merges = ownerBody.structuredContent.settings.find((item) => item.key === "code_pr_merges");
+    assert.equal(merges.on, false);
+    const ownerText = JSON.stringify(owner.captured.body);
+    assert.equal(ownerText.includes("secret-from-other"), false);
+    assert.equal(ownerText.includes("owner-private-note"), false);
+    assert.equal(ownerText.includes("owner@example.com"), false);
+    assert.equal(ownerText.includes(ownerKey), false);
+    assert.equal(ownerText.includes(REST_URL), false);
+    assert.equal(ownerText.includes(READ_TOKEN), false);
+    assert.equal(ownerText.includes(WRITE_TOKEN), false);
+
+    const other = fakeRes();
+    await mcp(mcpReq({
+      token: otherKey,
+      body: {
+        jsonrpc: "2.0",
+        id: 41,
+        method: "tools/call",
+        params: { name: "get_autonomy_settings", arguments: {} },
+      },
+    }), other);
+    const otherPosts = other.captured.body.result.structuredContent.settings.find((item) => item.key === "linkedin_posts");
+    const otherMerges = other.captured.body.result.structuredContent.settings.find((item) => item.key === "code_pr_merges");
+    assert.equal(otherPosts.on, false);
+    assert.equal(otherMerges.on, true);
+    assert.equal(otherMerges.updated_at, "2026-09-25T16:00:00.000Z");
+    assert.deepEqual(calls.map((call) => call.args[1]), ["autonomy:user-owner", "autonomy:user-other"]);
+    assert.equal(stytchCalls.length, 0);
+    assert.equal(JSON.stringify(other.captured.body).includes("owner-private-note"), false);
+  } finally {
+    global.fetch = originalFetch;
+    delete process.env.KV_REST_API_URL;
+    delete process.env.KV_REST_API_TOKEN;
+    delete process.env.KV_REST_API_READ_ONLY_TOKEN;
+  }
 });
 
 test("a minted key can run draft_linkedin_post when Anthropic answers", async () => {
