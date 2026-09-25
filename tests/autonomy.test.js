@@ -1,5 +1,6 @@
-/* GET /api/autonomy is public. PUT requires a Stytch session on
- * AUTONOMY_ALLOWLIST. Edge Config reads and the Vercel PATCH are stubbed.
+/* GET and PUT /api/autonomy require the caller's Stytch session.
+ * Settings live in that user's Upstash Redis hash. Reads and writes
+ * are stubbed at fetch.
  */
 
 "use strict";
@@ -13,44 +14,62 @@ const Module = require("node:module");
 
 const SEND_NOTE =
   "Even when this is on, bots only prepare a draft card. You always press Send.";
-const WRITE_TOKEN = "edge-write-token-do-not-leak";
+const UNAVAILABLE = "Autonomy settings are unavailable right now.";
+const KV_URL = "https://secret-kv.upstash.io";
+const KV_TOKEN = "kv-token-do-not-leak";
+const UPSTASH_URL = "https://secret-upstash.upstash.io";
+const UPSTASH_TOKEN = "upstash-token-do-not-leak";
+
+const USERS = {
+  "token-a": {
+    userId: "user-a",
+    emails: ["a@example.com"],
+    first: "",
+    last: "",
+  },
+  "token-b": {
+    userId: "user-b",
+    emails: [],
+    first: "Bea",
+    last: "User",
+  },
+  "token-id": {
+    userId: "user-id-only",
+    emails: [],
+    first: "",
+    last: "",
+  },
+  "token-long": {
+    userId: "user-long",
+    emails: ["a".repeat(90) + "@example.com"],
+    first: "",
+    last: "",
+  },
+};
 
 const stytchCalls = [];
-let stytchUserId = "user-owner";
-let stytchEmails = [];
-let getAllError = null;
-const getAllCalls = [];
-const store = new Map();
-const patches = [];
-let patchStatus = 200;
+const commands = [];
+const hashes = new Map();
+let fetchError = null;
+let fetchStatus = 200;
+let upstashError = null;
+let hgetallAsObject = false;
+const logs = [];
+let originalError;
 
 const stytchStub = {
   authenticateSession: async (token) => {
     stytchCalls.push(token);
-    if (!token) throw Object.assign(new Error("Missing token."), { status: 401 });
-    if (token === "good-token") {
-      return {
-        session: { user_id: stytchUserId },
-        user: {
-          user_id: stytchUserId,
-          emails: stytchEmails.map((email) => ({ email })),
-          name: { first_name: "", last_name: "" },
-        },
-      };
-    }
-    throw Object.assign(new Error("Session expired."), { status: 401 });
-  },
-};
-
-const edgeStub = {
-  getAll: async (keys) => {
-    getAllCalls.push(keys);
-    if (getAllError) throw getAllError;
-    const out = {};
-    for (const key of keys) {
-      if (store.has(key)) out[key] = store.get(key);
-    }
-    return out;
+    const user = USERS[token];
+    if (!user) throw Object.assign(new Error("Session expired."), { status: 401 });
+    return {
+      session: { user_id: user.userId },
+      user: {
+        user_id: user.userId,
+        emails: user.emails.map((email) => ({ email })),
+        name: { first_name: user.first, last_name: user.last },
+      },
+    };
   },
 };
 
@@ -64,57 +83,98 @@ function stubAt(absPath, exports) {
 
 const libDir = path.resolve(__dirname, "..", "api", "_lib");
 stubAt(path.join(libDir, "stytch.js"), stytchStub);
-stubAt(require.resolve("@vercel/edge-config"), edgeStub);
 
 const catalog = require("../api/_lib/autonomy.js");
-const edge = require("../api/_lib/autonomy-edge.js");
+const redis = require("../api/_lib/autonomy-redis.js");
 const handler = require("../api/autonomy.js");
-const { seedMissing } = require("../scripts/seed-autonomy-edge-config.js");
 
-function storedValue(key, extra = {}) {
-  return {
-    autonomous: key === "linkedin_profile_edits",
+function fieldJson(extra = {}) {
+  return JSON.stringify({
+    autonomous: false,
     note: "",
     updated_by: null,
     updated_at: null,
     ...extra,
-  };
+  });
 }
 
-function seedStore() {
-  store.clear();
-  for (const item of catalog.AUTONOMY_ITEMS) {
-    store.set(edge.edgeKey(item.key), storedValue(item.key));
+function seedUser(userId, fields) {
+  const hash = new Map();
+  for (const [key, value] of Object.entries(fields)) hash.set(key, value);
+  hashes.set(redis.hashKey(userId), hash);
+}
+
+function redisReply(args) {
+  const [cmd, key, field, value] = args;
+  if (cmd === "HGETALL") {
+    const hash = hashes.get(key);
+    if (!hash || hash.size === 0) return hgetallAsObject ? {} : [];
+    if (hgetallAsObject) return Object.fromEntries(hash);
+    const flat = [];
+    for (const [name, raw] of hash) {
+      flat.push(name, raw);
+    }
+    return flat;
   }
+  if (cmd === "HGET") {
+    const hash = hashes.get(key);
+    if (!hash || !hash.has(field)) return null;
+    return hash.get(field);
+  }
+  if (cmd === "HSET") {
+    let hash = hashes.get(key);
+    if (!hash) {
+      hash = new Map();
+      hashes.set(key, hash);
+    }
+    hash.set(field, value);
+    return 1;
+  }
+  return null;
 }
 
 function reset() {
   stytchCalls.length = 0;
-  stytchUserId = "user-owner";
-  stytchEmails = [];
-  getAllError = null;
-  getAllCalls.length = 0;
-  patches.length = 0;
-  patchStatus = 200;
-  process.env.AUTONOMY_ALLOWLIST = "user-owner:tyler";
-  process.env.EDGE_CONFIG = "https://edge-config.vercel.com/ecfg_test?token=read-token";
-  process.env.EDGE_CONFIG_ID = "ecfg_test";
-  process.env.VERCEL_TEAM_ID = "team_test";
-  process.env.EDGE_CONFIG_WRITE_TOKEN = WRITE_TOKEN;
+  commands.length = 0;
+  hashes.clear();
+  fetchError = null;
+  fetchStatus = 200;
+  upstashError = null;
+  hgetallAsObject = false;
+  logs.length = 0;
+  process.env.KV_REST_API_URL = KV_URL;
+  process.env.KV_REST_API_TOKEN = KV_TOKEN;
+  delete process.env.UPSTASH_REDIS_REST_URL;
+  delete process.env.UPSTASH_REDIS_REST_TOKEN;
+  delete process.env.EDGE_CONFIG;
+  delete process.env.EDGE_CONFIG_ID;
+  delete process.env.EDGE_CONFIG_WRITE_TOKEN;
+  delete process.env.AUTONOMY_ALLOWLIST;
   delete process.env.VERCEL_ENV;
-  seedStore();
+  if (!originalError) originalError = console.error;
+  console.error = (...args) => {
+    logs.push(args.map(String).join(" "));
+  };
   global.fetch = async (url, options) => {
-    const body = JSON.parse(options.body);
-    patches.push({ url: String(url), headers: options.headers, body });
-    if (patchStatus !== 200) {
+    const args = JSON.parse(options.body);
+    commands.push({
+      url: String(url),
+      authorization: options.headers && options.headers.Authorization,
+      args,
+      signal: options.signal,
+    });
+    if (fetchError) throw fetchError;
+    if (fetchStatus !== 200) {
       return {
         ok: false,
-        status: patchStatus,
-        arrayBuffer: async () => Buffer.from("upstream " + WRITE_TOKEN),
+        status: fetchStatus,
+        json: async () => ({ error: "upstream " + KV_TOKEN + " " + KV_URL }),
       };
     }
-    store.set(body.items[0].key, body.items[0].value);
-    return { ok: true, status: 200, arrayBuffer: async () => Buffer.alloc(0) };
+    if (upstashError) {
+      return { ok: true, status: 200, json: async () => ({ error: upstashError }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ result: redisReply(args) }) };
   };
 }
 
@@ -138,427 +198,375 @@ function fakeRes() {
   };
 }
 
-function getReq() {
-  return { method: "GET", url: "/api/autonomy", headers: {}, query: {} };
+function getReq(token = "token-a") {
+  return {
+    method: "GET",
+    url: "/api/autonomy",
+    headers: { authorization: token ? `Bearer ${token}` : "" },
+    query: {},
+  };
 }
 
-function putReq({ key = "linkedin_posts", token = "", body = { autonomous: true }, query } = {}) {
+function putReq({
+  key = "linkedin_posts",
+  token = "token-a",
+  body = { autonomous: true },
+  query,
+} = {}) {
   return {
     method: "PUT",
-    url: `/api/autonomy?key=${encodeURIComponent(key)}`,
+    url: `/api/autonomy?key=${encodeURIComponent(key)}&user_id=user-b`,
     headers: {
       authorization: token ? `Bearer ${token}` : "",
       "content-type": "application/json",
     },
-    query: query || { key },
+    query: query || { key, user_id: "user-b" },
     body,
   };
 }
 
-function assertNoToken(value) {
-  assert.equal(JSON.stringify(value).includes(WRITE_TOKEN), false);
+function assertNoSecret(value) {
+  const text = JSON.stringify(value);
+  assert.equal(text.includes(KV_TOKEN), false);
+  assert.equal(text.includes(KV_URL), false);
+  assert.equal(text.includes(UPSTASH_TOKEN), false);
+  assert.equal(text.includes(UPSTASH_URL), false);
 }
 
-test.beforeEach(reset);
+function assertOnlyCaller(userId) {
+  for (const call of commands) {
+    assert.equal(call.args[1], redis.hashKey(userId));
+    assert.equal(call.url, KV_URL);
+    assert.equal(call.authorization, "Bearer " + KV_TOKEN);
+  }
+}
 
-test("GET returns 14 seeded items, only linkedin_profile_edits on, and does not cache", async () => {
-  const res = fakeRes();
-  await handler(getReq(), res);
-  assert.equal(res.captured.status, 200);
-  assert.equal(res.captured.headers["cache-control"], "no-store");
-  assert.deepEqual(Object.keys(res.captured.body), ["default_if_missing", "items"]);
-  assert.equal(res.captured.body.default_if_missing, "not_autonomous");
-  assert.equal(res.captured.body.items.length, 14);
-  assert.deepEqual(getAllCalls[0], catalog.AUTONOMY_ITEMS.map((item) => edge.edgeKey(item.key)));
-
+function assertAllOff(body) {
+  assert.equal(body.default_if_missing, "not_autonomous");
+  assert.equal(body.items.length, 14);
   const notes = [];
-  for (const item of res.captured.body.items) {
+  for (const item of body.items) {
     const def = catalog.AUTONOMY_ITEMS.find((entry) => entry.key === item.key);
     const fields = ["key", "label", "autonomous", "note", "updated_by", "updated_at"];
     if (def.send_note) fields.push("send_note");
     assert.deepEqual(Object.keys(item), fields);
     assert.equal(item.label, def.label);
-    assert.equal(item.autonomous, item.key === "linkedin_profile_edits");
-    assert.equal(Object.prototype.hasOwnProperty.call(def, "autonomous"), false);
+    assert.equal(item.autonomous, false);
     assert.equal(item.note, null);
+    assert.equal(Object.prototype.hasOwnProperty.call(def, "autonomous"), false);
     if (def.send_note) {
       assert.equal(item.send_note, SEND_NOTE);
       notes.push(item.key);
     }
   }
-  assert.equal(res.captured.body.items.filter((item) => item.autonomous).length, 1);
   assert.deepEqual(notes, ["linkedin_messages", "outreach_emails", "family_admin_messages"]);
-  assert.equal(stytchCalls.length, 0);
+}
+
+test.beforeEach(reset);
+test.after(() => {
+  if (originalError) console.error = originalError;
 });
 
-test("linkedin_profile_edits is on only when the stored item says so", async () => {
-  store.set(edge.edgeKey("linkedin_profile_edits"), storedValue("linkedin_profile_edits", {
-    autonomous: false,
-  }));
-  const res = fakeRes();
-  await handler(getReq(), res);
-  const item = res.captured.body.items.find((entry) => entry.key === "linkedin_profile_edits");
-  assert.equal(item.autonomous, false);
-});
-
-test("a missing item is not autonomous", async () => {
-  store.delete(edge.edgeKey("linkedin_profile_edits"));
-  const res = fakeRes();
-  await handler(getReq(), res);
-  const item = res.captured.body.items.find((entry) => entry.key === "linkedin_profile_edits");
-  assert.equal(item.autonomous, false);
-  assert.equal(item.note, null);
-  const posts = res.captured.body.items.find((entry) => entry.key === "linkedin_posts");
-  assert.equal(posts.autonomous, false);
-});
-
-test("EDGE_CONFIG unset gives every item off and does not read", async () => {
-  delete process.env.EDGE_CONFIG;
+test("a new user reads every item off, including linkedin_profile_edits", async () => {
   const res = fakeRes();
   await handler(getReq(), res);
   assert.equal(res.captured.status, 200);
   assert.equal(res.captured.headers["cache-control"], "no-store");
-  assert.equal(getAllCalls.length, 0);
-  assert.ok(res.captured.body.items.every((item) => item.autonomous === false && item.note === null));
-  assert.equal(res.captured.body.items[0].key, "linkedin_profile_edits");
+  assertAllOff(res.captured.body);
+  assert.deepEqual(commands.map((call) => call.args), [["HGETALL", "autonomy:user-a"]]);
+  assert.equal(commands[0].signal instanceof AbortSignal, true);
+  assert.equal(stytchCalls.length, 1);
 });
 
-test("a read error gives every item off", async () => {
-  getAllError = new Error("edge config down");
-  const res = fakeRes();
-  await handler(getReq(), res);
-  assert.equal(res.captured.status, 200);
-  assert.equal(res.captured.headers["cache-control"], "no-store");
-  assert.equal(res.captured.body.default_if_missing, "not_autonomous");
-  assert.ok(res.captured.body.items.every((item) => item.autonomous === false && item.note === null));
-  const notes = res.captured.body.items.filter((item) => item.send_note).map((item) => item.key);
-  assert.deepEqual(notes, ["linkedin_messages", "outreach_emails", "family_admin_messages"]);
-});
-
-test("a malformed item is off and its neighbors stay as stored", async () => {
-  store.set(edge.edgeKey("linkedin_posts"), { autonomous: "yes", note: "<script>" });
-  const res = fakeRes();
-  await handler(getReq(), res);
-  const posts = res.captured.body.items.find((item) => item.key === "linkedin_posts");
-  const profile = res.captured.body.items.find((item) => item.key === "linkedin_profile_edits");
-  assert.equal(posts.autonomous, false);
-  assert.equal(posts.note, null);
-  assert.equal(profile.autonomous, true);
-});
-
-test("PUT signed out is 401 and does not write", async () => {
-  const res = fakeRes();
-  await handler(putReq({ token: "" }), res);
-  assert.equal(res.captured.status, 401);
-  assert.equal(Object.prototype.hasOwnProperty.call(res.captured.body, "your_user_id"), false);
-  assert.equal(patches.length, 0);
-  assert.equal(store.get(edge.edgeKey("linkedin_posts")).autonomous, false);
-});
-
-test("a 403 records only user_id and at, and skips a repeat inside 10 minutes", async () => {
-  stytchUserId = "user-live-abc";
-  stytchEmails = ["tyler@lindowlabs.dev"];
-  const first = fakeRes();
-  await handler(putReq({ token: "good-token", body: { autonomous: true } }), first);
-  assert.equal(first.captured.status, 403);
-  assert.deepEqual(first.captured.body, { error: "Not allowed to change autonomy." });
-  assert.equal(Object.prototype.hasOwnProperty.call(first.captured.body, "your_user_id"), false);
-  assert.equal(patches.length, 1);
-  const item = patches[0].body.items[0];
-  assert.equal(patches[0].body.items.length, 1);
-  assert.equal(item.operation, "upsert");
-  assert.equal(item.key, edge.LAST_DENIED_KEY);
-  assert.deepEqual(Object.keys(item.value).sort(), ["at", "user_id"]);
-  assert.equal(item.value.user_id, "user-live-abc");
-  assert.equal(JSON.stringify(item.value).includes("tyler@lindowlabs.dev"), false);
-  assert.equal(JSON.stringify(item.value).includes(WRITE_TOKEN), false);
-  assert.equal(store.get(edge.edgeKey("linkedin_posts")).autonomous, false);
-
-  const second = fakeRes();
-  await handler(putReq({ token: "good-token", body: { note: "tell me first" } }), second);
-  assert.equal(second.captured.status, 403);
-  assert.deepEqual(second.captured.body, { error: "Not allowed to change autonomy." });
-  assert.equal(patches.length, 1);
-
-  store.set(edge.LAST_DENIED_KEY, {
-    user_id: "user-live-abc",
-    at: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
+test("user A cannot read or write user B's settings", async () => {
+  seedUser("user-b", {
+    linkedin_profile_edits: fieldJson({
+      autonomous: true,
+      note: "secret-from-b",
+      updated_by: "b@example.com",
+      updated_at: "2026-09-25T14:45:00.000Z",
+    }),
+    linkedin_posts: fieldJson({ autonomous: true, note: "also-secret" }),
   });
-  const third = fakeRes();
-  await handler(putReq({ token: "good-token", body: { autonomous: true } }), third);
-  assert.equal(third.captured.status, 403);
-  assert.equal(patches.length, 2);
-  assert.equal(patches[1].body.items[0].key, edge.LAST_DENIED_KEY);
-  assert.equal(patches[1].body.items[0].value.user_id, "user-live-abc");
-});
+  seedUser("user-a", {
+    linkedin_posts: fieldJson({ note: "mine", autonomous: false }),
+  });
 
-test("PUT unknown key is 404", async () => {
-  const res = fakeRes();
-  await handler(putReq({ token: "good-token", key: "not_a_real_toggle", body: { autonomous: true } }), res);
-  assert.equal(res.captured.status, 404);
-  assert.equal(res.captured.body.error, "Unknown autonomy setting.");
-  assert.equal(Object.prototype.hasOwnProperty.call(res.captured.body, "your_user_id"), false);
-  assert.equal(patches.length, 0);
-  assert.equal(stytchCalls.length, 0);
-});
+  const listed = fakeRes();
+  await handler(getReq("token-a"), listed);
+  assert.equal(listed.captured.status, 200);
+  assertAllOff({
+    ...listed.captured.body,
+    items: listed.captured.body.items.map((item) =>
+      item.key === "linkedin_posts" ? { ...item, note: null, autonomous: false } : item,
+    ),
+  });
+  const posts = listed.captured.body.items.find((item) => item.key === "linkedin_posts");
+  assert.equal(posts.autonomous, false);
+  assert.equal(posts.note, "mine");
+  const profile = listed.captured.body.items.find((item) => item.key === "linkedin_profile_edits");
+  assert.equal(profile.autonomous, false);
+  assert.equal(profile.note, null);
+  assert.equal(JSON.stringify(listed.captured.body).includes("secret-from-b"), false);
+  assertOnlyCaller("user-a");
 
-test("PUT sends one upsert for that key and merges a note onto the current toggle", async () => {
-  store.set(edge.edgeKey("linkedin_posts"), storedValue("linkedin_posts", {
-    autonomous: false,
-    note: "",
-  }));
-  const res = fakeRes();
+  commands.length = 0;
+  const written = fakeRes();
   await handler(putReq({
-    token: "good-token",
-    body: { note: "  only after the draft is reviewed  " },
-  }), res);
-  assert.equal(res.captured.status, 200);
-  assert.equal(patches.length, 1);
-  assert.equal(patches[0].body.items.length, 1);
-  assert.equal(patches[0].body.items[0].operation, "upsert");
-  assert.equal(patches[0].body.items[0].key, "autonomy_linkedin_posts");
-  assert.equal(patches.some((call) => call.body.items[0].key === edge.LAST_DENIED_KEY), false);
-  assert.equal(patches[0].body.items[0].value.autonomous, false);
-  assert.equal(patches[0].body.items[0].value.note, "only after the draft is reviewed");
-  assert.equal(patches[0].body.items[0].value.updated_by, "tyler");
-  assert.equal(typeof patches[0].body.items[0].value.updated_at, "string");
-  assert.equal(patches[0].headers.Authorization, "Bearer " + WRITE_TOKEN);
-  assert.equal(
-    patches[0].url,
-    "https://api.vercel.com/v1/edge-config/ecfg_test/items?teamId=team_test",
-  );
-  assert.equal(res.captured.body.autonomous, false);
-  assert.equal(res.captured.body.note, "only after the draft is reviewed");
-  assert.equal(res.captured.body.updated_by, "tyler");
-  assert.equal(res.captured.body.updated_at, patches[0].body.items[0].value.updated_at);
-  assert.equal(Object.prototype.hasOwnProperty.call(res.captured.body, "your_user_id"), false);
-  assertNoToken(res.captured.body);
+    token: "token-a",
+    body: { autonomous: true, user_id: "user-b", note: "from-a" },
+  }), written);
+  assert.equal(written.captured.status, 200);
+  assert.equal(written.captured.body.autonomous, true);
+  assert.equal(written.captured.body.note, "from-a");
+  assert.equal(written.captured.body.updated_by, "a@example.com");
+  assert.deepEqual(commands.map((call) => call.args.slice(0, 3)), [
+    ["HGET", "autonomy:user-a", "linkedin_posts"],
+    ["HSET", "autonomy:user-a", "linkedin_posts"],
+  ]);
+  assert.equal(commands[1].args.length, 4);
+  const stored = JSON.parse(commands[1].args[3]);
+  assert.equal(stored.autonomous, true);
+  assert.equal(stored.note, "from-a");
+  assert.equal(stored.updated_by, "a@example.com");
+  assert.equal(hashes.get("autonomy:user-b").get("linkedin_profile_edits").includes("secret-from-b"), true);
+  assert.equal(hashes.get("autonomy:user-b").get("linkedin_posts").includes("also-secret"), true);
+  assert.equal(JSON.stringify(written.captured.body).includes("user-b"), false);
+
+  commands.length = 0;
+  const other = fakeRes();
+  await handler(getReq("token-b"), other);
+  const otherProfile = other.captured.body.items.find((item) => item.key === "linkedin_profile_edits");
+  assert.equal(otherProfile.autonomous, true);
+  assert.equal(otherProfile.note, "secret-from-b");
+  const otherPosts = other.captured.body.items.find((item) => item.key === "linkedin_posts");
+  assert.equal(otherPosts.note, "also-secret");
+  assert.equal(JSON.stringify(other.captured.body).includes("from-a"), false);
+  assert.equal(commands[0].args[1], "autonomy:user-b");
+});
+
+test("signed-out GET and PUT return 401 and do not touch Redis", async () => {
+  seedUser("user-a", { linkedin_posts: fieldJson({ autonomous: true, note: "keep" }) });
+  const getRes = fakeRes();
+  await handler(getReq(""), getRes);
+  assert.equal(getRes.captured.status, 401);
+  assert.equal(getRes.captured.body.error, "Sign in to tinker first.");
+  assert.equal(getRes.captured.headers["cache-control"], "no-store");
+
+  const putRes = fakeRes();
+  await handler(putReq({ token: "", key: "not-a-real-key" }), putRes);
+  assert.equal(putRes.captured.status, 401);
+  assert.equal(putRes.captured.body.error, "Sign in to tinker first.");
+  assert.equal(commands.length, 0);
+  assert.equal(stytchCalls.length, 0);
+  assert.equal(hashes.get("autonomy:user-a").get("linkedin_posts").includes("keep"), true);
+});
+
+test("a rejected session is 401 and does not touch Redis", async () => {
+  const res = fakeRes();
+  await handler(putReq({ token: "expired" }), res);
+  assert.equal(res.captured.status, 401);
+  assert.equal(res.captured.body.error, "Session expired.");
+  assert.equal(commands.length, 0);
+});
+
+test("a store outage makes GET read all off and PUT return 503", async () => {
+  seedUser("user-a", {
+    linkedin_posts: fieldJson({ autonomous: true, note: "keep" }),
+  });
+  fetchError = Object.assign(new Error("aborted " + KV_URL + " " + KV_TOKEN), { name: "AbortError" });
 
   const listed = fakeRes();
   await handler(getReq(), listed);
-  const item = listed.captured.body.items.find((entry) => entry.key === "linkedin_posts");
-  assert.equal(item.note, "only after the draft is reviewed");
-  assert.equal(item.autonomous, false);
-  const others = [...store.keys()].filter((key) => key !== "autonomy_linkedin_posts");
-  assert.ok(others.every((key) => store.get(key).note === ""));
+  assert.equal(listed.captured.status, 200);
+  assert.equal(listed.captured.headers["cache-control"], "no-store");
+  assertAllOff(listed.captured.body);
+  assertNoSecret(listed.captured.body);
+  assert.equal(logs.join("\n").includes(KV_TOKEN), false);
+  assert.equal(logs.join("\n").includes(KV_URL), false);
+  assert.equal(commands.some((call) => call.args[0] === "HSET"), false);
+
+  commands.length = 0;
+  const written = fakeRes();
+  await handler(putReq({ body: { autonomous: false } }), written);
+  assert.equal(written.captured.status, 503);
+  assert.deepEqual(written.captured.body, { error: UNAVAILABLE });
+  assertNoSecret(written.captured.body);
+  assert.equal(commands.some((call) => call.args[0] === "HSET"), false);
+  assert.equal(hashes.get("autonomy:user-a").get("linkedin_posts").includes('"keep"'), true);
+
+  fetchError = null;
+  fetchStatus = 500;
+  commands.length = 0;
+  const again = fakeRes();
+  await handler(putReq({ body: { note: "nope" } }), again);
+  assert.equal(again.captured.status, 503);
+  assert.deepEqual(again.captured.body, { error: UNAVAILABLE });
+  assertNoSecret(again.captured.body);
+  assert.equal(commands.some((call) => call.args[0] === "HSET"), false);
 });
 
-test("a toggle-only PUT keeps the saved note", async () => {
-  store.set(edge.edgeKey("linkedin_posts"), storedValue("linkedin_posts", { note: "only after X" }));
-  const res = fakeRes();
-  await handler(putReq({ token: "good-token", body: { autonomous: true } }), res);
-  assert.equal(res.captured.status, 200);
-  assert.equal(patches[0].body.items[0].value.autonomous, true);
-  assert.equal(patches[0].body.items[0].value.note, "only after X");
-  assert.equal(res.captured.body.note, "only after X");
-  assert.equal(res.captured.body.autonomous, true);
+test("an unconfigured store fails closed and does not call fetch", async () => {
+  delete process.env.KV_REST_API_URL;
+  delete process.env.KV_REST_API_TOKEN;
+  const listed = fakeRes();
+  await handler(getReq(), listed);
+  assert.equal(listed.captured.status, 200);
+  assertAllOff(listed.captured.body);
+  const written = fakeRes();
+  await handler(putReq(), written);
+  assert.equal(written.captured.status, 503);
+  assert.deepEqual(written.captured.body, { error: UNAVAILABLE });
+  assert.equal(commands.length, 0);
 });
 
-test("PUT without a team id omits teamId", async () => {
-  delete process.env.VERCEL_TEAM_ID;
-  const res = fakeRes();
-  await handler(putReq({ token: "good-token", body: { autonomous: true } }), res);
-  assert.equal(res.captured.status, 200);
-  assert.equal(patches[0].url, "https://api.vercel.com/v1/edge-config/ecfg_test/items");
-});
-
-test("the write token is not in the response or the logs when the PATCH fails", async () => {
-  patchStatus = 500;
-  process.env.VERCEL_ENV = "preview";
-  const lines = [];
-  const originals = {
-    log: console.log,
-    error: console.error,
-    warn: console.warn,
-    info: console.info,
-  };
-  for (const key of Object.keys(originals)) {
-    console[key] = (...args) => lines.push(args.map(String).join(" "));
-  }
-  try {
-    const res = fakeRes();
-    await handler(putReq({ token: "good-token", body: { note: "only after X" } }), res);
-    assert.equal(res.captured.status, 503);
-    assert.equal(res.captured.body.error, "Autonomy settings are not ready.");
-    assertNoToken(res.captured.body);
-    assert.equal(lines.join("\n").includes(WRITE_TOKEN), false);
-    assert.equal(patches[0].headers.Authorization, "Bearer " + WRITE_TOKEN);
-  } finally {
-    for (const key of Object.keys(originals)) console[key] = originals[key];
-  }
-});
-
-test("a failed denial write still returns 403 and does not log the id", async () => {
-  stytchUserId = "user-live-not-in-logs";
-  stytchEmails = ["secret@example.com"];
-  patchStatus = 500;
-  process.env.VERCEL_ENV = "preview";
-  const lines = [];
-  const originals = {
-    log: console.log,
-    error: console.error,
-    warn: console.warn,
-    info: console.info,
-  };
-  for (const key of Object.keys(originals)) {
-    console[key] = (...args) => lines.push(args.map(String).join(" "));
-  }
-  try {
-    const res = fakeRes();
-    await handler(putReq({ token: "good-token", body: { autonomous: true } }), res);
-    assert.equal(res.captured.status, 403);
-    assert.deepEqual(res.captured.body, { error: "Not allowed to change autonomy." });
-    const logged = lines.join("\n");
-    assert.match(logged, /Could not record the autonomy denial\./);
-    assert.equal(logged.includes("user-live-not-in-logs"), false);
-    assert.equal(logged.includes("secret@example.com"), false);
-    assert.equal(logged.includes(WRITE_TOKEN), false);
-  } finally {
-    for (const key of Object.keys(originals)) console[key] = originals[key];
-  }
-});
-
-test("GET does not include autonomy_last_denied", async () => {
-  store.set(edge.LAST_DENIED_KEY, {
-    user_id: "user-live-hidden",
-    at: "2026-09-25T18:00:00.000Z",
+test("a PUT is one HSET on the caller's field and keeps the other half", async () => {
+  seedUser("user-a", {
+    linkedin_posts: fieldJson({
+      autonomous: false,
+      note: "tell me first",
+      updated_by: "a@example.com",
+      updated_at: "2026-09-01T00:00:00.000Z",
+    }),
+    linkedin_messages: fieldJson({ autonomous: true, note: "leave-this" }),
   });
-  const res = fakeRes();
-  await handler(getReq(), res);
-  assert.equal(res.captured.body.items.length, 14);
-  assert.equal(JSON.stringify(res.captured.body).includes("autonomy_last_denied"), false);
-  assert.equal(JSON.stringify(res.captured.body).includes("user-live-hidden"), false);
-  assert.equal(getAllCalls[0].includes(edge.LAST_DENIED_KEY), false);
-});
 
-test("the seed script does not create autonomy_last_denied", async () => {
-  const keys = [];
-  const written = await seedMissing({
-    getAll: async () => ({}),
-    upsert: async (name) => keys.push(name),
-  });
-  assert.equal(keys.includes(edge.LAST_DENIED_KEY), false);
-  assert.equal(written.includes(edge.LAST_DENIED_KEY), false);
-  assert.equal(written.length, catalog.AUTONOMY_ITEMS.length);
-});
+  const toggled = fakeRes();
+  await handler(putReq({ body: { autonomous: true } }), toggled);
+  assert.equal(toggled.captured.status, 200);
+  assert.equal(toggled.captured.body.autonomous, true);
+  assert.equal(toggled.captured.body.note, "tell me first");
+  assert.equal(toggled.captured.headers["cache-control"], "no-store");
+  assert.deepEqual(commands.map((call) => [call.args[0], call.args[1], call.args[2]]), [
+    ["HGET", "autonomy:user-a", "linkedin_posts"],
+    ["HSET", "autonomy:user-a", "linkedin_posts"],
+  ]);
+  assert.equal(commands[1].args.length, 4);
+  assert.equal(JSON.parse(commands[1].args[3]).note, "tell me first");
+  assert.equal(hashes.get("autonomy:user-a").get("linkedin_messages").includes("leave-this"), true);
 
-test("a 403 tells the page to keep the tab open", async () => {
-  const page = fs.readFileSync(
-    path.join(__dirname, "..", "src", "renderer", "autonomy", "autonomy.js"),
-    "utf8",
-  );
-  const hostile = "<img src=x onerror=alert(1)>";
-  const nodes = [];
-  function makeEl(tag) {
-    const node = {
-      tag,
-      className: "",
-      children: [],
-      attrs: {},
-      value: "only after X",
-      disabled: false,
-      listeners: {},
-      _text: "",
-      set textContent(value) { this._text = String(value); },
-      get textContent() { return this._text; },
-      set innerHTML(_value) { throw new Error("innerHTML used"); },
-      setAttribute(name, value) { this.attrs[name] = String(value); },
-      addEventListener(type, fn) { this.listeners[type] = fn; },
-      appendChild(child) { this.children.push(child); return child; },
-      replaceChildren() { this.children = []; },
-    };
-    nodes.push(node);
-    return node;
-  }
-  const list = makeEl("ul");
-  const status = makeEl("p");
-  let fetches = 0;
-  vm.runInNewContext(page, vm.createContext({
-    localStorage: { getItem() { return "signed-in"; }, setItem() {}, removeItem() {} },
-    sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
-    document: {
-      getElementById(id) { return id === "autonomy-list" ? list : status; },
-      createElement: makeEl,
-    },
-    window: { location: { assign() {} } },
-    fetch() {
-      fetches += 1;
-      if (fetches === 1) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json() {
-            return Promise.resolve({
-              items: [{
-                key: "linkedin_posts",
-                label: "LinkedIn posts",
-                autonomous: false,
-                note: "only after X",
-                updated_by: null,
-                updated_at: null,
-              }],
-            });
-          },
-        });
-      }
-      return Promise.resolve({
-        ok: false,
-        status: 403,
-        json() {
-          return Promise.resolve({
-            error: "Not allowed to change autonomy.",
-            your_user_id: hostile,
-          });
-        },
-      });
-    },
-  }));
-  await new Promise((resolve) => setImmediate(resolve));
-  const button = nodes.find((node) => node.attrs.role === "switch");
-  button.listeners.click();
-  await new Promise((resolve) => setImmediate(resolve));
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(status._text, "You're not on the allowlist yet. Keep this tab open.");
-  assert.equal(status._text.includes(hostile), false);
-  assert.equal(nodes.some((node) => node.tag === "img" || node.tag === "script"), false);
-  const switches = nodes.filter((node) => node.attrs.role === "switch");
-  assert.equal(switches[switches.length - 1].attrs["aria-checked"], "false");
-});
-
-test("PUT note longer than 500 characters is 400 and does not write", async () => {
-  const res = fakeRes();
-  await handler(putReq({ token: "good-token", body: { note: "a".repeat(501) } }), res);
-  assert.equal(res.captured.status, 400);
-  assert.equal(patches.length, 0);
+  commands.length = 0;
+  const noted = fakeRes();
+  await handler(putReq({ body: { note: "  only after X  " } }), noted);
+  assert.equal(noted.captured.status, 200);
+  assert.equal(noted.captured.body.note, "only after X");
+  assert.equal(noted.captured.body.autonomous, true);
+  assert.equal(JSON.parse(commands[1].args[3]).autonomous, true);
+  assert.equal(JSON.parse(commands[1].args[3]).note, "only after X");
 });
 
 test("an empty note clears the stored note", async () => {
-  store.set(edge.edgeKey("linkedin_posts"), storedValue("linkedin_posts", { note: "tell me first" }));
+  seedUser("user-a", { linkedin_posts: fieldJson({ note: "tell me first", autonomous: true }) });
   const res = fakeRes();
-  await handler(putReq({ token: "good-token", body: { note: "   " } }), res);
+  await handler(putReq({ body: { note: "   " } }), res);
   assert.equal(res.captured.status, 200);
   assert.equal(res.captured.body.note, null);
-  assert.equal(patches[0].body.items[0].value.note, "");
+  assert.equal(res.captured.body.autonomous, true);
+  assert.equal(JSON.parse(commands[1].args[3]).note, "");
+});
+
+test("a bad stored value reads as off and a note-only save rewrites it", async () => {
+  seedUser("user-a", {
+    linkedin_profile_edits: "not-json",
+    linkedin_posts: JSON.stringify({ autonomous: "yes", note: 1 }),
+  });
+  const listed = fakeRes();
+  await handler(getReq(), listed);
+  assertAllOff(listed.captured.body);
+
+  const res = fakeRes();
+  await handler(putReq({ body: { note: "start clean" } }), res);
+  assert.equal(res.captured.status, 200);
+  assert.equal(res.captured.body.autonomous, false);
+  assert.equal(res.captured.body.note, "start clean");
+  assert.equal(JSON.parse(hashes.get("autonomy:user-a").get("linkedin_posts")).autonomous, false);
+});
+
+test("HGETALL as an object still returns only the caller's fields", async () => {
+  hgetallAsObject = true;
+  seedUser("user-a", {
+    linkedin_posts: fieldJson({ autonomous: true, note: "object-shape" }),
+    extra_field: fieldJson({ autonomous: true, note: "ignore" }),
+  });
+  const res = fakeRes();
+  await handler(getReq(), res);
+  const posts = res.captured.body.items.find((item) => item.key === "linkedin_posts");
+  assert.equal(posts.autonomous, true);
+  assert.equal(posts.note, "object-shape");
+  assert.equal(res.captured.body.items.some((item) => item.key === "extra_field"), false);
+  assert.equal(res.captured.body.items.filter((item) => item.autonomous).length, 1);
+});
+
+test("an unknown key is 404 for a signed-in caller and does not write", async () => {
+  const res = fakeRes();
+  await handler(putReq({ key: "not-a-real-key", body: { autonomous: true } }), res);
+  assert.equal(res.captured.status, 404);
+  assert.equal(res.captured.body.error, "Unknown autonomy setting.");
+  assert.equal(commands.length, 0);
+});
+
+test("a note longer than 500 characters is 400 and does not write", async () => {
+  seedUser("user-a", { linkedin_posts: fieldJson({ note: "keep" }) });
+  const res = fakeRes();
+  await handler(putReq({ body: { note: "a".repeat(501) } }), res);
+  assert.equal(res.captured.status, 400);
+  assert.equal(res.captured.body.error, "Note must be 500 characters or fewer.");
+  assert.equal(commands.length, 0);
+  assert.equal(hashes.get("autonomy:user-a").get("linkedin_posts").includes("keep"), true);
+
+  const ok = fakeRes();
+  await handler(putReq({ body: { note: "b".repeat(500) } }), ok);
+  assert.equal(ok.captured.status, 200);
+  assert.equal(ok.captured.body.note.length, 500);
 });
 
 test("PUT with neither field is 400", async () => {
   const res = fakeRes();
-  await handler(putReq({ token: "good-token", body: {} }), res);
+  await handler(putReq({ body: {} }), res);
   assert.equal(res.captured.status, 400);
-  assert.equal(patches.length, 0);
+  assert.equal(commands.length, 0);
 });
 
-test("a missing write token is 503 and does not call PATCH", async () => {
-  delete process.env.EDGE_CONFIG_WRITE_TOKEN;
-  const res = fakeRes();
-  await handler(putReq({ token: "good-token", body: { note: "only after X" } }), res);
-  assert.equal(res.captured.status, 503);
-  assert.equal(patches.length, 0);
-  assertNoToken(res.captured.body);
+test("updated_by comes from the session and is capped at 80 characters", async () => {
+  const named = fakeRes();
+  await handler(putReq({ token: "token-b", body: { autonomous: true } }), named);
+  assert.equal(named.captured.body.updated_by, "Bea User");
+  assert.equal(commands[1].args[1], "autonomy:user-b");
+
+  commands.length = 0;
+  const idOnly = fakeRes();
+  await handler(putReq({ token: "token-id", body: { autonomous: false } }), idOnly);
+  assert.equal(idOnly.captured.body.updated_by, "user-id-only");
+
+  commands.length = 0;
+  const long = fakeRes();
+  await handler(putReq({ token: "token-long", body: { note: "hi" } }), long);
+  assert.equal(long.captured.body.updated_by.length, 80);
+});
+
+test("Redis commands use a two second timeout and prefer the KV pair", async () => {
+  assert.equal(redis.TIMEOUT_MS, 2000);
+  process.env.UPSTASH_REDIS_REST_URL = UPSTASH_URL;
+  process.env.UPSTASH_REDIS_REST_TOKEN = UPSTASH_TOKEN;
+  const preferred = fakeRes();
+  await handler(getReq(), preferred);
+  assert.equal(commands[0].url, KV_URL);
+  assert.equal(commands[0].authorization, "Bearer " + KV_TOKEN);
+
+  delete process.env.KV_REST_API_URL;
+  delete process.env.KV_REST_API_TOKEN;
+  commands.length = 0;
+  const fallback = fakeRes();
+  await handler(getReq(), fallback);
+  assert.equal(commands[0].url, UPSTASH_URL);
+  assert.equal(commands[0].authorization, "Bearer " + UPSTASH_TOKEN);
+  assertNoSecret(fallback.captured.body);
 });
 
 test("send_note stays on the JSON item when it is autonomous", async () => {
-  store.set(edge.edgeKey("linkedin_messages"), storedValue("linkedin_messages", { autonomous: true }));
+  seedUser("user-a", {
+    linkedin_messages: fieldJson({ autonomous: true }),
+  });
   const res = fakeRes();
   await handler(getReq(), res);
   const item = res.captured.body.items.find((entry) => entry.key === "linkedin_messages");
@@ -566,69 +574,29 @@ test("send_note stays on the JSON item when it is autonomous", async () => {
   assert.equal(item.send_note, SEND_NOTE);
 });
 
-test("the seed script upserts only missing items and can run twice", async () => {
-  const calls = [];
-  const original = global.fetch;
-  global.fetch = async (url, options) => {
-    calls.push({ url: String(url), headers: options.headers, body: JSON.parse(options.body) });
-    return { ok: true, status: 200, arrayBuffer: async () => Buffer.alloc(0) };
-  };
-  const current = {};
-  for (const item of catalog.AUTONOMY_ITEMS) {
-    if (item.key === "linkedin_posts" || item.key === "linkedin_profile_edits") continue;
-    current[edge.edgeKey(item.key)] = storedValue(item.key, { note: "keep", updated_by: "tyler" });
-  }
-  try {
-    const written = await seedMissing({ getAll: async () => current });
-    assert.deepEqual(written, [
-      "autonomy_linkedin_profile_edits",
-      "autonomy_linkedin_posts",
-    ]);
-    assert.equal(calls.length, 2);
-    assert.equal(calls[0].body.items.length, 1);
-    assert.equal(calls[0].body.items[0].operation, "upsert");
-    assert.equal(calls[0].body.items[0].key, "autonomy_linkedin_profile_edits");
-    assert.equal(calls[0].body.items[0].value.autonomous, true);
-    assert.equal(calls[0].body.items[0].value.note, "");
-    assert.equal(calls[0].body.items[0].value.updated_by, null);
-    assert.equal(calls[1].body.items.length, 1);
-    assert.equal(calls[1].body.items[0].key, "autonomy_linkedin_posts");
-    assert.equal(calls[1].body.items[0].value.autonomous, false);
-    assert.equal(calls.some((call) => call.body.items[0].key === "autonomy_linkedin_messages"), false);
-    assert.equal(JSON.stringify(calls[0].body).includes(WRITE_TOKEN), false);
-    assert.equal(JSON.stringify(calls[1].body).includes(WRITE_TOKEN), false);
-    assert.equal(calls[0].headers.Authorization, "Bearer " + WRITE_TOKEN);
-
-    const again = await seedMissing({
-      getAll: async () => ({
-        ...current,
-        autonomy_linkedin_profile_edits: calls[0].body.items[0].value,
-        autonomy_linkedin_posts: calls[1].body.items[0].value,
-      }),
-    });
-    assert.deepEqual(again, []);
-    assert.equal(calls.length, 2);
-  } finally {
-    global.fetch = original;
-  }
-});
-
-test("the seed script does not write when the read fails", async () => {
-  let called = false;
-  const original = global.fetch;
-  global.fetch = async () => {
-    called = true;
-    return { ok: true, status: 200, arrayBuffer: async () => Buffer.alloc(0) };
-  };
-  try {
-    await assert.rejects(
-      () => seedMissing({ getAll: async () => null }),
-      /Could not read Edge Config/,
-    );
-    assert.equal(called, false);
-  } finally {
-    global.fetch = original;
-  }
+test("edge config, the allowlist, and the seed script are gone", () => {
+  const root = path.join(__dirname, "..");
+  assert.equal(fs.existsSync(path.join(root, "api", "_lib", "autonomy-edge.js")), false);
+  assert.equal(fs.existsSync(path.join(root, "scripts", "seed-autonomy-edge-config.js")), false);
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  assert.equal(pkg.scripts["autonomy:seed"], undefined);
+  assert.equal(JSON.stringify(pkg.dependencies).includes("edge-config"), false);
+  const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+  const env = fs.readFileSync(path.join(root, ".env.example"), "utf8");
+  assert.match(readme, /autonomy:<user id>/);
+  assert.match(readme, /KV_REST_API_URL/);
+  assert.match(readme, /KV_REST_API_TOKEN/);
+  assert.match(readme, /UPSTASH_REDIS_REST_URL/);
+  assert.match(readme, /UPSTASH_REDIS_REST_TOKEN/);
+  assert.match(readme, /Autonomy settings are unavailable right now/);
+  assert.equal(readme.includes("AUTONOMY_ALLOWLIST"), false);
+  assert.equal(readme.includes("EDGE_CONFIG"), false);
+  assert.equal(readme.includes("autonomy:seed"), false);
+  assert.equal(readme.includes("autonomy_last_denied"), false);
+  assert.match(env, /KV_REST_API_URL=/);
+  assert.match(env, /UPSTASH_REDIS_REST_TOKEN=/);
+  assert.equal(env.includes("EDGE_CONFIG"), false);
+  assert.equal(env.includes("AUTONOMY_ALLOWLIST"), false);
 });
 
 test("the page is a plain list that returns through the existing sign-in", () => {
@@ -645,10 +613,13 @@ test("the page is a plain list that returns through the existing sign-in", () =>
   const vercel = fs.readFileSync(path.join(__dirname, "..", "vercel.json"), "utf8");
   const schema = fs.readFileSync(path.join(__dirname, "..", "prisma", "schema.prisma"), "utf8");
   assert.match(html, /On means a bot may do this on its own\./);
-  assert.match(html, /A change can take a few seconds to apply everywhere\./);
+  assert.equal(html.includes("A change can take a few seconds to apply everywhere."), false);
+  assert.equal(html.includes("autonomy__lag"), false);
   assert.match(html, /src="\/autonomy\/autonomy\.js"/);
   assert.match(page, /textContent/);
   assert.equal(page.includes("innerHTML"), false);
+  assert.equal(page.includes("allowlist"), false);
+  assert.match(page, /fetch\("\/api\/autonomy", \{[^}]*Authorization: "Bearer " \+ token\(\)/);
   assert.match(auth, /path !== "\/autonomy"/);
   assert.equal(auth.includes("/approvals"), false);
   assert.match(sw, /pathname === "\/autonomy"/);
@@ -768,6 +739,119 @@ test("a note renders as text and never as HTML", async () => {
   assert.ok(texts.includes(hostileSaved));
   assert.ok(texts.includes(SEND_NOTE));
   assert.equal(nodes.some((node) => node.tag === "script" || node.tag === "img"), false);
+});
+
+test("a failed toggle puts the switch back and shows the error as text", async () => {
+  const page = fs.readFileSync(
+    path.join(__dirname, "..", "src", "renderer", "autonomy", "autonomy.js"),
+    "utf8",
+  );
+  const nodes = [];
+  const hostile = "<img src=x onerror=alert(1)>";
+
+  function makeEl(tag) {
+    const node = {
+      tag,
+      className: "",
+      children: [],
+      attrs: {},
+      disabled: false,
+      listeners: {},
+      _text: "",
+      set textContent(value) { this._text = String(value); },
+      get textContent() { return this._text; },
+      set innerHTML(_value) { throw new Error("innerHTML used"); },
+      setAttribute(name, value) { this.attrs[name] = String(value); },
+      addEventListener(name, fn) { this.listeners[name] = fn; },
+      appendChild(child) { this.children.push(child); return child; },
+      replaceChildren() { this.children = []; },
+    };
+    nodes.push(node);
+    return node;
+  }
+
+  const list = makeEl("ul");
+  const status = makeEl("p");
+  let calls = 0;
+  vm.runInNewContext(page, vm.createContext({
+    localStorage: { getItem() { return "signed-in"; }, setItem() {}, removeItem() {} },
+    sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+    document: {
+      getElementById(id) { return id === "autonomy-list" ? list : status; },
+      createElement: makeEl,
+    },
+    window: { location: { assign() {} } },
+    fetch() {
+      calls += 1;
+      if (calls === 1) {
+        return Promise.resolve({
+          status: 200,
+          json() {
+            return Promise.resolve({
+              items: [{
+                key: "linkedin_posts",
+                label: "LinkedIn posts",
+                autonomous: false,
+                note: null,
+                updated_by: null,
+                updated_at: null,
+              }],
+            });
+          },
+        });
+      }
+      return Promise.resolve({
+        status: 503,
+        json() { return Promise.resolve({ error: hostile }); },
+      });
+    },
+  }));
+  await new Promise((resolve) => setImmediate(resolve));
+  const button = nodes.find((node) => node.attrs.role === "switch");
+  button.listeners.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(status._text, hostile);
+  assert.equal(nodes.some((node) => node.tag === "img" || node.tag === "script"), false);
+  const switches = nodes.filter((node) => node.attrs.role === "switch");
+  assert.equal(switches[switches.length - 1].attrs["aria-checked"], "false");
+});
+
+test("a 401 on GET clears the session and sends the user home", async () => {
+  const page = fs.readFileSync(
+    path.join(__dirname, "..", "src", "renderer", "autonomy", "autonomy.js"),
+    "utf8",
+  );
+  const removed = [];
+  const assigns = [];
+  const fetches = [];
+  vm.runInNewContext(page, vm.createContext({
+    localStorage: {
+      getItem() { return "signed-in"; },
+      setItem() {},
+      removeItem(key) { removed.push(key); },
+    },
+    sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+    document: {
+      getElementById() {
+        return { textContent: "", replaceChildren() {}, appendChild() {} };
+      },
+      createElement() { return {}; },
+    },
+    window: { location: { assign(url) { assigns.push(String(url)); } } },
+    fetch(url, options) {
+      fetches.push({ url: String(url), options });
+      return Promise.resolve({
+        status: 401,
+        json() { return Promise.resolve({ error: "Sign in to tinker first." }); },
+      });
+    },
+  }));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(fetches[0].url, "/api/autonomy");
+  assert.equal(fetches[0].options.headers.Authorization, "Bearer signed-in");
+  assert.deepEqual(removed, ["tinker_jwt"]);
+  assert.deepEqual(assigns, ["/"]);
 });
 
 test("signed-out /autonomy comes back to /autonomy after sign-in", () => {

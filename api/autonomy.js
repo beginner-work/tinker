@@ -2,11 +2,13 @@
  * PUT /api/autonomy/:key
  *
  * One function. vercel.json rewrites /api/autonomy/:key onto this file
- * with ?key=. GET is public and read-only. PUT checks the Stytch
- * session, then AUTONOMY_ALLOWLIST. There is no auth middleware on GET.
+ * with ?key=. Both methods require the caller's verified Stytch
+ * session. Settings are that user's Redis hash only. The user id
+ * never comes from the body or the URL.
  *
- * A missing Edge Config, a missing item, a bad value, or any read
- * error is not autonomous. GET is not cached.
+ * A missing hash, a missing field, a bad value, or any store error
+ * reads as not autonomous. GET is not cached. A store error on PUT
+ * saves nothing.
  */
 
 "use strict";
@@ -16,19 +18,12 @@ const { withResponseLogging } = require("./_lib/log.js");
 const {
   itemFor,
   shapeItem,
+  shapeList,
   closedList,
-  editorFromSession,
+  callerFromSession,
   parseNote,
-  AUTONOMY_ITEMS,
 } = require("./_lib/autonomy.js");
-const {
-  edgeKey,
-  rowFromValue,
-  readAll,
-  readOne,
-  rememberDenied,
-  upsertEdgeItem,
-} = require("./_lib/autonomy-edge.js");
+const { UNAVAILABLE, readAll, readField, writeField } = require("./_lib/autonomy-redis.js");
 
 const NO_STORE = "no-store";
 
@@ -85,7 +80,11 @@ function sendError(res, err, fallback) {
   sendJson(res, status, { error: message }, { "Cache-Control": NO_STORE });
 }
 
-async function requireEditor(req) {
+function sendUnavailable(res) {
+  sendJson(res, 503, { error: UNAVAILABLE }, { "Cache-Control": NO_STORE });
+}
+
+async function requireCaller(req) {
   const token = extractBearer(req.headers && req.headers.authorization);
   if (!token) {
     throw Object.assign(new Error("Sign in to tinker first."), { status: 401 });
@@ -99,28 +98,23 @@ async function requireEditor(req) {
     }
     throw err;
   }
-  return editorFromSession(session);
+  return callerFromSession(session);
 }
 
-function listFromItems(raw) {
-  return {
-    default_if_missing: "not_autonomous",
-    items: AUTONOMY_ITEMS.map((def) => {
-      const value = raw && Object.prototype.hasOwnProperty.call(raw, edgeKey(def.key))
-        ? raw[edgeKey(def.key)]
-        : undefined;
-      return shapeItem(def, rowFromValue(value));
-    }),
-  };
-}
-
-async function listAutonomy(res) {
-  const raw = await readAll();
-  const body = raw ? listFromItems(raw) : closedList();
-  sendJson(res, 200, body, { "Cache-Control": NO_STORE });
+async function listAutonomy(req, res) {
+  const caller = await requireCaller(req);
+  try {
+    const rows = await readAll(caller.userId);
+    const list = [];
+    for (const [key, row] of rows) list.push({ key, ...row });
+    sendJson(res, 200, shapeList(list), { "Cache-Control": NO_STORE });
+  } catch {
+    sendJson(res, 200, closedList(), { "Cache-Control": NO_STORE });
+  }
 }
 
 async function updateAutonomy(req, res) {
+  const caller = await requireCaller(req);
   const key = keyFrom(req);
   const def = itemFor(key);
   if (!def) {
@@ -128,7 +122,6 @@ async function updateAutonomy(req, res) {
     return;
   }
 
-  const editor = await requireEditor(req);
   const body = readBody(req);
   const hasAutonomous = body && Object.prototype.hasOwnProperty.call(body, "autonomous");
   const hasNote = body && Object.prototype.hasOwnProperty.call(body, "note");
@@ -156,10 +149,10 @@ async function updateAutonomy(req, res) {
 
   let current;
   try {
-    current = await readOne(key);
+    current = await readField(caller.userId, key);
   } catch (err) {
     if (err && err.status === 503) {
-      sendJson(res, 503, { error: "Autonomy settings are not ready." }, { "Cache-Control": NO_STORE });
+      sendUnavailable(res);
       return;
     }
     throw err;
@@ -168,14 +161,14 @@ async function updateAutonomy(req, res) {
   const written = {
     autonomous: hasAutonomous ? body.autonomous : current.autonomous,
     note: hasNote ? note || "" : current.note,
-    updated_by: editor.updatedBy,
+    updated_by: caller.updatedBy,
     updated_at: new Date().toISOString(),
   };
   try {
-    await upsertEdgeItem(edgeKey(key), written);
+    await writeField(caller.userId, key, written);
   } catch (err) {
     if (err && err.status === 503) {
-      sendJson(res, 503, { error: "Autonomy settings are not ready." }, { "Cache-Control": NO_STORE });
+      sendUnavailable(res);
       return;
     }
     throw err;
@@ -192,7 +185,7 @@ async function updateAutonomy(req, res) {
 module.exports = withResponseLogging(async function handler(req, res) {
   try {
     if (req.method === "GET") {
-      await listAutonomy(res);
+      await listAutonomy(req, res);
       return;
     }
     if (req.method === "PUT") {
@@ -202,19 +195,6 @@ module.exports = withResponseLogging(async function handler(req, res) {
     res.setHeader("Allow", "GET, PUT");
     sendJson(res, 405, { error: "Method not allowed" }, { "Cache-Control": NO_STORE });
   } catch (err) {
-    if (
-      req.method === "PUT" &&
-      err &&
-      err.status === 403 &&
-      typeof err.yourUserId === "string" &&
-      err.yourUserId
-    ) {
-      try {
-        await rememberDenied(err.yourUserId);
-      } catch {
-        console.error("Could not record the autonomy denial.");
-      }
-    }
     sendError(res, err, req.method === "PUT" ? "Could not save autonomy." : "Could not load autonomy.");
   }
 });

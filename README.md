@@ -184,29 +184,16 @@ like a second URL pointing at production.)
 
 ### Autonomy
 
-`/autonomy` stores each toggle in Vercel Edge Config, not Postgres. Preview and production use separate stores. Connect a store to that environment and Vercel sets `EDGE_CONFIG`, the read connection string. Also set:
+`/autonomy` stores each signed-in person's toggles in Upstash Redis, not Postgres. One hash per Stytch user id, named `autonomy:<user id>`. The id comes from the verified session. Each field is one of the 14 item keys, and the value is JSON with `autonomous`, `note`, `updated_by`, and `updated_at`. A save writes that one field, so two toggles do not overwrite each other.
 
-- `EDGE_CONFIG_ID`: the store id used in `PATCH /v1/edge-config/{id}/items`
-- `VERCEL_TEAM_ID`: sent as `teamId` when the store is on a team. Leave it unset otherwise.
-- `EDGE_CONFIG_WRITE_TOKEN`: Sensitive. Bearer token for that PATCH. The app does not log it or put it in an error.
-- `AUTONOMY_ALLOWLIST`: comma-separated Stytch user id or email, with an optional `:short-name`. Example: `user-live-abc:tyler`
+Both `GET /api/autonomy` and `PUT /api/autonomy/:key` require a signed-in session. A signed-out request is 401. There is no public list and no allowlist. A person with nothing stored yet reads every item off, including LinkedIn profile edits. There is no seed.
 
-Seed a store once. The script inserts only items that are missing, so running it again does not replace a value Tyler already changed. Only `linkedin_profile_edits` is seeded on.
+Connect the store on the Vercel project environment. The Marketplace may set either pair. The app uses the first pair that is fully set:
 
-```bash
-npm run autonomy:seed
-```
+- `KV_REST_API_URL` and `KV_REST_API_TOKEN`
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
 
-Until a store is connected, `GET /api/autonomy` fails closed and every item is not autonomous.
-
-A signed-in person who is not on the allowlist sees "You're not on the allowlist yet. Keep this tab open." The server writes one Edge Config item, `autonomy_last_denied`, with exactly `{user_id, at}`: that caller's Stytch user id and an ISO time. It does not store an email, and it does not put the id in the 403 body or in `GET /api/autonomy`. The same id inside 10 minutes does not write again. The seed script does not create this item.
-
-Read it with the write token. Leave off `teamId` when the store is not on a team:
-
-```bash
-curl -sS -H "Authorization: Bearer $EDGE_CONFIG_WRITE_TOKEN" \
-  "https://api.vercel.com/v1/edge-config/$EDGE_CONFIG_ID/item/autonomy_last_denied?teamId=$VERCEL_TEAM_ID"
-```
+The app does not log the URL or the token, and it does not put them in an error. If the store is missing or cannot be reached, GET still returns 200 and every item is off. PUT returns 503 with `Autonomy settings are unavailable right now.` and writes nothing.
 
 ### Shared database with the beginner repo
 

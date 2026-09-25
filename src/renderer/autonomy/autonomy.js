@@ -35,8 +35,6 @@
     statusEl.textContent = text || "";
   }
 
-  var DENIED_LINE = "You're not on the allowlist yet. Keep this tab open.";
-
   function changedLine(item) {
     if (!item.updated_by && !item.updated_at) return "Default, never changed";
     var who = item.updated_by || "someone";
@@ -165,15 +163,6 @@
         sendHome();
         return;
       }
-      if (result.status === 403) {
-        item.autonomous = previous.autonomous;
-        item.note = previous.note;
-        item.updated_by = previous.updated_by;
-        item.updated_at = previous.updated_at;
-        render();
-        setStatus(DENIED_LINE);
-        return;
-      }
       if (result.status !== 200 || !result.body || typeof result.body.autonomous !== "boolean") {
         item.autonomous = previous.autonomous;
         item.note = previous.note;
@@ -205,10 +194,6 @@
         sendHome();
         return;
       }
-      if (result.status === 403) {
-        setStatus(DENIED_LINE);
-        return;
-      }
       if (result.status !== 200 || !result.body) {
         setStatus((result.body && result.body.error) || "Could not save the note.");
         return;
@@ -221,14 +206,23 @@
     });
   }
 
-  fetch("/api/autonomy")
+  fetch("/api/autonomy", {
+    headers: { Authorization: "Bearer " + token() },
+  })
     .then(function (res) {
       return res.json().then(function (body) {
-        return { ok: res.ok, body: body };
+        return { status: res.status, body: body };
+      }, function () {
+        return { status: res.status, body: null };
       });
     })
     .then(function (result) {
-      if (!result.ok || !result.body || !Array.isArray(result.body.items)) {
+      if (result.status === 401) {
+        try { localStorage.removeItem(TOKEN_KEY); } catch (err) { /* ignore */ }
+        sendHome();
+        return;
+      }
+      if (result.status !== 200 || !result.body || !Array.isArray(result.body.items)) {
         setStatus((result.body && result.body.error) || "Could not load autonomy.");
         return;
       }

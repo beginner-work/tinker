@@ -1,9 +1,9 @@
-/* Autonomy catalog and allowlist.
+/* Autonomy catalog.
  *
  * AUTONOMY_ITEMS is the only place labels, order, and the send note
  * live. It does not hold a read-time default for autonomous. Stored
- * values live in Vercel Edge Config. A missing item, a bad value, or
- * a read error is not autonomous.
+ * values live in one Redis hash per signed-in user. A missing item,
+ * a bad value, or a read error is not autonomous.
  */
 
 "use strict";
@@ -134,23 +134,6 @@ function closedList() {
   };
 }
 
-// AUTONOMY_ALLOWLIST is a comma-separated list. Each entry is a Stytch
-// user id or email, optionally followed by ":" and the short name to
-// store in updated_by. Example: user-live-abc:tyler
-function parseAllowlist(raw) {
-  const entries = [];
-  for (const part of String(raw || "").split(",")) {
-    const trimmed = part.trim();
-    if (!trimmed) continue;
-    const colon = trimmed.indexOf(":");
-    const identity = (colon === -1 ? trimmed : trimmed.slice(0, colon)).trim();
-    const name = colon === -1 ? "" : trimmed.slice(colon + 1).trim();
-    if (!identity) continue;
-    entries.push({ identity, name: name.slice(0, 80) });
-  }
-  return entries;
-}
-
 function sessionIdentity(session) {
   const user = (session && session.user) || {};
   const userId =
@@ -172,36 +155,21 @@ function sessionIdentity(session) {
   };
 }
 
-function matchesEntry(entry, identity) {
-  if (entry.identity.includes("@")) {
-    const want = entry.identity.toLowerCase();
-    return identity.emails.some((email) => email.toLowerCase() === want);
-  }
-  return Boolean(identity.userId) && entry.identity === identity.userId;
-}
-
-function editorName(entry, identity) {
-  if (entry.name) return entry.name;
-  if (identity.emails.length) return identity.emails[0].slice(0, 80);
-  const named = [identity.firstName, identity.lastName].filter(Boolean).join(" ");
-  if (named) return named.slice(0, 80);
-  return identity.userId.slice(0, 80);
-}
-
-function editorFromSession(session) {
+function callerFromSession(session) {
   const identity = sessionIdentity(session);
   if (!identity.userId) {
     throw Object.assign(new Error("Session missing user id."), { status: 401 });
   }
-  const entries = parseAllowlist(process.env.AUTONOMY_ALLOWLIST);
-  const match = entries.find((entry) => matchesEntry(entry, identity));
-  if (!match) {
-    throw Object.assign(new Error("Not allowed to change autonomy."), {
-      status: 403,
-      yourUserId: identity.userId,
-    });
+  let updatedBy = identity.userId;
+  if (identity.emails.length) updatedBy = identity.emails[0];
+  else {
+    const named = [identity.firstName, identity.lastName].filter(Boolean).join(" ");
+    if (named) updatedBy = named;
   }
-  return { updatedBy: editorName(match, identity) };
+  return {
+    userId: identity.userId,
+    updatedBy: updatedBy.slice(0, 80),
+  };
 }
 
 function parseNote(value) {
@@ -223,8 +191,7 @@ module.exports = {
   shapeItem,
   shapeList,
   closedList,
-  parseAllowlist,
   sessionIdentity,
-  editorFromSession,
+  callerFromSession,
   parseNote,
 };

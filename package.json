@@ -19,8 +19,7 @@
     "preview:url": "node scripts/preview-bootstrap-url.js",
     "eval:product-spec": "node .claude/skills/product-spec/evals/run-evals.mjs",
     "postinstall": "prisma generate",
-    "db:migrate": "prisma migrate deploy",
-    "autonomy:seed": "node scripts/seed-autonomy-edge-config.js"
+    "db:migrate": "prisma migrate deploy"
   },
   "keywords": [
     "browser",
@@ -33,8 +32,7 @@
   "private": true,
   "dependencies": {
     "@anthropic-ai/sdk": "^0.65.0",
-    "@prisma/client": "^5.22.0",
-    "@vercel/edge-config": "^1.5.1"
+    "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
     "electron": "^33.0.0",
