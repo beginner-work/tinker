@@ -70,6 +70,7 @@
          The prompt stays on the server (converse mode "linkedin" and
          the MCP tool draft_linkedin_post). Does not post. -->
     <script src="./linkedin-draft.js" defer></script>
+    <script src="./interview-decks.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
@@ -238,6 +239,17 @@
                 <path d="M13.5 6.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
               </svg>
               <span class="sidebar__account-label">LinkedIn draft</span>
+            </button>
+          </li>
+          <!-- Interview decks: finished ask_followups transcripts, read-only.
+               Saved by the MCP tool save_interview_deck. interview-decks.js owns the panel. -->
+          <li>
+            <button id="nav-interview-decks" type="button" class="sidebar__account-item">
+              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                <path d="M5 4h10a2 2 0 0 1 2 2v14l-4-2-4 2-4-2-4 2V6a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M8 9h6M8 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <span class="sidebar__account-label">Interview decks</span>
             </button>
           </li>
           <!-- No AI mode lives front-and-centre on the welcome page and on

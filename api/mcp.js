@@ -10,13 +10,15 @@
  *   MCP client can send the user to /mcp/authorize.
  *
  * Tools are fixed-prompt follow-ups (ask_followups), LinkedIn drafts
- * (draft_linkedin_post), a read-only look at this user's autonomy
+ * (draft_linkedin_post), saving a finished interview as a stored deck
+ * (save_interview_deck), a read-only look at this user's autonomy
  * settings (get_autonomy_settings), and the career record
  * (get_career_record, check_text). There is no raw converse proxy and
  * no write tool for autonomy settings or the career record. GET/DELETE
  * return 405: this server does not keep an SSE session. The writing UI
  * is not involved. draft_linkedin_post shares api/_lib/linkedin-draft.js
  * with POST /api/claude/converse mode "linkedin". It does not post.
+ * save_interview_deck only validates and stores; it does not call a model.
  *
  * Session auth uses STYTCH_PROJECT_ID and STYTCH_SECRET. Tool calls use
  * ANTHROPIC_API_KEY. Credentials use the existing DATABASE_URL.
@@ -31,6 +33,7 @@ const { wwwAuthenticate } = require("./_lib/mcp-origin.js");
 const { withResponseLogging } = require("./_lib/log.js");
 const { askFollowups } = require("./_lib/followups.js");
 const { draftLinkedInPost } = require("./_lib/linkedin-draft.js");
+const { saveDeck } = require("./_lib/interview-decks-store.js");
 const { toolSettings } = require("./_lib/autonomy.js");
 const { UNAVAILABLE, readAll } = require("./_lib/autonomy-redis.js");
 const { UNAVAILABLE: CAREER_UNAVAILABLE, readForTool, shapeForTool } = require("./_lib/career.js");
@@ -48,6 +51,9 @@ const INSTRUCTIONS = [
   "Call draft_linkedin_post with notes (a topic or bullets) to draft a LinkedIn post or direct message in Tyler's voice.",
   "Pass kind \"dm\" for a direct message, or start the notes with \"DM:\". Pass currentDraft and an optional instruction to revise.",
   "This drafts copy only. It does not post to LinkedIn.",
+  "Call save_interview_deck when an ask_followups interview is done.",
+  "Pass topic, the full {q, a} transcript, and interviewKey (the idempotency key for that interview).",
+  "A retry with the same key returns the same deck id. The tool only stores; it does not call a model.",
   "Call get_autonomy_settings with no arguments to read this user's autonomy settings.",
   "It returns each setting's key, label, description, on (true or false), and updated_at.",
   "It does not change a setting. If it says settings are unavailable, treat every setting as off.",
@@ -187,6 +193,50 @@ const DRAFT_LINKEDIN_TOOL = {
   },
 };
 
+const SAVE_INTERVIEW_DECK_TOOL = {
+  name: "save_interview_deck",
+  title: "Save a finished interview as a deck",
+  description: [
+    "Store a finished ask_followups interview as a deck the approving user can open later in Tinker.",
+    "Pass topic, the full transcript as {q, a} turns, and interviewKey (the idempotency key for that interview).",
+    "A retry with the same key returns the same deck id and does not create a second row.",
+    "The transcript is the source of truth. There are no slides. The tool only validates and stores; it does not call a model.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      topic: {
+        type: "string",
+        description: "Short label for the interview, shown in the deck list.",
+      },
+      transcript: {
+        type: "array",
+        description: "Full Q&A transcript. Each turn is {q, a}.",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            q: { type: "string" },
+            a: { type: "string" },
+          },
+          required: ["q", "a"],
+        },
+      },
+      interviewKey: {
+        type: "string",
+        description: "Idempotency key for this interview. The same key under the same user returns the same deck.",
+      },
+    },
+    required: ["topic", "transcript", "interviewKey"],
+  },
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    openWorldHint: false,
+  },
+};
+
 const GET_AUTONOMY_SETTINGS_TOOL = {
   name: "get_autonomy_settings",
   title: "Read autonomy settings",
@@ -277,6 +327,7 @@ const CHECK_TEXT_TOOL = {
 const TOOLS = [
   ASK_FOLLOWUPS_TOOL,
   DRAFT_LINKEDIN_TOOL,
+  SAVE_INTERVIEW_DECK_TOOL,
   GET_AUTONOMY_SETTINGS_TOOL,
   GET_CAREER_RECORD_TOOL,
   CHECK_TEXT_TOOL,
@@ -510,6 +561,7 @@ async function handleRpc(msg, user) {
     if (
       name !== "ask_followups"
       && name !== "draft_linkedin_post"
+      && name !== "save_interview_deck"
       && name !== "get_autonomy_settings"
       && name !== "get_career_record"
       && name !== "check_text"
@@ -529,6 +581,27 @@ async function handleRpc(msg, user) {
       return careerCheckCall(msg, user, args);
     }
     try {
+      if (name === "save_interview_deck") {
+        const row = await saveDeck({
+          userId: user && user.userId,
+          topic: args.topic,
+          transcript: args.transcript,
+          interviewKey: args.interviewKey,
+        });
+        const shaped = {
+          id: row.id,
+          topic: row.topic,
+          interviewKey: row.interviewKey,
+          turnCount: Array.isArray(row.transcript) ? row.transcript.length : 0,
+        };
+        return {
+          status: 200,
+          body: rpcOk(msg.id, {
+            content: [{ type: "text", text: JSON.stringify(shaped, null, 2) }],
+            structuredContent: shaped,
+          }),
+        };
+      }
       if (name === "draft_linkedin_post") {
         const shaped = await draftLinkedInPost(args);
         return {
@@ -548,7 +621,7 @@ async function handleRpc(msg, user) {
         }),
       };
     } catch (err) {
-      if (err && (err.toolError || err.status === 502 || err.status === 503)) {
+      if (err && (err.toolError || err.status === 400 || err.status === 404 || err.status === 502 || err.status === 503)) {
         return { status: 200, body: rpcOk(msg.id, toolError(err.message || "Tool failed")) };
       }
       return { status: 500, body: rpcErr(msg.id, -32603, "Internal error") };

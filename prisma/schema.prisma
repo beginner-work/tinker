@@ -66,3 +66,19 @@ model McpOAuthCode {
   usedAt        DateTime?
   createdAt     DateTime  @default(now())
 }
+
+// Finished ask_followups interviews. The transcript is the source of
+// truth. interviewKey is the idempotency key for one interview: a
+// retry with the same (userId, interviewKey) returns the same row.
+model InterviewDeck {
+  id           String   @id @default(cuid())
+  userId       String
+  interviewKey String
+  topic        String
+  transcript   Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, interviewKey])
+  @@index([userId])
+}
