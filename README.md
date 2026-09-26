@@ -413,6 +413,13 @@ Tools:
   Pass `currentDraft` to revise, and an optional `instruction` for what
   to change. The result is `{ post, revised, kind }`. The tool returns
   copy only. It does not post to LinkedIn; Stanley still posts.
+- `save_interview_deck`. When an `ask_followups` interview is done, pass
+  `topic`, the full `{q, a}` `transcript`, and `interviewKey` (the
+  idempotency key for that interview). The tool validates and stores the
+  deck for the approving user and returns `{ id, topic, interviewKey,
+  turnCount }`. A retry with the same key returns the same id. There are
+  no slides; the transcript is the source of truth. The tool does not
+  call a model.
 
 There is no raw `converse` tool. Clients cannot supply a system prompt.
 The interview prompt lives in `src/renderer/interview-prompt.js` and is
@@ -467,6 +474,23 @@ curl -s https://tinker.beginner.work/api/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"draft_linkedin_post","arguments":{"notes":"A portal is where a buyer decides to trust you."}}}'
 ```
 
+## Interview decks
+
+The sidebar row **Interview decks** opens a read-only list of finished
+`ask_followups` interviews saved for the signed-in user. Open one to
+read the full Q&A transcript. Decks are created by the MCP tool
+`save_interview_deck` (topic + transcript + `interviewKey`). A retry
+with the same key returns the same deck. There is no editing and no
+slide export in v1.
+
+```bash
+curl -s https://tinker.beginner.work/api/mcp \
+  -H "Authorization: Bearer mcp_..." \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"save_interview_deck","arguments":{"topic":"Where I am this week","interviewKey":"ivw_demo_1","transcript":[{"q":"Where are you?","a":"In the portal work."},{"q":"What are you learning?","a":"Trust is the inventory."}]}}}'
+```
+
 ## Mobile (Expo)
 
 Native iOS / Android builds ship via [Expo](https://expo.dev), wrapping
@@ -501,7 +525,7 @@ that wants the mark as an SVG string.
 ├── api/                 # Product + developer-facing APIs (Vercel)
 │   ├── auth/            # Phone/PIN via Stytch (identity wire-up)
 │   ├── claude/          # Proxied Claude converse (linkedin mode included)
-│   ├── mcp.js           # Streamable HTTP MCP (ask_followups, draft_linkedin_post)
+│   ├── mcp.js           # Streamable HTTP MCP (ask_followups, draft_linkedin_post, save_interview_deck)
 │   ├── mcp-oauth.js     # MCP authorize, token, and revoke
 │   ├── _lib/linkedin-draft.js  # Shared LinkedIn prompt + draft call
 │   ├── search.js        # Search essays

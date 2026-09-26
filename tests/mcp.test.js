@@ -274,6 +274,7 @@ test("tools/list exposes ask_followups and draft_linkedin_post, and no raw conve
   assert.deepEqual(names, [
     "ask_followups",
     "draft_linkedin_post",
+    "save_interview_deck",
     "get_autonomy_settings",
     "get_career_record",
     "check_text",
@@ -293,6 +294,10 @@ test("tools/list exposes ask_followups and draft_linkedin_post, and no raw conve
   assert.match(linkedin.description, /does not post/i);
   assert.match(linkedin.description, /direct message/i);
   assert.match(linkedin.description, /em dashes/);
+  const saveDeck = tools.find((t) => t.name === "save_interview_deck");
+  assert.deepEqual(saveDeck.inputSchema.required, ["topic", "transcript", "interviewKey"]);
+  assert.equal(saveDeck.annotations.readOnlyHint, false);
+  assert.match(saveDeck.description, /idempotency key/i);
   assert.equal(anthropicCalls().length, 0);
 });
 
@@ -563,6 +568,7 @@ test("get_autonomy_settings returns this user's 14 settings and no write tool", 
   assert.deepEqual(names, [
     "ask_followups",
     "draft_linkedin_post",
+    "save_interview_deck",
     "get_autonomy_settings",
     "get_career_record",
     "check_text",

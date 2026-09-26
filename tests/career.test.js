@@ -544,6 +544,7 @@ test("get_career_record reads only this user and check_text does not write", asy
   assert.deepEqual(names, [
     "ask_followups",
     "draft_linkedin_post",
+    "save_interview_deck",
     "get_autonomy_settings",
     "get_career_record",
     "check_text",
