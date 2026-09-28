@@ -2,18 +2,19 @@
 
 tinker — a quiet place to be on the web.
 
-A minimal desktop browser built on Electron, with a Vercel-hosted web
-app and Expo native shells that share the same renderer. The chrome
-wears tinker's multi-colored globe mark on a warm cream background,
-with Plus Jakarta Sans for display and Inter for body.
+A quiet writing tool for founders. The product ships three front ends:
+a Vercel-hosted web app, an Electron desktop shell (both on
+`src/renderer/`), and a native iOS app under `mobile/` released through
+Expo / EAS. The chrome wears tinker's multi-colored globe mark on a
+warm cream background.
 
 ## What's in this repo
 
 This is one full product app — there is no separate MCP repo anymore.
 The core surfaces live here together:
 
-- **Front ends** — web (Vercel) and native mobile (Expo), plus the
-  Electron desktop shell. All three share `src/renderer/`.
+- **Front ends** — web (Vercel), Electron desktop (`src/renderer/`), and
+  native iOS (`mobile/`, Expo as the release manager).
 - **Product back ends** — the non-payments / non-identity systems under
   `api/` (Claude, search, pitches, publish, feed, user-data, voice,
   email, and the rest of the product surface).
@@ -467,24 +468,36 @@ curl -s https://tinker.beginner.work/api/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"draft_linkedin_post","arguments":{"notes":"A portal is where a buyer decides to trust you."}}}'
 ```
 
-## Mobile (Expo)
+## Mobile (Expo) — iOS release manager
 
-Native iOS / Android builds ship via [Expo](https://expo.dev), wrapping
-the same `src/renderer/` web surface that Vercel hosts. Capacitor is no
-longer part of this repo — there is no `capacitor.config.json`, no
-`@capacitor/*` packages, and no `mobile:*` npm scripts.
+Native iOS ships from `mobile/` as a React Native app. **Expo / EAS is
+the release manager**: binaries, OTA updates, and App Store submit all
+go through EAS profiles in [`mobile/eas.json`](mobile/eas.json). See
+[`mobile/README.md`](mobile/README.md) for screens and day-to-day
+commands. Capacitor is not part of this repo.
 
-| | Electron desktop | Web (Vercel) / Expo |
-|---|---|---|
-| Tabs / sessions | Yes — left sidebar | Yes (collapsed rail on phones) |
-| In-app browsing | Native `<webview>` | External — opens in the system browser |
-| Search / Claude | IPC → main process → Anthropic SDK | Same-origin `/api/*` on Vercel, JWT-gated |
-| Auth | Local `ANTHROPIC_API_KEY` env var | Phone/PIN via Stytch (`tinker_jwt`) |
+```bash
+npm run expo:start              # Dev Client + Metro
+npm run expo:build:simulator    # embedded iOS Simulator build
+npm run expo:release:ios        # production build + App Store submit
+npm run expo:publish:production # OTA update on the production channel
+```
 
-The `src/renderer/platform-mobile.js` shim detects the runtime —
-Electron preload short-circuits it; on the plain web (and inside the
-Expo shell) it polyfills the same `window.tinker.*` surface so the rest
-of the renderer code path is identical.
+CI can cut the same production binary via
+[`.github/workflows/eas-ios.yml`](.github/workflows/eas-ios.yml) when
+`EXPO_TOKEN` is set on the repo. Apple credentials stay in the Expo
+project ([tlindows-organization / tinker](https://expo.dev/accounts/tlindows-organization/projects/tinker)).
+
+| | Electron desktop | Web (Vercel) | Expo iOS |
+|---|---|---|---|
+| UI | `src/renderer/` | `src/renderer/` | Native screens in `mobile/app/` |
+| Auth | Local `ANTHROPIC_API_KEY` | Phone/PIN → `tinker_jwt` | Phone/PIN → SecureStore |
+| Claude / data | IPC or `/api/*` | `/api/*` on Vercel | Same `/api/*` on `tinker.beginner.work` |
+| Release | electron-builder + GitHub Releases | Vercel deploy | EAS Build / Submit / Update |
+
+The web `src/renderer/platform-mobile.js` shim still polyfills
+`window.tinker.*` for the Vercel and Electron paths. The Expo app talks
+to the same API with a Bearer Stytch session token from SecureStore.
 
 ## Style dictionary
 
@@ -507,9 +520,10 @@ that wants the mark as an SVG string.
 │   ├── search.js        # Search essays
 │   ├── pitches/ …       # Pitch / publish / feed / user-data / …
 │   └── membership/ …    # Stripe membership wire-up
+├── mobile/              # Native Expo iOS app (EAS release manager)
 ├── src/
 │   ├── main/            # Electron main + preload
-│   ├── renderer/        # Shared web / Expo / Electron UI
+│   ├── renderer/        # Shared web / Electron UI
 │   └── web/             # Static local host (`npm run web`)
 ├── prisma/              # Shared Postgres schema
 └── package.json
@@ -517,8 +531,9 @@ that wants the mark as an SVG string.
 
 The renderer is plain HTML/CSS/JS — no build step, no bundler. Each
 Electron tab maps to either the welcome page (in-DOM) or a
-`<webview>` mounted lazily on first navigation. Web and Expo load the
-same `src/renderer/` files against the Vercel `api/` back end.
+`<webview>` mounted lazily on first navigation. Web loads
+`src/renderer/` against the Vercel `api/` back end. Native iOS uses the
+Expo app in `mobile/`, which calls that same API.
 
 ## Shortcuts
 
