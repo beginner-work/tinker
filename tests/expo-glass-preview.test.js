@@ -93,6 +93,8 @@ test("Glass chrome + interview engine present", () => {
   );
   assert.match(interview, /STITCH, DO NOT AUTHOR/);
   assert.match(interview, /verifyFounderOnly/);
+  assert.match(interview, /RULE 8 — TRANSACTIONS AS A MIRROR/);
+  assert.match(interview, /RULE 10 — ASK IN THE FOUNDER'S OWN WRITING VOICE/);
 
   const chrome = fs.readFileSync(
     path.join(MOBILE, "src/components/AppChrome.tsx"),
@@ -127,10 +129,81 @@ test("Welcome chrome does not steal taps from place cards", () => {
   );
   assert.match(welcome, /pointerEvents="none"/);
   assert.match(welcome, /onPickPlace/);
+  assert.match(welcome, /You just need a seed to start\./);
+  assert.match(welcome, /Where are you right now\?/);
+  assert.match(welcome, /Where are you\?/);
+  assert.match(welcome, /Start →/);
+  assert.doesNotMatch(welcome, /Pick a place to start writing/);
+  assert.doesNotMatch(welcome, /guided interview/);
 
   const index = fs.readFileSync(path.join(APP, "index.tsx"), "utf8");
   // Gate on falsy signedIn (null hydrating OR false) — never race past auth.
   assert.match(index, /if \(!signedIn\)/);
+});
+
+test("Mobile product copy matches the web renderer", () => {
+  const signIn = fs.readFileSync(path.join(APP, "sign-in.tsx"), "utf8");
+  assert.match(signIn, /Sign in to tinker/);
+  assert.match(signIn, /Enter your phone — we'll text you a six-digit code\./);
+  assert.match(signIn, /Enter your code/);
+  assert.match(signIn, /The code expires in 10 minutes\./);
+  assert.match(signIn, /\(555\) 000-0000/);
+  assert.match(signIn, /Verify/);
+  assert.match(signIn, /← Use a different number/);
+  assert.match(
+    signIn,
+    /Sign-up and login share this screen — first-time users get an/,
+  );
+
+  const freewrite = fs.readFileSync(path.join(APP, "freewrite.tsx"), "utf8");
+  assert.match(freewrite, /What are you learning\?/);
+  assert.match(freewrite, /Type your answer in your own words…/);
+  assert.match(freewrite, /This is everything →/);
+  assert.match(freewrite, /Saved on this device\./);
+
+  const assessing = fs.readFileSync(path.join(APP, "assessing.tsx"), "utf8");
+  assert.match(assessing, /You created another essay/);
+  assert.match(assessing, /Your pitch is being assessed\./);
+  assert.match(assessing, /Keep writing →/);
+  assert.match(assessing, /Re-read your essay/);
+
+  const founders = fs.readFileSync(path.join(APP, "founders.tsx"), "utf8");
+  assert.match(founders, /styles\.title\}>founders</);
+  assert.match(founders, /find my founders/);
+  assert.match(founders, /Founders adjacent to you/);
+  assert.match(founders, /You're early — there aren't enough founders here yet/);
+
+  const pitch = fs.readFileSync(path.join(APP, "pitch-script.tsx"), "utf8");
+  assert.match(pitch, /Prepare a script for a video/);
+  assert.match(pitch, /Copy script/);
+  assert.match(
+    pitch,
+    /This pitch doesn't have any resolved phrases yet/,
+  );
+
+  const essays = fs.readFileSync(path.join(APP, "essays.tsx"), "utf8");
+  assert.match(essays, /No essays here yet\./);
+
+  const write = fs.readFileSync(path.join(APP, "write.tsx"), "utf8");
+  assert.match(write, /Setting the scene…/);
+  assert.match(write, /Stitching your essay…/);
+  assert.match(write, /Something went wrong\./);
+  assert.match(write, /Try again/);
+
+  const interview = fs.readFileSync(
+    path.join(MOBILE, "src/lib/interview.ts"),
+    "utf8",
+  );
+  assert.match(interview, /RULE 8 — TRANSACTIONS AS A MIRROR/);
+  assert.match(interview, /RULE 9 — STEER TOWARD UNEXPLORED PITCH TERRITORY/);
+  assert.match(interview, /RULE 10 — ASK IN THE FOUNDER'S OWN WRITING VOICE/);
+
+  const drawer = fs.readFileSync(
+    path.join(MOBILE, "src/components/SidebarDrawer.tsx"),
+    "utf8",
+  );
+  assert.match(drawer, /© 2026 tinker/);
+  assert.doesNotMatch(drawer, /Liquid Glass chrome/);
 });
 
 test("EAS is configured as the iOS release manager", () => {

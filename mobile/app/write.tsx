@@ -145,7 +145,7 @@ export default function WriteScreen() {
       setPhase("asking");
       await persist(next);
     } catch (e: any) {
-      setError(e?.message || "Something broke mid-question — try again.");
+      setError(e?.message || "Something went wrong.");
       setPhase("asking");
     }
   }
@@ -227,24 +227,19 @@ export default function WriteScreen() {
 
         {phase === "loading" ? (
           <View style={styles.center}>
-            <Text style={styles.thinking}>Opening…</Text>
+            <Text style={styles.thinking}>Setting the scene…</Text>
           </View>
         ) : phase === "published" && published ? (
           <ScrollView
             style={styles.readWrap}
             contentContainerStyle={{ paddingBottom: 40 }}
           >
-            <Text style={styles.readTitle}>{published.title}</Text>
-            <Text style={styles.readBody}>{published.body}</Text>
-            {published.prUrl ? (
-              <Text style={styles.prOk}>Opened as a pull request on GitHub.</Text>
-            ) : published.prError ? (
-              <Text style={styles.error}>{published.prError}</Text>
-            ) : null}
+            <Text style={styles.thinking}>Stitching your essay…</Text>
             <Pressable
               style={({ pressed }) => [
                 styles.button,
                 pressed && styles.buttonPressed,
+                { marginTop: 24 },
               ]}
               onPress={() =>
                 router.replace({
@@ -263,9 +258,33 @@ export default function WriteScreen() {
         ) : phase === "thinking" ? (
           <View style={styles.center}>
             <Text style={styles.thinking}>
-              Thinking through what to ask next…
+              {error
+                ? "Something went wrong."
+                : "Thinking through what to ask next…"}
             </Text>
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? (
+              <>
+                <Text style={[styles.error, { marginTop: 12 }]}>
+                  Try again, or close this draft to come back later.
+                </Text>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.button,
+                    pressed && styles.buttonPressed,
+                    { marginTop: 16, minWidth: 140 },
+                  ]}
+                  onPress={() => {
+                    const d = draftRef.current;
+                    if (!d) return;
+                    setError(null);
+                    setPhase("thinking");
+                    advance(d, { forceStitch: false });
+                  }}
+                >
+                  <Text style={styles.buttonText}>Try again</Text>
+                </Pressable>
+              </>
+            ) : null}
           </View>
         ) : (
           <View style={styles.card}>

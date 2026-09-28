@@ -24,9 +24,9 @@ const LINKS: { label: string; route: string }[] = [
   { label: "No AI", route: "/freewrite" },
   { label: "Essays", route: "/essays" },
   { label: "GitHub repo", route: "/connect-repo" },
-  { label: "Pitch script", route: "/pitch-script" },
-  { label: "Find founders", route: "/founders" },
-  { label: "Profile", route: "/profile" },
+  { label: "Prepare a script for a video", route: "/pitch-script" },
+  { label: "founders", route: "/founders" },
+  { label: "Account", route: "/profile" },
 ];
 
 export function SidebarDrawer({
@@ -71,7 +71,6 @@ export function SidebarDrawer({
             style={styles.panelGlass}
           >
             <Text style={styles.brand}>tinker</Text>
-            <Text style={styles.tag}>a quiet place to be on the web</Text>
             <View style={styles.list}>
               {LINKS.map((item) => (
                 <Pressable
@@ -104,9 +103,7 @@ export function SidebarDrawer({
                 <Text style={styles.signOutText}>Sign in</Text>
               </Pressable>
             )}
-            <Text style={styles.note}>
-              Native Expo shell — Liquid Glass chrome + writing surfaces.
-            </Text>
+            <Text style={styles.note}>© 2026 tinker</Text>
           </TinkerGlass>
         </View>
       </View>
@@ -140,12 +137,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: colors.foreground,
     letterSpacing: -0.4,
-  },
-  tag: {
-    fontFamily: fonts.sans,
-    fontSize: type.small,
-    color: colors.muted,
-    marginTop: 4,
     marginBottom: space[6],
   },
   list: { gap: 2 },

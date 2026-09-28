@@ -28,7 +28,7 @@ export default function WelcomeScreen() {
   const [busy, setBusy] = useState(false);
 
   const onPickPlace = useCallback(
-    async (id: string) => {
+    async (id: string, customSeed?: string) => {
       setPicked(id);
       // null = still hydrating SecureStore; treat as signed-out so we
       // never race past the gate into createDraft / connect-repo.
@@ -39,7 +39,10 @@ export default function WelcomeScreen() {
       if (busy) return;
       setBusy(true);
       try {
-        const seed = PLACE_LABELS[id] || id;
+        const seed =
+          customSeed ||
+          PLACE_LABELS[id] ||
+          id;
         const connected = await isGitHubConnected();
         if (!connected) {
           router.push({
@@ -68,7 +71,6 @@ export default function WelcomeScreen() {
     <AppChrome mode={mode} onModeChange={setMode}>
       <View style={styles.root}>
         <WelcomeBody
-          mode={mode}
           onPickPlace={onPickPlace}
           selectedId={picked}
         />

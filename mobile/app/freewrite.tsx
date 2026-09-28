@@ -19,7 +19,10 @@ import { isGitHubConnected } from "../src/lib/github";
 import { colors, fonts, radius, type } from "../src/theme";
 import { AppChrome } from "../src/components/AppChrome";
 
-/** No AI mode — one textarea, founder words only. */
+/**
+ * No AI mode — same card copy as src/renderer/writing.js
+ * renderFreewriteCompose (What are you learning? / This is everything →).
+ */
 export default function FreewriteScreen() {
   const { seed } = useLocalSearchParams<{ seed?: string }>();
   const { signedIn } = useAuth();
@@ -27,6 +30,7 @@ export default function FreewriteScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gated, setGated] = useState(true);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (signedIn === false) {
@@ -76,18 +80,24 @@ export default function FreewriteScreen() {
         kind: "essay",
         seed: seed || null,
       };
-      const { essay: saved, prError } = await publishEssayWithPullRequest(essay);
+      const { essay: savedEssay, prError } = await publishEssayWithPullRequest(
+        essay,
+      );
       Haptics.notificationAsync(
         Haptics.NotificationFeedbackType.Success,
       ).catch(() => {});
-      router.replace({
-        pathname: "/assessing",
-        params: {
-          id: saved.id,
-          prUrl: saved.github?.prUrl || "",
-          prError: prError || "",
-        },
-      });
+      setSaved(true);
+      // Brief web-parity "Saved on this device" beat, then assessing.
+      setTimeout(() => {
+        router.replace({
+          pathname: "/assessing",
+          params: {
+            id: savedEssay.id,
+            prUrl: savedEssay.github?.prUrl || "",
+            prError: prError || "",
+          },
+        });
+      }, 900);
     } catch (e: any) {
       setError(e?.message || "Couldn't save — try again.");
     } finally {
@@ -105,47 +115,68 @@ export default function FreewriteScreen() {
     );
   }
 
+  if (saved) {
+    return (
+      <AppChrome mode="noai" showModeNav>
+        <SafeAreaView style={styles.screen} edges={["bottom"]}>
+          <View style={styles.savedCard}>
+            <Text style={styles.question}>Saved on this device.</Text>
+            <Text style={styles.savedSub}>
+              When you reconnect, this goes to your pitch like any other essay.
+            </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={() => router.replace("/")}
+            >
+              <Text style={styles.buttonText}>Done</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </AppChrome>
+    );
+  }
+
   return (
-    <AppChrome mode="noai" onModeChange={(m) => m === "ai" && router.push("/")} showModeNav>
+    <AppChrome
+      mode="noai"
+      onModeChange={(m) => m === "ai" && router.push("/")}
+      showModeNav
+    >
       <SafeAreaView style={styles.screen} edges={["bottom"]}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <View style={styles.topBar}>
-            <Pressable onPress={() => router.back()} hitSlop={8}>
-              <Text style={styles.topAction}>Close</Text>
+          <View style={styles.card}>
+            <Text style={styles.question}>What are you learning?</Text>
+            <TextInput
+              style={styles.input}
+              value={body}
+              onChangeText={setBody}
+              placeholder="Type your answer in your own words…"
+              placeholderTextColor={colors.muted}
+              multiline
+              textAlignVertical="top"
+              autoFocus
+            />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                pressed && styles.buttonPressed,
+                (!body.trim() || busy) && styles.buttonDisabled,
+              ]}
+              onPress={publish}
+              disabled={!body.trim() || busy}
+            >
+              <Text style={styles.buttonText}>
+                {busy ? "…" : "This is everything →"}
+              </Text>
             </Pressable>
-            <Text style={styles.badge}>No AI</Text>
           </View>
-          <Text style={styles.lede}>
-            Write freely
-            {seed ? ` — ${seed}` : ""}. Every word is yours.
-          </Text>
-          <TextInput
-            style={styles.input}
-            value={body}
-            onChangeText={setBody}
-            placeholder="Start writing…"
-            placeholderTextColor={colors.muted}
-            multiline
-            textAlignVertical="top"
-            autoFocus
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-              (!body.trim() || busy) && styles.buttonDisabled,
-            ]}
-            onPress={publish}
-            disabled={!body.trim() || busy}
-          >
-            <Text style={styles.buttonText}>
-              {busy ? "Publishing as PR…" : "Publish →"}
-            </Text>
-          </Pressable>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </AppChrome>
@@ -156,26 +187,21 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 24 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   meta: { fontFamily: fonts.sans, fontSize: type.body, color: colors.muted },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
-  topAction: { fontFamily: fonts.sans, fontSize: type.body, color: colors.muted },
-  badge: {
-    fontFamily: fonts.sansSemiBold,
-    fontSize: type.micro,
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-    color: colors.accentStrong,
-  },
-  lede: {
+  card: { flex: 1, paddingTop: 24 },
+  savedCard: { flex: 1, justifyContent: "center", paddingBottom: 88 },
+  question: {
     fontFamily: fonts.display,
-    fontSize: type.display,
+    fontSize: type.displayLg - 6,
+    lineHeight: (type.displayLg - 6) * 1.15,
     color: colors.foreground,
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  savedSub: {
+    fontFamily: fonts.sans,
+    fontSize: type.body,
+    lineHeight: 22,
+    color: colors.muted,
+    marginBottom: 28,
   },
   input: {
     flex: 1,

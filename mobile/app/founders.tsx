@@ -22,7 +22,7 @@ type FounderHit = {
   author?: string;
 };
 
-/** Social adjacency — find founders near your writing. */
+/** Visible strings match src/renderer/founders.js STR allowlist. */
 export default function FoundersScreen() {
   const { signedIn } = useAuth();
   const [busy, setBusy] = useState(false);
@@ -58,9 +58,12 @@ export default function FoundersScreen() {
     <AppChrome showModeNav={false}>
       <SafeAreaView style={styles.screen} edges={["bottom"]}>
         <ScrollView contentContainerStyle={styles.body}>
-          <Text style={styles.title}>Find my founders</Text>
+          <Text style={styles.title}>founders</Text>
           <Text style={styles.lede}>
-            Adjacency around what you&apos;ve written — not a social feed.
+            When you make a pitch discoverable, other founders inside tinker can
+            find it as a match for their own pitch. No likes, no comments, no
+            public profile — just a one-line summary and a link to your daily
+            beginner.
           </Text>
 
           <Pressable onPress={find} disabled={busy} style={{ marginBottom: 20 }}>
@@ -68,7 +71,7 @@ export default function FoundersScreen() {
               {busy ? (
                 <ActivityIndicator color={colors.accentStrong} />
               ) : (
-                <Text style={styles.ctaText}>Look around</Text>
+                <Text style={styles.ctaText}>find my founders</Text>
               )}
             </TinkerGlass>
           </Pressable>
@@ -77,8 +80,12 @@ export default function FoundersScreen() {
 
           {searched && !error && hits.length === 0 ? (
             <Text style={styles.empty}>
-              No neighbors yet. Publish a few essays and try again.
+              {"You're early — there aren't enough founders here yet for a match. Check back as more opt in."}
             </Text>
+          ) : null}
+
+          {hits.length > 0 ? (
+            <Text style={styles.section}>Founders adjacent to you</Text>
           ) : null}
 
           {hits.map((h, i) => (
@@ -126,6 +133,12 @@ const styles = StyleSheet.create({
     fontSize: type.base,
     color: colors.foreground,
   },
+  section: {
+    fontFamily: fonts.sansSemiBold,
+    fontSize: type.base,
+    color: colors.foreground,
+    marginBottom: 12,
+  },
   error: {
     fontFamily: fonts.sans,
     fontSize: type.small,
@@ -141,6 +154,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sans,
     fontSize: type.body,
     color: colors.muted,
+    lineHeight: 20,
   },
   card: {
     backgroundColor: colors.card,

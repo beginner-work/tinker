@@ -6,7 +6,6 @@ import { AppChrome } from "../src/components/AppChrome";
 import { useAuth } from "../src/auth/AuthContext";
 import { colors, fonts, radius, type } from "../src/theme";
 import { TinkerGlass } from "../src/components/TinkerGlass";
-import { API_BASE } from "../src/api/client";
 import {
   clearGitHubConnection,
   getGitHubConfig,
@@ -18,17 +17,14 @@ const LINKS = [
   {
     label: "Wallet",
     href: "https://www.beginner.work/wallet",
-    blurb: "Receive deposited beginner backer cards.",
   },
   {
-    label: "Back me",
+    label: "Show my QR code",
     href: "https://www.beginner.work/tyler-lindow#share",
-    blurb: "Open your beginner profile share sheet.",
   },
   {
     label: "Open beginner",
     href: "https://www.beginner.work/",
-    blurb: "The public surface next door.",
   },
 ];
 
@@ -47,25 +43,14 @@ export default function ProfileScreen() {
       <SafeAreaView style={styles.screen} edges={["bottom"]}>
         <View style={styles.body}>
           <Text style={styles.title}>Account</Text>
-          <Text style={styles.lede}>
-            {signedIn
-              ? "Signed in. Essays publish as pull requests into your linked GitHub repo."
-              : "Sign in to sync drafts and essays with the web app."}
-          </Text>
-
-          <Text style={styles.meta}>API {API_BASE}</Text>
+          {signedIn ? null : (
+            <Text style={styles.lede}>Sign in to sync drafts and essays with the web app.</Text>
+          )}
 
           <Text style={styles.section}>GitHub repo</Text>
           <View style={styles.row}>
             <Text style={styles.rowTitle}>
               {github ? repoLabel(github) : "Not connected"}
-            </Text>
-            <Text style={styles.rowBlurb}>
-              {github
-                ? `Writings land under ${github.pathTemplate}${
-                    github.login ? ` · @${github.login}` : ""
-                  }`
-                : "Connect a repo before writing — every essay opens a PR."}
             </Text>
             <Pressable
               onPress={() => router.push("/connect-repo")}
@@ -118,7 +103,6 @@ export default function ProfileScreen() {
               onPress={() => Linking.openURL(item.href)}
             >
               <Text style={styles.rowTitle}>{item.label}</Text>
-              <Text style={styles.rowBlurb}>{item.blurb}</Text>
             </Pressable>
           ))}
         </View>

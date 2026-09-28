@@ -45,9 +45,7 @@ export default function EssaysScreen() {
           }
           contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 24 }}
           ListEmptyComponent={
-            <Text style={styles.empty}>
-              Nothing published yet. Pick a place on the home screen to start.
-            </Text>
+            <Text style={styles.empty}>No essays here yet.</Text>
           }
           renderItem={({ item }) => (
             <Pressable

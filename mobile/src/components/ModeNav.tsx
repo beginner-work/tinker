@@ -33,6 +33,11 @@ export function ModeNav({
           icon="sparkles"
           selected={mode === "ai"}
           disabled={offline}
+          title={
+            offline
+              ? "You're offline — No AI mode is on automatically"
+              : "Write with AI — the guided interview"
+          }
           onPress={() => onChange("ai")}
         />
         <Segment
@@ -40,6 +45,7 @@ export function ModeNav({
           icon="create-outline"
           selected={mode === "noai"}
           disabled={false}
+          title="No AI — write freely, no questions"
           onPress={() => onChange("noai")}
         />
       </TinkerGlass>
@@ -57,12 +63,14 @@ function Segment({
   icon,
   selected,
   disabled,
+  title,
   onPress,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   selected: boolean;
   disabled: boolean;
+  title: string;
   onPress: () => void;
 }) {
   return (
@@ -70,6 +78,7 @@ function Segment({
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
+      accessibilityLabel={title}
       accessibilityState={{ selected, disabled }}
       style={[
         styles.segment,

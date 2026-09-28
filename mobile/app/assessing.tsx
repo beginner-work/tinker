@@ -7,7 +7,11 @@ import type { Essay } from "../src/api/userData";
 import { colors, fonts, radius, type } from "../src/theme";
 import { TinkerGlass } from "../src/components/TinkerGlass";
 
-/** Post-publish confirmation — essay saved, PR opened (or retryable). */
+/**
+ * Post-publish confirmation — copy matches
+ * src/renderer/renderer.js showPitchAssessing verbatim.
+ * GitHub PR controls are platform extras under the web actions.
+ */
 export default function AssessingScreen() {
   const params = useLocalSearchParams<{
     id?: string;
@@ -56,27 +60,50 @@ export default function AssessingScreen() {
     }
   }
 
+  const titleText = essay?.title || "your essay";
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.body}>
-        <Text style={styles.eyebrow}>Published</Text>
-        <Text style={styles.title}>Your writing is being assessed.</Text>
+        <Text style={styles.crumb}>You created another essay</Text>
+        <Text style={styles.title}>Your pitch is being assessed.</Text>
         <Text style={styles.lede}>
-          We&apos;ll place it where it fits. A pull request carries the words
-          into your GitHub repo.
+          {
+            "We're reading " +
+            titleText +
+            " against your pitches. You'll get a note the moment it settles into one — keep writing, or step away and we'll let you know where it landed."
+          }
         </Text>
+
+        <Pressable
+          onPress={() =>
+            params.id
+              ? router.replace({ pathname: "/read", params: { id: params.id } })
+              : router.replace("/essays")
+          }
+          style={{ marginBottom: 12 }}
+        >
+          <Text style={styles.secondary}>Re-read your essay</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.replace("/")}
+          style={{ marginBottom: 20 }}
+        >
+          <TinkerGlass shape="capsule" style={styles.cta}>
+            <Text style={styles.ctaText}>Keep writing →</Text>
+          </TinkerGlass>
+        </Pressable>
 
         {prUrl ? (
           <Pressable
             onPress={() => Linking.openURL(prUrl)}
             style={{ marginBottom: 12 }}
           >
-            <TinkerGlass shape="capsule" style={styles.cta}>
-              <Text style={styles.ctaText}>
-                Open PR
-                {essay?.github?.prNumber ? ` #${essay.github.prNumber}` : ""} →
-              </Text>
-            </TinkerGlass>
+            <Text style={styles.secondary}>
+              Open PR
+              {essay?.github?.prNumber ? ` #${essay.github.prNumber}` : ""} →
+            </Text>
           </Pressable>
         ) : prError ? (
           <View style={styles.errorBox}>
@@ -90,29 +117,6 @@ export default function AssessingScreen() {
             ) : null}
           </View>
         ) : null}
-
-        <Pressable
-          onPress={() => router.replace("/")}
-          style={{ marginBottom: 12 }}
-        >
-          <TinkerGlass shape="capsule" style={styles.ctaSecondary}>
-            <Text style={styles.ctaText}>Keep writing</Text>
-          </TinkerGlass>
-        </Pressable>
-
-        {params.id ? (
-          <Pressable
-            onPress={() =>
-              router.replace({ pathname: "/read", params: { id: params.id } })
-            }
-          >
-            <Text style={styles.secondary}>Read essay →</Text>
-          </Pressable>
-        ) : null}
-
-        <Pressable onPress={() => router.replace("/essays")}>
-          <Text style={styles.secondary}>All essays</Text>
-        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -125,11 +129,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     justifyContent: "center",
   },
-  eyebrow: {
+  crumb: {
     fontFamily: fonts.sansMedium,
     fontSize: type.micro,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
+    letterSpacing: 0.4,
     color: colors.forest,
     marginBottom: 12,
   },
@@ -152,11 +155,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
   },
-  ctaSecondary: {
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-  },
   ctaText: {
     fontFamily: fonts.sansSemiBold,
     fontSize: type.base,
@@ -168,7 +166,7 @@ const styles = StyleSheet.create({
     borderColor: colors.errorBorder,
     borderRadius: radius.chip,
     padding: 12,
-    marginBottom: 16,
+    marginTop: 8,
   },
   errorText: {
     fontFamily: fonts.sans,

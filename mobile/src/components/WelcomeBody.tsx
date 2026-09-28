@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { TinkerGlass, TinkerGlassGroup } from "./TinkerGlass";
 import { colors, space } from "../theme";
-import type { WritingMode } from "./ModeNav";
 
 const PLACES = [
   { id: "cafe", label: "Cafe" },
@@ -12,12 +12,30 @@ const PLACES = [
 ] as const;
 
 type Props = {
-  mode: WritingMode;
-  onPickPlace: (id: string) => void;
+  onPickPlace: (id: string, customSeed?: string) => void;
   selectedId?: string | null;
 };
 
-export function WelcomeBody({ mode, onPickPlace, selectedId }: Props) {
+/** Welcome copy matches src/renderer/index.html verbatim. */
+export function WelcomeBody({ onPickPlace, selectedId }: Props) {
+  const [otherOpen, setOtherOpen] = useState(false);
+  const [otherText, setOtherText] = useState("");
+
+  function onTile(id: string) {
+    if (id === "other") {
+      setOtherOpen(true);
+      return;
+    }
+    setOtherOpen(false);
+    onPickPlace(id);
+  }
+
+  function onStartOther() {
+    const seed = otherText.trim();
+    if (!seed) return;
+    onPickPlace("other", seed);
+  }
+
   return (
     <View style={styles.body}>
       {/* Atmospheric planes so Liquid Glass has color to refract.
@@ -52,14 +70,9 @@ export function WelcomeBody({ mode, onPickPlace, selectedId }: Props) {
         pointerEvents="none"
       />
 
-      <Text style={styles.eyebrow}>tinker</Text>
       <Text style={styles.headline}>You are a founder.</Text>
-      <Text style={styles.lede}>
-        Pick a place to start writing
-        {mode === "noai"
-          ? " — No AI mode is on."
-          : " — with a guided interview."}
-      </Text>
+      <Text style={styles.lede}>You just need a seed to start.</Text>
+      <Text style={styles.prompt}>Where are you right now?</Text>
 
       <TinkerGlassGroup style={styles.grid} spacing={10}>
         {PLACES.map((place) => {
@@ -74,7 +87,7 @@ export function WelcomeBody({ mode, onPickPlace, selectedId }: Props) {
               style={styles.cardGlass}
             >
               <Pressable
-                onPress={() => onPickPlace(place.id)}
+                onPress={() => onTile(place.id)}
                 accessibilityRole="button"
                 accessibilityLabel={place.label}
                 accessibilityState={{ selected }}
@@ -84,14 +97,37 @@ export function WelcomeBody({ mode, onPickPlace, selectedId }: Props) {
                 ]}
               >
                 <Text style={styles.cardLabel}>{place.label}</Text>
-                {selected ? (
-                  <Text style={styles.cardHint}>selected</Text>
-                ) : null}
               </Pressable>
             </TinkerGlass>
           );
         })}
       </TinkerGlassGroup>
+
+      {otherOpen ? (
+        <View style={styles.otherForm}>
+          <TextInput
+            style={styles.otherInput}
+            value={otherText}
+            onChangeText={setOtherText}
+            placeholder="Where are you?"
+            placeholderTextColor={colors.muted}
+            maxLength={120}
+            autoFocus
+            onSubmitEditing={onStartOther}
+          />
+          <Pressable
+            onPress={onStartOther}
+            disabled={!otherText.trim()}
+            style={({ pressed }) => [
+              styles.otherSubmit,
+              pressed && styles.cardPressed,
+              !otherText.trim() && styles.otherSubmitDisabled,
+            ]}
+          >
+            <Text style={styles.otherSubmitText}>Start →</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -123,14 +159,6 @@ const styles = StyleSheet.create({
   floor: {
     ...StyleSheet.absoluteFill,
   },
-  eyebrow: {
-    fontFamily: "InstrumentSans_500Medium",
-    fontSize: 12,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: colors.muted,
-    marginBottom: space[3],
-  },
   headline: {
     fontFamily: "Fraunces_500Medium",
     fontSize: 40,
@@ -144,8 +172,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: colors.muted,
-    marginBottom: space[7],
+    marginBottom: space[3],
     maxWidth: 320,
+  },
+  prompt: {
+    fontFamily: "InstrumentSans_500Medium",
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.foreground,
+    marginBottom: space[5],
   },
   grid: {
     flexDirection: "row",
@@ -172,12 +207,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.foreground,
   },
-  cardHint: {
-    marginTop: 4,
+  otherForm: {
+    marginTop: space[5],
+    gap: space[3],
+  },
+  otherInput: {
     fontFamily: "InstrumentSans_400Regular",
-    fontSize: 11,
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-    color: colors.accentStrong,
+    fontSize: 16,
+    color: colors.foreground,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  otherSubmit: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.accentStrong,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  otherSubmitDisabled: {
+    opacity: 0.45,
+  },
+  otherSubmitText: {
+    fontFamily: "InstrumentSans_600SemiBold",
+    fontSize: 15,
+    color: colors.surface,
   },
 });

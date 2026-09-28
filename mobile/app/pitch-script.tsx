@@ -1,45 +1,63 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { AppChrome } from "../src/components/AppChrome";
-import { DECK_HEADINGS, colors, fonts, radius, type } from "../src/theme";
+import { DECK_HEADINGS, colors, fonts, type } from "../src/theme";
 import { TinkerGlass } from "../src/components/TinkerGlass";
 
-/** On-camera pitch script — eleven headings mirrored from the web deck. */
+/** Visible strings match src/renderer/pitch-script.js STR. */
 export default function PitchScriptScreen() {
+  const [copied, setCopied] = useState(false);
+
+  function onCopy() {
+    setCopied(true);
+    Haptics.selectionAsync().catch(() => {});
+    setTimeout(() => setCopied(false), 1600);
+  }
+
   return (
     <AppChrome showModeNav={false}>
       <SafeAreaView style={styles.screen} edges={["bottom"]}>
         <View style={styles.topBar}>
           <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.topAction}>Close</Text>
+            <Text style={styles.topAction}>Back</Text>
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={styles.body}>
-          <Text style={styles.title}>Pitch script</Text>
-          <Text style={styles.lede}>
-            Eleven headings. Speak from your own words — this is the camera
-            view.
+          <Text style={styles.title}>Prepare a script for a video</Text>
+          <Text style={styles.empty}>
+            {"This pitch doesn't have any resolved phrases yet. Add writing under the pitch's headings, then come back."}
           </Text>
           {DECK_HEADINGS.map((heading, i) => (
             <Pressable
               key={heading}
-              onPress={() =>
-                Haptics.selectionAsync().catch(() => {})
-              }
+              onPress={() => Haptics.selectionAsync().catch(() => {})}
               style={{ marginBottom: 10 }}
             >
               <TinkerGlass shape="card" style={styles.card}>
-                <Text style={styles.num}>{String(i + 1).padStart(2, "0")}</Text>
-                <Text style={styles.heading}>{heading}</Text>
-                <Text style={styles.hint}>
-                  Lines light up from your essays on web — native fill lands
-                  next.
+                <Text style={styles.num}>
+                  {String(i + 1).padStart(2, "0")}
                 </Text>
+                <Text style={styles.heading}>{heading}</Text>
               </TinkerGlass>
             </Pressable>
           ))}
+          <Text style={styles.total}>Total</Text>
+          <Pressable onPress={onCopy} style={{ marginTop: 12 }}>
+            <TinkerGlass shape="capsule" style={styles.copyBtn}>
+              <Text style={styles.copyText}>
+                {copied ? "Copied" : "Copy script"}
+              </Text>
+            </TinkerGlass>
+          </Pressable>
         </ScrollView>
       </SafeAreaView>
     </AppChrome>
@@ -63,9 +81,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: type.display,
     color: colors.foreground,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  lede: {
+  empty: {
     fontFamily: fonts.sans,
     fontSize: type.body,
     color: colors.muted,
@@ -83,12 +101,20 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sansSemiBold,
     fontSize: type.base,
     color: colors.foreground,
-    marginBottom: 6,
   },
-  hint: {
-    fontFamily: fonts.sans,
-    fontSize: type.small,
+  total: {
+    marginTop: 8,
+    fontFamily: fonts.sansMedium,
+    fontSize: type.body,
     color: colors.muted,
-    lineHeight: 18,
+  },
+  copyBtn: {
+    alignItems: "center",
+    paddingVertical: 14,
+  },
+  copyText: {
+    fontFamily: fonts.sansSemiBold,
+    fontSize: type.base,
+    color: colors.foreground,
   },
 });
