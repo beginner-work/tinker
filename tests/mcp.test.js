@@ -277,6 +277,9 @@ test("tools/list exposes ask_followups and draft_linkedin_post, and no raw conve
     "get_autonomy_settings",
     "get_career_record",
     "check_text",
+    "list_content",
+    "read_content",
+    "create_content_draft",
   ]);
   const autonomy = tools.find((t) => t.name === "get_autonomy_settings");
   assert.equal(autonomy.annotations.readOnlyHint, true);
@@ -566,6 +569,9 @@ test("get_autonomy_settings returns this user's 14 settings and no write tool", 
     "get_autonomy_settings",
     "get_career_record",
     "check_text",
+    "list_content",
+    "read_content",
+    "create_content_draft",
   ]);
   assert.equal(names.includes("set_autonomy_settings"), false);
   assert.equal(names.includes("update_autonomy_settings"), false);

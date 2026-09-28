@@ -413,6 +413,16 @@ Tools:
   Pass `currentDraft` to revise, and an optional `instruction` for what
   to change. The result is `{ post, revised, kind }`. The tool returns
   copy only. It does not post to LinkedIn; Stanley still posts.
+- `list_content`. Lists this user's content items. Optional `site`,
+  `type` (`page_section`, `product`, `event`, `post`, `link`), and
+  `status` (`draft` or `published`). A user id in the arguments is ignored.
+- `read_content`. Pass `id`. Someone else's id is an error and the item
+  is not returned.
+- `create_content_draft`. Pass `site`, `type`, `slug`, and `title`.
+  Optional `body`, `fields`, `noteId` (the note it came from), and
+  `draftKey`. The same `draftKey` returns the original draft and does
+  not change it. `status: "published"` is rejected and nothing is saved.
+  The owner publishes from a Tinker session.
 
 There is no raw `converse` tool. Clients cannot supply a system prompt.
 The interview prompt lives in `src/renderer/interview-prompt.js` and is
@@ -427,6 +437,37 @@ model's JSON; it does not publish.
 created on first use if `prisma migrate deploy` has not been run.
 `BEGINNER_MCP_TOKEN` / `BEGINNER_MCP_URL` are only the in-app email
 relay to the beginner Worker. They are not this endpoint.
+
+## Content store
+
+A content item is the note a site publishes: owner, site, type
+(`page_section`, `product`, `event`, `post`, `link`), slug, title, body,
+structured `fields`, status (`draft` or `published`), `noteId`, and
+`updatedAt`. Rows live in the existing Postgres (`DATABASE_URL`), the
+same database as MCP keys. There is no new service and no model call.
+
+The signed-in owner uses `/api/content` (the same Stytch session bearer
+as `/api/career`, which the Expo app can call). `GET` lists that user's
+items, or one item with `?id=`. Someone else's id is 404. `POST` creates
+an item. `PATCH` edits it, including `status`. A bearer that starts with
+`mcp_` is rejected. Bots use the content tools above and cannot publish.
+
+Published items for one site are public and cacheable:
+
+```
+GET /api/sites/dreamingwithmarisol.com/content
+GET /api/sites/dreamingwithmarisol.com/content/about
+```
+
+Drafts are omitted. The response does not include the owner, `noteId`,
+or `draftKey`.
+
+`POST /api/content` with `{ "action": "import" }` copies the
+dreamingwithmarisol.com defaults from `tlindow/dreamingwithmarisol` PR #38
+(`content/site.ts`, folded like `lib/content-store.ts`) onto the signed-in
+user as drafts. Importing again returns those same rows. How that site
+would read the public API is in
+[`docs/marisol-content-loader.md`](docs/marisol-content-loader.md).
 
 ## LinkedIn drafts
 
