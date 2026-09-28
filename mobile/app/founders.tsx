@@ -22,7 +22,6 @@ type FounderHit = {
   author?: string;
 };
 
-/** Visible strings match src/renderer/founders.js STR allowlist. */
 export default function FoundersScreen() {
   const { signedIn } = useAuth();
   const [busy, setBusy] = useState(false);
@@ -58,14 +57,6 @@ export default function FoundersScreen() {
     <AppChrome showModeNav={false}>
       <SafeAreaView style={styles.screen} edges={["bottom"]}>
         <ScrollView contentContainerStyle={styles.body}>
-          <Text style={styles.title}>founders</Text>
-          <Text style={styles.lede}>
-            When you make a pitch discoverable, other founders inside tinker can
-            find it as a match for their own pitch. No likes, no comments, no
-            public profile — just a one-line summary and a link to your daily
-            beginner.
-          </Text>
-
           <Pressable onPress={find} disabled={busy} style={{ marginBottom: 20 }}>
             <TinkerGlass shape="capsule" style={styles.cta}>
               {busy ? (
@@ -109,19 +100,6 @@ export default function FoundersScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, paddingTop: 56 },
   body: { paddingHorizontal: 24, paddingBottom: 48 },
-  title: {
-    fontFamily: fonts.display,
-    fontSize: type.display,
-    color: colors.foreground,
-    marginBottom: 8,
-  },
-  lede: {
-    fontFamily: fonts.sans,
-    fontSize: type.body,
-    color: colors.muted,
-    marginBottom: 20,
-    lineHeight: 20,
-  },
   cta: {
     alignItems: "center",
     paddingVertical: 14,

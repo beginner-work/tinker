@@ -1,10 +1,10 @@
 import { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { router } from "expo-router";
 import { DrawerToggle } from "./DrawerToggle";
 import { ModeNav, WritingMode } from "./ModeNav";
 import { SidebarDrawer } from "./SidebarDrawer";
 import { useAuth } from "../auth/AuthContext";
+import { router } from "expo-router";
 
 type Props = {
   children: React.ReactNode;
@@ -30,7 +30,6 @@ export function AppChrome({
   const handleMode = useCallback(
     (next: WritingMode) => {
       onModeChange?.(next);
-      if (next === "noai") router.push("/freewrite");
     },
     [onModeChange],
   );

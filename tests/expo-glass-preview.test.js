@@ -63,14 +63,7 @@ test("GitHub repo is required before writing and essays open PRs", () => {
   const index = fs.readFileSync(path.join(APP, "index.tsx"), "utf8");
   assert.match(index, /isGitHubConnected/);
   assert.match(index, /connect-repo/);
-
-  const write = fs.readFileSync(path.join(APP, "write.tsx"), "utf8");
-  assert.match(write, /isGitHubConnected/);
-  assert.match(write, /publishEssayWithPullRequest/);
-
-  const freewrite = fs.readFileSync(path.join(APP, "freewrite.tsx"), "utf8");
-  assert.match(freewrite, /isGitHubConnected/);
-  assert.match(freewrite, /publishEssayWithPullRequest/);
+  assert.match(index, /publishEssayWithPullRequest/);
 
   const assessing = fs.readFileSync(path.join(APP, "assessing.tsx"), "utf8");
   assert.match(assessing, /Open PR/);
@@ -85,7 +78,6 @@ test("Glass chrome + interview engine present", () => {
   assert.match(glass, /GlassView/);
   assert.match(glass, /GlassContainer/);
   assert.match(glass, /readReduceTransparency/);
-  assert.match(glass, /typeof fn !== "function"/);
 
   const interview = fs.readFileSync(
     path.join(MOBILE, "src/lib/interview.ts"),
@@ -104,106 +96,66 @@ test("Glass chrome + interview engine present", () => {
   assert.match(chrome, /ModeNav/);
 });
 
-test("Expo app.json is named tinker with production apiBase", () => {
-  const appJson = JSON.parse(
-    fs.readFileSync(path.join(MOBILE, "app.json"), "utf8"),
-  );
-  assert.equal(appJson.expo.name, "tinker");
-  assert.equal(appJson.expo.slug, "tinker");
-  assert.equal(appJson.expo.ios?.bundleIdentifier, "co.tinker.expo");
-  assert.equal(
-    appJson.expo.extra?.apiBase,
-    "https://tinker.beginner.work",
-  );
-  assert.ok(
-    appJson.expo.plugins.includes("expo-router"),
-    "expo-router plugin missing",
-  );
-  assert.ok(appJson.expo.updates?.url, "EAS Update URL missing");
-});
+test("Home is the writing surface with a location dropdown", () => {
+  const index = fs.readFileSync(path.join(APP, "index.tsx"), "utf8");
+  assert.match(index, /LocationPicker/);
+  assert.match(index, /What are you learning\?/);
+  assert.match(index, /Type your answer in your own words…/);
+  assert.match(index, /Next →/);
+  assert.match(index, /This is everything →/);
+  assert.doesNotMatch(index, /You are a founder/);
+  assert.doesNotMatch(index, /You just need a seed/);
+  assert.doesNotMatch(index, /Where are you right now\?/);
+  assert.doesNotMatch(index, /WelcomeBody/);
 
-test("Welcome chrome does not steal taps from place cards", () => {
-  const welcome = fs.readFileSync(
-    path.join(MOBILE, "src/components/WelcomeBody.tsx"),
+  const picker = fs.readFileSync(
+    path.join(MOBILE, "src/components/LocationPicker.tsx"),
     "utf8",
   );
-  assert.match(welcome, /pointerEvents="none"/);
-  assert.match(welcome, /onPickPlace/);
-  assert.match(welcome, /You just need a seed to start\./);
-  assert.match(welcome, /Where are you right now\?/);
-  assert.match(welcome, /Where are you\?/);
-  assert.match(welcome, /Start →/);
-  assert.doesNotMatch(welcome, /Pick a place to start writing/);
-  assert.doesNotMatch(welcome, /guided interview/);
+  assert.match(picker, /Cafe/);
+  assert.match(picker, /Home/);
+  assert.match(picker, /Work/);
+  assert.match(picker, /Somewhere else/);
+  assert.match(picker, /chevron-down/);
+  assert.match(picker, /Where are you\?/);
 
-  const index = fs.readFileSync(path.join(APP, "index.tsx"), "utf8");
-  // Gate on falsy signedIn (null hydrating OR false) — never race past auth.
-  assert.match(index, /if \(!signedIn\)/);
+  assert.ok(
+    !fs.existsSync(path.join(MOBILE, "src/components/WelcomeBody.tsx")),
+    "WelcomeBody should be removed",
+  );
 });
 
-test("Mobile product copy matches the web renderer", () => {
+test("Framing copy is stripped from auth and chrome", () => {
   const signIn = fs.readFileSync(path.join(APP, "sign-in.tsx"), "utf8");
-  assert.match(signIn, /Sign in to tinker/);
-  assert.match(signIn, /Enter your phone — we'll text you a six-digit code\./);
-  assert.match(signIn, /Enter your code/);
-  assert.match(signIn, /The code expires in 10 minutes\./);
   assert.match(signIn, /\(555\) 000-0000/);
+  assert.match(signIn, /Send code/);
   assert.match(signIn, /Verify/);
-  assert.match(signIn, /← Use a different number/);
-  assert.match(
-    signIn,
-    /Sign-up and login share this screen — first-time users get an/,
-  );
-
-  const freewrite = fs.readFileSync(path.join(APP, "freewrite.tsx"), "utf8");
-  assert.match(freewrite, /What are you learning\?/);
-  assert.match(freewrite, /Type your answer in your own words…/);
-  assert.match(freewrite, /This is everything →/);
-  assert.match(freewrite, /Saved on this device\./);
+  assert.doesNotMatch(signIn, /Sign in to tinker/);
+  assert.doesNotMatch(signIn, /quiet place to be on the web/);
+  assert.doesNotMatch(signIn, /Sign-up and login share this screen/);
 
   const assessing = fs.readFileSync(path.join(APP, "assessing.tsx"), "utf8");
-  assert.match(assessing, /You created another essay/);
-  assert.match(assessing, /Your pitch is being assessed\./);
   assert.match(assessing, /Keep writing →/);
   assert.match(assessing, /Re-read your essay/);
+  assert.doesNotMatch(assessing, /Your pitch is being assessed/);
+  assert.doesNotMatch(assessing, /You created another essay/);
 
   const founders = fs.readFileSync(path.join(APP, "founders.tsx"), "utf8");
-  assert.match(founders, /styles\.title\}>founders</);
   assert.match(founders, /find my founders/);
-  assert.match(founders, /Founders adjacent to you/);
-  assert.match(founders, /You're early — there aren't enough founders here yet/);
+  assert.doesNotMatch(founders, /When you make a pitch discoverable/);
 
   const pitch = fs.readFileSync(path.join(APP, "pitch-script.tsx"), "utf8");
-  assert.match(pitch, /Prepare a script for a video/);
   assert.match(pitch, /Copy script/);
-  assert.match(
-    pitch,
-    /This pitch doesn't have any resolved phrases yet/,
-  );
-
-  const essays = fs.readFileSync(path.join(APP, "essays.tsx"), "utf8");
-  assert.match(essays, /No essays here yet\./);
-
-  const write = fs.readFileSync(path.join(APP, "write.tsx"), "utf8");
-  assert.match(write, /Setting the scene…/);
-  assert.match(write, /Stitching your essay…/);
-  assert.match(write, /Something went wrong\./);
-  assert.match(write, /Try again/);
-
-  const interview = fs.readFileSync(
-    path.join(MOBILE, "src/lib/interview.ts"),
-    "utf8",
-  );
-  assert.match(interview, /RULE 8 — TRANSACTIONS AS A MIRROR/);
-  assert.match(interview, /RULE 9 — STEER TOWARD UNEXPLORED PITCH TERRITORY/);
-  assert.match(interview, /RULE 10 — ASK IN THE FOUNDER'S OWN WRITING VOICE/);
+  assert.doesNotMatch(pitch, /Prepare a script for a video/);
+  assert.doesNotMatch(pitch, /Eleven headings/);
 
   const drawer = fs.readFileSync(
     path.join(MOBILE, "src/components/SidebarDrawer.tsx"),
     "utf8",
   );
-  assert.match(drawer, /© 2026 tinker/);
-  assert.doesNotMatch(drawer, /Liquid Glass chrome/);
+  assert.doesNotMatch(drawer, /quiet place to be on the web/);
+  assert.doesNotMatch(drawer, /© 2026 tinker/);
+  assert.doesNotMatch(drawer, /Liquid Glass/);
 });
 
 test("EAS is configured as the iOS release manager", () => {

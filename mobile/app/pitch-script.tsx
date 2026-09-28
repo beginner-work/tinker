@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -13,7 +7,6 @@ import { AppChrome } from "../src/components/AppChrome";
 import { DECK_HEADINGS, colors, fonts, type } from "../src/theme";
 import { TinkerGlass } from "../src/components/TinkerGlass";
 
-/** Visible strings match src/renderer/pitch-script.js STR. */
 export default function PitchScriptScreen() {
   const [copied, setCopied] = useState(false);
 
@@ -32,10 +25,6 @@ export default function PitchScriptScreen() {
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={styles.body}>
-          <Text style={styles.title}>Prepare a script for a video</Text>
-          <Text style={styles.empty}>
-            {"This pitch doesn't have any resolved phrases yet. Add writing under the pitch's headings, then come back."}
-          </Text>
           {DECK_HEADINGS.map((heading, i) => (
             <Pressable
               key={heading}
@@ -50,7 +39,6 @@ export default function PitchScriptScreen() {
               </TinkerGlass>
             </Pressable>
           ))}
-          <Text style={styles.total}>Total</Text>
           <Pressable onPress={onCopy} style={{ marginTop: 12 }}>
             <TinkerGlass shape="capsule" style={styles.copyBtn}>
               <Text style={styles.copyText}>
@@ -77,19 +65,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   body: { paddingHorizontal: 24, paddingBottom: 48 },
-  title: {
-    fontFamily: fonts.display,
-    fontSize: type.display,
-    color: colors.foreground,
-    marginBottom: 12,
-  },
-  empty: {
-    fontFamily: fonts.sans,
-    fontSize: type.body,
-    color: colors.muted,
-    marginBottom: 20,
-    lineHeight: 20,
-  },
   card: { padding: 16 },
   num: {
     fontFamily: fonts.sansMedium,
@@ -101,12 +76,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sansSemiBold,
     fontSize: type.base,
     color: colors.foreground,
-  },
-  total: {
-    marginTop: 8,
-    fontFamily: fonts.sansMedium,
-    fontSize: type.body,
-    color: colors.muted,
   },
   copyBtn: {
     alignItems: "center",

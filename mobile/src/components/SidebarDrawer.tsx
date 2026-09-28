@@ -19,12 +19,10 @@ type Props = {
 };
 
 const LINKS: { label: string; route: string }[] = [
-  { label: "Home", route: "/" },
-  { label: "Write (AI)", route: "/write" },
-  { label: "No AI", route: "/freewrite" },
+  { label: "Write", route: "/" },
   { label: "Essays", route: "/essays" },
-  { label: "GitHub repo", route: "/connect-repo" },
-  { label: "Prepare a script for a video", route: "/pitch-script" },
+  { label: "GitHub", route: "/connect-repo" },
+  { label: "Pitch script", route: "/pitch-script" },
   { label: "founders", route: "/founders" },
   { label: "Account", route: "/profile" },
 ];
@@ -70,7 +68,6 @@ export function SidebarDrawer({
             isInteractive={false}
             style={styles.panelGlass}
           >
-            <Text style={styles.brand}>tinker</Text>
             <View style={styles.list}>
               {LINKS.map((item) => (
                 <Pressable
@@ -103,7 +100,6 @@ export function SidebarDrawer({
                 <Text style={styles.signOutText}>Sign in</Text>
               </Pressable>
             )}
-            <Text style={styles.note}>© 2026 tinker</Text>
           </TinkerGlass>
         </View>
       </View>
@@ -132,13 +128,6 @@ const styles = StyleSheet.create({
     paddingTop: space[5],
     paddingBottom: space[5],
   },
-  brand: {
-    fontFamily: fonts.display,
-    fontSize: 28,
-    color: colors.foreground,
-    letterSpacing: -0.4,
-    marginBottom: space[6],
-  },
   list: { gap: 2 },
   row: {
     paddingVertical: 12,
@@ -162,12 +151,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sansMedium,
     fontSize: type.body,
     color: colors.accentStrong,
-  },
-  note: {
-    marginTop: "auto",
-    fontFamily: fonts.sans,
-    fontSize: 12,
-    lineHeight: 18,
-    color: colors.muted,
   },
 });

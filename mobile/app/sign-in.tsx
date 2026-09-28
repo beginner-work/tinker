@@ -14,7 +14,7 @@ import { useAuth } from "../src/auth/AuthContext";
 import { colors, fonts, radius, type } from "../src/theme";
 import { TinkerGlass } from "../src/components/TinkerGlass";
 
-/** Auth copy matches src/renderer/index.html + auth.js verbatim. */
+/** Auth — functional labels only, no marketing framing. */
 export default function SignIn() {
   const { requestCode, verifyCode, signedIn } = useAuth();
   const [step, setStep] = useState<"phone" | "pin">("phone");
@@ -63,15 +63,6 @@ export default function SignIn() {
         style={styles.body}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Text style={styles.title}>
-          {step === "phone" ? "Sign in to tinker" : "Enter your code"}
-        </Text>
-        <Text style={styles.lede}>
-          {step === "phone"
-            ? "Enter your phone — we'll text you a six-digit code."
-            : `Sent to ${phone}. The code expires in 10 minutes.`}
-        </Text>
-
         {step === "phone" ? (
           <TextInput
             style={styles.input}
@@ -124,11 +115,6 @@ export default function SignIn() {
             <Text style={styles.back}>← Back</Text>
           </Pressable>
         )}
-
-        <Text style={styles.fineprint}>
-          Sign-up and login share this screen — first-time users get an
-          account created automatically when they verify.
-        </Text>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -137,20 +123,6 @@ export default function SignIn() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   body: { flex: 1, paddingHorizontal: 28, paddingTop: 48, justifyContent: "center" },
-  title: {
-    fontFamily: fonts.display,
-    fontSize: 34,
-    lineHeight: 40,
-    color: colors.foreground,
-    marginBottom: 10,
-  },
-  lede: {
-    fontFamily: fonts.sans,
-    fontSize: type.base,
-    lineHeight: 22,
-    color: colors.muted,
-    marginBottom: 28,
-  },
   input: {
     fontFamily: fonts.sans,
     fontSize: type.essay,
@@ -188,14 +160,6 @@ const styles = StyleSheet.create({
     marginTop: 18,
     fontFamily: fonts.sans,
     fontSize: type.body,
-    color: colors.muted,
-    textAlign: "center",
-  },
-  fineprint: {
-    marginTop: 24,
-    fontFamily: fonts.sans,
-    fontSize: type.small,
-    lineHeight: 18,
     color: colors.muted,
     textAlign: "center",
   },

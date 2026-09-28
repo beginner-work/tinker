@@ -43,9 +43,6 @@ export default function ProfileScreen() {
       <SafeAreaView style={styles.screen} edges={["bottom"]}>
         <View style={styles.body}>
           <Text style={styles.title}>Account</Text>
-          {signedIn ? null : (
-            <Text style={styles.lede}>Sign in to sync drafts and essays with the web app.</Text>
-          )}
 
           <Text style={styles.section}>GitHub repo</Text>
           <View style={styles.row}>

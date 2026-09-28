@@ -7,11 +7,7 @@ import type { Essay } from "../src/api/userData";
 import { colors, fonts, radius, type } from "../src/theme";
 import { TinkerGlass } from "../src/components/TinkerGlass";
 
-/**
- * Post-publish confirmation — copy matches
- * src/renderer/renderer.js showPitchAssessing verbatim.
- * GitHub PR controls are platform extras under the web actions.
- */
+/** Post-publish — actions only, no framing copy. */
 export default function AssessingScreen() {
   const params = useLocalSearchParams<{
     id?: string;
@@ -60,20 +56,12 @@ export default function AssessingScreen() {
     }
   }
 
-  const titleText = essay?.title || "your essay";
-
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.body}>
-        <Text style={styles.crumb}>You created another essay</Text>
-        <Text style={styles.title}>Your pitch is being assessed.</Text>
-        <Text style={styles.lede}>
-          {
-            "We're reading " +
-            titleText +
-            " against your pitches. You'll get a note the moment it settles into one — keep writing, or step away and we'll let you know where it landed."
-          }
-        </Text>
+        {essay?.title ? (
+          <Text style={styles.title}>{essay.title}</Text>
+        ) : null}
 
         <Pressable
           onPress={() =>
@@ -129,26 +117,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     justifyContent: "center",
   },
-  crumb: {
-    fontFamily: fonts.sansMedium,
-    fontSize: type.micro,
-    letterSpacing: 0.4,
-    color: colors.forest,
-    marginBottom: 12,
-  },
   title: {
     fontFamily: fonts.display,
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 28,
+    lineHeight: 34,
     color: colors.foreground,
-    marginBottom: 12,
-  },
-  lede: {
-    fontFamily: fonts.sans,
-    fontSize: type.base,
-    lineHeight: 22,
-    color: colors.muted,
-    marginBottom: 28,
+    marginBottom: 24,
   },
   cta: {
     alignItems: "center",
