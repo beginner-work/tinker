@@ -30,7 +30,9 @@ export default function WelcomeScreen() {
   const onPickPlace = useCallback(
     async (id: string) => {
       setPicked(id);
-      if (signedIn === false) {
+      // null = still hydrating SecureStore; treat as signed-out so we
+      // never race past the gate into createDraft / connect-repo.
+      if (!signedIn) {
         router.push("/sign-in");
         return;
       }

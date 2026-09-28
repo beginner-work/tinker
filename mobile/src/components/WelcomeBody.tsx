@@ -20,7 +20,8 @@ type Props = {
 export function WelcomeBody({ mode, onPickPlace, selectedId }: Props) {
   return (
     <View style={styles.body}>
-      {/* Atmospheric planes so Liquid Glass has color to refract */}
+      {/* Atmospheric planes so Liquid Glass has color to refract.
+       * pointerEvents none — these must never steal taps from cards. */}
       <LinearGradient
         colors={[
           colors.logoPink,
@@ -34,18 +35,21 @@ export function WelcomeBody({ mode, onPickPlace, selectedId }: Props) {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.wedge}
+        pointerEvents="none"
       />
       <LinearGradient
         colors={["rgba(99,102,241,0.18)", "transparent"]}
         start={{ x: 1, y: 0 }}
         end={{ x: 0.2, y: 0.6 }}
         style={styles.haze}
+        pointerEvents="none"
       />
       <LinearGradient
         colors={["transparent", "rgba(253,186,116,0.22)"]}
         start={{ x: 0.5, y: 0.35 }}
         end={{ x: 0.5, y: 1 }}
         style={styles.floor}
+        pointerEvents="none"
       />
 
       <Text style={styles.eyebrow}>tinker</Text>

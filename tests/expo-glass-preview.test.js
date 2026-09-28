@@ -120,6 +120,19 @@ test("Expo app.json is named tinker with production apiBase", () => {
   assert.ok(appJson.expo.updates?.url, "EAS Update URL missing");
 });
 
+test("Welcome chrome does not steal taps from place cards", () => {
+  const welcome = fs.readFileSync(
+    path.join(MOBILE, "src/components/WelcomeBody.tsx"),
+    "utf8",
+  );
+  assert.match(welcome, /pointerEvents="none"/);
+  assert.match(welcome, /onPickPlace/);
+
+  const index = fs.readFileSync(path.join(APP, "index.tsx"), "utf8");
+  // Gate on falsy signedIn (null hydrating OR false) — never race past auth.
+  assert.match(index, /if \(!signedIn\)/);
+});
+
 test("EAS is configured as the iOS release manager", () => {
   const eas = JSON.parse(
     fs.readFileSync(path.join(MOBILE, "eas.json"), "utf8"),
