@@ -84,7 +84,8 @@ test("Glass chrome + interview engine present", () => {
   );
   assert.match(glass, /GlassView/);
   assert.match(glass, /GlassContainer/);
-  assert.match(glass, /isReduceTransparencyEnabled/);
+  assert.match(glass, /readReduceTransparency/);
+  assert.match(glass, /typeof fn !== "function"/);
 
   const interview = fs.readFileSync(
     path.join(MOBILE, "src/lib/interview.ts"),

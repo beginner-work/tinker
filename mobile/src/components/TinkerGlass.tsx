@@ -47,6 +47,17 @@ export function canUseLiquidGlass(
   return flags.liquid && flags.api && !reduceTransparency;
 }
 
+/** Web / older RN builds may omit this a11y API — never call it bare. */
+async function readReduceTransparency(): Promise<boolean> {
+  const fn = AccessibilityInfo?.isReduceTransparencyEnabled;
+  if (typeof fn !== "function") return false;
+  try {
+    return !!(await fn.call(AccessibilityInfo));
+  } catch {
+    return false;
+  }
+}
+
 export function useLiquidGlassAvailability(): Availability & {
   ready: boolean;
   live: boolean;
@@ -59,30 +70,28 @@ export function useLiquidGlassAvailability(): Availability & {
 
   useEffect(() => {
     let mounted = true;
-    AccessibilityInfo.isReduceTransparencyEnabled()
-      .then((enabled) => {
-        if (!mounted) return;
-        const next = { ...readNativeFlags(), reduceTransparency: !!enabled };
-        cachedAvailability = next;
-        setState(next);
-        setReady(true);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        const next = { ...readNativeFlags(), reduceTransparency: false };
-        cachedAvailability = next;
-        setState(next);
-        setReady(true);
-      });
+    readReduceTransparency().then((enabled) => {
+      if (!mounted) return;
+      const next = { ...readNativeFlags(), reduceTransparency: !!enabled };
+      cachedAvailability = next;
+      setState(next);
+      setReady(true);
+    });
 
-    const sub = AccessibilityInfo.addEventListener?.(
-      "reduceTransparencyChanged",
-      (enabled: boolean) => {
-        const next = { ...readNativeFlags(), reduceTransparency: !!enabled };
-        cachedAvailability = next;
-        setState(next);
-      },
-    );
+    const sub =
+      typeof AccessibilityInfo?.addEventListener === "function"
+        ? AccessibilityInfo.addEventListener(
+            "reduceTransparencyChanged",
+            (enabled: boolean) => {
+              const next = {
+                ...readNativeFlags(),
+                reduceTransparency: !!enabled,
+              };
+              cachedAvailability = next;
+              setState(next);
+            },
+          )
+        : null;
 
     return () => {
       mounted = false;
