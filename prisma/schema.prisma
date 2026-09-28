@@ -51,6 +51,32 @@ model McpOAuthClient {
   createdAt    DateTime @default(now())
 }
 
+// A note published as site content. type is page_section, product,
+// event, post, or link. status is draft or published. fields holds
+// the structured copy for that type. noteId is the note it came from.
+// draftKey is the idempotency key for a draft. The public site API
+// reads published rows only. Someone else's id is not this row.
+model ContentItem {
+  id        String   @id @default(cuid())
+  userId    String
+  site      String
+  type      String
+  slug      String
+  title     String
+  body      String   @default("")
+  fields    Json     @default("{}")
+  status    String
+  noteId    String?
+  draftKey  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([site, slug])
+  @@unique([userId, draftKey])
+  @@index([userId])
+  @@index([site, status])
+}
+
 // One-time authorization codes. codeHash is the SHA-256 hex of the code.
 // usedAt is set when the code is exchanged.
 model McpOAuthCode {

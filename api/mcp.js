@@ -11,11 +11,13 @@
  *
  * Tools are fixed-prompt follow-ups (ask_followups), LinkedIn drafts
  * (draft_linkedin_post), a read-only look at this user's autonomy
- * settings (get_autonomy_settings), and the career record
- * (get_career_record, check_text). There is no raw converse proxy and
- * no write tool for autonomy settings or the career record. GET/DELETE
- * return 405: this server does not keep an SSE session. The writing UI
- * is not involved. draft_linkedin_post shares api/_lib/linkedin-draft.js
+ * settings (get_autonomy_settings), the career record
+ * (get_career_record, check_text), and site content (list_content,
+ * read_content, create_content_draft). There is no raw converse proxy
+ * and no write tool for autonomy settings or the career record.
+ * Content tools can draft. They cannot publish. GET/DELETE return 405:
+ * this server does not keep an SSE session. The writing UI is not
+ * involved. draft_linkedin_post shares api/_lib/linkedin-draft.js
  * with POST /api/claude/converse mode "linkedin". It does not post.
  *
  * Session auth uses STYTCH_PROJECT_ID and STYTCH_SECRET. Tool calls use
@@ -35,6 +37,7 @@ const { toolSettings } = require("./_lib/autonomy.js");
 const { UNAVAILABLE, readAll } = require("./_lib/autonomy-redis.js");
 const { UNAVAILABLE: CAREER_UNAVAILABLE, readForTool, shapeForTool } = require("./_lib/career.js");
 const { checkText } = require("./_lib/career-check.js");
+const contentStore = require("./_lib/content-store.js");
 const pkg = require("../package.json");
 
 const SUPPORTED_PROTOCOLS = ["2025-03-26", "2025-06-18"];
@@ -57,6 +60,10 @@ const INSTRUCTIONS = [
   "Call check_text with text, and optional company and field_label, to check a draft.",
   "Each claim is pass, mismatch, unsupported, or needs_claire. ready is true only when every claim passes. An empty draft, or a draft with no claims, is not ready.",
   "These career tools do not write. There is no tool that verifies or edits a fact.",
+  "Call list_content to list this user's content items. Optional site, type, and status filter the list.",
+  "Call read_content with an id to read one item. Someone else's id returns an error and no item.",
+  "Call create_content_draft to save a draft. The same draftKey returns the original draft and does not change it.",
+  "Content tools never publish. status published is rejected and nothing is saved. The owner publishes in Tinker.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -274,12 +281,129 @@ const CHECK_TEXT_TOOL = {
   },
 };
 
+const LIST_CONTENT_TOOL = {
+  name: "list_content",
+  title: "List content items",
+  description: [
+    "List this connector user's site content items.",
+    "Optional site, type (page_section, product, event, post, link), and status (draft or published) filter the list.",
+    "The user is the person who approved this connector. A user id in the arguments is ignored.",
+    "Someone else's items are not included.",
+    "This does not publish, edit, or create.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      site: {
+        type: "string",
+        description: "Hostname of the site, such as dreamingwithmarisol.com.",
+      },
+      type: {
+        type: "string",
+        enum: ["page_section", "product", "event", "post", "link"],
+        description: "Content type to keep.",
+      },
+      status: {
+        type: "string",
+        enum: ["draft", "published"],
+        description: "draft or published. Omit to list both.",
+      },
+    },
+  },
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    openWorldHint: false,
+  },
+};
+
+const READ_CONTENT_TOOL = {
+  name: "read_content",
+  title: "Read one content item",
+  description: [
+    "Read one content item that belongs to this connector user.",
+    "Pass id. A user id in the arguments is ignored.",
+    "Someone else's id returns an error and no item.",
+    "This does not publish or edit.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      id: {
+        type: "string",
+        description: "Content item id from list_content or create_content_draft.",
+      },
+    },
+    required: ["id"],
+  },
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    openWorldHint: false,
+  },
+};
+
+const CREATE_CONTENT_DRAFT_TOOL = {
+  name: "create_content_draft",
+  title: "Create a content draft",
+  description: [
+    "Save a draft content item for this connector user.",
+    "Pass site, type, slug, and title. Optional body, fields, noteId, and draftKey.",
+    "type is page_section, product, event, post, or link.",
+    "noteId is the note this item came from.",
+    "The same draftKey returns the original draft and does not change it.",
+    "The same site and slug for this user also returns the original item.",
+    "status published is rejected and nothing is saved. This tool cannot publish.",
+    "A user id in the arguments is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      site: { type: "string", description: "Hostname, such as dreamingwithmarisol.com or lindowlabs.dev." },
+      type: {
+        type: "string",
+        enum: ["page_section", "product", "event", "post", "link"],
+        description: "page_section, product, event, post, or link.",
+      },
+      slug: { type: "string", description: "Lowercase slug, unique on the site." },
+      title: { type: "string", description: "Title shown for this item." },
+      body: { type: "string", description: "Plain body. Structured copy goes in fields." },
+      fields: {
+        type: "object",
+        description: "Structured fields for this type.",
+      },
+      noteId: { type: "string", description: "Id of the note this item came from." },
+      draftKey: {
+        type: "string",
+        description: "Idempotency key. The same key returns the original draft.",
+      },
+      status: {
+        type: "string",
+        enum: ["draft", "published"],
+        description: "Only draft is accepted. published is rejected and nothing is saved.",
+      },
+    },
+    required: ["site", "type", "slug", "title"],
+  },
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    openWorldHint: false,
+  },
+};
+
 const TOOLS = [
   ASK_FOLLOWUPS_TOOL,
   DRAFT_LINKEDIN_TOOL,
   GET_AUTONOMY_SETTINGS_TOOL,
   GET_CAREER_RECORD_TOOL,
   CHECK_TEXT_TOOL,
+  LIST_CONTENT_TOOL,
+  READ_CONTENT_TOOL,
+  CREATE_CONTENT_DRAFT_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -464,6 +588,85 @@ async function careerCheckCall(msg, user, args) {
   }
 }
 
+function contentUserId(user) {
+  const userId = user && typeof user.userId === "string" ? user.userId : "";
+  if (!userId) throw Object.assign(new Error("Sign in to tinker first."), { status: 401 });
+  return userId;
+}
+
+function contentToolFailure(msg, err) {
+  const status = err && err.status;
+  const message = status && status >= 400 && status < 500
+    ? err.message
+    : contentStore.UNAVAILABLE;
+  return {
+    status: 200,
+    headers: NO_STORE,
+    body: rpcOk(msg.id, toolError(message || contentStore.UNAVAILABLE)),
+  };
+}
+
+function contentToolOk(msg, shaped) {
+  return {
+    status: 200,
+    headers: NO_STORE,
+    body: rpcOk(msg.id, {
+      content: [{ type: "text", text: JSON.stringify(shaped, null, 2) }],
+      structuredContent: shaped,
+    }),
+  };
+}
+
+async function contentListCall(msg, user, args) {
+  try {
+    const rows = await contentStore.listContent({
+      userId: contentUserId(user),
+      site: args.site,
+      type: args.type,
+      status: args.status,
+    });
+    return contentToolOk(msg, { items: rows.map(contentStore.presentOwner) });
+  } catch (err) {
+    return contentToolFailure(msg, err);
+  }
+}
+
+async function contentReadCall(msg, user, args) {
+  try {
+    const row = await contentStore.getContent({
+      id: args.id,
+      userId: contentUserId(user),
+    });
+    return contentToolOk(msg, { item: contentStore.presentOwner(row) });
+  } catch (err) {
+    return contentToolFailure(msg, err);
+  }
+}
+
+async function contentDraftCall(msg, user, args) {
+  try {
+    const result = await contentStore.createContent({
+      userId: contentUserId(user),
+      site: args.site,
+      type: args.type,
+      slug: args.slug,
+      title: args.title,
+      body: args.body,
+      fields: args.fields,
+      noteId: args.noteId,
+      draftKey: args.draftKey,
+      status: args.status,
+      allowPublish: false,
+    });
+    return contentToolOk(msg, {
+      created: result.created,
+      item: contentStore.presentOwner(result.row),
+    });
+  } catch (err) {
+    return contentToolFailure(msg, err);
+  }
+}
+
 async function handleRpc(msg, user) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
@@ -513,6 +716,9 @@ async function handleRpc(msg, user) {
       && name !== "get_autonomy_settings"
       && name !== "get_career_record"
       && name !== "check_text"
+      && name !== "list_content"
+      && name !== "read_content"
+      && name !== "create_content_draft"
     ) {
       return {
         status: 200,
@@ -527,6 +733,15 @@ async function handleRpc(msg, user) {
     }
     if (name === "check_text") {
       return careerCheckCall(msg, user, args);
+    }
+    if (name === "list_content") {
+      return contentListCall(msg, user, args);
+    }
+    if (name === "read_content") {
+      return contentReadCall(msg, user, args);
+    }
+    if (name === "create_content_draft") {
+      return contentDraftCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {
