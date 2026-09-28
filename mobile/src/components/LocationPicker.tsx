@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -9,6 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, fonts, radius, type } from "../theme";
+import type React from "react";
 
 export const PLACES = [
   { id: "cafe", label: "Cafe" },
@@ -26,7 +28,7 @@ type Props = {
   onChangeCustomSeed: (value: string) => void;
 };
 
-/** Compact location control — no framing copy, just the place name. */
+/** Compact location control — native <select> on web, modal menu on iOS. */
 export function LocationPicker({
   placeId,
   customSeed,
@@ -41,17 +43,42 @@ export function LocationPicker({
 
   return (
     <View style={styles.wrap}>
-      <Pressable
-        onPress={() => setOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel="Location"
-        style={({ pressed }) => [styles.trigger, pressed && styles.pressed]}
-      >
-        <Text style={styles.triggerText} numberOfLines={1}>
-          {label}
-        </Text>
-        <Ionicons name="chevron-down" size={16} color={colors.muted} />
-      </Pressable>
+      {Platform.OS === "web" ? (
+        <View style={styles.trigger}>
+          {(() => {
+            const Select = "select" as unknown as React.ElementType;
+            const Option = "option" as unknown as React.ElementType;
+            return (
+              <Select
+                aria-label="Location"
+                value={placeId}
+                onChange={(e: { target: { value: string } }) =>
+                  onChangePlace(e.target.value as PlaceId)
+                }
+                style={webSelectStyle}
+              >
+                {PLACES.map((place) => (
+                  <Option key={place.id} value={place.id}>
+                    {place.label}
+                  </Option>
+                ))}
+              </Select>
+            );
+          })()}
+        </View>
+      ) : (
+        <Pressable
+          onPress={() => setOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Location"
+          style={({ pressed }) => [styles.trigger, pressed && styles.pressed]}
+        >
+          <Text style={styles.triggerText} numberOfLines={1}>
+            {label}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={colors.muted} />
+        </Pressable>
+      )}
 
       {placeId === "other" ? (
         <TextInput
@@ -64,45 +91,53 @@ export function LocationPicker({
         />
       ) : null}
 
-      <Modal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
-      >
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <View style={styles.menu}>
-            {PLACES.map((place) => {
-              const selected = place.id === placeId;
-              return (
-                <Pressable
-                  key={place.id}
-                  onPress={() => {
-                    onChangePlace(place.id);
-                    setOpen(false);
-                  }}
-                  style={({ pressed }) => [
-                    styles.option,
-                    selected && styles.optionSelected,
-                    pressed && styles.pressed,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      selected && styles.optionTextSelected,
+      {Platform.OS !== "web" ? (
+        <Modal
+          visible={open}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setOpen(false)}
+        >
+          <View style={styles.backdrop}>
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={() => setOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            />
+            <View style={styles.menu}>
+              {PLACES.map((place) => {
+                const selected = place.id === placeId;
+                return (
+                  <Pressable
+                    key={place.id}
+                    onPress={() => {
+                      onChangePlace(place.id);
+                      setOpen(false);
+                    }}
+                    style={({ pressed }) => [
+                      styles.option,
+                      selected && styles.optionSelected,
+                      pressed && styles.pressed,
                     ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
                   >
-                    {place.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+                    <Text
+                      style={[
+                        styles.optionText,
+                        selected && styles.optionTextSelected,
+                      ]}
+                    >
+                      {place.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-        </Pressable>
-      </Modal>
+        </Modal>
+      ) : null}
     </View>
   );
 }
@@ -114,6 +149,21 @@ export function seedFromPlace(placeId: PlaceId, customSeed: string): string {
   }
   return PLACES.find((p) => p.id === placeId)?.label || "Cafe";
 }
+
+const webSelectStyle = {
+  appearance: "none" as const,
+  WebkitAppearance: "none" as const,
+  border: "none",
+  background: "transparent",
+  fontFamily: "InstrumentSans_500Medium, system-ui, sans-serif",
+  fontSize: 14,
+  color: colors.foreground,
+  paddingRight: 18,
+  paddingVertical: 2,
+  cursor: "pointer",
+  outline: "none",
+  maxWidth: "100%",
+};
 
 const styles = StyleSheet.create({
   wrap: {
@@ -164,6 +214,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     overflow: "hidden",
+    zIndex: 2,
   },
   option: {
     paddingVertical: 14,
