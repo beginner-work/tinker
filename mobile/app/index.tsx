@@ -72,21 +72,23 @@ export default function WelcomeScreen() {
           onPickPlace={onPickPlace}
           selectedId={picked}
         />
-        <View style={styles.status} pointerEvents="none">
-          <Text style={styles.statusText}>
-            {!glass.ready
-              ? "Liquid Glass: checking…"
-              : canUseLiquidGlass(glass.reduceTransparency)
-                ? "Liquid Glass: live (native)"
-                : glass.reduceTransparency
-                  ? "Liquid Glass: fallback (Reduce Transparency)"
-                  : "Liquid Glass: fallback chip"}
-          </Text>
-          <Text style={styles.statusMeta}>
-            platform {Platform.OS} · liquid={liquidFlag} · api={apiFlag}
-            {picked ? ` · ${picked}` : ""}
-          </Text>
-        </View>
+        {__DEV__ ? (
+          <View style={styles.status} pointerEvents="none">
+            <Text style={styles.statusText}>
+              {!glass.ready
+                ? "Liquid Glass: checking…"
+                : canUseLiquidGlass(glass.reduceTransparency)
+                  ? "Liquid Glass: live (native)"
+                  : glass.reduceTransparency
+                    ? "Liquid Glass: fallback (Reduce Transparency)"
+                    : "Liquid Glass: fallback chip"}
+            </Text>
+            <Text style={styles.statusMeta}>
+              platform {Platform.OS} · liquid={liquidFlag} · api={apiFlag}
+              {picked ? ` · ${picked}` : ""}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </AppChrome>
   );
