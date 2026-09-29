@@ -11,4 +11,14 @@ contextBridge.exposeInMainWorld("tinker", {
   // this to false so the renderer routes external URLs through the OS
   // browser instead of trying to mount an Electron <webview>.
   supportsWebview: true,
+  // Notes folder (LL-72): native directory access for Markdown notepad files.
+  pickNotesFolder: () => ipcRenderer.invoke("notesFolder:pick"),
+  clearNotesFolder: () => Promise.resolve(true),
+  listNotesFiles: (rootDir) => ipcRenderer.invoke("notesFolder:list", rootDir),
+  writeNotesFile: (rootDir, relPath, text) =>
+    ipcRenderer.invoke("notesFolder:write", rootDir, relPath, text),
+  moveNotesFile: (rootDir, fromRel, toRel) =>
+    ipcRenderer.invoke("notesFolder:move", rootDir, fromRel, toRel),
+  removeNotesFile: (rootDir, relPath) =>
+    ipcRenderer.invoke("notesFolder:remove", rootDir, relPath),
 });

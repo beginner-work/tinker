@@ -1,5 +1,7 @@
-const { app, BrowserWindow, session, ipcMain, shell, nativeImage } = require("electron");
+const { app, BrowserWindow, session, ipcMain, shell, nativeImage, dialog } = require("electron");
 const path = require("path");
+const fs = require("fs");
+const fsp = require("fs/promises");
 const Anthropic = require("@anthropic-ai/sdk").default;
 
 const isDev = process.argv.includes("--dev");
@@ -149,5 +151,77 @@ ipcMain.handle("app:setIcon", (_event, dataUrl) => {
   for (const w of BrowserWindow.getAllWindows()) {
     w.setIcon(img);
   }
+  return true;
+});
+
+// ── Notes folder (LL-72): native directory pick + Markdown file IO ──────
+// Paths stay on the user's machine. No owner-specific defaults.
+
+function assertInsideRoot(rootDir, relPath) {
+  const root = path.resolve(String(rootDir || ""));
+  const target = path.resolve(root, String(relPath || ""));
+  const rel = path.relative(root, target);
+  if (!root || rel.startsWith("..") || path.isAbsolute(rel)) {
+    throw new Error("Path escapes notes folder.");
+  }
+  return { root, target };
+}
+
+async function walkMarkdown(rootDir, dir, prefix, out) {
+  const entries = await fsp.readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) continue;
+    const rel = prefix ? prefix + "/" + entry.name : entry.name;
+    const abs = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await walkMarkdown(rootDir, abs, rel, out);
+    } else if (entry.isFile() && /\.md$/i.test(entry.name)) {
+      const text = await fsp.readFile(abs, "utf8");
+      const st = await fsp.stat(abs);
+      out.push({ relPath: rel.replace(/\\/g, "/"), text, mtimeMs: st.mtimeMs || 0 });
+    }
+  }
+}
+
+ipcMain.handle("notesFolder:pick", async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+  const result = await dialog.showOpenDialog(win || undefined, {
+    title: "Choose notes folder",
+    properties: ["openDirectory", "createDirectory"],
+  });
+  if (result.canceled || !result.filePaths || !result.filePaths[0]) return null;
+  const folderPath = result.filePaths[0];
+  return { path: folderPath, name: path.basename(folderPath) };
+});
+
+ipcMain.handle("notesFolder:list", async (_event, rootDir) => {
+  const root = path.resolve(String(rootDir || ""));
+  if (!root || !fs.existsSync(root)) return [];
+  const out = [];
+  await walkMarkdown(root, root, "", out);
+  return out;
+});
+
+ipcMain.handle("notesFolder:write", async (_event, rootDir, relPath, text) => {
+  const { target } = assertInsideRoot(rootDir, relPath);
+  await fsp.mkdir(path.dirname(target), { recursive: true });
+  await fsp.writeFile(target, String(text == null ? "" : text), "utf8");
+  return true;
+});
+
+ipcMain.handle("notesFolder:move", async (_event, rootDir, fromRel, toRel) => {
+  const from = assertInsideRoot(rootDir, fromRel);
+  const to = assertInsideRoot(rootDir, toRel);
+  if (from.target === to.target) return true;
+  if (!fs.existsSync(from.target)) return false;
+  await fsp.mkdir(path.dirname(to.target), { recursive: true });
+  await fsp.rename(from.target, to.target);
+  return true;
+});
+
+ipcMain.handle("notesFolder:remove", async (_event, rootDir, relPath) => {
+  const { target } = assertInsideRoot(rootDir, relPath);
+  if (!fs.existsSync(target)) return false;
+  await fsp.unlink(target);
   return true;
 });
