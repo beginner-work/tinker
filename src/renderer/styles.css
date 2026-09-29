@@ -2432,13 +2432,6 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 /* ── Pitch assessing (post-publish confirmation) ──────────────────── */
 
 .writing-fit[hidden] { display: none !important; }
-.writing-fit {
-  display: flex;
-  flex-direction: column;
-  background: var(--color-background);
-  min-height: 100%;
-  overflow-y: auto;
-}
 .writing-fit__inner {
   width: 100%;
   max-width: 620px;
@@ -2456,64 +2449,6 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   align-items: center;
   text-align: center;
   gap: 14px;
-}
-.assessing__mark {
-  width: 56px; height: 56px;
-  border-radius: 999px;
-  background: var(--color-accent-dim);
-  display: grid; place-items: center;
-  margin-bottom: 6px;
-}
-.assessing__pulse {
-  width: 14px; height: 14px;
-  border-radius: 999px;
-  background: var(--color-accent-strong);
-  box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.45);
-  animation: assessing-pulse 1.8s ease-out infinite;
-}
-@keyframes assessing-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.45); }
-  70%  { box-shadow: 0 0 0 16px rgba(99, 102, 241, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
-}
-.assessing__crumb {
-  margin: 0;
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--color-forest);
-}
-.assessing__headline {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 32px; font-weight: 700;
-  letter-spacing: -0.01em; line-height: 1.2;
-  color: var(--color-foreground);
-}
-.assessing__sub {
-  margin: 0;
-  max-width: 460px;
-  font-size: 15px; line-height: 1.55;
-  color: var(--color-muted);
-}
-.assessing__title { color: var(--color-foreground); font-weight: 600; }
-.assessing__actions {
-  margin-top: 18px;
-  display: flex; gap: 12px; align-items: center;
-}
-.assessing__keep,
-.assessing__read {
-  height: 44px;
-  padding: 0 22px;
-  border-radius: 999px;
-  font-weight: 600; font-size: 14px;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.05s ease, color 0.15s ease, border-color 0.15s ease;
-}
-.assessing__keep {
-  background: var(--color-accent-strong);
-  color: #fff;
-  border: 1px solid transparent;
-  box-shadow: var(--shadow-purple);
 }
 .assessing__keep:hover { background: #4f46e5; }
 .assessing__keep:active { transform: scale(0.98); }
