@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Messages demo — composer</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+  </head>
+  <body class="messages-shell-open messages-thread-active messages-mobile-thread">
+    <aside class="sidebar" style="padding-top:14px">
+      <header class="sidebar__top"><button class="sidebar__brand" type="button"><span class="sidebar__name">tinker</span></button></header>
+      <nav class="messages-rail">
+        <div class="messages-rail__head"><span class="sidebar__account-head messages-rail__title">Messages</span></div>
+        <ul class="messages-rail__list">
+          <li class="messages-rail__group">
+            <h3 class="messages-rail__group-head">Northwind Labs</h3>
+            <ul class="messages-rail__group-list">
+              <li><button type="button" class="messages-rail__row" aria-current="true"><span class="messages-rail__avatar">AR</span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Alex Rivera</span><span class="messages-rail__time">2h</span></span><span class="messages-rail__preview">Following up on the platform role</span><span class="messages-rail__meta"><span class="messages-rail__stage">drafting</span></span></span></button></li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+    </aside>
+    <main class="stage">
+      <section class="messages-pane">
+        <header class="messages-pane__top">
+          <div class="messages-pane__heading">
+            <h2 class="messages-pane__title">Alex Rivera</h2>
+            <p class="messages-pane__sub">Eng Manager · Northwind Labs · hiring leader · Stage: drafting · You save drafts here — Tinker never sends.</p>
+          </div>
+        </header>
+        <div class="messages-pane__body">
+          <div class="messages-pane__thread" data-thread-ready="1">
+            <ol class="messages-thread__list">
+              <li class="messages-thread__item messages-thread__item--approved">
+                <div class="messages-thread__meta"><span class="messages-thread__channel">LinkedIn DM</span><span class="messages-thread__status">Ready — pull via your assistant</span><span class="messages-thread__when">Sep 24, 3:40 PM</span></div>
+                <button type="button" class="messages-thread__bubble"><div class="messages-thread__body">Thanks for connecting. One proof point from a recent rollout…</div></button>
+              </li>
+            </ol>
+          </div>
+        </div>
+        <footer id="messages-composer" class="messages-composer" aria-label="Draft composer">
+          <div class="messages-composer__row">
+            <label class="messages-composer__field"><span class="messages-composer__label">Channel</span>
+              <select class="messages-composer__select"><option>Gmail</option><option>LinkedIn connection request</option></select>
+            </label>
+            <label class="messages-composer__field messages-composer__field--grow"><span class="messages-composer__label">Subject</span>
+              <input class="messages-composer__input" value="Following up on the platform role" />
+            </label>
+          </div>
+          <div class="messages-composer__parts">
+            <label class="messages-composer__part"><input type="checkbox" checked /><span class="messages-composer__part-text">hook · A line that makes someone curious about the release path.</span></label>
+            <label class="messages-composer__part"><input type="checkbox" checked /><span class="messages-composer__part-text">proof point · From 45 minutes to 8 because we tightened the path.</span></label>
+            <label class="messages-composer__part"><input type="checkbox" /><span class="messages-composer__part-text">ask · Open to a short call this week?</span></label>
+          </div>
+          <label class="messages-composer__field messages-composer__field--block"><span class="messages-composer__label">Draft</span>
+            <textarea class="messages-composer__textarea" rows="4">Alex — a line that makes someone curious about the release path.
+
+From 45 minutes to 8 because we tightened the path.
+
+Your connected assistant can pull this when you are ready.</textarea>
+          </label>
+          <div class="messages-composer__actions">
+            <button type="button" class="messages-composer__save">Save draft</button>
+          </div>
+          <p class="messages-composer__footnote">Your connected assistant pulls saved drafts. Tinker never sends.</p>
+        </footer>
+      </section>
+    </main>
+  </body>
+</html>
