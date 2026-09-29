@@ -801,9 +801,8 @@ button.messages-thread__bubble {
 .messages-composer__next:disabled,
 .messages-composer__ship:disabled { opacity: 0.45; cursor: default; }
 
-/* You mode: guided writing interview hosted inside the messages pane.
-   .writing defaults to position:absolute;inset:0 (full-screen flow). Reset
-   that here so the question bubble sits in normal flow under the pane header. */
+/* You mode: notepad under the thread opening. No composer chrome, no
+   AI/No-AI toggle. Floating Keep crafting / This is everything pills. */
 body.messages-you-active #messages-pane { display: flex; }
 body.messages-you-active .messages-thread--you {
   display: flex;
@@ -825,12 +824,12 @@ body.messages-you-active .writing--in-messages {
   background: transparent;
   overflow: visible;
 }
-body.messages-you-active .writing--in-messages .writing__top,
-body.messages-you-active .writing--in-messages .writing__foot {
+body.messages-you-active .writing--in-messages .writing__top {
   display: none !important;
 }
 body.messages-you-active .messages-pane__body {
   padding-top: 18px;
+  padding-bottom: 0;
 }
 body.messages-you-active .writing--in-messages .writing__body {
   flex: 1;
@@ -838,15 +837,7 @@ body.messages-you-active .writing--in-messages .writing__body {
   overflow-y: auto;
   align-items: stretch;
   justify-content: flex-start;
-  padding: 10px 0 12px;
-}
-@media (max-width: 720px) {
-  body.messages-you-active.messages-mobile-thread .messages-pane__body {
-    padding-top: 14px;
-  }
-  body.messages-you-active.messages-mobile-thread .writing--in-messages .writing__body {
-    padding-top: 8px;
-  }
+  padding: 8px 4px 120px;
 }
 body.messages-you-active .writing--in-messages .writing-card {
   border: 0;
@@ -854,32 +845,121 @@ body.messages-you-active .writing--in-messages .writing-card {
   background: transparent;
   padding: 0;
   max-width: none;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: min(70vh, 36rem);
 }
 body.messages-you-active .writing--in-messages .writing-question {
-  display: inline-block;
-  max-width: min(78%, 28rem);
-  margin: 0 0 10px;
-  padding: 10px 14px;
-  border-radius: 16px 16px 16px 4px;
-  background: var(--color-cream, #f5f3ef);
-  border: 1px solid var(--color-border);
-  font-family: var(--font-sans);
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.45;
+  display: block;
+  max-width: none;
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3.2vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--color-foreground);
 }
+/* Invisible notepad: caret starts under the opening, grows with the page. */
 body.messages-you-active .writing--in-messages .writing-input {
-  display: none;
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 50vh;
+  margin: 0;
+  padding: 0 0 8px;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  outline: none;
+  background: transparent !important;
+  resize: none;
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--color-foreground);
+  -webkit-appearance: none;
+  appearance: none;
+}
+body.messages-you-active .writing--in-messages .writing-input:focus {
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none;
+}
+body.messages-you-active .writing--in-messages .writing-input::placeholder {
+  color: transparent;
 }
 body.messages-you-active .writing--in-messages .writing-note,
 body.messages-you-active .writing--in-messages .writing-recall {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-muted);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
-body.messages-you-active .messages-composer--you .messages-composer__toolbar,
-body.messages-you-active .messages-composer--you .messages-composer__chips {
+/* Floating pill pair replaces the AI / No AI toggle on this view. */
+body.messages-you-active .mode-nav {
   display: none !important;
+  pointer-events: none !important;
+}
+body.messages-you-active #messages-composer {
+  display: none !important;
+}
+body.messages-you-active .writing--in-messages .writing__foot {
+  display: flex !important;
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  transform: translateX(-50%);
+  z-index: 96;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-background) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(45, 42, 38, 0.12);
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+@media (min-width: 721px) {
+  body.messages-you-active .writing--in-messages .writing__foot {
+    left: calc(50% + (var(--sidebar-width, 300px) / 2));
+  }
+}
+body.messages-you-active .writing--in-messages .writing__end,
+body.messages-you-active .writing--in-messages .writing__next {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: none;
+}
+@media (max-width: 720px) {
+  body.messages-you-active.messages-mobile-thread .messages-pane__body {
+    padding-top: 10px;
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  body.messages-you-active.messages-mobile-thread .writing--in-messages .writing__body {
+    padding: 4px 12px calc(110px + env(safe-area-inset-bottom, 0px));
+  }
+  body.messages-you-active.messages-mobile-thread .writing--in-messages .writing-input {
+    min-height: 55vh;
+    font-size: 16px; /* iOS: avoid focus zoom */
+  }
+  body.messages-you-active.messages-mobile-thread .writing--in-messages .writing__foot {
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  }
 }
 body.messages-you-active .messages-thread__list--self {
   width: 100%;

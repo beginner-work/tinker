@@ -174,6 +174,23 @@
       })
       .catch(function () { return []; });
   }
+  function labelFloatingActions() {
+    var end = document.getElementById("writing-end");
+    var next = document.getElementById("writing-next");
+    if (end) end.textContent = "This is everything";
+    if (next) next.textContent = "Keep crafting";
+  }
+  function focusNotepad() {
+    if (!writing) return;
+    var ta = writing.querySelector(".writing-input");
+    if (!ta) return;
+    try {
+      ta.focus({ preventScroll: true });
+      var len = (ta.value || "").length;
+      // Empty notepad: caret at the top. Existing text: leave selection alone.
+      if (!len && typeof ta.setSelectionRange === "function") ta.setSelectionRange(0, 0);
+    } catch (e) { /* ignore */ }
+  }
   function mountWriting(messages) {
     ensureHosts();
     if (!writing || !host) return;
@@ -190,8 +207,9 @@
     writing.classList.add("writing--in-messages");
     document.body.classList.add("messages-you-active");
     setHeader();
+    labelFloatingActions();
     var composer = document.getElementById("messages-composer");
-    if (composer) composer.hidden = false;
+    if (composer) composer.hidden = true;
   }
   function unmountWriting() {
     ensureHosts();
@@ -228,39 +246,20 @@
     if (action === "ship") clickWriting("writing-end");
     else if (action === "next") clickWriting("writing-next");
   }
-  function syncComposerFromWriting() {
-    if (!open || !writing) return;
-    var ta = writing.querySelector(".writing-input");
-    var body = document.querySelector("#messages-composer [data-composer-body]");
-    if (!ta || !body) return;
-    if (document.activeElement === body) return;
-    body.value = ta.value || "";
-    body.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-  function bindComposerBridge() {
-    var body = document.querySelector("#messages-composer [data-composer-body]");
-    if (!body || body.getAttribute("data-you-bridge")) return;
-    body.setAttribute("data-you-bridge", "1");
-    body.addEventListener("input", function () {
-      if (!open || !writing) return;
-      var ta = writing.querySelector(".writing-input");
-      if (!ta) return;
-      ta.value = body.value;
-      ta.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-  }
   function openYou() {
     ensureHosts();
     open = true;
     mountWriting([]);
-    bindComposerBridge();
     startSession();
     loadSelfPosts().then(function (messages) {
       if (!open) return;
       mountWriting(messages);
+      labelFloatingActions();
+      focusNotepad();
     });
-    setTimeout(syncComposerFromWriting, 80);
-    setTimeout(syncComposerFromWriting, 400);
+    setTimeout(labelFloatingActions, 80);
+    setTimeout(focusNotepad, 120);
+    setTimeout(focusNotepad, 400);
   }
   function closeYou() {
     if (!open) return;

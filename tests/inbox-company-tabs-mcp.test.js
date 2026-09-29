@@ -9,7 +9,8 @@ const fs = require("node:fs");
 process.env.STYTCH_PROJECT_ID = "project-test-company-tabs";
 process.env.STYTCH_SECRET = "secret-test-not-real";
 process.env.ANTHROPIC_API_KEY = "sk-ant-test-not-real";
-process.env.LEADS_OWNER_ALLOWLIST = "user-a,hunter@example.com";
+// Intentionally empty / non-matching: leads must work for every owner.
+process.env.LEADS_OWNER_ALLOWLIST = "";
 
 let seq = 0;
 const tables = {};
@@ -126,26 +127,43 @@ test("upsert_target_company and list_target_companies", async () => {
   assert.equal(listed.body.result.structuredContent.companies.length, 2);
   assert.equal(listed.body.result.structuredContent.companies[0].company.name, "Stripe");
 });
-test("upsert_lead_person attaches people under a company", async () => {
+test("MCP-authenticated owner can create a company and a person with no allowlist", async () => {
+  process.env.LEADS_OWNER_ALLOWLIST = "";
+  const company = await mcpCall("upsert_target_company", {
+    name: "Acme Test Co",
+    priority: 3,
+    tier: "wave_1",
+    notes: "MCP gate regression",
+  });
+  assert.equal(company.status, 200);
+  assert.equal(company.body.result.isError, undefined);
+  assert.equal(company.body.result.structuredContent.company.name, "Acme Test Co");
+
+  // Even a leftover restrictive allowlist must not block owners (Tinker is free).
+  process.env.LEADS_OWNER_ALLOWLIST = "not-this-user,other@example.com";
   const person = await mcpCall("upsert_lead_person", {
     personName: "Morgan Kim",
-    companyName: "Stripe",
+    companyName: "Acme Test Co",
     contactType: "referrer",
     personTitle: "EM",
+    linkedInUrl: "https://www.linkedin.com/in/morgan-kim-test",
     nextStep: "Referral intro",
     dueDate: "2026-09-30T15:00:00.000Z",
     queueOrder: 0,
     touchType: "referral_outreach",
-    tier: "north_star",
-    companyPriority: 1,
   });
   assert.equal(person.status, 200);
   assert.equal(person.body.result.isError, undefined);
+  assert.equal(person.body.result.structuredContent.lead.personName, "Morgan Kim");
   assert.equal(person.body.result.structuredContent.lead.contactType, "referrer");
   assert.equal(person.body.result.structuredContent.touch.touchType, "referral_outreach");
+
   const listed = await mcpCall("list_target_companies", {});
-  assert.equal(listed.body.result.structuredContent.companies[0].people.length, 1);
-  assert.equal(listed.body.result.structuredContent.companies[0].people[0].personName, "Morgan Kim");
+  assert.equal(listed.body.result.isError, undefined);
+  const row = listed.body.result.structuredContent.companies.find((c) => c.company.name === "Acme Test Co");
+  assert.ok(row);
+  assert.equal(row.people.length, 1);
+  assert.equal(row.people[0].personName, "Morgan Kim");
 });
 test("shell is company-level with person tabs and demos omit GTM", () => {
   const shell = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages-shell.js"), "utf8");

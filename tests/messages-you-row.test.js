@@ -41,11 +41,11 @@ test("You row and header use Lindow Labs name and logo", () => {
   assert.equal(/GTM approach/i.test(demo), false);
 });
 
-test("You selection hosts writing interview inside messages pane", () => {
+test("You selection hosts writing notepad inside messages pane", () => {
   assert.match(you, /tinkerMessagesYou/);
   assert.match(you, /writing--in-messages/);
   assert.match(you, /tinkerNewSession|tinkerResumeDraft/);
-  assert.match(you, /tinker:messages-you-action/);
+  assert.match(you, /focusNotepad|labelFloatingActions/);
   assert.match(css, /messages-you-active/);
   assert.match(css, /writing--in-messages/);
 });
@@ -59,13 +59,22 @@ test("You-mode writing sits in normal flow under the pane header", () => {
   assert.equal(/—/.test(demo), false);
 });
 
-test("You composer labels are This is everything / Keep crafting", () => {
-  assert.match(composer, /This is everything/);
-  assert.match(composer, /Keep crafting/);
-  assert.match(composer, /syncActionLabels/);
-  assert.match(composer, /youMode \? "This is everything" : "Ship"/);
-  assert.match(composer, /youMode \? "Keep crafting" : "Next"/);
+test("owner notepad is borderless and floating actions replace composer + mode-nav", () => {
+  assert.match(css, /body\.messages-you-active \.writing--in-messages \.writing-input/);
+  assert.match(css, /border:\s*0\s*!important/);
+  assert.match(css, /background:\s*transparent\s*!important/);
+  assert.match(css, /body\.messages-you-active #messages-composer/);
+  assert.match(css, /body\.messages-you-active \.mode-nav/);
+  assert.match(css, /body\.messages-you-active \.writing--in-messages \.writing__foot/);
+  assert.match(css, /position:\s*fixed/);
+  assert.match(you, /This is everything/);
+  assert.match(you, /Keep crafting/);
   assert.match(demo, /This is everything/);
   assert.match(demo, /Keep crafting/);
+  assert.match(demo, /writing-input/);
+  assert.equal(/Write a draft/i.test(demo), false);
   assert.equal(/—/.test(demo), false);
+  // Lead composer still owns Ship/Next labels for non-You threads.
+  assert.match(composer, /youMode \? "This is everything" : "Ship"/);
+  assert.match(composer, /!state\.leadId \|\| !!state\.youMode/);
 });

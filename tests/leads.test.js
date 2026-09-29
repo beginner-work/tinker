@@ -99,7 +99,10 @@ test("migration matches, allowlist gates, and no send path", () => {
     assert.equal(source.includes(word), false, word);
   }
   process.env.LEADS_OWNER_ALLOWLIST = "";
-  assert.throws(() => store.assertAllowed("user-a", "hunter@example.com"), (err) => err.status === 403);
+  // Empty (or any) allowlist no longer gates: every owner is allowed.
+  assert.doesNotThrow(() => store.assertAllowed("user-a", "hunter@example.com"));
+  process.env.LEADS_OWNER_ALLOWLIST = "someone-else";
+  assert.doesNotThrow(() => store.assertAllowed("user-a", "hunter@example.com"));
 });
 test("owner A cannot list get update import or draft against owner B", async () => {
   const created = await call({ method: "POST", action: "create", body: { personName: "Alex Rivera", company: "Acme", source: "linkedin" } });
@@ -110,8 +113,9 @@ test("owner A cannot list get update import or draft against owner B", async () 
   assert.equal(tables.leadDraft.rows.filter((row) => row.userId === "user-b" && !row.leadId).length, 1);
   const bDraftId = tables.leadDraft.rows.find((row) => row.userId === "user-b").id;
   assert.equal((await call({ method: "POST", token: "user-a", action: "approve", body: { id: bDraftId } })).status, 404);
+  // Allowlist is ignored; owner B can still list their own empty inbox.
   process.env.LEADS_OWNER_ALLOWLIST = "user-a";
-  assert.equal((await call({ method: "GET", token: "user-b", action: "list" })).status, 403);
+  assert.equal((await call({ method: "GET", token: "user-b", action: "list" })).status, 200);
 });
 test("import accepts new channels fromAddress and dedupes", async () => {
   const csv = await call({
