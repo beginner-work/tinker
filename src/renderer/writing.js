@@ -513,7 +513,9 @@
     });
     card.appendChild(ta);
 
-    nextBtn.textContent = "Next →";
+    nextBtn.textContent = document.body.classList.contains("messages-you-active")
+      ? "Keep crafting"
+      : "Next →";
     nextBtn.onclick = () => commitAnswer(question, ta.value);
     endBtn.onclick = () => endNow(question, ta.value);
 
@@ -582,6 +584,39 @@
     swap(card);
   }
 
+  function wireKeepCraftingRetry() {
+    nextBtn.hidden = false;
+    nextBtn.disabled = false;
+    nextBtn.textContent = "Keep crafting";
+    nextBtn.onclick = () => {
+      renderLoading("Asking the next question…");
+      askNext().catch((err) => renderError(err));
+    };
+    endBtn.hidden = false;
+    refreshEndButton();
+    endBtn.onclick = () => endNow(null, "");
+  }
+
+  function renderNextQuestionRetry(reason) {
+    const card = document.createElement("div");
+    card.className = "writing-card writing-card--error";
+    const detail = (reason && String(reason).trim()) || "The next question came back empty.";
+    card.innerHTML =
+      `<h2 class="writing-question">Couldn't get the next question.</h2>` +
+      `<p class="writing-note">${escapeHtml(detail)} Press Try again or Keep crafting.</p>`;
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "writing-action writing-action--primary";
+    retry.textContent = "Try again";
+    retry.addEventListener("click", () => {
+      renderLoading("Asking the next question…");
+      askNext().catch((err) => renderError(err));
+    });
+    card.appendChild(retry);
+    wireKeepCraftingRetry();
+    swap(card);
+  }
+
   function renderError(err) {
     const card = document.createElement("div");
     card.className = "writing-card writing-card--error";
@@ -598,10 +633,13 @@
     retry.type = "button";
     retry.className = "writing-action writing-action--primary";
     retry.textContent = "Try again";
-    retry.addEventListener("click", () => renderStep());
+    retry.addEventListener("click", () => {
+      renderLoading("Asking the next question…");
+      askNext().catch((e) => renderError(e));
+    });
     card.appendChild(retry);
-    nextBtn.hidden = true;
-    endBtn.hidden = true;
+    // Keep crafting must still retry — do not hide it into a silent no-op.
+    wireKeepCraftingRetry();
     swap(card);
   }
 
@@ -611,11 +649,28 @@
   }
 
   // ── Engine ──────────────────────────────────────────────────────────
+  function nudgeEmptyAnswer() {
+    const ta = stage.querySelector(".writing-input");
+    if (ta) {
+      ta.classList.add("writing-input--needs-answer");
+      ta.setAttribute("placeholder", "Type an answer, then press Keep crafting…");
+      try { ta.focus(); } catch { /* ignore */ }
+    }
+    let note = stage.querySelector("[data-keep-crafting-nudge]");
+    if (!note) {
+      note = document.createElement("div");
+      note.className = "writing-note writing-note--nudge";
+      note.setAttribute("data-keep-crafting-nudge", "1");
+      stage.appendChild(note);
+    }
+    note.textContent = "Type an answer first — Keep crafting asks the next question from what you wrote.";
+  }
+
   function commitAnswer(question, answer) {
     const a = (answer || "").trim();
     if (!a) {
-      // Allow skipping with empty text? Not for v1 — the essay must be
-      // built from real answers.
+      // Keep crafting with an empty box used to no-op silently.
+      nudgeEmptyAnswer();
       return;
     }
     active.transcript = active.transcript || [];
@@ -667,16 +722,26 @@
     // → the canonical system prompt, unchanged.
     const voice = voiceBlock();
     const system = voice ? `${SYSTEM_PROMPT}\n\n${voice}` : SYSTEM_PROMPT;
-    const result = await window.tinker.callClaude({
-      system,
-      messages: [{ role: "user", content: userMessage }],
-      model: "claude-opus-4-8",
-      maxTokens: 2048,
-    });
-    const parsed = parseClaude(result.text);
-    const stitchNow = (parsed.done && parsed.stitched_body) || forceStitch;
+    let result;
+    try {
+      result = await window.tinker.callClaude({
+        system,
+        messages: [{ role: "user", content: userMessage }],
+        model: "claude-opus-4-8",
+        maxTokens: 2048,
+      });
+    } catch (err) {
+      if (forceStitch) throw err;
+      // Keep crafting must surface a retry, not leave the loading card.
+      renderError(err);
+      return;
+    }
+    const parsed = parseClaude(result && result.text);
 
-    if (stitchNow) {
+    // Keep crafting (forceStitch=false) must always show the next question.
+    // A model that returns done/stitched early used to publish (or hang on
+    // a silent doPublish no-op) instead of advancing the interview.
+    if (forceStitch) {
       // Hard verify: stitched body must use only words the founder typed.
       const corpus = (active.transcript || []).map((t) => t.a).join("\n\n");
       let body = parsed.stitched_body || "";
@@ -688,6 +753,10 @@
         body = (active.transcript || []).map((t) => t.a.trim()).filter(Boolean).join("\n\n");
         const titleVerified = phraseAppearsIn(title, corpus);
         if (!titleVerified) title = firstSentence(body) || "Untitled";
+      }
+      if (!String(body || "").trim()) {
+        renderNextQuestionRetry("Nothing to stitch yet. Keep crafting with another answer, or try again.");
+        return;
       }
       active.stitched = { title, body };
       active.title = title;
@@ -702,7 +771,12 @@
       return;
     }
 
-    const q = parsed.next_question || "What else feels true about this?";
+    const q = String(parsed.next_question || "").trim();
+    if (!q) {
+      renderNextQuestionRetry("The next question came back empty.");
+      return;
+    }
+    active.stitched = null;
     active.pending = q;
     active.currentStep = (active.transcript || []).length;
     persist();
@@ -868,8 +942,14 @@
   });
 
   function doPublish() {
-    if (!active || !active.stitched) return;
-    if (typeof window.tinkerOnWritingPublish !== "function") return;
+    if (!active || !active.stitched) {
+      renderNextQuestionRetry("Could not publish — the essay was empty. Keep crafting or try again.");
+      return;
+    }
+    if (typeof window.tinkerOnWritingPublish !== "function") {
+      renderNextQuestionRetry("Could not publish this draft. Keep crafting or try again.");
+      return;
+    }
     window.tinkerOnWritingPublish(active, {
       title: active.stitched.title,
       body: active.stitched.body,

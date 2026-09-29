@@ -2933,6 +2933,22 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
 }
 .writing-input::placeholder { color: var(--color-muted); }
 
+.writing-input--needs-answer {
+  outline: 2px solid color-mix(in srgb, var(--color-accent, #2563eb) 55%, transparent);
+  outline-offset: 2px;
+}
+.writing-note--nudge {
+  color: var(--color-ink, #1f2937);
+  font-weight: 500;
+}
+.writing-input--needs-answer {
+  outline: 2px solid color-mix(in srgb, var(--color-accent, #2563eb) 55%, transparent);
+  outline-offset: 2px;
+}
+.writing-note--nudge {
+  color: var(--color-ink, #1f2937);
+  font-weight: 500;
+}
 .writing-note {
   font-size: 13px;
   color: var(--color-muted);

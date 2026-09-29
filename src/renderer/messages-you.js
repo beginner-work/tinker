@@ -214,7 +214,12 @@
     var end = document.getElementById("writing-end");
     var next = document.getElementById("writing-next");
     if (end) end.textContent = "This is everything";
-    if (next) next.textContent = "Keep crafting";
+    // Don't rename the scene-setting Continue control; only interview Next.
+    if (next) {
+      var label = String(next.textContent || "").trim();
+      if (label === "Continue →" || /^Continue/i.test(label)) return;
+      next.textContent = "Keep crafting";
+    }
   }
   function focusNotepad() {
     if (!writing) return;
