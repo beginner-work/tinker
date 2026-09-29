@@ -50,11 +50,14 @@
     var nameEl = p.querySelector("[data-messages-name]");
     var role = p.querySelector("[data-messages-role]");
     var avatar = p.querySelector("[data-messages-avatar]");
+    var links = p.querySelector("[data-messages-links]");
     if (nameEl) nameEl.textContent = ownerName();
     if (role) {
       role.hidden = true;
       role.textContent = "";
     }
+    // Owner thread has no LinkedIn/GitHub chrome - clear any leftover person links.
+    if (links) { links.hidden = true; links.innerHTML = ""; }
     if (avatar) {
       avatar.hidden = false;
       avatar.innerHTML = "";
