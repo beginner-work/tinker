@@ -102,6 +102,17 @@ async function dispatch(method, action, auth, body, req) {
     const result = await store.markDraftSent({ id, userId, emailHint, actor });
     return { status: 200, body: { draft: store.presentDraft(result.draft), lead: result.lead ? store.presentLead(result.lead) : null, event: store.presentEvent(result.event) } };
   }
+  if (method === "POST" && action === "queue-send") {
+    const result = await store.queueDraftForSend({ id, userId, emailHint, actor });
+    return {
+      status: 200,
+      body: {
+        draft: store.presentDraft(result.draft),
+        lead: result.lead ? store.presentLead(result.lead) : null,
+        event: store.presentEvent(result.event),
+      },
+    };
+  }
   if (method === "GET" && action === "settings") {
     return { status: 200, body: { settings: await store.getOutreachSettings({ userId, emailHint }) } };
   }

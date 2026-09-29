@@ -10,26 +10,29 @@ const js = fs.readFileSync(path.join(root, "src/renderer/messages-thread.js"), "
 const css = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
 const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
 
-test("thread maps sent, draft, and lead reply sides", () => {
+test("thread maps sent, draft, queued, and lead reply sides", () => {
   assert.match(js, /item--owner|side:\s*"owner"/);
   assert.match(js, /side:\s*"lead"/);
-  assert.match(js, /kind:\s*sent\s*\?\s*"sent"\s*:\s*"draft"|kind:\s*"sent"|kind:\s*"draft"/);
+  assert.match(js, /kind:\s*"sent"|kind:\s*"draft"|kind:\s*"queued"/);
   assert.match(js, /Draft/);
   assert.match(js, /messages-thread__meta/);
   assert.match(js, /Reply(?:\s*\()/);
   assert.match(js, /isInboundDraft|fromLead|direction/);
   assert.match(js, /groupKey|grouped/);
-  assert.equal(/\bSend\b/.test(js), false);
+  assert.match(js, /queued_to_send|kind:\s*"queued"|item--queued/);
+  assert.match(js, /Confirm send|queue-send/);
   assert.equal(/\bTyler\b/.test(js), false);
+  assert.equal(/GOOGLE_OAUTH|gmail\.googleapis|Connect Gmail/.test(js), false);
 });
 
-test("composer uses Ship and Next with no Send", () => {
+test("composer keeps Ship and Next; Send is owner confirm for Gmail", () => {
   assert.match(html, /id="messages-composer"/);
   assert.match(html, />Ship</);
   assert.match(html, />Next</);
   const foot = html.match(/id="messages-composer"[\s\S]*?<\/footer>/);
   assert.ok(foot);
-  assert.equal(/\bSend\b/.test(foot[0]), false);
+  assert.match(foot[0], /data-composer-send/);
+  assert.match(js, /messages-thread__send-btn|textContent = "Send"/);
 });
 
 test("bubble styles: solid sent right, draft tint, lead left", () => {

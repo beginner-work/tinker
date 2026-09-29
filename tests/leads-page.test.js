@@ -18,7 +18,7 @@ const store = require("../api/_lib/leads-store.js");
 
 test("leads page wires sign-in, filters, import, and no drafts UI", () => {
   assert.match(html, /Keep every lead in one place/);
-  assert.match(html, /Tinker never sends a message for you/);
+  assert.match(html, /Your assistant sends Gmail after you press Send/);
   assert.match(html, /id="leads-filter-stage"/);
   assert.match(html, /id="leads-filter-company"/);
   assert.match(html, /id="leads-import-text"/);

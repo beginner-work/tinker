@@ -2,7 +2,7 @@
  * gmail_outreach (add linkedin_message later with one DESTINATIONS entry).
  * LINKEDIN_CONNECTION_NOTE_LIMIT=200 per LinkedIn Help a563153 (free note
  * limit; Premium is longer — we warn at free so notes always fit).
- * Tinker never sends.
+ * Sending enabled (TYL-66) gates Gmail queue-to-send. LinkedIn stays draft only.
  */
 (function () {
   "use strict";
@@ -21,7 +21,10 @@
   };
   /* Reply = lead stage replied+ (no LeadDraft.isReply column). */
   var REPLY_STAGES = { replied: 1, call: 1, interview: 1, offer: 1 };
-  var state = { drafts: [], loading: false, error: "", defaultFrom: "", bookingUrl: "", companyFilter: "" };
+  var state = {
+    drafts: [], loading: false, error: "", defaultFrom: "", bookingUrl: "",
+    companyFilter: "", sendingEnabled: false,
+  };
   var overlay = null, concealed = [], root = null;
 
   function token() { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } }
@@ -160,6 +163,8 @@
     var bookingInput = root.querySelector("[data-drafts-booking]");
     if (fromInput && document.activeElement !== fromInput) fromInput.value = state.defaultFrom || "";
     if (bookingInput && document.activeElement !== bookingInput) bookingInput.value = state.bookingUrl || "";
+    var sending = root.querySelector("[data-drafts-sending]");
+    if (sending && document.activeElement !== sending) sending.checked = !!state.sendingEnabled;
     /* Draft list removed in TYL-65 — thread + composer own that UI. */
     if (!list || !badge || !empty || !err) return;
     syncFilterChip();
@@ -212,7 +217,7 @@
     card.appendChild(titleRow);
     var sub = el("p", "writing-note");
     var role = draft.lead && draft.lead.targetRoleTitle ? draft.lead.targetRoleTitle + " · " : "";
-    sub.textContent = role + d.label + ". You approve and copy; Tinker never sends.";
+    sub.textContent = role + d.label + ". LinkedIn stays draft only. Gmail queues when you press Send.";
     card.appendChild(sub);
     var subjectInput = null;
     if (draft.channel === "gmail_outreach") {
@@ -322,11 +327,12 @@
     var q = state.companyFilter ? { company: state.companyFilter } : {};
     return Promise.all([
       api("GET", "drafts", null, q),
-      api("GET", "settings").catch(function () { return { settings: { defaultFromAddress: "" } }; }),
+      api("GET", "settings").catch(function () { return { settings: { defaultFromAddress: "", sendingEnabled: false } }; }),
     ]).then(function (results) {
       state.drafts = Array.isArray(results[0].drafts) ? results[0].drafts : [];
       state.defaultFrom = (results[1].settings && results[1].settings.defaultFromAddress) || "";
       state.bookingUrl = (results[1].settings && results[1].settings.bookingUrl) || "";
+      state.sendingEnabled = !!(results[1].settings && results[1].settings.sendingEnabled);
       state.error = ""; if (root) root.hidden = false;
     }).catch(function (err) {
       state.drafts = [];
@@ -378,6 +384,24 @@
         }).finally(function () { bookingSave.disabled = false; });
       });
     }
+    var sending = root.querySelector("[data-drafts-sending]");
+    if (sending && !sending.getAttribute("data-bound")) {
+      sending.setAttribute("data-bound", "1");
+      sending.checked = !!state.sendingEnabled;
+      sending.addEventListener("change", function () {
+        var next = !!sending.checked;
+        sending.disabled = true;
+        api("POST", "settings", { sendingEnabled: next }).then(function (res) {
+          state.sendingEnabled = !!(res.settings && res.settings.sendingEnabled);
+          sending.checked = state.sendingEnabled;
+          try {
+            window.dispatchEvent(new CustomEvent("tinker:sending-enabled", { detail: { sendingEnabled: state.sendingEnabled } }));
+          } catch (e) { /* ignore */ }
+        }).catch(function () {
+          sending.checked = !!state.sendingEnabled;
+        }).finally(function () { sending.disabled = false; });
+      });
+    }
   }
   function boot() {
     root = document.getElementById("sidebar-drafts");
@@ -388,6 +412,7 @@
   }
   window.tinkerLeadDrafts = {
     refresh: refresh, openDraft: openDraft, close: closePanel, setCompanyFilter: setCompanyFilter,
+    isSendingEnabled: function () { return !!state.sendingEnabled; },
     LINKEDIN_CONNECTION_NOTE_LIMIT: LINKEDIN_CONNECTION_NOTE_LIMIT, DESTINATIONS: DESTINATIONS,
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();

@@ -11,11 +11,12 @@ const js = fs.readFileSync(path.join(root, "src/renderer/messages-composer.js"),
 const css = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
 const draftsJs = fs.readFileSync(path.join(root, "src/renderer/lead-drafts.js"), "utf8");
 
-test("composer is wired with Ship and Next (no Send)", () => {
+test("composer is wired with Ship, Next, and Gmail Send confirm", () => {
   assert.match(html, /id="messages-composer"/);
   assert.match(html, /messages-composer\.js/);
   assert.match(html, /data-composer-ship/);
   assert.match(html, /data-composer-next/);
+  assert.match(html, /data-composer-send/);
   assert.match(html, />Ship</);
   assert.match(html, />Next</);
   assert.match(html, /data-composer-parts/);
@@ -23,22 +24,28 @@ test("composer is wired with Ship and Next (no Send)", () => {
   assert.match(js, /story-parts/);
   assert.match(js, /saveDraft\("ship"\)|mode === "ship"/);
   assert.match(js, /action:\s*"approve"|approve/);
-  assert.equal(/\bSend\b/.test(html.match(/id="messages-composer"[\s\S]*?<\/footer>/)[0]), false);
-  assert.equal(/sendgrid|MESSAGING_SEND/.test(js), false);
+  assert.match(js, /queue-send|queueComposerSend/);
+  assert.match(js, /Confirm send|confirmSend/);
+  const foot = html.match(/id="messages-composer"[\s\S]*?<\/footer>/)[0];
+  assert.match(foot, /data-composer-send/);
+  assert.equal(/sendgrid|MESSAGING_SEND|GOOGLE_OAUTH/.test(js), false);
   assert.equal(/\bTyler\b/.test(js + html), false);
 });
 
-test("sidebar draft list is gone; settings remain", () => {
+test("sidebar draft list is gone; settings remain with Sending enabled", () => {
   assert.equal(/data-drafts-list/.test(html), false);
   assert.match(html, /data-drafts-from/);
   assert.match(html, /data-drafts-booking/);
+  assert.match(html, /data-drafts-sending/);
   assert.match(draftsJs, /Draft list removed in TYL-65/);
+  assert.match(draftsJs, /sendingEnabled/);
 });
 
 test("composer styles stay flat", () => {
   assert.match(css, /\.messages-composer\b/);
   assert.match(css, /\.messages-composer__ship\b/);
   assert.match(css, /\.messages-composer__next\b/);
+  assert.match(css, /\.messages-composer__send\b/);
   assert.match(css, /\.messages-composer__shell\b/);
   assert.match(css, /\.messages-composer__chip\b/);
   assert.equal(/\.messages-composer[^{]*\{[^}]*box-shadow/.test(css), false);

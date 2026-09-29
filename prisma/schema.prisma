@@ -158,19 +158,26 @@ model Lead {
 }
 
 model LeadDraft {
-  id           String   @id @default(cuid())
-  userId       String
-  leadId       String?
-  channel      String
-  subject      String   @default("")
-  body         String   @default("")
-  fromAddress  String   @default("")
-  status       String
-  storyPartIds Json     @default("[]")
-  factCheck    Json     @default("{}")
-  createdBy    String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String    @id @default(cuid())
+  userId           String
+  leadId           String?
+  channel          String
+  subject          String    @default("")
+  body             String    @default("")
+  fromAddress      String    @default("")
+  status           String
+  storyPartIds     Json      @default("[]")
+  factCheck        Json      @default("{}")
+  createdBy        String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  queuedTo         String    @default("")
+  queuedSubject    String    @default("")
+  queuedBody       String    @default("")
+  queuedAt         DateTime?
+  gmailMessageId   String    @default("")
+  gmailThreadId    String    @default("")
+  sendFailedReason String    @default("")
   @@index([userId])
   @@index([leadId])
 }

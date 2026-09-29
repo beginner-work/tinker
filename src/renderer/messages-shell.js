@@ -1,6 +1,6 @@
-/* Messaging shell: left conversation list of leads (TYL-65 slice 1).
- * Reuses leads + draft APIs from TYL-62/63. Thread and composer land in
- * later slices.
+/* Messaging shell: left conversation list of leads (TYL-65).
+ * Reuses leads + draft APIs from TYL-62/63. Gmail Send queues for your
+ * assistant (TYL-66). LinkedIn stays draft only.
  */
 (function () {
   "use strict";

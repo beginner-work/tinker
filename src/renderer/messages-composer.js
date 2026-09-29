@@ -1,6 +1,7 @@
-/* Bottom composer for the messaging shell (TYL-65).
+/* Bottom composer for the messaging shell (TYL-65/66).
  * Modern chat bar: growing textarea, channel/date as chips inside the shell,
- * Ship (final / approved) and Next (in progress / draft).
+ * Next (keep drafting), Ship (final / approved), and Gmail Send + confirm
+ * (queues for your assistant). LinkedIn stays draft only.
  */
 (function () {
   "use strict";
@@ -30,6 +31,8 @@
     status: "",
     error: "",
     youMode: false,
+    sendingEnabled: false,
+    confirmSend: false,
   };
   var root = null;
 
@@ -128,8 +131,22 @@
     var empty = !String(state.body || "").trim();
     var ship = root && root.querySelector("[data-composer-ship]");
     var next = root && root.querySelector("[data-composer-next]");
-    if (ship) ship.disabled = state.saving || empty;
-    if (next) next.disabled = state.saving || empty;
+    var send = root && root.querySelector("[data-composer-send]");
+    var confirm = root && root.querySelector("[data-composer-send-confirm]");
+    var gmail = state.channel === "gmail_outreach" && !state.youMode;
+    if (ship) {
+      ship.hidden = !!state.confirmSend;
+      ship.disabled = state.saving || empty || state.confirmSend;
+    }
+    if (next) {
+      next.hidden = !!state.confirmSend;
+      next.disabled = state.saving || empty || state.confirmSend;
+    }
+    if (send) {
+      send.hidden = !gmail || !!state.confirmSend;
+      send.disabled = state.saving || empty || !gmail;
+    }
+    if (confirm) confirm.hidden = !gmail || !state.confirmSend;
   }
   function renderParts() {
     var box = root && root.querySelector("[data-composer-parts]");
@@ -268,6 +285,40 @@
         showStatus(err.message || "Could not update date.", "error");
       });
   }
+  function persistDraft(mode) {
+    var body = String(state.body || "").trim();
+    var meta = channelMeta(state.channel);
+    var payload = {
+      channel: state.channel,
+      body: body,
+      storyPartIds: Object.keys(state.selectedParts),
+    };
+    if (meta.needsLead !== false) payload.leadId = state.leadId;
+    if (state.channel === "gmail_outreach") {
+      payload.subject = state.subject;
+      payload.fromAddress = state.defaultFrom || "";
+    }
+    return api("/api/leads", "POST", "draft", payload).then(function (res) {
+      var draft = res && res.draft;
+      if ((mode === "ship" || mode === "send") && draft && draft.id) {
+        return api("/api/leads", "POST", "approve", {}, { id: draft.id }).then(function () {
+          return draft;
+        });
+      }
+      return draft;
+    });
+  }
+  function clearComposerFields() {
+    state.body = "";
+    state.subject = "";
+    state.selectedParts = {};
+    state.confirmSend = false;
+  }
+  function refreshAfterSave() {
+    if (window.tinkerMessagesThread && state.leadId) window.tinkerMessagesThread.loadLead(state.leadId);
+    if (window.tinkerMessagesShell && window.tinkerMessagesShell.refresh) window.tinkerMessagesShell.refresh();
+    if (window.tinkerLeadDrafts && window.tinkerLeadDrafts.refresh) window.tinkerLeadDrafts.refresh();
+  }
   function saveDraft(mode) {
     if (state.youMode) {
       try {
@@ -285,36 +336,46 @@
       showStatus("Pick a conversation first.", "error");
       return;
     }
+    state.confirmSend = false;
     state.saving = true;
     showStatus(mode === "ship" ? "Marking ready…" : "Saving draft…");
     render();
-    var payload = {
-      channel: state.channel,
-      body: body,
-      storyPartIds: Object.keys(state.selectedParts),
-    };
-    if (meta.needsLead !== false) payload.leadId = state.leadId;
-    if (state.channel === "gmail_outreach") {
-      payload.subject = state.subject;
-      payload.fromAddress = state.defaultFrom || "";
-    }
-    api("/api/leads", "POST", "draft", payload).then(function (res) {
-      var draft = res && res.draft;
-      if (mode === "ship" && draft && draft.id) {
-        return api("/api/leads", "POST", "approve", {}, { id: draft.id }).then(function () {
-          showStatus("Ready. This draft is final.");
-        });
-      }
-      showStatus("Saved. Keep drafting when you are ready.");
-    }).then(function () {
-      state.body = "";
-      state.subject = "";
-      state.selectedParts = {};
-      if (window.tinkerMessagesThread && state.leadId) window.tinkerMessagesThread.loadLead(state.leadId);
-      if (window.tinkerMessagesShell && window.tinkerMessagesShell.refresh) window.tinkerMessagesShell.refresh();
-      if (window.tinkerLeadDrafts && window.tinkerLeadDrafts.refresh) window.tinkerLeadDrafts.refresh();
+    persistDraft(mode).then(function () {
+      showStatus(mode === "ship" ? "Ready. This draft is final." : "Saved. Keep drafting when you are ready.");
+      clearComposerFields();
+      refreshAfterSave();
     }).catch(function (err) {
       showStatus(err.message || "Could not save draft.", "error");
+    }).finally(function () {
+      state.saving = false;
+      render();
+    });
+  }
+  function queueComposerSend() {
+    if (state.youMode || state.saving) return;
+    if (state.channel !== "gmail_outreach") return;
+    var body = String(state.body || "").trim();
+    if (!body) { showStatus("Write something before sending.", "error"); return; }
+    if (!state.leadId) { showStatus("Pick a conversation first.", "error"); return; }
+    if (!state.sendingEnabled) {
+      showStatus("Sending is off. Turn on Sending enabled under Outreach first.", "error");
+      state.confirmSend = false;
+      render();
+      return;
+    }
+    state.saving = true;
+    showStatus("Queuing for your assistant…");
+    render();
+    persistDraft("send").then(function (draft) {
+      if (!draft || !draft.id) throw new Error("Could not save draft.");
+      return api("/api/leads", "POST", "queue-send", {}, { id: draft.id });
+    }).then(function () {
+      showStatus("Queued. Your assistant sends it through your Gmail.");
+      clearComposerFields();
+      refreshAfterSave();
+    }).catch(function (err) {
+      showStatus(err.message || "Could not queue send.", "error");
+      state.confirmSend = false;
     }).finally(function () {
       state.saving = false;
       render();
@@ -334,6 +395,7 @@
     return api("/api/leads", "GET", "settings").then(function (res) {
       state.defaultFrom = (res.settings && res.settings.defaultFromAddress) || "";
       state.bookingUrl = (res.settings && res.settings.bookingUrl) || "";
+      state.sendingEnabled = !!(res.settings && res.settings.sendingEnabled);
     }).catch(function () { /* ignore */ });
   }
   function setLead(leadId, lead, touch) {
@@ -381,6 +443,9 @@
     var booking = root.querySelector("[data-composer-booking]");
     var ship = root.querySelector("[data-composer-ship]");
     var next = root.querySelector("[data-composer-next]");
+    var send = root.querySelector("[data-composer-send]");
+    var sendYes = root.querySelector("[data-composer-send-yes]");
+    var sendNo = root.querySelector("[data-composer-send-no]");
     var dateInput = root.querySelector("[data-composer-date]");
     var dateBtn = root.querySelector("[data-composer-date-btn]");
     if (channel) {
@@ -392,6 +457,7 @@
       channel.value = state.channel;
       channel.addEventListener("change", function () {
         state.channel = channel.value;
+        state.confirmSend = false;
         render();
       });
     }
@@ -436,6 +502,30 @@
     }
     if (ship) ship.addEventListener("click", function () { saveDraft("ship"); });
     if (next) next.addEventListener("click", function () { saveDraft("next"); });
+    if (send) {
+      send.addEventListener("click", function () {
+        if (state.channel !== "gmail_outreach" || state.youMode) return;
+        if (!String(state.body || "").trim()) {
+          showStatus("Write something before sending.", "error");
+          return;
+        }
+        if (!state.sendingEnabled) {
+          showStatus("Sending is off. Turn on Sending enabled under Outreach first.", "error");
+          return;
+        }
+        state.confirmSend = true;
+        showStatus("Queue this Gmail for your assistant to send?");
+        render();
+      });
+    }
+    if (sendYes) sendYes.addEventListener("click", function () { queueComposerSend(); });
+    if (sendNo) {
+      sendNo.addEventListener("click", function () {
+        state.confirmSend = false;
+        showStatus("");
+        render();
+      });
+    }
   }
   function boot() {
     root = document.getElementById("messages-composer");
@@ -444,6 +534,9 @@
     root.hidden = true;
     Promise.all([loadParts(), loadSettings()]).then(render);
     window.addEventListener("tinker:messages-select", onSelect);
+    window.addEventListener("tinker:sending-enabled", function (e) {
+      state.sendingEnabled = !!(e && e.detail && e.detail.sendingEnabled);
+    });
   }
 
   window.tinkerMessagesComposer = {

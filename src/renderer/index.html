@@ -266,6 +266,11 @@
             <input type="url" class="sidebar__drafts-from-input" data-drafts-booking placeholder="https://" autocomplete="url" />
             <button type="button" class="sidebar__drafts-from-save" data-drafts-booking-save>Save</button>
           </label>
+          <label class="sidebar__drafts-sending">
+            <input type="checkbox" data-drafts-sending />
+            <span class="sidebar__drafts-from-label">Sending enabled</span>
+            <span class="sidebar__drafts-sending-note" data-drafts-sending-note>Off by default. Your assistant only sends Gmail after you turn this on and press Send.</span>
+          </label>
         </div>
       </nav>
 
@@ -326,6 +331,11 @@
               <p class="messages-composer__counter" data-composer-counter hidden></p>
               <button type="button" class="messages-composer__next" data-composer-next>Next</button>
               <button type="button" class="messages-composer__ship" data-composer-ship>Ship</button>
+              <button type="button" class="messages-composer__send" data-composer-send hidden>Send</button>
+              <span class="messages-composer__send-confirm" data-composer-send-confirm hidden>
+                <button type="button" class="messages-composer__send-yes" data-composer-send-yes>Confirm send</button>
+                <button type="button" class="messages-composer__next" data-composer-send-no>Cancel</button>
+              </span>
             </div>
           </div>
           <p class="messages-composer__status" data-composer-status hidden></p>

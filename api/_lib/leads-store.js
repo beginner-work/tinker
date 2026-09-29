@@ -1,10 +1,12 @@
-/* Leads and drafts. Tinker never sends; sent_by_owner is a mark only. */
+/* Leads and drafts. LinkedIn stays draft-only / mark-sent.
+ * Gmail: owner presses Send → queued_to_send; assistant sends via MCP (TYL-66). */
 "use strict";
 const SOURCES = ["referral", "formation", "linkedin", "posting", "event", "other"];
 const STAGES = ["new", "drafting", "contacted", "replied", "call", "interview", "offer", "closed"];
 const OUTCOMES = ["replied", "call", "interview", "offer"];
 const CHANNELS = ["linkedin_post", "linkedin_connection", "gmail_outreach"];
 const IMPORT_DRAFT_STATUSES = ["draft", "sent_by_owner"];
+const DRAFT_STATUSES = ["draft", "approved", "queued_to_send", "sent_by_owner", "send_failed"];
 const SETTINGS_KIND = "leads-outreach";
 const UNAVAILABLE = "Leads are unavailable right now.";
 const TABLE_STATEMENTS = [
@@ -24,6 +26,13 @@ const TABLE_STATEMENTS = [
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "contactType" TEXT NOT NULL DEFAULT 'other'`,
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "queueOrder" INTEGER NOT NULL DEFAULT 0`,
   `CREATE INDEX IF NOT EXISTS "Lead_companyId_idx" ON "Lead"("companyId")`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "queuedTo" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "queuedSubject" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "queuedBody" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "queuedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "gmailMessageId" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "gmailThreadId" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "sendFailedReason" TEXT NOT NULL DEFAULT ''`,
 ];
 const HEADER_MAP = {
   name: "personName", personname: "personName", person: "personName", title: "personTitle", persontitle: "personTitle",
@@ -133,6 +142,8 @@ async function readOutreachSettings(owner) {
     bookingUrl: typeof data.bookingUrl === "string" ? data.bookingUrl : "",
     minTotalComp: data.minTotalComp == null || data.minTotalComp === "" || Number.isNaN(Number(data.minTotalComp)) ? null : Number(data.minTotalComp),
     curriculumName: typeof data.curriculumName === "string" ? data.curriculumName : "",
+    /* Owner switch. Starts off — assistant only sends after you enable + press Send. */
+    sendingEnabled: data.sendingEnabled === true,
   };
 }
 async function writeOutreachSettings(owner, patch) {
@@ -154,6 +165,9 @@ async function writeOutreachSettings(owner, patch) {
     curriculumName: Object.prototype.hasOwnProperty.call(patch, "curriculumName")
       ? readText(patch.curriculumName, "curriculumName", 200, false)
       : current.curriculumName,
+    sendingEnabled: Object.prototype.hasOwnProperty.call(patch, "sendingEnabled")
+      ? !!patch.sendingEnabled
+      : current.sendingEnabled,
   };
   try {
     await db().tinkerUserData.upsert({
@@ -453,11 +467,64 @@ async function updateDraft({ id, userId, emailHint, actor, patch }) {
     if (row.channel !== "gmail_outreach") throw fail(400, "subject is only for gmail_outreach.");
     data.subject = readText(source.subject, "subject", 300, false);
   }
-  if (row.status === "approved") data.status = "draft";
+  /* Editing a queued (or failed) Gmail message un-queues it. */
+  if (row.status === "approved" || row.status === "queued_to_send" || row.status === "send_failed") {
+    data.status = "draft";
+    data.queuedTo = "";
+    data.queuedSubject = "";
+    data.queuedBody = "";
+    data.queuedAt = null;
+    data.sendFailedReason = "";
+  }
   return commit(async (tx) => {
     const saved = await tx.leadDraft.update({ where: { id: row.id }, data });
-    await record(tx, { userId: owner, leadId: row.leadId, actor: label, action: "draft_edited", detail: { draftId: row.id, fields: keys } });
+    await record(tx, {
+      userId: owner, leadId: row.leadId, actor: label, action: "draft_edited",
+      detail: { draftId: row.id, fields: keys, unqueued: row.status === "queued_to_send" || row.status === "send_failed" },
+    });
     return saved;
+  });
+}
+/** Owner-only queue for Gmail. Freezes to/subject/body. MCP must not call this. */
+async function queueDraftForSend({ id, userId, emailHint, actor }) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  const label = actorLabel(actor);
+  if (!label.startsWith("user:")) throw fail(403, "Only you can queue a send.");
+  await ensureTable();
+  const row = await loadOwned("leadDraft", id, owner, "draft");
+  if (row.channel !== "gmail_outreach") throw fail(400, "Only Gmail drafts can be queued to send.");
+  if (row.status === "sent_by_owner") throw fail(400, "Already sent.");
+  if (row.status === "queued_to_send") throw fail(400, "Already queued.");
+  if (row.status !== "draft" && row.status !== "approved" && row.status !== "send_failed") {
+    throw fail(400, "Only a draft can be queued to send.");
+  }
+  const settings = await readOutreachSettings(owner);
+  if (!settings.sendingEnabled) {
+    throw fail(400, "Sending is off. Turn on Sending enabled under Outreach first.");
+  }
+  const lead = row.leadId ? await loadOwned("lead", row.leadId, owner, "lead") : null;
+  const to = readText(lead && lead.email, "to", 320, true).toLowerCase();
+  const subject = readText(row.subject, "subject", 300, false);
+  const body = readText(row.body, "body", 100000, true);
+  const queuedAt = new Date();
+  return commit(async (tx) => {
+    const saved = await tx.leadDraft.update({
+      where: { id: row.id },
+      data: {
+        status: "queued_to_send",
+        queuedTo: to,
+        queuedSubject: subject,
+        queuedBody: body,
+        queuedAt,
+        sendFailedReason: "",
+      },
+    });
+    const event = await record(tx, {
+      userId: owner, leadId: lead ? lead.id : null, actor: label, action: "draft_queued_to_send",
+      detail: { draftId: row.id, to, subject },
+    });
+    return { draft: saved, lead, event };
   });
 }
 async function approveDraft({ id, userId, emailHint, actor }) {
@@ -507,8 +574,9 @@ async function setOutreachSettings({ userId, emailHint, patch }) {
 }
 
 module.exports = {
-  UNAVAILABLE, TABLE_STATEMENTS, SOURCES, STAGES, OUTCOMES, CHANNELS,
+  UNAVAILABLE, TABLE_STATEMENTS, SOURCES, STAGES, OUTCOMES, CHANNELS, DRAFT_STATUSES,
   ensureTable, resetTableCache, assertAllowed, presentLead: shape, presentDraft: shape, presentEvent: shape,
   parseImportText, createLead, listLeads, getLead, listDrafts, updateLead, setStage, importLeads,
-  createDraft, updateDraft, approveDraft, markDraftSent, getOutreachSettings, setOutreachSettings,
+  createDraft, updateDraft, approveDraft, markDraftSent, queueDraftForSend,
+  getOutreachSettings, setOutreachSettings,
 };

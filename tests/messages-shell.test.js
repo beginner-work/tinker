@@ -23,7 +23,8 @@ test("messages shell chrome is wired in index and script", () => {
   assert.match(js, /Select a conversation|No conversations yet|Needs a draft/);
   assert.match(html, /Inbox|Conversations/);
   assert.equal(/\bTyler\b/.test(js + html), false);
-  assert.equal(/sendgrid|MESSAGING_SEND|\bSend\b/.test(js), false);
+  assert.equal(/sendgrid|MESSAGING_SEND|GOOGLE_OAUTH/.test(js), false);
+  assert.equal(/queue-send|Confirm send/.test(js), false);
 });
 
 test("conversation list styling is flat (no nested cards)", () => {

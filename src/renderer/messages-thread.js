@@ -1,7 +1,7 @@
-/* Messaging thread (TYL-65): chat bubbles per lead.
- * Owner sent → solid right; saved drafts → lighter right with Draft label;
- * lead replies (when present in data) → left. Meta (status, channel, date)
- * sits as one small line under each bubble body.
+/* Messaging thread (TYL-65/66): chat bubbles per lead.
+ * Owner sent → solid right; drafts → lighter right; queued Gmail → dashed;
+ * lead replies → left. Meta under each bubble. Gmail Send queues for your
+ * assistant. LinkedIn stays draft only.
  */
 (function () {
   "use strict";
@@ -25,9 +25,14 @@
   var STATUS_LABEL = {
     draft: "Draft",
     approved: "Ready",
+    queued_to_send: "Queued",
     sent_by_owner: "Sent",
+    send_failed: "Failed",
   };
-  var state = { lead: null, drafts: [], replies: [], touch: null, loading: false, error: "", mode: "lead" };
+  var state = {
+    lead: null, drafts: [], replies: [], touch: null, loading: false, error: "", mode: "lead",
+    sendingEnabled: false, confirmId: "",
+  };
   var pane = null;
 
   function token() {
@@ -39,11 +44,17 @@
     if (attrs) Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); });
     return n;
   }
-  function api(action, query) {
+  function api(action, query, method, body) {
     var q = new URLSearchParams(Object.assign({ action: action }, query || {}));
-    return fetch("/api/leads?" + q.toString(), {
+    var opts = {
+      method: method || "GET",
       headers: { Authorization: "Bearer " + token(), Accept: "application/json" },
-    }).then(function (res) {
+    };
+    if (method && method !== "GET") {
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(body || {});
+    }
+    return fetch("/api/leads?" + q.toString(), opts).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (payload) {
         if (!res.ok) {
           var err = new Error((payload && payload.error) || "Request failed");
@@ -157,18 +168,28 @@
         });
         return;
       }
-      var sent = d.status === "sent_by_owner";
+      var kind = "draft";
+      if (d.status === "sent_by_owner") kind = "sent";
+      else if (d.status === "queued_to_send") kind = "queued";
+      else if (d.status === "send_failed") kind = "failed";
+      var body = String(d.body || "").trim();
+      var subject = d.subject || "";
+      if (kind === "queued" || kind === "failed") {
+        if (d.queuedBody != null && d.queuedBody !== "") body = String(d.queuedBody).trim();
+        if (d.queuedSubject != null && d.queuedSubject !== "") subject = d.queuedSubject;
+      }
       items.push({
         id: d.id,
         side: "owner",
-        kind: sent ? "sent" : "draft",
+        kind: kind,
         channel: d.channel,
-        subject: d.subject || "",
-        body: String(d.body || "").trim(),
-        at: d.updatedAt || d.createdAt,
+        subject: subject,
+        body: body,
+        at: d.queuedAt || d.updatedAt || d.createdAt,
         status: d.status,
-        openable: true,
+        openable: kind === "draft" || kind === "failed",
         draftId: d.id,
+        sendable: d.channel === "gmail_outreach" && (d.status === "draft" || d.status === "approved" || d.status === "send_failed"),
       });
     });
     state.replies.forEach(function (r) { items.push(r); });
@@ -204,6 +225,67 @@
       window.tinkerLeadDrafts.openDraft(id);
     }
   }
+  function refreshSendingFlag() {
+    if (window.tinkerLeadDrafts && typeof window.tinkerLeadDrafts.isSendingEnabled === "function") {
+      state.sendingEnabled = !!window.tinkerLeadDrafts.isSendingEnabled();
+      return Promise.resolve(state.sendingEnabled);
+    }
+    return api("settings").then(function (res) {
+      state.sendingEnabled = !!(res.settings && res.settings.sendingEnabled);
+      return state.sendingEnabled;
+    }).catch(function () {
+      state.sendingEnabled = false;
+    });
+  }
+  function queueSend(draftId) {
+    return api("queue-send", { id: draftId }, "POST", {}).then(function () {
+      state.confirmId = "";
+      return loadLead(state.lead && state.lead.id);
+    });
+  }
+  function renderSendControls(item, li) {
+    if (!item.sendable || !item.draftId) return;
+    var wrap = el("div", "messages-thread__send");
+    if (state.confirmId === item.draftId) {
+      var confirm = el("div", "messages-thread__confirm");
+      confirm.appendChild(Object.assign(el("p", "messages-thread__send-note"), {
+        textContent: "Queue for your assistant to send through Gmail?",
+      }));
+      var yes = el("button", "messages-thread__send-btn", { type: "button" });
+      yes.textContent = "Confirm send";
+      yes.addEventListener("click", function () {
+        queueSend(item.draftId).catch(function (err) {
+          state.error = (err && err.message) || "Could not queue send.";
+          state.confirmId = "";
+          renderThread();
+        });
+      });
+      var no = el("button", "messages-thread__send-btn", { type: "button" });
+      no.textContent = "Cancel";
+      no.addEventListener("click", function () {
+        state.confirmId = "";
+        renderThread();
+      });
+      confirm.appendChild(yes);
+      confirm.appendChild(no);
+      wrap.appendChild(confirm);
+    } else {
+      var btn = el("button", "messages-thread__send-btn", { type: "button" });
+      btn.textContent = "Send";
+      if (!state.sendingEnabled) {
+        btn.disabled = true;
+        wrap.appendChild(Object.assign(el("p", "messages-thread__send-note"), {
+          textContent: "Sending is off. Turn on Sending enabled under Outreach.",
+        }));
+      }
+      btn.addEventListener("click", function () {
+        state.confirmId = item.draftId;
+        renderThread();
+      });
+      wrap.appendChild(btn);
+    }
+    li.appendChild(wrap);
+  }
   function renderBubble(item, grouped) {
     var li = el("li", "messages-thread__item messages-thread__item--" + item.side + " messages-thread__item--" + item.kind + (grouped ? " messages-thread__item--grouped" : ""));
     var bubble;
@@ -225,6 +307,8 @@
     var statusBit = "";
     if (item.kind === "draft") statusBit = STATUS_LABEL[item.status] || "Draft";
     else if (item.kind === "sent") statusBit = "Sent";
+    else if (item.kind === "queued") statusBit = "Queued";
+    else if (item.kind === "failed") statusBit = "Failed";
     var meta = el("div", "messages-thread__meta");
     meta.textContent = grouped
       ? formatWhen(item.at)
@@ -232,6 +316,7 @@
     bubble.appendChild(meta);
 
     li.appendChild(bubble);
+    if (item.kind === "draft" || item.kind === "failed") renderSendControls(item, li);
     return li;
   }
   function renderScheduledBubble(entry) {
@@ -284,7 +369,7 @@
     var list = el("ol", "messages-thread__list", { "aria-label": "Conversation" });
     if (!items.length && !(state.touch && state.touch.touch)) {
       thread.appendChild(Object.assign(el("p", "messages-thread__empty"), {
-        textContent: "No messages yet for this person. Write a draft below.",
+        textContent: "No messages yet for this person. Write a draft below. Your assistant sends Gmail after you press Send.",
       }));
       return;
     }
@@ -308,6 +393,7 @@
     state.touch = null;
     state.error = "";
     state.mode = "lead";
+    state.confirmId = "";
     if (!pane) return;
     var nameEl = pane.querySelector("[data-messages-name]");
     var role = pane.querySelector("[data-messages-role]");
@@ -337,6 +423,7 @@
       fetch("/api/schedule?action=inbox", {
         headers: { Authorization: "Bearer " + token(), Accept: "application/json" },
       }).then(function (res) { return res.ok ? res.json() : { byLeadId: {} }; }).catch(function () { return { byLeadId: {} }; }),
+      refreshSendingFlag(),
     ]).then(function (results) {
       state.lead = results[0].lead || null;
       var all = Array.isArray(results[1].drafts) ? results[1].drafts : [];
@@ -377,6 +464,10 @@
     pane = document.getElementById("messages-pane");
     if (!pane) return;
     window.addEventListener("tinker:messages-select", onSelect);
+    window.addEventListener("tinker:sending-enabled", function (e) {
+      state.sendingEnabled = !!(e && e.detail && e.detail.sendingEnabled);
+      if (state.lead) renderThread();
+    });
   }
 
   window.tinkerMessagesThread = {
