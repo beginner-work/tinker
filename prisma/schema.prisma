@@ -130,3 +130,58 @@ model StoryPartEvent {
   @@index([userId])
   @@index([partId])
 }
+
+// One job-hunt lead. Owner-scoped. nextStep / nextStepAt are the follow-up.
+model Lead {
+  id              String    @id @default(cuid())
+  userId          String
+  personName      String    @default("")
+  personTitle     String    @default("")
+  linkedInUrl     String    @default("")
+  email           String    @default("")
+  company         String    @default("")
+  targetRoleTitle String    @default("")
+  postingUrl      String    @default("")
+  source          String
+  stage           String
+  nextStep        String    @default("")
+  nextStepAt      DateTime?
+  notes           String    @default("")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([userId, stage])
+}
+
+// Draft for a lead. Never sent by Tinker; sent_by_owner is an owner mark.
+model LeadDraft {
+  id           String   @id @default(cuid())
+  userId       String
+  leadId       String
+  channel      String
+  subject      String   @default("")
+  body         String   @default("")
+  status       String
+  storyPartIds Json     @default("[]")
+  factCheck    Json     @default("{}")
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([leadId])
+}
+
+model LeadEvent {
+  id     String   @id @default(cuid())
+  userId String
+  leadId String
+  actor  String
+  action String
+  detail Json     @default("{}")
+  at     DateTime @default(now())
+
+  @@index([userId])
+  @@index([leadId])
+}
