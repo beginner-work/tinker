@@ -374,8 +374,9 @@ test("first load seeds proposed facts and verified rules, then only reads", asyn
   ]);
   assert.equal(first.captured.body.proposed_facts.every((fact) => fact.status === "proposed"), true);
   assert.equal(first.captured.body.verified_facts.length, 0);
-  assert.equal(first.captured.body.rules.length, 6);
+  assert.equal(first.captured.body.rules.length, 9);
   assert.equal(first.captured.body.rules.every((rule) => rule.status === "verified"), true);
+  assert.equal(first.captured.body.rules.some((rule) => rule.id === "rule_years_experience"), true);
   assert.match(first.captured.body.unverified_note, /not facts/i);
   assert.equal(commands.some((call) => call.args[0] === "SET"), true);
   assert.equal(commands[0].authorization, "Bearer " + READ_TOKEN);
@@ -387,6 +388,52 @@ test("first load seeds proposed facts and verified rules, then only reads", asyn
   assert.deepEqual(commands.map((call) => call.args[0]), ["GET"]);
   assert.equal(commands[0].authorization, "Bearer " + READ_TOKEN);
   assertNoSecrets(second.captured.body);
+});
+
+test("an older record picks up new catalog rules on the next browser load", async () => {
+  const { SEED_RULES } = require("../src/renderer/career/catalog.js");
+  const oldRules = SEED_RULES.filter((rule) => !rule.id.startsWith("rule_current_employment")
+    && !rule.id.startsWith("rule_years_experience")
+    && !rule.id.startsWith("rule_employer_dates")).map((rule) => ({
+    ...rule,
+    updated_at: "2026-09-25T22:00:00.000Z",
+  }));
+  docs.set("career:user-1", JSON.stringify({ facts: [], rules: oldRules }));
+  const res = fakeRes();
+  await handler(careerReq(), res);
+  assert.equal(res.captured.status, 200);
+  assert.equal(res.captured.body.rules.length, 9);
+  assert.equal(res.captured.body.rules.some((rule) => rule.id === "rule_employer_dates"), true);
+  assert.equal(commands.some((call) => call.args[0] === "SET"), true);
+  const stored = JSON.parse(docs.get("career:user-1"));
+  assert.equal(stored.rules.length, 9);
+});
+
+test("verified employment can be rejected from the browser route", async () => {
+  await handler(careerReq(), fakeRes());
+  const { buildEmploymentFact, serialize } = require("../api/_lib/career.js");
+  const emp = buildEmploymentFact({
+    id: "fact_emp_test",
+    employer: "Northwind",
+    start_month: "2020-01",
+    end_month: "2021-01",
+    current: false,
+    experience_kinds: ["software_development"],
+    source: { document: "owner statement", excerpt: "Northwind Jan 2020 to Jan 2021" },
+    status: "verified",
+  });
+  const current = JSON.parse(docs.get("career:user-1"));
+  current.facts.push(emp);
+  docs.set("career:user-1", serialize(current));
+  const rejected = fakeRes();
+  await handler(careerReq({
+    method: "POST",
+    action: "fact",
+    body: { id: "fact_emp_test", action: "reject" },
+  }), rejected);
+  assert.equal(rejected.captured.status, 200);
+  assert.equal(rejected.captured.body.rejected_facts.some((fact) => fact.id === "fact_emp_test"), true);
+  assert.equal(rejected.captured.body.verified_facts.some((fact) => fact.id === "fact_emp_test"), false);
 });
 
 test("confirm and reject change only the signed-in user's fact", async () => {

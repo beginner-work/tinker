@@ -13,10 +13,27 @@
 "use strict";
 
 const { callAnthropic } = require("./anthropic.js");
-const { SENSITIVE_PATTERNS, UNVERIFIED_NOTE } = require("../../src/renderer/career/catalog.js");
+const {
+  SENSITIVE_PATTERNS,
+  UNVERIFIED_NOTE,
+  SEED_RULES,
+} = require("../../src/renderer/career/catalog.js");
 
 const FIND_MODEL = "claude-opus-4-8";
 const FIND_MARKER = "CAREER_CLAIM_FINDER";
+
+const MONTH_LABELS = {
+  "01": "Jan", "02": "Feb", "03": "Mar", "04": "Apr", "05": "May", "06": "Jun",
+  "07": "Jul", "08": "Aug", "09": "Sep", "10": "Oct", "11": "Nov", "12": "Dec",
+};
+
+function formatMonthToken(iso) {
+  const match = String(iso || "").match(/^(\d{4})-(\d{2})$/);
+  if (!match) return "";
+  const label = MONTH_LABELS[match[2]];
+  if (!label) return "";
+  return label + " " + match[1];
+}
 
 const MONTHS = {
   jan: "01",
@@ -71,9 +88,29 @@ const STOP = new Set([
 
 const MONTH_RE = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
 const RANGE_RE = new RegExp(
-  MONTH_RE + "\\s+(\\d{4})\\s+(?:to|through|-)\\s+" + MONTH_RE + "\\s+(\\d{4})",
+  MONTH_RE + "\\s+(\\d{4})\\s*(?:to|through|-|–|—)\\s*" + MONTH_RE + "\\s+(\\d{4})",
   "i",
 );
+const RANGE_PRESENT_RE = new RegExp(
+  MONTH_RE + "\\s+(\\d{4})\\s*(?:to|through|-|–|—)\\s*(present|current)\\b",
+  "i",
+);
+const KIND_ALIASES = {
+  software_development: [
+    "software development",
+    "software engineering",
+    "software engineer",
+    "swe",
+    "developer",
+    "programming",
+  ],
+  management: [
+    "management",
+    "people management",
+    "engineering management",
+    "manager",
+  ],
+};
 
 function norm(value) {
   return String(value || "")
@@ -141,12 +178,18 @@ function monthIndex(iso) {
 
 function extractDateRange(value) {
   const text = norm(value).replace(/\s+-\s+/g, " - ");
+  const present = text.match(RANGE_PRESENT_RE);
+  if (present) {
+    const start = normalizeMonthYear(present[1] + " " + present[2]);
+    if (!start) return null;
+    return { start, end: "present", present: true };
+  }
   const match = text.match(RANGE_RE);
   if (!match) return null;
   const start = normalizeMonthYear(match[1] + " " + match[2]);
   const end = normalizeMonthYear(match[3] + " " + match[4]);
   if (!start || !end) return null;
-  return { start, end };
+  return { start, end, present: false };
 }
 
 function extractTeamRange(value) {
@@ -212,11 +255,243 @@ function verifiedFacts(record) {
 }
 
 function verifiedRules(record) {
-  return (record && record.rules || []).filter((rule) => rule && rule.status === "verified");
+  const fromRecord = (record && record.rules || []).filter((rule) => rule && rule.status === "verified");
+  const have = new Set(fromRecord.map((rule) => rule.id));
+  const merged = fromRecord.slice();
+  for (const seed of SEED_RULES) {
+    if (have.has(seed.id)) continue;
+    merged.push({ ...seed, status: "verified" });
+  }
+  return merged;
 }
 
 function ruleById(rules, id) {
   return rules.find((rule) => rule.id === id) || null;
+}
+
+function employmentFacts(facts) {
+  return (facts || []).filter((fact) => fact && fact.kind === "employment" && fact.employer);
+}
+
+function hasCurrentEmployment(facts) {
+  return employmentFacts(facts).some((fact) => fact.current === true);
+}
+
+function employmentRangeLabel(fact) {
+  const start = formatMonthToken(fact.start_month) || fact.start_month;
+  if (fact.current || !fact.end_month) return start + " - Present";
+  const end = formatMonthToken(fact.end_month) || fact.end_month;
+  return start + " - " + end;
+}
+
+function employmentCorrect(fact) {
+  const parts = [fact.employer];
+  if (fact.title) parts.push(fact.title);
+  parts.push(employmentRangeLabel(fact));
+  return parts.join(", ");
+}
+
+function mentionsPresent(value) {
+  return /\b(present|current)\b/.test(norm(value));
+}
+
+function currentEmploymentIntent(claim, context) {
+  const labels = labelBlob(claim, context);
+  const text = norm(claim && claim.text);
+  if (/current employer|current company|current employment/.test(labels)) return "field";
+  if (mentionsPresent(text) && (claim && (claim.kind === "dates" || claim.kind === "employment" || claim.kind === "employer" || !claim.kind || claim.kind === "other"))) {
+    return "present";
+  }
+  return "";
+}
+
+function kindFromTitle(title) {
+  const text = normalizeTitle(title);
+  const kinds = [];
+  if (/\b(software|developer|swe|programmer|engineer)\b/.test(text)) kinds.push("software_development");
+  if (/\b(manager|management|director|lead)\b/.test(text)) kinds.push("management");
+  return kinds;
+}
+
+function entryKinds(fact) {
+  const listed = Array.isArray(fact.experience_kinds) ? fact.experience_kinds.slice() : [];
+  for (const kind of kindFromTitle(fact.title || "")) {
+    if (!listed.includes(kind)) listed.push(kind);
+  }
+  return listed;
+}
+
+function normalizeExperienceKind(raw) {
+  const text = norm(raw).replace(/-/g, " ");
+  if (!text) return "";
+  for (const [kind, aliases] of Object.entries(KIND_ALIASES)) {
+    if (aliases.some((alias) => text.includes(alias))) return kind;
+  }
+  if (/\bsoftware\b/.test(text) && /\b(develop|engineer)/.test(text)) return "software_development";
+  return text.replace(/\s+/g, "_");
+}
+
+function extractYearsThreshold(claim, context) {
+  const blob = [
+    context && context.field_label,
+    claim && claim.field,
+    claim && claim.text,
+  ].filter(Boolean).join(" ");
+  const folded = norm(blob);
+  let match = folded.match(/\b(\d+)\s*\+\s*years?\b/);
+  if (!match) match = folded.match(/\b(\d+)\s*\+\s*years?\s+of\b/);
+  if (!match) match = folded.match(/\b(?:at least|more than|over)\s+(\d+)\s+years?\b/);
+  if (!match) match = folded.match(/\b(\d+)\s+years?\s+of\b/);
+  if (!match) match = folded.match(/\bdo you have\s+(\d+)\+?\s+years?\b/);
+  if (!match) return null;
+  const years = Number(match[1]);
+  if (!Number.isFinite(years) || years <= 0) return null;
+  const kindMatch = folded.match(/\byears?\s+of\s+(.+?)(?:\s+experience)?\s*\??$/)
+    || folded.match(/\b(\d+)\s*\+\s*years?\s+of\s+(.+?)(?:\s+experience)?/);
+  let kindRaw = "";
+  if (kindMatch) {
+    kindRaw = kindMatch[kindMatch.length - 1] || "";
+    kindRaw = kindRaw.replace(/\bexperience\b/g, "").replace(/\?$/g, "").trim();
+  }
+  return {
+    years,
+    kind: normalizeExperienceKind(kindRaw),
+    kindRaw: kindRaw,
+  };
+}
+
+function yearsIntent(claim, context) {
+  return extractYearsThreshold(claim, context) != null;
+}
+
+function yesNoAnswer(text) {
+  const value = norm(labeledValue(text));
+  if (!value) return "";
+  if (value === "yes" || value === "y" || value === "true") return "yes";
+  if (value === "no" || value === "n" || value === "false") return "no";
+  if (/^\d+\+?\s*years?\b/.test(value)) return "years_claim";
+  return "";
+}
+
+function monthsBetween(startIso, endIso) {
+  const start = monthIndex(startIso);
+  const end = monthIndex(endIso);
+  if (start == null || end == null || end < start) return null;
+  return end - start + 1;
+}
+
+function totalEmploymentMonths(facts, kind) {
+  const entries = employmentFacts(facts);
+  if (!entries.length) {
+    return { months: 0, matched: [], established: !kind };
+  }
+  if (kind) {
+    const anyKinded = entries.some((fact) => entryKinds(fact).length > 0);
+    if (!anyKinded) return { months: 0, matched: [], established: false };
+    const matched = entries.filter((fact) => entryKinds(fact).includes(kind));
+    if (!matched.length) return { months: 0, matched: [], established: false };
+    let months = 0;
+    for (const fact of matched) {
+      if (!fact.start_month || fact.current || !fact.end_month) continue;
+      const span = monthsBetween(fact.start_month, fact.end_month);
+      if (span != null) months += span;
+    }
+    return { months, matched, established: true };
+  }
+  let months = 0;
+  for (const fact of entries) {
+    if (!fact.start_month || fact.current || !fact.end_month) continue;
+    const span = monthsBetween(fact.start_month, fact.end_month);
+    if (span != null) months += span;
+  }
+  return { months, matched: entries, established: true };
+}
+
+function findEmploymentForClaim(text, facts) {
+  const foldedEmployer = normalizeEmployer(text);
+  const entries = employmentFacts(facts);
+  if (!entries.length) return null;
+  const hits = entries.filter((fact) => {
+    const employer = normalizeEmployer(fact.employer);
+    return employer && foldedEmployer.includes(employer);
+  });
+  if (hits.length === 1) return hits[0];
+  if (hits.length > 1) {
+    hits.sort((a, b) => normalizeEmployer(b.employer).length - normalizeEmployer(a.employer).length);
+    return hits[0];
+  }
+  return null;
+}
+
+function judgeCurrentEmployment(text, facts, rule, mode) {
+  const current = hasCurrentEmployment(facts);
+  if (mode === "field") {
+    if (!current && (blankish(text) || !normalizeEmployer(labeledValue(text)))) {
+      return pass(text, rule.id);
+    }
+    if (!current) return mismatch(text, rule.id, "");
+    const entry = employmentFacts(facts).find((fact) => fact.current);
+    const want = entry ? entry.employer : "";
+    if (normalizeEmployer(labeledValue(text)) === normalizeEmployer(want)) return pass(text, rule.id);
+    return mismatch(text, rule.id, want);
+  }
+  if (mentionsPresent(text) && !current) {
+    return mismatch(text, rule.id, "");
+  }
+  return null;
+}
+
+function judgeYearsExperience(text, claim, context, facts, rule, claire) {
+  const threshold = extractYearsThreshold(claim, context);
+  if (!threshold) return null;
+  const totals = totalEmploymentMonths(facts, threshold.kind || "");
+  if (threshold.kind && !totals.established) {
+    return needsClaire(text, claire && claire.id);
+  }
+  const enough = totals.months >= threshold.years * 12;
+  const answer = yesNoAnswer(text);
+  if (answer === "yes") {
+    if (enough) return pass(text, rule.id);
+    return mismatch(text, rule.id, "No");
+  }
+  if (answer === "no") {
+    if (!enough) return pass(text, rule.id);
+    return mismatch(text, rule.id, "Yes");
+  }
+  const claimedYears = extractMoreThanYears(text);
+  const plus = norm(text).match(/\b(\d+)\s*\+\s*years?\b/);
+  const claimed = plus ? Number(plus[1]) : claimedYears;
+  if (claimed != null && Number.isFinite(claimed)) {
+    if (enough && claimed <= Math.floor(totals.months / 12)) return pass(text, rule.id);
+    if (!enough && claimed >= threshold.years) {
+      return mismatch(text, rule.id, "No");
+    }
+  }
+  if (enough) return pass(text, rule.id);
+  return mismatch(text, rule.id, "No");
+}
+
+function judgeEmploymentDates(text, facts, rule) {
+  const claimRange = extractDateRange(text);
+  const entry = findEmploymentForClaim(text, facts);
+  if (!entry) {
+    if (!claimRange) return null;
+    return unsupported(text);
+  }
+  const correct = employmentCorrect(entry);
+  if (claimRange && claimRange.present) {
+    if (entry.current) {
+      if (claimRange.start === entry.start_month) return pass(text, rule.id);
+      return mismatch(text, rule.id, correct);
+    }
+    return mismatch(text, rule.id, correct);
+  }
+  if (!claimRange) return null;
+  if (entry.current) return mismatch(text, rule.id, correct);
+  if (claimRange.start === entry.start_month && claimRange.end === entry.end_month) {
+    return pass(text, rule.id);
+  }
+  return mismatch(text, rule.id, correct);
 }
 
 function fieldBlob(claim, context) {
@@ -483,34 +758,38 @@ function judgeDates(text, facts) {
     const range = extractDateRange(remote.value);
     const start = monthIndex(range.start);
     const end = monthIndex(range.end);
-    if (start == null || end == null) return unsupported(text);
+    if (start == null || end == null || range.present) return unsupported(text);
     const span = end - start;
     if (span > years * 12) return pass(text, remote.id);
     return mismatch(text, remote.id, remote.value);
   }
   const claimRange = extractDateRange(text);
-  if (!claimRange) return null;
-  const claimTitle = normalizeTitle(text);
-  const claimEmployer = employerToken(text);
-  let best = null;
-  let bestLen = 0;
-  for (const fact of facts) {
-    if (fact.kind !== "dates") continue;
-    if (/\bmore than\b/.test(norm(fact.value)) && mentionsRemote(fact.value)) continue;
-    if (!extractDateRange(fact.value)) continue;
-    const title = titleOf(fact.value);
-    const employer = employerOf(fact.value);
-    if (!title || !claimTitle.includes(title)) continue;
-    if (employer && claimEmployer && !claimEmployer.includes(employer)) continue;
-    if (title.length > bestLen) {
-      best = fact;
-      bestLen = title.length;
+  if (claimRange && !claimRange.present) {
+    const claimTitle = normalizeTitle(text);
+    const claimEmployer = employerToken(text);
+    let best = null;
+    let bestLen = 0;
+    for (const fact of facts) {
+      if (fact.kind !== "dates") continue;
+      if (/\bmore than\b/.test(norm(fact.value)) && mentionsRemote(fact.value)) continue;
+      if (!extractDateRange(fact.value)) continue;
+      const title = titleOf(fact.value);
+      const employer = employerOf(fact.value);
+      if (!title || !claimTitle.includes(title)) continue;
+      if (employer && claimEmployer && !claimEmployer.includes(employer)) continue;
+      if (title.length > bestLen) {
+        best = fact;
+        bestLen = title.length;
+      }
+    }
+    if (best) {
+      const factRange = extractDateRange(best.value);
+      if (factRange.start === claimRange.start && factRange.end === claimRange.end) return pass(text, best.id);
+      return mismatch(text, best.id, best.value);
     }
   }
-  if (!best) return unsupported(text);
-  const factRange = extractDateRange(best.value);
-  if (factRange.start === claimRange.start && factRange.end === claimRange.end) return pass(text, best.id);
-  return mismatch(text, best.id, best.value);
+  const employmentRule = { id: "rule_employer_dates" };
+  return judgeEmploymentDates(text, facts, employmentRule);
 }
 
 function employerToken(text) {
@@ -651,6 +930,8 @@ function formFieldUntyped(claim, context) {
   if (currentLocationIntent(claim, context)) return false;
   if (relocateIntent(claim, context)) return false;
   if (workCityIntent(claim, context)) return false;
+  if (yearsIntent(claim, context)) return false;
+  if (currentEmploymentIntent(claim, context) === "field") return false;
   const kind = claim && claim.kind;
   if (kind && kind !== "other" && kind !== "story" && kind !== "contact") return false;
   return true;
@@ -699,13 +980,37 @@ function judgeClaim(claim, record, context) {
     return judgeWorkCity(text, rule);
   }
 
+  if (yearsIntent(claim, context)) {
+    const rule = ruleById(rules, "rule_years_experience");
+    if (!rule) return needsClaire(text, claire && claire.id);
+    return judgeYearsExperience(text, claim, context, facts, rule, claire);
+  }
+
   const kind = claim && claim.kind;
-  if (kind === "team_size") {
-    const judged = judgeTeam(text, facts);
+  if (kind === "dates" || kind === "employment") {
+    const dateRule = ruleById(rules, "rule_employer_dates") || { id: "rule_employer_dates" };
+    if (kind === "employment") {
+      const byEmployment = judgeEmploymentDates(text, facts, dateRule);
+      if (byEmployment) return byEmployment;
+    } else {
+      const judged = judgeDates(text, facts);
+      if (judged) {
+        if (judged.id === "rule_employer_dates" && dateRule.id) judged.id = dateRule.id;
+        return judged;
+      }
+    }
+  }
+
+  const currentEmp = currentEmploymentIntent(claim, context);
+  if (currentEmp) {
+    const rule = ruleById(rules, "rule_current_employment");
+    if (!rule) return needsClaire(text, claire && claire.id);
+    const judged = judgeCurrentEmployment(text, facts, rule, currentEmp);
     if (judged) return judged;
   }
-  if (kind === "dates") {
-    const judged = judgeDates(text, facts);
+
+  if (kind === "team_size") {
+    const judged = judgeTeam(text, facts);
     if (judged) return judged;
   }
   if (kind === "metric") {
@@ -713,17 +1018,26 @@ function judgeClaim(claim, record, context) {
     if (judged) return judged;
   }
   if (kind === "title") return judgeTitle(text, facts);
-  if (kind === "employer") return judgeEmployer(text, facts);
+  if (kind === "employer") {
+    const dateRule = ruleById(rules, "rule_employer_dates");
+    if (dateRule && extractDateRange(text)) {
+      const byEmployment = judgeEmploymentDates(text, facts, dateRule);
+      if (byEmployment) return byEmployment;
+    }
+    return judgeEmployer(text, facts);
+  }
   if (kind === "degree") return judgeDegree(text, facts);
   if (kind === "location") return judgeLocationFact(text, facts);
 
   if (!kind || kind === "other" || kind === "story") {
+    if (extractDateRange(text)) {
+      const judged = judgeDates(text, facts);
+      if (judged) return judged;
+    }
     const metric = judgeMetric(text, facts);
     if (metric) return metric;
     const team = judgeTeam(text, facts);
     if (team) return team;
-    const dates = judgeDates(text, facts);
-    if (dates) return dates;
   }
 
   if (formFieldUntyped(claim, context)) return needsClaire(text, claire && claire.id);
@@ -742,10 +1056,12 @@ function judgeClaims(record, claims, context) {
 const FIND_SYSTEM = [
   FIND_MARKER,
   "List factual claims in a draft application answer or outreach note.",
-  "Return JSON only: {\"claims\":[{\"text\":\"...\",\"kind\":\"employer|title|dates|team_size|location|metric|degree|contact|story|salary|other\",\"field\":\"\"}]}",
+  "Return JSON only: {\"claims\":[{\"text\":\"...\",\"kind\":\"employer|title|dates|team_size|location|metric|degree|contact|story|salary|employment|other\",\"field\":\"\"}]}",
   "Copy each claim's text from the draft. Do not decide whether a claim is true.",
   "Do not include a verdict. kind is a label only.",
-  "Split team sizes, dates, titles, employers, metrics, locations, salary, and sensitive answers into separate claims.",
+  "Split team sizes, dates, titles, employers, employment date ranges, years of experience answers, metrics, locations, salary, and sensitive answers into separate claims.",
+  "If a draft uses Present or current for employment dates, include that claim with kind dates.",
+  "If the draft answers a years-of-experience question, include the answer and put the question text in field.",
   "If the draft states a visa, work authorization, EEO, or demographic answer, set kind to other and field to that topic.",
 ].join(" ");
 

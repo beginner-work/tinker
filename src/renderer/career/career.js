@@ -81,8 +81,83 @@
     return el;
   }
 
+  function employmentValue(fact) {
+    var parts = [fact.employer || ""];
+    if (fact.title) parts.push(fact.title);
+    var start = fact.start_month || "";
+    var end = fact.current ? "Present" : (fact.end_month || "");
+    if (start || end) parts.push(start + (end ? " - " + end : ""));
+    return parts.filter(Boolean).join(", ") || fact.value || "";
+  }
+
+  function addEmploymentFields(parent, fact) {
+    var employer = document.createElement("input");
+    employer.className = "career__input";
+    employer.type = "text";
+    employer.value = fact.employer || "";
+    employer.placeholder = "Employer";
+    employer.setAttribute("aria-label", "Employer");
+    parent.appendChild(employer);
+
+    var title = document.createElement("input");
+    title.className = "career__input";
+    title.type = "text";
+    title.value = fact.title || "";
+    title.placeholder = "Title (optional)";
+    title.setAttribute("aria-label", "Title");
+    parent.appendChild(title);
+
+    var start = document.createElement("input");
+    start.className = "career__input";
+    start.type = "text";
+    start.value = fact.start_month || "";
+    start.placeholder = "Start month (e.g. Sep 2019)";
+    start.setAttribute("aria-label", "Start month");
+    parent.appendChild(start);
+
+    var end = document.createElement("input");
+    end.className = "career__input";
+    end.type = "text";
+    end.value = fact.end_month || "";
+    end.placeholder = "End month";
+    end.setAttribute("aria-label", "End month");
+    parent.appendChild(end);
+
+    var currentWrap = document.createElement("label");
+    currentWrap.className = "career__current";
+    var current = document.createElement("input");
+    current.type = "checkbox";
+    current.checked = fact.current === true;
+    current.setAttribute("aria-label", "Current role");
+    currentWrap.appendChild(current);
+    currentWrap.appendChild(document.createTextNode(" Current role"));
+    parent.appendChild(currentWrap);
+
+    function syncCurrent() {
+      end.disabled = current.checked;
+      if (current.checked) end.value = "";
+    }
+    current.addEventListener("change", syncCurrent);
+    syncCurrent();
+
+    return { employer: employer, title: title, start: start, end: end, current: current };
+  }
+
+  function employmentBody(fact, fields, action) {
+    return {
+      id: fact.id,
+      action: action,
+      employer: fields.employer.value,
+      title: fields.title.value,
+      start_month: fields.start.value,
+      end_month: fields.current.checked ? null : fields.end.value,
+      current: fields.current.checked,
+    };
+  }
+
   function renderFact(fact, mode) {
     var proposed = mode === "proposed";
+    var verified = mode === "verified";
     var rejected = mode === "rejected";
     var row = document.createElement("li");
     row.className = "career__fact";
@@ -91,55 +166,78 @@
 
     var left = document.createElement("div");
     addText(left, "career__kind", kindLabel(fact.kind));
-    if (proposed) {
-      var value = document.createElement("input");
-      value.className = "career__input";
-      value.type = "text";
-      value.value = fact.value || "";
-      value.setAttribute("aria-label", "Fact");
-      left.appendChild(value);
+    if (proposed || (verified && fact.kind === "employment")) {
+      var value = null;
       var baseline = null;
       var mechanism = null;
-      if (fact.kind === "metric") {
-        baseline = document.createElement("input");
-        baseline.className = "career__input";
-        baseline.type = "text";
-        baseline.value = fact.baseline || "";
-        baseline.placeholder = "Baseline";
-        baseline.setAttribute("aria-label", "Baseline");
-        mechanism = document.createElement("input");
-        mechanism.className = "career__input";
-        mechanism.type = "text";
-        mechanism.value = fact.mechanism || "";
-        mechanism.placeholder = "Mechanism";
-        mechanism.setAttribute("aria-label", "Mechanism");
-        left.appendChild(baseline);
-        left.appendChild(mechanism);
+      var employment = null;
+      if (fact.kind === "employment") {
+        employment = addEmploymentFields(left, fact);
+      } else {
+        value = document.createElement("input");
+        value.className = "career__input";
+        value.type = "text";
+        value.value = fact.value || "";
+        value.setAttribute("aria-label", "Fact");
+        left.appendChild(value);
+        if (fact.kind === "metric" && proposed) {
+          baseline = document.createElement("input");
+          baseline.className = "career__input";
+          baseline.type = "text";
+          baseline.value = fact.baseline || "";
+          baseline.placeholder = "Baseline";
+          baseline.setAttribute("aria-label", "Baseline");
+          mechanism = document.createElement("input");
+          mechanism.className = "career__input";
+          mechanism.type = "text";
+          mechanism.value = fact.mechanism || "";
+          mechanism.placeholder = "Mechanism";
+          mechanism.setAttribute("aria-label", "Mechanism");
+          left.appendChild(baseline);
+          left.appendChild(mechanism);
+        }
       }
       var actions = document.createElement("div");
       actions.className = "career__actions";
-      var confirm = document.createElement("button");
-      confirm.type = "button";
-      confirm.className = "career__confirm";
-      confirm.textContent = "Confirm";
+      if (proposed) {
+        var confirm = document.createElement("button");
+        confirm.type = "button";
+        confirm.className = "career__confirm";
+        confirm.textContent = "Confirm";
+        confirm.addEventListener("click", function () {
+          var body;
+          if (employment) body = employmentBody(fact, employment, "verify");
+          else {
+            body = { id: fact.id, action: "verify", value: value.value };
+            if (baseline) body.baseline = baseline.value;
+            if (mechanism) body.mechanism = mechanism.value;
+          }
+          saveFact(body, [confirm, reject]);
+        });
+        actions.appendChild(confirm);
+      } else if (employment) {
+        var save = document.createElement("button");
+        save.type = "button";
+        save.className = "career__confirm";
+        save.textContent = "Save";
+        save.addEventListener("click", function () {
+          saveFact(employmentBody(fact, employment, "edit"), [save, reject]);
+        });
+        actions.appendChild(save);
+      }
       var reject = document.createElement("button");
       reject.type = "button";
       reject.className = "career__reject";
       reject.textContent = "Reject";
-      confirm.addEventListener("click", function () {
-        var body = { id: fact.id, action: "verify", value: value.value };
-        if (baseline) body.baseline = baseline.value;
-        if (mechanism) body.mechanism = mechanism.value;
-        saveFact(body, [confirm, reject]);
-      });
       reject.addEventListener("click", function () {
-        saveFact({ id: fact.id, action: "reject" }, [confirm, reject]);
+        var buttons = [];
+        actions.querySelectorAll("button").forEach(function (button) { buttons.push(button); });
+        saveFact({ id: fact.id, action: "reject" }, buttons);
       });
-      actions.appendChild(confirm);
       actions.appendChild(reject);
       left.appendChild(actions);
     } else {
-      addText(left, "career__value", fact.value);
+      addText(left, "career__value", fact.kind === "employment" ? employmentValue(fact) : fact.value);
       if (fact.kind === "metric" && (fact.baseline || fact.mechanism)) {
         addText(left, "career__doc", "Baseline: " + (fact.baseline || "none") + ". Mechanism: " + (fact.mechanism || "none") + ".");
       }
