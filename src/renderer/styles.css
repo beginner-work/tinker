@@ -961,6 +961,19 @@ body.messages-you-active .writing--in-messages .writing-recall {
   color: var(--color-muted);
   margin-bottom: 10px;
 }
+/* Error card text must stay readable in You chrome (muted note/error was washed out). */
+body.messages-you-active .writing--in-messages .writing-card--error .writing-question {
+  color: var(--color-ink, #1a1a1a);
+}
+body.messages-you-active .writing--in-messages .writing-card--error .writing-note,
+body.messages-you-active .writing--in-messages .writing-card--error .writing-error {
+  color: #5c2410;
+  font-weight: 500;
+}
+body.messages-you-active .writing--in-messages .writing-card--error .writing-error {
+  background: #fde6dc;
+  border-color: #d9a48c;
+}
 /* Floating pill pair replaces the AI / No AI toggle on this view. */
 body.messages-you-active .mode-nav {
   display: none !important;
@@ -2985,15 +2998,23 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   40% { transform: translateY(-4px); opacity: 1; }
 }
 
+.writing-card--error .writing-question {
+  color: var(--color-ink, #1a1a1a);
+}
+.writing-card--error .writing-note {
+  color: #5c2410;
+  font-weight: 500;
+}
 .writing-card--error .writing-error {
   white-space: pre-wrap;
-  background: #fdf0eb;
-  border: 1px solid #f0d3c5;
+  background: #fde6dc;
+  border: 1px solid #d9a48c;
   border-radius: 12px;
   padding: 12px 14px;
   font-size: 13px;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  color: #8b3a1a;
+  color: #5c2410;
+  font-weight: 500;
 }
 
 .writing__foot {

@@ -61,6 +61,7 @@ const INSTRUCTIONS = [
   "Call get_outreach_schedule to read the Mon–Fri outreach plan (sessions, touches, busyEvents). Call set_busy_times to store busy blocks from the owner's assistant. Call ask_followups with a transcript of {q, a} turns to run the founder interview",
   "(one next question, or a stitch when the draft is ready), or with a draft string",
   "for freeform follow-up questions. Optional priorTurns avoids repeats.",
+  "Pass keepCrafting true when the owner pressed Keep crafting — the server must return a next_question (never done or stitch); empty model replies retry then fall back to a stage question.",
   "Call draft_linkedin_post with notes (a topic or bullets) to draft a LinkedIn post or direct message in Tyler's voice.",
   "Pass kind \"dm\" for a direct message, or start the notes with \"DM:\". Pass currentDraft and an optional instruction to revise.",
   "This drafts copy only. It does not post to LinkedIn.",
@@ -117,6 +118,8 @@ const ASK_FOLLOWUPS_TOOL = {
     "Optional priorTurns (strings or {q, a}) are questions already asked.",
     "Optional seed, facing, lastPurchased, voice, and transactions",
     "shape the interview the same way the writing UI does.",
+    "Pass keepCrafting true when the owner wants another question (Keep crafting):",
+    "the server never returns done or a stitch for that call; empty replies retry then fall back.",
     "Do not send a system prompt; the server owns it.",
   ].join(" "),
   inputSchema: {
@@ -173,6 +176,11 @@ const ASK_FOLLOWUPS_TOOL = {
       forceStitch: {
         type: "boolean",
         description: "Interview mode only. Skip further questions and stitch the essay.",
+      },
+      keepCrafting: {
+        type: "boolean",
+        description:
+          "Interview mode only. Owner pressed Keep crafting — always return a next_question; never done or stitch.",
       },
     },
   },
