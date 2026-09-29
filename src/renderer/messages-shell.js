@@ -642,12 +642,15 @@
       }
     }).finally(function () {
       state.loading = false;
-      renderList();
-      // Mobile front screen is always the company list. Never auto-enter
-      // thread mode on refresh (that was painting a blank stage).
-      if (state.selectedCompanyId && document.body.classList.contains("messages-mobile-thread")) {
-        if (state.selectedCompanyId === YOU_ID) selectYou({ silent: true, stayOnList: true });
-        else selectCompany(state.selectedCompanyId, { silent: true, stayOnList: true });
+      // Keep an in-progress company/You selection across refresh. Only the
+      // empty selection returns to the company list (avoids blank mobile
+      // thread on boot, and avoids wiping a tap that raced a late refresh).
+      if (state.selectedCompanyId === YOU_ID) {
+        var stayYou = !document.body.classList.contains("messages-mobile-thread");
+        selectYou({ silent: true, stayOnList: stayYou });
+      } else if (state.selectedCompanyId) {
+        var stayCo = !document.body.classList.contains("messages-mobile-thread");
+        selectCompany(state.selectedCompanyId, { silent: true, stayOnList: stayCo });
       } else {
         showCompanyList();
       }
