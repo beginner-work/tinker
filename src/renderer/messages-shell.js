@@ -658,6 +658,10 @@
     pane = document.getElementById("messages-pane");
     if (!root) return;
     document.body.classList.add("messages-inbox-primary", "messages-shell-open");
+    // Inbox is primary: clear the welcome "active" flag so the AI / No AI
+    // pill (keyed off #welcome[data-active]) cannot float over the rail.
+    var welcome = document.getElementById("welcome");
+    if (welcome) welcome.removeAttribute("data-active");
     // Drop leftover company-tab hosts from older builds.
     var tabs = pane && pane.querySelector("[data-messages-tabs]");
     if (tabs) { tabs.innerHTML = ""; tabs.hidden = true; }

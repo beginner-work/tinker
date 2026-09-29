@@ -1555,6 +1555,14 @@ button.sidebar__funnel-person:hover { background: var(--color-hover); }
 body:has(#welcome[data-active]) .mode-nav {
   display: flex;
 }
+/* Inbox owns the app now: never show the welcome AI / No AI pill over
+ * the people rail, person notepad, or owner thread. */
+body.messages-shell-open .mode-nav,
+body.messages-inbox-primary .mode-nav,
+body.messages-notepad-active .mode-nav {
+  display: none !important;
+  pointer-events: none !important;
+}
 /* LinkedIn draft owns the stage while its section is mounted.
    .welcome__inner is position:relative with z-index:1, so the location
    grid paints over a later .writing sibling. The mode switch is
