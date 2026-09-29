@@ -102,6 +102,7 @@ model SellingPart {
   fields        Json      @default("{}")
   topics        Json      @default("[]")
   stack         Json      @default("[]")
+  concepts      Json      @default("[]")
   status        String
   sourceKind    String
   sourceId      String?

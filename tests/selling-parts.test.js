@@ -180,11 +180,12 @@ test("a note becomes a part, edits demote ready, and another user gets 404", asy
   assert.equal((await call({ method: "GET", token: "user-b", action: "part", query: { id } })).status, 404);
   assert.deepEqual((await call({ method: "GET", token: "user-b", action: "list" })).body.parts, []);
   assert.equal((await call({ method: "POST", token: "mcp_test_key", action: "status", body: { id, status: "ready" } })).status, 401);
-  const code = await call({ method: "POST", action: "create", body: { stageKey: "proof_point", title: "The store", body: "Tables.", sourceKind: "code", stack: ["TypeScript", "Prisma", "MCP"], sourceRef: { repo: "example/widget", path: "api/store.js", ref: "12" } } });
+  const code = await call({ method: "POST", action: "create", body: { stageKey: "proof_point", title: "The store", body: "Tables.", sourceKind: "code", stack: ["TypeScript", "Prisma", "MCP"], concepts: ["Idempotency", "event_driven"], sourceRef: { repo: "example/widget", path: "api/store.js", ref: "12", evidence: ["api/store.js", "api/keys.js"] } } });
   assert.equal(code.status, 201);
   assert.deepEqual(code.body.part.stack, ["typescript", "prisma", "mcp"]);
-  assert.deepEqual(code.body.part.sourceRef, { repo: "example/widget", path: "api/store.js", ref: "12" });
-  const found = await call({ method: "GET", action: "list", query: { stack: "Prisma", sourceKind: "code" } });
+  assert.deepEqual(code.body.part.concepts, ["idempotency", "event-driven"]);
+  assert.deepEqual(code.body.part.sourceRef, { repo: "example/widget", path: "api/store.js", ref: "12", evidence: ["api/store.js", "api/keys.js"] });
+  const found = await call({ method: "GET", action: "list", query: { stack: "Prisma", concepts: "Event Driven", sourceKind: "code" } });
   assert.deepEqual(found.body.parts.map((part) => part.id), [code.body.part.id]);
   assert.equal(found.body.parts[0].sourceChanged, null);
 });

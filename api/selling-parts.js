@@ -57,7 +57,7 @@ async function dispatch(method, action, auth, body, req) {
   if (method === "GET" && (action === "list" || action === "")) {
     const parts = await store.listParts({
       userId, stage: queryValue(req, "stage"), topic: queryValue(req, "topic"), status: queryValue(req, "status"),
-      sourceKind: queryValue(req, "sourceKind"), stack: queryValue(req, "stack"),
+      sourceKind: queryValue(req, "sourceKind"), stack: queryValue(req, "stack"), concepts: queryValue(req, "concepts"),
     });
     return { status: 200, body: { parts: parts.map(store.presentPart) } };
   }
