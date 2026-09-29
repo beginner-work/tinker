@@ -5,9 +5,10 @@ const COMPANY_STATUSES = ["active", "dropped"];
 const CONTACT_TYPES = ["referrer", "recruiter", "hiring_leader", "other"];
 const UNAVAILABLE = "Leads are unavailable right now.";
 const TABLE_STATEMENTS = [
-  `CREATE TABLE IF NOT EXISTS "TargetCompany" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "name" TEXT NOT NULL, "domain" TEXT NOT NULL DEFAULT '', "northStar" BOOLEAN NOT NULL DEFAULT false, "status" TEXT NOT NULL, "totalComp" INTEGER, "totalCompSource" TEXT NOT NULL DEFAULT '', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "TargetCompany_pkey" PRIMARY KEY ("id"))`,
+  `CREATE TABLE IF NOT EXISTS "TargetCompany" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "name" TEXT NOT NULL, "domain" TEXT NOT NULL DEFAULT '', "northStar" BOOLEAN NOT NULL DEFAULT false, "priority" INTEGER NOT NULL DEFAULT 100, "status" TEXT NOT NULL, "totalComp" INTEGER, "totalCompSource" TEXT NOT NULL DEFAULT '', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "TargetCompany_pkey" PRIMARY KEY ("id"))`,
   `CREATE INDEX IF NOT EXISTS "TargetCompany_userId_idx" ON "TargetCompany"("userId")`,
   `CREATE INDEX IF NOT EXISTS "TargetCompany_userId_name_idx" ON "TargetCompany"("userId", "name")`,
+  `ALTER TABLE "TargetCompany" ADD COLUMN IF NOT EXISTS "priority" INTEGER NOT NULL DEFAULT 100`,
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "contactType" TEXT NOT NULL DEFAULT 'other'`,
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "queueOrder" INTEGER NOT NULL DEFAULT 0`,
@@ -67,6 +68,24 @@ function readComp(value, label) {
   if (!Number.isInteger(n) || n < 0) throw fail(400, `${label} must be a whole dollar amount.`);
   return n;
 }
+function readPriority(value, label) {
+  if (value == null || value === "") return 100;
+  const n = typeof value === "number" ? value : Number(String(value).trim());
+  if (!Number.isInteger(n) || n < 0 || n > 10000) throw fail(400, `${label} must be an integer from 0 to 10000.`);
+  return n;
+}
+function requireActor(actor) {
+  const label = actor && typeof actor.label === "string" ? actor.label.trim() : "";
+  const kind = actor && actor.kind;
+  const ok = (kind === "human" && /^user:\S/.test(label)) || (kind === "bot" && /^bot:\S/.test(label));
+  if (!ok) throw fail(401, "Missing actor.");
+  return label;
+}
+function companySort(a, b) {
+  return Number(b.northStar) - Number(a.northStar)
+    || (Number(a.priority == null ? 100 : a.priority) - Number(b.priority == null ? 100 : b.priority))
+    || a.name.localeCompare(b.name);
+}
 function domainKey(domain) { return String(domain || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]; }
 function nameKey(name) { return String(name || "").trim().toLowerCase(); }
 function payStatus(company, floor) {
@@ -99,11 +118,11 @@ async function createCompany(input) {
   if (!userId) throw fail(401, "Sign in to tinker first.");
   const store = leads();
   store.assertAllowed(userId, input.emailHint);
-  const actor = input.actor;
-  if (!(actor && typeof actor.label === "string" && /^user:\S/.test(actor.label.trim()))) throw fail(401, "Missing actor.");
+  requireActor(input.actor);
   const data = {
     userId, name: readText(input.name, "name", 200, true), domain: domainKey(input.domain),
-    northStar: readBool(input.northStar, "northStar"), status: readEnum(input.status || "active", COMPANY_STATUSES, "status"),
+    northStar: readBool(input.northStar, "northStar"), priority: readPriority(input.priority, "priority"),
+    status: readEnum(input.status || "active", COMPANY_STATUSES, "status"),
     totalComp: readComp(input.totalComp, "totalComp"), totalCompSource: readText(input.totalCompSource, "totalCompSource", 500, false),
   };
   await ensureTable();
@@ -125,7 +144,7 @@ async function listCompanies({ userId, emailHint, status } = {}) {
   try { rows = await db().targetCompany.findMany({ where: { userId } }); }
   catch (err) { throw storeDown(err); }
   if (status) rows = rows.filter((row) => row.status === status);
-  rows.sort((a, b) => Number(b.northStar) - Number(a.northStar) || a.name.localeCompare(b.name));
+  rows.sort(companySort);
   return rows;
 }
 
@@ -133,9 +152,9 @@ async function updateCompany({ id, userId, emailHint, actor, patch }) {
   const store = leads();
   if (typeof userId !== "string" || !userId.trim()) throw fail(401, "Sign in to tinker first.");
   store.assertAllowed(userId, emailHint);
-  if (!(actor && typeof actor.label === "string" && /^user:\S/.test(actor.label.trim()))) throw fail(401, "Missing actor.");
+  requireActor(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
-  const keys = ["name", "domain", "northStar", "status", "totalComp", "totalCompSource"].filter((key) => Object.prototype.hasOwnProperty.call(source, key));
+  const keys = ["name", "domain", "northStar", "priority", "status", "totalComp", "totalCompSource"].filter((key) => Object.prototype.hasOwnProperty.call(source, key));
   if (!keys.length) throw fail(400, "Nothing to update.");
   await ensureTable();
   const row = await loadCompany(id, userId);
@@ -143,6 +162,7 @@ async function updateCompany({ id, userId, emailHint, actor, patch }) {
   if (keys.includes("name")) data.name = readText(source.name, "name", 200, true);
   if (keys.includes("domain")) data.domain = domainKey(source.domain);
   if (keys.includes("northStar")) data.northStar = readBool(source.northStar, "northStar");
+  if (keys.includes("priority")) data.priority = readPriority(source.priority, "priority");
   if (keys.includes("status")) data.status = readEnum(source.status, COMPANY_STATUSES, "status");
   if (keys.includes("totalComp")) data.totalComp = readComp(source.totalComp, "totalComp");
   if (keys.includes("totalCompSource")) data.totalCompSource = readText(source.totalCompSource, "totalCompSource", 500, false);
@@ -169,7 +189,7 @@ async function matchOrCreateCompany(tx, owner, { name, domain }) {
     return found;
   }
   return tx.targetCompany.create({
-    data: { userId: owner, name: name || d || "Company", domain: d, northStar: false, status: "active", totalComp: null, totalCompSource: "" },
+    data: { userId: owner, name: name || d || "Company", domain: d, northStar: false, priority: 100, status: "active", totalComp: null, totalCompSource: "" },
   });
 }
 
@@ -186,12 +206,14 @@ async function getFunnel({ userId, emailHint }) {
     leadRows = await db().lead.findMany({ where: { userId } });
   } catch (err) { throw storeDown(err); }
   const active = companies.filter((row) => row.status === "active");
-  const north = active.filter((row) => row.northStar);
+  const north = active.filter((row) => row.northStar).sort(companySort);
   const rest = active.filter((row) => !row.northStar);
   rest.sort((a, b) => {
     const pa = payStatus(a, floor); const pb = payStatus(b, floor);
     const rank = (p) => (p === "below" ? 1 : 0);
-    return rank(pa) - rank(pb) || a.name.localeCompare(b.name);
+    return rank(pa) - rank(pb)
+      || (Number(a.priority == null ? 100 : a.priority) - Number(b.priority == null ? 100 : b.priority))
+      || a.name.localeCompare(b.name);
   });
   const ordered = north.concat(rest);
   return {
@@ -213,5 +235,5 @@ module.exports = {
   UNAVAILABLE, TABLE_STATEMENTS, COMPANY_STATUSES, CONTACT_TYPES,
   ensureTable, resetTableCache, presentCompany: shape,
   createCompany, listCompanies, updateCompany, matchOrCreateCompany, getFunnel, loadCompany,
-  domainKey, nameKey, payStatus, nextOfType,
+  domainKey, nameKey, payStatus, nextOfType, companySort, readPriority,
 };

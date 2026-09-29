@@ -1,7 +1,7 @@
 /* Outreach schedule: planned touches and sessions. Owner-scoped. Never sends. */
 "use strict";
 
-const TOUCH_TYPES = ["application", "hiring_leader_outreach", "recruiter_outreach", "referral_follow_up", "call_follow_up"];
+const TOUCH_TYPES = ["application", "referral_outreach", "hiring_leader_outreach", "recruiter_outreach", "referral_follow_up", "call_follow_up"];
 const TOUCH_STATUSES = ["planned", "drafted", "done", "skipped"];
 const SESSION_TYPES = ["company", "skill"];
 const OPEN_TOUCH = ["planned", "drafted"];
@@ -175,7 +175,7 @@ function touchData(input, owner) {
 }
 async function createTouch(input) {
   const owner = requireOwner(input.userId, input.emailHint);
-  requireActor(input.actor);
+  requireWriteActor(input.actor);
   const data = touchData(input, owner);
   await ensureTable();
   await assertRefs(owner, input.emailHint, data);
@@ -184,7 +184,7 @@ async function createTouch(input) {
 }
 async function updateTouch({ id, userId, emailHint, actor, patch }) {
   const owner = requireOwner(userId, emailHint);
-  requireActor(actor);
+  requireWriteActor(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
   const keys = ["companyId", "touchType", "date", "windowStart", "windowEnd", "leadId", "status", "draftId", "sessionId"]
     .filter((key) => Object.prototype.hasOwnProperty.call(source, key));

@@ -893,8 +893,44 @@ body.messages-you-active .messages-thread__item--assistant {
   max-width: min(78%, 28rem);
 }
 body.messages-you-active .messages-thread__body--markdown {
-  white-space: pre-wrap;
   word-break: break-word;
+}
+body.messages-you-active .messages-thread__body--markdown p {
+  margin: 0 0 0.55em;
+}
+body.messages-you-active .messages-thread__body--markdown p:last-child {
+  margin-bottom: 0;
+}
+body.messages-you-active .messages-thread__body--markdown ul {
+  margin: 0.2em 0 0.55em;
+  padding-left: 1.2em;
+}
+body.messages-you-active .messages-thread__body--markdown li {
+  margin: 0.15em 0;
+}
+body.messages-you-active .messages-thread__body--markdown h3,
+body.messages-you-active .messages-thread__body--markdown h4,
+body.messages-you-active .messages-thread__body--markdown h5 {
+  margin: 0.4em 0 0.35em;
+  font-size: 1em;
+  font-weight: 650;
+  font-family: var(--font-sans);
+}
+.messages-avatar--brand {
+  background: #fffdf7;
+  overflow: hidden;
+}
+.messages-avatar--brand .messages-avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+body.messages-you-active .writing--in-messages .writing-recall {
+  font-style: italic;
+}
+body.messages-you-active .writing--in-messages .writing-recall__text {
+  font-style: italic;
 }
 
 .sidebar__drafts--settings {

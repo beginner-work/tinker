@@ -137,14 +137,14 @@ test("post_to_self_thread is listed and posts only into the connector user's thr
   const bot = "mcp_" + "a".repeat(43);
   const other = "mcp_" + "b".repeat(43);
   const posted = await mcpCall(bot, "post_to_self_thread", {
-    title: "GTM approach",
+    title: "Quick note",
     body: "## Focus\n- Hire through trust\n- Keep the note short",
     userId: "user-b",
   });
   assert.equal(posted.status, 200);
   assert.equal(posted.body.result.isError, undefined);
   const message = posted.body.result.structuredContent.message;
-  assert.equal(message.title, "GTM approach");
+  assert.equal(message.title, "Quick note");
   assert.match(message.body, /Hire through trust/);
   assert.equal(message.source, "mcp");
   assert.match(message.id, /^self_/);
@@ -164,6 +164,30 @@ test("post_to_self_thread is listed and posts only into the connector user's thr
   assert.equal(otherPost.status, 200);
   assert.equal((await ownerCall({ method: "GET", action: "list" })).body.messages.length, 1);
   assert.equal((await ownerCall({ method: "GET", token: "user-b", action: "list" })).body.messages.length, 1);
+
+  assert.ok(names.includes("set_company_priority"));
+  assert.ok(names.includes("plan_lead_touch"));
+  assert.match(tool.description, /short message|brief assistant/i);
+  assert.equal(/GTM approach/.test(tool.description), false);
+});
+
+test("listMessages drops legacy GTM approach dumps", async () => {
+  await store.postMessage({
+    userId: "user-a",
+    title: "GTM approach",
+    body: "Hire through trust.\nKeep the note short.",
+  });
+  await store.postMessage({
+    userId: "user-a",
+    title: "Keep this",
+    body: "Short assistant note",
+  });
+  const listed = await store.listMessages({ userId: "user-a" });
+  assert.equal(listed.length, 1);
+  assert.equal(listed[0].title, "Keep this");
+  const again = await ownerCall({ method: "GET", action: "list" });
+  assert.equal(again.body.messages.length, 1);
+  assert.equal(again.body.messages[0].title, "Keep this");
 });
 
 test("owner API rejects empty posts and You renderer loads self posts", async () => {
@@ -173,6 +197,8 @@ test("owner API rejects empty posts and You renderer loads self posts", async ()
   assert.match(you, /\/api\/self-thread/);
   assert.match(you, /messages-thread__item--assistant/);
   assert.match(you, /loadSelfPosts|renderSelfPosts/);
+  assert.match(you, /fillMarkdown|inlineMarkdown/);
+  assert.match(you, /Lindow Labs/);
   assert.equal(/—/.test(you), false);
 });
 

@@ -83,12 +83,24 @@ async function writeBlob(userId, messages) {
   });
 }
 
+function isPlanDump(message) {
+  const title = String(message && message.title || "").trim().toLowerCase();
+  return title === "gtm approach" || title === "go-to-market approach" || title === "go to market approach";
+}
+
+async function purgePlanDumps(userId, messages) {
+  const kept = messages.filter((msg) => !isPlanDump(msg));
+  if (kept.length !== messages.length) await writeBlob(userId, kept);
+  return kept;
+}
+
 async function listMessages({ userId, limit } = {}) {
   try {
     const uid = requireUserId(userId);
     const { messages } = await readBlob(uid);
+    const cleaned = await purgePlanDumps(uid, messages);
     const cap = Math.min(Math.max(Number(limit) || 50, 1), MAX_MESSAGES);
-    return messages.slice(-cap).map(present);
+    return cleaned.slice(-cap).map(present);
   } catch (err) {
     throw storeDown(err);
   }
@@ -122,4 +134,5 @@ module.exports = {
   present,
   listMessages,
   postMessage,
+  isPlanDump,
 };

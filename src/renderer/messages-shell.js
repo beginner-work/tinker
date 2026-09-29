@@ -15,16 +15,28 @@
   };
   var TOUCH_LABEL = {
     application: "application",
+    referral_outreach: "referral intro",
     hiring_leader_outreach: "eng leader note",
     recruiter_outreach: "recruiter note",
     referral_follow_up: "follow-up",
     call_follow_up: "follow-up",
   };
-  var DUE_ORDER = ["Today", "This week", "Later", "No next touch"];
+  var CONTACT_LABEL = {
+    referrer: "referral",
+    hiring_leader: "hiring EM",
+    recruiter: "recruiter",
+    other: "contact",
+  };
+  var CONTACT_ORDER = { referrer: 0, hiring_leader: 1, recruiter: 2, other: 3 };
   var YOU_ID = "__you__";
+  var OWNER_LABEL = "Lindow Labs";
+  var OWNER_LOGO = "./icons/lindow-labs.svg";
+  var NO_COMPANY = "No company";
   var state = {
     leads: [],
     drafts: [],
+    companies: [],
+    companiesById: {},
     touchesByLead: {},
     loading: false,
     error: "",
@@ -32,9 +44,6 @@
     companyFilter: "",
     selectedId: "",
     collapsed: {},
-    ownerName: "",
-    ownerInitials: "Y",
-    ownerAvatarUrl: "",
   };
   var root = null;
   var pane = null;
@@ -114,32 +123,10 @@
       return matchesQuery(lead);
     });
   }
-  function startOfLocalDay(d) {
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  }
-  function endOfLocalWeek(d) {
-    var day = d.getDay();
-    var toSun = day === 0 ? 0 : 7 - day;
-    var end = startOfLocalDay(d);
-    end.setDate(end.getDate() + toSun);
-    end.setHours(23, 59, 59, 999);
-    return end;
-  }
   function touchFor(lead) {
     if (!lead) return null;
     var entry = state.touchesByLead[lead.id];
     return entry && entry.touch ? entry.touch : null;
-  }
-  function dueBucket(lead) {
-    var touch = touchFor(lead);
-    if (!touch || !touch.date) return "No next touch";
-    var due = new Date(touch.date);
-    if (Number.isNaN(due.getTime())) return "No next touch";
-    var today = startOfLocalDay(new Date());
-    var dueDay = startOfLocalDay(due);
-    if (dueDay.getTime() <= today.getTime()) return "Today";
-    if (dueDay.getTime() <= endOfLocalWeek(today).getTime()) return "This week";
-    return "Later";
   }
   function dueDayLabel(touch) {
     if (!touch || !touch.date) return "";
@@ -155,22 +142,70 @@
     if (!touch) return "";
     return TOUCH_LABEL[touch.touchType] || String(touch.touchType || "").replace(/_/g, " ");
   }
-  function groupByDue(leads) {
+  function contactLabel(lead) {
+    if (!lead) return "";
+    return CONTACT_LABEL[lead.contactType] || String(lead.contactType || "").replace(/_/g, " ");
+  }
+  function nextStepLabel(lead) {
+    var touch = touchFor(lead);
+    if (touch) return touchTypeLabel(touch);
+    var step = String(lead && lead.nextStep || "").trim();
+    return step || "";
+  }
+  function companyKeyFor(lead) {
+    if (!lead) return NO_COMPANY;
+    if (lead.companyId && state.companiesById[lead.companyId]) {
+      return state.companiesById[lead.companyId].name || NO_COMPANY;
+    }
+    var name = String(lead.company || "").trim();
+    return name || NO_COMPANY;
+  }
+  function companyMeta(name) {
+    var key = String(name || "").trim().toLowerCase();
+    for (var i = 0; i < state.companies.length; i++) {
+      var c = state.companies[i];
+      if (String(c.name || "").trim().toLowerCase() === key) return c;
+    }
+    return null;
+  }
+  function companyRank(name) {
+    if (name === NO_COMPANY) return { northStar: 0, priority: 99999, name: "\uffff" };
+    var c = companyMeta(name);
+    return {
+      northStar: c && c.northStar ? 1 : 0,
+      priority: c && c.priority != null ? Number(c.priority) : 100,
+      name: String(name || "").toLowerCase(),
+    };
+  }
+  function sortLeadsInCompany(a, b) {
+    var ca = CONTACT_ORDER[a.contactType] != null ? CONTACT_ORDER[a.contactType] : 9;
+    var cb = CONTACT_ORDER[b.contactType] != null ? CONTACT_ORDER[b.contactType] : 9;
+    if (ca !== cb) return ca - cb;
+    var qa = Number(a.queueOrder || 0);
+    var qb = Number(b.queueOrder || 0);
+    if (qa !== qb) return qa - qb;
+    var ta = touchFor(a);
+    var tb = touchFor(b);
+    var da = ta && ta.date ? new Date(ta.date).getTime() : Number.POSITIVE_INFINITY;
+    var db = tb && tb.date ? new Date(tb.date).getTime() : Number.POSITIVE_INFINITY;
+    return da - db;
+  }
+  function groupByCompany(leads) {
     var map = {};
-    DUE_ORDER.forEach(function (key) { map[key] = []; });
     leads.forEach(function (lead) {
-      map[dueBucket(lead)].push(lead);
+      var key = companyKeyFor(lead);
+      if (!map[key]) map[key] = [];
+      map[key].push(lead);
     });
-    DUE_ORDER.forEach(function (key) {
-      map[key].sort(function (a, b) {
-        var ta = touchFor(a);
-        var tb = touchFor(b);
-        var da = ta && ta.date ? new Date(ta.date).getTime() : Number.POSITIVE_INFINITY;
-        var db = tb && tb.date ? new Date(tb.date).getTime() : Number.POSITIVE_INFINITY;
-        return da - db;
-      });
+    Object.keys(map).forEach(function (key) { map[key].sort(sortLeadsInCompany); });
+    var order = Object.keys(map).sort(function (a, b) {
+      var ra = companyRank(a);
+      var rb = companyRank(b);
+      if (ra.northStar !== rb.northStar) return rb.northStar - ra.northStar;
+      if (ra.priority !== rb.priority) return ra.priority - rb.priority;
+      return ra.name.localeCompare(rb.name);
     });
-    return { map: map, order: DUE_ORDER.filter(function (key) { return map[key].length > 0; }) };
+    return { map: map, order: order };
   }
   function showPane() {
     if (!pane) return;
@@ -194,32 +229,18 @@
     }
     showPane();
   }
-  function ownerInitialsFrom(name, email) {
-    var n = String(name || "").trim();
-    if (n) {
-      return n.split(/\s+/).map(function (p) { return p[0]; }).slice(0, 2).join("").toUpperCase() || "Y";
-    }
-    var e = String(email || "").trim();
-    return e ? e.slice(0, 2).toUpperCase() : "Y";
-  }
   function ownerDisplayName() {
-    return state.ownerName || "You";
+    return OWNER_LABEL;
   }
-  function fillAvatar(node, opts) {
+  function fillOwnerMark(node, opts) {
     opts = opts || {};
     node.innerHTML = "";
-    var url = state.ownerAvatarUrl;
-    if (url) {
-      var img = el("img", "messages-avatar__img", {
-        src: url,
-        alt: opts.alt || "",
-      });
-      node.appendChild(img);
-      node.classList.add("messages-avatar--photo");
-      return;
-    }
-    node.classList.remove("messages-avatar--photo");
-    node.textContent = state.ownerInitials || "Y";
+    var img = el("img", "messages-avatar__img", {
+      src: OWNER_LOGO,
+      alt: opts.alt || OWNER_LABEL,
+    });
+    node.appendChild(img);
+    node.classList.add("messages-avatar--photo", "messages-avatar--brand");
   }
   function renderYouRow() {
     if (!root) return;
@@ -232,7 +253,7 @@
       "aria-current": state.selectedId === YOU_ID ? "true" : "false",
     });
     var avatar = el("span", "messages-rail__avatar", { "aria-hidden": "true" });
-    fillAvatar(avatar);
+    fillOwnerMark(avatar);
     var main = el("span", "messages-rail__main");
     var top = el("span", "messages-rail__top");
     var title = el("span", "messages-rail__name");
@@ -258,11 +279,11 @@
     if (avatar) {
       if (opts.showOwnerAvatar) {
         avatar.hidden = false;
-        fillAvatar(avatar, { alt: name || "" });
+        fillOwnerMark(avatar, { alt: name || OWNER_LABEL });
       } else {
         avatar.hidden = true;
         avatar.innerHTML = "";
-        avatar.classList.remove("messages-avatar--photo");
+        avatar.classList.remove("messages-avatar--photo", "messages-avatar--brand");
       }
     }
   }
@@ -347,7 +368,7 @@
     renderYouRow();
     if (!leads.length) return;
 
-    var grouped = groupByDue(leads);
+    var grouped = groupByCompany(leads);
     grouped.order.forEach(function (bucket) {
       var group = el("li", "messages-rail__group");
       var collapsed = !!state.collapsed[bucket];
@@ -356,7 +377,8 @@
         "aria-expanded": collapsed ? "false" : "true",
       });
       var headLabel = el("span", "messages-rail__group-label");
-      headLabel.textContent = bucket;
+      var company = companyMeta(bucket);
+      headLabel.textContent = company && company.northStar ? "★ " + bucket : bucket;
       var headCount = el("span", "messages-rail__group-count");
       headCount.textContent = String(grouped.map[bucket].length);
       head.appendChild(headLabel);
@@ -386,22 +408,27 @@
         var time = el("span", "messages-rail__time");
         var draft = latestDraftFor(lead.id);
         var touch = touchFor(lead);
-        time.textContent = touch ? dueDayLabel(touch) : relativeTime((draft && draft.updatedAt) || lead.updatedAt || lead.createdAt);
+        var dueText = touch
+          ? dueDayLabel(touch)
+          : (lead.nextStepAt ? dueDayLabel({ date: lead.nextStepAt }) : "");
+        time.textContent = dueText || relativeTime((draft && draft.updatedAt) || lead.updatedAt || lead.createdAt);
         top.appendChild(title);
         top.appendChild(time);
         var preview = el("span", "messages-rail__preview");
-        preview.textContent = draft
-          ? draftPreview(draft)
-          : (String(lead.personTitle || "").trim() || "No draft yet. Write one when you are ready.");
+        var role = contactLabel(lead);
+        var step = nextStepLabel(lead);
+        var roleStep = [role, step].filter(Boolean).join(" · ");
+        preview.textContent = roleStep
+          || (draft ? draftPreview(draft) : (String(lead.personTitle || "").trim() || "No next step yet"));
         var meta = el("span", "messages-rail__meta");
-        if (touch) {
+        if (role || step || dueText) {
           var touchEl = el("span", "messages-rail__touch");
-          touchEl.textContent = touchTypeLabel(touch);
+          touchEl.textContent = [role, step, dueText].filter(Boolean).join(" · ");
           meta.appendChild(touchEl);
         }
         main.appendChild(top);
         main.appendChild(preview);
-        if (touch) main.appendChild(meta);
+        if (meta.childNodes.length) main.appendChild(meta);
         btn.appendChild(avatar);
         btn.appendChild(main);
         if (unread) {
@@ -426,29 +453,14 @@
     }
     renderList();
   }
-  function loadOwnerProfile() {
-    if (!token()) {
-      state.ownerName = "";
-      state.ownerInitials = "Y";
-      state.ownerAvatarUrl = "";
-      return Promise.resolve();
-    }
-    return fetch("/api/user-data/profile", {
-      headers: { Authorization: "Bearer " + token(), Accept: "application/json" },
-    }).then(function (res) { return res.ok ? res.json() : null; }).then(function (json) {
-      var p = json && json.data ? json.data : null;
-      if (!p) return;
-      state.ownerName = String(p.name || "").trim();
-      state.ownerInitials = ownerInitialsFrom(p.name, p.email);
-      state.ownerAvatarUrl = String(p.avatarUrl || "").trim();
-    }).catch(function () { /* ignore */ });
-  }
   function refresh() {
     document.body.classList.add("messages-inbox-primary", "messages-shell-open");
     if (root) root.hidden = false;
     if (!token()) {
       state.leads = [];
       state.drafts = [];
+      state.companies = [];
+      state.companiesById = {};
       state.touchesByLead = {};
       state.error = "";
       if (pane) pane.hidden = false;
@@ -462,16 +474,22 @@
       leadsApi("list"),
       leadsApi("drafts"),
       scheduleApi("inbox").catch(function () { return { byLeadId: {} }; }),
-      loadOwnerProfile(),
+      leadsApi("companies", { status: "active" }).catch(function () { return { companies: [] }; }),
     ]).then(function (results) {
       state.leads = Array.isArray(results[0].leads) ? results[0].leads : [];
       state.drafts = Array.isArray(results[1].drafts) ? results[1].drafts : [];
       state.touchesByLead = (results[2] && results[2].byLeadId) || {};
+      var companies = Array.isArray(results[3].companies) ? results[3].companies : [];
+      state.companies = companies;
+      state.companiesById = {};
+      companies.forEach(function (c) { if (c && c.id) state.companiesById[c.id] = c; });
       state.error = "";
       if (pane) pane.hidden = false;
     }).catch(function (err) {
       state.leads = [];
       state.drafts = [];
+      state.companies = [];
+      state.companiesById = {};
       state.touchesByLead = {};
       if (err.status === 401 || err.status === 403) {
         state.error = "";
@@ -536,14 +554,17 @@
     touchForLead: function (id) { return (id && state.touchesByLead[id]) || null; },
     ownerProfile: function () {
       return {
-        name: state.ownerName,
-        initials: state.ownerInitials,
-        avatarUrl: state.ownerAvatarUrl,
+        name: OWNER_LABEL,
+        initials: "LL",
+        avatarUrl: OWNER_LOGO,
       };
     },
     YOU_ID: YOU_ID,
+    OWNER_LABEL: OWNER_LABEL,
+    OWNER_LOGO: OWNER_LOGO,
     CHANNEL_LABEL: CHANNEL_LABEL,
     TOUCH_LABEL: TOUCH_LABEL,
+    CONTACT_LABEL: CONTACT_LABEL,
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

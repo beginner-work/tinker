@@ -21,16 +21,20 @@ test("pinned You row is always wired above search and due groups", () => {
   assert.match(shell, /renderYouRow/);
 });
 
-test("You row and header use the owner profile name and photo", () => {
-  assert.match(shell, /ownerAvatarUrl/);
-  assert.match(shell, /avatarUrl/);
-  assert.match(shell, /ownerDisplayName|ownerName/);
-  assert.match(shell, /fillAvatar|messages-avatar__img/);
+test("You row and header use Lindow Labs name and logo", () => {
+  assert.match(shell, /Lindow Labs/);
+  assert.match(shell, /lindow-labs\.svg/);
+  assert.match(shell, /OWNER_LABEL|ownerDisplayName/);
+  assert.match(shell, /fillOwnerMark|messages-avatar__img/);
   assert.match(html, /data-messages-avatar/);
-  assert.match(you, /ownerProfile/);
+  assert.match(you, /Lindow Labs/);
+  assert.match(you, /lindow-labs\.svg|OWNER_LOGO/);
+  assert.match(demo, /Lindow Labs/);
+  assert.match(demo, /lindow-labs\.svg/);
   assert.equal(/story parts with your assistant/i.test(shell), false);
   assert.equal(/story parts with your assistant/i.test(you), false);
   assert.equal(/Story parts and drafts with your assistant/i.test(shell), false);
+  assert.equal(/GTM approach/i.test(demo), false);
 });
 
 test("You selection hosts writing interview inside messages pane", () => {

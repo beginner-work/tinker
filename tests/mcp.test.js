@@ -285,6 +285,8 @@ test("tools/list exposes ask_followups and draft_linkedin_post, and no raw conve
     "get_outreach_schedule",
     "set_busy_times",
     "post_to_self_thread",
+    "set_company_priority",
+    "plan_lead_touch",
   ]);
   const autonomy = tools.find((t) => t.name === "get_autonomy_settings");
   assert.equal(autonomy.annotations.readOnlyHint, true);
@@ -582,6 +584,8 @@ test("get_autonomy_settings returns this user's 14 settings and no write tool", 
     "get_outreach_schedule",
     "set_busy_times",
     "post_to_self_thread",
+    "set_company_priority",
+    "plan_lead_touch",
   ]);
   assert.equal(names.includes("set_autonomy_settings"), false);
   assert.equal(names.includes("update_autonomy_settings"), false);

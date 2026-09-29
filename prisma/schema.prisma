@@ -193,6 +193,7 @@ model TargetCompany {
   name            String
   domain          String   @default("")
   northStar       Boolean  @default(false)
+  priority        Int      @default(100)
   status          String
   totalComp       Int?
   totalCompSource String   @default("")

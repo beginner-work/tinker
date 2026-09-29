@@ -75,8 +75,8 @@
     <script src="./messages-thread.js" defer></script>
     <script src="./messages-composer.js" defer></script>
     <script src="./messages-you.js" defer></script>
-    <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
-         runs first-login onboarding, and shows the avatar top-right.
+    <!-- Claims the landing-form profile (#claim=<token>) after sign-in and
+         runs first-login onboarding. The top-right avatar is no longer shown.
          Deferred so the DOM (incl. #profile-corner) exists when it runs. -->
     <script src="./profile.js" defer></script>
   </head>
@@ -98,10 +98,10 @@
     </button>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
-    <!-- Top-right founder avatar. Hidden until profile.js loads a profile
-         (claimed from the landing form or read from the account). -->
+    <!-- Profile corner kept for profile.js menu wiring but never shown:
+         the top-right avatar is removed. -->
     <div id="profile-corner" class="profile-corner" hidden>
-      <button id="profile-avatar" class="profile-avatar" type="button"
+      <button id="profile-avatar" class="profile-avatar" type="button" hidden
               aria-haspopup="true" aria-expanded="false" aria-label="Your profile">
         <img class="profile-avatar__img" alt="" hidden />
         <span class="profile-avatar__initial" aria-hidden="true">·</span>
@@ -228,6 +228,7 @@
         <a class="sidebar__secondary-link" href="/leads">Leads</a>
         <a class="sidebar__secondary-link" href="/career">Career</a>
         <a class="sidebar__secondary-link" href="/autonomy">Autonomy</a>
+        <a class="sidebar__secondary-link" href="/mcp/access">MCP access</a>
         <button type="button" class="sidebar__secondary-link" id="nav-linkedin-draft">LinkedIn draft</button>
         <button type="button" class="sidebar__secondary-link" id="nav-share" hidden>
           Share <span data-share-flash aria-live="polite"></span>
