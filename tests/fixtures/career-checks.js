@@ -438,4 +438,18 @@ module.exports = [
     ready: true,
     expect: [{ verdict: "pass", id: "rule_employer_dates" }],
   },
+  {
+    name: "Present alone mismatches when no current employment entry exists",
+    text: "March 2026 – Present",
+    claims: [{ text: "March 2026 – Present", kind: "dates" }],
+    ready: false,
+    expect: [{ verdict: "mismatch", id: "rule_current_employment", correct: "" }],
+  },
+  {
+    name: "exact employment month range without employer name still passes",
+    text: "Sep 2019 – Feb 2026",
+    claims: [{ text: "Sep 2019 – Feb 2026", kind: "dates" }],
+    ready: true,
+    expect: [{ verdict: "pass", id: "rule_employer_dates" }],
+  },
 ];

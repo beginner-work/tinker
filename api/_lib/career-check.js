@@ -423,6 +423,17 @@ function findEmploymentForClaim(text, facts) {
   return null;
 }
 
+function findEmploymentByExactRange(claimRange, facts) {
+  if (!claimRange) return null;
+  const entries = employmentFacts(facts);
+  if (claimRange.present) {
+    return entries.find((fact) => fact.current === true && fact.start_month === claimRange.start) || null;
+  }
+  return entries.find((fact) => {
+    return !fact.current && fact.start_month === claimRange.start && fact.end_month === claimRange.end;
+  }) || null;
+}
+
 function judgeCurrentEmployment(text, facts, rule, mode) {
   const current = hasCurrentEmployment(facts);
   if (mode === "field") {
@@ -473,8 +484,14 @@ function judgeYearsExperience(text, claim, context, facts, rule, claire) {
 
 function judgeEmploymentDates(text, facts, rule) {
   const claimRange = extractDateRange(text);
-  const entry = findEmploymentForClaim(text, facts);
+  let entry = findEmploymentForClaim(text, facts);
+  if (!entry && claimRange) {
+    entry = findEmploymentByExactRange(claimRange, facts);
+  }
   if (!entry) {
+    if (claimRange && claimRange.present && !hasCurrentEmployment(facts)) {
+      return null;
+    }
     if (!claimRange) return null;
     return unsupported(text);
   }
@@ -822,6 +839,11 @@ function judgeEmployer(text, facts) {
   const employers = facts.filter((fact) => fact.kind === "employer" && fact.value);
   const exact = employers.find((fact) => folded.includes(normalizeEmployer(fact.value)));
   if (exact) return pass(text, exact.id);
+  const employment = employmentFacts(facts).find((fact) => {
+    const employer = normalizeEmployer(fact.employer);
+    return employer && (folded === employer || folded.includes(employer));
+  });
+  if (employment) return pass(text, employment.id);
   return unsupported(text);
 }
 
@@ -1007,6 +1029,16 @@ function judgeClaim(claim, record, context) {
     if (!rule) return needsClaire(text, claire && claire.id);
     const judged = judgeCurrentEmployment(text, facts, rule, currentEmp);
     if (judged) return judged;
+  }
+
+  if (!kind || kind === "other" || kind === "story") {
+    if (mentionsPresent(text)) {
+      const rule = ruleById(rules, "rule_current_employment");
+      if (rule) {
+        const judged = judgeCurrentEmployment(text, facts, rule, "present");
+        if (judged) return judged;
+      }
+    }
   }
 
   if (kind === "team_size") {
