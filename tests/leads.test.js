@@ -43,10 +43,11 @@ function model() {
     },
   };
 }
-for (const name of ["lead", "leadDraft", "leadEvent", "tinkerUserData"]) tables[name] = model();
+for (const name of ["lead", "leadDraft", "leadEvent", "tinkerUserData", "targetCompany"]) tables[name] = model();
 const database = {
   $executeRawUnsafe: async () => 0, $transaction: async (fn) => fn(database),
-  lead: tables.lead, leadDraft: tables.leadDraft, leadEvent: tables.leadEvent, tinkerUserData: tables.tinkerUserData,
+  lead: tables.lead, leadDraft: tables.leadDraft, leadEvent: tables.leadEvent,
+  tinkerUserData: tables.tinkerUserData, targetCompany: tables.targetCompany,
 };
 function stubAt(absPath, exports) {
   const mod = new Module(absPath);
@@ -87,7 +88,8 @@ test.beforeEach(() => {
 test("migration matches, allowlist gates, and no send path", () => {
   const root = path.join(__dirname, "..");
   const migrations = fs.readFileSync(path.join(root, "prisma/migrations/20260929060000_add_leads/migration.sql"), "utf8")
-    + fs.readFileSync(path.join(root, "prisma/migrations/20260929070000_leads_draft_channels/migration.sql"), "utf8");
+    + fs.readFileSync(path.join(root, "prisma/migrations/20260929070000_leads_draft_channels/migration.sql"), "utf8")
+    + fs.readFileSync(path.join(root, "prisma/migrations/20260929080000_leads_companies_funnel/migration.sql"), "utf8");
   for (const statement of store.TABLE_STATEMENTS) assert.ok(migrations.includes(statement), statement.slice(0, 60));
   assert.deepEqual(store.CHANNELS, ["linkedin_post", "linkedin_connection", "gmail_outreach"]);
   const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");

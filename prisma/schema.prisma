@@ -140,6 +140,9 @@ model Lead {
   linkedInUrl     String    @default("")
   email           String    @default("")
   company         String    @default("")
+  companyId       String?
+  contactType     String    @default("other")
+  queueOrder      Int       @default(0)
   targetRoleTitle String    @default("")
   postingUrl      String    @default("")
   source          String
@@ -151,6 +154,7 @@ model Lead {
   updatedAt       DateTime  @updatedAt
   @@index([userId])
   @@index([userId, stage])
+  @@index([companyId])
 }
 
 model LeadDraft {
@@ -181,4 +185,19 @@ model LeadEvent {
   at     DateTime @default(now())
   @@index([userId])
   @@index([leadId])
+}
+
+model TargetCompany {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  domain          String   @default("")
+  northStar       Boolean  @default(false)
+  status          String
+  totalComp       Int?
+  totalCompSource String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([userId])
+  @@index([userId, name])
 }
