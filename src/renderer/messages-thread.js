@@ -1,7 +1,7 @@
-/* Messaging thread view (TYL-65 slice 2). One thread per lead: drafts and
- * touch status in time order, each message tagged with its channel.
- * Listens for tinker:messages-select from messages-shell.js.
- * Reuses draft store/channels from TYL-63. Tinker never sends.
+/* Messaging thread (TYL-65): chat bubbles per lead.
+ * Owner sent → solid right; saved drafts → lighter right with Draft label;
+ * lead replies (when present in data) → left. Channel + time on each bubble.
+ * Composer stays Save draft only. Tinker never sends.
  */
 (function () {
   "use strict";
@@ -14,12 +14,8 @@
     gmail_outreach: "Gmail",
     linkedin_message: "LinkedIn DM",
   };
-  var STATUS_LABEL = {
-    draft: "Drafted",
-    approved: "Ready — pull via your assistant",
-    sent_by_owner: "Marked sent",
-  };
-  var state = { lead: null, drafts: [], loading: false, error: "" };
+  var REPLY_STAGES = { replied: 1, call: 1, interview: 1, offer: 1 };
+  var state = { lead: null, drafts: [], replies: [], loading: false, error: "" };
   var pane = null;
 
   function token() {
@@ -49,9 +45,6 @@
   function channelLabel(ch) {
     return CHANNEL_LABEL[ch] || String(ch || "Message");
   }
-  function statusLabel(st) {
-    return STATUS_LABEL[st] || String(st || "");
-  }
   function formatWhen(iso) {
     if (!iso) return "";
     var d = new Date(iso);
@@ -62,10 +55,109 @@
       return d.toISOString().slice(0, 16).replace("T", " ");
     }
   }
-  function sortedDrafts() {
-    return state.drafts.slice().sort(function (a, b) {
-      return String(a.createdAt || a.updatedAt || "") < String(b.createdAt || b.updatedAt || "") ? -1 : 1;
+  function isInboundDraft(d) {
+    if (!d) return false;
+    if (d.direction === "inbound" || d.fromLead === true || d.side === "lead") return true;
+    if (d.role === "lead" || d.source === "lead_reply") return true;
+    return false;
+  }
+  function parseLoggedReplies(lead) {
+    if (!lead) return [];
+    var out = [];
+    var notes = String(lead.notes || "").trim();
+    /* Convention: lines/blocks starting with "Reply:" (optional channel) are logged replies. */
+    if (notes) {
+      var blocks = notes.split(/\n{2,}/);
+      blocks.forEach(function (block, i) {
+        var m = block.match(/^\s*Reply(?:\s*\(([^)]+)\))?\s*:\s*([\s\S]+)$/i);
+        if (!m) return;
+        var chRaw = String(m[1] || "").trim().toLowerCase();
+        var channel = "gmail_outreach";
+        if (/linkedin\s*dm|linkedin\s*message/.test(chRaw)) channel = "linkedin_message";
+        else if (/connection/.test(chRaw)) channel = "linkedin_connection";
+        else if (/gmail|email/.test(chRaw)) channel = "gmail_outreach";
+        else if (chRaw && CHANNEL_LABEL[chRaw]) channel = chRaw;
+        out.push({
+          id: "reply-notes-" + lead.id + "-" + i,
+          side: "lead",
+          kind: "reply",
+          channel: channel,
+          subject: "",
+          body: String(m[2] || "").trim(),
+          at: lead.updatedAt || lead.createdAt,
+          openable: false,
+        });
+      });
+    }
+    if (!out.length && lead.lastReply && (lead.lastReply.body || lead.lastReply.text)) {
+      var lr = lead.lastReply;
+      out.push({
+        id: "reply-last-" + lead.id,
+        side: "lead",
+        kind: "reply",
+        channel: lr.channel || "gmail_outreach",
+        subject: lr.subject || "",
+        body: String(lr.body || lr.text || "").trim(),
+        at: lr.at || lr.updatedAt || lead.updatedAt,
+        openable: false,
+      });
+    }
+    if (!out.length && Array.isArray(lead.replies)) {
+      lead.replies.forEach(function (r, i) {
+        if (!r) return;
+        out.push({
+          id: "reply-" + (r.id || i),
+          side: "lead",
+          kind: "reply",
+          channel: r.channel || "gmail_outreach",
+          subject: r.subject || "",
+          body: String(r.body || r.text || "").trim(),
+          at: r.at || r.updatedAt || r.createdAt || lead.updatedAt,
+          openable: false,
+        });
+      });
+    }
+    return out.filter(function (r) { return r.body; });
+  }
+  function buildItems() {
+    var items = [];
+    state.drafts.forEach(function (d) {
+      if (!d) return;
+      if (isInboundDraft(d)) {
+        items.push({
+          id: d.id,
+          side: "lead",
+          kind: "reply",
+          channel: d.channel,
+          subject: d.subject || "",
+          body: String(d.body || "").trim(),
+          at: d.updatedAt || d.createdAt,
+          openable: false,
+        });
+        return;
+      }
+      var sent = d.status === "sent_by_owner";
+      items.push({
+        id: d.id,
+        side: "owner",
+        kind: sent ? "sent" : "draft",
+        channel: d.channel,
+        subject: d.subject || "",
+        body: String(d.body || "").trim(),
+        at: d.updatedAt || d.createdAt,
+        status: d.status,
+        openable: true,
+        draftId: d.id,
+      });
     });
+    state.replies.forEach(function (r) { items.push(r); });
+    items.sort(function (a, b) {
+      return String(a.at || "") < String(b.at || "") ? -1 : 1;
+    });
+    return items;
+  }
+  function groupKey(item) {
+    return item.side + ":" + item.kind + ":" + (item.channel || "");
   }
   function renderHeader() {
     if (!pane || !state.lead) return;
@@ -89,20 +181,62 @@
       window.tinkerLeadDrafts.openDraft(id);
     }
   }
+  function renderBubble(item, grouped) {
+    var li = el("li", "messages-thread__item messages-thread__item--" + item.side + " messages-thread__item--" + item.kind + (grouped ? " messages-thread__item--grouped" : ""));
+    var meta = el("div", "messages-thread__meta");
+    if (item.kind === "draft") {
+      var draftTag = el("span", "messages-thread__draft-tag");
+      draftTag.textContent = "Draft";
+      meta.appendChild(draftTag);
+    }
+    var channel = el("span", "messages-thread__channel");
+    channel.textContent = channelLabel(item.channel);
+    meta.appendChild(channel);
+    var when = el("span", "messages-thread__when");
+    when.textContent = formatWhen(item.at);
+    meta.appendChild(when);
+
+    var bubble;
+    if (item.openable && item.draftId) {
+      bubble = el("button", "messages-thread__bubble", { type: "button", title: item.kind === "draft" ? "Open draft" : "Open message" });
+      bubble.addEventListener("click", function () { openDraft(item.draftId); });
+    } else {
+      bubble = el("div", "messages-thread__bubble");
+    }
+    if (item.channel === "gmail_outreach" && item.subject) {
+      var subj = el("div", "messages-thread__subject");
+      subj.textContent = item.subject;
+      bubble.appendChild(subj);
+    }
+    var body = el("div", "messages-thread__body");
+    body.textContent = item.body || (item.kind === "draft" ? "(empty draft)" : "");
+    bubble.appendChild(body);
+
+    if (!grouped) li.appendChild(meta);
+    else {
+      /* Grouped: keep a slim time under the bubble for the last of a run via CSS; still attach meta visually compact */
+      var slim = el("div", "messages-thread__meta messages-thread__meta--slim");
+      slim.appendChild(when.cloneNode(true));
+      li.appendChild(bubble);
+      li.appendChild(slim);
+      return li;
+    }
+    li.appendChild(bubble);
+    return li;
+  }
   function renderThread() {
     if (!pane) return;
     var empty = pane.querySelector("[data-messages-empty]");
     var thread = pane.querySelector("[data-messages-thread]");
     if (!thread) return;
     thread.setAttribute("data-thread-ready", "1");
+    thread.classList.add("messages-thread");
     if (empty) empty.hidden = true;
     thread.hidden = false;
     thread.innerHTML = "";
 
     if (state.error) {
-      var err = el("p", "messages-thread__error");
-      err.textContent = state.error;
-      thread.appendChild(err);
+      thread.appendChild(Object.assign(el("p", "messages-thread__error"), { textContent: state.error }));
       return;
     }
     if (state.loading) {
@@ -110,51 +244,29 @@
       return;
     }
 
-    var items = sortedDrafts();
+    var items = buildItems();
     if (!items.length) {
-      var none = el("p", "messages-thread__empty");
-      none.textContent = "No drafts yet for this person. Compose one below once the composer lands — for now open Drafts in the sidebar.";
-      thread.appendChild(none);
+      thread.appendChild(Object.assign(el("p", "messages-thread__empty"), {
+        textContent: "No messages yet for this person. Save a draft below — your assistant can pull it. Tinker never sends.",
+      }));
       return;
     }
 
-    var list = el("ol", "messages-thread__list");
-    items.forEach(function (draft) {
-      var li = el("li", "messages-thread__item messages-thread__item--" + (draft.status || "draft"));
-      var meta = el("div", "messages-thread__meta");
-      var channel = el("span", "messages-thread__channel");
-      channel.textContent = channelLabel(draft.channel);
-      var status = el("span", "messages-thread__status");
-      status.textContent = statusLabel(draft.status);
-      var when = el("span", "messages-thread__when");
-      when.textContent = formatWhen(draft.updatedAt || draft.createdAt);
-      meta.appendChild(channel);
-      meta.appendChild(status);
-      meta.appendChild(when);
-
-      var bubble = el("button", "messages-thread__bubble", {
-        type: "button",
-        title: "Open draft",
-      });
-      if (draft.channel === "gmail_outreach" && draft.subject) {
-        var subj = el("div", "messages-thread__subject");
-        subj.textContent = draft.subject;
-        bubble.appendChild(subj);
-      }
-      var body = el("div", "messages-thread__body");
-      body.textContent = String(draft.body || "").trim() || "(empty draft)";
-      bubble.appendChild(body);
-      bubble.addEventListener("click", function () { openDraft(draft.id); });
-
-      li.appendChild(meta);
-      li.appendChild(bubble);
-      list.appendChild(li);
+    var list = el("ol", "messages-thread__list", { "aria-label": "Conversation" });
+    var prevKey = "";
+    items.forEach(function (item) {
+      var key = groupKey(item);
+      var grouped = key === prevKey;
+      list.appendChild(renderBubble(item, grouped));
+      prevKey = key;
     });
     thread.appendChild(list);
+    try { thread.scrollTop = thread.scrollHeight; } catch (e) { /* ignore */ }
   }
   function clearThread() {
     state.lead = null;
     state.drafts = [];
+    state.replies = [];
     state.error = "";
     if (!pane) return;
     var title = pane.querySelector(".messages-pane__title");
@@ -181,11 +293,19 @@
     ]).then(function (results) {
       state.lead = results[0].lead || null;
       var all = Array.isArray(results[1].drafts) ? results[1].drafts : [];
-      state.drafts = all.filter(function (d) { return d && d.leadId === leadId; });
+      /* Prefer drafts nested on the lead payload when present. */
+      var nested = results[0].drafts;
+      if (Array.isArray(nested) && nested.length) {
+        state.drafts = nested.filter(function (d) { return d; });
+      } else {
+        state.drafts = all.filter(function (d) { return d && d.leadId === leadId; });
+      }
+      state.replies = parseLoggedReplies(state.lead);
       if (!state.lead) state.error = "That conversation could not be found.";
     }).catch(function (err) {
       state.lead = null;
       state.drafts = [];
+      state.replies = [];
       if (err.status === 401 || err.status === 403) state.error = "";
       else state.error = "Thread could not load right now.";
     }).finally(function () {
@@ -210,7 +330,7 @@
     loadLead: loadLead,
     clear: clearThread,
     CHANNEL_LABEL: CHANNEL_LABEL,
-    STATUS_LABEL: STATUS_LABEL,
+    REPLY_STAGES: REPLY_STAGES,
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

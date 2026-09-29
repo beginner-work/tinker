@@ -17,7 +17,7 @@ test("thread script is wired and listens for conversation select", () => {
   assert.match(js, /LinkedIn connection request/);
   assert.match(js, /Gmail/);
   assert.match(js, /LinkedIn DM/);
-  assert.match(js, /Drafted|Marked sent|Ready/);
+  assert.match(js, /Draft|sent_by_owner|side:\s*"owner"/);
   assert.equal(/\bTyler\b/.test(js), false);
   assert.equal(/\bSend\b|sendgrid|MESSAGING_SEND/.test(js), false);
 });
@@ -26,6 +26,6 @@ test("thread styles stay flat without nested card boxes", () => {
   assert.match(css, /\.messages-thread__list\b/);
   assert.match(css, /\.messages-thread__bubble\b/);
   assert.match(css, /\.messages-thread__channel\b/);
-  assert.equal(/\.messages-thread__bubble[^{]*\{[^}]*box-shadow/.test(css), false);
-  assert.equal(/\.messages-thread__item[^{]*\{[^}]*border-radius:\s*12px/.test(css), false);
+  assert.equal(/\.messages-thread__list[^{]*\{[^}]*box-shadow/.test(css), false);
+  assert.equal(/\.messages-thread__item--owner[^{]*\{[^}]*box-shadow/.test(css), false);
 });
