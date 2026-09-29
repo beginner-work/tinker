@@ -48,6 +48,7 @@ const { checkText } = require("./_lib/career-check.js");
 const contentStore = require("./_lib/content-store.js");
 const storyParts = require("./_lib/story-parts-store.js");
 const selfThread = require("./_lib/self-thread-store.js");
+const leadReplies = require("./_lib/lead-replies-store.js");
 const pkg = require("../package.json");
 const MCP_BOT_ACTOR = { kind: "bot", label: "bot:mcp" };
 
@@ -86,7 +87,8 @@ const INSTRUCTIONS = [
   "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
   "Prefer those lead tools over dumping GTM prose into the You thread.",
   "For Gmail: the owner presses Send in Tinker (after turning Sending enabled on) to queue exact approvedText as approved_to_send.",
-  "Call list_approved_outreach for that Gmail queue. Send each through the owner's Gmail connector (not Tinker), then mark_outreach_sent or mark_outreach_failed.",
+  "Call list_approved_outreach for that Gmail queue. Send each through the owner's Gmail connector (not Tinker), then mark_outreach_sent (pass gmailThreadId) or mark_outreach_failed.",
+  "Call add_reply when a reply arrives on a Tinker-started Gmail thread (dedupe on gmailMessageId).",
   "A bot may send only the exact approvedText, once per approval. Bots cannot approve or queue a send. LinkedIn stays draft-only.",
   "Tinker holds no Google tokens and does not call the Gmail API.",
   "Call post_to_self_thread with title and short markdown body only for brief personal assistant notes in the You thread.",
@@ -752,8 +754,9 @@ const MARK_OUTREACH_SENT_TOOL = {
   title: "Mark outreach sent",
   description: [
     "Mark one approved_to_send Gmail draft as sent after delivery via the Gmail connector.",
-    "Pass id from list_approved_outreach. Optional sentAt (ISO) and externalMessageId (Gmail message id).",
-    "One approval covers one send. Tinker does not send. A user id in args is ignored.",
+    "Pass id from list_approved_outreach. Optional sentAt (ISO), externalMessageId (Gmail message id),",
+    "and gmailThreadId (kept so add_reply can match inbound replies). One approval covers one send.",
+    "Tinker does not send. A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -767,6 +770,7 @@ const MARK_OUTREACH_SENT_TOOL = {
       },
       sentAt: { type: "string", description: "When it was sent (ISO). Default now." },
       externalMessageId: { type: "string", description: "Gmail message id from the connector." },
+      gmailThreadId: { type: "string", description: "Gmail thread id for reply sync." },
     },
     required: ["id"],
   },
@@ -788,6 +792,31 @@ const MARK_OUTREACH_FAILED_TOOL = {
       reason: { type: "string", description: "Why sending failed." },
     },
     required: ["id", "reason"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const ADD_REPLY_TOOL = {
+  name: "add_reply",
+  title: "Add a Gmail reply to a lead thread",
+  description: [
+    "When a reply arrives on a Gmail thread Tinker started, call add_reply so it",
+    "shows as a left bubble in that lead's thread. Pass leadId or gmailThreadId,",
+    "plus from, body, receivedAt, and gmailMessageId. Duplicate gmailMessageId is a no-op.",
+    "This tool does not send email and cannot queue a send.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      leadId: { type: "string", description: "Tinker lead id. Optional if gmailThreadId is set." },
+      gmailThreadId: { type: "string", description: "Gmail thread id from a prior mark_outreach_sent." },
+      from: { type: "string", description: "Reply from address." },
+      body: { type: "string", description: "Reply body text." },
+      receivedAt: { type: "string", description: "ISO timestamp when the reply was received." },
+      gmailMessageId: { type: "string", description: "Gmail message id for dedupe." },
+    },
+    required: ["body", "gmailMessageId"],
   },
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
@@ -814,6 +843,7 @@ const TOOLS = [
   LIST_APPROVED_OUTREACH_TOOL,
   MARK_OUTREACH_SENT_TOOL,
   MARK_OUTREACH_FAILED_TOOL,
+  ADD_REPLY_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -1519,6 +1549,7 @@ async function markOutreachSentCall(msg, user, args) {
       channel: args.channel,
       sentAt: args.sentAt,
       externalMessageId: args.externalMessageId,
+      gmailThreadId: args.gmailThreadId,
     });
     return contentToolOk(msg, {
       draft: leadsStore.presentDraft(result.draft),
@@ -1526,6 +1557,24 @@ async function markOutreachSentCall(msg, user, args) {
     });
   } catch (err) {
     return planFailure(msg, err, leadsStore.UNAVAILABLE);
+  }
+}
+
+async function addReplyCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const result = await leadReplies.addReply({
+      userId,
+      leadId: args.leadId,
+      gmailThreadId: args.gmailThreadId,
+      from: args.from,
+      body: args.body,
+      receivedAt: args.receivedAt,
+      gmailMessageId: args.gmailMessageId,
+    });
+    return contentToolOk(msg, { reply: result.reply, deduped: result.deduped });
+  } catch (err) {
+    return planFailure(msg, err, leadReplies.UNAVAILABLE);
   }
 }
 
@@ -1613,6 +1662,7 @@ async function handleRpc(msg, user) {
       && name !== "list_approved_outreach"
       && name !== "mark_outreach_sent"
       && name !== "mark_outreach_failed"
+      && name !== "add_reply"
     ) {
       return {
         status: 200,
@@ -1675,6 +1725,9 @@ async function handleRpc(msg, user) {
     }
     if (name === "mark_outreach_failed") {
       return markOutreachFailedCall(msg, user, args);
+    }
+    if (name === "add_reply") {
+      return addReplyCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {

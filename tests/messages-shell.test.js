@@ -54,7 +54,7 @@ test("no initials monograms; company logo only when resolved; owner keeps photo"
 test("thread has no scheduled planning bubbles", () => {
   assert.equal(/renderScheduledBubble/.test(thread), false);
   assert.equal(/Write the draft below/.test(thread), false);
-  assert.match(thread, /Handed off\. Your assistant will send this/);
+  assert.match(thread, /Queued\. Your assistant will send this through Gmail/);
   assert.match(thread, /Sent via/);
 });
 

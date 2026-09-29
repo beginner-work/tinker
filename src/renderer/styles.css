@@ -669,6 +669,28 @@ button.messages-thread__bubble {
   border: 1px solid var(--color-accent, #a5b4fc);
   border-radius: 16px 16px 4px 16px;
 }
+.messages-thread__item--queued .messages-thread__bubble {
+  background: transparent;
+  border: 1px dashed var(--color-accent-strong, #6366f1);
+  color: var(--color-foreground);
+  border-radius: 16px 16px 4px 16px;
+}
+.messages-thread__item--failed .messages-thread__bubble {
+  background: color-mix(in srgb, #b91c1c 8%, var(--color-background));
+  border: 1px solid color-mix(in srgb, #b91c1c 35%, var(--color-border));
+  color: var(--color-foreground);
+  border-radius: 16px 16px 4px 16px;
+}
+.messages-thread__queued-tag,
+.messages-thread__failed-tag {
+  display: inline-block;
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
 .messages-thread__item--lead .messages-thread__bubble {
   background: var(--color-cream, #f5f3ef);
   color: var(--color-foreground);

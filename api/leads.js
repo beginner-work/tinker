@@ -5,6 +5,7 @@ const { userIdFromSession } = require("./_lib/mcp-keys.js");
 const { sessionIdentity } = require("./_lib/autonomy.js");
 const { withResponseLogging } = require("./_lib/log.js");
 const store = require("./_lib/leads-store.js");
+const replies = require("./_lib/lead-replies-store.js");
 
 function bearer(header) {
   const match = header && String(header).match(/^Bearer\s+(\S+)$/i);
@@ -58,7 +59,20 @@ async function dispatch(method, action, auth, body, req) {
   }
   if (method === "GET" && action === "lead") {
     const found = await store.getLead({ id, userId, emailHint });
-    return { status: 200, body: { lead: store.presentLead(found.lead), drafts: found.drafts.map(store.presentDraft) } };
+    const replyRows = await replies.listForLead({ userId, leadId: found.lead.id });
+    return {
+      status: 200,
+      body: {
+        lead: store.presentLead(found.lead),
+        drafts: found.drafts.map(store.presentDraft),
+        replies: replyRows,
+      },
+    };
+  }
+  if (method === "GET" && action === "replies") {
+    const leadId = id || queryValue(req, "leadId");
+    await store.getLead({ id: leadId, userId, emailHint });
+    return { status: 200, body: { replies: await replies.listForLead({ userId, leadId }) } };
   }
   if (method === "GET" && action === "drafts") {
     const rows = await store.listDrafts({
@@ -101,7 +115,8 @@ async function dispatch(method, action, auth, body, req) {
   if (method === "POST" && action === "mark-sent") {
     const result = await store.markDraftSent({
       id, userId, emailHint, actor,
-      channel: body.channel, sentAt: body.sentAt, externalMessageId: body.externalMessageId,
+      channel: body.channel, sentAt: body.sentAt,
+      externalMessageId: body.externalMessageId, gmailThreadId: body.gmailThreadId,
     });
     return { status: 200, body: { draft: store.presentDraft(result.draft), lead: result.lead ? store.presentLead(result.lead) : null, event: store.presentEvent(result.event) } };
   }

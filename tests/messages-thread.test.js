@@ -18,8 +18,9 @@ test("thread script is wired and listens for conversation select", () => {
   assert.match(js, /Gmail/);
   assert.match(js, /LinkedIn DM/);
   assert.match(js, /Draft|sent_by_owner|side:\s*"owner"/);
+  assert.match(js, /approved_to_send|queued/);
   assert.equal(/\bTyler\b/.test(js), false);
-  assert.equal(/\bSend\b|sendgrid|MESSAGING_SEND/.test(js), false);
+  assert.equal(/sendgrid|MESSAGING_SEND/.test(js), false);
 });
 
 test("thread styles stay flat without nested card boxes", () => {

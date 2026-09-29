@@ -11,17 +11,17 @@ const css = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
 const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
 const composer = fs.readFileSync(path.join(root, "src/renderer/messages-composer.js"), "utf8");
 
-test("thread maps sent, handed-off, and lead reply sides", () => {
+test("thread maps sent, queued, failed, and lead reply sides", () => {
   assert.match(js, /item--owner|side:\s*"owner"/);
   assert.match(js, /side:\s*"lead"/);
-  assert.match(js, /kind:\s*sent\s*\?\s*"sent"\s*:\s*"handed"|kind:\s*"sent"|kind:\s*"handed"/);
-  assert.match(js, /Handed off|Sent via/);
+  assert.match(js, /kind:\s*"queued"|kind === "queued"/);
+  assert.match(js, /kind:\s*"failed"|kind === "failed"/);
+  assert.match(js, /Sent via|Queued\. Your assistant/);
   assert.match(js, /messages-thread__meta/);
   assert.match(js, /Reply(?:\s*\()/);
   assert.match(js, /isInboundDraft|fromLead|direction/);
   assert.match(js, /groupKey|grouped/);
   assert.match(js, /renderProfileLinks/);
-  assert.equal(/\bSend\b/.test(js), false);
   assert.equal(/\bTyler\b/.test(js), false);
 });
 

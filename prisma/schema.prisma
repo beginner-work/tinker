@@ -176,11 +176,27 @@ model LeadDraft {
   approvedCompanyName  String    @default("")
   sentAt               DateTime?
   externalMessageId    String    @default("")
+  gmailThreadId        String    @default("")
   failedReason         String    @default("")
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
   @@index([userId])
   @@index([leadId])
+}
+
+model LeadReply {
+  id             String   @id @default(cuid())
+  userId         String
+  leadId         String
+  gmailThreadId  String   @default("")
+  gmailMessageId String   @default("")
+  fromAddress    String   @default("")
+  body           String   @default("")
+  receivedAt     DateTime
+  createdAt      DateTime @default(now())
+  @@index([userId])
+  @@index([leadId])
+  @@unique([userId, gmailMessageId])
 }
 
 model LeadEvent {
