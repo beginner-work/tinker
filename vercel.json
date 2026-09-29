@@ -22,7 +22,9 @@
     { "source": "/autonomy", "destination": "/autonomy/index.html" },
     { "source": "/autonomy/", "destination": "/autonomy/index.html" },
     { "source": "/career", "destination": "/career/index.html" },
-    { "source": "/career/", "destination": "/career/index.html" }
+    { "source": "/career/", "destination": "/career/index.html" },
+    { "source": "/selling", "destination": "/selling/index.html" },
+    { "source": "/selling/", "destination": "/selling/index.html" }
   ],
   "headers": [
     {
