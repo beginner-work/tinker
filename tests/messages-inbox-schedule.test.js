@@ -25,7 +25,7 @@ test("sidebar lists people in THIS WEEK / LATER", () => {
 test("thread has no scheduled planning bubbles; composer has no date chip", () => {
   assert.equal(/messages-thread__item--scheduled/.test(thread), false);
   assert.equal(/renderScheduledBubble/.test(thread), false);
-  assert.match(thread, /Handed off\. Your assistant will send this/);
+  assert.match(thread, /Queued\. Your assistant will send this through Gmail/);
   assert.equal(/data-composer-date/.test(html), false);
   assert.equal(/savePlannedDate/.test(composer), false);
 });

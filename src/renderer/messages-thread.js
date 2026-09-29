@@ -1,7 +1,7 @@
-/* Messaging thread (TYL-65): chat bubbles per lead.
- * Owner sent → solid right; saved drafts → lighter right with Draft label;
- * lead replies (when present in data) → left. Meta (status, channel, date)
- * sits as one small line under each bubble body.
+/* Messaging thread (TYL-65/66): chat bubbles per lead.
+ * Owner sent → solid right; approved_to_send → queued/handed right;
+ * send_failed → failed right; lead replies (MCP add_reply + notes) → left.
+ * Meta (status, channel, date) sits as one small line under each bubble body.
  */
 (function () {
   "use strict";
@@ -26,6 +26,8 @@
   var STATUS_LABEL = {
     draft: "Draft",
     approved: "Ready",
+    approved_to_send: "Queued",
+    send_failed: "Failed",
     sent_by_owner: "Sent",
   };
   var state = { lead: null, drafts: [], replies: [], touch: null, loading: false, error: "", mode: "lead" };
@@ -84,10 +86,35 @@
     if (d.role === "lead" || d.source === "lead_reply") return true;
     return false;
   }
-  function parseLoggedReplies(lead) {
-    if (!lead) return [];
+  function pushReply(out, r, fallbackId) {
+    if (!r) return;
+    var body = String(r.body || r.text || "").trim();
+    if (!body) return;
+    out.push({
+      id: r.id || fallbackId,
+      side: "lead",
+      kind: "reply",
+      channel: r.channel || "gmail_outreach",
+      subject: r.subject || "",
+      body: body,
+      at: r.receivedAt || r.at || r.updatedAt || r.createdAt || "",
+      from: r.from || r.fromAddress || "",
+      openable: false,
+    });
+  }
+  function parseLoggedReplies(lead, apiReplies) {
+    if (!lead && !apiReplies) return [];
     var out = [];
-    var notes = String(lead.notes || "").trim();
+    var seen = {};
+    function add(item) {
+      if (!item || !item.body) return;
+      var key = item.id || (item.body + "|" + item.at);
+      if (seen[key]) return;
+      seen[key] = 1;
+      out.push(item);
+    }
+    /* Manual owner logging still works when the assistant does not sync. */
+    var notes = String(lead && lead.notes || "").trim();
     if (notes) {
       var blocks = notes.split(/\n{2,}/);
       blocks.forEach(function (block, i) {
@@ -99,47 +126,32 @@
         else if (/connection/.test(chRaw)) channel = "linkedin_connection";
         else if (/gmail|email/.test(chRaw)) channel = "gmail_outreach";
         else if (chRaw && CHANNEL_LABEL[chRaw]) channel = chRaw;
-        out.push({
-          id: "reply-notes-" + lead.id + "-" + i,
+        add({
+          id: "reply-notes-" + (lead && lead.id || "x") + "-" + i,
           side: "lead",
           kind: "reply",
           channel: channel,
           subject: "",
           body: String(m[2] || "").trim(),
-          at: lead.updatedAt || lead.createdAt,
+          at: (lead && (lead.updatedAt || lead.createdAt)) || "",
           openable: false,
         });
       });
     }
-    if (!out.length && lead.lastReply && (lead.lastReply.body || lead.lastReply.text)) {
-      var lr = lead.lastReply;
-      out.push({
-        id: "reply-last-" + lead.id,
-        side: "lead",
-        kind: "reply",
-        channel: lr.channel || "gmail_outreach",
-        subject: lr.subject || "",
-        body: String(lr.body || lr.text || "").trim(),
-        at: lr.at || lr.updatedAt || lead.updatedAt,
-        openable: false,
-      });
+    if (lead && lead.lastReply && (lead.lastReply.body || lead.lastReply.text)) {
+      var tmpLast = [];
+      pushReply(tmpLast, lead.lastReply, "reply-last-" + lead.id);
+      tmpLast.forEach(add);
     }
-    if (!out.length && Array.isArray(lead.replies)) {
-      lead.replies.forEach(function (r, i) {
-        if (!r) return;
-        out.push({
-          id: "reply-" + (r.id || i),
-          side: "lead",
-          kind: "reply",
-          channel: r.channel || "gmail_outreach",
-          subject: r.subject || "",
-          body: String(r.body || r.text || "").trim(),
-          at: r.at || r.updatedAt || r.createdAt || lead.updatedAt,
-          openable: false,
-        });
-      });
-    }
-    return out.filter(function (r) { return r.body; });
+    var fromLead = Array.isArray(lead && lead.replies) ? lead.replies : [];
+    var fromApi = Array.isArray(apiReplies) ? apiReplies : [];
+    fromLead.concat(fromApi).forEach(function (r, i) {
+      var tmp = [];
+      pushReply(tmp, r, "reply-" + (r && r.id || i));
+      if (tmp[0] && !tmp[0].at && lead) tmp[0].at = lead.updatedAt || lead.createdAt || "";
+      tmp.forEach(add);
+    });
+    return out;
   }
   function buildItems() {
     var items = [];
@@ -159,23 +171,34 @@
         return;
       }
       var sent = d.status === "sent_by_owner";
-      var handed = d.status === "approved_to_send";
+      var queued = d.status === "approved_to_send";
+      var failed = d.status === "send_failed";
       // Skip open draft bubbles - writing lives in the invisible notepad.
-      // Keep quiet handed-off and sent lines only.
-      if (!sent && !handed) return;
+      if (!sent && !queued && !failed) return;
+      var kind = sent ? "sent" : (failed ? "failed" : "queued");
+      var body = "";
+      if (sent) {
+        body = "Sent via " + channelLabel(d.channel) + (d.sentAt ? ", " + formatDay(d.sentAt) : "");
+      } else if (failed) {
+        body = d.failedReason
+          ? ("Send failed: " + d.failedReason)
+          : "Send failed. Edit and press Send again.";
+      } else {
+        body = "Queued. Your assistant will send this through Gmail.";
+      }
       items.push({
         id: d.id,
         side: "owner",
-        kind: sent ? "sent" : "handed",
+        kind: kind,
         channel: d.channel,
-        subject: "",
-        body: sent
-          ? ("Sent via " + channelLabel(d.channel) + (d.sentAt ? ", " + formatDay(d.sentAt) : ""))
-          : "Handed off. Your assistant will send this.",
+        subject: d.channel === "gmail_outreach" ? (d.subject || d.approvedSubject || "") : "",
+        body: body,
         at: d.sentAt || d.approvedAt || d.updatedAt || d.createdAt,
         status: d.status,
-        openable: false,
+        openable: failed,
         draftId: d.id,
+        failedReason: d.failedReason || "",
+        fromAddress: d.fromAddress || "",
       });
     });
     state.replies.forEach(function (r) { items.push(r); });
@@ -268,10 +291,26 @@
     var statusBit = "";
     if (item.kind === "draft") statusBit = STATUS_LABEL[item.status] || "Draft";
     else if (item.kind === "sent") statusBit = "Sent";
+    else if (item.kind === "queued") statusBit = "Queued";
+    else if (item.kind === "failed") statusBit = "Failed";
+    else if (item.kind === "reply") statusBit = "Reply";
+    if (item.kind === "queued") {
+      bubble.appendChild(Object.assign(el("span", "messages-thread__queued-tag"), { textContent: "Queued" }));
+    }
+    if (item.kind === "failed") {
+      bubble.appendChild(Object.assign(el("span", "messages-thread__failed-tag"), {
+        textContent: item.failedReason ? ("Failed · " + item.failedReason) : "Failed",
+      }));
+    }
     var meta = el("div", "messages-thread__meta");
+    var fromBit = "";
+    if ((item.kind === "queued" || item.kind === "sent") && item.fromAddress) {
+      fromBit = "From " + item.fromAddress;
+    }
+    if (item.kind === "reply" && item.from) fromBit = "From " + item.from;
     meta.textContent = grouped
       ? formatWhen(item.at)
-      : metaLine([statusBit, channelLabel(item.channel), formatWhen(item.at)]);
+      : metaLine([statusBit, channelLabel(item.channel), fromBit, formatWhen(item.at)]);
     bubble.appendChild(meta);
 
     li.appendChild(bubble);
@@ -364,7 +403,7 @@
       } else {
         state.drafts = all.filter(function (d) { return d && d.leadId === leadId; });
       }
-      state.replies = parseLoggedReplies(state.lead);
+      state.replies = parseLoggedReplies(state.lead, results[0].replies);
       if (!state.lead) state.error = "That conversation could not be found.";
     }).catch(function (err) {
       state.lead = null;
