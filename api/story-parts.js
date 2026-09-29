@@ -69,7 +69,14 @@ async function dispatch(method, action, auth, body, req) {
   }
   if (method === "POST" && action === "status") {
     const result = await store.setStatus({ id, userId, actor, status: body.status });
-    return { status: 200, body: { part: store.presentPart(result.part), event: store.presentEvent(result.event) } };
+    return {
+      status: 200,
+      body: {
+        part: store.presentPart(result.part),
+        event: store.presentEvent(result.event),
+        verdict: result.verdict || null,
+      },
+    };
   }
   throw Object.assign(new Error(action ? "Unknown action." : "Action is required."), { status: 400 });
 }
@@ -90,6 +97,14 @@ module.exports = withResponseLogging(async function handler(req, res) {
     const out = await dispatch(method, action, auth, body, req);
     send(res, out.status, out.body);
   } catch (err) {
+    if (err.code === "fact_gate") {
+      send(res, 400, {
+        error: err.message || "Proof point failed the fact check.",
+        verdict: err.verdict,
+        part: err.part ? store.presentPart(err.part) : undefined,
+      });
+      return;
+    }
     const status = err.status || 500;
     send(res, status, { error: status >= 500 ? store.UNAVAILABLE : err.message || "Bad request" });
   }
