@@ -16,7 +16,7 @@
     { "source": "/mcp/access", "destination": "/api/mcp-oauth?op=access" },
     { "source": "/api/autonomy/:key", "destination": "/api/autonomy?key=:key" },
     { "source": "/api/career/:action", "destination": "/api/career?action=:action" },
-    { "source": "/api/messaging/:action", "destination": "/api/messaging?action=:action" },
+    { "source": "/api/selling-parts/:action", "destination": "/api/selling-parts?action=:action" },
     { "source": "/api/sites/:site/content", "destination": "/api/content-public?site=:site" },
     { "source": "/api/sites/:site/content/:slug", "destination": "/api/content-public?site=:site&slug=:slug" },
     { "source": "/autonomy", "destination": "/autonomy/index.html" },
