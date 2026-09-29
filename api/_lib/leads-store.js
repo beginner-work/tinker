@@ -33,6 +33,7 @@ const TABLE_STATEMENTS = [
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "approvedCompanyName" TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "sentAt" TIMESTAMP(3)`,
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "externalMessageId" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "gmailThreadId" TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "failedReason" TEXT NOT NULL DEFAULT ''`,
 ];
 const DRAFT_STATUSES = ["draft", "approved", "approved_to_send", "sent_by_owner", "send_failed"];
@@ -592,10 +593,11 @@ async function listApprovedOutreach({ userId, emailHint } = {}) {
       linkedInUrl: lead ? String(lead.linkedInUrl || "").trim() : "",
       leadId: draft.leadId || null,
       fromAddress: draft.fromAddress || "",
+      gmailThreadId: draft.gmailThreadId || "",
     };
   });
 }
-async function markDraftSent({ id, userId, emailHint, actor, channel, sentAt, externalMessageId } = {}) {
+async function markDraftSent({ id, userId, emailHint, actor, channel, sentAt, externalMessageId, gmailThreadId } = {}) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
@@ -609,6 +611,7 @@ async function markDraftSent({ id, userId, emailHint, actor, channel, sentAt, ex
   const lead = row.leadId ? await loadOwned("lead", row.leadId, owner, "lead") : null;
   const when = sentAt ? readCalendarDate(sentAt, "sentAt", { required: true }) : new Date();
   const sentChannel = channel ? readEnum(channel, ["gmail_outreach"], "channel") : row.channel;
+  const threadId = readText(gmailThreadId, "gmailThreadId", 200, false);
   return commit(async (tx) => {
     const saved = await tx.leadDraft.update({
       where: { id: row.id },
@@ -617,6 +620,7 @@ async function markDraftSent({ id, userId, emailHint, actor, channel, sentAt, ex
         sentAt: when,
         channel: sentChannel,
         externalMessageId: readText(externalMessageId, "externalMessageId", 500, false),
+        gmailThreadId: threadId || row.gmailThreadId || "",
         failedReason: "",
       },
     });
@@ -631,6 +635,7 @@ async function markDraftSent({ id, userId, emailHint, actor, channel, sentAt, ex
         channel: sentChannel,
         sentAt: iso(when),
         externalMessageId: saved.externalMessageId || "",
+        gmailThreadId: saved.gmailThreadId || "",
         from: lead ? lead.stage : null,
         to: updatedLead ? updatedLead.stage : null,
       },
