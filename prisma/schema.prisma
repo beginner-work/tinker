@@ -196,6 +196,7 @@ model TargetCompany {
   priority        Int      @default(100)
   tier            String   @default("other")
   notes           String   @default("")
+  research        String   @default("")
   status          String
   totalComp       Int?
   totalCompSource String   @default("")

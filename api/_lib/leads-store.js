@@ -74,13 +74,9 @@ function readEnum(value, allowed, label) {
   if (!allowed.includes(found)) throw fail(400, `${label} must be ${allowed.join(" or ")}.`);
   return found;
 }
+const { readCalendarDate, presentCalendarDate } = require("./calendar-date.js");
 function readDate(value, label) {
-  if (value == null || value === "") return null;
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-  if (typeof value !== "string") throw fail(400, `${label} must be a date.`);
-  const parsed = new Date(value.trim());
-  if (Number.isNaN(parsed.getTime())) throw fail(400, `${label} must be a date.`);
-  return parsed;
+  return readCalendarDate(value, label, { required: false });
 }
 function readIds(value) {
   if (value == null) return [];
@@ -95,7 +91,14 @@ function readFactCheck(value) {
 function iso(value) { return value ? new Date(value).toISOString() : null; }
 function shape(row) {
   const out = {};
-  for (const [key, value] of Object.entries(row)) { if (key !== "userId") out[key] = value instanceof Date ? iso(value) : value; }
+  for (const [key, value] of Object.entries(row)) {
+    if (key === "userId") continue;
+    if (key === "nextStepAt") {
+      out[key] = presentCalendarDate(value);
+      continue;
+    }
+    out[key] = value instanceof Date ? iso(value) : value;
+  }
   return out;
 }
 function dedupeKey(name, company) { return `${String(name || "").trim().toLowerCase()}|${String(company || "").trim().toLowerCase()}`; }

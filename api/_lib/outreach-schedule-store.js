@@ -24,11 +24,17 @@ const leads = () => require("./leads-store.js");
 const companies = () => require("./leads-companies-store.js");
 const fail = (status, message) => Object.assign(new Error(message), { status });
 const storeDown = (err) => (err && err.status) ? err : Object.assign(new Error(UNAVAILABLE), { status: 503, cause: err });
+const { readCalendarDate, presentCalendarDate, calendarDayKey } = require("./calendar-date.js");
 const iso = (value) => (value ? new Date(value).toISOString() : null);
 function shape(row) {
   const out = {};
   for (const [key, value] of Object.entries(row)) {
-    if (key !== "userId") out[key] = value instanceof Date ? iso(value) : value;
+    if (key === "userId") continue;
+    if (key === "date") {
+      out[key] = presentCalendarDate(value);
+      continue;
+    }
+    out[key] = value instanceof Date ? iso(value) : value;
   }
   return out;
 }
@@ -58,12 +64,7 @@ function readEnum(value, allowed, label) {
   return found;
 }
 function readDate(value, label) {
-  if (value == null || value === "") throw fail(400, `${label} is required.`);
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-  if (typeof value !== "string") throw fail(400, `${label} must be a date.`);
-  const parsed = new Date(value.trim());
-  if (Number.isNaN(parsed.getTime())) throw fail(400, `${label} must be a date.`);
-  return parsed;
+  return readCalendarDate(value, label, { required: true });
 }
 function readOptionalId(value, label) {
   if (value == null || value === "") return null;
@@ -76,8 +77,10 @@ function readWindow(value, label) {
   return text;
 }
 function dayKey(value) {
-  const d = new Date(value);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  return calendarDayKey(value) || (() => {
+    const d = new Date(value);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  })();
 }
 function mondayOf(value) {
   const d = new Date(value);

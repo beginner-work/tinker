@@ -81,11 +81,12 @@ const INSTRUCTIONS = [
   "Call get_story_part with an id to read one part. Someone else's id returns an error and no part.",
   "Story parts are the user's approved wording for pasting into Formation drafts. Tinker does not draft or send outreach.",
   "Story-part tools are read-only. They do not mark parts ready, edit parts, or change stages.",
-  "Call upsert_target_company to create or update a target company (name, priority, tier north_star/wave_1/wave_2/other, notes).",
-  "Call upsert_lead_person to create or update a person under a company (role type, next step, due date, sequence position).",
+  "Call upsert_target_company to create or update a target company (name, priority, tier, notes, research). Omitted fields are left unchanged.",
+  "Call upsert_lead_person to create or update a person under a company (role type, next step, due date, sequence position). It does not wipe company tier/notes/research unless those args are passed.",
   "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
   "Prefer those lead tools over dumping GTM prose into the You thread.",
-  "Call post_to_self_thread with title and short markdown body for brief assistant notes in the You thread.",
+  "Call post_to_self_thread with title and short markdown body only for brief personal assistant notes in the You thread.",
+  "Never post deploy checks, production status, allowlist/gate notes, or other ops chatter there — that thread is the owner's own story.",
   "The owner sees it as an incoming assistant bubble. It does not send email or LinkedIn messages.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
@@ -535,8 +536,9 @@ const POST_TO_SELF_THREAD_TOOL = {
   description: [
     "Post a short message into this connector user's own You inbox thread in Tinker.",
     "Pass title (short subject) and body (markdown: bold, headings, lists).",
-    "Use only for brief assistant notes. Do not dump GTM or outreach plans here;",
-    "use set_company_priority and plan_lead_touch so the inbox shows the plan.",
+    "Use only for brief personal assistant notes in the owner's story thread.",
+    "Do not dump GTM or outreach plans here; use upsert_target_company and upsert_lead_person.",
+    "Do not post deploy checks, production status, allowlist/gate notes, or ops chatter.",
     "Does not send email, LinkedIn, or any external message. A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
@@ -624,7 +626,8 @@ const UPSERT_TARGET_COMPANY_TOOL = {
     "Create or update a target company in the owner's inbox.",
     "Pass name (required to create) or companyId. Optional domain, priority",
     "(lower sorts first), tier (north_star, wave_1, wave_2, other), notes,",
-    "status (active|dropped). north_star tier also sets the North Star flag.",
+    "research (structured summary / key facts / links), status (active|dropped).",
+    "Fields left out are unchanged on update. north_star tier also sets the North Star flag.",
     "Does not send messages. A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
@@ -640,7 +643,11 @@ const UPSERT_TARGET_COMPANY_TOOL = {
         enum: ["north_star", "wave_1", "wave_2", "other"],
         description: "Company wave / North Star tier.",
       },
-      notes: { type: "string", description: "Optional short notes for the company." },
+      notes: { type: "string", description: "Optional short notes for the company (role, link, fit, gaps, next step)." },
+      research: {
+        type: "string",
+        description: "Optional research summary: key facts, links, or structured findings beyond short notes.",
+      },
       status: {
         type: "string",
         enum: ["active", "dropped"],
@@ -1117,18 +1124,63 @@ function nameMatch(a, b) {
   return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
 }
 
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
 function companyPatchFromArgs(args) {
+  // Only fields explicitly passed (and not undefined) become updates.
+  // Omitted fields must never wipe existing company data.
   const patch = {};
-  if (args.priority != null || args.companyPriority != null) {
-    patch.priority = args.priority != null ? args.priority : args.companyPriority;
+  if (hasOwn(args, "priority") && args.priority !== undefined && args.priority !== null) {
+    patch.priority = args.priority;
+  } else if (hasOwn(args, "companyPriority") && args.companyPriority !== undefined && args.companyPriority !== null) {
+    patch.priority = args.companyPriority;
   }
-  if (Object.prototype.hasOwnProperty.call(args, "northStar")) patch.northStar = args.northStar;
-  if (args.tier != null) patch.tier = args.tier;
-  if (args.notes != null) patch.notes = args.notes;
-  if (args.status != null) patch.status = args.status;
-  if (args.domain != null) patch.domain = args.domain;
-  if (args.name != null) patch.name = args.name;
+  if (hasOwn(args, "northStar") && args.northStar !== undefined) patch.northStar = args.northStar;
+  if (hasOwn(args, "tier") && args.tier != null) patch.tier = args.tier;
+  if (hasOwn(args, "notes") && args.notes !== undefined) patch.notes = args.notes;
+  if (hasOwn(args, "research") && args.research !== undefined) patch.research = args.research;
+  if (hasOwn(args, "status") && args.status != null) patch.status = args.status;
+  if (hasOwn(args, "domain") && args.domain !== undefined) patch.domain = args.domain;
+  if (hasOwn(args, "name") && args.name != null) patch.name = args.name;
   return patch;
+}
+function companyArgsFromLeadUpsert(args) {
+  const out = {};
+  if (hasOwn(args, "companyId")) out.companyId = args.companyId;
+  if (hasOwn(args, "companyName")) out.companyName = args.companyName;
+  if (hasOwn(args, "domain")) out.domain = args.domain;
+  if (hasOwn(args, "companyPriority")) out.companyPriority = args.companyPriority;
+  if (hasOwn(args, "priority")) out.priority = args.priority;
+  if (hasOwn(args, "tier")) {
+    out.tier = args.tier;
+    if (args.tier === "north_star") out.northStar = true;
+  }
+  if (hasOwn(args, "notes")) out.notes = args.notes;
+  if (hasOwn(args, "research")) out.research = args.research;
+  if (hasOwn(args, "status")) out.status = args.status;
+  if (hasOwn(args, "northStar") && args.northStar !== undefined) out.northStar = args.northStar;
+  return out;
+}
+function companyArgsFromUpsert(args) {
+  const out = {};
+  if (hasOwn(args, "companyId")) out.companyId = args.companyId;
+  if (hasOwn(args, "companyName") || hasOwn(args, "name")) {
+    out.companyName = args.companyName || args.name;
+    if (hasOwn(args, "name")) out.name = args.name;
+  }
+  if (hasOwn(args, "domain")) out.domain = args.domain;
+  if (hasOwn(args, "priority")) out.priority = args.priority;
+  if (hasOwn(args, "tier")) {
+    out.tier = args.tier;
+    if (args.tier === "north_star") out.northStar = true;
+  } else if (hasOwn(args, "northStar") && args.northStar !== undefined) {
+    out.northStar = args.northStar;
+  }
+  if (hasOwn(args, "notes")) out.notes = args.notes;
+  if (hasOwn(args, "research")) out.research = args.research;
+  if (hasOwn(args, "status")) out.status = args.status;
+  return out;
 }
 
 async function resolveCompany(user, args) {
@@ -1160,6 +1212,7 @@ async function resolveCompany(user, args) {
       northStar: !!args.northStar || args.tier === "north_star",
       tier: args.tier,
       notes: args.notes,
+      research: args.research,
       priority: args.priority != null ? args.priority : (args.companyPriority != null ? args.companyPriority : 100),
       status: args.status || "active",
     });
@@ -1191,13 +1244,7 @@ async function planLeadTouchCall(msg, user, args) {
     const actor = MCP_BOT_ACTOR;
     const personName = typeof args.personName === "string" ? args.personName.trim() : "";
     if (!personName) throw Object.assign(new Error("personName is required."), { status: 400 });
-    const company = await resolveCompany(user, {
-      companyId: args.companyId,
-      companyName: args.companyName,
-      domain: args.domain,
-      companyPriority: args.companyPriority,
-      northStar: args.northStar,
-    });
+    const company = await resolveCompany(user, companyArgsFromLeadUpsert(args));
     const leads = await leadsStore.listLeads({ userId, emailHint });
     let lead = leads.find((row) => nameMatch(row.personName, personName)
       && (row.companyId === company.id || nameMatch(row.company, company.name)));
@@ -1279,17 +1326,7 @@ async function upsertTargetCompanyCall(msg, user, args) {
     if (!args.companyId && !(args.name || args.companyName)) {
       throw Object.assign(new Error("name or companyId is required."), { status: 400 });
     }
-    const company = await resolveCompany(user, {
-      companyId: args.companyId,
-      companyName: args.companyName || args.name,
-      name: args.name,
-      domain: args.domain,
-      priority: args.priority,
-      tier: args.tier,
-      notes: args.notes,
-      status: args.status,
-      northStar: args.tier === "north_star" ? true : args.northStar,
-    });
+    const company = await resolveCompany(user, companyArgsFromUpsert(args));
     return contentToolOk(msg, { company: companiesStore.presentCompany(company) });
   } catch (err) {
     return planFailure(msg, err, companiesStore.UNAVAILABLE);
@@ -1304,14 +1341,7 @@ async function upsertLeadPersonCall(msg, user, args) {
     const personName = typeof args.personName === "string" ? args.personName.trim() : "";
     if (!personName) throw Object.assign(new Error("personName is required."), { status: 400 });
     if (!args.contactType) throw Object.assign(new Error("contactType is required."), { status: 400 });
-    const company = await resolveCompany(user, {
-      companyId: args.companyId,
-      companyName: args.companyName,
-      domain: args.domain,
-      companyPriority: args.companyPriority,
-      tier: args.tier,
-      northStar: args.tier === "north_star" ? true : undefined,
-    });
+    const company = await resolveCompany(user, companyArgsFromLeadUpsert(args));
     const leads = await leadsStore.listLeads({ userId, emailHint });
     let lead = leads.find((row) => nameMatch(row.personName, personName)
       && (row.companyId === company.id || nameMatch(row.company, company.name)));
