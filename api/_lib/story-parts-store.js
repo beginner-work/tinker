@@ -161,18 +161,21 @@ async function createPart(input) {
     return saved;
   });
 }
-async function listParts({ userId, stage, topic, status, sourceKind, concepts } = {}) {
+async function listParts({ userId, stage, topic, status, sourceKind, concepts, teamOrRole, limit } = {}) {
   const owner = requireUserId(userId);
   await ensureTable();
   let rows;
   try { rows = await db().storyPart.findMany({ where: { userId: owner } }); }
   catch (err) { throw storeDown(err); }
+  const role = typeof teamOrRole === "string" ? teamOrRole.trim().toLowerCase() : "";
   rows = rows.filter((row) => (!stage || row.stageKey === stage) && (!status || row.status === status)
     && (!sourceKind || row.sourceKind === sourceKind)
     && (!topic || (Array.isArray(row.topics) && row.topics.includes(topic)))
-    && (!concepts || (Array.isArray(row.concepts) && row.concepts.includes(slug(concepts)))));
+    && (!concepts || (Array.isArray(row.concepts) && row.concepts.includes(slug(concepts))))
+    && (!role || String((row.fields && row.fields.teamOrRole) || "").toLowerCase() === role));
   rows.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  return rows;
+  const cap = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 100) : rows.length;
+  return rows.slice(0, cap);
 }
 async function getPart({ id, userId }) {
   const owner = requireUserId(userId);
@@ -218,19 +221,93 @@ async function setStatus({ id, userId, actor, status }) {
   await ensureTable();
   const row = await loadOwned(id, owner);
   if (row.status === next) throw fail(400, "Nothing to update.");
+  let verdict = null;
+  let checkData = {};
+  if (next === "ready" && row.stageKey === "proof_point") {
+    try { verdict = await runFactGate({ userId: owner, text: checkTextFor(row) }); }
+    catch (err) {
+      if (err && err.status) throw err;
+      throw fail(503, "Could not check that part against the career record.");
+    }
+    const nowCheck = new Date();
+    checkData = { checkVerdicts: (verdict && verdict.claims) || [], checkedAt: nowCheck };
+    if (!(verdict && verdict.ready)) {
+      await commit(async (tx) => {
+        await tx.storyPart.update({ where: { id: row.id }, data: checkData });
+        await record(tx, {
+          userId: owner, partId: row.id, actor: label, action: "checked",
+          detail: { ready: false, stageKey: row.stageKey }, at: nowCheck,
+        });
+      });
+      throw Object.assign(new Error("Proof point failed the fact check."), {
+        status: 400, code: "fact_gate", verdict, part: Object.assign({}, row, checkData),
+      });
+    }
+  }
   const action = next === "ready" ? "ready" : next === "retired" ? "retired" : "edited";
   const now = new Date();
   return commit(async (tx) => {
-    const saved = await tx.storyPart.update({ where: { id: row.id }, data: { status: next } });
+    const saved = await tx.storyPart.update({
+      where: { id: row.id },
+      data: Object.assign({ status: next }, checkData),
+    });
     const event = await record(tx, {
       userId: owner, partId: row.id, actor: label, action, detail: { from: row.status, to: next }, at: now,
     });
-    return { part: saved, event };
+    return { part: saved, event, verdict };
   });
 }
 
+let factGateImpl = null;
+function setFactGate(fn) { factGateImpl = typeof fn === "function" ? fn : null; }
+function checkTextFor(row) {
+  const fields = row.fields && typeof row.fields === "object" ? row.fields : {};
+  const bits = [row.body || ""];
+  if (row.stageKey === "proof_point") {
+    for (const key of ["start", "number", "cause"]) {
+      if (fields[key]) bits.push(String(fields[key]));
+    }
+  }
+  return bits.filter((bit) => bit && String(bit).trim()).join("\n");
+}
+async function runFactGate({ userId, text }) {
+  if (factGateImpl) return factGateImpl({ userId, text });
+  const { readForTool } = require("./career.js");
+  const { checkText } = require("./career-check.js");
+  const record = await readForTool(userId);
+  return checkText({ record, text: text || "", field_label: "story_part" });
+}
+
+function presentMcp(row) {
+  const out = {
+    id: row.id,
+    stage: row.stageKey,
+    title: row.title,
+    body: row.body,
+    fields: row.fields || {},
+    topics: row.topics || [],
+    concepts: row.concepts || [],
+    stack: row.stack || [],
+    status: row.status,
+    sourceExcerpt: row.sourceExcerpt || "",
+    source: { kind: row.sourceKind, id: row.sourceId || null },
+    checkVerdicts: row.checkVerdicts || [],
+    checkedAt: iso(row.checkedAt),
+  };
+  if (row.sourceKind === "code") {
+    const ref = row.sourceRef && typeof row.sourceRef === "object" ? row.sourceRef : {};
+    out.sourceRef = {
+      repo: ref.repo || "",
+      path: ref.path || "",
+      ref: ref.ref || "",
+      evidence: Array.isArray(ref.evidence) ? ref.evidence : [],
+    };
+  }
+  return out;
+}
+
 module.exports = {
-  UNAVAILABLE, TABLE_STATEMENTS, STAGES, ensureTable, resetTableCache,
-  presentPart: shape, presentEvent: shape,
+  UNAVAILABLE, TABLE_STATEMENTS, STAGES, ensureTable, resetTableCache, setFactGate, runFactGate, checkTextFor,
+  presentPart: shape, presentEvent: shape, presentMcp,
   getStages, createPart, listParts, getPart, updatePart, setStatus,
 };
