@@ -382,7 +382,7 @@
       `<svg viewBox="0 0 24 24" width="26" height="26">${CHECK_GLYPH}</svg>` +
       `</div>` +
       `<h2 class="writing-question">Saved on this device.</h2>` +
-      `<p class="writing-freewrite__sub">When you reconnect, this goes to your pitch like any other essay.</p>`;
+      `<p class="writing-freewrite__sub">When you reconnect, this saves like any other writing.</p>`;
     const done = document.createElement("button");
     done.type = "button";
     done.className = "writing-action writing-action--primary";
@@ -720,15 +720,7 @@
   }
 
   function buildUncoveredPitchLines() {
-    const tree = window.tinkerTree;
-    if (!tree || typeof tree.uncoveredHeadings !== "function") return [];
-    let uncovered;
-    try { uncovered = tree.uncoveredHeadings(); }
-    catch { return []; }
-    if (!Array.isArray(uncovered) || uncovered.length === 0) return [];
-    return [
-      `Starter-pitch slides the founder hasn't written into yet: ${uncovered.join(", ")}.`,
-    ];
+    return [];
   }
 
   function buildUserMessage(transcript, { forceStitch = false } = {}) {

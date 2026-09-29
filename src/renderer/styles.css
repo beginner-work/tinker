@@ -189,49 +189,6 @@ body.messages-inbox-primary { --sidebar-width: 300px; }
 .sidebar__secondary-link:hover { color: var(--color-foreground); }
 a.sidebar__secondary-link { display: inline; }
 
-.pitch-deck-panel {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  height: 100%;
-  background: var(--color-background);
-  padding: 0;
-}
-.pitch-deck-panel[hidden] { display: none !important; }
-.pitch-deck-panel__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px 22px 12px;
-  border-bottom: 1px solid var(--color-border);
-}
-.pitch-deck-panel__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-}
-.pitch-deck-panel__close {
-  padding: 4px 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-muted);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-.pitch-deck-panel .sidebar__tree {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  border-top: 0;
-  display: flex;
-  flex-direction: column;
-}
-body.pitch-deck-open .messages-pane { display: none !important; }
-body.pitch-deck-open #welcome { display: none !important; }
 .messages-rail__channel { opacity: 0.9; }
 
 .messages-rail {

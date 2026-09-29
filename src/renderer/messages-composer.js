@@ -121,7 +121,7 @@
     box.innerHTML = "";
     if (!state.parts.length) {
       box.appendChild(Object.assign(el("p", "messages-composer__hint"), {
-        textContent: "No story parts yet. Add some in your writing flow, then insert them here.",
+        textContent: "No story parts yet. Add some on Story parts, then insert them here.",
       }));
       return;
     }
