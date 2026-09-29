@@ -1,13 +1,4 @@
-/* Unit tests for the sidebar membership row's pure formatter
- * (src/renderer/membership.js → window.tinkerMembership.formatMembership).
- *
- * The module is browser-shaped (touches localStorage, document, window) but
- * guards its bootstrap behind `typeof document !== "undefined"` and exposes
- * the pure formatter on window. We load it in a vm sandbox with a document
- * whose getElementById returns null, so hydrate() no-ops and we can drive the
- * formatter directly — the same load-the-source approach the other renderer
- * smoke tests use.
- */
+/* Tinker is free: membership.js exposes a blank free view and no plan footer. */
 
 "use strict";
 
@@ -19,6 +10,10 @@ const vm = require("node:vm");
 
 const SRC = fs.readFileSync(
   path.resolve(__dirname, "..", "src", "renderer", "membership.js"),
+  "utf8",
+);
+const HTML = fs.readFileSync(
+  path.resolve(__dirname, "..", "src", "renderer", "index.html"),
   "utf8",
 );
 
@@ -39,82 +34,33 @@ function loadFormatter() {
   return sandbox.window.tinkerMembership.formatMembership;
 }
 
-test("active pre-seed shows tier, monthly price, and renewal date", () => {
-  const formatMembership = loadFormatter();
-  // 2026-07-01 in UTC seconds; assert on the parts that don't drift with TZ.
-  const view = formatMembership({ active: true, tier: "pre-seed", status: "active", currentPeriodEnd: 1782000000 });
-  assert.equal(view.active, true);
-  assert.equal(view.label, "Pre-seed · $9/mo");
-  assert.match(view.sub, /^Renews /);
-  assert.equal(view.cta, "");
+test("sidebar has no plan footer, pause, or restore membership chrome", () => {
+  assert.equal(/nav-membership/.test(HTML), false);
+  assert.equal(/nav-membership-pause/.test(HTML), false);
+  assert.equal(/nav-membership-restore/.test(HTML), false);
+  assert.equal(/Pre-seed/.test(HTML), false);
+  assert.equal(/\$9\/mo/.test(HTML), false);
+  assert.equal(/Pause membership/.test(HTML), false);
 });
 
-test("trialing reads as a free trial that renews", () => {
+test("formatMembership is a blank free view with no price or pause", () => {
   const formatMembership = loadFormatter();
-  const view = formatMembership({ active: true, tier: "pre-seed", status: "trialing", currentPeriodEnd: 1782000000 });
-  assert.equal(view.label, "Pre-seed · $9/mo");
-  assert.match(view.sub, /Free trial — renews /);
-});
-
-test("past_due active member is nudged to update their card", () => {
-  const formatMembership = loadFormatter();
-  const view = formatMembership({ active: true, tier: "pre-seed", status: "past_due" });
-  assert.equal(view.active, true);
-  assert.equal(view.sub, "Payment past due — update card");
-});
-
-test("active member with no period end still reads as active", () => {
-  const formatMembership = loadFormatter();
-  const view = formatMembership({ active: true, tier: "pre-seed", status: "active" });
-  assert.equal(view.sub, "Active");
-});
-
-test("no membership reads as a free plan with an upgrade CTA", () => {
-  const formatMembership = loadFormatter();
-  for (const status of [null, {}, { active: false, tier: null, status: null }]) {
+  for (const status of [
+    null,
+    {},
+    { active: true, tier: "pre-seed", status: "active", currentPeriodEnd: 1782000000 },
+    { active: false, tier: "pre-seed", status: "paused" },
+  ]) {
     const view = formatMembership(status);
     assert.equal(view.active, false);
-    assert.equal(view.label, "Free plan");
-    assert.equal(view.sub, "Pre-seed is $9/mo");
-    assert.equal(view.cta, "Upgrade");
+    assert.equal(view.label, "");
+    assert.equal(view.sub, "");
+    assert.equal(view.cta, "");
+    assert.equal(view.restore, false);
+    assert.equal(view.pause, "");
   }
-});
-
-test("canceled or unpaid (active:false) falls back to the free view even with a tier", () => {
-  const formatMembership = loadFormatter();
-  const view = formatMembership({ active: false, tier: "pre-seed", status: "canceled" });
-  assert.equal(view.active, false);
-  assert.equal(view.label, "Free plan");
-  assert.equal(view.cta, "Upgrade");
-});
-
-test("an unknown tier even if marked active falls back to the free view", () => {
-  const formatMembership = loadFormatter();
-  const view = formatMembership({ active: true, tier: "mythical", status: "active" });
-  assert.equal(view.active, false);
-  assert.equal(view.label, "Free plan");
-});
-
-test("the free view offers to restore an existing subscription", () => {
-  const formatMembership = loadFormatter();
-  for (const status of [null, {}, { active: false, tier: "pre-seed", status: "canceled" }]) {
-    assert.equal(formatMembership(status).restore, true);
-  }
-});
-
-test("an active member is not offered restore", () => {
-  const formatMembership = loadFormatter();
-  const view = formatMembership({ active: true, tier: "pre-seed", status: "active" });
-  assert.equal(view.restore, false);
-});
-
-test("a one-time pass reads as a 30-day pass that expires, with no pause/restore", () => {
-  const formatMembership = loadFormatter();
-  const view = formatMembership({ active: true, tier: "pre-seed", status: "active", oneTime: true, currentPeriodEnd: 1782000000 });
-  assert.equal(view.active, true);
-  assert.equal(view.label, "Pre-seed · 30-day pass");
-  assert.match(view.sub, /^Pass active — expires /);
-  assert.equal(view.cta, "");
-  assert.equal(view.pause, "", "a pass has no subscription to pause");
-  assert.equal(view.restore, false, "a pass has nothing to restore");
+  assert.equal(/\$9/.test(SRC), false);
+  assert.equal(/Pre-seed/.test(SRC), false);
+  assert.equal(/Pause membership/.test(SRC), false);
+  assert.equal(/—/.test(SRC), false);
 });
