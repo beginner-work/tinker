@@ -125,3 +125,16 @@ test("sidebar destinations, LinkedIn limit citation, no send path", () => {
   assert.ok(store.listDrafts);
   assert.deepEqual(store.CHANNELS, ["linkedin_post", "linkedin_connection", "gmail_outreach"]);
 });
+
+test("bookingUrl settings and reply-only insert control", async () => {
+  assert.equal((await call({ method: "GET", action: "settings" })).body.settings.bookingUrl, "");
+  const set = await call({ method: "POST", action: "settings", body: { bookingUrl: "https://cal.example/you" } });
+  assert.equal(set.body.settings.bookingUrl, "https://cal.example/you");
+  const js = fs.readFileSync(path.join(__dirname, "..", "src/renderer/lead-drafts.js"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "..", "src/renderer/index.html"), "utf8");
+  assert.match(js, /Insert booking link/);
+  assert.match(js, /isReplyDraft/);
+  assert.match(js, /REPLY_STAGES/);
+  assert.match(html, /data-drafts-booking/);
+  assert.equal(/linkedin_post[^\n]*isReplyDraft|isReplyDraft[^\n]*linkedin_post/.test(js) || js.includes('channel === "linkedin_post"'), true);
+});
