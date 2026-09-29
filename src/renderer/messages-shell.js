@@ -111,12 +111,20 @@
   function showPane() {
     if (!pane) return;
     pane.hidden = false;
-    document.body.classList.add("messages-shell-open");
-    var welcome = document.getElementById("welcome");
-    if (welcome && welcome.hasAttribute("data-active")) {
-      /* leave welcome alone until a conversation is picked */
-    }
+    document.body.classList.add("messages-shell-open", "messages-inbox-primary");
+    closePitchPanel();
   }
+  function setPitchOpen(open) {
+    var panel = document.getElementById("pitch-deck-panel");
+    if (!panel) return;
+    panel.hidden = !open;
+    document.body.classList.toggle("pitch-deck-open", !!open);
+    if (open && pane) pane.hidden = true;
+    else if (pane && state.selectedId) pane.hidden = false;
+    else if (pane) pane.hidden = false;
+  }
+  function closePitchPanel() { setPitchOpen(false); }
+  function openPitchPanel() { setPitchOpen(true); }
   function renderEmptyPane() {
     if (!pane) return;
     var empty = pane.querySelector("[data-messages-empty]");
@@ -205,14 +213,14 @@
           ? draftPreview(draft)
           : (String(lead.personTitle || "").trim() || "No draft yet — write one when you are ready.");
         var meta = el("span", "messages-rail__meta");
+        if (draft && draft.channel) {
+          var ch = el("span", "messages-rail__channel");
+          ch.textContent = CHANNEL_LABEL[draft.channel] || draft.channel;
+          meta.appendChild(ch);
+        }
         var stage = el("span", "messages-rail__stage");
         stage.textContent = String(lead.stage || "new");
         meta.appendChild(stage);
-        if (lead.contactType) {
-          var kind = el("span", "messages-rail__kind");
-          kind.textContent = String(lead.contactType).replace(/_/g, " ");
-          meta.appendChild(kind);
-        }
         if (needsDraft(lead)) {
           var dot = el("span", "messages-rail__dot", { title: "Needs a draft", "aria-label": "Needs a draft" });
           meta.appendChild(dot);
@@ -240,14 +248,16 @@
     renderList();
   }
   function refresh() {
+    document.body.classList.add("messages-inbox-primary", "messages-shell-open");
+    if (root) root.hidden = false;
     if (!token()) {
       state.leads = [];
       state.drafts = [];
       state.error = "";
-      if (root) root.hidden = true;
-      if (pane) pane.hidden = true;
-      document.body.classList.remove("messages-shell-open", "messages-thread-active", "messages-mobile-thread");
+      if (pane) pane.hidden = false;
+      document.body.classList.remove("messages-thread-active", "messages-mobile-thread");
       renderList();
+      renderEmptyPane();
       return Promise.resolve();
     }
     state.loading = true;
@@ -258,22 +268,16 @@
       state.leads = Array.isArray(results[0].leads) ? results[0].leads : [];
       state.drafts = Array.isArray(results[1].drafts) ? results[1].drafts : [];
       state.error = "";
-      if (root) root.hidden = false;
       if (pane) pane.hidden = false;
-      document.body.classList.add("messages-shell-open");
     }).catch(function (err) {
       state.leads = [];
       state.drafts = [];
       if (err.status === 401 || err.status === 403) {
         state.error = "";
-        if (root) root.hidden = true;
-        if (pane) pane.hidden = true;
-        document.body.classList.remove("messages-shell-open");
+        if (pane) pane.hidden = false;
       } else {
         state.error = "Conversations could not load right now.";
-        if (root) root.hidden = false;
         if (pane) pane.hidden = false;
-        document.body.classList.add("messages-shell-open");
       }
     }).finally(function () {
       state.loading = false;
@@ -286,6 +290,8 @@
     var search = root.querySelector("[data-messages-search]");
     var chip = root.querySelector("[data-messages-filter]");
     var back = pane && pane.querySelector("[data-messages-back]");
+    var pitchOpen = document.querySelector("[data-pitch-open]");
+    var pitchClose = document.querySelector("[data-pitch-close]");
     if (search) {
       search.addEventListener("input", function () {
         state.query = search.value || "";
@@ -299,11 +305,22 @@
         selectLead("", { silent: true });
       });
     }
+    if (pitchOpen) pitchOpen.addEventListener("click", openPitchPanel);
+    if (pitchClose) pitchClose.addEventListener("click", closePitchPanel);
+    var brand = document.getElementById("nav-home");
+    if (brand) {
+      brand.addEventListener("click", function () {
+        closePitchPanel();
+        document.body.classList.remove("messages-mobile-thread");
+        if (!state.selectedId && pane) pane.hidden = false;
+      });
+    }
   }
   function boot() {
     root = document.getElementById("sidebar-messages");
     pane = document.getElementById("messages-pane");
     if (!root) return;
+    document.body.classList.add("messages-inbox-primary", "messages-shell-open");
     bindChrome();
     refresh();
     window.addEventListener("storage", function (e) { if (e.key === TOKEN_KEY) refresh(); });
@@ -317,6 +334,8 @@
     refresh: refresh,
     selectLead: selectLead,
     setCompanyFilter: setCompanyFilter,
+    openPitchPanel: openPitchPanel,
+    closePitchPanel: closePitchPanel,
     getSelectedId: function () { return state.selectedId; },
     CHANNEL_LABEL: CHANNEL_LABEL,
   };

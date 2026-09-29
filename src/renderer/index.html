@@ -191,9 +191,12 @@
       </div>
     </div>
 
-    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar">
+    <!-- TYL-65: the left rail is the messages inbox. Pitch deck nav moved
+         to #pitch-deck-panel (secondary). Hunt/outreach stay in DOM for
+         existing JS but are not the primary chrome. -->
+    <aside class="sidebar sidebar--inbox" id="sidebar" role="navigation" aria-label="Inbox">
       <header class="sidebar__top">
-        <button id="nav-home" class="sidebar__brand" type="button" title="Pick a place to start writing">
+        <button id="nav-home" class="sidebar__brand" type="button" title="Inbox">
           <svg data-rainbow-logo viewBox="0 0 200 200" width="22" height="22" aria-hidden="true" fill="none">
             <rect width="200" height="200" rx="44" fill="#f5f3ef" />
             <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
@@ -208,52 +211,10 @@
         </button>
       </header>
 
-      <!-- The v0.103 sidebar tree: the eleven pitch-deck slide titles
-           as the top tier, verbatim phrases from the founder's own
-           writings as the inner rows. The <nav> is hidden whenever
-           the tree has no resolvable phrases — cold-start state
-           collapses to brand + Account only. -->
-      <nav class="sidebar__tree" aria-label="Pitch deck" hidden>
-        <!-- Overall progress: how many of the eleven deck headings have
-             at least one resolvable phrase. Developer-authored chrome
-             (the literals "Pitch progress" and the "N / 11" count are
-             allow-listed in sidebar-tree.js's audit). -->
-        <div class="sidebar__tree-progress" data-tree-progress data-audit-ignore>
-          <div class="sidebar__tree-progress-meta">
-            <span class="sidebar__tree-progress-label">Pitch progress</span>
-            <span class="sidebar__tree-progress-count" data-tree-progress-count>
-              <span class="sidebar__tree-progress-count-num" data-tree-progress-count-num>0 / 11</span>
-              <span class="sidebar__tree-progress-count-flight" aria-hidden="true">stay tuned…</span>
-            </span>
-          </div>
-          <div class="sidebar__tree-progress-track" role="progressbar"
-               aria-label="Pitch deck completion"
-               aria-valuemin="0" aria-valuemax="11" aria-valuenow="0"
-               data-tree-progress-bar>
-            <div class="sidebar__tree-progress-fill" data-tree-progress-fill></div>
-          </div>
-        </div>
-        <ul class="sidebar__tree-list"></ul>
-      </nav>
-
-      <!-- Hunt funnel: North Star + target companies from GET funnel. -->
-      <nav class="sidebar__funnel" id="sidebar-funnel" aria-label="Hunt funnel" hidden data-open="true">
-        <button type="button" class="sidebar__funnel-toggle" data-funnel-toggle aria-expanded="true">
-          <span class="sidebar__account-head sidebar__funnel-title">Hunt</span>
-        </button>
-        <div class="sidebar__funnel-body" data-funnel-body>
-          <p class="sidebar__funnel-empty" data-funnel-empty>No target companies yet. Add one on Leads to see who to contact next.</p>
-          <p class="sidebar__funnel-error" data-funnel-error hidden></p>
-          <div class="sidebar__funnel-panel" data-funnel-panel></div>
-        </div>
-      </nav>
-
-      <!-- Conversation list (TYL-65 messaging shell). One row per lead.
-           messages-shell.js fills it; hidden until leads are available.
-           Drafts stay below until the thread composer replaces them. -->
-      <nav class="messages-rail" id="sidebar-messages" aria-label="Conversations" hidden>
+      <!-- Inbox: conversation list fills the rail. -->
+      <nav class="messages-rail" id="sidebar-messages" aria-label="Conversations">
         <div class="messages-rail__head">
-          <span class="sidebar__account-head messages-rail__title">Messages</span>
+          <span class="sidebar__account-head messages-rail__title">Inbox</span>
           <span class="messages-rail__badge" data-messages-badge hidden></span>
         </div>
         <label class="messages-rail__search">
@@ -265,16 +226,39 @@
         <p class="messages-rail__empty" data-messages-empty>No conversations yet. Add a lead on Leads and it shows up here.</p>
         <p class="messages-rail__error" data-messages-error hidden></p>
         <ul class="messages-rail__list" data-messages-list></ul>
-        <div class="messages-rail__nav" aria-label="Shell links">
-          <a class="messages-rail__nav-link" href="/leads">Leads</a>
-          <a class="messages-rail__nav-link" href="/career">Career</a>
-          <a class="messages-rail__nav-link" href="/autonomy">Autonomy</a>
+      </nav>
+
+      <!-- Secondary links: pitch deck (panel), pages, account tools. -->
+      <nav class="sidebar__secondary" aria-label="More">
+        <button type="button" class="sidebar__secondary-link" id="nav-pitch-deck" data-pitch-open>Pitch deck</button>
+        <a class="sidebar__secondary-link" href="/leads">Leads</a>
+        <a class="sidebar__secondary-link" href="/career">Career</a>
+        <a class="sidebar__secondary-link" href="/autonomy">Autonomy</a>
+        <button type="button" class="sidebar__secondary-link" id="nav-linkedin-draft">LinkedIn draft</button>
+        <button type="button" class="sidebar__secondary-link sidebar__membership" id="nav-membership" hidden aria-live="polite">
+          <span data-membership-tier>Membership</span>
+          <span data-membership-sub hidden></span>
+          <span class="sidebar__membership-badge" data-membership-cta hidden></span>
+        </button>
+        <button type="button" class="sidebar__secondary-link" id="nav-membership-restore" hidden>Restore</button>
+        <button type="button" class="sidebar__secondary-link" id="nav-membership-pause" hidden>Pause</button>
+        <button type="button" class="sidebar__secondary-link" id="nav-share" hidden>
+          Share <span data-share-flash aria-live="polite"></span>
+        </button>
+      </nav>
+
+      <!-- Hunt funnel kept for API/filter JS; not primary chrome (inbox is). -->
+      <nav class="sidebar__funnel" id="sidebar-funnel" aria-label="Hunt funnel" hidden data-open="true">
+        <button type="button" class="sidebar__funnel-toggle" data-funnel-toggle aria-expanded="true">
+          <span class="sidebar__account-head sidebar__funnel-title">Hunt</span>
+        </button>
+        <div class="sidebar__funnel-body" data-funnel-body>
+          <p class="sidebar__funnel-empty" data-funnel-empty>No target companies yet. Add one on Leads to see who to contact next.</p>
+          <p class="sidebar__funnel-error" data-funnel-error hidden></p>
+          <div class="sidebar__funnel-panel" data-funnel-panel></div>
         </div>
       </nav>
 
-      <!-- Outreach settings only (TYL-65). Draft list removed — drafts
-           live in the thread + composer. lead-drafts.js still owns
-           settings + openDraft. -->
       <nav class="sidebar__drafts sidebar__drafts--settings" id="sidebar-drafts" aria-label="Outreach settings" hidden data-open="true">
         <div class="sidebar__drafts-panel" data-drafts-panel>
           <span class="sidebar__account-head sidebar__drafts-title">Outreach</span>
@@ -291,77 +275,11 @@
         </div>
       </nav>
 
-      <nav class="sidebar__account" aria-label="Account">
-        <h2 class="sidebar__account-head">Account</h2>
+      <!-- Legacy account list kept for selectors used by membership/share JS. -->
+      <nav class="sidebar__account" aria-label="Account" hidden>
         <ul class="sidebar__account-list">
-          <!-- LinkedIn drafts: topic or bullets in, copy out. Posting
-               still goes through Stanley. linkedin-draft.js owns the panel. -->
-          <li>
-            <button id="nav-linkedin-draft" type="button" class="sidebar__account-item">
-              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
-                <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                <path d="M13.5 6.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-              </svg>
-              <span class="sidebar__account-label">LinkedIn draft</span>
-            </button>
-          </li>
-          <!-- No AI mode lives front-and-centre on the welcome page and on
-               the floating bottom mode nav (#mode-nav), not here — the
-               sidebar stays out of the way. freewrite.js owns the state. -->
-          <!-- Membership / plan: revealed by membership.js once it has read
-               /api/membership/status for the signed-in founder. Shows which
-               tier they're on and the monthly price; for free accounts the
-               trailing badge becomes an "Upgrade" affordance that opens
-               Stripe Checkout. Stays hidden until status is known so a
-               signed-out or Electron session never sees a stale row. -->
-          <li>
-            <button id="nav-membership" type="button" class="sidebar__account-item sidebar__membership" hidden aria-live="polite">
-              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
-                <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/>
-                <path d="M3 10h18" stroke="currentColor" stroke-width="1.6"/>
-              </svg>
-              <span class="sidebar__membership-text">
-                <span class="sidebar__account-label" data-membership-tier>Membership</span>
-                <span class="sidebar__membership-sub" data-membership-sub></span>
-              </span>
-              <span class="sidebar__membership-badge" data-membership-cta hidden></span>
-            </button>
-          </li>
-          <!-- Restore: links a subscription started outside tinker's own
-               checkout (e.g. the beginner "Back me" page, a Payment Link, or
-               the dashboard) — which carries no tinker user_id for the webhook
-               to key on — to this account. membership.js reveals it only on
-               the free-plan view. -->
-          <li>
-            <button id="nav-membership-restore" type="button" class="sidebar__membership-restore" hidden>
-              Already subscribed? Restore
-            </button>
-          </li>
-          <!-- Pause / resume: a quiet text button beneath the plan row.
-               membership.js reveals it as "Pause membership" for an active
-               member and "Resume membership" for a paused one, and hides it
-               for free accounts. Pausing keeps the subscription alive but
-               stops billing via /api/membership/pause until the member
-               resumes. -->
-          <li>
-            <button id="nav-membership-pause" type="button" class="sidebar__membership-restore sidebar__membership-pause" hidden>
-              Pause membership
-            </button>
-          </li>
-          <!-- Share button: revealed by share.js only when the app is
-               running as an installed PWA (standalone). Stays hidden
-               in plain browser tabs and on Electron desktop, where
-               the OS already exposes "Share Link" through the URL bar. -->
-          <li>
-            <button id="nav-share" type="button" class="sidebar__account-item" hidden>
-              <svg class="sidebar__account-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
-                <path d="M12 4v10M8.5 7.5L12 4l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6 12v7h12v-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span class="sidebar__account-label">Share tinker</span>
-              <span class="sidebar__account-flash" data-share-flash aria-live="polite"></span>
-            </button>
-          </li>
+          <li><button id="nav-linkedin-draft-legacy" type="button" class="sidebar__account-item" hidden></button></li>
+          <li><span data-membership-sub hidden></span></li>
         </ul>
       </nav>
 
@@ -373,6 +291,34 @@
     </aside>
 
     <main class="stage" id="stage" role="main">
+      <!-- Pitch deck (TYL-65): moved out of the left rail. Open via
+           "Pitch deck" in the inbox secondary nav. sidebar-tree.js still
+           owns .sidebar__tree wherever it lives. -->
+      <section id="pitch-deck-panel" class="pitch-deck-panel" hidden aria-label="Pitch deck">
+        <header class="pitch-deck-panel__top">
+          <h2 class="pitch-deck-panel__title">Pitch deck</h2>
+          <button type="button" class="pitch-deck-panel__close" data-pitch-close aria-label="Close pitch deck">Close</button>
+        </header>
+        <nav class="sidebar__tree" aria-label="Pitch deck">
+          <div class="sidebar__tree-progress" data-tree-progress data-audit-ignore>
+            <div class="sidebar__tree-progress-meta">
+              <span class="sidebar__tree-progress-label">Pitch progress</span>
+              <span class="sidebar__tree-progress-count" data-tree-progress-count>
+                <span class="sidebar__tree-progress-count-num" data-tree-progress-count-num>0 / 11</span>
+                <span class="sidebar__tree-progress-count-flight" aria-hidden="true">stay tuned…</span>
+              </span>
+            </div>
+            <div class="sidebar__tree-progress-track" role="progressbar"
+                 aria-label="Pitch deck completion"
+                 aria-valuemin="0" aria-valuemax="11" aria-valuenow="0"
+                 data-tree-progress-bar>
+              <div class="sidebar__tree-progress-fill" data-tree-progress-fill></div>
+            </div>
+          </div>
+          <ul class="sidebar__tree-list"></ul>
+        </nav>
+      </section>
+
       <!-- Messaging pane (TYL-65). Conversation list lives in the left
            rail; this column holds the thread (slice 2) and composer
            (slice 3). Flat empty state until a person is selected. -->
