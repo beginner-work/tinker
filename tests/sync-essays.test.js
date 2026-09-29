@@ -1,15 +1,10 @@
 /* Regression test for src/renderer/sync.js essay hydrate handling.
  *
- * Bug: "All of my essays were removed from my pitches after I added a
- * new pitch." Adding a pitch publishes the freewrite (writing the essay
- * to localStorage on a 1500ms-debounced push) and then POSTs
- * /api/pitches/organize, which only *reads* essays — it never writes
- * them. If a hydrate races in before the debounced push lands, the
- * server still returns its pre-publish essays list. applyEssaysFromServer
- * used to overwrite localStorage wholesale, dropping every essay the push
- * hadn't delivered yet. It now merges by id (like applyDraftsFromServer),
- * so local essays survive while the server stays authoritative for the
- * essays it already knows.
+ * Bug: a hydrate that races a debounced essay push used to overwrite
+ * localStorage wholesale and drop every local-only essay the push
+ * hadn't delivered yet. applyEssaysFromServer now merges by id (like
+ * applyDraftsFromServer), so local essays survive while the server
+ * stays authoritative for the essays it already knows.
  *
  * sync.js is browser-shaped (window, localStorage, fetch). We mount a
  * thin shim, seed localStorage, stub fetch per-kind, and drive
