@@ -108,10 +108,18 @@ async function stubApis(page) {
     if (url.includes("/api/leads")) {
       if (action === "companies") {
         body = {
-          companies: [{
-            id: "co_e2e_stripe", name: "Stripe", priority: 1, tier: "north_star",
-            northStar: true, status: "active", notes: "", domain: "stripe.com",
-          }],
+          companies: [
+            {
+              id: "co_e2e_stripe", name: "Stripe", priority: 1, tier: "north_star",
+              northStar: true, status: "active", notes: "", domain: "stripe.com",
+              research: "Stripe keeps growing the platform org.",
+            },
+            {
+              id: "co_e2e_notion", name: "Notion", priority: 2, tier: "wave_1",
+              northStar: false, status: "active", notes: "", domain: "notion.so",
+              research: "",
+            },
+          ],
         };
       } else if (action === "list") {
         body = {
@@ -119,13 +127,25 @@ async function stubApis(page) {
             {
               id: "lead_e2e_morgan", personName: "Morgan Kim", personTitle: "EM",
               company: "Stripe", companyId: "co_e2e_stripe", contactType: "referrer",
-              queueOrder: 0, nextStep: "Referral intro", nextStepAt: "2026-09-30T15:00:00.000Z",
+              queueOrder: 0, nextStep: "Referral intro", nextStepAt: "2026-09-30",
+              linkedInUrl: "https://www.linkedin.com/in/morgan-kim-test",
+              githubUrl: "https://github.com/morgan-kim",
               stage: "new", source: "other",
             },
             {
               id: "lead_e2e_sam", personName: "Sam Patel", personTitle: "Director",
               company: "Stripe", companyId: "co_e2e_stripe", contactType: "hiring_leader",
-              queueOrder: 0, nextStep: "Eng leader note", nextStepAt: "2026-10-01T15:00:00.000Z",
+              queueOrder: 1, nextStep: "Eng leader note", nextStepAt: "2026-10-01",
+              linkedInUrl: "https://www.linkedin.com/in/sam-patel-test",
+              githubUrl: "",
+              stage: "new", source: "other",
+            },
+            {
+              id: "lead_e2e_alex", personName: "Alex Rivera", personTitle: "Eng",
+              company: "Notion", companyId: "co_e2e_notion", contactType: "referrer",
+              queueOrder: 0, nextStep: "", nextStepAt: null,
+              linkedInUrl: "",
+              githubUrl: "https://github.com/alex-rivera",
               stage: "new", source: "other",
             },
           ],
@@ -137,7 +157,10 @@ async function stubApis(page) {
           lead: {
             id: "lead_e2e_morgan", personName: "Morgan Kim", personTitle: "EM",
             company: "Stripe", companyId: "co_e2e_stripe", contactType: "referrer",
-            queueOrder: 0, nextStep: "Referral intro", stage: "new",
+            queueOrder: 0, nextStep: "Referral intro", nextStepAt: "2026-09-30",
+            linkedInUrl: "https://www.linkedin.com/in/morgan-kim-test",
+            githubUrl: "https://github.com/morgan-kim",
+            stage: "new",
           },
         };
       } else {
@@ -161,7 +184,12 @@ async function stubApis(page) {
     } else if (url.includes("/api/story-parts") || url.includes("/api/content")) {
       body = { parts: [], items: [], stages: [] };
     } else if (url.includes("/api/user-data") || url.includes("/api/profile")) {
-      body = { data: { name: "E2E Owner" } };
+      body = {
+        data: {
+          name: "E2E Owner",
+          avatarUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiMzYjgyZjYiLz48dGV4dCB4PSIzMiIgeT0iMzgiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiPkU8L3RleHQ+PC9zdmc+",
+        },
+      };
     } else if (url.includes("/api/version")) {
       body = { version: "e2e", env: "production" };
     } else if (url.includes("/api/mcp")) {
@@ -229,6 +257,8 @@ function frontProbe() {
   const r = sidebar.getBoundingClientRect();
   const cs = getComputedStyle(sidebar);
   const stageCs = stage ? getComputedStyle(stage) : null;
+  const you = document.querySelector(".messages-rail__row--you, [data-conv-id='__you__'], [data-company-id='__you__']");
+  const people = document.querySelectorAll("[data-conv-id]:not([data-conv-id='__you__']), [data-company-id]:not([data-company-id='__you__'])");
   return {
     ok: r.width > 200 && r.height > 200 && cs.display !== "none" && cs.transform === "none",
     width: Math.round(r.width),
@@ -237,8 +267,12 @@ function frontProbe() {
     transform: cs.transform,
     stageDisplay: stageCs ? stageCs.display : "missing",
     bodyClass: document.body.className,
-    hasYou: !!document.querySelector(".messages-rail__row--you, [data-company-id='__you__']"),
-    companyRows: document.querySelectorAll("[data-company-id]:not([data-company-id='__you__'])").length,
+    hasYou: !!you,
+    peopleRows: people.length,
+    companyRows: people.length,
+    hasThisWeek: /THIS WEEK/i.test(bodyText),
+    hasLater: /\bLATER\b/i.test(bodyText),
+    hasSearch: !!document.querySelector("[data-messages-search], .messages-rail__search"),
     textSample: bodyText.slice(0, 200),
   };
 }
@@ -417,44 +451,53 @@ describe("production mobile nav", { skip: !PROD }, () => {
     });
   });
 
-  test("production company tabs when companies exist (else demo fallback recorded)", async () => {
+  test("production people rail THIS WEEK / LATER and open person chat", async () => {
     await withPhone(async (page) => {
       await stubApis(page);
       await gotoProd(page, "/");
       await page.waitForSelector(".messages-rail__row--you", { timeout: 15000 });
-      await page.waitForSelector("[data-company-id='co_e2e_stripe'], [data-company-id]:not([data-company-id='__you__'])", { timeout: 15000 });
-      const companies = await page.locator("[data-company-id]:not([data-company-id='__you__'])").count();
-      if (companies < 1) {
-        softRecord("production tap company → person tabs", false, "stubbed companies did not render");
-        softRecord("production switch person tabs", false, "skipped: no companies");
-        return;
-      }
+      await page.waitForSelector("[data-conv-id='lead_e2e_morgan'], [data-conv-id]:not([data-conv-id='__you__'])", { timeout: 15000 });
+      const rail = await page.evaluate(frontProbe);
+      await shotSafe(page, "prod-mobile-people-rail");
+      record("production people rail THIS WEEK / LATER",
+        rail.ok && rail.hasThisWeek && rail.hasLater && rail.peopleRows >= 3 && !rail.hasSearch,
+        JSON.stringify(rail));
+
       await page.evaluate(() => {
-        const btn = document.querySelector("[data-company-id='co_e2e_stripe'], [data-company-id]:not([data-company-id='__you__'])");
-        if (window.tinkerMessagesShell && window.tinkerMessagesShell.selectCompany && btn) {
-          window.tinkerMessagesShell.selectCompany(btn.getAttribute("data-company-id"));
-        } else if (btn) btn.click();
+        if (window.tinkerMessagesShell && window.tinkerMessagesShell.selectLead) {
+          window.tinkerMessagesShell.selectLead("lead_e2e_morgan");
+        } else {
+          const btn = document.querySelector("[data-conv-id='lead_e2e_morgan']");
+          if (btn) btn.click();
+        }
       });
       await page.waitForFunction(() => document.body.classList.contains("messages-mobile-thread"), null, { timeout: 10000 });
-      await page.waitForTimeout(400);
-      const thread = await page.evaluate(() => ({
-        mobile: document.body.classList.contains("messages-mobile-thread"),
-        tabs: document.querySelectorAll(".messages-pane__tab").length,
-        names: Array.from(document.querySelectorAll(".messages-pane__tab-name")).map((n) => n.textContent),
-      }));
+      await page.waitForTimeout(500);
+      const thread = await page.evaluate(() => {
+        const name = (document.querySelector("[data-messages-name]") || {}).textContent || "";
+        const links = Array.from(document.querySelectorAll("[data-messages-links] a")).map((a) => a.textContent.trim());
+        const tabs = document.querySelectorAll(".messages-pane__tab").length;
+        const ship = />\s*Ship\s*</.test(document.body.innerHTML) || /\bShip\b/.test((document.querySelector("#messages-composer") || {}).innerText || "");
+        const search = !!document.querySelector("[data-messages-search]");
+        return {
+          mobile: document.body.classList.contains("messages-mobile-thread"),
+          name: name.trim(),
+          links,
+          tabs,
+          ship,
+          search,
+          text: (document.body.innerText || "").slice(0, 240),
+        };
+      });
+      await shotSafe(page, "prod-mobile-person-chat");
       await shotSafe(page, "prod-mobile-company-tabs");
-      await shotSafe(page, "mobile-company-tabs");
-      record("production tap company → person tabs",
-        thread.mobile && thread.tabs >= 1, JSON.stringify(thread));
-      if (thread.tabs >= 2) {
-        await page.locator(".messages-pane__tab").nth(1).click();
-        await page.waitForTimeout(300);
-        await shotSafe(page, "prod-mobile-tab-switch");
-        await shotSafe(page, "mobile-tab-switch");
-        record("production switch person tabs", true, "switched to tab 2");
-      } else {
-        softRecord("production switch person tabs", true, "only one person tab");
-      }
+      record("production tap person → chat (no tabs/search/Ship)",
+        thread.mobile && /Morgan/i.test(thread.name) && thread.tabs === 0 && !thread.search && !thread.ship,
+        JSON.stringify(thread));
+      record("production person header profile links",
+        thread.links.includes("LinkedIn") && thread.links.includes("GitHub"),
+        JSON.stringify(thread.links));
+
       await dismissChrome(page);
       await page.evaluate(() => {
         if (window.tinkerMessagesShell && window.tinkerMessagesShell.showCompanyList) {
@@ -465,28 +508,20 @@ describe("production mobile nav", { skip: !PROD }, () => {
     });
   });
 
-  test("production search on company list", async () => {
+  test("production has no search field on people rail", async () => {
     await withPhone(async (page) => {
       await stubApis(page);
       await gotoProd(page, "/");
-      await page.waitForSelector("[data-messages-search]", { timeout: 15000 });
-      const after = await page.evaluate(() => {
-        const input = document.querySelector("[data-messages-search]");
-        if (!input) return { value: "", youVisible: false, companyRows: -1, text: "no search input" };
-        input.focus();
-        input.value = "Lindow";
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        return {
-          value: input.value || "",
-          youVisible: !!document.querySelector(".messages-rail__row--you"),
-          companyRows: document.querySelectorAll("[data-company-id]:not([data-company-id='__you__'])").length,
-          text: (document.body.innerText || "").slice(0, 160),
-        };
-      });
+      await page.waitForSelector(".messages-rail__row--you", { timeout: 15000 });
+      const probe = await page.evaluate(() => ({
+        hasSearch: !!document.querySelector("[data-messages-search], .messages-rail__search, .messages-rail__search-input"),
+        youVisible: !!document.querySelector(".messages-rail__row--you"),
+        text: (document.body.innerText || "").slice(0, 160),
+      }));
       await shotSafe(page, "prod-mobile-search");
-      record("production search",
-        after.value === "Lindow" && after.youVisible,
-        JSON.stringify(after));
+      record("production no search field",
+        probe.youVisible && !probe.hasSearch,
+        JSON.stringify(probe));
     });
   });
 

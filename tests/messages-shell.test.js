@@ -23,6 +23,8 @@ test("messages shell chrome is wired in index and script", () => {
   assert.match(html, /href="\/settings"/);
   assert.match(js, /tinkerMessagesShell/);
   assert.match(js, /leadsApi\(["']list["']/);
+  assert.match(js, /removeAttribute\(["']data-active["']\)/);
+  assert.match(css, /body\.messages-shell-open \.mode-nav/);
   assert.equal(/data-messages-search/.test(html), false);
   assert.equal(/Search people or companies/.test(html), false);
   assert.equal(/sendgrid|MESSAGING_SEND/.test(js), false);
