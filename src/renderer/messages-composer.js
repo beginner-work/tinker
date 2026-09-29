@@ -139,7 +139,9 @@
         syncCounter();
       });
       var text = el("span", "messages-composer__part-text");
-      var stage = part.stage ? String(part.stage).replace(/_/g, " ") + " · " : "";
+      var stage = (part.stageKey || part.stage)
+        ? String(part.stageKey || part.stage).replace(/_/g, " ") + " · "
+        : "";
       var preview = partText(part);
       text.textContent = stage + (preview.length > 72 ? preview.slice(0, 71) + "…" : preview);
       label.appendChild(cb);
