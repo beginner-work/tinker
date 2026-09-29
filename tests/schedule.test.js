@@ -83,7 +83,14 @@ const leadsHandler = require("../api/leads.js");
 const mcp = require("../api/mcp.js");
 function resCap() {
   const captured = { status: null, body: null, headers: {} };
-  return { captured, setHeader(k, v) { captured.headers[String(k).toLowerCase()] = v; }, status(c) { captured.status = c; return this; }, json(p) { captured.body = p; return this; } };
+  return {
+    captured,
+    setHeader(k, v) { captured.headers[String(k).toLowerCase()] = v; },
+    status(c) { captured.status = c; return this; },
+    json(p) { captured.body = p; return this; },
+    send(p) { captured.body = p; return this; },
+    end(p) { if (p != null) captured.body = p; return this; },
+  };
 }
 async function call(api, { method, token = "user-a", action, body, query }) {
   const captured = resCap();
@@ -122,4 +129,12 @@ test("migration, week view, skill rules, cross-owner, and MCP read", async () =>
   const own = resCap();
   await mcp({ method: "POST", headers: { authorization: "Bearer mcp_user_a", "content-type": "application/json" }, body: { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "get_outreach_schedule", arguments: { weekStart: "2026-09-29", touchType: "recruiter_outreach" } } } }, own);
   assert.equal(own.captured.body.result.structuredContent.sessions[1].touches.length, 1);
+  assert.match(week.body.sessions[1].googleCalendarUrl, /calendar\.google\.com/);
+  assert.equal(week.body.calendarReadEnabled, false);
+  assert.deepEqual(week.body.busyEvents, []);
+  const exported = await call(handler, { method: "GET", action: "export", query: { weekStart: "2026-09-29" } });
+  assert.equal(exported.status, 200);
+  assert.match(String(exported.body), /BEGIN:VCALENDAR/);
+  assert.match(String(exported.body), /Tinker on Acme/);
+  assert.equal((await call(handler, { method: "GET", token: "user-b", action: "export", query: { weekStart: "2026-09-29" } })).body.includes("Tinker on Acme"), false);
 });

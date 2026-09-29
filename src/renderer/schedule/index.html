@@ -51,9 +51,11 @@
       .schedule__day-date { margin: -4px 0 10px; font-size: 13px; color: var(--schedule-ink); }
       .schedule__block { margin: 0 0 8px; padding: 8px 9px; border-left: 3px solid var(--color-accent-strong); background: #fff; }
       .schedule__block--skill { border-left-color: #0f766e; }
+      .schedule__block--busy { border-left-color: #94a3b8; background: #e8edf2; opacity: 0.85; }
       .schedule__block-title { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.35; }
       .schedule__block-meta, .schedule__touch { margin: 4px 0 0; font-size: 12px; color: var(--color-muted); line-height: 1.4; }
       .schedule__touch strong { color: var(--schedule-ink); font-weight: 600; }
+      .schedule__cal-link { display: inline-block; margin-top: 6px; font-size: 12px; color: var(--color-accent-strong); }
       .schedule__heading { margin: 0 0 10px; }
       .schedule__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
       .schedule__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -87,6 +89,7 @@
         </div>
         <button id="schedule-filter-apply" class="schedule__button" type="button">Show week</button>
         <button id="schedule-filter-clear" class="schedule__button schedule__button--quiet" type="button">Clear filters</button>
+        <button id="schedule-export-ics" class="schedule__button schedule__button--quiet" type="button">Download .ics</button>
       </section>
 
       <section id="schedule-north-star" class="schedule__pin" aria-label="North Star company"></section>

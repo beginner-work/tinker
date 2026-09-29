@@ -215,7 +215,31 @@
           if (item.touch.windowStart) touch.appendChild(document.createTextNode(" · " + item.touch.windowStart + (item.touch.windowEnd ? "–" + item.touch.windowEnd : "")));
           block.appendChild(touch);
         });
+        if (entry.googleCalendarUrl) {
+          var cal = document.createElement("a");
+          cal.className = "schedule__cal-link";
+          cal.href = entry.googleCalendarUrl;
+          cal.target = "_blank";
+          cal.rel = "noopener noreferrer";
+          cal.textContent = "Add to Google Calendar";
+          block.appendChild(cal);
+        }
         col.appendChild(block);
+      });
+      (data.busyEvents || []).filter(function (event) {
+        return String(event.startsAt || "").slice(0, 10) === day.key;
+      }).forEach(function (event) {
+        var busy = document.createElement("div");
+        busy.className = "schedule__block schedule__block--busy";
+        var busyTitle = document.createElement("p");
+        busyTitle.className = "schedule__block-title";
+        busyTitle.textContent = event.title || "Busy";
+        busy.appendChild(busyTitle);
+        var busyMeta = document.createElement("p");
+        busyMeta.className = "schedule__block-meta";
+        busyMeta.textContent = "On your calendar";
+        busy.appendChild(busyMeta);
+        col.appendChild(busy);
       });
       loose.filter(function (item) { return String(item.touch.date || "").slice(0, 10) === day.key; }).forEach(function (item) {
         var looseBlock = document.createElement("div");
@@ -297,6 +321,28 @@
     filterCompany.value = "";
     filterTouch.value = "";
     loadWeek();
+  });
+  document.getElementById("schedule-export-ics").addEventListener("click", function () {
+    var query = [];
+    var weekStart = mondayIso(weekStartInput.value);
+    if (weekStart) query.push("weekStart=" + encodeURIComponent(weekStart));
+    if (filterCompany.value) query.push("companyId=" + encodeURIComponent(filterCompany.value));
+    if (filterTouch.value) query.push("touchType=" + encodeURIComponent(filterTouch.value));
+    var url = "/api/schedule?action=export" + (query.length ? "&" + query.join("&") : "");
+    fetch(url, { headers: authHeaders(false) }).then(function (res) {
+      if (res.status === 401) { handleAuth({ status: 401 }); return null; }
+      if (!res.ok) return res.json().then(function (body) { setStatus((body && body.error) || "Could not export."); return null; });
+      return res.text();
+    }).then(function (ics) {
+      if (!ics) return;
+      var blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+      var link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "tinker-outreach-schedule.ics";
+      link.click();
+      URL.revokeObjectURL(link.href);
+      setStatus("Downloaded this week as .ics. Tinker does not write to Google for you.");
+    });
   });
 
   document.getElementById("schedule-session-form").addEventListener("submit", function (event) {

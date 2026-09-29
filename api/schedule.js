@@ -7,6 +7,7 @@ const { sessionIdentity } = require("./_lib/autonomy.js");
 const { withResponseLogging } = require("./_lib/log.js");
 const leads = require("./_lib/leads-store.js");
 const store = require("./_lib/outreach-schedule-store.js");
+const calendar = require("./_lib/schedule-calendar.js");
 
 function bearer(header) {
   const match = header && String(header).match(/^Bearer\s+(\S+)$/i);
@@ -30,9 +31,18 @@ function readBody(req) {
   if (typeof body !== "object" || Array.isArray(body)) throw Object.assign(new Error("Invalid JSON"), { status: 400 });
   return body;
 }
-function send(res, status, body) {
+function send(res, status, body, headers) {
   res.setHeader("Cache-Control", "no-store");
-  res.status(status).json(body);
+  if (headers) {
+    for (const [key, value] of Object.entries(headers)) res.setHeader(key, value);
+  }
+  if (typeof body === "string") {
+    res.status(status);
+    if (typeof res.send === "function") return res.send(body);
+    if (typeof res.end === "function") return res.end(body);
+    return res.json({ ics: body });
+  }
+  return res.status(status).json(body);
 }
 async function resolve(req) {
   const token = bearer(req.headers && req.headers.authorization);
@@ -65,6 +75,23 @@ async function dispatch(method, action, auth, body, req) {
       }),
     };
   }
+  if (method === "GET" && action === "export") {
+    const week = await store.getWeekSchedule({
+      userId, emailHint,
+      weekStart: queryValue(req, "weekStart") || body.weekStart,
+      companyId: queryValue(req, "companyId") || body.companyId,
+      touchType: queryValue(req, "touchType") || body.touchType,
+    });
+    return {
+      status: 200,
+      headers: {
+        "Content-Type": "text/calendar; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="tinker-outreach-schedule.ics"',
+      },
+      body: calendar.buildIcs(week.sessions),
+      raw: true,
+    };
+  }
   if (method === "POST" && action === "touch") {
     return { status: 201, body: { touch: store.presentTouch(await store.createTouch(Object.assign(base, body))) } };
   }
@@ -94,7 +121,8 @@ module.exports = withResponseLogging(async function handler(req, res) {
     const body = method === "GET" ? {} : readBody(req);
     const action = queryValue(req, "action") || (typeof body.action === "string" ? body.action : "");
     const out = await dispatch(method, action, auth, body, req);
-    send(res, out.status, out.body);
+    if (out.raw) send(res, out.status, out.body, out.headers);
+    else send(res, out.status, out.body);
   } catch (err) {
     const status = err.status || 500;
     send(res, status, { error: status >= 500 ? store.UNAVAILABLE : err.message || "Bad request" });

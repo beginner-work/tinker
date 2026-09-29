@@ -228,17 +228,24 @@ async function getWeekSchedule({ userId, emailHint, weekStart, companyId, touchT
     touch: shape(touch),
     company: companyMap.has(touch.companyId) ? companies().presentCompany(companyMap.get(touch.companyId)) : null,
   });
+  const calendar = require("./schedule-calendar.js");
+  const sessionRows = sessions.map((session) => ({
+    session: shape(session),
+    touches: touches.filter((touch) => touch.sessionId === session.id).map(withCompany),
+  }));
+  for (const entry of sessionRows) {
+    entry.googleCalendarUrl = calendar.googleEventUrl(entry.session, entry.touches);
+  }
   return {
     weekStart: iso(monday),
     weekEnd: iso(friday),
     curriculumName: settings.curriculumName || "",
     northStar: northStar ? companies().presentCompany(northStar) : null,
     companiesMissingTouch: active.filter((row) => !openByCompany.has(row.id)).map((row) => companies().presentCompany(row)),
-    sessions: sessions.map((session) => ({
-      session: shape(session),
-      touches: touches.filter((touch) => touch.sessionId === session.id).map(withCompany),
-    })),
+    sessions: sessionRows,
     unscheduledTouches: touches.filter((touch) => !touch.sessionId).map(withCompany),
+    calendarReadEnabled: calendar.calendarReadEnabled(),
+    busyEvents: await calendar.listBusyEvents(),
   };
 }
 

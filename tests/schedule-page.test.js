@@ -26,6 +26,11 @@ test("schedule page wires week view, filters, and generic copy", () => {
   assert.match(html, /id="schedule-session-form"/);
   assert.match(html, /id="schedule-touch-form"/);
   assert.match(html, /id="schedule-curriculum-name"/);
+  assert.match(html, /id="schedule-export-ics"/);
+  assert.match(page, /Add to Google Calendar/);
+  assert.match(page, /action=export/);
+  assert.match(page, /busyEvents/);
+  assert.match(html, /schedule__block--busy/);
   assert.match(html, /src="\/schedule\/catalog\.js"/);
   assert.match(html, /src="\/schedule\/schedule\.js"/);
   assert.match(html, /@media \(max-width: 900px\)/);
