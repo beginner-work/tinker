@@ -249,6 +249,31 @@ async function listLeads({ userId, emailHint, stage, company } = {}) {
   rows.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   return rows;
 }
+async function healNonSendableApprovals(drafts, leadsById, { userId, emailHint }) {
+  const out = [];
+  for (const draft of drafts) {
+    const lead = (draft.leadId && leadsById.get(draft.leadId)) || null;
+    if (
+      (draft.status === "approved_to_send" || draft.status === "approved")
+      && !isSendableOutreach(draft, lead)
+    ) {
+      const healed = await revokeDraftApproval({
+        id: draft.id,
+        userId,
+        emailHint,
+        actor: { kind: "system", label: "system" },
+        draft,
+      }).catch(() => null);
+      out.push((healed && healed.draft) || Object.assign({}, draft, {
+        status: "draft", approvedAt: null, approvedText: "",
+        approvedPersonName: "", approvedCompanyName: "",
+      }));
+      continue;
+    }
+    out.push(draft);
+  }
+  return out;
+}
 async function getLead({ id, userId, emailHint }) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
@@ -257,6 +282,7 @@ async function getLead({ id, userId, emailHint }) {
   let drafts;
   try { drafts = await db().leadDraft.findMany({ where: { userId: owner, leadId: lead.id } }); }
   catch (err) { throw storeDown(err); }
+  drafts = await healNonSendableApprovals(drafts, new Map([[lead.id, lead]]), { userId: owner, emailHint });
   drafts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   return { lead, drafts };
 }
@@ -273,6 +299,7 @@ async function listDrafts({ userId, emailHint, status, company } = {}) {
     throw storeDown(err);
   }
   const byId = new Map(leads.map((lead) => [lead.id, lead]));
+  drafts = await healNonSendableApprovals(drafts, byId, { userId: owner, emailHint });
   const wanted = status ? String(status).trim().toLowerCase() : "";
   const companyFilter = company ? String(company).trim().toLowerCase() : "";
   if (wanted) drafts = drafts.filter((row) => row.status === wanted);
@@ -486,6 +513,79 @@ async function updateDraft({ id, userId, emailHint, actor, patch }) {
     return saved;
   });
 }
+/** Email needs recipient + subject + body; LinkedIn needs profile URL + body. */
+function outreachRecipient(draft, lead) {
+  const channel = draft && draft.channel;
+  if (channel === "gmail_outreach") return String((lead && lead.email) || "").trim();
+  if (channel === "linkedin_connection" || channel === "linkedin_post") {
+    return String((lead && lead.linkedInUrl) || "").trim();
+  }
+  return "";
+}
+function isSendableOutreach(draft, lead) {
+  if (!draft) return false;
+  const body = String(draft.body || "").trim();
+  if (!body) return false;
+  const channel = String(draft.channel || "").trim();
+  const to = outreachRecipient(draft, lead);
+  if (channel === "gmail_outreach") {
+    return !!(to && String(draft.subject || "").trim());
+  }
+  if (channel === "linkedin_connection" || channel === "linkedin_post") {
+    return !!to;
+  }
+  return false;
+}
+function sendableError(draft, lead) {
+  const channel = String((draft && draft.channel) || "").trim();
+  const body = String((draft && draft.body) || "").trim();
+  if (!body) return "A sendable draft needs a body.";
+  if (channel === "gmail_outreach") {
+    const email = String((lead && lead.email) || "").trim();
+    const subject = String((draft && draft.subject) || "").trim();
+    if (!email && !subject) {
+      return "Email approval needs a recipient address, a subject, and a body. Notes alone cannot be approved.";
+    }
+    if (!email) return "Email approval needs a recipient address.";
+    if (!subject) return "Email approval needs a subject.";
+    return "Email approval needs a recipient address, a subject, and a body.";
+  }
+  if (channel === "linkedin_connection" || channel === "linkedin_post") {
+    return "LinkedIn approval needs a profile URL and a body. Notes alone cannot be approved.";
+  }
+  return "Only a sendable composed message can be approved.";
+}
+async function revokeDraftApproval({ id, userId, emailHint, actor, draft: existing } = {}) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  const label = actor ? actorLabel(actor) : "system";
+  await ensureTable();
+  const row = existing || await loadOwned("leadDraft", id, owner, "draft");
+  if (row.status !== "approved_to_send" && row.status !== "approved") {
+    return { draft: row, revoked: false };
+  }
+  return commit(async (tx) => {
+    const saved = await tx.leadDraft.update({
+      where: { id: row.id },
+      data: {
+        status: "draft",
+        approvedAt: null,
+        approvedText: "",
+        approvedPersonName: "",
+        approvedCompanyName: "",
+        failedReason: "",
+      },
+    });
+    await record(tx, {
+      userId: owner,
+      leadId: row.leadId,
+      actor: label,
+      action: "draft_approval_revoked",
+      detail: { draftId: row.id, reason: "not_sendable_or_owner_edit" },
+    });
+    return { draft: saved, revoked: true };
+  });
+}
 async function approveDraft({ id, userId, emailHint, actor }) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
@@ -498,6 +598,9 @@ async function approveDraft({ id, userId, emailHint, actor }) {
   const text = String(row.body || "").trim();
   if (!text) throw fail(400, "Write something before approving.");
   const lead = row.leadId ? await loadOwned("lead", row.leadId, owner, "lead") : null;
+  if (!isSendableOutreach(row, lead)) {
+    throw fail(400, sendableError(row, lead));
+  }
   const personName = lead ? String(lead.personName || "").trim() : "";
   const companyName = lead ? String(lead.company || "").trim() : "";
   return commit(async (tx) => {
@@ -522,6 +625,114 @@ async function approveDraft({ id, userId, emailHint, actor }) {
     return { draft: saved, event };
   });
 }
+function mapOutreachChannel(channel) {
+  const raw = typeof channel === "string" ? channel.trim().toLowerCase() : "";
+  if (raw === "email" || raw === "gmail" || raw === "gmail_outreach") return "gmail_outreach";
+  if (raw === "linkedin" || raw === "linkedin_connection") return "linkedin_connection";
+  if (raw === "linkedin_post") return "linkedin_post";
+  throw fail(400, "channel must be email or linkedin.");
+}
+async function saveOutreachDraft({
+  userId, emailHint, actor, personId, personName, companyName, channel, to, subject, body,
+} = {}) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  const label = actorLabel(actor);
+  await ensureTable();
+  const mapped = mapOutreachChannel(channel);
+  const text = readText(body, "body", 100000, true);
+  const toValue = readText(to, "to", 500, true);
+  const subjectText = mapped === "gmail_outreach"
+    ? readText(subject, "subject", 300, true)
+    : "";
+  if (mapped !== "gmail_outreach" && subject != null && String(subject).trim()) {
+    throw fail(400, "subject is only for email.");
+  }
+  let lead = null;
+  if (personId) {
+    lead = await loadOwned("lead", personId, owner, "lead");
+  } else {
+    const name = readText(personName, "personName", 200, true);
+    const company = readText(companyName, "companyName", 200, true);
+    let leads;
+    try { leads = await db().lead.findMany({ where: { userId: owner } }); }
+    catch (err) { throw storeDown(err); }
+    lead = leads.find((row) => (
+      String(row.personName || "").trim().toLowerCase() === name.toLowerCase()
+      && String(row.company || "").trim().toLowerCase() === company.toLowerCase()
+    )) || null;
+    if (!lead) throw fail(404, "No person with that name at that company.");
+  }
+  const leadPatch = {};
+  if (mapped === "gmail_outreach") leadPatch.email = toValue.toLowerCase();
+  else leadPatch.linkedInUrl = toValue;
+  const settings = await readOutreachSettings(owner);
+  let openDrafts;
+  try {
+    openDrafts = await db().leadDraft.findMany({ where: { userId: owner, leadId: lead.id } });
+  } catch (err) { throw storeDown(err); }
+  const replaceable = openDrafts
+    .filter((row) => row.status === "draft" || row.status === "approved_to_send"
+      || row.status === "approved" || row.status === "send_failed")
+    .sort((a, b) => {
+      const aSame = a.channel === mapped ? 0 : 1;
+      const bSame = b.channel === mapped ? 0 : 1;
+      if (aSame !== bSame) return aSame - bSame;
+      return new Date(b.updatedAt) - new Date(a.updatedAt);
+    });
+  const existing = replaceable[0] || null;
+  return commit(async (tx) => {
+    const updatedLead = await tx.lead.update({ where: { id: lead.id }, data: leadPatch });
+    let saved;
+    if (existing) {
+      saved = await tx.leadDraft.update({
+        where: { id: existing.id },
+        data: {
+          channel: mapped,
+          subject: subjectText,
+          body: text,
+          fromAddress: mapped === "gmail_outreach"
+            ? (existing.fromAddress || settings.defaultFromAddress || "")
+            : "",
+          status: "draft",
+          approvedAt: null,
+          approvedText: "",
+          approvedPersonName: "",
+          approvedCompanyName: "",
+          failedReason: "",
+        },
+      });
+      await record(tx, {
+        userId: owner, leadId: lead.id, actor: label, action: "draft_outreach_saved",
+        detail: { draftId: saved.id, channel: mapped, replaced: existing.id },
+      });
+    } else {
+      saved = await tx.leadDraft.create({
+        data: {
+          userId: owner,
+          leadId: lead.id,
+          channel: mapped,
+          subject: subjectText,
+          body: text,
+          fromAddress: mapped === "gmail_outreach" ? (settings.defaultFromAddress || "") : "",
+          status: "draft",
+          storyPartIds: [],
+          factCheck: {},
+          createdBy: label,
+        },
+      });
+      await record(tx, {
+        userId: owner, leadId: lead.id, actor: label, action: "draft_outreach_saved",
+        detail: { draftId: saved.id, channel: mapped, replaced: null },
+      });
+    }
+    if (updatedLead.stage === "new") {
+      await tx.lead.update({ where: { id: lead.id }, data: { stage: "drafting" } });
+      updatedLead.stage = "drafting";
+    }
+    return { draft: saved, lead: updatedLead };
+  });
+}
 async function listApprovedOutreach({ userId, emailHint } = {}) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
@@ -533,8 +744,24 @@ async function listApprovedOutreach({ userId, emailHint } = {}) {
     leads = await db().lead.findMany({ where: { userId: owner } });
   } catch (err) { throw storeDown(err); }
   const byId = new Map(leads.map((row) => [row.id, row]));
-  drafts.sort((a, b) => new Date(a.approvedAt || a.updatedAt) - new Date(b.approvedAt || b.updatedAt));
-  return drafts.map((draft) => {
+  const sendable = [];
+  for (const draft of drafts) {
+    const lead = (draft.leadId && byId.get(draft.leadId)) || null;
+    if (isSendableOutreach(draft, lead)) {
+      sendable.push(draft);
+      continue;
+    }
+    // Heal stuck notes-only approvals so bots never see non-sendable rows.
+    await revokeDraftApproval({
+      id: draft.id,
+      userId: owner,
+      emailHint,
+      actor: { kind: "system", label: "system" },
+      draft,
+    }).catch(() => null);
+  }
+  sendable.sort((a, b) => new Date(a.approvedAt || a.updatedAt) - new Date(b.approvedAt || b.updatedAt));
+  return sendable.map((draft) => {
     const lead = (draft.leadId && byId.get(draft.leadId)) || null;
     return {
       id: draft.id,
@@ -547,6 +774,7 @@ async function listApprovedOutreach({ userId, emailHint } = {}) {
       companyName: draft.approvedCompanyName || (lead && lead.company) || "",
       email: lead ? String(lead.email || "").trim() : "",
       linkedInUrl: lead ? String(lead.linkedInUrl || "").trim() : "",
+      to: outreachRecipient(draft, lead),
       leadId: draft.leadId || null,
       fromAddress: draft.fromAddress || "",
     };
@@ -644,5 +872,6 @@ module.exports = {
   ensureTable, resetTableCache, assertAllowed, presentLead: shape, presentDraft: shape, presentEvent: shape,
   parseImportText, createLead, listLeads, getLead, listDrafts, updateLead, setStage, importLeads,
   createDraft, updateDraft, approveDraft, listApprovedOutreach, markDraftSent, markDraftFailed,
+  saveOutreachDraft, revokeDraftApproval, isSendableOutreach, sendableError, outreachRecipient, mapOutreachChannel,
   getOutreachSettings, setOutreachSettings,
 };

@@ -121,7 +121,7 @@ test("approvalRevokedByImport is true only when approved text changes", () => {
   assert.equal(core.approvalRevokedByImport("sent_by_owner", "old", "new"), false);
 });
 
-test("file import that changes body revokes approved_to_send on the server", async () => {
+test("notes folder syncs Lead.notes; draft approval stays on LeadDraft edits", async () => {
   process.env.STYTCH_PROJECT_ID = "project-test-notes-folder";
   process.env.STYTCH_SECRET = "secret-test-not-real";
   process.env.ANTHROPIC_API_KEY = "sk-ant-test-not-real";
@@ -191,9 +191,21 @@ test("file import that changes body revokes approved_to_send on the server", asy
     actor: { kind: "human", label: "user:hunter@example.com" },
     personName: "Alex Rivera",
     company: "Northwind",
+    email: "alex@northwind.test",
     source: "other",
     stage: "new",
+    notes: "Owner notepad notes.",
   });
+  // File import path writes Lead.notes — does not touch the outreach draft.
+  const notesRes = await leads.updateLead({
+    id: lead.id,
+    userId: "user-a",
+    emailHint: "hunter@example.com",
+    actor: { kind: "human", label: "user:hunter@example.com" },
+    patch: { notes: "Edited on another device." },
+  });
+  assert.equal(notesRes.notes, "Edited on another device.");
+
   const created = await leads.createDraft({
     userId: "user-a",
     emailHint: "hunter@example.com",
@@ -214,9 +226,9 @@ test("file import that changes body revokes approved_to_send on the server", asy
   assert.equal(approved.status, "approved_to_send");
   assert.equal(approved.approvedText, "Exact approved note.");
 
-  // Simulate file import changing the notepad body — same path as in-app edit.
+  // Editing the composed draft still revokes approval (review-card path).
   assert.equal(
-    core.approvalRevokedByImport(approved.status, approved.body, "Edited on another device."),
+    core.approvalRevokedByImport(approved.status, approved.body, "Edited outreach body."),
     true
   );
   const revokedRes = await leads.updateDraft({
@@ -224,12 +236,12 @@ test("file import that changes body revokes approved_to_send on the server", asy
     userId: "user-a",
     emailHint: "hunter@example.com",
     actor: { kind: "human", label: "user:hunter@example.com" },
-    patch: { body: "Edited on another device." },
+    patch: { body: "Edited outreach body." },
   });
   const revoked = revokedRes.draft || revokedRes;
   assert.equal(revoked.status, "draft");
   assert.equal(revoked.approvedText, "");
-  assert.equal(revoked.body, "Edited on another device.");
+  assert.equal(revoked.body, "Edited outreach body.");
 });
 
 test("settings shows Notes folder row; unsupported copy; no owner-specific paths", () => {
@@ -248,9 +260,13 @@ test("inbox and electron wire notes folder without extra chrome", () => {
   assert.match(indexHtml, /notes-folder\.js/);
   assert.match(composerJs, /tinkerNotesFolder\.scheduleWrite/);
   assert.match(composerJs, /applyImportedBody/);
+  assert.match(composerJs, /state\.notes = body/);
   assert.match(notesJs, /showDirectoryPicker|pickNotesFolder/);
   assert.match(notesJs, /IndexedDB|indexedDB/);
   assert.match(notesJs, /conflict/);
+  assert.match(notesJs, /PATCH", "edit"/);
+  assert.match(notesJs, /notes: nextBody/);
+  assert.equal(/POST", "draft"/.test(notesJs), false);
   assert.match(mainJs, /notesFolder:pick/);
   assert.match(mainJs, /dialog\.showOpenDialog/);
   assert.match(preloadJs, /pickNotesFolder/);

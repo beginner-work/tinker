@@ -4,9 +4,9 @@
  * Electron: native folder dialog + Node fs over IPC.
  * Unsupported (Safari/iOS): one plain line — notes still sync through Tinker.
  *
- * Server LeadDraft stays the source for bots/MCP. Choosing or clearing a
- * folder never deletes server data. File imports that change approved text
- * revoke approval the same way an in-app edit does (PATCH draft).
+ * Syncs Lead.notes (the owner's notepad), not the composed outreach draft.
+ * Choosing or clearing a folder never deletes server data. Outreach approval
+ * lives on LeadDraft and is unchanged by notes-folder sync.
  */
 (function () {
   "use strict";
@@ -325,17 +325,6 @@
     });
   }
 
-  function pickOpenDraft(drafts) {
-    var list = Array.isArray(drafts) ? drafts : [];
-    var open = list.filter(function (d) {
-      return d && (d.status === "draft" || d.status === "approved_to_send" || d.status === "approved" || d.status === "send_failed");
-    });
-    open.sort(function (a, b) {
-      return String(b.updatedAt || "") < String(a.updatedAt || "") ? -1 : 1;
-    });
-    return open[0] || null;
-  }
-
   // ── Export / import / conflict ───────────────────────────────────────
 
   function setPersonMeta(personId, patch) {
@@ -376,28 +365,24 @@
     try {
       var results = await Promise.all([
         api("/api/leads", "GET", "list").catch(function () { return { leads: [] }; }),
-        api("/api/leads", "GET", "drafts").catch(function () { return { drafts: [] }; }),
         api("/api/leads", "GET", "companies").catch(function () { return { companies: [] }; }),
       ]);
       var leads = Array.isArray(results[0].leads) ? results[0].leads : [];
-      var drafts = Array.isArray(results[1].drafts) ? results[1].drafts : [];
-      var companies = Array.isArray(results[2].companies) ? results[2].companies : [];
+      var companies = Array.isArray(results[1].companies) ? results[1].companies : [];
       var companyById = {};
       companies.forEach(function (c) { if (c && c.id) companyById[c.id] = c; });
 
       for (var i = 0; i < leads.length; i++) {
         var lead = leads[i];
         if (!lead || !lead.id) continue;
-        var mine = drafts.filter(function (d) { return d && d.leadId === lead.id; });
-        var open = pickOpenDraft(mine);
         var co = (lead.companyId && companyById[lead.companyId]) || null;
         await exportPerson({
           id: lead.id,
           personName: lead.personName,
           companyName: (co && co.name) || lead.company || "",
           companyId: lead.companyId || (co && co.id) || "",
-          body: open ? (open.body || "") : "",
-          updatedAt: (open && open.updatedAt) || lead.updatedAt || new Date().toISOString(),
+          body: lead.notes || "",
+          updatedAt: lead.updatedAt || new Date().toISOString(),
         });
       }
     } finally {
@@ -406,21 +391,10 @@
     }
   }
 
-  async function importChangedIntoServer(personId, body, draft) {
+  async function importChangedIntoServer(personId, body) {
     var nextBody = core.normalizeBody(body);
-    if (!draft || !draft.id) {
-      // Create a draft so the notepad exists server-side.
-      var created = await api("/api/leads", "POST", "draft", {
-        leadId: personId,
-        channel: "gmail_outreach",
-        body: nextBody,
-        subject: "",
-        storyPartIds: [],
-      });
-      return created && created.draft;
-    }
-    var patched = await api("/api/leads", "PATCH", "draft", { body: nextBody }, { id: draft.id });
-    return patched && patched.draft;
+    var patched = await api("/api/leads", "PATCH", "edit", { notes: nextBody }, { id: personId });
+    return patched && patched.lead;
   }
 
   async function syncOnce() {
@@ -434,12 +408,10 @@
       var files = await readAllNotes();
       var results = await Promise.all([
         api("/api/leads", "GET", "list").catch(function () { return { leads: [] }; }),
-        api("/api/leads", "GET", "drafts").catch(function () { return { drafts: [] }; }),
         api("/api/leads", "GET", "companies").catch(function () { return { companies: [] }; }),
       ]);
       var leads = Array.isArray(results[0].leads) ? results[0].leads : [];
-      var drafts = Array.isArray(results[1].drafts) ? results[1].drafts : [];
-      var companies = Array.isArray(results[2].companies) ? results[2].companies : [];
+      var companies = Array.isArray(results[1].companies) ? results[1].companies : [];
       var companyById = {};
       companies.forEach(function (c) { if (c && c.id) companyById[c.id] = c; });
       var noticed = "";
@@ -447,10 +419,8 @@
       for (var i = 0; i < leads.length; i++) {
         var lead = leads[i];
         if (!lead || !lead.id) continue;
-        var mine = drafts.filter(function (d) { return d && d.leadId === lead.id; });
-        var open = pickOpenDraft(mine);
-        var appBody = open ? (open.body || "") : "";
-        var appUpdatedAt = (open && open.updatedAt) || lead.updatedAt || "";
+        var appBody = lead.notes || "";
+        var appUpdatedAt = lead.updatedAt || "";
         var co = (lead.companyId && companyById[lead.companyId]) || null;
         var companyName = (co && co.name) || lead.company || "";
         var meta = state.syncMeta[lead.id] || {};
@@ -505,7 +475,7 @@
             });
           }
         } else if (decision.action === "import") {
-          var updated = await importChangedIntoServer(lead.id, decision.body, open);
+          var updated = await importChangedIntoServer(lead.id, decision.body);
           setPersonMeta(lead.id, {
             relPath: file.relPath,
             lastSyncedBody: core.normalizeBody(decision.body),
