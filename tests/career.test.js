@@ -550,6 +550,8 @@ test("get_career_record reads only this user and check_text does not write", asy
     "list_content",
     "read_content",
     "create_content_draft",
+    "list_story_parts",
+    "get_story_part",
     "get_outreach_schedule",
     "set_busy_times",
   ]);
