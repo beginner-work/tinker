@@ -18,6 +18,7 @@
     { "source": "/api/career/:action", "destination": "/api/career?action=:action" },
     { "source": "/api/story-parts/:action", "destination": "/api/story-parts?action=:action" },
     { "source": "/api/leads/:action", "destination": "/api/leads?action=:action" },
+    { "source": "/api/schedule/:action", "destination": "/api/schedule?action=:action" },
     { "source": "/api/sites/:site/content", "destination": "/api/content-public?site=:site" },
     { "source": "/api/sites/:site/content/:slug", "destination": "/api/content-public?site=:site&slug=:slug" },
     { "source": "/autonomy", "destination": "/autonomy/index.html" },

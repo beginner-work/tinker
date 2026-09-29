@@ -132,6 +132,7 @@ async function readOutreachSettings(owner) {
     defaultFromAddress: typeof data.defaultFromAddress === "string" ? data.defaultFromAddress : "",
     bookingUrl: typeof data.bookingUrl === "string" ? data.bookingUrl : "",
     minTotalComp: data.minTotalComp == null || data.minTotalComp === "" || Number.isNaN(Number(data.minTotalComp)) ? null : Number(data.minTotalComp),
+    curriculumName: typeof data.curriculumName === "string" ? data.curriculumName : "",
   };
 }
 async function writeOutreachSettings(owner, patch) {
@@ -150,6 +151,9 @@ async function writeOutreachSettings(owner, patch) {
         return n;
       })())
       : current.minTotalComp,
+    curriculumName: Object.prototype.hasOwnProperty.call(patch, "curriculumName")
+      ? readText(patch.curriculumName, "curriculumName", 200, false)
+      : current.curriculumName,
   };
   try {
     await db().tinkerUserData.upsert({
