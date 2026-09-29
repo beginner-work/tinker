@@ -92,3 +92,70 @@ model McpOAuthCode {
   usedAt        DateTime?
   createdAt     DateTime  @default(now())
 }
+// GTM outbox. Event threadId is null only for a contact create.
+model MessagingContact {
+  id           String   @id @default(cuid())
+  userId       String
+  email        String
+  name         String   @default("")
+  company      String   @default("")
+  title        String   @default("")
+  source       String
+  tags         Json     @default("[]")
+  doNotContact Boolean  @default(false)
+  notes        String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@unique([userId, email])
+  @@index([userId])
+}
+model MessagingThread {
+  id            String    @id @default(cuid())
+  userId        String
+  contactId     String
+  channel       String
+  subject       String    @default("")
+  status        String
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@index([userId])
+  @@index([contactId])
+}
+model MessagingMessage {
+  id                String    @id @default(cuid())
+  userId            String
+  threadId          String
+  direction         String
+  status            String
+  subject           String    @default("")
+  body              String    @default("")
+  fromAddr          String    @default("")
+  toAddr            String    @default("")
+  cc                Json      @default("[]")
+  scheduledAt       DateTime?
+  approvedAt        DateTime?
+  approvedBy        String?
+  sentAt            DateTime?
+  providerMessageId String?
+  inReplyTo         String?
+  draftKey          String?
+  createdBy         String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  @@unique([userId, draftKey])
+  @@index([userId])
+  @@index([threadId])
+}
+model MessagingEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  threadId  String?
+  messageId String?
+  actor     String
+  action    String
+  detail    Json     @default("{}")
+  at        DateTime @default(now())
+  @@index([userId])
+  @@index([threadId])
+}
