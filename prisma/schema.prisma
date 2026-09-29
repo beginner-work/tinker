@@ -101,9 +101,11 @@ model SellingPart {
   body          String    @default("")
   fields        Json      @default("{}")
   topics        Json      @default("[]")
+  stack         Json      @default("[]")
   status        String
   sourceKind    String
   sourceId      String?
+  sourceRef     Json      @default("{}")
   sourceExcerpt String    @default("")
   sourceHash    String?
   checkVerdicts Json      @default("[]")

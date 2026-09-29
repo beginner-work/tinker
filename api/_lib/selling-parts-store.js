@@ -1,14 +1,10 @@
-/* Selling parts. Stages: TinkerUserData kind selling-stages, seeded on first read.
- * note: draft or essay id. concept: taxonomy id. narrative: pitch id.
- * content_item: ContentItem.id. career_record: a career fact id. Excerpt only.
- */
-
+/* Selling parts. code uses sourceRef {repo, path, ref}. stack is lowercase tech tags. */
 "use strict";
 
 const crypto = require("crypto");
 
 const STAGES_KIND = "selling-stages";
-const SOURCE_KINDS = ["note", "concept", "narrative", "content_item", "career_record", "none"];
+const SOURCE_KINDS = ["note", "concept", "narrative", "content_item", "career_record", "code", "none"];
 const STATUSES = ["draft", "ready", "retired"];
 const SEED_STAGES = [
   { key: "hook", name: "Hook", description: "A line or short story that makes someone curious.", position: 0, retired: false },
@@ -19,7 +15,7 @@ const SEED_STAGES = [
 ];
 const UNAVAILABLE = "Selling parts are unavailable right now.";
 const TABLE_STATEMENTS = [
-  `CREATE TABLE IF NOT EXISTS "SellingPart" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "stageKey" TEXT NOT NULL, "title" TEXT NOT NULL DEFAULT '', "body" TEXT NOT NULL DEFAULT '', "fields" JSONB NOT NULL DEFAULT '{}', "topics" JSONB NOT NULL DEFAULT '[]', "status" TEXT NOT NULL, "sourceKind" TEXT NOT NULL, "sourceId" TEXT, "sourceExcerpt" TEXT NOT NULL DEFAULT '', "sourceHash" TEXT, "checkVerdicts" JSONB NOT NULL DEFAULT '[]', "checkedAt" TIMESTAMP(3), "draftKey" TEXT, "createdBy" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "SellingPart_pkey" PRIMARY KEY ("id"))`,
+  `CREATE TABLE IF NOT EXISTS "SellingPart" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "stageKey" TEXT NOT NULL, "title" TEXT NOT NULL DEFAULT '', "body" TEXT NOT NULL DEFAULT '', "fields" JSONB NOT NULL DEFAULT '{}', "topics" JSONB NOT NULL DEFAULT '[]', "stack" JSONB NOT NULL DEFAULT '[]', "status" TEXT NOT NULL, "sourceKind" TEXT NOT NULL, "sourceId" TEXT, "sourceRef" JSONB NOT NULL DEFAULT '{}', "sourceExcerpt" TEXT NOT NULL DEFAULT '', "sourceHash" TEXT, "checkVerdicts" JSONB NOT NULL DEFAULT '[]', "checkedAt" TIMESTAMP(3), "draftKey" TEXT, "createdBy" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "SellingPart_pkey" PRIMARY KEY ("id"))`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "SellingPart_userId_draftKey_key" ON "SellingPart"("userId", "draftKey")`,
   `CREATE INDEX IF NOT EXISTS "SellingPart_userId_idx" ON "SellingPart"("userId")`,
   `CREATE TABLE IF NOT EXISTS "SellingPartEvent" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "partId" TEXT NOT NULL, "actor" TEXT NOT NULL, "action" TEXT NOT NULL, "detail" JSONB NOT NULL DEFAULT '{}', "at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "SellingPartEvent_pkey" PRIMARY KEY ("id"))`,
@@ -57,10 +53,17 @@ function readText(value, label, max, required) {
   if (text.length > max) throw fail(400, `${label} is limited to ${max} characters.`);
   return text;
 }
-function readList(value, label) {
+function readList(value, label, lower) {
   if (value == null) return [];
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) throw fail(400, `${label} must be a list of strings.`);
-  return value.map((item) => item.trim()).filter(Boolean);
+  return value.map((item) => (lower ? item.trim().toLowerCase() : item.trim())).filter(Boolean);
+}
+function readRef(kind, value) {
+  if (kind !== "code") return {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw fail(400, "sourceRef must be an object.");
+  const repo = readText(value.repo, "repo", 200, true);
+  if (!/^[^/\s]+\/[^/\s]+$/.test(repo)) throw fail(400, "repo must be owner/name.");
+  return { repo, path: readText(value.path, "path", 500, false), ref: readText(value.ref, "ref", 80, false) };
 }
 function readEnum(value, allowed, label) {
   const found = typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -126,7 +129,7 @@ async function readBlob(userId, kind) {
   } catch { return null; }
 }
 async function sourceText(userId, kind, sourceId) {
-  if (!sourceId || kind === "none") return null;
+  if (!sourceId || kind === "none" || kind === "code") return null;
   try {
     if (kind === "content_item") {
       const row = await db().contentItem.findUnique({ where: { id: sourceId } });
@@ -244,7 +247,7 @@ async function createPart(input) {
   if (input.status != null && input.status !== "" && input.status !== "draft") throw fail(400, "A new part starts as a draft.");
   const stages = await getStages({ userId: owner });
   const sourceKind = readEnum(input.sourceKind || "none", SOURCE_KINDS, "sourceKind");
-  const sourceId = sourceKind === "none" ? null : readText(input.sourceId, "sourceId", 200, true);
+  const sourceId = sourceKind === "none" || sourceKind === "code" ? (readText(input.sourceId, "sourceId", 200, false) || null) : readText(input.sourceId, "sourceId", 200, true);
   const draftKey = readText(input.draftKey, "draftKey", 200, false) || null;
   const stageKey = stageKeyOf(input.stageKey, stages);
   await ensureTable();
@@ -258,8 +261,8 @@ async function createPart(input) {
   const data = {
     userId: owner, stageKey, title: readText(input.title, "title", 200, true),
     body: readText(input.body, "body", 8000, false), fields: readFields(stageKey, input.fields),
-    topics: readList(input.topics, "topics"), status: "draft", sourceKind, sourceId,
-    sourceExcerpt: readText(input.sourceExcerpt, "sourceExcerpt", 500, false),
+    topics: readList(input.topics, "topics"), stack: readList(input.stack, "stack", true), status: "draft", sourceKind, sourceId,
+    sourceRef: readRef(sourceKind, input.sourceRef), sourceExcerpt: readText(input.sourceExcerpt, "sourceExcerpt", 500, false),
     sourceHash: readText(input.sourceHash, "sourceHash", 80, false) || (source ? hashText(source) : null),
     checkVerdicts: [], draftKey, createdBy: actor,
   };
@@ -270,7 +273,7 @@ async function createPart(input) {
   });
   return { row, created: true };
 }
-async function listParts({ userId, stage, topic, status, sourceKind } = {}) {
+async function listParts({ userId, stage, topic, status, sourceKind, stack } = {}) {
   const owner = requireUserId(userId);
   await ensureTable();
   let rows;
@@ -278,7 +281,8 @@ async function listParts({ userId, stage, topic, status, sourceKind } = {}) {
   catch (err) { throw storeDown(err); }
   rows = rows.filter((row) => (!stage || row.stageKey === stage) && (!status || row.status === status)
     && (!sourceKind || row.sourceKind === sourceKind)
-    && (!topic || (Array.isArray(row.topics) && row.topics.includes(topic))));
+    && (!topic || (Array.isArray(row.topics) && row.topics.includes(topic)))
+    && (!stack || (Array.isArray(row.stack) && row.stack.includes(String(stack).trim().toLowerCase()))));
   rows.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   const out = [];
   for (const row of rows) out.push(Object.assign({}, row, { sourceChanged: await changedFlag(owner, row) }));
@@ -294,7 +298,7 @@ async function updatePart({ id, userId, actor, patch }) {
   const owner = requireUserId(userId);
   const label = actorLabel(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
-  const keys = ["title", "body", "fields", "topics", "stageKey", "sourceExcerpt"].filter((key) =>
+  const keys = ["title", "body", "fields", "topics", "stack", "stageKey", "sourceExcerpt", "sourceRef"].filter((key) =>
     Object.prototype.hasOwnProperty.call(source, key));
   if (!keys.length) throw fail(400, "Nothing to update.");
   await ensureTable();
@@ -304,6 +308,8 @@ async function updatePart({ id, userId, actor, patch }) {
   if (keys.includes("title")) data.title = readText(source.title, "title", 200, true);
   if (keys.includes("body")) data.body = readText(source.body, "body", 8000, false);
   if (keys.includes("topics")) data.topics = readList(source.topics, "topics");
+  if (keys.includes("stack")) data.stack = readList(source.stack, "stack", true);
+  if (keys.includes("sourceRef")) data.sourceRef = readRef(row.sourceKind, source.sourceRef);
   if (keys.includes("sourceExcerpt")) data.sourceExcerpt = readText(source.sourceExcerpt, "sourceExcerpt", 500, false);
   if (keys.includes("stageKey")) data.stageKey = stageKeyOf(source.stageKey, stages);
   if (keys.includes("fields")) data.fields = readFields(data.stageKey || row.stageKey, source.fields);

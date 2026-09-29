@@ -18,12 +18,9 @@ function model() {
   return {
     rows,
     async create({ data }) {
-      if (data.draftKey && rows.some((row) => row.userId === data.userId && row.draftKey === data.draftKey)) {
-        throw Object.assign(new Error("unique"), { code: "P2002" });
-      }
-      if (data.kind && rows.some((row) => row.userId === data.userId && row.kind === data.kind)) {
-        throw Object.assign(new Error("unique"), { code: "P2002" });
-      }
+      const clash = (data.draftKey && rows.some((row) => row.userId === data.userId && row.draftKey === data.draftKey))
+        || (data.kind && rows.some((row) => row.userId === data.userId && row.kind === data.kind));
+      if (clash) throw Object.assign(new Error("unique"), { code: "P2002" });
       const now = new Date(Date.UTC(2026, 8, 29, 0, 0, ++seq));
       const row = Object.assign({ id: "row_" + seq, createdAt: now, updatedAt: now }, data);
       rows.push(row);
@@ -55,12 +52,9 @@ function model() {
 }
 for (const name of ["sellingPart", "sellingPartEvent", "tinkerUserData", "contentItem"]) tables[name] = model();
 const database = {
-  $executeRawUnsafe: async () => 0,
-  $transaction: async (fn) => fn(database),
-  sellingPart: tables.sellingPart,
-  sellingPartEvent: tables.sellingPartEvent,
-  tinkerUserData: tables.tinkerUserData,
-  contentItem: tables.contentItem,
+  $executeRawUnsafe: async () => 0, $transaction: async (fn) => fn(database),
+  sellingPart: tables.sellingPart, sellingPartEvent: tables.sellingPartEvent,
+  tinkerUserData: tables.tinkerUserData, contentItem: tables.contentItem,
 };
 function stubAt(absPath, exports) {
   const mod = new Module(absPath);
@@ -136,11 +130,7 @@ test("stages seed, and a part stays readable on a retired stage", async () => {
   assert.equal(saved.body.stages.find((stage) => stage.key === "hook").name, "Opening");
   assert.equal(saved.body.stages.find((stage) => stage.key === "ask").retired, true);
   assert.ok(saved.body.stages.some((stage) => stage.key === "close"));
-  const created = await call({
-    method: "POST",
-    action: "create",
-    body: { stageKey: "ask", title: "The ask", body: "Fifteen minutes.", topics: ["intro"], sourceKind: "none" },
-  });
+  const created = await call({ method: "POST", action: "create", body: { stageKey: "ask", title: "The ask", body: "Fifteen minutes.", topics: ["intro"], sourceKind: "none" } });
   assert.equal(created.status, 201);
   const read = await call({ method: "GET", action: "part", query: { id: created.body.part.id } });
   assert.equal(read.body.part.title, "The ask");
@@ -185,10 +175,16 @@ test("a note becomes a part, edits demote ready, and another user gets 404", asy
   const actions = tables.sellingPartEvent.rows.map((row) => row.action);
   assert.deepEqual(actions, ["created", "ready", "edited"]);
   for (const row of tables.sellingPartEvent.rows) {
-    assert.equal(row.actor, "tyler:tyler@example.com");
-    assert.ok(row.at instanceof Date);
+    assert.equal(row.actor, "tyler:tyler@example.com"); assert.ok(row.at instanceof Date);
   }
   assert.equal((await call({ method: "GET", token: "user-b", action: "part", query: { id } })).status, 404);
   assert.deepEqual((await call({ method: "GET", token: "user-b", action: "list" })).body.parts, []);
   assert.equal((await call({ method: "POST", token: "mcp_test_key", action: "status", body: { id, status: "ready" } })).status, 401);
+  const code = await call({ method: "POST", action: "create", body: { stageKey: "proof_point", title: "The store", body: "Tables.", sourceKind: "code", stack: ["TypeScript", "Prisma", "MCP"], sourceRef: { repo: "example/widget", path: "api/store.js", ref: "12" } } });
+  assert.equal(code.status, 201);
+  assert.deepEqual(code.body.part.stack, ["typescript", "prisma", "mcp"]);
+  assert.deepEqual(code.body.part.sourceRef, { repo: "example/widget", path: "api/store.js", ref: "12" });
+  const found = await call({ method: "GET", action: "list", query: { stack: "Prisma", sourceKind: "code" } });
+  assert.deepEqual(found.body.parts.map((part) => part.id), [code.body.part.id]);
+  assert.equal(found.body.parts[0].sourceChanged, null);
 });

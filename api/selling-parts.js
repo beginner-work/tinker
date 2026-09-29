@@ -1,8 +1,3 @@
-/* Owner routes for selling parts and stages. The user id comes from
- * the Stytch session. mcp_ bearers are rejected.
- * GET list, part, stages. POST create, status, stages. PATCH edit.
- */
-
 "use strict";
 
 const { authenticateSession } = require("./_lib/stytch.js");
@@ -61,11 +56,8 @@ async function dispatch(method, action, auth, body, req) {
   }
   if (method === "GET" && (action === "list" || action === "")) {
     const parts = await store.listParts({
-      userId,
-      stage: queryValue(req, "stage"),
-      topic: queryValue(req, "topic"),
-      status: queryValue(req, "status"),
-      sourceKind: queryValue(req, "sourceKind"),
+      userId, stage: queryValue(req, "stage"), topic: queryValue(req, "topic"), status: queryValue(req, "status"),
+      sourceKind: queryValue(req, "sourceKind"), stack: queryValue(req, "stack"),
     });
     return { status: 200, body: { parts: parts.map(store.presentPart) } };
   }
