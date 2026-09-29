@@ -1,4 +1,4 @@
-/* Inbox lists companies; people open as tabs (no /schedule page). */
+/* Inbox lists people; no /schedule page; no planning bubbles. */
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -10,25 +10,24 @@ const shell = fs.readFileSync(path.join(root, "src/renderer/messages-shell.js"),
 const thread = fs.readFileSync(path.join(root, "src/renderer/messages-thread.js"), "utf8");
 const composer = fs.readFileSync(path.join(root, "src/renderer/messages-composer.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
-const css = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
 
-test("sidebar lists companies and opens person tabs", () => {
-  assert.match(shell, /selectCompany/);
-  assert.match(shell, /renderPersonTabs|messages-pane__tab/);
-  assert.match(shell, /visibleCompanies|leadsForCompany/);
+test("sidebar lists people in THIS WEEK / LATER", () => {
+  assert.match(shell, /selectLead/);
+  assert.match(shell, /THIS WEEK/);
+  assert.match(shell, /LATER/);
   assert.match(shell, /Lindow Labs/);
-  assert.match(shell, /CONTACT_LABEL/);
-  assert.match(css, /messages-pane__tabs/);
+  assert.match(shell, /TOUCH_LABEL|referral_outreach/);
   assert.match(shell, /action=inbox|scheduleApi\("inbox"\)/);
+  assert.equal(/renderPersonTabs/.test(shell), false);
   assert.equal(/href=["']\/schedule["']/.test(shell), false);
 });
 
-test("thread shows a scheduled draft bubble and composer has a date chip", () => {
-  assert.match(thread, /messages-thread__item--scheduled/);
-  assert.match(thread, /Scheduled/);
-  assert.match(html, /data-composer-date/);
-  assert.match(composer, /savePlannedDate/);
-  assert.match(composer, /nudge-date/);
+test("thread has no scheduled planning bubbles; composer has no date chip", () => {
+  assert.equal(/messages-thread__item--scheduled/.test(thread), false);
+  assert.equal(/renderScheduledBubble/.test(thread), false);
+  assert.match(thread, /Handed off\. Your assistant will send this/);
+  assert.equal(/data-composer-date/.test(html), false);
+  assert.equal(/savePlannedDate/.test(composer), false);
 });
 
 test("no /schedule page is wired in the app shell", () => {

@@ -1,7 +1,7 @@
 /* Lead/person chat notepad (TYL-65).
  * Same invisible notepad as the owner thread: logo mark, italic context,
  * serif prompt, free text, floating Keep crafting / This is everything.
- * Channel, due date, and subject stay as MCP data — not UI.
+ * Channel, due date, and subject stay as MCP data - not UI.
  * This is everything → approved_to_send. Keep crafting → draft.
  * Owner You thread is handled by messages-you.js and left alone.
  */

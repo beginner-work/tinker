@@ -258,7 +258,7 @@
       if (opts.hideOnFail) node.hidden = true;
       if (typeof opts.onReady === "function") opts.onReady(false);
     }
-    // No monogram fallback — only a resolved logo, else nothing.
+    // No monogram fallback - only a resolved logo, else nothing.
     if (!url) { fail(); return; }
     if (hit && hit.failed && now - hit.at < LOGO_TTL_MS) { fail(); return; }
     var img = el("img", "messages-avatar__img", { src: url, alt: "" });
@@ -283,7 +283,7 @@
     node.hidden = false;
     var alt = opts.alt || ownerPersonLabel();
     var url = state.ownerAvatarUrl || "";
-    // Owner row keeps the real profile photo only — no initials fallback.
+    // Owner row keeps the real profile photo only - no initials fallback.
     if (!url) {
       node.hidden = true;
       return;

@@ -160,7 +160,7 @@
       }
       var sent = d.status === "sent_by_owner";
       var handed = d.status === "approved_to_send";
-      // Skip open draft bubbles — writing lives in the invisible notepad.
+      // Skip open draft bubbles - writing lives in the invisible notepad.
       // Keep quiet handed-off and sent lines only.
       if (!sent && !handed) return;
       items.push({
@@ -299,7 +299,7 @@
 
     var items = buildItems();
     var list = el("ol", "messages-thread__list", { "aria-label": "Conversation" });
-    // Only the owner's writing and quiet sent/handed-off lines — no planning bubbles.
+    // Only the owner's writing and quiet sent/handed-off lines - no planning bubbles.
     if (!items.length) {
       thread.appendChild(list);
       return;

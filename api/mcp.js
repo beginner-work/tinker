@@ -89,7 +89,7 @@ const INSTRUCTIONS = [
   "A bot may send only the exact approvedText, once per approval. After sending, call mark_outreach_sent; on failure call mark_outreach_failed.",
   "Tinker itself never sends email or LinkedIn messages.",
   "Call post_to_self_thread with title and short markdown body only for brief personal assistant notes in the You thread.",
-  "Never post deploy checks, production status, allowlist/gate notes, or other ops chatter there — that thread is the owner's own story.",
+  "Never post deploy checks, production status, allowlist/gate notes, or other ops chatter there - that thread is the owner's own story.",
   "The owner sees it as an incoming assistant bubble. It does not send email or LinkedIn messages.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",

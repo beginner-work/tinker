@@ -132,10 +132,11 @@ test("bookingUrl settings and reply-only insert control", async () => {
   const set = await call({ method: "POST", action: "settings", body: { bookingUrl: "https://cal.example/you" } });
   assert.equal(set.body.settings.bookingUrl, "https://cal.example/you");
   const js = fs.readFileSync(path.join(__dirname, "..", "src/renderer/lead-drafts.js"), "utf8");
-  const html = fs.readFileSync(path.join(__dirname, "..", "src/renderer/index.html"), "utf8");
+  const settings = fs.readFileSync(path.join(__dirname, "..", "src/renderer/settings/index.html"), "utf8");
   assert.match(js, /Insert booking link/);
   assert.match(js, /isReplyDraft/);
   assert.match(js, /REPLY_STAGES/);
-  assert.match(html, /data-drafts-booking/);
+  assert.match(settings, /data-drafts-booking/);
+  assert.match(settings, /data-drafts-from/);
   assert.equal(/linkedin_post[^\n]*isReplyDraft|isReplyDraft[^\n]*linkedin_post/.test(js) || js.includes('channel === "linkedin_post"'), true);
 });

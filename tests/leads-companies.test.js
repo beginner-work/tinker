@@ -85,7 +85,8 @@ test.beforeEach(() => {
   process.env.LEADS_OWNER_ALLOWLIST = "user-a,hunter@example.com,user-b,other@example.com";
 });
 test("company migration and one north star", async () => {
-  const sql = fs.readFileSync(path.join(__dirname, "..", "prisma/migrations/20260929080000_leads_companies_funnel/migration.sql"), "utf8");
+  const sql = fs.readFileSync(path.join(__dirname, "..", "prisma/migrations/20260929080000_leads_companies_funnel/migration.sql"), "utf8")
+    + fs.readFileSync(path.join(__dirname, "..", "prisma/migrations/20260929210000_company_research/migration.sql"), "utf8");
   for (const statement of companies.TABLE_STATEMENTS) assert.ok(sql.includes(statement));
   const first = await call({ method: "POST", action: "company", body: { name: "Acme", domain: "acme.com", northStar: true, totalComp: 250000, totalCompSource: "levels" } });
   assert.equal(first.status, 201);

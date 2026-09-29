@@ -1,4 +1,4 @@
-/* TYL-65 polish after #350 review: meta in bubbles, Ship/Next, fonts, copy. */
+/* TYL-65 polish: meta in bubbles, quiet header links, fonts. */
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -16,24 +16,26 @@ test("thread meta lives inside the bubble as one line", () => {
   assert.match(thread, /bubble\.appendChild\(meta\)/);
   assert.equal(/You save drafts here/.test(thread + html), false);
   assert.equal(/never sends/i.test(thread), false);
-  assert.equal(/—/.test(thread.replace(/\/\*[\s\S]*?\*\//g, "")), false);
+  assert.equal(/—/.test(thread.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "")), false);
 });
 
-test("slim one-line header without third copy line", () => {
+test("slim header with quiet profile links next to the name", () => {
   assert.match(html, /data-messages-name/);
   assert.match(html, /data-messages-role/);
+  assert.match(html, /data-messages-links/);
+  assert.match(thread, /renderProfileLinks/);
+  assert.match(css, /\.messages-pane__link\b/);
   assert.equal(/messages-pane__sub/.test(html), false);
   assert.equal(/You save drafts here/.test(html), false);
   const visible = html.replace(/<!--[\s\S]*?-->/g, "");
   assert.equal(/never sends/i.test(visible), false);
 });
 
-test("composer Ship/Next and chip date (no raw date input chrome)", () => {
-  assert.match(composer, /saveDraft\("ship"\)|mode === "ship"/);
+test("composer uses Keep crafting / This is everything (no Ship chrome)", () => {
+  assert.match(composer, /This is everything/);
+  assert.match(composer, /Keep crafting/);
   assert.match(composer, /approve/);
-  assert.match(html, /data-composer-date-btn/);
-  assert.match(html, /messages-composer__date-hidden|data-composer-date/);
-  assert.match(css, /\.messages-composer__shell\b/);
+  assert.equal(/data-composer-date-btn/.test(html), false);
   assert.equal(/class="messages-composer__date-input"/.test(html), false);
 });
 

@@ -185,14 +185,15 @@ test("plan_lead_touch sets role, next step, and due", async () => {
   assert.equal(tables.outreachTouch.rows.length, 1);
 });
 
-test("shell lists companies with person tabs and brands Lindow Labs", () => {
+test("shell lists people and brands Lindow Labs", () => {
   const shell = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages-shell.js"), "utf8");
-  assert.match(shell, /selectCompany|visibleCompanies/);
-  assert.match(shell, /renderPersonTabs/);
+  assert.match(shell, /selectLead/);
+  assert.match(shell, /THIS WEEK/);
+  assert.match(shell, /LATER/);
   assert.match(shell, /Lindow Labs/);
   assert.match(shell, /lindow-labs\.svg/);
-  assert.match(shell, /CONTACT_LABEL/);
-  assert.match(shell, /referral_outreach/);
+  assert.match(shell, /TOUCH_LABEL|referral_outreach/);
+  assert.equal(/renderPersonTabs/.test(shell), false);
   assert.equal(/—/.test(shell), false);
   assert.ok(fs.existsSync(path.join(__dirname, "..", "src/renderer/icons/lindow-labs.svg")));
   const profile = fs.readFileSync(path.join(__dirname, "..", "src/renderer/profile.js"), "utf8");

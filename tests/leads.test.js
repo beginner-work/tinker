@@ -89,11 +89,13 @@ test("migration matches, allowlist gates, and no send path", () => {
   const root = path.join(__dirname, "..");
   const migrations = fs.readFileSync(path.join(root, "prisma/migrations/20260929060000_add_leads/migration.sql"), "utf8")
     + fs.readFileSync(path.join(root, "prisma/migrations/20260929070000_leads_draft_channels/migration.sql"), "utf8")
-    + fs.readFileSync(path.join(root, "prisma/migrations/20260929080000_leads_companies_funnel/migration.sql"), "utf8");
+    + fs.readFileSync(path.join(root, "prisma/migrations/20260929080000_leads_companies_funnel/migration.sql"), "utf8")
+    + fs.readFileSync(path.join(root, "prisma/migrations/20260929211000_draft_approved_to_send/migration.sql"), "utf8")
+    + fs.readFileSync(path.join(root, "prisma/migrations/20260929212000_lead_github_url/migration.sql"), "utf8");
   for (const statement of store.TABLE_STATEMENTS) assert.ok(migrations.includes(statement), statement.slice(0, 60));
   assert.deepEqual(store.CHANNELS, ["linkedin_post", "linkedin_connection", "gmail_outreach"]);
   const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
-  assert.ok(schema.includes("fromAddress") && schema.includes("leadId       String?"));
+  assert.ok(schema.includes("fromAddress") && /leadId\s+String\?/.test(schema));
   const source = fs.readFileSync(path.join(libDir, "leads-store.js"), "utf8") + fs.readFileSync(path.join(root, "api/leads.js"), "utf8") + migrations + schema;
   for (const word of ["sendgrid", "apollo", "MessagingContact", "doNotContact", "pending_approval", "providerMessageId", "MESSAGING_SEND", "tyler:"]) {
     assert.equal(source.includes(word), false, word);
@@ -173,7 +175,7 @@ test("draft channels fromAddress settings and mark-sent", async () => {
   assert.equal(post.body.draft.leadId, null);
   assert.equal((await call({ method: "POST", token: "user-b", action: "approve", body: { id: post.body.draft.id } })).status, 404);
   const draftId = draft.body.draft.id;
-  assert.equal((await call({ method: "POST", action: "approve", body: { id: draftId } })).body.draft.status, "approved");
+  assert.equal((await call({ method: "POST", action: "approve", body: { id: draftId } })).body.draft.status, "approved_to_send");
   const sent = await call({ method: "POST", action: "mark-sent", body: { id: draftId } });
   assert.equal(sent.body.draft.status, "sent_by_owner");
   assert.equal(sent.body.lead.stage, "contacted");
