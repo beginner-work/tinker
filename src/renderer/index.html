@@ -269,7 +269,7 @@
           <label class="sidebar__drafts-sending">
             <input type="checkbox" data-drafts-sending />
             <span class="sidebar__drafts-from-label">Sending enabled</span>
-            <span class="sidebar__drafts-sending-note" data-drafts-sending-note>Off by default. Your assistant only sends Gmail after you turn this on and press Send.</span>
+            <span class="sidebar__drafts-sending-note" data-drafts-sending-note>Off by default. Your assistant only sends Gmail after you turn this on and press Send. Sends go through the Gmail account connected in your assistant — switch that account there if you want a different From. Set Outreach from above so drafts match that address.</span>
           </label>
         </div>
       </nav>
@@ -300,6 +300,11 @@
             <h2 class="messages-pane__title">
               <span data-messages-name>Messages</span><span class="messages-pane__role" data-messages-role hidden></span>
             </h2>
+          </div>
+          <div class="messages-thread__outcomes" data-messages-outcomes hidden aria-label="Log outcome">
+            <button type="button" class="messages-thread__outcome" data-outcome="replied">Replied</button>
+            <button type="button" class="messages-thread__outcome" data-outcome="call">Call</button>
+            <button type="button" class="messages-thread__outcome" data-outcome="interview">Interview</button>
           </div>
         </header>
         <div class="messages-pane__body">

@@ -94,10 +94,35 @@
     if (d.role === "lead" || d.source === "lead_reply") return true;
     return false;
   }
-  function parseLoggedReplies(lead) {
-    if (!lead) return [];
+  function pushReply(out, r, fallbackId) {
+    if (!r) return;
+    var body = String(r.body || r.text || "").trim();
+    if (!body) return;
+    out.push({
+      id: r.id || fallbackId,
+      side: "lead",
+      kind: "reply",
+      channel: r.channel || "gmail_outreach",
+      subject: r.subject || "",
+      body: body,
+      at: r.receivedAt || r.at || r.updatedAt || r.createdAt || "",
+      from: r.from || r.fromAddress || "",
+      openable: false,
+    });
+  }
+  function parseLoggedReplies(lead, apiReplies) {
+    if (!lead && !apiReplies) return [];
     var out = [];
-    var notes = String(lead.notes || "").trim();
+    var seen = {};
+    function add(item) {
+      if (!item || !item.body) return;
+      var key = item.id || (item.body + "|" + item.at);
+      if (seen[key]) return;
+      seen[key] = 1;
+      out.push(item);
+    }
+    /* Manual owner logging still works when the assistant does not sync. */
+    var notes = String(lead && lead.notes || "").trim();
     if (notes) {
       var blocks = notes.split(/\n{2,}/);
       blocks.forEach(function (block, i) {
@@ -109,47 +134,32 @@
         else if (/connection/.test(chRaw)) channel = "linkedin_connection";
         else if (/gmail|email/.test(chRaw)) channel = "gmail_outreach";
         else if (chRaw && CHANNEL_LABEL[chRaw]) channel = chRaw;
-        out.push({
-          id: "reply-notes-" + lead.id + "-" + i,
+        add({
+          id: "reply-notes-" + (lead && lead.id || "x") + "-" + i,
           side: "lead",
           kind: "reply",
           channel: channel,
           subject: "",
           body: String(m[2] || "").trim(),
-          at: lead.updatedAt || lead.createdAt,
+          at: (lead && (lead.updatedAt || lead.createdAt)) || "",
           openable: false,
         });
       });
     }
-    if (!out.length && lead.lastReply && (lead.lastReply.body || lead.lastReply.text)) {
-      var lr = lead.lastReply;
-      out.push({
-        id: "reply-last-" + lead.id,
-        side: "lead",
-        kind: "reply",
-        channel: lr.channel || "gmail_outreach",
-        subject: lr.subject || "",
-        body: String(lr.body || lr.text || "").trim(),
-        at: lr.at || lr.updatedAt || lead.updatedAt,
-        openable: false,
-      });
+    if (lead && lead.lastReply && (lead.lastReply.body || lead.lastReply.text)) {
+      var tmpLast = [];
+      pushReply(tmpLast, lead.lastReply, "reply-last-" + lead.id);
+      tmpLast.forEach(add);
     }
-    if (!out.length && Array.isArray(lead.replies)) {
-      lead.replies.forEach(function (r, i) {
-        if (!r) return;
-        out.push({
-          id: "reply-" + (r.id || i),
-          side: "lead",
-          kind: "reply",
-          channel: r.channel || "gmail_outreach",
-          subject: r.subject || "",
-          body: String(r.body || r.text || "").trim(),
-          at: r.at || r.updatedAt || r.createdAt || lead.updatedAt,
-          openable: false,
-        });
-      });
-    }
-    return out.filter(function (r) { return r.body; });
+    var fromLead = Array.isArray(lead && lead.replies) ? lead.replies : [];
+    var fromApi = Array.isArray(apiReplies) ? apiReplies : [];
+    fromLead.concat(fromApi).forEach(function (r, i) {
+      var tmp = [];
+      pushReply(tmp, r, "reply-" + (r && r.id || i));
+      if (tmp[0] && !tmp[0].at && lead) tmp[0].at = lead.updatedAt || lead.createdAt || "";
+      tmp.forEach(add);
+    });
+    return out;
   }
   function buildItems() {
     var items = [];
@@ -190,6 +200,8 @@
         openable: kind === "draft" || kind === "failed",
         draftId: d.id,
         sendable: d.channel === "gmail_outreach" && (d.status === "draft" || d.status === "approved" || d.status === "send_failed"),
+        failedReason: d.sendFailedReason || "",
+        fromAddress: d.fromAddress || "",
       });
     });
     state.replies.forEach(function (r) { items.push(r); });
@@ -208,6 +220,7 @@
     if (!pane || !state.lead) return;
     var nameEl = pane.querySelector("[data-messages-name]");
     var role = pane.querySelector("[data-messages-role]");
+    var outcomes = pane.querySelector("[data-messages-outcomes]");
     var lead = state.lead;
     var name = String(lead.personName || "").trim() || "Someone";
     if (nameEl) nameEl.textContent = name;
@@ -217,8 +230,44 @@
       if (lead.company) bits.push("at " + String(lead.company).trim());
       var line = bits.join(" ");
       role.hidden = !line;
-      role.textContent = line ? " · " + line : "";
+      role.textContent = line ? ", " + line : "";
     }
+    if (outcomes) {
+      outcomes.hidden = false;
+      Array.prototype.forEach.call(outcomes.querySelectorAll("[data-outcome]"), function (btn) {
+        btn.classList.toggle("is-current", btn.getAttribute("data-outcome") === lead.stage);
+      });
+    }
+  }
+  function appendManualReplyNote(notes, outcome) {
+    var stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+    var line = outcome === "replied"
+      ? "Reply (Gmail):\nLogged by you (" + stamp + "). Your assistant did not sync this reply."
+      : "Reply (Gmail):\nMarked " + outcome + " by you (" + stamp + ").";
+    var base = String(notes || "").trim();
+    return base ? (base + "\n\n" + line) : line;
+  }
+  function logOutcome(outcome) {
+    if (!state.lead || !token()) return;
+    var leadId = state.lead.id;
+    var btn = pane && pane.querySelector('[data-outcome="' + outcome + '"]');
+    if (btn) btn.disabled = true;
+    var stagePromise = state.lead.stage === outcome
+      ? Promise.resolve({ lead: state.lead })
+      : api("stage", { id: leadId }, "POST", { outcome: outcome });
+    stagePromise.then(function (res) {
+      state.lead = res.lead || state.lead;
+      var notes = appendManualReplyNote(state.lead.notes, outcome);
+      return api("edit", { id: leadId }, "PATCH", { notes: notes }).then(function (edited) {
+        state.lead = edited.lead || Object.assign({}, state.lead, { notes: notes });
+        return loadLead(leadId);
+      });
+    }).catch(function (err) {
+      state.error = (err && err.message) || "Could not log outcome.";
+      renderThread();
+    }).finally(function () {
+      if (btn) btn.disabled = false;
+    });
   }
   function openDraft(id) {
     if (window.tinkerLeadDrafts && typeof window.tinkerLeadDrafts.openDraft === "function") {
@@ -309,10 +358,22 @@
     else if (item.kind === "sent") statusBit = "Sent";
     else if (item.kind === "queued") statusBit = "Queued";
     else if (item.kind === "failed") statusBit = "Failed";
+    if (item.kind === "queued") {
+      bubble.appendChild(Object.assign(el("span", "messages-thread__queued-tag"), { textContent: "Queued" }));
+    }
+    if (item.kind === "failed") {
+      bubble.appendChild(Object.assign(el("span", "messages-thread__failed-tag"), {
+        textContent: item.failedReason ? ("Failed · " + item.failedReason) : "Failed",
+      }));
+    }
     var meta = el("div", "messages-thread__meta");
+    var fromBit = "";
+    if ((item.kind === "queued" || item.kind === "sent") && item.fromAddress) {
+      fromBit = "From " + item.fromAddress;
+    }
     meta.textContent = grouped
       ? formatWhen(item.at)
-      : metaLine([statusBit, channelLabel(item.channel), formatWhen(item.at)]);
+      : metaLine([statusBit, channelLabel(item.channel), fromBit, formatWhen(item.at)]);
     bubble.appendChild(meta);
 
     li.appendChild(bubble);
@@ -401,6 +462,8 @@
     var thread = pane.querySelector("[data-messages-thread]");
     if (nameEl) nameEl.textContent = "Messages";
     if (role) { role.hidden = true; role.textContent = ""; }
+    var outcomes = pane.querySelector("[data-messages-outcomes]");
+    if (outcomes) outcomes.hidden = true;
     if (empty) empty.hidden = false;
     if (thread) {
       thread.hidden = true;
@@ -436,7 +499,7 @@
       } else {
         state.drafts = all.filter(function (d) { return d && d.leadId === leadId; });
       }
-      state.replies = parseLoggedReplies(state.lead);
+      state.replies = parseLoggedReplies(state.lead, results[0].replies);
       if (!state.lead) state.error = "That conversation could not be found.";
     }).catch(function (err) {
       state.lead = null;
@@ -468,6 +531,15 @@
       state.sendingEnabled = !!(e && e.detail && e.detail.sendingEnabled);
       if (state.lead) renderThread();
     });
+    var outcomes = pane.querySelector("[data-messages-outcomes]");
+    if (outcomes && !outcomes.getAttribute("data-bound")) {
+      outcomes.setAttribute("data-bound", "1");
+      outcomes.addEventListener("click", function (e) {
+        var btn = e.target && e.target.closest ? e.target.closest("[data-outcome]") : null;
+        if (!btn || !outcomes.contains(btn)) return;
+        logOutcome(btn.getAttribute("data-outcome"));
+      });
+    }
   }
 
   window.tinkerMessagesThread = {

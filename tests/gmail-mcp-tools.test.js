@@ -207,3 +207,16 @@ test("MCP cannot invent a queue-send tool name", async () => {
   assert.equal(toolResult(outcome).isError, true);
   assert.match(toolResult(outcome).content[0].text, /Unknown tool/);
 });
+
+test("assistant reply sync path and send-only manual path both exist", () => {
+  const root = path.join(__dirname, "..");
+  const thread = fs.readFileSync(path.join(root, "src/renderer/messages-thread.js"), "utf8");
+  const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
+  /* Automatic path: assistant calls add_reply (no Tinker Gmail OAuth / reply-sync flag). */
+  assert.ok(gmailMcp.TOOL_NAMES.has("add_reply"));
+  assert.equal(fs.existsSync(path.join(root, "api/gmail.js")), false);
+  assert.equal(/GMAIL_REPLY_SYNC_ENABLED|GOOGLE_OAUTH_CLIENT/.test(thread), false);
+  /* Manual send-only path: outcome buttons log a left bubble without restricted read scope. */
+  assert.match(html, /data-outcome="replied"/);
+  assert.match(thread, /appendManualReplyNote/);
+});

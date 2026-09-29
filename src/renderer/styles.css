@@ -599,6 +599,43 @@ button.messages-thread__bubble {
   font-size: 14px;
   white-space: pre-wrap;
 }
+.messages-thread__queued-tag,
+.messages-thread__failed-tag {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 4px;
+}
+.messages-thread__failed-tag { color: #b3261e; }
+.messages-thread__outcomes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+  padding: 0 4px;
+}
+.messages-thread__outcome {
+  padding: 4px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.messages-thread__outcome:hover { color: var(--color-foreground); border-bottom-color: var(--color-accent-strong); }
+.messages-thread__outcome.is-current {
+  color: var(--color-foreground);
+  border-bottom-color: var(--color-accent-strong);
+}
+.messages-pane__top { align-items: flex-start; }
+
 .messages-thread__item--queued .messages-thread__bubble {
   border-style: dashed;
   opacity: 0.95;

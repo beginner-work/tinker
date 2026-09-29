@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tinker Gmail demo</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="./design-tokens.css" />
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      body.gmail-demo {
+        margin: 0; min-height: 100vh; background: var(--color-background);
+        font-family: var(--font-body, "Instrument Sans", sans-serif); color: var(--color-foreground);
+      }
+      .demo {
+        max-width: 720px; margin: 0 auto; padding: 24px 16px 48px;
+        display: flex; flex-direction: column; gap: 28px;
+      }
+      .demo h1 {
+        margin: 0; font-family: var(--font-display); font-size: 28px; font-weight: 650;
+      }
+      .demo__lede { margin: 0; color: var(--color-muted); font-size: 14px; line-height: 1.45; }
+      .demo-panel {
+        border-top: 1px solid var(--color-border); padding-top: 16px;
+      }
+      .demo-panel h2 {
+        margin: 0 0 10px; font-size: 13px; font-weight: 600;
+        letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted);
+      }
+      .messages-thread { max-height: none; overflow: visible; }
+      .messages-thread__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+    </style>
+  </head>
+  <body class="gmail-demo">
+    <main class="demo">
+      <h1>Messages</h1>
+      <p class="demo__lede">Your assistant sends it through your Gmail after you press Send. LinkedIn stays draft only.</p>
+
+      <section class="demo-panel" data-demo="send-confirm" aria-label="Send confirm">
+        <h2>Send + confirm</h2>
+        <div class="messages-thread">
+          <ol class="messages-thread__list">
+            <li class="messages-thread__item messages-thread__item--owner messages-thread__item--draft">
+              <div class="messages-thread__meta">
+                <span class="messages-thread__draft-tag">Draft</span>
+                <span class="messages-thread__channel">Gmail</span>
+                <span class="messages-thread__when">Sep 29, 9:00 AM</span>
+              </div>
+              <div class="messages-thread__bubble">
+                <div class="messages-thread__subject">Quick intro</div>
+                <div class="messages-thread__body">Hi Sam — I saw the platform role at Orbit and wanted to share a short note on a similar shipping problem I solved.</div>
+              </div>
+              <div class="messages-thread__send">
+                <div class="messages-thread__confirm">
+                  <p class="messages-thread__send-note">Queue this Gmail for your assistant to send?</p>
+                  <button type="button" class="messages-thread__send-btn">Confirm send</button>
+                  <button type="button" class="messages-thread__send-btn">Cancel</button>
+                </div>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="demo-panel" data-demo="queued" aria-label="Queued bubble">
+        <h2>Queued</h2>
+        <div class="messages-thread">
+          <ol class="messages-thread__list">
+            <li class="messages-thread__item messages-thread__item--owner messages-thread__item--queued">
+              <div class="messages-thread__meta">
+                <span class="messages-thread__queued-tag">Queued</span>
+                <span class="messages-thread__channel">Gmail</span>
+                <span class="messages-thread__when">Sep 29, 9:01 AM</span>
+              </div>
+              <div class="messages-thread__bubble">
+                <div class="messages-thread__subject">Quick intro</div>
+                <div class="messages-thread__body">Hi Sam — I saw the platform role at Orbit and wanted to share a short note on a similar shipping problem I solved.</div>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="demo-panel" data-demo="sent-reply" aria-label="Sent plus reply">
+        <h2>Sent + reply</h2>
+        <div class="messages-thread">
+          <ol class="messages-thread__list">
+            <li class="messages-thread__item messages-thread__item--owner messages-thread__item--sent">
+              <div class="messages-thread__meta">
+                <span class="messages-thread__channel">Gmail</span>
+                <span class="messages-thread__when">Sep 29, 9:02 AM</span>
+              </div>
+              <div class="messages-thread__bubble">
+                <div class="messages-thread__subject">Quick intro</div>
+                <div class="messages-thread__body">Hi Sam — I saw the platform role at Orbit and wanted to share a short note on a similar shipping problem I solved.</div>
+              </div>
+            </li>
+            <li class="messages-thread__item messages-thread__item--lead messages-thread__item--reply">
+              <div class="messages-thread__meta">
+                <span class="messages-thread__channel">Gmail</span>
+                <span class="messages-thread__when">Sep 29, 10:15 AM</span>
+              </div>
+              <div class="messages-thread__bubble">
+                <div class="messages-thread__body">Thanks — this is helpful. Are you free Thursday afternoon for a quick call?</div>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+    
+      <section class="demo-panel" data-demo="composer" aria-label="Chat composer">
+        <h2>Composer · Next / Ship / Send</h2>
+        <footer class="messages-composer" aria-label="Draft composer">
+          <div class="messages-composer__shell">
+            <textarea class="messages-composer__textarea" rows="2">Thanks for the intro — open to a short call next week?</textarea>
+            <div class="messages-composer__actions">
+              <button type="button" class="messages-composer__next">Next</button>
+              <button type="button" class="messages-composer__ship">Ship</button>
+              <button type="button" class="messages-composer__send">Send</button>
+            </div>
+          </div>
+        </footer>
+      </section>
+
+    </main>
+  </body>
+</html>
