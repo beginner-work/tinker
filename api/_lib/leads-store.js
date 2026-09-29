@@ -495,10 +495,22 @@ async function markDraftSent({ id, userId, emailHint, actor }) {
     return { draft: saved, lead: updatedLead, event };
   });
 }
+// Per-user outreach-from defaults keyed by the owner's email. Only applied
+// when the setting is still empty so a saved value always wins.
+const OUTREACH_FROM_DEFAULTS = {
+  "tyler.lindow@gmail.com": "tyler@lindowlabs.dev",
+};
+
 async function getOutreachSettings({ userId, emailHint }) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
-  return readOutreachSettings(owner);
+  const settings = await readOutreachSettings(owner);
+  const email = typeof emailHint === "string" ? emailHint.trim().toLowerCase() : "";
+  const seeded = email && OUTREACH_FROM_DEFAULTS[email];
+  if (seeded && !String(settings.defaultFromAddress || "").trim()) {
+    return writeOutreachSettings(owner, { defaultFromAddress: seeded });
+  }
+  return settings;
 }
 async function setOutreachSettings({ userId, emailHint, patch }) {
   const owner = requireUserId(userId);

@@ -165,22 +165,13 @@ function loadFormatter() {
   return sandbox.window.tinkerMembership.formatMembership;
 }
 
-test("an active member is offered a pause action", () => {
+test("client membership view never offers pause or a priced plan", () => {
   const view = loadFormatter()({ active: true, tier: "pre-seed", status: "active" });
-  assert.equal(view.pause, "pause");
+  assert.equal(view.pause, "");
   assert.equal(view.restore, false);
-});
-
-test("a paused membership keeps its tier and offers resume, not upgrade", () => {
-  const view = loadFormatter()({ active: false, tier: "pre-seed", status: "paused" });
-  assert.equal(view.active, false);
-  assert.equal(view.label, "Pre-seed · Paused");
-  assert.equal(view.sub, "Billing paused — resume anytime");
-  assert.equal(view.cta, "", "paused is not nudged to upgrade");
-  assert.equal(view.restore, false);
-  assert.equal(view.pause, "resume");
-});
-
-test("a free account has no pause action", () => {
-  assert.equal(loadFormatter()({ active: false, tier: null, status: null }).pause, "");
+  assert.equal(view.label, "");
+  assert.equal(view.cta, "");
+  const paused = loadFormatter()({ active: false, tier: "pre-seed", status: "paused" });
+  assert.equal(paused.pause, "");
+  assert.equal(paused.label, "");
 });

@@ -1,17 +1,4 @@
-/* Regression test for the sidebar "Already subscribed? Restore" action
- * (src/renderer/membership.js → startReconcile).
- *
- * The bug: on a successful restore the client used to discard the reconcile
- * response and re-pull GET /api/membership/status. loadStatus collapses any
- * non-ok/stale/blipped read to null, and hydrate renders null as "Free plan" —
- * so a member whose subscription was just reconciled server-side got bounced
- * straight back to "Free plan" ("clicking restore still says free").
- *
- * The fix renders the row straight from the (authoritative, freshly-written)
- * reconcile response. This test drives the real click path against a fake DOM
- * with a status endpoint that always fails, and asserts the row still flips to
- * the pre-seed tier and hides the restore affordance.
- */
+/* Tinker is free: restore / plan-footer UI is gone from membership.js. */
 
 "use strict";
 
@@ -19,150 +6,22 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const vm = require("node:vm");
 
 const SRC = fs.readFileSync(
   path.resolve(__dirname, "..", "src", "renderer", "membership.js"),
   "utf8",
 );
+const HTML = fs.readFileSync(
+  path.resolve(__dirname, "..", "src", "renderer", "index.html"),
+  "utf8",
+);
 
-const tick = () => new Promise((r) => setTimeout(r, 0));
-
-function makeEl(id) {
-  return {
-    id,
-    _attrs: {},
-    _text: "",
-    dataset: {},
-    _listeners: {},
-    _kids: {},
-    querySelector(sel) { return this._kids[sel] || null; },
-    setAttribute(k, v) { this._attrs[k] = v; },
-    removeAttribute(k) { delete this._attrs[k]; },
-    getAttribute(k) { return this._attrs[k]; },
-    hasAttribute(k) { return k in this._attrs; },
-    addEventListener(ev, fn) { (this._listeners[ev] = this._listeners[ev] || []).push(fn); },
-    click() { (this._listeners.click || []).forEach((f) => f()); },
-    set textContent(v) { this._text = v; },
-    get textContent() { return this._text; },
-  };
-}
-
-// Builds the sandbox + DOM and runs membership.js. `statusFails` makes every
-// GET /api/membership/status come back non-ok (the flaky/stale case).
-function setup({ statusFails, reconcileStatus }) {
-  const nav = makeEl("nav-membership");
-  nav._kids = {
-    "[data-membership-tier]": makeEl("tier"),
-    "[data-membership-sub]": makeEl("sub"),
-    "[data-membership-cta]": makeEl("cta"),
-  };
-  const restore = makeEl("nav-membership-restore");
-  const byId = { "nav-membership": nav, "nav-membership-restore": restore };
-
-  const calls = [];
-  function fakeFetch(url) {
-    calls.push(url);
-    if (url.indexOf("/api/membership/reconcile") >= 0) {
-      // reconcileStatus simulates a server/config failure (e.g. 503 when the
-      // deploy has no STRIPE_SECRET_KEY) — a non-ok response carrying a JSON
-      // error body, exactly what the endpoint returns when it can't reach Stripe.
-      if (reconcileStatus) {
-        return Promise.resolve({
-          ok: false,
-          status: reconcileStatus,
-          json: () => Promise.resolve({ error: "Reconciliation isn't available right now." }),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({
-          restored: true, active: true, tier: "pre-seed",
-          status: "active", currentPeriodEnd: 1782880160,
-        }),
-      });
-    }
-    // GET /api/membership/status — optionally simulate a transient failure.
-    return Promise.resolve({
-      ok: !statusFails,
-      json: () => Promise.resolve(
-        statusFails ? null : { active: false, tier: null, status: null, currentPeriodEnd: null }
-      ),
-    });
-  }
-
-  const sandbox = {
-    fetch: fakeFetch,
-    setTimeout: () => {},
-    localStorage: { getItem: () => "fake-token", setItem() {}, removeItem() {} },
-    document: { readyState: "complete", getElementById: (id) => byId[id] || null, addEventListener() {} },
-    window: {},
-  };
-  sandbox.window.addEventListener = () => {};
-  sandbox.window.location = { pathname: "/", origin: "https://tinker.app" };
-  // Profile email is on file, so the first reconcile succeeds without a prompt.
-  sandbox.window.prompt = () => "";
-  vm.createContext(sandbox);
-  vm.runInContext(SRC, sandbox);
-
-  return { nav, restore, calls };
-}
-
-test("a successful restore flips the row to the pre-seed tier even if the status re-read fails", async () => {
-  const { nav, restore, calls } = setup({ statusFails: true });
-  await tick(); // initial hydrate() → status fails → free view
-
-  assert.equal(nav._kids["[data-membership-tier]"]._text, "Free plan", "starts on the free view");
-
-  restore.click();
-  await tick();
-  await tick();
-
-  assert.equal(
-    nav._kids["[data-membership-tier]"]._text,
-    "Pre-seed · $9/mo",
-    "row reflects the restored tier from the reconcile response, not a flaky status read",
-  );
-  assert.equal(nav.dataset.active, "1", "row is marked active");
-  assert.ok(restore.hasAttribute("hidden"), "restore affordance is hidden once active");
-  // The success path must not depend on a post-restore /status round-trip.
-  assert.ok(
-    !calls.some((u, i) => i > 0 && u.indexOf("/api/membership/status") >= 0 && calls[i - 1].indexOf("reconcile") >= 0),
-    "does not re-pull /status after a successful reconcile",
-  );
-});
-
-test("restore also works when the status re-read would (misleadingly) report free", async () => {
-  const { nav, restore } = setup({ statusFails: false });
-  await tick();
-
-  restore.click();
-  await tick();
-  await tick();
-
-  assert.equal(nav._kids["[data-membership-tier]"]._text, "Pre-seed · $9/mo");
-});
-
-test("a 503 from reconcile surfaces a config failure, not a misleading 'No subscription found'", async () => {
-  // When the deploy can't reach Stripe (e.g. STRIPE_SECRET_KEY isn't set, so
-  // the endpoint 503s), the member DOES have a subscription — the server just
-  // can't look it up. Reporting "No subscription found" here hid exactly this
-  // class of misconfiguration through earlier rounds of fixes. The restore link
-  // must instead show a distinct, retry-able state.
-  const { nav, restore } = setup({ statusFails: false, reconcileStatus: 503 });
-  await tick();
-
-  restore.click();
-  await tick();
-  await tick();
-
-  assert.notEqual(
-    restore._text,
-    "No subscription found",
-    "a 503 must not be mislabeled as a genuine empty result",
-  );
-  assert.match(restore._text, /unavailable|try/i, "shows a retry-able billing/config failure");
-  // The row stays on the free view — restore didn't (and shouldn't) flip it.
-  assert.equal(nav.dataset.active, "0");
+test("sidebar no longer wires Restore or a priced membership row", () => {
+  assert.equal(/nav-membership-restore/.test(HTML), false);
+  assert.equal(/nav-membership["\s>]/.test(HTML), false);
+  assert.equal(/Already subscribed/.test(SRC), false);
+  assert.equal(/startReconcile|startCheckout|startPause/.test(SRC), false);
+  assert.equal(/Pre-seed · \$9\/mo/.test(SRC), false);
+  assert.equal(/\$9\/mo/.test(SRC), false);
+  assert.match(SRC, /claimParkedPass|tinker_pass_claim/);
 });

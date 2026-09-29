@@ -128,6 +128,34 @@ test("import accepts new channels fromAddress and dedupes", async () => {
   assert.equal(again.body.leads[0].stage, "replied");
   assert.equal(tables.lead.rows.filter((row) => row.personName === "Sam Lee").length, 1);
 });
+test("Tyler email seeds outreach-from when empty; others stay blank", async () => {
+  const seeded = await store.getOutreachSettings({
+    userId: "user-a",
+    emailHint: "tyler.lindow@gmail.com",
+  });
+  assert.equal(seeded.defaultFromAddress, "tyler@lindowlabs.dev");
+  const again = await store.getOutreachSettings({
+    userId: "user-a",
+    emailHint: "tyler.lindow@gmail.com",
+  });
+  assert.equal(again.defaultFromAddress, "tyler@lindowlabs.dev");
+  const other = await store.getOutreachSettings({
+    userId: "user-b",
+    emailHint: "other@example.com",
+  });
+  assert.equal(other.defaultFromAddress, "");
+  await store.setOutreachSettings({
+    userId: "user-a",
+    emailHint: "tyler.lindow@gmail.com",
+    patch: { defaultFromAddress: "custom@lindowlabs.dev" },
+  });
+  const custom = await store.getOutreachSettings({
+    userId: "user-a",
+    emailHint: "tyler.lindow@gmail.com",
+  });
+  assert.equal(custom.defaultFromAddress, "custom@lindowlabs.dev");
+});
+
 test("draft channels fromAddress settings and mark-sent", async () => {
   assert.equal((await call({ method: "POST", action: "settings", body: { defaultFromAddress: "hunt@example.com" } })).body.settings.defaultFromAddress, "hunt@example.com");
   const created = await call({ method: "POST", action: "create", body: { personName: "Pat Kim", company: "Orbit", source: "posting" } });
