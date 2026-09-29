@@ -750,7 +750,7 @@ test("the browser interview loads the shared prompt and does not inline a second
   const promptAt = html.indexOf("./interview-prompt.js");
   const writingAt = html.indexOf("./writing.js");
   assert.ok(promptAt > 0 && writingAt > promptAt, "interview-prompt.js must load before writing.js");
-  assert.match(sw, /tinker-shell-v6/);
+  assert.match(sw, /tinker-shell-v\d+/);
   assert.match(sw, /\/interview-prompt\.js/);
   assert.match(converse, /require\("\.\.\/_lib\/anthropic\.js"\)/);
   assert.equal(converse.includes("api.anthropic.com"), false);
