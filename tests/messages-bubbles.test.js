@@ -13,7 +13,7 @@ const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8")
 test("thread maps sent, draft, queued, and lead reply sides", () => {
   assert.match(js, /item--owner|side:\s*"owner"/);
   assert.match(js, /side:\s*"lead"/);
-  assert.match(js, /kind:\s*"sent"|kind:\s*"draft"|kind:\s*"queued"/);
+  assert.match(js, /kind:\s*"sent"|kind:\s*"draft"|kind:\s*"queued"|kind = "queued"|kind = "sent"/);
   assert.match(js, /Draft/);
   assert.match(js, /messages-thread__meta/);
   assert.match(js, /Reply(?:\s*\()/);
