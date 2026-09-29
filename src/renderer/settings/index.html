@@ -189,9 +189,26 @@
         </label>
       </section>
 
+      <section class="settings__section" aria-labelledby="settings-notes-heading">
+        <h2 class="settings__section-title" id="settings-notes-heading">Notes</h2>
+        <div class="settings__field" data-notes-folder>
+          <span class="settings__label">Notes folder</span>
+          <p class="settings__hint">Save each person's notepad as a Markdown file in a local folder (for example one synced with Google Drive). Clearing the folder does not delete server notes.</p>
+          <p class="settings__status" data-notes-folder-path style="margin:0">No folder selected</p>
+          <span class="settings__row" data-notes-folder-actions>
+            <button type="button" class="settings__save" data-notes-folder-pick>Choose folder</button>
+            <button type="button" class="settings__save" data-notes-folder-clear hidden style="background:transparent;color:var(--color-foreground);border:1px solid var(--color-border)">Clear</button>
+          </span>
+          <p class="settings__status" data-notes-folder-unsupported hidden>Notes still sync through Tinker.</p>
+          <p class="settings__status" data-notes-folder-status hidden></p>
+        </div>
+      </section>
+
       <p class="settings__copy">© 2026 tinker</p>
     </main>
     <script src="/auth.js" defer></script>
+    <script src="/lib/notes-folder-core.js" defer></script>
+    <script src="/notes-folder.js" defer></script>
     <script src="/lead-drafts.js" defer></script>
     <script src="/settings/settings.js" defer></script>
   </body>

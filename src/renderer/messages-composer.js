@@ -189,6 +189,17 @@
         if (state.draftId && (state.statusLine === "approved_to_send" || state.statusLine === "approved")) {
           revokeIfNeeded();
         }
+        // Debounced write into the local notes folder when one is chosen.
+        if (window.tinkerNotesFolder && state.lead) {
+          window.tinkerNotesFolder.scheduleWrite({
+            id: state.leadId,
+            personName: state.lead.personName,
+            companyName: (state.company && state.company.name) || state.lead.company || "",
+            companyId: state.lead.companyId || (state.company && state.company.id) || "",
+            body: value,
+            updatedAt: new Date().toISOString(),
+          });
+        }
       },
       onPrimary: function () { saveDraft("ship"); },
       onSecondary: function () { saveDraft("next"); },
@@ -282,6 +293,16 @@
       if (window.tinkerMessagesThread && state.leadId) window.tinkerMessagesThread.loadLead(state.leadId);
       if (window.tinkerMessagesShell && window.tinkerMessagesShell.refresh) window.tinkerMessagesShell.refresh();
       if (window.tinkerLeadDrafts && window.tinkerLeadDrafts.refresh) window.tinkerLeadDrafts.refresh();
+      if (window.tinkerNotesFolder && state.lead) {
+        window.tinkerNotesFolder.scheduleWrite({
+          id: state.leadId,
+          personName: state.lead.personName,
+          companyName: (state.company && state.company.name) || state.lead.company || "",
+          companyId: state.lead.companyId || (state.company && state.company.id) || "",
+          body: state.body,
+          updatedAt: new Date().toISOString(),
+        });
+      }
       mountNotepad();
     }).catch(function () {
       state.handedOff = false;
@@ -380,9 +401,24 @@
     window.addEventListener("tinker:messages-select", onSelect);
   }
 
+  function applyImportedBody(leadId, body, draft) {
+    if (!leadId || leadId !== state.leadId) return;
+    state.body = body || "";
+    if (draft && draft.id) {
+      state.draftId = draft.id;
+      state.statusLine = draft.status || "draft";
+      state.handedOff = draft.status === "approved_to_send";
+    } else {
+      state.statusLine = "draft";
+      state.handedOff = false;
+    }
+    mountNotepad();
+  }
+
   window.tinkerMessagesComposer = {
     setLead: setLead,
     setYouMode: setYouMode,
+    applyImportedBody: applyImportedBody,
     refreshParts: function () { return Promise.resolve(); },
     CHANNELS: CHANNELS,
   };
