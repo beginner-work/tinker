@@ -217,7 +217,10 @@ test("proof_point gate blocks, other stages skip check_text, and MCP is ready-on
   assert.equal(/Tyler can prove/i.test(listTool.description), false);
   assert.match(listTool.description, /does not draft or send/i);
   assert.deepEqual(Object.keys(listTool.inputSchema.properties).sort(), ["concepts", "stage", "teamOrRole"]);
-  assert.equal(listed.captured.body.result.tools.some((t) => /approve|send|draft_outreach|list_threads/i.test(t.name)), false);
+  assert.equal(listed.captured.body.result.tools.some((t) => /approve|draft_outreach|list_threads/i.test(t.name)), false);
+  /* Gmail queue tools (list_send_queue / mark_sent / mark_send_failed) are owner-assisted; not story-part send. */
+  assert.ok(names.includes("list_send_queue"));
+  assert.equal(names.includes("send"), false);
 
   const parts = await mcpCall(bot, "list_story_parts", { stage: "proof_point", concepts: "trust-boundaries" });
   assert.equal(parts.body.result.structuredContent.parts.length, 1);
