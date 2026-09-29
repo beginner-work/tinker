@@ -21,6 +21,7 @@
     call_follow_up: "follow-up",
   };
   var DUE_ORDER = ["Today", "This week", "Later", "No next touch"];
+  var YOU_ID = "__you__";
   var state = {
     leads: [],
     drafts: [],
@@ -31,6 +32,8 @@
     companyFilter: "",
     selectedId: "",
     collapsed: {},
+    ownerName: "",
+    ownerInitials: "Y",
   };
   var root = null;
   var pane = null;
@@ -190,9 +193,90 @@
     }
     showPane();
   }
+  function ownerInitialsFrom(name, email) {
+    var n = String(name || "").trim();
+    if (n) {
+      return n.split(/\s+/).map(function (p) { return p[0]; }).slice(0, 2).join("").toUpperCase() || "Y";
+    }
+    var e = String(email || "").trim();
+    return e ? e.slice(0, 2).toUpperCase() : "Y";
+  }
+  function renderYouRow() {
+    if (!root) return;
+    var slot = root.querySelector("[data-messages-you-slot]");
+    if (!slot) return;
+    slot.innerHTML = "";
+    var btn = el("button", "messages-rail__row messages-rail__row--you", {
+      type: "button",
+      "data-conv-id": YOU_ID,
+      "aria-current": state.selectedId === YOU_ID ? "true" : "false",
+    });
+    var avatar = el("span", "messages-rail__avatar", { "aria-hidden": "true" });
+    avatar.textContent = state.ownerInitials || "Y";
+    var main = el("span", "messages-rail__main");
+    var top = el("span", "messages-rail__top");
+    var title = el("span", "messages-rail__name");
+    title.textContent = "You";
+    top.appendChild(title);
+    var preview = el("span", "messages-rail__preview");
+    preview.textContent = "Story parts and drafts with your assistant";
+    main.appendChild(top);
+    main.appendChild(preview);
+    btn.appendChild(avatar);
+    btn.appendChild(main);
+    btn.addEventListener("click", function () { selectYou(); });
+    slot.appendChild(btn);
+  }
+  function setPaneHeader(name, roleText) {
+    if (!pane) return;
+    var nameEl = pane.querySelector("[data-messages-name]");
+    var role = pane.querySelector("[data-messages-role]");
+    if (nameEl) nameEl.textContent = name || "Messages";
+    if (role) {
+      role.hidden = !roleText;
+      role.textContent = roleText ? " · " + roleText : "";
+    }
+  }
+  function selectYou(opts) {
+    opts = opts || {};
+    state.selectedId = YOU_ID;
+    document.body.classList.add("messages-you-active", "messages-thread-active");
+    if (root) {
+      root.querySelectorAll("[data-conv-id]").forEach(function (btn) {
+        btn.setAttribute("aria-current", btn.getAttribute("data-conv-id") === YOU_ID ? "true" : "false");
+      });
+    }
+    setPaneHeader("You", "story parts with your assistant");
+    showPane();
+    var empty = pane && pane.querySelector("[data-messages-empty]");
+    var thread = pane && pane.querySelector("[data-messages-thread]");
+    if (empty) empty.hidden = true;
+    if (thread) {
+      thread.hidden = false;
+      thread.setAttribute("data-thread-ready", "1");
+    }
+    if (!opts.silent) {
+      try {
+        window.dispatchEvent(new CustomEvent("tinker:messages-select", {
+          detail: { leadId: "", you: true },
+        }));
+      } catch (e) { /* ignore */ }
+    }
+    if (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) {
+      document.body.classList.add("messages-mobile-thread");
+    }
+    if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.open === "function") {
+      window.tinkerMessagesYou.open();
+    }
+  }
   function selectLead(id, opts) {
     opts = opts || {};
+    if (id === YOU_ID) { selectYou(opts); return; }
     state.selectedId = id || "";
+    document.body.classList.remove("messages-you-active");
+    if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.close === "function") {
+      window.tinkerMessagesYou.close();
+    }
     if (root) {
       root.querySelectorAll("[data-conv-id]").forEach(function (btn) {
         btn.setAttribute("aria-current", btn.getAttribute("data-conv-id") === state.selectedId ? "true" : "false");
@@ -231,6 +315,7 @@
     }
     empty.hidden = leads.length > 0 || !!state.error || state.loading;
     list.innerHTML = "";
+    renderYouRow();
     if (!leads.length) return;
 
     var grouped = groupByDue(leads);
@@ -312,6 +397,21 @@
     }
     renderList();
   }
+  function loadOwnerProfile() {
+    if (!token()) {
+      state.ownerName = "";
+      state.ownerInitials = "Y";
+      return Promise.resolve();
+    }
+    return fetch("/api/user-data/profile", {
+      headers: { Authorization: "Bearer " + token(), Accept: "application/json" },
+    }).then(function (res) { return res.ok ? res.json() : null; }).then(function (json) {
+      var p = json && json.data ? json.data : null;
+      if (!p) return;
+      state.ownerName = String(p.name || "").trim();
+      state.ownerInitials = ownerInitialsFrom(p.name, p.email);
+    }).catch(function () { /* ignore */ });
+  }
   function refresh() {
     document.body.classList.add("messages-inbox-primary", "messages-shell-open");
     if (root) root.hidden = false;
@@ -321,7 +421,7 @@
       state.touchesByLead = {};
       state.error = "";
       if (pane) pane.hidden = false;
-      document.body.classList.remove("messages-thread-active", "messages-mobile-thread");
+      document.body.classList.remove("messages-thread-active", "messages-mobile-thread", "messages-you-active");
       renderList();
       renderEmptyPane();
       return Promise.resolve();
@@ -331,6 +431,7 @@
       leadsApi("list"),
       leadsApi("drafts"),
       scheduleApi("inbox").catch(function () { return { byLeadId: {} }; }),
+      loadOwnerProfile(),
     ]).then(function (results) {
       state.leads = Array.isArray(results[0].leads) ? results[0].leads : [];
       state.drafts = Array.isArray(results[1].drafts) ? results[1].drafts : [];
@@ -351,7 +452,8 @@
     }).finally(function () {
       state.loading = false;
       renderList();
-      renderEmptyPane();
+      if (state.selectedId === YOU_ID) selectYou({ silent: true });
+      else renderEmptyPane();
     });
   }
   function bindChrome() {
@@ -397,9 +499,11 @@
   window.tinkerMessagesShell = {
     refresh: refresh,
     selectLead: selectLead,
+    selectYou: selectYou,
     setCompanyFilter: setCompanyFilter,
     getSelectedId: function () { return state.selectedId; },
     touchForLead: function (id) { return (id && state.touchesByLead[id]) || null; },
+    YOU_ID: YOU_ID,
     CHANNEL_LABEL: CHANNEL_LABEL,
     TOUCH_LABEL: TOUCH_LABEL,
   };

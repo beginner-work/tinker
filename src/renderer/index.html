@@ -74,6 +74,7 @@
     <script src="./messages-shell.js" defer></script>
     <script src="./messages-thread.js" defer></script>
     <script src="./messages-composer.js" defer></script>
+    <script src="./messages-you.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
          Deferred so the DOM (incl. #profile-corner) exists when it runs. -->
@@ -209,6 +210,7 @@
           <span class="messages-rail__title">Inbox</span>
           <span class="messages-rail__badge" data-messages-badge hidden></span>
         </div>
+        <div class="messages-rail__you" data-messages-you-slot></div>
         <label class="messages-rail__search">
           <span class="visually-hidden">Search conversations</span>
           <input type="search" class="messages-rail__search-input" data-messages-search
