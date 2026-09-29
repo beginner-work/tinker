@@ -12,13 +12,16 @@
  * Tools are fixed-prompt follow-ups (ask_followups), LinkedIn drafts
  * (draft_linkedin_post), a read-only look at this user's autonomy
  * settings (get_autonomy_settings), the career record
- * (get_career_record, check_text), and site content (list_content,
- * read_content, create_content_draft). There is no raw converse proxy
- * and no write tool for autonomy settings or the career record.
- * Content tools can draft. They cannot publish. GET/DELETE return 405:
- * this server does not keep an SSE session. The writing UI is not
- * involved. draft_linkedin_post shares api/_lib/linkedin-draft.js
- * with POST /api/claude/converse mode "linkedin". It does not post.
+ * (get_career_record, check_text), site content (list_content,
+ * read_content, create_content_draft), and story parts
+ * (list_story_parts, get_story_part). There is
+ * no raw converse proxy and no write tool for autonomy settings, the
+ * career record, or story parts. Content tools can draft. They cannot
+ * publish. Story-part tools are read-only: paste the user's approved
+ * wording into Formation drafts; Tinker does not draft or send outreach.
+ * GET/DELETE return 405: this server does not keep an SSE session.
+ * draft_linkedin_post shares api/_lib/linkedin-draft.js with
+ * POST /api/claude/converse mode "linkedin". It does not post.
  *
  * Session auth uses STYTCH_PROJECT_ID and STYTCH_SECRET. Tool calls use
  * ANTHROPIC_API_KEY. Credentials use the existing DATABASE_URL.
@@ -38,6 +41,7 @@ const { UNAVAILABLE, readAll } = require("./_lib/autonomy-redis.js");
 const { UNAVAILABLE: CAREER_UNAVAILABLE, readForTool, shapeForTool } = require("./_lib/career.js");
 const { checkText } = require("./_lib/career-check.js");
 const contentStore = require("./_lib/content-store.js");
+const storyParts = require("./_lib/story-parts-store.js");
 const pkg = require("../package.json");
 
 const SUPPORTED_PROTOCOLS = ["2025-03-26", "2025-06-18"];
@@ -64,6 +68,12 @@ const INSTRUCTIONS = [
   "Call read_content with an id to read one item. Someone else's id returns an error and no item.",
   "Call create_content_draft to save a draft. The same draftKey returns the original draft and does not change it.",
   "Content tools never publish. status published is rejected and nothing is saved. The owner publishes in Tinker.",
+  "Call list_story_parts to list ready story parts by stage, concepts, or teamOrRole.",
+  "Stages are fixed: hook, proof_point, connecting_story, fit, ask.",
+  "concepts are kebab-case tags for fundamental engineering concepts the user stands behind.",
+  "Call get_story_part with an id to read one part. Someone else's id returns an error and no part.",
+  "Story parts are the user's approved wording for pasting into Formation drafts. Tinker does not draft or send outreach.",
+  "Story-part tools are read-only. They do not mark parts ready, edit parts, or change stages.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -390,6 +400,61 @@ const CREATE_CONTENT_DRAFT_TOOL = {
   },
 };
 
+const LIST_STORY_PARTS_TOOL = {
+  name: "list_story_parts",
+  title: "List story parts",
+  description: [
+    "List this connector user's ready story parts for pasting into Formation drafts.",
+    "Stages are fixed: hook, proof_point, connecting_story, fit, ask.",
+    "Optional filters: stage, concepts, teamOrRole.",
+    "concepts are kebab-case tags for fundamental engineering concepts the user stands behind.",
+    "Always returns ready parts only. Draft and retired parts are never included.",
+    "At most 50 parts. Each item includes id, stage, title, body, fields, topics, concepts, stack,",
+    "status, sourceExcerpt, source {kind,id}, checkVerdicts, and checkedAt.",
+    "For sourceKind code, also includes sourceRef {repo, path, ref, evidence} as stored.",
+    "Parts are the user's approved wording. Paste them as-is. Tinker does not draft or send outreach.",
+    "This tool is read-only. It does not mark parts ready or edit them.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      stage: {
+        type: "string",
+        description: "Stage key: hook, proof_point, connecting_story, fit, or ask.",
+      },
+      teamOrRole: { type: "string", description: "Fit-stage teamOrRole field." },
+      concepts: {
+        type: "string",
+        description: "Kebab-case concept tag for a fundamental engineering concept the user stands behind.",
+      },
+    },
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const GET_STORY_PART_TOOL = {
+  name: "get_story_part",
+  title: "Read one story part",
+  description: [
+    "Read one story part that belongs to this connector user.",
+    "Pass id. Returns body, fields, topics, concepts, stack, sourceExcerpt, source {kind,id}, checkVerdicts, and checkedAt.",
+    "concepts are kebab-case tags for fundamental engineering concepts the user stands behind.",
+    "For sourceKind code, also returns sourceRef {repo, path, ref, evidence} as stored.",
+    "Someone else's id returns an error and no part.",
+    "Parts are the user's approved wording for Formation drafts. Tinker does not draft or send outreach.",
+    "This tool is read-only. It does not mark parts ready or edit them.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: { id: { type: "string", description: "Part id from list_story_parts." } },
+    required: ["id"],
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+
 const TOOLS = [
   ASK_FOLLOWUPS_TOOL,
   DRAFT_LINKEDIN_TOOL,
@@ -399,8 +464,15 @@ const TOOLS = [
   LIST_CONTENT_TOOL,
   READ_CONTENT_TOOL,
   CREATE_CONTENT_DRAFT_TOOL,
+  LIST_STORY_PARTS_TOOL,
+  GET_STORY_PART_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
+const KNOWN_TOOLS = new Set([
+  "ask_followups", "draft_linkedin_post", "get_autonomy_settings", "get_career_record", "check_text",
+  "list_content", "read_content", "create_content_draft",
+  "list_story_parts", "get_story_part",
+]);
 
 function extractBearer(header) {
   if (!header || typeof header !== "string") return "";
@@ -662,6 +734,33 @@ async function contentDraftCall(msg, user, args) {
   }
 }
 
+function storyUserId(user) {
+  const userId = user && typeof user.userId === "string" ? user.userId : "";
+  if (!userId) throw Object.assign(new Error("Sign in to tinker first."), { status: 401 });
+  return userId;
+}
+function storyFailure(msg, err) {
+  const status = err && err.status;
+  const message = status && status >= 400 && status < 500 ? err.message : storyParts.UNAVAILABLE;
+  return { status: 200, headers: NO_STORE, body: rpcOk(msg.id, toolError(message || storyParts.UNAVAILABLE)) };
+}
+async function storyListCall(msg, user, args) {
+  try {
+    const userId = storyUserId(user);
+    const rows = await storyParts.listParts({
+      userId, stage: args.stage, concepts: args.concepts, teamOrRole: args.teamOrRole,
+      status: "ready", limit: 50,
+    });
+    return contentToolOk(msg, { parts: rows.map((row) => storyParts.presentMcp(row)) });
+  } catch (err) { return storyFailure(msg, err); }
+}
+async function storyGetCall(msg, user, args) {
+  try {
+    const row = await storyParts.getPart({ id: args.id, userId: storyUserId(user) });
+    return contentToolOk(msg, { part: storyParts.presentMcp(row) });
+  } catch (err) { return storyFailure(msg, err); }
+}
+
 async function handleRpc(msg, user) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
@@ -705,16 +804,7 @@ async function handleRpc(msg, user) {
     const params = msg.params && typeof msg.params === "object" ? msg.params : {};
     const name = params.name;
     const args = params.arguments && typeof params.arguments === "object" ? params.arguments : {};
-    if (
-      name !== "ask_followups"
-      && name !== "draft_linkedin_post"
-      && name !== "get_autonomy_settings"
-      && name !== "get_career_record"
-      && name !== "check_text"
-      && name !== "list_content"
-      && name !== "read_content"
-      && name !== "create_content_draft"
-    ) {
+    if (!KNOWN_TOOLS.has(name)) {
       return {
         status: 200,
         body: rpcOk(msg.id, toolError(`Unknown tool: ${name || "(missing)"}`)),
@@ -737,6 +827,12 @@ async function handleRpc(msg, user) {
     }
     if (name === "create_content_draft") {
       return contentDraftCall(msg, user, args);
+    }
+    if (name === "list_story_parts") {
+      return storyListCall(msg, user, args);
+    }
+    if (name === "get_story_part") {
+      return storyGetCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {
