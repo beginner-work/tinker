@@ -811,13 +811,24 @@ body.messages-you-active .writing--in-messages .writing__top,
 body.messages-you-active .writing--in-messages .writing__foot {
   display: none !important;
 }
+body.messages-you-active .messages-pane__body {
+  padding-top: 18px;
+}
 body.messages-you-active .writing--in-messages .writing__body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   align-items: stretch;
   justify-content: flex-start;
-  padding: 4px 0 12px;
+  padding: 10px 0 12px;
+}
+@media (max-width: 720px) {
+  body.messages-you-active.messages-mobile-thread .messages-pane__body {
+    padding-top: 14px;
+  }
+  body.messages-you-active.messages-mobile-thread .writing--in-messages .writing__body {
+    padding-top: 8px;
+  }
 }
 body.messages-you-active .writing--in-messages .writing-card {
   border: 0;
