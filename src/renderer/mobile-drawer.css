@@ -85,7 +85,12 @@
    * we want the full desktop-style sidebar. */
   .sidebar__name,
   .sidebar__footer,
-  .sidebar__account { display: revert; }
+  .sidebar__account,
+  .sidebar__drafts { display: revert; }
+  .sidebar__drafts {
+    display: flex;
+    max-height: min(38vh, 280px);
+  }
   .sidebar__top { padding: calc(env(safe-area-inset-top, 0px) + 12px) 14px 10px; }
 
   /* Backdrop stays in the DOM only to catch clicks-outside-the-drawer
