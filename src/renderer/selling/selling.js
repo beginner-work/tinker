@@ -3,6 +3,13 @@
   "use strict";
   var TOKEN_KEY = "tinker_jwt";
   var RETURN_KEY = "tinker_mcp_return";
+  var FIXED_STAGES = [
+    { key: "hook", name: "Hook", description: "A line or short story that makes someone curious." },
+    { key: "proof_point", name: "Proof point", description: "One claim with a starting point, a number, and a cause (from X to Y because Z)." },
+    { key: "connecting_story", name: "Connecting story", description: "The thread through your path, in lengths from one line to a paragraph." },
+    { key: "fit", name: "Fit", description: "Why you for a particular kind of team or role." },
+    { key: "ask", name: "Ask", description: "The specific, low-friction request at the end." },
+  ];
   var excerptApi = window.tinkerSellingExcerpt || {};
   var listEl = document.getElementById("selling-list");
   var stageEl = document.getElementById("selling-stage");
@@ -12,11 +19,11 @@
   var tabBoard = document.getElementById("tab-board");
   var tabStages = document.getElementById("tab-stages");
   var view = "sources";
-  var stages = [];
+  var stages = FIXED_STAGES.slice();
   var parts = [];
   var sources = [];
   var selectedSource = null;
-  var filter = { topic: "", status: "", sourceKind: "", stack: "", concepts: "" };
+  var filter = { stage: "", concepts: "", status: "" };
   var sourceText = "";
   function token() {
     try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (err) { return ""; }
@@ -34,15 +41,6 @@
     if (className) node.className = className;
     if (text != null) node.textContent = text;
     return node;
-  }
-  function whenPt(iso) {
-    if (!iso) return "—";
-    var d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleString("en-US", {
-      month: "short", day: "numeric", year: "numeric",
-      hour: "numeric", minute: "2-digit", timeZone: "America/Los_Angeles",
-    }) + " PT";
   }
   function authHeaders(json) {
     var headers = { Authorization: "Bearer " + token() };
@@ -66,7 +64,7 @@
     opts = opts || {};
     var url = "/api/selling-parts?action=" + encodeURIComponent(action || "");
     if (opts.id) url += "&id=" + encodeURIComponent(opts.id);
-    ["stage", "topic", "status", "sourceKind", "stack", "concepts"].forEach(function (key) {
+    ["stage", "status", "concepts"].forEach(function (key) {
       if (opts[key]) url += "&" + key + "=" + encodeURIComponent(opts[key]);
     });
     var init = { method: method, headers: authHeaders(!!opts.body) };
@@ -91,7 +89,7 @@
     showList();
     renderList();
     if (next === "board") renderBoard();
-    else if (next === "stages") renderStagesEditor();
+    else if (next === "stages") renderStages();
     else stageEl.replaceChildren(el("p", "selling__empty", "Pick a source, or start a part from scratch."));
   }
   function sourceLabel(item) {
@@ -139,13 +137,6 @@
       if (view === "sources") renderList();
     });
   }
-  function loadStages() {
-    return api("GET", "stages").then(function (result) {
-      if (handleAuth(result)) return;
-      if (result.status !== 200) { setStatus((result.body && result.body.error) || "Could not load stages."); return; }
-      stages = result.body.stages || [];
-    });
-  }
   function loadParts() {
     return api("GET", "list", filter).then(function (result) {
       if (handleAuth(result)) return;
@@ -178,7 +169,6 @@
         btn.type = "button";
         btn.appendChild(el("span", "selling__name", part.title || "(untitled)"));
         btn.appendChild(el("span", "selling__meta", part.stageKey + " · " + part.status + ((part.concepts || []).length ? " · " + part.concepts.join(", ") : "")));
-        if (part.sourceChanged) btn.appendChild(el("span", "selling__chip", "source changed"));
         btn.addEventListener("click", function () { openPart(part.id); });
         li.appendChild(btn);
         listEl.appendChild(li);
@@ -187,8 +177,8 @@
     }
     stages.forEach(function (stage) {
       var li = document.createElement("li");
-      li.appendChild(el("span", "selling__name", (stage.retired ? "(retired) " : "") + stage.name));
-      li.appendChild(el("span", "selling__meta", stage.key + " · position " + stage.position));
+      li.appendChild(el("span", "selling__name", stage.name));
+      li.appendChild(el("span", "selling__meta", stage.key));
       listEl.appendChild(li);
     });
   }
@@ -231,7 +221,7 @@
     showDetail();
   }
   function stageOptions(select, selected) {
-    stages.filter(function (s) { return !s.retired || s.key === selected; }).forEach(function (stage) {
+    stages.forEach(function (stage) {
       var opt = document.createElement("option");
       opt.value = stage.key;
       opt.textContent = stage.name;
@@ -349,14 +339,12 @@
         return;
       }
       var part = result.body.part;
-      var events = result.body.events || [];
       var wrap = document.createElement("div");
       wrap.appendChild(backButton());
       wrap.appendChild(el("h2", "selling__panel-title", part.title || "(untitled)"));
       var meta = part.stageKey + " · " + part.status + " · " + part.sourceKind;
       if (part.sourceId) meta += " · " + part.sourceId;
       wrap.appendChild(el("p", "selling__meta", meta));
-      if (part.sourceChanged) wrap.appendChild(el("span", "selling__chip", "source changed"));
       renderPartForm(part, wrap);
       var statusRow = el("div", "selling__actions");
       ["draft", "ready", "retired"].forEach(function (status) {
@@ -384,14 +372,6 @@
         statusRow.appendChild(btn);
       });
       wrap.appendChild(statusRow);
-      wrap.appendChild(el("h3", "selling__section", "Audit trail"));
-      if (!events.length) wrap.appendChild(el("p", "selling__meta", "No events yet."));
-      events.forEach(function (event) {
-        var row = el("div", "selling__event");
-        row.appendChild(el("span", null, (event.actor || "") + " · " + (event.action || "")));
-        row.appendChild(el("span", null, whenPt(event.at)));
-        wrap.appendChild(row);
-      });
       stageEl.replaceChildren(wrap);
       showDetail();
     }).catch(function () { setStatus("Could not load part."); });
@@ -401,18 +381,14 @@
     wrap.appendChild(backButton());
     wrap.appendChild(el("h2", "selling__panel-title", "Parts board"));
     var board = el("div", "selling__board");
-    var active = stages.filter(function (s) { return !s.retired; }).concat(
-      stages.filter(function (s) { return s.retired && parts.some(function (p) { return p.stageKey === s.key; }); })
-    );
-    active.forEach(function (stage) {
+    stages.forEach(function (stage) {
       var col = el("section", "selling__column");
-      col.appendChild(el("h3", null, stage.name + (stage.retired ? " (retired)" : "")));
+      col.appendChild(el("h3", null, stage.name));
       parts.filter(function (p) { return p.stageKey === stage.key; }).forEach(function (part) {
         var card = el("button", "selling__card");
         card.type = "button";
         card.appendChild(el("span", "selling__name", part.title || "(untitled)"));
         card.appendChild(el("span", "selling__meta", part.status + (part.sourceId ? " · " + part.sourceKind : "")));
-        if (part.sourceChanged) card.appendChild(el("span", "selling__chip", "source changed"));
         card.addEventListener("click", function () { openPart(part.id); });
         col.appendChild(card);
       });
@@ -434,15 +410,13 @@
         filtersEl.appendChild(btn);
       });
     }
+    addFilter("All stages", "stage", [""].concat(stages.map(function (s) { return s.key; })));
     addFilter("All status", "status", ["", "draft", "ready", "retired"]);
-    addFilter("All sources", "sourceKind", ["", "note", "concept", "narrative", "content_item", "career_record", "code", "none"]);
-    var stacks = []; var conceptTags = [];
+    var conceptTags = [];
     parts.forEach(function (part) {
-      (part.stack || []).forEach(function (tag) { if (stacks.indexOf(tag) < 0) stacks.push(tag); });
       (part.concepts || []).forEach(function (tag) { if (conceptTags.indexOf(tag) < 0) conceptTags.push(tag); });
     });
     addFilter("All concepts", "concepts", [""].concat(conceptTags));
-    addFilter("All stack", "stack", [""].concat(stacks));
   }
   filtersEl.addEventListener("click", function (event) {
     var btn = event.target.closest("[data-key]");
@@ -450,88 +424,24 @@
     filter[btn.getAttribute("data-key")] = btn.getAttribute("data-value") || "";
     loadParts();
   });
-  function renderStagesEditor() {
+  function renderStages() {
     var wrap = document.createElement("div");
     wrap.appendChild(backButton());
     wrap.appendChild(el("h2", "selling__panel-title", "Stages"));
-    wrap.appendChild(el("p", "selling__meta", "Rename, reorder, add, or retire. Existing parts stay readable."));
-    var form = el("form", "selling__form");
-    var rows = stages.map(function (stage) { return Object.assign({}, stage); });
-    function draw() {
-      form.replaceChildren();
-      rows.sort(function (a, b) { return a.position - b.position; }).forEach(function (stage, index) {
-        form.appendChild(el("label", "selling__label", stage.key));
-        var name = el("input", "selling__input");
-        name.value = stage.name;
-        name.addEventListener("input", function () { stage.name = name.value; });
-        form.appendChild(name);
-        var desc = el("input", "selling__input");
-        desc.value = stage.description || "";
-        desc.placeholder = "description";
-        desc.addEventListener("input", function () { stage.description = desc.value; });
-        form.appendChild(desc);
-        var actions = el("div", "selling__actions");
-        var up = el("button", "selling__ghost", "Up");
-        up.type = "button";
-        up.addEventListener("click", function () {
-          if (index === 0) return;
-          var prev = rows[index - 1];
-          var tmp = stage.position; stage.position = prev.position; prev.position = tmp;
-          draw();
-        });
-        var down = el("button", "selling__ghost", "Down");
-        down.type = "button";
-        down.addEventListener("click", function () {
-          if (index >= rows.length - 1) return;
-          var next = rows[index + 1];
-          var tmp = stage.position; stage.position = next.position; next.position = tmp;
-          draw();
-        });
-        var retire = el("button", "selling__ghost", stage.retired ? "Restore" : "Retire");
-        retire.type = "button";
-        retire.addEventListener("click", function () { stage.retired = !stage.retired; draw(); });
-        actions.appendChild(up); actions.appendChild(down); actions.appendChild(retire);
-        form.appendChild(actions);
-      });
-      form.appendChild(el("label", "selling__label", "Add stage key"));
-      var key = el("input", "selling__input");
-      key.placeholder = "new_stage";
-      form.appendChild(key);
-      form.appendChild(el("label", "selling__label", "Name"));
-      var newName = el("input", "selling__input");
-      form.appendChild(newName);
-      var add = el("button", "selling__ghost", "Add stage");
-      add.type = "button";
-      add.addEventListener("click", function () {
-        if (!key.value.trim() || !newName.value.trim()) { setStatus("Key and name are required."); return; }
-        rows.push({ key: key.value.trim(), name: newName.value.trim(), description: "", position: rows.length, retired: false });
-        draw();
-      });
-      form.appendChild(add);
-      var save = el("button", "selling__btn", "Save stages");
-      save.type = "submit";
-      form.appendChild(save);
-    }
-    form.addEventListener("submit", function (event) {
-      event.preventDefault();
-      api("POST", "stages", { body: { stages: rows } }).then(function (result) {
-        if (handleAuth(result)) return;
-        if (result.status !== 200) { setStatus((result.body && result.body.error) || "Could not save stages."); return; }
-        stages = result.body.stages || [];
-        setStatus("");
-        renderList();
-        renderStagesEditor();
-      }).catch(function () { setStatus("Could not save stages."); });
+    wrap.appendChild(el("p", "selling__meta", "Fixed set. Read-only."));
+    stages.forEach(function (stage) {
+      var card = el("div", "selling__card");
+      card.appendChild(el("span", "selling__name", stage.name));
+      card.appendChild(el("span", "selling__meta", stage.key + " — " + stage.description));
+      wrap.appendChild(card);
     });
-    wrap.appendChild(form);
     stageEl.replaceChildren(wrap);
-    draw();
     showDetail();
   }
   tabSources.addEventListener("click", function () { setTab("sources"); });
   tabBoard.addEventListener("click", function () { setTab("board"); loadParts(); });
   tabStages.addEventListener("click", function () { setTab("stages"); });
-  Promise.all([loadStages(), loadSources(), loadParts()]).then(function () {
+  Promise.all([loadSources(), loadParts()]).then(function () {
     setTab("sources");
   }).catch(function () { setStatus("Could not load selling parts."); });
 })();
