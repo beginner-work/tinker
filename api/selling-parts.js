@@ -45,19 +45,16 @@ async function resolve(req) {
   const userId = userIdFromSession(session);
   if (!userId) throw Object.assign(new Error("Session missing user id."), { status: 401 });
   const who = (sessionIdentity(session).emails[0] || userId).slice(0, 180);
-  return { userId, actor: { kind: "human", label: "tyler:" + who } };
+  return { userId, actor: { kind: "human", label: "user:" + who } };
 }
 async function dispatch(method, action, auth, body, req) {
   const { userId, actor } = auth;
   const id = (typeof body.id === "string" && body.id.trim()) || queryValue(req, "id");
-  if (method === "GET" && action === "stages") return { status: 200, body: { stages: await store.getStages({ userId }) } };
-  if (method === "POST" && action === "stages") {
-    return { status: 200, body: { stages: await store.updateStages({ userId, stages: body.stages }) } };
-  }
+  if (method === "GET" && action === "stages") return { status: 200, body: { stages: store.getStages() } };
   if (method === "GET" && (action === "list" || action === "")) {
     const parts = await store.listParts({
       userId, stage: queryValue(req, "stage"), topic: queryValue(req, "topic"), status: queryValue(req, "status"),
-      sourceKind: queryValue(req, "sourceKind"), stack: queryValue(req, "stack"), concepts: queryValue(req, "concepts"),
+      sourceKind: queryValue(req, "sourceKind"), concepts: queryValue(req, "concepts"),
     });
     return { status: 200, body: { parts: parts.map(store.presentPart) } };
   }
@@ -65,8 +62,7 @@ async function dispatch(method, action, auth, body, req) {
     return { status: 200, body: { part: store.presentPart(await store.getPart({ id, userId })) } };
   }
   if (method === "POST" && action === "create") {
-    const result = await store.createPart(Object.assign({ userId, actor }, body));
-    return { status: result.created ? 201 : 200, body: { created: result.created, part: store.presentPart(result.row) } };
+    return { status: 201, body: { part: store.presentPart(await store.createPart(Object.assign({ userId, actor }, body))) } };
   }
   if (method === "PATCH" && (action === "edit" || action === "")) {
     return { status: 200, body: { part: store.presentPart(await store.updatePart({ id, userId, actor, patch: body })) } };

@@ -108,28 +108,22 @@ test("migration matches and messaging is gone", () => {
   assert.equal(schema.includes("model Messaging"), false);
   const source = fs.readFileSync(path.join(libDir, "selling-parts-store.js"), "utf8")
     + fs.readFileSync(path.join(root, "api/selling-parts.js"), "utf8") + migration + schema;
-  for (const word of ["MessagingContact", "doNotContact", "pending_approval", "apollo", "sendgrid"]) {
+  for (const word of ["MessagingContact", "doNotContact", "pending_approval", "apollo", "sendgrid", "sourceChanged", "selling-stages", "tyler:"]) {
     assert.equal(source.includes(word), false, word);
   }
+  assert.equal(migration.includes("draftKey"), false);
+  assert.equal(fs.readFileSync(path.join(libDir, "selling-parts-store.js"), "utf8").includes("draftKey"), false);
   const emails = fs.readFileSync(__filename, "utf8").match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
   assert.ok(emails.length > 0 && emails.every((email) => email.endsWith("@example.com")));
 });
 
-test("stages seed, and a part stays readable on a retired stage", async () => {
+test("stages are a fixed list", async () => {
   const first = await call({ method: "GET", action: "stages" });
-  assert.deepEqual(first.body.stages.map((stage) => stage.key), ["hook", "proof_point", "connecting_story", "fit", "ask"]);
+  assert.deepEqual(first.body.stages.map((stage) => stage.key), store.STAGES.map((stage) => stage.key));
   assert.match(first.body.stages[0].description, /curious/);
-  const again = await call({ method: "GET", action: "stages" });
-  assert.equal(tables.tinkerUserData.rows.length, 1);
-  assert.equal(again.body.stages.length, 5);
-  const stages = first.body.stages.map((stage) => ({ ...stage }));
-  stages[0] = { ...stages[0], name: "Opening" };
-  stages[4] = { ...stages[4], retired: true };
-  const added = { key: "close", name: "Close", description: "A last line.", position: 1, retired: false };
-  const saved = await call({ method: "POST", action: "stages", body: { stages: stages.concat(added) } });
-  assert.equal(saved.body.stages.find((stage) => stage.key === "hook").name, "Opening");
-  assert.equal(saved.body.stages.find((stage) => stage.key === "ask").retired, true);
-  assert.ok(saved.body.stages.some((stage) => stage.key === "close"));
+  assert.doesNotMatch(first.body.stages[2].description, /Tyler|nanoengineering/);
+  assert.equal(tables.tinkerUserData.rows.length, 0);
+  assert.equal((await call({ method: "POST", action: "stages", body: { stages: [] } })).status, 400);
   const created = await call({ method: "POST", action: "create", body: { stageKey: "ask", title: "The ask", body: "Fifteen minutes.", topics: ["intro"], sourceKind: "none" } });
   assert.equal(created.status, 201);
   const read = await call({ method: "GET", action: "part", query: { id: created.body.part.id } });
@@ -138,44 +132,34 @@ test("stages seed, and a part stays readable on a retired stage", async () => {
 });
 
 test("a note becomes a part, edits demote ready, and another user gets 404", async () => {
-  tables.tinkerUserData.rows.push({
-    id: "blob", userId: "user-a", kind: "drafts",
-    data: [{ id: "note-1", title: "Fintech note", body: "The whole note stays in drafts. " + "x".repeat(80) }],
-  });
   const created = await call({
     method: "POST",
     action: "create",
     body: {
       stageKey: "hook", title: "Curious line", body: "A short hook.", topics: ["fintech", "developers"],
-      sourceKind: "note", sourceId: "note-1", sourceExcerpt: "The whole note stays", draftKey: "part-1",
+      sourceKind: "note", sourceId: "note-1", sourceExcerpt: "The whole note stays", sourceHash: "abc123",
       fields: { start: "no", number: "1", cause: "no" },
     },
   });
   assert.equal(created.status, 201);
   assert.equal(created.body.part.status, "draft");
   assert.equal(created.body.part.sourceExcerpt, "The whole note stays");
-  assert.notEqual(created.body.part.body, tables.tinkerUserData.rows[0].data[0].body);
-  assert.equal(created.body.part.sourceChanged, undefined);
-  const same = await call({ method: "POST", action: "create", body: { stageKey: "hook", title: "Again", sourceKind: "none", draftKey: "part-1" } });
-  assert.equal(same.body.created, false);
-  assert.equal(same.body.part.id, created.body.part.id);
+  assert.equal(created.body.part.sourceHash, "abc123");
+  assert.equal(created.body.part.body, "A short hook.");
   const id = created.body.part.id;
   const listed = await call({ method: "GET", action: "list", query: { stage: "hook", topic: "fintech", sourceKind: "note" } });
   assert.deepEqual(listed.body.parts.map((part) => part.id), [id]);
   const ready = await call({ method: "POST", action: "status", body: { id, status: "ready" } });
   assert.equal(ready.body.part.status, "ready");
-  assert.equal(ready.body.event.actor, "tyler:tyler@example.com");
+  assert.equal(ready.body.event.actor, "user:tyler@example.com");
   assert.match(ready.body.event.at, /^\d{4}-\d{2}-\d{2}T/);
   const edited = await call({ method: "PATCH", action: "edit", body: { id, body: "A tighter hook." } });
   assert.equal(edited.body.part.status, "draft");
   assert.equal(edited.body.part.body, "A tighter hook.");
-  tables.tinkerUserData.rows[0].data[0].body = "The note moved on.";
-  const reread = await call({ method: "GET", action: "part", query: { id } });
-  assert.equal(reread.body.part.sourceChanged, true);
   const actions = tables.sellingPartEvent.rows.map((row) => row.action);
   assert.deepEqual(actions, ["created", "ready", "edited"]);
   for (const row of tables.sellingPartEvent.rows) {
-    assert.equal(row.actor, "tyler:tyler@example.com"); assert.ok(row.at instanceof Date);
+    assert.equal(row.actor, "user:tyler@example.com"); assert.ok(row.at instanceof Date);
   }
   assert.equal((await call({ method: "GET", token: "user-b", action: "part", query: { id } })).status, 404);
   assert.deepEqual((await call({ method: "GET", token: "user-b", action: "list" })).body.parts, []);
@@ -185,7 +169,6 @@ test("a note becomes a part, edits demote ready, and another user gets 404", asy
   assert.deepEqual(code.body.part.stack, ["typescript", "prisma", "mcp"]);
   assert.deepEqual(code.body.part.concepts, ["idempotency", "event-driven"]);
   assert.deepEqual(code.body.part.sourceRef, { repo: "example/widget", path: "api/store.js", ref: "12", evidence: ["api/store.js", "api/keys.js"] });
-  const found = await call({ method: "GET", action: "list", query: { stack: "Prisma", concepts: "Event Driven", sourceKind: "code" } });
+  const found = await call({ method: "GET", action: "list", query: { stack: "not-a-stack", concepts: "Event Driven", sourceKind: "code" } });
   assert.deepEqual(found.body.parts.map((part) => part.id), [code.body.part.id]);
-  assert.equal(found.body.parts[0].sourceChanged, null);
 });
