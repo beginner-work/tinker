@@ -187,6 +187,7 @@
     if (!pane || !state.lead) return;
     var nameEl = pane.querySelector("[data-messages-name]");
     var role = pane.querySelector("[data-messages-role]");
+    var avatar = pane.querySelector("[data-messages-avatar]");
     var lead = state.lead;
     var name = String(lead.personName || "").trim() || "Someone";
     if (nameEl) nameEl.textContent = name;
@@ -197,6 +198,11 @@
       var line = bits.join(" ");
       role.hidden = !line;
       role.textContent = line ? " · " + line : "";
+    }
+    if (avatar) {
+      avatar.hidden = true;
+      avatar.innerHTML = "";
+      avatar.classList.remove("messages-avatar--photo");
     }
   }
   function openDraft(id) {
