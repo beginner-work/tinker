@@ -365,6 +365,17 @@
       metaNode: buildOpening(state.lead, state.company),
       onInput: function (value) {
         state.notes = value;
+        // Debounced write into the local notes folder when one is chosen.
+        if (window.tinkerNotesFolder && state.lead) {
+          window.tinkerNotesFolder.scheduleWrite({
+            id: state.leadId,
+            personName: state.lead.personName,
+            companyName: (state.company && state.company.name) || state.lead.company || "",
+            companyId: state.lead.companyId || (state.company && state.company.id) || "",
+            body: value,
+            updatedAt: new Date().toISOString(),
+          });
+        }
       },
       onPrimary: function () { saveNotes("done"); },
       onSecondary: function () { saveNotes("keep"); },
@@ -415,10 +426,20 @@
       }
       // Done with notes: surface the composed review card when Clair has one.
       if (mode === "done" && state.draftId) state.reviewing = true;
-      mountNotepad();
-      if (window.tinkerMessagesShell && window.tinkerMessagesShell.refresh) {
-        window.tinkerMessagesShell.refresh();
+      if (window.tinkerMessagesThread && state.leadId) window.tinkerMessagesThread.loadLead(state.leadId);
+      if (window.tinkerMessagesShell && window.tinkerMessagesShell.refresh) window.tinkerMessagesShell.refresh();
+      if (window.tinkerLeadDrafts && window.tinkerLeadDrafts.refresh) window.tinkerLeadDrafts.refresh();
+      if (window.tinkerNotesFolder && state.lead) {
+        window.tinkerNotesFolder.scheduleWrite({
+          id: state.leadId,
+          personName: state.lead.personName,
+          companyName: (state.company && state.company.name) || state.lead.company || "",
+          companyId: state.lead.companyId || (state.company && state.company.id) || "",
+          body: state.notes,
+          updatedAt: new Date().toISOString(),
+        });
       }
+      mountNotepad();
     }).catch(function () {
       mountNotepad();
     }).finally(function () {
@@ -551,9 +572,17 @@
     window.addEventListener("tinker:messages-select", onSelect);
   }
 
+  function applyImportedBody(leadId, body) {
+    if (!leadId || leadId !== state.leadId) return;
+    state.notes = body || "";
+    if (state.lead) state.lead.notes = state.notes;
+    mountNotepad();
+  }
+
   window.tinkerMessagesComposer = {
     setLead: setLead,
     setYouMode: setYouMode,
+    applyImportedBody: applyImportedBody,
     refreshParts: function () { return Promise.resolve(); },
     isSendable: isSendable,
     CHANNELS: CHANNELS,
