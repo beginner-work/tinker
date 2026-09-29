@@ -16,12 +16,8 @@
     { "source": "/mcp/access", "destination": "/api/mcp-oauth?op=access" },
     { "source": "/api/autonomy/:key", "destination": "/api/autonomy?key=:key" },
     { "source": "/api/career/:action", "destination": "/api/career?action=:action" },
-<<<<<<< HEAD
     { "source": "/api/story-parts/:action", "destination": "/api/story-parts?action=:action" },
-=======
-    { "source": "/api/selling-parts/:action", "destination": "/api/selling-parts?action=:action" },
     { "source": "/api/leads/:action", "destination": "/api/leads?action=:action" },
->>>>>>> 8cde882 (TYL-62: Add leads data model, store, and owner API)
     { "source": "/api/sites/:site/content", "destination": "/api/content-public?site=:site" },
     { "source": "/api/sites/:site/content/:slug", "destination": "/api/content-public?site=:site&slug=:slug" },
     { "source": "/autonomy", "destination": "/autonomy/index.html" },
