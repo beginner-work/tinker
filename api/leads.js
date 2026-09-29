@@ -95,6 +95,20 @@ async function dispatch(method, action, auth, body, req) {
   if (method === "POST" && action === "settings") {
     return { status: 200, body: { settings: await store.setOutreachSettings({ userId, emailHint, patch: body }) } };
   }
+  const companies = require("./_lib/leads-companies-store.js");
+  if (method === "GET" && action === "companies") {
+    const rows = await companies.listCompanies({ userId, emailHint, status: queryValue(req, "status") });
+    return { status: 200, body: { companies: rows.map(companies.presentCompany) } };
+  }
+  if (method === "POST" && action === "company") {
+    return { status: 201, body: { company: companies.presentCompany(await companies.createCompany(Object.assign(base, body))) } };
+  }
+  if (method === "PATCH" && action === "company") {
+    return { status: 200, body: { company: companies.presentCompany(await companies.updateCompany({ id, userId, emailHint, actor, patch: body })) } };
+  }
+  if (method === "GET" && action === "funnel") {
+    return { status: 200, body: await companies.getFunnel({ userId, emailHint }) };
+  }
   throw Object.assign(new Error(action ? "Unknown action." : "Action is required."), { status: 400 });
 }
 

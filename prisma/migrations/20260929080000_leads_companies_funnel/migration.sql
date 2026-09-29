@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS "TargetCompany" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "name" TEXT NOT NULL, "domain" TEXT NOT NULL DEFAULT '', "northStar" BOOLEAN NOT NULL DEFAULT false, "status" TEXT NOT NULL, "totalComp" INTEGER, "totalCompSource" TEXT NOT NULL DEFAULT '', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "TargetCompany_pkey" PRIMARY KEY ("id"));
+CREATE INDEX IF NOT EXISTS "TargetCompany_userId_idx" ON "TargetCompany"("userId");
+CREATE INDEX IF NOT EXISTS "TargetCompany_userId_name_idx" ON "TargetCompany"("userId", "name");
+ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "companyId" TEXT;
+ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "contactType" TEXT NOT NULL DEFAULT 'other';
+ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "queueOrder" INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS "Lead_companyId_idx" ON "Lead"("companyId");

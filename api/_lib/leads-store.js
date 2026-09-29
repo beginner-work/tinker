@@ -20,6 +20,10 @@ const TABLE_STATEMENTS = [
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "fromAddress" TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE "LeadDraft" ALTER COLUMN "leadId" DROP NOT NULL`,
   `ALTER TABLE "LeadEvent" ALTER COLUMN "leadId" DROP NOT NULL`,
+  `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
+  `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "contactType" TEXT NOT NULL DEFAULT 'other'`,
+  `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "queueOrder" INTEGER NOT NULL DEFAULT 0`,
+  `CREATE INDEX IF NOT EXISTS "Lead_companyId_idx" ON "Lead"("companyId")`,
 ];
 const HEADER_MAP = {
   name: "personName", personname: "personName", person: "personName", title: "personTitle", persontitle: "personTitle",
@@ -124,7 +128,10 @@ async function readOutreachSettings(owner) {
   try { row = await db().tinkerUserData.findUnique({ where: { userId_kind: { userId: owner, kind: SETTINGS_KIND } } }); }
   catch (err) { throw storeDown(err); }
   const data = row && row.data && typeof row.data === "object" && !Array.isArray(row.data) ? row.data : {};
-  return { defaultFromAddress: typeof data.defaultFromAddress === "string" ? data.defaultFromAddress : "" };
+  return {
+    defaultFromAddress: typeof data.defaultFromAddress === "string" ? data.defaultFromAddress : "",
+    minTotalComp: data.minTotalComp == null || data.minTotalComp === "" || Number.isNaN(Number(data.minTotalComp)) ? null : Number(data.minTotalComp),
+  };
 }
 async function writeOutreachSettings(owner, patch) {
   const current = await readOutreachSettings(owner);
@@ -132,6 +139,13 @@ async function writeOutreachSettings(owner, patch) {
     defaultFromAddress: Object.prototype.hasOwnProperty.call(patch, "defaultFromAddress")
       ? readText(patch.defaultFromAddress, "defaultFromAddress", 320, false).toLowerCase()
       : current.defaultFromAddress,
+    minTotalComp: Object.prototype.hasOwnProperty.call(patch, "minTotalComp")
+      ? (patch.minTotalComp == null || patch.minTotalComp === "" ? null : (() => {
+        const n = typeof patch.minTotalComp === "number" ? patch.minTotalComp : Number(String(patch.minTotalComp).trim());
+        if (!Number.isInteger(n) || n < 0) throw fail(400, "minTotalComp must be a whole dollar amount.");
+        return n;
+      })())
+      : current.minTotalComp,
   };
   try {
     await db().tinkerUserData.upsert({
@@ -152,6 +166,14 @@ function leadFields(input, requireName) {
     targetRoleTitle: readText(input.targetRoleTitle, "targetRoleTitle", 200, false),
     postingUrl: readText(input.postingUrl, "postingUrl", 500, false),
     source: readEnum(input.source || "other", SOURCES, "source"),
+    contactType: readEnum(input.contactType || "other", ["referrer", "recruiter", "hiring_leader", "other"], "contactType"),
+    queueOrder: (() => {
+      if (input.queueOrder == null || input.queueOrder === "") return 0;
+      const n = typeof input.queueOrder === "number" ? input.queueOrder : Number(String(input.queueOrder).trim());
+      if (!Number.isInteger(n) || n < 0) throw fail(400, "queueOrder must be a non-negative integer.");
+      return n;
+    })(),
+    companyId: readText(input.companyId, "companyId", 64, false) || null,
     nextStep: readText(input.nextStep, "nextStep", 500, false),
     nextStepAt: readDate(input.nextStepAt, "nextStepAt"),
     notes: readText(input.notes, "notes", 8000, false),
@@ -217,7 +239,7 @@ async function updateLead({ id, userId, emailHint, actor, patch }) {
   assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
-  const keys = ["personName", "personTitle", "linkedInUrl", "email", "company", "targetRoleTitle", "postingUrl", "source", "nextStep", "nextStepAt", "notes"]
+  const keys = ["personName", "personTitle", "linkedInUrl", "email", "company", "companyId", "contactType", "queueOrder", "targetRoleTitle", "postingUrl", "source", "nextStep", "nextStepAt", "notes"]
     .filter((key) => Object.prototype.hasOwnProperty.call(source, key));
   if (!keys.length) throw fail(400, "Nothing to update.");
   await ensureTable();
@@ -225,6 +247,13 @@ async function updateLead({ id, userId, emailHint, actor, patch }) {
   const data = {};
   for (const key of keys) {
     if (key === "source") data.source = readEnum(source.source, SOURCES, "source");
+    else if (key === "contactType") data.contactType = readEnum(source.contactType, ["referrer", "recruiter", "hiring_leader", "other"], "contactType");
+    else if (key === "queueOrder") {
+      const n = typeof source.queueOrder === "number" ? source.queueOrder : Number(String(source.queueOrder).trim());
+      if (!Number.isInteger(n) || n < 0) throw fail(400, "queueOrder must be a non-negative integer.");
+      data.queueOrder = n;
+    }
+    else if (key === "companyId") data.companyId = readText(source.companyId, "companyId", 64, false) || null;
     else if (key === "nextStepAt") data.nextStepAt = readDate(source.nextStepAt, "nextStepAt");
     else if (key === "email") data.email = readText(source.email, "email", 320, false).toLowerCase();
     else if (key === "personName") data.personName = readText(source.personName, "personName", 200, true);
@@ -314,10 +343,16 @@ async function importLeads({ userId, emailHint, actor, text }) {
     try { existing = await tx.lead.findMany({ where: { userId: owner } }); }
     catch (err) { throw storeDown(err); }
     const byKey = new Map(existing.map((row) => [dedupeKey(row.personName, row.company), row]));
+    const companies = require("./leads-companies-store.js");
+    await companies.ensureTable();
     const out = [];
     for (const row of rows) {
       const fields = leadFields(row, true);
       const stage = row.stage == null || row.stage === "" ? "new" : readEnum(row.stage, STAGES, "stage");
+      if (fields.company || row.domain || row.companyDomain) {
+        const matched = await companies.matchOrCreateCompany(tx, owner, { name: fields.company, domain: row.domain || row.companyDomain || "" });
+        if (matched) fields.companyId = matched.id;
+      }
       const key = dedupeKey(fields.personName, fields.company);
       const prior = byKey.get(key);
       let saved;
