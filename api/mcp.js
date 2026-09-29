@@ -44,6 +44,7 @@ const { UNAVAILABLE: CAREER_UNAVAILABLE, readForTool, shapeForTool } = require("
 const { checkText } = require("./_lib/career-check.js");
 const contentStore = require("./_lib/content-store.js");
 const storyParts = require("./_lib/story-parts-store.js");
+const gmailQueueMcp = require("./_lib/gmail-queue-mcp.js");
 const pkg = require("../package.json");
 
 const SUPPORTED_PROTOCOLS = ["2025-03-26", "2025-06-18"];
@@ -76,6 +77,10 @@ const INSTRUCTIONS = [
   "Call get_story_part with an id to read one part. Someone else's id returns an error and no part.",
   "Story parts are the user's approved wording for pasting into Formation drafts. Tinker does not draft or send outreach.",
   "Story-part tools are read-only. They do not mark parts ready, edit parts, or change stages.",
+  "For Gmail outreach: the owner presses Send in Tinker to queue a message. Call list_send_queue to see queued",
+  "Gmail messages (to, subject, body, lead). Send each through the owner's Gmail connector, then mark_sent or",
+  "mark_send_failed. Call add_reply when a reply arrives on a Tinker-started thread (dedupe on gmailMessageId).",
+  "No MCP tool can queue or approve a send. LinkedIn stays draft only.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -531,6 +536,7 @@ const TOOLS = [
   GET_STORY_PART_TOOL,
   GET_OUTREACH_SCHEDULE_TOOL,
   SET_BUSY_TIMES_TOOL,
+  ...gmailQueueMcp.TOOLS,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -929,11 +935,15 @@ async function handleRpc(msg, user) {
       && name !== "get_story_part"
       && name !== "get_outreach_schedule"
       && name !== "set_busy_times"
+      && !gmailQueueMcp.TOOL_NAMES.has(name)
     ) {
       return {
         status: 200,
         body: rpcOk(msg.id, toolError(`Unknown tool: ${name || "(missing)"}`)),
       };
+    }
+    if (gmailQueueMcp.TOOL_NAMES.has(name)) {
+      return gmailQueueMcp.callTool(msg, user, name, args);
     }
     if (name === "get_autonomy_settings") {
       return autonomyCall(msg, user);

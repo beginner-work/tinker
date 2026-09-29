@@ -573,10 +573,102 @@ async function setOutreachSettings({ userId, emailHint, patch }) {
   return writeOutreachSettings(owner, patch || {});
 }
 
+/** MCP: queued Gmail messages for this owner. */
+async function listSendQueue({ userId, emailHint }) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  await ensureTable();
+  let drafts;
+  let leads;
+  try {
+    drafts = await db().leadDraft.findMany({ where: { userId: owner, status: "queued_to_send" } });
+    leads = await db().lead.findMany({ where: { userId: owner } });
+  } catch (err) { throw storeDown(err); }
+  const byId = new Map(leads.map((lead) => [lead.id, lead]));
+  return drafts
+    .filter((d) => d.channel === "gmail_outreach")
+    .sort((a, b) => new Date(a.queuedAt || a.updatedAt) - new Date(b.queuedAt || b.updatedAt))
+    .map((d) => {
+      const lead = d.leadId ? byId.get(d.leadId) : null;
+      return {
+        messageId: d.id,
+        to: d.queuedTo || (lead && lead.email) || "",
+        subject: d.queuedSubject != null ? d.queuedSubject : (d.subject || ""),
+        body: d.queuedBody != null && d.queuedBody !== "" ? d.queuedBody : (d.body || ""),
+        fromAddress: d.fromAddress || "",
+        queuedAt: iso(d.queuedAt),
+        gmailThreadId: d.gmailThreadId || "",
+        lead: lead ? {
+          id: lead.id,
+          personName: lead.personName || "",
+          email: lead.email || "",
+          company: lead.company || "",
+        } : null,
+      };
+    });
+}
+
+/** MCP: assistant reports a successful Gmail send. */
+async function markDraftSentByAssistant({ userId, emailHint, messageId, gmailMessageId, gmailThreadId, sentAt }) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  await ensureTable();
+  const row = await loadOwned("leadDraft", messageId, owner, "draft");
+  if (row.channel !== "gmail_outreach") throw fail(400, "Only Gmail drafts can be marked sent by the assistant.");
+  if (row.status !== "queued_to_send") throw fail(400, "Only a queued message can be marked sent.");
+  const gMsg = readText(gmailMessageId, "gmailMessageId", 200, true);
+  const gThread = readText(gmailThreadId, "gmailThreadId", 200, true);
+  const at = sentAt ? readDate(sentAt, "sentAt") : new Date();
+  const lead = row.leadId ? await loadOwned("lead", row.leadId, owner, "lead") : null;
+  return commit(async (tx) => {
+    const saved = await tx.leadDraft.update({
+      where: { id: row.id },
+      data: {
+        status: "sent_by_owner",
+        gmailMessageId: gMsg,
+        gmailThreadId: gThread,
+        sendFailedReason: "",
+        updatedAt: at,
+      },
+    });
+    let updatedLead = lead;
+    if (lead && (lead.stage === "new" || lead.stage === "drafting")) {
+      updatedLead = await tx.lead.update({ where: { id: lead.id }, data: { stage: "contacted" } });
+    }
+    const event = await record(tx, {
+      userId: owner, leadId: lead ? lead.id : null, actor: "bot:mcp", action: "draft_sent_via_assistant",
+      detail: { draftId: row.id, gmailMessageId: gMsg, gmailThreadId: gThread, sentAt: iso(at) },
+    });
+    return { draft: saved, lead: updatedLead, event };
+  });
+}
+
+/** MCP: assistant reports a send failure. */
+async function markDraftSendFailed({ userId, emailHint, messageId, reason }) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  await ensureTable();
+  const row = await loadOwned("leadDraft", messageId, owner, "draft");
+  if (row.status !== "queued_to_send") throw fail(400, "Only a queued message can be marked failed.");
+  const why = readText(reason, "reason", 2000, true);
+  return commit(async (tx) => {
+    const saved = await tx.leadDraft.update({
+      where: { id: row.id },
+      data: { status: "send_failed", sendFailedReason: why },
+    });
+    const event = await record(tx, {
+      userId: owner, leadId: row.leadId, actor: "bot:mcp", action: "draft_send_failed",
+      detail: { draftId: row.id, reason: why },
+    });
+    return { draft: saved, event };
+  });
+}
+
 module.exports = {
   UNAVAILABLE, TABLE_STATEMENTS, SOURCES, STAGES, OUTCOMES, CHANNELS, DRAFT_STATUSES,
   ensureTable, resetTableCache, assertAllowed, presentLead: shape, presentDraft: shape, presentEvent: shape,
   parseImportText, createLead, listLeads, getLead, listDrafts, updateLead, setStage, importLeads,
   createDraft, updateDraft, approveDraft, markDraftSent, queueDraftForSend,
+  listSendQueue, markDraftSentByAssistant, markDraftSendFailed,
   getOutreachSettings, setOutreachSettings,
 };

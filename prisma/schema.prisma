@@ -194,6 +194,22 @@ model LeadEvent {
   @@index([leadId])
 }
 
+// Replies the assistant synced from Gmail via MCP add_reply (TYL-66).
+model LeadReply {
+  id             String   @id @default(cuid())
+  userId         String
+  leadId         String
+  gmailThreadId  String   @default("")
+  gmailMessageId String   @default("")
+  fromAddress    String   @default("")
+  body           String   @default("")
+  receivedAt     DateTime
+  createdAt      DateTime @default(now())
+  @@unique([userId, gmailMessageId])
+  @@index([userId, leadId])
+  @@index([userId, gmailThreadId])
+}
+
 model TargetCompany {
   id              String   @id @default(cuid())
   userId          String

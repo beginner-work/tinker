@@ -58,7 +58,16 @@ async function dispatch(method, action, auth, body, req) {
   }
   if (method === "GET" && action === "lead") {
     const found = await store.getLead({ id, userId, emailHint });
-    return { status: 200, body: { lead: store.presentLead(found.lead), drafts: found.drafts.map(store.presentDraft) } };
+    const replyStore = require("./_lib/lead-replies-store.js");
+    const replyRows = await replyStore.listForLead({ userId, leadId: found.lead.id });
+    return {
+      status: 200,
+      body: {
+        lead: Object.assign(store.presentLead(found.lead), { replies: replyRows }),
+        drafts: found.drafts.map(store.presentDraft),
+        replies: replyRows,
+      },
+    };
   }
   if (method === "GET" && action === "drafts") {
     const rows = await store.listDrafts({
