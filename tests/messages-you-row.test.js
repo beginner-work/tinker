@@ -61,6 +61,24 @@ test("You-mode writing sits in normal flow under the pane header", () => {
   assert.equal(/—/.test(demo), false);
 });
 
+test("You interview question clears the mobile hamburger and stays full ink contrast", () => {
+  assert.match(css, /color:\s*var\(--color-ink/);
+  assert.match(
+    css,
+    /body\.messages-you-active[\s\S]*writing-question[\s\S]*opacity:\s*1/
+  );
+  // Must not leave the prompt under the fixed 48px drawer-toggle.
+  const mobileYou = css.match(
+    /@media \(max-width:\s*540px\)\s*\{[\s\S]*?body\.messages-you-active\.messages-mobile-thread \.writing--in-messages \.writing__body\s*\{([^}]+)\}/
+  );
+  assert.ok(mobileYou, "expected ≤540px You writing__body clearance rule");
+  assert.match(mobileYou[1], /padding-left:\s*68px/);
+  assert.match(
+    css,
+    /html\.pwa-hint-visible body\.messages-you-active\.messages-mobile-thread[\s\S]*padding-top:\s*72px/
+  );
+});
+
 test("owner notepad is borderless and floating actions replace composer + mode-nav", () => {
   assert.match(css, /body\.messages-you-active \.writing--in-messages \.writing-input/);
   assert.match(css, /border:\s*0\s*!important/);

@@ -910,6 +910,8 @@ body.messages-you-active .writing--in-messages .writing-card {
   flex-direction: column;
   flex: 1;
   min-height: min(70vh, 36rem);
+  /* forwards keeps the settled card at opacity:1 (not mid fade-up). */
+  animation: fade-up 0.28s ease forwards;
 }
 body.messages-you-active .writing--in-messages .writing-question {
   display: block;
@@ -924,7 +926,9 @@ body.messages-you-active .writing--in-messages .writing-question {
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.25;
-  color: var(--color-foreground);
+  /* Full ink contrast — muted/faded heading reads as broken on the notepad. */
+  color: var(--color-ink, #1a1a1a);
+  opacity: 1;
 }
 /* Invisible notepad: caret starts under the opening, grows with the page. */
 body.messages-you-active .writing--in-messages .writing-input {
@@ -1033,6 +1037,22 @@ body.messages-you-active .writing--in-messages .writing__next {
   body.messages-you-active.messages-mobile-thread .writing--in-messages .writing__foot {
     left: 50%;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  }
+}
+/* Hamburger is fixed at left:safe+12 / 48×48 (mobile-drawer.css ≤540px).
+ * It used to cover the first words of the You interview question — sit the
+ * notepad beside it. Also clear vertically when the install banner shifts
+ * the toggle down (html.pwa-hint-visible adds +64px to top). */
+@media (max-width: 540px) {
+  body.messages-you-active.messages-mobile-thread .writing--in-messages .writing__body {
+    /* 12 gutter + 48 toggle + 8 gap → prompt never starts under ☰. */
+    padding-left: 68px;
+    padding-top: 12px;
+  }
+  html.pwa-hint-visible body.messages-you-active.messages-mobile-thread .writing--in-messages .writing__body {
+    /* Banner-lowered toggle bottom ≈ safe+124; header ~49 + body pad 10.
+     * Extra top pad drops the prompt fully below the round menu. */
+    padding-top: 72px;
   }
 }
 body.messages-you-active .messages-thread__list--self {

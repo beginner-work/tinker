@@ -294,4 +294,68 @@ describe("Keep crafting You interview", () => {
       server.close();
     }
   });
+
+  test("mobile You question sits below the hamburger with full ink contrast", async () => {
+    const { server, base } = await startStaticServer();
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({
+        ...iPhone,
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      });
+      const page = await context.newPage();
+      await bootYou(page, base, [
+        { text: JSON.stringify({ next_question: "Unused", done: false }) },
+      ]);
+      // Let fade-up settle so contrast is the settled color, not mid-animation.
+      await page.waitForTimeout(400);
+
+      const layout = await page.evaluate(() => {
+        const q = document.querySelector(".writing-question");
+        const menu = document.getElementById("drawer-toggle");
+        if (!q || !menu) return { ok: false, reason: "missing nodes" };
+        const qb = q.getBoundingClientRect();
+        const mb = menu.getBoundingClientRect();
+        const cs = getComputedStyle(q);
+        const overlap = !(
+          qb.right <= mb.left ||
+          qb.left >= mb.right ||
+          qb.bottom <= mb.top ||
+          qb.top >= mb.bottom
+        );
+        const color = cs.color || "";
+        const m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        const luminance = m
+          ? (0.2126 * Number(m[1]) + 0.7152 * Number(m[2]) + 0.0722 * Number(m[3])) / 255
+          : 1;
+        return {
+          ok: true,
+          overlap,
+          qTop: qb.top,
+          menuBottom: mb.bottom,
+          gap: qb.top - mb.bottom,
+          color,
+          opacity: cs.opacity,
+          luminance,
+          menuDisplay: getComputedStyle(menu).display,
+        };
+      });
+      assert.equal(layout.ok, true);
+      assert.notEqual(layout.menuDisplay, "none");
+      assert.equal(layout.overlap, false);
+      assert.ok(layout.gap >= 0, "question must start at or below menu bottom, gap=" + layout.gap);
+      assert.equal(layout.opacity, "1");
+      // #1a1a1a ink (or darker than mid-gray)
+      assert.ok(layout.luminance < 0.35, "question too faint: " + layout.color);
+
+      fs.mkdirSync(ART, { recursive: true });
+      await page.screenshot({ path: path.join(ART, "keep-crafting-layout-e2e.png"), fullPage: false });
+      await context.close();
+    } finally {
+      await browser.close();
+      server.close();
+    }
+  });
 });
