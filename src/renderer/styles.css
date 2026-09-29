@@ -132,6 +132,77 @@ html.on-web .sidebar__top {
 .sidebar__footer-copy { padding: 0 6px; font-size: 12px; }
 
 
+
+/* Hunt funnel — North Star + target companies above Drafts. */
+.sidebar__funnel {
+  padding: 8px 8px 6px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 36vh;
+  overflow: hidden;
+}
+.sidebar__funnel-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 0; border: 0; background: transparent; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+}
+.sidebar__funnel-title { flex: 1; }
+.sidebar__funnel-body { min-height: 0; overflow-y: auto; }
+.sidebar__funnel-empty, .sidebar__funnel-error {
+  margin: 0; padding: 6px 10px 4px; font-size: 12px; line-height: 1.35; color: var(--color-muted);
+}
+.sidebar__funnel-error { color: var(--color-danger, #b42318); }
+.sidebar__funnel-panel { display: flex; flex-direction: column; gap: 8px; padding: 2px 2px 6px; }
+.sidebar__funnel-card {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 6px 6px 8px; border-radius: 8px;
+}
+.sidebar__funnel-card--star { background: var(--color-hover); }
+.sidebar__funnel-company {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 4px 4px; border: 0; border-radius: 6px;
+  background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.sidebar__funnel-company:hover { background: var(--color-hover); }
+.sidebar__funnel-logo {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  overflow: hidden; background: var(--color-border); font-size: 10px; font-weight: 700;
+  color: var(--color-muted);
+}
+.sidebar__funnel-logo--lg { width: 32px; height: 32px; font-size: 12px; border-radius: 7px; }
+.sidebar__funnel-logo img { width: 100%; height: 100%; object-fit: contain; }
+.sidebar__funnel-company-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.sidebar__funnel-company-name {
+  font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sidebar__funnel-card--star .sidebar__funnel-company-name { font-size: 15px; }
+.sidebar__funnel-pay {
+  font-size: 11px; color: var(--color-muted); width: fit-content;
+}
+.sidebar__funnel-pay--clears { color: #2f6f4e; }
+.sidebar__funnel-pay--below { color: #9a5b1a; }
+.sidebar__funnel-queue { display: flex; flex-direction: column; gap: 2px; padding-left: 30px; }
+.sidebar__funnel-card--star .sidebar__funnel-queue { padding-left: 40px; }
+.sidebar__funnel-person {
+  display: flex; flex-direction: column; gap: 0; width: 100%;
+  padding: 3px 6px; border: 0; border-radius: 6px;
+  background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+button.sidebar__funnel-person:hover { background: var(--color-hover); }
+.sidebar__funnel-person-kind {
+  font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted);
+}
+.sidebar__funnel-person-name { font-size: 12px; }
+.sidebar__funnel-person--empty {
+  font-size: 12px; color: var(--color-muted); cursor: default; opacity: 0.8;
+}
+
 /* Message draft center — every lead draft, grouped by status. */
 .sidebar__drafts {
   padding: 8px 8px 10px;
@@ -2404,6 +2475,7 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   .sidebar__footer,
   .sidebar__account,
   .sidebar__drafts,
+  .sidebar__funnel,
   .session__title,
   .session__close { display: none; }
   .sidebar__new, .sidebar__home {
