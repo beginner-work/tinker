@@ -18,17 +18,28 @@
   var TOUCH_LABEL = {
     application: "application",
     referral_outreach: "referral intro",
-    hiring_leader_outreach: "eng leader note",
+    referral_follow_up: "referral follow-up",
     recruiter_outreach: "recruiter note",
-    referral_follow_up: "follow-up",
-    call_follow_up: "follow-up",
+    hiring_leader_outreach: "eng leader note",
+    eng_leader_note: "eng leader note",
+    call_follow_up: "call follow-up",
   };
   var STATUS_LABEL = {
     draft: "Draft",
-    approved: "Ready",
+    approved: "Approved",
+    approved_to_send: "Handed off",
     sent_by_owner: "Sent",
+    send_failed: "Send failed",
   };
-  var state = { lead: null, drafts: [], replies: [], touch: null, loading: false, error: "", mode: "lead" };
+  var state = {
+    lead: null,
+    drafts: [],
+    replies: [],
+    touch: null,
+    loading: false,
+    error: "",
+    mode: "lead",
+  };
   var pane = null;
 
   function token() {
@@ -41,119 +52,65 @@
     return n;
   }
   function api(action, query) {
-    var q = new URLSearchParams(Object.assign({ action: action }, query || {}));
-    return fetch("/api/leads?" + q.toString(), {
+    var url = "/api/leads?action=" + encodeURIComponent(action);
+    if (query) {
+      Object.keys(query).forEach(function (k) {
+        if (query[k] != null && query[k] !== "") url += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(query[k]);
+      });
+    }
+    return fetch(url, {
       headers: { Authorization: "Bearer " + token(), Accept: "application/json" },
     }).then(function (res) {
-      return res.json().catch(function () { return {}; }).then(function (payload) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
         if (!res.ok) {
-          var err = new Error((payload && payload.error) || "Request failed");
+          var err = new Error((body && body.error) || "Request failed");
           err.status = res.status;
           throw err;
         }
-        return payload;
+        return body;
       });
     });
   }
-  function channelLabel(ch) {
-    return CHANNEL_LABEL[ch] || String(ch || "Message");
-  }
-  function formatWhen(iso) {
-    if (!iso) return "";
-    var d = new Date(iso);
-    if (!Number.isFinite(d.getTime())) return "";
-    try {
-      return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-    } catch (e) {
-      return d.toISOString().slice(0, 16).replace("T", " ");
-    }
-  }
+  function channelLabel(ch) { return CHANNEL_LABEL[ch] || ch || ""; }
   function formatDay(iso) {
     if (!iso) return "";
-    var d = new Date(iso);
-    if (!Number.isFinite(d.getTime())) return "";
-    try {
-      return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-    } catch (e) {
-      return d.toDateString();
+    var s = String(iso);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      var parts = s.split("-").map(Number);
+      return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString(undefined, {
+        weekday: "short", month: "short", day: "numeric",
+      });
     }
-  }
-  function isInboundDraft(d) {
-    if (!d) return false;
-    if (d.direction === "inbound" || d.fromLead === true || d.side === "lead") return true;
-    if (d.role === "lead" || d.source === "lead_reply") return true;
-    return false;
+    try {
+      var d = new Date(s);
+      if (!Number.isFinite(d.getTime())) return "";
+      return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    } catch (e) { return ""; }
   }
   function parseLoggedReplies(lead) {
-    if (!lead) return [];
+    var notes = String(lead && lead.notes || "");
     var out = [];
-    var notes = String(lead.notes || "").trim();
-    if (notes) {
-      var blocks = notes.split(/\n{2,}/);
-      blocks.forEach(function (block, i) {
-        var m = block.match(/^\s*Reply(?:\s*\(([^)]+)\))?\s*:\s*([\s\S]+)$/i);
-        if (!m) return;
-        var chRaw = String(m[1] || "").trim().toLowerCase();
-        var channel = "gmail_outreach";
-        if (/linkedin\s*dm|linkedin\s*message/.test(chRaw)) channel = "linkedin_message";
-        else if (/connection/.test(chRaw)) channel = "linkedin_connection";
-        else if (/gmail|email/.test(chRaw)) channel = "gmail_outreach";
-        else if (chRaw && CHANNEL_LABEL[chRaw]) channel = chRaw;
-        out.push({
-          id: "reply-notes-" + lead.id + "-" + i,
-          side: "lead",
-          kind: "reply",
-          channel: channel,
-          subject: "",
-          body: String(m[2] || "").trim(),
-          at: lead.updatedAt || lead.createdAt,
-          openable: false,
-        });
-      });
-    }
-    if (!out.length && lead.lastReply && (lead.lastReply.body || lead.lastReply.text)) {
-      var lr = lead.lastReply;
-      out.push({
-        id: "reply-last-" + lead.id,
-        side: "lead",
-        kind: "reply",
-        channel: lr.channel || "gmail_outreach",
-        subject: lr.subject || "",
-        body: String(lr.body || lr.text || "").trim(),
-        at: lr.at || lr.updatedAt || lead.updatedAt,
-        openable: false,
-      });
-    }
-    if (!out.length && Array.isArray(lead.replies)) {
-      lead.replies.forEach(function (r, i) {
-        if (!r) return;
-        out.push({
-          id: "reply-" + (r.id || i),
-          side: "lead",
-          kind: "reply",
-          channel: r.channel || "gmail_outreach",
-          subject: r.subject || "",
-          body: String(r.body || r.text || "").trim(),
-          at: r.at || r.updatedAt || r.createdAt || lead.updatedAt,
-          openable: false,
-        });
-      });
-    }
-    return out.filter(function (r) { return r.body; });
+    // Lightweight parse of logged inbound notes; optional.
+    notes.split(/\n+/).forEach(function (line) {
+      var m = line.match(/^\[reply\]\s*(.+)$/i);
+      if (m) out.push({ side: "lead", kind: "reply", body: m[1], at: lead.updatedAt || lead.createdAt });
+    });
+    return out;
   }
-  function buildItems() {
+  function isInboundDraft(d) {
+    return !!(d && (d.fromLead || d.direction === "inbound" || d.isInboundDraft));
+  }
+  function collectItems() {
     var items = [];
     state.drafts.forEach(function (d) {
       if (!d) return;
       if (isInboundDraft(d)) {
         items.push({
-          id: d.id,
           side: "lead",
           kind: "reply",
-          channel: d.channel,
-          subject: d.subject || "",
-          body: String(d.body || "").trim(),
+          body: d.body || "",
           at: d.updatedAt || d.createdAt,
+          channel: d.channel,
           openable: false,
         });
         return;
@@ -161,10 +118,8 @@
       var sent = d.status === "sent_by_owner";
       var handed = d.status === "approved_to_send";
       // Skip open draft bubbles - writing lives in the invisible notepad.
-      // Keep quiet handed-off and sent lines only.
-      if (!sent && !handed) return;
+      if (!sent && !handed && d.status !== "send_failed") return;
       items.push({
-        id: d.id,
         side: "owner",
         kind: sent ? "sent" : "handed",
         channel: d.channel,
@@ -190,25 +145,38 @@
   function metaLine(parts) {
     return parts.filter(Boolean).join(" · ");
   }
-  function renderProfileLinks(lead) {
+  function iconSvg(kind) {
+    // Small muted brand marks for profile links.
+    if (kind === "linkedin") {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.98 3.5C4.98 4.88 3.86 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.5 8.5h4V23h-4V8.5zM8.5 8.5h3.8v2h.05c.53-1 1.84-2.05 3.78-2.05 4.04 0 4.79 2.66 4.79 6.12V23h-4v-5.9c0-1.41-.03-3.22-1.96-3.22-1.96 0-2.26 1.53-2.26 3.12V23h-4V8.5z"/></svg>';
+    }
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.66-.3-5.46-1.33-5.46-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.89-.01 3.28 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg>';
+  }
+  function renderProfileLinks(opts) {
     var host = pane && pane.querySelector("[data-messages-links]");
     if (!host) return;
     host.innerHTML = "";
-    var linkedIn = String(lead && lead.linkedInUrl || "").trim();
-    var github = String(lead && lead.githubUrl || "").trim();
-    function addLink(href, label) {
+    var linkedIn = String(opts && opts.linkedInUrl || "").trim();
+    var github = String(opts && opts.githubUrl || "").trim();
+    function addLink(href, kind, label) {
       if (!href) return;
-      var a = el("a", "messages-pane__link", {
+      var a = el("a", "messages-pane__link messages-pane__link--" + kind, {
         href: href,
         target: "_blank",
         rel: "noopener noreferrer",
+        "aria-label": label,
+        title: label,
       });
-      a.textContent = label;
+      a.innerHTML = iconSvg(kind);
       host.appendChild(a);
     }
-    addLink(linkedIn, "LinkedIn");
-    addLink(github, "GitHub");
+    addLink(linkedIn, "linkedin", "LinkedIn");
+    addLink(github, "github", "GitHub");
     host.hidden = !host.childNodes.length;
+  }
+  function clearProfileLinks() {
+    var host = pane && pane.querySelector("[data-messages-links]");
+    if (host) { host.hidden = true; host.innerHTML = ""; }
   }
   function renderHeader() {
     if (!pane || !state.lead) return;
@@ -226,7 +194,10 @@
       role.hidden = !line;
       role.textContent = line ? " · " + line : "";
     }
-    renderProfileLinks(lead);
+    renderProfileLinks({
+      linkedInUrl: lead.linkedInUrl,
+      githubUrl: lead.githubUrl,
+    });
     // No initials circles in the chat header. Company logo only when it resolves.
     if (avatar) {
       avatar.hidden = true;
@@ -236,9 +207,11 @@
         ? window.tinkerMessagesShell.companyForLead(lead)
         : null;
       if (company && window.tinkerMessagesShell && typeof window.tinkerMessagesShell.fillCompanyLogo === "function") {
-        window.tinkerMessagesShell.fillCompanyLogo(avatar, company, { hideOnFail: true, onReady: function (ok) {
-          avatar.hidden = !ok;
-        } });
+        window.tinkerMessagesShell.fillCompanyLogo(avatar, company, {
+          hideOnFail: true,
+          eager: true,
+          onReady: function (ok) { avatar.hidden = !ok; },
+        });
       }
     }
   }
@@ -256,24 +229,21 @@
     } else {
       bubble = el("div", "messages-thread__bubble");
     }
-    if (item.channel === "gmail_outreach" && item.subject) {
+    if (item.subject) {
       var subj = el("div", "messages-thread__subject");
       subj.textContent = item.subject;
       bubble.appendChild(subj);
     }
     var body = el("div", "messages-thread__body");
-    body.textContent = item.body || (item.kind === "draft" ? "(empty draft)" : "");
+    body.textContent = item.body || "";
     bubble.appendChild(body);
-
-    var statusBit = "";
-    if (item.kind === "draft") statusBit = STATUS_LABEL[item.status] || "Draft";
-    else if (item.kind === "sent") statusBit = "Sent";
     var meta = el("div", "messages-thread__meta");
-    meta.textContent = grouped
-      ? formatWhen(item.at)
-      : metaLine([statusBit, channelLabel(item.channel), formatWhen(item.at)]);
+    meta.textContent = metaLine([
+      STATUS_LABEL[item.status] || (item.kind === "reply" ? "Reply" : ""),
+      channelLabel(item.channel),
+      formatDay(item.at),
+    ]);
     bubble.appendChild(meta);
-
     li.appendChild(bubble);
     return li;
   }
@@ -282,28 +252,25 @@
     var empty = pane.querySelector("[data-messages-empty]");
     var thread = pane.querySelector("[data-messages-thread]");
     if (!thread) return;
-    thread.setAttribute("data-thread-ready", "1");
-    thread.classList.add("messages-thread");
+    if (state.mode === "you") return;
     if (empty) empty.hidden = true;
     thread.hidden = false;
+    thread.setAttribute("data-thread-ready", "1");
+    // Only the owner's writing and quiet sent/handed-off lines - no planning bubbles.
+    var existingNotepad = thread.querySelector("[data-messages-notepad]");
     thread.innerHTML = "";
-
+    if (existingNotepad) thread.appendChild(existingNotepad);
     if (state.error) {
       thread.appendChild(Object.assign(el("p", "messages-thread__error"), { textContent: state.error }));
       return;
     }
-    if (state.loading) {
+    if (state.loading && !state.lead) {
       thread.appendChild(Object.assign(el("p", "messages-thread__empty"), { textContent: "Loading…" }));
       return;
     }
-
-    var items = buildItems();
+    var items = collectItems();
+    if (!items.length) return;
     var list = el("ol", "messages-thread__list", { "aria-label": "Conversation" });
-    // Only the owner's writing and quiet sent/handed-off lines - no planning bubbles.
-    if (!items.length) {
-      thread.appendChild(list);
-      return;
-    }
     var prevKey = "";
     items.forEach(function (item) {
       var key = groupKey(item);
@@ -328,8 +295,7 @@
     var thread = pane.querySelector("[data-messages-thread]");
     if (nameEl) nameEl.textContent = "Messages";
     if (role) { role.hidden = true; role.textContent = ""; }
-    var links = pane.querySelector("[data-messages-links]");
-    if (links) { links.hidden = true; links.innerHTML = ""; }
+    clearProfileLinks();
     if (empty) empty.hidden = false;
     if (thread) {
       thread.hidden = true;
@@ -382,10 +348,11 @@
   function onSelect(e) {
     if (e && e.detail && e.detail.you) {
       state.mode = "you";
-      // Drop person header links so they do not linger on the owner thread.
-      var links = pane && pane.querySelector("[data-messages-links]");
-      if (links) { links.hidden = true; links.innerHTML = ""; }
       state.lead = null;
+      state.drafts = [];
+      state.replies = [];
+      // Drop person header links so they do not linger on the owner thread.
+      clearProfileLinks();
       return;
     }
     var id = e && e.detail && e.detail.leadId;
@@ -401,6 +368,8 @@
   window.tinkerMessagesThread = {
     loadLead: loadLead,
     clear: clearThread,
+    clearProfileLinks: clearProfileLinks,
+    renderProfileLinks: renderProfileLinks,
     CHANNEL_LABEL: CHANNEL_LABEL,
     REPLY_STAGES: REPLY_STAGES,
   };

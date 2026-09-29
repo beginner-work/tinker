@@ -420,16 +420,9 @@ a.sidebar__secondary-link { display: inline; }
   align-items: baseline;
 }
 .messages-pane__links[hidden] { display: none !important; }
-.messages-pane__link {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--color-muted);
+/* Profile link icons: see icon rules near messages-notepad styles. */
+.messages-pane__links .messages-pane__link {
   text-decoration: none;
-  letter-spacing: 0.01em;
-}
-.messages-pane__link:hover {
-  color: var(--color-foreground);
-  text-decoration: underline;
 }
 .messages-rail__avatar.messages-avatar--photo,
 .messages-pane__avatar.messages-avatar--photo {
@@ -1563,6 +1556,207 @@ body.messages-notepad-active .mode-nav {
   display: none !important;
   pointer-events: none !important;
 }
+
+/* Person notepad: small company mark (Home-sized), opening prose, floating pills. */
+.messages-notepad {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+}
+.messages-notepad[hidden] { display: none !important; }
+.messages-notepad__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 22px 96px;
+}
+.messages-notepad__card {
+  max-width: 40rem;
+  margin: 0 auto;
+}
+.messages-notepad__meta { margin-bottom: 8px; }
+.messages-notepad__opening {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.messages-notepad__mark {
+  display: block;
+  width: 18px !important;
+  height: 18px !important;
+  max-width: 18px;
+  max-height: 18px;
+  margin: 0 0 4px;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 4px;
+  background: transparent !important;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.messages-notepad__mark.messages-avatar--photo {
+  width: 18px !important;
+  height: 18px !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+.messages-notepad__mark .messages-avatar__img,
+.messages-notepad__mark img {
+  display: block;
+  width: 18px !important;
+  height: 18px !important;
+  max-width: 18px !important;
+  max-height: 18px !important;
+  object-fit: contain;
+}
+.messages-notepad__context {
+  margin: 0;
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+.messages-notepad__research {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-foreground);
+  white-space: pre-wrap;
+}
+.messages-notepad__question {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3.2vw, 30px);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--color-foreground);
+}
+.messages-notepad__handoff {
+  margin: 16px 22px;
+  font-size: 14px;
+  color: var(--color-muted);
+}
+.messages-notepad__input {
+  display: block;
+  width: 100%;
+  min-height: 12rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-foreground);
+  resize: none;
+  outline: none;
+  box-shadow: none;
+}
+.messages-notepad__input:focus {
+  outline: none;
+  box-shadow: none;
+}
+.messages-notepad__foot {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  transform: translateX(-50%);
+  z-index: 96;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+body.messages-shell-open .messages-notepad__foot {
+  /* Sit over the stage column, not the full viewport. */
+  left: calc(50% + var(--sidebar-width, 300px) / 2);
+}
+@media (max-width: 720px) {
+  body.messages-shell-open .messages-notepad__foot,
+  body.messages-mobile-thread .messages-notepad__foot {
+    left: 50%;
+  }
+}
+.messages-notepad__primary,
+.messages-notepad__secondary {
+  pointer-events: auto;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.messages-notepad__secondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+.messages-notepad__primary {
+  border: 0;
+  background: #4f46e5;
+  color: #fff;
+}
+.messages-notepad__primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.messages-pane__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--color-muted);
+  opacity: 0.75;
+}
+.messages-pane__link:hover {
+  color: var(--color-foreground);
+  opacity: 1;
+  text-decoration: none;
+}
+.messages-pane__link svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+.messages-rail__settings {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin: 8px 10px 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+.messages-rail__settings:hover {
+  color: var(--color-foreground);
+  background: rgba(0, 0, 0, 0.04);
+}
+.messages-rail__settings-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.sidebar__secondary[hidden],
+.sidebar__footer[hidden] { display: none !important; }
 /* LinkedIn draft owns the stage while its section is mounted.
    .welcome__inner is position:relative with z-index:1, so the location
    grid paints over a later .writing sibling. The mode switch is

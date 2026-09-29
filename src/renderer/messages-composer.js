@@ -109,16 +109,18 @@
     return "What do you want " + person + " to understand about you?";
   }
   function logoMark(company) {
+    // Small Home-sized mark (18px). Never let the avatar img fill the pane.
     var wrap = el("span", "messages-notepad__mark", { "aria-hidden": "true" });
-    var shell = window.tinkerMessagesShell;
-    if (shell && typeof shell.fillCompanyLogo === "function" && company) {
-      shell.fillCompanyLogo(wrap, company, {
-        hideOnFail: true,
-        onReady: function (ok) { wrap.hidden = !ok; },
-      });
-      return wrap;
-    }
-    wrap.hidden = true;
+    var domain = String(company && company.domain || "").trim().toLowerCase().replace(/^www\./, "");
+    if (!domain) { wrap.hidden = true; return wrap; }
+    var img = el("img", "messages-notepad__mark-img", {
+      src: "https://icons.duckduckgo.com/ip3/" + encodeURIComponent(domain) + ".ico",
+      alt: "",
+      width: "18",
+      height: "18",
+    });
+    img.addEventListener("error", function () { wrap.hidden = true; wrap.innerHTML = ""; });
+    wrap.appendChild(img);
     return wrap;
   }
   function buildOpening(lead, company) {

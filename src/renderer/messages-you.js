@@ -44,6 +44,26 @@
     } catch (e) { /* ignore */ }
     return "./icons/lindow-labs.svg";
   }
+  function ownerTitle() {
+    try {
+      var shell = window.tinkerMessagesShell;
+      if (shell && typeof shell.ownerProfile === "function") {
+        var p = shell.ownerProfile();
+        if (p && p.title) return String(p.title).trim();
+      }
+    } catch (e) { /* ignore */ }
+    return "";
+  }
+  function ownerLinkedIn() {
+    try {
+      var shell = window.tinkerMessagesShell;
+      if (shell && typeof shell.ownerProfile === "function") {
+        var p = shell.ownerProfile();
+        if (p && p.linkedInUrl) return String(p.linkedInUrl).trim();
+      }
+    } catch (e) { /* ignore */ }
+    return "";
+  }
   function setHeader() {
     var p = pane();
     if (!p) return;
@@ -52,12 +72,21 @@
     var avatar = p.querySelector("[data-messages-avatar]");
     var links = p.querySelector("[data-messages-links]");
     if (nameEl) nameEl.textContent = ownerName();
+    var title = ownerTitle();
     if (role) {
-      role.hidden = true;
-      role.textContent = "";
+      role.hidden = !title;
+      role.textContent = title ? " · " + title : "";
     }
-    // Owner thread has no LinkedIn/GitHub chrome - clear any leftover person links.
-    if (links) { links.hidden = true; links.innerHTML = ""; }
+    // Owner links come only from the owner profile - never a leftover person URL.
+    if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.renderProfileLinks === "function") {
+      window.tinkerMessagesThread.renderProfileLinks({
+        linkedInUrl: ownerLinkedIn(),
+        githubUrl: "",
+      });
+    } else if (links) {
+      links.hidden = true;
+      links.innerHTML = "";
+    }
     if (avatar) {
       avatar.hidden = false;
       avatar.innerHTML = "";

@@ -12,11 +12,9 @@
  *   - Navigations  → network-first, falling back to the cached shell.
  *     Online always gets the freshest index.html; offline gets the last
  *     one seen. This keeps update-banner.js's version/reload flow intact.
- *   - CSS and JS → network-first (not stale-while-revalidate). Installed
- *     PWAs were painting old styles.css against new HTML after deploys
- *     because iOS often deferred the SWR revalidate; the first paint
- *     looked unstyled (raw blue links, half-open drawer). Cache is only
- *     the offline fallback.
+ *   - CSS and JS → stale-while-revalidate for warm inbox paint. Bump
+ *     CACHE_VERSION (and update-banner reload) whenever shell assets change
+ *     so installed PWAs do not keep a pre-deploy stylesheet.
  *   - Other same-origin assets (icons, fonts under same origin, tokens)
  *     → stale-while-revalidate for instant paint.
  *   - /api/* → never touched. Those stay on the network, where the
@@ -31,7 +29,7 @@
  * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v11";
+const CACHE_VERSION = "tinker-shell-v12";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -61,6 +59,7 @@ const PRECACHE = [
   "/interview-prompt.js",
   "/writing.js",
   "/renderer.js",
+  "/messages-notepad.js",
   "/messages-shell.js",
   "/messages-thread.js",
   "/messages-composer.js",
@@ -144,17 +143,18 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(networkFirstDoc(req));
     return;
   }
-  // CSS/JS must track deploys. SWR first-paint was stranding installed
-  // PWAs on pre-inbox styles for hours on iOS.
-  if (isFreshShellPath(url.pathname)) {
-    event.respondWith(networkFirstAsset(req));
+  // Precached shell CSS/JS: stale-while-revalidate so a warm Mac/PWA open
+  // paints the inbox chrome from cache, then refreshes in the background.
+  // CACHE_VERSION bumps (and update-banner reload) clear stranded deploys.
+  if (isShellAssetPath(url.pathname)) {
+    event.respondWith(staleWhileRevalidate(req));
     return;
   }
   event.respondWith(staleWhileRevalidate(req));
 });
 
-function isFreshShellPath(pathname) {
-  return pathname.endsWith(".css") || pathname.endsWith(".js") || pathname.endsWith(".html");
+function isShellAssetPath(pathname) {
+  return pathname.endsWith(".css") || pathname.endsWith(".js");
 }
 
 async function networkFirstDoc(req) {

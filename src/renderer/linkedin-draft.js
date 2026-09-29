@@ -425,6 +425,18 @@
         close();
       });
     }
+    // Settings → LinkedIn draft deep link: /?open=linkedin-draft
+    try {
+      var params = new URLSearchParams(window.location.search || "");
+      if (params.get("open") === "linkedin-draft") {
+        setTimeout(function () { open(); }, 0);
+        if (window.history && window.history.replaceState) {
+          params.delete("open");
+          var next = window.location.pathname + (params.toString() ? "?" + params.toString() : "") + (window.location.hash || "");
+          window.history.replaceState({}, "", next);
+        }
+      }
+    } catch (e) { /* ignore */ }
   }
 
   if (document.readyState === "loading") {

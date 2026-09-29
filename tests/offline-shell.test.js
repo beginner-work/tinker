@@ -57,21 +57,20 @@ test("the activate handler evicts stale caches", () => {
   );
 });
 
-test("CSS and JS are network-first so deploys replace installed PWA shells", () => {
-  assert.match(sw, /networkFirstAsset/, "missing network-first asset path");
-  assert.match(sw, /isFreshShellPath/, "missing CSS/JS freshness gate");
-  assert.match(sw, /\.css/, "CSS must be treated as a fresh shell path");
-  assert.match(sw, /cache:\s*["']no-cache["']/, "asset fetch must bypass HTTP cache");
-  // Stale-while-revalidate must not be the only asset path for styles.
+test("CSS and JS use stale-while-revalidate so warm Mac/PWA opens paint the shell", () => {
+  assert.match(sw, /staleWhileRevalidate/, "missing SWR path for shell assets");
+  assert.match(sw, /isShellAssetPath/, "missing CSS/JS shell asset gate");
+  assert.match(sw, /\.css/, "CSS must be treated as a shell asset path");
   const fetchHandler = sw.slice(sw.indexOf('addEventListener("fetch"'));
   assert.match(
     fetchHandler,
-    /isFreshShellPath[\s\S]*networkFirstAsset/,
-    "fetch handler must route CSS/JS through networkFirstAsset before SWR",
+    /isShellAssetPath[\s\S]*staleWhileRevalidate/,
+    "fetch handler must route CSS/JS through stale-while-revalidate",
   );
-  assert.match(sw, /tinker-shell-v11/, "bump CACHE_VERSION when changing SW strategy");
+  assert.match(sw, /tinker-shell-v12/, "bump CACHE_VERSION when changing SW strategy");
   assert.match(sw, /\/profile\.css/, "profile.css must be precached");
   assert.match(sw, /\/messages-shell\.js/, "messages shell must be precached");
+  assert.match(sw, /\/messages-notepad\.js/, "messages notepad must be precached");
 });
 
 test("new service workers claim clients and can skip waiting on message", () => {

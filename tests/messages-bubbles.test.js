@@ -17,11 +17,11 @@ test("thread maps sent, handed-off, and lead reply sides", () => {
   assert.match(js, /kind:\s*sent\s*\?\s*"sent"\s*:\s*"handed"|kind:\s*"sent"|kind:\s*"handed"/);
   assert.match(js, /Handed off|Sent via/);
   assert.match(js, /messages-thread__meta/);
-  assert.match(js, /Reply(?:\s*\()/);
+  assert.match(js, /\bReply\b/);
   assert.match(js, /isInboundDraft|fromLead|direction/);
   assert.match(js, /groupKey|grouped/);
   assert.match(js, /renderProfileLinks/);
-  assert.equal(/\bSend\b/.test(js), false);
+  assert.equal(/\bSend\b/.test(js.replace(/Send failed/g, "")), false);
   assert.equal(/\bTyler\b/.test(js), false);
 });
 

@@ -78,9 +78,23 @@
   function init() {
     const btn = document.getElementById("nav-share");
     if (!btn) return;
-    if (!isStandalone() && !isWrappedRuntime()) return;
-    btn.hidden = false;
-    btn.addEventListener("click", () => { doShare(btn); });
+    // Settings deep link can still trigger share even when the rail button stays hidden.
+    let openShare = false;
+    try {
+      const params = new URLSearchParams(window.location.search || "");
+      openShare = params.get("open") === "share";
+      if (openShare && window.history && window.history.replaceState) {
+        params.delete("open");
+        const next = window.location.pathname + (params.toString() ? "?" + params.toString() : "") + (window.location.hash || "");
+        window.history.replaceState({}, "", next);
+      }
+    } catch { /* ignore */ }
+    if (!isStandalone() && !isWrappedRuntime() && !openShare) return;
+    if (isStandalone() || isWrappedRuntime()) {
+      btn.hidden = false;
+      btn.addEventListener("click", () => { doShare(btn); });
+    }
+    if (openShare) setTimeout(() => { doShare(btn); }, 0);
   }
 
   if (document.readyState === "loading") {

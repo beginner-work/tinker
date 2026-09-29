@@ -47,6 +47,34 @@
         font-size: 15px;
         line-height: 1.5;
       }
+      .settings__section {
+        margin: 0 0 36px;
+      }
+      .settings__section-title {
+        margin: 0 0 12px;
+        font-size: 13px;
+        font-weight: 650;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--color-muted);
+      }
+      .settings__nav {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin: 0 0 8px;
+        padding: 0;
+        list-style: none;
+      }
+      .settings__nav a {
+        display: block;
+        padding: 10px 0;
+        color: var(--color-foreground);
+        text-decoration: none;
+        font-size: 15px;
+        border-bottom: 1px solid var(--color-border);
+      }
+      .settings__nav a:hover { color: var(--color-muted); }
       .settings__field {
         display: flex;
         flex-direction: column;
@@ -56,6 +84,12 @@
       .settings__label {
         font-size: 13px;
         font-weight: 600;
+      }
+      .settings__hint {
+        margin: 0;
+        font-size: 12px;
+        color: var(--color-muted);
+        line-height: 1.4;
       }
       .settings__input {
         height: 40px;
@@ -90,30 +124,75 @@
         font-size: 13px;
         color: var(--color-muted);
       }
+      .settings__copy {
+        margin: 32px 0 0;
+        font-size: 12px;
+        color: var(--color-muted);
+      }
     </style>
   </head>
   <body class="settings-page">
-    <main class="settings" id="settings-outreach">
+    <main class="settings">
       <a class="settings__back" href="/">← Inbox</a>
       <h1 class="settings__title">Settings</h1>
-      <p class="settings__lede">Outreach defaults for drafts. Tinker never sends.</p>
-      <label class="settings__field">
-        <span class="settings__label">Outreach from</span>
-        <span class="settings__row">
-          <input type="email" class="settings__input" data-drafts-from placeholder="you@example.com" autocomplete="email" />
-          <button type="button" class="settings__save" data-drafts-from-save>Save</button>
-        </span>
-      </label>
-      <label class="settings__field">
-        <span class="settings__label">Booking link</span>
-        <span class="settings__row">
-          <input type="url" class="settings__input" data-drafts-booking placeholder="https://" autocomplete="url" />
-          <button type="button" class="settings__save" data-drafts-booking-save>Save</button>
-        </span>
-        <p class="settings__status" data-settings-status hidden></p>
-      </label>
+      <p class="settings__lede">Your profile, pages, and outreach defaults. Tinker never sends.</p>
+
+      <section class="settings__section" aria-labelledby="settings-profile-heading">
+        <h2 class="settings__section-title" id="settings-profile-heading">Owner profile</h2>
+        <label class="settings__field">
+          <span class="settings__label">Title</span>
+          <span class="settings__row">
+            <input type="text" class="settings__input" data-owner-title
+                   placeholder="e.g. Founder at Lindow Labs" maxlength="120" autocomplete="organization-title" />
+            <button type="button" class="settings__save" data-owner-profile-save>Save</button>
+          </span>
+          <p class="settings__hint">Shown under your name on the owner row and header.</p>
+        </label>
+        <label class="settings__field">
+          <span class="settings__label">LinkedIn URL</span>
+          <input type="url" class="settings__input" data-owner-linkedin
+                 placeholder="https://www.linkedin.com/in/…" autocomplete="url" maxlength="500" />
+          <p class="settings__hint">Optional. Used only on your owner thread header.</p>
+          <p class="settings__status" data-owner-profile-status hidden></p>
+        </label>
+      </section>
+
+      <section class="settings__section" aria-labelledby="settings-pages-heading">
+        <h2 class="settings__section-title" id="settings-pages-heading">Pages</h2>
+        <ul class="settings__nav">
+          <li><a href="/story-parts">Story parts</a></li>
+          <li><a href="/leads">Leads</a></li>
+          <li><a href="/career">Career</a></li>
+          <li><a href="/autonomy">Autonomy</a></li>
+          <li><a href="/mcp/access">MCP access</a></li>
+          <li><a href="/?open=linkedin-draft">LinkedIn draft</a></li>
+          <li><a href="/?open=share">Share</a></li>
+        </ul>
+      </section>
+
+      <section class="settings__section" id="settings-outreach" aria-labelledby="settings-outreach-heading">
+        <h2 class="settings__section-title" id="settings-outreach-heading">Outreach</h2>
+        <label class="settings__field">
+          <span class="settings__label">Outreach from</span>
+          <span class="settings__row">
+            <input type="email" class="settings__input" data-drafts-from placeholder="you@example.com" autocomplete="email" />
+            <button type="button" class="settings__save" data-drafts-from-save>Save</button>
+          </span>
+        </label>
+        <label class="settings__field">
+          <span class="settings__label">Booking link</span>
+          <span class="settings__row">
+            <input type="url" class="settings__input" data-drafts-booking placeholder="https://" autocomplete="url" />
+            <button type="button" class="settings__save" data-drafts-booking-save>Save</button>
+          </span>
+          <p class="settings__status" data-settings-status hidden></p>
+        </label>
+      </section>
+
+      <p class="settings__copy">© 2026 tinker</p>
     </main>
     <script src="/auth.js" defer></script>
     <script src="/lead-drafts.js" defer></script>
+    <script src="/settings/settings.js" defer></script>
   </body>
 </html>

@@ -118,6 +118,33 @@ async function dispatch(method, action, auth, body, req) {
   if (method === "POST" && action === "settings") {
     return { status: 200, body: { settings: await store.setOutreachSettings({ userId, emailHint, patch: body }) } };
   }
+  // One auth + parallel store reads for the people-rail first paint.
+  if (method === "GET" && action === "inbox") {
+    const companies = require("./_lib/leads-companies-store.js");
+    const schedule = require("./_lib/outreach-schedule-store.js");
+    const prisma = require("./_lib/db.js");
+    const [leads, draftRows, companyRows, inbox, profileRow] = await Promise.all([
+      store.listLeads({ userId, emailHint }),
+      store.listDrafts({ userId, emailHint }),
+      companies.listCompanies({ userId, emailHint, status: "active" }).catch(() => []),
+      schedule.listInboxTouches({ userId, emailHint }).catch(() => ({ byLeadId: {} })),
+      prisma.tinkerUserData.findUnique({
+        where: { userId_kind: { userId, kind: "profile" } },
+      }).catch(() => null),
+    ]);
+    return {
+      status: 200,
+      body: {
+        leads: leads.map(store.presentLead),
+        drafts: draftRows.map(({ draft, lead }) => Object.assign(store.presentDraft(draft), {
+          lead: lead ? store.presentLead(lead) : null,
+        })),
+        companies: (companyRows || []).map(companies.presentCompany),
+        byLeadId: (inbox && inbox.byLeadId) || {},
+        profile: profileRow && profileRow.data ? profileRow.data : null,
+      },
+    };
+  }
   const companies = require("./_lib/leads-companies-store.js");
   if (method === "GET" && action === "companies") {
     const rows = await companies.listCompanies({ userId, emailHint, status: queryValue(req, "status") });

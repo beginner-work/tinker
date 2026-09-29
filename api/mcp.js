@@ -48,8 +48,10 @@ const { checkText } = require("./_lib/career-check.js");
 const contentStore = require("./_lib/content-store.js");
 const storyParts = require("./_lib/story-parts-store.js");
 const selfThread = require("./_lib/self-thread-store.js");
+const prisma = require("./_lib/db.js");
 const pkg = require("../package.json");
 const MCP_BOT_ACTOR = { kind: "bot", label: "bot:mcp" };
+const OWNER_PROFILE_UNAVAILABLE = "Owner profile is unavailable right now.";
 
 const SUPPORTED_PROTOCOLS = ["2025-03-26", "2025-06-18"];
 const DEFAULT_PROTOCOL = "2025-03-26";
@@ -91,6 +93,8 @@ const INSTRUCTIONS = [
   "Call post_to_self_thread with title and short markdown body only for brief personal assistant notes in the You thread.",
   "Never post deploy checks, production status, allowlist/gate notes, or other ops chatter there - that thread is the owner's own story.",
   "The owner sees it as an incoming assistant bubble. It does not send email or LinkedIn messages.",
+  "Call update_owner_profile to set optional title and/or linkedInUrl on this connector user's own profile.",
+  "Omitted fields are left unchanged. Pass an empty string to clear a field. A user id in args is ignored.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -556,6 +560,28 @@ const POST_TO_SELF_THREAD_TOOL = {
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
 
+const UPDATE_OWNER_PROFILE_TOOL = {
+  name: "update_owner_profile",
+  title: "Update owner profile",
+  description: [
+    "Update optional fields on this connector user's own tinker profile.",
+    "Pass title and/or linkedInUrl. Omitted fields stay unchanged.",
+    "Pass an empty string to clear a field.",
+    "Title shows under the owner name in the inbox and owner header.",
+    "linkedInUrl is the owner-thread LinkedIn icon only.",
+    "Does not change name, email, or avatar. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      title: { type: "string", description: "Owner title under their name (e.g. Founder at Lindow Labs). Empty string clears." },
+      linkedInUrl: { type: "string", description: "Owner LinkedIn profile URL. Empty string clears." },
+    },
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
 const SET_COMPANY_PRIORITY_TOOL = {
   name: "set_company_priority",
   title: "Set company priority",
@@ -805,6 +831,7 @@ const TOOLS = [
   GET_OUTREACH_SCHEDULE_TOOL,
   SET_BUSY_TIMES_TOOL,
   POST_TO_SELF_THREAD_TOOL,
+  UPDATE_OWNER_PROFILE_TOOL,
   SET_COMPANY_PRIORITY_TOOL,
   PLAN_LEAD_TOUCH_TOOL,
   UPSERT_TARGET_COMPANY_TOOL,
@@ -1172,6 +1199,66 @@ async function selfThreadCall(msg, user, args) {
       status: 200,
       headers: NO_STORE,
       body: rpcOk(msg.id, toolError(message || selfThread.UNAVAILABLE)),
+    };
+  }
+}
+
+function trimOwnerField(value, label, max) {
+  const text = String(value == null ? "" : value).trim();
+  if (text.length > max) {
+    throw Object.assign(new Error(label + " is too long."), { status: 400 });
+  }
+  return text;
+}
+
+function presentOwnerProfile(data) {
+  const row = data && typeof data === "object" ? data : {};
+  return {
+    name: row.name ? String(row.name) : "",
+    title: row.title ? String(row.title) : "",
+    linkedInUrl: row.linkedInUrl || row.linkedinUrl
+      ? String(row.linkedInUrl || row.linkedinUrl)
+      : "",
+  };
+}
+
+async function updateOwnerProfileCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    if (!hasOwn(args, "title") && !hasOwn(args, "linkedInUrl")) {
+      throw Object.assign(new Error("Pass title and/or linkedInUrl."), { status: 400 });
+    }
+    const existing = await prisma.tinkerUserData.findUnique({
+      where: { userId_kind: { userId, kind: "profile" } },
+    });
+    const base = existing && existing.data && typeof existing.data === "object" ? existing.data : {};
+    const next = Object.assign({}, base);
+    if (hasOwn(args, "title")) {
+      next.title = trimOwnerField(args.title, "title", 120);
+    }
+    if (hasOwn(args, "linkedInUrl")) {
+      const url = trimOwnerField(args.linkedInUrl, "linkedInUrl", 500);
+      if (url && !/^https?:\/\//i.test(url)) {
+        throw Object.assign(new Error("linkedInUrl must start with http:// or https://."), { status: 400 });
+      }
+      next.linkedInUrl = url;
+      delete next.linkedinUrl;
+    }
+    const saved = await prisma.tinkerUserData.upsert({
+      where: { userId_kind: { userId, kind: "profile" } },
+      create: { userId, kind: "profile", data: next },
+      update: { data: next },
+    });
+    return contentToolOk(msg, { profile: presentOwnerProfile(saved.data) });
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500
+      ? err.message
+      : OWNER_PROFILE_UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || OWNER_PROFILE_UNAVAILABLE)),
     };
   }
 }
@@ -1604,6 +1691,7 @@ async function handleRpc(msg, user) {
       && name !== "get_outreach_schedule"
       && name !== "set_busy_times"
       && name !== "post_to_self_thread"
+      && name !== "update_owner_profile"
       && name !== "set_company_priority"
       && name !== "plan_lead_touch"
       && name !== "upsert_target_company"
@@ -1650,6 +1738,9 @@ async function handleRpc(msg, user) {
     }
     if (name === "post_to_self_thread") {
       return selfThreadCall(msg, user, args);
+    }
+    if (name === "update_owner_profile") {
+      return updateOwnerProfileCall(msg, user, args);
     }
     if (name === "set_company_priority") {
       return setCompanyPriorityCall(msg, user, args);

@@ -19,8 +19,10 @@ test("messages shell chrome is wired in index and script", () => {
   assert.match(html, /messages-shell\.js/);
   assert.match(html, /messages-notepad\.js/);
   assert.match(html, /data-messages-list/);
-  assert.match(html, /href="\/leads"/);
   assert.match(html, /href="\/settings"/);
+  assert.match(html, /messages-rail__settings/);
+  assert.equal(/sidebar__secondary/.test(html), false);
+  assert.equal(/Story parts/.test(html), false);
   assert.match(js, /tinkerMessagesShell/);
   assert.match(js, /leadsApi\(["']list["']/);
   assert.match(js, /removeAttribute\(["']data-active["']\)/);
@@ -43,6 +45,14 @@ test("rail is people-list with THIS WEEK / LATER; undated go to LATER", () => {
   assert.match(js, /selectYou/);
 });
 
+test("inbox boots from one batched endpoint and paints a cached snapshot first", () => {
+  assert.match(js, /leadsApi\(["']inbox["']\)/);
+  assert.match(js, /readInboxCache/);
+  assert.match(js, /writeInboxCache/);
+  assert.match(js, /tinker\.inboxSnapshot/);
+  assert.match(js, /deferLogoFill|requestIdleCallback/);
+});
+
 test("no initials monograms; company logo only when resolved; owner keeps photo", () => {
   assert.match(js, /hideOnFail:\s*true/);
   assert.match(js, /No monogram fallback/);
@@ -58,18 +68,34 @@ test("thread has no scheduled planning bubbles", () => {
   assert.match(thread, /Sent via/);
 });
 
-test("person chat header shows quiet LinkedIn and GitHub links when URLs exist", () => {
+test("person chat header shows quiet LinkedIn and GitHub icon links when URLs exist", () => {
   assert.match(html, /data-messages-links/);
   assert.match(thread, /renderProfileLinks/);
+  assert.match(thread, /clearProfileLinks/);
   assert.match(thread, /githubUrl/);
   assert.match(thread, /linkedInUrl/);
+  assert.match(thread, /aria-label/);
+  assert.match(thread, /iconSvg/);
   assert.match(thread, /target:\s*["_']_blank["_']/);
   assert.match(css, /\.messages-pane__link\b/);
+  assert.match(css, /\.messages-pane__link svg/);
   const demo = fs.readFileSync(path.join(root, "src/renderer/messages/demo-people-header.html"), "utf8");
   assert.match(demo, /data-messages-links/);
-  assert.match(demo, /LinkedIn/);
-  assert.match(demo, /GitHub/);
+  assert.match(demo, /aria-label="LinkedIn"/);
+  assert.match(demo, /aria-label="GitHub"/);
+  assert.match(demo, /<svg/);
+  assert.equal(/>LinkedIn</.test(demo), false);
   assert.equal(/messages-rail__search/.test(demo), false);
+});
+
+test("owner profile title and LinkedIn come from profile; person links clear on You", () => {
+  assert.match(js, /ownerTitle/);
+  assert.match(js, /ownerLinkedInUrl/);
+  assert.match(js, /clearProfileLinks/);
+  const you = fs.readFileSync(path.join(root, "src/renderer/messages-you.js"), "utf8");
+  assert.match(you, /ownerLinkedIn/);
+  assert.match(you, /renderProfileLinks/);
+  assert.match(you, /linkedInUrl:\s*ownerLinkedIn\(\)/);
 });
 
 test("lead composer is invisible notepad with Keep crafting / This is everything", () => {
