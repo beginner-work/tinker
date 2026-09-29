@@ -19,7 +19,7 @@ test("messages shell chrome is wired in index and script", () => {
   assert.match(html, /data-messages-list/);
   assert.match(html, /href="\/leads"/);
   assert.match(js, /tinkerMessagesShell/);
-  assert.match(js, /action:\s*["']list["']|action=list|api\(["']list["']/);
+  assert.match(js, /action:\s*["']list["']|action=list|api\(["']list["']|leadsApi\(["']list["']/);
   assert.match(js, /Select a conversation|No conversations yet|Needs a draft/);
   assert.match(html, /Inbox|Conversations/);
   assert.equal(/\bTyler\b/.test(js + html), false);
