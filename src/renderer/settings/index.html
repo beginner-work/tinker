@@ -90,13 +90,48 @@
         font-size: 13px;
         color: var(--color-muted);
       }
+      .settings__switch {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 22px;
+        padding: 14px 0;
+        border-top: 1px solid var(--color-border);
+        border-bottom: 1px solid var(--color-border);
+      }
+      .settings__switch input {
+        margin-top: 3px;
+        width: 18px;
+        height: 18px;
+        flex: 0 0 auto;
+      }
+      .settings__switch-copy { flex: 1; min-width: 0; }
+      .settings__switch-title {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      .settings__switch-note {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--color-muted);
+      }
     </style>
   </head>
   <body class="settings-page">
     <main class="settings" id="settings-outreach">
       <a class="settings__back" href="/">← Inbox</a>
       <h1 class="settings__title">Settings</h1>
-      <p class="settings__lede">Outreach defaults for drafts. Tinker never sends.</p>
+      <p class="settings__lede">Outreach defaults. Gmail Send queues for your assistant; LinkedIn stays draft only.</p>
+      <label class="settings__switch">
+        <input type="checkbox" data-drafts-sending />
+        <span class="settings__switch-copy">
+          <span class="settings__switch-title">Sending enabled</span>
+          <p class="settings__switch-note">Off by default. When on, pressing Send on a Gmail draft queues the exact message for your assistant’s Gmail connector. Tinker holds no Google tokens.</p>
+        </span>
+      </label>
       <label class="settings__field">
         <span class="settings__label">Outreach from</span>
         <span class="settings__row">

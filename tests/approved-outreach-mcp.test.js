@@ -113,6 +113,9 @@ test.beforeEach(() => {
 });
 
 test("approve stores exact text; edit revokes; list and mark sent", async () => {
+  await leads.setOutreachSettings({
+    userId: "user-a", emailHint: "hunter@example.com", patch: { sendingEnabled: true },
+  });
   await mcpCall("upsert_target_company", { name: "Stripe", tier: "north_star" });
   const person = await mcpCall("upsert_lead_person", {
     personName: "Morgan Kim",
@@ -195,23 +198,29 @@ test("approve stores exact text; edit revokes; list and mark sent", async () => 
 });
 
 test("mark_outreach_failed keeps text and allows re-approve", async () => {
+  await leads.setOutreachSettings({
+    userId: "user-a", emailHint: "hunter@example.com", patch: { sendingEnabled: true },
+  });
   await mcpCall("upsert_target_company", { name: "Notion" });
   const person = await mcpCall("upsert_lead_person", {
     personName: "Sam Patel", companyName: "Notion", contactType: "hiring_leader",
+    email: "sam@notion.test",
   });
   const leadId = person.body.result.structuredContent.lead.id;
   const actor = { kind: "human", label: "user:user-a" };
   const created = await leads.createDraft({
     userId: "user-a", emailHint: "hunter@example.com", actor, leadId,
-    channel: "linkedin_connection", body: "Sam — connection note.",
+    channel: "gmail_outreach", subject: "Hi Sam", body: "Sam — outreach note.",
   });
-  await leads.approveDraft({ id: created.draft.id, userId: "user-a", emailHint: "hunter@example.com", actor });
+  await leads.approveDraft({
+    id: created.draft.id, userId: "user-a", emailHint: "hunter@example.com", actor,
+  });
   const failed = await mcpCall("mark_outreach_failed", {
-    id: created.draft.id, reason: "LinkedIn rate limited",
+    id: created.draft.id, reason: "Gmail temporary error",
   });
   assert.equal(failed.body.result.structuredContent.draft.status, "send_failed");
-  assert.equal(failed.body.result.structuredContent.draft.failedReason, "LinkedIn rate limited");
-  assert.equal(failed.body.result.structuredContent.draft.approvedText, "Sam — connection note.");
+  assert.equal(failed.body.result.structuredContent.draft.failedReason, "Gmail temporary error");
+  assert.equal(failed.body.result.structuredContent.draft.approvedText, "Sam — outreach note.");
 
   // Owner can edit (revokes) then approve again.
   await leads.updateDraft({
@@ -223,6 +232,28 @@ test("mark_outreach_failed keeps text and allows re-approve", async () => {
   });
   assert.equal(again.draft.status, "approved_to_send");
   assert.equal(again.draft.approvedText, "Sam — retry note.");
+});
+
+test("LinkedIn approve is copy-only and omitted from list_approved_outreach", async () => {
+  await leads.setOutreachSettings({
+    userId: "user-a", emailHint: "hunter@example.com", patch: { sendingEnabled: true },
+  });
+  await mcpCall("upsert_target_company", { name: "Linear" });
+  const person = await mcpCall("upsert_lead_person", {
+    personName: "Alex Rivera", companyName: "Linear", contactType: "referrer",
+  });
+  const leadId = person.body.result.structuredContent.lead.id;
+  const actor = { kind: "human", label: "user:user-a" };
+  const created = await leads.createDraft({
+    userId: "user-a", emailHint: "hunter@example.com", actor, leadId,
+    channel: "linkedin_connection", body: "Alex — connection note.",
+  });
+  const approved = await leads.approveDraft({
+    id: created.draft.id, userId: "user-a", emailHint: "hunter@example.com", actor,
+  });
+  assert.equal(approved.draft.status, "approved");
+  const listed = await mcpCall("list_approved_outreach", {});
+  assert.equal(listed.body.result.structuredContent.outreach.length, 0);
 });
 
 test("tools/list exposes approved outreach tools", async () => {

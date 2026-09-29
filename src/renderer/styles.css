@@ -1563,6 +1563,13 @@ body.messages-notepad-active .mode-nav {
   display: none !important;
   pointer-events: none !important;
 }
+.messages-notepad__status,
+.messages-notepad__handoff {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
 /* LinkedIn draft owns the stage while its section is mounted.
    .welcome__inner is position:relative with z-index:1, so the location
    grid paints over a later .writing sibling. The mode switch is

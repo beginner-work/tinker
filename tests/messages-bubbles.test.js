@@ -25,10 +25,10 @@ test("thread maps sent, handed-off, and lead reply sides", () => {
   assert.equal(/\bTyler\b/.test(js), false);
 });
 
-test("person writing uses Keep crafting / This is everything (no Ship/Send)", () => {
+test("person writing uses Keep crafting / Send confirm (no Ship chrome)", () => {
   assert.match(html, /id="messages-composer"/);
-  assert.match(composer, /This is everything/);
   assert.match(composer, /Keep crafting/);
+  assert.match(composer, /Send this email\?/);
   assert.match(composer, /approved_to_send|approve/);
   assert.equal(/>Ship</.test(html), false);
   assert.equal(/\bSend\b/.test(html.match(/id="messages-composer"[\s\S]*?<\/footer>/)[0]), false);

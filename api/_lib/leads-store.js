@@ -1,4 +1,6 @@
-/* Leads and drafts. Tinker never sends; sent_by_owner is a mark only. */
+/* Leads and drafts. Gmail: owner Send → approved_to_send; assistant sends via
+ * its Gmail connector (LL-66). LinkedIn stays draft / copy-only. Tinker holds
+ * no Google tokens. */
 "use strict";
 const SOURCES = ["referral", "formation", "linkedin", "posting", "event", "other"];
 const STAGES = ["new", "drafting", "contacted", "replied", "call", "interview", "offer", "closed"];
@@ -150,6 +152,8 @@ async function readOutreachSettings(owner) {
     bookingUrl: typeof data.bookingUrl === "string" ? data.bookingUrl : "",
     minTotalComp: data.minTotalComp == null || data.minTotalComp === "" || Number.isNaN(Number(data.minTotalComp)) ? null : Number(data.minTotalComp),
     curriculumName: typeof data.curriculumName === "string" ? data.curriculumName : "",
+    /* Owner switch. Starts off — Gmail Send only works after you turn this on. */
+    sendingEnabled: data.sendingEnabled === true,
   };
 }
 async function writeOutreachSettings(owner, patch) {
@@ -171,6 +175,9 @@ async function writeOutreachSettings(owner, patch) {
     curriculumName: Object.prototype.hasOwnProperty.call(patch, "curriculumName")
       ? readText(patch.curriculumName, "curriculumName", 200, false)
       : current.curriculumName,
+    sendingEnabled: Object.prototype.hasOwnProperty.call(patch, "sendingEnabled")
+      ? !!patch.sendingEnabled
+      : current.sendingEnabled,
   };
   try {
     await db().tinkerUserData.upsert({
@@ -490,6 +497,8 @@ async function approveDraft({ id, userId, emailHint, actor }) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
+  /* Bots cannot queue a send — only the owner pressing Send in Tinker. */
+  if (!label.startsWith("user:")) throw fail(403, "Only you can approve a send.");
   await ensureTable();
   const row = await loadOwned("leadDraft", id, owner, "draft");
   if (row.status !== "draft" && row.status !== "approved" && row.status !== "send_failed") {
@@ -500,6 +509,38 @@ async function approveDraft({ id, userId, emailHint, actor }) {
   const lead = row.leadId ? await loadOwned("lead", row.leadId, owner, "lead") : null;
   const personName = lead ? String(lead.personName || "").trim() : "";
   const companyName = lead ? String(lead.company || "").trim() : "";
+
+  /* LinkedIn stays draft / copy-only — never enters the assistant send queue. */
+  if (row.channel !== "gmail_outreach") {
+    return commit(async (tx) => {
+      const saved = await tx.leadDraft.update({
+        where: { id: row.id },
+        data: {
+          status: "approved",
+          approvedAt: new Date(),
+          approvedText: text,
+          approvedPersonName: personName,
+          approvedCompanyName: companyName,
+          failedReason: "",
+        },
+      });
+      const event = await record(tx, {
+        userId: owner,
+        leadId: row.leadId,
+        actor: label,
+        action: "draft_approved",
+        detail: { draftId: row.id, channel: row.channel, personName, companyName },
+      });
+      return { draft: saved, event };
+    });
+  }
+
+  const settings = await readOutreachSettings(owner);
+  if (!settings.sendingEnabled) {
+    throw fail(400, "Sending is off. Turn on Sending enabled under Settings first.");
+  }
+  readText(lead && lead.email, "email", 320, true);
+
   return commit(async (tx) => {
     const saved = await tx.leadDraft.update({
       where: { id: row.id },
@@ -533,6 +574,8 @@ async function listApprovedOutreach({ userId, emailHint } = {}) {
     leads = await db().lead.findMany({ where: { userId: owner } });
   } catch (err) { throw storeDown(err); }
   const byId = new Map(leads.map((row) => [row.id, row]));
+  /* Gmail only — LinkedIn never enters the assistant send queue. */
+  drafts = drafts.filter((draft) => draft.channel === "gmail_outreach");
   drafts.sort((a, b) => new Date(a.approvedAt || a.updatedAt) - new Date(b.approvedAt || b.updatedAt));
   return drafts.map((draft) => {
     const lead = (draft.leadId && byId.get(draft.leadId)) || null;
@@ -559,12 +602,13 @@ async function markDraftSent({ id, userId, emailHint, actor, channel, sentAt, ex
   await ensureTable();
   const row = await loadOwned("leadDraft", id, owner, "draft");
   if (row.status === "sent_by_owner") throw fail(400, "This approval was already marked sent.");
-  if (row.status !== "approved_to_send" && row.status !== "approved") {
-    throw fail(400, "Only an approved_to_send draft can be marked sent. One approval covers one send.");
+  if (row.status !== "approved_to_send") {
+    throw fail(400, "Only an approved_to_send Gmail draft can be marked sent. One approval covers one send.");
   }
+  if (row.channel !== "gmail_outreach") throw fail(400, "Only Gmail drafts can be marked sent through the assistant.");
   const lead = row.leadId ? await loadOwned("lead", row.leadId, owner, "lead") : null;
   const when = sentAt ? readCalendarDate(sentAt, "sentAt", { required: true }) : new Date();
-  const sentChannel = channel ? readEnum(channel, CHANNELS, "channel") : row.channel;
+  const sentChannel = channel ? readEnum(channel, ["gmail_outreach"], "channel") : row.channel;
   return commit(async (tx) => {
     const saved = await tx.leadDraft.update({
       where: { id: row.id },
@@ -600,9 +644,10 @@ async function markDraftFailed({ id, userId, emailHint, actor, reason } = {}) {
   const label = actorLabel(actor);
   await ensureTable();
   const row = await loadOwned("leadDraft", id, owner, "draft");
-  if (row.status !== "approved_to_send" && row.status !== "approved") {
-    throw fail(400, "Only an approved_to_send draft can be marked failed.");
+  if (row.status !== "approved_to_send") {
+    throw fail(400, "Only an approved_to_send Gmail draft can be marked failed.");
   }
+  if (row.channel !== "gmail_outreach") throw fail(400, "Only Gmail drafts can be marked failed through the assistant.");
   const why = readText(reason, "reason", 2000, true);
   return commit(async (tx) => {
     const saved = await tx.leadDraft.update({
