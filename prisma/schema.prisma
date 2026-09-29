@@ -131,6 +131,7 @@ model StoryPartEvent {
   @@index([partId])
 }
 
+
 model Lead {
   id              String    @id @default(cuid())
   userId          String
@@ -154,21 +155,6 @@ model Lead {
   @@index([userId])
   @@index([userId, stage])
   @@index([companyId])
-}
-
-model TargetCompany {
-  id              String   @id @default(cuid())
-  userId          String
-  name            String
-  domain          String   @default("")
-  northStar       Boolean  @default(false)
-  status          String
-  totalComp       Int?
-  totalCompSource String   @default("")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  @@index([userId])
-  @@index([userId, name])
 }
 
 model LeadDraft {
@@ -201,7 +187,21 @@ model LeadEvent {
   @@index([leadId])
 }
 
-// Planned outreach touch (application / note / follow-up). Never sends.
+model TargetCompany {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  domain          String   @default("")
+  northStar       Boolean  @default(false)
+  status          String
+  totalComp       Int?
+  totalCompSource String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([userId])
+  @@index([userId, name])
+}
+
 model OutreachTouch {
   id          String   @id @default(cuid())
   userId      String
@@ -222,7 +222,6 @@ model OutreachTouch {
   @@index([sessionId])
 }
 
-// Calendar block: company craft time or skill (productArea+concept+curriculumRef).
 model OutreachSession {
   id            String   @id @default(cuid())
   userId        String
@@ -238,4 +237,3 @@ model OutreachSession {
   @@index([userId])
   @@index([userId, startsAt])
 }
-
