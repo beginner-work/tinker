@@ -402,10 +402,9 @@ Tools:
   `{ mode, next_question, questions, stitched_title, stitched_body, done }`.
   Pass a freeform `draft` string instead (not both) for three to five
   learning questions. Optional `priorTurns` avoids repeats. Optional
-  `seed`, `facing`, `lastPurchased`, `voice`, `transactions`, and
-  `uncoveredSlides` are the same scene cues the browser interview
-  already sends. `forceStitch: true` asks for the essay instead of
-  another question.
+  `seed`, `facing`, `lastPurchased`, `voice`, and `transactions`
+  are the same scene cues the browser interview already sends.
+  `forceStitch: true` asks for the essay instead of another question.
 - `draft_linkedin_post`. Pass `notes` (a topic or bullets) and the
   server drafts a LinkedIn post in Tyler's voice for Elevating Developer
   Fintech: short plain sentences, contractions OK, no em dashes. Pass

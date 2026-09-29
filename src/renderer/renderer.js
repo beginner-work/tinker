@@ -550,7 +550,7 @@
 
   window.tinkerShowPitch = () => showFeed();
 
-    // Pitch-deck subtitles and book spreads removed (TYL-65).
+  // Pitch-deck subtitles and book spreads removed (TYL-65).
   function pitchSubtitleHtmlFor() { return ""; }
 
   function bodyForDraft(draft) {
@@ -575,8 +575,8 @@
 
   function readingSpreadFor() { return null; }
 
-    // The read view's content: a two-page book on a wide desktop (the
-  // opened essay + its pitch neighbour), collapsing to a single centred
+  // The read view's content: a single centred page (pitch spreads removed).
+  // Collapses cleanly on narrow screens.
   // page on narrow screens or when there's nothing to pair with.
   function readBookHtml(essay) {
     const spread = readingSpreadFor(essay);
