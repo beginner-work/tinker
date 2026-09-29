@@ -195,10 +195,17 @@
     if (btn) btn.hidden = !hasTouch;
     if (label) label.textContent = formatChipDate(state.plannedDate || dateInputValue(state.touch && state.touch.touch && state.touch.touch.date));
   }
+  function syncActionLabels() {
+    var ship = root && root.querySelector("[data-composer-ship]");
+    var next = root && root.querySelector("[data-composer-next]");
+    if (ship) ship.textContent = state.youMode ? "This is everything" : "Ship";
+    if (next) next.textContent = state.youMode ? "Keep crafting" : "Next";
+  }
   function render() {
     if (!root) return;
     root.hidden = !state.leadId && !state.youMode;
     root.classList.toggle("messages-composer--you", !!state.youMode);
+    syncActionLabels();
     if (!state.leadId && !state.youMode) return;
     var channel = root.querySelector("[data-composer-channel]");
     var subjectWrap = root.querySelector("[data-composer-subject-wrap]");

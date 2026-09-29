@@ -22,15 +22,42 @@
       homeNext = writing.nextSibling;
     }
   }
+  function ownerName() {
+    try {
+      var shell = window.tinkerMessagesShell;
+      if (shell && typeof shell.ownerProfile === "function") {
+        var p = shell.ownerProfile();
+        if (p && p.name) return p.name;
+      }
+    } catch (e) { /* ignore */ }
+    return "You";
+  }
   function setHeader() {
     var p = pane();
     if (!p) return;
     var nameEl = p.querySelector("[data-messages-name]");
     var role = p.querySelector("[data-messages-role]");
-    if (nameEl) nameEl.textContent = "You";
+    var avatar = p.querySelector("[data-messages-avatar]");
+    if (nameEl) nameEl.textContent = ownerName();
     if (role) {
-      role.hidden = false;
-      role.textContent = " · story parts with your assistant";
+      role.hidden = true;
+      role.textContent = "";
+    }
+    if (avatar && window.tinkerMessagesShell && typeof window.tinkerMessagesShell.ownerProfile === "function") {
+      var profile = window.tinkerMessagesShell.ownerProfile();
+      avatar.hidden = false;
+      avatar.innerHTML = "";
+      if (profile && profile.avatarUrl) {
+        var img = document.createElement("img");
+        img.className = "messages-avatar__img";
+        img.src = profile.avatarUrl;
+        img.alt = profile.name || "";
+        avatar.appendChild(img);
+        avatar.classList.add("messages-avatar--photo");
+      } else {
+        avatar.classList.remove("messages-avatar--photo");
+        avatar.textContent = (profile && profile.initials) || "Y";
+      }
     }
   }
   function mountWriting() {

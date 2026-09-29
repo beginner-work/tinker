@@ -34,6 +34,7 @@
     collapsed: {},
     ownerName: "",
     ownerInitials: "Y",
+    ownerAvatarUrl: "",
   };
   var root = null;
   var pane = null;
@@ -201,6 +202,25 @@
     var e = String(email || "").trim();
     return e ? e.slice(0, 2).toUpperCase() : "Y";
   }
+  function ownerDisplayName() {
+    return state.ownerName || "You";
+  }
+  function fillAvatar(node, opts) {
+    opts = opts || {};
+    node.innerHTML = "";
+    var url = state.ownerAvatarUrl;
+    if (url) {
+      var img = el("img", "messages-avatar__img", {
+        src: url,
+        alt: opts.alt || "",
+      });
+      node.appendChild(img);
+      node.classList.add("messages-avatar--photo");
+      return;
+    }
+    node.classList.remove("messages-avatar--photo");
+    node.textContent = state.ownerInitials || "Y";
+  }
   function renderYouRow() {
     if (!root) return;
     var slot = root.querySelector("[data-messages-you-slot]");
@@ -212,29 +232,38 @@
       "aria-current": state.selectedId === YOU_ID ? "true" : "false",
     });
     var avatar = el("span", "messages-rail__avatar", { "aria-hidden": "true" });
-    avatar.textContent = state.ownerInitials || "Y";
+    fillAvatar(avatar);
     var main = el("span", "messages-rail__main");
     var top = el("span", "messages-rail__top");
     var title = el("span", "messages-rail__name");
-    title.textContent = "You";
+    title.textContent = ownerDisplayName();
     top.appendChild(title);
-    var preview = el("span", "messages-rail__preview");
-    preview.textContent = "Story parts and drafts with your assistant";
     main.appendChild(top);
-    main.appendChild(preview);
     btn.appendChild(avatar);
     btn.appendChild(main);
     btn.addEventListener("click", function () { selectYou(); });
     slot.appendChild(btn);
   }
-  function setPaneHeader(name, roleText) {
+  function setPaneHeader(name, roleText, opts) {
+    opts = opts || {};
     if (!pane) return;
     var nameEl = pane.querySelector("[data-messages-name]");
     var role = pane.querySelector("[data-messages-role]");
+    var avatar = pane.querySelector("[data-messages-avatar]");
     if (nameEl) nameEl.textContent = name || "Messages";
     if (role) {
       role.hidden = !roleText;
       role.textContent = roleText ? " · " + roleText : "";
+    }
+    if (avatar) {
+      if (opts.showOwnerAvatar) {
+        avatar.hidden = false;
+        fillAvatar(avatar, { alt: name || "" });
+      } else {
+        avatar.hidden = true;
+        avatar.innerHTML = "";
+        avatar.classList.remove("messages-avatar--photo");
+      }
     }
   }
   function selectYou(opts) {
@@ -246,7 +275,7 @@
         btn.setAttribute("aria-current", btn.getAttribute("data-conv-id") === YOU_ID ? "true" : "false");
       });
     }
-    setPaneHeader("You", "story parts with your assistant");
+    setPaneHeader(ownerDisplayName(), "", { showOwnerAvatar: true });
     showPane();
     var empty = pane && pane.querySelector("[data-messages-empty]");
     var thread = pane && pane.querySelector("[data-messages-thread]");
@@ -401,6 +430,7 @@
     if (!token()) {
       state.ownerName = "";
       state.ownerInitials = "Y";
+      state.ownerAvatarUrl = "";
       return Promise.resolve();
     }
     return fetch("/api/user-data/profile", {
@@ -410,6 +440,7 @@
       if (!p) return;
       state.ownerName = String(p.name || "").trim();
       state.ownerInitials = ownerInitialsFrom(p.name, p.email);
+      state.ownerAvatarUrl = String(p.avatarUrl || "").trim();
     }).catch(function () { /* ignore */ });
   }
   function refresh() {
@@ -503,6 +534,13 @@
     setCompanyFilter: setCompanyFilter,
     getSelectedId: function () { return state.selectedId; },
     touchForLead: function (id) { return (id && state.touchesByLead[id]) || null; },
+    ownerProfile: function () {
+      return {
+        name: state.ownerName,
+        initials: state.ownerInitials,
+        avatarUrl: state.ownerAvatarUrl,
+      };
+    },
     YOU_ID: YOU_ID,
     CHANNEL_LABEL: CHANNEL_LABEL,
     TOUCH_LABEL: TOUCH_LABEL,
