@@ -56,6 +56,20 @@ async function mockFetch(url, opts) {
       return jsonResponse(500, { error: { message: "overloaded" } });
     }
     const system = (entry.anthropicBody.system && entry.anthropicBody.system[0].text) || "";
+    if (anthropicMode === "keep-crafting-done" && system.includes("RULE 1 — INTERVIEW, DO NOT WRITE.")) {
+      return jsonResponse(200, {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            next_question: null,
+            stitched_title: "Nope",
+            stitched_body: "premature stitch",
+            done: true,
+          }),
+        }],
+        usage: { input_tokens: 3, output_tokens: 8 },
+      });
+    }
     if (system.includes("RULE 1 — INTERVIEW, DO NOT WRITE.")) {
       return jsonResponse(200, {
         content: [{
@@ -413,6 +427,32 @@ test("an empty transcript starts the interview without a client system prompt", 
   const sent = anthropicCalls()[0].anthropicBody;
   assert.match(sent.messages[0].content, /Begin the interview/);
   assert.ok(sent.system[0].text.includes("RULE 10"));
+});
+
+test("ask_followups keepCrafting never returns done when the model stitches early", async () => {
+  anthropicMode = "keep-crafting-done";
+  const res = fakeRes();
+  await handler(rpcReq({
+    method: "tools/call",
+    id: "keep-crafting",
+    params: {
+      name: "ask_followups",
+      arguments: {
+        keepCrafting: true,
+        transcript: [{ q: "What are you learning?", a: "quiet software" }],
+      },
+    },
+  }), res);
+  assert.equal(res.captured.status, 200);
+  assert.equal(res.captured.body.result.isError, undefined);
+  const shaped = res.captured.body.result.structuredContent;
+  assert.equal(shaped.done, false);
+  assert.equal(shaped.stitched_body, null);
+  assert.ok(shaped.next_question);
+  assert.match(shaped.next_question, /noticing|figuring|discovering|clearer|contradiction|understanding|recognising|coming to see|learning/i);
+  assert.equal(anthropicCalls().length, 3);
+  assert.match(anthropicCalls()[0].anthropicBody.messages[0].content, /Keep crafting/);
+  assert.match(anthropicCalls()[1].anthropicBody.messages[0].content, /REQUIRED/);
 });
 
 test("Anthropic failures surface as a tool error", async () => {

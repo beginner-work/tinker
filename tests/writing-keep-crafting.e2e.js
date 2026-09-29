@@ -1,4 +1,4 @@
-/* E2E: Keep crafting always shows next question or a clear retry. */
+/* E2E: Keep crafting always shows a next question (done/empty → retry/fallback). */
 "use strict";
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
@@ -112,7 +112,7 @@ async function bootYou(page, base, responses) {
 }
 
 describe("Keep crafting You interview", () => {
-  test("empty next_question shows retry; Keep crafting retries to a real question", async () => {
+  test("model returns done on keep_crafting, then a question is still shown", async () => {
     const { server, base } = await startStaticServer();
     const browser = await chromium.launch({ headless: true });
     try {
@@ -124,43 +124,87 @@ describe("Keep crafting You interview", () => {
       });
       const page = await context.newPage();
       await bootYou(page, base, [
+        // First Keep crafting: model prematurely stitches → retry → question.
         { text: JSON.stringify({ next_question: null, done: true, stitched_body: "premature", stitched_title: "Nope" }) },
         { text: JSON.stringify({ next_question: "What quiet part are you protecting?", done: false }) },
       ]);
 
-      // Answer seed question.
+      const before = await page.evaluate(() =>
+        (document.querySelector(".writing-question") || {}).textContent || "");
+
       await page.fill(".writing-input", "Quiet software compounds when I stay close to the work.");
-      await page.evaluate(() => document.getElementById("writing-next").click());
-      await page.waitForSelector(".writing-card--error, .writing-question", { timeout: 10000 });
-
-      const mid = await page.evaluate(() => ({
-        error: !!document.querySelector(".writing-card--error"),
-        heading: (document.querySelector(".writing-question") || {}).textContent || "",
-        keep: (document.getElementById("writing-next") || {}).textContent || "",
-        premature: /Quiet software compounds|premature|Nope/i.test(document.body.innerText || ""),
-      }));
-      assert.equal(mid.error, true);
-      assert.match(mid.heading, /Couldn't get the next question/i);
-      assert.match(mid.keep, /Keep crafting/i);
-      assert.equal(mid.premature, false);
-
       await page.evaluate(() => document.getElementById("writing-next").click());
       await page.waitForFunction(() => {
         const q = (document.querySelector(".writing-question") || {}).textContent || "";
         return /quiet part/i.test(q);
-      }, null, { timeout: 10000 });
+      }, null, { timeout: 15000 });
 
       const after = await page.evaluate(() => ({
         question: (document.querySelector(".writing-question") || {}).textContent || "",
         error: !!document.querySelector(".writing-card--error"),
         keep: (document.getElementById("writing-next") || {}).textContent || "",
+        premature: /Quiet software compounds|premature|Nope/i.test(
+          (document.querySelector(".writing-question") || {}).textContent || ""
+        ),
+        calls: (window.__claudeLog || []).length,
+        keepFlag: (window.__claudeLog || []).some((c) =>
+          /Keep crafting/i.test(((c.messages || [])[0] || {}).content || "")
+        ),
       }));
+      assert.notEqual(after.question, before);
       assert.match(after.question, /quiet part/i);
       assert.equal(after.error, false);
       assert.match(after.keep, /Keep crafting/i);
+      assert.equal(after.premature, false);
+      assert.ok(after.calls >= 2);
+      assert.equal(after.keepFlag, true);
 
       fs.mkdirSync(ART, { recursive: true });
       await page.screenshot({ path: path.join(ART, "keep-crafting-e2e.png"), fullPage: false });
+      await context.close();
+    } finally {
+      await browser.close();
+      server.close();
+    }
+  });
+
+  test("three empty/done replies fall back to a stage question without an error card", async () => {
+    const { server, base } = await startStaticServer();
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({
+        ...iPhone,
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      });
+      const page = await context.newPage();
+      const done = {
+        text: JSON.stringify({
+          next_question: null,
+          done: true,
+          stitched_body: "premature",
+          stitched_title: "Nope",
+        }),
+      };
+      await bootYou(page, base, [done, done, done]);
+
+      await page.fill(".writing-input", "Quiet software compounds when I stay close to the work.");
+      await page.evaluate(() => document.getElementById("writing-next").click());
+      await page.waitForFunction(() => {
+        const err = document.querySelector(".writing-card--error");
+        const q = (document.querySelector(".writing-question") || {}).textContent || "";
+        return !err && q.length > 10 && !/Couldn't/i.test(q);
+      }, null, { timeout: 15000 });
+
+      const after = await page.evaluate(() => ({
+        question: (document.querySelector(".writing-question") || {}).textContent || "",
+        error: !!document.querySelector(".writing-card--error"),
+        calls: (window.__claudeLog || []).length,
+      }));
+      assert.equal(after.error, false);
+      assert.equal(after.calls, 3);
+      assert.match(after.question, /noticing|figuring|discovering|clearer|contradiction|understanding|recognising|coming to see|learning/i);
       await context.close();
     } finally {
       await browser.close();
@@ -197,6 +241,53 @@ describe("Keep crafting You interview", () => {
       assert.match(after.nudge, /Type an answer first/i);
       assert.equal(after.needs, true);
       assert.equal(after.claude, 0);
+      await context.close();
+    } finally {
+      await browser.close();
+      server.close();
+    }
+  });
+
+  test("network failure still shows a readable error card", async () => {
+    const { server, base } = await startStaticServer();
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({
+        ...iPhone,
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      });
+      const page = await context.newPage();
+      await bootYou(page, base, [
+        { throwMessage: "network down for test" },
+      ]);
+
+      await page.fill(".writing-input", "An answer that should hit a network error.");
+      await page.evaluate(() => document.getElementById("writing-next").click());
+      await page.waitForSelector(".writing-card--error", { timeout: 10000 });
+
+      const err = await page.evaluate(() => {
+        const card = document.querySelector(".writing-card--error");
+        const pre = card && card.querySelector(".writing-error");
+        const note = card && card.querySelector(".writing-note");
+        const cs = pre ? getComputedStyle(pre) : null;
+        return {
+          heading: (card.querySelector(".writing-question") || {}).textContent || "",
+          msg: (pre || {}).textContent || "",
+          note: (note || {}).textContent || "",
+          color: cs ? cs.color : "",
+          keep: (document.getElementById("writing-next") || {}).textContent || "",
+        };
+      });
+      assert.match(err.heading, /Couldn't reach Claude/i);
+      assert.match(err.msg, /network down/i);
+      assert.match(err.keep, /Keep crafting/i);
+      // rgb(92, 36, 16) == #5c2410
+      assert.match(err.color, /rgb\(\s*92,\s*36,\s*16\s*\)/);
+
+      fs.mkdirSync(ART, { recursive: true });
+      await page.screenshot({ path: path.join(ART, "keep-crafting-error-contrast.png"), fullPage: false });
       await context.close();
     } finally {
       await browser.close();

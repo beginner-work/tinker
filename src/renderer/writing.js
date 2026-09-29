@@ -590,29 +590,21 @@
     nextBtn.textContent = "Keep crafting";
     nextBtn.onclick = () => {
       renderLoading("Asking the next question…");
-      askNext().catch((err) => renderError(err));
+      askNext({ keepCrafting: true }).catch((err) => renderError(err));
     };
     endBtn.hidden = false;
     refreshEndButton();
     endBtn.onclick = () => endNow(null, "");
   }
 
-  function renderNextQuestionRetry(reason) {
+  /** Publish-path recovery only — Keep crafting empty replies never use this. */
+  function renderPublishRecovery(reason) {
     const card = document.createElement("div");
     card.className = "writing-card writing-card--error";
-    const detail = (reason && String(reason).trim()) || "The next question came back empty.";
+    const detail = (reason && String(reason).trim()) || "Could not publish this draft.";
     card.innerHTML =
-      `<h2 class="writing-question">Couldn't get the next question.</h2>` +
-      `<p class="writing-note">${escapeHtml(detail)} Press Try again or Keep crafting.</p>`;
-    const retry = document.createElement("button");
-    retry.type = "button";
-    retry.className = "writing-action writing-action--primary";
-    retry.textContent = "Try again";
-    retry.addEventListener("click", () => {
-      renderLoading("Asking the next question…");
-      askNext().catch((err) => renderError(err));
-    });
-    card.appendChild(retry);
+      `<h2 class="writing-question">Couldn't publish yet.</h2>` +
+      `<p class="writing-note">${escapeHtml(detail)} Press Keep crafting to keep going.</p>`;
     wireKeepCraftingRetry();
     swap(card);
   }
@@ -635,7 +627,7 @@
     retry.textContent = "Try again";
     retry.addEventListener("click", () => {
       renderLoading("Asking the next question…");
-      askNext().catch((e) => renderError(e));
+      askNext({ keepCrafting: true }).catch((e) => renderError(e));
     });
     card.appendChild(retry);
     // Keep crafting must still retry — do not hide it into a silent no-op.
@@ -683,7 +675,7 @@
     }
     persist();
     renderLoading("Thinking through what to ask next…");
-    askNext().catch((err) => renderError(err));
+    askNext({ keepCrafting: true }).catch((err) => renderError(err));
   }
 
   /** Founder pressed "This is everything" — capture any half-typed answer
@@ -711,76 +703,109 @@
     askNext({ forceStitch: true }).catch((err) => renderError(err));
   }
 
-  async function askNext({ forceStitch = false } = {}) {
-    if (!active) return;
-    if (!window.tinker || typeof window.tinker.callClaude !== "function") {
-      throw new Error("Anthropic client unavailable. Reload the page.");
-    }
-    const userMessage = buildUserMessage(active.transcript || [], { forceStitch });
-    // Fold the founder's learned writing voice into the system prompt so
-    // the questions are phrased in their own voice (RULE 10). No voice yet
-    // → the canonical system prompt, unchanged.
-    const voice = voiceBlock();
-    const system = voice ? `${SYSTEM_PROMPT}\n\n${voice}` : SYSTEM_PROMPT;
-    let result;
-    try {
-      result = await window.tinker.callClaude({
-        system,
-        messages: [{ role: "user", content: userMessage }],
-        model: "claude-opus-4-8",
-        maxTokens: 2048,
-      });
-    } catch (err) {
-      if (forceStitch) throw err;
-      // Keep crafting must surface a retry, not leave the loading card.
-      renderError(err);
-      return;
-    }
-    const parsed = parseClaude(result && result.text);
+  function interviewApi() {
+    return (typeof window !== "undefined" && window.tinkerInterview) || null;
+  }
 
-    // Keep crafting (forceStitch=false) must always show the next question.
-    // A model that returns done/stitched early used to publish (or hang on
-    // a silent doPublish no-op) instead of advancing the interview.
-    if (forceStitch) {
-      // Hard verify: stitched body must use only words the founder typed.
-      const corpus = (active.transcript || []).map((t) => t.a).join("\n\n");
-      let body = parsed.stitched_body || "";
-      let title = parsed.stitched_title || active.title || "Untitled";
-      const verified = body ? verifyFounderOnly(body, active.transcript) : { ok: false };
-      if (!body || !verified.ok) {
-        // Strict fallback: build the essay from the founder's raw answers
-        // joined by paragraph breaks. Boring, but provably founder-only.
-        body = (active.transcript || []).map((t) => t.a.trim()).filter(Boolean).join("\n\n");
-        const titleVerified = phraseAppearsIn(title, corpus);
-        if (!titleVerified) title = firstSentence(body) || "Untitled";
-      }
-      if (!String(body || "").trim()) {
-        renderNextQuestionRetry("Nothing to stitch yet. Keep crafting with another answer, or try again.");
-        return;
-      }
-      active.stitched = { title, body };
-      active.title = title;
-      active.pending = null;
-      active.currentStep = (active.transcript || []).length;
-      persist();
-      // No "review + Save" step: once the essay is stitched it publishes
-      // straight away. The founder already wrote every word in the
-      // interview; the post-publish "being assessed" screen is the next
-      // surface they see (and they can still open the essay to read it).
-      doPublish();
-      return;
-    }
-
-    const q = String(parsed.next_question || "").trim();
-    if (!q) {
-      renderNextQuestionRetry("The next question came back empty.");
-      return;
-    }
+  function showNextQuestion(q) {
     active.stitched = null;
     active.pending = q;
     active.currentStep = (active.transcript || []).length;
     persist();
     renderStep();
+  }
+
+  async function askNext({ forceStitch = false, keepCrafting = false } = {}) {
+    if (!active) return;
+    if (!window.tinker || typeof window.tinker.callClaude !== "function") {
+      throw new Error("Anthropic client unavailable. Reload the page.");
+    }
+    if (forceStitch && keepCrafting) {
+      throw new Error("Pass either forceStitch or keepCrafting, not both.");
+    }
+    // Fold the founder's learned writing voice into the system prompt so
+    // the questions are phrased in their own voice (RULE 10). No voice yet
+    // → the canonical system prompt, unchanged.
+    const voice = voiceBlock();
+    const system = voice ? `${SYSTEM_PROMPT}\n\n${voice}` : SYSTEM_PROMPT;
+    const api = interviewApi();
+    const maxAttempts = keepCrafting ? 3 : 1;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const userMessage = buildUserMessage(active.transcript || [], {
+        forceStitch,
+        keepCrafting,
+        keepCraftingTighter: keepCrafting && attempt > 0,
+      });
+      let result;
+      try {
+        result = await window.tinker.callClaude({
+          system,
+          messages: [{ role: "user", content: userMessage }],
+          model: "claude-opus-4-8",
+          maxTokens: 2048,
+        });
+      } catch (err) {
+        if (forceStitch) throw err;
+        // Real network/server failure — error card only for these.
+        renderError(err);
+        return;
+      }
+      const parsed = parseClaude(result && result.text);
+
+      if (forceStitch) {
+        // Hard verify: stitched body must use only words the founder typed.
+        const corpus = (active.transcript || []).map((t) => t.a).join("\n\n");
+        let body = parsed.stitched_body || "";
+        let title = parsed.stitched_title || active.title || "Untitled";
+        const verified = body ? verifyFounderOnly(body, active.transcript) : { ok: false };
+        if (!body || !verified.ok) {
+          // Strict fallback: build the essay from the founder's raw answers
+          // joined by paragraph breaks. Boring, but provably founder-only.
+          body = (active.transcript || []).map((t) => t.a.trim()).filter(Boolean).join("\n\n");
+          const titleVerified = phraseAppearsIn(title, corpus);
+          if (!titleVerified) title = firstSentence(body) || "Untitled";
+        }
+        if (!String(body || "").trim()) {
+          // Nothing to stitch — keep interviewing rather than erroring.
+          const fallback =
+            (api && typeof api.fallbackKeepCraftingQuestion === "function"
+              ? api.fallbackKeepCraftingQuestion((active.transcript || []).length)
+              : null) || "What else are you learning about this?";
+          showNextQuestion(fallback);
+          return;
+        }
+        active.stitched = { title, body };
+        active.title = title;
+        active.pending = null;
+        active.currentStep = (active.transcript || []).length;
+        persist();
+        // No "review + Save" step: once the essay is stitched it publishes
+        // straight away. The founder already wrote every word in the
+        // interview; the post-publish "being assessed" screen is the next
+        // surface they see (and they can still open the essay to read it).
+        doPublish();
+        return;
+      }
+
+      const q = keepCrafting && api && typeof api.normalizeKeepCraftingQuestion === "function"
+        ? api.normalizeKeepCraftingQuestion(parsed)
+        : String(parsed.next_question || "").trim() || null;
+      if (q) {
+        showNextQuestion(q);
+        return;
+      }
+      // keepCrafting: empty/done → tighter retry, then stage fallback.
+      // Non-keepCrafting empty → stage fallback (no error card).
+      if (!keepCrafting) break;
+    }
+
+    const turns = (active.transcript || []).length;
+    const fallback =
+      (api && typeof api.fallbackKeepCraftingQuestion === "function"
+        ? api.fallbackKeepCraftingQuestion(turns)
+        : null) || "What else are you learning about this?";
+    showNextQuestion(fallback);
   }
 
   function buildTransactionsContext() {
@@ -803,7 +828,7 @@
     return [];
   }
 
-  function buildUserMessage(transcript, { forceStitch = false } = {}) {
+  function buildUserMessage(transcript, { forceStitch = false, keepCrafting = false, keepCraftingTighter = false } = {}) {
     const lines = [];
     if (active && active.seed) {
       lines.push(`Where the founder is right now: ${active.seed}`);
@@ -828,6 +853,14 @@
     if (lines.length) lines.push("");
     if (!transcript || transcript.length === 0) {
       lines.push("The founder just opened a new draft. Begin the interview.");
+      if (keepCrafting) {
+        const api = interviewApi();
+        const instr =
+          api && typeof api.keepCraftingUserInstruction === "function"
+            ? api.keepCraftingUserInstruction({ tighter: keepCraftingTighter })
+            : null;
+        if (instr) lines.push("", instr);
+      }
       return lines.join("\n");
     }
     lines.push("Conversation so far (the founder's answers are verbatim — do not paraphrase):", "");
@@ -840,6 +873,13 @@
       lines.push(
         "The founder has signaled they are done — they pressed \"This is everything\". Skip any further questions and produce the stitched essay now. Set next_question to null, fill stitched_title and stitched_body using only the founder's typed words, and set done to true."
       );
+    } else if (keepCrafting) {
+      const api = interviewApi();
+      const instr =
+        api && typeof api.keepCraftingUserInstruction === "function"
+          ? api.keepCraftingUserInstruction({ tighter: keepCraftingTighter })
+          : 'The founder pressed "Keep crafting" — return a non-empty next_question. Set done false. Do not stitch.';
+      lines.push(instr);
     } else {
       lines.push("Decide whether to ask another question or to stitch. Respond with the JSON object only.");
     }
@@ -943,11 +983,11 @@
 
   function doPublish() {
     if (!active || !active.stitched) {
-      renderNextQuestionRetry("Could not publish — the essay was empty. Keep crafting or try again.");
+      renderPublishRecovery("Could not publish — the essay was empty.");
       return;
     }
     if (typeof window.tinkerOnWritingPublish !== "function") {
-      renderNextQuestionRetry("Could not publish this draft. Keep crafting or try again.");
+      renderPublishRecovery("Could not publish this draft.");
       return;
     }
     window.tinkerOnWritingPublish(active, {

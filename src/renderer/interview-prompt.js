@@ -81,6 +81,61 @@
   const MAX_VOICE = 20000;
   const MAX_SCENE = 2000;
 
+  // Keep crafting must always yield a next_question. Last-resort prompts are
+  // stage-keyed so retries stay deterministic when the model returns done/empty.
+  const KEEP_CRAFTING_FALLBACKS = {
+    early: [
+      "What are you noticing that you did not expect?",
+      "What are you figuring out about how this work actually moves?",
+      "What are you discovering in the part you keep returning to?",
+    ],
+    mid: [
+      "What is getting clearer as you keep figuring this out?",
+      "What contradiction are you coming to see in how this fits together?",
+      "What are you understanding now that you would not have said an hour ago?",
+    ],
+    late: [
+      "What are you recognising that you want to hold onto from this?",
+      "What are you coming to see that still needs one more pass?",
+      "What learning here feels solid enough to say out loud?",
+    ],
+  };
+
+  const KEEP_CRAFTING_INSTRUCTION =
+    'The founder pressed "Keep crafting" — they want another question, not a stitch. ' +
+    "You MUST return a non-empty next_question. Set done to false. Set stitched_title and stitched_body to null. " +
+    "Do not stitch. Do not set done true. Ask one concrete learning-focused follow-up that has not been asked yet. " +
+    "Respond with the JSON object only.";
+
+  const KEEP_CRAFTING_TIGHTER_INSTRUCTION =
+    "REQUIRED: Return JSON with a non-empty next_question string only. " +
+    "Set done to false. Set stitched_title and stitched_body to null. " +
+    "Do not stitch. Do not mark done. Ask one new learning-focused question. JSON object only.";
+
+  function transcriptStage(turnCount) {
+    const n = Math.max(0, Number(turnCount) || 0);
+    if (n <= 2) return "early";
+    if (n <= 5) return "mid";
+    return "late";
+  }
+
+  function fallbackKeepCraftingQuestion(turnCount) {
+    const stage = transcriptStage(turnCount);
+    const list = KEEP_CRAFTING_FALLBACKS[stage];
+    const n = Math.max(0, Number(turnCount) || 0);
+    return list[n % list.length];
+  }
+
+  // Keep crafting never accepts a stitch/done payload. Only a non-empty question counts.
+  function normalizeKeepCraftingQuestion(parsed) {
+    const q = parsed && typeof parsed.next_question === "string" ? parsed.next_question.trim() : "";
+    return q || null;
+  }
+
+  function keepCraftingUserInstruction({ tighter = false } = {}) {
+    return tighter ? KEEP_CRAFTING_TIGHTER_INSTRUCTION : KEEP_CRAFTING_INSTRUCTION;
+  }
+
   function stripFences(text) {
     return String(text || "")
       .trim()
@@ -242,6 +297,10 @@
     }
     if (turns.length === 0) {
       lines.push("The founder just opened a new draft. Begin the interview.");
+      if (args.keepCrafting === true) {
+        lines.push("");
+        lines.push(keepCraftingUserInstruction({ tighter: args.keepCraftingTighter === true }));
+      }
       return lines.join("\n");
     }
     lines.push("Conversation so far (the founder's answers are verbatim — do not paraphrase):", "");
@@ -254,6 +313,8 @@
       lines.push(
         "The founder has signaled they are done — they pressed \"This is everything\". Skip any further questions and produce the stitched essay now. Set next_question to null, fill stitched_title and stitched_body using only the founder's typed words, and set done to true."
       );
+    } else if (args.keepCrafting === true) {
+      lines.push(keepCraftingUserInstruction({ tighter: args.keepCraftingTighter === true }));
     } else {
       lines.push("Decide whether to ask another question or to stitch. Respond with the JSON object only.");
     }
@@ -298,6 +359,9 @@
     if (hasTranscript) {
       const transcript = normalizeTranscript(input.transcript);
       if (transcript.error) return { error: transcript.error };
+      if (input.forceStitch === true && input.keepCrafting === true) {
+        return { error: "Pass either forceStitch or keepCrafting, not both." };
+      }
       if (input.forceStitch === true && transcript.turns.length === 0 && prior.turns.length === 0) {
         return { error: "forceStitch needs at least one answered turn." };
       }
@@ -320,8 +384,15 @@
   return {
     SYSTEM_PROMPT,
     FREEFORM_SYSTEM_PROMPT,
+    KEEP_CRAFTING_INSTRUCTION,
+    KEEP_CRAFTING_TIGHTER_INSTRUCTION,
+    KEEP_CRAFTING_FALLBACKS,
     parseInterviewResponse,
     parseFreeformResponse,
     buildFollowupRequest,
+    transcriptStage,
+    fallbackKeepCraftingQuestion,
+    normalizeKeepCraftingQuestion,
+    keepCraftingUserInstruction,
   };
 });
