@@ -382,6 +382,10 @@
   function onSelect(e) {
     if (e && e.detail && e.detail.you) {
       state.mode = "you";
+      // Drop person header links so they do not linger on the owner thread.
+      var links = pane && pane.querySelector("[data-messages-links]");
+      if (links) { links.hidden = true; links.innerHTML = ""; }
+      state.lead = null;
       return;
     }
     var id = e && e.detail && e.detail.leadId;

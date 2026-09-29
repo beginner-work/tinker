@@ -30,6 +30,8 @@ test("You row and header use Lindow Labs name and logo", () => {
   assert.match(you, /Lindow Labs/);
   assert.match(you, /lindow-labs\.svg|OWNER_LOGO/);
   assert.match(you, /purge_plan/);
+  assert.match(you, /data-messages-links/);
+  assert.match(you, /links\.hidden = true/);
   assert.match(demo, /Lindow Labs/);
   assert.match(demo, /lindow-labs\.svg/);
   assert.match(demo, /Tyler Lindow/);
