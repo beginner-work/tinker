@@ -49,12 +49,27 @@ function sendJson(res, status, body) {
 
 function sendFile(filePath, res) {
   const ext = path.extname(filePath);
+  if (path.basename(filePath) === "index.html" && filePath.includes(`${path.sep}schedule${path.sep}`)) {
+    let html = fs.readFileSync(filePath, "utf8");
+    const seed = '<script src="/schedule/demo-seed.js"></script>';
+    if (!html.includes("demo-seed.js")) {
+      html = html.replace('<script src="/schedule/catalog.js"></script>', `${seed}\n    <script src="/schedule/catalog.js"></script>`);
+    }
+    res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream" });
+    res.end(html);
+    return;
+  }
   res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream" });
   fs.createReadStream(filePath).pipe(res);
 }
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || "/", "http://localhost");
+  if (url.pathname === "/schedule/demo-seed.js") {
+    res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "no-store" });
+    res.end('try{localStorage.setItem("tinker_jwt","demo-schedule-token")}catch(e){}\n');
+    return;
+  }
   if (url.pathname.startsWith("/api/schedule")) {
     const action = url.searchParams.get("action") || "";
     if (req.method === "GET" && (action === "week" || action === "")) return sendJson(res, 200, week);
