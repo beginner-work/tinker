@@ -72,10 +72,10 @@ test("person chat header shows quiet LinkedIn and GitHub links when URLs exist",
   assert.equal(/messages-rail__search/.test(demo), false);
 });
 
-test("lead composer is invisible notepad with Keep crafting / This is everything", () => {
+test("lead composer is invisible notepad with Keep crafting / Send confirm", () => {
   assert.match(composer, /tinkerMessagesNotepad/);
-  assert.match(composer, /This is everything/);
   assert.match(composer, /Keep crafting/);
+  assert.match(composer, /Send this email\?/);
   assert.match(composer, /approved_to_send|approve/);
   assert.equal(/data-composer-channel/.test(html), false);
   assert.equal(/No story parts yet/.test(html), false);

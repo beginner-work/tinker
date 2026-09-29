@@ -11,7 +11,9 @@
   var LINKEDIN_CONNECTION_NOTE_LIMIT = 200;
   var GROUPS = [
     { key: "draft", label: "Needs review" },
-    { key: "approved", label: "Ready to send" },
+    { key: "approved", label: "Ready to copy" },
+    { key: "approved_to_send", label: "Queued to send" },
+    { key: "send_failed", label: "Send failed" },
     { key: "sent_by_owner", label: "Sent" },
   ];
   var DESTINATIONS = {
@@ -21,7 +23,10 @@
   };
   /* Reply = lead stage replied+ (no LeadDraft.isReply column). */
   var REPLY_STAGES = { replied: 1, call: 1, interview: 1, offer: 1 };
-  var state = { drafts: [], loading: false, error: "", defaultFrom: "", bookingUrl: "", companyFilter: "" };
+  var state = {
+    drafts: [], loading: false, error: "", defaultFrom: "", bookingUrl: "",
+    sendingEnabled: false, companyFilter: "",
+  };
   var overlay = null, concealed = [], root = null;
 
   function token() { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } }
@@ -322,11 +327,16 @@
     var q = state.companyFilter ? { company: state.companyFilter } : {};
     return Promise.all([
       api("GET", "drafts", null, q),
-      api("GET", "settings").catch(function () { return { settings: { defaultFromAddress: "" } }; }),
+      api("GET", "settings").catch(function () {
+        return { settings: { defaultFromAddress: "", sendingEnabled: false } };
+      }),
     ]).then(function (results) {
       state.drafts = Array.isArray(results[0].drafts) ? results[0].drafts : [];
       state.defaultFrom = (results[1].settings && results[1].settings.defaultFromAddress) || "";
       state.bookingUrl = (results[1].settings && results[1].settings.bookingUrl) || "";
+      state.sendingEnabled = !!(results[1].settings && results[1].settings.sendingEnabled);
+      var sending = root && root.querySelector("[data-drafts-sending]");
+      if (sending) sending.checked = state.sendingEnabled;
       state.error = ""; if (root) root.hidden = false;
     }).catch(function (err) {
       state.drafts = [];
@@ -376,6 +386,33 @@
           bookingInput.value = state.bookingUrl || "";
           renderSidebar();
         }).finally(function () { bookingSave.disabled = false; });
+      });
+    }
+    var sendingInput = root.querySelector("[data-drafts-sending]");
+    if (sendingInput && !sendingInput.getAttribute("data-bound")) {
+      sendingInput.setAttribute("data-bound", "1");
+      sendingInput.checked = !!state.sendingEnabled;
+      sendingInput.addEventListener("change", function () {
+        var on = !!sendingInput.checked;
+        sendingInput.disabled = true;
+        api("POST", "settings", { sendingEnabled: on }).then(function (res) {
+          state.sendingEnabled = !!(res.settings && res.settings.sendingEnabled);
+          sendingInput.checked = state.sendingEnabled;
+          try {
+            document.dispatchEvent(new CustomEvent("tinker:sending-enabled", {
+              detail: { sendingEnabled: state.sendingEnabled },
+            }));
+          } catch (e) { /* ignore */ }
+          var status = root.querySelector("[data-settings-status]");
+          if (status) {
+            status.hidden = false;
+            status.textContent = state.sendingEnabled
+              ? "Sending on. Press Send on a Gmail draft to queue it."
+              : "Sending off. Gmail Send stays blocked.";
+          }
+        }).catch(function () {
+          sendingInput.checked = !!state.sendingEnabled;
+        }).finally(function () { sendingInput.disabled = false; });
       });
     }
   }

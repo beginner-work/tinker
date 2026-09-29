@@ -76,7 +76,7 @@ test("owner notepad is borderless and floating actions replace composer + mode-n
   assert.match(demo, /writing-input/);
   assert.equal(/Write a draft/i.test(demo), false);
   assert.equal(/—/.test(demo), false);
-  // Lead and You threads share Keep crafting / This is everything.
-  assert.match(composer, /This is everything/);
+  // You keeps This is everything; lead Gmail uses Send with confirm.
+  assert.match(composer, /Send this email\?/);
   assert.match(composer, /Keep crafting/);
 });

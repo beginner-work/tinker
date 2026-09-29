@@ -31,9 +31,9 @@ test("slim header with quiet profile links next to the name", () => {
   assert.equal(/never sends/i.test(visible), false);
 });
 
-test("composer uses Keep crafting / This is everything (no Ship chrome)", () => {
-  assert.match(composer, /This is everything/);
+test("composer uses Keep crafting / Send confirm (no Ship chrome)", () => {
   assert.match(composer, /Keep crafting/);
+  assert.match(composer, /Send this email\?/);
   assert.match(composer, /approve/);
   assert.equal(/data-composer-date-btn/.test(html), false);
   assert.equal(/class="messages-composer__date-input"/.test(html), false);

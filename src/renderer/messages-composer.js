@@ -1,8 +1,8 @@
-/* Lead/person chat notepad (TYL-65).
+/* Lead/person chat notepad (LL-66 on TYL-65 shell).
  * Same invisible notepad as the owner thread: logo mark, italic context,
- * serif prompt, free text, floating Keep crafting / This is everything.
- * Channel, due date, and subject stay as MCP data - not UI.
- * This is everything → approved_to_send. Keep crafting → draft.
+ * serif prompt, free text, floating Keep crafting / Send.
+ * Gmail Send (with confirm) → approved_to_send when Sending enabled.
+ * LinkedIn stays draft / copy-only. Channel stays MCP data - not UI.
  * Owner You thread is handled by messages-you.js and left alone.
  */
 (function () {
@@ -25,6 +25,9 @@
     subject: "",
     body: "",
     defaultFrom: "",
+    sendingEnabled: false,
+    confirmSend: false,
+    statusMessage: "",
     saving: false,
     handedOff: false,
     statusLine: "",
@@ -147,11 +150,63 @@
       host.appendChild(line);
     }
     line.hidden = false;
-    line.textContent = "Handed off. Your assistant will send this.";
+    if (state.statusLine === "approved" && state.channel !== "gmail_outreach") {
+      line.textContent = "Ready to copy. LinkedIn stays draft-only — Tinker does not send it.";
+    } else {
+      line.textContent = "Queued. Your assistant will send this through Gmail.";
+    }
   }
   function hideHandoff(host) {
     var line = host && host.querySelector("[data-handoff-line]");
     if (line) line.hidden = true;
+  }
+  function showStatus(host, message) {
+    if (!host) return;
+    var line = host.querySelector("[data-composer-status]");
+    if (!line) {
+      line = el("p", "messages-notepad__status", { "data-composer-status": "1" });
+      host.appendChild(line);
+    }
+    if (!message) { line.hidden = true; line.textContent = ""; return; }
+    line.hidden = false;
+    line.textContent = message;
+  }
+  function primaryLabel() {
+    if (state.confirmSend) return "Send this email?";
+    if (state.channel === "gmail_outreach") return "Send";
+    return "This is everything";
+  }
+  function secondaryLabel() {
+    if (state.confirmSend) return "Cancel";
+    return "Keep crafting";
+  }
+  function onPrimary() {
+    if (state.channel !== "gmail_outreach") {
+      saveDraft("ship");
+      return;
+    }
+    if (!state.sendingEnabled) {
+      state.statusMessage = "Sending is off. Turn on Sending enabled under Settings first.";
+      mountNotepad();
+      return;
+    }
+    if (!state.confirmSend) {
+      state.confirmSend = true;
+      state.statusMessage = "";
+      mountNotepad();
+      return;
+    }
+    state.confirmSend = false;
+    saveDraft("ship");
+  }
+  function onSecondary() {
+    if (state.confirmSend) {
+      state.confirmSend = false;
+      state.statusMessage = "";
+      mountNotepad();
+      return;
+    }
+    saveDraft("next");
   }
   function mountNotepad() {
     var np = notepad();
@@ -167,18 +222,22 @@
     if (state.handedOff) {
       np.unmount();
       showHandoff(host);
+      showStatus(host, "");
       return;
     }
     hideHandoff(host);
     np.mount(host, {
-      primaryLabel: "This is everything",
-      secondaryLabel: "Keep crafting",
+      primaryLabel: primaryLabel(),
+      secondaryLabel: secondaryLabel(),
       heading: "",
       value: state.body,
       metaNode: buildOpening(state.lead, state.company),
       onInput: function (value) {
         var prev = state.body;
         state.body = value;
+        if (state.confirmSend && value !== prev) {
+          state.confirmSend = false;
+        }
         if (state.handedOff && value !== prev) {
           state.handedOff = false;
           revokeIfNeeded();
@@ -188,9 +247,10 @@
           revokeIfNeeded();
         }
       },
-      onPrimary: function () { saveDraft("ship"); },
-      onSecondary: function () { saveDraft("next"); },
+      onPrimary: onPrimary,
+      onSecondary: onSecondary,
     });
+    showStatus(host, state.statusMessage || "");
     np.setPrimaryEnabled(!!String(state.body || "").trim() && !state.saving);
     setTimeout(function () { np.focus(); }, 60);
   }
@@ -199,10 +259,12 @@
     if (np) np.unmount();
     document.body.classList.remove("messages-notepad-active");
     hideHandoff(threadHost());
+    showStatus(threadHost(), "");
   }
   function loadSettings() {
     return api("/api/leads", "GET", "settings").then(function (res) {
       state.defaultFrom = (res.settings && res.settings.defaultFromAddress) || "";
+      state.sendingEnabled = !!(res.settings && res.settings.sendingEnabled);
     }).catch(function () { /* ignore */ });
   }
   function pickOpenDraft(drafts) {
@@ -272,17 +334,22 @@
           state.draftId = d && d.id || draft.id;
           state.statusLine = (d && d.status) || "approved_to_send";
           state.handedOff = true;
+          state.confirmSend = false;
+          state.statusMessage = "";
           state.body = (d && (d.approvedText || d.body)) || body;
         });
       }
       state.handedOff = false;
+      state.confirmSend = false;
     }).then(function () {
       if (window.tinkerMessagesThread && state.leadId) window.tinkerMessagesThread.loadLead(state.leadId);
       if (window.tinkerMessagesShell && window.tinkerMessagesShell.refresh) window.tinkerMessagesShell.refresh();
       if (window.tinkerLeadDrafts && window.tinkerLeadDrafts.refresh) window.tinkerLeadDrafts.refresh();
       mountNotepad();
-    }).catch(function () {
+    }).catch(function (err) {
       state.handedOff = false;
+      state.confirmSend = false;
+      state.statusMessage = (err && err.message) || "Could not queue send.";
       mountNotepad();
     }).finally(function () {
       state.saving = false;
@@ -313,18 +380,21 @@
         state.subject = open.subject || "";
         state.channel = open.channel || state.channel;
         state.statusLine = open.status || "draft";
-        state.handedOff = open.status === "approved_to_send";
+        state.handedOff = open.status === "approved_to_send" || open.status === "approved";
+        state.confirmSend = false;
       } else {
         state.draftId = "";
         state.body = "";
         state.statusLine = "draft";
         state.handedOff = false;
+        state.confirmSend = false;
       }
       mountNotepad();
     }).catch(function () {
       state.draftId = "";
       state.body = "";
       state.handedOff = false;
+      state.confirmSend = false;
       mountNotepad();
     });
   }
@@ -337,6 +407,8 @@
       state.draftId = "";
       state.body = "";
       state.handedOff = false;
+      state.confirmSend = false;
+      state.statusMessage = "";
       unmountNotepad();
       hideLegacyComposer();
     }
@@ -359,7 +431,8 @@
         state.subject = open ? (open.subject || "") : "";
         state.channel = open ? (open.channel || "gmail_outreach") : "gmail_outreach";
         state.statusLine = open ? (open.status || "draft") : "draft";
-        state.handedOff = !!(open && open.status === "approved_to_send");
+        state.handedOff = !!(open && (open.status === "approved_to_send" || open.status === "approved"));
+        state.confirmSend = false;
         state.leadId = id;
         state.lead = lead;
         state.company = companyForLead(lead);
@@ -376,6 +449,11 @@
     hideLegacyComposer();
     loadSettings();
     window.addEventListener("tinker:messages-select", onSelect);
+    document.addEventListener("tinker:sending-enabled", function (e) {
+      state.sendingEnabled = !!(e && e.detail && e.detail.sendingEnabled);
+      if (!state.sendingEnabled) state.confirmSend = false;
+      if (state.leadId) mountNotepad();
+    });
   }
 
   window.tinkerMessagesComposer = {

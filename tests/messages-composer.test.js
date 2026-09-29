@@ -12,13 +12,14 @@ const css = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
 const draftsJs = fs.readFileSync(path.join(root, "src/renderer/lead-drafts.js"), "utf8");
 const settings = fs.readFileSync(path.join(root, "src/renderer/settings/index.html"), "utf8");
 
-test("composer is invisible notepad with Keep crafting / This is everything", () => {
+test("composer is invisible notepad with Keep crafting / Send confirm", () => {
   assert.match(html, /id="messages-composer"/);
   assert.match(html, /messages-composer\.js/);
   assert.match(html, /messages-notepad\.js/);
   assert.match(js, /tinkerMessagesNotepad|tinkerMessagesComposer/);
-  assert.match(js, /This is everything/);
   assert.match(js, /Keep crafting/);
+  assert.match(js, /Send this email\?/);
+  assert.match(js, /confirmSend/);
   assert.match(js, /approved_to_send|approve/);
   assert.equal(/data-composer-ship/.test(html), false);
   assert.equal(/data-composer-channel/.test(html), false);
@@ -33,6 +34,7 @@ test("sidebar draft list is gone; outreach settings live on /settings", () => {
   assert.equal(/data-drafts-from/.test(html), false);
   assert.match(settings, /data-drafts-from/);
   assert.match(settings, /data-drafts-booking/);
+  assert.match(settings, /data-drafts-sending/);
   assert.match(html, /href="\/settings"/);
   assert.match(draftsJs, /Draft list removed in TYL-65/);
 });
