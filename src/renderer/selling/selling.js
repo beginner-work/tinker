@@ -304,16 +304,21 @@
     form.addEventListener("submit", function (event) {
       event.preventDefault();
       save.disabled = true;
-      var fields = { start: start.value, number: number.value, cause: cause.value, teamOrRole: team.value };
-      function split(v) { return v.split(",").map(function (t) { return t.trim(); }).filter(Boolean); }
-      var payload = {
-        title: title.value, stageKey: stageSel.value, body: body.value,
-        concepts: split(concepts.value), stack: split(stack.value), topics: split(topics.value),
-        fields: fields, sourceExcerpt: excerpt.value,
-        sourceKind: seed.sourceKind || "none", sourceId: seed.sourceId || null,
-        sourceRef: { repo: repo.value, path: path.value, ref: ref.value, evidence: split(evidence.value) },
-      };
-      if (repo.value.trim() || seed.sourceKind === "code") { payload.sourceKind = "code"; payload.sourceId = seed.sourceId || null; }
+      var payload = excerptApi.buildPartPayload({
+        title: title.value,
+        stageKey: stageSel.value,
+        body: body.value,
+        concepts: concepts.value,
+        stack: stack.value,
+        fields: { start: start.value, number: number.value, cause: cause.value, teamOrRole: team.value },
+        sourceExcerpt: excerpt.value,
+        sourceKind: seed.sourceKind || "none",
+        sourceId: seed.sourceId || null,
+        repo: repo.value,
+        path: path.value,
+        ref: ref.value,
+        evidence: evidence.value,
+      });
       var req = seed.id
         ? api("PATCH", "edit", { id: seed.id, body: payload })
         : api("POST", "create", { body: payload });
@@ -431,15 +436,13 @@
     }
     addFilter("All status", "status", ["", "draft", "ready", "retired"]);
     addFilter("All sources", "sourceKind", ["", "note", "concept", "narrative", "content_item", "career_record", "code", "none"]);
-    var topics = []; var stacks = []; var conceptTags = [];
+    var stacks = []; var conceptTags = [];
     parts.forEach(function (part) {
-      (part.topics || []).forEach(function (topic) { if (topics.indexOf(topic) < 0) topics.push(topic); });
       (part.stack || []).forEach(function (tag) { if (stacks.indexOf(tag) < 0) stacks.push(tag); });
       (part.concepts || []).forEach(function (tag) { if (conceptTags.indexOf(tag) < 0) conceptTags.push(tag); });
     });
     addFilter("All concepts", "concepts", [""].concat(conceptTags));
     addFilter("All stack", "stack", [""].concat(stacks));
-    addFilter("All topics", "topic", [""].concat(topics));
   }
   filtersEl.addEventListener("click", function (event) {
     var btn = event.target.closest("[data-key]");
