@@ -783,7 +783,9 @@ button.messages-thread__bubble {
 .messages-composer__next:disabled,
 .messages-composer__ship:disabled { opacity: 0.45; cursor: default; }
 
-/* You mode: guided writing interview hosted inside the messages pane. */
+/* You mode: guided writing interview hosted inside the messages pane.
+   .writing defaults to position:absolute;inset:0 (full-screen flow). Reset
+   that here so the question bubble sits in normal flow under the pane header. */
 body.messages-you-active #messages-pane { display: flex; }
 body.messages-you-active .messages-thread--you {
   display: flex;
@@ -793,6 +795,8 @@ body.messages-you-active .messages-thread--you {
   overflow-y: auto;
 }
 body.messages-you-active .writing--in-messages {
+  position: relative;
+  inset: auto;
   display: flex !important;
   flex-direction: column;
   flex: 1;
@@ -801,6 +805,7 @@ body.messages-you-active .writing--in-messages {
   max-width: 40rem;
   margin: 0 auto;
   background: transparent;
+  overflow: visible;
 }
 body.messages-you-active .writing--in-messages .writing__top,
 body.messages-you-active .writing--in-messages .writing__foot {
@@ -810,7 +815,9 @@ body.messages-you-active .writing--in-messages .writing__body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 8px 0 12px;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 4px 0 12px;
 }
 body.messages-you-active .writing--in-messages .writing-card {
   border: 0;
