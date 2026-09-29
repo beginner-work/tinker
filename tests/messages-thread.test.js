@@ -25,7 +25,7 @@ test("thread script is wired and listens for conversation select", () => {
 test("thread styles stay flat without nested card boxes", () => {
   assert.match(css, /\.messages-thread__list\b/);
   assert.match(css, /\.messages-thread__bubble\b/);
-  assert.match(css, /\.messages-thread__channel\b/);
+  assert.match(css, /\.messages-thread__meta\b/);
   assert.equal(/\.messages-thread__list[^{]*\{[^}]*box-shadow/.test(css), false);
   assert.equal(/\.messages-thread__item--owner[^{]*\{[^}]*box-shadow/.test(css), false);
 });

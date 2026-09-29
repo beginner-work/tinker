@@ -1,7 +1,7 @@
 /* Messaging thread (TYL-65): chat bubbles per lead.
  * Owner sent → solid right; saved drafts → lighter right with Draft label;
- * lead replies (when present in data) → left. Channel + time on each bubble.
- * Composer stays Save draft only. Tinker never sends.
+ * lead replies (when present in data) → left. Meta (status, channel, date)
+ * sits as one small line under each bubble body.
  */
 (function () {
   "use strict";
@@ -22,7 +22,12 @@
     referral_follow_up: "follow-up",
     call_follow_up: "follow-up",
   };
-  var state = { lead: null, drafts: [], replies: [], touch: null, loading: false, error: "" };
+  var STATUS_LABEL = {
+    draft: "Draft",
+    approved: "Ready",
+    sent_by_owner: "Sent",
+  };
+  var state = { lead: null, drafts: [], replies: [], touch: null, loading: false, error: "", mode: "lead" };
   var pane = null;
 
   function token() {
@@ -62,6 +67,16 @@
       return d.toISOString().slice(0, 16).replace("T", " ");
     }
   }
+  function formatDay(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return "";
+    try {
+      return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    } catch (e) {
+      return d.toDateString();
+    }
+  }
   function isInboundDraft(d) {
     if (!d) return false;
     if (d.direction === "inbound" || d.fromLead === true || d.side === "lead") return true;
@@ -72,7 +87,6 @@
     if (!lead) return [];
     var out = [];
     var notes = String(lead.notes || "").trim();
-    /* Convention: lines/blocks starting with "Reply:" (optional channel) are logged replies. */
     if (notes) {
       var blocks = notes.split(/\n{2,}/);
       blocks.forEach(function (block, i) {
@@ -166,23 +180,23 @@
   function groupKey(item) {
     return item.side + ":" + item.kind + ":" + (item.channel || "");
   }
+  function metaLine(parts) {
+    return parts.filter(Boolean).join(" · ");
+  }
   function renderHeader() {
     if (!pane || !state.lead) return;
-    var title = pane.querySelector(".messages-pane__title");
+    var nameEl = pane.querySelector("[data-messages-name]");
     var role = pane.querySelector("[data-messages-role]");
-    var sub = pane.querySelector(".messages-pane__sub");
     var lead = state.lead;
     var name = String(lead.personName || "").trim() || "Someone";
-    if (title) title.textContent = name;
+    if (nameEl) nameEl.textContent = name;
     if (role) {
       var bits = [];
       if (lead.personTitle) bits.push(String(lead.personTitle).trim());
-      if (lead.company) bits.push(String(lead.company).trim());
-      role.hidden = bits.length === 0;
-      role.textContent = bits.join(" · ");
-    }
-    if (sub) {
-      sub.textContent = "You save drafts here — Tinker never sends.";
+      if (lead.company) bits.push("at " + String(lead.company).trim());
+      var line = bits.join(" ");
+      role.hidden = !line;
+      role.textContent = line ? " · " + line : "";
     }
   }
   function openDraft(id) {
@@ -192,19 +206,6 @@
   }
   function renderBubble(item, grouped) {
     var li = el("li", "messages-thread__item messages-thread__item--" + item.side + " messages-thread__item--" + item.kind + (grouped ? " messages-thread__item--grouped" : ""));
-    var meta = el("div", "messages-thread__meta");
-    if (item.kind === "draft") {
-      var draftTag = el("span", "messages-thread__draft-tag");
-      draftTag.textContent = "Draft";
-      meta.appendChild(draftTag);
-    }
-    var channel = el("span", "messages-thread__channel");
-    channel.textContent = channelLabel(item.channel);
-    meta.appendChild(channel);
-    var when = el("span", "messages-thread__when");
-    when.textContent = formatWhen(item.at);
-    meta.appendChild(when);
-
     var bubble;
     if (item.openable && item.draftId) {
       bubble = el("button", "messages-thread__bubble", { type: "button", title: item.kind === "draft" ? "Open draft" : "Open message" });
@@ -221,15 +222,41 @@
     body.textContent = item.body || (item.kind === "draft" ? "(empty draft)" : "");
     bubble.appendChild(body);
 
-    if (!grouped) li.appendChild(meta);
-    else {
-      /* Grouped: keep a slim time under the bubble for the last of a run via CSS; still attach meta visually compact */
-      var slim = el("div", "messages-thread__meta messages-thread__meta--slim");
-      slim.appendChild(when.cloneNode(true));
-      li.appendChild(bubble);
-      li.appendChild(slim);
-      return li;
+    var statusBit = "";
+    if (item.kind === "draft") statusBit = STATUS_LABEL[item.status] || "Draft";
+    else if (item.kind === "sent") statusBit = "Sent";
+    var meta = el("div", "messages-thread__meta");
+    meta.textContent = grouped
+      ? formatWhen(item.at)
+      : metaLine([statusBit, channelLabel(item.channel), formatWhen(item.at)]);
+    bubble.appendChild(meta);
+
+    li.appendChild(bubble);
+    return li;
+  }
+  function renderScheduledBubble(entry) {
+    var touch = entry.touch;
+    var li = el("li", "messages-thread__item messages-thread__item--owner messages-thread__item--scheduled");
+    var bubble = el("div", "messages-thread__bubble messages-thread__bubble--scheduled");
+    var draft = null;
+    if (touch.draftId) {
+      for (var i = 0; i < state.drafts.length; i++) {
+        if (state.drafts[i] && state.drafts[i].id === touch.draftId) { draft = state.drafts[i]; break; }
+      }
     }
+    var body = el("div", "messages-thread__body");
+    body.textContent = draft && draft.body
+      ? String(draft.body).replace(/\s+/g, " ").trim().slice(0, 180)
+      : ("Next " + (TOUCH_LABEL[touch.touchType] || "touch") + " planned. Write the draft below.");
+    bubble.appendChild(body);
+    var meta = el("div", "messages-thread__meta");
+    meta.textContent = metaLine([
+      "Scheduled",
+      TOUCH_LABEL[touch.touchType] || String(touch.touchType || "").replace(/_/g, " "),
+      draft && draft.channel ? channelLabel(draft.channel) : "",
+      formatDay(touch.date),
+    ]);
+    bubble.appendChild(meta);
     li.appendChild(bubble);
     return li;
   }
@@ -257,7 +284,7 @@
     var list = el("ol", "messages-thread__list", { "aria-label": "Conversation" });
     if (!items.length && !(state.touch && state.touch.touch)) {
       thread.appendChild(Object.assign(el("p", "messages-thread__empty"), {
-        textContent: "No messages yet for this person. Save a draft below — your assistant can pull it. Tinker never sends.",
+        textContent: "No messages yet for this person. Write a draft below.",
       }));
       return;
     }
@@ -274,55 +301,20 @@
     thread.appendChild(list);
     try { thread.scrollTop = thread.scrollHeight; } catch (e) { /* ignore */ }
   }
-  function renderScheduledBubble(entry) {
-    var touch = entry.touch;
-    var li = el("li", "messages-thread__item messages-thread__item--owner messages-thread__item--scheduled");
-    var meta = el("div", "messages-thread__meta");
-    var tag = el("span", "messages-thread__draft-tag messages-thread__draft-tag--scheduled");
-    tag.textContent = "Scheduled";
-    meta.appendChild(tag);
-    var type = el("span", "messages-thread__channel");
-    type.textContent = TOUCH_LABEL[touch.touchType] || String(touch.touchType || "").replace(/_/g, " ");
-    meta.appendChild(type);
-    var when = el("span", "messages-thread__when");
-    when.textContent = formatWhen(touch.date);
-    meta.appendChild(when);
-    var bubble = el("div", "messages-thread__bubble messages-thread__bubble--scheduled");
-    var body = el("div", "messages-thread__body");
-    var draft = null;
-    if (touch.draftId) {
-      for (var i = 0; i < state.drafts.length; i++) {
-        if (state.drafts[i] && state.drafts[i].id === touch.draftId) { draft = state.drafts[i]; break; }
-      }
-    }
-    if (draft && draft.channel) {
-      var ch = el("div", "messages-thread__subject");
-      ch.textContent = channelLabel(draft.channel);
-      bubble.appendChild(ch);
-    }
-    body.textContent = draft && draft.body
-      ? String(draft.body).replace(/\s+/g, " ").trim().slice(0, 180)
-      : ("Next " + (TOUCH_LABEL[touch.touchType] || "touch") + " planned — write the draft below.");
-    bubble.appendChild(body);
-    li.appendChild(meta);
-    li.appendChild(bubble);
-    return li;
-  }
   function clearThread() {
     state.lead = null;
     state.drafts = [];
     state.replies = [];
     state.touch = null;
     state.error = "";
+    state.mode = "lead";
     if (!pane) return;
-    var title = pane.querySelector(".messages-pane__title");
+    var nameEl = pane.querySelector("[data-messages-name]");
     var role = pane.querySelector("[data-messages-role]");
-    var sub = pane.querySelector(".messages-pane__sub");
     var empty = pane.querySelector("[data-messages-empty]");
     var thread = pane.querySelector("[data-messages-thread]");
-    if (title) title.textContent = "Messages";
+    if (nameEl) nameEl.textContent = "Messages";
     if (role) { role.hidden = true; role.textContent = ""; }
-    if (sub) sub.textContent = "Pick someone on the left. You save drafts here — Tinker never sends.";
     if (empty) empty.hidden = false;
     if (thread) {
       thread.hidden = true;
@@ -332,6 +324,7 @@
   }
   function loadLead(leadId) {
     if (!leadId || !token()) { clearThread(); return Promise.resolve(); }
+    state.mode = "lead";
     state.loading = true;
     state.error = "";
     state.touch = (window.tinkerMessagesShell && window.tinkerMessagesShell.touchForLead)
@@ -350,7 +343,6 @@
       if (results[2] && results[2].byLeadId && results[2].byLeadId[leadId]) {
         state.touch = results[2].byLeadId[leadId];
       }
-      /* Prefer drafts nested on the lead payload when present. */
       var nested = results[0].drafts;
       if (Array.isArray(nested) && nested.length) {
         state.drafts = nested.filter(function (d) { return d; });
@@ -373,6 +365,10 @@
     });
   }
   function onSelect(e) {
+    if (e && e.detail && e.detail.you) {
+      state.mode = "you";
+      return;
+    }
     var id = e && e.detail && e.detail.leadId;
     if (!id) { clearThread(); return; }
     loadLead(id);

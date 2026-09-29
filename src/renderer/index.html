@@ -66,12 +66,11 @@
          the MCP tool draft_linkedin_post). Does not post. -->
     <script src="./linkedin-draft.js" defer></script>
     <!-- Message draft center: every lead draft across the pipeline.
-         lead-drafts.js owns the sidebar section and the editor panel.
-         Tinker never sends. -->
+         lead-drafts.js owns the sidebar section and the editor panel. -->
     <script src="./lead-drafts.js" defer></script>
     <script src="./lead-funnel.js" defer></script>
     <!-- Messaging shell (TYL-65): left conversation list of leads.
-         Thread + composer land in stacked slices. Never sends. -->
+         Thread + composer land in stacked slices. -->
     <script src="./messages-shell.js" defer></script>
     <script src="./messages-thread.js" defer></script>
     <script src="./messages-composer.js" defer></script>
@@ -207,7 +206,7 @@
       <!-- Inbox: conversation list fills the rail. -->
       <nav class="messages-rail" id="sidebar-messages" aria-label="Conversations">
         <div class="messages-rail__head">
-          <span class="sidebar__account-head messages-rail__title">Inbox</span>
+          <span class="messages-rail__title">Inbox</span>
           <span class="messages-rail__badge" data-messages-badge hidden></span>
         </div>
         <label class="messages-rail__search">
@@ -291,39 +290,43 @@
         <header class="messages-pane__top">
           <button type="button" class="messages-pane__back" data-messages-back aria-label="Back to conversations">←</button>
           <div class="messages-pane__heading">
-            <h2 class="messages-pane__title">Messages</h2>
-            <p class="messages-pane__role" data-messages-role hidden></p>
-            <p class="messages-pane__sub">Pick someone on the left. You save drafts here — Tinker never sends.</p>
+            <h2 class="messages-pane__title">
+              <span data-messages-name>Messages</span><span class="messages-pane__role" data-messages-role hidden></span>
+            </h2>
           </div>
         </header>
         <div class="messages-pane__body">
           <p class="messages-pane__empty" data-messages-empty>Select a conversation to see drafts and touch history for that person.</p>
           <div class="messages-pane__thread" data-messages-thread hidden></div>
         </div>
-        <!-- Chat-style composer: channel + story-part chips inline, growing textarea. Save draft only. -->
+        <!-- Chat composer: growing textarea, channel/date chips inside, Ship + Next. -->
         <footer id="messages-composer" class="messages-composer" hidden aria-label="Draft composer">
-          <div class="messages-composer__chips" data-composer-parts></div>
-          <div class="messages-composer__bar">
-            <label class="messages-composer__channel">
-              <span class="visually-hidden">Channel</span>
-              <select class="messages-composer__select" data-composer-channel></select>
-            </label>
-            <label class="messages-composer__date" data-composer-date-wrap hidden>
-              <span class="visually-hidden">Planned date</span>
-              <input type="date" class="messages-composer__date-input" data-composer-date title="Next touch date" />
-            </label>
-            <label class="messages-composer__subject" data-composer-subject-wrap hidden>
-              <span class="visually-hidden">Subject</span>
-              <input type="text" class="messages-composer__input" data-composer-subject placeholder="Subject" />
-            </label>
+          <div class="messages-composer__shell">
+            <div class="messages-composer__chips" data-composer-parts></div>
+            <div class="messages-composer__toolbar">
+              <label class="messages-composer__chip-wrap messages-composer__channel">
+                <span class="visually-hidden">Channel</span>
+                <select class="messages-composer__chip-select" data-composer-channel></select>
+              </label>
+              <button type="button" class="messages-composer__chip-btn" data-composer-date-wrap hidden data-composer-date-btn>
+                <span data-composer-date-label>Date</span>
+              </button>
+              <input type="date" class="messages-composer__date-hidden" data-composer-date tabindex="-1" aria-hidden="true" />
+              <label class="messages-composer__chip-wrap messages-composer__subject" data-composer-subject-wrap hidden>
+                <span class="visually-hidden">Subject</span>
+                <input type="text" class="messages-composer__chip-input" data-composer-subject placeholder="Subject" />
+              </label>
+              <button type="button" class="messages-composer__booking" data-composer-booking hidden title="Insert booking link">Booking</button>
+            </div>
             <textarea class="messages-composer__textarea" data-composer-body rows="1"
                       placeholder="Write a draft…"></textarea>
-            <button type="button" class="messages-composer__booking" data-composer-booking hidden title="Insert booking link">Booking</button>
-            <button type="button" class="messages-composer__save" data-composer-save>Save draft</button>
+            <div class="messages-composer__actions">
+              <p class="messages-composer__counter" data-composer-counter hidden></p>
+              <button type="button" class="messages-composer__next" data-composer-next>Next</button>
+              <button type="button" class="messages-composer__ship" data-composer-ship>Ship</button>
+            </div>
           </div>
-          <p class="messages-composer__counter" data-composer-counter hidden></p>
           <p class="messages-composer__status" data-composer-status hidden></p>
-          <p class="messages-composer__footnote">Story parts insert as chips above. Your connected assistant pulls saved drafts. Tinker never sends. <a class="messages-composer__parts-link" href="/story-parts">Manage story parts</a></p>
         </footer>
       </section>
 
