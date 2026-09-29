@@ -130,6 +130,7 @@ async function readOutreachSettings(owner) {
   const data = row && row.data && typeof row.data === "object" && !Array.isArray(row.data) ? row.data : {};
   return {
     defaultFromAddress: typeof data.defaultFromAddress === "string" ? data.defaultFromAddress : "",
+    bookingUrl: typeof data.bookingUrl === "string" ? data.bookingUrl : "",
     minTotalComp: data.minTotalComp == null || data.minTotalComp === "" || Number.isNaN(Number(data.minTotalComp)) ? null : Number(data.minTotalComp),
   };
 }
@@ -139,6 +140,9 @@ async function writeOutreachSettings(owner, patch) {
     defaultFromAddress: Object.prototype.hasOwnProperty.call(patch, "defaultFromAddress")
       ? readText(patch.defaultFromAddress, "defaultFromAddress", 320, false).toLowerCase()
       : current.defaultFromAddress,
+    bookingUrl: Object.prototype.hasOwnProperty.call(patch, "bookingUrl")
+      ? readText(patch.bookingUrl, "bookingUrl", 500, false)
+      : current.bookingUrl,
     minTotalComp: Object.prototype.hasOwnProperty.call(patch, "minTotalComp")
       ? (patch.minTotalComp == null || patch.minTotalComp === "" ? null : (() => {
         const n = typeof patch.minTotalComp === "number" ? patch.minTotalComp : Number(String(patch.minTotalComp).trim());

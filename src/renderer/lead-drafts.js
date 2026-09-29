@@ -19,7 +19,9 @@
     linkedin_connection: { label: "LinkedIn connection request", open: "linkedin", needsLead: true, charLimit: LINKEDIN_CONNECTION_NOTE_LIMIT },
     gmail_outreach: { label: "Gmail outreach", open: "gmail", needsLead: true },
   };
-  var state = { drafts: [], loading: false, error: "", defaultFrom: "", companyFilter: "" };
+  /* Reply = lead stage replied+ (no LeadDraft.isReply column). */
+  var REPLY_STAGES = { replied: 1, call: 1, interview: 1, offer: 1 };
+  var state = { drafts: [], loading: false, error: "", defaultFrom: "", bookingUrl: "", companyFilter: "" };
   var overlay = null, concealed = [], root = null;
 
   function token() { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } }
@@ -115,6 +117,11 @@
     return ok ? Promise.resolve() : Promise.reject(new Error("copy failed"));
   }
   function effectiveFrom(draft) { return String((draft && draft.fromAddress) || state.defaultFrom || "").trim(); }
+  function isReplyDraft(draft) {
+    if (!draft || draft.channel === "linkedin_post") return false;
+    var stage = draft.lead && draft.lead.stage;
+    return !!(stage && REPLY_STAGES[stage]);
+  }
   function openDestination(draft, lead) {
     if (dest(draft.channel).open === "gmail") {
       var p = new URLSearchParams();
@@ -150,8 +157,10 @@
     var empty = root.querySelector("[data-drafts-empty]");
     var err = root.querySelector("[data-drafts-error]");
     var fromInput = root.querySelector("[data-drafts-from]");
+    var bookingInput = root.querySelector("[data-drafts-booking]");
     if (!list || !badge || !empty || !err) return;
     if (fromInput && document.activeElement !== fromInput) fromInput.value = state.defaultFrom || "";
+    if (bookingInput && document.activeElement !== bookingInput) bookingInput.value = state.bookingUrl || "";
     syncFilterChip();
     var review = state.drafts.filter(function (d) { return d.status === "draft"; }).length;
     badge.hidden = review < 1; badge.textContent = review > 0 ? String(review) : "";
@@ -236,9 +245,17 @@
     var foot = el("footer", "writing__foot");
     function btn(label, cls) { var b = el("button", cls || "writing__end", { type: "button" }); b.textContent = label; return b; }
     var saveBtn = btn("Save edits"), approveBtn = btn("Approve"), copyBtn = btn("Copy");
+    var bookingBtn = null;
+    if (isReplyDraft(draft)) {
+      bookingBtn = btn("Insert booking link");
+      if (!state.bookingUrl) bookingBtn.disabled = true;
+    }
     var openBtn = btn(d.open === "gmail" ? "Open Gmail" : "Open LinkedIn");
     var sentBtn = btn("Mark sent", "writing__next");
-    [saveBtn, approveBtn, copyBtn, openBtn, sentBtn].forEach(function (b) { foot.appendChild(b); });
+    [saveBtn, approveBtn, copyBtn].forEach(function (b) { foot.appendChild(b); });
+    if (bookingBtn) foot.appendChild(bookingBtn);
+    foot.appendChild(openBtn);
+    foot.appendChild(sentBtn);
     var sent = draft.status === "sent_by_owner";
     if (sent) { saveBtn.disabled = approveBtn.disabled = sentBtn.disabled = true; bodyInput.readOnly = true; if (subjectInput) subjectInput.readOnly = true; }
     else if (draft.status === "approved") approveBtn.disabled = true;
@@ -267,6 +284,24 @@
       var text = values().body.trim(); if (!text) return;
       copyText(text).then(function () { show("Copied. You still send it yourself.", "ok"); }).catch(function () { show("Could not copy.", "error"); });
     });
+    if (bookingBtn) {
+      bookingBtn.addEventListener("click", function () {
+        var url = String(state.bookingUrl || "").trim();
+        if (!url) { show("Set your booking link under Drafts first.", "error"); return; }
+        var cur = bodyInput.value || "";
+        var gap = cur && !/\s$/.test(cur) ? "\n\n" : (cur ? "\n" : "");
+        bodyInput.value = cur + gap + url;
+        if (d.charLimit) {
+          var counter = card.querySelector(".sidebar__drafts-counter");
+          if (counter) {
+            var n = bodyInput.value.length;
+            counter.textContent = n + " / " + d.charLimit;
+            counter.classList.toggle("sidebar__drafts-counter--over", n > d.charLimit);
+          }
+        }
+        show("Booking link inserted. Save when it reads right.", "ok");
+      });
+    }
     openBtn.addEventListener("click", function () { openDestination(Object.assign({}, draft, values()), draft.lead); });
     sentBtn.addEventListener("click", function () {
       sentBtn.disabled = true;
@@ -290,6 +325,7 @@
     ]).then(function (results) {
       state.drafts = Array.isArray(results[0].drafts) ? results[0].drafts : [];
       state.defaultFrom = (results[1].settings && results[1].settings.defaultFromAddress) || "";
+      state.bookingUrl = (results[1].settings && results[1].settings.bookingUrl) || "";
       state.error = ""; if (root) root.hidden = false;
     }).catch(function (err) {
       state.drafts = [];
@@ -322,8 +358,23 @@
         fromSave.disabled = true;
         api("POST", "settings", { defaultFromAddress: fromInput.value.trim() }).then(function (res) {
           state.defaultFrom = (res.settings && res.settings.defaultFromAddress) || "";
+          if (res.settings && res.settings.bookingUrl != null) state.bookingUrl = res.settings.bookingUrl;
           renderSidebar();
         }).finally(function () { fromSave.disabled = false; });
+      });
+    }
+    var bookingInput = root.querySelector("[data-drafts-booking]");
+    var bookingSave = root.querySelector("[data-drafts-booking-save]");
+    if (bookingSave && bookingInput && !bookingSave.getAttribute("data-bound")) {
+      bookingSave.setAttribute("data-bound", "1");
+      bookingInput.value = state.bookingUrl || "";
+      bookingSave.addEventListener("click", function () {
+        bookingSave.disabled = true;
+        api("POST", "settings", { bookingUrl: bookingInput.value.trim() }).then(function (res) {
+          state.bookingUrl = (res.settings && res.settings.bookingUrl) || "";
+          bookingInput.value = state.bookingUrl || "";
+          renderSidebar();
+        }).finally(function () { bookingSave.disabled = false; });
       });
     }
   }
