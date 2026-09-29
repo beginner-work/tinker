@@ -233,11 +233,11 @@
         busy.className = "schedule__block schedule__block--busy";
         var busyTitle = document.createElement("p");
         busyTitle.className = "schedule__block-title";
-        busyTitle.textContent = event.title || "Busy";
+        busyTitle.textContent = event.label || event.title || "Busy";
         busy.appendChild(busyTitle);
         var busyMeta = document.createElement("p");
         busyMeta.className = "schedule__block-meta";
-        busyMeta.textContent = "On your calendar";
+        busyMeta.textContent = "Busy on your calendar";
         busy.appendChild(busyMeta);
         col.appendChild(busy);
       });

@@ -551,13 +551,14 @@ test("get_career_record reads only this user and check_text does not write", asy
     "read_content",
     "create_content_draft",
     "get_outreach_schedule",
+    "set_busy_times",
   ]);
   for (const name of ["get_career_record", "check_text"]) {
     const tool = tools.find((item) => item.name === name);
     assert.equal(tool.annotations.readOnlyHint, true);
     assert.equal(tool.annotations.destructiveHint, false);
   }
-  assert.equal(names.some((name) => /set_|update_|verify|reject|restore|write/.test(name)), false);
+  assert.equal(names.some((name) => /career|autonomy/.test(name) && /set_|update_|verify|reject|restore|write/.test(name)), false);
 
   commands.length = 0;
   const read = fakeRes();

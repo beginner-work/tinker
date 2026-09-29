@@ -1,4 +1,4 @@
-/* TYL-64 calendar helpers: .ics + Google template links. No writes. */
+/* TYL-64 calendar helpers: .ics + Google template links. No Google OAuth. */
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -20,5 +20,6 @@ test("ics export and google template urls stay read-only", () => {
   const url = calendar.googleEventUrl(sessions[0].session, sessions[0].touches);
   assert.match(url, /^https:\/\/calendar\.google\.com\/calendar\/render\?/);
   assert.match(url, /action=TEMPLATE/);
-  assert.equal(calendar.calendarReadEnabled(), false);
+  assert.equal(typeof calendar.calendarReadEnabled, "undefined");
+  assert.equal(typeof calendar.listBusyEvents, "undefined");
 });

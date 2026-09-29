@@ -5,6 +5,7 @@ const TOUCH_TYPES = ["application", "hiring_leader_outreach", "recruiter_outreac
 const TOUCH_STATUSES = ["planned", "drafted", "done", "skipped"];
 const SESSION_TYPES = ["company", "skill"];
 const OPEN_TOUCH = ["planned", "drafted"];
+const BUSY_KIND_PREFIX = "outreach-busy:";
 const UNAVAILABLE = "Schedule is unavailable right now.";
 const TABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "OutreachTouch" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "companyId" TEXT NOT NULL, "touchType" TEXT NOT NULL, "date" TIMESTAMP(3) NOT NULL, "windowStart" TEXT NOT NULL DEFAULT '', "windowEnd" TEXT NOT NULL DEFAULT '', "leadId" TEXT, "status" TEXT NOT NULL, "draftId" TEXT, "sessionId" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "OutreachTouch_pkey" PRIMARY KEY ("id"))`,
@@ -99,6 +100,43 @@ function requireOwner(userId, emailHint) {
 }
 function requireActor(actor) {
   if (!(actor && typeof actor.label === "string" && /^user:\S/.test(actor.label.trim()))) throw fail(401, "Missing actor.");
+}
+function requireWriteActor(actor) {
+  const label = actor && typeof actor.label === "string" ? actor.label.trim() : "";
+  const kind = actor && actor.kind;
+  const ok = (kind === "human" && /^user:\S/.test(label)) || (kind === "bot" && /^bot:\S/.test(label));
+  if (!ok) throw fail(401, "Missing actor.");
+  return label;
+}
+function busyKind(monday) {
+  return BUSY_KIND_PREFIX + dayKey(monday);
+}
+function presentBusyBlock(block) {
+  const label = block && block.label ? String(block.label) : "";
+  return {
+    startsAt: block.startsAt,
+    endsAt: block.endsAt,
+    label,
+    title: label || "Busy",
+  };
+}
+function readBusyBlocks(blocks) {
+  if (!Array.isArray(blocks)) throw fail(400, "blocks must be an array.");
+  if (blocks.length > 200) throw fail(400, "blocks is limited to 200 entries.");
+  const out = [];
+  for (const item of blocks) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) throw fail(400, "Each busy block must be an object.");
+    const startsAt = readDate(item.startsAt, "startsAt");
+    const endsAt = readDate(item.endsAt, "endsAt");
+    if (endsAt <= startsAt) throw fail(400, "endsAt must be after startsAt.");
+    out.push({
+      startsAt: iso(startsAt),
+      endsAt: iso(endsAt),
+      label: readText(item.label, "label", 200, false),
+    });
+  }
+  out.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.endsAt.localeCompare(b.endsAt));
+  return out;
 }
 async function loadOwned(model, id, owner, label) {
   if (typeof id !== "string" || !id.trim()) throw fail(400, `${label} id is required.`);
@@ -236,6 +274,7 @@ async function getWeekSchedule({ userId, emailHint, weekStart, companyId, touchT
   for (const entry of sessionRows) {
     entry.googleCalendarUrl = calendar.googleEventUrl(entry.session, entry.touches);
   }
+  const busyEvents = await listBusyTimes({ userId: owner, emailHint, weekStart: monday });
   return {
     weekStart: iso(monday),
     weekEnd: iso(friday),
@@ -244,13 +283,42 @@ async function getWeekSchedule({ userId, emailHint, weekStart, companyId, touchT
     companiesMissingTouch: active.filter((row) => !openByCompany.has(row.id)).map((row) => companies().presentCompany(row)),
     sessions: sessionRows,
     unscheduledTouches: touches.filter((touch) => !touch.sessionId).map(withCompany),
-    calendarReadEnabled: calendar.calendarReadEnabled(),
-    busyEvents: await calendar.listBusyEvents(),
+    busyEvents,
   };
 }
 
+async function listBusyTimes({ userId, emailHint, weekStart } = {}) {
+  const owner = requireOwner(userId, emailHint);
+  const monday = mondayOf(weekStart ? readDate(weekStart, "weekStart") : new Date());
+  let row;
+  try {
+    row = await db().tinkerUserData.findUnique({
+      where: { userId_kind: { userId: owner, kind: busyKind(monday) } },
+    });
+  } catch (err) { throw storeDown(err); }
+  const blocks = row && row.data && Array.isArray(row.data.blocks) ? row.data.blocks : [];
+  return blocks.map(presentBusyBlock);
+}
+
+async function setBusyTimes({ userId, emailHint, actor, weekStart, blocks } = {}) {
+  const owner = requireOwner(userId, emailHint);
+  requireWriteActor(actor);
+  const monday = mondayOf(weekStart ? readDate(weekStart, "weekStart") : new Date());
+  const normalized = readBusyBlocks(blocks);
+  const payload = { weekStart: iso(monday), blocks: normalized };
+  try {
+    await db().tinkerUserData.upsert({
+      where: { userId_kind: { userId: owner, kind: busyKind(monday) } },
+      create: { userId: owner, kind: busyKind(monday), data: payload },
+      update: { data: payload },
+    });
+  } catch (err) { throw storeDown(err); }
+  return { weekStart: payload.weekStart, blocks: normalized.map(presentBusyBlock) };
+}
+
 module.exports = {
-  UNAVAILABLE, TABLE_STATEMENTS, TOUCH_TYPES, TOUCH_STATUSES, SESSION_TYPES,
+  UNAVAILABLE, TABLE_STATEMENTS, TOUCH_TYPES, TOUCH_STATUSES, SESSION_TYPES, BUSY_KIND_PREFIX,
   ensureTable, resetTableCache, presentTouch: shape, presentSession: shape,
-  createTouch, updateTouch, createSession, updateSession, getWeekSchedule, mondayOf, fridayOf,
+  createTouch, updateTouch, createSession, updateSession, getWeekSchedule,
+  listBusyTimes, setBusyTimes, mondayOf, fridayOf,
 };

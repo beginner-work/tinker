@@ -130,11 +130,71 @@ test("migration, week view, skill rules, cross-owner, and MCP read", async () =>
   await mcp({ method: "POST", headers: { authorization: "Bearer mcp_user_a", "content-type": "application/json" }, body: { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "get_outreach_schedule", arguments: { weekStart: "2026-09-29", touchType: "recruiter_outreach" } } } }, own);
   assert.equal(own.captured.body.result.structuredContent.sessions[1].touches.length, 1);
   assert.match(week.body.sessions[1].googleCalendarUrl, /calendar\.google\.com/);
-  assert.equal(week.body.calendarReadEnabled, false);
+  assert.equal(Object.prototype.hasOwnProperty.call(week.body, "calendarReadEnabled"), false);
   assert.deepEqual(week.body.busyEvents, []);
   const exported = await call(handler, { method: "GET", action: "export", query: { weekStart: "2026-09-29" } });
   assert.equal(exported.status, 200);
   assert.match(String(exported.body), /BEGIN:VCALENDAR/);
   assert.match(String(exported.body), /Tinker on Acme/);
   assert.equal((await call(handler, { method: "GET", token: "user-b", action: "export", query: { weekStart: "2026-09-29" } })).body.includes("Tinker on Acme"), false);
+});
+
+test("set_busy_times is owner-scoped and greys out on week + MCP read", async () => {
+  const setOwn = resCap();
+  await mcp({
+    method: "POST",
+    headers: { authorization: "Bearer mcp_user_a", "content-type": "application/json" },
+    body: {
+      jsonrpc: "2.0", id: 10, method: "tools/call",
+      params: {
+        name: "set_busy_times",
+        arguments: {
+          weekStart: "2026-09-29",
+          userId: "user-b",
+          blocks: [
+            { startsAt: "2026-09-29T18:00:00.000Z", endsAt: "2026-09-29T19:00:00.000Z", label: "Interview loop" },
+          ],
+        },
+      },
+    },
+  }, setOwn);
+  assert.equal(setOwn.captured.body.result.isError, undefined);
+  assert.equal(setOwn.captured.body.result.structuredContent.blocks[0].label, "Interview loop");
+
+  const week = await call(handler, { method: "GET", action: "week", query: { weekStart: "2026-09-29" } });
+  assert.equal(week.body.busyEvents.length, 1);
+  assert.equal(week.body.busyEvents[0].title, "Interview loop");
+
+  const otherRead = resCap();
+  await mcp({
+    method: "POST",
+    headers: { authorization: "Bearer mcp_user_b", "content-type": "application/json" },
+    body: {
+      jsonrpc: "2.0", id: 11, method: "tools/call",
+      params: { name: "get_outreach_schedule", arguments: { weekStart: "2026-09-29", userId: "user-a" } },
+    },
+  }, otherRead);
+  assert.deepEqual(otherRead.captured.body.result.structuredContent.busyEvents, []);
+
+  const otherWrite = resCap();
+  await mcp({
+    method: "POST",
+    headers: { authorization: "Bearer mcp_user_b", "content-type": "application/json" },
+    body: {
+      jsonrpc: "2.0", id: 12, method: "tools/call",
+      params: {
+        name: "set_busy_times",
+        arguments: {
+          weekStart: "2026-09-29",
+          blocks: [{ startsAt: "2026-09-30T15:00:00.000Z", endsAt: "2026-09-30T16:00:00.000Z", label: "Other owner" }],
+        },
+      },
+    },
+  }, otherWrite);
+  assert.equal(otherWrite.captured.body.result.structuredContent.blocks[0].label, "Other owner");
+
+  const stillOwn = await call(handler, { method: "GET", action: "week", query: { weekStart: "2026-09-29" } });
+  assert.equal(stillOwn.body.busyEvents.length, 1);
+  assert.equal(stillOwn.body.busyEvents[0].label, "Interview loop");
+  assert.equal((await call(handler, { method: "GET", token: "user-b", action: "week", query: { weekStart: "2026-09-29" } })).body.busyEvents[0].label, "Other owner");
 });

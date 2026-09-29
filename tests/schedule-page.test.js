@@ -30,7 +30,10 @@ test("schedule page wires week view, filters, and generic copy", () => {
   assert.match(page, /Add to Google Calendar/);
   assert.match(page, /action=export/);
   assert.match(page, /busyEvents/);
+  assert.match(page, /event\.label \|\| event\.title/);
   assert.match(html, /schedule__block--busy/);
+  assert.doesNotMatch(page, /GOOGLE_CALENDAR|accounts\.google\.com\/o\/oauth/);
+  assert.doesNotMatch(html, /GOOGLE_CALENDAR|Connect Google/);
   assert.match(html, /src="\/schedule\/catalog\.js"/);
   assert.match(html, /src="\/schedule\/schedule\.js"/);
   assert.match(html, /@media \(max-width: 900px\)/);

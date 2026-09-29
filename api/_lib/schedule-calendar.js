@@ -68,15 +68,7 @@ function buildIcs(sessions) {
   lines.push("END:VCALENDAR");
   return lines.join("\r\n") + "\r\n";
 }
-function calendarReadEnabled() {
-  return String(process.env.GOOGLE_CALENDAR_READ_ENABLED || "").toLowerCase() === "true";
-}
-/** Busy import placeholder. Live Google read stays behind the flag + OAuth (slice 2). */
-async function listBusyEvents() {
-  if (!calendarReadEnabled()) return [];
-  return [];
-}
 
 module.exports = {
-  buildIcs, googleEventUrl, calendarReadEnabled, listBusyEvents, sessionDescription, icsUtc,
+  buildIcs, googleEventUrl, sessionDescription, icsUtc,
 };

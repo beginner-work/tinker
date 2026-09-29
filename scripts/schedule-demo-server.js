@@ -36,8 +36,10 @@ const week = {
   unscheduledTouches: [
     { touch: { id: "t2", companyId: "c1", touchType: "application", date: "2026-10-01T00:00:00.000Z", windowStart: "", windowEnd: "", leadId: null, status: "planned", draftId: null, sessionId: null, createdAt: null, updatedAt: null }, company: { id: "c1", name: "Acme", northStar: true, status: "active" } },
   ],
-  calendarReadEnabled: true,
-  busyEvents: [{ title: "Interview loop", startsAt: "2026-09-29T18:00:00.000Z", endsAt: "2026-09-29T19:00:00.000Z" }],
+  busyEvents: [
+    { label: "Interview loop", title: "Interview loop", startsAt: "2026-09-29T18:00:00.000Z", endsAt: "2026-09-29T19:00:00.000Z" },
+    { label: "Team sync", title: "Team sync", startsAt: "2026-09-30T16:00:00.000Z", endsAt: "2026-09-30T16:30:00.000Z" },
+  ],
 };
 
 function sendJson(res, status, body) {

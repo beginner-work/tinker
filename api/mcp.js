@@ -14,9 +14,11 @@
  * settings (get_autonomy_settings), the career record
  * (get_career_record, check_text), site content (list_content,
  * read_content, create_content_draft), and the outreach schedule
- * (get_outreach_schedule). There is no raw converse proxy and no write
- * tool for autonomy settings, the career record, or the schedule.
- * Content tools can draft. They cannot publish. GET/DELETE return 405:
+ * (get_outreach_schedule, set_busy_times). There is no raw converse
+ * proxy and no write tool for autonomy settings or the career record.
+ * set_busy_times stores calendar busy blocks the owner's assistant
+ * posts; Tinker never talks to Google. Content tools can draft. They
+ * cannot publish. GET/DELETE return 405:
  * this server does not keep an SSE session. The writing UI is not
  * involved. draft_linkedin_post shares api/_lib/linkedin-draft.js
  * with POST /api/claude/converse mode "linkedin". It does not post.
@@ -66,9 +68,10 @@ const INSTRUCTIONS = [
   "Call read_content with an id to read one item. Someone else's id returns an error and no item.",
   "Call create_content_draft to save a draft. The same draftKey returns the original draft and does not change it.",
   "Content tools never publish. status published is rejected and nothing is saved. The owner publishes in Tinker.",
-  "Call get_outreach_schedule to read this user's Mon–Fri outreach week: sessions, touches, North Star company, and companies missing a planned next touch.",
+  "Call get_outreach_schedule to read this user's Mon–Fri outreach week: sessions, touches, North Star company, companies missing a planned next touch, and busyEvents.",
   "Optional weekStart, companyId, and touchType filter the week. A user id in the arguments is ignored.",
-  "This does not send messages or write to Google Calendar.",
+  "Call set_busy_times with weekStart and blocks [{ startsAt, endsAt, label? }] to store busy time for that owner week.",
+  "The owner's assistant reads their calendar and posts the blocks. Tinker never talks to Google and never sends messages.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -405,9 +408,10 @@ const GET_OUTREACH_SCHEDULE_TOOL = {
   title: "Get outreach schedule",
   description: [
     "Read this connector user's Mon–Fri outreach week: sessions, touches,",
-    "North Star company, companies missing a planned next touch, and curriculumName.",
+    "North Star company, companies missing a planned next touch, curriculumName,",
+    "and busyEvents greyed on /schedule.",
     "Optional weekStart, companyId, and touchType filter. A user id in args is ignored.",
-    "Does not send messages or write to Google Calendar.",
+    "Does not send messages. Tinker never talks to Google.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -425,6 +429,41 @@ const GET_OUTREACH_SCHEDULE_TOOL = {
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 };
 
+const SET_BUSY_TIMES_TOOL = {
+  name: "set_busy_times",
+  title: "Set busy times",
+  description: [
+    "Replace this connector user's busy blocks for one Mon–Fri week.",
+    "Pass weekStart (any date in the week) and blocks: [{ startsAt, endsAt, label? }].",
+    "An empty blocks array clears the week. A user id in args is ignored.",
+    "The owner's assistant posts blocks from their calendar. Tinker stores them only;",
+    "it never talks to Google and never sends messages.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      weekStart: { type: "string", description: "Any date in the week (ISO). Defaults to this week." },
+      blocks: {
+        type: "array",
+        description: "Busy intervals for the week. Replaces the previous set for that week.",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            startsAt: { type: "string", description: "Busy interval start (ISO)." },
+            endsAt: { type: "string", description: "Busy interval end (ISO)." },
+            label: { type: "string", description: "Optional short label shown on /schedule." },
+          },
+          required: ["startsAt", "endsAt"],
+        },
+      },
+    },
+    required: ["blocks"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
 const TOOLS = [
   ASK_FOLLOWUPS_TOOL,
   DRAFT_LINKEDIN_TOOL,
@@ -435,6 +474,7 @@ const TOOLS = [
   READ_CONTENT_TOOL,
   CREATE_CONTENT_DRAFT_TOOL,
   GET_OUTREACH_SCHEDULE_TOOL,
+  SET_BUSY_TIMES_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -722,6 +762,30 @@ async function scheduleReadCall(msg, user, args) {
   }
 }
 
+async function scheduleBusyCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const shaped = await scheduleStore.setBusyTimes({
+      userId,
+      emailHint: user && user.email,
+      actor: { kind: "bot", label: "bot:mcp" },
+      weekStart: args.weekStart,
+      blocks: args.blocks,
+    });
+    return contentToolOk(msg, shaped);
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500
+      ? err.message
+      : scheduleStore.UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || scheduleStore.UNAVAILABLE)),
+    };
+  }
+}
+
 async function handleRpc(msg, user) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
@@ -775,6 +839,7 @@ async function handleRpc(msg, user) {
       && name !== "read_content"
       && name !== "create_content_draft"
       && name !== "get_outreach_schedule"
+      && name !== "set_busy_times"
     ) {
       return {
         status: 200,
@@ -801,6 +866,9 @@ async function handleRpc(msg, user) {
     }
     if (name === "get_outreach_schedule") {
       return scheduleReadCall(msg, user, args);
+    }
+    if (name === "set_busy_times") {
+      return scheduleBusyCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {
