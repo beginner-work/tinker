@@ -85,6 +85,9 @@ const INSTRUCTIONS = [
   "Call upsert_lead_person to create or update a person under a company (role type, next step, due date, sequence position). It does not wipe company tier/notes/research unless those args are passed.",
   "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
   "Prefer those lead tools over dumping GTM prose into the You thread.",
+  "Call list_approved_outreach to read drafts the owner handed off with This is everything (approved_to_send, unsent).",
+  "A bot may send only the exact approvedText, once per approval. After sending, call mark_outreach_sent; on failure call mark_outreach_failed.",
+  "Tinker itself never sends email or LinkedIn messages.",
   "Call post_to_self_thread with title and short markdown body only for brief personal assistant notes in the You thread.",
   "Never post deploy checks, production status, allowlist/gate notes, or other ops chatter there — that thread is the owner's own story.",
   "The owner sees it as an incoming assistant bubble. It does not send email or LinkedIn messages.",
@@ -665,7 +668,7 @@ const UPSERT_LEAD_PERSON_TOOL = {
     "Create or update a person under a target company.",
     "Pass personName and companyName (or companyId). contactType is the role",
     "in sequence: referrer, hiring_leader, recruiter, or other.",
-    "Optional personTitle, linkedInUrl, email, nextStep, dueDate (ISO),",
+    "Optional personTitle, linkedInUrl, githubUrl, email, nextStep, dueDate (ISO),",
     "queueOrder (sequence position), and touchType to plan the next outreach touch.",
     "Does not send email or LinkedIn. A user id in args is ignored.",
   ].join(" "),
@@ -684,6 +687,7 @@ const UPSERT_LEAD_PERSON_TOOL = {
       },
       personTitle: { type: "string", description: "Optional title." },
       linkedInUrl: { type: "string", description: "Optional LinkedIn URL." },
+      githubUrl: { type: "string", description: "Optional GitHub profile URL." },
       email: { type: "string", description: "Optional email." },
       nextStep: { type: "string", description: "Short next-step label." },
       dueDate: { type: "string", description: "When the next step is due (ISO)." },
@@ -712,7 +716,8 @@ const LIST_TARGET_COMPANIES_TOOL = {
     "List this connector user's target companies with their people.",
     "Optional status filter (active|dropped). Returns companies ordered by",
     "North Star / priority, each with people (name, title, contactType,",
-    "nextStep, nextStepAt, queueOrder). Read-only. A user id in args is ignored.",
+    "linkedInUrl, githubUrl, nextStep, nextStepAt, queueOrder).",
+    "Read-only. A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -726,6 +731,64 @@ const LIST_TARGET_COMPANIES_TOOL = {
     },
   },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const LIST_APPROVED_OUTREACH_TOOL = {
+  name: "list_approved_outreach",
+  title: "List approved outreach",
+  description: [
+    "List drafts the owner approved with This is everything that are not yet sent.",
+    "Each row includes id, personName, companyName, email, linkedInUrl, channel,",
+    "subject, and the exact approvedText. A bot may send only that exact text,",
+    "once per approval. Tinker never sends. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const MARK_OUTREACH_SENT_TOOL = {
+  name: "mark_outreach_sent",
+  title: "Mark outreach sent",
+  description: [
+    "Mark one approved_to_send draft as sent after the bot delivered the exact approved text.",
+    "Pass id from list_approved_outreach. Optional channel, sentAt (ISO), and externalMessageId.",
+    "One approval covers one send. Tinker never sends. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      id: { type: "string", description: "Approved draft id." },
+      channel: {
+        type: "string",
+        enum: ["linkedin_post", "linkedin_connection", "gmail_outreach"],
+        description: "Channel used to send. Defaults to the draft channel.",
+      },
+      sentAt: { type: "string", description: "When it was sent (ISO). Default now." },
+      externalMessageId: { type: "string", description: "Optional id from the external provider." },
+    },
+    required: ["id"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const MARK_OUTREACH_FAILED_TOOL = {
+  name: "mark_outreach_failed",
+  title: "Mark outreach failed",
+  description: [
+    "Mark one approved_to_send draft as failed to send. Pass id and reason.",
+    "The owner can edit and approve again. Tinker never sends. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      id: { type: "string", description: "Approved draft id." },
+      reason: { type: "string", description: "Why sending failed." },
+    },
+    required: ["id", "reason"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
 
 const TOOLS = [
@@ -747,6 +810,9 @@ const TOOLS = [
   UPSERT_TARGET_COMPANY_TOOL,
   UPSERT_LEAD_PERSON_TOOL,
   LIST_TARGET_COMPANIES_TOOL,
+  LIST_APPROVED_OUTREACH_TOOL,
+  MARK_OUTREACH_SENT_TOOL,
+  MARK_OUTREACH_FAILED_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -1353,6 +1419,7 @@ async function upsertLeadPersonCall(msg, user, args) {
         personName,
         personTitle: args.personTitle,
         linkedInUrl: args.linkedInUrl,
+        githubUrl: args.githubUrl,
         email: args.email,
         company: company.name,
         companyId: company.id,
@@ -1372,6 +1439,7 @@ async function upsertLeadPersonCall(msg, user, args) {
       if (args.queueOrder != null) patch.queueOrder = args.queueOrder;
       if (args.personTitle != null) patch.personTitle = args.personTitle;
       if (args.linkedInUrl != null) patch.linkedInUrl = args.linkedInUrl;
+      if (args.githubUrl != null) patch.githubUrl = args.githubUrl;
       if (args.email != null) patch.email = args.email;
       if (args.nextStep != null) patch.nextStep = args.nextStep;
       if (args.dueDate != null) patch.nextStepAt = args.dueDate;
@@ -1422,6 +1490,60 @@ async function listTargetCompaniesCall(msg, user, args) {
     return contentToolOk(msg, { companies: shaped });
   } catch (err) {
     return planFailure(msg, err, companiesStore.UNAVAILABLE);
+  }
+}
+
+async function listApprovedOutreachCall(msg, user) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const outreach = await leadsStore.listApprovedOutreach({ userId, emailHint });
+    return contentToolOk(msg, { outreach });
+  } catch (err) {
+    return planFailure(msg, err, leadsStore.UNAVAILABLE);
+  }
+}
+
+async function markOutreachSentCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const id = typeof args.id === "string" ? args.id.trim() : "";
+    if (!id) throw Object.assign(new Error("id is required."), { status: 400 });
+    const result = await leadsStore.markDraftSent({
+      id,
+      userId,
+      emailHint,
+      actor: MCP_BOT_ACTOR,
+      channel: args.channel,
+      sentAt: args.sentAt,
+      externalMessageId: args.externalMessageId,
+    });
+    return contentToolOk(msg, {
+      draft: leadsStore.presentDraft(result.draft),
+      lead: result.lead ? leadsStore.presentLead(result.lead) : null,
+    });
+  } catch (err) {
+    return planFailure(msg, err, leadsStore.UNAVAILABLE);
+  }
+}
+
+async function markOutreachFailedCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const id = typeof args.id === "string" ? args.id.trim() : "";
+    if (!id) throw Object.assign(new Error("id is required."), { status: 400 });
+    const result = await leadsStore.markDraftFailed({
+      id,
+      userId,
+      emailHint,
+      actor: MCP_BOT_ACTOR,
+      reason: args.reason,
+    });
+    return contentToolOk(msg, { draft: leadsStore.presentDraft(result.draft) });
+  } catch (err) {
+    return planFailure(msg, err, leadsStore.UNAVAILABLE);
   }
 }
 
@@ -1487,6 +1609,9 @@ async function handleRpc(msg, user) {
       && name !== "upsert_target_company"
       && name !== "upsert_lead_person"
       && name !== "list_target_companies"
+      && name !== "list_approved_outreach"
+      && name !== "mark_outreach_sent"
+      && name !== "mark_outreach_failed"
     ) {
       return {
         status: 200,
@@ -1540,6 +1665,15 @@ async function handleRpc(msg, user) {
     }
     if (name === "list_target_companies") {
       return listTargetCompaniesCall(msg, user, args);
+    }
+    if (name === "list_approved_outreach") {
+      return listApprovedOutreachCall(msg, user, args);
+    }
+    if (name === "mark_outreach_sent") {
+      return markOutreachSentCall(msg, user, args);
+    }
+    if (name === "mark_outreach_failed") {
+      return markOutreachFailedCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {

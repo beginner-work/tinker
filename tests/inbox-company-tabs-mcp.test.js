@@ -219,6 +219,31 @@ test("upsert_target_company notes-only does not wipe tier, priority, domain, or 
   assert.equal(statusOnly.body.result.structuredContent.company.status, "dropped");
 });
 
+test("upsert_lead_person stores githubUrl and list returns it", async () => {
+  await mcpCall("upsert_target_company", { name: "GitHub Co", tier: "wave_1" });
+  const person = await mcpCall("upsert_lead_person", {
+    personName: "Dev Example",
+    companyName: "GitHub Co",
+    contactType: "hiring_leader",
+    linkedInUrl: "https://www.linkedin.com/in/dev-example",
+    githubUrl: "https://github.com/dev-example",
+  });
+  assert.equal(person.status, 200);
+  assert.equal(person.body.result.isError, undefined);
+  assert.equal(person.body.result.structuredContent.lead.githubUrl, "https://github.com/dev-example");
+  assert.equal(person.body.result.structuredContent.lead.linkedInUrl, "https://www.linkedin.com/in/dev-example");
+  const listed = await mcpCall("list_target_companies", {});
+  const row = listed.body.result.structuredContent.companies.find((c) => c.company.name === "GitHub Co");
+  assert.ok(row);
+  assert.equal(row.people[0].githubUrl, "https://github.com/dev-example");
+  const thread = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages-thread.js"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "..", "src/renderer/index.html"), "utf8");
+  assert.match(html, /data-messages-links/);
+  assert.match(thread, /githubUrl/);
+  assert.match(thread, /LinkedIn/);
+  assert.match(thread, /GitHub/);
+});
+
 test("upsert_lead_person does not wipe an existing company north_star tier", async () => {
   await mcpCall("upsert_target_company", {
     name: "Anthropic",
@@ -242,11 +267,13 @@ test("upsert_lead_person does not wipe an existing company north_star tier", asy
   assert.equal(company.notes, "Keep this");
 });
 
-test("shell is company-level with person tabs and demos omit GTM", () => {
+test("shell is people-list rail and demos omit GTM", () => {
   const shell = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages-shell.js"), "utf8");
-  assert.match(shell, /selectCompany/);
-  assert.match(shell, /renderPersonTabs/);
-  assert.match(shell, /data-company-id/);
+  assert.match(shell, /selectLead/);
+  assert.match(shell, /selectYou/);
+  assert.match(shell, /THIS WEEK/);
+  assert.match(shell, /LATER/);
+  assert.equal(/renderPersonTabs/.test(shell), false);
   const demo = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages/demo-you.html"), "utf8");
   assert.equal(/Your GTM approach/i.test(demo), false);
   assert.match(demo, /sitting here at home/);

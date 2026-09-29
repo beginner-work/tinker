@@ -99,8 +99,18 @@ async function dispatch(method, action, auth, body, req) {
     return { status: 200, body: { draft: store.presentDraft(result.draft), event: store.presentEvent(result.event) } };
   }
   if (method === "POST" && action === "mark-sent") {
-    const result = await store.markDraftSent({ id, userId, emailHint, actor });
+    const result = await store.markDraftSent({
+      id, userId, emailHint, actor,
+      channel: body.channel, sentAt: body.sentAt, externalMessageId: body.externalMessageId,
+    });
     return { status: 200, body: { draft: store.presentDraft(result.draft), lead: result.lead ? store.presentLead(result.lead) : null, event: store.presentEvent(result.event) } };
+  }
+  if (method === "POST" && action === "mark-failed") {
+    const result = await store.markDraftFailed({ id, userId, emailHint, actor, reason: body.reason });
+    return { status: 200, body: { draft: store.presentDraft(result.draft), event: store.presentEvent(result.event) } };
+  }
+  if (method === "GET" && action === "approved-outreach") {
+    return { status: 200, body: { outreach: await store.listApprovedOutreach({ userId, emailHint }) } };
   }
   if (method === "GET" && action === "settings") {
     return { status: 200, body: { settings: await store.getOutreachSettings({ userId, emailHint }) } };
