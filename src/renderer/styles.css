@@ -1503,6 +1503,18 @@ body:has(#stage > [aria-label="LinkedIn draft"]) .mode-nav {
 body:has(#stage > [aria-label="LinkedIn draft"]) #stage > [aria-label="LinkedIn draft"] {
   z-index: 3;
 }
+/* Notes (TYL-49) owns the stage the same way LinkedIn draft does. */
+body:has(#stage > [aria-label="Notes"]) #stage > :not([aria-label="Notes"]) {
+  display: none !important;
+  pointer-events: none !important;
+}
+body:has(#stage > [aria-label="Notes"]) .mode-nav {
+  display: none !important;
+  pointer-events: none !important;
+}
+body:has(#stage > [aria-label="Notes"]) #stage > [aria-label="Notes"] {
+  z-index: 3;
+}
 .mode-nav__bar {
   pointer-events: auto;
   display: flex;

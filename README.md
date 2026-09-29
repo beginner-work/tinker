@@ -437,6 +437,20 @@ created on first use if `prisma migrate deploy` has not been run.
 `BEGINNER_MCP_TOKEN` / `BEGINNER_MCP_URL` are only the in-app email
 relay to the beginner Worker. They are not this endpoint.
 
+## Notes (on this device)
+
+Inbox sidebar → **Notes** (under More) opens a full-screen typing surface.
+Each note is one Markdown file with a small frontmatter block (`id`,
+`title`, `createdAt`, `updatedAt`, `syncState`). Files live in the
+browser's Origin Private File System under `notes/`, with a
+`localStorage` map fallback when OPFS is unavailable. Nothing is
+uploaded. The note `id` is what a later publish can pass as `noteId` on a
+content item.
+
+Offline drafting is the default: create, edit, and delete work with no
+network. Server sync and the iOS `expo-file-system` twin are later work;
+this slice does not touch `mobile/`.
+
 ## Content store
 
 A content item is the note a site publishes: owner, site, type

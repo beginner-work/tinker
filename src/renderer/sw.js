@@ -45,6 +45,7 @@ const PRECACHE = [
   "/mobile-drawer.css",
   "/pwa-install-hint.css",
   "/profile.css",
+  "/notes.css",
   // scripts (document order)
   "/pwa-session.js",
   "/freewrite.js",
@@ -76,6 +77,8 @@ const PRECACHE = [
   "/wallet.js",
   "/email.js",
   "/linkedin-draft.js",
+  "/notes-files.js",
+  "/notes.js",
   "/voice-model.js",
   "/membership.js",
   "/pwa-offline.js",
