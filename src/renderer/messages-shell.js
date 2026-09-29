@@ -13,9 +13,18 @@
     gmail_outreach: "Gmail",
     linkedin_message: "LinkedIn DM",
   };
+  var TOUCH_LABEL = {
+    application: "application",
+    hiring_leader_outreach: "eng leader note",
+    recruiter_outreach: "recruiter note",
+    referral_follow_up: "follow-up",
+    call_follow_up: "follow-up",
+  };
+  var DUE_ORDER = ["Today", "This week", "Later", "No next touch"];
   var state = {
     leads: [],
     drafts: [],
+    touchesByLead: {},
     loading: false,
     error: "",
     query: "",
@@ -35,9 +44,9 @@
     if (attrs) Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); });
     return n;
   }
-  function api(action, query) {
+  function api(path, action, query) {
     var q = new URLSearchParams(Object.assign({ action: action }, query || {}));
-    return fetch("/api/leads?" + q.toString(), {
+    return fetch(path + "?" + q.toString(), {
       headers: { Authorization: "Bearer " + token(), Accept: "application/json" },
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (payload) {
@@ -50,6 +59,8 @@
       });
     });
   }
+  function leadsApi(action, query) { return api("/api/leads", action, query); }
+  function scheduleApi(action, query) { return api("/api/schedule", action, query); }
   function relativeTime(iso) {
     if (!iso) return "";
     var ms = Date.now() - new Date(iso).getTime();
@@ -99,15 +110,63 @@
       return matchesQuery(lead);
     });
   }
-  function groupByCompany(leads) {
+  function startOfLocalDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  function endOfLocalWeek(d) {
+    var day = d.getDay();
+    var toSun = day === 0 ? 0 : 7 - day;
+    var end = startOfLocalDay(d);
+    end.setDate(end.getDate() + toSun);
+    end.setHours(23, 59, 59, 999);
+    return end;
+  }
+  function touchFor(lead) {
+    if (!lead) return null;
+    var entry = state.touchesByLead[lead.id];
+    return entry && entry.touch ? entry.touch : null;
+  }
+  function dueBucket(lead) {
+    var touch = touchFor(lead);
+    if (!touch || !touch.date) return "No next touch";
+    var due = new Date(touch.date);
+    if (Number.isNaN(due.getTime())) return "No next touch";
+    var today = startOfLocalDay(new Date());
+    var dueDay = startOfLocalDay(due);
+    if (dueDay.getTime() <= today.getTime()) return "Today";
+    if (dueDay.getTime() <= endOfLocalWeek(today).getTime()) return "This week";
+    return "Later";
+  }
+  function dueDayLabel(touch) {
+    if (!touch || !touch.date) return "";
+    var d = new Date(touch.date);
+    if (Number.isNaN(d.getTime())) return "";
+    try {
+      return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    } catch (e) {
+      return d.toDateString();
+    }
+  }
+  function touchTypeLabel(touch) {
+    if (!touch) return "";
+    return TOUCH_LABEL[touch.touchType] || String(touch.touchType || "").replace(/_/g, " ");
+  }
+  function groupByDue(leads) {
     var map = {};
-    var order = [];
+    DUE_ORDER.forEach(function (key) { map[key] = []; });
     leads.forEach(function (lead) {
-      var key = String(lead.company || "").trim() || "No company";
-      if (!map[key]) { map[key] = []; order.push(key); }
-      map[key].push(lead);
+      map[dueBucket(lead)].push(lead);
     });
-    return { map: map, order: order };
+    DUE_ORDER.forEach(function (key) {
+      map[key].sort(function (a, b) {
+        var ta = touchFor(a);
+        var tb = touchFor(b);
+        var da = ta && ta.date ? new Date(ta.date).getTime() : Number.POSITIVE_INFINITY;
+        var db = tb && tb.date ? new Date(tb.date).getTime() : Number.POSITIVE_INFINITY;
+        return da - db;
+      });
+    });
+    return { map: map, order: DUE_ORDER.filter(function (key) { return map[key].length > 0; }) };
   }
   function showPane() {
     if (!pane) return;
@@ -143,7 +202,10 @@
     renderEmptyPane();
     if (!opts.silent) {
       try {
-        window.dispatchEvent(new CustomEvent("tinker:messages-select", { detail: { leadId: state.selectedId } }));
+        var touchEntry = state.selectedId ? state.touchesByLead[state.selectedId] : null;
+        window.dispatchEvent(new CustomEvent("tinker:messages-select", {
+          detail: { leadId: state.selectedId, touch: touchEntry || null },
+        }));
       } catch (e) { /* ignore */ }
     }
     if (state.selectedId && window.matchMedia && window.matchMedia("(max-width: 720px)").matches) {
@@ -171,28 +233,28 @@
     list.innerHTML = "";
     if (!leads.length) return;
 
-    var grouped = groupByCompany(leads);
-    grouped.order.forEach(function (company) {
+    var grouped = groupByDue(leads);
+    grouped.order.forEach(function (bucket) {
       var group = el("li", "messages-rail__group");
-      var collapsed = !!state.collapsed[company];
+      var collapsed = !!state.collapsed[bucket];
       var head = el("button", "messages-rail__group-head", {
         type: "button",
         "aria-expanded": collapsed ? "false" : "true",
       });
       var headLabel = el("span", "messages-rail__group-label");
-      headLabel.textContent = company;
+      headLabel.textContent = bucket;
       var headCount = el("span", "messages-rail__group-count");
-      headCount.textContent = String(grouped.map[company].length);
+      headCount.textContent = String(grouped.map[bucket].length);
       head.appendChild(headLabel);
       head.appendChild(headCount);
       head.addEventListener("click", function () {
-        state.collapsed[company] = !state.collapsed[company];
+        state.collapsed[bucket] = !state.collapsed[bucket];
         renderList();
       });
       group.appendChild(head);
       var ul = el("ul", "messages-rail__group-list");
       if (collapsed) ul.hidden = true;
-      grouped.map[company].forEach(function (lead) {
+      grouped.map[bucket].forEach(function (lead) {
         var li = el("li");
         var unread = needsDraft(lead);
         var btn = el("button", "messages-rail__row" + (unread ? " messages-rail__row--unread" : ""), {
@@ -209,15 +271,23 @@
         title.textContent = name;
         var time = el("span", "messages-rail__time");
         var draft = latestDraftFor(lead.id);
-        time.textContent = relativeTime((draft && draft.updatedAt) || lead.updatedAt || lead.createdAt);
+        var touch = touchFor(lead);
+        time.textContent = touch ? dueDayLabel(touch) : relativeTime((draft && draft.updatedAt) || lead.updatedAt || lead.createdAt);
         top.appendChild(title);
         top.appendChild(time);
         var preview = el("span", "messages-rail__preview");
         preview.textContent = draft
           ? draftPreview(draft)
           : (String(lead.personTitle || "").trim() || "No draft yet — write one when you are ready.");
+        var meta = el("span", "messages-rail__meta");
+        if (touch) {
+          var touchEl = el("span", "messages-rail__touch");
+          touchEl.textContent = touchTypeLabel(touch);
+          meta.appendChild(touchEl);
+        }
         main.appendChild(top);
         main.appendChild(preview);
+        if (touch) main.appendChild(meta);
         btn.appendChild(avatar);
         btn.appendChild(main);
         if (unread) {
@@ -248,6 +318,7 @@
     if (!token()) {
       state.leads = [];
       state.drafts = [];
+      state.touchesByLead = {};
       state.error = "";
       if (pane) pane.hidden = false;
       document.body.classList.remove("messages-thread-active", "messages-mobile-thread");
@@ -257,16 +328,19 @@
     }
     state.loading = true;
     return Promise.all([
-      api("list"),
-      api("drafts"),
+      leadsApi("list"),
+      leadsApi("drafts"),
+      scheduleApi("inbox").catch(function () { return { byLeadId: {} }; }),
     ]).then(function (results) {
       state.leads = Array.isArray(results[0].leads) ? results[0].leads : [];
       state.drafts = Array.isArray(results[1].drafts) ? results[1].drafts : [];
+      state.touchesByLead = (results[2] && results[2].byLeadId) || {};
       state.error = "";
       if (pane) pane.hidden = false;
     }).catch(function (err) {
       state.leads = [];
       state.drafts = [];
+      state.touchesByLead = {};
       if (err.status === 401 || err.status === 403) {
         state.error = "";
         if (pane) pane.hidden = false;
@@ -325,7 +399,9 @@
     selectLead: selectLead,
     setCompanyFilter: setCompanyFilter,
     getSelectedId: function () { return state.selectedId; },
+    touchForLead: function (id) { return (id && state.touchesByLead[id]) || null; },
     CHANNEL_LABEL: CHANNEL_LABEL,
+    TOUCH_LABEL: TOUCH_LABEL,
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

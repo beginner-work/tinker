@@ -18,11 +18,13 @@
   var state = {
     leadId: "",
     lead: null,
+    touch: null,
     parts: [],
     selectedParts: {},
     channel: "gmail_outreach",
     subject: "",
     body: "",
+    plannedDate: "",
     bookingUrl: "",
     defaultFrom: "",
     saving: false,
@@ -160,6 +162,12 @@
       box.appendChild(chip);
     });
   }
+  function dateInputValue(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toISOString().slice(0, 10);
+  }
   function render() {
     if (!root) return;
     root.hidden = !state.leadId;
@@ -167,12 +175,18 @@
     var channel = root.querySelector("[data-composer-channel]");
     var subjectWrap = root.querySelector("[data-composer-subject-wrap]");
     var subject = root.querySelector("[data-composer-subject]");
+    var dateWrap = root.querySelector("[data-composer-date-wrap]");
+    var dateInput = root.querySelector("[data-composer-date]");
     var body = root.querySelector("[data-composer-body]");
     var booking = root.querySelector("[data-composer-booking]");
     var save = root.querySelector("[data-composer-save]");
     if (channel && document.activeElement !== channel) channel.value = state.channel;
     if (subjectWrap) subjectWrap.hidden = state.channel !== "gmail_outreach";
     if (subject && document.activeElement !== subject) subject.value = state.subject;
+    if (dateWrap) dateWrap.hidden = !(state.touch && state.touch.touch);
+    if (dateInput && document.activeElement !== dateInput) {
+      dateInput.value = state.plannedDate || dateInputValue(state.touch && state.touch.touch && state.touch.touch.date);
+    }
     if (body && document.activeElement !== body) body.value = state.body;
     if (booking) {
       booking.hidden = !isReply();
@@ -182,6 +196,49 @@
     syncCounter();
     renderParts();
     growTextarea();
+  }
+  function savePlannedDate(value) {
+    if (!state.touch || !state.touch.touch || !state.touch.touch.id) return;
+    var day = String(value || "").trim();
+    if (!day) return;
+    var iso = new Date(day + "T12:00:00.000Z").toISOString();
+    showStatus("Updating plan…");
+    fetch("/api/schedule?action=nudge-date", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token(),
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ date: iso, weekStart: iso }),
+    }).then(function (res) { return res.json().then(function (payload) { return { ok: res.ok, payload: payload }; }); })
+      .then(function (out) {
+        var next = (out.ok && out.payload && out.payload.date) ? out.payload.date : iso;
+        var nudged = !!(out.ok && out.payload && out.payload.nudged);
+        return fetch("/api/schedule?action=touch", {
+          method: "PATCH",
+          headers: {
+            Authorization: "Bearer " + token(),
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ id: state.touch.touch.id, date: next }),
+        }).then(function (res) {
+          return res.json().catch(function () { return {}; }).then(function (payload) {
+            if (!res.ok) throw new Error(payload.error || "Could not update date.");
+            state.touch = { touch: payload.touch, company: state.touch.company };
+            state.plannedDate = dateInputValue(payload.touch.date);
+            showStatus(nudged
+              ? "Moved off a busy day to " + state.plannedDate + "."
+              : "Next touch set for " + state.plannedDate + ".");
+            if (window.tinkerMessagesShell && window.tinkerMessagesShell.refresh) window.tinkerMessagesShell.refresh();
+            if (window.tinkerMessagesThread && state.leadId) window.tinkerMessagesThread.loadLead(state.leadId);
+            render();
+          });
+        });
+      }).catch(function (err) {
+        showStatus(err.message || "Could not update date.", "error");
+      });
   }
   function saveDraft() {
     if (state.saving) return;
@@ -238,20 +295,23 @@
       state.bookingUrl = (res.settings && res.settings.bookingUrl) || "";
     }).catch(function () { /* ignore */ });
   }
-  function setLead(leadId, lead) {
+  function setLead(leadId, lead, touch) {
     state.leadId = leadId || "";
     state.lead = lead || null;
+    state.touch = touch || null;
+    state.plannedDate = dateInputValue(touch && touch.touch && touch.touch.date);
     state.status = "";
     state.error = "";
     render();
   }
   function onSelect(e) {
     var id = e && e.detail && e.detail.leadId;
-    if (!id) { setLead("", null); return; }
+    var touch = e && e.detail && e.detail.touch;
+    if (!id) { setLead("", null, null); return; }
     api("/api/leads", "GET", "lead", null, { id: id }).then(function (res) {
-      setLead(id, res.lead || null);
+      setLead(id, res.lead || null, touch || null);
     }).catch(function () {
-      setLead(id, { id: id });
+      setLead(id, { id: id }, touch || null);
     });
   }
   function bind() {
@@ -275,6 +335,13 @@
       });
     }
     if (subject) subject.addEventListener("input", function () { state.subject = subject.value; });
+    var dateInput = root.querySelector("[data-composer-date]");
+    if (dateInput) {
+      dateInput.addEventListener("change", function () {
+        state.plannedDate = dateInput.value;
+        savePlannedDate(dateInput.value);
+      });
+    }
     if (body) {
       body.addEventListener("input", function () {
         state.body = body.value;

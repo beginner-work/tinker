@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Inbox — chat layout</title>
+<title>Inbox — plan by due date</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap"/>
 <link rel="stylesheet" href="/styles.css"/><link rel="stylesheet" href="/design-tokens.css"/>
 </head>
@@ -14,10 +14,21 @@
     <label class="messages-rail__search"><input class="messages-rail__search-input" placeholder="Search people or companies" readonly/></label>
     <ul class="messages-rail__list">
       <li class="messages-rail__group">
-        <button type="button" class="messages-rail__group-head" aria-expanded="true"><span class="messages-rail__group-label">Northwind Labs</span><span class="messages-rail__group-count">2</span></button>
+        <button type="button" class="messages-rail__group-head" aria-expanded="true"><span class="messages-rail__group-label">Today</span><span class="messages-rail__group-count">1</span></button>
         <ul class="messages-rail__group-list">
-          <li><button type="button" class="messages-rail__row messages-rail__row--unread" aria-current="true"><span class="messages-rail__avatar">AR</span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Alex Rivera</span><span class="messages-rail__time">2h</span></span><span class="messages-rail__preview">Following up on the platform role</span></span><span class="messages-rail__unread">1</span></button></li>
-          <li><button type="button" class="messages-rail__row"><span class="messages-rail__avatar">JK</span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Jordan Kim</span><span class="messages-rail__time">1d</span></span><span class="messages-rail__preview">Thanks for the intro note</span></span></button></li>
+          <li><button type="button" class="messages-rail__row messages-rail__row--unread" aria-current="true"><span class="messages-rail__avatar">AR</span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Alex Rivera</span><span class="messages-rail__time">Tue, Sep 29</span></span><span class="messages-rail__preview">Following up on the platform role</span><span class="messages-rail__meta"><span class="messages-rail__touch">eng leader note</span></span></span><span class="messages-rail__unread">1</span></button></li>
+        </ul>
+      </li>
+      <li class="messages-rail__group">
+        <button type="button" class="messages-rail__group-head" aria-expanded="true"><span class="messages-rail__group-label">This week</span><span class="messages-rail__group-count">1</span></button>
+        <ul class="messages-rail__group-list">
+          <li><button type="button" class="messages-rail__row"><span class="messages-rail__avatar">JK</span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Jordan Kim</span><span class="messages-rail__time">Fri, Oct 2</span></span><span class="messages-rail__preview">Thanks for the intro note</span><span class="messages-rail__meta"><span class="messages-rail__touch">recruiter note</span></span></span></button></li>
+        </ul>
+      </li>
+      <li class="messages-rail__group">
+        <button type="button" class="messages-rail__group-head" aria-expanded="true"><span class="messages-rail__group-label">No next touch</span><span class="messages-rail__group-count">1</span></button>
+        <ul class="messages-rail__group-list">
+          <li><button type="button" class="messages-rail__row"><span class="messages-rail__avatar">SL</span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Sam Lee</span><span class="messages-rail__time">3d</span></span><span class="messages-rail__preview">No draft yet</span></span></button></li>
         </ul>
       </li>
     </ul>
@@ -25,8 +36,6 @@
   <nav class="sidebar__secondary">
     <a class="sidebar__secondary-link" href="/story-parts">Story parts</a>
     <a class="sidebar__secondary-link" href="/leads">Leads</a>
-    <a class="sidebar__secondary-link" href="/career">Career</a>
-    <a class="sidebar__secondary-link" href="/autonomy">Autonomy</a>
   </nav>
 </aside>
 <main class="stage">
@@ -40,19 +49,18 @@
     </header>
     <div class="messages-pane__body"><div class="messages-pane__thread messages-thread"><ol class="messages-thread__list">
       <li class="messages-thread__item messages-thread__item--owner messages-thread__item--draft"><div class="messages-thread__meta"><span class="messages-thread__draft-tag">Draft</span><span class="messages-thread__channel">Gmail</span></div><button type="button" class="messages-thread__bubble"><div class="messages-thread__subject">Following up</div><div class="messages-thread__body">Built from story parts.</div></button></li>
+      <li class="messages-thread__item messages-thread__item--owner messages-thread__item--scheduled"><div class="messages-thread__meta"><span class="messages-thread__draft-tag messages-thread__draft-tag--scheduled">Scheduled</span><span class="messages-thread__channel">eng leader note</span><span class="messages-thread__when">Tue</span></div><div class="messages-thread__bubble messages-thread__bubble--scheduled"><div class="messages-thread__subject">Gmail</div><div class="messages-thread__body">Next eng leader note planned — write the draft below.</div></div></li>
     </ol></div></div>
     <footer class="messages-composer">
       <div class="messages-composer__chips">
         <button type="button" class="messages-composer__chip messages-composer__chip--on">hook · Built from story parts</button>
-        <button type="button" class="messages-composer__chip">proof · Shipped the rewrite</button>
       </div>
       <div class="messages-composer__bar">
         <label class="messages-composer__channel"><select class="messages-composer__select"><option>Gmail</option></select></label>
-        <label class="messages-composer__subject"><input class="messages-composer__input" value="Following up" readonly/></label>
+        <label class="messages-composer__date"><input class="messages-composer__date-input" type="date" value="2026-09-29"/></label>
         <textarea class="messages-composer__textarea" rows="1">Built from story parts.</textarea>
         <button type="button" class="messages-composer__save">Save draft</button>
       </div>
-      <p class="messages-composer__footnote">Story parts insert as chips above. Tinker never sends.</p>
     </footer>
   </section>
 </main>

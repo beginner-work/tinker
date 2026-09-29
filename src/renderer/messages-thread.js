@@ -15,7 +15,14 @@
     linkedin_message: "LinkedIn DM",
   };
   var REPLY_STAGES = { replied: 1, call: 1, interview: 1, offer: 1 };
-  var state = { lead: null, drafts: [], replies: [], loading: false, error: "" };
+  var TOUCH_LABEL = {
+    application: "application",
+    hiring_leader_outreach: "eng leader note",
+    recruiter_outreach: "recruiter note",
+    referral_follow_up: "follow-up",
+    call_follow_up: "follow-up",
+  };
+  var state = { lead: null, drafts: [], replies: [], touch: null, loading: false, error: "" };
   var pane = null;
 
   function token() {
@@ -247,14 +254,13 @@
     }
 
     var items = buildItems();
-    if (!items.length) {
+    var list = el("ol", "messages-thread__list", { "aria-label": "Conversation" });
+    if (!items.length && !(state.touch && state.touch.touch)) {
       thread.appendChild(Object.assign(el("p", "messages-thread__empty"), {
         textContent: "No messages yet for this person. Save a draft below — your assistant can pull it. Tinker never sends.",
       }));
       return;
     }
-
-    var list = el("ol", "messages-thread__list", { "aria-label": "Conversation" });
     var prevKey = "";
     items.forEach(function (item) {
       var key = groupKey(item);
@@ -262,13 +268,51 @@
       list.appendChild(renderBubble(item, grouped));
       prevKey = key;
     });
+    if (state.touch && state.touch.touch) {
+      list.appendChild(renderScheduledBubble(state.touch));
+    }
     thread.appendChild(list);
     try { thread.scrollTop = thread.scrollHeight; } catch (e) { /* ignore */ }
+  }
+  function renderScheduledBubble(entry) {
+    var touch = entry.touch;
+    var li = el("li", "messages-thread__item messages-thread__item--owner messages-thread__item--scheduled");
+    var meta = el("div", "messages-thread__meta");
+    var tag = el("span", "messages-thread__draft-tag messages-thread__draft-tag--scheduled");
+    tag.textContent = "Scheduled";
+    meta.appendChild(tag);
+    var type = el("span", "messages-thread__channel");
+    type.textContent = TOUCH_LABEL[touch.touchType] || String(touch.touchType || "").replace(/_/g, " ");
+    meta.appendChild(type);
+    var when = el("span", "messages-thread__when");
+    when.textContent = formatWhen(touch.date);
+    meta.appendChild(when);
+    var bubble = el("div", "messages-thread__bubble messages-thread__bubble--scheduled");
+    var body = el("div", "messages-thread__body");
+    var draft = null;
+    if (touch.draftId) {
+      for (var i = 0; i < state.drafts.length; i++) {
+        if (state.drafts[i] && state.drafts[i].id === touch.draftId) { draft = state.drafts[i]; break; }
+      }
+    }
+    if (draft && draft.channel) {
+      var ch = el("div", "messages-thread__subject");
+      ch.textContent = channelLabel(draft.channel);
+      bubble.appendChild(ch);
+    }
+    body.textContent = draft && draft.body
+      ? String(draft.body).replace(/\s+/g, " ").trim().slice(0, 180)
+      : ("Next " + (TOUCH_LABEL[touch.touchType] || "touch") + " planned — write the draft below.");
+    bubble.appendChild(body);
+    li.appendChild(meta);
+    li.appendChild(bubble);
+    return li;
   }
   function clearThread() {
     state.lead = null;
     state.drafts = [];
     state.replies = [];
+    state.touch = null;
     state.error = "";
     if (!pane) return;
     var title = pane.querySelector(".messages-pane__title");
@@ -290,13 +334,22 @@
     if (!leadId || !token()) { clearThread(); return Promise.resolve(); }
     state.loading = true;
     state.error = "";
+    state.touch = (window.tinkerMessagesShell && window.tinkerMessagesShell.touchForLead)
+      ? window.tinkerMessagesShell.touchForLead(leadId)
+      : null;
     renderThread();
     return Promise.all([
       api("lead", { id: leadId }),
       api("drafts"),
+      fetch("/api/schedule?action=inbox", {
+        headers: { Authorization: "Bearer " + token(), Accept: "application/json" },
+      }).then(function (res) { return res.ok ? res.json() : { byLeadId: {} }; }).catch(function () { return { byLeadId: {} }; }),
     ]).then(function (results) {
       state.lead = results[0].lead || null;
       var all = Array.isArray(results[1].drafts) ? results[1].drafts : [];
+      if (results[2] && results[2].byLeadId && results[2].byLeadId[leadId]) {
+        state.touch = results[2].byLeadId[leadId];
+      }
       /* Prefer drafts nested on the lead payload when present. */
       var nested = results[0].drafts;
       if (Array.isArray(nested) && nested.length) {
