@@ -56,7 +56,7 @@
       role.hidden = true;
       role.textContent = "";
     }
-    // Owner thread has no LinkedIn/GitHub chrome — clear any leftover person links.
+    // Owner thread has no LinkedIn/GitHub chrome - clear any leftover person links.
     if (links) { links.hidden = true; links.innerHTML = ""; }
     if (avatar) {
       avatar.hidden = false;
