@@ -121,7 +121,8 @@ test("stages are a fixed list", async () => {
   const first = await call({ method: "GET", action: "stages" });
   assert.deepEqual(first.body.stages.map((stage) => stage.key), store.STAGES.map((stage) => stage.key));
   assert.match(first.body.stages[0].description, /curious/);
-  assert.doesNotMatch(first.body.stages[2].description, /Tyler|nanoengineering/);
+  assert.match(first.body.stages[3].description, /Why you for a particular kind of team or role/);
+  for (const stage of first.body.stages) assert.doesNotMatch(stage.name + " " + stage.description, /Tyler|nanoengineering/);
   assert.equal(tables.tinkerUserData.rows.length, 0);
   assert.equal((await call({ method: "POST", action: "stages", body: { stages: [] } })).status, 400);
   const created = await call({ method: "POST", action: "create", body: { stageKey: "ask", title: "The ask", body: "Fifteen minutes.", topics: ["intro"], sourceKind: "none" } });

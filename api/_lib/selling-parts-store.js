@@ -7,7 +7,7 @@ const STAGES = [
   { key: "hook", name: "Hook", description: "A line or short story that makes someone curious.", position: 0, retired: false },
   { key: "proof_point", name: "Proof point", description: "One claim with a starting point, a number, and a cause (from X to Y because Z).", position: 1, retired: false },
   { key: "connecting_story", name: "Connecting story", description: "The thread through a career, in lengths from one line to a paragraph.", position: 2, retired: false },
-  { key: "fit", name: "Fit", description: "Why Tyler for a particular kind of team or role.", position: 3, retired: false },
+  { key: "fit", name: "Fit", description: "Why you for a particular kind of team or role.", position: 3, retired: false },
   { key: "ask", name: "Ask", description: "The specific, low-friction request at the end.", position: 4, retired: false },
 ];
 const SOURCE_KINDS = ["note", "concept", "narrative", "content_item", "career_record", "code", "none"];
