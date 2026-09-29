@@ -79,6 +79,7 @@
          Thread + composer land in stacked slices. Never sends. -->
     <script src="./messages-shell.js" defer></script>
     <script src="./messages-thread.js" defer></script>
+    <script src="./messages-composer.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
@@ -271,18 +272,12 @@
         </div>
       </nav>
 
-      <!-- Message drafts across every lead. lead-drafts.js fills the
-           list; hidden until the owner is allowlisted for leads. -->
-      <nav class="sidebar__drafts" id="sidebar-drafts" aria-label="Drafts" hidden data-open="true">
-        <button type="button" class="sidebar__drafts-toggle" data-drafts-toggle aria-expanded="true">
-          <span class="sidebar__account-head sidebar__drafts-title">Drafts</span>
-          <span class="sidebar__drafts-badge" data-drafts-badge hidden></span>
-        </button>
+      <!-- Outreach settings only (TYL-65). Draft list removed — drafts
+           live in the thread + composer. lead-drafts.js still owns
+           settings + openDraft. -->
+      <nav class="sidebar__drafts sidebar__drafts--settings" id="sidebar-drafts" aria-label="Outreach settings" hidden data-open="true">
         <div class="sidebar__drafts-panel" data-drafts-panel>
-          <button type="button" class="sidebar__drafts-filter" data-drafts-filter hidden></button>
-          <p class="sidebar__drafts-empty" data-drafts-empty>No drafts yet. When you write one for a lead, it shows up here for you to review.</p>
-          <p class="sidebar__drafts-error" data-drafts-error hidden></p>
-          <ul class="sidebar__drafts-list" data-drafts-list></ul>
+          <span class="sidebar__account-head sidebar__drafts-title">Outreach</span>
           <label class="sidebar__drafts-from">
             <span class="sidebar__drafts-from-label">Outreach from</span>
             <input type="email" class="sidebar__drafts-from-input" data-drafts-from placeholder="you@example.com" autocomplete="email" />
@@ -393,6 +388,32 @@
           <p class="messages-pane__empty" data-messages-empty>Select a conversation to see drafts and touch history for that person.</p>
           <div class="messages-pane__thread" data-messages-thread hidden></div>
         </div>
+        <!-- Composer: drafts in progress live here. Save draft only. -->
+        <footer id="messages-composer" class="messages-composer" hidden aria-label="Draft composer">
+          <div class="messages-composer__row">
+            <label class="messages-composer__field">
+              <span class="messages-composer__label">Channel</span>
+              <select class="messages-composer__select" data-composer-channel></select>
+            </label>
+            <label class="messages-composer__field messages-composer__field--grow" data-composer-subject-wrap hidden>
+              <span class="messages-composer__label">Subject</span>
+              <input type="text" class="messages-composer__input" data-composer-subject placeholder="Subject" />
+            </label>
+          </div>
+          <div class="messages-composer__parts" data-composer-parts></div>
+          <label class="messages-composer__field messages-composer__field--block">
+            <span class="messages-composer__label">Draft</span>
+            <textarea class="messages-composer__textarea" data-composer-body rows="4"
+                      placeholder="Build from story parts, or type the draft yourself."></textarea>
+          </label>
+          <p class="messages-composer__counter" data-composer-counter hidden></p>
+          <p class="messages-composer__status" data-composer-status hidden></p>
+          <div class="messages-composer__actions">
+            <button type="button" class="messages-composer__booking" data-composer-booking hidden>Insert booking link</button>
+            <button type="button" class="messages-composer__save" data-composer-save>Save draft</button>
+          </div>
+          <p class="messages-composer__footnote">Your connected assistant pulls saved drafts. Tinker never sends.</p>
+        </footer>
       </section>
 
       <!-- Default landing: a quiet empty state that points back at the
