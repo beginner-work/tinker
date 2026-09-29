@@ -36,5 +36,15 @@ test("sidebar draft list is gone; settings remain", () => {
 test("composer styles stay flat", () => {
   assert.match(css, /\.messages-composer\b/);
   assert.match(css, /\.messages-composer__save\b/);
+  assert.match(css, /\.messages-composer__bar\b/);
+  assert.match(css, /\.messages-composer__chip\b/);
   assert.equal(/\.messages-composer[^{]*\{[^}]*box-shadow/.test(css), false);
+});
+
+test("composer is a chat bar with inline chips, not a stacked form", () => {
+  assert.match(html, /messages-composer__bar/);
+  assert.match(html, /messages-composer__chips/);
+  assert.match(js, /messages-composer__chip/);
+  assert.match(js, /growTextarea/);
+  assert.equal(/messages-composer__field--block/.test(html), false);
 });
