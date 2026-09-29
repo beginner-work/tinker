@@ -71,6 +71,7 @@
          the MCP tool draft_linkedin_post). Does not post. -->
     <script src="./linkedin-draft.js" defer></script>
     <script src="./lead-drafts.js" defer></script>
+    <script src="./lead-funnel.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
@@ -225,6 +226,17 @@
           </div>
         </div>
         <ul class="sidebar__tree-list"></ul>
+      </nav>
+
+      <nav class="sidebar__funnel" id="sidebar-funnel" aria-label="Companies" hidden data-open="true">
+        <button type="button" class="sidebar__funnel-toggle" data-funnel-toggle aria-expanded="true">
+          <span class="sidebar__account-head sidebar__funnel-title">Companies</span>
+        </button>
+        <div class="sidebar__funnel-panel" data-funnel-panel>
+          <p class="sidebar__funnel-empty" data-funnel-empty>No target companies yet. Add one on Leads.</p>
+          <p class="sidebar__funnel-error" data-funnel-error hidden></p>
+          <div class="sidebar__funnel-list" data-funnel-list></div>
+        </div>
       </nav>
 
       <nav class="sidebar__drafts" id="sidebar-drafts" aria-label="Drafts" hidden data-open="true">

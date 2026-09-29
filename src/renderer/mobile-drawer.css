@@ -86,7 +86,12 @@
   .sidebar__name,
   .sidebar__footer,
   .sidebar__account,
-  .sidebar__drafts { display: revert; }
+  .sidebar__drafts,
+  .sidebar__funnel { display: revert; }
+  .sidebar__funnel {
+    display: flex;
+    max-height: min(30vh, 220px);
+  }
   .sidebar__drafts {
     display: flex;
     max-height: min(38vh, 280px);

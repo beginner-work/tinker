@@ -23,6 +23,15 @@
   var leads = [];
   var selectedId = "";
 
+  function pickLeadFromQuery() {
+    try {
+      var id = new URLSearchParams(window.location.search).get("lead") || "";
+      if (!id) return;
+      var lead = leads.find(function (row) { return row.id === id; });
+      if (lead) fillForm(lead);
+    } catch (err) { /* ignore */ }
+  }
+
   function token() {
     try { return localStorage.getItem(TOKEN_KEY) || ""; }
     catch (err) { return ""; }
@@ -240,6 +249,7 @@
       }
       leads = (result.body && result.body.leads) || [];
       renderBoard();
+      pickLeadFromQuery();
     }).catch(function () { setStatus("Could not load leads."); });
   }
 
