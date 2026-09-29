@@ -881,6 +881,21 @@ body.messages-you-active .messages-composer--you .messages-composer__toolbar,
 body.messages-you-active .messages-composer--you .messages-composer__chips {
   display: none !important;
 }
+body.messages-you-active .messages-thread__list--self {
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto 12px;
+  padding: 0;
+}
+body.messages-you-active .messages-thread__item--assistant {
+  align-self: flex-start;
+  width: min(78%, 28rem);
+  max-width: min(78%, 28rem);
+}
+body.messages-you-active .messages-thread__body--markdown {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 .sidebar__drafts--settings {
   max-height: none;

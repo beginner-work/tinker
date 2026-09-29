@@ -60,7 +60,54 @@
       }
     }
   }
-  function mountWriting() {
+  function token() {
+    try { return localStorage.getItem("tinker_jwt") || ""; } catch (e) { return ""; }
+  }
+  function el(tag, cls, attrs) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (attrs) Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+    return n;
+  }
+  function formatWhen(iso) {
+    if (!iso) return "";
+    try {
+      var d = new Date(iso);
+      if (!Number.isFinite(d.getTime())) return "";
+      return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    } catch (e) { return ""; }
+  }
+  function renderSelfPosts(messages) {
+    var list = el("ol", "messages-thread__list messages-thread__list--self", { "aria-label": "Assistant posts" });
+    (messages || []).forEach(function (msg) {
+      var li = el("li", "messages-thread__item messages-thread__item--lead messages-thread__item--assistant");
+      var bubble = el("div", "messages-thread__bubble");
+      if (msg.title) {
+        var subj = el("div", "messages-thread__subject");
+        subj.textContent = msg.title;
+        bubble.appendChild(subj);
+      }
+      var body = el("div", "messages-thread__body messages-thread__body--markdown");
+      body.textContent = msg.body || "";
+      bubble.appendChild(body);
+      var meta = el("div", "messages-thread__meta");
+      meta.textContent = ["Assistant", formatWhen(msg.createdAt)].filter(Boolean).join(" · ");
+      bubble.appendChild(meta);
+      li.appendChild(bubble);
+      list.appendChild(li);
+    });
+    return list;
+  }
+  function loadSelfPosts() {
+    var t = token();
+    if (!t) return Promise.resolve([]);
+    return fetch("/api/self-thread?action=list", {
+      headers: { Authorization: "Bearer " + t, Accept: "application/json" },
+    }).then(function (res) { return res.ok ? res.json() : { messages: [] }; })
+      .then(function (json) { return Array.isArray(json.messages) ? json.messages : []; })
+      .catch(function () { return []; });
+  }
+  function mountWriting(messages) {
     ensureHosts();
     if (!writing || !host) return;
     var empty = document.querySelector("#messages-pane [data-messages-empty]");
@@ -68,7 +115,9 @@
     host.hidden = false;
     host.setAttribute("data-thread-ready", "1");
     host.classList.add("messages-thread", "messages-thread--you");
+    if (writing.parentNode) writing.parentNode.removeChild(writing);
     host.innerHTML = "";
+    if (messages && messages.length) host.appendChild(renderSelfPosts(messages));
     host.appendChild(writing);
     writing.hidden = false;
     writing.classList.add("writing--in-messages");
@@ -136,9 +185,13 @@
   function openYou() {
     ensureHosts();
     open = true;
-    mountWriting();
+    mountWriting([]);
     bindComposerBridge();
     startSession();
+    loadSelfPosts().then(function (messages) {
+      if (!open) return;
+      mountWriting(messages);
+    });
     setTimeout(syncComposerFromWriting, 80);
     setTimeout(syncComposerFromWriting, 400);
   }
