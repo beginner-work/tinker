@@ -4,11 +4,11 @@
   var TOKEN_KEY = "tinker_jwt";
   var RETURN_KEY = "tinker_mcp_return";
   var FIXED_STAGES = [
-    { key: "hook", name: "Hook", description: "A line or short story that makes someone curious." },
-    { key: "proof_point", name: "Proof point", description: "One claim with a starting point, a number, and a cause (from X to Y because Z)." },
-    { key: "connecting_story", name: "Connecting story", description: "The thread through your path, in lengths from one line to a paragraph." },
-    { key: "fit", name: "Fit", description: "Why you for a particular kind of team or role." },
-    { key: "ask", name: "Ask", description: "The specific, low-friction request at the end." },
+    { key: "hook", name: "Hook", description: "A line or short story that makes someone curious.", position: 0, retired: false },
+    { key: "proof_point", name: "Proof point", description: "One claim with a starting point, a number, and a cause (from X to Y because Z).", position: 1, retired: false },
+    { key: "connecting_story", name: "Connecting story", description: "The thread through a career, in lengths from one line to a paragraph.", position: 2, retired: false },
+    { key: "fit", name: "Fit", description: "Why you for a particular kind of team or role.", position: 3, retired: false },
+    { key: "ask", name: "Ask", description: "The specific, low-friction request at the end.", position: 4, retired: false },
   ];
   var excerptApi = window.tinkerSellingExcerpt || {};
   var listEl = document.getElementById("selling-list");
@@ -136,6 +136,16 @@
       pushSources("career_record", facts);
       if (view === "sources") renderList();
     });
+  }
+  function loadStages() {
+    return api("GET", "stages").then(function (result) {
+      if (handleAuth(result)) return;
+      if (result.status !== 200 || !result.body || !Array.isArray(result.body.stages) || !result.body.stages.length) {
+        stages = FIXED_STAGES.slice();
+        return;
+      }
+      stages = result.body.stages.slice().sort(function (a, b) { return (a.position || 0) - (b.position || 0); });
+    }).catch(function () { stages = FIXED_STAGES.slice(); });
   }
   function loadParts() {
     return api("GET", "list", filter).then(function (result) {
@@ -315,7 +325,7 @@
       req.then(function (result) {
         save.disabled = false;
         if (handleAuth(result)) return;
-        if (result.status >= 400) {
+        if (result.status >= 400 || !result.body || !result.body.part) {
           setStatus((result.body && result.body.error) || "Could not save part.");
           return;
         }
@@ -441,7 +451,7 @@
   tabSources.addEventListener("click", function () { setTab("sources"); });
   tabBoard.addEventListener("click", function () { setTab("board"); loadParts(); });
   tabStages.addEventListener("click", function () { setTab("stages"); });
-  Promise.all([loadSources(), loadParts()]).then(function () {
+  Promise.all([loadStages(), loadSources(), loadParts()]).then(function () {
     setTab("sources");
   }).catch(function () { setStatus("Could not load selling parts."); });
 })();
