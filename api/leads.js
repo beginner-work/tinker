@@ -76,7 +76,7 @@ async function dispatch(method, action, auth, body, req) {
   }
   if (method === "POST" && action === "draft") {
     const result = await store.createDraft(Object.assign(base, body));
-    return { status: 201, body: { draft: store.presentDraft(result.draft), lead: store.presentLead(result.lead) } };
+    return { status: 201, body: { draft: store.presentDraft(result.draft), lead: result.lead ? store.presentLead(result.lead) : null } };
   }
   if (method === "PATCH" && action === "draft") {
     return { status: 200, body: { draft: store.presentDraft(await store.updateDraft({ id, userId, emailHint, actor, patch: body })) } };
@@ -87,7 +87,13 @@ async function dispatch(method, action, auth, body, req) {
   }
   if (method === "POST" && action === "mark-sent") {
     const result = await store.markDraftSent({ id, userId, emailHint, actor });
-    return { status: 200, body: { draft: store.presentDraft(result.draft), lead: store.presentLead(result.lead), event: store.presentEvent(result.event) } };
+    return { status: 200, body: { draft: store.presentDraft(result.draft), lead: result.lead ? store.presentLead(result.lead) : null, event: store.presentEvent(result.event) } };
+  }
+  if (method === "GET" && action === "settings") {
+    return { status: 200, body: { settings: await store.getOutreachSettings({ userId, emailHint }) } };
+  }
+  if (method === "POST" && action === "settings") {
+    return { status: 200, body: { settings: await store.setOutreachSettings({ userId, emailHint, patch: body }) } };
   }
   throw Object.assign(new Error(action ? "Unknown action." : "Action is required."), { status: 400 });
 }

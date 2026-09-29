@@ -155,10 +155,11 @@ model Lead {
 model LeadDraft {
   id           String   @id @default(cuid())
   userId       String
-  leadId       String
+  leadId       String?
   channel      String
   subject      String   @default("")
   body         String   @default("")
+  fromAddress  String   @default("")
   status       String
   storyPartIds Json     @default("[]")
   factCheck    Json     @default("{}")
@@ -172,7 +173,7 @@ model LeadDraft {
 model LeadEvent {
   id     String   @id @default(cuid())
   userId String
-  leadId String
+  leadId String?
   actor  String
   action String
   detail Json     @default("{}")

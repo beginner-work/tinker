@@ -3,19 +3,23 @@
 const SOURCES = ["referral", "formation", "linkedin", "posting", "event", "other"];
 const STAGES = ["new", "drafting", "contacted", "replied", "call", "interview", "offer", "closed"];
 const OUTCOMES = ["replied", "call", "interview", "offer"];
-const CHANNELS = ["email", "linkedin_note", "linkedin_message"];
+const CHANNELS = ["linkedin_post", "linkedin_connection", "gmail_outreach"];
 const IMPORT_DRAFT_STATUSES = ["draft", "sent_by_owner"];
+const SETTINGS_KIND = "leads-outreach";
 const UNAVAILABLE = "Leads are unavailable right now.";
 const TABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "Lead" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "personName" TEXT NOT NULL DEFAULT '', "personTitle" TEXT NOT NULL DEFAULT '', "linkedInUrl" TEXT NOT NULL DEFAULT '', "email" TEXT NOT NULL DEFAULT '', "company" TEXT NOT NULL DEFAULT '', "targetRoleTitle" TEXT NOT NULL DEFAULT '', "postingUrl" TEXT NOT NULL DEFAULT '', "source" TEXT NOT NULL, "stage" TEXT NOT NULL, "nextStep" TEXT NOT NULL DEFAULT '', "nextStepAt" TIMESTAMP(3), "notes" TEXT NOT NULL DEFAULT '', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Lead_pkey" PRIMARY KEY ("id"))`,
   `CREATE INDEX IF NOT EXISTS "Lead_userId_idx" ON "Lead"("userId")`,
   `CREATE INDEX IF NOT EXISTS "Lead_userId_stage_idx" ON "Lead"("userId", "stage")`,
-  `CREATE TABLE IF NOT EXISTS "LeadDraft" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "leadId" TEXT NOT NULL, "channel" TEXT NOT NULL, "subject" TEXT NOT NULL DEFAULT '', "body" TEXT NOT NULL DEFAULT '', "status" TEXT NOT NULL, "storyPartIds" JSONB NOT NULL DEFAULT '[]', "factCheck" JSONB NOT NULL DEFAULT '{}', "createdBy" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "LeadDraft_pkey" PRIMARY KEY ("id"))`,
+  `CREATE TABLE IF NOT EXISTS "LeadDraft" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "leadId" TEXT, "channel" TEXT NOT NULL, "subject" TEXT NOT NULL DEFAULT '', "body" TEXT NOT NULL DEFAULT '', "fromAddress" TEXT NOT NULL DEFAULT '', "status" TEXT NOT NULL, "storyPartIds" JSONB NOT NULL DEFAULT '[]', "factCheck" JSONB NOT NULL DEFAULT '{}', "createdBy" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "LeadDraft_pkey" PRIMARY KEY ("id"))`,
   `CREATE INDEX IF NOT EXISTS "LeadDraft_userId_idx" ON "LeadDraft"("userId")`,
   `CREATE INDEX IF NOT EXISTS "LeadDraft_leadId_idx" ON "LeadDraft"("leadId")`,
-  `CREATE TABLE IF NOT EXISTS "LeadEvent" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "leadId" TEXT NOT NULL, "actor" TEXT NOT NULL, "action" TEXT NOT NULL, "detail" JSONB NOT NULL DEFAULT '{}', "at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "LeadEvent_pkey" PRIMARY KEY ("id"))`,
+  `CREATE TABLE IF NOT EXISTS "LeadEvent" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "leadId" TEXT, "actor" TEXT NOT NULL, "action" TEXT NOT NULL, "detail" JSONB NOT NULL DEFAULT '{}', "at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "LeadEvent_pkey" PRIMARY KEY ("id"))`,
   `CREATE INDEX IF NOT EXISTS "LeadEvent_userId_idx" ON "LeadEvent"("userId")`,
   `CREATE INDEX IF NOT EXISTS "LeadEvent_leadId_idx" ON "LeadEvent"("leadId")`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "fromAddress" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" ALTER COLUMN "leadId" DROP NOT NULL`,
+  `ALTER TABLE "LeadEvent" ALTER COLUMN "leadId" DROP NOT NULL`,
 ];
 const HEADER_MAP = {
   name: "personName", personname: "personName", person: "personName", title: "personTitle", persontitle: "personTitle",
@@ -23,6 +27,7 @@ const HEADER_MAP = {
   role: "targetRoleTitle", targetrole: "targetRoleTitle", targetroletitle: "targetRoleTitle", posting: "postingUrl",
   postingurl: "postingUrl", source: "source", stage: "stage", notes: "notes", draftchannel: "draftChannel",
   channel: "draftChannel", draftsubject: "draftSubject", subject: "draftSubject", draftbody: "draftBody", body: "draftBody", draftstatus: "draftStatus",
+  fromaddress: "fromAddress", draftfromaddress: "fromAddress",
 };
 let ensuring = null;
 const db = () => require("./db.js");
@@ -111,8 +116,31 @@ async function loadOwned(model, id, userId, label) {
 }
 async function record(tx, fields) {
   return tx.leadEvent.create({
-    data: { userId: fields.userId, leadId: fields.leadId, actor: fields.actor, action: fields.action, detail: fields.detail || {}, at: fields.at || new Date() },
+    data: { userId: fields.userId, leadId: fields.leadId || null, actor: fields.actor, action: fields.action, detail: fields.detail || {}, at: fields.at || new Date() },
   });
+}
+async function readOutreachSettings(owner) {
+  let row;
+  try { row = await db().tinkerUserData.findUnique({ where: { userId_kind: { userId: owner, kind: SETTINGS_KIND } } }); }
+  catch (err) { throw storeDown(err); }
+  const data = row && row.data && typeof row.data === "object" && !Array.isArray(row.data) ? row.data : {};
+  return { defaultFromAddress: typeof data.defaultFromAddress === "string" ? data.defaultFromAddress : "" };
+}
+async function writeOutreachSettings(owner, patch) {
+  const current = await readOutreachSettings(owner);
+  const next = {
+    defaultFromAddress: Object.prototype.hasOwnProperty.call(patch, "defaultFromAddress")
+      ? readText(patch.defaultFromAddress, "defaultFromAddress", 320, false).toLowerCase()
+      : current.defaultFromAddress,
+  };
+  try {
+    await db().tinkerUserData.upsert({
+      where: { userId_kind: { userId: owner, kind: SETTINGS_KIND } },
+      create: { userId: owner, kind: SETTINGS_KIND, data: next },
+      update: { data: next },
+    });
+  } catch (err) { throw storeDown(err); }
+  return next;
 }
 function leadFields(input, requireName) {
   return {
@@ -129,20 +157,22 @@ function leadFields(input, requireName) {
     notes: readText(input.notes, "notes", 8000, false),
   };
 }
-function draftPayload(input, actor, leadId, owner, statusOverride) {
+function draftPayload(input, actor, leadId, owner, statusOverride, defaultFrom) {
   const channel = readEnum(input.channel || input.draftChannel, CHANNELS, "channel");
   const status = statusOverride || readEnum(input.status || input.draftStatus || "draft", IMPORT_DRAFT_STATUSES, "draft status");
-  const subject = channel === "email" ? readText(input.subject || input.draftSubject, "subject", 300, false) : "";
+  const subject = channel === "gmail_outreach" ? readText(input.subject || input.draftSubject, "subject", 300, false) : "";
+  if (channel !== "gmail_outreach" && input.subject != null && String(input.subject).trim()) throw fail(400, "subject is only for gmail_outreach.");
+  let fromAddress = readText(input.fromAddress || input.draftFromAddress, "fromAddress", 320, false).toLowerCase();
+  if (!fromAddress && channel === "gmail_outreach") fromAddress = readText(defaultFrom || "", "fromAddress", 320, false).toLowerCase();
   return {
-    userId: owner, leadId, channel, subject,
-    body: readText(input.body || input.draftBody, "body", 100000, false),
-    status, storyPartIds: readIds(input.storyPartIds), factCheck: readFactCheck(input.factCheck), createdBy: actor,
+    userId: owner, leadId: leadId || null, channel, subject, body: readText(input.body || input.draftBody, "body", 100000, false),
+    fromAddress, status, storyPartIds: readIds(input.storyPartIds), factCheck: readFactCheck(input.factCheck), createdBy: actor,
   };
 }
 function attachedDraft(row) {
   if (row.draft && typeof row.draft === "object" && !Array.isArray(row.draft)) return row.draft;
-  if (row.draftChannel || row.draftBody || row.draftSubject || row.draftStatus) {
-    return { channel: row.draftChannel, subject: row.draftSubject, body: row.draftBody, status: row.draftStatus || "draft" };
+  if (row.draftChannel || row.draftBody || row.draftSubject || row.draftStatus || row.fromAddress || row.draftFromAddress) {
+    return { channel: row.draftChannel, subject: row.draftSubject, body: row.draftBody, status: row.draftStatus || "draft", fromAddress: row.fromAddress || row.draftFromAddress || "" };
   }
   return null;
 }
@@ -301,7 +331,8 @@ async function importLeads({ userId, emailHint, actor, text }) {
       }
       const draftIn = attachedDraft(row);
       if (draftIn) {
-        const draft = await tx.leadDraft.create({ data: draftPayload(draftIn, label, saved.id, owner) });
+        const settings = await readOutreachSettings(owner);
+        const draft = await tx.leadDraft.create({ data: draftPayload(draftIn, label, saved.id, owner, null, settings.defaultFromAddress) });
         await record(tx, { userId: owner, leadId: saved.id, actor: label, action: "draft_imported", detail: { draftId: draft.id, status: draft.status } });
       }
       out.push(saved);
@@ -314,12 +345,23 @@ async function createDraft(input) {
   assertAllowed(owner, input.emailHint);
   const actor = actorLabel(input.actor);
   await ensureTable();
-  const lead = await loadOwned("lead", input.leadId, owner, "lead");
-  const data = draftPayload(input, actor, lead.id, owner, "draft");
+  const channel = readEnum(input.channel, CHANNELS, "channel");
+  let lead = null;
+  if (channel === "linkedin_post") {
+    if (input.leadId) lead = await loadOwned("lead", input.leadId, owner, "lead");
+  } else {
+    lead = await loadOwned("lead", input.leadId, owner, "lead");
+  }
+  const settings = await readOutreachSettings(owner);
+  const data = draftPayload(input, actor, lead && lead.id, owner, "draft", settings.defaultFromAddress);
   return commit(async (tx) => {
     const saved = await tx.leadDraft.create({ data });
-    const updatedLead = lead.stage === "new" ? await tx.lead.update({ where: { id: lead.id }, data: { stage: "drafting" } }) : lead;
-    await record(tx, { userId: owner, leadId: lead.id, actor, action: "draft_created", detail: { draftId: saved.id, channel: data.channel, from: lead.stage, to: updatedLead.stage } });
+    let updatedLead = lead;
+    if (lead && lead.stage === "new") updatedLead = await tx.lead.update({ where: { id: lead.id }, data: { stage: "drafting" } });
+    await record(tx, {
+      userId: owner, leadId: lead ? lead.id : null, actor, action: "draft_created",
+      detail: { draftId: saved.id, channel: data.channel, from: lead ? lead.stage : null, to: updatedLead ? updatedLead.stage : null },
+    });
     return { draft: saved, lead: updatedLead };
   });
 }
@@ -328,7 +370,7 @@ async function updateDraft({ id, userId, emailHint, actor, patch }) {
   assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
-  const keys = ["subject", "body", "storyPartIds", "factCheck"].filter((key) => Object.prototype.hasOwnProperty.call(source, key));
+  const keys = ["subject", "body", "storyPartIds", "factCheck", "fromAddress"].filter((key) => Object.prototype.hasOwnProperty.call(source, key));
   if (!keys.length) throw fail(400, "Nothing to update.");
   await ensureTable();
   const row = await loadOwned("leadDraft", id, owner, "draft");
@@ -337,8 +379,9 @@ async function updateDraft({ id, userId, emailHint, actor, patch }) {
   if (keys.includes("body")) data.body = readText(source.body, "body", 100000, false);
   if (keys.includes("storyPartIds")) data.storyPartIds = readIds(source.storyPartIds);
   if (keys.includes("factCheck")) data.factCheck = readFactCheck(source.factCheck);
+  if (keys.includes("fromAddress")) data.fromAddress = readText(source.fromAddress, "fromAddress", 320, false).toLowerCase();
   if (keys.includes("subject")) {
-    if (row.channel !== "email") throw fail(400, "subject is only for email.");
+    if (row.channel !== "gmail_outreach") throw fail(400, "subject is only for gmail_outreach.");
     data.subject = readText(source.subject, "subject", 300, false);
   }
   if (row.status === "approved") data.status = "draft";
@@ -369,21 +412,34 @@ async function markDraftSent({ id, userId, emailHint, actor }) {
   const row = await loadOwned("leadDraft", id, owner, "draft");
   if (row.status === "sent_by_owner") throw fail(400, "Nothing to update.");
   if (row.status !== "approved" && row.status !== "draft") throw fail(400, "Only a draft or approved draft can be marked sent.");
-  const lead = await loadOwned("lead", row.leadId, owner, "lead");
+  const lead = row.leadId ? await loadOwned("lead", row.leadId, owner, "lead") : null;
   return commit(async (tx) => {
     const saved = await tx.leadDraft.update({ where: { id: row.id }, data: { status: "sent_by_owner" } });
-    const updatedLead = (lead.stage === "new" || lead.stage === "drafting")
-      ? await tx.lead.update({ where: { id: lead.id }, data: { stage: "contacted" } }) : lead;
+    let updatedLead = lead;
+    if (lead && (lead.stage === "new" || lead.stage === "drafting")) {
+      updatedLead = await tx.lead.update({ where: { id: lead.id }, data: { stage: "contacted" } });
+    }
     const event = await record(tx, {
-      userId: owner, leadId: lead.id, actor: label, action: "draft_sent_by_owner",
-      detail: { draftId: row.id, from: lead.stage, to: updatedLead.stage },
+      userId: owner, leadId: lead ? lead.id : null, actor: label, action: "draft_sent_by_owner",
+      detail: { draftId: row.id, from: lead ? lead.stage : null, to: updatedLead ? updatedLead.stage : null },
     });
     return { draft: saved, lead: updatedLead, event };
   });
 }
+async function getOutreachSettings({ userId, emailHint }) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  return readOutreachSettings(owner);
+}
+async function setOutreachSettings({ userId, emailHint, patch }) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  return writeOutreachSettings(owner, patch || {});
+}
+
 module.exports = {
   UNAVAILABLE, TABLE_STATEMENTS, SOURCES, STAGES, OUTCOMES, CHANNELS,
   ensureTable, resetTableCache, assertAllowed, presentLead: shape, presentDraft: shape, presentEvent: shape,
   parseImportText, createLead, listLeads, getLead, updateLead, setStage, importLeads,
-  createDraft, updateDraft, approveDraft, markDraftSent,
+  createDraft, updateDraft, approveDraft, markDraftSent, getOutreachSettings, setOutreachSettings,
 };
