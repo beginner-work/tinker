@@ -1,6 +1,6 @@
 /* Messaging shell: left conversation list of leads (TYL-65 slice 1).
  * Reuses leads + draft APIs from TYL-62/63. Thread and composer land in
- * later slices. Tinker never sends.
+ * later slices.
  */
 (function () {
   "use strict";
@@ -184,7 +184,7 @@
       else if (!thread.getAttribute("data-thread-ready")) {
         thread.innerHTML = "";
         var note = el("p", "messages-pane__placeholder");
-        note.textContent = "Thread view arrives next — your drafts for this person will show here.";
+        note.textContent = "Thread view arrives next. Your drafts for this person will show here.";
         thread.appendChild(note);
       }
     }
@@ -278,7 +278,7 @@
         var preview = el("span", "messages-rail__preview");
         preview.textContent = draft
           ? draftPreview(draft)
-          : (String(lead.personTitle || "").trim() || "No draft yet — write one when you are ready.");
+          : (String(lead.personTitle || "").trim() || "No draft yet. Write one when you are ready.");
         var meta = el("span", "messages-rail__meta");
         if (touch) {
           var touchEl = el("span", "messages-rail__touch");

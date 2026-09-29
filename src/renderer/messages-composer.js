@@ -1,7 +1,6 @@
-/* Bottom composer for the messaging shell (TYL-65 slice 3).
- * Builds a draft from story parts + channel. Save draft only — never sends.
- * Drafts in progress live here; the sidebar draft list is removed.
- * Reuses draft channels, settings, and booking link from TYL-63.
+/* Bottom composer for the messaging shell (TYL-65).
+ * Modern chat bar: growing textarea, channel/date as chips inside the shell,
+ * Ship (final / approved) and Next (in progress / draft).
  */
 (function () {
   "use strict";
@@ -30,6 +29,7 @@
     saving: false,
     status: "",
     error: "",
+    youMode: false,
   };
   var root = null;
 
@@ -114,23 +114,32 @@
     counter.hidden = false;
     var n = state.body.length;
     var over = n > meta.charLimit;
-    counter.textContent = n + " / " + meta.charLimit + (over ? " — over LinkedIn’s free note limit" : "");
+    counter.textContent = n + " / " + meta.charLimit + (over ? " (over LinkedIn free note limit)" : "");
     counter.classList.toggle("messages-composer__counter--over", over);
   }
   function growTextarea() {
     var area = root && root.querySelector("[data-composer-body]");
     if (!area) return;
     area.style.height = "auto";
-    var next = Math.min(Math.max(area.scrollHeight, 40), 160);
+    var next = Math.min(Math.max(area.scrollHeight, 44), 180);
     area.style.height = next + "px";
+  }
+  function setActionEnabled() {
+    var empty = !String(state.body || "").trim();
+    var ship = root && root.querySelector("[data-composer-ship]");
+    var next = root && root.querySelector("[data-composer-next]");
+    if (ship) ship.disabled = state.saving || empty;
+    if (next) next.disabled = state.saving || empty;
   }
   function renderParts() {
     var box = root && root.querySelector("[data-composer-parts]");
     if (!box) return;
     box.innerHTML = "";
+    if (state.youMode) { box.hidden = true; return; }
+    box.hidden = false;
     if (!state.parts.length) {
       box.appendChild(Object.assign(el("p", "messages-composer__hint"), {
-        textContent: "No story parts yet — add some, then tap a chip to insert.",
+        textContent: "No story parts yet. Add some, then tap a chip to insert.",
       }));
       return;
     }
@@ -156,8 +165,7 @@
         syncCounter();
         growTextarea();
         renderParts();
-        var saveBtn = root.querySelector("[data-composer-save]");
-        if (saveBtn) saveBtn.disabled = state.saving || !String(state.body || "").trim();
+        setActionEnabled();
       });
       box.appendChild(chip);
     });
@@ -168,31 +176,51 @@
     if (Number.isNaN(d.getTime())) return "";
     return d.toISOString().slice(0, 10);
   }
+  function formatChipDate(value) {
+    if (!value) return "Date";
+    var d = new Date(value + "T12:00:00");
+    if (Number.isNaN(d.getTime())) return value;
+    try {
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    } catch (e) {
+      return value;
+    }
+  }
+  function syncDateChip() {
+    var btn = root && root.querySelector("[data-composer-date-btn]");
+    var label = root && root.querySelector("[data-composer-date-label]");
+    var wrap = root && root.querySelector("[data-composer-date-wrap]");
+    var hasTouch = !!(state.touch && state.touch.touch) && !state.youMode;
+    if (wrap) wrap.hidden = !hasTouch;
+    if (btn) btn.hidden = !hasTouch;
+    if (label) label.textContent = formatChipDate(state.plannedDate || dateInputValue(state.touch && state.touch.touch && state.touch.touch.date));
+  }
   function render() {
     if (!root) return;
-    root.hidden = !state.leadId;
-    if (!state.leadId) return;
+    root.hidden = !state.leadId && !state.youMode;
+    root.classList.toggle("messages-composer--you", !!state.youMode);
+    if (!state.leadId && !state.youMode) return;
     var channel = root.querySelector("[data-composer-channel]");
     var subjectWrap = root.querySelector("[data-composer-subject-wrap]");
     var subject = root.querySelector("[data-composer-subject]");
-    var dateWrap = root.querySelector("[data-composer-date-wrap]");
     var dateInput = root.querySelector("[data-composer-date]");
     var body = root.querySelector("[data-composer-body]");
     var booking = root.querySelector("[data-composer-booking]");
-    var save = root.querySelector("[data-composer-save]");
+    var toolbar = root.querySelector(".messages-composer__toolbar");
+    if (toolbar) toolbar.hidden = !!state.youMode;
     if (channel && document.activeElement !== channel) channel.value = state.channel;
-    if (subjectWrap) subjectWrap.hidden = state.channel !== "gmail_outreach";
+    if (subjectWrap) subjectWrap.hidden = state.youMode || state.channel !== "gmail_outreach";
     if (subject && document.activeElement !== subject) subject.value = state.subject;
-    if (dateWrap) dateWrap.hidden = !(state.touch && state.touch.touch);
     if (dateInput && document.activeElement !== dateInput) {
       dateInput.value = state.plannedDate || dateInputValue(state.touch && state.touch.touch && state.touch.touch.date);
     }
+    syncDateChip();
     if (body && document.activeElement !== body) body.value = state.body;
     if (booking) {
-      booking.hidden = !isReply();
+      booking.hidden = state.youMode || !isReply();
       booking.disabled = !state.bookingUrl;
     }
-    if (save) save.disabled = state.saving || !String(state.body || "").trim();
+    setActionEnabled();
     syncCounter();
     renderParts();
     growTextarea();
@@ -240,7 +268,13 @@
         showStatus(err.message || "Could not update date.", "error");
       });
   }
-  function saveDraft() {
+  function saveDraft(mode) {
+    if (state.youMode) {
+      try {
+        window.dispatchEvent(new CustomEvent("tinker:messages-you-action", { detail: { action: mode } }));
+      } catch (e) { /* ignore */ }
+      return;
+    }
     if (state.saving) return;
     var body = String(state.body || "").trim();
     if (!body) { showStatus("Write something before saving a draft.", "error"); return; }
@@ -252,7 +286,7 @@
       return;
     }
     state.saving = true;
-    showStatus("Saving draft…");
+    showStatus(mode === "ship" ? "Marking ready…" : "Saving draft…");
     render();
     var payload = {
       channel: state.channel,
@@ -264,8 +298,15 @@
       payload.subject = state.subject;
       payload.fromAddress = state.defaultFrom || "";
     }
-    api("/api/leads", "POST", "draft", payload).then(function () {
-      showStatus("Draft saved. Your connected assistant can pull it — Tinker never sends.");
+    api("/api/leads", "POST", "draft", payload).then(function (res) {
+      var draft = res && res.draft;
+      if (mode === "ship" && draft && draft.id) {
+        return api("/api/leads", "POST", "approve", {}, { id: draft.id }).then(function () {
+          showStatus("Ready. This draft is final.");
+        });
+      }
+      showStatus("Saved. Keep drafting when you are ready.");
+    }).then(function () {
       state.body = "";
       state.subject = "";
       state.selectedParts = {};
@@ -296,6 +337,7 @@
     }).catch(function () { /* ignore */ });
   }
   function setLead(leadId, lead, touch) {
+    state.youMode = false;
     state.leadId = leadId || "";
     state.lead = lead || null;
     state.touch = touch || null;
@@ -304,10 +346,26 @@
     state.error = "";
     render();
   }
+  function setYouMode(on) {
+    state.youMode = !!on;
+    if (on) {
+      state.leadId = "";
+      state.lead = null;
+      state.touch = null;
+    }
+    state.status = "";
+    state.error = "";
+    render();
+  }
   function onSelect(e) {
+    if (e && e.detail && e.detail.you) {
+      setYouMode(true);
+      return;
+    }
     var id = e && e.detail && e.detail.leadId;
     var touch = e && e.detail && e.detail.touch;
-    if (!id) { setLead("", null, null); return; }
+    if (!id) { setYouMode(false); setLead("", null, null); return; }
+    state.youMode = false;
     api("/api/leads", "GET", "lead", null, { id: id }).then(function (res) {
       setLead(id, res.lead || null, touch || null);
     }).catch(function () {
@@ -321,7 +379,10 @@
     var subject = root.querySelector("[data-composer-subject]");
     var body = root.querySelector("[data-composer-body]");
     var booking = root.querySelector("[data-composer-booking]");
-    var save = root.querySelector("[data-composer-save]");
+    var ship = root.querySelector("[data-composer-ship]");
+    var next = root.querySelector("[data-composer-next]");
+    var dateInput = root.querySelector("[data-composer-date]");
+    var dateBtn = root.querySelector("[data-composer-date-btn]");
     if (channel) {
       CHANNELS.forEach(function (c) {
         var opt = el("option", "", { value: c.key });
@@ -335,7 +396,17 @@
       });
     }
     if (subject) subject.addEventListener("input", function () { state.subject = subject.value; });
-    var dateInput = root.querySelector("[data-composer-date]");
+    if (dateBtn && dateInput) {
+      dateBtn.addEventListener("click", function () {
+        try {
+          if (typeof dateInput.showPicker === "function") dateInput.showPicker();
+          else dateInput.click();
+        } catch (e) {
+          dateInput.focus();
+          dateInput.click();
+        }
+      });
+    }
     if (dateInput) {
       dateInput.addEventListener("change", function () {
         state.plannedDate = dateInput.value;
@@ -347,8 +418,7 @@
         state.body = body.value;
         syncCounter();
         growTextarea();
-        var saveBtn = root.querySelector("[data-composer-save]");
-        if (saveBtn) saveBtn.disabled = state.saving || !String(state.body || "").trim();
+        setActionEnabled();
       });
     }
     if (booking) {
@@ -360,10 +430,12 @@
         state.body = cur + gap + url;
         if (body) body.value = state.body;
         syncCounter();
-        showStatus("Booking link inserted. Save when it reads right.");
+        setActionEnabled();
+        showStatus("Booking link inserted. Ship or Next when it reads right.");
       });
     }
-    if (save) save.addEventListener("click", saveDraft);
+    if (ship) ship.addEventListener("click", function () { saveDraft("ship"); });
+    if (next) next.addEventListener("click", function () { saveDraft("next"); });
   }
   function boot() {
     root = document.getElementById("messages-composer");
@@ -376,6 +448,7 @@
 
   window.tinkerMessagesComposer = {
     setLead: setLead,
+    setYouMode: setYouMode,
     refreshParts: loadParts,
     CHANNELS: CHANNELS,
   };

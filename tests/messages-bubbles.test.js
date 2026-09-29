@@ -15,7 +15,7 @@ test("thread maps sent, draft, and lead reply sides", () => {
   assert.match(js, /side:\s*"lead"/);
   assert.match(js, /kind:\s*sent\s*\?\s*"sent"\s*:\s*"draft"|kind:\s*"sent"|kind:\s*"draft"/);
   assert.match(js, /Draft/);
-  assert.match(js, /messages-thread__draft-tag|draft-tag/);
+  assert.match(js, /messages-thread__meta/);
   assert.match(js, /Reply(?:\s*\()/);
   assert.match(js, /isInboundDraft|fromLead|direction/);
   assert.match(js, /groupKey|grouped/);
@@ -23,9 +23,10 @@ test("thread maps sent, draft, and lead reply sides", () => {
   assert.equal(/\bTyler\b/.test(js), false);
 });
 
-test("composer still Save draft only with no Send", () => {
+test("composer uses Ship and Next with no Send", () => {
   assert.match(html, /id="messages-composer"/);
-  assert.match(html, /Save draft/);
+  assert.match(html, />Ship</);
+  assert.match(html, />Next</);
   const foot = html.match(/id="messages-composer"[\s\S]*?<\/footer>/);
   assert.ok(foot);
   assert.equal(/\bSend\b/.test(foot[0]), false);
@@ -38,7 +39,7 @@ test("bubble styles: solid sent right, draft tint, lead left", () => {
   assert.match(css, /\.messages-thread__item--draft\b/);
   assert.match(css, /align-self:\s*flex-end/);
   assert.match(css, /align-self:\s*flex-start/);
-  assert.match(css, /messages-thread__draft-tag/);
+  assert.match(css, /messages-thread__meta/);
   assert.match(css, /border-radius:\s*16px/);
   assert.equal(/\.messages-thread__list[^{]*\{[^}]*box-shadow/.test(css), false);
 });
