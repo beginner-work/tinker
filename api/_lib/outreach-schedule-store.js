@@ -1,0 +1,249 @@
+/* Outreach schedule: planned touches and sessions. Owner-scoped. Never sends. */
+"use strict";
+
+const TOUCH_TYPES = ["application", "hiring_leader_outreach", "recruiter_outreach", "referral_follow_up", "call_follow_up"];
+const TOUCH_STATUSES = ["planned", "drafted", "done", "skipped"];
+const SESSION_TYPES = ["company", "skill"];
+const OPEN_TOUCH = ["planned", "drafted"];
+const UNAVAILABLE = "Schedule is unavailable right now.";
+const TABLE_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "OutreachTouch" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "companyId" TEXT NOT NULL, "touchType" TEXT NOT NULL, "date" TIMESTAMP(3) NOT NULL, "windowStart" TEXT NOT NULL DEFAULT '', "windowEnd" TEXT NOT NULL DEFAULT '', "leadId" TEXT, "status" TEXT NOT NULL, "draftId" TEXT, "sessionId" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "OutreachTouch_pkey" PRIMARY KEY ("id"))`,
+  `CREATE INDEX IF NOT EXISTS "OutreachTouch_userId_idx" ON "OutreachTouch"("userId")`,
+  `CREATE INDEX IF NOT EXISTS "OutreachTouch_userId_date_idx" ON "OutreachTouch"("userId", "date")`,
+  `CREATE INDEX IF NOT EXISTS "OutreachTouch_companyId_idx" ON "OutreachTouch"("companyId")`,
+  `CREATE INDEX IF NOT EXISTS "OutreachTouch_sessionId_idx" ON "OutreachTouch"("sessionId")`,
+  `CREATE TABLE IF NOT EXISTS "OutreachSession" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "type" TEXT NOT NULL, "title" TEXT NOT NULL, "startsAt" TIMESTAMP(3) NOT NULL, "endsAt" TIMESTAMP(3) NOT NULL, "productArea" TEXT NOT NULL DEFAULT '', "concept" TEXT NOT NULL DEFAULT '', "curriculumRef" TEXT NOT NULL DEFAULT '', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "OutreachSession_pkey" PRIMARY KEY ("id"))`,
+  `CREATE INDEX IF NOT EXISTS "OutreachSession_userId_idx" ON "OutreachSession"("userId")`,
+  `CREATE INDEX IF NOT EXISTS "OutreachSession_userId_startsAt_idx" ON "OutreachSession"("userId", "startsAt")`,
+];
+
+let ensuring = null;
+const db = () => require("./db.js");
+const leads = () => require("./leads-store.js");
+const companies = () => require("./leads-companies-store.js");
+const fail = (status, message) => Object.assign(new Error(message), { status });
+const storeDown = (err) => (err && err.status) ? err : Object.assign(new Error(UNAVAILABLE), { status: 503, cause: err });
+const iso = (value) => (value ? new Date(value).toISOString() : null);
+function shape(row) {
+  const out = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (key !== "userId") out[key] = value instanceof Date ? iso(value) : value;
+  }
+  return out;
+}
+async function ensureTable() {
+  if (ensuring) return ensuring;
+  ensuring = (async () => {
+    await companies().ensureTable();
+    for (const statement of TABLE_STATEMENTS) await db().$executeRawUnsafe(statement);
+  })().catch((err) => {
+    ensuring = null;
+    throw Object.assign(new Error("Could not prepare the schedule tables."), { status: 503, cause: err });
+  });
+  return ensuring;
+}
+function resetTableCache() { ensuring = null; }
+function readText(value, label, max, required) {
+  if (value == null || value === "") { if (required) throw fail(400, `${label} is required.`); return ""; }
+  if (typeof value !== "string") throw fail(400, `${label} must be a string.`);
+  const text = value.trim();
+  if (required && !text) throw fail(400, `${label} is required.`);
+  if (text.length > max) throw fail(400, `${label} is limited to ${max} characters.`);
+  return text;
+}
+function readEnum(value, allowed, label) {
+  const found = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (!allowed.includes(found)) throw fail(400, `${label} must be ${allowed.join(" or ")}.`);
+  return found;
+}
+function readDate(value, label) {
+  if (value == null || value === "") throw fail(400, `${label} is required.`);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value !== "string") throw fail(400, `${label} must be a date.`);
+  const parsed = new Date(value.trim());
+  if (Number.isNaN(parsed.getTime())) throw fail(400, `${label} must be a date.`);
+  return parsed;
+}
+function readOptionalId(value, label) {
+  if (value == null || value === "") return null;
+  if (typeof value !== "string" || !value.trim()) throw fail(400, `${label} must be an id.`);
+  return value.trim();
+}
+function readWindow(value, label) {
+  const text = readText(value, label, 16, false);
+  if (text && !/^\d{2}:\d{2}$/.test(text)) throw fail(400, `${label} must be HH:MM.`);
+  return text;
+}
+function dayKey(value) {
+  const d = new Date(value);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+function mondayOf(value) {
+  const d = new Date(value);
+  const day = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day));
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+function fridayOf(monday) {
+  const d = new Date(monday);
+  d.setUTCDate(d.getUTCDate() + 4);
+  d.setUTCHours(23, 59, 59, 999);
+  return d;
+}
+function requireOwner(userId, emailHint) {
+  const owner = typeof userId === "string" ? userId.trim() : "";
+  if (!owner) throw fail(401, "Sign in to tinker first.");
+  leads().assertAllowed(owner, emailHint);
+  return owner;
+}
+function requireActor(actor) {
+  if (!(actor && typeof actor.label === "string" && /^user:\S/.test(actor.label.trim()))) throw fail(401, "Missing actor.");
+}
+async function loadOwned(model, id, owner, label) {
+  if (typeof id !== "string" || !id.trim()) throw fail(400, `${label} id is required.`);
+  let row;
+  try { row = await db()[model].findUnique({ where: { id: id.trim() } }); }
+  catch (err) { throw storeDown(err); }
+  if (!row || row.userId !== owner) throw fail(404, `No ${label} with that id.`);
+  return row;
+}
+async function assertRefs(owner, emailHint, { companyId, leadId, draftId, sessionId }) {
+  if (companyId) await companies().loadCompany(companyId, owner);
+  if (leadId) await leads().getLead({ id: leadId, userId: owner, emailHint });
+  if (draftId) {
+    let row;
+    try { row = await db().leadDraft.findUnique({ where: { id: draftId } }); }
+    catch (err) { throw storeDown(err); }
+    if (!row || row.userId !== owner) throw fail(404, "No draft with that id.");
+  }
+  if (sessionId) await loadOwned("outreachSession", sessionId, owner, "session");
+}
+function touchData(input, owner) {
+  const data = {
+    userId: owner,
+    companyId: readText(input.companyId, "companyId", 64, true),
+    touchType: readEnum(input.touchType, TOUCH_TYPES, "touchType"),
+    date: readDate(input.date, "date"),
+    windowStart: readWindow(input.windowStart, "windowStart"),
+    windowEnd: readWindow(input.windowEnd, "windowEnd"),
+    leadId: readOptionalId(input.leadId, "leadId"),
+    status: readEnum(input.status || "planned", TOUCH_STATUSES, "status"),
+    draftId: readOptionalId(input.draftId, "draftId"),
+    sessionId: readOptionalId(input.sessionId, "sessionId"),
+  };
+  if (data.windowStart && data.windowEnd && data.windowStart > data.windowEnd) throw fail(400, "windowStart must be before windowEnd.");
+  return data;
+}
+async function createTouch(input) {
+  const owner = requireOwner(input.userId, input.emailHint);
+  requireActor(input.actor);
+  const data = touchData(input, owner);
+  await ensureTable();
+  await assertRefs(owner, input.emailHint, data);
+  try { return await db().outreachTouch.create({ data }); }
+  catch (err) { throw storeDown(err); }
+}
+async function updateTouch({ id, userId, emailHint, actor, patch }) {
+  const owner = requireOwner(userId, emailHint);
+  requireActor(actor);
+  const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
+  const keys = ["companyId", "touchType", "date", "windowStart", "windowEnd", "leadId", "status", "draftId", "sessionId"]
+    .filter((key) => Object.prototype.hasOwnProperty.call(source, key));
+  if (!keys.length) throw fail(400, "Nothing to update.");
+  await ensureTable();
+  const row = await loadOwned("outreachTouch", id, owner, "touch");
+  const merged = Object.assign({}, row, source);
+  const data = touchData(merged, owner);
+  delete data.userId;
+  await assertRefs(owner, emailHint, data);
+  try { return await db().outreachTouch.update({ where: { id: row.id }, data }); }
+  catch (err) { throw storeDown(err); }
+}
+function sessionFields(input, existing) {
+  const type = input.type != null ? readEnum(input.type, SESSION_TYPES, "type") : (existing && existing.type);
+  if (!type) throw fail(400, "type is required.");
+  const title = input.title != null ? readText(input.title, "title", 200, true) : (existing && existing.title);
+  if (!title) throw fail(400, "title is required.");
+  const startsAt = input.startsAt != null ? readDate(input.startsAt, "startsAt") : (existing && existing.startsAt);
+  const endsAt = input.endsAt != null ? readDate(input.endsAt, "endsAt") : (existing && existing.endsAt);
+  if (!startsAt || !endsAt) throw fail(400, "startsAt and endsAt are required.");
+  if (endsAt <= startsAt) throw fail(400, "endsAt must be after startsAt.");
+  const productArea = input.productArea != null ? readText(input.productArea, "productArea", 200, false) : (existing ? existing.productArea : "");
+  const concept = input.concept != null ? readText(input.concept, "concept", 200, false) : (existing ? existing.concept : "");
+  const curriculumRef = input.curriculumRef != null ? readText(input.curriculumRef, "curriculumRef", 200, false) : (existing ? existing.curriculumRef : "");
+  if (type === "skill") {
+    if (!productArea) throw fail(400, "productArea is required for skill sessions.");
+    if (!concept) throw fail(400, "concept is required for skill sessions.");
+    if (!curriculumRef) throw fail(400, "curriculumRef is required for skill sessions.");
+  }
+  return { type, title, startsAt, endsAt, productArea: type === "skill" ? productArea : "", concept: type === "skill" ? concept : "", curriculumRef: type === "skill" ? curriculumRef : "" };
+}
+async function createSession(input) {
+  const owner = requireOwner(input.userId, input.emailHint);
+  requireActor(input.actor);
+  await ensureTable();
+  try { return await db().outreachSession.create({ data: Object.assign({ userId: owner }, sessionFields(input, null)) }); }
+  catch (err) { throw storeDown(err); }
+}
+async function updateSession({ id, userId, emailHint, actor, patch }) {
+  const owner = requireOwner(userId, emailHint);
+  requireActor(actor);
+  const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
+  if (!Object.keys(source).length) throw fail(400, "Nothing to update.");
+  await ensureTable();
+  const row = await loadOwned("outreachSession", id, owner, "session");
+  try { return await db().outreachSession.update({ where: { id: row.id }, data: sessionFields(Object.assign({}, row, source), row) }); }
+  catch (err) { throw storeDown(err); }
+}
+async function getWeekSchedule({ userId, emailHint, weekStart, companyId, touchType } = {}) {
+  const owner = requireOwner(userId, emailHint);
+  await ensureTable();
+  const monday = mondayOf(weekStart ? readDate(weekStart, "weekStart") : new Date());
+  const friday = fridayOf(monday);
+  const settings = await leads().getOutreachSettings({ userId: owner, emailHint });
+  let sessions, allTouches, companyRows;
+  try {
+    sessions = await db().outreachSession.findMany({ where: { userId: owner } });
+    allTouches = await db().outreachTouch.findMany({ where: { userId: owner } });
+    companyRows = await db().targetCompany.findMany({ where: { userId: owner } });
+  } catch (err) { throw storeDown(err); }
+  sessions = sessions.filter((row) => new Date(row.startsAt) <= friday && new Date(row.endsAt) >= monday)
+    .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+  let touches = allTouches.filter((row) => dayKey(row.date) >= dayKey(monday) && dayKey(row.date) <= dayKey(friday));
+  if (companyId) touches = touches.filter((row) => row.companyId === companyId);
+  if (touchType) touches = touches.filter((row) => row.touchType === touchType);
+  touches.sort((a, b) => new Date(a.date) - new Date(b.date) || a.touchType.localeCompare(b.touchType));
+  const active = companyRows.filter((row) => row.status === "active");
+  const northStar = active.find((row) => row.northStar) || null;
+  const openByCompany = new Map();
+  for (const touch of allTouches) {
+    if (!OPEN_TOUCH.includes(touch.status)) continue;
+    if (!openByCompany.has(touch.companyId) || new Date(touch.date) < new Date(openByCompany.get(touch.companyId).date)) {
+      openByCompany.set(touch.companyId, touch);
+    }
+  }
+  const companyMap = new Map(companyRows.map((row) => [row.id, row]));
+  const withCompany = (touch) => ({
+    touch: shape(touch),
+    company: companyMap.has(touch.companyId) ? companies().presentCompany(companyMap.get(touch.companyId)) : null,
+  });
+  return {
+    weekStart: iso(monday),
+    weekEnd: iso(friday),
+    curriculumName: settings.curriculumName || "",
+    northStar: northStar ? companies().presentCompany(northStar) : null,
+    companiesMissingTouch: active.filter((row) => !openByCompany.has(row.id)).map((row) => companies().presentCompany(row)),
+    sessions: sessions.map((session) => ({
+      session: shape(session),
+      touches: touches.filter((touch) => touch.sessionId === session.id).map(withCompany),
+    })),
+    unscheduledTouches: touches.filter((touch) => !touch.sessionId).map(withCompany),
+  };
+}
+
+module.exports = {
+  UNAVAILABLE, TABLE_STATEMENTS, TOUCH_TYPES, TOUCH_STATUSES, SESSION_TYPES,
+  ensureTable, resetTableCache, presentTouch: shape, presentSession: shape,
+  createTouch, updateTouch, createSession, updateSession, getWeekSchedule, mondayOf, fridayOf,
+};

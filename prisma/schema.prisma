@@ -200,3 +200,41 @@ model LeadEvent {
   @@index([userId])
   @@index([leadId])
 }
+
+// Planned outreach touch. Never sends. Types/statuses live in the store.
+model OutreachTouch {
+  id          String   @id @default(cuid())
+  userId      String
+  companyId   String
+  touchType   String
+  date        DateTime
+  windowStart String   @default("")
+  windowEnd   String   @default("")
+  leadId      String?
+  status      String
+  draftId     String?
+  sessionId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([userId])
+  @@index([userId, date])
+  @@index([companyId])
+  @@index([sessionId])
+}
+
+// Calendar block: company craft time or skill (productArea+concept+curriculumRef).
+model OutreachSession {
+  id            String   @id @default(cuid())
+  userId        String
+  type          String
+  title         String
+  startsAt      DateTime
+  endsAt        DateTime
+  productArea   String   @default("")
+  concept       String   @default("")
+  curriculumRef String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([userId])
+  @@index([userId, startsAt])
+}

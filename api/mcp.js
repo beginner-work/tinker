@@ -12,9 +12,10 @@
  * Tools are fixed-prompt follow-ups (ask_followups), LinkedIn drafts
  * (draft_linkedin_post), a read-only look at this user's autonomy
  * settings (get_autonomy_settings), the career record
- * (get_career_record, check_text), and site content (list_content,
- * read_content, create_content_draft). There is no raw converse proxy
- * and no write tool for autonomy settings or the career record.
+ * (get_career_record, check_text), site content (list_content,
+ * read_content, create_content_draft), and the outreach schedule
+ * (get_outreach_schedule). There is no raw converse proxy and no write
+ * tool for autonomy settings, the career record, or the schedule.
  * Content tools can draft. They cannot publish. GET/DELETE return 405:
  * this server does not keep an SSE session. The writing UI is not
  * involved. draft_linkedin_post shares api/_lib/linkedin-draft.js
@@ -38,6 +39,7 @@ const { UNAVAILABLE, readAll } = require("./_lib/autonomy-redis.js");
 const { UNAVAILABLE: CAREER_UNAVAILABLE, readForTool, shapeForTool } = require("./_lib/career.js");
 const { checkText } = require("./_lib/career-check.js");
 const contentStore = require("./_lib/content-store.js");
+const scheduleStore = require("./_lib/outreach-schedule-store.js");
 const pkg = require("../package.json");
 
 const SUPPORTED_PROTOCOLS = ["2025-03-26", "2025-06-18"];
@@ -64,6 +66,9 @@ const INSTRUCTIONS = [
   "Call read_content with an id to read one item. Someone else's id returns an error and no item.",
   "Call create_content_draft to save a draft. The same draftKey returns the original draft and does not change it.",
   "Content tools never publish. status published is rejected and nothing is saved. The owner publishes in Tinker.",
+  "Call get_outreach_schedule to read this user's Mon–Fri outreach week: sessions, touches, North Star company, and companies missing a planned next touch.",
+  "Optional weekStart, companyId, and touchType filter the week. A user id in the arguments is ignored.",
+  "This does not send messages or write to Google Calendar.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -395,6 +400,31 @@ const CREATE_CONTENT_DRAFT_TOOL = {
   },
 };
 
+const GET_OUTREACH_SCHEDULE_TOOL = {
+  name: "get_outreach_schedule",
+  title: "Get outreach schedule",
+  description: [
+    "Read this connector user's Mon–Fri outreach week: sessions, touches,",
+    "North Star company, companies missing a planned next touch, and curriculumName.",
+    "Optional weekStart, companyId, and touchType filter. A user id in args is ignored.",
+    "Does not send messages or write to Google Calendar.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      weekStart: { type: "string", description: "Any date in the week (ISO). Defaults to this week." },
+      companyId: { type: "string", description: "Keep only touches for this company id." },
+      touchType: {
+        type: "string",
+        enum: ["application", "hiring_leader_outreach", "recruiter_outreach", "referral_follow_up", "call_follow_up"],
+        description: "Keep only this touch type.",
+      },
+    },
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
 const TOOLS = [
   ASK_FOLLOWUPS_TOOL,
   DRAFT_LINKEDIN_TOOL,
@@ -404,6 +434,7 @@ const TOOLS = [
   LIST_CONTENT_TOOL,
   READ_CONTENT_TOOL,
   CREATE_CONTENT_DRAFT_TOOL,
+  GET_OUTREACH_SCHEDULE_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -667,6 +698,30 @@ async function contentDraftCall(msg, user, args) {
   }
 }
 
+async function scheduleReadCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const shaped = await scheduleStore.getWeekSchedule({
+      userId,
+      emailHint: user && user.email,
+      weekStart: args.weekStart,
+      companyId: args.companyId,
+      touchType: args.touchType,
+    });
+    return contentToolOk(msg, shaped);
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500
+      ? err.message
+      : scheduleStore.UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || scheduleStore.UNAVAILABLE)),
+    };
+  }
+}
+
 async function handleRpc(msg, user) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
@@ -719,6 +774,7 @@ async function handleRpc(msg, user) {
       && name !== "list_content"
       && name !== "read_content"
       && name !== "create_content_draft"
+      && name !== "get_outreach_schedule"
     ) {
       return {
         status: 200,
@@ -742,6 +798,9 @@ async function handleRpc(msg, user) {
     }
     if (name === "create_content_draft") {
       return contentDraftCall(msg, user, args);
+    }
+    if (name === "get_outreach_schedule") {
+      return scheduleReadCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {

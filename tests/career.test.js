@@ -550,6 +550,7 @@ test("get_career_record reads only this user and check_text does not write", asy
     "list_content",
     "read_content",
     "create_content_draft",
+    "get_outreach_schedule",
   ]);
   for (const name of ["get_career_record", "check_text"]) {
     const tool = tools.find((item) => item.name === name);
