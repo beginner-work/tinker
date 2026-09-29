@@ -34,6 +34,7 @@ const { withResponseLogging } = require("./_lib/log.js");
 const { askFollowups } = require("./_lib/followups.js");
 const { draftLinkedInPost } = require("./_lib/linkedin-draft.js");
 const { toolSettings } = require("./_lib/autonomy.js");
+const scheduleStore = require("./_lib/outreach-schedule-store.js");
 const { UNAVAILABLE, readAll } = require("./_lib/autonomy-redis.js");
 const { UNAVAILABLE: CAREER_UNAVAILABLE, readForTool, shapeForTool } = require("./_lib/career.js");
 const { checkText } = require("./_lib/career-check.js");
@@ -45,7 +46,7 @@ const DEFAULT_PROTOCOL = "2025-03-26";
 
 const INSTRUCTIONS = [
   "tinker tools for founder writing and Tyler's LinkedIn drafts. The writing UI is separate and unchanged.",
-  "Call ask_followups with a transcript of {q, a} turns to run the founder interview",
+  "Call get_outreach_schedule to read the Mon–Fri outreach plan (sessions, touches, busyEvents). Call set_busy_times to store busy blocks from the owner's assistant. Call ask_followups with a transcript of {q, a} turns to run the founder interview",
   "(one next question, or a stitch when the draft is ready), or with a draft string",
   "for freeform follow-up questions. Optional priorTurns avoids repeats.",
   "Call draft_linkedin_post with notes (a topic or bullets) to draft a LinkedIn post or direct message in Tyler's voice.",
@@ -390,6 +391,68 @@ const CREATE_CONTENT_DRAFT_TOOL = {
   },
 };
 
+
+const GET_OUTREACH_SCHEDULE_TOOL = {
+  name: "get_outreach_schedule",
+  title: "Get outreach schedule",
+  description: [
+    "Read this connector user's Mon–Fri outreach week: sessions, touches,",
+    "North Star company, companies missing a planned next touch, curriculumName,",
+    "and busyEvents for the inbox plan.",
+    "Optional weekStart, companyId, and touchType filter. A user id in args is ignored.",
+    "Does not send messages. There is no /schedule page.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      weekStart: { type: "string", description: "Any date in the week (ISO). Defaults to this week." },
+      companyId: { type: "string", description: "Keep only touches for this company id." },
+      touchType: {
+        type: "string",
+        enum: ["application", "hiring_leader_outreach", "recruiter_outreach", "referral_follow_up", "call_follow_up"],
+        description: "Keep only this touch type.",
+      },
+    },
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const SET_BUSY_TIMES_TOOL = {
+  name: "set_busy_times",
+  title: "Set busy times",
+  description: [
+    "Replace this connector user's busy blocks for one Mon–Fri week.",
+    "Pass weekStart (any date in the week) and blocks: [{ startsAt, endsAt, label? }].",
+    "An empty blocks array clears the week. A user id in args is ignored.",
+    "The owner's assistant posts blocks from their calendar. Tinker stores them only;",
+    "it never talks to Google and never sends messages.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      weekStart: { type: "string", description: "Any date in the week (ISO). Defaults to this week." },
+      blocks: {
+        type: "array",
+        description: "Busy intervals for the week. Replaces the previous set for that week.",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            startsAt: { type: "string", description: "Busy interval start (ISO)." },
+            endsAt: { type: "string", description: "Busy interval end (ISO)." },
+            label: { type: "string", description: "Optional short label." },
+          },
+          required: ["startsAt", "endsAt"],
+        },
+      },
+    },
+    required: ["blocks"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
 const TOOLS = [
   ASK_FOLLOWUPS_TOOL,
   DRAFT_LINKEDIN_TOOL,
@@ -399,6 +462,8 @@ const TOOLS = [
   LIST_CONTENT_TOOL,
   READ_CONTENT_TOOL,
   CREATE_CONTENT_DRAFT_TOOL,
+  GET_OUTREACH_SCHEDULE_TOOL,
+  SET_BUSY_TIMES_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -662,6 +727,55 @@ async function contentDraftCall(msg, user, args) {
   }
 }
 
+
+async function scheduleReadCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const shaped = await scheduleStore.getWeekSchedule({
+      userId,
+      emailHint: user && user.email,
+      weekStart: args.weekStart,
+      companyId: args.companyId,
+      touchType: args.touchType,
+    });
+    return contentToolOk(msg, shaped);
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500
+      ? err.message
+      : scheduleStore.UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || scheduleStore.UNAVAILABLE)),
+    };
+  }
+}
+
+async function scheduleBusyCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const shaped = await scheduleStore.setBusyTimes({
+      userId,
+      emailHint: user && user.email,
+      actor: { kind: "bot", label: "bot:mcp" },
+      weekStart: args.weekStart,
+      blocks: args.blocks,
+    });
+    return contentToolOk(msg, shaped);
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500
+      ? err.message
+      : scheduleStore.UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || scheduleStore.UNAVAILABLE)),
+    };
+  }
+}
+
 async function handleRpc(msg, user) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
@@ -714,6 +828,8 @@ async function handleRpc(msg, user) {
       && name !== "list_content"
       && name !== "read_content"
       && name !== "create_content_draft"
+      && name !== "get_outreach_schedule"
+      && name !== "set_busy_times"
     ) {
       return {
         status: 200,
@@ -737,6 +853,12 @@ async function handleRpc(msg, user) {
     }
     if (name === "create_content_draft") {
       return contentDraftCall(msg, user, args);
+    }
+    if (name === "get_outreach_schedule") {
+      return scheduleReadCall(msg, user, args);
+    }
+    if (name === "set_busy_times") {
+      return scheduleBusyCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {
