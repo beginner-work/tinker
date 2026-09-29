@@ -56,3 +56,32 @@ test("the activate handler evicts stale caches", () => {
     "CACHE_VERSION is missing or malformed",
   );
 });
+
+test("CSS and JS are network-first so deploys replace installed PWA shells", () => {
+  assert.match(sw, /networkFirstAsset/, "missing network-first asset path");
+  assert.match(sw, /isFreshShellPath/, "missing CSS/JS freshness gate");
+  assert.match(sw, /\.css/, "CSS must be treated as a fresh shell path");
+  assert.match(sw, /cache:\s*["']no-cache["']/, "asset fetch must bypass HTTP cache");
+  // Stale-while-revalidate must not be the only asset path for styles.
+  const fetchHandler = sw.slice(sw.indexOf('addEventListener("fetch"'));
+  assert.match(
+    fetchHandler,
+    /isFreshShellPath[\s\S]*networkFirstAsset/,
+    "fetch handler must route CSS/JS through networkFirstAsset before SWR",
+  );
+  assert.match(sw, /tinker-shell-v10/, "bump CACHE_VERSION when changing SW strategy");
+  assert.match(sw, /\/profile\.css/, "profile.css must be precached");
+  assert.match(sw, /\/messages-shell\.js/, "messages shell must be precached");
+});
+
+test("new service workers claim clients and can skip waiting on message", () => {
+  assert.match(sw, /skipWaiting/);
+  assert.match(sw, /clients\.claim/);
+  assert.match(sw, /SKIP_WAITING/);
+  const offline = fs.readFileSync(
+    path.join(__dirname, "..", "src", "renderer", "pwa-offline.js"),
+    "utf8",
+  );
+  assert.match(offline, /controllerchange/);
+  assert.match(offline, /location\.reload/);
+});

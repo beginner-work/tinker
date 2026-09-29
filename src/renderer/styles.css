@@ -939,11 +939,45 @@ body.messages-you-active .writing--in-messages .writing-recall__text {
 }
 
 @media (max-width: 720px) {
+  /* Inbox is the mobile surface: full-width list, then thread with back.
+   * Override the hamburger drawer (mobile-drawer.css ≤540px) so the rail
+   * never sits half-open over the thread. */
   body.messages-shell-open { --sidebar-width: 100%; }
-  body.messages-shell-open .sidebar { width: 100%; }
+  body.messages-shell-open .sidebar {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    transform: none !important;
+    z-index: auto;
+    box-shadow: none;
+    border-right: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  body.messages-shell-open .drawer-toggle,
+  body.messages-shell-open .drawer-backdrop {
+    display: none !important;
+  }
   body.messages-shell-open .stage { display: none; }
   body.messages-shell-open.messages-mobile-thread .sidebar { display: none; }
-  body.messages-shell-open.messages-mobile-thread .stage { display: flex; flex: 1; }
+  body.messages-shell-open.messages-mobile-thread .stage {
+    display: flex;
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+  }
+  body.messages-shell-open.messages-mobile-thread .messages-pane {
+    width: 100%;
+    min-width: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
   body.messages-mobile-thread .messages-pane__back { display: inline-flex; }
 }
 
