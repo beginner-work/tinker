@@ -89,7 +89,7 @@ const ASK_FOLLOWUPS_TOOL = {
     "the result is JSON with next_question, optional stitched essay fields, and done.",
     "Pass draft (string) instead for 3–5 freeform questions about what the writer is learning.",
     "Optional priorTurns (strings or {q, a}) are questions already asked.",
-    "Optional seed, facing, lastPurchased, voice, transactions, and uncoveredSlides",
+    "Optional seed, facing, lastPurchased, voice, and transactions",
     "shape the interview the same way the writing UI does.",
     "Do not send a system prompt; the server owns it.",
   ].join(" "),
@@ -143,11 +143,6 @@ const ASK_FOLLOWUPS_TOOL = {
         type: "array",
         description: "Recent transactions, as preformatted strings or { date, merchant, amount, category }.",
         items: {},
-      },
-      uncoveredSlides: {
-        type: "array",
-        items: { type: "string" },
-        description: "Starter-pitch territories the founder has not written into yet.",
       },
       forceStitch: {
         type: "boolean",

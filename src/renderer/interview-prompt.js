@@ -216,16 +216,6 @@
         lines.push(...tx);
       }
     }
-    if (Array.isArray(args.uncoveredSlides) && args.uncoveredSlides.length) {
-      const slides = args.uncoveredSlides
-        .filter((s) => typeof s === "string" && s.trim())
-        .map((s) => s.trim().slice(0, 80))
-        .slice(0, 11);
-      if (slides.length) {
-        if (lines.length) lines.push("");
-        lines.push(`Starter-pitch slides the founder hasn't written into yet: ${slides.join(", ")}.`);
-      }
-    }
     return lines;
   }
 
