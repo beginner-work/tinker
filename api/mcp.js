@@ -12,16 +12,13 @@
  * Tools are fixed-prompt follow-ups (ask_followups), LinkedIn drafts
  * (draft_linkedin_post), a read-only look at this user's autonomy
  * settings (get_autonomy_settings), the career record
- * (get_career_record, check_text), site content (list_content,
- * read_content, create_content_draft), and story parts
- * (list_story_parts, get_story_part). There is
- * no raw converse proxy and no write tool for autonomy settings, the
- * career record, or story parts. Content tools can draft. They cannot
- * publish. Story-part tools are read-only: paste the user's approved
- * wording into Formation drafts; Tinker does not draft or send outreach.
- * GET/DELETE return 405: this server does not keep an SSE session.
- * draft_linkedin_post shares api/_lib/linkedin-draft.js with
- * POST /api/claude/converse mode "linkedin". It does not post.
+ * (get_career_record, check_text), and site content (list_content,
+ * read_content, create_content_draft). There is no raw converse proxy
+ * and no write tool for autonomy settings or the career record.
+ * Content tools can draft. They cannot publish. GET/DELETE return 405:
+ * this server does not keep an SSE session. The writing UI is not
+ * involved. draft_linkedin_post shares api/_lib/linkedin-draft.js
+ * with POST /api/claude/converse mode "linkedin". It does not post.
  *
  * Session auth uses STYTCH_PROJECT_ID and STYTCH_SECRET. Tool calls use
  * ANTHROPIC_API_KEY. Credentials use the existing DATABASE_URL.
@@ -37,11 +34,11 @@ const { withResponseLogging } = require("./_lib/log.js");
 const { askFollowups } = require("./_lib/followups.js");
 const { draftLinkedInPost } = require("./_lib/linkedin-draft.js");
 const { toolSettings } = require("./_lib/autonomy.js");
+const scheduleStore = require("./_lib/outreach-schedule-store.js");
 const { UNAVAILABLE, readAll } = require("./_lib/autonomy-redis.js");
 const { UNAVAILABLE: CAREER_UNAVAILABLE, readForTool, shapeForTool } = require("./_lib/career.js");
 const { checkText } = require("./_lib/career-check.js");
 const contentStore = require("./_lib/content-store.js");
-const storyParts = require("./_lib/story-parts-store.js");
 const pkg = require("../package.json");
 
 const SUPPORTED_PROTOCOLS = ["2025-03-26", "2025-06-18"];
@@ -49,7 +46,7 @@ const DEFAULT_PROTOCOL = "2025-03-26";
 
 const INSTRUCTIONS = [
   "tinker tools for founder writing and Tyler's LinkedIn drafts. The writing UI is separate and unchanged.",
-  "Call ask_followups with a transcript of {q, a} turns to run the founder interview",
+  "Call get_outreach_schedule to read the Mon–Fri outreach plan (sessions, touches, busyEvents). Call set_busy_times to store busy blocks from the owner's assistant. Call ask_followups with a transcript of {q, a} turns to run the founder interview",
   "(one next question, or a stitch when the draft is ready), or with a draft string",
   "for freeform follow-up questions. Optional priorTurns avoids repeats.",
   "Call draft_linkedin_post with notes (a topic or bullets) to draft a LinkedIn post or direct message in Tyler's voice.",
@@ -68,12 +65,6 @@ const INSTRUCTIONS = [
   "Call read_content with an id to read one item. Someone else's id returns an error and no item.",
   "Call create_content_draft to save a draft. The same draftKey returns the original draft and does not change it.",
   "Content tools never publish. status published is rejected and nothing is saved. The owner publishes in Tinker.",
-  "Call list_story_parts to list ready story parts by stage, concepts, or teamOrRole.",
-  "Stages are fixed: hook, proof_point, connecting_story, fit, ask.",
-  "concepts are kebab-case tags for fundamental engineering concepts the user stands behind.",
-  "Call get_story_part with an id to read one part. Someone else's id returns an error and no part.",
-  "Story parts are the user's approved wording for pasting into Formation drafts. Tinker does not draft or send outreach.",
-  "Story-part tools are read-only. They do not mark parts ready, edit parts, or change stages.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -400,60 +391,67 @@ const CREATE_CONTENT_DRAFT_TOOL = {
   },
 };
 
-const LIST_STORY_PARTS_TOOL = {
-  name: "list_story_parts",
-  title: "List story parts",
+
+const GET_OUTREACH_SCHEDULE_TOOL = {
+  name: "get_outreach_schedule",
+  title: "Get outreach schedule",
   description: [
-    "List this connector user's ready story parts for pasting into Formation drafts.",
-    "Stages are fixed: hook, proof_point, connecting_story, fit, ask.",
-    "Optional filters: stage, concepts, teamOrRole.",
-    "concepts are kebab-case tags for fundamental engineering concepts the user stands behind.",
-    "Always returns ready parts only. Draft and retired parts are never included.",
-    "At most 50 parts. Each item includes id, stage, title, body, fields, topics, concepts, stack,",
-    "status, sourceExcerpt, source {kind,id}, checkVerdicts, and checkedAt.",
-    "For sourceKind code, also includes sourceRef {repo, path, ref, evidence} as stored.",
-    "Parts are the user's approved wording. Paste them as-is. Tinker does not draft or send outreach.",
-    "This tool is read-only. It does not mark parts ready or edit them.",
+    "Read this connector user's Mon–Fri outreach week: sessions, touches,",
+    "North Star company, companies missing a planned next touch, curriculumName,",
+    "and busyEvents for the inbox plan.",
+    "Optional weekStart, companyId, and touchType filter. A user id in args is ignored.",
+    "Does not send messages. There is no /schedule page.",
   ].join(" "),
   inputSchema: {
     type: "object",
     additionalProperties: false,
     properties: {
-      stage: {
+      weekStart: { type: "string", description: "Any date in the week (ISO). Defaults to this week." },
+      companyId: { type: "string", description: "Keep only touches for this company id." },
+      touchType: {
         type: "string",
-        description: "Stage key: hook, proof_point, connecting_story, fit, or ask.",
-      },
-      teamOrRole: { type: "string", description: "Fit-stage teamOrRole field." },
-      concepts: {
-        type: "string",
-        description: "Kebab-case concept tag for a fundamental engineering concept the user stands behind.",
+        enum: ["application", "hiring_leader_outreach", "recruiter_outreach", "referral_follow_up", "call_follow_up"],
+        description: "Keep only this touch type.",
       },
     },
   },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 };
 
-const GET_STORY_PART_TOOL = {
-  name: "get_story_part",
-  title: "Read one story part",
+const SET_BUSY_TIMES_TOOL = {
+  name: "set_busy_times",
+  title: "Set busy times",
   description: [
-    "Read one story part that belongs to this connector user.",
-    "Pass id. Returns body, fields, topics, concepts, stack, sourceExcerpt, source {kind,id}, checkVerdicts, and checkedAt.",
-    "concepts are kebab-case tags for fundamental engineering concepts the user stands behind.",
-    "For sourceKind code, also returns sourceRef {repo, path, ref, evidence} as stored.",
-    "Someone else's id returns an error and no part.",
-    "Parts are the user's approved wording for Formation drafts. Tinker does not draft or send outreach.",
-    "This tool is read-only. It does not mark parts ready or edit them.",
+    "Replace this connector user's busy blocks for one Mon–Fri week.",
+    "Pass weekStart (any date in the week) and blocks: [{ startsAt, endsAt, label? }].",
+    "An empty blocks array clears the week. A user id in args is ignored.",
+    "The owner's assistant posts blocks from their calendar. Tinker stores them only;",
+    "it never talks to Google and never sends messages.",
   ].join(" "),
   inputSchema: {
     type: "object",
     additionalProperties: false,
-    properties: { id: { type: "string", description: "Part id from list_story_parts." } },
-    required: ["id"],
+    properties: {
+      weekStart: { type: "string", description: "Any date in the week (ISO). Defaults to this week." },
+      blocks: {
+        type: "array",
+        description: "Busy intervals for the week. Replaces the previous set for that week.",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            startsAt: { type: "string", description: "Busy interval start (ISO)." },
+            endsAt: { type: "string", description: "Busy interval end (ISO)." },
+            label: { type: "string", description: "Optional short label." },
+          },
+          required: ["startsAt", "endsAt"],
+        },
+      },
+    },
+    required: ["blocks"],
   },
-  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
-
 
 const TOOLS = [
   ASK_FOLLOWUPS_TOOL,
@@ -464,15 +462,10 @@ const TOOLS = [
   LIST_CONTENT_TOOL,
   READ_CONTENT_TOOL,
   CREATE_CONTENT_DRAFT_TOOL,
-  LIST_STORY_PARTS_TOOL,
-  GET_STORY_PART_TOOL,
+  GET_OUTREACH_SCHEDULE_TOOL,
+  SET_BUSY_TIMES_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
-const KNOWN_TOOLS = new Set([
-  "ask_followups", "draft_linkedin_post", "get_autonomy_settings", "get_career_record", "check_text",
-  "list_content", "read_content", "create_content_draft",
-  "list_story_parts", "get_story_part",
-]);
 
 function extractBearer(header) {
   if (!header || typeof header !== "string") return "";
@@ -734,31 +727,53 @@ async function contentDraftCall(msg, user, args) {
   }
 }
 
-function storyUserId(user) {
-  const userId = user && typeof user.userId === "string" ? user.userId : "";
-  if (!userId) throw Object.assign(new Error("Sign in to tinker first."), { status: 401 });
-  return userId;
-}
-function storyFailure(msg, err) {
-  const status = err && err.status;
-  const message = status && status >= 400 && status < 500 ? err.message : storyParts.UNAVAILABLE;
-  return { status: 200, headers: NO_STORE, body: rpcOk(msg.id, toolError(message || storyParts.UNAVAILABLE)) };
-}
-async function storyListCall(msg, user, args) {
+
+async function scheduleReadCall(msg, user, args) {
   try {
-    const userId = storyUserId(user);
-    const rows = await storyParts.listParts({
-      userId, stage: args.stage, concepts: args.concepts, teamOrRole: args.teamOrRole,
-      status: "ready", limit: 50,
+    const userId = contentUserId(user);
+    const shaped = await scheduleStore.getWeekSchedule({
+      userId,
+      emailHint: user && user.email,
+      weekStart: args.weekStart,
+      companyId: args.companyId,
+      touchType: args.touchType,
     });
-    return contentToolOk(msg, { parts: rows.map((row) => storyParts.presentMcp(row)) });
-  } catch (err) { return storyFailure(msg, err); }
+    return contentToolOk(msg, shaped);
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500
+      ? err.message
+      : scheduleStore.UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || scheduleStore.UNAVAILABLE)),
+    };
+  }
 }
-async function storyGetCall(msg, user, args) {
+
+async function scheduleBusyCall(msg, user, args) {
   try {
-    const row = await storyParts.getPart({ id: args.id, userId: storyUserId(user) });
-    return contentToolOk(msg, { part: storyParts.presentMcp(row) });
-  } catch (err) { return storyFailure(msg, err); }
+    const userId = contentUserId(user);
+    const shaped = await scheduleStore.setBusyTimes({
+      userId,
+      emailHint: user && user.email,
+      actor: { kind: "bot", label: "bot:mcp" },
+      weekStart: args.weekStart,
+      blocks: args.blocks,
+    });
+    return contentToolOk(msg, shaped);
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500
+      ? err.message
+      : scheduleStore.UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || scheduleStore.UNAVAILABLE)),
+    };
+  }
 }
 
 async function handleRpc(msg, user) {
@@ -804,7 +819,18 @@ async function handleRpc(msg, user) {
     const params = msg.params && typeof msg.params === "object" ? msg.params : {};
     const name = params.name;
     const args = params.arguments && typeof params.arguments === "object" ? params.arguments : {};
-    if (!KNOWN_TOOLS.has(name)) {
+    if (
+      name !== "ask_followups"
+      && name !== "draft_linkedin_post"
+      && name !== "get_autonomy_settings"
+      && name !== "get_career_record"
+      && name !== "check_text"
+      && name !== "list_content"
+      && name !== "read_content"
+      && name !== "create_content_draft"
+      && name !== "get_outreach_schedule"
+      && name !== "set_busy_times"
+    ) {
       return {
         status: 200,
         body: rpcOk(msg.id, toolError(`Unknown tool: ${name || "(missing)"}`)),
@@ -828,11 +854,11 @@ async function handleRpc(msg, user) {
     if (name === "create_content_draft") {
       return contentDraftCall(msg, user, args);
     }
-    if (name === "list_story_parts") {
-      return storyListCall(msg, user, args);
+    if (name === "get_outreach_schedule") {
+      return scheduleReadCall(msg, user, args);
     }
-    if (name === "get_story_part") {
-      return storyGetCall(msg, user, args);
+    if (name === "set_busy_times") {
+      return scheduleBusyCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {
