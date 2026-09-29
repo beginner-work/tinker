@@ -1,4 +1,4 @@
-/* /selling — break content into stage-tagged parts. Stytch session only. */
+/* /story-parts — break content into stage-tagged parts. Stytch session only. */
 (function () {
   "use strict";
   var TOKEN_KEY = "tinker_jwt";
@@ -10,10 +10,10 @@
     { key: "fit", name: "Fit", description: "Why you for a particular kind of team or role.", position: 3, retired: false },
     { key: "ask", name: "Ask", description: "The specific, low-friction request at the end.", position: 4, retired: false },
   ];
-  var excerptApi = window.tinkerSellingExcerpt || {};
-  var listEl = document.getElementById("selling-list");
-  var stageEl = document.getElementById("selling-stage");
-  var statusEl = document.getElementById("selling-status");
+  var excerptApi = window.tinkerStoryPartsExcerpt || {};
+  var listEl = document.getElementById("story-parts-list");
+  var stageEl = document.getElementById("story-parts-stage");
+  var statusEl = document.getElementById("story-parts-status");
   var filtersEl = document.getElementById("board-filters");
   var tabSources = document.getElementById("tab-sources");
   var tabBoard = document.getElementById("tab-board");
@@ -29,13 +29,13 @@
     try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (err) { return ""; }
   }
   function sendHome() {
-    try { sessionStorage.setItem(RETURN_KEY, "/selling"); } catch (err) { /* ignore */ }
+    try { sessionStorage.setItem(RETURN_KEY, "/story-parts"); } catch (err) { /* ignore */ }
     window.location.assign("/");
   }
   if (!token()) { sendHome(); return; }
   function setStatus(text) { statusEl.textContent = text || ""; }
-  function showList() { document.body.dataset.sellingPanel = "list"; }
-  function showDetail() { document.body.dataset.sellingPanel = "detail"; }
+  function showList() { document.body.dataset.storyPartsPanel = "list"; }
+  function showDetail() { document.body.dataset.storyPartsPanel = "detail"; }
   function el(tag, className, text) {
     var node = document.createElement(tag);
     if (className) node.className = className;
@@ -62,7 +62,7 @@
   }
   function api(method, action, opts) {
     opts = opts || {};
-    var url = "/api/selling-parts?action=" + encodeURIComponent(action || "");
+    var url = "/api/story-parts?action=" + encodeURIComponent(action || "");
     if (opts.id) url += "&id=" + encodeURIComponent(opts.id);
     ["stage", "status", "concepts"].forEach(function (key) {
       if (opts[key]) url += "&" + key + "=" + encodeURIComponent(opts[key]);
@@ -75,7 +75,7 @@
     return fetch(path, { headers: authHeaders(false) }).then(readJson);
   }
   function backButton() {
-    var back = el("button", "selling__ghost selling__back", "Back");
+    var back = el("button", "story-parts__ghost story-parts__back", "Back");
     back.type = "button";
     back.addEventListener("click", showList);
     return back;
@@ -90,7 +90,7 @@
     renderList();
     if (next === "board") renderBoard();
     else if (next === "stages") renderStages();
-    else stageEl.replaceChildren(el("p", "selling__empty", "Pick a source, or start a part from scratch."));
+    else stageEl.replaceChildren(el("p", "story-parts__empty", "Pick a source, or start a part from scratch."));
   }
   function sourceLabel(item) {
     return item.title || item.name || item.value || item.id || "Untitled";
@@ -160,11 +160,11 @@
     if (view === "sources") {
       sources.forEach(function (source) {
         var li = document.createElement("li");
-        var btn = el("button", "selling__row");
+        var btn = el("button", "story-parts__row");
         btn.type = "button";
         if (selectedSource && selectedSource.kind === source.kind && selectedSource.id === source.id) btn.setAttribute("aria-current", "true");
-        btn.appendChild(el("span", "selling__name", source.title));
-        btn.appendChild(el("span", "selling__meta", source.kind === "none" ? "scratch" : (source.kind === "code" && !source.id ? "repo path ref" : source.kind)));
+        btn.appendChild(el("span", "story-parts__name", source.title));
+        btn.appendChild(el("span", "story-parts__meta", source.kind === "none" ? "scratch" : (source.kind === "code" && !source.id ? "repo path ref" : source.kind)));
         btn.addEventListener("click", function () { openSource(source); });
         li.appendChild(btn);
         listEl.appendChild(li);
@@ -172,13 +172,13 @@
       return;
     }
     if (view === "board") {
-      if (!parts.length) listEl.appendChild(el("li", "selling__meta", "No parts yet."));
+      if (!parts.length) listEl.appendChild(el("li", "story-parts__meta", "No parts yet."));
       parts.forEach(function (part) {
         var li = document.createElement("li");
-        var btn = el("button", "selling__row");
+        var btn = el("button", "story-parts__row");
         btn.type = "button";
-        btn.appendChild(el("span", "selling__name", part.title || "(untitled)"));
-        btn.appendChild(el("span", "selling__meta", part.stageKey + " · " + part.status + ((part.concepts || []).length ? " · " + part.concepts.join(", ") : "")));
+        btn.appendChild(el("span", "story-parts__name", part.title || "(untitled)"));
+        btn.appendChild(el("span", "story-parts__meta", part.stageKey + " · " + part.status + ((part.concepts || []).length ? " · " + part.concepts.join(", ") : "")));
         btn.addEventListener("click", function () { openPart(part.id); });
         li.appendChild(btn);
         listEl.appendChild(li);
@@ -187,8 +187,8 @@
     }
     stages.forEach(function (stage) {
       var li = document.createElement("li");
-      li.appendChild(el("span", "selling__name", stage.name));
-      li.appendChild(el("span", "selling__meta", stage.key));
+      li.appendChild(el("span", "story-parts__name", stage.name));
+      li.appendChild(el("span", "story-parts__meta", stage.key));
       listEl.appendChild(li);
     });
   }
@@ -198,21 +198,21 @@
     renderList();
     var wrap = document.createElement("div");
     wrap.appendChild(backButton());
-    wrap.appendChild(el("h2", "selling__panel-title", source.title));
-    wrap.appendChild(el("p", "selling__meta", source.kind === "none" ? "Write a part from scratch." : (source.kind === "code" && !source.id ? "Enter repo, path, ref, evidence." : source.kind + " · " + (source.id || ""))));
+    wrap.appendChild(el("h2", "story-parts__panel-title", source.title));
+    wrap.appendChild(el("p", "story-parts__meta", source.kind === "none" ? "Write a part from scratch." : (source.kind === "code" && !source.id ? "Enter repo, path, ref, evidence." : source.kind + " · " + (source.id || ""))));
     if (source.kind === "none" || (source.kind === "code" && !source.id)) {
       renderPartForm({ body: "", sourceExcerpt: "", sourceKind: source.kind, sourceId: null, sourceRef: {}, concepts: [], stack: [] }, wrap);
       stageEl.replaceChildren(wrap);
       showDetail();
       return;
     }
-    var box = el("div", "selling__source");
-    var text = el("div", "selling__source-text", sourceText || "(empty)");
+    var box = el("div", "story-parts__source");
+    var text = el("div", "story-parts__source-text", sourceText || "(empty)");
     text.id = "source-text";
     box.appendChild(text);
     wrap.appendChild(box);
-    var actions = el("div", "selling__actions");
-    var make = el("button", "selling__btn", "Make a part from selection");
+    var actions = el("div", "story-parts__actions");
+    var make = el("button", "story-parts__btn", "Make a part from selection");
     make.type = "button";
     make.addEventListener("click", function () {
       var sel = window.getSelection();
@@ -242,62 +242,62 @@
   function renderPartForm(seed, into) {
     var wrap = into || document.createElement("div");
     if (!into) wrap.appendChild(backButton());
-    wrap.appendChild(el("h3", "selling__section", seed.id ? "Edit part" : "New part"));
-    var form = el("form", "selling__form");
-    form.appendChild(el("label", "selling__label", "Title"));
-    var title = el("input", "selling__input");
+    wrap.appendChild(el("h3", "story-parts__section", seed.id ? "Edit part" : "New part"));
+    var form = el("form", "story-parts__form");
+    form.appendChild(el("label", "story-parts__label", "Title"));
+    var title = el("input", "story-parts__input");
     title.value = seed.title || "";
     form.appendChild(title);
-    form.appendChild(el("label", "selling__label", "Stage"));
-    var stageSel = el("select", "selling__select");
+    form.appendChild(el("label", "story-parts__label", "Stage"));
+    var stageSel = el("select", "story-parts__select");
     stageOptions(stageSel, seed.stageKey || (stages[0] && stages[0].key));
     form.appendChild(stageSel);
-    form.appendChild(el("label", "selling__label", "Body"));
-    var body = el("textarea", "selling__area");
+    form.appendChild(el("label", "story-parts__label", "Body"));
+    var body = el("textarea", "story-parts__area");
     body.value = seed.body || "";
     form.appendChild(body);
-    form.appendChild(el("label", "selling__label", "Concepts (kebab-case)"));
-    var concepts = el("input", "selling__input");
+    form.appendChild(el("label", "story-parts__label", "Concepts (kebab-case)"));
+    var concepts = el("input", "story-parts__input");
     concepts.value = (seed.concepts || []).join(", ");
     concepts.placeholder = "idempotency, domain-driven-design";
     form.appendChild(concepts);
-    form.appendChild(el("label", "selling__label", "Stack (tools)"));
-    var stack = el("input", "selling__input");
+    form.appendChild(el("label", "story-parts__label", "Stack (tools)"));
+    var stack = el("input", "story-parts__input");
     stack.value = (seed.stack || []).join(", ");
     stack.placeholder = "typescript, prisma";
     form.appendChild(stack);
-    form.appendChild(el("label", "selling__label", "Source excerpt"));
-    var excerpt = el("textarea", "selling__area");
+    form.appendChild(el("label", "story-parts__label", "Source excerpt"));
+    var excerpt = el("textarea", "story-parts__area");
     excerpt.value = seed.sourceExcerpt || "";
     form.appendChild(excerpt);
-    var repo = el("input", "selling__input");
-    var path = el("input", "selling__input");
-    var ref = el("input", "selling__input");
-    var evidence = el("input", "selling__input");
+    var repo = el("input", "story-parts__input");
+    var path = el("input", "story-parts__input");
+    var ref = el("input", "story-parts__input");
+    var evidence = el("input", "story-parts__input");
     repo.placeholder = "owner/repo"; path.placeholder = "path"; ref.placeholder = "ref";
     evidence.placeholder = "evidence paths, comma-separated";
     repo.value = (seed.sourceRef && seed.sourceRef.repo) || "";
     path.value = (seed.sourceRef && seed.sourceRef.path) || "";
     ref.value = (seed.sourceRef && seed.sourceRef.ref) || "";
     evidence.value = ((seed.sourceRef && seed.sourceRef.evidence) || []).join(", ");
-    form.appendChild(el("label", "selling__label", "Code sourceRef"));
+    form.appendChild(el("label", "story-parts__label", "Code sourceRef"));
     form.appendChild(repo); form.appendChild(path); form.appendChild(ref); form.appendChild(evidence);
-    var start = el("input", "selling__input");
-    var number = el("input", "selling__input");
-    var cause = el("input", "selling__input");
-    var team = el("input", "selling__input");
+    var start = el("input", "story-parts__input");
+    var number = el("input", "story-parts__input");
+    var cause = el("input", "story-parts__input");
+    var team = el("input", "story-parts__input");
     start.placeholder = "start"; number.placeholder = "number"; cause.placeholder = "cause";
     team.placeholder = "team or role";
     start.value = (seed.fields && seed.fields.start) || "";
     number.value = (seed.fields && seed.fields.number) || "";
     cause.value = (seed.fields && seed.fields.cause) || "";
     team.value = (seed.fields && seed.fields.teamOrRole) || "";
-    form.appendChild(el("label", "selling__label", "Proof point fields"));
+    form.appendChild(el("label", "story-parts__label", "Proof point fields"));
     form.appendChild(start); form.appendChild(number); form.appendChild(cause);
-    form.appendChild(el("label", "selling__label", "Fit tag"));
+    form.appendChild(el("label", "story-parts__label", "Fit tag"));
     form.appendChild(team);
-    var actions = el("div", "selling__actions");
-    var save = el("button", "selling__btn", seed.id ? "Save" : "Create part");
+    var actions = el("div", "story-parts__actions");
+    var save = el("button", "story-parts__btn", seed.id ? "Save" : "Create part");
     save.type = "submit";
     actions.appendChild(save);
     form.appendChild(actions);
@@ -340,7 +340,7 @@
     api("GET", "part", { id: id }).then(function (result) {
       if (handleAuth(result)) return;
       if (result.status === 404) {
-        stageEl.replaceChildren(backButton(), el("p", "selling__empty", "Not found."));
+        stageEl.replaceChildren(backButton(), el("p", "story-parts__empty", "Not found."));
         showDetail();
         return;
       }
@@ -351,14 +351,14 @@
       var part = result.body.part;
       var wrap = document.createElement("div");
       wrap.appendChild(backButton());
-      wrap.appendChild(el("h2", "selling__panel-title", part.title || "(untitled)"));
+      wrap.appendChild(el("h2", "story-parts__panel-title", part.title || "(untitled)"));
       var meta = part.stageKey + " · " + part.status + " · " + part.sourceKind;
       if (part.sourceId) meta += " · " + part.sourceId;
-      wrap.appendChild(el("p", "selling__meta", meta));
+      wrap.appendChild(el("p", "story-parts__meta", meta));
       renderPartForm(part, wrap);
-      var statusRow = el("div", "selling__actions");
+      var statusRow = el("div", "story-parts__actions");
       ["draft", "ready", "retired"].forEach(function (status) {
-        var btn = el("button", status === part.status ? "selling__btn" : "selling__ghost", status);
+        var btn = el("button", status === part.status ? "story-parts__btn" : "story-parts__ghost", status);
         btn.type = "button";
         btn.disabled = status === part.status;
         btn.addEventListener("click", function () {
@@ -389,16 +389,16 @@
   function renderBoard() {
     var wrap = document.createElement("div");
     wrap.appendChild(backButton());
-    wrap.appendChild(el("h2", "selling__panel-title", "Parts board"));
-    var board = el("div", "selling__board");
+    wrap.appendChild(el("h2", "story-parts__panel-title", "Parts board"));
+    var board = el("div", "story-parts__board");
     stages.forEach(function (stage) {
-      var col = el("section", "selling__column");
+      var col = el("section", "story-parts__column");
       col.appendChild(el("h3", null, stage.name));
       parts.filter(function (p) { return p.stageKey === stage.key; }).forEach(function (part) {
-        var card = el("button", "selling__card");
+        var card = el("button", "story-parts__card");
         card.type = "button";
-        card.appendChild(el("span", "selling__name", part.title || "(untitled)"));
-        card.appendChild(el("span", "selling__meta", part.status + (part.sourceId ? " · " + part.sourceKind : "")));
+        card.appendChild(el("span", "story-parts__name", part.title || "(untitled)"));
+        card.appendChild(el("span", "story-parts__meta", part.status + (part.sourceId ? " · " + part.sourceKind : "")));
         card.addEventListener("click", function () { openPart(part.id); });
         col.appendChild(card);
       });
@@ -412,7 +412,7 @@
     filtersEl.replaceChildren();
     function addFilter(label, key, values) {
       values.forEach(function (value) {
-        var btn = el("button", "selling__filter", value || label);
+        var btn = el("button", "story-parts__filter", value || label);
         btn.type = "button";
         btn.setAttribute("data-key", key);
         btn.setAttribute("data-value", value);
@@ -437,12 +437,12 @@
   function renderStages() {
     var wrap = document.createElement("div");
     wrap.appendChild(backButton());
-    wrap.appendChild(el("h2", "selling__panel-title", "Stages"));
-    wrap.appendChild(el("p", "selling__meta", "Fixed set. Read-only."));
+    wrap.appendChild(el("h2", "story-parts__panel-title", "Stages"));
+    wrap.appendChild(el("p", "story-parts__meta", "Fixed set. Read-only."));
     stages.forEach(function (stage) {
-      var card = el("div", "selling__card");
-      card.appendChild(el("span", "selling__name", stage.name));
-      card.appendChild(el("span", "selling__meta", stage.key + " — " + stage.description));
+      var card = el("div", "story-parts__card");
+      card.appendChild(el("span", "story-parts__name", stage.name));
+      card.appendChild(el("span", "story-parts__meta", stage.key + " — " + stage.description));
       wrap.appendChild(card);
     });
     stageEl.replaceChildren(wrap);
@@ -453,5 +453,5 @@
   tabStages.addEventListener("click", function () { setTab("stages"); });
   Promise.all([loadStages(), loadSources(), loadParts()]).then(function () {
     setTab("sources");
-  }).catch(function () { setStatus("Could not load selling parts."); });
+  }).catch(function () { setStatus("Could not load story parts."); });
 })();

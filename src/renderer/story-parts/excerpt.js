@@ -1,9 +1,9 @@
-/* Passage + editor payload helpers for /selling. Pure; no DOM. */
+/* Passage + editor payload helpers for /story-parts. Pure; no DOM. */
 (function (root, factory) {
   var api = factory();
   if (typeof module === "object" && module.exports) module.exports = api;
-  if (typeof window !== "undefined") window.tinkerSellingExcerpt = api;
-  else if (root) root.tinkerSellingExcerpt = api;
+  if (typeof window !== "undefined") window.tinkerStoryPartsExcerpt = api;
+  else if (root) root.tinkerStoryPartsExcerpt = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
   function clampRange(text, start, end) {

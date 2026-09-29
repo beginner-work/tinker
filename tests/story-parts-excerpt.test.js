@@ -4,7 +4,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const excerpt = require("../src/renderer/selling/excerpt.js");
+const excerpt = require("../src/renderer/story-parts/excerpt.js");
 
 test("passageFromSelection returns body and sourceExcerpt", () => {
   const text = "Hello world from example.com notes.";
@@ -66,7 +66,7 @@ test("buildPartPayload matches the editor fields and never reads topics", () => 
   assert.deepEqual(scratch.stack, []);
   assert.deepEqual(scratch.sourceRef.evidence, []);
 
-  const ui = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "selling", "selling.js"), "utf8");
+  const ui = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "story-parts", "story-parts.js"), "utf8");
   assert.match(ui, /buildPartPayload\s*\(/);
   assert.equal(/topics\s*:\s*split\s*\(\s*topics\.value\s*\)/.test(ui), false);
   assert.equal(/\btopics\.value\b/.test(ui), false);
