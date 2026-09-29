@@ -28,7 +28,7 @@
  * precache list or this file's logic changes to evict the old cache.
  */
 
-const CACHE_VERSION = "tinker-shell-v6";
+const CACHE_VERSION = "tinker-shell-v7";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -50,6 +50,7 @@ const PRECACHE = [
   "/heatmap.js",
   "/pitches.js",
   "/sidebar-tree.js",
+  "/lead-drafts.js",
   "/platform-mobile.js",
   "/auth.js",
   "/lib/rainbow-web.js",
