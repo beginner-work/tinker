@@ -131,6 +131,7 @@ model StoryPartEvent {
   @@index([partId])
 }
 
+
 model Lead {
   id              String    @id @default(cuid())
   userId          String
