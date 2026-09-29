@@ -28,6 +28,23 @@ test("composer is invisible notepad with Keep crafting / This is everything", ()
   assert.equal(/\bTyler\b/.test(js + html), false);
 });
 
+test("notes stay on the lead; approval only from the review card when sendable", () => {
+  assert.match(js, /saveNotes/);
+  assert.match(js, /notes:\s*notes/);
+  assert.match(js, /PATCH\",\s*\"edit\"/);
+  assert.match(js, /messages-review|data-messages-review/);
+  assert.match(js, /data-review-to/);
+  assert.match(js, /data-review-subject/);
+  assert.match(js, /data-review-body/);
+  assert.match(js, /approveReview/);
+  assert.match(js, /isSendable/);
+  assert.match(js, /Notes for /);
+  // Notepad primary must not call approve directly.
+  assert.equal(/onPrimary:\s*function\s*\(\)\s*\{\s*saveDraft\("ship"\)/.test(js), false);
+  assert.match(js, /onPrimary:\s*function\s*\(\)\s*\{\s*saveNotes\("done"\)/);
+  assert.match(css, /\.messages-review\b/);
+});
+
 test("sidebar draft list is gone; outreach settings live on /settings", () => {
   assert.equal(/data-drafts-list/.test(html), false);
   assert.equal(/data-drafts-from/.test(html), false);

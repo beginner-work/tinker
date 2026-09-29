@@ -87,7 +87,12 @@ const INSTRUCTIONS = [
   "Call upsert_lead_person to create or update a person under a company (role type, next step, due date, sequence position). It does not wipe company tier/notes/research unless those args are passed.",
   "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
   "Prefer those lead tools over dumping GTM prose into the You thread.",
+  "Call save_outreach_draft to put a composed email or LinkedIn message into a person's chat for the owner to review.",
+  "Pass personName and companyName (or personId), channel email|linkedin, to, subject (email only), and body.",
+  "It stores or replaces the composed draft on that person. It never approves. The owner approves with This is everything on the review card.",
+  "Owner notepad notes stay separate from the composed draft.",
   "Call list_approved_outreach to read drafts the owner handed off with This is everything (approved_to_send, unsent).",
+  "Only sendable approvals appear (email: recipient + subject + body; LinkedIn: profile URL + body).",
   "A bot may send only the exact approvedText, once per approval. After sending, call mark_outreach_sent; on failure call mark_outreach_failed.",
   "Tinker itself never sends email or LinkedIn messages.",
   "Call post_to_self_thread with title and short markdown body only for brief personal assistant notes in the You thread.",
@@ -759,11 +764,45 @@ const LIST_TARGET_COMPANIES_TOOL = {
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 };
 
+const SAVE_OUTREACH_DRAFT_TOOL = {
+  name: "save_outreach_draft",
+  title: "Save outreach draft for review",
+  description: [
+    "Store or replace a composed outreach message on a person's Tinker chat for the owner to review.",
+    "Pass personName and companyName, or personId. channel is email or linkedin.",
+    "Pass to (recipient email or LinkedIn profile URL), subject (required for email, omit for LinkedIn), and body.",
+    "Shows as a review card above the owner's notepad with To, Subject, and Body.",
+    "Never approves. The owner taps This is everything on that card to approve the exact text.",
+    "Owner notes in the notepad stay separate. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      personId: { type: "string", description: "Existing person (lead) id." },
+      personName: { type: "string", description: "Person full name when personId is omitted." },
+      companyName: { type: "string", description: "Company name when personId is omitted." },
+      channel: {
+        type: "string",
+        enum: ["email", "linkedin"],
+        description: "email → Gmail outreach; linkedin → LinkedIn message.",
+      },
+      to: { type: "string", description: "Recipient email (email) or LinkedIn profile URL (linkedin)." },
+      subject: { type: "string", description: "Email subject. Required for email; omit for LinkedIn." },
+      body: { type: "string", description: "Composed message body the owner will review." },
+    },
+    required: ["channel", "to", "body"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
 const LIST_APPROVED_OUTREACH_TOOL = {
   name: "list_approved_outreach",
   title: "List approved outreach",
   description: [
     "List drafts the owner approved with This is everything that are not yet sent.",
+    "Only sendable rows are returned (email needs recipient, subject, body; LinkedIn needs profile URL and body).",
+    "Non-sendable stuck approvals are revoked back to draft and omitted.",
     "Each row includes id, personName, companyName, email, linkedInUrl, channel,",
     "subject, and the exact approvedText. A bot may send only that exact text,",
     "once per approval. Tinker never sends. A user id in args is ignored.",
@@ -837,6 +876,7 @@ const TOOLS = [
   UPSERT_TARGET_COMPANY_TOOL,
   UPSERT_LEAD_PERSON_TOOL,
   LIST_TARGET_COMPANIES_TOOL,
+  SAVE_OUTREACH_DRAFT_TOOL,
   LIST_APPROVED_OUTREACH_TOOL,
   MARK_OUTREACH_SENT_TOOL,
   MARK_OUTREACH_FAILED_TOOL,
@@ -1580,6 +1620,38 @@ async function listTargetCompaniesCall(msg, user, args) {
   }
 }
 
+async function saveOutreachDraftCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const personId = typeof args.personId === "string" ? args.personId.trim() : "";
+    const personName = typeof args.personName === "string" ? args.personName.trim() : "";
+    const companyName = typeof args.companyName === "string" ? args.companyName.trim() : "";
+    if (!personId && !(personName && companyName)) {
+      throw Object.assign(new Error("Pass personId, or personName and companyName."), { status: 400 });
+    }
+    const result = await leadsStore.saveOutreachDraft({
+      userId,
+      emailHint,
+      actor: MCP_BOT_ACTOR,
+      personId: personId || undefined,
+      personName: personName || undefined,
+      companyName: companyName || undefined,
+      channel: args.channel,
+      to: args.to,
+      subject: args.subject,
+      body: args.body,
+    });
+    return contentToolOk(msg, {
+      draft: leadsStore.presentDraft(result.draft),
+      lead: leadsStore.presentLead(result.lead),
+      approved: false,
+    });
+  } catch (err) {
+    return planFailure(msg, err, leadsStore.UNAVAILABLE);
+  }
+}
+
 async function listApprovedOutreachCall(msg, user) {
   try {
     const userId = contentUserId(user);
@@ -1697,6 +1769,7 @@ async function handleRpc(msg, user) {
       && name !== "upsert_target_company"
       && name !== "upsert_lead_person"
       && name !== "list_target_companies"
+      && name !== "save_outreach_draft"
       && name !== "list_approved_outreach"
       && name !== "mark_outreach_sent"
       && name !== "mark_outreach_failed"
@@ -1756,6 +1829,9 @@ async function handleRpc(msg, user) {
     }
     if (name === "list_target_companies") {
       return listTargetCompaniesCall(msg, user, args);
+    }
+    if (name === "save_outreach_draft") {
+      return saveOutreachDraftCall(msg, user, args);
     }
     if (name === "list_approved_outreach") {
       return listApprovedOutreachCall(msg, user, args);

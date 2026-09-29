@@ -164,7 +164,7 @@ test("Tyler email seeds outreach-from when empty; others stay blank", async () =
 
 test("draft channels fromAddress settings and mark-sent", async () => {
   assert.equal((await call({ method: "POST", action: "settings", body: { defaultFromAddress: "hunt@example.com" } })).body.settings.defaultFromAddress, "hunt@example.com");
-  const created = await call({ method: "POST", action: "create", body: { personName: "Pat Kim", company: "Orbit", source: "posting" } });
+  const created = await call({ method: "POST", action: "create", body: { personName: "Pat Kim", company: "Orbit", source: "posting", email: "pat@orbit.test" } });
   const leadId = created.body.lead.id;
   const draft = await call({ method: "POST", action: "draft", body: { leadId, channel: "gmail_outreach", subject: "Hello", body: "Quick note.", storyPartIds: ["part_1"] } });
   assert.equal(draft.body.draft.fromAddress, "hunt@example.com");
@@ -173,6 +173,8 @@ test("draft channels fromAddress settings and mark-sent", async () => {
   assert.equal(post.status, 201);
   assert.equal(post.body.lead, null);
   assert.equal(post.body.draft.leadId, null);
+  // linkedin_post without a profile URL is not sendable.
+  assert.equal((await call({ method: "POST", action: "approve", body: { id: post.body.draft.id } })).status, 400);
   assert.equal((await call({ method: "POST", token: "user-b", action: "approve", body: { id: post.body.draft.id } })).status, 404);
   const draftId = draft.body.draft.id;
   assert.equal((await call({ method: "POST", action: "approve", body: { id: draftId } })).body.draft.status, "approved_to_send");

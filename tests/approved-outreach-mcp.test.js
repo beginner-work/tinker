@@ -1,4 +1,4 @@
-/* Approve-to-send handoff: This is everything → approved_to_send; edit revokes; MCP list/mark. */
+/* Approve-to-send handoff: composed sendable drafts only; save_outreach_draft; edit revokes. */
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -157,7 +157,6 @@ test("approve stores exact text; edit revokes; list and mark sent", async () => 
   assert.equal(rows[0].channel, "gmail_outreach");
   assert.equal(rows[0].subject, "Quick intro");
 
-  // Edit after approve revokes handoff.
   const edited = await leads.updateDraft({
     id: draftId, userId: "user-a", emailHint: "hunter@example.com", actor,
     patch: { body: "Morgan — changed after approve." },
@@ -169,7 +168,6 @@ test("approve stores exact text; edit revokes; list and mark sent", async () => 
   const emptyList = await mcpCall("list_approved_outreach", {});
   assert.equal(emptyList.body.result.structuredContent.outreach.length, 0);
 
-  // Re-approve and mark sent.
   await leads.updateDraft({
     id: draftId, userId: "user-a", emailHint: "hunter@example.com", actor,
     patch: { body: "Morgan — final send text." },
@@ -186,7 +184,6 @@ test("approve stores exact text; edit revokes; list and mark sent", async () => 
   assert.equal(sent.body.result.structuredContent.draft.status, "sent_by_owner");
   assert.equal(sent.body.result.structuredContent.draft.externalMessageId, "msg_abc");
 
-  // One approval covers one send — cannot mark again.
   const again = await mcpCall("mark_outreach_sent", { id: draftId });
   assert.equal(again.body.result.isError, true);
 
@@ -194,10 +191,119 @@ test("approve stores exact text; edit revokes; list and mark sent", async () => 
   assert.equal(afterSent.body.result.structuredContent.outreach.length, 0);
 });
 
+test("notes-only drafts cannot be approved; list heals stuck approvals", async () => {
+  await mcpCall("upsert_target_company", { name: "Alloy" });
+  const person = await mcpCall("upsert_lead_person", {
+    personName: "Andrew Glenn", companyName: "Alloy", contactType: "hiring_leader",
+  });
+  const leadId = person.body.result.structuredContent.lead.id;
+  const actor = { kind: "human", label: "user:user-a" };
+  const created = await leads.createDraft({
+    userId: "user-a", emailHint: "hunter@example.com", actor, leadId,
+    channel: "gmail_outreach",
+    subject: "",
+    body: "I value the same things he does. Notes only.",
+  });
+  await assert.rejects(
+    () => leads.approveDraft({ id: created.draft.id, userId: "user-a", emailHint: "hunter@example.com", actor }),
+    (err) => {
+      assert.equal(err.status, 400);
+      assert.match(err.message, /recipient|subject|Notes alone/i);
+      return true;
+    },
+  );
+
+  // Simulate the prod bug: force approved_to_send without sendable fields.
+  const stuck = tables.leadDraft.rows.find((row) => row.id === created.draft.id);
+  stuck.status = "approved_to_send";
+  stuck.approvedAt = new Date();
+  stuck.approvedText = stuck.body;
+  stuck.approvedPersonName = "Andrew Glenn";
+  stuck.approvedCompanyName = "Alloy";
+
+  const listed = await mcpCall("list_approved_outreach", {});
+  assert.equal(listed.body.result.structuredContent.outreach.length, 0);
+  assert.equal(stuck.status, "draft");
+  assert.equal(stuck.approvedText, "");
+  assert.equal(stuck.approvedAt, null);
+});
+
+test("save_outreach_draft stores a review draft and never approves", async () => {
+  await mcpCall("upsert_target_company", { name: "Stripe" });
+  await mcpCall("upsert_lead_person", {
+    personName: "Morgan Kim", companyName: "Stripe", contactType: "referrer",
+  });
+  const saved = await mcpCall("save_outreach_draft", {
+    personName: "Morgan Kim",
+    companyName: "Stripe",
+    channel: "email",
+    to: "morgan@stripe.com",
+    subject: "Quick note",
+    body: "Morgan — composed by Clair from Tyler's notes.",
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.result.isError, undefined);
+  const shaped = saved.body.result.structuredContent;
+  assert.equal(shaped.approved, false);
+  assert.equal(shaped.draft.status, "draft");
+  assert.equal(shaped.draft.subject, "Quick note");
+  assert.equal(shaped.draft.body, "Morgan — composed by Clair from Tyler's notes.");
+  assert.equal(shaped.lead.email, "morgan@stripe.com");
+  assert.ok(!shaped.draft.approvedAt);
+
+  // Replace (not approve) on second save.
+  const again = await mcpCall("save_outreach_draft", {
+    personName: "Morgan Kim",
+    companyName: "Stripe",
+    channel: "email",
+    to: "morgan@stripe.com",
+    subject: "Revised subject",
+    body: "Revised body.",
+  });
+  assert.equal(again.body.result.structuredContent.draft.id, shaped.draft.id);
+  assert.equal(again.body.result.structuredContent.draft.subject, "Revised subject");
+  assert.equal(again.body.result.structuredContent.draft.status, "draft");
+  assert.equal(tables.leadDraft.rows.filter((row) => row.leadId === shaped.lead.id).length, 1);
+
+  const approved = await leads.approveDraft({
+    id: shaped.draft.id,
+    userId: "user-a",
+    emailHint: "hunter@example.com",
+    actor: { kind: "human", label: "user:user-a" },
+  });
+  assert.equal(approved.draft.status, "approved_to_send");
+  assert.equal(approved.draft.approvedText, "Revised body.");
+});
+
+test("save_outreach_draft linkedin requires profile URL; email requires subject", async () => {
+  await mcpCall("upsert_target_company", { name: "Notion" });
+  await mcpCall("upsert_lead_person", {
+    personName: "Sam Patel", companyName: "Notion", contactType: "hiring_leader",
+  });
+  const missingSubject = await mcpCall("save_outreach_draft", {
+    personName: "Sam Patel", companyName: "Notion",
+    channel: "email", to: "sam@notion.so", body: "Hi Sam",
+  });
+  assert.equal(missingSubject.body.result.isError, true);
+  assert.match(missingSubject.body.result.content[0].text, /subject/i);
+
+  const li = await mcpCall("save_outreach_draft", {
+    personName: "Sam Patel", companyName: "Notion",
+    channel: "linkedin",
+    to: "https://www.linkedin.com/in/sam-patel",
+    body: "Sam — connection note.",
+  });
+  assert.equal(li.body.result.isError, undefined);
+  assert.equal(li.body.result.structuredContent.draft.channel, "linkedin_connection");
+  assert.equal(li.body.result.structuredContent.lead.linkedInUrl, "https://www.linkedin.com/in/sam-patel");
+  assert.equal(li.body.result.structuredContent.draft.status, "draft");
+});
+
 test("mark_outreach_failed keeps text and allows re-approve", async () => {
   await mcpCall("upsert_target_company", { name: "Notion" });
   const person = await mcpCall("upsert_lead_person", {
     personName: "Sam Patel", companyName: "Notion", contactType: "hiring_leader",
+    linkedInUrl: "https://www.linkedin.com/in/sam-patel",
   });
   const leadId = person.body.result.structuredContent.lead.id;
   const actor = { kind: "human", label: "user:user-a" };
@@ -213,7 +319,6 @@ test("mark_outreach_failed keeps text and allows re-approve", async () => {
   assert.equal(failed.body.result.structuredContent.draft.failedReason, "LinkedIn rate limited");
   assert.equal(failed.body.result.structuredContent.draft.approvedText, "Sam — connection note.");
 
-  // Owner can edit (revokes) then approve again.
   await leads.updateDraft({
     id: created.draft.id, userId: "user-a", emailHint: "hunter@example.com", actor,
     patch: { body: "Sam — retry note." },
@@ -225,7 +330,7 @@ test("mark_outreach_failed keeps text and allows re-approve", async () => {
   assert.equal(again.draft.approvedText, "Sam — retry note.");
 });
 
-test("tools/list exposes approved outreach tools", async () => {
+test("tools/list exposes save_outreach_draft and approved outreach tools", async () => {
   const res = fakeRes();
   await mcp({
     method: "POST", url: "/api/mcp",
@@ -233,7 +338,11 @@ test("tools/list exposes approved outreach tools", async () => {
     body: { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} },
   }, res);
   const names = res.captured.body.result.tools.map((t) => t.name);
+  assert.ok(names.includes("save_outreach_draft"));
   assert.ok(names.includes("list_approved_outreach"));
   assert.ok(names.includes("mark_outreach_sent"));
   assert.ok(names.includes("mark_outreach_failed"));
+  const tool = res.captured.body.result.tools.find((t) => t.name === "save_outreach_draft");
+  assert.deepEqual(tool.inputSchema.properties.channel.enum, ["email", "linkedin"]);
+  assert.match(tool.description, /never approves/i);
 });
