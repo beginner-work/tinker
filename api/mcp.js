@@ -81,9 +81,10 @@ const INSTRUCTIONS = [
   "Call get_story_part with an id to read one part. Someone else's id returns an error and no part.",
   "Story parts are the user's approved wording for pasting into Formation drafts. Tinker does not draft or send outreach.",
   "Story-part tools are read-only. They do not mark parts ready, edit parts, or change stages.",
-  "Call set_company_priority to order target companies in the inbox (lower priority first; northStar optional).",
-  "Call plan_lead_touch to set a lead's role in the outreach sequence (referral, hiring EM, recruiter), next touch type, and due date.",
-  "Prefer plan_lead_touch and set_company_priority over dumping GTM prose into the You thread.",
+  "Call upsert_target_company to create or update a target company (name, priority, tier north_star/wave_1/wave_2/other, notes).",
+  "Call upsert_lead_person to create or update a person under a company (role type, next step, due date, sequence position).",
+  "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
+  "Prefer those lead tools over dumping GTM prose into the You thread.",
   "Call post_to_self_thread with title and short markdown body for brief assistant notes in the You thread.",
   "The owner sees it as an incoming assistant bubble. It does not send email or LinkedIn messages.",
   "This server does not accept a custom system prompt.",
@@ -616,6 +617,110 @@ const PLAN_LEAD_TOUCH_TOOL = {
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
 
+const UPSERT_TARGET_COMPANY_TOOL = {
+  name: "upsert_target_company",
+  title: "Upsert target company",
+  description: [
+    "Create or update a target company in the owner's inbox.",
+    "Pass name (required to create) or companyId. Optional domain, priority",
+    "(lower sorts first), tier (north_star, wave_1, wave_2, other), notes,",
+    "status (active|dropped). north_star tier also sets the North Star flag.",
+    "Does not send messages. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      companyId: { type: "string", description: "Existing company id to update." },
+      name: { type: "string", description: "Company name (required when creating)." },
+      domain: { type: "string", description: "Optional company domain." },
+      priority: { type: "integer", description: "Inbox rank. Lower comes first. Default 100." },
+      tier: {
+        type: "string",
+        enum: ["north_star", "wave_1", "wave_2", "other"],
+        description: "Company wave / North Star tier.",
+      },
+      notes: { type: "string", description: "Optional short notes for the company." },
+      status: {
+        type: "string",
+        enum: ["active", "dropped"],
+        description: "active (default) or dropped.",
+      },
+    },
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const UPSERT_LEAD_PERSON_TOOL = {
+  name: "upsert_lead_person",
+  title: "Upsert lead person",
+  description: [
+    "Create or update a person under a target company.",
+    "Pass personName and companyName (or companyId). contactType is the role",
+    "in sequence: referrer, hiring_leader, recruiter, or other.",
+    "Optional personTitle, linkedInUrl, email, nextStep, dueDate (ISO),",
+    "queueOrder (sequence position), and touchType to plan the next outreach touch.",
+    "Does not send email or LinkedIn. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      personName: { type: "string", description: "Person full name." },
+      companyName: { type: "string", description: "Company name." },
+      companyId: { type: "string", description: "Existing company id, if known." },
+      domain: { type: "string", description: "Optional company domain when creating the company." },
+      contactType: {
+        type: "string",
+        enum: ["referrer", "hiring_leader", "recruiter", "other"],
+        description: "Role: referral, hiring EM, recruiter, or other.",
+      },
+      personTitle: { type: "string", description: "Optional title." },
+      linkedInUrl: { type: "string", description: "Optional LinkedIn URL." },
+      email: { type: "string", description: "Optional email." },
+      nextStep: { type: "string", description: "Short next-step label." },
+      dueDate: { type: "string", description: "When the next step is due (ISO)." },
+      queueOrder: { type: "integer", description: "Sequence position within the role. Lower first." },
+      touchType: {
+        type: "string",
+        enum: ["application", "referral_outreach", "hiring_leader_outreach", "recruiter_outreach", "referral_follow_up", "call_follow_up"],
+        description: "Optional planned touch type. When set with dueDate, upserts an outreach touch.",
+      },
+      companyPriority: { type: "integer", description: "Optional company priority when creating." },
+      tier: {
+        type: "string",
+        enum: ["north_star", "wave_1", "wave_2", "other"],
+        description: "Optional company tier when creating.",
+      },
+    },
+    required: ["personName", "companyName", "contactType"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const LIST_TARGET_COMPANIES_TOOL = {
+  name: "list_target_companies",
+  title: "List target companies",
+  description: [
+    "List this connector user's target companies with their people.",
+    "Optional status filter (active|dropped). Returns companies ordered by",
+    "North Star / priority, each with people (name, title, contactType,",
+    "nextStep, nextStepAt, queueOrder). Read-only. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      status: {
+        type: "string",
+        enum: ["active", "dropped"],
+        description: "Optional status filter. Defaults to active companies only when omitted from the store filter; pass to override.",
+      },
+    },
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
 const TOOLS = [
   ASK_FOLLOWUPS_TOOL,
   DRAFT_LINKEDIN_TOOL,
@@ -632,6 +737,9 @@ const TOOLS = [
   POST_TO_SELF_THREAD_TOOL,
   SET_COMPANY_PRIORITY_TOOL,
   PLAN_LEAD_TOUCH_TOOL,
+  UPSERT_TARGET_COMPANY_TOOL,
+  UPSERT_LEAD_PERSON_TOOL,
+  LIST_TARGET_COMPANIES_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -1009,6 +1117,20 @@ function nameMatch(a, b) {
   return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
 }
 
+function companyPatchFromArgs(args) {
+  const patch = {};
+  if (args.priority != null || args.companyPriority != null) {
+    patch.priority = args.priority != null ? args.priority : args.companyPriority;
+  }
+  if (Object.prototype.hasOwnProperty.call(args, "northStar")) patch.northStar = args.northStar;
+  if (args.tier != null) patch.tier = args.tier;
+  if (args.notes != null) patch.notes = args.notes;
+  if (args.status != null) patch.status = args.status;
+  if (args.domain != null) patch.domain = args.domain;
+  if (args.name != null) patch.name = args.name;
+  return patch;
+}
+
 async function resolveCompany(user, args) {
   const userId = contentUserId(user);
   const emailHint = user && user.email;
@@ -1016,18 +1138,16 @@ async function resolveCompany(user, args) {
   await companiesStore.ensureTable();
   if (args.companyId) {
     const row = await companiesStore.loadCompany(args.companyId, userId);
-    const patch = {};
-    if (args.priority != null || args.companyPriority != null) {
-      patch.priority = args.priority != null ? args.priority : args.companyPriority;
-    }
-    if (Object.prototype.hasOwnProperty.call(args, "northStar")) patch.northStar = args.northStar;
+    const patch = companyPatchFromArgs(args);
     if (Object.keys(patch).length) {
       return companiesStore.updateCompany({ id: row.id, userId, emailHint, actor, patch });
     }
     return row;
   }
-  const companyName = typeof args.companyName === "string" ? args.companyName.trim() : "";
-  if (!companyName) throw Object.assign(new Error("companyName is required."), { status: 400 });
+  const companyName = typeof args.companyName === "string"
+    ? args.companyName.trim()
+    : (typeof args.name === "string" ? args.name.trim() : "");
+  if (!companyName) throw Object.assign(new Error("companyName or name is required."), { status: 400 });
   const listed = await companiesStore.listCompanies({ userId, emailHint });
   let found = listed.find((row) => nameMatch(row.name, companyName));
   if (!found) {
@@ -1037,16 +1157,14 @@ async function resolveCompany(user, args) {
       actor,
       name: companyName,
       domain: args.domain,
-      northStar: !!args.northStar,
+      northStar: !!args.northStar || args.tier === "north_star",
+      tier: args.tier,
+      notes: args.notes,
       priority: args.priority != null ? args.priority : (args.companyPriority != null ? args.companyPriority : 100),
-      status: "active",
+      status: args.status || "active",
     });
   } else {
-    const patch = {};
-    if (args.priority != null || args.companyPriority != null) {
-      patch.priority = args.priority != null ? args.priority : args.companyPriority;
-    }
-    if (Object.prototype.hasOwnProperty.call(args, "northStar")) patch.northStar = args.northStar;
+    const patch = companyPatchFromArgs(args);
     if (Object.keys(patch).length) {
       found = await companiesStore.updateCompany({ id: found.id, userId, emailHint, actor, patch });
     }
@@ -1156,6 +1274,127 @@ async function planLeadTouchCall(msg, user, args) {
   }
 }
 
+async function upsertTargetCompanyCall(msg, user, args) {
+  try {
+    if (!args.companyId && !(args.name || args.companyName)) {
+      throw Object.assign(new Error("name or companyId is required."), { status: 400 });
+    }
+    const company = await resolveCompany(user, {
+      companyId: args.companyId,
+      companyName: args.companyName || args.name,
+      name: args.name,
+      domain: args.domain,
+      priority: args.priority,
+      tier: args.tier,
+      notes: args.notes,
+      status: args.status,
+      northStar: args.tier === "north_star" ? true : args.northStar,
+    });
+    return contentToolOk(msg, { company: companiesStore.presentCompany(company) });
+  } catch (err) {
+    return planFailure(msg, err, companiesStore.UNAVAILABLE);
+  }
+}
+
+async function upsertLeadPersonCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const actor = MCP_BOT_ACTOR;
+    const personName = typeof args.personName === "string" ? args.personName.trim() : "";
+    if (!personName) throw Object.assign(new Error("personName is required."), { status: 400 });
+    if (!args.contactType) throw Object.assign(new Error("contactType is required."), { status: 400 });
+    const company = await resolveCompany(user, {
+      companyId: args.companyId,
+      companyName: args.companyName,
+      domain: args.domain,
+      companyPriority: args.companyPriority,
+      tier: args.tier,
+      northStar: args.tier === "north_star" ? true : undefined,
+    });
+    const leads = await leadsStore.listLeads({ userId, emailHint });
+    let lead = leads.find((row) => nameMatch(row.personName, personName)
+      && (row.companyId === company.id || nameMatch(row.company, company.name)));
+    if (!lead) {
+      lead = await leadsStore.createLead({
+        userId,
+        emailHint,
+        actor,
+        personName,
+        personTitle: args.personTitle,
+        linkedInUrl: args.linkedInUrl,
+        email: args.email,
+        company: company.name,
+        companyId: company.id,
+        contactType: args.contactType,
+        queueOrder: args.queueOrder,
+        nextStep: args.nextStep,
+        nextStepAt: args.dueDate,
+        source: "other",
+        stage: "new",
+      });
+    } else {
+      const patch = {
+        contactType: args.contactType,
+        company: company.name,
+        companyId: company.id,
+      };
+      if (args.queueOrder != null) patch.queueOrder = args.queueOrder;
+      if (args.personTitle != null) patch.personTitle = args.personTitle;
+      if (args.linkedInUrl != null) patch.linkedInUrl = args.linkedInUrl;
+      if (args.email != null) patch.email = args.email;
+      if (args.nextStep != null) patch.nextStep = args.nextStep;
+      if (args.dueDate != null) patch.nextStepAt = args.dueDate;
+      lead = await leadsStore.updateLead({ id: lead.id, userId, emailHint, actor, patch });
+    }
+    let touch = null;
+    if (args.touchType && args.dueDate) {
+      const inbox = await scheduleStore.listInboxTouches({ userId, emailHint });
+      const open = inbox && inbox.byLeadId && inbox.byLeadId[lead.id];
+      if (open && open.touch && (open.touch.status === "planned" || open.touch.status === "drafted")) {
+        touch = await scheduleStore.updateTouch({
+          id: open.touch.id, userId, emailHint, actor,
+          patch: {
+            companyId: company.id, touchType: args.touchType, date: args.dueDate,
+            leadId: lead.id, status: "planned",
+          },
+        });
+      } else {
+        touch = await scheduleStore.createTouch({
+          userId, emailHint, actor, companyId: company.id,
+          touchType: args.touchType, date: args.dueDate, leadId: lead.id, status: "planned",
+        });
+      }
+    }
+    return contentToolOk(msg, {
+      company: companiesStore.presentCompany(company),
+      lead: leadsStore.presentLead(lead),
+      touch: touch ? scheduleStore.presentTouch(touch) : null,
+    });
+  } catch (err) {
+    return planFailure(msg, err, leadsStore.UNAVAILABLE || companiesStore.UNAVAILABLE);
+  }
+}
+
+async function listTargetCompaniesCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const status = args.status || "active";
+    const companies = await companiesStore.listCompanies({ userId, emailHint, status });
+    const leads = await leadsStore.listLeads({ userId, emailHint });
+    const shaped = companies.map((company) => {
+      const people = leads
+        .filter((row) => row.companyId === company.id || nameMatch(row.company, company.name))
+        .map((row) => leadsStore.presentLead(row));
+      return { company: companiesStore.presentCompany(company), people };
+    });
+    return contentToolOk(msg, { companies: shaped });
+  } catch (err) {
+    return planFailure(msg, err, companiesStore.UNAVAILABLE);
+  }
+}
+
 async function handleRpc(msg, user) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
@@ -1215,6 +1454,9 @@ async function handleRpc(msg, user) {
       && name !== "post_to_self_thread"
       && name !== "set_company_priority"
       && name !== "plan_lead_touch"
+      && name !== "upsert_target_company"
+      && name !== "upsert_lead_person"
+      && name !== "list_target_companies"
     ) {
       return {
         status: 200,
@@ -1259,6 +1501,15 @@ async function handleRpc(msg, user) {
     }
     if (name === "plan_lead_touch") {
       return planLeadTouchCall(msg, user, args);
+    }
+    if (name === "upsert_target_company") {
+      return upsertTargetCompanyCall(msg, user, args);
+    }
+    if (name === "upsert_lead_person") {
+      return upsertLeadPersonCall(msg, user, args);
+    }
+    if (name === "list_target_companies") {
+      return listTargetCompaniesCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {

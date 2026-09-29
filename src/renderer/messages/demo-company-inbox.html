@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Company inbox desktop</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600;700&display=swap"/>
+<link rel="stylesheet" href="/styles.css"/><link rel="stylesheet" href="/design-tokens.css"/><link rel="stylesheet" href="/mobile-drawer.css"/>
+</head>
+<body class="messages-shell-open messages-inbox-primary messages-thread-active">
+<aside class="sidebar sidebar--inbox" style="padding-top:14px">
+  <header class="sidebar__top"><button class="sidebar__brand" type="button"><span class="sidebar__name">tinker</span></button></header>
+  <nav class="messages-rail">
+    <div class="messages-rail__head"><span class="messages-rail__title">Inbox</span></div>
+    <div class="messages-rail__you">
+      <button type="button" class="messages-rail__row messages-rail__row--you" data-company-id="__you__">
+        <span class="messages-rail__avatar messages-avatar--photo messages-avatar--brand" aria-hidden="true"><img class="messages-avatar__img" src="/icons/lindow-labs.svg" alt=""/></span>
+        <span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Lindow Labs</span></span><span class="messages-rail__preview">Tyler Lindow</span></span>
+      </button>
+    </div>
+    <label class="messages-rail__search"><input class="messages-rail__search-input" placeholder="Search people or companies" readonly/></label>
+    <ul class="messages-rail__list">
+      <li><button type="button" class="messages-rail__row" aria-current="true" data-company-id="c1"><span class="messages-rail__avatar">ST</span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">★ Stripe</span><span class="messages-rail__time">3</span></span><span class="messages-rail__preview">referral · referral intro · Today</span></span></button></li>
+      <li><button type="button" class="messages-rail__row" data-company-id="c2"><span class="messages-rail__avatar">NO</span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Notion</span><span class="messages-rail__time">2</span></span><span class="messages-rail__preview">hiring EM · eng leader note · Fri</span></span></button></li>
+    </ul>
+  </nav>
+</aside>
+<main class="stage">
+  <section class="messages-pane">
+    <header class="messages-pane__top">
+      <span class="messages-pane__avatar" aria-hidden="true">ST</span>
+      <div class="messages-pane__heading"><h2 class="messages-pane__title"><span>Stripe</span><span class="messages-pane__role"> · North Star</span></h2></div>
+    </header>
+    <div class="messages-pane__tabs" data-messages-tabs role="tablist">
+      <button type="button" class="messages-pane__tab messages-pane__tab--on" role="tab" aria-selected="true"><span class="messages-pane__tab-name">Morgan Kim</span><span class="messages-pane__tab-meta">referral · referral intro · Today</span></button>
+      <button type="button" class="messages-pane__tab" role="tab"><span class="messages-pane__tab-name">Sam Patel</span><span class="messages-pane__tab-meta">hiring EM · eng leader note · Wed</span></button>
+      <button type="button" class="messages-pane__tab" role="tab"><span class="messages-pane__tab-name">Riley Chen</span><span class="messages-pane__tab-meta">recruiter · recruiter note · Next week</span></button>
+    </div>
+    <div class="messages-pane__body">
+      <div class="messages-pane__thread messages-thread" data-messages-thread>
+        <ol class="messages-thread__list">
+          <li class="messages-thread__item messages-thread__item--owner messages-thread__item--draft">
+            <button type="button" class="messages-thread__bubble">
+              <div class="messages-thread__subject">Quick intro</div>
+              <div class="messages-thread__body">Built from story parts for Morgan.</div>
+              <div class="messages-thread__meta">Draft · LinkedIn DM · Today</div>
+            </button>
+          </li>
+        </ol>
+      </div>
+    </div>
+    <footer class="messages-composer">
+      <div class="messages-composer__shell">
+        <textarea class="messages-composer__textarea" rows="2" placeholder="Write a draft…"></textarea>
+        <div class="messages-composer__actions">
+          <button type="button" class="messages-composer__next">Next</button>
+          <button type="button" class="messages-composer__ship">Ship</button>
+        </div>
+      </div>
+    </footer>
+  </section>
+</main>
+</body></html>

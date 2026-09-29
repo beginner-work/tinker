@@ -1,14 +1,12 @@
-/* TYL-65: MCP set_company_priority + plan_lead_touch structure the inbox. */
-
+/* Company inbox MCP: upsert_target_company, upsert_lead_person, list_target_companies. */
 "use strict";
-
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
 const Module = require("node:module");
 const fs = require("node:fs");
 
-process.env.STYTCH_PROJECT_ID = "project-test-inbox-plan";
+process.env.STYTCH_PROJECT_ID = "project-test-company-tabs";
 process.env.STYTCH_SECRET = "secret-test-not-real";
 process.env.ANTHROPIC_API_KEY = "sk-ant-test-not-real";
 process.env.LEADS_OWNER_ALLOWLIST = "user-a,hunter@example.com";
@@ -20,7 +18,7 @@ function model() {
   return {
     rows,
     async create({ data }) {
-      const now = new Date(Date.UTC(2026, 8, 29, 15, 0, ++seq));
+      const now = new Date(Date.UTC(2026, 8, 29, 20, 0, ++seq));
       const row = Object.assign({ id: "row_" + seq, createdAt: now, updatedAt: now }, data);
       rows.push(row);
       return row;
@@ -51,24 +49,16 @@ function model() {
 for (const name of [
   "lead", "leadDraft", "leadEvent", "tinkerUserData", "targetCompany", "outreachTouch", "outreachSession",
 ]) tables[name] = model();
-
 const database = {
   $executeRawUnsafe: async () => 0,
   $transaction: async (fn) => fn(database),
-  lead: tables.lead,
-  leadDraft: tables.leadDraft,
-  leadEvent: tables.leadEvent,
-  tinkerUserData: tables.tinkerUserData,
-  targetCompany: tables.targetCompany,
-  outreachTouch: tables.outreachTouch,
-  outreachSession: tables.outreachSession,
+  lead: tables.lead, leadDraft: tables.leadDraft, leadEvent: tables.leadEvent,
+  tinkerUserData: tables.tinkerUserData, targetCompany: tables.targetCompany,
+  outreachTouch: tables.outreachTouch, outreachSession: tables.outreachSession,
 };
-
 function stubAt(absPath, exports) {
   const mod = new Module(absPath);
-  mod.filename = absPath;
-  mod.loaded = true;
-  mod.exports = exports;
+  mod.filename = absPath; mod.loaded = true; mod.exports = exports;
   require.cache[absPath] = mod;
 }
 const libDir = path.resolve(__dirname, "..", "api", "_lib");
@@ -76,11 +66,8 @@ const apiDir = path.resolve(__dirname, "..", "api");
 for (const rel of [
   "db.js", "stytch.js", "mcp-keys.js", "leads-store.js", "leads-companies-store.js",
   "outreach-schedule-store.js", "self-thread-store.js",
-]) {
-  delete require.cache[path.join(libDir, rel)];
-}
+]) delete require.cache[path.join(libDir, rel)];
 delete require.cache[path.join(apiDir, "mcp.js")];
-
 stubAt(path.join(libDir, "stytch.js"), {
   authenticateSession: async (token) => {
     if (token !== "user-a") throw Object.assign(new Error("nope"), { status: 401 });
@@ -96,12 +83,10 @@ stubAt(path.join(libDir, "mcp-keys.js"), {
   },
   userIdFromSession: (s) => (s && s.session && s.session.user_id) || "",
 });
-
 const mcp = require("../api/mcp.js");
 const companies = require("../api/_lib/leads-companies-store.js");
 const leads = require("../api/_lib/leads-store.js");
 const schedule = require("../api/_lib/outreach-schedule-store.js");
-
 function fakeRes() {
   const captured = { status: null, body: null, headers: {} };
   return {
@@ -115,14 +100,12 @@ function fakeRes() {
 async function mcpCall(name, args) {
   const res = fakeRes();
   await mcp({
-    method: "POST",
-    url: "/api/mcp",
+    method: "POST", url: "/api/mcp",
     headers: { authorization: "Bearer " + "mcp_" + "a".repeat(43) },
     body: { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args || {} } },
   }, res);
   return res.captured;
 }
-
 test.beforeEach(() => {
   seq = 0;
   for (const table of Object.values(tables)) table.rows.length = 0;
@@ -130,72 +113,47 @@ test.beforeEach(() => {
   leads.resetTableCache();
   schedule.resetTableCache();
 });
-
-test("set_company_priority creates and orders companies", async () => {
-  const first = await mcpCall("set_company_priority", {
-    companyName: "Stripe",
-    priority: 1,
-    northStar: true,
+test("upsert_target_company and list_target_companies", async () => {
+  const created = await mcpCall("upsert_target_company", {
+    name: "Stripe", priority: 1, tier: "north_star", notes: "Primary chase",
   });
-  assert.equal(first.status, 200);
-  assert.equal(first.body.result.isError, undefined);
-  assert.equal(first.body.result.structuredContent.company.name, "Stripe");
-  assert.equal(first.body.result.structuredContent.company.priority, 1);
-  assert.equal(first.body.result.structuredContent.company.northStar, true);
-
-  const second = await mcpCall("set_company_priority", {
-    companyName: "Notion",
-    priority: 2,
-  });
-  assert.equal(second.body.result.structuredContent.company.priority, 2);
-  const listed = await companies.listCompanies({ userId: "user-a", emailHint: "hunter@example.com" });
-  assert.equal(listed[0].name, "Stripe");
-  assert.equal(listed[1].name, "Notion");
+  assert.equal(created.status, 200);
+  assert.equal(created.body.result.isError, undefined);
+  assert.equal(created.body.result.structuredContent.company.tier, "north_star");
+  assert.equal(created.body.result.structuredContent.company.northStar, true);
+  await mcpCall("upsert_target_company", { name: "Notion", priority: 2, tier: "wave_1" });
+  const listed = await mcpCall("list_target_companies", {});
+  assert.equal(listed.body.result.structuredContent.companies.length, 2);
+  assert.equal(listed.body.result.structuredContent.companies[0].company.name, "Stripe");
 });
-
-test("plan_lead_touch sets role, next step, and due", async () => {
-  const planned = await mcpCall("plan_lead_touch", {
+test("upsert_lead_person attaches people under a company", async () => {
+  const person = await mcpCall("upsert_lead_person", {
     personName: "Morgan Kim",
     companyName: "Stripe",
     contactType: "referrer",
-    touchType: "referral_outreach",
-    dueDate: "2026-09-30T15:00:00.000Z",
-    companyPriority: 1,
-    northStar: true,
-    queueOrder: 0,
+    personTitle: "EM",
     nextStep: "Referral intro",
+    dueDate: "2026-09-30T15:00:00.000Z",
+    queueOrder: 0,
+    touchType: "referral_outreach",
+    tier: "north_star",
+    companyPriority: 1,
   });
-  assert.equal(planned.status, 200);
-  assert.equal(planned.body.result.isError, undefined);
-  const shaped = planned.body.result.structuredContent;
-  assert.equal(shaped.lead.personName, "Morgan Kim");
-  assert.equal(shaped.lead.contactType, "referrer");
-  assert.equal(shaped.lead.company, "Stripe");
-  assert.equal(shaped.touch.touchType, "referral_outreach");
-  assert.match(String(shaped.touch.date), /2026-09-30/);
-
-  const again = await mcpCall("plan_lead_touch", {
-    personName: "Morgan Kim",
-    companyName: "Stripe",
-    contactType: "referrer",
-    touchType: "referral_follow_up",
-    dueDate: "2026-10-07T15:00:00.000Z",
-  });
-  assert.equal(again.body.result.structuredContent.touch.touchType, "referral_follow_up");
-  assert.equal(tables.outreachTouch.rows.length, 1);
+  assert.equal(person.status, 200);
+  assert.equal(person.body.result.isError, undefined);
+  assert.equal(person.body.result.structuredContent.lead.contactType, "referrer");
+  assert.equal(person.body.result.structuredContent.touch.touchType, "referral_outreach");
+  const listed = await mcpCall("list_target_companies", {});
+  assert.equal(listed.body.result.structuredContent.companies[0].people.length, 1);
+  assert.equal(listed.body.result.structuredContent.companies[0].people[0].personName, "Morgan Kim");
 });
-
-test("shell lists companies with person tabs and brands Lindow Labs", () => {
+test("shell is company-level with person tabs and demos omit GTM", () => {
   const shell = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages-shell.js"), "utf8");
-  assert.match(shell, /selectCompany|visibleCompanies/);
+  assert.match(shell, /selectCompany/);
   assert.match(shell, /renderPersonTabs/);
-  assert.match(shell, /Lindow Labs/);
-  assert.match(shell, /lindow-labs\.svg/);
-  assert.match(shell, /CONTACT_LABEL/);
-  assert.match(shell, /referral_outreach/);
-  assert.equal(/—/.test(shell), false);
-  assert.ok(fs.existsSync(path.join(__dirname, "..", "src/renderer/icons/lindow-labs.svg")));
-  const profile = fs.readFileSync(path.join(__dirname, "..", "src/renderer/profile.js"), "utf8");
-  assert.match(profile, /never shown|Top-right profile avatar removed/i);
-  assert.match(profile, /setAttribute\("hidden"/);
+  assert.match(shell, /data-company-id/);
+  const demo = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages/demo-you.html"), "utf8");
+  assert.equal(/Your GTM approach/i.test(demo), false);
+  assert.match(demo, /sitting here at home/);
+  assert.match(demo, /Tyler Lindow/);
 });

@@ -148,13 +148,30 @@
     });
     return list;
   }
+  function isPlanDumpTitle(title) {
+    var t = String(title || "").trim().toLowerCase();
+    return t.indexOf("gtm approach") !== -1
+      || t.indexOf("go-to-market approach") !== -1
+      || t.indexOf("go to market approach") !== -1
+      || t.indexOf("your gtm") === 0;
+  }
   function loadSelfPosts() {
     var t = token();
     if (!t) return Promise.resolve([]);
-    return fetch("/api/self-thread?action=list", {
-      headers: { Authorization: "Bearer " + t, Accept: "application/json" },
-    }).then(function (res) { return res.ok ? res.json() : { messages: [] }; })
-      .then(function (json) { return Array.isArray(json.messages) ? json.messages : []; })
+    var headers = { Authorization: "Bearer " + t, Accept: "application/json" };
+    // Hard-delete legacy GTM plan dumps before listing so the owner tab
+    // never reopens on "Your GTM approach".
+    return fetch("/api/self-thread?action=purge_plan", {
+      method: "POST",
+      headers: headers,
+      body: "{}",
+    }).catch(function () { return null; }).then(function () {
+      return fetch("/api/self-thread?action=list", { headers: headers });
+    }).then(function (res) { return res && res.ok ? res.json() : { messages: [] }; })
+      .then(function (json) {
+        var messages = Array.isArray(json.messages) ? json.messages : [];
+        return messages.filter(function (msg) { return !isPlanDumpTitle(msg && msg.title); });
+      })
       .catch(function () { return []; });
   }
   function mountWriting(messages) {

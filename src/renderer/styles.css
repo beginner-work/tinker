@@ -938,47 +938,138 @@ body.messages-you-active .writing--in-messages .writing-recall__text {
   flex: 0 0 auto;
 }
 
+/* Person tabs under the company header */
+.messages-pane__tabs {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 14px 10px;
+  border-bottom: 1px solid var(--color-border);
+  scrollbar-width: none;
+}
+.messages-pane__tabs[hidden] { display: none; }
+.messages-pane__tabs::-webkit-scrollbar { display: none; }
+.messages-pane__tab {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  max-width: 11rem;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.messages-pane__tab--on {
+  background: color-mix(in srgb, var(--color-accent, #a78bfa) 18%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent, #a78bfa) 45%, var(--color-border));
+}
+.messages-pane__tab-name {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.messages-pane__tab-meta {
+  font-size: 11px;
+  color: var(--color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 @media (max-width: 720px) {
   /* Inbox is the mobile surface: full-width list, then thread with back.
    * Override the hamburger drawer (mobile-drawer.css ≤540px) so the rail
    * never sits half-open over the thread. */
-  body.messages-shell-open { --sidebar-width: 100%; }
-  body.messages-shell-open .sidebar {
-    position: relative;
-    inset: auto;
-    width: 100%;
-    max-width: none;
-    height: 100%;
+  body.messages-shell-open,
+  body.messages-inbox-primary { --sidebar-width: 100%; }
+  body.messages-shell-open .sidebar,
+  body.messages-inbox-primary .sidebar {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
     transform: none !important;
-    z-index: auto;
-    box-shadow: none;
+    z-index: auto !important;
+    box-shadow: none !important;
     border-right: 0;
+    display: flex !important;
+    flex-direction: column;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
   }
-  body.messages-shell-open .drawer-toggle,
-  body.messages-shell-open .drawer-backdrop {
+  /* List mode: hide hamburger; secondary links live in the full-width rail. */
+  body.messages-shell-open:not(.messages-mobile-thread) .drawer-toggle,
+  body.messages-shell-open:not(.messages-mobile-thread) .drawer-backdrop {
     display: none !important;
   }
-  body.messages-shell-open .stage { display: none; }
-  body.messages-shell-open.messages-mobile-thread .sidebar { display: none; }
+  body.messages-shell-open:not(.messages-mobile-thread) .stage,
+  body.messages-inbox-primary:not(.messages-mobile-thread) .stage {
+    display: none !important;
+  }
+  /* Thread mode: hide the list; stage fills the viewport. */
+  body.messages-shell-open.messages-mobile-thread .sidebar {
+    display: none !important;
+  }
   body.messages-shell-open.messages-mobile-thread .stage {
-    display: flex;
+    display: flex !important;
     flex: 1;
     width: 100%;
     min-width: 0;
+    min-height: 100dvh;
   }
   body.messages-shell-open.messages-mobile-thread .messages-pane {
+    display: flex !important;
     width: 100%;
     min-width: 0;
+    min-height: 100dvh;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
   }
+  /* From the thread, hamburger reopens the company list as a drawer. */
+  body.messages-shell-open.messages-mobile-thread .drawer-toggle {
+    display: inline-flex !important;
+  }
+  body.messages-shell-open.messages-mobile-thread[data-drawer-open] .sidebar {
+    display: flex !important;
+    position: fixed !important;
+    top: 0; left: 0; bottom: 0;
+    width: min(82vw, 320px) !important;
+    height: 100dvh !important;
+    transform: translateX(0) !important;
+    z-index: 60 !important;
+    box-shadow: 0 0 24px rgba(26, 26, 26, 0.18) !important;
+    border-right: 1px solid var(--color-border);
+  }
+  body.messages-shell-open.messages-mobile-thread .drawer-backdrop {
+    display: block !important;
+  }
   body.messages-mobile-thread .messages-pane__back { display: inline-flex; }
+  /* Composer stays above the soft keyboard / home indicator. */
+  body.messages-mobile-thread .messages-composer {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--color-background);
+  }
 }
 
 /* Hunt funnel — North Star + target companies above Drafts. */
