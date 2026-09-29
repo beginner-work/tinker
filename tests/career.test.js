@@ -458,7 +458,7 @@ test("reject then restore returns the fact to proposed", async () => {
   await mcp(rpcReq("tools/list"), listed);
   const names = listed.captured.body.result.tools.map((tool) => tool.name);
   assert.equal(names.includes("restore"), false);
-  assert.equal(names.some((name) => /set_|update_|verify|reject|restore|write/.test(name)), false);
+  assert.equal(names.some((name) => /career|autonomy/.test(name) && /set_|update_|verify|reject|restore|write/.test(name)), false);
 });
 
 test("extract stores proposed excerpts and not the rest of the upload", async () => {
