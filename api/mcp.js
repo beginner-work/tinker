@@ -14,10 +14,11 @@
  * settings (get_autonomy_settings), the career record
  * (get_career_record, check_text), site content (list_content,
  * read_content, create_content_draft), story parts (list_story_parts,
- * get_story_part), and outreach schedule (get_outreach_schedule,
- * set_busy_times). There is no raw converse proxy and no write tool
- * for autonomy settings, the career record, or story parts. Content
- * tools can draft. They cannot publish. Story-part tools are
+ * get_story_part), outreach schedule (get_outreach_schedule,
+ * set_busy_times), and post_to_self_thread (assistant posts into the
+ * owner's You inbox thread). There is no raw converse proxy and no
+ * write tool for autonomy settings, the career record, or story parts.
+ * Content tools can draft. They cannot publish. Story-part tools are
  * read-only: paste the user's approved wording into Formation drafts;
  * Tinker does not draft or send outreach. GET/DELETE return 405: this
  * server does not keep an SSE session. draft_linkedin_post shares
@@ -44,6 +45,7 @@ const { UNAVAILABLE: CAREER_UNAVAILABLE, readForTool, shapeForTool } = require("
 const { checkText } = require("./_lib/career-check.js");
 const contentStore = require("./_lib/content-store.js");
 const storyParts = require("./_lib/story-parts-store.js");
+const selfThread = require("./_lib/self-thread-store.js");
 const pkg = require("../package.json");
 
 const SUPPORTED_PROTOCOLS = ["2025-03-26", "2025-06-18"];
@@ -76,6 +78,8 @@ const INSTRUCTIONS = [
   "Call get_story_part with an id to read one part. Someone else's id returns an error and no part.",
   "Story parts are the user's approved wording for pasting into Formation drafts. Tinker does not draft or send outreach.",
   "Story-part tools are read-only. They do not mark parts ready, edit parts, or change stages.",
+  "Call post_to_self_thread with title and markdown body to deliver a message into this connector user's own You inbox thread.",
+  "The owner sees it as an incoming assistant bubble. It does not send email or LinkedIn messages.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -518,6 +522,28 @@ const GET_STORY_PART_TOOL = {
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 };
 
+const POST_TO_SELF_THREAD_TOOL = {
+  name: "post_to_self_thread",
+  title: "Post to self thread",
+  description: [
+    "Post a message into this connector user's own You inbox thread in Tinker.",
+    "Pass title (short subject) and body (markdown). The owner sees it as an",
+    "incoming assistant bubble in their pinned self thread. Use this to deliver",
+    "content the owner asked for (for example a GTM approach) into their inbox.",
+    "Does not send email, LinkedIn, or any external message. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      title: { type: "string", description: "Short subject line for the bubble." },
+      body: { type: "string", description: "Markdown body shown in the You thread." },
+    },
+    required: ["title", "body"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
 const TOOLS = [
   ASK_FOLLOWUPS_TOOL,
   DRAFT_LINKEDIN_TOOL,
@@ -531,6 +557,7 @@ const TOOLS = [
   GET_STORY_PART_TOOL,
   GET_OUTREACH_SCHEDULE_TOOL,
   SET_BUSY_TIMES_TOOL,
+  POST_TO_SELF_THREAD_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -873,6 +900,27 @@ async function storyGetCall(msg, user, args) {
   } catch (err) { return storyFailure(msg, err); }
 }
 
+async function selfThreadCall(msg, user, args) {
+  try {
+    const userId = storyUserId(user);
+    const message = await selfThread.postMessage({
+      userId,
+      title: args.title,
+      body: args.body,
+      source: "mcp",
+    });
+    return contentToolOk(msg, { message });
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500 ? err.message : selfThread.UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || selfThread.UNAVAILABLE)),
+    };
+  }
+}
+
 async function handleRpc(msg, user) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
@@ -929,6 +977,7 @@ async function handleRpc(msg, user) {
       && name !== "get_story_part"
       && name !== "get_outreach_schedule"
       && name !== "set_busy_times"
+      && name !== "post_to_self_thread"
     ) {
       return {
         status: 200,
@@ -964,6 +1013,9 @@ async function handleRpc(msg, user) {
     }
     if (name === "set_busy_times") {
       return scheduleBusyCall(msg, user, args);
+    }
+    if (name === "post_to_self_thread") {
+      return selfThreadCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {
