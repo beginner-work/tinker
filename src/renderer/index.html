@@ -74,6 +74,7 @@
          lead-drafts.js owns the sidebar section and the editor panel.
          Tinker never sends. -->
     <script src="./lead-drafts.js" defer></script>
+    <script src="./lead-funnel.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
@@ -228,6 +229,18 @@
           </div>
         </div>
         <ul class="sidebar__tree-list"></ul>
+      </nav>
+
+      <!-- Hunt funnel: North Star + target companies from GET funnel. -->
+      <nav class="sidebar__funnel" id="sidebar-funnel" aria-label="Hunt funnel" hidden data-open="true">
+        <button type="button" class="sidebar__funnel-toggle" data-funnel-toggle aria-expanded="true">
+          <span class="sidebar__account-head sidebar__funnel-title">Hunt</span>
+        </button>
+        <div class="sidebar__funnel-body" data-funnel-body>
+          <p class="sidebar__funnel-empty" data-funnel-empty>No target companies yet. Add one on Leads to see who to contact next.</p>
+          <p class="sidebar__funnel-error" data-funnel-error hidden></p>
+          <div class="sidebar__funnel-panel" data-funnel-panel></div>
+        </div>
       </nav>
 
       <!-- Message drafts across every lead. lead-drafts.js fills the
