@@ -311,7 +311,7 @@ test("a minted key can list and call tools, and Stytch is not contacted", async 
   assert.equal(listed.captured.status, 200);
   assert.deepEqual(
     listed.captured.body.result.tools.map((tool) => tool.name),
-    ["ask_followups", "draft_linkedin_post", "get_autonomy_settings", "get_career_record", "check_text", "list_content", "read_content", "create_content_draft", "list_story_parts", "get_story_part", "get_outreach_schedule", "set_busy_times", "post_to_self_thread", "set_company_priority", "plan_lead_touch", "upsert_target_company", "upsert_lead_person", "list_target_companies", "list_approved_outreach", "mark_outreach_sent", "mark_outreach_failed"],
+    ["ask_followups", "draft_linkedin_post", "get_autonomy_settings", "get_career_record", "check_text", "list_content", "read_content", "create_content_draft", "list_story_parts", "get_story_part", "get_outreach_schedule", "set_busy_times", "post_to_self_thread", "update_owner_profile", "set_company_priority", "plan_lead_touch", "upsert_target_company", "upsert_lead_person", "list_target_companies", "list_approved_outreach", "mark_outreach_sent", "mark_outreach_failed"],
   );
   assert.equal(stytchCalls.length, 0);
   assert.equal(findUniques.length, 1);

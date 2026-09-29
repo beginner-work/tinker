@@ -16,18 +16,22 @@ test("left rail is the inbox with no pitch deck chrome", () => {
   assert.match(html, /Inbox/);
   assert.equal(/pitch-deck-panel|nav-pitch-deck|data-pitch-open/.test(html), false);
   assert.equal(/pitches\.js|sidebar-tree\.js|pitch-script\.js|founders\.js/.test(html), false);
-  assert.match(html, /href="\/story-parts"/);
+  assert.match(html, /href="\/settings"/);
+  assert.match(html, /messages-rail__settings/);
+  assert.equal(/sidebar__secondary/.test(html), false);
   const aside = html.match(/<aside class="sidebar[\s\S]*?<\/aside>/);
   assert.ok(aside);
   assert.match(aside[0], /messages-rail/);
   assert.match(js, /messages-inbox-primary/);
   assert.equal(/openPitchPanel|pitch-deck-open/.test(js), false);
   assert.equal(/\bTyler\b/.test(html + js), false);
+  const settings = fs.readFileSync(path.join(root, "src/renderer/settings/index.html"), "utf8");
+  assert.match(settings, /href="\/story-parts"/);
 });
 
-test("inbox sidebar styles keep secondary links without pitch panel", () => {
+test("inbox sidebar styles keep settings gear without pitch panel", () => {
   assert.match(css, /\.sidebar--inbox\b/);
-  assert.match(css, /\.sidebar__secondary\b/);
+  assert.match(css, /\.messages-rail__settings\b/);
   assert.equal(/\.pitch-deck-panel\b/.test(css), false);
   assert.match(css, /messages-inbox-primary/);
 });

@@ -21,5 +21,8 @@ test("story-parts page lists and creates parts for the composer", () => {
   assert.equal(/\bpitch deck\b/i.test(html + js), false);
   assert.equal(/\bTyler\b/.test(html + js), false);
   assert.match(vercel, /\/story-parts/);
-  assert.match(index, /href="\/story-parts"/);
+  // Story parts lives under Settings now; the inbox rail no longer links it directly.
+  const settings = fs.readFileSync(path.join(root, "src/renderer/settings/index.html"), "utf8");
+  assert.match(settings, /href="\/story-parts"/);
+  assert.equal(/href="\/story-parts"/.test(index), false);
 });

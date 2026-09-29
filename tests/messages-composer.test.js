@@ -43,6 +43,31 @@ test("composer styles stay flat", () => {
   assert.equal(/\.messages-composer[^{]*\{[^}]*box-shadow/.test(css), false);
 });
 
+test("person notepad opening logo is a small fixed mark, not a fill avatar", () => {
+  assert.match(js, /messages-notepad__mark/);
+  assert.match(js, /width:\s*["']18["']/);
+  assert.match(js, /height:\s*["']18["']/);
+  assert.match(js, /messages-notepad__mark-img/);
+  assert.equal(/fillCompanyLogo\(wrap/.test(js), false);
+  assert.match(css, /\.messages-notepad__mark\b/);
+  assert.match(css, /width:\s*18px\s*!important/);
+  assert.match(css, /height:\s*18px\s*!important/);
+  assert.match(css, /\.messages-notepad__input\b/);
+});
+
+test("settings page hosts profile fields, page links, and outreach", () => {
+  assert.match(settings, /data-owner-title/);
+  assert.match(settings, /data-owner-linkedin/);
+  assert.match(settings, /href="\/story-parts"/);
+  assert.match(settings, /href="\/leads"/);
+  assert.match(settings, /href="\/career"/);
+  assert.match(settings, /href="\/autonomy"/);
+  assert.match(settings, /href="\/mcp\/access"/);
+  assert.match(settings, /data-drafts-from/);
+  assert.match(settings, /© 2026 tinker/);
+  assert.match(settings, /settings\.js/);
+});
+
 test("channel and date selectors are not in the composer chrome", () => {
   assert.equal(/data-composer-date-btn/.test(html), false);
   assert.equal(/messages-composer__chips/.test(html), false);

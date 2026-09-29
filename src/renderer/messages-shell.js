@@ -28,6 +28,9 @@
   var OWNER_LOGO = "./icons/lindow-labs.svg";
   var LOGO_CACHE_KEY = "tinker.companyLogos.v1";
   var LOGO_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  var INBOX_CACHE_KEY = "tinker.inboxSnapshot.v1";
+  var logoIdleQueued = false;
+  var pendingLogoFills = [];
   var state = {
     leads: [],
     drafts: [],
@@ -41,6 +44,8 @@
     collapsed: {},
     ownerPersonName: "",
     ownerAvatarUrl: "",
+    ownerTitle: "",
+    ownerLinkedInUrl: "",
   };
   var root = null;
   var pane = null;
@@ -241,6 +246,23 @@
     }
     return null;
   }
+  function runPendingLogoFills() {
+    logoIdleQueued = false;
+    var jobs = pendingLogoFills.splice(0, pendingLogoFills.length);
+    jobs.forEach(function (job) {
+      try { job(); } catch (e) { /* ignore */ }
+    });
+  }
+  function deferLogoFill(fn) {
+    pendingLogoFills.push(fn);
+    if (logoIdleQueued) return;
+    logoIdleQueued = true;
+    var kick = typeof requestIdleCallback === "function"
+      ? function (cb) { requestIdleCallback(cb, { timeout: 400 }); }
+      : function (cb) { setTimeout(cb, 0); };
+    // Paint the rail text first; logos fill on the next idle frame.
+    requestAnimationFrame(function () { kick(runPendingLogoFills); });
+  }
   function fillCompanyLogo(node, company, opts) {
     opts = opts || {};
     if (!node) return;
@@ -261,17 +283,30 @@
     // No monogram fallback - only a resolved logo, else nothing.
     if (!url) { fail(); return; }
     if (hit && hit.failed && now - hit.at < LOGO_TTL_MS) { fail(); return; }
-    var img = el("img", "messages-avatar__img", { src: url, alt: "" });
-    img.addEventListener("load", function () {
-      if (domain) { cache[domain] = { ok: true, at: Date.now() }; saveLogoCache(cache); }
-      if (typeof opts.onReady === "function") opts.onReady(true);
-    });
-    img.addEventListener("error", function () {
-      if (domain) { cache[domain] = { failed: true, at: Date.now() }; saveLogoCache(cache); }
-      fail();
-    });
-    node.appendChild(img);
-    node.classList.add("messages-avatar--photo");
+    // Reserve the badge slot so deferred logo loads do not shift the rail.
+    if (opts.hideOnFail) node.hidden = true;
+    function attach() {
+      if (!node.isConnected) return;
+      var img = el("img", "messages-avatar__img", {
+        alt: "",
+        loading: "lazy",
+        decoding: "async",
+      });
+      img.addEventListener("load", function () {
+        if (domain) { cache[domain] = { ok: true, at: Date.now() }; saveLogoCache(cache); }
+        node.hidden = false;
+        if (typeof opts.onReady === "function") opts.onReady(true);
+      });
+      img.addEventListener("error", function () {
+        if (domain) { cache[domain] = { failed: true, at: Date.now() }; saveLogoCache(cache); }
+        fail();
+      });
+      node.appendChild(img);
+      node.classList.add("messages-avatar--photo");
+      img.src = url;
+    }
+    if (opts.eager) attach();
+    else deferLogoFill(attach);
   }
   function ownerPersonLabel() {
     return state.ownerPersonName || "Owner";
@@ -323,10 +358,15 @@
     var nameEl = pane.querySelector("[data-messages-name]");
     var role = pane.querySelector("[data-messages-role]");
     var avatar = pane.querySelector("[data-messages-avatar]");
+    var links = pane.querySelector("[data-messages-links]");
     if (nameEl) nameEl.textContent = name || "Messages";
     if (role) {
       role.hidden = !roleText;
       role.textContent = roleText ? " · " + roleText : "";
+    }
+    if (opts.showOwnerAvatar) {
+      // Owner chrome: never keep a previous person's links.
+      if (links) { links.hidden = true; links.innerHTML = ""; }
     }
     if (avatar) {
       avatar.innerHTML = "";
@@ -336,6 +376,7 @@
       } else if (opts.company) {
         fillCompanyLogo(avatar, opts.company, {
           hideOnFail: true,
+          eager: true,
           onReady: function (ok) { avatar.hidden = !ok; },
         });
       } else {
@@ -357,7 +398,11 @@
       });
     }
     document.body.classList.add("messages-you-active", "messages-thread-active");
-    setPaneHeader(ownerPersonLabel(), "", { showOwnerAvatar: true });
+    // Clear person profile links before owner chrome mounts.
+    if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.clearProfileLinks === "function") {
+      window.tinkerMessagesThread.clearProfileLinks();
+    }
+    setPaneHeader(ownerPersonLabel(), state.ownerTitle || "", { showOwnerAvatar: true });
     showPane();
     var empty = pane && pane.querySelector("[data-messages-empty]");
     var thread = pane && pane.querySelector("[data-messages-thread]");
@@ -385,6 +430,11 @@
     if (id === YOU_ID) { selectYou(opts); return; }
     if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.close === "function") {
       window.tinkerMessagesYou.close();
+    }
+    // Drop prior thread links immediately so a previous person or owner URL
+    // cannot linger while the new lead header loads.
+    if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.clearProfileLinks === "function") {
+      window.tinkerMessagesThread.clearProfileLinks();
     }
     state.selectedId = id || "";
     if (root) {
@@ -450,6 +500,11 @@
     title.textContent = ownerPersonLabel();
     top.appendChild(title);
     main.appendChild(top);
+    if (state.ownerTitle) {
+      var preview = el("span", "messages-rail__preview");
+      preview.textContent = state.ownerTitle;
+      main.appendChild(preview);
+    }
     btn.appendChild(avatar);
     btn.appendChild(main);
     btn.addEventListener("click", function () { selectYou(); });
@@ -555,21 +610,94 @@
     }
     renderList();
   }
-  function loadOwnerProfile() {
-    if (!token()) {
-      state.ownerPersonName = "";
-      state.ownerAvatarUrl = "";
-      return Promise.resolve();
+  function applyOwnerProfile(p) {
+    state.ownerPersonName = p && p.name ? String(p.name).trim() : "";
+    state.ownerAvatarUrl = p && p.avatarUrl ? String(p.avatarUrl).trim() : "";
+    state.ownerTitle = p && p.title ? String(p.title).trim() : "";
+    state.ownerLinkedInUrl = p && (p.linkedInUrl || p.linkedinUrl)
+      ? String(p.linkedInUrl || p.linkedinUrl).trim()
+      : "";
+  }
+  function applyInboxPayload(payload) {
+    payload = payload || {};
+    state.leads = Array.isArray(payload.leads) ? payload.leads : [];
+    state.drafts = Array.isArray(payload.drafts) ? payload.drafts : [];
+    state.touchesByLead = payload.byLeadId || payload.touchesByLead || {};
+    var companies = Array.isArray(payload.companies) ? payload.companies : [];
+    state.companies = companies;
+    state.companiesById = {};
+    companies.forEach(function (c) { if (c && c.id) state.companiesById[c.id] = c; });
+    if (Object.prototype.hasOwnProperty.call(payload, "profile")) {
+      applyOwnerProfile(payload.profile);
+    } else if (payload.ownerPersonName != null || payload.ownerTitle != null) {
+      state.ownerPersonName = payload.ownerPersonName || "";
+      state.ownerAvatarUrl = payload.ownerAvatarUrl || "";
+      state.ownerTitle = payload.ownerTitle || "";
+      state.ownerLinkedInUrl = payload.ownerLinkedInUrl || "";
     }
-    return fetch("/api/user-data/profile", {
-      headers: { Authorization: "Bearer " + token(), Accept: "application/json" },
-    }).then(function (res) { return res.ok ? res.json() : null; }).then(function (json) {
-      var p = json && json.data ? json.data : null;
-      state.ownerPersonName = p && p.name ? String(p.name).trim() : "";
-      state.ownerAvatarUrl = p && p.avatarUrl ? String(p.avatarUrl).trim() : "";
-    }).catch(function () {
-      state.ownerPersonName = "";
-      state.ownerAvatarUrl = "";
+    state.error = "";
+    if (pane) pane.hidden = false;
+  }
+  function inboxSnapshot() {
+    return {
+      leads: state.leads,
+      drafts: state.drafts,
+      companies: state.companies,
+      byLeadId: state.touchesByLead,
+      ownerPersonName: state.ownerPersonName,
+      ownerAvatarUrl: state.ownerAvatarUrl,
+      ownerTitle: state.ownerTitle,
+      ownerLinkedInUrl: state.ownerLinkedInUrl,
+      savedAt: Date.now(),
+    };
+  }
+  function readInboxCache() {
+    try {
+      var raw = localStorage.getItem(INBOX_CACHE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return null;
+      if (!Array.isArray(parsed.leads)) return null;
+      return parsed;
+    } catch (e) { return null; }
+  }
+  function writeInboxCache() {
+    try { localStorage.setItem(INBOX_CACHE_KEY, JSON.stringify(inboxSnapshot())); }
+    catch (e) { /* ignore quota */ }
+  }
+  function paintSelection() {
+    if (state.selectedId === YOU_ID) {
+      selectYou({ silent: true, stayOnList: !document.body.classList.contains("messages-mobile-thread") });
+    } else if (state.selectedId) {
+      selectLead(state.selectedId, { silent: true, stayOnList: !document.body.classList.contains("messages-mobile-thread") });
+    } else {
+      selectLead("", { silent: true });
+    }
+  }
+  function fetchInboxBatched() {
+    return leadsApi("inbox").then(function (payload) {
+      applyInboxPayload(payload);
+      writeInboxCache();
+    });
+  }
+  function fetchInboxLegacyParallel() {
+    return Promise.all([
+      leadsApi("list"),
+      leadsApi("drafts"),
+      scheduleApi("inbox").catch(function () { return { byLeadId: {} }; }),
+      leadsApi("companies", { status: "active" }).catch(function () { return { companies: [] }; }),
+      fetch("/api/user-data/profile", {
+        headers: { Authorization: "Bearer " + token(), Accept: "application/json" },
+      }).then(function (res) { return res.ok ? res.json() : null; }).catch(function () { return null; }),
+    ]).then(function (results) {
+      applyInboxPayload({
+        leads: results[0].leads,
+        drafts: results[1].drafts,
+        byLeadId: (results[2] && results[2].byLeadId) || {},
+        companies: (results[3] && results[3].companies) || [],
+        profile: results[4] && results[4].data ? results[4].data : null,
+      });
+      writeInboxCache();
     });
   }
   function refresh() {
@@ -581,6 +709,7 @@
       state.companies = [];
       state.companiesById = {};
       state.touchesByLead = {};
+      applyOwnerProfile(null);
       state.error = "";
       if (pane) pane.hidden = false;
       document.body.classList.remove("messages-thread-active", "messages-mobile-thread", "messages-you-active");
@@ -589,45 +718,29 @@
       return Promise.resolve();
     }
     state.loading = true;
-    return Promise.all([
-      leadsApi("list"),
-      leadsApi("drafts"),
-      scheduleApi("inbox").catch(function () { return { byLeadId: {} }; }),
-      leadsApi("companies", { status: "active" }).catch(function () { return { companies: [] }; }),
-      loadOwnerProfile(),
-    ]).then(function (results) {
-      state.leads = Array.isArray(results[0].leads) ? results[0].leads : [];
-      state.drafts = Array.isArray(results[1].drafts) ? results[1].drafts : [];
-      state.touchesByLead = (results[2] && results[2].byLeadId) || {};
-      var companies = Array.isArray(results[3].companies) ? results[3].companies : [];
-      state.companies = companies;
-      state.companiesById = {};
-      companies.forEach(function (c) { if (c && c.id) state.companiesById[c.id] = c; });
-      state.error = "";
-      if (pane) pane.hidden = false;
+    // Prefer one batched inbox round-trip; fall back to the old parallel fan-out.
+    return fetchInboxBatched().catch(function (err) {
+      if (err && (err.status === 401 || err.status === 403)) throw err;
+      return fetchInboxLegacyParallel();
     }).catch(function (err) {
-      state.leads = [];
-      state.drafts = [];
-      state.companies = [];
-      state.companiesById = {};
-      state.touchesByLead = {};
+      if (!(state.leads && state.leads.length)) {
+        state.leads = [];
+        state.drafts = [];
+        state.companies = [];
+        state.companiesById = {};
+        state.touchesByLead = {};
+      }
       if (err.status === 401 || err.status === 403) {
         state.error = "";
         if (pane) pane.hidden = false;
-      } else {
+      } else if (!(state.leads && state.leads.length)) {
         state.error = "Conversations could not load right now.";
         if (pane) pane.hidden = false;
       }
     }).finally(function () {
       state.loading = false;
       renderList();
-      if (state.selectedId === YOU_ID) {
-        selectYou({ silent: true, stayOnList: !document.body.classList.contains("messages-mobile-thread") });
-      } else if (state.selectedId) {
-        selectLead(state.selectedId, { silent: true, stayOnList: !document.body.classList.contains("messages-mobile-thread") });
-      } else {
-        selectLead("", { silent: true });
-      }
+      paintSelection();
     });
   }
   function bindChrome() {
@@ -666,6 +779,18 @@
     var tabs = pane && pane.querySelector("[data-messages-tabs]");
     if (tabs) { tabs.innerHTML = ""; tabs.hidden = true; }
     bindChrome();
+    // Warm path: paint the last inbox snapshot before the network returns.
+    if (token()) {
+      var cached = readInboxCache();
+      if (cached) {
+        applyInboxPayload(cached);
+        renderList();
+        if (pane) pane.hidden = false;
+        try {
+          performance.mark("tinker-inbox-cache-paint");
+        } catch (e) { /* ignore */ }
+      }
+    }
     refresh();
     window.addEventListener("storage", function (e) { if (e.key === TOKEN_KEY) refresh(); });
     document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
@@ -697,6 +822,8 @@
         personName: ownerPersonLabel(),
         initials: personInitials(ownerPersonLabel()),
         avatarUrl: state.ownerAvatarUrl || "",
+        title: state.ownerTitle || "",
+        linkedInUrl: state.ownerLinkedInUrl || "",
       };
     },
     YOU_ID: YOU_ID,

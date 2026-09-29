@@ -221,18 +221,9 @@
         <ul class="messages-rail__list" data-messages-list></ul>
       </nav>
 
-      <!-- Secondary links: pages and account tools. -->
-      <nav class="sidebar__secondary" aria-label="More">
-        <a class="sidebar__secondary-link" href="/story-parts">Story parts</a>
-        <a class="sidebar__secondary-link" href="/leads">Leads</a>
-        <a class="sidebar__secondary-link" href="/career">Career</a>
-        <a class="sidebar__secondary-link" href="/autonomy">Autonomy</a>
-        <a class="sidebar__secondary-link" href="/mcp/access">MCP access</a>
-        <button type="button" class="sidebar__secondary-link" id="nav-linkedin-draft">LinkedIn draft</button>
-        <button type="button" class="sidebar__secondary-link" id="nav-share" hidden>
-          Share <span data-share-flash aria-live="polite"></span>
-        </button>
-      </nav>
+      <!-- Hidden hooks kept for LinkedIn draft / Share JS bindings. -->
+      <button type="button" id="nav-linkedin-draft" hidden>LinkedIn draft</button>
+      <button type="button" id="nav-share" hidden>Share <span data-share-flash aria-live="polite"></span></button>
 
       <!-- Hunt funnel kept for API/filter JS; not primary chrome (inbox is). -->
       <nav class="sidebar__funnel" id="sidebar-funnel" aria-label="Hunt funnel" hidden data-open="true">
@@ -257,9 +248,14 @@
         </ul>
       </nav>
 
-      <footer class="sidebar__footer">
-        <a class="sidebar__footer-link" href="/settings">Settings</a>
-        <span class="sidebar__footer-copy">&copy; 2026 tinker</span>
+      <footer class="sidebar__footer sidebar__footer--gear">
+        <a class="messages-rail__settings" href="/settings" aria-label="Settings">
+          <svg class="messages-rail__settings-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span>Settings</span>
+        </a>
       </footer>
 
       <div id="loadbar" class="loadbar" aria-hidden="true"><span></span></div>

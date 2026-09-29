@@ -152,6 +152,59 @@ async function stubApis(page) {
         };
       } else if (action === "drafts") {
         body = { drafts: [] };
+      } else if (action === "inbox") {
+        body = {
+          leads: [
+            {
+              id: "lead_e2e_morgan", personName: "Morgan Kim", personTitle: "EM",
+              company: "Stripe", companyId: "co_e2e_stripe", contactType: "referrer",
+              queueOrder: 0, nextStep: "Referral intro", nextStepAt: "2026-09-30",
+              linkedInUrl: "https://www.linkedin.com/in/morgan-kim-test",
+              githubUrl: "https://github.com/morgan-kim",
+              stage: "new", source: "other",
+            },
+            {
+              id: "lead_e2e_sam", personName: "Sam Patel", personTitle: "Director",
+              company: "Stripe", companyId: "co_e2e_stripe", contactType: "hiring_leader",
+              queueOrder: 1, nextStep: "Eng leader note", nextStepAt: "2026-10-01",
+              linkedInUrl: "https://www.linkedin.com/in/sam-patel-test",
+              githubUrl: "",
+              stage: "new", source: "other",
+            },
+            {
+              id: "lead_e2e_alex", personName: "Alex Rivera", personTitle: "Eng",
+              company: "Notion", companyId: "co_e2e_notion", contactType: "referrer",
+              queueOrder: 0, nextStep: "", nextStepAt: null,
+              linkedInUrl: "",
+              githubUrl: "https://github.com/alex-rivera",
+              stage: "new", source: "other",
+            },
+          ],
+          drafts: [],
+          companies: [
+            {
+              id: "co_e2e_stripe", name: "Stripe", priority: 1, tier: "north_star",
+              northStar: true, status: "active", notes: "", domain: "stripe.com",
+              research: "Stripe keeps growing the platform org.",
+            },
+            {
+              id: "co_e2e_notion", name: "Notion", priority: 2, tier: "wave_1",
+              northStar: false, status: "active", notes: "", domain: "notion.so",
+              research: "",
+            },
+          ],
+          byLeadId: {
+            lead_e2e_morgan: {
+              touch: { id: "t1", touchType: "referral_outreach", date: "2026-09-30T15:00:00.000Z", status: "planned" },
+            },
+          },
+          profile: {
+            name: "E2E Owner",
+            title: "Founder at Lindow Labs",
+            linkedInUrl: "https://www.linkedin.com/in/e2e-owner",
+            avatarUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiMzYjgyZjYiLz48dGV4dCB4PSIzMiIgeT0iMzgiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiPkU8L3RleHQ+PC9zdmc+",
+          },
+        };
       } else if (action === "lead") {
         body = {
           lead: {
@@ -187,6 +240,8 @@ async function stubApis(page) {
       body = {
         data: {
           name: "E2E Owner",
+          title: "Founder at Lindow Labs",
+          linkedInUrl: "https://www.linkedin.com/in/e2e-owner",
           avatarUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiMzYjgyZjYiLz48dGV4dCB4PSIzMiIgeT0iMzgiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiPkU8L3RleHQ+PC9zdmc+",
         },
       };
@@ -475,7 +530,10 @@ describe("production mobile nav", { skip: !PROD }, () => {
       await page.waitForTimeout(500);
       const thread = await page.evaluate(() => {
         const name = (document.querySelector("[data-messages-name]") || {}).textContent || "";
-        const links = Array.from(document.querySelectorAll("[data-messages-links] a")).map((a) => a.textContent.trim());
+        const links = Array.from(document.querySelectorAll("[data-messages-links] a")).map((a) => ({
+          label: a.getAttribute("aria-label") || a.textContent.trim(),
+          href: a.getAttribute("href") || "",
+        }));
         const tabs = document.querySelectorAll(".messages-pane__tab").length;
         const ship = />\s*Ship\s*</.test(document.body.innerHTML) || /\bShip\b/.test((document.querySelector("#messages-composer") || {}).innerText || "");
         const search = !!document.querySelector("[data-messages-search]");
@@ -495,7 +553,7 @@ describe("production mobile nav", { skip: !PROD }, () => {
         thread.mobile && /Morgan/i.test(thread.name) && thread.tabs === 0 && !thread.search && !thread.ship,
         JSON.stringify(thread));
       record("production person header profile links",
-        thread.links.includes("LinkedIn") && thread.links.includes("GitHub"),
+        thread.links.some((l) => l.label === "LinkedIn") && thread.links.some((l) => l.label === "GitHub"),
         JSON.stringify(thread.links));
 
       await dismissChrome(page);

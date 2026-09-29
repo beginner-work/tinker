@@ -555,6 +555,7 @@ test("get_career_record reads only this user and check_text does not write", asy
     "get_outreach_schedule",
     "set_busy_times",
     "post_to_self_thread",
+    "update_owner_profile",
     "set_company_priority",
     "plan_lead_touch",
     "upsert_target_company",
