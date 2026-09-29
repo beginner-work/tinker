@@ -159,16 +159,22 @@
         return;
       }
       var sent = d.status === "sent_by_owner";
+      var handed = d.status === "approved_to_send";
+      // Skip open draft bubbles — writing lives in the invisible notepad.
+      // Keep quiet handed-off and sent lines only.
+      if (!sent && !handed) return;
       items.push({
         id: d.id,
         side: "owner",
-        kind: sent ? "sent" : "draft",
+        kind: sent ? "sent" : "handed",
         channel: d.channel,
-        subject: d.subject || "",
-        body: String(d.body || "").trim(),
-        at: d.updatedAt || d.createdAt,
+        subject: "",
+        body: sent
+          ? ("Sent via " + channelLabel(d.channel) + (d.sentAt ? ", " + formatDay(d.sentAt) : ""))
+          : "Handed off. Your assistant will send this.",
+        at: d.sentAt || d.approvedAt || d.updatedAt || d.createdAt,
         status: d.status,
-        openable: true,
+        openable: false,
         draftId: d.id,
       });
     });
@@ -183,6 +189,26 @@
   }
   function metaLine(parts) {
     return parts.filter(Boolean).join(" · ");
+  }
+  function renderProfileLinks(lead) {
+    var host = pane && pane.querySelector("[data-messages-links]");
+    if (!host) return;
+    host.innerHTML = "";
+    var linkedIn = String(lead && lead.linkedInUrl || "").trim();
+    var github = String(lead && lead.githubUrl || "").trim();
+    function addLink(href, label) {
+      if (!href) return;
+      var a = el("a", "messages-pane__link", {
+        href: href,
+        target: "_blank",
+        rel: "noopener noreferrer",
+      });
+      a.textContent = label;
+      host.appendChild(a);
+    }
+    addLink(linkedIn, "LinkedIn");
+    addLink(github, "GitHub");
+    host.hidden = !host.childNodes.length;
   }
   function renderHeader() {
     if (!pane || !state.lead) return;
@@ -200,10 +226,20 @@
       role.hidden = !line;
       role.textContent = line ? " · " + line : "";
     }
+    renderProfileLinks(lead);
+    // No initials circles in the chat header. Company logo only when it resolves.
     if (avatar) {
       avatar.hidden = true;
       avatar.innerHTML = "";
-      avatar.classList.remove("messages-avatar--photo");
+      avatar.classList.remove("messages-avatar--photo", "messages-avatar--brand");
+      var company = window.tinkerMessagesShell && typeof window.tinkerMessagesShell.companyForLead === "function"
+        ? window.tinkerMessagesShell.companyForLead(lead)
+        : null;
+      if (company && window.tinkerMessagesShell && typeof window.tinkerMessagesShell.fillCompanyLogo === "function") {
+        window.tinkerMessagesShell.fillCompanyLogo(avatar, company, { hideOnFail: true, onReady: function (ok) {
+          avatar.hidden = !ok;
+        } });
+      }
     }
   }
   function openDraft(id) {
@@ -241,32 +277,6 @@
     li.appendChild(bubble);
     return li;
   }
-  function renderScheduledBubble(entry) {
-    var touch = entry.touch;
-    var li = el("li", "messages-thread__item messages-thread__item--owner messages-thread__item--scheduled");
-    var bubble = el("div", "messages-thread__bubble messages-thread__bubble--scheduled");
-    var draft = null;
-    if (touch.draftId) {
-      for (var i = 0; i < state.drafts.length; i++) {
-        if (state.drafts[i] && state.drafts[i].id === touch.draftId) { draft = state.drafts[i]; break; }
-      }
-    }
-    var body = el("div", "messages-thread__body");
-    body.textContent = draft && draft.body
-      ? String(draft.body).replace(/\s+/g, " ").trim().slice(0, 180)
-      : ("Next " + (TOUCH_LABEL[touch.touchType] || "touch") + " planned. Write the draft below.");
-    bubble.appendChild(body);
-    var meta = el("div", "messages-thread__meta");
-    meta.textContent = metaLine([
-      "Scheduled",
-      TOUCH_LABEL[touch.touchType] || String(touch.touchType || "").replace(/_/g, " "),
-      draft && draft.channel ? channelLabel(draft.channel) : "",
-      formatDay(touch.date),
-    ]);
-    bubble.appendChild(meta);
-    li.appendChild(bubble);
-    return li;
-  }
   function renderThread() {
     if (!pane) return;
     var empty = pane.querySelector("[data-messages-empty]");
@@ -289,10 +299,9 @@
 
     var items = buildItems();
     var list = el("ol", "messages-thread__list", { "aria-label": "Conversation" });
-    if (!items.length && !(state.touch && state.touch.touch)) {
-      thread.appendChild(Object.assign(el("p", "messages-thread__empty"), {
-        textContent: "No messages yet for this person. Write a draft below.",
-      }));
+    // Only the owner's writing and quiet sent/handed-off lines — no planning bubbles.
+    if (!items.length) {
+      thread.appendChild(list);
       return;
     }
     var prevKey = "";
@@ -302,9 +311,6 @@
       list.appendChild(renderBubble(item, grouped));
       prevKey = key;
     });
-    if (state.touch && state.touch.touch) {
-      list.appendChild(renderScheduledBubble(state.touch));
-    }
     thread.appendChild(list);
     try { thread.scrollTop = thread.scrollHeight; } catch (e) { /* ignore */ }
   }
@@ -322,6 +328,8 @@
     var thread = pane.querySelector("[data-messages-thread]");
     if (nameEl) nameEl.textContent = "Messages";
     if (role) { role.hidden = true; role.textContent = ""; }
+    var links = pane.querySelector("[data-messages-links]");
+    if (links) { links.hidden = true; links.innerHTML = ""; }
     if (empty) empty.hidden = false;
     if (thread) {
       thread.hidden = true;

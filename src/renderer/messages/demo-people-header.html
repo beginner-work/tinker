@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>People inbox — profile links</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600;700&display=swap"/>
+<link rel="stylesheet" href="/styles.css"/><link rel="stylesheet" href="/design-tokens.css"/><link rel="stylesheet" href="/mobile-drawer.css"/>
+</head>
+<body class="messages-shell-open messages-inbox-primary messages-thread-active">
+<aside class="sidebar sidebar--inbox" style="padding-top:14px">
+  <header class="sidebar__top"><button class="sidebar__brand" type="button"><span class="sidebar__name">tinker</span></button></header>
+  <nav class="messages-rail">
+    <div class="messages-rail__head"><span class="messages-rail__title">Inbox</span></div>
+    <div class="messages-rail__you">
+      <button type="button" class="messages-rail__row messages-rail__row--you">
+        <span class="messages-rail__avatar messages-avatar--photo messages-avatar--brand" aria-hidden="true"><img class="messages-avatar__img" src="/icons/lindow-labs.svg" alt=""/></span>
+        <span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Tyler Lindow</span></span><span class="messages-rail__preview">Your notes</span></span>
+      </button>
+    </div>
+    <ul class="messages-rail__list">
+      <li class="messages-rail__group">
+        <button type="button" class="messages-rail__group-head" aria-expanded="true"><span class="messages-rail__group-label">THIS WEEK</span></button>
+        <ul class="messages-rail__group-list">
+          <li><button type="button" class="messages-rail__row" aria-current="true"><span class="messages-rail__avatar messages-avatar--photo" aria-hidden="true"><img class="messages-avatar__img" src="https://icons.duckduckgo.com/ip3/stripe.com.ico" alt=""/></span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Morgan Kim</span><span class="messages-rail__time">Tue</span></span><span class="messages-rail__preview">Stripe · referral intro</span></span></button></li>
+          <li><button type="button" class="messages-rail__row"><span class="messages-rail__avatar messages-avatar--photo" aria-hidden="true"><img class="messages-avatar__img" src="https://icons.duckduckgo.com/ip3/notion.so.ico" alt=""/></span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Jordan Lee</span><span class="messages-rail__time">Thu</span></span><span class="messages-rail__preview">Notion · eng leader note</span></span></button></li>
+        </ul>
+      </li>
+      <li class="messages-rail__group">
+        <button type="button" class="messages-rail__group-head" aria-expanded="true"><span class="messages-rail__group-label">LATER</span></button>
+        <ul class="messages-rail__group-list">
+          <li><button type="button" class="messages-rail__row"><span class="messages-rail__avatar messages-avatar--photo" aria-hidden="true"><img class="messages-avatar__img" src="https://icons.duckduckgo.com/ip3/anthropic.com.ico" alt=""/></span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Alex Rivera</span></span><span class="messages-rail__preview">Anthropic · no due date</span></span></button></li>
+        </ul>
+      </li>
+    </ul>
+  </nav>
+  <nav class="sidebar__secondary" aria-label="More">
+    <a class="sidebar__secondary-link" href="/story-parts">Story parts</a>
+    <a class="sidebar__secondary-link" href="/leads">Leads</a>
+    <a class="sidebar__secondary-link" href="/settings">Settings</a>
+  </nav>
+</aside>
+<main class="stage">
+  <section class="messages-pane">
+    <header class="messages-pane__top">
+      <span class="messages-pane__avatar messages-avatar--photo" aria-hidden="true"><img class="messages-avatar__img" src="https://icons.duckduckgo.com/ip3/stripe.com.ico" alt=""/></span>
+      <div class="messages-pane__heading">
+        <h2 class="messages-pane__title"><span data-messages-name>Morgan Kim</span><span class="messages-pane__role" data-messages-role> · Eng manager at Stripe</span></h2>
+        <div class="messages-pane__links" data-messages-links>
+          <a class="messages-pane__link" href="https://www.linkedin.com/in/morgan-kim-test" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a class="messages-pane__link" href="https://github.com/morgan-kim" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+      </div>
+    </header>
+    <div class="messages-pane__body">
+      <div class="messages-pane__thread messages-thread" data-messages-thread>
+        <div class="messages-thread__opening">
+          <p class="messages-thread__context"><em>Stripe · hiring engineering managers for platform</em></p>
+          <p class="messages-thread__prompt">What do you want Morgan to feel when they read this?</p>
+          <p class="messages-thread__research">Stripe keeps growing the platform org. Morgan has been posting about reliability and hiring managers who ship calmly.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+</body></html>

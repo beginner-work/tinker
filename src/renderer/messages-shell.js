@@ -1,6 +1,7 @@
-/* Messaging shell: company-level inbox with person tabs (TYL-65).
- * Left rail lists companies (pinned owner + targets by priority).
- * Opening a company shows people as tabs; each tab is a lead thread.
+/* Messaging shell: people-list inbox (TYL-65).
+ * Left rail: owner row, then THIS WEEK / LATER people groups.
+ * Opening a person goes straight to their chat (invisible notepad).
+ * Company logo badges the person avatar; research opens in the chat.
  */
 (function () {
   "use strict";
@@ -21,16 +22,12 @@
     referral_follow_up: "follow-up",
     call_follow_up: "follow-up",
   };
-  var CONTACT_LABEL = {
-    referrer: "referral",
-    hiring_leader: "hiring EM",
-    recruiter: "recruiter",
-    other: "contact",
-  };
-  var CONTACT_ORDER = { referrer: 0, hiring_leader: 1, recruiter: 2, other: 3 };
+  var DUE_ORDER = ["THIS WEEK", "LATER"];
   var YOU_ID = "__you__";
   var OWNER_LABEL = "Lindow Labs";
   var OWNER_LOGO = "./icons/lindow-labs.svg";
+  var LOGO_CACHE_KEY = "tinker.companyLogos.v1";
+  var LOGO_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   var state = {
     leads: [],
     drafts: [],
@@ -39,11 +36,11 @@
     touchesByLead: {},
     loading: false,
     error: "",
-    query: "",
     companyFilter: "",
-    selectedCompanyId: "",
-    selectedLeadId: "",
+    selectedId: "",
+    collapsed: {},
     ownerPersonName: "",
+    ownerAvatarUrl: "",
   };
   var root = null;
   var pane = null;
@@ -84,6 +81,12 @@
     var h = Math.round(m / 60);
     return h < 48 ? h + "h" : Math.round(h / 24) + "d";
   }
+  function draftPreview(draft) {
+    if (!draft) return "";
+    var body = String(draft.body || "").replace(/\s+/g, " ").trim();
+    if (!body) return CHANNEL_LABEL[draft.channel] || "Draft";
+    return body.length > 64 ? body.slice(0, 63) + "…" : body;
+  }
   function latestDraftFor(leadId) {
     var best = null;
     state.drafts.forEach(function (d) {
@@ -100,120 +103,175 @@
     }
     return false;
   }
+  function visibleLeads() {
+    return state.leads.filter(function (lead) {
+      if (state.companyFilter) {
+        var c = String(lead.company || "").trim().toLowerCase();
+        if (c !== state.companyFilter.toLowerCase()) return false;
+      }
+      return true;
+    });
+  }
+  function startOfLocalDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  function endOfLocalWeek(d) {
+    var day = d.getDay();
+    var toSun = day === 0 ? 0 : 7 - day;
+    var end = startOfLocalDay(d);
+    end.setDate(end.getDate() + toSun);
+    end.setHours(23, 59, 59, 999);
+    return end;
+  }
   function touchFor(lead) {
     if (!lead) return null;
     var entry = state.touchesByLead[lead.id];
     return entry && entry.touch ? entry.touch : null;
   }
+  function calendarDayKey(value) {
+    if (!value) return "";
+    var text = String(value).trim();
+    var m = text.match(/^(\d{4}-\d{2}-\d{2})(?:T00:00:00(?:\.0{1,3})?Z)?$/);
+    if (m) return m[1];
+    var d = new Date(text);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0") + "-" + String(d.getUTCDate()).padStart(2, "0");
+  }
   function dueDayLabel(touch) {
     if (!touch || !touch.date) return "";
-    var d = new Date(touch.date);
-    if (Number.isNaN(d.getTime())) return "";
+    var key = calendarDayKey(touch.date);
+    if (!key) return "";
+    var parts = key.split("-");
+    var d = new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2], 12, 0, 0));
     try {
-      return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+      return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
     } catch (e) {
-      return d.toDateString();
+      return key;
     }
+  }
+  function dueBucket(lead) {
+    var touch = touchFor(lead);
+    var raw = touch && touch.date ? touch.date : (lead && lead.nextStepAt);
+    if (!raw) return "LATER";
+    var key = calendarDayKey(raw);
+    if (!key) return "LATER";
+    var parts = key.split("-");
+    var dueDay = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    var today = startOfLocalDay(new Date());
+    if (dueDay.getTime() <= endOfLocalWeek(today).getTime()) return "THIS WEEK";
+    return "LATER";
   }
   function touchTypeLabel(touch) {
     if (!touch) return "";
     return TOUCH_LABEL[touch.touchType] || String(touch.touchType || "").replace(/_/g, " ");
   }
-  function contactLabel(lead) {
-    if (!lead) return "";
-    return CONTACT_LABEL[lead.contactType] || String(lead.contactType || "").replace(/_/g, " ");
+  function companyPriority(lead) {
+    var company = companyForLead(lead);
+    if (company && company.priority != null && company.priority !== "") return Number(company.priority);
+    return 100;
   }
-  function nextStepLabel(lead) {
+  function leadDueRaw(lead) {
     var touch = touchFor(lead);
-    if (touch) return touchTypeLabel(touch);
-    return String(lead && lead.nextStep || "").trim();
+    if (touch && touch.date) return touch.date;
+    return lead && lead.nextStepAt ? lead.nextStepAt : "";
   }
-  function dueForLead(lead) {
-    var touch = touchFor(lead);
-    if (touch) return dueDayLabel(touch);
-    if (lead && lead.nextStepAt) return dueDayLabel({ date: lead.nextStepAt });
-    return "";
+  function sortLeadsInBucket(a, b) {
+    var da = calendarDayKey(leadDueRaw(a));
+    var db = calendarDayKey(leadDueRaw(b));
+    // Dated people first by calendar day; undated follow.
+    if (da && db) {
+      if (da < db) return -1;
+      if (da > db) return 1;
+    } else if (da || db) {
+      return da ? -1 : 1;
+    }
+    // No due date (or same day): company priority, then queueOrder, then name.
+    // Ensures Wave 1 people without dueDate still appear under LATER in a stable order.
+    var pa = companyPriority(a) - companyPriority(b);
+    if (pa) return pa;
+    var qa = Number(a.queueOrder || 0) - Number(b.queueOrder || 0);
+    if (qa) return qa;
+    return String(a.personName || "").localeCompare(String(b.personName || ""));
   }
-  function sortLeadsInCompany(a, b) {
-    var ca = CONTACT_ORDER[a.contactType] != null ? CONTACT_ORDER[a.contactType] : 9;
-    var cb = CONTACT_ORDER[b.contactType] != null ? CONTACT_ORDER[b.contactType] : 9;
-    if (ca !== cb) return ca - cb;
-    var qa = Number(a.queueOrder || 0);
-    var qb = Number(b.queueOrder || 0);
-    if (qa !== qb) return qa - qb;
-    var da = touchFor(a) && touchFor(a).date ? new Date(touchFor(a).date).getTime() : Number.POSITIVE_INFINITY;
-    var db = touchFor(b) && touchFor(b).date ? new Date(touchFor(b).date).getTime() : Number.POSITIVE_INFINITY;
-    return da - db;
-  }
-  function companySort(a, b) {
-    var na = a.northStar || a.tier === "north_star" ? 1 : 0;
-    var nb = b.northStar || b.tier === "north_star" ? 1 : 0;
-    if (na !== nb) return nb - na;
-    var pa = Number(a.priority == null ? 100 : a.priority);
-    var pb = Number(b.priority == null ? 100 : b.priority);
-    if (pa !== pb) return pa - pb;
-    return String(a.name || "").localeCompare(String(b.name || ""));
-  }
-  function matchesQueryCompany(company, people) {
-    var q = state.query.trim().toLowerCase();
-    if (!q) return true;
-    if (String(company.name || "").toLowerCase().indexOf(q) !== -1) return true;
-    return people.some(function (lead) {
-      var hay = [lead.personName, lead.personTitle, lead.contactType]
-        .map(function (v) { return String(v || "").toLowerCase(); })
-        .join(" ");
-      return hay.indexOf(q) !== -1;
+  function groupByDue(leads) {
+    // Every person appears in exactly one bucket. No dueDate → LATER.
+    var map = {};
+    DUE_ORDER.forEach(function (key) { map[key] = []; });
+    leads.forEach(function (lead) {
+      map[dueBucket(lead)].push(lead);
     });
-  }
-  function leadsForCompany(company) {
-    if (!company) return [];
-    var id = company.id;
-    var name = String(company.name || "").trim().toLowerCase();
-    return state.leads.filter(function (lead) {
-      if (id && lead.companyId === id) return true;
-      return name && String(lead.company || "").trim().toLowerCase() === name;
-    }).sort(sortLeadsInCompany);
-  }
-  function visibleCompanies() {
-    var rows = state.companies.slice().filter(function (c) {
-      return !c.status || c.status === "active";
+    DUE_ORDER.forEach(function (key) {
+      map[key].sort(sortLeadsInBucket);
     });
-    // Orphan company names from leads without a TargetCompany row
-    var seen = {};
-    rows.forEach(function (c) { seen[String(c.name || "").trim().toLowerCase()] = true; });
-    state.leads.forEach(function (lead) {
-      var name = String(lead.company || "").trim();
-      if (!name || seen[name.toLowerCase()]) return;
-      if (lead.companyId && state.companiesById[lead.companyId]) return;
-      seen[name.toLowerCase()] = true;
-      rows.push({ id: "name:" + name.toLowerCase(), name: name, priority: 100, northStar: false, tier: "other", orphan: true });
-    });
-    rows.sort(companySort);
-    return rows.filter(function (company) {
-      if (state.companyFilter) {
-        if (String(company.name || "").trim().toLowerCase() !== state.companyFilter.toLowerCase()) return false;
-      }
-      return matchesQueryCompany(company, leadsForCompany(company));
-    });
+    return { map: map, order: DUE_ORDER.filter(function (key) { return map[key].length > 0; }) };
   }
-  function ensureTabsHost() {
-    if (!pane) return null;
-    var host = pane.querySelector("[data-messages-tabs]");
-    if (host) return host;
-    var top = pane.querySelector(".messages-pane__top");
-    host = el("div", "messages-pane__tabs", {
-      "data-messages-tabs": "1",
-      role: "tablist",
-      "aria-label": "People at this company",
-    });
-    if (top && top.parentNode) top.parentNode.insertBefore(host, top.nextSibling);
-    else pane.insertBefore(host, pane.firstChild);
-    return host;
+  function loadLogoCache() {
+    try {
+      var raw = localStorage.getItem(LOGO_CACHE_KEY);
+      var parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (e) { return {}; }
   }
-  function showPane() {
-    if (!pane) return;
-    pane.hidden = false;
-    document.body.classList.add("messages-shell-open", "messages-inbox-primary");
+  function saveLogoCache(cache) {
+    try { localStorage.setItem(LOGO_CACHE_KEY, JSON.stringify(cache)); } catch (e) { /* ignore */ }
+  }
+  function logoUrl(domain) {
+    var d = String(domain || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+    return d ? ("https://icons.duckduckgo.com/ip3/" + encodeURIComponent(d) + ".ico") : "";
+  }
+  function companyInitials(name) {
+    var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "?";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  function personInitials(name) {
+    var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "?";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  function companyForLead(lead) {
+    if (!lead) return null;
+    if (lead.companyId && state.companiesById[lead.companyId]) return state.companiesById[lead.companyId];
+    var name = String(lead.company || "").trim().toLowerCase();
+    if (!name) return null;
+    for (var i = 0; i < state.companies.length; i++) {
+      if (String(state.companies[i].name || "").trim().toLowerCase() === name) return state.companies[i];
+    }
+    return null;
+  }
+  function fillCompanyLogo(node, company, opts) {
+    opts = opts || {};
+    if (!node) return;
+    node.innerHTML = "";
+    node.classList.remove("messages-avatar--photo", "messages-avatar--brand", "messages-rail__avatar--fallback");
+    node.hidden = false;
+    var domain = (company && company.domain) || "";
+    var url = logoUrl(domain);
+    var cache = loadLogoCache();
+    var hit = domain ? cache[domain] : null;
+    var now = Date.now();
+    function fail() {
+      node.innerHTML = "";
+      node.classList.remove("messages-avatar--photo");
+      if (opts.hideOnFail) node.hidden = true;
+      if (typeof opts.onReady === "function") opts.onReady(false);
+    }
+    // No monogram fallback — only a resolved logo, else nothing.
+    if (!url) { fail(); return; }
+    if (hit && hit.failed && now - hit.at < LOGO_TTL_MS) { fail(); return; }
+    var img = el("img", "messages-avatar__img", { src: url, alt: "" });
+    img.addEventListener("load", function () {
+      if (domain) { cache[domain] = { ok: true, at: Date.now() }; saveLogoCache(cache); }
+      if (typeof opts.onReady === "function") opts.onReady(true);
+    });
+    img.addEventListener("error", function () {
+      if (domain) { cache[domain] = { failed: true, at: Date.now() }; saveLogoCache(cache); }
+      fail();
+    });
+    node.appendChild(img);
+    node.classList.add("messages-avatar--photo");
   }
   function ownerPersonLabel() {
     return state.ownerPersonName || "Owner";
@@ -221,12 +279,43 @@
   function fillOwnerMark(node, opts) {
     opts = opts || {};
     node.innerHTML = "";
-    var img = el("img", "messages-avatar__img", {
-      src: OWNER_LOGO,
-      alt: opts.alt || OWNER_LABEL,
+    node.classList.remove("messages-avatar--photo", "messages-avatar--brand", "messages-rail__avatar--fallback");
+    node.hidden = false;
+    var alt = opts.alt || ownerPersonLabel();
+    var url = state.ownerAvatarUrl || "";
+    // Owner row keeps the real profile photo only — no initials fallback.
+    if (!url) {
+      node.hidden = true;
+      return;
+    }
+    var img = el("img", "messages-avatar__img", { src: url, alt: alt });
+    img.addEventListener("error", function () {
+      node.innerHTML = "";
+      node.classList.remove("messages-avatar--photo");
+      node.hidden = true;
     });
     node.appendChild(img);
-    node.classList.add("messages-avatar--photo", "messages-avatar--brand");
+    node.classList.add("messages-avatar--photo");
+  }
+  function fillPersonAvatar(node, lead) {
+    // Person rows: only a small company logo when it resolves. No circle, no monogram.
+    node.innerHTML = "";
+    node.classList.remove("messages-avatar--photo", "messages-rail__avatar--fallback");
+    node.hidden = false;
+    var company = companyForLead(lead);
+    if (!company) {
+      node.hidden = true;
+      return;
+    }
+    fillCompanyLogo(node, company, {
+      hideOnFail: true,
+      onReady: function (ok) { node.hidden = !ok; },
+    });
+  }
+  function showPane() {
+    if (!pane) return;
+    pane.hidden = false;
+    document.body.classList.add("messages-shell-open", "messages-inbox-primary");
   }
   function setPaneHeader(name, roleText, opts) {
     opts = opts || {};
@@ -240,210 +329,36 @@
       role.textContent = roleText ? " · " + roleText : "";
     }
     if (avatar) {
+      avatar.innerHTML = "";
+      avatar.classList.remove("messages-avatar--photo", "messages-avatar--brand");
       if (opts.showOwnerAvatar) {
-        avatar.hidden = false;
-        fillOwnerMark(avatar, { alt: name || OWNER_LABEL });
-      } else if (opts.initials) {
-        avatar.hidden = false;
-        avatar.innerHTML = "";
-        avatar.classList.remove("messages-avatar--photo", "messages-avatar--brand");
-        avatar.textContent = opts.initials;
+        fillOwnerMark(avatar, { alt: name || ownerPersonLabel() });
+      } else if (opts.company) {
+        fillCompanyLogo(avatar, opts.company, {
+          hideOnFail: true,
+          onReady: function (ok) { avatar.hidden = !ok; },
+        });
       } else {
         avatar.hidden = true;
-        avatar.innerHTML = "";
-        avatar.classList.remove("messages-avatar--photo", "messages-avatar--brand");
       }
     }
-  }
-  function clearSelectionChrome() {
-    document.body.classList.remove("messages-you-active", "messages-thread-active", "messages-mobile-thread");
-    if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.close === "function") {
-      window.tinkerMessagesYou.close();
-    }
-    var empty = pane && pane.querySelector("[data-messages-empty]");
-    var thread = pane && pane.querySelector("[data-messages-thread]");
-    if (empty) {
-      empty.hidden = false;
-      empty.textContent = "Select a company to see its people.";
-    }
-    if (thread) {
-      thread.hidden = true;
-      thread.innerHTML = "";
-      thread.removeAttribute("data-thread-ready");
-    }
-    var tabs = ensureTabsHost();
+    // Person chats do not use company person-tabs.
+    var tabs = pane.querySelector("[data-messages-tabs]");
     if (tabs) { tabs.innerHTML = ""; tabs.hidden = true; }
-    setPaneHeader("Messages", "", {});
-  }
-  function renderPersonTabs(people, opts) {
-    opts = opts || {};
-    var tabs = ensureTabsHost();
-    if (!tabs) return;
-    tabs.hidden = false;
-    tabs.innerHTML = "";
-    people.forEach(function (person) {
-      var btn = el("button", "messages-pane__tab" + (person.id === state.selectedLeadId ? " messages-pane__tab--on" : ""), {
-        type: "button",
-        role: "tab",
-        "aria-selected": person.id === state.selectedLeadId ? "true" : "false",
-        "data-tab-lead": person.id,
-      });
-      var name = el("span", "messages-pane__tab-name");
-      name.textContent = person.personName || "Someone";
-      var meta = el("span", "messages-pane__tab-meta");
-      meta.textContent = [contactLabel(person), nextStepLabel(person), dueForLead(person)].filter(Boolean).join(" · ");
-      btn.appendChild(name);
-      if (meta.textContent) btn.appendChild(meta);
-      btn.addEventListener("click", function () {
-        selectPersonTab(person.id);
-      });
-      tabs.appendChild(btn);
-    });
-    if (opts.ownerTab) {
-      var youBtn = el("button", "messages-pane__tab" + (state.selectedLeadId === YOU_ID ? " messages-pane__tab--on" : ""), {
-        type: "button",
-        role: "tab",
-        "aria-selected": state.selectedLeadId === YOU_ID ? "true" : "false",
-        "data-tab-lead": YOU_ID,
-      });
-      var youName = el("span", "messages-pane__tab-name");
-      youName.textContent = ownerPersonLabel();
-      var youMeta = el("span", "messages-pane__tab-meta");
-      youMeta.textContent = "story";
-      youBtn.appendChild(youName);
-      youBtn.appendChild(youMeta);
-      youBtn.addEventListener("click", function () { selectPersonTab(YOU_ID); });
-      tabs.insertBefore(youBtn, tabs.firstChild);
-    }
-  }
-  function selectPersonTab(leadId) {
-    state.selectedLeadId = leadId || "";
-    if (leadId === YOU_ID) {
-      document.body.classList.add("messages-you-active", "messages-thread-active");
-      var empty = pane && pane.querySelector("[data-messages-empty]");
-      var thread = pane && pane.querySelector("[data-messages-thread]");
-      if (empty) empty.hidden = true;
-      if (thread) {
-        thread.hidden = false;
-        thread.setAttribute("data-thread-ready", "1");
-      }
-      renderPersonTabs([], { ownerTab: true });
-      try {
-        window.dispatchEvent(new CustomEvent("tinker:messages-select", {
-          detail: { leadId: "", you: true, companyId: YOU_ID },
-        }));
-      } catch (e) { /* ignore */ }
-      if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.open === "function") {
-        window.tinkerMessagesYou.open();
-      }
-      return;
-    }
-    document.body.classList.remove("messages-you-active");
-    if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.close === "function") {
-      window.tinkerMessagesYou.close();
-    }
-    document.body.classList.add("messages-thread-active");
-    var company = state.companiesById[state.selectedCompanyId]
-      || visibleCompanies().find(function (c) { return c.id === state.selectedCompanyId; });
-    var people = company ? leadsForCompany(company) : [];
-    renderPersonTabs(people);
-    var empty = pane && pane.querySelector("[data-messages-empty]");
-    var thread = pane && pane.querySelector("[data-messages-thread]");
-    if (empty) empty.hidden = true;
-    if (thread) {
-      thread.hidden = false;
-      thread.setAttribute("data-thread-ready", "1");
-    }
-    if (company) {
-      setPaneHeader(company.name, company.tier === "north_star" || company.northStar ? "North Star" : "", {
-        initials: String(company.name || "?").slice(0, 2).toUpperCase(),
-      });
-    }
-    try {
-      var touchEntry = leadId ? state.touchesByLead[leadId] : null;
-      window.dispatchEvent(new CustomEvent("tinker:messages-select", {
-        detail: { leadId: leadId, touch: touchEntry || null, companyId: state.selectedCompanyId },
-      }));
-    } catch (e) { /* ignore */ }
-  }
-  function selectCompany(companyId, opts) {
-    opts = opts || {};
-    if (companyId === YOU_ID) { selectYou(opts); return; }
-    state.selectedCompanyId = companyId || "";
-    state.selectedLeadId = "";
-    document.body.classList.remove("messages-you-active");
-    if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.close === "function") {
-      window.tinkerMessagesYou.close();
-    }
-    if (root) {
-      root.querySelectorAll("[data-company-id]").forEach(function (btn) {
-        btn.setAttribute("aria-current", btn.getAttribute("data-company-id") === state.selectedCompanyId ? "true" : "false");
-      });
-    }
-    showPane();
-    if (!state.selectedCompanyId) {
-      clearSelectionChrome();
-      return;
-    }
-    var company = state.companiesById[state.selectedCompanyId]
-      || visibleCompanies().find(function (c) { return c.id === state.selectedCompanyId; });
-    if (!company) {
-      clearSelectionChrome();
-      return;
-    }
-    var people = leadsForCompany(company);
-    setPaneHeader(company.name, company.tier === "north_star" || company.northStar ? "North Star" : "", {
-      initials: String(company.name || "?").slice(0, 2).toUpperCase(),
-    });
-    document.body.classList.add("messages-thread-active");
-    if (!opts.silent && !opts.stayOnList) enterMobileThread();
-    if (!people.length) {
-      renderPersonTabs([]);
-      var empty = pane.querySelector("[data-messages-empty]");
-      var thread = pane.querySelector("[data-messages-thread]");
-      if (empty) {
-        empty.hidden = false;
-        empty.textContent = "No people at this company yet. Add them with the lead tools.";
-      }
-      if (thread) { thread.hidden = true; thread.innerHTML = ""; }
-      try {
-        window.dispatchEvent(new CustomEvent("tinker:messages-select", {
-          detail: { leadId: "", companyId: company.id },
-        }));
-      } catch (e) { /* ignore */ }
-      return;
-    }
-    selectPersonTab(people[0].id);
-  }
-  function enterMobileThread() {
-    if (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) {
-      document.body.classList.add("messages-mobile-thread");
-    }
-  }
-  function leaveMobileThread() {
-    document.body.classList.remove("messages-mobile-thread");
-  }
-  function showCompanyList() {
-    state.selectedCompanyId = "";
-    state.selectedLeadId = "";
-    leaveMobileThread();
-    clearSelectionChrome();
-    showPane();
-    renderList();
+    var research = pane.querySelector("[data-messages-research]");
+    if (research) { research.hidden = true; research.textContent = ""; }
   }
   function selectYou(opts) {
     opts = opts || {};
-    state.selectedCompanyId = YOU_ID;
-    state.selectedLeadId = YOU_ID;
-    document.body.classList.add("messages-you-active", "messages-thread-active");
+    state.selectedId = YOU_ID;
     if (root) {
-      root.querySelectorAll("[data-company-id]").forEach(function (btn) {
-        btn.setAttribute("aria-current", btn.getAttribute("data-company-id") === YOU_ID ? "true" : "false");
+      root.querySelectorAll("[data-conv-id]").forEach(function (btn) {
+        btn.setAttribute("aria-current", btn.getAttribute("data-conv-id") === YOU_ID ? "true" : "false");
       });
     }
-    setPaneHeader(OWNER_LABEL, "", { showOwnerAvatar: true });
+    document.body.classList.add("messages-you-active", "messages-thread-active");
+    setPaneHeader(ownerPersonLabel(), "", { showOwnerAvatar: true });
     showPane();
-    renderPersonTabs([], { ownerTab: true });
     var empty = pane && pane.querySelector("[data-messages-empty]");
     var thread = pane && pane.querySelector("[data-messages-thread]");
     if (empty) empty.hidden = true;
@@ -458,35 +373,64 @@
         }));
       } catch (e) { /* ignore */ }
     }
-    // Only leave the company list when the user opens Lindow Labs.
-    // Silent refresh must not hide the mobile inbox behind an empty thread.
-    if (!opts.silent && !opts.stayOnList) enterMobileThread();
+    if (!opts.silent && !opts.stayOnList && window.matchMedia && window.matchMedia("(max-width: 720px)").matches) {
+      document.body.classList.add("messages-mobile-thread");
+    }
     if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.open === "function") {
       window.tinkerMessagesYou.open();
     }
   }
   function selectLead(id, opts) {
-    // Back-compat for callers that still pass a lead id.
     opts = opts || {};
-    if (!id) { showCompanyList(); return; }
     if (id === YOU_ID) { selectYou(opts); return; }
-    var lead = state.leads.find(function (row) { return row.id === id; });
-    if (!lead) return;
-    var companyId = lead.companyId
-      || (visibleCompanies().find(function (c) {
-        return String(c.name || "").toLowerCase() === String(lead.company || "").toLowerCase();
-      }) || {}).id;
-    if (companyId && state.selectedCompanyId !== companyId) {
-      state.selectedCompanyId = companyId;
+    if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.close === "function") {
+      window.tinkerMessagesYou.close();
     }
-    selectPersonTab(id);
-    if (!opts.silent) enterMobileThread();
-  }
-  function companyPreview(company, people) {
-    if (!people.length) return "No people yet";
-    var first = people[0];
-    var bits = [contactLabel(first), nextStepLabel(first), dueForLead(first)].filter(Boolean);
-    return bits.join(" · ") || (String(first.personName || "").trim() || "Open");
+    state.selectedId = id || "";
+    if (root) {
+      root.querySelectorAll("[data-conv-id]").forEach(function (btn) {
+        btn.setAttribute("aria-current", btn.getAttribute("data-conv-id") === state.selectedId ? "true" : "false");
+      });
+    }
+    document.body.classList.toggle("messages-thread-active", !!state.selectedId);
+    document.body.classList.remove("messages-you-active");
+    if (!state.selectedId) {
+      setPaneHeader("Messages", "", {});
+      var empty = pane && pane.querySelector("[data-messages-empty]");
+      var thread = pane && pane.querySelector("[data-messages-thread]");
+      if (empty) { empty.hidden = false; empty.textContent = "Select a person to write."; }
+      if (thread) { thread.hidden = true; thread.innerHTML = ""; }
+      showPane();
+      return;
+    }
+    var lead = state.leads.find(function (row) { return row.id === id; });
+    var company = companyForLead(lead);
+    var name = String(lead && lead.personName || "").trim() || "Someone";
+    var bits = [];
+    if (lead && lead.personTitle) bits.push(String(lead.personTitle).trim());
+    if (lead && lead.company) bits.push("at " + String(lead.company).trim());
+    setPaneHeader(name, bits.join(" "), {
+      company: company || null,
+    });
+    showPane();
+    var emptyEl = pane && pane.querySelector("[data-messages-empty]");
+    var threadEl = pane && pane.querySelector("[data-messages-thread]");
+    if (emptyEl) emptyEl.hidden = true;
+    if (threadEl) {
+      threadEl.hidden = false;
+      threadEl.setAttribute("data-thread-ready", "1");
+    }
+    if (!opts.silent) {
+      try {
+        var touchEntry = state.touchesByLead[state.selectedId] || null;
+        window.dispatchEvent(new CustomEvent("tinker:messages-select", {
+          detail: { leadId: state.selectedId, touch: touchEntry, companyId: company && company.id || "" },
+        }));
+      } catch (e) { /* ignore */ }
+    }
+    if (state.selectedId && !opts.stayOnList && window.matchMedia && window.matchMedia("(max-width: 720px)").matches) {
+      document.body.classList.add("messages-mobile-thread");
+    }
   }
   function renderYouRow() {
     if (!root) return;
@@ -495,20 +439,17 @@
     slot.innerHTML = "";
     var btn = el("button", "messages-rail__row messages-rail__row--you", {
       type: "button",
-      "data-company-id": YOU_ID,
-      "aria-current": state.selectedCompanyId === YOU_ID ? "true" : "false",
+      "data-conv-id": YOU_ID,
+      "aria-current": state.selectedId === YOU_ID ? "true" : "false",
     });
     var avatar = el("span", "messages-rail__avatar", { "aria-hidden": "true" });
     fillOwnerMark(avatar);
     var main = el("span", "messages-rail__main");
     var top = el("span", "messages-rail__top");
     var title = el("span", "messages-rail__name");
-    title.textContent = OWNER_LABEL;
+    title.textContent = ownerPersonLabel();
     top.appendChild(title);
-    var preview = el("span", "messages-rail__preview");
-    preview.textContent = ownerPersonLabel();
     main.appendChild(top);
-    main.appendChild(preview);
     btn.appendChild(avatar);
     btn.appendChild(main);
     btn.addEventListener("click", function () { selectYou(); });
@@ -525,51 +466,84 @@
     if (state.error) { err.hidden = false; err.textContent = state.error; }
     else { err.hidden = true; err.textContent = ""; }
 
-    var companies = visibleCompanies();
-    var needs = state.leads.filter(needsDraft).length;
+    var leads = visibleLeads();
+    var needs = leads.filter(needsDraft).length;
     if (badge) {
       badge.hidden = needs < 1;
       badge.textContent = needs > 0 ? String(needs) : "";
     }
-    empty.hidden = companies.length > 0 || !!state.error || state.loading;
-    empty.textContent = "No companies yet. Add target companies with the lead tools.";
+    empty.hidden = leads.length > 0 || !!state.error || state.loading;
+    empty.textContent = "No people yet. Add them with the lead tools.";
     list.innerHTML = "";
     renderYouRow();
+    if (!leads.length) return;
 
-    companies.forEach(function (company) {
-      var people = leadsForCompany(company);
-      var li = el("li");
-      var unread = people.some(needsDraft);
-      var btn = el("button", "messages-rail__row" + (unread ? " messages-rail__row--unread" : ""), {
+    var grouped = groupByDue(leads);
+    grouped.order.forEach(function (bucket) {
+      var group = el("li", "messages-rail__group");
+      var collapsed = !!state.collapsed[bucket];
+      var head = el("button", "messages-rail__group-head", {
         type: "button",
-        "data-company-id": company.id,
-        "aria-current": company.id === state.selectedCompanyId ? "true" : "false",
+        "aria-expanded": collapsed ? "false" : "true",
       });
-      var avatar = el("span", "messages-rail__avatar", { "aria-hidden": "true" });
-      avatar.textContent = String(company.name || "?").trim().slice(0, 2).toUpperCase() || "?";
-      var main = el("span", "messages-rail__main");
-      var top = el("span", "messages-rail__top");
-      var title = el("span", "messages-rail__name");
-      var star = company.northStar || company.tier === "north_star";
-      title.textContent = (star ? "★ " : "") + (company.name || "Company");
-      var time = el("span", "messages-rail__time");
-      time.textContent = String(people.length);
-      top.appendChild(title);
-      top.appendChild(time);
-      var preview = el("span", "messages-rail__preview");
-      preview.textContent = companyPreview(company, people);
-      main.appendChild(top);
-      main.appendChild(preview);
-      btn.appendChild(avatar);
-      btn.appendChild(main);
-      if (unread) {
-        var ub = el("span", "messages-rail__unread", { title: "Needs a draft", "aria-label": "Needs a draft" });
-        ub.textContent = "1";
-        btn.appendChild(ub);
-      }
-      btn.addEventListener("click", function () { selectCompany(company.id); });
-      li.appendChild(btn);
-      list.appendChild(li);
+      var headLabel = el("span", "messages-rail__group-label");
+      headLabel.textContent = bucket;
+      var headCount = el("span", "messages-rail__group-count");
+      headCount.textContent = String(grouped.map[bucket].length);
+      head.appendChild(headLabel);
+      head.appendChild(headCount);
+      head.addEventListener("click", function () {
+        state.collapsed[bucket] = !state.collapsed[bucket];
+        renderList();
+      });
+      group.appendChild(head);
+      var ul = el("ul", "messages-rail__group-list");
+      if (collapsed) ul.hidden = true;
+      grouped.map[bucket].forEach(function (lead) {
+        var li = el("li");
+        var unread = needsDraft(lead);
+        var btn = el("button", "messages-rail__row" + (unread ? " messages-rail__row--unread" : ""), {
+          type: "button",
+          "data-conv-id": lead.id,
+          "aria-current": lead.id === state.selectedId ? "true" : "false",
+        });
+        var avatar = el("span", "messages-rail__logo", { "aria-hidden": "true" });
+        fillPersonAvatar(avatar, lead);
+        var main = el("span", "messages-rail__main");
+        var top = el("span", "messages-rail__top");
+        var title = el("span", "messages-rail__name");
+        title.textContent = String(lead.personName || "").trim() || "Someone";
+        var time = el("span", "messages-rail__time");
+        var draft = latestDraftFor(lead.id);
+        var touch = touchFor(lead);
+        time.textContent = touch ? dueDayLabel(touch) : (lead.nextStepAt ? dueDayLabel({ date: lead.nextStepAt }) : relativeTime((draft && draft.updatedAt) || lead.updatedAt || lead.createdAt));
+        top.appendChild(title);
+        top.appendChild(time);
+        var preview = el("span", "messages-rail__preview");
+        preview.textContent = String(lead.personTitle || "").trim()
+          || (draft ? draftPreview(draft) : "No draft yet. Write one when you are ready.");
+        var meta = el("span", "messages-rail__meta");
+        if (touch) {
+          var touchEl = el("span", "messages-rail__touch");
+          touchEl.textContent = touchTypeLabel(touch);
+          meta.appendChild(touchEl);
+        }
+        main.appendChild(top);
+        main.appendChild(preview);
+        if (touch) main.appendChild(meta);
+        btn.appendChild(avatar);
+        btn.appendChild(main);
+        if (unread) {
+          var ub = el("span", "messages-rail__unread", { title: "Needs a draft", "aria-label": "Needs a draft" });
+          ub.textContent = "1";
+          btn.appendChild(ub);
+        }
+        btn.addEventListener("click", function () { selectLead(lead.id); });
+        li.appendChild(btn);
+        ul.appendChild(li);
+      });
+      group.appendChild(ul);
+      list.appendChild(group);
     });
   }
   function setCompanyFilter(name) {
@@ -581,9 +555,10 @@
     }
     renderList();
   }
-  function loadOwnerPersonName() {
+  function loadOwnerProfile() {
     if (!token()) {
       state.ownerPersonName = "";
+      state.ownerAvatarUrl = "";
       return Promise.resolve();
     }
     return fetch("/api/user-data/profile", {
@@ -591,7 +566,11 @@
     }).then(function (res) { return res.ok ? res.json() : null; }).then(function (json) {
       var p = json && json.data ? json.data : null;
       state.ownerPersonName = p && p.name ? String(p.name).trim() : "";
-    }).catch(function () { state.ownerPersonName = ""; });
+      state.ownerAvatarUrl = p && p.avatarUrl ? String(p.avatarUrl).trim() : "";
+    }).catch(function () {
+      state.ownerPersonName = "";
+      state.ownerAvatarUrl = "";
+    });
   }
   function refresh() {
     document.body.classList.add("messages-inbox-primary", "messages-shell-open");
@@ -606,8 +585,7 @@
       if (pane) pane.hidden = false;
       document.body.classList.remove("messages-thread-active", "messages-mobile-thread", "messages-you-active");
       renderList();
-      clearSelectionChrome();
-      showPane();
+      selectLead("", { silent: true });
       return Promise.resolve();
     }
     state.loading = true;
@@ -616,7 +594,7 @@
       leadsApi("drafts"),
       scheduleApi("inbox").catch(function () { return { byLeadId: {} }; }),
       leadsApi("companies", { status: "active" }).catch(function () { return { companies: [] }; }),
-      loadOwnerPersonName(),
+      loadOwnerProfile(),
     ]).then(function (results) {
       state.leads = Array.isArray(results[0].leads) ? results[0].leads : [];
       state.drafts = Array.isArray(results[1].drafts) ? results[1].drafts : [];
@@ -642,40 +620,36 @@
       }
     }).finally(function () {
       state.loading = false;
-      // Keep an in-progress company/You selection across refresh. Only the
-      // empty selection returns to the company list (avoids blank mobile
-      // thread on boot, and avoids wiping a tap that raced a late refresh).
-      if (state.selectedCompanyId === YOU_ID) {
-        var stayYou = !document.body.classList.contains("messages-mobile-thread");
-        selectYou({ silent: true, stayOnList: stayYou });
-      } else if (state.selectedCompanyId) {
-        var stayCo = !document.body.classList.contains("messages-mobile-thread");
-        selectCompany(state.selectedCompanyId, { silent: true, stayOnList: stayCo });
+      renderList();
+      if (state.selectedId === YOU_ID) {
+        selectYou({ silent: true, stayOnList: !document.body.classList.contains("messages-mobile-thread") });
+      } else if (state.selectedId) {
+        selectLead(state.selectedId, { silent: true, stayOnList: !document.body.classList.contains("messages-mobile-thread") });
       } else {
-        showCompanyList();
+        selectLead("", { silent: true });
       }
     });
   }
   function bindChrome() {
     if (!root) return;
-    var search = root.querySelector("[data-messages-search]");
     var chip = root.querySelector("[data-messages-filter]");
     var back = pane && pane.querySelector("[data-messages-back]");
-    if (search) {
-      search.addEventListener("input", function () {
-        state.query = search.value || "";
-        renderList();
-      });
-    }
     if (chip) chip.addEventListener("click", function () { setCompanyFilter(""); });
     if (back) {
-      back.addEventListener("click", function () { showCompanyList(); });
+      back.addEventListener("click", function () {
+        document.body.classList.remove("messages-mobile-thread", "messages-you-active", "messages-notepad-active");
+        selectLead("", { silent: true });
+        renderList();
+      });
     }
     var brand = document.getElementById("nav-home");
     if (brand) {
       brand.addEventListener("click", function (e) {
         e.preventDefault();
-        showCompanyList();
+        document.body.classList.remove("messages-mobile-thread", "messages-you-active", "messages-notepad-active");
+        selectLead("", { silent: true });
+        renderList();
+        showPane();
       });
     }
   }
@@ -684,7 +658,9 @@
     pane = document.getElementById("messages-pane");
     if (!root) return;
     document.body.classList.add("messages-inbox-primary", "messages-shell-open");
-    ensureTabsHost();
+    // Drop leftover company-tab hosts from older builds.
+    var tabs = pane && pane.querySelector("[data-messages-tabs]");
+    if (tabs) { tabs.innerHTML = ""; tabs.hidden = true; }
     bindChrome();
     refresh();
     window.addEventListener("storage", function (e) { if (e.key === TOKEN_KEY) refresh(); });
@@ -697,19 +673,26 @@
   window.tinkerMessagesShell = {
     refresh: refresh,
     selectLead: selectLead,
-    selectCompany: selectCompany,
     selectYou: selectYou,
-    showCompanyList: showCompanyList,
+    selectCompany: function () { /* company view removed; no-op for older callers */ },
+    showCompanyList: function () {
+      document.body.classList.remove("messages-mobile-thread");
+      selectLead("", { silent: true });
+      renderList();
+    },
     setCompanyFilter: setCompanyFilter,
-    getSelectedId: function () { return state.selectedLeadId; },
-    getSelectedCompanyId: function () { return state.selectedCompanyId; },
+    getSelectedId: function () { return state.selectedId; },
+    getSelectedCompanyId: function () { return ""; },
     touchForLead: function (id) { return (id && state.touchesByLead[id]) || null; },
+    companyForLead: companyForLead,
+    getCompany: function (id) { return (id && state.companiesById[id]) || null; },
+    fillCompanyLogo: fillCompanyLogo,
     ownerProfile: function () {
       return {
-        name: OWNER_LABEL,
+        name: ownerPersonLabel(),
         personName: ownerPersonLabel(),
-        initials: "LL",
-        avatarUrl: OWNER_LOGO,
+        initials: personInitials(ownerPersonLabel()),
+        avatarUrl: state.ownerAvatarUrl || "",
       };
     },
     YOU_ID: YOU_ID,
@@ -717,7 +700,6 @@
     OWNER_LOGO: OWNER_LOGO,
     CHANNEL_LABEL: CHANNEL_LABEL,
     TOUCH_LABEL: TOUCH_LABEL,
-    CONTACT_LABEL: CONTACT_LABEL,
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

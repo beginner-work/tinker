@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
+    <title>Settings</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <style>
+      html, body.settings-page {
+        height: auto;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow: auto;
+        display: block;
+      }
+      .settings {
+        max-width: 28rem;
+        margin: 0 auto;
+        padding: 48px 20px 80px;
+      }
+      .settings__back {
+        display: inline-block;
+        margin-bottom: 24px;
+        color: var(--color-muted);
+        text-decoration: none;
+        font-size: 14px;
+      }
+      .settings__back:hover { color: var(--color-foreground); }
+      .settings__title {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: 32px;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+      }
+      .settings__lede {
+        margin: 8px 0 28px;
+        color: var(--color-muted);
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      .settings__field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 18px;
+      }
+      .settings__label {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .settings__input {
+        height: 40px;
+        padding: 0 12px;
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        background: transparent;
+        font: inherit;
+        font-size: 14px;
+      }
+      .settings__row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .settings__row .settings__input { flex: 1; }
+      .settings__save {
+        height: 40px;
+        padding: 0 14px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--color-foreground);
+        color: var(--color-background);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .settings__save:disabled { opacity: 0.45; cursor: default; }
+      .settings__status {
+        margin: 8px 0 0;
+        font-size: 13px;
+        color: var(--color-muted);
+      }
+    </style>
+  </head>
+  <body class="settings-page">
+    <main class="settings" id="settings-outreach">
+      <a class="settings__back" href="/">← Inbox</a>
+      <h1 class="settings__title">Settings</h1>
+      <p class="settings__lede">Outreach defaults for drafts. Tinker never sends.</p>
+      <label class="settings__field">
+        <span class="settings__label">Outreach from</span>
+        <span class="settings__row">
+          <input type="email" class="settings__input" data-drafts-from placeholder="you@example.com" autocomplete="email" />
+          <button type="button" class="settings__save" data-drafts-from-save>Save</button>
+        </span>
+      </label>
+      <label class="settings__field">
+        <span class="settings__label">Booking link</span>
+        <span class="settings__row">
+          <input type="url" class="settings__input" data-drafts-booking placeholder="https://" autocomplete="url" />
+          <button type="button" class="settings__save" data-drafts-booking-save>Save</button>
+        </span>
+        <p class="settings__status" data-settings-status hidden></p>
+      </label>
+    </main>
+    <script src="/auth.js" defer></script>
+    <script src="/lead-drafts.js" defer></script>
+  </body>
+</html>

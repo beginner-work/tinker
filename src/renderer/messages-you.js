@@ -150,10 +150,14 @@
   }
   function isPlanDumpTitle(title) {
     var t = String(title || "").trim().toLowerCase();
-    return t.indexOf("gtm approach") !== -1
-      || t.indexOf("go-to-market approach") !== -1
-      || t.indexOf("go to market approach") !== -1
-      || t.indexOf("your gtm") === 0;
+    if (!t) return false;
+    if (t.indexOf("gtm approach") !== -1) return true;
+    if (t.indexOf("go-to-market approach") !== -1) return true;
+    if (t.indexOf("go to market approach") !== -1) return true;
+    if (t.indexOf("your gtm") === 0) return true;
+    if (t.indexOf("deploy check") !== -1 || t.indexOf("deploy status") !== -1) return true;
+    if (t.indexOf("lead tools deploy") !== -1) return true;
+    return false;
   }
   function loadSelfPosts() {
     var t = token();

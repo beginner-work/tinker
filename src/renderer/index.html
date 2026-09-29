@@ -71,6 +71,7 @@
     <script src="./lead-funnel.js" defer></script>
     <!-- Messaging shell (TYL-65): left conversation list of leads.
          Thread + composer land in stacked slices. -->
+    <script src="./messages-notepad.js" defer></script>
     <script src="./messages-shell.js" defer></script>
     <script src="./messages-thread.js" defer></script>
     <script src="./messages-composer.js" defer></script>
@@ -214,11 +215,6 @@
           <span class="messages-rail__badge" data-messages-badge hidden></span>
         </div>
         <div class="messages-rail__you" data-messages-you-slot></div>
-        <label class="messages-rail__search">
-          <span class="visually-hidden">Search conversations</span>
-          <input type="search" class="messages-rail__search-input" data-messages-search
-                 placeholder="Search people or companies" autocomplete="off" />
-        </label>
         <button type="button" class="messages-rail__filter" data-messages-filter hidden></button>
         <p class="messages-rail__empty" data-messages-empty>No conversations yet. Add a lead on Leads and it shows up here.</p>
         <p class="messages-rail__error" data-messages-error hidden></p>
@@ -250,21 +246,8 @@
         </div>
       </nav>
 
-      <nav class="sidebar__drafts sidebar__drafts--settings" id="sidebar-drafts" aria-label="Outreach settings" hidden data-open="true">
-        <div class="sidebar__drafts-panel" data-drafts-panel>
-          <span class="sidebar__account-head sidebar__drafts-title">Outreach</span>
-          <label class="sidebar__drafts-from">
-            <span class="sidebar__drafts-from-label">Outreach from</span>
-            <input type="email" class="sidebar__drafts-from-input" data-drafts-from placeholder="you@example.com" autocomplete="email" />
-            <button type="button" class="sidebar__drafts-from-save" data-drafts-from-save>Save</button>
-          </label>
-          <label class="sidebar__drafts-from">
-            <span class="sidebar__drafts-from-label">Booking link</span>
-            <input type="url" class="sidebar__drafts-from-input" data-drafts-booking placeholder="https://" autocomplete="url" />
-            <button type="button" class="sidebar__drafts-from-save" data-drafts-booking-save>Save</button>
-          </label>
-        </div>
-      </nav>
+      <!-- Outreach settings live on /settings, not the rail. -->
+      <nav class="sidebar__drafts sidebar__drafts--settings" id="sidebar-drafts" aria-label="Outreach settings" hidden></nav>
 
       <!-- Legacy account list kept for selectors used by membership/share JS. -->
       <nav class="sidebar__account" aria-label="Account" hidden>
@@ -275,6 +258,7 @@
       </nav>
 
       <footer class="sidebar__footer">
+        <a class="sidebar__footer-link" href="/settings">Settings</a>
         <span class="sidebar__footer-copy">&copy; 2026 tinker</span>
       </footer>
 
@@ -293,39 +277,15 @@
             <h2 class="messages-pane__title">
               <span data-messages-name>Messages</span><span class="messages-pane__role" data-messages-role hidden></span>
             </h2>
+            <div class="messages-pane__links" data-messages-links hidden></div>
           </div>
         </header>
         <div class="messages-pane__body">
           <p class="messages-pane__empty" data-messages-empty>Select a conversation to see drafts and touch history for that person.</p>
           <div class="messages-pane__thread" data-messages-thread hidden></div>
         </div>
-        <!-- Chat composer: growing textarea, channel/date chips inside, Ship + Next. -->
+        <!-- Legacy mount kept hidden; lead writing uses the shared invisible notepad. -->
         <footer id="messages-composer" class="messages-composer" hidden aria-label="Draft composer">
-          <div class="messages-composer__shell">
-            <div class="messages-composer__chips" data-composer-parts></div>
-            <div class="messages-composer__toolbar">
-              <label class="messages-composer__chip-wrap messages-composer__channel">
-                <span class="visually-hidden">Channel</span>
-                <select class="messages-composer__chip-select" data-composer-channel></select>
-              </label>
-              <button type="button" class="messages-composer__chip-btn" data-composer-date-wrap hidden data-composer-date-btn>
-                <span data-composer-date-label>Date</span>
-              </button>
-              <input type="date" class="messages-composer__date-hidden" data-composer-date tabindex="-1" aria-hidden="true" />
-              <label class="messages-composer__chip-wrap messages-composer__subject" data-composer-subject-wrap hidden>
-                <span class="visually-hidden">Subject</span>
-                <input type="text" class="messages-composer__chip-input" data-composer-subject placeholder="Subject" />
-              </label>
-              <button type="button" class="messages-composer__booking" data-composer-booking hidden title="Insert booking link">Booking</button>
-            </div>
-            <textarea class="messages-composer__textarea" data-composer-body rows="1"
-                      placeholder="Write a draft…"></textarea>
-            <div class="messages-composer__actions">
-              <p class="messages-composer__counter" data-composer-counter hidden></p>
-              <button type="button" class="messages-composer__next" data-composer-next>Next</button>
-              <button type="button" class="messages-composer__ship" data-composer-ship>Ship</button>
-            </div>
-          </div>
           <p class="messages-composer__status" data-composer-status hidden></p>
         </footer>
       </section>
