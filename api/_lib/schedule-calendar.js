@@ -32,7 +32,6 @@ function sessionDescription(session, touches) {
     const name = item.company && item.company.name ? item.company.name : "Company";
     parts.push(`${name}: ${item.touch.touchType} (${item.touch.status})`);
   }
-  parts.push("Tinker never sends messages.");
   return parts.join("\n");
 }
 function googleEventUrl(session, touches) {

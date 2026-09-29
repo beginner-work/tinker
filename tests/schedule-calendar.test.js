@@ -16,7 +16,7 @@ test("ics export and google template urls stay read-only", () => {
   const ics = calendar.buildIcs(sessions);
   assert.match(ics, /BEGIN:VCALENDAR/);
   assert.match(ics, /SUMMARY:Tinker on Acme: recruiter note/);
-  assert.match(ics, /never sends messages/);
+  assert.doesNotMatch(ics, /never sends/i);
   const url = calendar.googleEventUrl(sessions[0].session, sessions[0].touches);
   assert.match(url, /^https:\/\/calendar\.google\.com\/calendar\/render\?/);
   assert.match(url, /action=TEMPLATE/);

@@ -16,8 +16,8 @@ const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
 const store = require("../api/_lib/outreach-schedule-store.js");
 
 test("schedule page wires week view, filters, and generic copy", () => {
-  assert.match(html, /See which companies you reach out to when/);
-  assert.match(html, /Tinker never sends a message for you/);
+  assert.match(html, /See which companies you reach out to when, by touch type, lined up with your week\./);
+  assert.doesNotMatch(html, /never sends/i);
   assert.match(html, /id="schedule-week"/);
   assert.match(html, /id="schedule-filter-company"/);
   assert.match(html, /id="schedule-filter-touch"/);
