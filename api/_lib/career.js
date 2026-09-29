@@ -228,25 +228,75 @@ async function readRecord(userId) {
   return parseRecord(raw) || emptyRecord();
 }
 
+const EMPLOYMENT_BOOTSTRAP_DRAFT_KEY = "career-employment-bootstrap-v1";
+
+async function loadEmploymentBootstrap(userId) {
+  let contentStore;
+  try {
+    contentStore = require("./content-store.js");
+  } catch {
+    return [];
+  }
+  let row;
+  try {
+    row = await contentStore.findByDraftKey(userId, EMPLOYMENT_BOOTSTRAP_DRAFT_KEY);
+  } catch {
+    return [];
+  }
+  if (!row || !row.fields || typeof row.fields !== "object") return [];
+  const list = Array.isArray(row.fields.employment) ? row.fields.employment : [];
+  const facts = [];
+  for (const item of list) {
+    try {
+      const fact = buildEmploymentFact({
+        ...item,
+        kind: "employment",
+        status: item && item.status === "proposed" ? "proposed" : "verified",
+      });
+      if (fact) facts.push(fact);
+    } catch {
+      // skip malformed bootstrap rows
+    }
+  }
+  return facts;
+}
+
+async function applyEmploymentBootstrap(userId, record, { persist }) {
+  const incoming = await loadEmploymentBootstrap(userId);
+  if (!incoming.length) return false;
+  const changed = upsertFacts(record, incoming);
+  if (changed && persist) {
+    await redis.writeRaw(userId, serialize(record));
+  }
+  return changed;
+}
+
 async function readForTool(userId) {
   const record = await readRecord(userId);
-  return record || emptyRecord();
+  const shaped = record || emptyRecord();
+  await applyEmploymentBootstrap(userId, shaped, { persist: false });
+  return shaped;
 }
 
 async function ensureSeed(userId) {
   const existing = await readRecord(userId);
   if (existing && (existing.facts.length || existing.rules.length)) {
-    if (mergeCatalogRules(existing)) {
+    let changed = mergeCatalogRules(existing);
+    if (await applyEmploymentBootstrap(userId, existing, { persist: false })) changed = true;
+    if (changed) {
       await redis.writeRaw(userId, serialize(existing));
     }
     return existing;
   }
   const seeded = seedRecord();
+  await applyEmploymentBootstrap(userId, seeded, { persist: false });
   const created = await redis.createRaw(userId, serialize(seeded));
   if (created) return seeded;
   const again = await readRecord(userId);
-  if (again && mergeCatalogRules(again)) {
-    await redis.writeRaw(userId, serialize(again));
+  if (again) {
+    let changed = mergeCatalogRules(again);
+    if (await applyEmploymentBootstrap(userId, again, { persist: false })) changed = true;
+    if (changed) await redis.writeRaw(userId, serialize(again));
   }
   return again || seeded;
 }
@@ -474,6 +524,7 @@ async function upsertFactsForUser(userId, facts) {
 module.exports = {
   UNAVAILABLE,
   UNVERIFIED_NOTE,
+  EMPLOYMENT_BOOTSTRAP_DRAFT_KEY,
   emptyRecord,
   seedRecord,
   parseRecord,
