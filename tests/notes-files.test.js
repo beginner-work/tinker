@@ -102,7 +102,7 @@ test("notes UI is wired into the shell and stays local-only", () => {
     "notes UI must not call the network",
   );
   assert.match(NOTES_CSS, /\.notes-textarea/, "editor styles exist");
-  assert.match(SW, /tinker-shell-v7/, "service worker cache bumped for notes assets");
+  assert.match(SW, /tinker-shell-v11/, "service worker cache bumped for notes assets");
   assert.match(SW, /\/notes-files\.js/, "notes-files is precached");
   assert.match(SW, /\/notes\.js/, "notes UI is precached");
   assert.match(SW, /\/notes\.css/, "notes CSS is precached");

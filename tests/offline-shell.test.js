@@ -69,7 +69,7 @@ test("CSS and JS are network-first so deploys replace installed PWA shells", () 
     /isFreshShellPath[\s\S]*networkFirstAsset/,
     "fetch handler must route CSS/JS through networkFirstAsset before SWR",
   );
-  assert.match(sw, /tinker-shell-v10/, "bump CACHE_VERSION when changing SW strategy");
+  assert.match(sw, /tinker-shell-v11/, "bump CACHE_VERSION when changing SW strategy");
   assert.match(sw, /\/profile\.css/, "profile.css must be precached");
   assert.match(sw, /\/messages-shell\.js/, "messages shell must be precached");
 });
