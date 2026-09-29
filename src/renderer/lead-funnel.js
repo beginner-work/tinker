@@ -60,10 +60,17 @@
   }
   function openLead(lead) {
     if (!lead || !lead.id) return;
+    if (window.tinkerMessagesShell && typeof window.tinkerMessagesShell.selectLead === "function") {
+      window.tinkerMessagesShell.selectLead(lead.id);
+      return;
+    }
     window.location.assign("/leads?lead=" + encodeURIComponent(lead.id));
   }
   function filterDrafts(company) {
     var name = company && company.name ? company.name : "";
+    if (window.tinkerMessagesShell && typeof window.tinkerMessagesShell.setCompanyFilter === "function") {
+      window.tinkerMessagesShell.setCompanyFilter(name);
+    }
     if (window.tinkerLeadDrafts && typeof window.tinkerLeadDrafts.setCompanyFilter === "function") {
       window.tinkerLeadDrafts.setCompanyFilter(name);
     }

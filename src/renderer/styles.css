@@ -131,7 +131,273 @@ html.on-web .sidebar__top {
 }
 .sidebar__footer-copy { padding: 0 6px; font-size: 12px; }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
+/* Messaging shell — conversation list + thread column (TYL-65).
+   Flat: hairline dividers, no card-in-card. */
+body.messages-shell-open { --sidebar-width: 300px; }
+.messages-rail {
+  padding: 8px 0 6px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.messages-rail__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 2px;
+}
+.messages-rail__title { flex: 1; }
+.messages-rail__badge {
+  flex-shrink: 0;
+  min-width: 1.4em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--color-accent-strong, #6366f1);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.4;
+}
+.messages-rail__search { display: block; padding: 2px 10px 4px; }
+.messages-rail__search-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+.messages-rail__search-input::placeholder { color: var(--color-muted); }
+.messages-rail__filter {
+  display: block;
+  width: calc(100% - 20px);
+  margin: 0 10px 2px;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+.messages-rail__empty,
+.messages-rail__error {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+.messages-rail__error { color: var(--color-danger, #b42318); }
+.messages-rail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+.messages-rail__group { margin: 0; padding: 0; }
+.messages-rail__group-head {
+  margin: 0;
+  padding: 10px 14px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.messages-rail__group-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.messages-rail__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.messages-rail__row:hover { background: var(--color-hover); }
+.messages-rail__row[aria-current="true"] {
+  background: var(--color-accent-dim, #eef2ff);
+}
+.messages-rail__avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  background: var(--color-cream, #f5f3ef);
+  border: 1px solid var(--color-border);
+}
+.messages-rail__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.messages-rail__top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.messages-rail__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.messages-rail__time {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+.messages-rail__preview {
+  font-size: 12px;
+  color: var(--color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.messages-rail__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.messages-rail__stage {
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+.messages-rail__kind { opacity: 0.85; }
+.messages-rail__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent-strong, #6366f1);
+  margin-left: auto;
+}
+.messages-rail__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 14px 4px;
+  border-top: 1px solid var(--color-border);
+}
+.messages-rail__nav-link {
+  font-size: 12px;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+.messages-rail__nav-link:hover { color: var(--color-foreground); }
+
+.messages-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: var(--color-background);
+}
+.messages-pane[hidden] { display: none !important; }
+body.messages-shell-open .messages-pane { display: flex; }
+body.messages-shell-open #welcome[data-active] { display: none; }
+.messages-pane__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px 22px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+.messages-pane__back {
+  display: none;
+  padding: 4px 8px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-muted);
+}
+.messages-pane__heading { min-width: 0; }
+.messages-pane__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.messages-pane__sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+.messages-pane__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 22px;
+}
+.messages-pane__empty,
+.messages-pane__placeholder {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+.messages-pane__thread { min-height: 0; }
+
+@media (max-width: 720px) {
+  body.messages-shell-open { --sidebar-width: 100%; }
+  body.messages-shell-open .sidebar { width: 100%; }
+  body.messages-shell-open .stage { display: none; }
+  body.messages-shell-open.messages-mobile-thread .sidebar { display: none; }
+  body.messages-shell-open.messages-mobile-thread .stage { display: flex; flex: 1; }
+  body.messages-mobile-thread .messages-pane__back { display: inline-flex; }
+}
 
 /* Hunt funnel — North Star + target companies above Drafts. */
 .sidebar__funnel {
