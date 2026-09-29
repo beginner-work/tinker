@@ -24,24 +24,28 @@ test("pinned You row is always wired above search and due groups", () => {
 test("You row and header use Lindow Labs name and logo", () => {
   assert.match(shell, /Lindow Labs/);
   assert.match(shell, /lindow-labs\.svg/);
-  assert.match(shell, /OWNER_LABEL|ownerDisplayName/);
+  assert.match(shell, /OWNER_LABEL/);
   assert.match(shell, /fillOwnerMark|messages-avatar__img/);
   assert.match(html, /data-messages-avatar/);
   assert.match(you, /Lindow Labs/);
   assert.match(you, /lindow-labs\.svg|OWNER_LOGO/);
+  assert.match(you, /purge_plan/);
   assert.match(demo, /Lindow Labs/);
   assert.match(demo, /lindow-labs\.svg/);
+  assert.match(demo, /Tyler Lindow/);
+  assert.match(demo, /sitting here at home/);
   assert.equal(/story parts with your assistant/i.test(shell), false);
   assert.equal(/story parts with your assistant/i.test(you), false);
   assert.equal(/Story parts and drafts with your assistant/i.test(shell), false);
+  assert.equal(/Your GTM approach/i.test(demo), false);
   assert.equal(/GTM approach/i.test(demo), false);
 });
 
-test("You selection hosts writing interview inside messages pane", () => {
+test("You selection hosts writing notepad inside messages pane", () => {
   assert.match(you, /tinkerMessagesYou/);
   assert.match(you, /writing--in-messages/);
   assert.match(you, /tinkerNewSession|tinkerResumeDraft/);
-  assert.match(you, /tinker:messages-you-action/);
+  assert.match(you, /focusNotepad|labelFloatingActions/);
   assert.match(css, /messages-you-active/);
   assert.match(css, /writing--in-messages/);
 });
@@ -55,13 +59,22 @@ test("You-mode writing sits in normal flow under the pane header", () => {
   assert.equal(/—/.test(demo), false);
 });
 
-test("You composer labels are This is everything / Keep crafting", () => {
-  assert.match(composer, /This is everything/);
-  assert.match(composer, /Keep crafting/);
-  assert.match(composer, /syncActionLabels/);
-  assert.match(composer, /youMode \? "This is everything" : "Ship"/);
-  assert.match(composer, /youMode \? "Keep crafting" : "Next"/);
+test("owner notepad is borderless and floating actions replace composer + mode-nav", () => {
+  assert.match(css, /body\.messages-you-active \.writing--in-messages \.writing-input/);
+  assert.match(css, /border:\s*0\s*!important/);
+  assert.match(css, /background:\s*transparent\s*!important/);
+  assert.match(css, /body\.messages-you-active #messages-composer/);
+  assert.match(css, /body\.messages-you-active \.mode-nav/);
+  assert.match(css, /body\.messages-you-active \.writing--in-messages \.writing__foot/);
+  assert.match(css, /position:\s*fixed/);
+  assert.match(you, /This is everything/);
+  assert.match(you, /Keep crafting/);
   assert.match(demo, /This is everything/);
   assert.match(demo, /Keep crafting/);
+  assert.match(demo, /writing-input/);
+  assert.equal(/Write a draft/i.test(demo), false);
   assert.equal(/—/.test(demo), false);
+  // Lead composer still owns Ship/Next labels for non-You threads.
+  assert.match(composer, /youMode \? "This is everything" : "Ship"/);
+  assert.match(composer, /!state\.leadId \|\| !!state\.youMode/);
 });

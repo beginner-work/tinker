@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Before — pitch sidebar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap"/>
+<link rel="stylesheet" href="/styles.css"/><link rel="stylesheet" href="/design-tokens.css"/>
+</head>
+<body>
+<aside class="sidebar" style="padding-top:14px">
+  <header class="sidebar__top"><button class="sidebar__brand" type="button"><span class="sidebar__name">tinker</span></button></header>
+  <nav class="sidebar__tree" aria-label="Pitch deck" style="display:block">
+    <div class="sidebar__tree-progress" data-audit-ignore>
+      <div class="sidebar__tree-progress-meta">
+        <span class="sidebar__tree-progress-label">Pitch progress</span>
+        <span class="sidebar__tree-progress-count"><span class="sidebar__tree-progress-count-num">3 / 11</span></span>
+      </div>
+      <div class="sidebar__tree-progress-track"><div class="sidebar__tree-progress-fill" style="width:27%"></div></div>
+    </div>
+    <ul class="sidebar__tree-list" style="list-style:none;margin:0;padding:8px">
+      <li><button type="button" class="sidebar__account-item"><span class="sidebar__account-label">Problem</span></button></li>
+      <li><button type="button" class="sidebar__account-item"><span class="sidebar__account-label">Solution</span></button></li>
+      <li><button type="button" class="sidebar__account-item"><span class="sidebar__account-label">Why now</span></button></li>
+      <li><button type="button" class="sidebar__account-item"><span class="sidebar__account-label">Product</span></button></li>
+    </ul>
+  </nav>
+  <nav class="sidebar__account"><h2 class="sidebar__account-head">Account</h2>
+    <ul class="sidebar__account-list"><li><button type="button" class="sidebar__account-item"><span class="sidebar__account-label">LinkedIn draft</span></button></li></ul>
+  </nav>
+</aside>
+<main class="stage"><section class="feed welcome" data-active style="display:flex;align-items:center;justify-content:center;height:100%"><div><h1 class="welcome__question">You are a founder.</h1><p class="welcome__sub">Pitch deck lives in the sidebar.</p></div></section></main>
+</body></html>

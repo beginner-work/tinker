@@ -203,10 +203,12 @@
   }
   function render() {
     if (!root) return;
-    root.hidden = !state.leadId && !state.youMode;
+    // You / Lindow Labs uses the invisible writing notepad + floating
+    // Keep crafting / This is everything pills. Lead threads keep this composer.
+    root.hidden = !state.leadId || !!state.youMode;
     root.classList.toggle("messages-composer--you", !!state.youMode);
     syncActionLabels();
-    if (!state.leadId && !state.youMode) return;
+    if (!state.leadId || state.youMode) return;
     var channel = root.querySelector("[data-composer-channel]");
     var subjectWrap = root.querySelector("[data-composer-subject-wrap]");
     var subject = root.querySelector("[data-composer-subject]");

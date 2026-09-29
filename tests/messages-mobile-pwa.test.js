@@ -1,4 +1,4 @@
-/* Mobile inbox must be list-then-thread; drawer must not half-cover the thread. */
+/* Mobile inbox must be list-then-thread; drawer must not blank the front screen. */
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -11,16 +11,22 @@ const drawer = fs.readFileSync(path.join(root, "src/renderer/mobile-drawer.css")
 const shell = fs.readFileSync(path.join(root, "src/renderer/messages-shell.js"), "utf8");
 const profile = fs.readFileSync(path.join(root, "src/renderer/profile.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
+const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
 
-test("messages-shell-open overrides the hamburger drawer on mobile", () => {
-  assert.match(styles, /body\.messages-shell-open \.sidebar/);
+test("body ships messages-shell-open so mobile first paint is never blank", () => {
+  assert.match(html, /<body[^>]*class="[^"]*messages-shell-open/);
+  assert.match(html, /messages-inbox-primary/);
+  assert.match(styles, /body\.messages-shell-open:not\(\.messages-mobile-thread\) \.stage/);
+  assert.match(styles, /display:\s*none\s*!important/);
   assert.match(styles, /transform:\s*none\s*!important/);
-  assert.match(styles, /drawer-toggle/);
-  assert.match(drawer, /body\.messages-shell-open \.sidebar/);
-  assert.match(drawer, /transform:\s*none\s*!important/);
-  assert.match(styles, /safe-area-inset-top/);
-  assert.match(shell, /messages-mobile-thread/);
-  assert.match(shell, /data-messages-back|messages-pane__back/);
+  assert.match(styles, /height:\s*100dvh\s*!important/);
+  assert.match(drawer, /messages-shell-open:not\(\.messages-mobile-thread\)/);
+  assert.match(shell, /showCompanyList/);
+  assert.match(shell, /enterMobileThread/);
+  assert.match(shell, /stayOnList/);
+  // Clearing selection must NOT open You / hide the list.
+  assert.equal(/if \(id === YOU_ID \|\| !id\) \{ selectYou/.test(shell), false);
+  assert.match(sw, /tinker-shell-v11/);
 });
 
 test("top-right profile avatar stays hidden", () => {

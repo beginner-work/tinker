@@ -1,34 +1,33 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Lindow Labs guided flow</title>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Lindow Labs owner notepad</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600;700&display=swap"/>
-<link rel="stylesheet" href="/styles.css"/><link rel="stylesheet" href="/design-tokens.css"/>
+<link rel="stylesheet" href="/styles.css"/><link rel="stylesheet" href="/design-tokens.css"/><link rel="stylesheet" href="/mobile-drawer.css"/>
 </head>
-<body class="messages-shell-open messages-inbox-primary messages-thread-active messages-you-active">
+<body class="messages-shell-open messages-inbox-primary messages-thread-active messages-you-active messages-mobile-thread">
 <aside class="sidebar sidebar--inbox" style="padding-top:14px">
   <header class="sidebar__top"><button class="sidebar__brand" type="button"><span class="sidebar__name">tinker</span></button></header>
   <nav class="messages-rail">
     <div class="messages-rail__head"><span class="messages-rail__title">Inbox</span></div>
-    <div class="messages-rail__you"><button type="button" class="messages-rail__row messages-rail__row--you" aria-current="true"><span class="messages-rail__avatar messages-avatar--photo messages-avatar--brand" aria-hidden="true"><img class="messages-avatar__img" src="/icons/lindow-labs.svg" alt=""/></span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Lindow Labs</span></span></span></button></div>
+    <div class="messages-rail__you"><button type="button" class="messages-rail__row messages-rail__row--you" aria-current="true"><span class="messages-rail__avatar messages-avatar--photo messages-avatar--brand" aria-hidden="true"><img class="messages-avatar__img" src="/icons/lindow-labs.svg" alt=""/></span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Lindow Labs</span></span><span class="messages-rail__preview">Tyler Lindow</span></span></button></div>
     <label class="messages-rail__search"><input class="messages-rail__search-input" placeholder="Search people or companies" readonly/></label>
     <ul class="messages-rail__list">
-      <li class="messages-rail__group"><button type="button" class="messages-rail__group-head"><span class="messages-rail__group-label">★ Acme</span><span class="messages-rail__group-count">2</span></button>
-        <ul class="messages-rail__group-list">
-          <li><button type="button" class="messages-rail__row"><span class="messages-rail__avatar">AR</span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Alex Rivera</span><span class="messages-rail__time">Tue</span></span><span class="messages-rail__preview">referral · referral intro</span><span class="messages-rail__meta"><span class="messages-rail__touch">referral · referral intro · Tue</span></span></span></button></li>
-          <li><button type="button" class="messages-rail__row"><span class="messages-rail__avatar">JL</span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">Jordan Lee</span><span class="messages-rail__time">Thu</span></span><span class="messages-rail__preview">hiring EM · eng leader note</span><span class="messages-rail__meta"><span class="messages-rail__touch">hiring EM · eng leader note · Thu</span></span></span></button></li>
-        </ul>
-      </li>
+      <li><button type="button" class="messages-rail__row"><span class="messages-rail__avatar">ST</span><span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">★ Stripe</span><span class="messages-rail__time">2</span></span><span class="messages-rail__preview">referral · referral intro</span></span></button></li>
     </ul>
   </nav>
 </aside>
 <main class="stage">
   <section class="messages-pane">
     <header class="messages-pane__top">
+      <button type="button" class="messages-pane__back" aria-label="Back">←</button>
       <span class="messages-pane__avatar messages-avatar--photo messages-avatar--brand" data-messages-avatar aria-hidden="true"><img class="messages-avatar__img" src="/icons/lindow-labs.svg" alt=""/></span>
       <div class="messages-pane__heading"><h2 class="messages-pane__title"><span>Lindow Labs</span><span class="messages-pane__role" hidden></span></h2></div>
     </header>
+    <div class="messages-pane__tabs" data-messages-tabs role="tablist">
+      <button type="button" class="messages-pane__tab messages-pane__tab--on" role="tab" aria-selected="true"><span class="messages-pane__tab-name">Tyler Lindow</span><span class="messages-pane__tab-meta">story</span></button>
+    </div>
     <div class="messages-pane__body"><div class="messages-pane__thread messages-thread messages-thread--you">
       <div class="writing writing--in-messages" style="display:flex">
         <div class="writing__body"><div class="writing__stage">
@@ -37,19 +36,25 @@
               <div class="writing-recall__line"><img class="writing-recall__pin" src="/icons/tinker-mark.svg" alt="" aria-hidden="true" /><span class="writing-recall__text">Home</span></div>
             </div>
             <h2 class="writing-question">What are you learning right now, sitting here at home?</h2>
+            <textarea class="writing-input" id="demo-notepad" rows="12" placeholder=""></textarea>
           </div>
         </div></div>
+        <footer class="writing__foot">
+          <button type="button" class="writing__end">This is everything</button>
+          <button type="button" class="writing__next">Keep crafting</button>
+        </footer>
       </div>
     </div></div>
-    <footer class="messages-composer messages-composer--you">
-      <div class="messages-composer__shell">
-        <textarea class="messages-composer__textarea" rows="2">I am learning how eng leaders hire when they already trust a recruiter note.</textarea>
-        <div class="messages-composer__actions">
-          <button type="button" class="messages-composer__next">Keep crafting</button>
-          <button type="button" class="messages-composer__ship">This is everything</button>
-        </div>
-      </div>
-    </footer>
   </section>
 </main>
+<div id="mode-nav" class="mode-nav" aria-hidden="true"><div class="mode-nav__bar"><button type="button" class="mode-nav__btn">AI</button><button type="button" class="mode-nav__btn">No AI</button></div></div>
+<script>
+  var params = new URLSearchParams(location.search);
+  var ta = document.getElementById("demo-notepad");
+  if (params.get("filled") === "1") {
+    ta.value = "I am learning how eng leaders hire when they already trust a recruiter note.";
+  }
+  ta.focus();
+  ta.setSelectionRange(0, 0);
+</script>
 </body></html>

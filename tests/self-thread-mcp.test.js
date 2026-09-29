@@ -171,23 +171,43 @@ test("post_to_self_thread is listed and posts only into the connector user's thr
   assert.equal(/GTM approach/.test(tool.description), false);
 });
 
-test("listMessages drops legacy GTM approach dumps", async () => {
-  await store.postMessage({
+test("listMessages and purge_plan hard-delete legacy GTM approach dumps", async () => {
+  // Bypass postMessage rejection by writing the blob directly.
+  const blob = {
+    messages: [
+      {
+        id: "self_gtm1",
+        title: "Your GTM approach (Sep 29)",
+        body: "TLDR\nNorth Star: Google\nWave 1: Alloy",
+        createdAt: new Date().toISOString(),
+        source: "mcp",
+      },
+      {
+        id: "self_keep",
+        title: "Keep this",
+        body: "Short assistant note",
+        createdAt: new Date().toISOString(),
+        source: "mcp",
+      },
+    ],
+  };
+  tables.tinkerUserData.rows.push({
+    id: "row_gtm",
     userId: "user-a",
-    title: "GTM approach",
-    body: "Hire through trust.\nKeep the note short.",
+    kind: "self_thread",
+    data: blob,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   });
-  await store.postMessage({
-    userId: "user-a",
-    title: "Keep this",
-    body: "Short assistant note",
-  });
+  const purged = await store.purgePlanMessages({ userId: "user-a" });
+  assert.equal(purged.removed, 1);
   const listed = await store.listMessages({ userId: "user-a" });
   assert.equal(listed.length, 1);
   assert.equal(listed[0].title, "Keep this");
-  const again = await ownerCall({ method: "GET", action: "list" });
-  assert.equal(again.body.messages.length, 1);
-  assert.equal(again.body.messages[0].title, "Keep this");
+  await assert.rejects(
+    () => store.postMessage({ userId: "user-a", title: "GTM approach", body: "Nope" }),
+    /Do not post GTM/,
+  );
 });
 
 test("owner API rejects empty posts and You renderer loads self posts", async () => {

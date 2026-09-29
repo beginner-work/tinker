@@ -2,13 +2,16 @@
 "use strict";
 
 const COMPANY_STATUSES = ["active", "dropped"];
+const COMPANY_TIERS = ["north_star", "wave_1", "wave_2", "other"];
 const CONTACT_TYPES = ["referrer", "recruiter", "hiring_leader", "other"];
 const UNAVAILABLE = "Leads are unavailable right now.";
 const TABLE_STATEMENTS = [
-  `CREATE TABLE IF NOT EXISTS "TargetCompany" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "name" TEXT NOT NULL, "domain" TEXT NOT NULL DEFAULT '', "northStar" BOOLEAN NOT NULL DEFAULT false, "priority" INTEGER NOT NULL DEFAULT 100, "status" TEXT NOT NULL, "totalComp" INTEGER, "totalCompSource" TEXT NOT NULL DEFAULT '', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "TargetCompany_pkey" PRIMARY KEY ("id"))`,
+  `CREATE TABLE IF NOT EXISTS "TargetCompany" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "name" TEXT NOT NULL, "domain" TEXT NOT NULL DEFAULT '', "northStar" BOOLEAN NOT NULL DEFAULT false, "priority" INTEGER NOT NULL DEFAULT 100, "tier" TEXT NOT NULL DEFAULT 'other', "notes" TEXT NOT NULL DEFAULT '', "status" TEXT NOT NULL, "totalComp" INTEGER, "totalCompSource" TEXT NOT NULL DEFAULT '', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "TargetCompany_pkey" PRIMARY KEY ("id"))`,
   `CREATE INDEX IF NOT EXISTS "TargetCompany_userId_idx" ON "TargetCompany"("userId")`,
   `CREATE INDEX IF NOT EXISTS "TargetCompany_userId_name_idx" ON "TargetCompany"("userId", "name")`,
   `ALTER TABLE "TargetCompany" ADD COLUMN IF NOT EXISTS "priority" INTEGER NOT NULL DEFAULT 100`,
+  `ALTER TABLE "TargetCompany" ADD COLUMN IF NOT EXISTS "tier" TEXT NOT NULL DEFAULT 'other'`,
+  `ALTER TABLE "TargetCompany" ADD COLUMN IF NOT EXISTS "notes" TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "contactType" TEXT NOT NULL DEFAULT 'other'`,
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "queueOrder" INTEGER NOT NULL DEFAULT 0`,
@@ -119,9 +122,16 @@ async function createCompany(input) {
   const store = leads();
   store.assertAllowed(userId, input.emailHint);
   requireActor(input.actor);
+  const hasNorth = Object.prototype.hasOwnProperty.call(input, "northStar");
+  const tier = input.tier != null
+    ? readEnum(input.tier, COMPANY_TIERS, "tier")
+    : (hasNorth && input.northStar === true ? "north_star" : "other");
+  const northStar = tier === "north_star" || (hasNorth && readBool(input.northStar, "northStar"));
   const data = {
     userId, name: readText(input.name, "name", 200, true), domain: domainKey(input.domain),
-    northStar: readBool(input.northStar, "northStar"), priority: readPriority(input.priority, "priority"),
+    northStar, priority: readPriority(input.priority, "priority"),
+    tier: northStar ? "north_star" : tier,
+    notes: readText(input.notes, "notes", 8000, false),
     status: readEnum(input.status || "active", COMPANY_STATUSES, "status"),
     totalComp: readComp(input.totalComp, "totalComp"), totalCompSource: readText(input.totalCompSource, "totalCompSource", 500, false),
   };
@@ -154,15 +164,23 @@ async function updateCompany({ id, userId, emailHint, actor, patch }) {
   store.assertAllowed(userId, emailHint);
   requireActor(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
-  const keys = ["name", "domain", "northStar", "priority", "status", "totalComp", "totalCompSource"].filter((key) => Object.prototype.hasOwnProperty.call(source, key));
+  const keys = ["name", "domain", "northStar", "priority", "tier", "notes", "status", "totalComp", "totalCompSource"].filter((key) => Object.prototype.hasOwnProperty.call(source, key));
   if (!keys.length) throw fail(400, "Nothing to update.");
   await ensureTable();
   const row = await loadCompany(id, userId);
   const data = {};
   if (keys.includes("name")) data.name = readText(source.name, "name", 200, true);
   if (keys.includes("domain")) data.domain = domainKey(source.domain);
-  if (keys.includes("northStar")) data.northStar = readBool(source.northStar, "northStar");
+  if (keys.includes("tier")) {
+    data.tier = readEnum(source.tier, COMPANY_TIERS, "tier");
+    data.northStar = data.tier === "north_star";
+  }
+  if (keys.includes("northStar")) {
+    data.northStar = readBool(source.northStar, "northStar");
+    if (!keys.includes("tier")) data.tier = data.northStar ? "north_star" : (row.tier === "north_star" ? "other" : (row.tier || "other"));
+  }
   if (keys.includes("priority")) data.priority = readPriority(source.priority, "priority");
+  if (keys.includes("notes")) data.notes = readText(source.notes, "notes", 8000, false);
   if (keys.includes("status")) data.status = readEnum(source.status, COMPANY_STATUSES, "status");
   if (keys.includes("totalComp")) data.totalComp = readComp(source.totalComp, "totalComp");
   if (keys.includes("totalCompSource")) data.totalCompSource = readText(source.totalCompSource, "totalCompSource", 500, false);
@@ -189,7 +207,7 @@ async function matchOrCreateCompany(tx, owner, { name, domain }) {
     return found;
   }
   return tx.targetCompany.create({
-    data: { userId: owner, name: name || d || "Company", domain: d, northStar: false, priority: 100, status: "active", totalComp: null, totalCompSource: "" },
+    data: { userId: owner, name: name || d || "Company", domain: d, northStar: false, priority: 100, tier: "other", notes: "", status: "active", totalComp: null, totalCompSource: "" },
   });
 }
 
@@ -232,7 +250,7 @@ async function getFunnel({ userId, emailHint }) {
 }
 
 module.exports = {
-  UNAVAILABLE, TABLE_STATEMENTS, COMPANY_STATUSES, CONTACT_TYPES,
+  UNAVAILABLE, TABLE_STATEMENTS, COMPANY_STATUSES, COMPANY_TIERS, CONTACT_TYPES,
   ensureTable, resetTableCache, presentCompany: shape,
   createCompany, listCompanies, updateCompany, matchOrCreateCompany, getFunnel, loadCompany,
   domainKey, nameKey, payStatus, nextOfType, companySort, readPriority,

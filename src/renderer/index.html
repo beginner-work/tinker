@@ -80,7 +80,10 @@
          Deferred so the DOM (incl. #profile-corner) exists when it runs. -->
     <script src="./profile.js" defer></script>
   </head>
-  <body>
+  <!-- Inbox chrome on first paint so mobile never flash-blank: without
+       messages-shell-open the drawer CSS slides the sidebar off-screen
+       and the stage can look empty before messages-shell.js boots. -->
+  <body class="messages-shell-open messages-inbox-primary">
     <svg class="liquid-glass-defs" width="0" height="0" aria-hidden="true" focusable="false">
       <defs>
         <filter id="liquid-glass" x="-10%" y="-10%" width="120%" height="120%">

@@ -1,4 +1,4 @@
-/* Inbox shows outreach plan by company priority (no /schedule page). */
+/* Inbox lists companies; people open as tabs (no /schedule page). */
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -10,18 +10,17 @@ const shell = fs.readFileSync(path.join(root, "src/renderer/messages-shell.js"),
 const thread = fs.readFileSync(path.join(root, "src/renderer/messages-thread.js"), "utf8");
 const composer = fs.readFileSync(path.join(root, "src/renderer/messages-composer.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
+const css = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
 
-test("sidebar groups conversations by company priority", () => {
-  assert.match(shell, /groupByCompany/);
-  assert.match(shell, /companyRank|companiesById/);
+test("sidebar lists companies and opens person tabs", () => {
+  assert.match(shell, /selectCompany/);
+  assert.match(shell, /renderPersonTabs|messages-pane__tab/);
+  assert.match(shell, /visibleCompanies|leadsForCompany/);
+  assert.match(shell, /Lindow Labs/);
   assert.match(shell, /CONTACT_LABEL/);
+  assert.match(css, /messages-pane__tabs/);
   assert.match(shell, /action=inbox|scheduleApi\("inbox"\)/);
-  assert.match(shell, /eng leader note/);
-  assert.match(shell, /recruiter note/);
-  assert.match(shell, /referral intro|referral_outreach/);
   assert.equal(/href=["']\/schedule["']/.test(shell), false);
-  assert.match(shell, /\/api\/schedule/);
-  assert.match(shell, /leadsApi\("companies"/);
 });
 
 test("thread shows a scheduled draft bubble and composer has a date chip", () => {

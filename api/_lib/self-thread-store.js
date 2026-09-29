@@ -85,7 +85,14 @@ async function writeBlob(userId, messages) {
 
 function isPlanDump(message) {
   const title = String(message && message.title || "").trim().toLowerCase();
-  return title === "gtm approach" || title === "go-to-market approach" || title === "go to market approach";
+  if (!title) return false;
+  if (title.includes("gtm approach")) return true;
+  if (title.includes("go-to-market approach") || title.includes("go to market approach")) return true;
+  if (title.startsWith("your gtm")) return true;
+  const body = String(message && message.body || "").toLowerCase();
+  // Known production dump shape: title mentions GTM / plan prose with North Star waves.
+  if (title.includes("gtm") && (body.includes("north star") || body.includes("wave 1"))) return true;
+  return false;
 }
 
 async function purgePlanDumps(userId, messages) {
@@ -106,6 +113,20 @@ async function listMessages({ userId, limit } = {}) {
   }
 }
 
+/** Hard-delete every plan-dump message for this user. Returns how many were removed. */
+async function purgePlanMessages({ userId } = {}) {
+  try {
+    const uid = requireUserId(userId);
+    const { messages } = await readBlob(uid);
+    const kept = messages.filter((msg) => !isPlanDump(msg));
+    const removed = messages.length - kept.length;
+    if (removed > 0) await writeBlob(uid, kept);
+    return { removed, remaining: kept.length };
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
 async function postMessage({ userId, title, body, source } = {}) {
   try {
     const uid = requireUserId(userId);
@@ -116,10 +137,15 @@ async function postMessage({ userId, title, body, source } = {}) {
       createdAt: new Date().toISOString(),
       source: source === "owner" ? "owner" : "mcp",
     };
+    if (isPlanDump(message)) {
+      throw fail(400, "Do not post GTM or outreach plans to the You thread. Use upsert_target_company and upsert_lead_person.");
+    }
     const { messages } = await readBlob(uid);
-    messages.push(message);
-    while (messages.length > MAX_MESSAGES) messages.shift();
-    await writeBlob(uid, messages);
+    // Drop any legacy plan dumps before appending a short note.
+    const cleaned = messages.filter((msg) => !isPlanDump(msg));
+    cleaned.push(message);
+    while (cleaned.length > MAX_MESSAGES) cleaned.shift();
+    await writeBlob(uid, cleaned);
     return present(message);
   } catch (err) {
     throw storeDown(err);
@@ -135,4 +161,5 @@ module.exports = {
   listMessages,
   postMessage,
   isPlanDump,
+  purgePlanMessages,
 };

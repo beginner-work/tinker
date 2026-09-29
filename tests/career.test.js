@@ -557,6 +557,9 @@ test("get_career_record reads only this user and check_text does not write", asy
     "post_to_self_thread",
     "set_company_priority",
     "plan_lead_touch",
+    "upsert_target_company",
+    "upsert_lead_person",
+    "list_target_companies",
   ]);
   for (const name of ["get_career_record", "check_text"]) {
     const tool = tools.find((item) => item.name === name);

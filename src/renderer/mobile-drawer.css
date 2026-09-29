@@ -285,20 +285,20 @@
     opacity: 0;
   }
 
-  /* Inbox mode owns mobile chrome: full-width conversation list, then
-   * thread with back. Do not run the hamburger drawer over it. */
-  body.messages-shell-open .sidebar {
-    position: relative;
-    inset: auto;
-    width: 100%;
-    max-width: none;
-    height: 100%;
+  /* Inbox list mode owns the screen. Thread mode restores the hamburger
+   * so Story parts / Leads / Career stay reachable (see styles.css). */
+  body.messages-shell-open:not(.messages-mobile-thread) .sidebar {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 100dvh !important;
     transform: none !important;
-    z-index: auto;
-    box-shadow: none;
+    z-index: auto !important;
+    box-shadow: none !important;
   }
-  body.messages-shell-open .drawer-toggle,
-  body.messages-shell-open .drawer-backdrop {
+  body.messages-shell-open:not(.messages-mobile-thread) .drawer-toggle,
+  body.messages-shell-open:not(.messages-mobile-thread) .drawer-backdrop {
     display: none !important;
   }
 }

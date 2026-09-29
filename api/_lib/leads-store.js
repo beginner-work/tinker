@@ -52,10 +52,14 @@ function actorLabel(actor) {
   return label;
 }
 function assertAllowed(userId, email) {
-  const allowed = String(process.env.LEADS_OWNER_ALLOWLIST || "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
-  const id = String(userId || "").trim().toLowerCase();
-  const mail = String(email || "").trim().toLowerCase();
-  if (!allowed.length || (!allowed.includes(id) && !(mail && allowed.includes(mail)))) throw fail(403, "Leads are not available for this account.");
+  // Tinker is free: every signed-in owner can use leads. The old
+  // LEADS_OWNER_ALLOWLIST env is ignored so a leftover pricing/allowlist
+  // gate cannot block MCP bots or the inbox (Clair saw
+  // "Leads are not available for this account.").
+  void email;
+  void process.env.LEADS_OWNER_ALLOWLIST;
+  const id = String(userId || "").trim();
+  if (!id) throw fail(401, "Sign in to tinker first.");
 }
 function readText(value, label, max, required) {
   if (value == null || value === "") { if (required) throw fail(400, `${label} is required.`); return ""; }

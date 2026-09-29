@@ -5,6 +5,7 @@
  *
  * GET  ?action=list → { messages: [...] }
  * POST ?action=post body { title, body } → { message } (optional owner write)
+ * POST ?action=purge_plan → { removed, remaining } hard-deletes GTM plan dumps
  */
 
 "use strict";
@@ -72,6 +73,10 @@ async function dispatch(method, action, auth, body) {
       source: "owner",
     });
     return { status: 201, body: { message } };
+  }
+  if (method === "POST" && action === "purge_plan") {
+    const result = await store.purgePlanMessages({ userId });
+    return { status: 200, body: result };
   }
   return { status: 404, body: { error: "Unknown action." } };
 }
