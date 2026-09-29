@@ -156,10 +156,11 @@
       if (img) img.setAttribute("hidden", "");
     }
 
-    corner.removeAttribute("hidden");
-    // Flag that the founder avatar now occupies the top-right corner so the
-    // essay kebab (.read__menu) slides left instead of sitting under it.
-    document.documentElement.classList.add("has-avatar");
+    // Top-right profile avatar removed: keep the corner hidden and do not
+    // claim the essay kebab offset. Menu actions stay wired for tests/DOM,
+    // but the avatar control is never shown.
+    corner.setAttribute("hidden", "");
+    document.documentElement.classList.remove("has-avatar");
 
     if (btn && pop && !btn.dataset.bound) {
       btn.dataset.bound = "1";

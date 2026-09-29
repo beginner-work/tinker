@@ -38,6 +38,12 @@
   }
 
   const SEED_QUESTION = "What are you learning?";
+  function seedFallback(seed) {
+    const place = String(seed || "").trim();
+    if (!place) return SEED_QUESTION;
+    const lower = place.toLowerCase();
+    return "What are you learning right now, sitting here at " + lower + "?";
+  }
 
   // ── DOM refs ─────────────────────────────────────────────────────────
   const stage = document.getElementById("writing-stage");
@@ -121,7 +127,7 @@
         })
         .catch(() => {
           if (!active || active.id !== draftId) return;
-          applySeed(SEED_QUESTION);
+          applySeed(seedFallback(active.seed));
         });
       return;
     }

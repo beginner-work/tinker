@@ -12,9 +12,13 @@
  *   - Navigations  → network-first, falling back to the cached shell.
  *     Online always gets the freshest index.html; offline gets the last
  *     one seen. This keeps update-banner.js's version/reload flow intact.
- *   - Same-origin assets → stale-while-revalidate: serve from cache for
- *     instant paint, refresh the entry from the network in the
- *     background.
+ *   - CSS and JS → network-first (not stale-while-revalidate). Installed
+ *     PWAs were painting old styles.css against new HTML after deploys
+ *     because iOS often deferred the SWR revalidate; the first paint
+ *     looked unstyled (raw blue links, half-open drawer). Cache is only
+ *     the offline fallback.
+ *   - Other same-origin assets (icons, fonts under same origin, tokens)
+ *     → stale-while-revalidate for instant paint.
  *   - /api/* → never touched. Those stay on the network, where the
  *     page's free write mode gate (freewrite.js) and the JWT auth live.
  *     Caching user data here would defeat both.
@@ -23,12 +27,11 @@
  *     font stack falls back to system faces offline, so there's nothing
  *     to gain from caching them here.
  *
- * Freshness: online requests always revalidate, so the cache is only
- * ever a fallback — a static CACHE_VERSION is fine. Bump it when the
- * precache list or this file's logic changes to evict the old cache.
+ * Freshness: bump CACHE_VERSION when the precache list or this file's
+ * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v9";
+const CACHE_VERSION = "tinker-shell-v10";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -41,6 +44,7 @@ const PRECACHE = [
   "/design-tokens.css",
   "/mobile-drawer.css",
   "/pwa-install-hint.css",
+  "/profile.css",
   // scripts (document order)
   "/pwa-session.js",
   "/freewrite.js",
@@ -57,11 +61,23 @@ const PRECACHE = [
   "/interview-prompt.js",
   "/writing.js",
   "/renderer.js",
+  "/messages-shell.js",
+  "/messages-thread.js",
+  "/messages-composer.js",
+  "/messages-you.js",
   "/mobile-drawer.js",
   "/pwa-install-hint.js",
   "/share.js",
   "/update-banner.js",
   "/notifications.js",
+  "/profile.js",
+  "/back-me.js",
+  "/open-beginner.js",
+  "/wallet.js",
+  "/email.js",
+  "/linkedin-draft.js",
+  "/voice-model.js",
+  "/membership.js",
   "/pwa-offline.js",
   // shell chrome assets
   "/manifest.json",
@@ -70,8 +86,16 @@ const PRECACHE = [
   "/icons/tinker-icon-192.png",
   "/icons/tinker-icon-512.png",
   "/icons/tinker-icon-180.png",
+  "/icons/tinker-mark.svg",
+  "/icons/lindow-labs.svg",
   "/tokens/rainbow-web.json",
 ];
+
+self.addEventListener("message", (event) => {
+  if (event && event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
@@ -120,8 +144,18 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(networkFirstDoc(req));
     return;
   }
+  // CSS/JS must track deploys. SWR first-paint was stranding installed
+  // PWAs on pre-inbox styles for hours on iOS.
+  if (isFreshShellPath(url.pathname)) {
+    event.respondWith(networkFirstAsset(req));
+    return;
+  }
   event.respondWith(staleWhileRevalidate(req));
 });
+
+function isFreshShellPath(pathname) {
+  return pathname.endsWith(".css") || pathname.endsWith(".js") || pathname.endsWith(".html");
+}
 
 async function networkFirstDoc(req) {
   const cache = await caches.open(CACHE_VERSION);
@@ -147,6 +181,17 @@ async function networkFirstDoc(req) {
       (await cache.match("/")) ||
       offlineFallback()
     );
+  }
+}
+
+async function networkFirstAsset(req) {
+  const cache = await caches.open(CACHE_VERSION);
+  try {
+    const fresh = await fetch(req, { cache: "no-cache" });
+    if (fresh && fresh.ok) cache.put(req, fresh.clone());
+    return fresh;
+  } catch {
+    return (await cache.match(req)) || offlineFallback();
   }
 }
 

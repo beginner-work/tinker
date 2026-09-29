@@ -17,6 +17,7 @@
   var REPLY_STAGES = { replied: 1, call: 1, interview: 1, offer: 1 };
   var TOUCH_LABEL = {
     application: "application",
+    referral_outreach: "referral intro",
     hiring_leader_outreach: "eng leader note",
     recruiter_outreach: "recruiter note",
     referral_follow_up: "follow-up",

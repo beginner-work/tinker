@@ -25,12 +25,24 @@
   function ownerName() {
     try {
       var shell = window.tinkerMessagesShell;
+      if (shell && shell.OWNER_LABEL) return shell.OWNER_LABEL;
       if (shell && typeof shell.ownerProfile === "function") {
         var p = shell.ownerProfile();
         if (p && p.name) return p.name;
       }
     } catch (e) { /* ignore */ }
-    return "You";
+    return "Lindow Labs";
+  }
+  function ownerLogo() {
+    try {
+      var shell = window.tinkerMessagesShell;
+      if (shell && shell.OWNER_LOGO) return shell.OWNER_LOGO;
+      if (shell && typeof shell.ownerProfile === "function") {
+        var p = shell.ownerProfile();
+        if (p && p.avatarUrl) return p.avatarUrl;
+      }
+    } catch (e) { /* ignore */ }
+    return "./icons/lindow-labs.svg";
   }
   function setHeader() {
     var p = pane();
@@ -43,21 +55,15 @@
       role.hidden = true;
       role.textContent = "";
     }
-    if (avatar && window.tinkerMessagesShell && typeof window.tinkerMessagesShell.ownerProfile === "function") {
-      var profile = window.tinkerMessagesShell.ownerProfile();
+    if (avatar) {
       avatar.hidden = false;
       avatar.innerHTML = "";
-      if (profile && profile.avatarUrl) {
-        var img = document.createElement("img");
-        img.className = "messages-avatar__img";
-        img.src = profile.avatarUrl;
-        img.alt = profile.name || "";
-        avatar.appendChild(img);
-        avatar.classList.add("messages-avatar--photo");
-      } else {
-        avatar.classList.remove("messages-avatar--photo");
-        avatar.textContent = (profile && profile.initials) || "Y";
-      }
+      var img = document.createElement("img");
+      img.className = "messages-avatar__img";
+      img.src = ownerLogo();
+      img.alt = ownerName();
+      avatar.appendChild(img);
+      avatar.classList.add("messages-avatar--photo", "messages-avatar--brand");
     }
   }
   function token() {
@@ -77,6 +83,50 @@
       return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
     } catch (e) { return ""; }
   }
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+  function inlineMarkdown(s) {
+    var esc = escapeHtml(s);
+    esc = esc.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    esc = esc.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+    return esc;
+  }
+  function fillMarkdown(node, src) {
+    node.innerHTML = "";
+    var lines = String(src || "").replace(/\r\n/g, "\n").split("\n");
+    var list = null;
+    function flushList() {
+      if (list) { node.appendChild(list); list = null; }
+    }
+    lines.forEach(function (line) {
+      var heading = line.match(/^(#{1,3})\s+(.+)$/);
+      if (heading) {
+        flushList();
+        var h = document.createElement("h" + (Number(heading[1].length) + 2));
+        h.innerHTML = inlineMarkdown(heading[2]);
+        node.appendChild(h);
+        return;
+      }
+      if (/^[-*]\s+/.test(line)) {
+        if (!list) list = document.createElement("ul");
+        var li = document.createElement("li");
+        li.innerHTML = inlineMarkdown(line.replace(/^[-*]\s+/, ""));
+        list.appendChild(li);
+        return;
+      }
+      if (!String(line).trim()) { flushList(); return; }
+      flushList();
+      var p = document.createElement("p");
+      p.innerHTML = inlineMarkdown(line);
+      node.appendChild(p);
+    });
+    flushList();
+  }
   function renderSelfPosts(messages) {
     var list = el("ol", "messages-thread__list messages-thread__list--self", { "aria-label": "Assistant posts" });
     (messages || []).forEach(function (msg) {
@@ -88,7 +138,7 @@
         bubble.appendChild(subj);
       }
       var body = el("div", "messages-thread__body messages-thread__body--markdown");
-      body.textContent = msg.body || "";
+      fillMarkdown(body, msg.body || "");
       bubble.appendChild(body);
       var meta = el("div", "messages-thread__meta");
       meta.textContent = ["Assistant", formatWhen(msg.createdAt)].filter(Boolean).join(" · ");

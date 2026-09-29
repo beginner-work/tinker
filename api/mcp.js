@@ -40,6 +40,8 @@ const { askFollowups } = require("./_lib/followups.js");
 const { draftLinkedInPost } = require("./_lib/linkedin-draft.js");
 const { toolSettings } = require("./_lib/autonomy.js");
 const scheduleStore = require("./_lib/outreach-schedule-store.js");
+const leadsStore = require("./_lib/leads-store.js");
+const companiesStore = require("./_lib/leads-companies-store.js");
 const { UNAVAILABLE, readAll } = require("./_lib/autonomy-redis.js");
 const { UNAVAILABLE: CAREER_UNAVAILABLE, readForTool, shapeForTool } = require("./_lib/career.js");
 const { checkText } = require("./_lib/career-check.js");
@@ -47,6 +49,7 @@ const contentStore = require("./_lib/content-store.js");
 const storyParts = require("./_lib/story-parts-store.js");
 const selfThread = require("./_lib/self-thread-store.js");
 const pkg = require("../package.json");
+const MCP_BOT_ACTOR = { kind: "bot", label: "bot:mcp" };
 
 const SUPPORTED_PROTOCOLS = ["2025-03-26", "2025-06-18"];
 const DEFAULT_PROTOCOL = "2025-03-26";
@@ -78,7 +81,10 @@ const INSTRUCTIONS = [
   "Call get_story_part with an id to read one part. Someone else's id returns an error and no part.",
   "Story parts are the user's approved wording for pasting into Formation drafts. Tinker does not draft or send outreach.",
   "Story-part tools are read-only. They do not mark parts ready, edit parts, or change stages.",
-  "Call post_to_self_thread with title and markdown body to deliver a message into this connector user's own You inbox thread.",
+  "Call set_company_priority to order target companies in the inbox (lower priority first; northStar optional).",
+  "Call plan_lead_touch to set a lead's role in the outreach sequence (referral, hiring EM, recruiter), next touch type, and due date.",
+  "Prefer plan_lead_touch and set_company_priority over dumping GTM prose into the You thread.",
+  "Call post_to_self_thread with title and short markdown body for brief assistant notes in the You thread.",
   "The owner sees it as an incoming assistant bubble. It does not send email or LinkedIn messages.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
@@ -425,7 +431,7 @@ const GET_OUTREACH_SCHEDULE_TOOL = {
       companyId: { type: "string", description: "Keep only touches for this company id." },
       touchType: {
         type: "string",
-        enum: ["application", "hiring_leader_outreach", "recruiter_outreach", "referral_follow_up", "call_follow_up"],
+        enum: ["application", "referral_outreach", "hiring_leader_outreach", "recruiter_outreach", "referral_follow_up", "call_follow_up"],
         description: "Keep only this touch type.",
       },
     },
@@ -526,10 +532,10 @@ const POST_TO_SELF_THREAD_TOOL = {
   name: "post_to_self_thread",
   title: "Post to self thread",
   description: [
-    "Post a message into this connector user's own You inbox thread in Tinker.",
-    "Pass title (short subject) and body (markdown). The owner sees it as an",
-    "incoming assistant bubble in their pinned self thread. Use this to deliver",
-    "content the owner asked for (for example a GTM approach) into their inbox.",
+    "Post a short message into this connector user's own You inbox thread in Tinker.",
+    "Pass title (short subject) and body (markdown: bold, headings, lists).",
+    "Use only for brief assistant notes. Do not dump GTM or outreach plans here;",
+    "use set_company_priority and plan_lead_touch so the inbox shows the plan.",
     "Does not send email, LinkedIn, or any external message. A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
@@ -540,6 +546,72 @@ const POST_TO_SELF_THREAD_TOOL = {
       body: { type: "string", description: "Markdown body shown in the You thread." },
     },
     required: ["title", "body"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const SET_COMPANY_PRIORITY_TOOL = {
+  name: "set_company_priority",
+  title: "Set company priority",
+  description: [
+    "Set a target company's inbox priority and optional North Star flag.",
+    "Pass companyName (or companyId). priority is an integer; lower sorts first",
+    "(after North Star). Creates the company if it does not exist yet.",
+    "This shapes how people are grouped in the inbox. Prefer this over prose posts.",
+    "A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      companyId: { type: "string", description: "Existing company id." },
+      companyName: { type: "string", description: "Company name. Used to find or create." },
+      domain: { type: "string", description: "Optional company domain when creating." },
+      priority: { type: "integer", description: "Inbox order. Lower comes first. Default 100." },
+      northStar: { type: "boolean", description: "When true, this company is the North Star." },
+    },
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const PLAN_LEAD_TOUCH_TOOL = {
+  name: "plan_lead_touch",
+  title: "Plan lead touch",
+  description: [
+    "Set a lead's role in the outreach sequence and their next planned touch.",
+    "Pass personName and companyName. contactType is referrer, hiring_leader,",
+    "recruiter, or other. touchType is the next step (referral_outreach,",
+    "hiring_leader_outreach, recruiter_outreach, referral_follow_up, etc.).",
+    "dueDate is when that touch is due (ISO). Optional companyPriority orders",
+    "the company group. Creates company/lead/touch as needed and updates open touches.",
+    "Prefer this over dumping GTM prose into post_to_self_thread. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      personName: { type: "string", description: "Lead full name." },
+      companyName: { type: "string", description: "Target company name." },
+      companyId: { type: "string", description: "Existing company id, if known." },
+      domain: { type: "string", description: "Optional company domain when creating." },
+      contactType: {
+        type: "string",
+        enum: ["referrer", "hiring_leader", "recruiter", "other"],
+        description: "Role in the sequence: referral, hiring EM, recruiter, or other.",
+      },
+      queueOrder: { type: "integer", description: "Order within the same contact type. Lower first." },
+      companyPriority: { type: "integer", description: "Optional company inbox priority (lower first)." },
+      northStar: { type: "boolean", description: "Optional North Star flag for the company." },
+      personTitle: { type: "string", description: "Optional title." },
+      nextStep: { type: "string", description: "Optional short next-step label." },
+      touchType: {
+        type: "string",
+        enum: ["application", "referral_outreach", "hiring_leader_outreach", "recruiter_outreach", "referral_follow_up", "call_follow_up"],
+        description: "Next planned touch type.",
+      },
+      dueDate: { type: "string", description: "When the next touch is due (ISO date or datetime)." },
+    },
+    required: ["personName", "companyName", "contactType", "touchType", "dueDate"],
   },
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
@@ -558,6 +630,8 @@ const TOOLS = [
   GET_OUTREACH_SCHEDULE_TOOL,
   SET_BUSY_TIMES_TOOL,
   POST_TO_SELF_THREAD_TOOL,
+  SET_COMPANY_PRIORITY_TOOL,
+  PLAN_LEAD_TOUCH_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -921,6 +995,167 @@ async function selfThreadCall(msg, user, args) {
   }
 }
 
+function planFailure(msg, err, fallback) {
+  const status = err && err.status;
+  const message = status && status >= 400 && status < 500 ? err.message : fallback;
+  return {
+    status: 200,
+    headers: NO_STORE,
+    body: rpcOk(msg.id, toolError(message || fallback)),
+  };
+}
+
+function nameMatch(a, b) {
+  return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+}
+
+async function resolveCompany(user, args) {
+  const userId = contentUserId(user);
+  const emailHint = user && user.email;
+  const actor = MCP_BOT_ACTOR;
+  await companiesStore.ensureTable();
+  if (args.companyId) {
+    const row = await companiesStore.loadCompany(args.companyId, userId);
+    const patch = {};
+    if (args.priority != null || args.companyPriority != null) {
+      patch.priority = args.priority != null ? args.priority : args.companyPriority;
+    }
+    if (Object.prototype.hasOwnProperty.call(args, "northStar")) patch.northStar = args.northStar;
+    if (Object.keys(patch).length) {
+      return companiesStore.updateCompany({ id: row.id, userId, emailHint, actor, patch });
+    }
+    return row;
+  }
+  const companyName = typeof args.companyName === "string" ? args.companyName.trim() : "";
+  if (!companyName) throw Object.assign(new Error("companyName is required."), { status: 400 });
+  const listed = await companiesStore.listCompanies({ userId, emailHint });
+  let found = listed.find((row) => nameMatch(row.name, companyName));
+  if (!found) {
+    found = await companiesStore.createCompany({
+      userId,
+      emailHint,
+      actor,
+      name: companyName,
+      domain: args.domain,
+      northStar: !!args.northStar,
+      priority: args.priority != null ? args.priority : (args.companyPriority != null ? args.companyPriority : 100),
+      status: "active",
+    });
+  } else {
+    const patch = {};
+    if (args.priority != null || args.companyPriority != null) {
+      patch.priority = args.priority != null ? args.priority : args.companyPriority;
+    }
+    if (Object.prototype.hasOwnProperty.call(args, "northStar")) patch.northStar = args.northStar;
+    if (Object.keys(patch).length) {
+      found = await companiesStore.updateCompany({ id: found.id, userId, emailHint, actor, patch });
+    }
+  }
+  return found;
+}
+
+async function setCompanyPriorityCall(msg, user, args) {
+  try {
+    if (args.priority == null && !Object.prototype.hasOwnProperty.call(args, "northStar") && !args.companyId && !args.companyName) {
+      throw Object.assign(new Error("companyName or companyId is required."), { status: 400 });
+    }
+    const company = await resolveCompany(user, args);
+    return contentToolOk(msg, { company: companiesStore.presentCompany(company) });
+  } catch (err) {
+    return planFailure(msg, err, companiesStore.UNAVAILABLE);
+  }
+}
+
+async function planLeadTouchCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const actor = MCP_BOT_ACTOR;
+    const personName = typeof args.personName === "string" ? args.personName.trim() : "";
+    if (!personName) throw Object.assign(new Error("personName is required."), { status: 400 });
+    const company = await resolveCompany(user, {
+      companyId: args.companyId,
+      companyName: args.companyName,
+      domain: args.domain,
+      companyPriority: args.companyPriority,
+      northStar: args.northStar,
+    });
+    const leads = await leadsStore.listLeads({ userId, emailHint });
+    let lead = leads.find((row) => nameMatch(row.personName, personName)
+      && (row.companyId === company.id || nameMatch(row.company, company.name)));
+    if (!lead) {
+      lead = await leadsStore.createLead({
+        userId,
+        emailHint,
+        actor,
+        personName,
+        personTitle: args.personTitle,
+        company: company.name,
+        companyId: company.id,
+        contactType: args.contactType,
+        queueOrder: args.queueOrder,
+        nextStep: args.nextStep,
+        nextStepAt: args.dueDate,
+        source: "other",
+        stage: "new",
+      });
+    } else {
+      const patch = {
+        contactType: args.contactType,
+        company: company.name,
+        companyId: company.id,
+        nextStepAt: args.dueDate,
+      };
+      if (args.queueOrder != null) patch.queueOrder = args.queueOrder;
+      if (args.personTitle != null) patch.personTitle = args.personTitle;
+      if (args.nextStep != null) patch.nextStep = args.nextStep;
+      lead = await leadsStore.updateLead({
+        id: lead.id,
+        userId,
+        emailHint,
+        actor,
+        patch,
+      });
+    }
+    const inbox = await scheduleStore.listInboxTouches({ userId, emailHint });
+    const open = inbox && inbox.byLeadId && inbox.byLeadId[lead.id];
+    let touch;
+    if (open && open.touch && (open.touch.status === "planned" || open.touch.status === "drafted")) {
+      touch = await scheduleStore.updateTouch({
+        id: open.touch.id,
+        userId,
+        emailHint,
+        actor,
+        patch: {
+          companyId: company.id,
+          touchType: args.touchType,
+          date: args.dueDate,
+          leadId: lead.id,
+          status: "planned",
+        },
+      });
+    } else {
+      touch = await scheduleStore.createTouch({
+        userId,
+        emailHint,
+        actor,
+        companyId: company.id,
+        touchType: args.touchType,
+        date: args.dueDate,
+        leadId: lead.id,
+        status: "planned",
+      });
+    }
+    return contentToolOk(msg, {
+      company: companiesStore.presentCompany(company),
+      lead: leadsStore.presentLead(lead),
+      touch: scheduleStore.presentTouch(touch),
+    });
+  } catch (err) {
+    return planFailure(msg, err, leadsStore.UNAVAILABLE || companiesStore.UNAVAILABLE);
+  }
+}
+
 async function handleRpc(msg, user) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
@@ -978,6 +1213,8 @@ async function handleRpc(msg, user) {
       && name !== "get_outreach_schedule"
       && name !== "set_busy_times"
       && name !== "post_to_self_thread"
+      && name !== "set_company_priority"
+      && name !== "plan_lead_touch"
     ) {
       return {
         status: 200,
@@ -1016,6 +1253,12 @@ async function handleRpc(msg, user) {
     }
     if (name === "post_to_self_thread") {
       return selfThreadCall(msg, user, args);
+    }
+    if (name === "set_company_priority") {
+      return setCompanyPriorityCall(msg, user, args);
+    }
+    if (name === "plan_lead_touch") {
+      return planLeadTouchCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {

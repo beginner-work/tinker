@@ -284,4 +284,21 @@
   body[data-drawer-open] .read__author {
     opacity: 0;
   }
+
+  /* Inbox mode owns mobile chrome: full-width conversation list, then
+   * thread with back. Do not run the hamburger drawer over it. */
+  body.messages-shell-open .sidebar {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    transform: none !important;
+    z-index: auto;
+    box-shadow: none;
+  }
+  body.messages-shell-open .drawer-toggle,
+  body.messages-shell-open .drawer-backdrop {
+    display: none !important;
+  }
 }
