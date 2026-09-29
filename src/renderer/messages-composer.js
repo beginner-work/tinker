@@ -115,38 +115,49 @@
     counter.textContent = n + " / " + meta.charLimit + (over ? " — over LinkedIn’s free note limit" : "");
     counter.classList.toggle("messages-composer__counter--over", over);
   }
+  function growTextarea() {
+    var area = root && root.querySelector("[data-composer-body]");
+    if (!area) return;
+    area.style.height = "auto";
+    var next = Math.min(Math.max(area.scrollHeight, 40), 160);
+    area.style.height = next + "px";
+  }
   function renderParts() {
     var box = root && root.querySelector("[data-composer-parts]");
     if (!box) return;
     box.innerHTML = "";
     if (!state.parts.length) {
       box.appendChild(Object.assign(el("p", "messages-composer__hint"), {
-        textContent: "No story parts yet. Add some on Story parts, then insert them here.",
+        textContent: "No story parts yet — add some, then tap a chip to insert.",
       }));
       return;
     }
     state.parts.forEach(function (part) {
       var id = part.id;
-      var label = el("label", "messages-composer__part");
-      var cb = el("input", "", { type: "checkbox" });
-      cb.checked = !!state.selectedParts[id];
-      cb.addEventListener("change", function () {
-        if (cb.checked) state.selectedParts[id] = true;
-        else delete state.selectedParts[id];
+      var chip = el("button", "messages-composer__chip" + (state.selectedParts[id] ? " messages-composer__chip--on" : ""), {
+        type: "button",
+        "data-part-id": id,
+      });
+      var stage = (part.stageKey || part.stage)
+        ? String(part.stageKey || part.stage).replace(/_/g, " ")
+        : "Part";
+      var preview = partText(part);
+      chip.textContent = stage + (preview ? " · " + (preview.length > 28 ? preview.slice(0, 27) + "…" : preview) : "");
+      chip.title = preview || stage;
+      chip.setAttribute("aria-pressed", state.selectedParts[id] ? "true" : "false");
+      chip.addEventListener("click", function () {
+        if (state.selectedParts[id]) delete state.selectedParts[id];
+        else state.selectedParts[id] = true;
         rebuildBodyFromParts();
         var area = root.querySelector("[data-composer-body]");
         if (area) area.value = state.body;
         syncCounter();
+        growTextarea();
+        renderParts();
+        var saveBtn = root.querySelector("[data-composer-save]");
+        if (saveBtn) saveBtn.disabled = state.saving || !String(state.body || "").trim();
       });
-      var text = el("span", "messages-composer__part-text");
-      var stage = (part.stageKey || part.stage)
-        ? String(part.stageKey || part.stage).replace(/_/g, " ") + " · "
-        : "";
-      var preview = partText(part);
-      text.textContent = stage + (preview.length > 72 ? preview.slice(0, 71) + "…" : preview);
-      label.appendChild(cb);
-      label.appendChild(text);
-      box.appendChild(label);
+      box.appendChild(chip);
     });
   }
   function render() {
@@ -170,6 +181,7 @@
     if (save) save.disabled = state.saving || !String(state.body || "").trim();
     syncCounter();
     renderParts();
+    growTextarea();
   }
   function saveDraft() {
     if (state.saving) return;
@@ -267,6 +279,7 @@
       body.addEventListener("input", function () {
         state.body = body.value;
         syncCounter();
+        growTextarea();
         var saveBtn = root.querySelector("[data-composer-save]");
         if (saveBtn) saveBtn.disabled = state.saving || !String(state.body || "").trim();
       });

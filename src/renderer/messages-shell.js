@@ -21,6 +21,7 @@
     query: "",
     companyFilter: "",
     selectedId: "",
+    collapsed: {},
   };
   var root = null;
   var pane = null;
@@ -173,13 +174,28 @@
     var grouped = groupByCompany(leads);
     grouped.order.forEach(function (company) {
       var group = el("li", "messages-rail__group");
-      var head = el("h3", "messages-rail__group-head");
-      head.textContent = company;
+      var collapsed = !!state.collapsed[company];
+      var head = el("button", "messages-rail__group-head", {
+        type: "button",
+        "aria-expanded": collapsed ? "false" : "true",
+      });
+      var headLabel = el("span", "messages-rail__group-label");
+      headLabel.textContent = company;
+      var headCount = el("span", "messages-rail__group-count");
+      headCount.textContent = String(grouped.map[company].length);
+      head.appendChild(headLabel);
+      head.appendChild(headCount);
+      head.addEventListener("click", function () {
+        state.collapsed[company] = !state.collapsed[company];
+        renderList();
+      });
       group.appendChild(head);
       var ul = el("ul", "messages-rail__group-list");
+      if (collapsed) ul.hidden = true;
       grouped.map[company].forEach(function (lead) {
         var li = el("li");
-        var btn = el("button", "messages-rail__row", {
+        var unread = needsDraft(lead);
+        var btn = el("button", "messages-rail__row" + (unread ? " messages-rail__row--unread" : ""), {
           type: "button",
           "data-conv-id": lead.id,
           "aria-current": lead.id === state.selectedId ? "true" : "false",
@@ -200,24 +216,15 @@
         preview.textContent = draft
           ? draftPreview(draft)
           : (String(lead.personTitle || "").trim() || "No draft yet — write one when you are ready.");
-        var meta = el("span", "messages-rail__meta");
-        if (draft && draft.channel) {
-          var ch = el("span", "messages-rail__channel");
-          ch.textContent = CHANNEL_LABEL[draft.channel] || draft.channel;
-          meta.appendChild(ch);
-        }
-        var stage = el("span", "messages-rail__stage");
-        stage.textContent = String(lead.stage || "new");
-        meta.appendChild(stage);
-        if (needsDraft(lead)) {
-          var dot = el("span", "messages-rail__dot", { title: "Needs a draft", "aria-label": "Needs a draft" });
-          meta.appendChild(dot);
-        }
         main.appendChild(top);
         main.appendChild(preview);
-        main.appendChild(meta);
         btn.appendChild(avatar);
         btn.appendChild(main);
+        if (unread) {
+          var badge = el("span", "messages-rail__unread", { title: "Needs a draft", "aria-label": "Needs a draft" });
+          badge.textContent = "1";
+          btn.appendChild(badge);
+        }
         btn.addEventListener("click", function () { selectLead(lead.id); });
         li.appendChild(btn);
         ul.appendChild(li);

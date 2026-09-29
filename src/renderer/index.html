@@ -292,6 +292,7 @@
           <button type="button" class="messages-pane__back" data-messages-back aria-label="Back to conversations">←</button>
           <div class="messages-pane__heading">
             <h2 class="messages-pane__title">Messages</h2>
+            <p class="messages-pane__role" data-messages-role hidden></p>
             <p class="messages-pane__sub">Pick someone on the left. You save drafts here — Tinker never sends.</p>
           </div>
         </header>
@@ -299,31 +300,26 @@
           <p class="messages-pane__empty" data-messages-empty>Select a conversation to see drafts and touch history for that person.</p>
           <div class="messages-pane__thread" data-messages-thread hidden></div>
         </div>
-        <!-- Composer: drafts in progress live here. Save draft only. -->
+        <!-- Chat-style composer: channel + story-part chips inline, growing textarea. Save draft only. -->
         <footer id="messages-composer" class="messages-composer" hidden aria-label="Draft composer">
-          <div class="messages-composer__row">
-            <label class="messages-composer__field">
-              <span class="messages-composer__label">Channel</span>
+          <div class="messages-composer__chips" data-composer-parts></div>
+          <div class="messages-composer__bar">
+            <label class="messages-composer__channel">
+              <span class="visually-hidden">Channel</span>
               <select class="messages-composer__select" data-composer-channel></select>
             </label>
-            <label class="messages-composer__field messages-composer__field--grow" data-composer-subject-wrap hidden>
-              <span class="messages-composer__label">Subject</span>
+            <label class="messages-composer__subject" data-composer-subject-wrap hidden>
+              <span class="visually-hidden">Subject</span>
               <input type="text" class="messages-composer__input" data-composer-subject placeholder="Subject" />
             </label>
-          </div>
-          <div class="messages-composer__parts" data-composer-parts></div>
-          <label class="messages-composer__field messages-composer__field--block">
-            <span class="messages-composer__label">Draft</span>
-            <textarea class="messages-composer__textarea" data-composer-body rows="4"
-                      placeholder="Build from story parts, or type the draft yourself."></textarea>
-          </label>
-          <p class="messages-composer__counter" data-composer-counter hidden></p>
-          <p class="messages-composer__status" data-composer-status hidden></p>
-          <div class="messages-composer__actions">
-            <button type="button" class="messages-composer__booking" data-composer-booking hidden>Insert booking link</button>
+            <textarea class="messages-composer__textarea" data-composer-body rows="1"
+                      placeholder="Write a draft…"></textarea>
+            <button type="button" class="messages-composer__booking" data-composer-booking hidden title="Insert booking link">Booking</button>
             <button type="button" class="messages-composer__save" data-composer-save>Save draft</button>
           </div>
-          <p class="messages-composer__footnote">Build from <a class="messages-composer__parts-link" href="/story-parts">story parts</a>. Your connected assistant pulls saved drafts. Tinker never sends.</p>
+          <p class="messages-composer__counter" data-composer-counter hidden></p>
+          <p class="messages-composer__status" data-composer-status hidden></p>
+          <p class="messages-composer__footnote">Story parts insert as chips above. Your connected assistant pulls saved drafts. Tinker never sends. <a class="messages-composer__parts-link" href="/story-parts">Manage story parts</a></p>
         </footer>
       </section>
 

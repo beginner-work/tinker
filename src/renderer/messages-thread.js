@@ -162,18 +162,20 @@
   function renderHeader() {
     if (!pane || !state.lead) return;
     var title = pane.querySelector(".messages-pane__title");
+    var role = pane.querySelector("[data-messages-role]");
     var sub = pane.querySelector(".messages-pane__sub");
     var lead = state.lead;
     var name = String(lead.personName || "").trim() || "Someone";
     if (title) title.textContent = name;
-    if (sub) {
+    if (role) {
       var bits = [];
       if (lead.personTitle) bits.push(String(lead.personTitle).trim());
       if (lead.company) bits.push(String(lead.company).trim());
-      if (lead.contactType) bits.push(String(lead.contactType).replace(/_/g, " "));
-      if (lead.stage) bits.push("Stage: " + lead.stage);
-      bits.push("You save drafts here — Tinker never sends.");
-      sub.textContent = bits.join(" · ");
+      role.hidden = bits.length === 0;
+      role.textContent = bits.join(" · ");
+    }
+    if (sub) {
+      sub.textContent = "You save drafts here — Tinker never sends.";
     }
   }
   function openDraft(id) {
@@ -270,10 +272,12 @@
     state.error = "";
     if (!pane) return;
     var title = pane.querySelector(".messages-pane__title");
+    var role = pane.querySelector("[data-messages-role]");
     var sub = pane.querySelector(".messages-pane__sub");
     var empty = pane.querySelector("[data-messages-empty]");
     var thread = pane.querySelector("[data-messages-thread]");
     if (title) title.textContent = "Messages";
+    if (role) { role.hidden = true; role.textContent = ""; }
     if (sub) sub.textContent = "Pick someone on the left. You save drafts here — Tinker never sends.";
     if (empty) empty.hidden = false;
     if (thread) {

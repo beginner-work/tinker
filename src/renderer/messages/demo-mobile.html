@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Thread — chat layout mobile</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap"/>
+<link rel="stylesheet" href="/styles.css"/><link rel="stylesheet" href="/design-tokens.css"/>
+</head>
+<body class="messages-shell-open messages-inbox-primary messages-thread-active messages-mobile-thread">
+<main class="stage" style="display:flex;width:100%">
+  <section class="messages-pane" style="display:flex;flex-direction:column;min-height:100vh;width:100%">
+    <header class="messages-pane__top">
+      <button type="button" class="messages-pane__back" style="display:inline-flex">←</button>
+      <div class="messages-pane__heading">
+        <h2 class="messages-pane__title">Alex Rivera</h2>
+        <p class="messages-pane__role">Eng manager · Northwind Labs</p>
+        <p class="messages-pane__sub">You save drafts here — Tinker never sends.</p>
+      </div>
+    </header>
+    <div class="messages-pane__body"><div class="messages-pane__thread messages-thread"><ol class="messages-thread__list">
+      <li class="messages-thread__item messages-thread__item--owner messages-thread__item--draft"><div class="messages-thread__meta"><span class="messages-thread__draft-tag">Draft</span><span class="messages-thread__channel">Gmail</span></div><button type="button" class="messages-thread__bubble"><div class="messages-thread__subject">Following up</div><div class="messages-thread__body">Built from story parts.</div></button></li>
+    </ol></div></div>
+    <footer class="messages-composer">
+      <div class="messages-composer__chips">
+        <button type="button" class="messages-composer__chip messages-composer__chip--on">hook · Built from story parts</button>
+      </div>
+      <div class="messages-composer__bar">
+        <label class="messages-composer__channel"><select class="messages-composer__select"><option>Gmail</option></select></label>
+        <textarea class="messages-composer__textarea" rows="1">Write a draft…</textarea>
+        <button type="button" class="messages-composer__save">Save draft</button>
+      </div>
+    </footer>
+  </section>
+</main>
+</body></html>
