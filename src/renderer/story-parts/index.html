@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
+    <title>Story parts</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <style>
+      html, body.story-parts-page { height: auto; min-height: 100vh; min-height: 100dvh; overflow: hidden; display: block; }
+      .story-parts { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; height: 100vh; height: 100dvh; }
+      .story-parts__rail { display: flex; flex-direction: column; border-right: 1px solid var(--color-border); background: var(--color-background); min-height: 0; }
+      .story-parts__head { padding: 20px 16px 10px; }
+      .story-parts__title { margin: 0; font-family: var(--font-display); font-variation-settings: var(--font-display-settings); font-size: 28px; font-weight: 650; letter-spacing: -0.02em; }
+      .story-parts__lede { margin: 6px 0 0; color: var(--color-muted); font-size: 13px; line-height: 1.4; }
+      .story-parts__tabs, .story-parts__filters { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 16px 10px; }
+      .story-parts__tab, .story-parts__filter, .story-parts__btn, .story-parts__ghost { padding: 7px 11px; border-radius: var(--radius-button); font-size: 13px; font-weight: 600; border: 1px solid var(--color-border); background: transparent; }
+      .story-parts__tab[aria-selected="true"], .story-parts__filter[aria-pressed="true"] { background: var(--color-accent-dim); border-color: var(--color-accent); }
+      .story-parts__btn { background: var(--color-accent-strong); border-color: var(--color-accent-strong); color: #fff; }
+      .story-parts__btn:disabled, .story-parts__ghost:disabled { opacity: 0.55; cursor: progress; }
+      .story-parts__status { min-height: 1.2em; margin: 0 16px 8px; color: #b3261e; font-size: 13px; }
+      .story-parts__list { list-style: none; margin: 0; padding: 0 8px 24px; overflow: auto; flex: 1; min-height: 0; }
+      .story-parts__row { width: 100%; text-align: left; padding: 10px 12px; border-radius: var(--radius-card); border: 1px solid transparent; margin-bottom: 4px; }
+      .story-parts__row[aria-current="true"], .story-parts__row:hover { background: var(--color-card); border-color: var(--color-border); }
+      .story-parts__name { display: block; font-size: 14px; font-weight: 600; }
+      .story-parts__meta { display: block; margin-top: 2px; color: var(--color-muted); font-size: 12px; line-height: 1.4; }
+      .story-parts__stage { min-width: 0; min-height: 0; overflow: auto; padding: 24px 20px 48px; background: var(--color-surface); }
+      .story-parts__empty { margin: 40px auto; max-width: 28rem; color: var(--color-muted); font-size: 15px; line-height: 1.5; }
+      .story-parts__panel-title { margin: 0 0 4px; font-family: var(--font-display); font-variation-settings: var(--font-display-settings); font-size: 24px; font-weight: 650; }
+      .story-parts__back { display: none; margin-bottom: 12px; }
+      .story-parts__section { margin: 24px 0 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted); }
+      .story-parts__source, .story-parts__form, .story-parts__card { padding: 14px 16px; margin: 0 0 10px; background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-card); }
+      .story-parts__source-text { white-space: pre-wrap; font-size: 14px; line-height: 1.55; max-height: 40vh; overflow: auto; }
+      .story-parts__form { display: grid; gap: 8px; max-width: 36rem; }
+      .story-parts__label { font-size: 12px; color: var(--color-muted); }
+      .story-parts__input, .story-parts__select, .story-parts__area { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-button); background: var(--color-surface); font: inherit; font-size: 14px; }
+      .story-parts__area { min-height: 96px; resize: vertical; }
+      .story-parts__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .story-parts__board { display: grid; gap: 16px; }
+      .story-parts__column h3 { margin: 0 0 8px; font-size: 14px; }
+      @media (max-width: 700px) {
+        .story-parts { grid-template-columns: 1fr; }
+        .story-parts__rail, .story-parts__stage { display: none; }
+        body[data-story-parts-panel="list"] .story-parts__rail { display: flex; }
+        body[data-story-parts-panel="detail"] .story-parts__stage { display: block; }
+        .story-parts__back { display: inline-flex; }
+      }
+    </style>
+  </head>
+  <body class="story-parts-page" data-story-parts-panel="list">
+    <div class="story-parts">
+      <aside class="story-parts__rail">
+        <div class="story-parts__head">
+          <h1 class="story-parts__title">Story parts</h1>
+          <p class="story-parts__lede">Break your content into stage-tagged parts. No send.</p>
+        </div>
+        <div class="story-parts__tabs" role="tablist">
+          <button type="button" class="story-parts__tab" id="tab-sources" role="tab" aria-selected="true">Sources</button>
+          <button type="button" class="story-parts__tab" id="tab-board" role="tab" aria-selected="false">Board</button>
+          <button type="button" class="story-parts__tab" id="tab-stages" role="tab" aria-selected="false">Stages</button>
+        </div>
+        <div class="story-parts__filters" id="board-filters" hidden></div>
+        <p id="story-parts-status" class="story-parts__status" role="status"></p>
+        <ul id="story-parts-list" class="story-parts__list"></ul>
+      </aside>
+      <main id="story-parts-stage" class="story-parts__stage">
+        <p class="story-parts__empty">Pick a source, or open the board.</p>
+      </main>
+    </div>
+    <script src="/story-parts/excerpt.js"></script>
+    <script src="/story-parts/story-parts.js"></script>
+  </body>
+</html>
