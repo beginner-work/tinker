@@ -406,4 +406,36 @@ module.exports = [
     reason: "No factual claims were found in the draft.",
     expect: [],
   },
+  {
+    name: "Case A: Affirm March 2026 Present mismatches dates and Present",
+    text: "Affirm, Engineering Manager, March 2026 – Present",
+    claims: [
+      { text: "Affirm, Engineering Manager, March 2026 – Present", kind: "dates" },
+      { text: "Affirm, Engineering Manager, March 2026 – Present", kind: "other" },
+    ],
+    ready: false,
+    expect: [
+      { verdict: "mismatch", id: "rule_employer_dates", correct: "Affirm, Sep 2019 - Feb 2026" },
+      { verdict: "mismatch", id: "rule_current_employment", correct: "" },
+    ],
+  },
+  {
+    name: "Case B: Yes to 8+ years of software development mismatches to No",
+    text: "Yes",
+    field_label: "Do you have 8+ years of software development experience?",
+    claims: [{
+      text: "Yes",
+      kind: "other",
+      field: "Do you have 8+ years of software development experience?",
+    }],
+    ready: false,
+    expect: [{ verdict: "mismatch", id: "rule_years_experience", correct: "No" }],
+  },
+  {
+    name: "Affirm Sep 2019 to Feb 2026 passes against employment",
+    text: "Affirm, Sep 2019 – Feb 2026",
+    claims: [{ text: "Affirm, Sep 2019 – Feb 2026", kind: "dates" }],
+    ready: true,
+    expect: [{ verdict: "pass", id: "rule_employer_dates" }],
+  },
 ];

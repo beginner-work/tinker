@@ -30,6 +30,7 @@
     "degree",
     "contact",
     "story",
+    "employment",
     "other",
   ];
 
@@ -112,6 +113,27 @@
       field: "sensitive",
       rule: "Visa, work authorization, EEO, demographic answers, and anything no rule covers return needs_claire. Never auto-filled.",
       machine: { op: "needs_claire" },
+      status: "verified",
+    },
+    {
+      id: "rule_current_employment",
+      field: "current_employment",
+      rule: "Present or current is never valid for an employment entry unless the record has a current entry. A current-employer field stays blank when there is none.",
+      machine: { op: "current_employment_from_record" },
+      status: "verified",
+    },
+    {
+      id: "rule_years_experience",
+      field: "years_of_experience",
+      rule: "Years-of-experience thresholds are computed from verified employment dates, never estimated.",
+      machine: { op: "years_from_employment" },
+      status: "verified",
+    },
+    {
+      id: "rule_employer_dates",
+      field: "employer_dates",
+      rule: "Employer dates must match a verified employment entry exactly.",
+      machine: { op: "employment_dates_exact" },
       status: "verified",
     },
   ];

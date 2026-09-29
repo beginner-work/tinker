@@ -4,6 +4,9 @@
  * Proposed seeds and verified rules come from the shared catalog.
  * The $250K figure is not in this record. It is a wrong salary answer
  * used only as a claim in the check fixture.
+ *
+ * Employment entries here are generic test data for date and years
+ * checks. They are not a production owner load.
  */
 
 "use strict";
@@ -25,6 +28,30 @@ function verified(partial) {
 }
 
 const VERIFIED_FACTS = [
+  verified({
+    id: "fact_emp_affirm",
+    kind: "employment",
+    employer: "Affirm",
+    title: null,
+    start_month: "2019-09",
+    end_month: "2026-02",
+    current: false,
+    experience_kinds: ["software_development"],
+    value: "Affirm, Sep 2019 - Feb 2026",
+    excerpt: "Affirm | Sep 2019 – Feb 2026",
+  }),
+  verified({
+    id: "fact_emp_beginner",
+    kind: "employment",
+    employer: "Beginner Work Inc.",
+    title: null,
+    start_month: "2026-03",
+    end_month: "2026-07",
+    current: false,
+    experience_kinds: ["software_development"],
+    value: "Beginner Work Inc., Mar 2026 - Jul 2026",
+    excerpt: "Beginner Work Inc. | Mar 2026 – Jul 2026",
+  }),
   verified({
     id: "fact_team_1_to_9",
     kind: "team_size",
