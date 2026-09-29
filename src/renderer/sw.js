@@ -31,7 +31,7 @@
  * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v10";
+const CACHE_VERSION = "tinker-shell-v11";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -45,6 +45,7 @@ const PRECACHE = [
   "/mobile-drawer.css",
   "/pwa-install-hint.css",
   "/profile.css",
+  "/notes.css",
   // scripts (document order)
   "/pwa-session.js",
   "/freewrite.js",
@@ -76,6 +77,8 @@ const PRECACHE = [
   "/wallet.js",
   "/email.js",
   "/linkedin-draft.js",
+  "/notes-files.js",
+  "/notes.js",
   "/voice-model.js",
   "/membership.js",
   "/pwa-offline.js",

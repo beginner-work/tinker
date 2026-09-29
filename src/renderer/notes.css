@@ -1,0 +1,266 @@
+/* Full-screen notes surface (TYL-49). Typing fills the viewport.
+ * Reuses .writing chrome; this file only adds the notes composition. */
+
+.notes-surface .writing__top {
+  gap: 12px;
+}
+
+.notes-status {
+  margin-left: auto;
+  font-family: "Instrument Sans", "Plus Jakarta Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 46%;
+}
+
+.notes-body {
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+}
+
+.notes-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.notes-shell--list {
+  padding: 28px 24px 40px;
+  max-width: 720px;
+  margin: 0 auto;
+  overflow-y: auto;
+}
+
+.notes-brand {
+  margin: 0 0 8px;
+  font-family: "Fraunces", "Plus Jakarta Sans", serif;
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--color-foreground);
+  line-height: 1.05;
+}
+
+.notes-brand--inline {
+  font-size: 1.05rem;
+  margin: 0;
+  opacity: 0.85;
+}
+
+.notes-heading {
+  margin: 0 0 8px;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.notes-lede {
+  margin: 0 0 22px;
+  font-family: "Instrument Sans", "Plus Jakarta Sans", sans-serif;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--color-foreground);
+  max-width: 28rem;
+}
+
+.notes-actions {
+  margin-bottom: 22px;
+}
+
+.notes-primary {
+  appearance: none;
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 18px;
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.notes-primary:hover {
+  opacity: 0.92;
+}
+
+.notes-primary:active {
+  transform: scale(0.98);
+}
+
+.notes-empty {
+  margin: 8px 0 0;
+  color: var(--color-muted);
+  font-family: "Instrument Sans", sans-serif;
+}
+
+.notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notes-list__btn {
+  width: 100%;
+  text-align: left;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  padding: 14px 12px;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 4px 12px;
+  transition: background 0.15s ease;
+}
+
+.notes-list__btn:hover {
+  background: rgba(45, 90, 61, 0.06);
+}
+
+.notes-list__title {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--color-foreground);
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.notes-list__meta {
+  font-family: "Instrument Sans", sans-serif;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+
+.notes-list__preview {
+  font-family: "Instrument Sans", sans-serif;
+  font-size: 0.9rem;
+  color: var(--color-muted);
+  grid-column: 1 / -1;
+  grid-row: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notes-shell--editor {
+  padding: 12px 0 0;
+}
+
+.notes-editor-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px 8px;
+  flex-shrink: 0;
+}
+
+.notes-text-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 8px 4px;
+  font-family: "Instrument Sans", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.notes-text-btn:hover {
+  color: var(--color-foreground);
+}
+
+.notes-text-btn--danger:hover {
+  color: #9b2c2c;
+}
+
+.notes-textarea {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  resize: none;
+  outline: none;
+  background: transparent;
+  padding: 8px 22px 18px;
+  font-family: "Fraunces", "Plus Jakarta Sans", serif;
+  font-size: clamp(1.2rem, 2.6vw, 1.55rem);
+  line-height: 1.55;
+  letter-spacing: -0.015em;
+  color: var(--color-foreground);
+  caret-color: var(--color-foreground);
+}
+
+.notes-textarea::placeholder {
+  color: var(--color-muted);
+  opacity: 0.7;
+}
+
+.notes-editor-foot {
+  flex-shrink: 0;
+  padding: 8px 22px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  display: flex;
+  justify-content: flex-start;
+}
+
+@media (max-width: 720px) {
+  .notes-shell--list {
+    padding: 22px 16px 32px;
+  }
+
+  .notes-status {
+    max-width: 40%;
+    font-size: 11px;
+  }
+
+  .notes-textarea {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .notes-editor-top,
+  .notes-editor-foot {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+/* Soft presence: list fade-up + editor focus breath */
+.notes-shell--list {
+  animation: notes-fade-up 0.32s ease;
+}
+
+.notes-shell--editor .notes-textarea {
+  animation: notes-fade-up 0.28s ease;
+}
+
+@keyframes notes-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
