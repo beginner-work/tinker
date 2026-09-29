@@ -390,6 +390,74 @@ body.messages-shell-open #welcome[data-active] { display: none; }
 }
 .messages-pane__thread { min-height: 0; }
 
+/* Thread — one conversation per lead; channel on every message. */
+.messages-thread__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 40rem;
+}
+.messages-thread__item { display: flex; flex-direction: column; gap: 6px; }
+.messages-thread__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.messages-thread__channel {
+  font-weight: 600;
+  color: var(--color-foreground);
+  letter-spacing: 0.01em;
+}
+.messages-thread__status { text-transform: none; }
+.messages-thread__when { margin-left: auto; font-variant-numeric: tabular-nums; }
+.messages-thread__bubble {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-left: 2px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.messages-thread__bubble:hover { background: var(--color-hover); }
+.messages-thread__item--approved .messages-thread__bubble {
+  border-left-color: var(--color-accent-strong, #6366f1);
+}
+.messages-thread__item--sent_by_owner .messages-thread__bubble {
+  border-left-color: var(--color-muted);
+  opacity: 0.92;
+}
+.messages-thread__subject {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.messages-thread__body {
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.messages-thread__empty,
+.messages-thread__error {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+.messages-thread__error { color: var(--color-danger, #b42318); }
+
 @media (max-width: 720px) {
   body.messages-shell-open { --sidebar-width: 100%; }
   body.messages-shell-open .sidebar { width: 100%; }
