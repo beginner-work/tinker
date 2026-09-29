@@ -4,7 +4,7 @@ const { authenticateSession } = require("./_lib/stytch.js");
 const { userIdFromSession } = require("./_lib/mcp-keys.js");
 const { sessionIdentity } = require("./_lib/autonomy.js");
 const { withResponseLogging } = require("./_lib/log.js");
-const store = require("./_lib/selling-parts-store.js");
+const store = require("./_lib/story-parts-store.js");
 
 function bearer(header) {
   const match = header && String(header).match(/^Bearer\s+(\S+)$/i);
@@ -35,7 +35,7 @@ function send(res, status, body) {
 async function resolve(req) {
   const token = bearer(req.headers && req.headers.authorization);
   if (!token) throw Object.assign(new Error("Sign in to tinker first."), { status: 401 });
-  if (token.startsWith("mcp_")) throw Object.assign(new Error("Connector credentials cannot use selling parts."), { status: 401 });
+  if (token.startsWith("mcp_")) throw Object.assign(new Error("Connector credentials cannot use story parts."), { status: 401 });
   let session;
   try { session = await authenticateSession(token); }
   catch (err) {

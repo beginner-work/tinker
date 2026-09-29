@@ -1,4 +1,4 @@
-/* TYL-54 selling parts. Postgres is stubbed. */
+/* TYL-54 story parts. Postgres is stubbed. */
 
 "use strict";
 
@@ -8,7 +8,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const Module = require("node:module");
 
-process.env.STYTCH_PROJECT_ID = "project-test-selling-parts";
+process.env.STYTCH_PROJECT_ID = "project-test-story-parts";
 process.env.STYTCH_SECRET = "secret-test-not-real";
 
 let seq = 0;
@@ -50,10 +50,10 @@ function model() {
     },
   };
 }
-for (const name of ["sellingPart", "sellingPartEvent", "tinkerUserData", "contentItem"]) tables[name] = model();
+for (const name of ["storyPart", "storyPartEvent", "tinkerUserData", "contentItem"]) tables[name] = model();
 const database = {
   $executeRawUnsafe: async () => 0, $transaction: async (fn) => fn(database),
-  sellingPart: tables.sellingPart, sellingPartEvent: tables.sellingPartEvent,
+  storyPart: tables.storyPart, storyPartEvent: tables.storyPartEvent,
   tinkerUserData: tables.tinkerUserData, contentItem: tables.contentItem,
 };
 function stubAt(absPath, exports) {
@@ -72,14 +72,14 @@ stubAt(path.join(libDir, "stytch.js"), {
   },
 });
 stubAt(path.join(libDir, "db.js"), database);
-const store = require("../api/_lib/selling-parts-store.js");
-const handler = require("../api/selling-parts.js");
+const store = require("../api/_lib/story-parts-store.js");
+const handler = require("../api/story-parts.js");
 
 async function call({ method, token = "user-a", action, body, query }) {
   const captured = { status: null, body: null };
   await handler({
     method,
-    url: "/api/selling-parts",
+    url: "/api/story-parts",
     headers: { authorization: token ? "Bearer " + token : "" },
     body,
     query: Object.assign({ action }, query || {}),
@@ -99,20 +99,20 @@ test.beforeEach(() => {
 
 test("migration matches and messaging is gone", () => {
   const root = path.join(__dirname, "..");
-  const migration = fs.readFileSync(path.join(root, "prisma/migrations/20260929040000_add_selling_parts/migration.sql"), "utf8");
+  const migration = fs.readFileSync(path.join(root, "prisma/migrations/20260929040000_add_story_parts/migration.sql"), "utf8");
   for (const statement of store.TABLE_STATEMENTS) assert.ok(migration.includes(statement));
   assert.equal(fs.existsSync(path.join(root, "prisma/migrations/20260929020000_add_messaging")), false);
   const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
-  assert.ok(schema.includes("model SellingPart"));
-  assert.ok(schema.includes("model SellingPartEvent"));
+  assert.ok(schema.includes("model StoryPart"));
+  assert.ok(schema.includes("model StoryPartEvent"));
   assert.equal(schema.includes("model Messaging"), false);
-  const source = fs.readFileSync(path.join(libDir, "selling-parts-store.js"), "utf8")
-    + fs.readFileSync(path.join(root, "api/selling-parts.js"), "utf8") + migration + schema;
+  const source = fs.readFileSync(path.join(libDir, "story-parts-store.js"), "utf8")
+    + fs.readFileSync(path.join(root, "api/story-parts.js"), "utf8") + migration + schema;
   for (const word of ["MessagingContact", "doNotContact", "pending_approval", "apollo", "sendgrid", "sourceChanged", "selling-stages", "tyler:"]) {
     assert.equal(source.includes(word), false, word);
   }
   assert.equal(migration.includes("draftKey"), false);
-  assert.equal(fs.readFileSync(path.join(libDir, "selling-parts-store.js"), "utf8").includes("draftKey"), false);
+  assert.equal(fs.readFileSync(path.join(libDir, "story-parts-store.js"), "utf8").includes("draftKey"), false);
   const emails = fs.readFileSync(__filename, "utf8").match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
   assert.ok(emails.length > 0 && emails.every((email) => email.endsWith("@example.com")));
 });
@@ -157,9 +157,9 @@ test("a note becomes a part, edits demote ready, and another user gets 404", asy
   const edited = await call({ method: "PATCH", action: "edit", body: { id, body: "A tighter hook." } });
   assert.equal(edited.body.part.status, "draft");
   assert.equal(edited.body.part.body, "A tighter hook.");
-  const actions = tables.sellingPartEvent.rows.map((row) => row.action);
+  const actions = tables.storyPartEvent.rows.map((row) => row.action);
   assert.deepEqual(actions, ["created", "ready", "edited"]);
-  for (const row of tables.sellingPartEvent.rows) {
+  for (const row of tables.storyPartEvent.rows) {
     assert.equal(row.actor, "user:tyler@example.com"); assert.ok(row.at instanceof Date);
   }
   assert.equal((await call({ method: "GET", token: "user-b", action: "part", query: { id } })).status, 404);

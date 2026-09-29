@@ -93,7 +93,7 @@ model McpOAuthCode {
   createdAt     DateTime  @default(now())
 }
 
-model SellingPart {
+model StoryPart {
   id            String    @id @default(cuid())
   userId        String
   stageKey      String
@@ -118,7 +118,7 @@ model SellingPart {
   @@index([userId])
 }
 
-model SellingPartEvent {
+model StoryPartEvent {
   id     String   @id @default(cuid())
   userId String
   partId String

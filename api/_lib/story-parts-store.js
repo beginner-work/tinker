@@ -1,4 +1,4 @@
-/* Selling parts. Stages are fixed. sourceRef for code is {repo, path, ref, evidence}.
+/* Story parts. Stages are fixed. sourceRef for code is {repo, path, ref, evidence}.
  * concepts and stack are tag lists. stack is stored, not a list filter.
  */
 "use strict";
@@ -12,13 +12,13 @@ const STAGES = [
 ];
 const SOURCE_KINDS = ["note", "concept", "narrative", "content_item", "career_record", "code", "none"];
 const STATUSES = ["draft", "ready", "retired"];
-const UNAVAILABLE = "Selling parts are unavailable right now.";
+const UNAVAILABLE = "Story parts are unavailable right now.";
 const TABLE_STATEMENTS = [
-  `CREATE TABLE IF NOT EXISTS "SellingPart" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "stageKey" TEXT NOT NULL, "title" TEXT NOT NULL DEFAULT '', "body" TEXT NOT NULL DEFAULT '', "fields" JSONB NOT NULL DEFAULT '{}', "topics" JSONB NOT NULL DEFAULT '[]', "stack" JSONB NOT NULL DEFAULT '[]', "concepts" JSONB NOT NULL DEFAULT '[]', "status" TEXT NOT NULL, "sourceKind" TEXT NOT NULL, "sourceId" TEXT, "sourceRef" JSONB NOT NULL DEFAULT '{}', "sourceExcerpt" TEXT NOT NULL DEFAULT '', "sourceHash" TEXT, "checkVerdicts" JSONB NOT NULL DEFAULT '[]', "checkedAt" TIMESTAMP(3), "createdBy" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "SellingPart_pkey" PRIMARY KEY ("id"))`,
-  `CREATE INDEX IF NOT EXISTS "SellingPart_userId_idx" ON "SellingPart"("userId")`,
-  `CREATE TABLE IF NOT EXISTS "SellingPartEvent" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "partId" TEXT NOT NULL, "actor" TEXT NOT NULL, "action" TEXT NOT NULL, "detail" JSONB NOT NULL DEFAULT '{}', "at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "SellingPartEvent_pkey" PRIMARY KEY ("id"))`,
-  `CREATE INDEX IF NOT EXISTS "SellingPartEvent_userId_idx" ON "SellingPartEvent"("userId")`,
-  `CREATE INDEX IF NOT EXISTS "SellingPartEvent_partId_idx" ON "SellingPartEvent"("partId")`,
+  `CREATE TABLE IF NOT EXISTS "StoryPart" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "stageKey" TEXT NOT NULL, "title" TEXT NOT NULL DEFAULT '', "body" TEXT NOT NULL DEFAULT '', "fields" JSONB NOT NULL DEFAULT '{}', "topics" JSONB NOT NULL DEFAULT '[]', "stack" JSONB NOT NULL DEFAULT '[]', "concepts" JSONB NOT NULL DEFAULT '[]', "status" TEXT NOT NULL, "sourceKind" TEXT NOT NULL, "sourceId" TEXT, "sourceRef" JSONB NOT NULL DEFAULT '{}', "sourceExcerpt" TEXT NOT NULL DEFAULT '', "sourceHash" TEXT, "checkVerdicts" JSONB NOT NULL DEFAULT '[]', "checkedAt" TIMESTAMP(3), "createdBy" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "StoryPart_pkey" PRIMARY KEY ("id"))`,
+  `CREATE INDEX IF NOT EXISTS "StoryPart_userId_idx" ON "StoryPart"("userId")`,
+  `CREATE TABLE IF NOT EXISTS "StoryPartEvent" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "partId" TEXT NOT NULL, "actor" TEXT NOT NULL, "action" TEXT NOT NULL, "detail" JSONB NOT NULL DEFAULT '{}', "at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "StoryPartEvent_pkey" PRIMARY KEY ("id"))`,
+  `CREATE INDEX IF NOT EXISTS "StoryPartEvent_userId_idx" ON "StoryPartEvent"("userId")`,
+  `CREATE INDEX IF NOT EXISTS "StoryPartEvent_partId_idx" ON "StoryPartEvent"("partId")`,
 ];
 
 let ensuring = null;
@@ -111,7 +111,7 @@ async function ensureTable() {
     for (const statement of TABLE_STATEMENTS) await db().$executeRawUnsafe(statement);
   })().catch((err) => {
     ensuring = null;
-    throw Object.assign(new Error("Could not prepare the selling parts tables."), { status: 503, cause: err });
+    throw Object.assign(new Error("Could not prepare the story parts tables."), { status: 503, cause: err });
   });
   return ensuring;
 }
@@ -123,7 +123,7 @@ async function commit(fn) {
 async function loadOwned(id, userId) {
   if (typeof id !== "string" || !id.trim()) throw fail(400, "part id is required.");
   let row;
-  try { row = await db().sellingPart.findUnique({ where: { id: id.trim() } }); }
+  try { row = await db().storyPart.findUnique({ where: { id: id.trim() } }); }
   catch (err) { throw storeDown(err); }
   if (!row || row.userId !== userId) throw fail(404, "No part with that id.");
   return row;
@@ -132,7 +132,7 @@ function getStages() {
   return STAGES.map((stage) => ({ ...stage }));
 }
 async function record(tx, fields) {
-  return tx.sellingPartEvent.create({
+  return tx.storyPartEvent.create({
     data: {
       userId: fields.userId, partId: fields.partId, actor: fields.actor, action: fields.action,
       detail: fields.detail || {}, at: fields.at || new Date(),
@@ -156,7 +156,7 @@ async function createPart(input) {
     checkVerdicts: [], createdBy: actor,
   };
   return commit(async (tx) => {
-    const saved = await tx.sellingPart.create({ data });
+    const saved = await tx.storyPart.create({ data });
     await record(tx, { userId: owner, partId: saved.id, actor, action: "created", detail: { stageKey, sourceKind } });
     return saved;
   });
@@ -165,7 +165,7 @@ async function listParts({ userId, stage, topic, status, sourceKind, concepts } 
   const owner = requireUserId(userId);
   await ensureTable();
   let rows;
-  try { rows = await db().sellingPart.findMany({ where: { userId: owner } }); }
+  try { rows = await db().storyPart.findMany({ where: { userId: owner } }); }
   catch (err) { throw storeDown(err); }
   rows = rows.filter((row) => (!stage || row.stageKey === stage) && (!status || row.status === status)
     && (!sourceKind || row.sourceKind === sourceKind)
@@ -202,7 +202,7 @@ async function updatePart({ id, userId, actor, patch }) {
   if (demote) data.status = "draft";
   const now = new Date();
   return commit(async (tx) => {
-    const saved = await tx.sellingPart.update({ where: { id: row.id }, data });
+    const saved = await tx.storyPart.update({ where: { id: row.id }, data });
     await record(tx, {
       userId: owner, partId: row.id, actor: label, at: now,
       action: keys.length === 1 && keys[0] === "stageKey" ? "stage_changed" : "edited",
@@ -221,7 +221,7 @@ async function setStatus({ id, userId, actor, status }) {
   const action = next === "ready" ? "ready" : next === "retired" ? "retired" : "edited";
   const now = new Date();
   return commit(async (tx) => {
-    const saved = await tx.sellingPart.update({ where: { id: row.id }, data: { status: next } });
+    const saved = await tx.storyPart.update({ where: { id: row.id }, data: { status: next } });
     const event = await record(tx, {
       userId: owner, partId: row.id, actor: label, action, detail: { from: row.status, to: next }, at: now,
     });
