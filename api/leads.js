@@ -60,6 +60,19 @@ async function dispatch(method, action, auth, body, req) {
     const found = await store.getLead({ id, userId, emailHint });
     return { status: 200, body: { lead: store.presentLead(found.lead), drafts: found.drafts.map(store.presentDraft) } };
   }
+  if (method === "GET" && action === "drafts") {
+    const rows = await store.listDrafts({
+      userId, emailHint, status: queryValue(req, "status"), company: queryValue(req, "company"),
+    });
+    return {
+      status: 200,
+      body: {
+        drafts: rows.map(({ draft, lead }) => Object.assign(store.presentDraft(draft), {
+          lead: lead ? store.presentLead(lead) : null,
+        })),
+      },
+    };
+  }
   if (method === "POST" && action === "create") {
     return { status: 201, body: { lead: store.presentLead(await store.createLead(Object.assign(base, body))) } };
   }

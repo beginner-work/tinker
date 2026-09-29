@@ -212,6 +212,32 @@ async function getLead({ id, userId, emailHint }) {
   drafts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   return { lead, drafts };
 }
+async function listDrafts({ userId, emailHint, status, company } = {}) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  await ensureTable();
+  let drafts;
+  let leads;
+  try {
+    drafts = await db().leadDraft.findMany({ where: { userId: owner } });
+    leads = await db().lead.findMany({ where: { userId: owner } });
+  } catch (err) {
+    throw storeDown(err);
+  }
+  const byId = new Map(leads.map((lead) => [lead.id, lead]));
+  const wanted = status ? String(status).trim().toLowerCase() : "";
+  const companyFilter = company ? String(company).trim().toLowerCase() : "";
+  if (wanted) drafts = drafts.filter((row) => row.status === wanted);
+  if (companyFilter) {
+    drafts = drafts.filter((row) => {
+      if (!row.leadId) return false;
+      const lead = byId.get(row.leadId);
+      return lead && String(lead.company || "").toLowerCase() === companyFilter;
+    });
+  }
+  drafts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  return drafts.map((draft) => ({ draft, lead: (draft.leadId && byId.get(draft.leadId)) || null }));
+}
 async function updateLead({ id, userId, emailHint, actor, patch }) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
@@ -440,6 +466,6 @@ async function setOutreachSettings({ userId, emailHint, patch }) {
 module.exports = {
   UNAVAILABLE, TABLE_STATEMENTS, SOURCES, STAGES, OUTCOMES, CHANNELS,
   ensureTable, resetTableCache, assertAllowed, presentLead: shape, presentDraft: shape, presentEvent: shape,
-  parseImportText, createLead, listLeads, getLead, updateLead, setStage, importLeads,
+  parseImportText, createLead, listLeads, getLead, listDrafts, updateLead, setStage, importLeads,
   createDraft, updateDraft, approveDraft, markDraftSent, getOutreachSettings, setOutreachSettings,
 };
