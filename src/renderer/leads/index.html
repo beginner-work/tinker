@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
+    <title>Leads</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <style>
+      html, body.leads-page { height: auto; min-height: 100vh; min-height: 100dvh; overflow: auto; display: block; }
+      .leads { max-width: 52rem; margin: 0 auto; padding: 48px 20px 80px; }
+      .leads__title { margin: 0; font-family: var(--font-display); font-variation-settings: var(--font-display-settings); font-size: 32px; font-weight: 650; letter-spacing: -0.02em; }
+      .leads__lede { margin: 8px 0 12px; color: var(--color-muted); font-size: 15px; line-height: 1.5; }
+      .leads__drafts { margin: 0 0 20px; font-size: 14px; }
+      .leads__drafts a { color: var(--color-accent-strong); }
+      .leads__status { min-height: 1.2em; margin: 0 0 16px; color: #b3261e; font-size: 14px; }
+      .leads__toolbar, .leads__form, .leads__import, .leads__stage { margin: 0 0 24px; padding: 14px 16px; background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-card); }
+      .leads__toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+      .leads__field { display: flex; flex-direction: column; gap: 4px; min-width: 8rem; flex: 1; }
+      .leads__field label, .leads__heading { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted); }
+      .leads__input, .leads__select, .leads__textarea { min-height: 38px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-button); background: var(--color-surface); font: inherit; font-size: 14px; }
+      .leads__textarea { min-height: 96px; resize: vertical; width: 100%; }
+      .leads__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+      .leads__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .leads__button { padding: 8px 12px; border-radius: var(--radius-button); background: var(--color-accent-strong); color: #fff; font-size: 13px; font-weight: 600; border: 0; }
+      .leads__button--quiet { background: transparent; border: 1px solid var(--color-border); color: var(--color-foreground); }
+      .leads__button:disabled { opacity: 0.55; cursor: progress; }
+      .leads__heading { margin: 0 0 10px; }
+      .leads__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+      .leads__row { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: start; padding: 12px 14px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-button); cursor: pointer; text-align: left; width: 100%; font: inherit; color: inherit; }
+      .leads__row:hover, .leads__row.is-selected { border-color: var(--color-accent-strong); }
+      .leads__name { margin: 0; font-size: 15px; font-weight: 600; }
+      .leads__meta { margin: 2px 0 0; color: var(--color-muted); font-size: 13px; line-height: 1.4; }
+      .leads__empty { margin: 0; color: var(--color-muted); font-size: 14px; }
+      .leads__outcomes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+      @media (max-width: 700px) { .leads__grid { grid-template-columns: 1fr; } .leads__row { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body class="leads-page">
+    <main class="leads">
+      <h1 class="leads__title">Leads</h1>
+      <p class="leads__lede">Keep every lead in one place. Filter by stage or company, add one, or paste a list. Tinker never sends a message for you.</p>
+      <p class="leads__drafts"><a id="leads-drafts-link" href="/">Draft messages live in the sidebar</a></p>
+      <p id="leads-status" class="leads__status" role="status"></p>
+
+      <section class="leads__toolbar" aria-label="Filters">
+        <div class="leads__field">
+          <label for="leads-filter-stage">Stage</label>
+          <select id="leads-filter-stage" class="leads__select"></select>
+        </div>
+        <div class="leads__field">
+          <label for="leads-filter-company">Company</label>
+          <input id="leads-filter-company" class="leads__input" type="text" placeholder="Any company" autocomplete="organization" />
+        </div>
+        <button id="leads-filter-apply" class="leads__button" type="button">Apply</button>
+        <button id="leads-filter-clear" class="leads__button leads__button--quiet" type="button">Clear</button>
+      </section>
+
+      <section class="leads__form" aria-labelledby="leads-form-heading">
+        <h2 id="leads-form-heading" class="leads__heading">Add a lead</h2>
+        <form id="leads-form">
+          <input id="leads-id" type="hidden" value="" />
+          <div class="leads__grid">
+            <div class="leads__field"><label for="leads-personName">Person</label><input id="leads-personName" class="leads__input" required maxlength="200" /></div>
+            <div class="leads__field"><label for="leads-personTitle">Title</label><input id="leads-personTitle" class="leads__input" maxlength="200" /></div>
+            <div class="leads__field"><label for="leads-company">Company</label><input id="leads-company" class="leads__input" maxlength="200" /></div>
+            <div class="leads__field"><label for="leads-email">Email</label><input id="leads-email" class="leads__input" type="email" maxlength="320" /></div>
+            <div class="leads__field"><label for="leads-linkedInUrl">LinkedIn URL</label><input id="leads-linkedInUrl" class="leads__input" maxlength="500" /></div>
+            <div class="leads__field"><label for="leads-targetRoleTitle">Role you want</label><input id="leads-targetRoleTitle" class="leads__input" maxlength="200" /></div>
+            <div class="leads__field"><label for="leads-postingUrl">Posting URL</label><input id="leads-postingUrl" class="leads__input" maxlength="500" /></div>
+            <div class="leads__field"><label for="leads-source">Source</label><select id="leads-source" class="leads__select"></select></div>
+            <div class="leads__field"><label for="leads-nextStep">Next step</label><input id="leads-nextStep" class="leads__input" maxlength="500" /></div>
+            <div class="leads__field"><label for="leads-nextStepAt">Next step date</label><input id="leads-nextStepAt" class="leads__input" type="date" /></div>
+          </div>
+          <div class="leads__field" style="margin-top:10px"><label for="leads-notes">Notes</label><textarea id="leads-notes" class="leads__textarea" maxlength="8000"></textarea></div>
+          <div id="leads-outcomes" class="leads__outcomes" hidden></div>
+          <div class="leads__actions">
+            <button id="leads-save" class="leads__button" type="submit">Save lead</button>
+            <button id="leads-cancel" class="leads__button leads__button--quiet" type="button" hidden>Cancel edit</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="leads__import" aria-labelledby="leads-import-heading">
+        <h2 id="leads-import-heading" class="leads__heading">Paste a list</h2>
+        <p class="leads__empty">CSV or one lead per line. You can include source and stage columns.</p>
+        <textarea id="leads-import-text" class="leads__textarea" placeholder="Name, Title, Company, Email&#10;Sam Lee, PM, Orbit, sam@example.com"></textarea>
+        <div class="leads__actions">
+          <button id="leads-import" class="leads__button" type="button">Import</button>
+        </div>
+      </section>
+
+      <div id="leads-board"></div>
+    </main>
+    <script src="/leads/catalog.js"></script>
+    <script src="/leads/leads.js"></script>
+  </body>
+</html>
