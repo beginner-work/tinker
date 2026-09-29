@@ -28,3 +28,13 @@ test("You selection hosts writing interview inside messages pane", () => {
   assert.match(css, /messages-you-active/);
   assert.match(css, /writing--in-messages/);
 });
+
+test("You-mode writing sits in normal flow under the pane header", () => {
+  const block = css.match(/body\.messages-you-active \.writing--in-messages\s*\{[^}]+\}/);
+  assert.ok(block, "expected writing--in-messages rule");
+  assert.match(block[0], /position:\s*relative/);
+  assert.match(block[0], /inset:\s*auto/);
+  assert.equal(/—/.test(you), false);
+  const demo = fs.readFileSync(path.join(root, "src/renderer/messages/demo-you.html"), "utf8");
+  assert.equal(/—/.test(demo), false);
+});
