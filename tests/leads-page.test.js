@@ -23,8 +23,11 @@ test("leads page wires sign-in, filters, import, and no drafts UI", () => {
   assert.match(html, /id="leads-filter-company"/);
   assert.match(html, /id="leads-import-text"/);
   assert.match(html, /id="leads-form"/);
-  assert.match(html, /Draft messages live in the sidebar/);
+  assert.match(html, /Draft messages live in Messages/);
   assert.match(html, /id="leads-drafts-link"/);
+  assert.match(html, /leads__nav/);
+  assert.match(html, /hairlines, no card-in-card/);
+  assert.doesNotMatch(html, /\.leads__toolbar[^{]*\{[^}]*border-radius:\s*var\(--radius-card\)/);
   assert.match(html, /src="\/leads\/catalog\.js"/);
   assert.match(html, /src="\/leads\/leads\.js"/);
   assert.equal(html.includes("innerHTML"), false);
