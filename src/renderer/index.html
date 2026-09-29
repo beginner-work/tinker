@@ -70,6 +70,7 @@
          The prompt stays on the server (converse mode "linkedin" and
          the MCP tool draft_linkedin_post). Does not post. -->
     <script src="./linkedin-draft.js" defer></script>
+    <script src="./lead-drafts.js" defer></script>
     <script src="./sidebar-tree.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
@@ -224,6 +225,24 @@
           </div>
         </div>
         <ul class="sidebar__tree-list"></ul>
+      </nav>
+
+      <nav class="sidebar__drafts" id="sidebar-drafts" aria-label="Drafts" hidden data-open="true">
+        <button type="button" class="sidebar__drafts-toggle" data-drafts-toggle aria-expanded="true">
+          <span class="sidebar__account-head sidebar__drafts-title">Drafts</span>
+          <span class="sidebar__drafts-badge" data-drafts-badge hidden></span>
+        </button>
+        <div class="sidebar__drafts-panel" data-drafts-panel>
+          <button type="button" class="sidebar__drafts-filter" data-drafts-filter hidden></button>
+          <p class="sidebar__drafts-empty" data-drafts-empty>No drafts yet. When you write one for a lead, it shows up here for you to review.</p>
+          <p class="sidebar__drafts-error" data-drafts-error hidden></p>
+          <ul class="sidebar__drafts-list" data-drafts-list></ul>
+          <label class="sidebar__drafts-from">
+            <span class="sidebar__drafts-from-label">Outreach from</span>
+            <input type="email" class="sidebar__drafts-from-input" data-drafts-from placeholder="you@example.com" autocomplete="email" />
+            <button type="button" class="sidebar__drafts-from-save" data-drafts-from-save>Save</button>
+          </label>
+        </div>
       </nav>
 
       <nav class="sidebar__account" aria-label="Account">
