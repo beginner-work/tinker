@@ -242,7 +242,43 @@ a.sidebar__secondary-link { display: inline; }
   text-align: center;
   line-height: 1.4;
 }
-.messages-rail__search { display: block; padding: 2px 10px 4px; }
+.messages-rail__search { display: none; }
+.messages-rail__logo {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+.messages-rail__logo[hidden] { display: none !important; }
+.messages-rail__logo .messages-avatar__img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.messages-rail__row:has(.messages-rail__logo[hidden]) .messages-rail__main,
+.messages-rail__row:not(:has(.messages-rail__logo)) .messages-rail__main {
+  /* text left-aligns when no logo */
+}
+.messages-pane__avatar[hidden] { display: none !important; }
+.sidebar__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.sidebar__footer-link {
+  font-size: 12px;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+.sidebar__footer-link:hover { color: var(--color-foreground); }
 .messages-rail__search-input {
   width: 100%;
   padding: 7px 10px;
@@ -359,9 +395,41 @@ a.sidebar__secondary-link { display: inline; }
   overflow: hidden;
 }
 .messages-pane__avatar {
-  width: 32px;
-  height: 32px;
+  width: 18px;
+  height: 18px;
   font-size: 11px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+.messages-pane__avatar[hidden] { display: none !important; }
+.messages-pane__heading {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+.messages-pane__links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+}
+.messages-pane__links[hidden] { display: none !important; }
+.messages-pane__link {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-muted);
+  text-decoration: none;
+  letter-spacing: 0.01em;
+}
+.messages-pane__link:hover {
+  color: var(--color-foreground);
+  text-decoration: underline;
 }
 .messages-rail__avatar.messages-avatar--photo,
 .messages-pane__avatar.messages-avatar--photo {

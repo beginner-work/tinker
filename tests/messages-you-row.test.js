@@ -74,7 +74,7 @@ test("owner notepad is borderless and floating actions replace composer + mode-n
   assert.match(demo, /writing-input/);
   assert.equal(/Write a draft/i.test(demo), false);
   assert.equal(/—/.test(demo), false);
-  // Lead composer still owns Ship/Next labels for non-You threads.
-  assert.match(composer, /youMode \? "This is everything" : "Ship"/);
-  assert.match(composer, /!state\.leadId \|\| !!state\.youMode/);
+  // Lead and You threads share Keep crafting / This is everything.
+  assert.match(composer, /This is everything/);
+  assert.match(composer, /Keep crafting/);
 });

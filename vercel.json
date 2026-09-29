@@ -29,7 +29,9 @@
     { "source": "/leads", "destination": "/leads/index.html" },
     { "source": "/leads/", "destination": "/leads/index.html" },
     { "source": "/story-parts", "destination": "/story-parts/index.html" },
-    { "source": "/story-parts/", "destination": "/story-parts/index.html" }
+    { "source": "/story-parts/", "destination": "/story-parts/index.html" },
+    { "source": "/settings", "destination": "/settings/index.html" },
+    { "source": "/settings/", "destination": "/settings/index.html" }
   ],
   "headers": [
     {

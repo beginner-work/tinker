@@ -165,11 +165,115 @@ test("MCP-authenticated owner can create a company and a person with no allowlis
   assert.equal(row.people.length, 1);
   assert.equal(row.people[0].personName, "Morgan Kim");
 });
-test("shell is company-level with person tabs and demos omit GTM", () => {
+test("upsert_target_company notes-only does not wipe tier, priority, domain, or status", async () => {
+  // Production repro: Google was north_star; upserting { name, notes } cleared the tier.
+  const created = await mcpCall("upsert_target_company", {
+    name: "Google",
+    tier: "north_star",
+    priority: 1,
+    domain: "google.com",
+    status: "active",
+    notes: "Initial",
+  });
+  assert.equal(created.status, 200);
+  assert.equal(created.body.result.isError, undefined);
+  const before = created.body.result.structuredContent.company;
+  assert.equal(before.tier, "north_star");
+  assert.equal(before.northStar, true);
+  assert.equal(before.priority, 1);
+  assert.equal(before.domain, "google.com");
+  assert.equal(before.status, "active");
+
+  const notesOnly = await mcpCall("upsert_target_company", {
+    name: "Google",
+    notes: "Role: eng leader. Link: careers.google.com. Why it fits: platform. Gaps: warm intro. Next step: referrer.",
+  });
+  assert.equal(notesOnly.status, 200);
+  assert.equal(notesOnly.body.result.isError, undefined);
+  const afterNotes = notesOnly.body.result.structuredContent.company;
+  assert.equal(afterNotes.tier, "north_star");
+  assert.equal(afterNotes.northStar, true);
+  assert.equal(afterNotes.priority, 1);
+  assert.equal(afterNotes.domain, "google.com");
+  assert.equal(afterNotes.status, "active");
+  assert.match(afterNotes.notes, /Why it fits/);
+
+  // Same contract field-by-field: each omitted field must survive a partial upsert.
+  const priorityOnly = await mcpCall("upsert_target_company", { name: "Google", priority: 2 });
+  assert.equal(priorityOnly.body.result.structuredContent.company.tier, "north_star");
+  assert.equal(priorityOnly.body.result.structuredContent.company.northStar, true);
+  assert.equal(priorityOnly.body.result.structuredContent.company.priority, 2);
+  assert.equal(priorityOnly.body.result.structuredContent.company.domain, "google.com");
+  assert.equal(priorityOnly.body.result.structuredContent.company.status, "active");
+
+  const domainOnly = await mcpCall("upsert_target_company", { name: "Google", domain: "abc.xyz" });
+  assert.equal(domainOnly.body.result.structuredContent.company.tier, "north_star");
+  assert.equal(domainOnly.body.result.structuredContent.company.priority, 2);
+  assert.equal(domainOnly.body.result.structuredContent.company.domain, "abc.xyz");
+  assert.equal(domainOnly.body.result.structuredContent.company.status, "active");
+
+  const statusOnly = await mcpCall("upsert_target_company", { name: "Google", status: "dropped" });
+  assert.equal(statusOnly.body.result.structuredContent.company.tier, "north_star");
+  assert.equal(statusOnly.body.result.structuredContent.company.priority, 2);
+  assert.equal(statusOnly.body.result.structuredContent.company.domain, "abc.xyz");
+  assert.equal(statusOnly.body.result.structuredContent.company.status, "dropped");
+});
+
+test("upsert_lead_person stores githubUrl and list returns it", async () => {
+  await mcpCall("upsert_target_company", { name: "GitHub Co", tier: "wave_1" });
+  const person = await mcpCall("upsert_lead_person", {
+    personName: "Dev Example",
+    companyName: "GitHub Co",
+    contactType: "hiring_leader",
+    linkedInUrl: "https://www.linkedin.com/in/dev-example",
+    githubUrl: "https://github.com/dev-example",
+  });
+  assert.equal(person.status, 200);
+  assert.equal(person.body.result.isError, undefined);
+  assert.equal(person.body.result.structuredContent.lead.githubUrl, "https://github.com/dev-example");
+  assert.equal(person.body.result.structuredContent.lead.linkedInUrl, "https://www.linkedin.com/in/dev-example");
+  const listed = await mcpCall("list_target_companies", {});
+  const row = listed.body.result.structuredContent.companies.find((c) => c.company.name === "GitHub Co");
+  assert.ok(row);
+  assert.equal(row.people[0].githubUrl, "https://github.com/dev-example");
+  const thread = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages-thread.js"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "..", "src/renderer/index.html"), "utf8");
+  assert.match(html, /data-messages-links/);
+  assert.match(thread, /githubUrl/);
+  assert.match(thread, /LinkedIn/);
+  assert.match(thread, /GitHub/);
+});
+
+test("upsert_lead_person does not wipe an existing company north_star tier", async () => {
+  await mcpCall("upsert_target_company", {
+    name: "Anthropic",
+    tier: "north_star",
+    priority: 1,
+    notes: "Keep this",
+  });
+  const person = await mcpCall("upsert_lead_person", {
+    personName: "Alex Rivera",
+    companyName: "Anthropic",
+    contactType: "referrer",
+    nextStep: "Intro",
+    dueDate: "2026-10-14",
+  });
+  assert.equal(person.status, 200);
+  assert.equal(person.body.result.isError, undefined);
+  const company = person.body.result.structuredContent.company;
+  assert.equal(company.tier, "north_star");
+  assert.equal(company.northStar, true);
+  assert.equal(company.priority, 1);
+  assert.equal(company.notes, "Keep this");
+});
+
+test("shell is people-list rail and demos omit GTM", () => {
   const shell = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages-shell.js"), "utf8");
-  assert.match(shell, /selectCompany/);
-  assert.match(shell, /renderPersonTabs/);
-  assert.match(shell, /data-company-id/);
+  assert.match(shell, /selectLead/);
+  assert.match(shell, /selectYou/);
+  assert.match(shell, /THIS WEEK/);
+  assert.match(shell, /LATER/);
+  assert.equal(/renderPersonTabs/.test(shell), false);
   const demo = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages/demo-you.html"), "utf8");
   assert.equal(/Your GTM approach/i.test(demo), false);
   assert.match(demo, /sitting here at home/);

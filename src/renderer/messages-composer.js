@@ -1,37 +1,35 @@
-/* Bottom composer for the messaging shell (TYL-65).
- * Modern chat bar: growing textarea, channel/date as chips inside the shell,
- * Ship (final / approved) and Next (in progress / draft).
+/* Lead/person chat notepad (TYL-65).
+ * Same invisible notepad as the owner thread: logo mark, italic context,
+ * serif prompt, free text, floating Keep crafting / This is everything.
+ * Channel, due date, and subject stay as MCP data - not UI.
+ * This is everything → approved_to_send. Keep crafting → draft.
+ * Owner You thread is handled by messages-you.js and left alone.
  */
 (function () {
   "use strict";
   if (typeof document === "undefined") return;
 
   var TOKEN_KEY = "tinker_jwt";
-  var LINKEDIN_CONNECTION_NOTE_LIMIT = 200;
   var CHANNELS = [
-    { key: "linkedin_connection", label: "LinkedIn connection request", charLimit: LINKEDIN_CONNECTION_NOTE_LIMIT },
+    { key: "linkedin_connection", label: "LinkedIn connection request" },
     { key: "gmail_outreach", label: "Gmail" },
-    { key: "linkedin_post", label: "LinkedIn post", needsLead: false },
+    { key: "linkedin_post", label: "LinkedIn post" },
   ];
-  var REPLY_STAGES = { replied: 1, call: 1, interview: 1, offer: 1 };
   var state = {
     leadId: "",
     lead: null,
+    company: null,
     touch: null,
-    parts: [],
-    selectedParts: {},
+    draftId: "",
     channel: "gmail_outreach",
     subject: "",
     body: "",
-    plannedDate: "",
-    bookingUrl: "",
     defaultFrom: "",
     saving: false,
-    status: "",
-    error: "",
-    youMode: false,
+    handedOff: false,
+    statusLine: "",
   };
-  var root = null;
+  var legacyRoot = null;
 
   function token() {
     try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
@@ -63,308 +61,285 @@
       });
     });
   }
-  function channelMeta(key) {
-    for (var i = 0; i < CHANNELS.length; i++) if (CHANNELS[i].key === key) return CHANNELS[i];
-    return CHANNELS[0];
+  function notepad() {
+    return window.tinkerMessagesNotepad || null;
   }
-  function isReply() {
-    var stage = state.lead && state.lead.stage;
-    return !!(stage && REPLY_STAGES[stage]) && state.channel !== "linkedin_post";
+  function threadHost() {
+    return document.querySelector("#messages-pane [data-messages-thread]");
   }
-  function partText(part) {
-    if (!part) return "";
-    if (part.body) return String(part.body).trim();
-    if (part.text) return String(part.text).trim();
-    var fields = part.fields || {};
-    var bits = [];
-    if (fields.start || fields.number || fields.cause) {
-      bits.push([fields.start, fields.number, fields.cause].filter(Boolean).join(" "));
+  function hideLegacyComposer() {
+    legacyRoot = document.getElementById("messages-composer");
+    if (legacyRoot) legacyRoot.hidden = true;
+  }
+  function companyForLead(lead) {
+    if (!lead) return null;
+    var shell = window.tinkerMessagesShell;
+    if (shell && typeof shell.companyForLead === "function") return shell.companyForLead(lead);
+    if (shell && typeof shell.getCompany === "function" && lead.companyId) {
+      return shell.getCompany(lead.companyId);
     }
-    if (fields.teamOrRole) bits.push(fields.teamOrRole);
-    Object.keys(fields).forEach(function (k) {
-      if (k === "start" || k === "number" || k === "cause" || k === "teamOrRole") return;
-      if (fields[k]) bits.push(fields[k]);
-    });
-    return bits.join("\n").trim() || String(part.id || "");
+    return null;
   }
-  function rebuildBodyFromParts() {
-    var chunks = [];
-    state.parts.forEach(function (part) {
-      if (state.selectedParts[part.id]) {
-        var t = partText(part);
-        if (t) chunks.push(t);
-      }
-    });
-    if (chunks.length) state.body = chunks.join("\n\n");
+  function researchProse(company) {
+    if (!company) return "";
+    var research = String(company.research || "").trim();
+    var notes = String(company.notes || "").trim();
+    var text = research || notes;
+    if (!text) return "";
+    // Flatten any labeled lines into flowing prose without headings.
+    return text
+      .replace(/\r\n/g, "\n")
+      .split(/\n+/)
+      .map(function (line) {
+        return String(line || "").replace(/^\s*[-*•]\s*/, "").replace(/^\s*[A-Za-z][^:]{0,24}:\s*/, "").trim();
+      })
+      .filter(Boolean)
+      .join(" ");
   }
-  function showStatus(msg, kind) {
-    state.status = msg || "";
-    state.error = kind === "error" ? msg : "";
-    var node = root && root.querySelector("[data-composer-status]");
-    if (!node) return;
-    node.hidden = !msg;
-    node.textContent = msg || "";
-    node.className = "messages-composer__status" + (kind === "error" ? " messages-composer__status--error" : "");
+  function contextLine(lead, company) {
+    var person = String(lead && lead.personName || "").trim() || "someone";
+    var co = String((company && company.name) || (lead && lead.company) || "").trim();
+    if (co) return "Drafting for " + person + " at " + co + ".";
+    return "Drafting for " + person + ".";
   }
-  function syncCounter() {
-    var counter = root && root.querySelector("[data-composer-counter]");
-    if (!counter) return;
-    var meta = channelMeta(state.channel);
-    if (!meta.charLimit) { counter.hidden = true; return; }
-    counter.hidden = false;
-    var n = state.body.length;
-    var over = n > meta.charLimit;
-    counter.textContent = n + " / " + meta.charLimit + (over ? " (over LinkedIn free note limit)" : "");
-    counter.classList.toggle("messages-composer__counter--over", over);
+  function promptQuestion(lead, company) {
+    var person = String(lead && lead.personName || "").trim() || "them";
+    var co = String((company && company.name) || (lead && lead.company) || "").trim();
+    if (co) return "What do you want " + person + " at " + co + " to understand about you?";
+    return "What do you want " + person + " to understand about you?";
   }
-  function growTextarea() {
-    var area = root && root.querySelector("[data-composer-body]");
-    if (!area) return;
-    area.style.height = "auto";
-    var next = Math.min(Math.max(area.scrollHeight, 44), 180);
-    area.style.height = next + "px";
+  function logoMark(company) {
+    var wrap = el("span", "messages-notepad__mark", { "aria-hidden": "true" });
+    var shell = window.tinkerMessagesShell;
+    if (shell && typeof shell.fillCompanyLogo === "function" && company) {
+      shell.fillCompanyLogo(wrap, company, {
+        hideOnFail: true,
+        onReady: function (ok) { wrap.hidden = !ok; },
+      });
+      return wrap;
+    }
+    wrap.hidden = true;
+    return wrap;
   }
-  function setActionEnabled() {
-    var empty = !String(state.body || "").trim();
-    var ship = root && root.querySelector("[data-composer-ship]");
-    var next = root && root.querySelector("[data-composer-next]");
-    if (ship) ship.disabled = state.saving || empty;
-    if (next) next.disabled = state.saving || empty;
+  function buildOpening(lead, company) {
+    var opening = el("div", "messages-notepad__opening");
+    var mark = logoMark(company);
+    if (!mark.hidden) opening.appendChild(mark);
+    var context = el("p", "messages-notepad__context");
+    context.textContent = contextLine(lead, company);
+    opening.appendChild(context);
+    var research = researchProse(company);
+    if (research) {
+      var prose = el("p", "messages-notepad__research");
+      prose.textContent = research;
+      opening.appendChild(prose);
+    }
+    var q = el("h2", "messages-notepad__question");
+    q.textContent = promptQuestion(lead, company);
+    opening.appendChild(q);
+    return opening;
   }
-  function renderParts() {
-    var box = root && root.querySelector("[data-composer-parts]");
-    if (!box) return;
-    box.innerHTML = "";
-    if (state.youMode) { box.hidden = true; return; }
-    box.hidden = false;
-    if (!state.parts.length) {
-      box.appendChild(Object.assign(el("p", "messages-composer__hint"), {
-        textContent: "No story parts yet. Add some, then tap a chip to insert.",
-      }));
+  function showHandoff(host) {
+    if (!host) return;
+    var line = host.querySelector("[data-handoff-line]");
+    if (!line) {
+      line = el("p", "messages-notepad__handoff", { "data-handoff-line": "1" });
+      host.appendChild(line);
+    }
+    line.hidden = false;
+    line.textContent = "Handed off. Your assistant will send this.";
+  }
+  function hideHandoff(host) {
+    var line = host && host.querySelector("[data-handoff-line]");
+    if (line) line.hidden = true;
+  }
+  function mountNotepad() {
+    var np = notepad();
+    var host = threadHost();
+    if (!np || !host || !state.leadId || !state.lead) return;
+    hideLegacyComposer();
+    document.body.classList.add("messages-notepad-active");
+    document.body.classList.remove("messages-you-active");
+    host.hidden = false;
+    host.setAttribute("data-thread-ready", "1");
+    host.classList.add("messages-thread");
+
+    if (state.handedOff) {
+      np.unmount();
+      showHandoff(host);
       return;
     }
-    state.parts.forEach(function (part) {
-      var id = part.id;
-      var chip = el("button", "messages-composer__chip" + (state.selectedParts[id] ? " messages-composer__chip--on" : ""), {
-        type: "button",
-        "data-part-id": id,
-      });
-      var stage = (part.stageKey || part.stage)
-        ? String(part.stageKey || part.stage).replace(/_/g, " ")
-        : "Part";
-      var preview = partText(part);
-      chip.textContent = stage + (preview ? " · " + (preview.length > 28 ? preview.slice(0, 27) + "…" : preview) : "");
-      chip.title = preview || stage;
-      chip.setAttribute("aria-pressed", state.selectedParts[id] ? "true" : "false");
-      chip.addEventListener("click", function () {
-        if (state.selectedParts[id]) delete state.selectedParts[id];
-        else state.selectedParts[id] = true;
-        rebuildBodyFromParts();
-        var area = root.querySelector("[data-composer-body]");
-        if (area) area.value = state.body;
-        syncCounter();
-        growTextarea();
-        renderParts();
-        setActionEnabled();
-      });
-      box.appendChild(chip);
-    });
-  }
-  function dateInputValue(iso) {
-    if (!iso) return "";
-    var d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toISOString().slice(0, 10);
-  }
-  function formatChipDate(value) {
-    if (!value) return "Date";
-    var d = new Date(value + "T12:00:00");
-    if (Number.isNaN(d.getTime())) return value;
-    try {
-      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    } catch (e) {
-      return value;
-    }
-  }
-  function syncDateChip() {
-    var btn = root && root.querySelector("[data-composer-date-btn]");
-    var label = root && root.querySelector("[data-composer-date-label]");
-    var wrap = root && root.querySelector("[data-composer-date-wrap]");
-    var hasTouch = !!(state.touch && state.touch.touch) && !state.youMode;
-    if (wrap) wrap.hidden = !hasTouch;
-    if (btn) btn.hidden = !hasTouch;
-    if (label) label.textContent = formatChipDate(state.plannedDate || dateInputValue(state.touch && state.touch.touch && state.touch.touch.date));
-  }
-  function syncActionLabels() {
-    var ship = root && root.querySelector("[data-composer-ship]");
-    var next = root && root.querySelector("[data-composer-next]");
-    if (ship) ship.textContent = state.youMode ? "This is everything" : "Ship";
-    if (next) next.textContent = state.youMode ? "Keep crafting" : "Next";
-  }
-  function render() {
-    if (!root) return;
-    // You / Lindow Labs uses the invisible writing notepad + floating
-    // Keep crafting / This is everything pills. Lead threads keep this composer.
-    root.hidden = !state.leadId || !!state.youMode;
-    root.classList.toggle("messages-composer--you", !!state.youMode);
-    syncActionLabels();
-    if (!state.leadId || state.youMode) return;
-    var channel = root.querySelector("[data-composer-channel]");
-    var subjectWrap = root.querySelector("[data-composer-subject-wrap]");
-    var subject = root.querySelector("[data-composer-subject]");
-    var dateInput = root.querySelector("[data-composer-date]");
-    var body = root.querySelector("[data-composer-body]");
-    var booking = root.querySelector("[data-composer-booking]");
-    var toolbar = root.querySelector(".messages-composer__toolbar");
-    if (toolbar) toolbar.hidden = !!state.youMode;
-    if (channel && document.activeElement !== channel) channel.value = state.channel;
-    if (subjectWrap) subjectWrap.hidden = state.youMode || state.channel !== "gmail_outreach";
-    if (subject && document.activeElement !== subject) subject.value = state.subject;
-    if (dateInput && document.activeElement !== dateInput) {
-      dateInput.value = state.plannedDate || dateInputValue(state.touch && state.touch.touch && state.touch.touch.date);
-    }
-    syncDateChip();
-    if (body && document.activeElement !== body) body.value = state.body;
-    if (booking) {
-      booking.hidden = state.youMode || !isReply();
-      booking.disabled = !state.bookingUrl;
-    }
-    setActionEnabled();
-    syncCounter();
-    renderParts();
-    growTextarea();
-  }
-  function savePlannedDate(value) {
-    if (!state.touch || !state.touch.touch || !state.touch.touch.id) return;
-    var day = String(value || "").trim();
-    if (!day) return;
-    var iso = new Date(day + "T12:00:00.000Z").toISOString();
-    showStatus("Updating plan…");
-    fetch("/api/schedule?action=nudge-date", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + token(),
-        Accept: "application/json",
-        "Content-Type": "application/json",
+    hideHandoff(host);
+    np.mount(host, {
+      primaryLabel: "This is everything",
+      secondaryLabel: "Keep crafting",
+      heading: "",
+      value: state.body,
+      metaNode: buildOpening(state.lead, state.company),
+      onInput: function (value) {
+        var prev = state.body;
+        state.body = value;
+        if (state.handedOff && value !== prev) {
+          state.handedOff = false;
+          revokeIfNeeded();
+        }
+        // Typing after approve revokes via PATCH when a draft exists.
+        if (state.draftId && (state.statusLine === "approved_to_send" || state.statusLine === "approved")) {
+          revokeIfNeeded();
+        }
       },
-      body: JSON.stringify({ date: iso, weekStart: iso }),
-    }).then(function (res) { return res.json().then(function (payload) { return { ok: res.ok, payload: payload }; }); })
-      .then(function (out) {
-        var next = (out.ok && out.payload && out.payload.date) ? out.payload.date : iso;
-        var nudged = !!(out.ok && out.payload && out.payload.nudged);
-        return fetch("/api/schedule?action=touch", {
-          method: "PATCH",
-          headers: {
-            Authorization: "Bearer " + token(),
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ id: state.touch.touch.id, date: next }),
-        }).then(function (res) {
-          return res.json().catch(function () { return {}; }).then(function (payload) {
-            if (!res.ok) throw new Error(payload.error || "Could not update date.");
-            state.touch = { touch: payload.touch, company: state.touch.company };
-            state.plannedDate = dateInputValue(payload.touch.date);
-            showStatus(nudged
-              ? "Moved off a busy day to " + state.plannedDate + "."
-              : "Next touch set for " + state.plannedDate + ".");
-            if (window.tinkerMessagesShell && window.tinkerMessagesShell.refresh) window.tinkerMessagesShell.refresh();
-            if (window.tinkerMessagesThread && state.leadId) window.tinkerMessagesThread.loadLead(state.leadId);
-            render();
-          });
-        });
-      }).catch(function (err) {
-        showStatus(err.message || "Could not update date.", "error");
-      });
-  }
-  function saveDraft(mode) {
-    if (state.youMode) {
-      try {
-        window.dispatchEvent(new CustomEvent("tinker:messages-you-action", { detail: { action: mode } }));
-      } catch (e) { /* ignore */ }
-      return;
-    }
-    if (state.saving) return;
-    var body = String(state.body || "").trim();
-    if (!body) { showStatus("Write something before saving a draft.", "error"); return; }
-    var meta = channelMeta(state.channel);
-    if (meta.needsLead === false) {
-      /* linkedin_post may omit lead */
-    } else if (!state.leadId) {
-      showStatus("Pick a conversation first.", "error");
-      return;
-    }
-    state.saving = true;
-    showStatus(mode === "ship" ? "Marking ready…" : "Saving draft…");
-    render();
-    var payload = {
-      channel: state.channel,
-      body: body,
-      storyPartIds: Object.keys(state.selectedParts),
-    };
-    if (meta.needsLead !== false) payload.leadId = state.leadId;
-    if (state.channel === "gmail_outreach") {
-      payload.subject = state.subject;
-      payload.fromAddress = state.defaultFrom || "";
-    }
-    api("/api/leads", "POST", "draft", payload).then(function (res) {
-      var draft = res && res.draft;
-      if (mode === "ship" && draft && draft.id) {
-        return api("/api/leads", "POST", "approve", {}, { id: draft.id }).then(function () {
-          showStatus("Ready. This draft is final.");
-        });
-      }
-      showStatus("Saved. Keep drafting when you are ready.");
-    }).then(function () {
-      state.body = "";
-      state.subject = "";
-      state.selectedParts = {};
-      if (window.tinkerMessagesThread && state.leadId) window.tinkerMessagesThread.loadLead(state.leadId);
-      if (window.tinkerMessagesShell && window.tinkerMessagesShell.refresh) window.tinkerMessagesShell.refresh();
-      if (window.tinkerLeadDrafts && window.tinkerLeadDrafts.refresh) window.tinkerLeadDrafts.refresh();
-    }).catch(function (err) {
-      showStatus(err.message || "Could not save draft.", "error");
-    }).finally(function () {
-      state.saving = false;
-      render();
+      onPrimary: function () { saveDraft("ship"); },
+      onSecondary: function () { saveDraft("next"); },
     });
+    np.setPrimaryEnabled(!!String(state.body || "").trim() && !state.saving);
+    setTimeout(function () { np.focus(); }, 60);
   }
-  function loadParts() {
-    if (!token()) return Promise.resolve();
-    return api("/api/story-parts", "GET", "list", null, { status: "ready" }).catch(function () {
-      return api("/api/story-parts", "GET", "list");
-    }).then(function (res) {
-      state.parts = Array.isArray(res.parts) ? res.parts : [];
-    }).catch(function () {
-      state.parts = [];
-    });
+  function unmountNotepad() {
+    var np = notepad();
+    if (np) np.unmount();
+    document.body.classList.remove("messages-notepad-active");
+    hideHandoff(threadHost());
   }
   function loadSettings() {
     return api("/api/leads", "GET", "settings").then(function (res) {
       state.defaultFrom = (res.settings && res.settings.defaultFromAddress) || "";
-      state.bookingUrl = (res.settings && res.settings.bookingUrl) || "";
     }).catch(function () { /* ignore */ });
   }
+  function pickOpenDraft(drafts) {
+    var list = Array.isArray(drafts) ? drafts : [];
+    var open = list.filter(function (d) {
+      return d && (d.status === "draft" || d.status === "approved_to_send" || d.status === "approved" || d.status === "send_failed");
+    });
+    open.sort(function (a, b) {
+      return String(b.updatedAt || "") < String(a.updatedAt || "") ? -1 : 1;
+    });
+    return open[0] || null;
+  }
+  function revokeIfNeeded() {
+    if (!state.draftId) return;
+    if (state.statusLine !== "approved_to_send" && state.statusLine !== "approved" && state.statusLine !== "send_failed") return;
+    api("/api/leads", "PATCH", "draft", { body: state.body }, { id: state.draftId }).then(function (res) {
+      var d = res && res.draft;
+      if (d) {
+        state.draftId = d.id;
+        state.statusLine = d.status || "draft";
+        state.handedOff = false;
+        state.body = d.body || state.body;
+      }
+      mountNotepad();
+    }).catch(function () { /* ignore */ });
+  }
+  function saveDraft(mode) {
+    if (state.saving) return;
+    var body = String(state.body || "").trim();
+    if (!body) return;
+    if (!state.leadId) return;
+    state.saving = true;
+    var np = notepad();
+    if (np) np.setPrimaryEnabled(false);
+
+    var payload = {
+      channel: state.channel || "gmail_outreach",
+      body: body,
+      storyPartIds: [],
+    };
+    payload.leadId = state.leadId;
+    if (payload.channel === "gmail_outreach") {
+      payload.subject = state.subject || "";
+      payload.fromAddress = state.defaultFrom || "";
+    }
+
+    var chain;
+    if (state.draftId && (state.statusLine === "draft" || state.statusLine === "send_failed" || state.statusLine === "approved_to_send" || state.statusLine === "approved")) {
+      chain = api("/api/leads", "PATCH", "draft", { body: body, subject: payload.subject }, { id: state.draftId }).then(function (res) {
+        return { draft: res.draft };
+      }).catch(function () {
+        return api("/api/leads", "POST", "draft", payload);
+      });
+    } else {
+      chain = api("/api/leads", "POST", "draft", payload);
+    }
+
+    chain.then(function (res) {
+      var draft = res && res.draft;
+      if (!draft || !draft.id) throw new Error("Could not save draft.");
+      state.draftId = draft.id;
+      state.statusLine = draft.status || "draft";
+      state.body = draft.body || body;
+      if (mode === "ship") {
+        return api("/api/leads", "POST", "approve", {}, { id: draft.id }).then(function (out) {
+          var d = out && out.draft;
+          state.draftId = d && d.id || draft.id;
+          state.statusLine = (d && d.status) || "approved_to_send";
+          state.handedOff = true;
+          state.body = (d && (d.approvedText || d.body)) || body;
+        });
+      }
+      state.handedOff = false;
+    }).then(function () {
+      if (window.tinkerMessagesThread && state.leadId) window.tinkerMessagesThread.loadLead(state.leadId);
+      if (window.tinkerMessagesShell && window.tinkerMessagesShell.refresh) window.tinkerMessagesShell.refresh();
+      if (window.tinkerLeadDrafts && window.tinkerLeadDrafts.refresh) window.tinkerLeadDrafts.refresh();
+      mountNotepad();
+    }).catch(function () {
+      state.handedOff = false;
+      mountNotepad();
+    }).finally(function () {
+      state.saving = false;
+      var n = notepad();
+      if (n) n.setPrimaryEnabled(!!String(state.body || "").trim());
+    });
+  }
   function setLead(leadId, lead, touch) {
-    state.youMode = false;
     state.leadId = leadId || "";
     state.lead = lead || null;
+    state.company = companyForLead(lead);
     state.touch = touch || null;
-    state.plannedDate = dateInputValue(touch && touch.touch && touch.touch.date);
-    state.status = "";
-    state.error = "";
-    render();
+    if (touch && touch.touch && touch.touch.touchType) {
+      /* channel stays MCP-owned; keep last known */
+    }
+    if (!leadId) {
+      unmountNotepad();
+      return;
+    }
+    api("/api/leads", "GET", "drafts").then(function (res) {
+      var all = Array.isArray(res.drafts) ? res.drafts : [];
+      var mine = all.filter(function (d) { return d && d.leadId === leadId; });
+      // Prefer nested drafts from lead fetch when available later.
+      var open = pickOpenDraft(mine);
+      if (open) {
+        state.draftId = open.id;
+        state.body = open.body || "";
+        state.subject = open.subject || "";
+        state.channel = open.channel || state.channel;
+        state.statusLine = open.status || "draft";
+        state.handedOff = open.status === "approved_to_send";
+      } else {
+        state.draftId = "";
+        state.body = "";
+        state.statusLine = "draft";
+        state.handedOff = false;
+      }
+      mountNotepad();
+    }).catch(function () {
+      state.draftId = "";
+      state.body = "";
+      state.handedOff = false;
+      mountNotepad();
+    });
   }
   function setYouMode(on) {
-    state.youMode = !!on;
     if (on) {
       state.leadId = "";
       state.lead = null;
+      state.company = null;
       state.touch = null;
+      state.draftId = "";
+      state.body = "";
+      state.handedOff = false;
+      unmountNotepad();
+      hideLegacyComposer();
     }
-    state.status = "";
-    state.error = "";
-    render();
   }
   function onSelect(e) {
     if (e && e.detail && e.detail.you) {
@@ -374,91 +349,39 @@
     var id = e && e.detail && e.detail.leadId;
     var touch = e && e.detail && e.detail.touch;
     if (!id) { setYouMode(false); setLead("", null, null); return; }
-    state.youMode = false;
     api("/api/leads", "GET", "lead", null, { id: id }).then(function (res) {
-      setLead(id, res.lead || null, touch || null);
+      var lead = res.lead || { id: id };
+      // Prefer drafts nested on the lead response when present.
+      if (Array.isArray(res.drafts) && res.drafts.length) {
+        var open = pickOpenDraft(res.drafts);
+        state.draftId = open ? open.id : "";
+        state.body = open ? (open.body || "") : "";
+        state.subject = open ? (open.subject || "") : "";
+        state.channel = open ? (open.channel || "gmail_outreach") : "gmail_outreach";
+        state.statusLine = open ? (open.status || "draft") : "draft";
+        state.handedOff = !!(open && open.status === "approved_to_send");
+        state.leadId = id;
+        state.lead = lead;
+        state.company = companyForLead(lead);
+        state.touch = touch || null;
+        mountNotepad();
+        return;
+      }
+      setLead(id, lead, touch || null);
     }).catch(function () {
       setLead(id, { id: id }, touch || null);
     });
   }
-  function bind() {
-    if (!root || root.getAttribute("data-bound")) return;
-    root.setAttribute("data-bound", "1");
-    var channel = root.querySelector("[data-composer-channel]");
-    var subject = root.querySelector("[data-composer-subject]");
-    var body = root.querySelector("[data-composer-body]");
-    var booking = root.querySelector("[data-composer-booking]");
-    var ship = root.querySelector("[data-composer-ship]");
-    var next = root.querySelector("[data-composer-next]");
-    var dateInput = root.querySelector("[data-composer-date]");
-    var dateBtn = root.querySelector("[data-composer-date-btn]");
-    if (channel) {
-      CHANNELS.forEach(function (c) {
-        var opt = el("option", "", { value: c.key });
-        opt.textContent = c.label;
-        channel.appendChild(opt);
-      });
-      channel.value = state.channel;
-      channel.addEventListener("change", function () {
-        state.channel = channel.value;
-        render();
-      });
-    }
-    if (subject) subject.addEventListener("input", function () { state.subject = subject.value; });
-    if (dateBtn && dateInput) {
-      dateBtn.addEventListener("click", function () {
-        try {
-          if (typeof dateInput.showPicker === "function") dateInput.showPicker();
-          else dateInput.click();
-        } catch (e) {
-          dateInput.focus();
-          dateInput.click();
-        }
-      });
-    }
-    if (dateInput) {
-      dateInput.addEventListener("change", function () {
-        state.plannedDate = dateInput.value;
-        savePlannedDate(dateInput.value);
-      });
-    }
-    if (body) {
-      body.addEventListener("input", function () {
-        state.body = body.value;
-        syncCounter();
-        growTextarea();
-        setActionEnabled();
-      });
-    }
-    if (booking) {
-      booking.addEventListener("click", function () {
-        var url = String(state.bookingUrl || "").trim();
-        if (!url) { showStatus("Set your booking link under Messages settings first.", "error"); return; }
-        var cur = state.body || "";
-        var gap = cur && !/\s$/.test(cur) ? "\n\n" : (cur ? "\n" : "");
-        state.body = cur + gap + url;
-        if (body) body.value = state.body;
-        syncCounter();
-        setActionEnabled();
-        showStatus("Booking link inserted. Ship or Next when it reads right.");
-      });
-    }
-    if (ship) ship.addEventListener("click", function () { saveDraft("ship"); });
-    if (next) next.addEventListener("click", function () { saveDraft("next"); });
-  }
   function boot() {
-    root = document.getElementById("messages-composer");
-    if (!root) return;
-    bind();
-    root.hidden = true;
-    Promise.all([loadParts(), loadSettings()]).then(render);
+    hideLegacyComposer();
+    loadSettings();
     window.addEventListener("tinker:messages-select", onSelect);
   }
 
   window.tinkerMessagesComposer = {
     setLead: setLead,
     setYouMode: setYouMode,
-    refreshParts: loadParts,
+    refreshParts: function () { return Promise.resolve(); },
     CHANNELS: CHANNELS,
   };
 

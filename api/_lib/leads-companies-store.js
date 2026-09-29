@@ -12,6 +12,7 @@ const TABLE_STATEMENTS = [
   `ALTER TABLE "TargetCompany" ADD COLUMN IF NOT EXISTS "priority" INTEGER NOT NULL DEFAULT 100`,
   `ALTER TABLE "TargetCompany" ADD COLUMN IF NOT EXISTS "tier" TEXT NOT NULL DEFAULT 'other'`,
   `ALTER TABLE "TargetCompany" ADD COLUMN IF NOT EXISTS "notes" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "TargetCompany" ADD COLUMN IF NOT EXISTS "research" TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "contactType" TEXT NOT NULL DEFAULT 'other'`,
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "queueOrder" INTEGER NOT NULL DEFAULT 0`,
@@ -132,6 +133,7 @@ async function createCompany(input) {
     northStar, priority: readPriority(input.priority, "priority"),
     tier: northStar ? "north_star" : tier,
     notes: readText(input.notes, "notes", 8000, false),
+    research: readText(input.research, "research", 16000, false),
     status: readEnum(input.status || "active", COMPANY_STATUSES, "status"),
     totalComp: readComp(input.totalComp, "totalComp"), totalCompSource: readText(input.totalCompSource, "totalCompSource", 500, false),
   };
@@ -164,7 +166,7 @@ async function updateCompany({ id, userId, emailHint, actor, patch }) {
   store.assertAllowed(userId, emailHint);
   requireActor(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
-  const keys = ["name", "domain", "northStar", "priority", "tier", "notes", "status", "totalComp", "totalCompSource"].filter((key) => Object.prototype.hasOwnProperty.call(source, key));
+  const keys = ["name", "domain", "northStar", "priority", "tier", "notes", "research", "status", "totalComp", "totalCompSource"].filter((key) => Object.prototype.hasOwnProperty.call(source, key) && source[key] !== undefined);
   if (!keys.length) throw fail(400, "Nothing to update.");
   await ensureTable();
   const row = await loadCompany(id, userId);
@@ -181,6 +183,7 @@ async function updateCompany({ id, userId, emailHint, actor, patch }) {
   }
   if (keys.includes("priority")) data.priority = readPriority(source.priority, "priority");
   if (keys.includes("notes")) data.notes = readText(source.notes, "notes", 8000, false);
+  if (keys.includes("research")) data.research = readText(source.research, "research", 16000, false);
   if (keys.includes("status")) data.status = readEnum(source.status, COMPANY_STATUSES, "status");
   if (keys.includes("totalComp")) data.totalComp = readComp(source.totalComp, "totalComp");
   if (keys.includes("totalCompSource")) data.totalCompSource = readText(source.totalCompSource, "totalCompSource", 500, false);
@@ -207,7 +210,7 @@ async function matchOrCreateCompany(tx, owner, { name, domain }) {
     return found;
   }
   return tx.targetCompany.create({
-    data: { userId: owner, name: name || d || "Company", domain: d, northStar: false, priority: 100, tier: "other", notes: "", status: "active", totalComp: null, totalCompSource: "" },
+    data: { userId: owner, name: name || d || "Company", domain: d, northStar: false, priority: 100, tier: "other", notes: "", research: "", status: "active", totalComp: null, totalCompSource: "" },
   });
 }
 

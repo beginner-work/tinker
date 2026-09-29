@@ -138,6 +138,7 @@ model Lead {
   personName      String    @default("")
   personTitle     String    @default("")
   linkedInUrl     String    @default("")
+  githubUrl       String    @default("")
   email           String    @default("")
   company         String    @default("")
   companyId       String?
@@ -158,19 +159,26 @@ model Lead {
 }
 
 model LeadDraft {
-  id           String   @id @default(cuid())
-  userId       String
-  leadId       String?
-  channel      String
-  subject      String   @default("")
-  body         String   @default("")
-  fromAddress  String   @default("")
-  status       String
-  storyPartIds Json     @default("[]")
-  factCheck    Json     @default("{}")
-  createdBy    String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                   String    @id @default(cuid())
+  userId               String
+  leadId               String?
+  channel              String
+  subject              String    @default("")
+  body                 String    @default("")
+  fromAddress          String    @default("")
+  status               String
+  storyPartIds         Json      @default("[]")
+  factCheck            Json      @default("{}")
+  createdBy            String
+  approvedAt           DateTime?
+  approvedText         String    @default("")
+  approvedPersonName   String    @default("")
+  approvedCompanyName  String    @default("")
+  sentAt               DateTime?
+  externalMessageId    String    @default("")
+  failedReason         String    @default("")
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
   @@index([userId])
   @@index([leadId])
 }
@@ -196,6 +204,7 @@ model TargetCompany {
   priority        Int      @default(100)
   tier            String   @default("other")
   notes           String   @default("")
+  research        String   @default("")
   status          String
   totalComp       Int?
   totalCompSource String   @default("")

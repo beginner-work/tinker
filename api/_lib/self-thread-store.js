@@ -92,6 +92,19 @@ function isPlanDump(message) {
   const body = String(message && message.body || "").toLowerCase();
   // Known production dump shape: title mentions GTM / plan prose with North Star waves.
   if (title.includes("gtm") && (body.includes("north star") || body.includes("wave 1"))) return true;
+  // Deploy / ops status chatter does not belong in the owner's story thread.
+  if (title.includes("deploy check") || title.includes("deploy status")) return true;
+  if (title.includes("lead tools deploy")) return true;
+  if (/\bdeploy\b/.test(title) && (
+    body.includes("production is on")
+    || body.includes("allowlist")
+    || body.includes("gate removed")
+    || body.includes("leads_owner_allowlist")
+  )) return true;
+  if (body.includes("leads_owner_allowlist") && (body.includes("gate") || body.includes("removed"))) return true;
+  if (body.includes("production is on") && (body.includes("gate") || body.includes("allowlist") || /\b[0-9a-f]{7,40}\b/.test(body))) {
+    return true;
+  }
   return false;
 }
 
@@ -138,7 +151,7 @@ async function postMessage({ userId, title, body, source } = {}) {
       source: source === "owner" ? "owner" : "mcp",
     };
     if (isPlanDump(message)) {
-      throw fail(400, "Do not post GTM or outreach plans to the You thread. Use upsert_target_company and upsert_lead_person.");
+      throw fail(400, "Do not post GTM plans, deploy notes, or ops status to the You thread. Use upsert_target_company and upsert_lead_person for lead work.");
     }
     const { messages } = await readBlob(uid);
     // Drop any legacy plan dumps before appending a short note.

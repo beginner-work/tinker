@@ -222,7 +222,7 @@
       card.appendChild(Object.assign(el("p", "writing-note"), { textContent: "From" }));
       var fromInput = el("input", "writing-input", { type: "email", name: "fromAddress", placeholder: state.defaultFrom || "you@example.com" });
       fromInput.value = draft.fromAddress || state.defaultFrom || ""; card.appendChild(fromInput);
-      card.appendChild(Object.assign(el("p", "writing-note"), { textContent: state.defaultFrom ? ("Default is " + state.defaultFrom + ".") : "Set a default under Drafts → Outreach from." }));
+      card.appendChild(Object.assign(el("p", "writing-note"), { textContent: state.defaultFrom ? ("Default is " + state.defaultFrom + ".") : "Set a default under Settings." }));
     }
     card.appendChild(Object.assign(el("p", "writing-note"), { textContent: "Message" }));
     var bodyInput = el("textarea", "writing-input", { rows: "10", name: "body" });
@@ -380,8 +380,10 @@
     }
   }
   function boot() {
-    root = document.getElementById("sidebar-drafts");
+    // Settings page hosts outreach defaults; the inbox rail no longer does.
+    root = document.getElementById("settings-outreach") || document.getElementById("sidebar-drafts");
     if (!root) return;
+    if (!root.querySelector("[data-drafts-from]")) return;
     bindChrome(); refresh();
     window.addEventListener("storage", function (e) { if (e.key === TOKEN_KEY) refresh(); });
     document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });

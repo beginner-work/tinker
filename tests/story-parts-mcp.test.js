@@ -217,7 +217,8 @@ test("proof_point gate blocks, other stages skip check_text, and MCP is ready-on
   assert.equal(/Tyler can prove/i.test(listTool.description), false);
   assert.match(listTool.description, /does not draft or send/i);
   assert.deepEqual(Object.keys(listTool.inputSchema.properties).sort(), ["concepts", "stage", "teamOrRole"]);
-  assert.equal(listed.captured.body.result.tools.some((t) => /approve|send|draft_outreach|list_threads/i.test(t.name)), false);
+  assert.equal(listed.captured.body.result.tools.some((t) => /draft_outreach|list_threads|approve_story/i.test(t.name)), false);
+  assert.equal(listed.captured.body.result.tools.some((t) => t.name === "list_story_stages"), false);
 
   const parts = await mcpCall(bot, "list_story_parts", { stage: "proof_point", concepts: "trust-boundaries" });
   assert.equal(parts.body.result.structuredContent.parts.length, 1);

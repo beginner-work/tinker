@@ -22,7 +22,7 @@ test("body ships messages-shell-open so mobile first paint is never blank", () =
   assert.match(styles, /height:\s*100dvh\s*!important/);
   assert.match(drawer, /messages-shell-open:not\(\.messages-mobile-thread\)/);
   assert.match(shell, /showCompanyList/);
-  assert.match(shell, /enterMobileThread/);
+  assert.match(shell, /messages-mobile-thread/);
   assert.match(shell, /stayOnList/);
   // Clearing selection must NOT open You / hide the list.
   assert.equal(/if \(id === YOU_ID \|\| !id\) \{ selectYou/.test(shell), false);

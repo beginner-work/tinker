@@ -23,11 +23,21 @@ const TABLE_STATEMENTS = [
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "contactType" TEXT NOT NULL DEFAULT 'other'`,
   `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "queueOrder" INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "githubUrl" TEXT NOT NULL DEFAULT ''`,
   `CREATE INDEX IF NOT EXISTS "Lead_companyId_idx" ON "Lead"("companyId")`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "approvedText" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "approvedPersonName" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "approvedCompanyName" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "sentAt" TIMESTAMP(3)`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "externalMessageId" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "failedReason" TEXT NOT NULL DEFAULT ''`,
 ];
+const DRAFT_STATUSES = ["draft", "approved", "approved_to_send", "sent_by_owner", "send_failed"];
 const HEADER_MAP = {
   name: "personName", personname: "personName", person: "personName", title: "personTitle", persontitle: "personTitle",
-  linkedin: "linkedInUrl", linkedinurl: "linkedInUrl", url: "linkedInUrl", email: "email", company: "company",
+  linkedin: "linkedInUrl", linkedinurl: "linkedInUrl", url: "linkedInUrl",
+  github: "githubUrl", githuburl: "githubUrl", email: "email", company: "company",
   role: "targetRoleTitle", targetrole: "targetRoleTitle", targetroletitle: "targetRoleTitle", posting: "postingUrl",
   postingurl: "postingUrl", source: "source", stage: "stage", notes: "notes", draftchannel: "draftChannel",
   channel: "draftChannel", draftsubject: "draftSubject", subject: "draftSubject", draftbody: "draftBody", body: "draftBody", draftstatus: "draftStatus",
@@ -74,13 +84,9 @@ function readEnum(value, allowed, label) {
   if (!allowed.includes(found)) throw fail(400, `${label} must be ${allowed.join(" or ")}.`);
   return found;
 }
+const { readCalendarDate, presentCalendarDate } = require("./calendar-date.js");
 function readDate(value, label) {
-  if (value == null || value === "") return null;
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-  if (typeof value !== "string") throw fail(400, `${label} must be a date.`);
-  const parsed = new Date(value.trim());
-  if (Number.isNaN(parsed.getTime())) throw fail(400, `${label} must be a date.`);
-  return parsed;
+  return readCalendarDate(value, label, { required: false });
 }
 function readIds(value) {
   if (value == null) return [];
@@ -95,7 +101,14 @@ function readFactCheck(value) {
 function iso(value) { return value ? new Date(value).toISOString() : null; }
 function shape(row) {
   const out = {};
-  for (const [key, value] of Object.entries(row)) { if (key !== "userId") out[key] = value instanceof Date ? iso(value) : value; }
+  for (const [key, value] of Object.entries(row)) {
+    if (key === "userId") continue;
+    if (key === "nextStepAt" || key === "approvedAt" || key === "sentAt") {
+      out[key] = key === "nextStepAt" ? presentCalendarDate(value) : (value ? iso(value) : null);
+      continue;
+    }
+    out[key] = value instanceof Date ? iso(value) : value;
+  }
   return out;
 }
 function dedupeKey(name, company) { return `${String(name || "").trim().toLowerCase()}|${String(company || "").trim().toLowerCase()}`; }
@@ -173,6 +186,7 @@ function leadFields(input, requireName) {
     personName: readText(input.personName, "personName", 200, !!requireName),
     personTitle: readText(input.personTitle, "personTitle", 200, false),
     linkedInUrl: readText(input.linkedInUrl, "linkedInUrl", 500, false),
+    githubUrl: readText(input.githubUrl, "githubUrl", 500, false),
     email: readText(input.email, "email", 320, false).toLowerCase(),
     company: readText(input.company, "company", 200, false),
     targetRoleTitle: readText(input.targetRoleTitle, "targetRoleTitle", 200, false),
@@ -277,7 +291,7 @@ async function updateLead({ id, userId, emailHint, actor, patch }) {
   assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
-  const keys = ["personName", "personTitle", "linkedInUrl", "email", "company", "companyId", "contactType", "queueOrder", "targetRoleTitle", "postingUrl", "source", "nextStep", "nextStepAt", "notes"]
+  const keys = ["personName", "personTitle", "linkedInUrl", "githubUrl", "email", "company", "companyId", "contactType", "queueOrder", "targetRoleTitle", "postingUrl", "source", "nextStep", "nextStepAt", "notes"]
     .filter((key) => Object.prototype.hasOwnProperty.call(source, key));
   if (!keys.length) throw fail(400, "Nothing to update.");
   await ensureTable();
@@ -296,7 +310,7 @@ async function updateLead({ id, userId, emailHint, actor, patch }) {
     else if (key === "email") data.email = readText(source.email, "email", 320, false).toLowerCase();
     else if (key === "personName") data.personName = readText(source.personName, "personName", 200, true);
     else if (key === "notes") data.notes = readText(source.notes, "notes", 8000, false);
-    else if (key === "linkedInUrl" || key === "postingUrl") data[key] = readText(source[key], key, 500, false);
+    else if (key === "linkedInUrl" || key === "githubUrl" || key === "postingUrl") data[key] = readText(source[key], key, 500, false);
     else if (key === "nextStep") data.nextStep = readText(source.nextStep, "nextStep", 500, false);
     else data[key] = readText(source[key], key, 200, false);
   }
@@ -457,7 +471,15 @@ async function updateDraft({ id, userId, emailHint, actor, patch }) {
     if (row.channel !== "gmail_outreach") throw fail(400, "subject is only for gmail_outreach.");
     data.subject = readText(source.subject, "subject", 300, false);
   }
-  if (row.status === "approved") data.status = "draft";
+  // Editing after handoff revokes approval — back to draft until they approve again.
+  if (row.status === "approved" || row.status === "approved_to_send" || row.status === "send_failed") {
+    data.status = "draft";
+    data.approvedAt = null;
+    data.approvedText = "";
+    data.approvedPersonName = "";
+    data.approvedCompanyName = "";
+    data.failedReason = "";
+  }
   return commit(async (tx) => {
     const saved = await tx.leadDraft.update({ where: { id: row.id }, data });
     await record(tx, { userId: owner, leadId: row.leadId, actor: label, action: "draft_edited", detail: { draftId: row.id, fields: keys } });
@@ -470,33 +492,128 @@ async function approveDraft({ id, userId, emailHint, actor }) {
   const label = actorLabel(actor);
   await ensureTable();
   const row = await loadOwned("leadDraft", id, owner, "draft");
-  if (row.status !== "draft") throw fail(400, "Only a draft can be approved.");
+  if (row.status !== "draft" && row.status !== "approved" && row.status !== "send_failed") {
+    throw fail(400, "Only a draft can be approved to send.");
+  }
+  const text = String(row.body || "").trim();
+  if (!text) throw fail(400, "Write something before approving.");
+  const lead = row.leadId ? await loadOwned("lead", row.leadId, owner, "lead") : null;
+  const personName = lead ? String(lead.personName || "").trim() : "";
+  const companyName = lead ? String(lead.company || "").trim() : "";
   return commit(async (tx) => {
-    const saved = await tx.leadDraft.update({ where: { id: row.id }, data: { status: "approved" } });
-    const event = await record(tx, { userId: owner, leadId: row.leadId, actor: label, action: "draft_approved", detail: { draftId: row.id } });
+    const saved = await tx.leadDraft.update({
+      where: { id: row.id },
+      data: {
+        status: "approved_to_send",
+        approvedAt: new Date(),
+        approvedText: text,
+        approvedPersonName: personName,
+        approvedCompanyName: companyName,
+        failedReason: "",
+      },
+    });
+    const event = await record(tx, {
+      userId: owner,
+      leadId: row.leadId,
+      actor: label,
+      action: "draft_approved_to_send",
+      detail: { draftId: row.id, personName, companyName },
+    });
     return { draft: saved, event };
   });
 }
-async function markDraftSent({ id, userId, emailHint, actor }) {
+async function listApprovedOutreach({ userId, emailHint } = {}) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  await ensureTable();
+  let drafts;
+  let leads;
+  try {
+    drafts = await db().leadDraft.findMany({ where: { userId: owner, status: "approved_to_send" } });
+    leads = await db().lead.findMany({ where: { userId: owner } });
+  } catch (err) { throw storeDown(err); }
+  const byId = new Map(leads.map((row) => [row.id, row]));
+  drafts.sort((a, b) => new Date(a.approvedAt || a.updatedAt) - new Date(b.approvedAt || b.updatedAt));
+  return drafts.map((draft) => {
+    const lead = (draft.leadId && byId.get(draft.leadId)) || null;
+    return {
+      id: draft.id,
+      channel: draft.channel,
+      subject: draft.subject || "",
+      body: draft.approvedText || draft.body || "",
+      approvedText: draft.approvedText || draft.body || "",
+      approvedAt: draft.approvedAt ? iso(draft.approvedAt) : null,
+      personName: draft.approvedPersonName || (lead && lead.personName) || "",
+      companyName: draft.approvedCompanyName || (lead && lead.company) || "",
+      email: lead ? String(lead.email || "").trim() : "",
+      linkedInUrl: lead ? String(lead.linkedInUrl || "").trim() : "",
+      leadId: draft.leadId || null,
+      fromAddress: draft.fromAddress || "",
+    };
+  });
+}
+async function markDraftSent({ id, userId, emailHint, actor, channel, sentAt, externalMessageId } = {}) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   await ensureTable();
   const row = await loadOwned("leadDraft", id, owner, "draft");
-  if (row.status === "sent_by_owner") throw fail(400, "Nothing to update.");
-  if (row.status !== "approved" && row.status !== "draft") throw fail(400, "Only a draft or approved draft can be marked sent.");
+  if (row.status === "sent_by_owner") throw fail(400, "This approval was already marked sent.");
+  if (row.status !== "approved_to_send" && row.status !== "approved") {
+    throw fail(400, "Only an approved_to_send draft can be marked sent. One approval covers one send.");
+  }
   const lead = row.leadId ? await loadOwned("lead", row.leadId, owner, "lead") : null;
+  const when = sentAt ? readCalendarDate(sentAt, "sentAt", { required: true }) : new Date();
+  const sentChannel = channel ? readEnum(channel, CHANNELS, "channel") : row.channel;
   return commit(async (tx) => {
-    const saved = await tx.leadDraft.update({ where: { id: row.id }, data: { status: "sent_by_owner" } });
+    const saved = await tx.leadDraft.update({
+      where: { id: row.id },
+      data: {
+        status: "sent_by_owner",
+        sentAt: when,
+        channel: sentChannel,
+        externalMessageId: readText(externalMessageId, "externalMessageId", 500, false),
+        failedReason: "",
+      },
+    });
     let updatedLead = lead;
     if (lead && (lead.stage === "new" || lead.stage === "drafting")) {
       updatedLead = await tx.lead.update({ where: { id: lead.id }, data: { stage: "contacted" } });
     }
     const event = await record(tx, {
       userId: owner, leadId: lead ? lead.id : null, actor: label, action: "draft_sent_by_owner",
-      detail: { draftId: row.id, from: lead ? lead.stage : null, to: updatedLead ? updatedLead.stage : null },
+      detail: {
+        draftId: row.id,
+        channel: sentChannel,
+        sentAt: iso(when),
+        externalMessageId: saved.externalMessageId || "",
+        from: lead ? lead.stage : null,
+        to: updatedLead ? updatedLead.stage : null,
+      },
     });
     return { draft: saved, lead: updatedLead, event };
+  });
+}
+async function markDraftFailed({ id, userId, emailHint, actor, reason } = {}) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  const label = actorLabel(actor);
+  await ensureTable();
+  const row = await loadOwned("leadDraft", id, owner, "draft");
+  if (row.status !== "approved_to_send" && row.status !== "approved") {
+    throw fail(400, "Only an approved_to_send draft can be marked failed.");
+  }
+  const why = readText(reason, "reason", 2000, true);
+  return commit(async (tx) => {
+    const saved = await tx.leadDraft.update({
+      where: { id: row.id },
+      data: { status: "send_failed", failedReason: why },
+    });
+    const event = await record(tx, {
+      userId: owner, leadId: row.leadId, actor: label, action: "draft_send_failed",
+      detail: { draftId: row.id, reason: why },
+    });
+    return { draft: saved, event };
   });
 }
 // Per-user outreach-from defaults keyed by the owner's email. Only applied
@@ -523,8 +640,9 @@ async function setOutreachSettings({ userId, emailHint, patch }) {
 }
 
 module.exports = {
-  UNAVAILABLE, TABLE_STATEMENTS, SOURCES, STAGES, OUTCOMES, CHANNELS,
+  UNAVAILABLE, TABLE_STATEMENTS, SOURCES, STAGES, OUTCOMES, CHANNELS, DRAFT_STATUSES,
   ensureTable, resetTableCache, assertAllowed, presentLead: shape, presentDraft: shape, presentEvent: shape,
   parseImportText, createLead, listLeads, getLead, listDrafts, updateLead, setStage, importLeads,
-  createDraft, updateDraft, approveDraft, markDraftSent, getOutreachSettings, setOutreachSettings,
+  createDraft, updateDraft, approveDraft, listApprovedOutreach, markDraftSent, markDraftFailed,
+  getOutreachSettings, setOutreachSettings,
 };
