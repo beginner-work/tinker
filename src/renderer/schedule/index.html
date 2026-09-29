@@ -17,20 +17,19 @@
       html, body.schedule-page { height: auto; min-height: 100vh; min-height: 100dvh; overflow: auto; display: block; }
       .schedule {
         --schedule-ink: #1c2430;
-        --schedule-paper: #f3f6f4;
-        --schedule-band: linear-gradient(160deg, #e8f1ec 0%, #f7f4ef 48%, #eef2f7 100%);
-        --schedule-line: rgba(28, 36, 48, 0.12);
+        --schedule-paper: #f7f8f6;
+        --schedule-line: rgba(28, 36, 48, 0.14);
         --schedule-flag: #9a3412;
         max-width: 64rem; margin: 0 auto; padding: 40px 18px 72px; color: var(--schedule-ink);
-        background: var(--schedule-band); min-height: 100vh; min-height: 100dvh;
+        background: var(--schedule-paper); min-height: 100vh; min-height: 100dvh;
       }
       .schedule__title { margin: 0; font-family: var(--font-display); font-variation-settings: var(--font-display-settings); font-size: 34px; font-weight: 650; letter-spacing: -0.02em; }
       .schedule__lede { margin: 8px 0 18px; color: var(--color-muted); font-size: 15px; line-height: 1.5; max-width: 40rem; }
       .schedule__status { min-height: 1.2em; margin: 0 0 14px; color: #b3261e; font-size: 14px; }
       .schedule__toolbar, .schedule__panel, .schedule__pin, .schedule__missing {
-        margin: 0 0 18px; padding: 14px 16px; background: rgba(255,255,255,0.72); border: 1px solid var(--schedule-line); border-radius: var(--radius-card);
+        margin: 0 0 22px; padding: 0; background: transparent; border: 0; border-radius: 0;
       }
-      .schedule__toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+      .schedule__toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; padding-bottom: 18px; border-bottom: 1px solid var(--schedule-line); }
       .schedule__field { display: flex; flex-direction: column; gap: 4px; min-width: 7.5rem; flex: 1; }
       .schedule__field label, .schedule__heading { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted); }
       .schedule__input, .schedule__select, .schedule__textarea {
@@ -45,13 +44,15 @@
       .schedule__pin p, .schedule__missing p, .schedule__empty { margin: 6px 0 0; color: var(--color-muted); font-size: 14px; line-height: 1.45; }
       .schedule__missing ul { margin: 8px 0 0; padding-left: 1.1rem; }
       .schedule__missing li { margin: 0 0 4px; color: var(--schedule-flag); font-size: 14px; }
-      .schedule__week { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 0 0 22px; }
-      .schedule__day { min-height: 10rem; padding: 10px; background: rgba(255,255,255,0.55); border: 1px solid var(--schedule-line); border-radius: var(--radius-button); }
+      .schedule__week { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin: 0 0 28px; }
+      .schedule__day { min-height: 10rem; padding: 4px 14px 8px 0; background: transparent; border: 0; border-radius: 0; border-right: 1px solid var(--schedule-line); }
+      .schedule__day:last-child { border-right: 0; padding-right: 0; }
+      .schedule__day:not(:first-child) { padding-left: 14px; }
       .schedule__day-name { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-muted); }
       .schedule__day-date { margin: -4px 0 10px; font-size: 13px; color: var(--schedule-ink); }
-      .schedule__block { margin: 0 0 8px; padding: 8px 9px; border-left: 3px solid var(--color-accent-strong); background: #fff; }
+      .schedule__block { margin: 0 0 10px; padding: 2px 0 2px 10px; border-left: 2px solid var(--color-accent-strong); background: transparent; }
       .schedule__block--skill { border-left-color: #0f766e; }
-      .schedule__block--busy { border-left-color: #94a3b8; background: #e8edf2; opacity: 0.85; }
+      .schedule__block--busy { border-left-color: #94a3b8; background: transparent; opacity: 0.72; color: #475569; }
       .schedule__block-title { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.35; }
       .schedule__block-meta, .schedule__touch { margin: 4px 0 0; font-size: 12px; color: var(--color-muted); line-height: 1.4; }
       .schedule__touch strong { color: var(--schedule-ink); font-weight: 600; }
@@ -59,9 +60,13 @@
       .schedule__heading { margin: 0 0 10px; }
       .schedule__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
       .schedule__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-      .schedule__forms { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .schedule__forms { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; padding-top: 8px; border-top: 1px solid var(--schedule-line); }
+      .schedule__settings { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--schedule-line); }
       @media (max-width: 900px) {
-        .schedule__week { grid-template-columns: 1fr; }
+        .schedule__week { grid-template-columns: 1fr; gap: 0; }
+        .schedule__day { border-right: 0; border-bottom: 1px solid var(--schedule-line); padding: 14px 0; }
+        .schedule__day:not(:first-child) { padding-left: 0; }
+        .schedule__day:last-child { border-bottom: 0; }
         .schedule__forms, .schedule__grid { grid-template-columns: 1fr; }
         .schedule { padding: 28px 14px 64px; }
         .schedule__title { font-size: 28px; }
@@ -130,7 +135,7 @@
         </section>
       </div>
 
-      <section class="schedule__panel" aria-labelledby="schedule-settings-heading" style="margin-top:14px">
+      <section class="schedule__panel schedule__settings" aria-labelledby="schedule-settings-heading">
         <h2 id="schedule-settings-heading" class="schedule__heading">Your curriculum name</h2>
         <p class="schedule__empty">Skill sessions reference this name. Keep it yours — nothing Formation-specific is hardcoded.</p>
         <form id="schedule-settings-form" class="schedule__actions" style="align-items:end">

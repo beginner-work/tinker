@@ -46,6 +46,15 @@ test("schedule page wires week view, filters, and generic copy", () => {
   assert.match(vercel, /\/schedule\/index\.html/);
 });
 
+test("schedule page layout stays flat without nested panels", () => {
+  assert.doesNotMatch(html, /--schedule-band|linear-gradient/);
+  assert.match(html, /\.schedule__toolbar,\s*\.schedule__panel,\s*\.schedule__pin,\s*\.schedule__missing\s*\{[^}]*border:\s*0/s);
+  assert.match(html, /\.schedule__day\s*\{[^}]*border:\s*0/s);
+  assert.match(html, /\.schedule__block\s*\{[^}]*background:\s*transparent/s);
+  assert.match(html, /border-right:\s*1px solid var\(--schedule-line\)/);
+  assert.match(html, /schedule__settings/);
+});
+
 test("catalog keys match the schedule store", () => {
   const sandbox = { window: {} };
   vm.runInNewContext(catalogSrc, vm.createContext(sandbox));
