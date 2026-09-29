@@ -112,6 +112,7 @@ test("sidebar destinations, LinkedIn limit citation, no send path", () => {
   const css = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
   const api = fs.readFileSync(path.join(root, "api/leads.js"), "utf8") + fs.readFileSync(path.join(root, "api/_lib/leads-store.js"), "utf8");
   assert.match(html, /id="sidebar-drafts"/);
+  assert.match(html, /Outreach settings|sidebar__drafts--settings/);
   assert.match(js, /linkedin_post|linkedin_connection|gmail_outreach/);
   assert.match(js, /LINKEDIN_CONNECTION_NOTE_LIMIT\s*=\s*200/);
   assert.match(js, /a563153/);

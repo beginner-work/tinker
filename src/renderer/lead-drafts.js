@@ -158,9 +158,10 @@
     var err = root.querySelector("[data-drafts-error]");
     var fromInput = root.querySelector("[data-drafts-from]");
     var bookingInput = root.querySelector("[data-drafts-booking]");
-    if (!list || !badge || !empty || !err) return;
     if (fromInput && document.activeElement !== fromInput) fromInput.value = state.defaultFrom || "";
     if (bookingInput && document.activeElement !== bookingInput) bookingInput.value = state.bookingUrl || "";
+    /* Draft list removed in TYL-65 — thread + composer own that UI. */
+    if (!list || !badge || !empty || !err) return;
     syncFilterChip();
     var review = state.drafts.filter(function (d) { return d.status === "draft"; }).length;
     badge.hidden = review < 1; badge.textContent = review > 0 ? String(review) : "";
