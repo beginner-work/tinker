@@ -44,55 +44,50 @@ async function resolve(req) {
   }
   const userId = userIdFromSession(session);
   if (!userId) throw Object.assign(new Error("Session missing user id."), { status: 401 });
-  const who = (sessionIdentity(session).emails[0] || userId).slice(0, 180);
-  return { userId, actor: { kind: "human", label: "user:" + who } };
+  const email = (sessionIdentity(session).emails[0] || "").slice(0, 180);
+  store.assertAllowed(userId, email);
+  return { userId, emailHint: email, actor: { kind: "human", label: "user:" + (email || userId) } };
 }
 async function dispatch(method, action, auth, body, req) {
-  const { userId, actor } = auth;
+  const { userId, emailHint, actor } = auth;
   const id = (typeof body.id === "string" && body.id.trim()) || queryValue(req, "id");
+  const base = { userId, emailHint, actor };
   if (method === "GET" && (action === "list" || action === "")) {
-    const leads = await store.listLeads({ userId, stage: queryValue(req, "stage"), company: queryValue(req, "company") });
+    const leads = await store.listLeads({ userId, emailHint, stage: queryValue(req, "stage"), company: queryValue(req, "company") });
     return { status: 200, body: { leads: leads.map(store.presentLead) } };
   }
   if (method === "GET" && action === "lead") {
-    const found = await store.getLead({ id, userId });
+    const found = await store.getLead({ id, userId, emailHint });
     return { status: 200, body: { lead: store.presentLead(found.lead), drafts: found.drafts.map(store.presentDraft) } };
   }
   if (method === "POST" && action === "create") {
-    return { status: 201, body: { lead: store.presentLead(await store.createLead(Object.assign({ userId, actor }, body))) } };
+    return { status: 201, body: { lead: store.presentLead(await store.createLead(Object.assign(base, body))) } };
   }
   if (method === "PATCH" && (action === "edit" || action === "")) {
-    return { status: 200, body: { lead: store.presentLead(await store.updateLead({ id, userId, actor, patch: body })) } };
+    return { status: 200, body: { lead: store.presentLead(await store.updateLead({ id, userId, emailHint, actor, patch: body })) } };
   }
   if (method === "POST" && action === "import") {
-    const leads = await store.importLeads({ userId, actor, text: body.text });
+    const leads = await store.importLeads({ userId, emailHint, actor, text: body.text });
     return { status: 201, body: { leads: leads.map(store.presentLead) } };
   }
   if (method === "POST" && action === "stage") {
-    const result = await store.setStage({ id, userId, actor, stage: body.stage, outcome: body.outcome });
+    const result = await store.setStage({ id, userId, emailHint, actor, stage: body.stage, outcome: body.outcome });
     return { status: 200, body: { lead: store.presentLead(result.lead), event: store.presentEvent(result.event) } };
   }
   if (method === "POST" && action === "draft") {
-    const result = await store.createDraft(Object.assign({ userId, actor }, body));
+    const result = await store.createDraft(Object.assign(base, body));
     return { status: 201, body: { draft: store.presentDraft(result.draft), lead: store.presentLead(result.lead) } };
   }
   if (method === "PATCH" && action === "draft") {
-    return { status: 200, body: { draft: store.presentDraft(await store.updateDraft({ id, userId, actor, patch: body })) } };
+    return { status: 200, body: { draft: store.presentDraft(await store.updateDraft({ id, userId, emailHint, actor, patch: body })) } };
   }
   if (method === "POST" && action === "approve") {
-    const result = await store.approveDraft({ id, userId, actor });
+    const result = await store.approveDraft({ id, userId, emailHint, actor });
     return { status: 200, body: { draft: store.presentDraft(result.draft), event: store.presentEvent(result.event) } };
   }
   if (method === "POST" && action === "mark-sent") {
-    const result = await store.markDraftSent({ id, userId, actor });
-    return {
-      status: 200,
-      body: {
-        draft: store.presentDraft(result.draft),
-        lead: store.presentLead(result.lead),
-        event: store.presentEvent(result.event),
-      },
-    };
+    const result = await store.markDraftSent({ id, userId, emailHint, actor });
+    return { status: 200, body: { draft: store.presentDraft(result.draft), lead: store.presentLead(result.lead), event: store.presentEvent(result.event) } };
   }
   throw Object.assign(new Error(action ? "Unknown action." : "Action is required."), { status: 400 });
 }

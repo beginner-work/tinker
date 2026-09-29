@@ -1,11 +1,10 @@
 /* Leads and drafts. Tinker never sends; sent_by_owner is a mark only. */
 "use strict";
-
 const SOURCES = ["referral", "formation", "linkedin", "posting", "event", "other"];
 const STAGES = ["new", "drafting", "contacted", "replied", "call", "interview", "offer", "closed"];
 const OUTCOMES = ["replied", "call", "interview", "offer"];
 const CHANNELS = ["email", "linkedin_note", "linkedin_message"];
-const DRAFT_STATUSES = ["draft", "approved", "sent_by_owner"];
+const IMPORT_DRAFT_STATUSES = ["draft", "sent_by_owner"];
 const UNAVAILABLE = "Leads are unavailable right now.";
 const TABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "Lead" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "personName" TEXT NOT NULL DEFAULT '', "personTitle" TEXT NOT NULL DEFAULT '', "linkedInUrl" TEXT NOT NULL DEFAULT '', "email" TEXT NOT NULL DEFAULT '', "company" TEXT NOT NULL DEFAULT '', "targetRoleTitle" TEXT NOT NULL DEFAULT '', "postingUrl" TEXT NOT NULL DEFAULT '', "source" TEXT NOT NULL, "stage" TEXT NOT NULL, "nextStep" TEXT NOT NULL DEFAULT '', "nextStepAt" TIMESTAMP(3), "notes" TEXT NOT NULL DEFAULT '', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Lead_pkey" PRIMARY KEY ("id"))`,
@@ -21,10 +20,10 @@ const TABLE_STATEMENTS = [
 const HEADER_MAP = {
   name: "personName", personname: "personName", person: "personName", title: "personTitle", persontitle: "personTitle",
   linkedin: "linkedInUrl", linkedinurl: "linkedInUrl", url: "linkedInUrl", email: "email", company: "company",
-  role: "targetRoleTitle", targetrole: "targetRoleTitle", targetroletitle: "targetRoleTitle",
-  posting: "postingUrl", postingurl: "postingUrl", source: "source", notes: "notes",
+  role: "targetRoleTitle", targetrole: "targetRoleTitle", targetroletitle: "targetRoleTitle", posting: "postingUrl",
+  postingurl: "postingUrl", source: "source", stage: "stage", notes: "notes", draftchannel: "draftChannel",
+  channel: "draftChannel", draftsubject: "draftSubject", subject: "draftSubject", draftbody: "draftBody", body: "draftBody", draftstatus: "draftStatus",
 };
-
 let ensuring = null;
 const db = () => require("./db.js");
 const fail = (status, message) => Object.assign(new Error(message), { status });
@@ -42,6 +41,12 @@ function actorLabel(actor) {
   const ok = (kind === "human" && /^user:\S/.test(label)) || (kind === "bot" && /^bot:\S/.test(label)) || (kind === "system" && label === "system");
   if (!ok) throw fail(401, "Missing actor.");
   return label;
+}
+function assertAllowed(userId, email) {
+  const allowed = String(process.env.LEADS_OWNER_ALLOWLIST || "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
+  const id = String(userId || "").trim().toLowerCase();
+  const mail = String(email || "").trim().toLowerCase();
+  if (!allowed.length || (!allowed.includes(id) && !(mail && allowed.includes(mail)))) throw fail(403, "Leads are not available for this account.");
 }
 function readText(value, label, max, required) {
   if (value == null || value === "") { if (required) throw fail(400, `${label} is required.`); return ""; }
@@ -77,12 +82,10 @@ function readFactCheck(value) {
 function iso(value) { return value ? new Date(value).toISOString() : null; }
 function shape(row) {
   const out = {};
-  for (const [key, value] of Object.entries(row)) {
-    if (key === "userId") continue;
-    out[key] = value instanceof Date ? iso(value) : value;
-  }
+  for (const [key, value] of Object.entries(row)) { if (key !== "userId") out[key] = value instanceof Date ? iso(value) : value; }
   return out;
 }
+function dedupeKey(name, company) { return `${String(name || "").trim().toLowerCase()}|${String(company || "").trim().toLowerCase()}`; }
 async function ensureTable() {
   if (ensuring) return ensuring;
   ensuring = (async () => {
@@ -126,9 +129,26 @@ function leadFields(input, requireName) {
     notes: readText(input.notes, "notes", 8000, false),
   };
 }
-
+function draftPayload(input, actor, leadId, owner, statusOverride) {
+  const channel = readEnum(input.channel || input.draftChannel, CHANNELS, "channel");
+  const status = statusOverride || readEnum(input.status || input.draftStatus || "draft", IMPORT_DRAFT_STATUSES, "draft status");
+  const subject = channel === "email" ? readText(input.subject || input.draftSubject, "subject", 300, false) : "";
+  return {
+    userId: owner, leadId, channel, subject,
+    body: readText(input.body || input.draftBody, "body", 100000, false),
+    status, storyPartIds: readIds(input.storyPartIds), factCheck: readFactCheck(input.factCheck), createdBy: actor,
+  };
+}
+function attachedDraft(row) {
+  if (row.draft && typeof row.draft === "object" && !Array.isArray(row.draft)) return row.draft;
+  if (row.draftChannel || row.draftBody || row.draftSubject || row.draftStatus) {
+    return { channel: row.draftChannel, subject: row.draftSubject, body: row.draftBody, status: row.draftStatus || "draft" };
+  }
+  return null;
+}
 async function createLead(input) {
   const owner = requireUserId(input.userId);
+  assertAllowed(owner, input.emailHint);
   const actor = actorLabel(input.actor);
   const stage = input.stage == null || input.stage === "" ? "new" : readEnum(input.stage, STAGES, "stage");
   const data = Object.assign({ userId: owner, stage }, leadFields(input, true));
@@ -139,8 +159,9 @@ async function createLead(input) {
     return saved;
   });
 }
-async function listLeads({ userId, stage, company } = {}) {
+async function listLeads({ userId, emailHint, stage, company } = {}) {
   const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
   await ensureTable();
   let rows;
   try { rows = await db().lead.findMany({ where: { userId: owner } }); }
@@ -150,8 +171,9 @@ async function listLeads({ userId, stage, company } = {}) {
   rows.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   return rows;
 }
-async function getLead({ id, userId }) {
+async function getLead({ id, userId, emailHint }) {
   const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
   await ensureTable();
   const lead = await loadOwned("lead", id, owner, "lead");
   let drafts;
@@ -160,8 +182,9 @@ async function getLead({ id, userId }) {
   drafts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   return { lead, drafts };
 }
-async function updateLead({ id, userId, actor, patch }) {
+async function updateLead({ id, userId, emailHint, actor, patch }) {
   const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
   const keys = ["personName", "personTitle", "linkedInUrl", "email", "company", "targetRoleTitle", "postingUrl", "source", "nextStep", "nextStepAt", "notes"]
@@ -186,8 +209,9 @@ async function updateLead({ id, userId, actor, patch }) {
     return saved;
   });
 }
-async function setStage({ id, userId, actor, stage, outcome }) {
+async function setStage({ id, userId, emailHint, actor, stage, outcome }) {
   const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   const next = outcome != null && outcome !== "" ? readEnum(outcome, OUTCOMES, "outcome") : readEnum(stage, STAGES, "stage");
   await ensureTable();
@@ -200,7 +224,6 @@ async function setStage({ id, userId, actor, stage, outcome }) {
     return { lead: saved, event };
   });
 }
-
 function splitCsvLine(line) {
   const cells = [];
   let cur = "";
@@ -220,6 +243,13 @@ function splitCsvLine(line) {
 }
 function parseImportText(text) {
   const raw = readText(text, "text", 200000, true);
+  if (raw.startsWith("[") || raw.startsWith("{")) {
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch { throw fail(400, "text must be valid JSON or CSV."); }
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    if (!list.length || list.some((row) => !row || typeof row !== "object" || Array.isArray(row))) throw fail(400, "No leads found in text.");
+    return list;
+  }
   const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   if (!lines.length) throw fail(400, "text is required.");
   const first = splitCsvLine(lines[0]);
@@ -237,50 +267,65 @@ function parseImportText(text) {
     for (const line of lines) {
       const cells = splitCsvLine(line);
       if (cells.length === 1) rows.push({ personName: cells[0] });
-      else rows.push({ personName: cells[0] || "", personTitle: cells[1] || "", company: cells[2] || "", email: cells[3] || "", linkedInUrl: cells[4] || "", source: cells[5] || "other" });
+      else rows.push({ personName: cells[0] || "", personTitle: cells[1] || "", company: cells[2] || "", email: cells[3] || "", linkedInUrl: cells[4] || "", source: cells[5] || "other", stage: cells[6] || "new" });
     }
   }
   if (!rows.length) throw fail(400, "No leads found in text.");
   return rows;
 }
-async function importLeads({ userId, actor, text }) {
+async function importLeads({ userId, emailHint, actor, text }) {
   const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   const rows = parseImportText(text);
   await ensureTable();
   return commit(async (tx) => {
-    const created = [];
+    let existing;
+    try { existing = await tx.lead.findMany({ where: { userId: owner } }); }
+    catch (err) { throw storeDown(err); }
+    const byKey = new Map(existing.map((row) => [dedupeKey(row.personName, row.company), row]));
+    const out = [];
     for (const row of rows) {
-      const data = Object.assign({ userId: owner, stage: "new" }, leadFields(row, true));
-      const saved = await tx.lead.create({ data });
-      await record(tx, { userId: owner, leadId: saved.id, actor: label, action: "imported", detail: { source: data.source } });
-      created.push(saved);
+      const fields = leadFields(row, true);
+      const stage = row.stage == null || row.stage === "" ? "new" : readEnum(row.stage, STAGES, "stage");
+      const key = dedupeKey(fields.personName, fields.company);
+      const prior = byKey.get(key);
+      let saved;
+      if (prior) {
+        saved = await tx.lead.update({ where: { id: prior.id }, data: Object.assign({}, fields, { stage }) });
+        await record(tx, { userId: owner, leadId: saved.id, actor: label, action: "imported", detail: { updated: true, source: fields.source } });
+      } else {
+        saved = await tx.lead.create({ data: Object.assign({ userId: owner, stage }, fields) });
+        await record(tx, { userId: owner, leadId: saved.id, actor: label, action: "imported", detail: { updated: false, source: fields.source } });
+        byKey.set(key, saved);
+      }
+      const draftIn = attachedDraft(row);
+      if (draftIn) {
+        const draft = await tx.leadDraft.create({ data: draftPayload(draftIn, label, saved.id, owner) });
+        await record(tx, { userId: owner, leadId: saved.id, actor: label, action: "draft_imported", detail: { draftId: draft.id, status: draft.status } });
+      }
+      out.push(saved);
     }
-    return created;
+    return out;
   });
 }
-
 async function createDraft(input) {
   const owner = requireUserId(input.userId);
+  assertAllowed(owner, input.emailHint);
   const actor = actorLabel(input.actor);
-  const channel = readEnum(input.channel, CHANNELS, "channel");
-  const subject = channel === "email" ? readText(input.subject, "subject", 300, false) : "";
-  if (channel !== "email" && input.subject != null && String(input.subject).trim()) throw fail(400, "subject is only for email.");
   await ensureTable();
   const lead = await loadOwned("lead", input.leadId, owner, "lead");
-  const data = {
-    userId: owner, leadId: lead.id, channel, subject, body: readText(input.body, "body", 100000, false),
-    status: "draft", storyPartIds: readIds(input.storyPartIds), factCheck: readFactCheck(input.factCheck), createdBy: actor,
-  };
+  const data = draftPayload(input, actor, lead.id, owner, "draft");
   return commit(async (tx) => {
     const saved = await tx.leadDraft.create({ data });
     const updatedLead = lead.stage === "new" ? await tx.lead.update({ where: { id: lead.id }, data: { stage: "drafting" } }) : lead;
-    await record(tx, { userId: owner, leadId: lead.id, actor, action: "draft_created", detail: { draftId: saved.id, channel, from: lead.stage, to: updatedLead.stage } });
+    await record(tx, { userId: owner, leadId: lead.id, actor, action: "draft_created", detail: { draftId: saved.id, channel: data.channel, from: lead.stage, to: updatedLead.stage } });
     return { draft: saved, lead: updatedLead };
   });
 }
-async function updateDraft({ id, userId, actor, patch }) {
+async function updateDraft({ id, userId, emailHint, actor, patch }) {
   const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
   const keys = ["subject", "body", "storyPartIds", "factCheck"].filter((key) => Object.prototype.hasOwnProperty.call(source, key));
@@ -303,8 +348,9 @@ async function updateDraft({ id, userId, actor, patch }) {
     return saved;
   });
 }
-async function approveDraft({ id, userId, actor }) {
+async function approveDraft({ id, userId, emailHint, actor }) {
   const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   await ensureTable();
   const row = await loadOwned("leadDraft", id, owner, "draft");
@@ -315,8 +361,9 @@ async function approveDraft({ id, userId, actor }) {
     return { draft: saved, event };
   });
 }
-async function markDraftSent({ id, userId, actor }) {
+async function markDraftSent({ id, userId, emailHint, actor }) {
   const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   await ensureTable();
   const row = await loadOwned("leadDraft", id, owner, "draft");
@@ -334,10 +381,9 @@ async function markDraftSent({ id, userId, actor }) {
     return { draft: saved, lead: updatedLead, event };
   });
 }
-
 module.exports = {
-  UNAVAILABLE, TABLE_STATEMENTS, SOURCES, STAGES, OUTCOMES, CHANNELS, DRAFT_STATUSES,
-  ensureTable, resetTableCache, presentLead: shape, presentDraft: shape, presentEvent: shape,
+  UNAVAILABLE, TABLE_STATEMENTS, SOURCES, STAGES, OUTCOMES, CHANNELS,
+  ensureTable, resetTableCache, assertAllowed, presentLead: shape, presentDraft: shape, presentEvent: shape,
   parseImportText, createLead, listLeads, getLead, updateLead, setStage, importLeads,
   createDraft, updateDraft, approveDraft, markDraftSent,
 };
