@@ -25,7 +25,9 @@
     { "source": "/career", "destination": "/career/index.html" },
     { "source": "/career/", "destination": "/career/index.html" },
     { "source": "/leads", "destination": "/leads/index.html" },
-    { "source": "/leads/", "destination": "/leads/index.html" }
+    { "source": "/leads/", "destination": "/leads/index.html" },
+    { "source": "/story-parts", "destination": "/story-parts/index.html" },
+    { "source": "/story-parts/", "destination": "/story-parts/index.html" }
   ],
   "headers": [
     {

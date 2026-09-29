@@ -574,6 +574,10 @@
   let placementWatchToken = 0;
 
   function showPitchAssessing(essay) {
+    // Pitch decks removed (TYL-65): skip assessing UI.
+    if (essay) showFeed();
+    return;
+
     if (!writingFitView || !writingFitContent) {
       // No confirmation surface available — still kick off the watcher
       // so the notification fires, then fall back to the feed.

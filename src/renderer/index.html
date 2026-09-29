@@ -37,7 +37,7 @@
     <script src="./pwa-session.js" defer></script>
     <!-- Bridges the client-owned blobs (essays, drafts, seeds,
          taxonomy, tree) to /api/user-data/*. Runs before
-         seeds.js/heatmap.js/sidebar-tree.js so its hydrate() can fire
+         seeds.js/heatmap.js so its hydrate() can fire
          as soon as a token exists; consumer modules subscribe to the
          tinker:hydrated event to re-render from refreshed storage. -->
     <!-- No AI mode (freewrite.js): install the /api/* network gate before
@@ -48,15 +48,10 @@
     <script src="./transactions.js" defer></script>
     <script src="./seeds.js" defer></script>
     <script src="./heatmap.js" defer></script>
-    <!-- Owns the unified pitches state — every pitch is a full eleven-
-         slide deck, equal-status, renamable. Loaded BEFORE
-         sidebar-tree.js so the tree module's first render can read
-         the active pitch's deck out of window.tinkerPitches. -->
-    <script src="./pitches.js" defer></script>
     <!-- Shared "Back me" opener (window.tinkerBackMe): the founder's profile
          QR on beginner. In an installed PWA it opens in an in-app iframe
          overlay; elsewhere it hands off to the system browser. Used by both
-         the sidebar Pitch button and the profile menu. Loaded before them so
+         the profile menu. Loaded before them so
          the global exists when their click handlers bind. -->
     <script src="./back-me.js" defer></script>
     <script src="./open-beginner.js" defer></script>
@@ -80,7 +75,6 @@
     <script src="./messages-shell.js" defer></script>
     <script src="./messages-thread.js" defer></script>
     <script src="./messages-composer.js" defer></script>
-    <script src="./sidebar-tree.js" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in,
          runs first-login onboarding, and shows the avatar top-right.
          Deferred so the DOM (incl. #profile-corner) exists when it runs. -->
@@ -162,7 +156,7 @@
           </svg>
         </div>
         <h1 class="onboarding__title">Set up your profile</h1>
-        <p class="onboarding__lede">A photo and your name, so your pitches have an author.</p>
+        <p class="onboarding__lede">A photo and your name, so your writing has an author.</p>
         <form id="onboarding-form" class="onboarding__form" novalidate>
           <label class="onboarding__photo">
             <span class="onboarding__avatar">
@@ -191,9 +185,8 @@
       </div>
     </div>
 
-    <!-- TYL-65: the left rail is the messages inbox. Pitch deck nav moved
-         to #pitch-deck-panel (secondary). Hunt/outreach stay in DOM for
-         existing JS but are not the primary chrome. -->
+    <!-- TYL-65: the left rail is the messages inbox. Hunt/outreach stay
+         in DOM for existing JS but are not the primary chrome. -->
     <aside class="sidebar sidebar--inbox" id="sidebar" role="navigation" aria-label="Inbox">
       <header class="sidebar__top">
         <button id="nav-home" class="sidebar__brand" type="button" title="Inbox">
@@ -228,9 +221,9 @@
         <ul class="messages-rail__list" data-messages-list></ul>
       </nav>
 
-      <!-- Secondary links: pitch deck (panel), pages, account tools. -->
+      <!-- Secondary links: pages and account tools. -->
       <nav class="sidebar__secondary" aria-label="More">
-        <button type="button" class="sidebar__secondary-link" id="nav-pitch-deck" data-pitch-open>Pitch deck</button>
+        <a class="sidebar__secondary-link" href="/story-parts">Story parts</a>
         <a class="sidebar__secondary-link" href="/leads">Leads</a>
         <a class="sidebar__secondary-link" href="/career">Career</a>
         <a class="sidebar__secondary-link" href="/autonomy">Autonomy</a>
@@ -291,34 +284,6 @@
     </aside>
 
     <main class="stage" id="stage" role="main">
-      <!-- Pitch deck (TYL-65): moved out of the left rail. Open via
-           "Pitch deck" in the inbox secondary nav. sidebar-tree.js still
-           owns .sidebar__tree wherever it lives. -->
-      <section id="pitch-deck-panel" class="pitch-deck-panel" hidden aria-label="Pitch deck">
-        <header class="pitch-deck-panel__top">
-          <h2 class="pitch-deck-panel__title">Pitch deck</h2>
-          <button type="button" class="pitch-deck-panel__close" data-pitch-close aria-label="Close pitch deck">Close</button>
-        </header>
-        <nav class="sidebar__tree" aria-label="Pitch deck">
-          <div class="sidebar__tree-progress" data-tree-progress data-audit-ignore>
-            <div class="sidebar__tree-progress-meta">
-              <span class="sidebar__tree-progress-label">Pitch progress</span>
-              <span class="sidebar__tree-progress-count" data-tree-progress-count>
-                <span class="sidebar__tree-progress-count-num" data-tree-progress-count-num>0 / 11</span>
-                <span class="sidebar__tree-progress-count-flight" aria-hidden="true">stay tuned…</span>
-              </span>
-            </div>
-            <div class="sidebar__tree-progress-track" role="progressbar"
-                 aria-label="Pitch deck completion"
-                 aria-valuemin="0" aria-valuemax="11" aria-valuenow="0"
-                 data-tree-progress-bar>
-              <div class="sidebar__tree-progress-fill" data-tree-progress-fill></div>
-            </div>
-          </div>
-          <ul class="sidebar__tree-list"></ul>
-        </nav>
-      </section>
-
       <!-- Messaging pane (TYL-65). Conversation list lives in the left
            rail; this column holds the thread (slice 2) and composer
            (slice 3). Flat empty state until a person is selected. -->
@@ -358,7 +323,7 @@
             <button type="button" class="messages-composer__booking" data-composer-booking hidden>Insert booking link</button>
             <button type="button" class="messages-composer__save" data-composer-save>Save draft</button>
           </div>
-          <p class="messages-composer__footnote">Your connected assistant pulls saved drafts. Tinker never sends.</p>
+          <p class="messages-composer__footnote">Build from <a class="messages-composer__parts-link" href="/story-parts">story parts</a>. Your connected assistant pulls saved drafts. Tinker never sends.</p>
         </footer>
       </section>
 
@@ -453,33 +418,8 @@
         <article class="read__body" id="read-body"></article>
       </section>
 
-      <!-- Pitch-assessing view: a calm confirmation rendered right after
-           publish ("Your pitch is being assessed"). It makes no claim
-           about where the essay landed — that was the old arrangement
-           screen's mistake, since the organize job re-clusters and moved
-           essays after it had already announced a placement. Instead a
-           background watcher (renderer.js) waits for organize to settle
-           and fires a toast (notifications.js) with the real landing. -->
-      <section id="writing-fit" class="writing-fit" hidden aria-label="Pitch assessment">
-        <div class="writing-fit__inner" id="writing-fit-content"></div>
-      </section>
 
-      <!-- founders view: the social-feed adjacency tool. Opt-in screen
-           by default; once opted in, a quiet results page with one
-           primary button ("find my founders") that calls
-           /api/feed/adjacent and renders 3–7 adjacent founders as
-           paper cards. List-only — no likes, no comments, no DMs in
-           v1. The whole inside is rendered by founders.js. -->
-      <section id="founders" class="founders" hidden aria-label="founders"></section>
 
-      <!-- pitch-script view: the "prepare a script for a video"
-           storyboard for a single pitch. Opened from the script
-           button on a pitch row in the sidebar. List of slides with
-           the founder's resolved phrases verbatim, plus a suggested
-           on-camera duration per slide and a copy-to-clipboard
-           action. NOT a publish step — publishing happens elsewhere
-           (today via the founders opt-in). -->
-      <section id="pitch-script" class="pitch-script" hidden aria-label="Prepare a script for a video"></section>
 
       <!-- Category feed view: rendered when a seed is tapped — lists
            every essay whose seed belongs to the same category. The
@@ -793,12 +733,9 @@
     <script src="./interview-prompt.js" defer></script>
     <script src="./writing.js" defer></script>
     <script src="./renderer.js" defer></script>
-    <script src="./founders.js" defer></script>
-    <script src="./pitch-script.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
     <script src="./pwa-install-hint.js" defer></script>
     <script src="./share.js" defer></script>
-    <script src="./publish-stories.js" defer></script>
     <script src="./membership.js" defer></script>
     <script src="./update-banner.js" defer></script>
     <script src="./notifications.js" defer></script>
