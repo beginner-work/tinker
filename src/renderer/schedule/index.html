@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
+    <title>Schedule</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <style>
+      html, body.schedule-page { height: auto; min-height: 100vh; min-height: 100dvh; overflow: auto; display: block; }
+      .schedule {
+        --schedule-ink: #1c2430;
+        --schedule-paper: #f3f6f4;
+        --schedule-band: linear-gradient(160deg, #e8f1ec 0%, #f7f4ef 48%, #eef2f7 100%);
+        --schedule-line: rgba(28, 36, 48, 0.12);
+        --schedule-flag: #9a3412;
+        max-width: 64rem; margin: 0 auto; padding: 40px 18px 72px; color: var(--schedule-ink);
+        background: var(--schedule-band); min-height: 100vh; min-height: 100dvh;
+      }
+      .schedule__title { margin: 0; font-family: var(--font-display); font-variation-settings: var(--font-display-settings); font-size: 34px; font-weight: 650; letter-spacing: -0.02em; }
+      .schedule__lede { margin: 8px 0 18px; color: var(--color-muted); font-size: 15px; line-height: 1.5; max-width: 40rem; }
+      .schedule__status { min-height: 1.2em; margin: 0 0 14px; color: #b3261e; font-size: 14px; }
+      .schedule__toolbar, .schedule__panel, .schedule__pin, .schedule__missing {
+        margin: 0 0 18px; padding: 14px 16px; background: rgba(255,255,255,0.72); border: 1px solid var(--schedule-line); border-radius: var(--radius-card);
+      }
+      .schedule__toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+      .schedule__field { display: flex; flex-direction: column; gap: 4px; min-width: 7.5rem; flex: 1; }
+      .schedule__field label, .schedule__heading { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted); }
+      .schedule__input, .schedule__select, .schedule__textarea {
+        min-height: 38px; padding: 8px 10px; border: 1px solid var(--schedule-line); border-radius: var(--radius-button);
+        background: #fff; font: inherit; font-size: 14px; color: inherit;
+      }
+      .schedule__textarea { min-height: 72px; resize: vertical; width: 100%; }
+      .schedule__button { padding: 8px 12px; border-radius: var(--radius-button); background: var(--color-accent-strong); color: #fff; font-size: 13px; font-weight: 600; border: 0; }
+      .schedule__button--quiet { background: transparent; border: 1px solid var(--schedule-line); color: var(--schedule-ink); }
+      .schedule__button:disabled { opacity: 0.55; cursor: progress; }
+      .schedule__pin strong { font-family: var(--font-display); font-size: 18px; font-weight: 650; }
+      .schedule__pin p, .schedule__missing p, .schedule__empty { margin: 6px 0 0; color: var(--color-muted); font-size: 14px; line-height: 1.45; }
+      .schedule__missing ul { margin: 8px 0 0; padding-left: 1.1rem; }
+      .schedule__missing li { margin: 0 0 4px; color: var(--schedule-flag); font-size: 14px; }
+      .schedule__week { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 0 0 22px; }
+      .schedule__day { min-height: 10rem; padding: 10px; background: rgba(255,255,255,0.55); border: 1px solid var(--schedule-line); border-radius: var(--radius-button); }
+      .schedule__day-name { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-muted); }
+      .schedule__day-date { margin: -4px 0 10px; font-size: 13px; color: var(--schedule-ink); }
+      .schedule__block { margin: 0 0 8px; padding: 8px 9px; border-left: 3px solid var(--color-accent-strong); background: #fff; }
+      .schedule__block--skill { border-left-color: #0f766e; }
+      .schedule__block-title { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.35; }
+      .schedule__block-meta, .schedule__touch { margin: 4px 0 0; font-size: 12px; color: var(--color-muted); line-height: 1.4; }
+      .schedule__touch strong { color: var(--schedule-ink); font-weight: 600; }
+      .schedule__heading { margin: 0 0 10px; }
+      .schedule__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+      .schedule__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .schedule__forms { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      @media (max-width: 900px) {
+        .schedule__week { grid-template-columns: 1fr; }
+        .schedule__forms, .schedule__grid { grid-template-columns: 1fr; }
+        .schedule { padding: 28px 14px 64px; }
+        .schedule__title { font-size: 28px; }
+      }
+    </style>
+  </head>
+  <body class="schedule-page">
+    <main class="schedule">
+      <h1 class="schedule__title">Schedule</h1>
+      <p class="schedule__lede">See which companies you reach out to when, by touch type, lined up with your week. Tinker never sends a message for you.</p>
+      <p id="schedule-status" class="schedule__status" role="status"></p>
+
+      <section class="schedule__toolbar" aria-label="Week filters">
+        <div class="schedule__field">
+          <label for="schedule-week-start">Week of</label>
+          <input id="schedule-week-start" class="schedule__input" type="date" />
+        </div>
+        <div class="schedule__field">
+          <label for="schedule-filter-company">Company</label>
+          <select id="schedule-filter-company" class="schedule__select"></select>
+        </div>
+        <div class="schedule__field">
+          <label for="schedule-filter-touch">Touch type</label>
+          <select id="schedule-filter-touch" class="schedule__select"></select>
+        </div>
+        <button id="schedule-filter-apply" class="schedule__button" type="button">Show week</button>
+        <button id="schedule-filter-clear" class="schedule__button schedule__button--quiet" type="button">Clear filters</button>
+      </section>
+
+      <section id="schedule-north-star" class="schedule__pin" aria-label="North Star company"></section>
+      <section id="schedule-missing" class="schedule__missing" aria-label="Companies without a next touch"></section>
+      <section id="schedule-week" class="schedule__week" aria-label="Monday to Friday"></section>
+
+      <div class="schedule__forms">
+        <section class="schedule__panel" aria-labelledby="schedule-session-heading">
+          <h2 id="schedule-session-heading" class="schedule__heading">Plan a session</h2>
+          <form id="schedule-session-form">
+            <div class="schedule__grid">
+              <div class="schedule__field"><label for="schedule-session-type">Type</label><select id="schedule-session-type" class="schedule__select"></select></div>
+              <div class="schedule__field"><label for="schedule-session-title">Title</label><input id="schedule-session-title" class="schedule__input" maxlength="200" required placeholder="Tinker on Acme: recruiter note" /></div>
+              <div class="schedule__field"><label for="schedule-session-start">Starts</label><input id="schedule-session-start" class="schedule__input" type="datetime-local" required /></div>
+              <div class="schedule__field"><label for="schedule-session-end">Ends</label><input id="schedule-session-end" class="schedule__input" type="datetime-local" required /></div>
+              <div class="schedule__field"><label for="schedule-session-product">Product area</label><input id="schedule-session-product" class="schedule__input" maxlength="200" /></div>
+              <div class="schedule__field"><label for="schedule-session-concept">Concept</label><input id="schedule-session-concept" class="schedule__input" maxlength="200" /></div>
+            </div>
+            <div class="schedule__field" style="margin-top:10px"><label for="schedule-session-curriculum">Curriculum ref</label><input id="schedule-session-curriculum" class="schedule__input" maxlength="200" placeholder="Uses your curriculum name from settings" /></div>
+            <div class="schedule__actions"><button class="schedule__button" type="submit">Save session</button></div>
+          </form>
+        </section>
+
+        <section class="schedule__panel" aria-labelledby="schedule-touch-heading">
+          <h2 id="schedule-touch-heading" class="schedule__heading">Plan a touch</h2>
+          <form id="schedule-touch-form">
+            <div class="schedule__grid">
+              <div class="schedule__field"><label for="schedule-touch-company">Company</label><select id="schedule-touch-company" class="schedule__select" required></select></div>
+              <div class="schedule__field"><label for="schedule-touch-type">Touch type</label><select id="schedule-touch-type" class="schedule__select"></select></div>
+              <div class="schedule__field"><label for="schedule-touch-date">Date</label><input id="schedule-touch-date" class="schedule__input" type="date" required /></div>
+              <div class="schedule__field"><label for="schedule-touch-session">Session</label><select id="schedule-touch-session" class="schedule__select"></select></div>
+              <div class="schedule__field"><label for="schedule-touch-window-start">Window start</label><input id="schedule-touch-window-start" class="schedule__input" type="time" /></div>
+              <div class="schedule__field"><label for="schedule-touch-window-end">Window end</label><input id="schedule-touch-window-end" class="schedule__input" type="time" /></div>
+              <div class="schedule__field"><label for="schedule-touch-status">Status</label><select id="schedule-touch-status" class="schedule__select"></select></div>
+            </div>
+            <div class="schedule__actions"><button class="schedule__button" type="submit">Save touch</button></div>
+          </form>
+        </section>
+      </div>
+
+      <section class="schedule__panel" aria-labelledby="schedule-settings-heading" style="margin-top:14px">
+        <h2 id="schedule-settings-heading" class="schedule__heading">Your curriculum name</h2>
+        <p class="schedule__empty">Skill sessions reference this name. Keep it yours — nothing Formation-specific is hardcoded.</p>
+        <form id="schedule-settings-form" class="schedule__actions" style="align-items:end">
+          <div class="schedule__field" style="flex:2"><label for="schedule-curriculum-name">Curriculum</label><input id="schedule-curriculum-name" class="schedule__input" maxlength="200" placeholder="e.g. your system design track" /></div>
+          <button class="schedule__button" type="submit">Save</button>
+        </form>
+      </section>
+    </main>
+    <script src="/schedule/catalog.js"></script>
+    <script src="/schedule/schedule.js"></script>
+  </body>
+</html>

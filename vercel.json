@@ -26,7 +26,9 @@
     { "source": "/career", "destination": "/career/index.html" },
     { "source": "/career/", "destination": "/career/index.html" },
     { "source": "/leads", "destination": "/leads/index.html" },
-    { "source": "/leads/", "destination": "/leads/index.html" }
+    { "source": "/leads/", "destination": "/leads/index.html" },
+    { "source": "/schedule", "destination": "/schedule/index.html" },
+    { "source": "/schedule/", "destination": "/schedule/index.html" }
   ],
   "headers": [
     {
