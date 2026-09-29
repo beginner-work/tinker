@@ -289,7 +289,9 @@
       if (!node.isConnected) return;
       var img = el("img", "messages-avatar__img", {
         alt: "",
-        loading: "lazy",
+        // hideOnFail keeps the slot hidden until load; lazy images in a
+        // hidden parent often never fetch, so those logos must be eager.
+        loading: opts.hideOnFail ? "eager" : "lazy",
         decoding: "async",
       });
       img.addEventListener("load", function () {
