@@ -252,6 +252,7 @@ test("settings shows Notes folder row; unsupported copy; no owner-specific paths
   assert.match(settingsHtml, /notes still sync through Tinker/i);
   assert.match(settingsHtml, /Google Drive Desktop/);
   assert.match(settingsHtml, /not the Google Drive website picker/i);
+  assert.match(settingsHtml, /\.settings__row\[hidden\]/);
   assert.match(settingsHtml, /notes-folder-core\.js/);
   assert.match(settingsHtml, /notes-folder\.js/);
   assert.equal(/\/Users\/Tyler|tylerlindow|\\Tyler\\/i.test(settingsHtml + notesJs + composerJs), false);

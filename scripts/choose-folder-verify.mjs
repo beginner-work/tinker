@@ -70,9 +70,12 @@ async function shot(browser, opts) {
   });
   const pickVisible = await page.evaluate(() => {
     const el = document.querySelector("[data-notes-folder-pick]");
-    if (!el || el.offsetParent === null) return false;
     const row = document.querySelector("[data-notes-folder-actions]");
-    return !(row && row.hidden);
+    if (!el || !row) return false;
+    if (row.hidden) return false;
+    var style = window.getComputedStyle(row);
+    if (style.display === "none" || style.visibility === "hidden") return false;
+    return el.getClientRects().length > 0;
   });
   await page.locator("[data-notes-folder]").scrollIntoViewIfNeeded();
   await page.screenshot({ path: opts.shot, fullPage: true });

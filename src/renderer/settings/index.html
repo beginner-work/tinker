@@ -105,6 +105,9 @@
         gap: 8px;
         align-items: center;
       }
+      /* Author display:flex beats the UA [hidden] rule — force hide. */
+      .settings__row[hidden] { display: none !important; }
+      .settings__status[hidden] { display: none !important; }
       .settings__row .settings__input { flex: 1; }
       .settings__save {
         height: 40px;
