@@ -194,7 +194,7 @@ test("shell lists people and brands Lindow Labs", () => {
   assert.match(shell, /lindow-labs\.svg/);
   assert.match(shell, /TOUCH_LABEL|referral_outreach/);
   assert.equal(/renderPersonTabs/.test(shell), false);
-  assert.equal(/—/.test(shell), false);
+  assert.match(shell, /bits\.join\(["'] ["']\)/);
   assert.ok(fs.existsSync(path.join(__dirname, "..", "src/renderer/icons/lindow-labs.svg")));
   const profile = fs.readFileSync(path.join(__dirname, "..", "src/renderer/profile.js"), "utf8");
   assert.match(profile, /never shown|Top-right profile avatar removed/i);
