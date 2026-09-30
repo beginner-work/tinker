@@ -1,4 +1,4 @@
-/* E2E: Clair draft review card; notes never approve; sendable approve only. */
+/* E2E: person thread never shows outreach review UI; notes + bottom bar only. */
 "use strict";
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
@@ -59,6 +59,7 @@ async function stubApis(page, state) {
     }
     if (url.includes("/api/leads") && (action === "edit" || action === "lead") && method === "PATCH") {
       Object.assign(state.lead, body);
+      state.noteSaves.push({ id, body });
       await route.fulfill({
         status: 200, contentType: "application/json",
         body: JSON.stringify({ lead: state.lead }),
@@ -79,36 +80,11 @@ async function stubApis(page, state) {
       });
       return;
     }
-    if (url.includes("/api/leads") && action === "draft" && method === "PATCH") {
-      const draft = state.drafts.find((d) => d.id === id) || state.drafts[0];
-      Object.assign(draft, body, { status: "draft", approvedAt: null, approvedText: "" });
-      state.approveCalls.push({ type: "patch", id, body });
+    if (url.includes("/api/leads") && action === "approve") {
+      state.approveCalls.push({ id });
       await route.fulfill({
-        status: 200, contentType: "application/json",
-        body: JSON.stringify({ draft }),
-      });
-      return;
-    }
-    if (url.includes("/api/leads") && action === "approve" && method === "POST") {
-      const draft = state.drafts.find((d) => d.id === id) || state.drafts[0];
-      const sendable = !!(draft
-        && String(draft.body || "").trim()
-        && String(draft.subject || "").trim()
-        && String(state.lead.email || "").trim());
-      state.approveCalls.push({ type: "approve", id, sendable });
-      if (!sendable) {
-        await route.fulfill({
-          status: 400, contentType: "application/json",
-          body: JSON.stringify({ error: "Email approval needs a recipient address, a subject, and a body. Notes alone cannot be approved." }),
-        });
-        return;
-      }
-      draft.status = "approved_to_send";
-      draft.approvedText = draft.body;
-      draft.approvedAt = new Date().toISOString();
-      await route.fulfill({
-        status: 200, contentType: "application/json",
-        body: JSON.stringify({ draft }),
+        status: 400, contentType: "application/json",
+        body: JSON.stringify({ error: "approve is not available from the Tinker UI" }),
       });
       return;
     }
@@ -141,29 +117,31 @@ async function stubApis(page, state) {
   });
 }
 
-describe("outreach review card e2e", () => {
-  test("review card shows To/Subject/Body; notes never approve; sendable approve works", async () => {
+describe("person thread notes-only e2e", () => {
+  test("saved outreach draft never renders a review form; This is everything saves notes", async () => {
     const { server, base } = await startStaticServer();
     const browser = await chromium.launch({ headless: true });
     try {
       const state = {
         approveCalls: [],
+        noteSaves: [],
         company: {
           id: "co_alloy", name: "Alloy", domain: "alloy.com", priority: 1,
           status: "active", research: "Alloy builds identity.",
         },
         lead: {
-          id: "lead_andrew", personName: "Andrew Glenn", personTitle: "EM",
+          id: "lead_andrew", personName: "Andrew Glenn", personTitle: "Vice President of Engineering",
           company: "Alloy", companyId: "co_alloy", contactType: "hiring_leader",
-          email: "", linkedInUrl: "", notes: "I value the same things he does.",
+          email: "andrew.glenn@alloy.com", linkedInUrl: "https://www.linkedin.com/in/amg/",
+          notes: "I value the same things he does",
           stage: "drafting",
         },
         drafts: [{
           id: "draft_clair",
           leadId: "lead_andrew",
           channel: "gmail_outreach",
-          subject: "Quick intro",
-          body: "Andrew — composed from notes.",
+          subject: "Building engineering culture, rigor, and good work",
+          body: "giving engineers a space to do their best work",
           status: "draft",
           approvedText: "",
           approvedAt: null,
@@ -191,50 +169,41 @@ describe("outreach review card e2e", () => {
       });
       await page.waitForSelector("[data-conv-id='lead_andrew']", { timeout: 20000 });
       await page.evaluate(() => window.tinkerMessagesShell.selectLead("lead_andrew"));
-      await page.waitForSelector("[data-messages-review]", { timeout: 10000 });
+      await page.waitForSelector("[data-notepad-input]", { timeout: 10000 });
+      await page.waitForTimeout(300);
 
-      const card = await page.evaluate(() => {
-        const review = document.querySelector("[data-messages-review]");
-        const to = document.querySelector("[data-review-to]");
-        const subject = document.querySelector("[data-review-subject]");
-        const body = document.querySelector("[data-review-body]");
-        const notes = document.querySelector("[data-notepad-input]");
-        return {
-          reviewVisible: !!(review && !review.hidden),
-          to: to ? to.value : "",
-          subject: subject ? subject.value : "",
-          body: body ? body.value : "",
-          notes: notes ? notes.value : "",
-          primaryDisabled: !!document.querySelector("[data-review-primary]")?.disabled,
-        };
-      });
-      assert.equal(card.reviewVisible, true);
-      assert.equal(card.subject, "Quick intro");
-      assert.equal(card.body, "Andrew — composed from notes.");
-      assert.match(card.notes, /value the same things/i);
-      // No recipient yet → approve disabled.
-      assert.equal(card.primaryDisabled, true);
+      const ui = await page.evaluate(() => ({
+        review: !!document.querySelector("[data-messages-review], .messages-review"),
+        reviewTo: !!document.querySelector("[data-review-to]"),
+        reviewSubject: !!document.querySelector("[data-review-subject]"),
+        reviewBody: !!document.querySelector("[data-review-body]"),
+        handoff: !!document.querySelector("[data-handoff-line]"),
+        needsRecipient: /needs a recipient/i.test(document.body.innerText || ""),
+        reviewTitle: /Review before handoff/i.test(document.body.innerText || ""),
+        notes: ((document.querySelector("[data-notepad-input]") || {}).value || ""),
+        keep: ((document.querySelector("[data-notepad-secondary]") || {}).textContent || ""),
+        primary: ((document.querySelector("[data-notepad-primary]") || {}).textContent || ""),
+      }));
+      assert.equal(ui.review, false);
+      assert.equal(ui.reviewTo, false);
+      assert.equal(ui.reviewSubject, false);
+      assert.equal(ui.reviewBody, false);
+      assert.equal(ui.handoff, false);
+      assert.equal(ui.needsRecipient, false);
+      assert.equal(ui.reviewTitle, false);
+      assert.match(ui.notes, /value the same things/i);
+      assert.match(ui.keep, /Keep crafting/i);
+      assert.match(ui.primary, /This is everything/i);
 
-      // Notepad This is everything saves notes only — never hits approve.
-      const before = state.approveCalls.length;
+      await page.fill("[data-notepad-input]", "I value the same things he does\nand upholding rigor.");
       await page.click("[data-notepad-primary]");
-      await page.waitForTimeout(400);
-      assert.equal(state.approveCalls.filter((c) => c.type === "approve").length, 0);
-      assert.ok(state.approveCalls.length === before || true);
-
-      // Fill recipient and approve from the card.
-      await page.fill("[data-review-to]", "andrew@alloy.com");
-      state.lead.email = "andrew@alloy.com";
-      await page.waitForTimeout(100);
-      await page.click("[data-review-primary]");
-      await page.waitForTimeout(600);
-      const approveHits = state.approveCalls.filter((c) => c.type === "approve");
-      assert.equal(approveHits.length, 1);
-      assert.equal(approveHits[0].sendable, true);
-      assert.equal(state.drafts[0].status, "approved_to_send");
+      await page.waitForTimeout(500);
+      assert.equal(state.approveCalls.length, 0);
+      assert.ok(state.noteSaves.length >= 1);
+      assert.match(String(state.lead.notes || ""), /upholding rigor/);
 
       fs.mkdirSync(ART, { recursive: true });
-      await page.screenshot({ path: path.join(ART, "outreach-review-card.png"), fullPage: false });
+      await page.screenshot({ path: path.join(ART, "thread-no-review-card.png"), fullPage: false });
       await context.close();
     } finally {
       await browser.close();

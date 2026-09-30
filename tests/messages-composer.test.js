@@ -1,4 +1,4 @@
-/* TYL-65: invisible notepad composer with approve-to-send. */
+/* TYL-65: invisible notepad composer; notes only (no outreach review UI). */
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -19,7 +19,6 @@ test("composer is invisible notepad with Keep crafting / This is everything", ()
   assert.match(js, /tinkerMessagesNotepad|tinkerMessagesComposer/);
   assert.match(js, /This is everything/);
   assert.match(js, /Keep crafting/);
-  assert.match(js, /approved_to_send|approve/);
   assert.equal(/data-composer-ship/.test(html), false);
   assert.equal(/data-composer-channel/.test(html), false);
   assert.equal(/>Ship</.test(html), false);
@@ -28,21 +27,25 @@ test("composer is invisible notepad with Keep crafting / This is everything", ()
   assert.equal(/\bTyler\b/.test(js + html), false);
 });
 
-test("notes stay on the lead; approval only from the review card when sendable", () => {
+test("notes stay on the lead; no outreach review form in Tinker", () => {
   assert.match(js, /saveNotes/);
   assert.match(js, /notes:\s*notes/);
   assert.match(js, /PATCH\",\s*\"edit\"/);
-  assert.match(js, /messages-review|data-messages-review/);
-  assert.match(js, /data-review-to/);
-  assert.match(js, /data-review-subject/);
-  assert.match(js, /data-review-body/);
-  assert.match(js, /approveReview/);
-  assert.match(js, /isSendable/);
   assert.match(js, /Notes for /);
-  // Notepad primary must not call approve directly.
-  assert.equal(/onPrimary:\s*function\s*\(\)\s*\{\s*saveDraft\("ship"\)/.test(js), false);
   assert.match(js, /onPrimary:\s*function\s*\(\)\s*\{\s*saveNotes\("done"\)/);
-  assert.match(css, /\.messages-review\b/);
+  // Review happens outside Tinker: never build To/Subject/Body or approve UI.
+  // stripReviewUi may still name legacy selectors so old nodes get removed.
+  assert.equal(/Review before handoff/.test(js), false);
+  assert.equal(/data-review-to/.test(js), false);
+  assert.equal(/data-review-subject/.test(js), false);
+  assert.equal(/data-review-body/.test(js), false);
+  assert.equal(/approveReview/.test(js), false);
+  assert.equal(/ensureReview/.test(js), false);
+  assert.equal(/mountReview/.test(js), false);
+  assert.equal(/POST\",\s*\"approve\"/.test(js), false);
+  assert.equal(/needs a recipient/.test(js), false);
+  assert.equal(/\.messages-review\b/.test(css), false);
+  assert.equal(/onPrimary:\s*function\s*\(\)\s*\{\s*saveDraft\("ship"\)/.test(js), false);
 });
 
 test("sidebar draft list is gone; outreach settings live on /settings", () => {
@@ -90,4 +93,11 @@ test("channel and date selectors are not in the composer chrome", () => {
   assert.equal(/messages-composer__chips/.test(html), false);
   assert.equal(/type="date"[^>]*class="messages-composer__date-input"/.test(html), false);
   assert.equal(/messages-composer__field--block/.test(html), false);
+});
+
+test("mobile thread header clears the hamburger and spaces title from links", () => {
+  assert.match(css, /body\.messages-mobile-thread \.messages-pane__top/);
+  assert.match(css, /padding:[^;]*68px/);
+  assert.match(css, /\.messages-pane__heading[\s\S]*flex-direction:\s*column/);
+  assert.match(css, /body\.messages-mobile-thread \.messages-pane__heading[^}]*gap:\s*10px/);
 });
