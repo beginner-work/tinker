@@ -12,9 +12,12 @@
  *   - Navigations  → network-first, falling back to the cached shell.
  *     Online always gets the freshest index.html; offline gets the last
  *     one seen. This keeps update-banner.js's version/reload flow intact.
- *   - CSS and JS → stale-while-revalidate for warm inbox paint. Bump
- *     CACHE_VERSION (and update-banner reload) whenever shell assets change
- *     so installed PWAs do not keep a pre-deploy stylesheet.
+ *   - CSS and JS → network-first (no-cache fetch), falling back to the
+ *     precache when offline. Stale-while-revalidate left installed PWAs
+ *     painting pre-deploy messages-composer.js until a manual cache clear;
+ *     network-first + CACHE_VERSION bump + skipWaiting/clients.claim +
+ *     pwa-offline.js controllerchange reload make the next open pick up
+ *     the new deploy without clearing storage.
  *   - Other same-origin assets (icons, fonts under same origin, tokens)
  *     → stale-while-revalidate for instant paint.
  *   - /api/* → never touched. Those stay on the network, where the
@@ -29,7 +32,7 @@
  * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v12";
+const CACHE_VERSION = "tinker-shell-v13";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -143,11 +146,12 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(networkFirstDoc(req));
     return;
   }
-  // Precached shell CSS/JS: stale-while-revalidate so a warm Mac/PWA open
-  // paints the inbox chrome from cache, then refreshes in the background.
-  // CACHE_VERSION bumps (and update-banner reload) clear stranded deploys.
+  // Precached shell CSS/JS: network-first so a warm PWA open after deploy
+  // gets the new bytes (not a stranded SWR cache hit). Offline falls back
+  // to the last good precache entry. CACHE_VERSION + skipWaiting/claim +
+  // controllerchange reload still clear the previous cache entirely.
   if (isShellAssetPath(url.pathname)) {
-    event.respondWith(staleWhileRevalidate(req));
+    event.respondWith(networkFirstAsset(req));
     return;
   }
   event.respondWith(staleWhileRevalidate(req));
