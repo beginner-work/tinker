@@ -50,6 +50,7 @@ const { checkText } = require("./_lib/career-check.js");
 const contentStore = require("./_lib/content-store.js");
 const storyParts = require("./_lib/story-parts-store.js");
 const selfThread = require("./_lib/self-thread-store.js");
+const selfReflections = require("./_lib/self-reflections.js");
 const readingThreads = require("./_lib/reading-thread-store.js");
 const jobApplications = require("./_lib/job-application-store.js");
 const personPrep = require("./_lib/person-prep.js");
@@ -120,6 +121,8 @@ const INSTRUCTIONS = [
   "Call post_to_self_thread with title and short markdown body only for brief personal assistant notes in the You thread.",
   "Never post deploy checks, production status, allowlist/gate notes, or other ops chatter there - that thread is the owner's own story.",
   "The owner sees it as an incoming assistant bubble. It does not send email or LinkedIn messages.",
+  "Call list_self_reflections to read this connector user's You-thread posts and owner-typed reflections (essays and in-progress drafts).",
+  "Newest first. Optional since (ISO) and limit. Returns id, title, full body, createdAt, updatedAt. Read-only; scoped to the connector owner.",
   "Call create_reading_thread to start a generic reading workbook (any book): title, optional author, ordered sections (string titles).",
   "It generates one pre-read question for the first section via KEEP_CRAFTING_MODEL and shows the thread in the inbox like a lead.",
   "Call list_reading_threads or get_reading_thread to read threads. Call advance_reading_section when the owner finished a section to mark it done and generate the next pre-read question.",
@@ -596,6 +599,27 @@ const POST_TO_SELF_THREAD_TOOL = {
     required: ["title", "body"],
   },
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const LIST_SELF_REFLECTIONS_TOOL = {
+  name: "list_self_reflections",
+  title: "List self reflections",
+  description: [
+    "List this connector user's own self-reflections and You-thread entries, newest first.",
+    "Includes assistant posts in the You thread and whatever the owner typed (published essays and in-progress drafts with text).",
+    "Each item has id, title, full body text, createdAt, and updatedAt.",
+    "Optional since (ISO) keeps items updated at or after that time. Optional limit (default 50, max 200).",
+    "Read-only. Scoped to the connector owner; a user id in args is ignored. Does not send messages.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      since: { type: "string", description: "Optional ISO timestamp; keep items with updatedAt >= since." },
+      limit: { type: "integer", description: "Max items to return (default 50, max 200)." },
+    },
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 };
 
 const UPDATE_OWNER_PROFILE_TOOL = {
@@ -1199,6 +1223,7 @@ const TOOLS = [
   GET_OUTREACH_SCHEDULE_TOOL,
   SET_BUSY_TIMES_TOOL,
   POST_TO_SELF_THREAD_TOOL,
+  LIST_SELF_REFLECTIONS_TOOL,
   UPDATE_OWNER_PROFILE_TOOL,
   CREATE_READING_THREAD_TOOL,
   LIST_READING_THREADS_TOOL,
@@ -1580,6 +1605,28 @@ async function selfThreadCall(msg, user, args) {
       status: 200,
       headers: NO_STORE,
       body: rpcOk(msg.id, toolError(message || selfThread.UNAVAILABLE)),
+    };
+  }
+}
+
+async function listSelfReflectionsCall(msg, user, args) {
+  try {
+    const userId = storyUserId(user);
+    const reflections = await selfReflections.listSelfReflections({
+      userId,
+      since: args && args.since,
+      limit: args && args.limit,
+    });
+    return contentToolOk(msg, { reflections });
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500
+      ? err.message
+      : selfReflections.UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || selfReflections.UNAVAILABLE)),
     };
   }
 }
@@ -2351,6 +2398,7 @@ async function handleRpc(msg, user) {
       && name !== "get_outreach_schedule"
       && name !== "set_busy_times"
       && name !== "post_to_self_thread"
+      && name !== "list_self_reflections"
       && name !== "update_owner_profile"
       && name !== "create_reading_thread"
       && name !== "list_reading_threads"
@@ -2411,6 +2459,9 @@ async function handleRpc(msg, user) {
     }
     if (name === "post_to_self_thread") {
       return selfThreadCall(msg, user, args);
+    }
+    if (name === "list_self_reflections") {
+      return listSelfReflectionsCall(msg, user, args);
     }
     if (name === "update_owner_profile") {
       return updateOwnerProfileCall(msg, user, args);
