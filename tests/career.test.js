@@ -614,6 +614,7 @@ test("get_career_record reads only this user and check_text does not write", asy
     "mark_lead_done",
     "get_person_prep",
     "seed_person_prep",
+    "list_inbox",
     "list_target_companies",
     "save_outreach_draft",
     "list_approved_outreach",

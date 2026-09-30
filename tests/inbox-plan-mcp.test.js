@@ -188,8 +188,8 @@ test("plan_lead_touch sets role, next step, and due", async () => {
 test("shell lists people and brands Lindow Labs", () => {
   const shell = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages-shell.js"), "utf8");
   assert.match(shell, /selectLead/);
-  assert.match(shell, /THIS WEEK/);
-  assert.match(shell, /LATER/);
+  assert.match(shell, /rankInboxItems/);
+  assert.match(shell, /rankReason/);
   assert.match(shell, /Lindow Labs/);
   assert.match(shell, /lindow-labs\.svg/);
   assert.match(shell, /TOUCH_LABEL|referral_outreach/);

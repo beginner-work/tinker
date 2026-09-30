@@ -52,6 +52,7 @@ const storyParts = require("./_lib/story-parts-store.js");
 const selfThread = require("./_lib/self-thread-store.js");
 const readingThreads = require("./_lib/reading-thread-store.js");
 const personPrep = require("./_lib/person-prep.js");
+const inboxRank = require("./_lib/inbox-rank.js");
 const prisma = require("./_lib/db.js");
 const pkg = require("../package.json");
 const MCP_BOT_ACTOR = { kind: "bot", label: "bot:mcp" };
@@ -96,6 +97,8 @@ const INSTRUCTIONS = [
   "Call mark_lead_done with personId (or personName+companyName) to append ### __done__ without replacing Q&A.",
   "Call get_person_prep to read a person's interview-prep stepper (preamble, answered, pending, queue).",
   "Call seed_person_prep with questions[] to append unanswered prep questions without wiping answers; the UI shows one at a time.",
+  "Call list_inbox for a flat priority-ranked work queue (deadlines, warm follow-ups, prep, cold outreach) with rankReason.",
+  "Sent people are omitted. Prefer list_inbox over scanning list_target_companies for what to do next.",
   "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
   "Prefer those lead tools over dumping GTM prose into the You thread.",
   "Call save_outreach_draft to put a composed email or LinkedIn message into a person's chat for the owner to review.",
@@ -922,6 +925,33 @@ const SEED_PERSON_PREP_TOOL = {
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
 
+const LIST_INBOX_TOOL = {
+  name: "list_inbox",
+  title: "List ranked inbox",
+  description: [
+    "Read a flat, priority-ranked inbox for this connector user.",
+    "Order: live interview/deadlines (soonest first), warm follow-ups,",
+    "self-paced prep (reading workbook / interview prep notes), then cold",
+    "outreach by North Star / wave / company priority.",
+    "People with sent outreach are omitted (same as the UI rail).",
+    "Each item includes kind (person|reading), rank, title, rankReason, dueDay.",
+    "Optional limit (default 20, max 50). Read-only. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      limit: {
+        type: "integer",
+        minimum: 1,
+        maximum: 50,
+        description: "Max items to return. Defaults to 20.",
+      },
+    },
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
 const LIST_TARGET_COMPANIES_TOOL = {
   name: "list_target_companies",
   title: "List target companies",
@@ -1073,6 +1103,7 @@ const TOOLS = [
   MARK_LEAD_DONE_TOOL,
   GET_PERSON_PREP_TOOL,
   SEED_PERSON_PREP_TOOL,
+  LIST_INBOX_TOOL,
   LIST_TARGET_COMPANIES_TOOL,
   SAVE_OUTREACH_DRAFT_TOOL,
   LIST_APPROVED_OUTREACH_TOOL,
@@ -1927,6 +1958,40 @@ async function seedPersonPrepCall(msg, user, args) {
   }
 }
 
+async function listInboxCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const limitRaw = args && args.limit != null ? Number(args.limit) : 20;
+    const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, Math.floor(limitRaw))) : 20;
+    const [leads, draftRows, companies, inbox, threads] = await Promise.all([
+      leadsStore.listLeads({ userId, emailHint }),
+      leadsStore.listDrafts({ userId, emailHint }).catch(() => []),
+      companiesStore.listCompanies({ userId, emailHint, status: "active" }).catch(() => []),
+      scheduleStore.listInboxTouches({ userId, emailHint }).catch(() => ({ byLeadId: {} })),
+      readingThreads.listThreads({ userId }).catch(() => []),
+    ]);
+    const drafts = (draftRows || []).map((row) => {
+      const draft = row && row.draft ? row.draft : row;
+      if (!draft) return null;
+      return Object.assign(leadsStore.presentDraft(draft), { leadId: draft.leadId });
+    }).filter(Boolean);
+    const items = inboxRank.rankInboxItems({
+      leads: (leads || []).map(leadsStore.presentLead),
+      drafts,
+      companies: (companies || []).map(companiesStore.presentCompany),
+      byLeadId: (inbox && inbox.byLeadId) || {},
+      readingThreads: Array.isArray(threads) ? threads : [],
+    }).slice(0, limit);
+    return contentToolOk(msg, {
+      items,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    return planFailure(msg, err, leadsStore.UNAVAILABLE);
+  }
+}
+
 async function listTargetCompaniesCall(msg, user, args) {
   try {
     const userId = contentUserId(user);
@@ -2200,6 +2265,9 @@ async function handleRpc(msg, user) {
     }
     if (name === "seed_person_prep") {
       return seedPersonPrepCall(msg, user, args);
+    }
+    if (name === "list_inbox") {
+      return listInboxCall(msg, user, args);
     }
     if (name === "list_target_companies") {
       return listTargetCompaniesCall(msg, user, args);
