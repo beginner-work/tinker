@@ -443,8 +443,10 @@
       renderPendingQuestion(active.pending);
     } else {
       // No pending and no answered card at this step → ask Claude for one.
+      // keepCrafting so a long thread that would "done"/stitch still yields
+      // a fresh question (never a silent same-card flash).
       renderLoading("Asking the next question…");
-      askNext().catch((err) => renderError(err));
+      askNext({ keepCrafting: true }).catch((err) => renderError(err));
     }
   }
 
@@ -543,20 +545,39 @@
     note.textContent = "Editing this answer will rebuild the essay below from your latest words.";
     card.appendChild(note);
 
-    nextBtn.textContent = "Next →";
-    nextBtn.onclick = () => {
-      const next = ta.value;
-      if (next !== turn.a) {
-        turn.a = next;
-        // Edits invalidate downstream stitched output so the engine
-        // re-stitches from the new corpus.
-        active.stitched = null;
+    const atEnd =
+      idx === (active.transcript || []).length - 1 && !active.pending;
+    const youMode = document.body.classList.contains("messages-you-active");
+    if (atEnd && youMode) {
+      // Owner is on the latest answered turn with no pending prompt.
+      // Keep crafting must ask for a new question — not page history.
+      nextBtn.textContent = "Keep crafting";
+      nextBtn.onclick = () => {
+        const next = ta.value;
+        if (next !== turn.a) {
+          turn.a = next;
+          active.stitched = null;
+          persist();
+        }
+        renderLoading("Asking the next question…");
+        askNext({ keepCrafting: true }).catch((err) => renderError(err));
+      };
+    } else {
+      nextBtn.textContent = "Next →";
+      nextBtn.onclick = () => {
+        const next = ta.value;
+        if (next !== turn.a) {
+          turn.a = next;
+          // Edits invalidate downstream stitched output so the engine
+          // re-stitches from the new corpus.
+          active.stitched = null;
+          persist();
+        }
+        active.currentStep = idx + 1;
         persist();
-      }
-      active.currentStep = idx + 1;
-      persist();
-      renderStep();
-    };
+        renderStep();
+      };
+    }
     endBtn.onclick = () => {
       // Capture the (possibly edited) text for this turn before stitching.
       const next = ta.value.trim();
@@ -715,6 +736,14 @@
     renderStep();
   }
 
+  function askedForKeepCrafting() {
+    const api = interviewApi();
+    if (api && typeof api.collectAskedQuestions === "function") {
+      return api.collectAskedQuestions(active.transcript || [], [], active.pending || "");
+    }
+    return (active.transcript || []).map((t) => t.q).filter(Boolean);
+  }
+
   async function askNext({ forceStitch = false, keepCrafting = false } = {}) {
     if (!active) return;
     if (!window.tinker || typeof window.tinker.callClaude !== "function") {
@@ -730,12 +759,14 @@
     const system = voice ? `${SYSTEM_PROMPT}\n\n${voice}` : SYSTEM_PROMPT;
     const api = interviewApi();
     const maxAttempts = keepCrafting ? 3 : 1;
+    const asked = keepCrafting ? askedForKeepCrafting() : [];
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const userMessage = buildUserMessage(active.transcript || [], {
         forceStitch,
         keepCrafting,
         keepCraftingTighter: keepCrafting && attempt > 0,
+        asked,
       });
       let result;
       try {
@@ -770,7 +801,7 @@
           // Nothing to stitch — keep interviewing rather than erroring.
           const fallback =
             (api && typeof api.fallbackKeepCraftingQuestion === "function"
-              ? api.fallbackKeepCraftingQuestion((active.transcript || []).length)
+              ? api.fallbackKeepCraftingQuestion((active.transcript || []).length, askedForKeepCrafting())
               : null) || "What else are you learning about this?";
           showNextQuestion(fallback);
           return;
@@ -788,22 +819,29 @@
         return;
       }
 
-      const q = keepCrafting && api && typeof api.normalizeKeepCraftingQuestion === "function"
-        ? api.normalizeKeepCraftingQuestion(parsed)
-        : String(parsed.next_question || "").trim() || null;
+      let q = null;
+      if (keepCrafting && api && typeof api.normalizeKeepCraftingQuestion === "function") {
+        q = api.normalizeKeepCraftingQuestion(parsed, asked);
+      } else {
+        q = String(parsed.next_question || "").trim() || null;
+        if (q && keepCrafting && api && typeof api.isRepeatQuestion === "function" && api.isRepeatQuestion(q, asked)) {
+          q = null;
+        }
+      }
       if (q) {
         showNextQuestion(q);
         return;
       }
-      // keepCrafting: empty/done → tighter retry, then stage fallback.
-      // Non-keepCrafting empty → stage fallback (no error card).
+      // keepCrafting: empty/done/duplicate → tighter retry, then unused fallback.
+      // Non-keepCrafting empty → unused stage fallback (no error card).
       if (!keepCrafting) break;
     }
 
     const turns = (active.transcript || []).length;
+    const askedNow = askedForKeepCrafting();
     const fallback =
       (api && typeof api.fallbackKeepCraftingQuestion === "function"
-        ? api.fallbackKeepCraftingQuestion(turns)
+        ? api.fallbackKeepCraftingQuestion(turns, askedNow)
         : null) || "What else are you learning about this?";
     showNextQuestion(fallback);
   }
@@ -828,7 +866,7 @@
     return [];
   }
 
-  function buildUserMessage(transcript, { forceStitch = false, keepCrafting = false, keepCraftingTighter = false } = {}) {
+  function buildUserMessage(transcript, { forceStitch = false, keepCrafting = false, keepCraftingTighter = false, asked = [] } = {}) {
     const lines = [];
     if (active && active.seed) {
       lines.push(`Where the founder is right now: ${active.seed}`);
@@ -851,6 +889,14 @@
       lines.push(...uncoveredLines);
     }
     if (lines.length) lines.push("");
+    const askedList = (asked && asked.length
+      ? asked
+      : (transcript || []).map((t) => t.q).filter(Boolean));
+    if (askedList.length) {
+      lines.push("Questions already asked (do not repeat):");
+      askedList.forEach((q) => lines.push(`- ${q}`));
+      lines.push("");
+    }
     if (!transcript || transcript.length === 0) {
       lines.push("The founder just opened a new draft. Begin the interview.");
       if (keepCrafting) {
@@ -878,7 +924,7 @@
       const instr =
         api && typeof api.keepCraftingUserInstruction === "function"
           ? api.keepCraftingUserInstruction({ tighter: keepCraftingTighter })
-          : 'The founder pressed "Keep crafting" — return a non-empty next_question. Set done false. Do not stitch.';
+          : 'The founder pressed "Keep crafting" — return a non-empty next_question that has not been asked yet. Set done false. Do not stitch.';
       lines.push(instr);
     } else {
       lines.push("Decide whether to ask another question or to stitch. Respond with the JSON object only.");

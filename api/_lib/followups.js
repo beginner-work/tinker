@@ -5,8 +5,9 @@
  * interview uses the same contract the writing UI sends.
  *
  * keepCrafting means the owner wants another question: never return
- * done/stitch. Empty model replies retry (tighter prompt) up to twice,
- * then fall back to a deterministic stage question.
+ * done/stitch, and never repeat a question already in the transcript.
+ * Empty or duplicate model replies retry (tighter prompt) up to twice,
+ * then fall back to an unused stage question.
  */
 
 "use strict";
@@ -42,18 +43,16 @@ function shapeFreeform(parsed) {
   };
 }
 
+function askedFromArgs(args) {
+  return interview.collectAskedQuestions(
+    Array.isArray(args && args.transcript) ? args.transcript : [],
+    Array.isArray(args && args.priorTurns) ? args.priorTurns : [],
+    args && args.pendingQuestion
+  );
+}
+
 function turnCountFromArgs(args) {
-  const transcript = Array.isArray(args && args.transcript) ? args.transcript : [];
-  const prior = Array.isArray(args && args.priorTurns) ? args.priorTurns : [];
-  let n = 0;
-  for (const t of transcript) {
-    if (t && typeof t === "object" && (String(t.q || "").trim() || String(t.a || "").trim())) n += 1;
-  }
-  for (const t of prior) {
-    if (typeof t === "string" && t.trim()) n += 1;
-    else if (t && typeof t === "object" && String(t.q || "").trim()) n += 1;
-  }
-  return n;
+  return askedFromArgs(args).length;
 }
 
 async function callOnce(built) {
@@ -67,6 +66,7 @@ async function callOnce(built) {
 }
 
 async function askKeepCrafting(args) {
+  const asked = askedFromArgs(args);
   for (let attempt = 0; attempt < KEEP_CRAFTING_MAX_ATTEMPTS; attempt++) {
     const attemptArgs = Object.assign({}, args, {
       keepCrafting: true,
@@ -78,10 +78,10 @@ async function askKeepCrafting(args) {
       throw Object.assign(new Error(built.error), { toolError: true });
     }
     // Network/server failures propagate immediately — retries are only for
-    // empty/done model payloads, not transport errors.
+    // empty/done/duplicate model payloads, not transport errors.
     const result = await callOnce(built);
     const parsed = interview.parseInterviewResponse(result.text);
-    const q = interview.normalizeKeepCraftingQuestion(parsed);
+    const q = interview.normalizeKeepCraftingQuestion(parsed, asked);
     if (q) {
       return shapeInterview({
         next_question: q,
@@ -91,7 +91,7 @@ async function askKeepCrafting(args) {
       });
     }
   }
-  const q = interview.fallbackKeepCraftingQuestion(turnCountFromArgs(args));
+  const q = interview.fallbackKeepCraftingQuestion(turnCountFromArgs(args), asked);
   return shapeInterview({
     next_question: q,
     stitched_title: null,

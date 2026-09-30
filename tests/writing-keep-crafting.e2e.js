@@ -295,6 +295,153 @@ describe("Keep crafting You interview", () => {
     }
   });
 
+  test("long existing thread: Keep crafting never re-shows a prior question", async () => {
+    const { server, base } = await startStaticServer();
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({
+        ...iPhone,
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      });
+      const page = await context.newPage();
+      const longTranscript = [
+        { q: "What are you learning?", a: "Quiet software compounds when I stay close to the work." },
+        { q: "What are you noticing that you did not expect?", a: "The pace only settles when I protect deep time." },
+        { q: "What are you figuring out about how this work actually moves?", a: "Shipping small and looking again beats big plans." },
+        { q: "What are you discovering in the part you keep returning to?", a: "The quieter thread still needs room to grow." },
+        { q: "What is getting clearer as you keep figuring this out?", a: "Trust is the product more than the feature list." },
+        { q: "What contradiction are you coming to see in how this fits together?", a: "I want speed and I also want the work to stay quiet." },
+        { q: "What are you understanding now that you would not have said an hour ago?", a: "The interview itself is teaching me what I stand behind." },
+        { q: "What are you recognising that you want to hold onto from this?", a: "Stay close to the work; do not outsource the noticing." },
+      ];
+      await page.addInitScript((turns) => {
+        try {
+          localStorage.setItem("tinker_jwt", "e2e_session_placeholder");
+          localStorage.setItem("ANTHROPIC_API_KEY", "sk-ant-test");
+          localStorage.setItem("tinker.drafts.v1", JSON.stringify([{
+            id: "draft_owner_long",
+            title: "Owner long thread",
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            transcript: turns,
+            // Land on the latest answered card so Keep crafting (not auto-ask) drives the next prompt.
+            currentStep: Math.max(0, turns.length - 1),
+            pending: null,
+            stitched: null,
+            seed: null,
+            facing: null,
+            lastPurchased: null,
+          }]));
+        } catch {}
+      }, longTranscript);
+
+      await page.route("**/api/**", async (route) => {
+        const url = route.request().url();
+        let action = "";
+        try { action = new URL(url).searchParams.get("action") || ""; } catch {}
+        if (url.includes("/api/leads") && action === "inbox") {
+          await route.fulfill({
+            status: 200, contentType: "application/json",
+            body: JSON.stringify({
+              leads: [], drafts: [], companies: [], byLeadId: {},
+              profile: { name: "Tyler Lindow", title: "Founder", linkedInUrl: "", avatarUrl: "" },
+            }),
+          });
+          return;
+        }
+        if (url.includes("/api/self-thread")) {
+          await route.fulfill({
+            status: 200, contentType: "application/json",
+            body: JSON.stringify({ messages: [], removed: 0 }),
+          });
+          return;
+        }
+        await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      });
+
+      await page.goto(base + "/", { waitUntil: "domcontentloaded", timeout: 60000 });
+      await page.evaluate(() => {
+        const gate = document.getElementById("auth-gate");
+        if (gate) { gate.hidden = true; document.documentElement.classList.remove("auth-gating"); }
+        const hint = document.getElementById("pwa-hint");
+        if (hint) { hint.hidden = true; hint.style.display = "none"; }
+      });
+      await page.waitForFunction(
+        () => !!(window.tinkerMessagesShell && window.tinkerWriting && window.tinkerInterview),
+        null,
+        { timeout: 20000 }
+      );
+      await page.waitForTimeout(700);
+      await page.evaluate(() => {
+        window.__claudeLog = [];
+        // Model returns done + a duplicate of an earlier question every time.
+        window.tinker = window.tinker || {};
+        window.tinkerOnWritingPublish = function () {};
+        window.tinker.callClaude = async (opts) => {
+          window.__claudeLog.push(opts);
+          return {
+            text: JSON.stringify({
+              next_question: "What is getting clearer as you keep figuring this out?",
+              done: true,
+              stitched_body: "premature",
+              stitched_title: "Nope",
+            }),
+          };
+        };
+        window.tinkerMessagesShell.selectYou();
+      });
+      await page.waitForFunction(() => document.body.classList.contains("messages-you-active"), null, { timeout: 10000 });
+      await page.waitForTimeout(500);
+
+      const seen = [];
+      for (let i = 0; i < 3; i++) {
+        const before = await page.evaluate(() =>
+          ((document.querySelector(".writing-question") || {}).textContent || "").trim());
+        // At end of transcript with no pending, Keep crafting asks next.
+        await page.evaluate(() => {
+          const ta = document.querySelector(".writing-input");
+          if (ta && !(ta.value || "").trim()) ta.value = "Another beat from the long thread.";
+          document.getElementById("writing-next").click();
+        });
+        await page.waitForFunction((prev) => {
+          if (document.querySelector(".writing-card--error")) return true;
+          if (document.querySelector(".writing-card--loading")) return false;
+          const q = ((document.querySelector(".writing-question") || {}).textContent || "").trim();
+          return q && q !== prev;
+        }, before, { timeout: 20000 });
+        const after = await page.evaluate(() => ({
+          q: ((document.querySelector(".writing-question") || {}).textContent || "").trim(),
+          error: !!document.querySelector(".writing-card--error"),
+          keep: (document.getElementById("writing-next") || {}).textContent || "",
+        }));
+        assert.equal(after.error, false);
+        assert.match(after.keep, /Keep crafting/i);
+        assert.notEqual(after.q, before);
+        assert.notEqual(after.q, "What is getting clearer as you keep figuring this out?");
+        for (const prev of seen) assert.notEqual(after.q, prev);
+        for (const t of longTranscript) assert.notEqual(after.q, t.q);
+        seen.push(after.q);
+        // Answer so the next Keep crafting advances from a pending prompt.
+        await page.evaluate((ans) => {
+          const ta = document.querySelector(".writing-input");
+          if (ta) {
+            ta.value = ans;
+            ta.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+        }, "Pass " + (i + 1) + " — still learning in the long thread.");
+      }
+
+      fs.mkdirSync(ART, { recursive: true });
+      await page.screenshot({ path: path.join(ART, "keep-crafting-long-thread-e2e.png"), fullPage: false });
+      await context.close();
+    } finally {
+      await browser.close();
+      server.close();
+    }
+  });
+
   test("mobile You question sits below the hamburger with full ink contrast", async () => {
     const { server, base } = await startStaticServer();
     const browser = await chromium.launch({ headless: true });
