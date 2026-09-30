@@ -238,7 +238,7 @@
     return {
       tier: RANK_TIER.COLD,
       dueDay: due,
-      rankReason: due ? (coldLabel + " · " + due) : coldLabel,
+      rankReason: due ? ((coldLabel + " · ") + due) : coldLabel,
       northStar: north,
       priority: companyPriority(lead),
     };
