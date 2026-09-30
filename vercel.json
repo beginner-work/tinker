@@ -33,7 +33,9 @@
     { "source": "/story-parts", "destination": "/story-parts/index.html" },
     { "source": "/story-parts/", "destination": "/story-parts/index.html" },
     { "source": "/settings", "destination": "/settings/index.html" },
-    { "source": "/settings/", "destination": "/settings/index.html" }
+    { "source": "/settings/", "destination": "/settings/index.html" },
+    { "source": "/gmail", "destination": "/api/gmail" },
+    { "source": "/gmail/", "destination": "/api/gmail" }
   ],
   "headers": [
     {
