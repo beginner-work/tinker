@@ -362,33 +362,44 @@
     lines.push("Ask about what the founder wants " + person + " to understand — learning-focused, concrete, not a repeat.");
     return lines.join("\n");
   }
+  function keepCraftingModelId() {
+    var od = window.tinkerOnDeviceLlm;
+    if (od && typeof od.fallbackModel === "function") return od.fallbackModel();
+    if (od && od.FALLBACK_MODEL) return od.FALLBACK_MODEL;
+    return "claude-opus-4-8";
+  }
   function resolveNextQuestion(asked) {
     var api = interviewApi();
     var maxAttempts = 3;
     var system = (api && api.SYSTEM_PROMPT) || "You are an interviewer. Return JSON {next_question, done:false}.";
-    function attempt(i) {
+    var userContent = null;
+    function parseQuestion(result) {
+      var parsed = api && typeof api.parseInterviewResponse === "function"
+        ? api.parseInterviewResponse(result && result.text)
+        : (function () {
+            try { return JSON.parse(String(result && result.text || "{}")); }
+            catch (e) { return { next_question: null, done: false }; }
+          })();
+      var q = null;
+      if (api && typeof api.normalizeKeepCraftingQuestion === "function") {
+        q = api.normalizeKeepCraftingQuestion(parsed, asked);
+      } else {
+        q = String(parsed && parsed.next_question || "").trim() || null;
+        if (q && api && typeof api.isRepeatQuestion === "function" && api.isRepeatQuestion(q, asked)) q = null;
+      }
+      return q;
+    }
+    function viaFallbackModel(i) {
       if (!window.tinker || typeof window.tinker.callClaude !== "function") {
         return Promise.reject(new Error("Anthropic client unavailable. Reload the page."));
       }
       return window.tinker.callClaude({
         system: system,
-        messages: [{ role: "user", content: buildPersonUserMessage(asked, i > 0) }],
-        model: "claude-opus-4-8",
+        messages: [{ role: "user", content: userContent || buildPersonUserMessage(asked, i > 0) }],
+        model: keepCraftingModelId(),
         maxTokens: 1024,
       }).then(function (result) {
-        var parsed = api && typeof api.parseInterviewResponse === "function"
-          ? api.parseInterviewResponse(result && result.text)
-          : (function () {
-              try { return JSON.parse(String(result && result.text || "{}")); }
-              catch (e) { return { next_question: null, done: false }; }
-            })();
-        var q = null;
-        if (api && typeof api.normalizeKeepCraftingQuestion === "function") {
-          q = api.normalizeKeepCraftingQuestion(parsed, asked);
-        } else {
-          q = String(parsed && parsed.next_question || "").trim() || null;
-          if (q && api && typeof api.isRepeatQuestion === "function" && api.isRepeatQuestion(q, asked)) q = null;
-        }
+        var q = parseQuestion(result);
         if (q) return q;
         if (i + 1 < maxAttempts) return attempt(i + 1);
         var fallback = api && typeof api.fallbackKeepCraftingQuestion === "function"
@@ -396,6 +407,28 @@
           : "What else are you learning about what they should understand?";
         return fallback;
       });
+    }
+    function attempt(i) {
+      userContent = buildPersonUserMessage(asked, i > 0);
+      var od = window.tinkerOnDeviceLlm;
+      // On-device Gemma only when the capability gate says yes; otherwise
+      // KEEP_CRAFTING_MODEL (Opus). Gate rejects iOS Safari for E2B.
+      if (
+        i === 0 &&
+        od &&
+        typeof od.canRunGemma3nE2B === "function" &&
+        od.canRunGemma3nE2B() &&
+        typeof od.generateKeepCrafting === "function"
+      ) {
+        return od.generateKeepCrafting(userContent).then(function (text) {
+          var q = parseQuestion({ text: text });
+          if (q) return q;
+          return viaFallbackModel(i);
+        }).catch(function () {
+          return viaFallbackModel(i);
+        });
+      }
+      return viaFallbackModel(i);
     }
     return attempt(0);
   }
