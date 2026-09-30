@@ -285,9 +285,11 @@
     opacity: 0;
   }
 
-  /* Inbox list mode owns the screen. Thread mode restores the hamburger
-   * so Story parts / Leads / Career stay reachable (see styles.css). */
-  body.messages-shell-open:not(.messages-mobile-thread) .sidebar {
+  /* Inbox owns the screen with push navigation — never a slide-over drawer. */
+  body.messages-shell-open .sidebar,
+  body.messages-inbox-primary .sidebar,
+  body.messages-shell-open[data-drawer-open] .sidebar,
+  body.messages-inbox-primary[data-drawer-open] .sidebar {
     position: relative !important;
     inset: auto !important;
     width: 100% !important;
@@ -297,8 +299,11 @@
     z-index: auto !important;
     box-shadow: none !important;
   }
-  body.messages-shell-open:not(.messages-mobile-thread) .drawer-toggle,
-  body.messages-shell-open:not(.messages-mobile-thread) .drawer-backdrop {
+  body.messages-shell-open .drawer-toggle,
+  body.messages-inbox-primary .drawer-toggle,
+  body.messages-shell-open .drawer-backdrop,
+  body.messages-inbox-primary .drawer-backdrop {
     display: none !important;
+    pointer-events: none !important;
   }
 }

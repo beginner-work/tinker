@@ -79,15 +79,20 @@ test("person chat header shows quiet LinkedIn and GitHub icon links when URLs ex
   assert.match(thread, /clearProfileLinks/);
   assert.match(thread, /githubUrl/);
   assert.match(thread, /linkedInUrl/);
+  assert.match(thread, /postingUrl/);
   assert.match(thread, /aria-label/);
   assert.match(thread, /iconSvg/);
   assert.match(thread, /target:\s*["_']_blank["_']/);
+  // Rounded-square LinkedIn logo (boxed path), not the bare "in" glyph.
+  assert.match(thread, /M20\.447 20\.452/);
+  assert.equal(/M4\.98 3\.5C4\.98 4\.88/.test(thread), false);
   assert.match(css, /\.messages-pane__link\b/);
   assert.match(css, /\.messages-pane__link svg/);
   const demo = fs.readFileSync(path.join(root, "src/renderer/messages/demo-people-header.html"), "utf8");
   assert.match(demo, /data-messages-links/);
   assert.match(demo, /aria-label="LinkedIn"/);
   assert.match(demo, /aria-label="GitHub"/);
+  assert.match(demo, /M20\.447 20\.452/);
   assert.match(demo, /<svg/);
   assert.equal(/>LinkedIn</.test(demo), false);
   assert.equal(/messages-rail__search/.test(demo), false);

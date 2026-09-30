@@ -811,9 +811,9 @@ const UPSERT_LEAD_PERSON_TOOL = {
     "Create or update a person under a target company.",
     "Pass personName and companyName (or companyId). contactType is the role",
     "in sequence: referrer, hiring_leader, recruiter, or other.",
-    "Optional personTitle, linkedInUrl, githubUrl, email, nextStep, dueDate (ISO),",
-    "queueOrder (sequence position), notes (person notepad; merges and keeps ### __done__),",
-    "and touchType to plan the next outreach touch.",
+    "Optional personTitle, linkedInUrl, githubUrl, email, postingUrl (job or interview link),",
+    "nextStep, dueDate (ISO), queueOrder (sequence position), notes (person notepad;",
+    "merges and keeps ### __done__), and touchType to plan the next outreach touch.",
     "Omitted fields are left unchanged - email/nextStep updates never wipe notes.",
     "Does not write company notes/research. Does not send email or LinkedIn.",
     "A user id in args is ignored.",
@@ -835,6 +835,10 @@ const UPSERT_LEAD_PERSON_TOOL = {
       linkedInUrl: { type: "string", description: "Optional LinkedIn URL." },
       githubUrl: { type: "string", description: "Optional GitHub profile URL." },
       email: { type: "string", description: "Optional email." },
+      postingUrl: {
+        type: "string",
+        description: "Optional job posting or interview URL shown in the person header link slot.",
+      },
       nextStep: { type: "string", description: "Short next-step label." },
       dueDate: { type: "string", description: "When the next step is due (ISO)." },
       queueOrder: { type: "integer", description: "Sequence position within the role. Lower first." },
@@ -1938,6 +1942,7 @@ async function upsertLeadPersonCall(msg, user, args) {
         linkedInUrl: args.linkedInUrl,
         githubUrl: args.githubUrl,
         email: args.email,
+        postingUrl: args.postingUrl,
         company: company.name,
         companyId: company.id,
         contactType: args.contactType,
@@ -1959,6 +1964,7 @@ async function upsertLeadPersonCall(msg, user, args) {
       if (args.linkedInUrl != null) patch.linkedInUrl = args.linkedInUrl;
       if (args.githubUrl != null) patch.githubUrl = args.githubUrl;
       if (args.email != null) patch.email = args.email;
+      if (args.postingUrl != null) patch.postingUrl = args.postingUrl;
       if (args.nextStep != null) patch.nextStep = args.nextStep;
       if (args.dueDate != null) patch.nextStepAt = args.dueDate;
       if (args.notes != null) patch.notes = args.notes;

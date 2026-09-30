@@ -59,13 +59,13 @@ test("You-mode writing sits in normal flow under the pane header", () => {
   assert.equal(/—/.test(demo), false);
 });
 
-test("You interview question stays full ink contrast; hamburger is in the header row", () => {
+test("You interview question stays full ink contrast; push-nav back, no hamburger", () => {
   assert.match(css, /color:\s*var\(--color-ink/);
   assert.match(
     css,
     /body\.messages-you-active[\s\S]*writing-question[\s\S]*opacity:\s*1/
   );
-  // Menu parks in the lead row — prompt uses normal gutter, not 68px clearance.
+  // No hamburger clearance — prompt uses normal gutter.
   const mobileYou = css.match(
     /@media \(max-width:\s*540px\)\s*\{[\s\S]*?body\.messages-you-active\.messages-mobile-thread \.writing--in-messages \.writing__body\s*\{([^}]+)\}/
   );
@@ -73,8 +73,8 @@ test("You interview question stays full ink contrast; hamburger is in the header
   assert.match(mobileYou[1], /padding-left:\s*12px/);
   assert.equal(/padding-left:\s*68px/.test(mobileYou[1]), false);
   assert.match(html, /data-messages-lead/);
-  assert.match(html, /data-messages-menu/);
-  assert.match(css, /\.messages-pane__menu/);
+  assert.match(html, /data-messages-back/);
+  assert.equal(/data-messages-menu/.test(html), false);
 });
 
 test("owner notepad is borderless and floating actions replace composer + mode-nav", () => {

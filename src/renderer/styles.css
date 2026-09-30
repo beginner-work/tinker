@@ -167,6 +167,17 @@ body.messages-inbox-primary { --sidebar-width: 300px; }
   max-height: none;
   flex: 0 0 auto;
 }
+/* Settings sits at the bottom of the inbox rail — no hairline above it.
+ * Sidebar already pads for the iPhone home-indicator safe area. */
+.sidebar--inbox .sidebar__footer,
+.sidebar--inbox .sidebar__footer--gear {
+  border-top: 0;
+  margin-top: auto;
+  flex: 0 0 auto;
+  padding: 4px 10px 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
 .sidebar__secondary {
   display: flex;
   flex-wrap: wrap;
@@ -233,14 +244,17 @@ a.sidebar__secondary-link { display: inline; }
 .messages-rail__row--reading {
   border: 1px solid transparent;
 }
-.messages-rail__avatar--reading {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-ink-muted, #6b7280);
-  background: var(--color-cream, #f5f3ef);
+/* Non-person rail mark: same 18px logo slot, accent dot centered. */
+.messages-rail__logo--dot {
+  background: transparent;
+  border: 0;
+}
+.messages-rail__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent-strong, #6366f1);
+  flex-shrink: 0;
 }
 .messages-notepad__section {
   margin: 0 0 8px;
@@ -779,10 +793,10 @@ button.messages-thread__bubble {
   body.messages-mobile-thread .messages-pane__title { font-size: 15px; }
   body.messages-mobile-thread .messages-pane__name { font-size: 15px; }
   body.messages-mobile-thread .messages-pane__role { font-size: 12px; }
-  /* Indent links under the name, past menu + back + logo. */
+  /* Indent links under the name, past back + logo (no hamburger). */
   body.messages-mobile-thread .messages-pane__links {
     gap: 12px;
-    padding-left: 98px;
+    padding-left: 54px;
   }
 }
 
@@ -1282,18 +1296,30 @@ body.messages-you-active .writing--in-messages .writing-recall__text {
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
   }
-  /* List mode: hide hamburger; secondary links live in the full-width rail. */
-  body.messages-shell-open:not(.messages-mobile-thread) .drawer-toggle,
-  body.messages-shell-open:not(.messages-mobile-thread) .drawer-backdrop {
+  /* Inbox push-nav: no hamburger, no backdrop, no slide-over drawer.
+   * List owns the screen; thread mode hides the list and shows back. */
+  body.messages-shell-open .drawer-toggle,
+  body.messages-inbox-primary .drawer-toggle,
+  body.messages-shell-open .drawer-backdrop,
+  body.messages-inbox-primary .drawer-backdrop,
+  body.messages-shell-open .messages-pane__menu,
+  body.messages-inbox-primary .messages-pane__menu,
+  html.pwa-hint-visible body.messages-shell-open .drawer-toggle,
+  html.pwa-hint-visible body.messages-inbox-primary .drawer-toggle {
     display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
   body.messages-shell-open:not(.messages-mobile-thread) .stage,
   body.messages-inbox-primary:not(.messages-mobile-thread) .stage {
     display: none !important;
   }
   /* Thread mode: hide the list; stage fills the viewport. */
-  body.messages-shell-open.messages-mobile-thread .sidebar {
+  body.messages-shell-open.messages-mobile-thread .sidebar,
+  body.messages-shell-open.messages-mobile-thread[data-drawer-open] .sidebar {
     display: none !important;
+    transform: none !important;
+    box-shadow: none !important;
   }
   body.messages-shell-open.messages-mobile-thread .stage {
     display: flex !important;
@@ -1311,39 +1337,6 @@ body.messages-you-active .writing--in-messages .writing-recall__text {
     padding-bottom: env(safe-area-inset-bottom, 0px);
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
-  }
-  /* Thread mode: kill the floating hamburger entirely. The in-header
-   * [data-messages-menu] is the only side-nav control (no overlap). */
-  body.messages-shell-open.messages-mobile-thread .drawer-toggle,
-  body.messages-shell-open.messages-mobile-thread .drawer-toggle.drawer-toggle--in-header,
-  html.pwa-hint-visible body.messages-shell-open.messages-mobile-thread .drawer-toggle,
-  html.pwa-hint-visible body.messages-shell-open.messages-mobile-thread .drawer-toggle.drawer-toggle--in-header {
-    display: none !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-  }
-  body.messages-shell-open.messages-mobile-thread .messages-pane__menu,
-  body.messages-mobile-thread .messages-pane__menu {
-    display: inline-flex !important;
-    position: relative !important;
-    top: auto !important;
-    left: auto !important;
-    z-index: 2;
-    align-self: center;
-  }
-  body.messages-shell-open.messages-mobile-thread[data-drawer-open] .sidebar {
-    display: flex !important;
-    position: fixed !important;
-    top: 0; left: 0; bottom: 0;
-    width: min(82vw, 320px) !important;
-    height: 100dvh !important;
-    transform: translateX(0) !important;
-    z-index: 60 !important;
-    box-shadow: 0 0 24px rgba(26, 26, 26, 0.18) !important;
-    border-right: 1px solid var(--color-border);
-  }
-  body.messages-shell-open.messages-mobile-thread .drawer-backdrop {
-    display: block !important;
   }
   body.messages-mobile-thread .messages-pane__back { display: inline-flex; }
   /* Composer stays above the soft keyboard / home indicator. */
@@ -1949,20 +1942,22 @@ body.messages-shell-open .messages-notepad__foot {
   fill: currentColor;
 }
 /* Settings is the only account entry in the rail footer - make it easy
- * to find and tap on iPhone (min 48px target, ink label, clear gear). */
+ * to find and tap on iPhone (min 48px target, ink label, clear gear).
+ * Flat: no card border / hairlines; footer + sidebar safe-area pin it
+ * above the home indicator. */
 .messages-rail__settings {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
   box-sizing: border-box;
-  width: calc(100% - 20px);
+  width: 100%;
   min-height: 48px;
-  margin: 10px 10px 12px;
+  margin: 0;
   padding: 12px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-surface, var(--color-background));
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
   color: var(--color-foreground);
   font: inherit;
   font-size: 15px;
@@ -1976,7 +1971,6 @@ body.messages-shell-open .messages-notepad__foot {
 .messages-rail__settings:focus-visible {
   color: var(--color-foreground);
   background: var(--color-hover, rgba(0, 0, 0, 0.04));
-  border-color: var(--color-muted);
   outline: none;
 }
 .messages-rail__settings:active {
@@ -1993,9 +1987,19 @@ body.messages-shell-open .messages-notepad__foot {
   line-height: 1.2;
 }
 @media (max-width: 720px) {
+  body.messages-shell-open .sidebar__footer,
+  body.messages-inbox-primary .sidebar__footer,
+  body.messages-shell-open .sidebar__footer--gear,
+  body.messages-inbox-primary .sidebar__footer--gear {
+    display: flex !important;
+    /* Sidebar already applies safe-area-inset-bottom; keep a little air. */
+    padding: 6px 12px 10px;
+    margin-top: auto;
+    border-top: 0;
+  }
   .messages-rail__settings {
     min-height: 52px;
-    margin: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    margin: 0;
     font-size: 16px; /* iOS: avoid focus zoom if it becomes a control */
   }
   .messages-rail__settings-icon {

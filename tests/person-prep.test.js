@@ -68,3 +68,20 @@ test("composer contract: queue advance without model when seeded", () => {
   assert.match(js, /unanswered\.slice\(1\)/);
   assert.match(js, /serializeNotes\(state\.preamble/);
 });
+
+test("prep preamble stays out of the thread UI but reaches Keep crafting prompts", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const js = fs.readFileSync(path.join(__dirname, "../src/renderer/messages-composer.js"), "utf8");
+  const opening = js.match(/function buildOpening\([\s\S]*?return opening;\n  \}/);
+  assert.ok(opening, "buildOpening present");
+  assert.equal(/appendChild\(preamble\)/.test(opening[0]), false);
+  assert.equal(/messages-notepad__section/.test(opening[0]), false);
+  assert.match(js, /Prep context:/);
+  assert.match(js, /prepContext\.slice\(0,\s*1200\)|prepContext/);
+  // Serialization still keeps preamble in stored notes for MCP / prompts.
+  assert.match(js, /serializeNotes\(state\.preamble/);
+  const thread = fs.readFileSync(path.join(__dirname, "../src/renderer/messages-thread.js"), "utf8");
+  assert.match(thread, /postingUrl/);
+  assert.match(thread, /Job posting/);
+});

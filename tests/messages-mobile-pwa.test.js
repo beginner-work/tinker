@@ -22,13 +22,24 @@ test("body ships messages-shell-open so mobile first paint is never blank", () =
   assert.match(styles, /display:\s*none\s*!important/);
   assert.match(styles, /transform:\s*none\s*!important/);
   assert.match(styles, /height:\s*100dvh\s*!important/);
-  assert.match(drawer, /messages-shell-open:not\(\.messages-mobile-thread\)/);
+  assert.match(drawer, /messages-shell-open \.sidebar/);
   assert.match(shell, /showCompanyList/);
   assert.match(shell, /messages-mobile-thread/);
   assert.match(shell, /stayOnList/);
   // Clearing selection must NOT open You / hide the list.
   assert.equal(/if \(id === YOU_ID \|\| !id\) \{ selectYou/.test(shell), false);
   assert.match(sw, new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+});
+
+test("mobile inbox is push navigation with no slide-over drawer", () => {
+  assert.equal(/data-messages-menu/.test(html), false);
+  assert.match(html, /data-messages-back/);
+  assert.match(styles, /body\.messages-shell-open[\s\S]*\.drawer-toggle[\s\S]*display:\s*none\s*!important/);
+  assert.equal(/messages-mobile-thread\[data-drawer-open\][\s\S]{0,120}translateX\(0\)/.test(styles), false);
+  assert.match(drawer, /transform:\s*none\s*!important/);
+  const drawerJs = fs.readFileSync(path.join(root, "src/renderer/mobile-drawer.js"), "utf8");
+  assert.match(drawerJs, /inboxOwnsScreen/);
+  assert.equal(/data-messages-menu/.test(drawerJs), false);
 });
 
 test("top-right profile avatar stays hidden", () => {

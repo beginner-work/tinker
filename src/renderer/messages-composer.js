@@ -221,19 +221,13 @@
   }
   function buildOpening(lead, company) {
     // Display-only: do not render the italic "Notes for …" label, company
-    // logo mark, or company-notes paragraph. researchProse / lead.notes still
-    // feed Keep crafting + subject prompts via buildPersonUserMessage and
-    // resolveSubject: hide UI, keep prompt context.
-    // Seeded interview prep: preamble (links/context) + answered turns + one
+    // logo mark, company-notes paragraph, or interview-prep preamble.
+    // researchProse / state.preamble / lead.notes still feed Keep crafting +
+    // subject prompts via buildPersonUserMessage and resolveSubject:
+    // hide UI, keep prompt context. Seeded prep: answered turns + one
     // pending question. Remaining queued ### headings stay hidden until advance.
     var opening = el("div", "messages-notepad__opening");
     void company;
-    if (String(state.preamble || "").trim()) {
-      var preamble = el("p", "messages-notepad__section");
-      preamble.style.whiteSpace = "pre-wrap";
-      preamble.textContent = String(state.preamble).trim();
-      opening.appendChild(preamble);
-    }
     appendTurns(opening);
     var q = el("h2", "messages-notepad__question", { "data-notepad-question": "1" });
     q.textContent = state.pending || defaultQuestion(lead, company);
@@ -415,12 +409,19 @@
       if (!window.tinker || typeof window.tinker.callClaude !== "function") {
         return Promise.resolve(fallbackSubject());
       }
+      var prepContext = String(state.preamble || "").trim();
+      var companyContext = researchProse(state.company) || "";
+      if (prepContext) {
+        companyContext = companyContext
+          ? (companyContext + "\n\nPrep context: " + prepContext)
+          : ("Prep context: " + prepContext);
+      }
       var user = api && typeof api.buildSubjectUserMessage === "function"
         ? api.buildSubjectUserMessage({
             personName: person,
             personTitle: state.lead && state.lead.personTitle,
             companyName: co,
-            companyContext: researchProse(state.company),
+            companyContext: companyContext,
             transcript: state.transcript,
           })
         : "Propose a short email subject for outreach to " + person + ".";
@@ -541,6 +542,9 @@
     lines.push("Person: " + person + (title ? " (" + title + ")" : "") + (co ? " at " + co : "") + ".");
     var research = researchProse(state.company);
     if (research) lines.push("Company context: " + research.slice(0, 1200));
+    // Prep preamble stays out of the thread UI but still grounds prompts.
+    var prepContext = String(state.preamble || "").trim();
+    if (prepContext) lines.push("Prep context: " + prepContext.slice(0, 1200));
     lines.push("");
     lines.push("Interview so far:");
     if (!state.transcript.length) {
