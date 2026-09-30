@@ -21,6 +21,7 @@
     { "source": "/api/schedule/:action", "destination": "/api/schedule?action=:action" },
     { "source": "/api/self-thread/:action", "destination": "/api/self-thread?action=:action" },
     { "source": "/api/reading-thread/:action", "destination": "/api/reading-thread?action=:action" },
+    { "source": "/api/job-application/:action", "destination": "/api/job-application?action=:action" },
     { "source": "/api/sites/:site/content", "destination": "/api/content-public?site=:site" },
     { "source": "/api/sites/:site/content/:slug", "destination": "/api/content-public?site=:site&slug=:slug" },
     { "source": "/autonomy", "destination": "/autonomy/index.html" },

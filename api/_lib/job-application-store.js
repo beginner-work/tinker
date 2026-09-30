@@ -1,0 +1,316 @@
+/* Job application inbox items.
+ *
+ * One TinkerUserData row per user, kind "job_applications". Each application
+ * sits in the flat inbox next to that company's outreach. Bots create/update
+ * via MCP; the owner marks done in the thread (This is everything) or via
+ * mark_application_done. Do not seed Tyler's roles in app code.
+ */
+
+"use strict";
+
+const crypto = require("crypto");
+const { addBusinessDays, dayKey } = require("./business-days.js");
+
+const KIND = "job_applications";
+const UNAVAILABLE = "Job applications are unavailable right now.";
+const STATUSES = ["open", "done"];
+const MAX_ROLE = 200;
+const MAX_COMPANY = 200;
+const MAX_URL = 2000;
+const MAX_PAY = 200;
+const MAX_FIT = 8000;
+const MAX_REFERRER = 200;
+const MAX_APPS = 80;
+const RECRUITER_BUMP_BUSINESS_DAYS = 1;
+
+function db() {
+  return require("./db.js");
+}
+
+function fail(status, message) {
+  return Object.assign(new Error(message), { status });
+}
+
+function requireUserId(userId) {
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw fail(401, "Sign in to tinker first.");
+  }
+  return userId.trim();
+}
+
+function storeDown(err) {
+  if (err && err.status) return err;
+  return Object.assign(new Error(UNAVAILABLE), { status: 503, cause: err });
+}
+
+function newAppId() {
+  return "app_" + crypto.randomBytes(8).toString("hex");
+}
+
+function trimText(value, label, max, required) {
+  const text = String(value == null ? "" : value).trim();
+  if (!text) {
+    if (required) throw fail(400, label + " is required.");
+    return "";
+  }
+  if (text.length > max) throw fail(400, label + " is too long.");
+  return text;
+}
+
+function readStatus(value, required) {
+  if (value == null || value === "") {
+    if (required) throw fail(400, "status is required.");
+    return "";
+  }
+  const found = String(value).trim().toLowerCase();
+  if (!STATUSES.includes(found)) throw fail(400, "status must be open or done.");
+  return found;
+}
+
+function presentApplication(row) {
+  return {
+    id: row.id,
+    roleTitle: row.roleTitle || "",
+    companyName: row.companyName || "",
+    companyId: row.companyId || "",
+    postingUrl: row.postingUrl || "",
+    payRange: row.payRange || "",
+    fitNotes: row.fitNotes || "",
+    referrerPersonId: row.referrerPersonId || "",
+    referrerName: row.referrerName || "",
+    status: row.status === "done" ? "done" : "open",
+    doneAt: row.doneAt || null,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+async function readBlob(userId) {
+  const prisma = db();
+  const row = await prisma.tinkerUserData.findUnique({
+    where: { userId_kind: { userId, kind: KIND } },
+  });
+  const data = row && row.data && typeof row.data === "object" ? row.data : {};
+  const applications = Array.isArray(data.applications) ? data.applications : [];
+  return { applications, updatedAt: row ? row.updatedAt : null };
+}
+
+async function writeBlob(userId, applications) {
+  const prisma = db();
+  const data = { applications };
+  await prisma.tinkerUserData.upsert({
+    where: { userId_kind: { userId, kind: KIND } },
+    create: { userId, kind: KIND, data },
+    update: { data },
+  });
+}
+
+function findApp(applications, applicationId) {
+  const id = String(applicationId || "").trim();
+  if (!id) throw fail(400, "applicationId is required.");
+  const row = applications.find((item) => item && item.id === id);
+  if (!row) throw fail(404, "Application not found.");
+  return row;
+}
+
+async function listApplications({ userId, status } = {}) {
+  try {
+    const uid = requireUserId(userId);
+    const { applications } = await readBlob(uid);
+    const filter = status ? readStatus(status, true) : "";
+    return applications
+      .filter((row) => !filter || (row.status === "done" ? "done" : "open") === filter)
+      .map(presentApplication);
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
+async function getApplication({ userId, applicationId } = {}) {
+  try {
+    const uid = requireUserId(userId);
+    const { applications } = await readBlob(uid);
+    return presentApplication(findApp(applications, applicationId));
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
+async function createApplication(input = {}) {
+  try {
+    const uid = requireUserId(input.userId);
+    const roleTitle = trimText(input.roleTitle, "roleTitle", MAX_ROLE, true);
+    const companyName = trimText(input.companyName, "companyName", MAX_COMPANY, true);
+    const companyId = trimText(input.companyId, "companyId", 80, false);
+    const postingUrl = trimText(input.postingUrl, "postingUrl", MAX_URL, false);
+    const payRange = trimText(input.payRange, "payRange", MAX_PAY, false);
+    const fitNotes = trimText(input.fitNotes, "fitNotes", MAX_FIT, false);
+    const referrerPersonId = trimText(input.referrerPersonId, "referrerPersonId", 80, false);
+    const referrerName = trimText(input.referrerName, "referrerName", MAX_REFERRER, false);
+    const status = input.status != null && input.status !== ""
+      ? readStatus(input.status, true)
+      : "open";
+    const now = new Date().toISOString();
+    const row = {
+      id: newAppId(),
+      roleTitle,
+      companyName,
+      companyId,
+      postingUrl,
+      payRange,
+      fitNotes,
+      referrerPersonId,
+      referrerName,
+      status,
+      doneAt: status === "done" ? now : null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const { applications } = await readBlob(uid);
+    applications.push(row);
+    while (applications.length > MAX_APPS) applications.shift();
+    await writeBlob(uid, applications);
+    return presentApplication(row);
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
+async function updateApplication({ userId, applicationId, patch } = {}) {
+  try {
+    const uid = requireUserId(userId);
+    const { applications } = await readBlob(uid);
+    const row = findApp(applications, applicationId);
+    const src = patch && typeof patch === "object" ? patch : {};
+    if (Object.prototype.hasOwnProperty.call(src, "roleTitle")) {
+      row.roleTitle = trimText(src.roleTitle, "roleTitle", MAX_ROLE, true);
+    }
+    if (Object.prototype.hasOwnProperty.call(src, "companyName")) {
+      row.companyName = trimText(src.companyName, "companyName", MAX_COMPANY, true);
+    }
+    if (Object.prototype.hasOwnProperty.call(src, "companyId")) {
+      row.companyId = trimText(src.companyId, "companyId", 80, false);
+    }
+    if (Object.prototype.hasOwnProperty.call(src, "postingUrl")) {
+      row.postingUrl = trimText(src.postingUrl, "postingUrl", MAX_URL, false);
+    }
+    if (Object.prototype.hasOwnProperty.call(src, "payRange")) {
+      row.payRange = trimText(src.payRange, "payRange", MAX_PAY, false);
+    }
+    if (Object.prototype.hasOwnProperty.call(src, "fitNotes")) {
+      row.fitNotes = trimText(src.fitNotes, "fitNotes", MAX_FIT, false);
+    }
+    if (Object.prototype.hasOwnProperty.call(src, "referrerPersonId")) {
+      row.referrerPersonId = trimText(src.referrerPersonId, "referrerPersonId", 80, false);
+    }
+    if (Object.prototype.hasOwnProperty.call(src, "referrerName")) {
+      row.referrerName = trimText(src.referrerName, "referrerName", MAX_REFERRER, false);
+    }
+    if (Object.prototype.hasOwnProperty.call(src, "status")) {
+      const next = readStatus(src.status, true);
+      row.status = next;
+      if (next === "done" && !row.doneAt) row.doneAt = new Date().toISOString();
+      if (next === "open") row.doneAt = null;
+    }
+    row.updatedAt = new Date().toISOString();
+    await writeBlob(uid, applications);
+    return presentApplication(row);
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
+/**
+ * Mark application done and bump open recruiter outreach for that company
+ * to 1 business day later (so "I just applied" can go out).
+ */
+async function markApplicationDone({ userId, emailHint, applicationId, actor } = {}) {
+  try {
+    const uid = requireUserId(userId);
+    const { applications } = await readBlob(uid);
+    const row = findApp(applications, applicationId);
+    const now = new Date().toISOString();
+    if (row.status !== "done") {
+      row.status = "done";
+      row.doneAt = now;
+      row.updatedAt = now;
+      await writeBlob(uid, applications);
+    }
+    const bumped = await bumpRecruiterTouches({
+      userId: uid,
+      emailHint,
+      actor,
+      companyId: row.companyId,
+      companyName: row.companyName,
+      fromDay: dayKey(row.doneAt || now),
+    });
+    return { application: presentApplication(row), recruiterTouches: bumped };
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
+async function bumpRecruiterTouches({ userId, emailHint, actor, companyId, companyName, fromDay }) {
+  const schedule = require("./outreach-schedule-store.js");
+  const companies = require("./leads-companies-store.js");
+  const due = addBusinessDays(fromDay || dayKey(new Date()), RECRUITER_BUMP_BUSINESS_DAYS);
+  if (!due) return [];
+  let company = null;
+  try {
+    const rows = await companies.listCompanies({ userId, emailHint, status: "active" });
+    company = (rows || []).find((c) => {
+      if (!c) return false;
+      if (companyId && c.id === companyId) return true;
+      if (companyName && String(c.name || "").trim().toLowerCase()
+        === String(companyName || "").trim().toLowerCase()) return true;
+      return false;
+    }) || null;
+  } catch (_err) {
+    company = null;
+  }
+  if (!company) return [];
+  let allTouches = [];
+  try {
+    allTouches = await db().outreachTouch.findMany({
+      where: {
+        userId,
+        companyId: company.id,
+        touchType: "recruiter_outreach",
+        status: { in: ["planned", "drafted"] },
+      },
+    });
+  } catch (_err) {
+    return [];
+  }
+  const out = [];
+  for (const touch of allTouches) {
+    if (!touch || !touch.id) continue;
+    try {
+      const saved = await schedule.updateTouch({
+        id: touch.id,
+        userId,
+        emailHint,
+        actor: actor || { kind: "bot", label: "bot:mcp" },
+        patch: { date: due },
+      });
+      out.push(saved);
+    } catch (_err) {
+      /* keep going */
+    }
+  }
+  return out;
+}
+
+module.exports = {
+  KIND,
+  UNAVAILABLE,
+  STATUSES,
+  RECRUITER_BUMP_BUSINESS_DAYS,
+  presentApplication,
+  listApplications,
+  getApplication,
+  createApplication,
+  updateApplication,
+  markApplicationDone,
+  bumpRecruiterTouches,
+};

@@ -1831,6 +1831,35 @@ body.messages-notepad-active .mode-nav {
   line-height: 1.35;
   color: var(--color-foreground);
 }
+.messages-application__facts {
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.messages-application__row {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--color-foreground);
+}
+.messages-application__muted {
+  color: var(--color-muted, #6b7280);
+}
+.messages-application__link {
+  color: var(--color-accent, #3730a3);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.messages-application__label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+}
 .messages-notepad__input {
   display: block;
   width: 100%;

@@ -1,0 +1,185 @@
+/* Job application store + MCP tools. Fake users only. */
+"use strict";
+
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const path = require("node:path");
+const Module = require("node:module");
+const fs = require("node:fs");
+
+process.env.STYTCH_PROJECT_ID = "project-test-apps";
+process.env.STYTCH_SECRET = "secret-test-not-real";
+process.env.ANTHROPIC_API_KEY = "";
+
+let seq = 0;
+const userDataRows = [];
+const touchRows = [];
+const companyRows = [];
+
+const database = {
+  $executeRawUnsafe: async () => 0,
+  $transaction: async (fn) => fn(database),
+  tinkerUserData: {
+    async create({ data }) {
+      const now = new Date();
+      const row = Object.assign({ id: "ud_" + (++seq), createdAt: now, updatedAt: now }, data);
+      userDataRows.push(row);
+      return row;
+    },
+    async findUnique({ where }) {
+      const pair = where.userId_kind;
+      if (!pair) return null;
+      return userDataRows.find((r) => r.userId === pair.userId && r.kind === pair.kind) || null;
+    },
+    async upsert({ where, create, update }) {
+      const pair = where.userId_kind;
+      const row = userDataRows.find((r) => r.userId === pair.userId && r.kind === pair.kind);
+      if (!row) return this.create({ data: create });
+      Object.assign(row, update, { updatedAt: new Date() });
+      return row;
+    },
+  },
+  outreachTouch: {
+    async findMany({ where }) {
+      return touchRows.filter((row) => {
+        if (where.userId && row.userId !== where.userId) return false;
+        if (where.companyId && row.companyId !== where.companyId) return false;
+        if (where.touchType && row.touchType !== where.touchType) return false;
+        if (where.status && where.status.in && !where.status.in.includes(row.status)) return false;
+        return true;
+      });
+    },
+    async update({ where, data }) {
+      const row = touchRows.find((r) => r.id === where.id);
+      Object.assign(row, data, { updatedAt: new Date() });
+      return row;
+    },
+    async findUnique({ where }) {
+      return touchRows.find((r) => r.id === where.id) || null;
+    },
+  },
+  targetCompany: {
+    async findMany() { return companyRows.slice(); },
+  },
+};
+
+function stubAt(absPath, exports) {
+  const mod = new Module(absPath);
+  mod.filename = absPath;
+  mod.loaded = true;
+  mod.exports = exports;
+  require.cache[absPath] = mod;
+}
+
+const libDir = path.resolve(__dirname, "..", "api", "_lib");
+const apiDir = path.resolve(__dirname, "..", "api");
+[
+  "job-application-store.js",
+  "business-days.js",
+  "db.js",
+  "outreach-schedule-store.js",
+  "leads-companies-store.js",
+  "leads-store.js",
+  "calendar-date.js",
+].forEach((rel) => delete require.cache[path.join(libDir, rel)]);
+delete require.cache[path.join(apiDir, "mcp.js")];
+
+stubAt(path.join(libDir, "db.js"), database);
+stubAt(path.join(libDir, "leads-companies-store.js"), {
+  UNAVAILABLE: "Companies unavailable",
+  ensureTable: async () => {},
+  listCompanies: async ({ userId }) => companyRows.filter((c) => c.userId === userId),
+  presentCompany: (row) => Object.assign({}, row),
+});
+stubAt(path.join(libDir, "outreach-schedule-store.js"), {
+  UNAVAILABLE: "Schedule unavailable",
+  ensureTable: async () => {},
+  updateTouch: async ({ id, patch }) => {
+    const row = touchRows.find((r) => r.id === id);
+    if (!row) throw Object.assign(new Error("missing"), { status: 404 });
+    if (patch && patch.date) row.date = new Date(patch.date + "T00:00:00.000Z");
+    return {
+      id: row.id,
+      companyId: row.companyId,
+      touchType: row.touchType,
+      status: row.status,
+      date: patch.date,
+    };
+  },
+});
+
+const store = require("../api/_lib/job-application-store.js");
+
+test("create/list/update/mark done for fake user (fit-scan shaped fields)", async () => {
+  userDataRows.length = 0;
+  touchRows.length = 0;
+  companyRows.length = 0;
+  companyRows.push({
+    id: "co_figma",
+    userId: "fake-user-a",
+    name: "Figma",
+    status: "active",
+    priority: 1,
+    northStar: false,
+    tier: "wave_1",
+  });
+  touchRows.push({
+    id: "touch_rec",
+    userId: "fake-user-a",
+    companyId: "co_figma",
+    touchType: "recruiter_outreach",
+    status: "planned",
+    date: new Date("2026-10-10T00:00:00.000Z"),
+  });
+
+  const created = await store.createApplication({
+    userId: "fake-user-a",
+    roleTitle: "Engineering Manager, Platform",
+    companyName: "Figma",
+    companyId: "co_figma",
+    postingUrl: "https://www.figma.com/careers/platform-em",
+    payRange: "$250k-$320k + equity",
+    fitNotes: "Product-minded platform leadership.",
+    referrerName: "",
+  });
+  assert.equal(created.status, "open");
+  assert.equal(created.roleTitle, "Engineering Manager, Platform");
+  assert.ok(created.id.startsWith("app_"));
+
+  const listed = await store.listApplications({ userId: "fake-user-a", status: "open" });
+  assert.equal(listed.length, 1);
+
+  const updated = await store.updateApplication({
+    userId: "fake-user-a",
+    applicationId: created.id,
+    patch: { fitNotes: "Updated fit notes for Figma." },
+  });
+  assert.equal(updated.fitNotes, "Updated fit notes for Figma.");
+
+  const done = await store.markApplicationDone({
+    userId: "fake-user-a",
+    emailHint: "fake@example.com",
+    applicationId: created.id,
+    actor: { kind: "bot", label: "bot:test" },
+  });
+  assert.equal(done.application.status, "done");
+  assert.ok(done.application.doneAt);
+  assert.equal(done.recruiterTouches.length, 1);
+  // 1 business day after doneAt (today) — just assert date was rewritten
+  assert.ok(done.recruiterTouches[0].date);
+
+  const other = await store.listApplications({ userId: "fake-user-b" });
+  assert.equal(other.length, 0, "fake users stay isolated");
+});
+
+test("UI wires messages-application.js and SW precaches it", () => {
+  const index = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "index.html"), "utf8");
+  const sw = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "sw.js"), "utf8");
+  const shell = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "messages-shell.js"), "utf8");
+  assert.match(index, /messages-application\.js/);
+  assert.match(sw, /messages-application\.js/);
+  assert.match(sw, /tinker-shell-v20/);
+  assert.match(shell, /APPLICATION_PREFIX/);
+  assert.match(shell, /selectApplication/);
+  assert.match(shell, /kind === "application"/);
+});

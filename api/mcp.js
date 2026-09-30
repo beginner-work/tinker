@@ -51,6 +51,7 @@ const contentStore = require("./_lib/content-store.js");
 const storyParts = require("./_lib/story-parts-store.js");
 const selfThread = require("./_lib/self-thread-store.js");
 const readingThreads = require("./_lib/reading-thread-store.js");
+const jobApplications = require("./_lib/job-application-store.js");
 const personPrep = require("./_lib/person-prep.js");
 const inboxRank = require("./_lib/inbox-rank.js");
 const prisma = require("./_lib/db.js");
@@ -97,8 +98,13 @@ const INSTRUCTIONS = [
   "Call mark_lead_done with personId (or personName+companyName) to append ### __done__ without replacing Q&A.",
   "Call get_person_prep to read a person's interview-prep stepper (preamble, answered, pending, queue).",
   "Call seed_person_prep with questions[] to append unanswered prep questions without wiping answers; the UI shows one at a time.",
-  "Call list_inbox for a flat priority-ranked work queue (deadlines, warm follow-ups, prep, cold outreach) with rankReason.",
+  "Call list_inbox for a flat priority-ranked work queue (deadlines, warm follow-ups, prep, cold outreach, applications) with rankReason.",
+  "Per company: warm referral ask, then eng-lead peer outreach (never mention applying), then the application item,",
+  "then recruiter outreach after the application is marked done (\"I just applied for X\").",
   "Sent people are omitted. Prefer list_inbox over scanning list_target_companies for what to do next.",
+  "Call create_application to add a job application inbox item (roleTitle, companyName, optional postingUrl, payRange, fitNotes, referrer).",
+  "Call update_application to change fields. Call list_applications to read them. Call mark_application_done when the owner applied;",
+  "that bumps the company's recruiter outreach due date by 1 business day. Do not invent applications for Tyler unless asked.",
   "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
   "Prefer those lead tools over dumping GTM prose into the You thread.",
   "Call save_outreach_draft to put a composed email or LinkedIn message into a person's chat for the owner to review.",
@@ -933,8 +939,11 @@ const LIST_INBOX_TOOL = {
     "Order: live interview/deadlines (soonest first), warm follow-ups,",
     "self-paced prep (reading workbook / interview prep notes), then cold",
     "outreach by North Star / wave / company priority.",
+    "Within a company: referral ask → eng-lead peer outreach → application → recruiter.",
+    "Application rankReason exposes the link (waiting after referral / eng lead,",
+    "apply after talk, apply after 5 business days, or recruiter I just applied).",
     "People with sent outreach are omitted (same as the UI rail).",
-    "Each item includes kind (person|reading), rank, title, rankReason, dueDay.",
+    "Each item includes kind (person|reading|application), rank, title, rankReason, dueDay.",
     "Optional limit (default 20, max 50). Read-only. A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
@@ -950,6 +959,101 @@ const LIST_INBOX_TOOL = {
     },
   },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const CREATE_APPLICATION_TOOL = {
+  name: "create_application",
+  title: "Create job application",
+  description: [
+    "Create a job application inbox item for this connector user.",
+    "Pass roleTitle and companyName. Optional: companyId, postingUrl, payRange,",
+    "fitNotes, referrerPersonId, referrerName, status (open|done).",
+    "Shows in the flat inbox next to that company's outreach (after eng-lead peer outreach).",
+    "Does not load or invent Tyler's roles unless you pass them. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      roleTitle: { type: "string", description: "Role title (e.g. Engineering Manager, Issuing)." },
+      companyName: { type: "string", description: "Company name." },
+      companyId: { type: "string", description: "Optional target company id." },
+      postingUrl: { type: "string", description: "Public job posting URL." },
+      payRange: { type: "string", description: "Pay range text (e.g. $240k-$300k + equity)." },
+      fitNotes: { type: "string", description: "Why this role fits; shown on the application thread." },
+      referrerPersonId: { type: "string", description: "Optional warm referrer lead id." },
+      referrerName: { type: "string", description: "Optional warm referrer display name." },
+      status: { type: "string", enum: ["open", "done"], description: "Defaults to open." },
+    },
+    required: ["roleTitle", "companyName"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const UPDATE_APPLICATION_TOOL = {
+  name: "update_application",
+  title: "Update job application",
+  description: [
+    "Update fields on an existing job application. Pass applicationId plus any of:",
+    "roleTitle, companyName, companyId, postingUrl, payRange, fitNotes,",
+    "referrerPersonId, referrerName, status. Omitted fields are left unchanged.",
+    "A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      applicationId: { type: "string", description: "Application id from create_application or list_applications." },
+      roleTitle: { type: "string" },
+      companyName: { type: "string" },
+      companyId: { type: "string" },
+      postingUrl: { type: "string" },
+      payRange: { type: "string" },
+      fitNotes: { type: "string" },
+      referrerPersonId: { type: "string" },
+      referrerName: { type: "string" },
+      status: { type: "string", enum: ["open", "done"] },
+    },
+    required: ["applicationId"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const LIST_APPLICATIONS_TOOL = {
+  name: "list_applications",
+  title: "List job applications",
+  description: [
+    "List this connector user's job application inbox items.",
+    "Optional status filter (open|done). Read-only. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      status: { type: "string", enum: ["open", "done"], description: "Optional status filter." },
+    },
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const MARK_APPLICATION_DONE_TOOL = {
+  name: "mark_application_done",
+  title: "Mark application done",
+  description: [
+    "Mark a job application done (owner applied).",
+    "Pass applicationId. Bumps that company's open recruiter_outreach touches",
+    "to 1 business day later so recruiter mail can say I just applied for X.",
+    "Idempotent when already done. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      applicationId: { type: "string", description: "Application id to mark done." },
+    },
+    required: ["applicationId"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
 
 const LIST_TARGET_COMPANIES_TOOL = {
@@ -1104,6 +1208,10 @@ const TOOLS = [
   GET_PERSON_PREP_TOOL,
   SEED_PERSON_PREP_TOOL,
   LIST_INBOX_TOOL,
+  CREATE_APPLICATION_TOOL,
+  UPDATE_APPLICATION_TOOL,
+  LIST_APPLICATIONS_TOOL,
+  MARK_APPLICATION_DONE_TOOL,
   LIST_TARGET_COMPANIES_TOOL,
   SAVE_OUTREACH_DRAFT_TOOL,
   LIST_APPROVED_OUTREACH_TOOL,
@@ -1964,17 +2072,21 @@ async function listInboxCall(msg, user, args) {
     const emailHint = user && user.email;
     const limitRaw = args && args.limit != null ? Number(args.limit) : 20;
     const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, Math.floor(limitRaw))) : 20;
-    const [leads, draftRows, companies, inbox, threads] = await Promise.all([
+    const [leads, draftRows, companies, inbox, threads, applications] = await Promise.all([
       leadsStore.listLeads({ userId, emailHint }),
       leadsStore.listDrafts({ userId, emailHint }).catch(() => []),
       companiesStore.listCompanies({ userId, emailHint, status: "active" }).catch(() => []),
       scheduleStore.listInboxTouches({ userId, emailHint }).catch(() => ({ byLeadId: {} })),
       readingThreads.listThreads({ userId }).catch(() => []),
+      jobApplications.listApplications({ userId }).catch(() => []),
     ]);
     const drafts = (draftRows || []).map((row) => {
       const draft = row && row.draft ? row.draft : row;
       if (!draft) return null;
-      return Object.assign(leadsStore.presentDraft(draft), { leadId: draft.leadId });
+      return Object.assign(leadsStore.presentDraft(draft), {
+        leadId: draft.leadId,
+        sentAt: draft.sentAt || null,
+      });
     }).filter(Boolean);
     const items = inboxRank.rankInboxItems({
       leads: (leads || []).map(leadsStore.presentLead),
@@ -1982,6 +2094,7 @@ async function listInboxCall(msg, user, args) {
       companies: (companies || []).map(companiesStore.presentCompany),
       byLeadId: (inbox && inbox.byLeadId) || {},
       readingThreads: Array.isArray(threads) ? threads : [],
+      applications: Array.isArray(applications) ? applications : [],
     }).slice(0, limit);
     return contentToolOk(msg, {
       items,
@@ -1989,6 +2102,62 @@ async function listInboxCall(msg, user, args) {
     });
   } catch (err) {
     return planFailure(msg, err, leadsStore.UNAVAILABLE);
+  }
+}
+
+async function createApplicationCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const application = await jobApplications.createApplication(Object.assign({}, args, { userId }));
+    return contentToolOk(msg, { application });
+  } catch (err) {
+    return planFailure(msg, err, jobApplications.UNAVAILABLE);
+  }
+}
+
+async function updateApplicationCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const applicationId = typeof args.applicationId === "string" ? args.applicationId.trim() : "";
+    if (!applicationId) throw Object.assign(new Error("applicationId is required."), { status: 400 });
+    const patch = Object.assign({}, args);
+    delete patch.applicationId;
+    delete patch.userId;
+    const application = await jobApplications.updateApplication({ userId, applicationId, patch });
+    return contentToolOk(msg, { application });
+  } catch (err) {
+    return planFailure(msg, err, jobApplications.UNAVAILABLE);
+  }
+}
+
+async function listApplicationsCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const applications = await jobApplications.listApplications({
+      userId,
+      status: args && args.status,
+    });
+    return contentToolOk(msg, { applications });
+  } catch (err) {
+    return planFailure(msg, err, jobApplications.UNAVAILABLE);
+  }
+}
+
+async function markApplicationDoneCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const applicationId = typeof args.applicationId === "string" ? args.applicationId.trim() : "";
+    if (!applicationId) throw Object.assign(new Error("applicationId is required."), { status: 400 });
+    const result = await jobApplications.markApplicationDone({
+      userId,
+      emailHint,
+      applicationId,
+      actor: MCP_BOT_ACTOR,
+    });
+    return contentToolOk(msg, result);
+  } catch (err) {
+    return planFailure(msg, err, jobApplications.UNAVAILABLE);
   }
 }
 
@@ -2186,6 +2355,13 @@ async function handleRpc(msg, user) {
       && name !== "upsert_target_company"
       && name !== "upsert_lead_person"
       && name !== "mark_lead_done"
+      && name !== "get_person_prep"
+      && name !== "seed_person_prep"
+      && name !== "list_inbox"
+      && name !== "create_application"
+      && name !== "update_application"
+      && name !== "list_applications"
+      && name !== "mark_application_done"
       && name !== "list_target_companies"
       && name !== "save_outreach_draft"
       && name !== "list_approved_outreach"
@@ -2268,6 +2444,18 @@ async function handleRpc(msg, user) {
     }
     if (name === "list_inbox") {
       return listInboxCall(msg, user, args);
+    }
+    if (name === "create_application") {
+      return createApplicationCall(msg, user, args);
+    }
+    if (name === "update_application") {
+      return updateApplicationCall(msg, user, args);
+    }
+    if (name === "list_applications") {
+      return listApplicationsCall(msg, user, args);
+    }
+    if (name === "mark_application_done") {
+      return markApplicationDoneCall(msg, user, args);
     }
     if (name === "list_target_companies") {
       return listTargetCompaniesCall(msg, user, args);

@@ -25,13 +25,15 @@
   };
   var YOU_ID = "__you__";
   var RANK_TIER = { DEADLINE: 1, WARM: 2, PREP: 3, COLD: 4 };
+  var COMPANY_SEQ = { referrer: 10, hiring_leader: 20, application: 30, recruiter: 40, other: 50 };
   var WARM_TOUCH = { call_follow_up: 1, referral_follow_up: 1 };
   var READING_PREFIX = "__read__:";
+  var APPLICATION_PREFIX = "__app__:";
   var OWNER_LABEL = "Lindow Labs";
   var OWNER_LOGO = "./icons/lindow-labs.svg";
   var LOGO_CACHE_KEY = "tinker.companyLogos.v1";
   var LOGO_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-  var INBOX_CACHE_KEY = "tinker.inboxSnapshot.v1";
+  var INBOX_CACHE_KEY = "tinker.inboxSnapshot.v2";
   var logoIdleQueued = false;
   var pendingLogoFills = [];
   var state = {
@@ -41,6 +43,7 @@
     companiesById: {},
     touchesByLead: {},
     readingThreads: [],
+    applications: [],
     loading: false,
     error: "",
     companyFilter: "",
@@ -81,14 +84,41 @@
   function leadsApi(action, query) { return api("/api/leads", action, query); }
   function scheduleApi(action, query) { return api("/api/schedule", action, query); }
   function readingApi(action, query) { return api("/api/reading-thread", action, query); }
+  function applicationApi(action, query) { return api("/api/job-application", action, query); }
   function readingConvId(threadId) { return READING_PREFIX + String(threadId || ""); }
   function readingIdFromConv(convId) {
     var id = String(convId || "");
     if (id.indexOf(READING_PREFIX) !== 0) return "";
     return id.slice(READING_PREFIX.length);
   }
+  function applicationConvId(appId) { return APPLICATION_PREFIX + String(appId || ""); }
+  function applicationIdFromConv(convId) {
+    var id = String(convId || "");
+    if (id.indexOf(APPLICATION_PREFIX) !== 0) return "";
+    return id.slice(APPLICATION_PREFIX.length);
+  }
   function isReadingSelected() {
     return String(state.selectedId || "").indexOf(READING_PREFIX) === 0;
+  }
+  function isApplicationSelected() {
+    return String(state.selectedId || "").indexOf(APPLICATION_PREFIX) === 0;
+  }
+  function contactSeq(lead, touch) {
+    var type = String(lead && lead.contactType || "").toLowerCase();
+    if (type === "referrer") return COMPANY_SEQ.referrer;
+    if (type === "hiring_leader") return COMPANY_SEQ.hiring_leader;
+    if (type === "recruiter") return COMPANY_SEQ.recruiter;
+    var touchType = String(touch && touch.touchType || "").toLowerCase();
+    if (touchType === "referral_outreach" || touchType === "referral_follow_up") return COMPANY_SEQ.referrer;
+    if (touchType === "hiring_leader_outreach") return COMPANY_SEQ.hiring_leader;
+    if (touchType === "recruiter_outreach") return COMPANY_SEQ.recruiter;
+    if (touchType === "application") return COMPANY_SEQ.application;
+    return COMPANY_SEQ.other;
+  }
+  function companyKeyOf(companyId, companyName) {
+    if (companyId) return "id:" + companyId;
+    var name = String(companyName || "").trim().toLowerCase();
+    return name ? ("name:" + name) : "";
   }
   function relativeTime(iso) {
     if (!iso) return "";
@@ -198,15 +228,34 @@
       .join(" ");
     return /\b(interview|braintrust|deadline|due today|ai interview|onsite|phone screen)\b/.test(blob);
   }
+  function openAppForCompany(company) {
+    var ckey = companyKeyOf(company && company.id, company && company.name);
+    if (!ckey) return null;
+    var found = null;
+    (state.applications || []).forEach(function (app) {
+      if (!app || app.status === "done") return;
+      var key = companyKeyOf(app.companyId, app.companyName);
+      if (key === ckey && !found) found = app;
+    });
+    return found;
+  }
   function classifyLead(lead) {
     var touch = touchFor(lead);
     var due = calendarDayKey(leadDueRaw(lead));
     var today = todayDayKey();
     var company = companyForLead(lead);
+    var seq = contactSeq(lead, touch);
+    var ckey = companyKeyOf(
+      (company && company.id) || lead.companyId,
+      (company && company.name) || lead.company
+    );
+    var openApp = openAppForCompany(company || { id: lead.companyId, name: lead.company });
     if (isInterviewDeadline(lead, touch) && due) {
       return {
         tier: RANK_TIER.DEADLINE,
         dueDay: due,
+        companySeq: seq,
+        companyKey: ckey,
         rankReason: due === today
           ? "due today · interview / deadline"
           : ("due " + due + " · interview / deadline"),
@@ -218,6 +267,8 @@
       return {
         tier: RANK_TIER.WARM,
         dueDay: due,
+        companySeq: seq,
+        companyKey: ckey,
         rankReason: due ? ("follow-up · " + due) : "follow-up",
         northStar: !!(company && company.northStar),
         priority: companyPriority(lead),
@@ -227,7 +278,20 @@
       return {
         tier: RANK_TIER.PREP,
         dueDay: due,
+        companySeq: seq,
+        companyKey: ckey,
         rankReason: "interview prep",
+        northStar: !!(company && company.northStar),
+        priority: companyPriority(lead),
+      };
+    }
+    if (seq === COMPANY_SEQ.recruiter && openApp) {
+      return {
+        tier: RANK_TIER.COLD,
+        dueDay: "",
+        companySeq: seq,
+        companyKey: ckey,
+        rankReason: "waiting · after application · " + (openApp.roleTitle || "role"),
         northStar: !!(company && company.northStar),
         priority: companyPriority(lead),
       };
@@ -235,10 +299,20 @@
     var wave = String((company && company.tier) || "other");
     var north = !!(company && company.northStar);
     var coldLabel = north ? "North Star" : (wave !== "other" ? wave.replace(/_/g, " ") : "outreach");
+    var rankReason = due ? ((coldLabel + " · ") + due) : coldLabel;
+    if (seq === COMPANY_SEQ.hiring_leader && openApp) {
+      rankReason = "eng lead · peer"
+        + (due ? ((" · ") + due) : "")
+        + " · before apply " + (openApp.roleTitle || "role");
+    } else if (seq === COMPANY_SEQ.referrer) {
+      rankReason = "referral ask" + (due ? ((" · ") + due) : "");
+    }
     return {
       tier: RANK_TIER.COLD,
       dueDay: due,
-      rankReason: due ? ((coldLabel + " · ") + due) : coldLabel,
+      companySeq: seq,
+      companyKey: ckey,
+      rankReason: rankReason,
       northStar: north,
       priority: companyPriority(lead),
     };
@@ -253,10 +327,41 @@
     return {
       tier: RANK_TIER.PREP,
       dueDay: "",
+      companySeq: COMPANY_SEQ.other,
+      companyKey: "",
       rankReason: section ? ("reading · " + section) : "reading workbook",
       hide: false,
       northStar: false,
       priority: 100,
+    };
+  }
+  function classifyApplicationRow(app) {
+    // Client mirror: full unlock rules live in api/_lib/inbox-rank.js.
+    // Here we surface open apps with the server-shaped rankReason when present,
+    // otherwise a stable apply label next to the company.
+    if (!app || app.status === "done") {
+      return { hide: true, tier: RANK_TIER.COLD, dueDay: "", rankReason: "applied · done" };
+    }
+    var ckey = companyKeyOf(app.companyId, app.companyName);
+    var company = (app.companyId && state.companiesById[app.companyId]) || null;
+    if (!company) {
+      for (var i = 0; i < state.companies.length; i++) {
+        if (String(state.companies[i].name || "").trim().toLowerCase()
+          === String(app.companyName || "").trim().toLowerCase()) {
+          company = state.companies[i];
+          break;
+        }
+      }
+    }
+    return {
+      hide: false,
+      tier: RANK_TIER.COLD,
+      dueDay: "",
+      companySeq: COMPANY_SEQ.application,
+      companyKey: ckey,
+      rankReason: "apply · " + (app.roleTitle || "role"),
+      northStar: !!(company && company.northStar),
+      priority: company && company.priority != null ? Number(company.priority) : 100,
     };
   }
   function compareRanked(a, b) {
@@ -264,11 +369,18 @@
     var da = a.dueDay || "";
     var db = b.dueDay || "";
     if (da && db && da !== db) return da < db ? -1 : 1;
-    if (da || db) return da ? -1 : 1;
+    if (!!da !== !!db) return da ? -1 : 1;
     if (a.tier === RANK_TIER.COLD) {
       if (!!a.northStar !== !!b.northStar) return a.northStar ? -1 : 1;
       var pa = Number(a.priority != null ? a.priority : 100) - Number(b.priority != null ? b.priority : 100);
       if (pa) return pa;
+    }
+    var ca = a.companyKey || "";
+    var cb = b.companyKey || "";
+    if (ca && cb && ca === cb) {
+      var sa = Number(a.companySeq != null ? a.companySeq : COMPANY_SEQ.other);
+      var sb = Number(b.companySeq != null ? b.companySeq : COMPANY_SEQ.other);
+      if (sa !== sb) return sa - sb;
     }
     var qa = Number(a.queueOrder || 0) - Number(b.queueOrder || 0);
     if (qa) return qa;
@@ -288,6 +400,8 @@
         rankReason: cls.rankReason,
         northStar: cls.northStar,
         priority: cls.priority,
+        companySeq: cls.companySeq,
+        companyKey: cls.companyKey,
         queueOrder: lead.queueOrder || 0,
         sortTitle: String(lead.personName || ""),
       });
@@ -304,8 +418,28 @@
         rankReason: cls.rankReason,
         northStar: false,
         priority: 100,
+        companySeq: COMPANY_SEQ.other,
+        companyKey: "",
         queueOrder: 0,
         sortTitle: String(thread.title || ""),
+      });
+    });
+    (state.applications || []).forEach(function (app) {
+      if (!app || !app.id) return;
+      var cls = classifyApplicationRow(app);
+      if (cls.hide) return;
+      items.push({
+        kind: "application",
+        application: app,
+        tier: cls.tier,
+        dueDay: cls.dueDay || "",
+        rankReason: cls.rankReason,
+        northStar: cls.northStar,
+        priority: cls.priority,
+        companySeq: COMPANY_SEQ.application,
+        companyKey: cls.companyKey,
+        queueOrder: 0,
+        sortTitle: String(app.roleTitle || ""),
       });
     });
     items.sort(compareRanked);
@@ -548,7 +682,7 @@
       });
     }
     document.body.classList.add("messages-thread-active", "messages-reading-active");
-    document.body.classList.remove("messages-you-active");
+    document.body.classList.remove("messages-you-active", "messages-application-active");
     var thread = (state.readingThreads || []).find(function (row) { return row && row.id === id; }) || null;
     var title = String(thread && thread.title || "Reading").trim() || "Reading";
     var sub = "";
@@ -577,14 +711,58 @@
       document.body.classList.add("messages-mobile-thread");
     }
   }
+  function selectApplication(appId, opts) {
+    opts = opts || {};
+    var id = String(appId || "").trim();
+    if (!id) return;
+    if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.close === "function") {
+      window.tinkerMessagesYou.close();
+    }
+    if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.clearProfileLinks === "function") {
+      window.tinkerMessagesThread.clearProfileLinks();
+    }
+    state.selectedId = applicationConvId(id);
+    if (root) {
+      root.querySelectorAll("[data-conv-id]").forEach(function (btn) {
+        btn.setAttribute("aria-current", btn.getAttribute("data-conv-id") === state.selectedId ? "true" : "false");
+      });
+    }
+    document.body.classList.add("messages-thread-active", "messages-application-active");
+    document.body.classList.remove("messages-you-active", "messages-reading-active");
+    var app = (state.applications || []).find(function (row) { return row && row.id === id; }) || null;
+    setPaneHeader(
+      String(app && app.roleTitle || "Application").trim() || "Application",
+      String(app && app.companyName || "").trim(),
+      {}
+    );
+    showPane();
+    var emptyEl = pane && pane.querySelector("[data-messages-empty]");
+    var threadEl = pane && pane.querySelector("[data-messages-thread]");
+    if (emptyEl) emptyEl.hidden = true;
+    if (threadEl) {
+      threadEl.hidden = false;
+      threadEl.setAttribute("data-thread-ready", "1");
+    }
+    if (!opts.silent) {
+      try {
+        window.dispatchEvent(new CustomEvent("tinker:messages-select", {
+          detail: { leadId: "", application: true, applicationId: id },
+        }));
+      } catch (e) { /* ignore */ }
+    }
+    if (!opts.silent && !opts.stayOnList && window.matchMedia && window.matchMedia("(max-width: 720px)").matches) {
+      document.body.classList.add("messages-mobile-thread");
+    }
+  }
   function selectLead(id, opts) {
     opts = opts || {};
     if (id === YOU_ID) { selectYou(opts); return; }
     if (readingIdFromConv(id)) { selectReading(readingIdFromConv(id), opts); return; }
+    if (applicationIdFromConv(id)) { selectApplication(applicationIdFromConv(id), opts); return; }
     if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.close === "function") {
       window.tinkerMessagesYou.close();
     }
-    document.body.classList.remove("messages-reading-active");
+    document.body.classList.remove("messages-reading-active", "messages-application-active");
     // Drop prior thread links immediately so a previous person or owner URL
     // cannot linger while the new lead header loads.
     if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.clearProfileLinks === "function") {
@@ -663,6 +841,51 @@
     btn.appendChild(main);
     btn.addEventListener("click", function () { selectYou(); });
     slot.appendChild(btn);
+  }
+  function renderApplicationItem(app, rankReason) {
+    var li = el("li", "messages-rail__item");
+    var convId = applicationConvId(app.id);
+    var btn = el("button", "messages-rail__row", {
+      type: "button",
+      "data-conv-id": convId,
+      "aria-current": convId === state.selectedId ? "true" : "false",
+    });
+    var avatar = el("span", "messages-rail__logo", { "aria-hidden": "true" });
+    var company = null;
+    if (app.companyId && state.companiesById[app.companyId]) company = state.companiesById[app.companyId];
+    if (!company) {
+      for (var i = 0; i < state.companies.length; i++) {
+        if (String(state.companies[i].name || "").trim().toLowerCase()
+          === String(app.companyName || "").trim().toLowerCase()) {
+          company = state.companies[i];
+          break;
+        }
+      }
+    }
+    fillCompanyLogo(avatar, company || { name: app.companyName || "App" }, {});
+    var main = el("span", "messages-rail__main");
+    var top = el("span", "messages-rail__top");
+    var title = el("span", "messages-rail__name");
+    title.textContent = String(app.roleTitle || "Application").trim() || "Application";
+    var time = el("span", "messages-rail__time");
+    time.textContent = String(app.companyName || "").trim();
+    top.appendChild(title);
+    top.appendChild(time);
+    var preview = el("span", "messages-rail__preview");
+    preview.textContent = rankReason
+      || (app.payRange ? String(app.payRange) : "Job application");
+    var meta = el("span", "messages-rail__meta");
+    var reason = el("span", "messages-rail__touch");
+    reason.textContent = rankReason || "";
+    if (reason.textContent) meta.appendChild(reason);
+    main.appendChild(top);
+    main.appendChild(preview);
+    if (reason.textContent) main.appendChild(meta);
+    btn.appendChild(avatar);
+    btn.appendChild(main);
+    btn.addEventListener("click", function () { selectApplication(app.id); });
+    li.appendChild(btn);
+    return li;
   }
   function renderReadingItem(thread, rankReason) {
     var convId = readingConvId(thread.id);
@@ -748,6 +971,7 @@
     // One flat priority list — no due-bucket or reading section heads.
     ranked.forEach(function (item) {
       if (item.kind === "reading") list.appendChild(renderReadingItem(item.thread, item.rankReason));
+      else if (item.kind === "application") list.appendChild(renderApplicationItem(item.application, item.rankReason));
       else if (item.kind === "person") list.appendChild(renderPersonItem(item.lead, item.rankReason));
     });
   }
@@ -776,6 +1000,9 @@
     if (Object.prototype.hasOwnProperty.call(payload, "readingThreads")) {
       state.readingThreads = Array.isArray(payload.readingThreads) ? payload.readingThreads : [];
     }
+    if (Object.prototype.hasOwnProperty.call(payload, "applications")) {
+      state.applications = Array.isArray(payload.applications) ? payload.applications : [];
+    }
     var companies = Array.isArray(payload.companies) ? payload.companies : [];
     state.companies = companies;
     state.companiesById = {};
@@ -798,6 +1025,7 @@
       companies: state.companies,
       byLeadId: state.touchesByLead,
       readingThreads: state.readingThreads,
+      applications: state.applications,
       ownerPersonName: state.ownerPersonName,
       ownerAvatarUrl: state.ownerAvatarUrl,
       ownerTitle: state.ownerTitle,
@@ -827,6 +1055,11 @@
         silent: true,
         stayOnList: !document.body.classList.contains("messages-mobile-thread"),
       });
+    } else if (isApplicationSelected()) {
+      selectApplication(applicationIdFromConv(state.selectedId), {
+        silent: true,
+        stayOnList: !document.body.classList.contains("messages-mobile-thread"),
+      });
     } else if (state.selectedId) {
       selectLead(state.selectedId, { silent: true, stayOnList: !document.body.classList.contains("messages-mobile-thread") });
     } else {
@@ -841,10 +1074,17 @@
       if (!Array.isArray(state.readingThreads)) state.readingThreads = [];
     });
   }
+  function fetchApplications() {
+    return applicationApi("list").then(function (payload) {
+      state.applications = Array.isArray(payload.applications) ? payload.applications : [];
+    }).catch(function () {
+      if (!Array.isArray(state.applications)) state.applications = [];
+    });
+  }
   function fetchInboxBatched() {
     return leadsApi("inbox").then(function (payload) {
       applyInboxPayload(payload);
-      return fetchReadingThreads().then(function () {
+      return Promise.all([fetchReadingThreads(), fetchApplications()]).then(function () {
         writeInboxCache();
       });
     });
@@ -866,7 +1106,7 @@
         companies: (results[3] && results[3].companies) || [],
         profile: results[4] && results[4].data ? results[4].data : null,
       });
-      return fetchReadingThreads().then(function () {
+      return Promise.all([fetchReadingThreads(), fetchApplications()]).then(function () {
         writeInboxCache();
       });
     });
@@ -881,10 +1121,11 @@
       state.companiesById = {};
       state.touchesByLead = {};
       state.readingThreads = [];
+      state.applications = [];
       applyOwnerProfile(null);
       state.error = "";
       if (pane) pane.hidden = false;
-      document.body.classList.remove("messages-thread-active", "messages-mobile-thread", "messages-you-active", "messages-reading-active");
+      document.body.classList.remove("messages-thread-active", "messages-mobile-thread", "messages-you-active", "messages-reading-active", "messages-application-active");
       renderList();
       selectLead("", { silent: true });
       return Promise.resolve();
