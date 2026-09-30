@@ -14,9 +14,10 @@
 
 const anthropic = require("./anthropic.js");
 const interview = require("../../src/renderer/interview-prompt.js");
+const { KEEP_CRAFTING_MODEL } = require("./keep-crafting-model.js");
 
-// Same model the writing UI passes to /api/claude/converse.
-const INTERVIEW_MODEL = "claude-opus-4-8";
+// Same model the writing UI / person Keep crafting path pass to converse.
+const INTERVIEW_MODEL = KEEP_CRAFTING_MODEL;
 const KEEP_CRAFTING_MAX_ATTEMPTS = 3; // initial + up to 2 tighter retries
 
 function shapeInterview(parsed) {
