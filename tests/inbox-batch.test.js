@@ -174,7 +174,7 @@ test("shell uses batched inbox + local snapshot cache + deferred logos", () => {
   assert.match(js, /deferLogoFill|requestIdleCallback/);
   // hideOnFail slots start hidden; lazy never fetches there, so those logos are eager.
   assert.match(js, /opts\.hideOnFail\s*\?\s*["']eager["']\s*:\s*["']lazy["']/);
-  assert.match(sw, /tinker-shell-v14/);
+  assert.match(sw, /tinker-shell-v15/);
   assert.match(sw, /messages-notepad\.js/);
   assert.match(sw, /networkFirstAsset/);
 });

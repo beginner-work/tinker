@@ -249,7 +249,9 @@ test("settings shows Notes folder row; unsupported copy; no owner-specific paths
   assert.match(settingsHtml, /Notes folder/);
   assert.match(settingsHtml, /data-notes-folder-pick/);
   assert.match(settingsHtml, /data-notes-folder-clear/);
-  assert.match(settingsHtml, /Notes still sync through Tinker/);
+  assert.match(settingsHtml, /notes still sync through Tinker/i);
+  assert.match(settingsHtml, /Google Drive Desktop/);
+  assert.match(settingsHtml, /not the Google Drive website picker/i);
   assert.match(settingsHtml, /notes-folder-core\.js/);
   assert.match(settingsHtml, /notes-folder\.js/);
   assert.equal(/\/Users\/Tyler|tylerlindow|\\Tyler\\/i.test(settingsHtml + notesJs + composerJs), false);
@@ -262,6 +264,8 @@ test("inbox and electron wire notes folder without extra chrome", () => {
   assert.match(composerJs, /applyImportedBody/);
   assert.match(composerJs, /hydrateFromLead|state\.notes\s*=/);
   assert.match(notesJs, /showDirectoryPicker|pickNotesFolder/);
+  assert.match(notesJs, /isAppleMobile/);
+  assert.match(notesJs, /pickerErrorMessage/);
   assert.match(notesJs, /IndexedDB|indexedDB/);
   assert.match(notesJs, /conflict/);
   assert.match(notesJs, /PATCH", "edit"/);
@@ -272,4 +276,11 @@ test("inbox and electron wire notes folder without extra chrome", () => {
   assert.match(preloadJs, /pickNotesFolder/);
   // Product principle: no extra chrome beyond the Settings row.
   assert.equal(/notes folder wizard|sync dashboard/i.test(notesJs), false);
+});
+
+test("service worker leaves /settings on the network and bumps cache version", () => {
+  const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
+  assert.match(sw, /tinker-shell-v15/);
+  assert.match(sw, /pathname === "\/settings"/);
+  assert.match(sw, /isShellNav/);
 });

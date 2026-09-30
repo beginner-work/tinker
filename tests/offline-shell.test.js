@@ -74,7 +74,7 @@ test("CSS and JS use network-first so deployed PWAs pick up new shell assets", (
     false,
     "CSS/JS must not use stale-while-revalidate (strands installed PWAs)",
   );
-  assert.match(sw, /tinker-shell-v14/, "bump CACHE_VERSION when changing SW strategy");
+  assert.match(sw, /tinker-shell-v15/, "bump CACHE_VERSION when changing SW strategy");
   assert.match(sw, /\/profile\.css/, "profile.css must be precached");
   assert.match(sw, /\/messages-shell\.js/, "messages shell must be precached");
   assert.match(sw, /\/messages-notepad\.js/, "messages notepad must be precached");
