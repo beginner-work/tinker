@@ -83,32 +83,38 @@
 
   // Keep crafting must always yield a next_question. Last-resort prompts are
   // stage-keyed so retries stay deterministic when the model returns done/empty.
+  // Never reuse a question already in the transcript (owner complaint: same prompt).
   const KEEP_CRAFTING_FALLBACKS = {
     early: [
       "What are you noticing that you did not expect?",
       "What are you figuring out about how this work actually moves?",
       "What are you discovering in the part you keep returning to?",
+      "What are you picking up about the pace you keep choosing?",
     ],
     mid: [
       "What is getting clearer as you keep figuring this out?",
       "What contradiction are you coming to see in how this fits together?",
       "What are you understanding now that you would not have said an hour ago?",
+      "What are you working out that still resists a clean sentence?",
     ],
     late: [
       "What are you recognising that you want to hold onto from this?",
       "What are you coming to see that still needs one more pass?",
       "What learning here feels solid enough to say out loud?",
+      "What are you finding out that changes what you ask for next?",
     ],
   };
 
   const KEEP_CRAFTING_INSTRUCTION =
     'The founder pressed "Keep crafting" — they want another question, not a stitch. ' +
-    "You MUST return a non-empty next_question. Set done to false. Set stitched_title and stitched_body to null. " +
+    "You MUST return a non-empty next_question that is visibly different from every question already asked. " +
+    "Do not repeat or lightly rephrase a prior question. Set done to false. Set stitched_title and stitched_body to null. " +
     "Do not stitch. Do not set done true. Ask one concrete learning-focused follow-up that has not been asked yet. " +
     "Respond with the JSON object only.";
 
   const KEEP_CRAFTING_TIGHTER_INSTRUCTION =
-    "REQUIRED: Return JSON with a non-empty next_question string only. " +
+    "REQUIRED: Return JSON with a non-empty next_question string that has NOT been asked yet. " +
+    "It must be clearly different from every prior question. " +
     "Set done to false. Set stitched_title and stitched_body to null. " +
     "Do not stitch. Do not mark done. Ask one new learning-focused question. JSON object only.";
 
@@ -119,17 +125,95 @@
     return "late";
   }
 
-  function fallbackKeepCraftingQuestion(turnCount) {
-    const stage = transcriptStage(turnCount);
-    const list = KEEP_CRAFTING_FALLBACKS[stage];
-    const n = Math.max(0, Number(turnCount) || 0);
-    return list[n % list.length];
+  function normalizeQuestionKey(q) {
+    return String(q || "")
+      .toLowerCase()
+      .replace(/[^\w\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
-  // Keep crafting never accepts a stitch/done payload. Only a non-empty question counts.
-  function normalizeKeepCraftingQuestion(parsed) {
+  function askedQuestionKeys(questions) {
+    const keys = new Set();
+    if (!Array.isArray(questions)) return keys;
+    for (const q of questions) {
+      const key = normalizeQuestionKey(q);
+      if (key) keys.add(key);
+    }
+    return keys;
+  }
+
+  function collectAskedQuestions(transcript, priorTurns, pending) {
+    const out = [];
+    if (Array.isArray(transcript)) {
+      for (const t of transcript) {
+        if (t && typeof t.q === "string" && t.q.trim()) out.push(t.q.trim());
+      }
+    }
+    if (Array.isArray(priorTurns)) {
+      for (const t of priorTurns) {
+        if (typeof t === "string" && t.trim()) out.push(t.trim());
+        else if (t && typeof t.q === "string" && t.q.trim()) out.push(t.q.trim());
+      }
+    }
+    if (typeof pending === "string" && pending.trim()) out.push(pending.trim());
+    return out;
+  }
+
+  function isRepeatQuestion(q, asked) {
+    const key = normalizeQuestionKey(q);
+    if (!key) return true;
+    const askedKeys = asked instanceof Set ? asked : askedQuestionKeys(asked);
+    if (askedKeys.has(key)) return true;
+    // Near-duplicate: one key contains the other and they share enough length.
+    for (const prev of askedKeys) {
+      if (!prev) continue;
+      if (key === prev) return true;
+      const shorter = key.length <= prev.length ? key : prev;
+      const longer = key.length <= prev.length ? prev : key;
+      if (shorter.length >= 24 && longer.includes(shorter)) return true;
+    }
+    return false;
+  }
+
+  function fallbackKeepCraftingQuestion(turnCount, asked) {
+    const n = Math.max(0, Number(turnCount) || 0);
+    const askedKeys = asked instanceof Set ? asked : askedQuestionKeys(asked);
+    const stage = transcriptStage(n);
+    const stageOrder =
+      stage === "late"
+        ? ["late", "mid", "early"]
+        : stage === "mid"
+          ? ["mid", "late", "early"]
+          : ["early", "mid", "late"];
+    // Prefer the current stage's unused prompts (rotated for determinism),
+    // then spill to later stages. Do not rotate across the full pool — that
+    // skipped mid prompts and re-showed late ones the owner had already seen.
+    for (const s of stageOrder) {
+      const prompts = KEEP_CRAFTING_FALLBACKS[s] || [];
+      if (!prompts.length) continue;
+      const start = n % prompts.length;
+      for (let i = 0; i < prompts.length; i++) {
+        const q = prompts[(start + i) % prompts.length];
+        if (!isRepeatQuestion(q, askedKeys)) return q;
+      }
+    }
+    // All stock prompts used — mint a numbered learning probe that cannot collide.
+    let suffix = n + 1;
+    for (let i = 0; i < 20; i++) {
+      const q = `What new learning are you coming to see in pass ${suffix}?`;
+      if (!isRepeatQuestion(q, askedKeys)) return q;
+      suffix += 1;
+    }
+    return `What else are you learning about this now (${Date.now()})?`;
+  }
+
+  // Keep crafting never accepts a stitch/done payload, empty string, or a repeat.
+  function normalizeKeepCraftingQuestion(parsed, asked) {
     const q = parsed && typeof parsed.next_question === "string" ? parsed.next_question.trim() : "";
-    return q || null;
+    if (!q) return null;
+    if (asked != null && isRepeatQuestion(q, asked)) return null;
+    return q;
   }
 
   function keepCraftingUserInstruction({ tighter = false } = {}) {
@@ -286,7 +370,6 @@
   function buildInterviewUserMessage(args, prior, transcript) {
     const lines = sceneLines(args);
     if (lines.length) lines.push("");
-    lines.push(...alreadyAskedBlock(prior.questions));
     const seen = new Set();
     const turns = [];
     for (const t of [...prior.turns, ...transcript]) {
@@ -295,6 +378,8 @@
       seen.add(key);
       turns.push(t);
     }
+    const asked = collectAskedQuestions(turns, prior.questions, args.pendingQuestion);
+    lines.push(...alreadyAskedBlock(asked));
     if (turns.length === 0) {
       lines.push("The founder just opened a new draft. Begin the interview.");
       if (args.keepCrafting === true) {
@@ -391,6 +476,10 @@
     parseFreeformResponse,
     buildFollowupRequest,
     transcriptStage,
+    normalizeQuestionKey,
+    askedQuestionKeys,
+    collectAskedQuestions,
+    isRepeatQuestion,
     fallbackKeepCraftingQuestion,
     normalizeKeepCraftingQuestion,
     keepCraftingUserInstruction,

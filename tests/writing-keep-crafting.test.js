@@ -40,6 +40,17 @@ test("You chrome labels interview Next as Keep crafting, not Continue", () => {
   assert.match(you, /Keep crafting/);
   assert.match(you, /Continue →/);
   assert.match(you, /label === "Continue/);
+  // History paging must stay "Next →" — renaming it made Keep crafting a no-op.
+  assert.match(you, /Next →/);
+  assert.match(you, /label === "Next/);
+});
+
+test("Keep crafting rejects repeat next_question and asks unused fallback", () => {
+  assert.match(writing, /askedForKeepCrafting/);
+  assert.match(writing, /normalizeKeepCraftingQuestion\(parsed, asked\)/);
+  assert.match(writing, /fallbackKeepCraftingQuestion\(turns, askedNow\)/);
+  assert.match(writing, /askNext\(\{ keepCrafting: true \}\)/);
+  assert.match(writing, /atEnd && youMode/);
 });
 
 test("error card contrast is strong in You mode and base styles", () => {
