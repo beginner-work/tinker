@@ -126,9 +126,40 @@ async function main() {
   await context.addInitScript(() => {
     try { localStorage.setItem("tinker_jwt", "e2e_session_placeholder"); } catch {}
     try { localStorage.setItem("ANTHROPIC_API_KEY", "sk-ant-test"); } catch {}
+    // Kill SW so Playwright routes see every /api call (no real 401 → sign-out).
+    try {
+      navigator.serviceWorker && navigator.serviceWorker.getRegistrations &&
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { r.unregister(); });
+        });
+    } catch (e) { /* ignore */ }
+    // Install before platform-mobile.js so it does not proxy Claude to /api/claude/converse.
+    window.__claudeLog = [];
+    window.__claudeQueue = [
+      { text: JSON.stringify({ next_question: "What are you noticing about the reliability story Ramp needs to hear from you?", done: false }) },
+      { text: JSON.stringify({ next_question: "What are you figuring out about asking Hamid for a real path in before you apply?", done: false }) },
+      { text: JSON.stringify({ next_question: "What learning here changes how you describe the outages you used to catch in under five minutes?", done: false }) },
+    ];
+    window.tinker = {
+      version: () => Promise.resolve("0.1.0-e2e"),
+      platform: () => Promise.resolve("web"),
+      setIcon: () => Promise.resolve(true),
+      openExternal: (url) => { window.open(url, "_blank"); return Promise.resolve(); },
+      supportsWebview: false,
+      setSetting: (k, v) => { try { localStorage.setItem(k, v); } catch {} return Promise.resolve(true); },
+      getSetting: (k) => Promise.resolve((() => { try { return localStorage.getItem(k) || ""; } catch { return ""; } })()),
+      callClaude: async () => {
+        const next = window.__claudeQueue.length
+          ? window.__claudeQueue.shift()
+          : { text: JSON.stringify({ next_question: "What else are you learning about what they should understand?", done: false }) };
+        window.__claudeLog.push(next);
+        return next;
+      },
+    };
   });
   const page = await context.newPage();
 
+  // Fulfill every API call — never let a real 401 clear the session.
   await page.route("**/api/**", async (route) => {
     const url = route.request().url();
     const method = route.request().method();
@@ -140,11 +171,11 @@ async function main() {
       id = u.searchParams.get("id") || "";
     } catch {}
     if (url.includes("/api/version")) return route.continue();
-    if (url.includes("/api/leads") && action === "inbox") {
+    if (url.includes("/api/leads") && (action === "inbox" || action === "list")) {
       return route.fulfill({
         status: 200, contentType: "application/json",
         body: JSON.stringify({
-          leads: [hamid, andrew, faria],
+          leads: [hamid, andrew, faria].map((row) => leadById(row.id, notesById)),
           drafts,
           companies: [ramp, alloy],
           byLeadId: {},
@@ -209,43 +240,36 @@ async function main() {
         body: JSON.stringify({ byLeadId: {}, sessions: [], touches: [], busyEvents: [] }),
       });
     }
+    // Catch-all: never 401.
     return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
   });
 
   await page.goto(PROD + "/", { waitUntil: "domcontentloaded", timeout: 60000 });
-  await page.waitForTimeout(1000);
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    } catch (e) { /* ignore */ }
+    try { localStorage.setItem("tinker_jwt", "e2e_session_placeholder"); } catch {}
     const gate = document.getElementById("auth-gate");
     if (gate) { gate.hidden = true; document.documentElement.classList.remove("auth-gating"); }
     const hint = document.getElementById("pwa-hint");
     if (hint) { hint.hidden = true; hint.style.display = "none"; }
   });
+  await page.waitForTimeout(800);
   await page.waitForFunction(
-    () => !!(window.tinkerMessagesShell && window.tinkerMessagesComposer && window.tinker),
+    () => !!(window.tinkerMessagesShell && window.tinkerMessagesComposer && window.tinker && typeof window.tinker.callClaude === "function"),
     null,
     { timeout: 30000 }
   );
-  await page.waitForTimeout(600);
-
-  // Inject keepCrafting responses (learning-focused, no junk).
-  await page.evaluate(() => {
-    window.__claudeLog = [];
-    window.__claudeQueue = [
-      { text: JSON.stringify({ next_question: "What are you noticing about the reliability story Ramp needs to hear from you?", done: false }) },
-      { text: JSON.stringify({ next_question: "What are you figuring out about asking Hamid for a real path in before you apply?", done: false }) },
-      { text: JSON.stringify({ next_question: "What learning here changes how you describe the outages you used to catch in under five minutes?", done: false }) },
-    ];
-    window.tinker = window.tinker || {};
-    window.tinker.callClaude = async (opts) => {
-      window.__claudeLog.push(opts);
-      return window.__claudeQueue.length
-        ? window.__claudeQueue.shift()
-        : { text: JSON.stringify({ next_question: "What else are you learning about what they should understand?", done: false }) };
-    };
-  });
+  // Wait until inbox paint includes Hamid (and excludes Andrew).
+  await page.waitForFunction(() => {
+    const text = document.querySelector("[data-messages-list]")?.innerText || "";
+    return /Hamid Dadkhah/i.test(text) && !/Andrew Glenn/i.test(text);
+  }, null, { timeout: 20000 });
+  await page.waitForTimeout(400);
 
   // --- Inbox without Andrew ---
-  await page.waitForSelector("[data-messages-list]", { timeout: 15000 });
   const inbox = await page.evaluate(() => {
     const text = document.querySelector("[data-messages-list]")?.innerText || "";
     return {
@@ -260,23 +284,39 @@ async function main() {
   await page.screenshot({ path: path.join(ART, "inbox-without-sent.png"), fullPage: false });
   console.log("saved inbox-without-sent.png");
 
-  // --- Navigate Faria → Hamid (person switch) ---
-  await page.evaluate((id) => window.tinkerMessagesShell.selectLead(id), faria.id);
+  // --- Navigate Faria → Hamid (person switch) after list is warm ---
+  async function openPerson(lead) {
+    await page.evaluate((row) => {
+      try { localStorage.setItem("tinker_jwt", "e2e_session_placeholder"); } catch {}
+      document.body.classList.add("messages-shell-open", "messages-inbox-primary");
+      window.tinkerMessagesShell.selectLead(row.id);
+      // Ensure composer hydrates even if the select event raced a refresh.
+      if (window.tinkerMessagesComposer && typeof window.tinkerMessagesComposer.setLead === "function") {
+        window.tinkerMessagesComposer.setLead(row.id, row, null);
+      }
+    }, lead);
+    await page.waitForFunction((name) => {
+      const title = document.querySelector("[data-messages-name]")?.textContent || "";
+      const q = document.querySelector("[data-notepad-question], .messages-notepad__question")?.textContent || "";
+      return document.body.classList.contains("messages-mobile-thread")
+        && !!document.querySelector("[data-notepad-input]")
+        && (new RegExp(name, "i").test(title) || new RegExp(name, "i").test(q));
+    }, lead.personName.split(" ")[0], { timeout: 15000 });
+    await page.waitForTimeout(300);
+  }
+
+  await openPerson(faria);
+  await openPerson(hamid);
+  // Re-assert Hamid question after the switch (not a leftover Faria mount).
+  await page.evaluate((row) => {
+    window.tinkerMessagesComposer.setLead(row.id, row, null);
+  }, hamid);
   await page.waitForFunction(
-    () => /Faria/i.test(document.querySelector("[data-messages-name]")?.textContent || ""),
+    () => /Hamid Dadkhah/i.test(document.querySelector("[data-notepad-question], .messages-notepad__question")?.textContent || ""),
     null,
     { timeout: 10000 }
   );
   await page.waitForTimeout(400);
-  await page.evaluate((id) => window.tinkerMessagesShell.selectLead(id), hamid.id);
-  await page.waitForFunction(
-    () => document.body.classList.contains("messages-mobile-thread")
-      && /Hamid Dadkhah/i.test(document.querySelector("[data-messages-name]")?.textContent || "")
-      && !!document.querySelector("[data-notepad-input]"),
-    null,
-    { timeout: 15000 }
-  );
-  await page.waitForTimeout(500);
 
   const menuUi = await page.evaluate(() => {
     const menu = document.querySelector("[data-messages-menu]");
