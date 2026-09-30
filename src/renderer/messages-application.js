@@ -59,20 +59,15 @@
     var subEl = document.querySelector("#messages-pane [data-messages-subtitle]");
     if (titleEl) titleEl.textContent = String(app && app.roleTitle || "Application").trim() || "Application";
     if (subEl) subEl.textContent = String(app && app.companyName || "").trim();
+    // Same header slot as LinkedIn on person threads — posting link only.
+    if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.renderProfileLinks === "function") {
+      window.tinkerMessagesThread.renderProfileLinks({
+        postingUrl: app && app.postingUrl ? String(app.postingUrl).trim() : "",
+      });
+    }
   }
   function buildFacts(app) {
     var wrap = el("div", "messages-application__facts");
-    if (app.postingUrl) {
-      var linkRow = el("p", "messages-application__row");
-      var a = el("a", "messages-application__link", {
-        href: app.postingUrl,
-        target: "_blank",
-        rel: "noopener noreferrer",
-      });
-      a.textContent = "Job posting";
-      linkRow.appendChild(a);
-      wrap.appendChild(linkRow);
-    }
     if (app.payRange) {
       var pay = el("p", "messages-application__row");
       pay.textContent = app.payRange;

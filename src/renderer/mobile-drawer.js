@@ -1,18 +1,14 @@
 /* mobile-drawer.js — open/close logic for the mobile sidebar drawer.
  *
- * The CSS in mobile-drawer.css handles styling and transitions; this
- * file toggles body[data-drawer-open] in response to the hamburger,
- * the backdrop, Escape, and selecting a session. Inert on ≥541px for
- * the floating toggle; messages threads use an in-header menu button
- * (data-messages-menu) up through 720px so the round control never
- * floats over the title/logo.
+ * The inbox (messages-shell-open) never uses a pull-out drawer: mobile is
+ * plain push navigation (list → full-screen thread → back). This file stays
+ * for non-inbox surfaces that still use the floating hamburger ≤540px.
+ * It is inert while the messages shell owns the screen.
  */
 
 (function () {
   const FLOAT_BREAKPOINT = 540;
-  const MESSAGES_MOBILE = 720;
   const isFloatMobile = () => window.innerWidth <= FLOAT_BREAKPOINT;
-  const isMessagesMobile = () => window.innerWidth <= MESSAGES_MOBILE;
 
   const toggle = document.getElementById('drawer-toggle');
   const backdrop = document.getElementById('drawer-backdrop');
@@ -20,54 +16,28 @@
   const treeNav = document.querySelector('.sidebar__tree');
   const navHome = document.getElementById('nav-home');
 
-  function headerMenu() {
-    return document.querySelector('#messages-pane [data-messages-menu]');
+  function inboxOwnsScreen() {
+    return document.body.classList.contains('messages-shell-open')
+      || document.body.classList.contains('messages-inbox-primary');
   }
 
   function open() {
+    // Inbox is push-nav only — never slide a drawer over a thread or list.
+    if (inboxOwnsScreen()) return;
     document.body.dataset.drawerOpen = '';
-    setExpanded(true);
+    if (toggle) toggle.setAttribute('aria-expanded', 'true');
   }
   function close() {
     delete document.body.dataset.drawerOpen;
-    setExpanded(false);
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
   }
   function isOpen() {
     return 'drawerOpen' in document.body.dataset;
   }
-  function setExpanded(on) {
-    const value = on ? 'true' : 'false';
-    if (toggle) toggle.setAttribute('aria-expanded', value);
-    const menu = headerMenu();
-    if (menu) menu.setAttribute('aria-expanded', value);
-  }
-
-  function inMessagesThread() {
-    return isMessagesMobile()
-      && document.body.classList.contains('messages-mobile-thread')
-      && document.body.classList.contains('messages-shell-open');
-  }
-
-  function syncHeaderMenu() {
-    const menu = headerMenu();
-    if (!menu) return;
-    // Visibility is CSS-driven (body.messages-mobile-thread). Keep aria in sync.
-    menu.setAttribute('aria-hidden', inMessagesThread() ? 'false' : 'true');
-  }
-
-  function onMenuClick(e) {
-    e.preventDefault();
-    if (isOpen()) close(); else open();
-  }
 
   toggle && toggle.addEventListener('click', () => {
+    if (inboxOwnsScreen()) return;
     if (isOpen()) close(); else open();
-  });
-
-  document.addEventListener('click', (e) => {
-    const btn = e.target && e.target.closest && e.target.closest('[data-messages-menu]');
-    if (!btn) return;
-    onMenuClick(e);
   });
 
   backdrop && backdrop.addEventListener('click', close);
@@ -83,32 +53,28 @@
   });
 
   window.addEventListener('resize', () => {
-    if (!isFloatMobile() && isOpen() && !inMessagesThread()) close();
-    syncHeaderMenu();
+    if (!isFloatMobile() && isOpen()) close();
+    if (inboxOwnsScreen() && isOpen()) close();
   });
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isOpen()) close();
   });
 
+  // If the inbox boots or class flips on, drop any leftover drawer state.
   const mo = typeof MutationObserver === 'function'
-    ? new MutationObserver(syncHeaderMenu)
+    ? new MutationObserver(function () {
+      if (inboxOwnsScreen() && isOpen()) close();
+    })
     : null;
   if (mo) {
     mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
   }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', syncHeaderMenu);
-  } else {
-    syncHeaderMenu();
-  }
-  setTimeout(syncHeaderMenu, 0);
-  setTimeout(syncHeaderMenu, 200);
+  if (inboxOwnsScreen()) close();
 
   window.tinkerMobileDrawer = {
     open: open,
     close: close,
-    syncHeaderMenu: syncHeaderMenu,
     isOpen: isOpen,
   };
 })();

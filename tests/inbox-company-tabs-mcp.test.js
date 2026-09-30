@@ -244,6 +244,29 @@ test("upsert_lead_person stores githubUrl and list returns it", async () => {
   assert.match(thread, /GitHub/);
 });
 
+test("upsert_lead_person stores postingUrl for header job/interview link", async () => {
+  await mcpCall("upsert_target_company", { name: "Posting Co", tier: "wave_1" });
+  const person = await mcpCall("upsert_lead_person", {
+    personName: "Interview Lead",
+    companyName: "Posting Co",
+    contactType: "recruiter",
+    postingUrl: "https://air.usebraintrust.com/i/379/8200",
+  });
+  assert.equal(person.status, 200);
+  assert.equal(person.body.result.isError, undefined);
+  assert.equal(
+    person.body.result.structuredContent.lead.postingUrl,
+    "https://air.usebraintrust.com/i/379/8200"
+  );
+  const listed = await mcpCall("list_target_companies", {});
+  const row = listed.body.result.structuredContent.companies.find((c) => c.company.name === "Posting Co");
+  assert.ok(row);
+  assert.equal(row.people[0].postingUrl, "https://air.usebraintrust.com/i/379/8200");
+  const mcpSrc = fs.readFileSync(path.join(__dirname, "..", "api/mcp.js"), "utf8");
+  assert.match(mcpSrc, /postingUrl:\s*\{\s*type:\s*"string"/);
+  assert.match(mcpSrc, /if \(args\.postingUrl != null\) patch\.postingUrl/);
+});
+
 test("upsert_lead_person does not wipe an existing company north_star tier", async () => {
   await mcpCall("upsert_target_company", {
     name: "Anthropic",

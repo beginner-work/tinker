@@ -72,7 +72,12 @@ test("company and person notes still reach Keep crafting + subject prompts after
     js,
     /var research = researchProse\(state\.company\);\s*if \(research\) lines\.push\("Company context: "/
   );
-  assert.match(js, /companyContext:\s*researchProse\(state\.company\)/);
+  assert.match(js, /companyContext:\s*companyContext/);
+  assert.match(js, /Prep context:/);
+  assert.match(js, /state\.preamble/);
+  // Prep preamble is prompt-only — not mounted in the thread opening.
+  assert.equal(/opening\.appendChild\(preamble\)/.test(js), false);
+  assert.equal(/messages-notepad__section/.test(js.match(/function buildOpening[\s\S]*?return opening/)[0]), false);
   // Person notes = interview transcript turns on the lead (still in the prompt).
   assert.match(js, /Interview so far:/);
   assert.match(js, /state\.transcript\.forEach/);
@@ -170,15 +175,18 @@ test("channel and date selectors are not in the composer chrome", () => {
   assert.equal(/messages-composer__field--block/.test(html), false);
 });
 
-test("mobile thread header uses in-header menu; floating toggle is hidden", () => {
+test("mobile thread header is push-nav: back only, no hamburger drawer", () => {
   assert.match(html, /data-messages-lead/);
-  assert.match(html, /data-messages-menu/);
-  assert.match(css, /\.messages-pane__menu/);
+  assert.match(html, /data-messages-back/);
+  assert.equal(/data-messages-menu/.test(html), false);
   assert.match(css, /body\.messages-mobile-thread \.messages-pane__lead/);
-  assert.match(css, /body\.messages-shell-open\.messages-mobile-thread \.drawer-toggle/);
+  assert.match(css, /body\.messages-shell-open[\s\S]*\.drawer-toggle/);
   assert.match(css, /display:\s*none\s*!important/);
-  assert.match(css, /body\.messages-mobile-thread \.messages-pane__links[^}]*padding-left:\s*98px/);
+  assert.match(css, /body\.messages-mobile-thread \.messages-pane__links[^}]*padding-left:\s*54px/);
+  // No slide-over drawer when a thread is open.
+  assert.equal(/messages-mobile-thread\[data-drawer-open\][\s\S]*translateX\(0\)/.test(css), false);
   const drawer = fs.readFileSync(path.join(__dirname, "..", "src/renderer/mobile-drawer.js"), "utf8");
-  assert.match(drawer, /data-messages-menu/);
-  assert.match(drawer, /syncHeaderMenu/);
+  assert.match(drawer, /inboxOwnsScreen/);
+  assert.equal(/data-messages-menu/.test(drawer), false);
+  assert.equal(/syncHeaderMenu/.test(drawer), false);
 });

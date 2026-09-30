@@ -154,9 +154,13 @@
     return parts.filter(Boolean).join(" · ");
   }
   function iconSvg(kind) {
-    // Small muted brand marks for profile links.
+    // Small muted brand marks for profile / posting links.
+    // LinkedIn: rounded-square logo (not the bare "in" glyph).
     if (kind === "linkedin") {
-      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.98 3.5C4.98 4.88 3.86 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.5 8.5h4V23h-4V8.5zM8.5 8.5h3.8v2h.05c.53-1 1.84-2.05 3.78-2.05 4.04 0 4.79 2.66 4.79 6.12V23h-4v-5.9c0-1.41-.03-3.22-1.96-3.22-1.96 0-2.26 1.53-2.26 3.12V23h-4V8.5z"/></svg>';
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>';
+    }
+    if (kind === "posting") {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3zM5 5h6v2H7v10h10v-4h2v6H5V5z"/></svg>';
     }
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.66-.3-5.46-1.33-5.46-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.89-.01 3.28 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg>';
   }
@@ -166,6 +170,7 @@
     host.innerHTML = "";
     var linkedIn = String(opts && opts.linkedInUrl || "").trim();
     var github = String(opts && opts.githubUrl || "").trim();
+    var posting = String(opts && opts.postingUrl || "").trim();
     function addLink(href, kind, label) {
       if (!href) return;
       var a = el("a", "messages-pane__link messages-pane__link--" + kind, {
@@ -178,8 +183,11 @@
       a.innerHTML = iconSvg(kind);
       host.appendChild(a);
     }
+    // Person/owner: LinkedIn + GitHub. Application / prep: postingUrl uses the
+    // same header-link slot (icon + tap target). Empty hrefs are skipped.
     addLink(linkedIn, "linkedin", "LinkedIn");
     addLink(github, "github", "GitHub");
+    addLink(posting, "posting", "Job posting");
     host.hidden = !host.childNodes.length;
   }
   function clearProfileLinks() {
@@ -205,6 +213,7 @@
     renderProfileLinks({
       linkedInUrl: lead.linkedInUrl,
       githubUrl: lead.githubUrl,
+      postingUrl: lead.postingUrl,
     });
     // No initials circles in the chat header. Company logo only when it resolves.
     if (avatar) {

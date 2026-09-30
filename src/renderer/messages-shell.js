@@ -735,6 +735,12 @@
       String(app && app.companyName || "").trim(),
       {}
     );
+    // Application header: posting URL in the LinkedIn icon slot (not LinkedIn).
+    if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.renderProfileLinks === "function") {
+      window.tinkerMessagesThread.renderProfileLinks({
+        postingUrl: app && app.postingUrl ? String(app.postingUrl).trim() : "",
+      });
+    }
     showPane();
     var emptyEl = pane && pane.querySelector("[data-messages-empty]");
     var threadEl = pane && pane.querySelector("[data-messages-thread]");
@@ -794,6 +800,15 @@
     setPaneHeader(name, bits.join(" "), {
       company: company || null,
     });
+    // Job / interview URL in the same header-link slot as application items.
+    // Never invent a URL — only lead.postingUrl when stored.
+    if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.renderProfileLinks === "function") {
+      window.tinkerMessagesThread.renderProfileLinks({
+        linkedInUrl: lead && lead.linkedInUrl,
+        githubUrl: lead && lead.githubUrl,
+        postingUrl: lead && lead.postingUrl,
+      });
+    }
     showPane();
     var emptyEl = pane && pane.querySelector("[data-messages-empty]");
     var threadEl = pane && pane.querySelector("[data-messages-thread]");
@@ -887,6 +902,13 @@
     li.appendChild(btn);
     return li;
   }
+  function renderKindDotMark() {
+    // Non-person inbox kinds (reading) use a colored dot in the logo slot
+    // so rows stay aligned with person/company logos. Not book-specific.
+    var mark = el("span", "messages-rail__logo messages-rail__logo--dot", { "aria-hidden": "true" });
+    mark.appendChild(el("span", "messages-rail__dot"));
+    return mark;
+  }
   function renderReadingItem(thread, rankReason) {
     var convId = readingConvId(thread.id);
     var li = el("li");
@@ -897,8 +919,7 @@
       "data-reading-id": thread.id,
       "aria-current": convId === state.selectedId ? "true" : "false",
     });
-    var avatar = el("span", "messages-rail__avatar messages-rail__avatar--reading", { "aria-hidden": "true" });
-    avatar.textContent = "R";
+    var avatar = renderKindDotMark();
     var main = el("span", "messages-rail__main");
     var top = el("span", "messages-rail__top");
     var name = el("span", "messages-rail__name");
@@ -1163,7 +1184,16 @@
     if (chip) chip.addEventListener("click", function () { setCompanyFilter(""); });
     if (back) {
       back.addEventListener("click", function () {
-        document.body.classList.remove("messages-mobile-thread", "messages-you-active", "messages-notepad-active");
+        document.body.classList.remove(
+          "messages-mobile-thread",
+          "messages-you-active",
+          "messages-notepad-active",
+          "messages-reading-active",
+          "messages-application-active"
+        );
+        if (window.tinkerMobileDrawer && typeof window.tinkerMobileDrawer.close === "function") {
+          window.tinkerMobileDrawer.close();
+        }
         selectLead("", { silent: true });
         renderList();
       });
@@ -1172,7 +1202,16 @@
     if (brand) {
       brand.addEventListener("click", function (e) {
         e.preventDefault();
-        document.body.classList.remove("messages-mobile-thread", "messages-you-active", "messages-notepad-active");
+        document.body.classList.remove(
+          "messages-mobile-thread",
+          "messages-you-active",
+          "messages-notepad-active",
+          "messages-reading-active",
+          "messages-application-active"
+        );
+        if (window.tinkerMobileDrawer && typeof window.tinkerMobileDrawer.close === "function") {
+          window.tinkerMobileDrawer.close();
+        }
         selectLead("", { silent: true });
         renderList();
         showPane();

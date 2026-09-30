@@ -253,7 +253,7 @@ describe("person Keep crafting + menu no-overlap + inbox hides sent", () => {
       assert.equal(inbox.hasAndrew, false, "Andrew with sent outreach must leave the inbox");
       assert.equal(inbox.hasHamid, true, "Hamid must remain in the inbox");
 
-      // Open another person first (Hamid), then switch — menu must stay inline.
+      // Open another person first (Hamid), then switch — push-nav, no drawer.
       await page.evaluate((id) => window.tinkerMessagesShell.selectLead(id), hamid.id);
       await page.waitForFunction(
         () => document.body.classList.contains("messages-mobile-thread")
@@ -263,7 +263,7 @@ describe("person Keep crafting + menu no-overlap + inbox hides sent", () => {
       );
       await page.waitForTimeout(400);
 
-      async function assertMenuNoOverlap() {
+      async function assertPushNavHeader() {
         const geo = await page.evaluate(() => {
           const menu = document.querySelector("[data-messages-menu]");
           const float = document.getElementById("drawer-toggle");
@@ -271,17 +271,17 @@ describe("person Keep crafting + menu no-overlap + inbox hides sent", () => {
           const avatar = document.querySelector("[data-messages-avatar]");
           const back = document.querySelector("[data-messages-back]");
           const lead = document.querySelector("[data-messages-lead]");
-          const mr = menu?.getBoundingClientRect();
           const fr = float ? getComputedStyle(float) : null;
           const tr = title?.getBoundingClientRect();
           const ar = avatar && !avatar.hidden ? avatar.getBoundingClientRect() : null;
           const br = back?.getBoundingClientRect();
           return {
-            menuInLead: !!(menu && lead && lead.contains(menu)),
-            menuDisplay: menu ? getComputedStyle(menu).display : "",
-            floatDisplay: fr ? fr.display : "",
-            floatVisibility: fr ? fr.visibility : "",
-            menu: mr ? { left: mr.left, right: mr.right, top: mr.top, bottom: mr.bottom } : null,
+            hasMenu: !!menu,
+            floatDisplay: fr ? fr.display : "none",
+            floatVisibility: fr ? fr.visibility : "hidden",
+            drawerOpen: "drawerOpen" in document.body.dataset,
+            backInLead: !!(back && lead && lead.contains(back)),
+            backDisplay: back ? getComputedStyle(back).display : "",
             title: tr ? { left: tr.left, right: tr.right, top: tr.top, bottom: tr.bottom } : null,
             avatar: ar ? { left: ar.left, right: ar.right, top: ar.top, bottom: ar.bottom } : null,
             back: br ? { left: br.left, right: br.right, top: br.top, bottom: br.bottom } : null,
@@ -289,23 +289,22 @@ describe("person Keep crafting + menu no-overlap + inbox hides sent", () => {
             sentBubble: /Sent via/i.test(document.body.innerText || ""),
           };
         });
-        assert.equal(geo.menuInLead, true, "menu must live in the lead row");
-        assert.notEqual(geo.menuDisplay, "none");
+        assert.equal(geo.hasMenu, false, "hamburger menu must be removed");
         assert.ok(geo.floatDisplay === "none" || geo.floatVisibility === "hidden", "floating toggle must be hidden");
+        assert.equal(geo.drawerOpen, false, "drawer must not open over the thread");
+        assert.equal(geo.backInLead, true, "back must live in the lead row");
+        assert.notEqual(geo.backDisplay, "none");
         assert.equal(geo.loading, false, "stray Loading… must not show with notepad");
         assert.equal(geo.sentBubble, false, "Sent via bubble must not render");
-        assert.ok(geo.menu && geo.title, "menu and title rects required");
-        assert.equal(rectsIntersect(geo.menu, geo.title), false, "menu must not intersect title");
+        assert.ok(geo.back && geo.title, "back and title rects required");
+        assert.equal(rectsIntersect(geo.back, geo.title), false, "back must not intersect title");
         if (geo.avatar && geo.avatar.right > geo.avatar.left) {
-          assert.equal(rectsIntersect(geo.menu, geo.avatar), false, "menu must not intersect logo");
-        }
-        if (geo.back && geo.back.right > geo.back.left) {
-          assert.equal(rectsIntersect(geo.menu, geo.back), false, "menu must not intersect back");
+          assert.equal(rectsIntersect(geo.back, geo.avatar), false, "back must not intersect logo");
         }
         return geo;
       }
 
-      await assertMenuNoOverlap();
+      await assertPushNavHeader();
 
       // Switch to Andrew by direct select (still openable) then back to Hamid.
       await page.evaluate((id) => window.tinkerMessagesShell.selectLead(id), andrew.id);
@@ -315,7 +314,7 @@ describe("person Keep crafting + menu no-overlap + inbox hides sent", () => {
         { timeout: 10000 }
       );
       await page.waitForTimeout(300);
-      await assertMenuNoOverlap();
+      await assertPushNavHeader();
 
       await page.evaluate((id) => window.tinkerMessagesShell.selectLead(id), hamid.id);
       await page.waitForFunction(
@@ -324,7 +323,7 @@ describe("person Keep crafting + menu no-overlap + inbox hides sent", () => {
         { timeout: 10000 }
       );
       await page.waitForTimeout(400);
-      await assertMenuNoOverlap();
+      await assertPushNavHeader();
 
       const firstQ = await page.evaluate(() =>
         (document.querySelector("[data-notepad-question], .messages-notepad__question") || {}).textContent || ""

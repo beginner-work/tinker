@@ -41,6 +41,10 @@ test("Settings control is a large labeled rail target; Share is Settings-only", 
   assert.match(html, /id="nav-share"[^>]*hidden/);
   assert.match(css, /\.messages-rail__settings[\s\S]*min-height:\s*48px/);
   assert.match(css, /\.messages-rail__settings[\s\S]*font-weight:\s*600/);
+  // Bottom-anchored, no hairline dividers around Settings.
+  assert.match(css, /\.sidebar--inbox \.sidebar__footer[\s\S]*border-top:\s*0/);
+  assert.match(css, /\.sidebar--inbox \.sidebar__footer[\s\S]*margin-top:\s*auto/);
+  assert.match(css, /\.messages-rail__settings[\s\S]*border:\s*0/);
   const share = fs.readFileSync(path.join(root, "src/renderer/share.js"), "utf8");
   // Deep link from Settings → Pages still works; rail never unhides Share.
   assert.match(share, /open=share|openShare/);

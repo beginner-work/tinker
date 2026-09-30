@@ -278,6 +278,12 @@ test("UI reuses notepad / Keep crafting; no review UI; SW precaches reading modu
   ), false);
   // Section title once in header — not repeated in notepad opening.
   assert.equal(/messages-notepad__section|data-reading-section/.test(reading), false);
+  // Non-person rail mark: accent dot in the logo slot (not letter "R").
+  assert.match(shell, /renderKindDotMark|messages-rail__logo--dot/);
+  assert.match(shell, /messages-rail__dot/);
+  assert.equal(/avatar\.textContent\s*=\s*["']R["']/.test(shell), false);
+  const css = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
+  assert.match(css, /\.messages-rail__dot[\s\S]*color-accent-strong/);
 });
 
 test("leads-store still exports merge helpers after extract", () => {

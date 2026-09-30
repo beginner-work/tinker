@@ -173,13 +173,18 @@ test("create/list/update/mark done for fake user (fit-scan shaped fields)", asyn
 });
 
 test("UI wires messages-application.js and SW precaches it", () => {
+  const { EXPECTED_SW_CACHE_VERSION } = require("./helpers/sw-cache-version.js");
   const index = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "index.html"), "utf8");
   const sw = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "sw.js"), "utf8");
   const shell = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "messages-shell.js"), "utf8");
+  const app = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "messages-application.js"), "utf8");
   assert.match(index, /messages-application\.js/);
   assert.match(sw, /messages-application\.js/);
-  assert.match(sw, /tinker-shell-v20/);
+  assert.match(sw, new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(shell, /APPLICATION_PREFIX/);
   assert.match(shell, /selectApplication/);
   assert.match(shell, /kind === "application"/);
+  assert.match(shell, /postingUrl/);
+  assert.match(app, /postingUrl/);
+  assert.match(app, /renderProfileLinks/);
 });
