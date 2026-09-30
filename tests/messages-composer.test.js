@@ -44,6 +44,10 @@ test("notes stay on the lead; Keep crafting asks a new person question", () => {
   assert.match(js, /normalizeKeepCraftingQuestion|fallbackKeepCraftingQuestion/);
   assert.match(js, /scrollQuestionIntoView|scrollIntoView/);
   assert.match(js, /isRepeatQuestion/);
+  // Seeded interview prep: one pending question; remaining ### stay in queue.
+  assert.match(js, /state\.queue/);
+  assert.match(js, /Seeded prep queue advances/);
+  assert.match(js, /unanswered\.slice\(1\)/);
   // No editable review To/Body/approve UI — Subject card is read-only after done.
   assert.equal(/Review before handoff/.test(js), false);
   assert.equal(/data-review-to/.test(js), false);

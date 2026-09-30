@@ -21,8 +21,10 @@
     company: null,
     touch: null,
     notes: "",
+    preamble: "",
     transcript: [],
     pending: "",
+    queue: [],
     draft: "",
     saving: false,
     asking: false,
@@ -110,8 +112,13 @@
     if (co) return "What do you want " + person + " at " + co + " to understand about you?";
     return "What do you want " + person + " to understand about you?";
   }
-  function serializeNotes(transcript, pending, draft) {
+  function serializeNotes(preamble, transcript, pending, draft, queue) {
     var parts = [];
+    var head = String(preamble || "").replace(/\n+$/, "");
+    if (head) {
+      parts.push(head);
+      parts.push("");
+    }
     (transcript || []).forEach(function (turn) {
       if (!turn || !turn.q) return;
       parts.push("### " + String(turn.q).trim());
@@ -121,13 +128,26 @@
     if (pending) {
       parts.push("### " + String(pending).trim());
       parts.push(String(draft || "").trim());
+      parts.push("");
     } else if (String(draft || "").trim()) {
       parts.push(String(draft).trim());
+      parts.push("");
     }
+    (queue || []).forEach(function (q) {
+      var text = String(q || "").trim();
+      if (!text) return;
+      parts.push("### " + text);
+      parts.push("");
+    });
     return parts.join("\n").replace(/\n+$/, "");
   }
-  function serializeDoneNotes(transcript) {
+  function serializeDoneNotes(preamble, transcript) {
     var parts = [];
+    var head = String(preamble || "").replace(/\n+$/, "");
+    if (head) {
+      parts.push(head);
+      parts.push("");
+    }
     (transcript || []).forEach(function (turn) {
       if (!turn || !turn.q) return;
       parts.push("### " + String(turn.q).trim());
@@ -142,38 +162,33 @@
     var text = String(raw || "").replace(/\r\n/g, "\n");
     var fallbackQ = defaultQuestion(lead, company);
     if (!text.trim()) {
-      return { transcript: [], pending: fallbackQ, draft: "", done: false };
+      return { preamble: "", transcript: [], pending: fallbackQ, queue: [], draft: "", done: false };
     }
     if (!/^###\s+/m.test(text)) {
       // Legacy freeform notes = draft under the default prompt.
-      return { transcript: [], pending: fallbackQ, draft: text.trim(), done: false };
+      return { preamble: "", transcript: [], pending: fallbackQ, queue: [], draft: text.trim(), done: false };
     }
-    var chunks = text.split(/^###\s+/m).filter(function (c) { return String(c || "").trim(); });
+    var done = new RegExp("(?:^|\\n)###\\s*" + DONE_MARKER + "\\s*(?:\\n|$)").test(text);
+    var firstHeading = text.search(/^###\s+/m);
+    var preamble = firstHeading > 0 ? text.slice(0, firstHeading).replace(/\n+$/, "") : "";
+    var body = firstHeading >= 0 ? text.slice(firstHeading) : text;
+    var chunks = body.split(/^###\s+/m).filter(function (c) { return String(c || "").trim(); });
     var transcript = [];
-    var pending = fallbackQ;
-    var draft = "";
-    var done = false;
-    chunks.forEach(function (chunk, i) {
+    var unanswered = [];
+    chunks.forEach(function (chunk) {
       var nl = chunk.indexOf("\n");
       var q = (nl === -1 ? chunk : chunk.slice(0, nl)).trim();
       var a = (nl === -1 ? "" : chunk.slice(nl + 1)).replace(/^\n+/, "").replace(/\n+$/, "");
-      if (!q) return;
-      if (q === DONE_MARKER) {
-        done = true;
-        pending = "";
-        draft = "";
-        return;
-      }
-      var isLast = i === chunks.length - 1;
-      if (isLast) {
-        pending = q;
-        draft = a;
-      } else {
-        transcript.push({ q: q, a: a });
-      }
+      if (!q || q === DONE_MARKER) return;
+      if (a.trim()) transcript.push({ q: q, a: a });
+      else unanswered.push(q);
     });
-    if (done) return { transcript: transcript, pending: "", draft: "", done: true };
-    return { transcript: transcript, pending: pending || fallbackQ, draft: draft, done: false };
+    if (done) {
+      return { preamble: preamble, transcript: transcript, pending: "", queue: [], draft: "", done: true };
+    }
+    var pending = unanswered[0] || fallbackQ;
+    var queue = unanswered.slice(1);
+    return { preamble: preamble, transcript: transcript, pending: pending, queue: queue, draft: "", done: false };
   }
   function logoMark(company) {
     var wrap = el("span", "messages-notepad__mark", { "aria-hidden": "true" });
@@ -209,8 +224,16 @@
     // logo mark, or company-notes paragraph. researchProse / lead.notes still
     // feed Keep crafting + subject prompts via buildPersonUserMessage and
     // resolveSubject: hide UI, keep prompt context.
+    // Seeded interview prep: preamble (links/context) + answered turns + one
+    // pending question. Remaining queued ### headings stay hidden until advance.
     var opening = el("div", "messages-notepad__opening");
     void company;
+    if (String(state.preamble || "").trim()) {
+      var preamble = el("p", "messages-notepad__section");
+      preamble.style.whiteSpace = "pre-wrap";
+      preamble.textContent = String(state.preamble).trim();
+      opening.appendChild(preamble);
+    }
     appendTurns(opening);
     var q = el("h2", "messages-notepad__question", { "data-notepad-question": "1" });
     q.textContent = state.pending || defaultQuestion(lead, company);
@@ -328,7 +351,7 @@
       onInput: function (value) {
         if (state.done) return;
         state.draft = value;
-        state.notes = serializeNotes(state.transcript, state.pending, state.draft);
+        state.notes = serializeNotes(state.preamble, state.transcript, state.pending, state.draft, state.queue);
         syncNotesFolder();
       },
       onPrimary: function () { saveNotes("done"); },
@@ -355,8 +378,8 @@
   function persistNotes(opts) {
     var asDone = !!(opts && opts.done) || state.done;
     state.notes = asDone
-      ? serializeDoneNotes(state.transcript)
-      : serializeNotes(state.transcript, state.pending, state.draft);
+      ? serializeDoneNotes(state.preamble, state.transcript)
+      : serializeNotes(state.preamble, state.transcript, state.pending, state.draft, state.queue);
     if (state.lead) state.lead.notes = state.notes;
     return api("/api/leads", "PATCH", "edit", { notes: state.notes }, { id: state.leadId }).then(function (res) {
       if (res && res.lead) {
@@ -364,8 +387,10 @@
         var parsed = parseNotes(res.lead.notes || state.notes, state.lead, state.company);
         // Keep in-memory pending/transcript authoritative after Keep crafting / done.
         if (!state.asking && !asDone) {
+          state.preamble = parsed.preamble || "";
           state.transcript = parsed.transcript;
           state.pending = parsed.pending;
+          state.queue = parsed.queue || [];
           state.draft = parsed.draft;
           state.notes = res.lead.notes || state.notes;
         } else if (asDone) {
@@ -451,12 +476,13 @@
       state.transcript = state.transcript.concat([{ q: state.pending, a: answer }]);
     }
     state.pending = "";
+    state.queue = [];
     state.draft = "";
     // Mark done before any async work so onInput / notes-folder / Keep crafting
     // cannot re-serialize the transcript without ### __done__ and overwrite it.
     if (mode === "done") {
       state.done = true;
-      state.notes = serializeDoneNotes(state.transcript);
+      state.notes = serializeDoneNotes(state.preamble, state.transcript);
       if (state.lead) state.lead.notes = state.notes;
       mountNotepad();
     }
@@ -496,10 +522,14 @@
   function askedQuestions() {
     var api = interviewApi();
     var pending = state.pending || "";
+    var queued = Array.isArray(state.queue) ? state.queue.filter(Boolean) : [];
+    var base;
     if (api && typeof api.collectAskedQuestions === "function") {
-      return api.collectAskedQuestions(state.transcript, [], pending);
+      base = api.collectAskedQuestions(state.transcript, [], pending);
+    } else {
+      base = state.transcript.map(function (t) { return t.q; }).filter(Boolean).concat(pending ? [pending] : []);
     }
-    return state.transcript.map(function (t) { return t.q; }).filter(Boolean).concat(pending ? [pending] : []);
+    return base.concat(queued);
   }
   function buildPersonUserMessage(asked, tighter) {
     var api = interviewApi();
@@ -603,6 +633,36 @@
     var currentQ = state.pending || defaultQuestion(state.lead, state.company);
     state.transcript = state.transcript.concat([{ q: currentQ, a: answer }]);
     state.draft = "";
+    // Seeded prep queue advances one question at a time (no model call).
+    if (state.queue && state.queue.length) {
+      state.pending = String(state.queue[0] || "").trim();
+      state.queue = state.queue.slice(1);
+      state.notes = serializeNotes(state.preamble, state.transcript, state.pending, state.draft, state.queue);
+      persistNotes().then(function () {
+        mountNotepad();
+        setTimeout(scrollQuestionIntoView, 80);
+        setTimeout(scrollQuestionIntoView, 320);
+      }).catch(function (err) {
+        var last = state.transcript[state.transcript.length - 1];
+        if (last && last.q === currentQ && last.a === answer) {
+          state.transcript = state.transcript.slice(0, -1);
+          state.draft = answer;
+          state.queue = [state.pending].concat(state.queue || []);
+          state.pending = currentQ;
+        }
+        mountNotepad();
+        showNudge((err && err.message) || "Could not advance to the next question. Try Keep crafting again.");
+      }).finally(function () {
+        state.asking = false;
+        var n = notepad();
+        if (n) {
+          n.setPrimaryEnabled(true);
+          var secondaryBtn = n.el().querySelector("[data-notepad-secondary]");
+          if (secondaryBtn) secondaryBtn.disabled = false;
+        }
+      });
+      return;
+    }
     var asked = askedQuestions();
     resolveNextQuestion(asked).then(function (nextQ) {
       var q = String(nextQ || "").trim();
@@ -613,7 +673,7 @@
           : "What else are you learning about what they should understand?";
       }
       state.pending = q;
-      state.notes = serializeNotes(state.transcript, state.pending, state.draft);
+      state.notes = serializeNotes(state.preamble, state.transcript, state.pending, state.draft, state.queue);
       return persistNotes();
     }).then(function () {
       mountNotepad();
@@ -657,18 +717,21 @@
   }
   function hydrateFromLead(lead, drafts) {
     var parsed = parseNotes(lead && lead.notes || "", lead, state.company);
+    state.preamble = parsed.preamble || "";
     state.transcript = parsed.transcript;
     state.pending = parsed.pending;
+    state.queue = parsed.queue || [];
     state.draft = parsed.draft;
     state.done = !!parsed.done;
     state.proposedSubject = subjectFromDrafts(drafts);
     if (state.done) {
       state.pending = "";
+      state.queue = [];
       state.draft = "";
-      state.notes = serializeDoneNotes(state.transcript);
+      state.notes = serializeDoneNotes(state.preamble, state.transcript);
       if (!state.proposedSubject) state.proposedSubject = fallbackSubject();
     } else {
-      state.notes = serializeNotes(state.transcript, state.pending, state.draft);
+      state.notes = serializeNotes(state.preamble, state.transcript, state.pending, state.draft, state.queue);
     }
   }
   function setLead(leadId, lead, touch, drafts) {
@@ -679,8 +742,10 @@
     state.asking = false;
     state.saving = false;
     if (!leadId) {
+      state.preamble = "";
       state.transcript = [];
       state.pending = "";
+      state.queue = [];
       state.draft = "";
       state.notes = "";
       state.done = false;
@@ -699,8 +764,10 @@
       state.company = null;
       state.touch = null;
       state.notes = "";
+      state.preamble = "";
       state.transcript = [];
       state.pending = "";
+      state.queue = [];
       state.draft = "";
       state.done = false;
       state.proposedSubject = "";
