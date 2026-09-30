@@ -780,29 +780,102 @@ async function listApprovedOutreach({ userId, emailHint } = {}) {
     };
   });
 }
-async function markDraftSent({ id, userId, emailHint, actor, channel, sentAt, externalMessageId } = {}) {
+async function resolveDraftForSend({
+  id, userId, emailHint, personId, personName, companyName, channel,
+} = {}) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  await ensureTable();
+  const draftId = typeof id === "string" ? id.trim() : "";
+  if (draftId) return loadOwned("leadDraft", draftId, owner, "draft");
+
+  let lead = null;
+  if (personId) {
+    lead = await loadOwned("lead", personId, owner, "lead");
+  } else if (personName && companyName) {
+    const name = readText(personName, "personName", 200, true);
+    const company = readText(companyName, "companyName", 200, true);
+    let leads;
+    try { leads = await db().lead.findMany({ where: { userId: owner } }); }
+    catch (err) { throw storeDown(err); }
+    lead = leads.find((row) => (
+      String(row.personName || "").trim().toLowerCase() === name.toLowerCase()
+      && String(row.company || "").trim().toLowerCase() === company.toLowerCase()
+    )) || null;
+    if (!lead) throw fail(404, "No person with that name at that company.");
+  } else {
+    throw fail(400, "id or personId (or personName and companyName) is required.");
+  }
+
+  let openDrafts;
+  try {
+    openDrafts = await db().leadDraft.findMany({ where: { userId: owner, leadId: lead.id } });
+  } catch (err) { throw storeDown(err); }
+  const wanted = channel ? readEnum(channel, CHANNELS, "channel") : null;
+  const markable = openDrafts
+    .filter((row) => (
+      row.status === "draft"
+      || row.status === "approved_to_send"
+      || row.status === "approved"
+      || row.status === "send_failed"
+    ))
+    .sort((a, b) => {
+      const aChan = wanted && a.channel === wanted ? 0 : 1;
+      const bChan = wanted && b.channel === wanted ? 0 : 1;
+      if (aChan !== bChan) return aChan - bChan;
+      return new Date(b.updatedAt) - new Date(a.updatedAt);
+    });
+  if (!markable.length) throw fail(404, "No open draft for that person to mark sent.");
+  return markable[0];
+}
+
+async function markDraftSent({
+  id, userId, emailHint, actor, channel, sentAt, externalMessageId,
+  personId, personName, companyName, subject,
+} = {}) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   await ensureTable();
-  const row = await loadOwned("leadDraft", id, owner, "draft");
-  if (row.status === "sent_by_owner") throw fail(400, "This approval was already marked sent.");
-  if (row.status !== "approved_to_send" && row.status !== "approved") {
-    throw fail(400, "Only an approved_to_send draft can be marked sent. One approval covers one send.");
+  const row = await resolveDraftForSend({
+    id, userId: owner, emailHint, personId, personName, companyName, channel,
+  });
+  if (row.status === "sent_by_owner") {
+    throw fail(400, "This draft was already marked sent. One send per draft.");
+  }
+  // Approved handoff OR an unapproved draft the owner already sent outside Tinker.
+  if (
+    row.status !== "approved_to_send"
+    && row.status !== "approved"
+    && row.status !== "draft"
+    && row.status !== "send_failed"
+  ) {
+    throw fail(400, "Only a draft or approved_to_send outreach can be marked sent.");
   }
   const lead = row.leadId ? await loadOwned("lead", row.leadId, owner, "lead") : null;
   const when = sentAt ? readCalendarDate(sentAt, "sentAt", { required: true }) : new Date();
   const sentChannel = channel ? readEnum(channel, CHANNELS, "channel") : row.channel;
+  const subjectText = subject != null
+    ? readText(subject, "subject", 300, false)
+    : null;
+  const external = row.status === "draft" || row.status === "send_failed";
   return commit(async (tx) => {
+    const data = {
+      status: "sent_by_owner",
+      sentAt: when,
+      channel: sentChannel,
+      externalMessageId: readText(externalMessageId, "externalMessageId", 500, false),
+      failedReason: "",
+      // Clear any approval snapshot so list_approved_outreach never resurrects it.
+      approvedAt: null,
+      approvedText: "",
+      approvedPersonName: "",
+      approvedCompanyName: "",
+    };
+    if (subjectText != null && subjectText !== "") data.subject = subjectText;
     const saved = await tx.leadDraft.update({
       where: { id: row.id },
-      data: {
-        status: "sent_by_owner",
-        sentAt: when,
-        channel: sentChannel,
-        externalMessageId: readText(externalMessageId, "externalMessageId", 500, false),
-        failedReason: "",
-      },
+      data,
     });
     let updatedLead = lead;
     if (lead && (lead.stage === "new" || lead.stage === "drafting")) {
@@ -815,6 +888,7 @@ async function markDraftSent({ id, userId, emailHint, actor, channel, sentAt, ex
         channel: sentChannel,
         sentAt: iso(when),
         externalMessageId: saved.externalMessageId || "",
+        externalSend: external,
         from: lead ? lead.stage : null,
         to: updatedLead ? updatedLead.stage : null,
       },

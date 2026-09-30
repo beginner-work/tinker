@@ -330,6 +330,64 @@ test("mark_outreach_failed keeps text and allows re-approve", async () => {
   assert.equal(again.draft.approvedText, "Sam — retry note.");
 });
 
+test("mark_outreach_sent records an external send for an unapproved draft", async () => {
+  await mcpCall("upsert_target_company", { name: "Alloy" });
+  const person = await mcpCall("upsert_lead_person", {
+    personName: "Andrew Glenn",
+    companyName: "Alloy",
+    contactType: "hiring_leader",
+    email: "andrew.glenn@alloy.com",
+  });
+  const leadId = person.body.result.structuredContent.lead.id;
+  const saved = await mcpCall("save_outreach_draft", {
+    personId: leadId,
+    channel: "email",
+    to: "andrew.glenn@alloy.com",
+    subject: "Draft subject",
+    body: "I value the same things he does",
+  });
+  assert.equal(saved.body.result.structuredContent.draft.status, "draft");
+  const draftId = saved.body.result.structuredContent.draft.id;
+
+  const listedBefore = await mcpCall("list_approved_outreach", {});
+  assert.equal(listedBefore.body.result.structuredContent.outreach.length, 0);
+
+  const sent = await mcpCall("mark_outreach_sent", {
+    personId: leadId,
+    channel: "gmail_outreach",
+    sentAt: "2026-09-29T22:57:00.000Z",
+    subject: "Building engineering culture, rigor, and good work",
+  });
+  assert.equal(sent.status, 200);
+  assert.equal(sent.body.result.isError, undefined);
+  const shaped = sent.body.result.structuredContent;
+  assert.equal(shaped.draft.id, draftId);
+  assert.equal(shaped.draft.status, "sent_by_owner");
+  assert.equal(shaped.draft.subject, "Building engineering culture, rigor, and good work");
+  assert.equal(shaped.draft.sentAt, "2026-09-29T22:57:00.000Z");
+  assert.equal(shaped.lead.stage, "contacted");
+
+  const listedAfter = await mcpCall("list_approved_outreach", {});
+  assert.equal(listedAfter.body.result.structuredContent.outreach.length, 0);
+
+  const again = await mcpCall("mark_outreach_sent", { personId: leadId, channel: "gmail_outreach" });
+  assert.equal(again.body.result.isError, true);
+
+  await assert.rejects(
+    () => leads.approveDraft({
+      id: draftId,
+      userId: "user-a",
+      emailHint: "hunter@example.com",
+      actor: { kind: "human", label: "user:user-a" },
+    }),
+    (err) => {
+      assert.equal(err.status, 400);
+      assert.match(err.message, /Only a draft can be approved/i);
+      return true;
+    },
+  );
+});
+
 test("tools/list exposes save_outreach_draft and approved outreach tools", async () => {
   const res = fakeRes();
   await mcp({
