@@ -84,6 +84,27 @@
   function leadsApi(action, query) { return api("/api/leads", action, query); }
   function scheduleApi(action, query) { return api("/api/schedule", action, query); }
   function readingApi(action, query) { return api("/api/reading-thread", action, query); }
+  function readingPost(action, query) {
+    var q = new URLSearchParams(Object.assign({ action: action }, query || {}));
+    return fetch("/api/reading-thread?" + q.toString(), {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token(),
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (payload) {
+        if (!res.ok) {
+          var err = new Error((payload && payload.error) || "Request failed");
+          err.status = res.status;
+          throw err;
+        }
+        return payload;
+      });
+    });
+  }
   function applicationApi(action, query) { return api("/api/job-application", action, query); }
   function readingConvId(threadId) { return READING_PREFIX + String(threadId || ""); }
   function readingIdFromConv(convId) {
@@ -318,8 +339,13 @@
     };
   }
   function classifyReading(thread) {
-    if (!thread || thread.done) {
-      return { tier: RANK_TIER.PREP, dueDay: "", rankReason: "reading · done", hide: true };
+    if (!thread || thread.done || thread.paused) {
+      return {
+        tier: RANK_TIER.PREP,
+        dueDay: "",
+        rankReason: thread && thread.paused ? "reading · on hold" : "reading · done",
+        hide: true,
+      };
     }
     var section = thread.currentSection && thread.currentSection.title
       ? String(thread.currentSection.title).trim()
@@ -665,6 +691,54 @@
       window.tinkerMessagesYou.open();
     }
   }
+  function setReadingHoldControl(thread) {
+    var links = pane && pane.querySelector("[data-messages-links]");
+    if (!links) return;
+    links.innerHTML = "";
+    if (!thread || !thread.id || thread.done) {
+      links.hidden = true;
+      return;
+    }
+    var paused = !!thread.paused;
+    var btn = el("button", "messages-pane__hold", {
+      type: "button",
+      "data-reading-hold": "1",
+      "aria-pressed": paused ? "true" : "false",
+    });
+    btn.textContent = paused ? "Resume" : "Pause";
+    btn.addEventListener("click", function () {
+      toggleReadingHold(thread.id, !paused);
+    });
+    links.appendChild(btn);
+    links.hidden = false;
+  }
+  function toggleReadingHold(threadId, pause) {
+    var id = String(threadId || "").trim();
+    if (!id) return;
+    var action = pause ? "pause" : "resume";
+    var btn = pane && pane.querySelector("[data-reading-hold]");
+    if (btn) btn.disabled = true;
+    readingPost(action, { id: id }).then(function (payload) {
+      var thread = payload && payload.thread;
+      if (!thread) return;
+      var next = [];
+      var found = false;
+      (state.readingThreads || []).forEach(function (row) {
+        if (row && row.id === thread.id) {
+          next.push(thread);
+          found = true;
+        } else {
+          next.push(row);
+        }
+      });
+      if (!found) next.push(thread);
+      state.readingThreads = next;
+      renderList();
+      selectReading(id, { silent: true, stayOnList: true });
+    }).catch(function () {
+      if (btn) btn.disabled = false;
+    });
+  }
   function selectReading(threadId, opts) {
     opts = opts || {};
     var id = String(threadId || "").trim();
@@ -691,7 +765,11 @@
     } else if (thread && thread.author) {
       sub = String(thread.author).trim();
     }
+    if (thread && thread.paused) {
+      sub = sub ? (sub + " · on hold") : "On hold";
+    }
     setPaneHeader(title, sub, {});
+    setReadingHoldControl(thread);
     showPane();
     var emptyEl = pane && pane.querySelector("[data-messages-empty]");
     var threadEl = pane && pane.querySelector("[data-messages-thread]");

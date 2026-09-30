@@ -480,6 +480,32 @@ a.sidebar__secondary-link { display: inline; }
 .messages-pane__links .messages-pane__link {
   text-decoration: none;
 }
+/* Reading workbook hold control — quiet text action in the thread header. */
+.messages-pane__hold {
+  margin: 0;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.3;
+  color: var(--color-muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.messages-pane__hold:hover {
+  color: var(--color-foreground);
+}
+.messages-pane__hold:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.messages-pane__hold[aria-pressed="true"] {
+  color: var(--color-foreground);
+}
 .messages-rail__avatar.messages-avatar--photo,
 .messages-pane__avatar.messages-avatar--photo {
   padding: 0;

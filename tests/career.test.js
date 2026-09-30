@@ -610,6 +610,8 @@ test("get_career_record reads only this user and check_text does not write", asy
     "list_reading_threads",
     "get_reading_thread",
     "advance_reading_section",
+    "pause_reading_thread",
+    "resume_reading_thread",
     "set_company_priority",
     "plan_lead_touch",
     "upsert_target_company",

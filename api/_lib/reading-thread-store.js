@@ -107,6 +107,7 @@ function presentThread(thread) {
     currentSection: current ? presentSection(current) : null,
     notes: thread.notes || "",
     done: !!thread.done || notesHaveDoneMarker(thread.notes),
+    paused: !!thread.paused,
     createdAt: thread.createdAt,
     updatedAt: thread.updatedAt,
   };
@@ -184,6 +185,7 @@ async function createThread({ userId, title, author, sections } = {}) {
       currentSectionIndex: 0,
       notes: "",
       done: false,
+      paused: false,
       createdAt: now,
       updatedAt: now,
     };
@@ -304,6 +306,21 @@ async function retreatSection({ userId, threadId } = {}) {
   }
 }
 
+/** Pause or resume without touching notepad notes or section progress. */
+async function setPaused({ userId, threadId, paused } = {}) {
+  try {
+    const uid = requireUserId(userId);
+    const { threads } = await readBlob(uid);
+    const thread = findThread(threads, threadId);
+    thread.paused = !!paused;
+    thread.updatedAt = new Date().toISOString();
+    await writeBlob(uid, threads);
+    return presentThread(thread);
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
 module.exports = {
   KIND,
   UNAVAILABLE,
@@ -317,4 +334,5 @@ module.exports = {
   updateNotes,
   advanceSection,
   retreatSection,
+  setPaused,
 };

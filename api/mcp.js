@@ -18,7 +18,8 @@
  * set_busy_times), post_to_self_thread (assistant posts into the
  * owner's You inbox thread), and reading workbook tools
  * (create_reading_thread, get_reading_thread, list_reading_threads,
- * advance_reading_section). There is no raw converse proxy and no
+ * advance_reading_section, pause_reading_thread, resume_reading_thread).
+ * There is no raw converse proxy and no
  * write tool for autonomy settings, the career record, or story parts.
  * Content tools can draft. They cannot publish. Story-part tools are
  * read-only: paste the user's approved wording into Formation drafts;
@@ -127,7 +128,9 @@ const INSTRUCTIONS = [
   "Call set_reflection_webhook (url + authorization header) or clear_reflection_webhook for the owner's private reflection_saved ping. Secrets return masked only.",
   "Call create_reading_thread to start a generic reading workbook (any book): title, optional author, ordered sections (string titles).",
   "It generates one pre-read question for the first section via KEEP_CRAFTING_MODEL and shows the thread in the inbox like a lead.",
-  "Call list_reading_threads or get_reading_thread to read threads. Call advance_reading_section when the owner finished a section to mark it done and generate the next pre-read question.",
+  "Call list_reading_threads or get_reading_thread to read threads (includes paused with paused:true).",
+  "Call advance_reading_section when the owner finished a section to mark it done and generate the next pre-read question.",
+  "Call pause_reading_thread / resume_reading_thread with threadId to put a workbook on hold or bring it back; notes and section progress stay intact. Paused threads drop out of list_inbox and the app inbox.",
   "Reading notepad notes use the same merge-safe ### __done__ contract as lead notes. Do not seed books in app code; create them with create_reading_thread after deploy.",
   "Call update_owner_profile to set optional title and/or linkedInUrl on this connector user's own profile.",
   "Omitted fields are left unchanged. Pass an empty string to clear a field. A user id in args is ignored.",
@@ -707,7 +710,8 @@ const LIST_READING_THREADS_TOOL = {
   title: "List reading threads",
   description: [
     "List this connector user's reading workbook threads.",
-    "Returns id, title, author, sections, current section, notes, and done.",
+    "Returns id, title, author, sections, current section, notes, done, and paused.",
+    "Paused threads are included here (paused:true) even though they are omitted from list_inbox.",
     "Read-only. A user id in args is ignored.",
   ].join(" "),
   inputSchema: { type: "object", additionalProperties: false, properties: {} },
@@ -748,6 +752,45 @@ const ADVANCE_READING_SECTION_TOOL = {
     properties: {
       threadId: { type: "string", description: "Reading thread id." },
       notes: { type: "string", description: "Optional notepad markdown to merge before advancing." },
+    },
+    required: ["threadId"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const PAUSE_READING_THREAD_TOOL = {
+  name: "pause_reading_thread",
+  title: "Pause reading thread",
+  description: [
+    "Put a reading workbook on hold. Pass threadId.",
+    "Notes and section progress stay intact. The thread drops out of list_inbox and the app inbox",
+    "but remains in list_reading_threads with paused:true.",
+    "Owner-scoped. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      threadId: { type: "string", description: "Reading thread id from create_reading_thread or list_reading_threads." },
+    },
+    required: ["threadId"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const RESUME_READING_THREAD_TOOL = {
+  name: "resume_reading_thread",
+  title: "Resume reading thread",
+  description: [
+    "Resume a paused reading workbook. Pass threadId.",
+    "Notes and section progress stay intact. The thread returns to list_inbox and the app inbox.",
+    "Owner-scoped. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      threadId: { type: "string", description: "Reading thread id from list_reading_threads." },
     },
     required: ["threadId"],
   },
@@ -1262,6 +1305,8 @@ const TOOLS = [
   LIST_READING_THREADS_TOOL,
   GET_READING_THREAD_TOOL,
   ADVANCE_READING_SECTION_TOOL,
+  PAUSE_READING_THREAD_TOOL,
+  RESUME_READING_THREAD_TOOL,
   SET_COMPANY_PRIORITY_TOOL,
   PLAN_LEAD_TOUCH_TOOL,
   UPSERT_TARGET_COMPANY_TOOL,
@@ -1751,6 +1796,28 @@ async function advanceReadingSectionCall(msg, user, args) {
       userId: storyUserId(user),
       threadId: args.threadId,
       notes: Object.prototype.hasOwnProperty.call(args, "notes") ? args.notes : undefined,
+    });
+    return contentToolOk(msg, { thread });
+  } catch (err) { return readingFailure(msg, err); }
+}
+
+async function pauseReadingThreadCall(msg, user, args) {
+  try {
+    const thread = await readingThreads.setPaused({
+      userId: storyUserId(user),
+      threadId: args.threadId,
+      paused: true,
+    });
+    return contentToolOk(msg, { thread });
+  } catch (err) { return readingFailure(msg, err); }
+}
+
+async function resumeReadingThreadCall(msg, user, args) {
+  try {
+    const thread = await readingThreads.setPaused({
+      userId: storyUserId(user),
+      threadId: args.threadId,
+      paused: false,
     });
     return contentToolOk(msg, { thread });
   } catch (err) { return readingFailure(msg, err); }
@@ -2479,6 +2546,8 @@ async function handleRpc(msg, user) {
       && name !== "list_reading_threads"
       && name !== "get_reading_thread"
       && name !== "advance_reading_section"
+      && name !== "pause_reading_thread"
+      && name !== "resume_reading_thread"
       && name !== "set_company_priority"
       && name !== "plan_lead_touch"
       && name !== "upsert_target_company"
@@ -2558,6 +2627,12 @@ async function handleRpc(msg, user) {
     }
     if (name === "advance_reading_section") {
       return advanceReadingSectionCall(msg, user, args);
+    }
+    if (name === "pause_reading_thread") {
+      return pauseReadingThreadCall(msg, user, args);
+    }
+    if (name === "resume_reading_thread") {
+      return resumeReadingThreadCall(msg, user, args);
     }
     if (name === "set_company_priority") {
       return setCompanyPriorityCall(msg, user, args);

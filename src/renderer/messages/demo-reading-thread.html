@@ -53,9 +53,16 @@
       </ul>
     </aside>
     <main id="messages-pane" class="messages-pane">
-      <header class="messages-pane__header">
-        <h1 data-messages-name>Example Book</h1>
-        <p data-messages-role>Ch 2: Communication and the Use of Language</p>
+      <header class="messages-pane__top">
+        <div class="messages-pane__lead">
+          <h2 class="messages-pane__title">
+            <span class="messages-pane__name" data-messages-name>Example Book</span>
+            <span class="messages-pane__role" data-messages-role>Ch 2: Communication and the Use of Language</span>
+          </h2>
+        </div>
+        <div class="messages-pane__links" data-messages-links>
+          <button type="button" class="messages-pane__hold" data-reading-hold="1" aria-pressed="false">Pause</button>
+        </div>
       </header>
       <div data-messages-thread class="messages-thread" data-thread-ready="1">
         <div class="messages-notepad" data-messages-notepad>
