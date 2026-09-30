@@ -116,7 +116,9 @@ test("conversation list styling is flat (no nested cards)", () => {
   assert.match(css, /messages-shell-open/);
   assert.match(css, /messages-mobile-thread/);
   assert.equal(/\.messages-rail__row[^{]*\{[^}]*box-shadow/.test(css), false);
-  assert.equal(/\.messages-pane[^{]*\{[^}]*box-shadow/.test(css), false);
+  // Exact .messages-pane / .messages-rail blocks only — not BEM children
+  // like .messages-pane__menu (which may set box-shadow: none).
+  assert.equal(/(?:^|[^\w-])\.messages-pane\s*\{[^}]*box-shadow/.test(css), false);
 });
 
 test("hunt funnel still opens a person conversation", () => {

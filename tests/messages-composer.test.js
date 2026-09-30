@@ -53,6 +53,28 @@ test("notes stay on the lead; Keep crafting asks a new person question", () => {
   assert.equal(/onPrimary:\s*function\s*\(\)\s*\{\s*saveDraft\("ship"\)/.test(js), false);
 });
 
+test("person Keep crafting uses window.tinker.callClaude (platform-mobile on iPhone)", () => {
+  // Desktop Electron may pre-wire tinker.callClaude; on iPhone/PWA,
+  // platform-mobile.js is the only provider and proxies to /api/claude/converse.
+  assert.match(js, /window\.tinker\.callClaude\s*\(/);
+  assert.match(js, /function keepCrafting/);
+  assert.match(js, /resolveNextQuestion|buildPersonUserMessage/);
+  const platform = fs.readFileSync(path.join(root, "src/renderer/platform-mobile.js"), "utf8");
+  assert.match(platform, /async function callClaude/);
+  assert.match(platform, /\/api\/claude\/converse/);
+  assert.match(platform, /tinker_jwt/);
+  // index.html loads platform-mobile before the messages composer stack.
+  const htmlOrder = html;
+  const platIdx = htmlOrder.indexOf("platform-mobile.js");
+  const composerIdx = htmlOrder.indexOf("messages-composer.js");
+  assert.ok(platIdx >= 0 && composerIdx >= 0, "both scripts present");
+  // platform-mobile is deferred near the end; composer is earlier but both
+  // share window.tinker — assert platform-mobile is the web/iPhone shim.
+  assert.match(htmlOrder, /platform-mobile\.js/);
+  assert.equal(/askNext\s*\(/.test(js), false, "person path must not use You askNext");
+  assert.equal(/ask_followups/.test(js), false, "person path must not call MCP ask_followups");
+});
+
 test("sidebar draft list is gone; outreach settings live on /settings", () => {
   assert.equal(/data-drafts-list/.test(html), false);
   assert.equal(/data-drafts-from/.test(html), false);
