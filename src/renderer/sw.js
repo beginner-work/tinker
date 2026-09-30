@@ -32,7 +32,7 @@
  * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v14";
+const CACHE_VERSION = "tinker-shell-v15";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -134,11 +134,14 @@ self.addEventListener("fetch", (event) => {
   // Leave the API on the network — freewrite.js gates it page-side, and
   // it's per-user/authenticated, so it must never be cached.
   if (sameOrigin && url.pathname.startsWith("/api/")) return;
-  // /autonomy, /career, and /leads are their own pages. Leave them on the network
-  // so a visit does not get stored as the offline shell for "/".
+  // /autonomy, /career, /leads, and /settings are their own pages. Leave them
+  // on the network so a visit does not get stored as the offline shell for "/".
+  // (networkFirstDoc used to cache any navigate response under "/" / index.html,
+  // which made Settings overwrite the People inbox shell in the iPhone PWA.)
   if (sameOrigin && (url.pathname === "/autonomy" || url.pathname.startsWith("/autonomy/"))) return;
   if (sameOrigin && (url.pathname === "/career" || url.pathname.startsWith("/career/"))) return;
   if (sameOrigin && (url.pathname === "/leads" || url.pathname.startsWith("/leads/"))) return;
+  if (sameOrigin && (url.pathname === "/settings" || url.pathname.startsWith("/settings/"))) return;
   // Cross-origin (fonts, vercel.live preview comments): pass through.
   if (!sameOrigin) return;
 
@@ -173,7 +176,12 @@ async function networkFirstDoc(req) {
     // That stranded installed PWAs on whatever shell was live when the
     // current CACHE_VERSION was precached (an old "Everyone is a founder"
     // welcome lingering offline across deploys). Keep the two in lockstep.
-    if (fresh && fresh.ok) {
+    // Only the People inbox shell may overwrite those keys — never /settings
+    // or other secondary pages.
+    let path = "/";
+    try { path = new URL(req.url).pathname || "/"; } catch { /* keep / */ }
+    const isShellNav = path === "/" || path === "/index.html";
+    if (fresh && fresh.ok && isShellNav) {
       cache.put("/", fresh.clone());
       cache.put("/index.html", fresh.clone());
     }

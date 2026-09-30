@@ -61,11 +61,26 @@
     } catch (e) { /* ignore */ }
   }
 
+  /** iPhone / iPad (incl. desktop-mode iPadOS) cannot use showDirectoryPicker. */
+  function isAppleMobile() {
+    var ua = String(navigator.userAgent || "");
+    if (/iPhone|iPod|iPad/i.test(ua)) return true;
+    // iPadOS 13+ can report as Macintosh with touch.
+    if (navigator.platform === "MacIntel" && typeof navigator.maxTouchPoints === "number"
+      && navigator.maxTouchPoints > 1) {
+      return true;
+    }
+    return false;
+  }
+
   function detectCapability() {
     if (window.tinker && typeof window.tinker.pickNotesFolder === "function") {
       return "electron";
     }
-    if (typeof window.showDirectoryPicker === "function") {
+    // Real Safari / iOS PWA: File System Access API is absent or unusable for
+    // Drive-synced folders. Never show Choose folder there - clicks no-op.
+    if (isAppleMobile()) return "unsupported";
+    if (typeof window.showDirectoryPicker === "function" && window.isSecureContext !== false) {
       return "fs-access";
     }
     return "unsupported";
@@ -150,6 +165,9 @@
       return true;
     }
     if (state.capability === "fs-access") {
+      if (typeof window.showDirectoryPicker !== "function") {
+        throw Object.assign(new Error("Folder picker is not available in this browser."), { name: "NotSupportedError" });
+      }
       var handle = await window.showDirectoryPicker({ mode: "readwrite" });
       rootHandle = handle;
       state.folderName = handle.name || "Notes";
@@ -159,6 +177,18 @@
       return true;
     }
     return false;
+  }
+
+  function pickerErrorMessage(err) {
+    var name = err && err.name ? String(err.name) : "";
+    if (name === "AbortError") return "";
+    if (name === "NotAllowedError" || name === "SecurityError") {
+      return "Could not open the folder picker. Allow file access, or try desktop Chrome or Edge.";
+    }
+    if (name === "NotSupportedError") {
+      return "Folder picker is not available here. Use desktop Chrome, Edge, or the Mac app with a local folder (including one synced by Google Drive).";
+    }
+    return "Could not choose that folder. Pick a local folder (a Google Drive Desktop sync folder works on Mac/Windows).";
   }
 
   async function clearFolder() {
@@ -565,12 +595,16 @@
 
     if (state.capability === "unsupported") {
       if (actions) actions.hidden = true;
+      if (pathEl) pathEl.hidden = true;
       if (unsupported) {
         unsupported.hidden = false;
-        unsupported.textContent = "Notes still sync through Tinker.";
+        unsupported.textContent = isAppleMobile()
+          ? "Choosing a folder needs desktop Chrome, Edge, or the Mac app (a Google Drive Desktop folder works there). On iPhone, notes still sync through Tinker."
+          : "Folder picker needs desktop Chrome, Edge, or the Mac app. Notes still sync through Tinker.";
       }
       return;
     }
+    if (pathEl) pathEl.hidden = false;
     if (unsupported) unsupported.hidden = true;
     if (actions) actions.hidden = false;
     if (pathEl) {
@@ -600,7 +634,15 @@
     var clearBtn = row.querySelector("[data-notes-folder-clear]");
     if (pickBtn) {
       pickBtn.addEventListener("click", function () {
+        if (state.capability === "unsupported") {
+          state.notice = pickerErrorMessage({ name: "NotSupportedError" });
+          renderSettings();
+          return;
+        }
         pickBtn.disabled = true;
+        state.notice = "";
+        // Call showDirectoryPicker in this turn (user gesture) - do not await
+        // anything before pickFolder's picker call.
         pickFolder()
           .then(function (ok) {
             if (!ok) return;
@@ -608,7 +650,10 @@
             renderSettings();
             return exportAllExisting().then(function () { return syncOnce(); });
           })
-          .catch(function () { /* user cancelled */ })
+          .catch(function (err) {
+            var msg = pickerErrorMessage(err);
+            if (msg) state.notice = msg;
+          })
           .finally(function () {
             pickBtn.disabled = false;
             renderSettings();
