@@ -39,7 +39,7 @@ test("notes stay on the lead; Keep crafting asks a new person question", () => {
   assert.match(js, /normalizeKeepCraftingQuestion|fallbackKeepCraftingQuestion/);
   assert.match(js, /scrollQuestionIntoView|scrollIntoView/);
   assert.match(js, /isRepeatQuestion/);
-  // Review happens outside Tinker: never build To/Subject/Body or approve UI.
+  // No editable review To/Body/approve UI — Subject card is read-only after done.
   assert.equal(/Review before handoff/.test(js), false);
   assert.equal(/data-review-to/.test(js), false);
   assert.equal(/data-review-subject/.test(js), false);
@@ -51,6 +51,8 @@ test("notes stay on the lead; Keep crafting asks a new person question", () => {
   assert.equal(/needs a recipient/.test(js), false);
   assert.equal(/\.messages-review\b/.test(css), false);
   assert.equal(/onPrimary:\s*function\s*\(\)\s*\{\s*saveDraft\("ship"\)/.test(js), false);
+  assert.match(js, /data-notepad-subject|buildSubjectCard/);
+  assert.match(js, /proposed-subject/);
 });
 
 test("person Keep crafting uses window.tinker.callClaude (platform-mobile on iPhone)", () => {

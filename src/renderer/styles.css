@@ -1756,6 +1756,28 @@ body.messages-notepad-active .mode-nav {
   line-height: 1.4;
   color: var(--color-muted);
 }
+/* Final read-only subject after This is everything — not a question card. */
+.messages-notepad__subject {
+  margin: 14px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.messages-notepad__subject-label {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.messages-notepad__subject-text {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 550;
+  line-height: 1.35;
+  color: var(--color-foreground);
+}
 .messages-notepad__input {
   display: block;
   width: 100%;
