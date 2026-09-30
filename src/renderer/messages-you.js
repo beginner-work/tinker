@@ -215,7 +215,7 @@
     var next = document.getElementById("writing-next");
     if (end) end.textContent = "This is everything";
     // Don't rename Continue (scene-setting) or Next (history paging).
-    // Only the live pending prompt sets "Keep crafting" itself — renaming
+    // Only the live pending prompt sets "Keep crafting" itself; renaming
     // history "Next →" made Keep crafting look broken (flash, no new ask).
     if (next) {
       var label = String(next.textContent || "").trim();
