@@ -327,6 +327,8 @@ function frontProbe() {
     companyRows: people.length,
     hasThisWeek: /THIS WEEK/i.test(bodyText),
     hasLater: /\bLATER\b/i.test(bodyText),
+    hasFlatReasons: /interview|follow-up|outreach|North Star|reading|prep/i.test(bodyText),
+    hasGroupHeads: !!document.querySelector(".messages-rail__group-head"),
     hasSearch: !!document.querySelector("[data-messages-search], .messages-rail__search"),
     textSample: bodyText.slice(0, 200),
   };
@@ -506,7 +508,7 @@ describe("production mobile nav", { skip: !PROD }, () => {
     });
   });
 
-  test("production people rail THIS WEEK / LATER and open person chat", async () => {
+  test("production people rail flat priority list and open person chat", async () => {
     await withPhone(async (page) => {
       await stubApis(page);
       await gotoProd(page, "/");
@@ -514,8 +516,9 @@ describe("production mobile nav", { skip: !PROD }, () => {
       await page.waitForSelector("[data-conv-id='lead_e2e_morgan'], [data-conv-id]:not([data-conv-id='__you__'])", { timeout: 15000 });
       const rail = await page.evaluate(frontProbe);
       await shotSafe(page, "prod-mobile-people-rail");
-      record("production people rail THIS WEEK / LATER",
-        rail.ok && rail.hasThisWeek && rail.hasLater && rail.peopleRows >= 3 && !rail.hasSearch,
+      record("production people rail flat priority list",
+        rail.ok && !rail.hasThisWeek && !rail.hasLater && !rail.hasGroupHeads
+          && rail.peopleRows >= 3 && !rail.hasSearch,
         JSON.stringify(rail));
 
       await page.evaluate(() => {
