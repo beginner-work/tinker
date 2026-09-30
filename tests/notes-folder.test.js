@@ -1,5 +1,7 @@
 /* LL-72: notes folder path mapping, Markdown round-trip, conflicts, rename, approval. */
 "use strict";
+
+const { EXPECTED_SW_CACHE_VERSION } = require("./helpers/sw-cache-version.js");
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -281,7 +283,7 @@ test("inbox and electron wire notes folder without extra chrome", () => {
 
 test("service worker leaves /settings on the network and bumps cache version", () => {
   const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
-  assert.match(sw, /tinker-shell-v17/);
+  assert.match(sw, new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(sw, /pathname === "\/settings"/);
   assert.match(sw, /isShellNav/);
 });

@@ -23,10 +23,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const sw = fs.readFileSync(
-  path.join(__dirname, "..", "src", "renderer", "sw.js"),
-  "utf8",
-);
+const { EXPECTED_SW_CACHE_VERSION, swSource: sw } = require("./helpers/sw-cache-version.js");
 
 test("a fresh navigation refreshes both canonical shell keys", () => {
   // Updating only /index.html strands the "/" entry that root
@@ -74,12 +71,17 @@ test("CSS and JS use network-first so deployed PWAs pick up new shell assets", (
     false,
     "CSS/JS must not use stale-while-revalidate (strands installed PWAs)",
   );
-  assert.match(sw, /tinker-shell-v17/, "bump CACHE_VERSION when changing SW strategy");
+  assert.match(
+    sw,
+    new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    "bump CACHE_VERSION in sw.js when changing SW strategy (tests read it via helpers/sw-cache-version.js)",
+  );
   assert.match(sw, /\/profile\.css/, "profile.css must be precached");
   assert.match(sw, /\/messages-shell\.js/, "messages shell must be precached");
   assert.match(sw, /\/messages-notepad\.js/, "messages notepad must be precached");
   assert.match(sw, /\/messages-composer\.js/, "messages composer must be precached");
   assert.match(sw, /\/messages-reading\.js/, "messages reading must be precached");
+  assert.match(sw, /\/messages-thread-actions\.js/, "shared thread actions must be precached");
   assert.match(sw, /\/platform-mobile\.js/, "platform-mobile must be precached");
 });
 

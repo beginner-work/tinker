@@ -208,7 +208,7 @@
     // Display-only: do not render the italic "Notes for …" label, company
     // logo mark, or company-notes paragraph. researchProse / lead.notes still
     // feed Keep crafting + subject prompts via buildPersonUserMessage and
-    // resolveSubject — hide UI, keep prompt context.
+    // resolveSubject: hide UI, keep prompt context.
     var opening = el("div", "messages-notepad__opening");
     void company;
     appendTurns(opening);
@@ -256,7 +256,7 @@
     if (api && typeof api.fallbackOutreachSubject === "function") {
       return api.fallbackOutreachSubject(person, co);
     }
-    return co ? ("Quick note — " + (person || "you") + " at " + co) : ("Quick note — " + (person || "you"));
+    return co ? ("Quick note - " + (person || "you") + " at " + co) : ("Quick note - " + (person || "you"));
   }
   function scrollQuestionIntoView() {
     var host = threadHost();
@@ -531,9 +531,9 @@
     }
     var instr = api && typeof api.keepCraftingUserInstruction === "function"
       ? api.keepCraftingUserInstruction({ tighter: !!tighter })
-      : 'The founder pressed "Keep crafting" — return a non-empty next_question that has not been asked yet. Set done false. Do not stitch.';
+      : 'The founder pressed "Keep crafting" - return a non-empty next_question that has not been asked yet. Set done false. Do not stitch.';
     lines.push(instr);
-    lines.push("Ask about what the founder wants " + person + " to understand — learning-focused, concrete, not a repeat.");
+    lines.push("Ask about what the founder wants " + person + " to understand - learning-focused, concrete, not a repeat.");
     return lines.join("\n");
   }
   function resolveNextQuestion(asked) {
@@ -591,7 +591,7 @@
     if (np) state.draft = np.getValue();
     var answer = String(state.draft || "").trim();
     if (!answer) {
-      showNudge("Type an answer first — Keep crafting asks the next question from what you wrote.");
+      showNudge("Type an answer first. Keep crafting asks the next question from what you wrote.");
       return;
     }
     state.asking = true;

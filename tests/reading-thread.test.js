@@ -1,6 +1,8 @@
 /* Generic reading workbook: store, merge-safe notes, MCP tools, UI wiring. */
 "use strict";
 
+const { EXPECTED_SW_CACHE_VERSION } = require("./helpers/sw-cache-version.js");
+
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
@@ -266,7 +268,7 @@ test("UI reuses notepad / Keep crafting; no review UI; SW precaches reading modu
   assert.match(html, /messages-reading\.js/);
   assert.ok(html.indexOf("messages-reading.js") < html.indexOf("messages-you.js"));
   assert.match(sw, /\/messages-reading\.js/);
-  assert.match(sw, /tinker-shell-v17/);
+  assert.match(sw, new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(vercel, /reading-thread/);
 
   // No DDD-specific hardcoding in product code.
