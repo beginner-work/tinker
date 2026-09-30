@@ -134,7 +134,9 @@ function compareRanked(a, b) {
   const da = a.dueDay || "";
   const db = b.dueDay || "";
   if (da && db && da !== db) return da < db ? -1 : 1;
-  if (da || db) return da ? -1 : 1;
+  // Only prefer a dated row over an undated one; equal due days fall through
+  // so company priority / north-star can still break the tie.
+  if (!!da !== !!db) return da ? -1 : 1;
   if (a.tier === TIER.COLD) {
     if (!!a.northStar !== !!b.northStar) return a.northStar ? -1 : 1;
     const pa = Number.isFinite(a.priority) ? a.priority : 100;
