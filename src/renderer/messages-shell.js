@@ -637,7 +637,7 @@
       });
     }
     document.body.classList.add("messages-you-active", "messages-thread-active");
-    document.body.classList.remove("messages-reading-active");
+    document.body.classList.remove("messages-reading-active", "messages-application-active");
     // Clear person profile links before owner chrome mounts.
     if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.clearProfileLinks === "function") {
       window.tinkerMessagesThread.clearProfileLinks();
