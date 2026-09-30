@@ -207,8 +207,8 @@
       return {
         tier: RANK_TIER.DEADLINE,
         dueDay: due,
-        rankReason: due <= today
-          ? ("due " + (due === today ? "today" : due) + " · interview / deadline")
+        rankReason: due === today
+          ? "due today · interview / deadline"
           : ("due " + due + " · interview / deadline"),
         northStar: !!(company && company.northStar),
         priority: companyPriority(lead),
@@ -218,7 +218,7 @@
       return {
         tier: RANK_TIER.WARM,
         dueDay: due,
-        rankReason: "follow-up" + (due ? " · " + due : ""),
+        rankReason: due ? ("follow-up · " + due) : "follow-up",
         northStar: !!(company && company.northStar),
         priority: companyPriority(lead),
       };
@@ -234,12 +234,11 @@
     }
     var wave = String((company && company.tier) || "other");
     var north = !!(company && company.northStar);
+    var coldLabel = north ? "North Star" : (wave !== "other" ? wave.replace(/_/g, " ") : "outreach");
     return {
       tier: RANK_TIER.COLD,
       dueDay: due,
-      rankReason: north
-        ? ("North Star" + (due ? " · " + due : ""))
-        : ((wave !== "other" ? wave.replace(/_/g, " ") : "outreach") + (due ? " · " + due : "")),
+      rankReason: due ? (coldLabel + " · " + due) : coldLabel,
       northStar: north,
       priority: companyPriority(lead),
     };
