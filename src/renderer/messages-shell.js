@@ -902,24 +902,25 @@
     li.appendChild(btn);
     return li;
   }
-  function renderKindDotMark() {
-    // Non-person inbox kinds (reading) use a colored dot in the logo slot
-    // so rows stay aligned with person/company logos. Not book-specific.
-    var mark = el("span", "messages-rail__logo messages-rail__logo--dot", { "aria-hidden": "true" });
-    mark.appendChild(el("span", "messages-rail__dot"));
+  function renderReadingBookMark() {
+    // Reading rows use a book glyph in the same 18px logo slot as company logos.
+    // Do not use a plain accent dot — that reads as "unread".
+    var mark = el("span", "messages-rail__logo messages-rail__logo--book", { "aria-hidden": "true" });
+    mark.innerHTML = '<svg class="messages-rail__book" viewBox="0 0 24 24" width="14" height="14" focusable="false">'
+      + '<path fill="currentColor" d="M6.5 3.75A2.25 2.25 0 0 0 4.25 6v12A2.25 2.25 0 0 0 6.5 20.25h12.25a.75.75 0 0 0 0-1.5H6.5a.75.75 0 0 1-.75-.75V6A.75.75 0 0 1 6.5 5.25h11.5v12.5a.75.75 0 0 0 1.5 0V4.5A.75.75 0 0 0 18.75 3.75H6.5Z"/>'
+      + '</svg>';
     return mark;
   }
   function renderReadingItem(thread, rankReason) {
     var convId = readingConvId(thread.id);
     var li = el("li");
-    var unread = !thread.done;
-    var btn = el("button", "messages-rail__row messages-rail__row--reading" + (unread ? " messages-rail__row--unread" : ""), {
+    var btn = el("button", "messages-rail__row messages-rail__row--reading", {
       type: "button",
       "data-conv-id": convId,
       "data-reading-id": thread.id,
       "aria-current": convId === state.selectedId ? "true" : "false",
     });
-    var avatar = renderKindDotMark();
+    var avatar = renderReadingBookMark();
     var main = el("span", "messages-rail__main");
     var top = el("span", "messages-rail__top");
     var name = el("span", "messages-rail__name");

@@ -9,6 +9,7 @@
  * GET  ?action=get&id= → { thread }
  * POST ?action=edit body { notes } &id= → { thread }
  * POST ?action=advance body { notes? } &id= → { thread }
+ * POST ?action=retreat &id= → { thread } (go back one section; notes kept)
  */
 
 "use strict";
@@ -87,6 +88,12 @@ async function dispatch(method, action, auth, body, id) {
           notes: Object.prototype.hasOwnProperty.call(body, "notes") ? body.notes : undefined,
         }),
       },
+    };
+  }
+  if (method === "POST" && action === "retreat") {
+    return {
+      status: 200,
+      body: { thread: await store.retreatSection({ userId, threadId: id }) },
     };
   }
   return { status: 404, body: { error: "Unknown action." } };

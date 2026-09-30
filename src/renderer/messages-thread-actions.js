@@ -24,7 +24,8 @@
 
   /**
    * Build a footer with secondary then primary (lead/You order).
-   * Returns { foot, primary, secondary }.
+   * Optional tertiary (e.g. reading "Section done") after primary.
+   * Returns { foot, primary, secondary, tertiary }.
    */
   function buildFoot(opts) {
     opts = opts || {};
@@ -41,18 +42,29 @@
       "data-thread-action": "primary",
       "data-notepad-primary": "1",
     });
+    var tertiary = el("button", opts.tertiaryClass || "messages-notepad__tertiary", {
+      type: "button",
+      "data-thread-action": "tertiary",
+      "data-notepad-tertiary": "1",
+      hidden: "",
+    });
     secondary.textContent = opts.secondaryLabel != null ? opts.secondaryLabel : SECONDARY_LABEL;
     primary.textContent = opts.primaryLabel != null ? opts.primaryLabel : PRIMARY_LABEL;
-    // Order: Keep crafting, then This is everything.
+    tertiary.textContent = opts.tertiaryLabel != null ? opts.tertiaryLabel : "";
+    // Order: Keep crafting, This is everything, optional Section done.
     foot.appendChild(secondary);
     foot.appendChild(primary);
+    foot.appendChild(tertiary);
     if (typeof opts.onSecondary === "function") {
       secondary.addEventListener("click", function () { opts.onSecondary(); });
     }
     if (typeof opts.onPrimary === "function") {
       primary.addEventListener("click", function () { opts.onPrimary(); });
     }
-    return { foot: foot, primary: primary, secondary: secondary };
+    if (typeof opts.onTertiary === "function") {
+      tertiary.addEventListener("click", function () { opts.onTertiary(); });
+    }
+    return { foot: foot, primary: primary, secondary: secondary, tertiary: tertiary };
   }
 
   /** Ensure an existing writing footer matches lead order + labels in You mode. */

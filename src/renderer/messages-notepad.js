@@ -11,8 +11,10 @@
   var opts = {
     primaryLabel: "Save draft",
     secondaryLabel: "",
+    tertiaryLabel: "",
     onPrimary: null,
     onSecondary: null,
+    onTertiary: null,
     onInput: null,
     heading: "",
     metaHtml: null,
@@ -48,23 +50,30 @@
           footClass: "messages-notepad__foot",
           primaryLabel: "Save draft",
           secondaryLabel: "",
+          tertiaryLabel: "",
           onPrimary: function () {
             if (typeof opts.onPrimary === "function") opts.onPrimary();
           },
           onSecondary: function () {
             if (typeof opts.onSecondary === "function") opts.onSecondary();
           },
+          onTertiary: function () {
+            if (typeof opts.onTertiary === "function") opts.onTertiary();
+          },
         })
       : null;
     var foot;
     var primary;
     var secondary;
+    var tertiary;
     if (built) {
       foot = built.foot;
       foot.setAttribute("data-notepad-foot", "1");
       primary = built.primary;
       secondary = built.secondary;
+      tertiary = built.tertiary;
       secondary.hidden = true;
+      if (tertiary) tertiary.hidden = true;
     } else {
       foot = el("footer", "messages-notepad__foot", { "data-notepad-foot": "1" });
       secondary = el("button", "messages-notepad__secondary", {
@@ -76,14 +85,23 @@
         type: "button",
         "data-notepad-primary": "1",
       });
+      tertiary = el("button", "messages-notepad__tertiary", {
+        type: "button",
+        "data-notepad-tertiary": "1",
+        hidden: "",
+      });
       primary.textContent = "Save draft";
       foot.appendChild(secondary);
       foot.appendChild(primary);
+      foot.appendChild(tertiary);
       primary.addEventListener("click", function () {
         if (typeof opts.onPrimary === "function") opts.onPrimary();
       });
       secondary.addEventListener("click", function () {
         if (typeof opts.onSecondary === "function") opts.onSecondary();
+      });
+      tertiary.addEventListener("click", function () {
+        if (typeof opts.onTertiary === "function") opts.onTertiary();
       });
     }
     root.appendChild(body);
@@ -97,6 +115,7 @@
   function applyLabels() {
     var primary = root && root.querySelector("[data-notepad-primary]");
     var secondary = root && root.querySelector("[data-notepad-secondary]");
+    var tertiary = root && root.querySelector("[data-notepad-tertiary]");
     if (primary) {
       var primaryLabel = String(opts.primaryLabel || "").trim();
       if (!primaryLabel && opts.hideFoot) {
@@ -111,6 +130,14 @@
       var label = String(opts.secondaryLabel || "").trim();
       secondary.hidden = !label;
       secondary.textContent = label;
+    }
+    if (tertiary) {
+      var tertiaryLabel = String(opts.tertiaryLabel || "").trim();
+      tertiary.hidden = !tertiaryLabel || !!opts.hideFoot;
+      tertiary.textContent = tertiaryLabel;
+      tertiary.onclick = function () {
+        if (typeof opts.onTertiary === "function") opts.onTertiary();
+      };
     }
   }
 

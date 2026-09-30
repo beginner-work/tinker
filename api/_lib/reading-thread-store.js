@@ -270,6 +270,40 @@ async function advanceSection({ userId, threadId, notes } = {}) {
   }
 }
 
+/** Move currentSectionIndex back one without wiping notepad notes. */
+async function retreatSection({ userId, threadId } = {}) {
+  try {
+    const uid = requireUserId(userId);
+    const { threads } = await readBlob(uid);
+    const thread = findThread(threads, threadId);
+    const sections = Array.isArray(thread.sections) ? thread.sections : [];
+    let idx = Math.max(0, Number(thread.currentSectionIndex) || 0);
+    if (idx <= 0) {
+      throw fail(400, "Already on the first section.");
+    }
+    const current = sections[idx];
+    if (current && current.status === "current") current.status = "pending";
+    const prevIdx = idx - 1;
+    const prev = sections[prevIdx];
+    if (prev) {
+      prev.status = "current";
+      prev.completedAt = null;
+    }
+    thread.currentSectionIndex = prevIdx;
+    thread.done = false;
+    if (notesHaveDoneMarker(thread.notes)) {
+      thread.notes = String(thread.notes || "")
+        .replace(/(?:\n*)###\s*__done__\s*(?:\n|$)/g, "\n")
+        .replace(/\n+$/, "\n");
+    }
+    thread.updatedAt = new Date().toISOString();
+    await writeBlob(uid, threads);
+    return presentThread(thread);
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
 module.exports = {
   KIND,
   UNAVAILABLE,
@@ -282,4 +316,5 @@ module.exports = {
   createThread,
   updateNotes,
   advanceSection,
+  retreatSection,
 };

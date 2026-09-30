@@ -196,6 +196,33 @@ test("advance on last section appends ### __done__", async () => {
   assert.match(done.notes, /__done__/);
 });
 
+test("retreat goes back one section and keeps notepad notes", async () => {
+  const created = await store.createThread({
+    userId: "user-a",
+    title: "Retreat Book",
+    sections: ["Ch 1: Crunching Knowledge", "Ch 2: Communication and the Use of Language"],
+  });
+  const notes = "### " + created.currentSection.preReadQuestion + "\nMy Ch 1 answer stays.\n";
+  const advanced = await store.advanceSection({
+    userId: "user-a",
+    threadId: created.id,
+    notes,
+  });
+  assert.equal(advanced.currentSectionIndex, 1);
+  assert.match(advanced.notes, /My Ch 1 answer stays/);
+  const back = await store.retreatSection({ userId: "user-a", threadId: created.id });
+  assert.equal(back.currentSectionIndex, 0);
+  assert.equal(back.currentSection.title, "Ch 1: Crunching Knowledge");
+  assert.equal(back.sections[0].status, "current");
+  assert.equal(back.sections[1].status, "pending");
+  assert.match(back.notes, /My Ch 1 answer stays/);
+  assert.equal(back.done, false);
+  await assert.rejects(
+    () => store.retreatSection({ userId: "user-a", threadId: created.id }),
+    /first section/i,
+  );
+});
+
 test("owner API lists and edits; mcp_ bearer rejected on owner route", async () => {
   const created = await store.createThread({
     userId: "user-a",
@@ -263,6 +290,12 @@ test("UI reuses notepad / Keep crafting; no review UI; SW precaches reading modu
   assert.match(reading, /KEEP_CRAFTING_MODEL|keepCraftingModel/);
   assert.match(reading, /Section done/);
   assert.match(reading, /Keep crafting/);
+  assert.match(reading, /This is everything/);
+  assert.match(reading, /finishAnswer/);
+  assert.match(reading, /onPrimary:\s*function\s*\(\)\s*\{\s*finishAnswer/);
+  assert.match(reading, /onTertiary:\s*function\s*\(\)\s*\{\s*sectionDone/);
+  assert.match(reading, /Moved to /);
+  assert.match(reading, /Go back|goBack|retreat/);
   assert.equal(/messages-review|Subject card|proposed-subject|sent_by_owner/.test(reading), false);
   assert.match(shell, /READING_PREFIX|selectReading|readingThreads/);
   assert.match(html, /messages-reading\.js/);
@@ -278,12 +311,15 @@ test("UI reuses notepad / Keep crafting; no review UI; SW precaches reading modu
   ), false);
   // Section title once in header — not repeated in notepad opening.
   assert.equal(/messages-notepad__section|data-reading-section/.test(reading), false);
-  // Non-person rail mark: accent dot in the logo slot (not letter "R").
-  assert.match(shell, /renderKindDotMark|messages-rail__logo--dot/);
-  assert.match(shell, /messages-rail__dot/);
+  // Reading rail mark: book glyph in the logo slot (not accent unread-style dot).
+  assert.match(shell, /renderReadingBookMark|messages-rail__logo--book/);
+  assert.match(shell, /messages-rail__book/);
+  assert.equal(/messages-rail__logo--dot|renderKindDotMark/.test(shell), false);
   assert.equal(/avatar\.textContent\s*=\s*["']R["']/.test(shell), false);
   const css = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
-  assert.match(css, /\.messages-rail__dot[\s\S]*color-accent-strong/);
+  assert.match(css, /\.messages-rail__logo--book/);
+  assert.match(css, /\.messages-notepad__move/);
+  assert.match(css, /\.messages-notepad__tertiary/);
 });
 
 test("leads-store still exports merge helpers after extract", () => {
