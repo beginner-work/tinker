@@ -256,18 +256,6 @@ a.sidebar__secondary-link { display: inline; }
   cursor: default;
   pointer-events: none;
 }
-.messages-rail__badge {
-  flex-shrink: 0;
-  min-width: 1.4em;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--color-accent-strong, #6366f1);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  text-align: center;
-  line-height: 1.4;
-}
 .messages-rail__search { display: none; }
 .messages-rail__logo {
   flex-shrink: 0;
@@ -370,13 +358,6 @@ a.sidebar__secondary-link { display: inline; }
 }
 .messages-rail__group-head:hover { color: var(--color-foreground); }
 .messages-rail__group-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.messages-rail__group-count {
-  flex-shrink: 0;
-  font-weight: 500;
-  opacity: 0.75;
-  text-transform: none;
-  letter-spacing: 0;
-}
 .messages-rail__group-list {
   list-style: none;
   margin: 0;
@@ -497,18 +478,6 @@ a.sidebar__secondary-link { display: inline; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.messages-rail__unread {
-  flex-shrink: 0;
-  min-width: 1.25em;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: var(--color-accent-strong, #6366f1);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  text-align: center;
-  line-height: 1.4;
 }
 .messages-rail__touch {
   text-transform: lowercase;

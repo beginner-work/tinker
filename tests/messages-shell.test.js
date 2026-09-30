@@ -121,6 +121,15 @@ test("conversation list styling is flat (no nested cards)", () => {
   assert.equal(/(?:^|[^\w-])\.messages-pane\s*\{[^}]*box-shadow/.test(css), false);
 });
 
+test("inbox shows no count badges (header, section, or row)", () => {
+  assert.equal(/data-messages-badge/.test(html), false);
+  assert.equal(/messages-rail__badge/.test(html + css + js), false);
+  assert.equal(/messages-rail__group-count/.test(html + css + js), false);
+  assert.equal(/messages-rail__unread/.test(html + css + js), false);
+  // Unread weight cue may remain; numeric pills must not.
+  assert.equal(/headCount/.test(js), false);
+});
+
 test("hunt funnel still opens a person conversation", () => {
   assert.match(funnel, /tinkerMessagesShell/);
   assert.match(funnel, /setCompanyFilter/);
