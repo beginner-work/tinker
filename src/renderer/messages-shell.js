@@ -124,6 +124,19 @@
   function isApplicationSelected() {
     return String(state.selectedId || "").indexOf(APPLICATION_PREFIX) === 0;
   }
+  /** Desktop home lands on the owner self-reflection (You) thread. Mobile keeps the inbox list. */
+  function isDesktopHomeWidth() {
+    return !(window.matchMedia && window.matchMedia("(max-width: 720px)").matches);
+  }
+  function openDesktopYouHome(opts) {
+    opts = opts || {};
+    if (!isDesktopHomeWidth()) return false;
+    selectYou({
+      silent: opts.silent !== false,
+      stayOnList: true,
+    });
+    return true;
+  }
   function contactSeq(lead, touch) {
     var type = String(lead && lead.contactType || "").toLowerCase();
     if (type === "referrer") return COMPANY_SEQ.referrer;
@@ -1162,7 +1175,7 @@
       });
     } else if (state.selectedId) {
       selectLead(state.selectedId, { silent: true, stayOnList: !document.body.classList.contains("messages-mobile-thread") });
-    } else {
+    } else if (!openDesktopYouHome({ silent: true })) {
       selectLead("", { silent: true });
     }
   }
@@ -1283,7 +1296,6 @@
         e.preventDefault();
         document.body.classList.remove(
           "messages-mobile-thread",
-          "messages-you-active",
           "messages-notepad-active",
           "messages-reading-active",
           "messages-application-active"
@@ -1291,7 +1303,11 @@
         if (window.tinkerMobileDrawer && typeof window.tinkerMobileDrawer.close === "function") {
           window.tinkerMobileDrawer.close();
         }
-        selectLead("", { silent: true });
+        // Desktop home always re-opens self-reflection; mobile stays on the list.
+        if (!openDesktopYouHome({ silent: false })) {
+          document.body.classList.remove("messages-you-active");
+          selectLead("", { silent: true });
+        }
         renderList();
         showPane();
       });
@@ -1310,6 +1326,9 @@
     var tabs = pane && pane.querySelector("[data-messages-tabs]");
     if (tabs) { tabs.innerHTML = ""; tabs.hidden = true; }
     bindChrome();
+    // Desktop + signed-in: open You immediately so the detail pane never
+    // flashes empty or a different thread before the inbox finishes loading.
+    if (token()) openDesktopYouHome({ silent: true });
     // Warm path: paint the last inbox snapshot before the network returns.
     if (token()) {
       var cached = readInboxCache();
@@ -1320,6 +1339,10 @@
         try {
           performance.mark("tinker-inbox-cache-paint");
         } catch (e) { /* ignore */ }
+      }
+      // Re-paint You after cache so the header shows the owner profile.
+      if (isDesktopHomeWidth() && (!state.selectedId || state.selectedId === YOU_ID)) {
+        selectYou({ silent: true, stayOnList: true });
       }
     }
     refresh();

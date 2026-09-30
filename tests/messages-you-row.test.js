@@ -21,6 +21,21 @@ test("pinned You row is always wired above search and due groups", () => {
   assert.match(shell, /renderYouRow/);
 });
 
+test("desktop home lands on You/self-reflection immediately; mobile stays on list", () => {
+  assert.match(shell, /isDesktopHomeWidth|openDesktopYouHome/);
+  assert.match(shell, /max-width:\s*720px/);
+  // Boot opens You before refresh so the detail pane does not flash empty.
+  const bootIdx = shell.indexOf("function boot");
+  assert.ok(bootIdx > 0);
+  const boot = shell.slice(bootIdx, bootIdx + 2200);
+  assert.match(boot, /openDesktopYouHome/);
+  assert.match(boot, /selectYou\(\{\s*silent:\s*true,\s*stayOnList:\s*true/);
+  // Fresh paint with no selection prefers You on desktop only.
+  assert.match(shell, /else if \(!openDesktopYouHome/);
+  // Brand/home click re-opens You on desktop; mobile clears to the list.
+  assert.match(shell, /openDesktopYouHome\(\{\s*silent:\s*false/);
+});
+
 test("You row and header use the owner profile name, not the brand label", () => {
   assert.match(shell, /ownerPersonLabel|ownerPersonName/);
   assert.match(shell, /fillOwnerMark|messages-avatar__img/);

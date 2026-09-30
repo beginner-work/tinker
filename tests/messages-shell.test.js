@@ -55,6 +55,12 @@ test("inbox boots from one batched endpoint and paints a cached snapshot first",
   assert.match(js, /deferLogoFill|requestIdleCallback/);
 });
 
+test("desktop home auto-opens the You self-reflection thread", () => {
+  assert.match(js, /openDesktopYouHome/);
+  assert.match(js, /isDesktopHomeWidth/);
+  assert.match(js, /function boot[\s\S]*openDesktopYouHome/);
+});
+
 test("no initials monograms; company logo only when resolved; owner keeps photo", () => {
   assert.match(js, /hideOnFail:\s*true/);
   assert.match(js, /No monogram fallback/);
