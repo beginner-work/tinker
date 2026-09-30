@@ -118,17 +118,26 @@
     }
   }
   document.querySelectorAll("[data-open]").forEach(function (btn) {
-    btn.addEventListener("click", function () {
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
       var kind = btn.getAttribute("data-open");
       if (kind === "malay") openThread("Malay", "Recruiter, MK Network at Hightouch", "https://air.usebraintrust.com/i/379/8200");
       else if (kind === "reading") openThread("Example Book", "Part I · Chapter 1", "");
       else openThread("You", "", "");
     });
   });
-  document.querySelector("[data-messages-back]").addEventListener("click", function () {
+  document.querySelector("[data-messages-back]").addEventListener("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
     document.body.classList.remove("messages-mobile-thread", "messages-thread-active");
     if (window.tinkerMobileDrawer) window.tinkerMobileDrawer.close();
   });
+  // Demo helpers for automated checks.
+  window.__demoOpen = openThread;
+  window.__demoBack = function () {
+    document.body.classList.remove("messages-mobile-thread", "messages-thread-active");
+  };
 </script>
 </body>
 </html>
