@@ -98,3 +98,40 @@ test("warm follow-up beats cold; reading is prep tier", () => {
   assert.equal(reading.tier, TIER.PREP);
   assert.equal(items.find((row) => row.id === "cold").tier, TIER.COLD);
 });
+
+test("same due day breaks ties by company priority", () => {
+  const items = rankInboxItems({
+    leads: [
+      {
+        id: "hamid",
+        personName: "Hamid Dadkhah",
+        companyId: "ramp",
+        nextStepAt: "2026-09-30T16:00:00.000Z",
+        notes: "### __done__\n",
+        queueOrder: 0,
+      },
+      {
+        id: "andrew",
+        personName: "Andrew Glenn",
+        companyId: "alloy",
+        nextStepAt: "2026-09-30T16:00:00.000Z",
+        notes: "",
+        queueOrder: 0,
+      },
+    ],
+    drafts: [],
+    companies: [
+      { id: "ramp", name: "Ramp", priority: 3, northStar: false, tier: "wave_1" },
+      { id: "alloy", name: "Alloy", priority: 1, northStar: false, tier: "wave_1" },
+    ],
+    byLeadId: {
+      hamid: { touch: { date: "2026-09-30T16:00:00.000Z", touchType: "hiring_leader_outreach", status: "planned" } },
+      andrew: { touch: { date: "2026-09-30T16:00:00.000Z", touchType: "hiring_leader_outreach", status: "planned" } },
+    },
+    readingThreads: [],
+  });
+  assert.equal(items[0].id, "andrew");
+  assert.equal(items[1].id, "hamid");
+  assert.equal(items[0].priority, 1);
+  assert.equal(items[1].priority, 3);
+});
