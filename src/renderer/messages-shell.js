@@ -1,5 +1,6 @@
 /* Messaging shell: people-list inbox (TYL-65).
- * Left rail: owner row, then THIS WEEK / LATER people groups.
+ * Left rail: owner row, then one flat list ranked by priority
+ * (deadlines → warm follow-ups → prep → cold outreach).
  * Opening a person goes straight to their chat (invisible notepad).
  * Company logo badges the person avatar; research opens in the chat.
  */
@@ -22,8 +23,9 @@
     referral_follow_up: "follow-up",
     call_follow_up: "follow-up",
   };
-  var DUE_ORDER = ["THIS WEEK", "LATER"];
   var YOU_ID = "__you__";
+  var RANK_TIER = { DEADLINE: 1, WARM: 2, PREP: 3, COLD: 4 };
+  var WARM_TOUCH = { call_follow_up: 1, referral_follow_up: 1 };
   var READING_PREFIX = "__read__:";
   var OWNER_LABEL = "Lindow Labs";
   var OWNER_LOGO = "./icons/lindow-labs.svg";
@@ -140,17 +142,6 @@
       return true;
     });
   }
-  function startOfLocalDay(d) {
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  }
-  function endOfLocalWeek(d) {
-    var day = d.getDay();
-    var toSun = day === 0 ? 0 : 7 - day;
-    var end = startOfLocalDay(d);
-    end.setDate(end.getDate() + toSun);
-    end.setHours(23, 59, 59, 999);
-    return end;
-  }
   function touchFor(lead) {
     if (!lead) return null;
     var entry = state.touchesByLead[lead.id];
@@ -177,18 +168,6 @@
       return key;
     }
   }
-  function dueBucket(lead) {
-    var touch = touchFor(lead);
-    var raw = touch && touch.date ? touch.date : (lead && lead.nextStepAt);
-    if (!raw) return "LATER";
-    var key = calendarDayKey(raw);
-    if (!key) return "LATER";
-    var parts = key.split("-");
-    var dueDay = new Date(+parts[0], +parts[1] - 1, +parts[2]);
-    var today = startOfLocalDay(new Date());
-    if (dueDay.getTime() <= endOfLocalWeek(today).getTime()) return "THIS WEEK";
-    return "LATER";
-  }
   function touchTypeLabel(touch) {
     if (!touch) return "";
     return TOUCH_LABEL[touch.touchType] || String(touch.touchType || "").replace(/_/g, " ");
@@ -203,35 +182,135 @@
     if (touch && touch.date) return touch.date;
     return lead && lead.nextStepAt ? lead.nextStepAt : "";
   }
-  function sortLeadsInBucket(a, b) {
-    var da = calendarDayKey(leadDueRaw(a));
-    var db = calendarDayKey(leadDueRaw(b));
-    // Dated people first by calendar day; undated follow.
-    if (da && db) {
-      if (da < db) return -1;
-      if (da > db) return 1;
-    } else if (da || db) {
-      return da ? -1 : 1;
+  function todayDayKey() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function notesLookLikePrep(notes) {
+    var text = String(notes || "");
+    if (!/^###\s+/m.test(text)) return false;
+    if (/(?:^|\n)###\s*__done__\s*(?:\n|$)/.test(text)) return false;
+    return true;
+  }
+  function isInterviewDeadline(lead, touch) {
+    var blob = [lead && lead.nextStep, lead && lead.notes, touch && touch.touchType]
+      .map(function (v) { return String(v || "").toLowerCase(); })
+      .join(" ");
+    return /\b(interview|braintrust|deadline|due today|ai interview|onsite|phone screen)\b/.test(blob);
+  }
+  function classifyLead(lead) {
+    var touch = touchFor(lead);
+    var due = calendarDayKey(leadDueRaw(lead));
+    var today = todayDayKey();
+    var company = companyForLead(lead);
+    if (isInterviewDeadline(lead, touch) && due) {
+      return {
+        tier: RANK_TIER.DEADLINE,
+        dueDay: due,
+        rankReason: due <= today
+          ? ("due " + (due === today ? "today" : due) + " · interview / deadline")
+          : ("due " + due + " · interview / deadline"),
+        northStar: !!(company && company.northStar),
+        priority: companyPriority(lead),
+      };
     }
-    // No due date (or same day): company priority, then queueOrder, then name.
-    // Ensures Wave 1 people without dueDate still appear under LATER in a stable order.
-    var pa = companyPriority(a) - companyPriority(b);
-    if (pa) return pa;
+    if (touch && WARM_TOUCH[touch.touchType]) {
+      return {
+        tier: RANK_TIER.WARM,
+        dueDay: due,
+        rankReason: "follow-up" + (due ? " · " + due : ""),
+        northStar: !!(company && company.northStar),
+        priority: companyPriority(lead),
+      };
+    }
+    if (notesLookLikePrep(lead && lead.notes)) {
+      return {
+        tier: RANK_TIER.PREP,
+        dueDay: due,
+        rankReason: "interview prep",
+        northStar: !!(company && company.northStar),
+        priority: companyPriority(lead),
+      };
+    }
+    var wave = String((company && company.tier) || "other");
+    var north = !!(company && company.northStar);
+    return {
+      tier: RANK_TIER.COLD,
+      dueDay: due,
+      rankReason: north
+        ? ("North Star" + (due ? " · " + due : ""))
+        : ((wave !== "other" ? wave.replace(/_/g, " ") : "outreach") + (due ? " · " + due : "")),
+      northStar: north,
+      priority: companyPriority(lead),
+    };
+  }
+  function classifyReading(thread) {
+    if (!thread || thread.done) {
+      return { tier: RANK_TIER.PREP, dueDay: "", rankReason: "reading · done", hide: true };
+    }
+    var section = thread.currentSection && thread.currentSection.title
+      ? String(thread.currentSection.title).trim()
+      : "";
+    return {
+      tier: RANK_TIER.PREP,
+      dueDay: "",
+      rankReason: section ? ("reading · " + section) : "reading workbook",
+      hide: false,
+      northStar: false,
+      priority: 100,
+    };
+  }
+  function compareRanked(a, b) {
+    if (a.tier !== b.tier) return a.tier - b.tier;
+    var da = a.dueDay || "";
+    var db = b.dueDay || "";
+    if (da && db && da !== db) return da < db ? -1 : 1;
+    if (da || db) return da ? -1 : 1;
+    if (a.tier === RANK_TIER.COLD) {
+      if (!!a.northStar !== !!b.northStar) return a.northStar ? -1 : 1;
+      var pa = Number(a.priority != null ? a.priority : 100) - Number(b.priority != null ? b.priority : 100);
+      if (pa) return pa;
+    }
     var qa = Number(a.queueOrder || 0) - Number(b.queueOrder || 0);
     if (qa) return qa;
-    return String(a.personName || "").localeCompare(String(b.personName || ""));
+    return String(a.sortTitle || "").localeCompare(String(b.sortTitle || ""));
   }
-  function groupByDue(leads) {
-    // Every person appears in exactly one bucket. No dueDate → LATER.
-    var map = {};
-    DUE_ORDER.forEach(function (key) { map[key] = []; });
-    leads.forEach(function (lead) {
-      map[dueBucket(lead)].push(lead);
+  function rankInboxItems() {
+    // Flat priority list (mirrors api/_lib/inbox-rank.js).
+    var items = [];
+    visibleLeads().forEach(function (lead) {
+      if (!lead || !lead.id) return;
+      var cls = classifyLead(lead);
+      items.push({
+        kind: "person",
+        lead: lead,
+        tier: cls.tier,
+        dueDay: cls.dueDay || "",
+        rankReason: cls.rankReason,
+        northStar: cls.northStar,
+        priority: cls.priority,
+        queueOrder: lead.queueOrder || 0,
+        sortTitle: String(lead.personName || ""),
+      });
     });
-    DUE_ORDER.forEach(function (key) {
-      map[key].sort(sortLeadsInBucket);
+    (state.readingThreads || []).forEach(function (thread) {
+      if (!thread || !thread.id) return;
+      var cls = classifyReading(thread);
+      if (cls.hide) return;
+      items.push({
+        kind: "reading",
+        thread: thread,
+        tier: cls.tier,
+        dueDay: "",
+        rankReason: cls.rankReason,
+        northStar: false,
+        priority: 100,
+        queueOrder: 0,
+        sortTitle: String(thread.title || ""),
+      });
     });
-    return { map: map, order: DUE_ORDER.filter(function (key) { return map[key].length > 0; }) };
+    items.sort(compareRanked);
+    return items;
   }
   function loadLogoCache() {
     try {
@@ -586,53 +665,71 @@
     btn.addEventListener("click", function () { selectYou(); });
     slot.appendChild(btn);
   }
-  function renderReadingRows(list) {
-    var threads = Array.isArray(state.readingThreads) ? state.readingThreads : [];
-    if (!threads.length || !list) return;
-    var group = el("li", "messages-rail__group");
-    var head = el("div", "messages-rail__group-head messages-rail__group-head--static");
-    var headLabel = el("span", "messages-rail__group-label");
-    headLabel.textContent = "READING";
-    head.appendChild(headLabel);
-    group.appendChild(head);
-    var ul = el("ul", "messages-rail__group-list");
-    threads.forEach(function (thread) {
-      if (!thread || !thread.id) return;
-      var convId = readingConvId(thread.id);
-      var li = el("li");
-      var unread = !thread.done;
-      var btn = el("button", "messages-rail__row messages-rail__row--reading" + (unread ? " messages-rail__row--unread" : ""), {
-        type: "button",
-        "data-conv-id": convId,
-        "data-reading-id": thread.id,
-        "aria-current": convId === state.selectedId ? "true" : "false",
-      });
-      var avatar = el("span", "messages-rail__avatar messages-rail__avatar--reading", { "aria-hidden": "true" });
-      avatar.textContent = "R";
-      var main = el("span", "messages-rail__main");
-      var top = el("span", "messages-rail__top");
-      var name = el("span", "messages-rail__name");
-      name.textContent = String(thread.title || "Reading").trim() || "Reading";
-      top.appendChild(name);
-      main.appendChild(top);
-      var preview = el("span", "messages-rail__preview");
-      if (thread.done) preview.textContent = "Done";
-      else if (thread.currentSection && thread.currentSection.title) {
-        preview.textContent = String(thread.currentSection.title).trim();
-      } else if (thread.author) {
-        preview.textContent = String(thread.author).trim();
-      } else {
-        preview.textContent = "Pre-read";
-      }
-      main.appendChild(preview);
-      btn.appendChild(avatar);
-      btn.appendChild(main);
-      btn.addEventListener("click", function () { selectReading(thread.id); });
-      li.appendChild(btn);
-      ul.appendChild(li);
+  function renderReadingItem(thread, rankReason) {
+    var convId = readingConvId(thread.id);
+    var li = el("li");
+    var unread = !thread.done;
+    var btn = el("button", "messages-rail__row messages-rail__row--reading" + (unread ? " messages-rail__row--unread" : ""), {
+      type: "button",
+      "data-conv-id": convId,
+      "data-reading-id": thread.id,
+      "aria-current": convId === state.selectedId ? "true" : "false",
     });
-    group.appendChild(ul);
-    list.appendChild(group);
+    var avatar = el("span", "messages-rail__avatar messages-rail__avatar--reading", { "aria-hidden": "true" });
+    avatar.textContent = "R";
+    var main = el("span", "messages-rail__main");
+    var top = el("span", "messages-rail__top");
+    var name = el("span", "messages-rail__name");
+    name.textContent = String(thread.title || "Reading").trim() || "Reading";
+    top.appendChild(name);
+    main.appendChild(top);
+    var preview = el("span", "messages-rail__preview");
+    preview.textContent = rankReason
+      || (thread.currentSection && thread.currentSection.title
+        ? String(thread.currentSection.title).trim()
+        : (thread.author ? String(thread.author).trim() : "Pre-read"));
+    main.appendChild(preview);
+    btn.appendChild(avatar);
+    btn.appendChild(main);
+    btn.addEventListener("click", function () { selectReading(thread.id); });
+    li.appendChild(btn);
+    return li;
+  }
+  function renderPersonItem(lead, rankReason) {
+    var unread = needsDraft(lead);
+    var li = el("li");
+    var btn = el("button", "messages-rail__row" + (unread ? " messages-rail__row--unread" : ""), {
+      type: "button",
+      "data-conv-id": lead.id,
+      "aria-current": lead.id === state.selectedId ? "true" : "false",
+    });
+    var avatar = el("span", "messages-rail__logo", { "aria-hidden": "true" });
+    fillPersonAvatar(avatar, lead);
+    var main = el("span", "messages-rail__main");
+    var top = el("span", "messages-rail__top");
+    var title = el("span", "messages-rail__name");
+    title.textContent = String(lead.personName || "").trim() || "Someone";
+    var time = el("span", "messages-rail__time");
+    var draft = latestDraftFor(lead.id);
+    var touch = touchFor(lead);
+    time.textContent = touch ? dueDayLabel(touch) : (lead.nextStepAt ? dueDayLabel({ date: lead.nextStepAt }) : relativeTime((draft && draft.updatedAt) || lead.updatedAt || lead.createdAt));
+    top.appendChild(title);
+    top.appendChild(time);
+    var preview = el("span", "messages-rail__preview");
+    preview.textContent = String(lead.personTitle || "").trim()
+      || (draft ? draftPreview(draft) : "No draft yet. Write one when you are ready.");
+    var meta = el("span", "messages-rail__meta");
+    var reason = el("span", "messages-rail__touch");
+    reason.textContent = rankReason || (touch ? touchTypeLabel(touch) : "");
+    if (reason.textContent) meta.appendChild(reason);
+    main.appendChild(top);
+    main.appendChild(preview);
+    if (reason.textContent) main.appendChild(meta);
+    btn.appendChild(avatar);
+    btn.appendChild(main);
+    btn.addEventListener("click", function () { selectLead(lead.id); });
+    li.appendChild(btn);
+    return li;
   }
   function renderList() {
     if (!root) return;
@@ -644,73 +741,15 @@
     if (state.error) { err.hidden = false; err.textContent = state.error; }
     else { err.hidden = true; err.textContent = ""; }
 
-    var leads = visibleLeads();
-    var readingCount = (state.readingThreads || []).length;
-    empty.hidden = leads.length > 0 || readingCount > 0 || !!state.error || state.loading;
+    var ranked = rankInboxItems();
+    empty.hidden = ranked.length > 0 || !!state.error || state.loading;
     empty.textContent = "No people yet. Add them with the lead tools.";
     list.innerHTML = "";
     renderYouRow();
-    renderReadingRows(list);
-    if (!leads.length) return;
-
-    var grouped = groupByDue(leads);
-    grouped.order.forEach(function (bucket) {
-      var group = el("li", "messages-rail__group");
-      var collapsed = !!state.collapsed[bucket];
-      var head = el("button", "messages-rail__group-head", {
-        type: "button",
-        "aria-expanded": collapsed ? "false" : "true",
-      });
-      var headLabel = el("span", "messages-rail__group-label");
-      headLabel.textContent = bucket;
-      head.appendChild(headLabel);
-      head.addEventListener("click", function () {
-        state.collapsed[bucket] = !state.collapsed[bucket];
-        renderList();
-      });
-      group.appendChild(head);
-      var ul = el("ul", "messages-rail__group-list");
-      if (collapsed) ul.hidden = true;
-      grouped.map[bucket].forEach(function (lead) {
-        var li = el("li");
-        var unread = needsDraft(lead);
-        var btn = el("button", "messages-rail__row" + (unread ? " messages-rail__row--unread" : ""), {
-          type: "button",
-          "data-conv-id": lead.id,
-          "aria-current": lead.id === state.selectedId ? "true" : "false",
-        });
-        var avatar = el("span", "messages-rail__logo", { "aria-hidden": "true" });
-        fillPersonAvatar(avatar, lead);
-        var main = el("span", "messages-rail__main");
-        var top = el("span", "messages-rail__top");
-        var title = el("span", "messages-rail__name");
-        title.textContent = String(lead.personName || "").trim() || "Someone";
-        var time = el("span", "messages-rail__time");
-        var draft = latestDraftFor(lead.id);
-        var touch = touchFor(lead);
-        time.textContent = touch ? dueDayLabel(touch) : (lead.nextStepAt ? dueDayLabel({ date: lead.nextStepAt }) : relativeTime((draft && draft.updatedAt) || lead.updatedAt || lead.createdAt));
-        top.appendChild(title);
-        top.appendChild(time);
-        var preview = el("span", "messages-rail__preview");
-        preview.textContent = String(lead.personTitle || "").trim()
-          || (draft ? draftPreview(draft) : "No draft yet. Write one when you are ready.");
-        var meta = el("span", "messages-rail__meta");
-        if (touch) {
-          var touchEl = el("span", "messages-rail__touch");
-          touchEl.textContent = touchTypeLabel(touch);
-          meta.appendChild(touchEl);
-        }
-        main.appendChild(top);
-        main.appendChild(preview);
-        if (touch) main.appendChild(meta);
-        btn.appendChild(avatar);
-        btn.appendChild(main);
-        btn.addEventListener("click", function () { selectLead(lead.id); });
-        li.appendChild(btn);
-        ul.appendChild(li);
-      });
-      group.appendChild(ul);
-      list.appendChild(group);
+    // One flat priority list — no due-bucket or reading section heads.
+    ranked.forEach(function (item) {
+      if (item.kind === "reading") list.appendChild(renderReadingItem(item.thread, item.rankReason));
+      else if (item.kind === "person") list.appendChild(renderPersonItem(item.lead, item.rankReason));
     });
   }
   function setCompanyFilter(name) {

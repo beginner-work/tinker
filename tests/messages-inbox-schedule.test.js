@@ -11,10 +11,10 @@ const thread = fs.readFileSync(path.join(root, "src/renderer/messages-thread.js"
 const composer = fs.readFileSync(path.join(root, "src/renderer/messages-composer.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
 
-test("sidebar lists people in THIS WEEK / LATER", () => {
+test("sidebar lists people in one flat priority list", () => {
   assert.match(shell, /selectLead/);
-  assert.match(shell, /THIS WEEK/);
-  assert.match(shell, /LATER/);
+  assert.match(shell, /rankInboxItems/);
+  assert.match(shell, /rankReason/);
   assert.match(shell, /Lindow Labs/);
   assert.match(shell, /TOUCH_LABEL|referral_outreach/);
   assert.match(shell, /action=inbox|scheduleApi\("inbox"\)/);

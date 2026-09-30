@@ -312,8 +312,8 @@ test("shell is people-list rail and demos omit GTM", () => {
   const shell = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages-shell.js"), "utf8");
   assert.match(shell, /selectLead/);
   assert.match(shell, /selectYou/);
-  assert.match(shell, /THIS WEEK/);
-  assert.match(shell, /LATER/);
+  assert.match(shell, /rankInboxItems/);
+  assert.match(shell, /rankReason/);
   assert.equal(/renderPersonTabs/.test(shell), false);
   const demo = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages/demo-you.html"), "utf8");
   assert.equal(/Your GTM approach/i.test(demo), false);

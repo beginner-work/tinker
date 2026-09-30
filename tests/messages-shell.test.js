@@ -32,13 +32,15 @@ test("messages shell chrome is wired in index and script", () => {
   assert.equal(/sendgrid|MESSAGING_SEND/.test(js), false);
 });
 
-test("rail is people-list with THIS WEEK / LATER; undated go to LATER", () => {
-  assert.match(js, /THIS WEEK/);
-  assert.match(js, /LATER/);
-  assert.match(js, /No dueDate → LATER|return "LATER"/);
+test("rail is one flat priority list (no THIS WEEK / LATER / READING sections)", () => {
+  assert.match(js, /rankInboxItems/);
+  assert.match(js, /RANK_TIER/);
+  assert.match(js, /rankReason/);
+  assert.match(js, /One flat priority list/);
+  assert.equal(/THIS WEEK/.test(js), false);
+  assert.equal(/messages-rail__group-head/.test(js) && /THIS WEEK|LATER|READING/.test(js), false);
   assert.match(js, /companyPriority/);
   assert.match(js, /queueOrder/);
-  assert.match(js, /sortLeadsInBucket/);
   // No company person-tabs chrome.
   assert.equal(/renderPersonTabs/.test(js), false);
   assert.match(js, /selectLead/);
