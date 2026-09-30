@@ -75,7 +75,8 @@ test("You interview question stays full ink contrast; hamburger is in the header
   assert.match(mobileYou[1], /padding-left:\s*12px/);
   assert.equal(/padding-left:\s*68px/.test(mobileYou[1]), false);
   assert.match(html, /data-messages-lead/);
-  assert.match(css, /drawer-toggle--in-header/);
+  assert.match(html, /data-messages-menu/);
+  assert.match(css, /\.messages-pane__menu/);
 });
 
 test("owner notepad is borderless and floating actions replace composer + mode-nav", () => {

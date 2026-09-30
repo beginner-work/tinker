@@ -11,11 +11,14 @@ const css = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
 const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
 const composer = fs.readFileSync(path.join(root, "src/renderer/messages-composer.js"), "utf8");
 
-test("thread maps sent, handed-off, and lead reply sides", () => {
+test("thread maps handed-off and lead reply sides; sent bubbles are UI-hidden", () => {
   assert.match(js, /item--owner|side:\s*"owner"/);
   assert.match(js, /side:\s*"lead"/);
-  assert.match(js, /kind:\s*sent\s*\?\s*"sent"\s*:\s*"handed"|kind:\s*"sent"|kind:\s*"handed"/);
-  assert.match(js, /Handed off|Sent via/);
+  assert.match(js, /kind:\s*"handed"|Handed off/);
+  assert.match(js, /sent_by_owner/);
+  assert.match(js, /Handed off/);
+  // Sent outreach no longer renders a "Sent via …" bubble in the thread.
+  assert.equal(/Sent via/.test(js), false);
   assert.match(js, /messages-thread__meta/);
   assert.match(js, /\bReply\b/);
   assert.match(js, /isInboundDraft|fromLead|direction/);
@@ -29,16 +32,15 @@ test("person writing uses Keep crafting / This is everything (no Ship/Send)", ()
   assert.match(html, /id="messages-composer"/);
   assert.match(composer, /This is everything/);
   assert.match(composer, /Keep crafting/);
-  assert.match(composer, /approved_to_send|approve/);
+  assert.match(composer, /function keepCrafting/);
   assert.equal(/>Ship</.test(html), false);
   assert.equal(/\bSend\b/.test(html.match(/id="messages-composer"[\s\S]*?<\/footer>/)[0]), false);
 });
 
-test("sent bubble times use the viewer local timezone (no UTC override)", () => {
+test("formatDay uses the viewer local timezone (no UTC override)", () => {
   assert.match(js, /function formatDay/);
   assert.match(js, /toLocaleString\(undefined/);
   assert.equal(/timeZone:\s*["']UTC["']/.test(js), false);
-  // 22:57Z is 3:57 PM in America/Los_Angeles (PDT).
   const formatted = new Date("2026-09-29T22:57:00.000Z").toLocaleString("en-US", {
     timeZone: "America/Los_Angeles",
     month: "short",

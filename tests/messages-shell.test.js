@@ -61,11 +61,14 @@ test("no initials monograms; company logo only when resolved; owner keeps photo"
   assert.equal(/messages-rail__avatar--fallback/.test(js) && /textContent = personInitials/.test(js), false);
 });
 
-test("thread has no scheduled planning bubbles", () => {
+test("thread has no scheduled planning bubbles; sent outreach is UI-hidden", () => {
   assert.equal(/renderScheduledBubble/.test(thread), false);
   assert.equal(/Write the draft below/.test(thread), false);
   assert.match(thread, /Handed off\. Your assistant will send this/);
-  assert.match(thread, /Sent via/);
+  assert.equal(/Sent via/.test(thread), false);
+  assert.match(thread, /sent_by_owner/);
+  assert.match(js, /leadHasSentOutreach|visibleLeads/);
+  assert.match(js, /sent_by_owner/);
 });
 
 test("person chat header shows quiet LinkedIn and GitHub icon links when URLs exist", () => {
@@ -102,7 +105,7 @@ test("lead composer is invisible notepad with Keep crafting / This is everything
   assert.match(composer, /tinkerMessagesNotepad/);
   assert.match(composer, /This is everything/);
   assert.match(composer, /Keep crafting/);
-  assert.match(composer, /approved_to_send|approve/);
+  assert.match(composer, /function keepCrafting/);
   assert.equal(/data-composer-channel/.test(html), false);
   assert.equal(/No story parts yet/.test(html), false);
 });

@@ -122,18 +122,19 @@
         });
         return;
       }
-      var sent = d.status === "sent_by_owner";
+      // Sent outreach is UI-hidden (person drops from inbox). Keep data/MCP.
+      if (d.status === "sent_by_owner" || d.status === "sent") return;
       var handed = d.status === "approved_to_send";
       // Skip open draft bubbles - writing lives in the invisible notepad.
-      if (!sent && !handed && d.status !== "send_failed") return;
+      if (!handed && d.status !== "send_failed") return;
       items.push({
         side: "owner",
-        kind: sent ? "sent" : "handed",
+        kind: handed ? "handed" : "sent",
         channel: d.channel,
         subject: "",
-        body: sent
-          ? ("Sent via " + channelLabel(d.channel) + (d.sentAt ? ", " + formatDay(d.sentAt) : ""))
-          : "Handed off. Your assistant will send this.",
+        body: handed
+          ? "Handed off. Your assistant will send this."
+          : ("Send failed" + (d.sentAt ? ", " + formatDay(d.sentAt) : "")),
         at: d.sentAt || d.approvedAt || d.updatedAt || d.createdAt,
         status: d.status,
         openable: false,
@@ -271,10 +272,13 @@
       thread.appendChild(Object.assign(el("p", "messages-thread__error"), { textContent: state.error }));
       return;
     }
-    if (state.loading && !state.lead) {
+    // Never flash Loading… over an already-mounted notepad (composer may
+    // have hydrated the lead while the thread fetch is still in flight).
+    if (state.loading && !state.lead && !existingNotepad) {
       thread.appendChild(Object.assign(el("p", "messages-thread__empty"), { textContent: "Loading…" }));
       return;
     }
+    if (state.loading && !state.lead && existingNotepad) return;
     var items = collectItems();
     if (!items.length) return;
     var list = el("ol", "messages-thread__list", { "aria-label": "Conversation" });
