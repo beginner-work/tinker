@@ -326,6 +326,7 @@
       hideFoot: false,
       metaNode: buildOpening(state.lead, state.company),
       onInput: function (value) {
+        if (state.done) return;
         state.draft = value;
         state.notes = serializeNotes(state.transcript, state.pending, state.draft);
         syncNotesFolder();
@@ -451,14 +452,26 @@
     }
     state.pending = "";
     state.draft = "";
+    // Mark done before any async work so onInput / notes-folder / Keep crafting
+    // cannot re-serialize the transcript without ### __done__ and overwrite it.
+    if (mode === "done") {
+      state.done = true;
+      state.notes = serializeDoneNotes(state.transcript);
+      if (state.lead) state.lead.notes = state.notes;
+      mountNotepad();
+    }
     persistNotes({ done: true }).then(function () {
       if (mode !== "done") {
         mountNotepad();
         return null;
       }
+      // Subject is generated once. Skip Claude if a draft subject already exists.
+      if (state.proposedSubject) {
+        mountNotepad();
+        return null;
+      }
       return resolveSubject().then(function (subject) {
         state.proposedSubject = String(subject || fallbackSubject()).trim() || fallbackSubject();
-        state.done = true;
         return persistProposedSubject(state.proposedSubject).catch(function () {
           // Subject card still renders even if draft write fails.
           return null;
@@ -467,6 +480,8 @@
         mountNotepad();
       });
     }).catch(function () {
+      // Notes persist failed - stay done in-memory so we do not wipe the marker
+      // via a non-done re-serialize; owner can reload if the server write missed.
       mountNotepad();
     }).finally(function () {
       state.saving = false;

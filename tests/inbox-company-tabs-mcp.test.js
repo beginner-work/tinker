@@ -267,6 +267,47 @@ test("upsert_lead_person does not wipe an existing company north_star tier", asy
   assert.equal(company.notes, "Keep this");
 });
 
+test("email/nextStep upsert keeps person notes; mark_lead_done appends marker", async () => {
+  const notes = [
+    "### What do you want them to understand?",
+    "Take a chance",
+    "",
+    "### __done__",
+    "",
+  ].join("\n");
+  const created = await mcpCall("upsert_lead_person", {
+    personName: "Hamid Dadkhah",
+    companyName: "Ramp",
+    contactType: "hiring_leader",
+    notes,
+  });
+  assert.equal(created.status, 200);
+  assert.equal(created.body.result.isError, undefined);
+  assert.match(created.body.result.structuredContent.lead.notes, /__done__/);
+
+  const emailed = await mcpCall("upsert_lead_person", {
+    personName: "Hamid Dadkhah",
+    companyName: "Ramp",
+    contactType: "hiring_leader",
+    email: "hdadkhah@ramp.com",
+    nextStep: "Send the intro email about making reliability second nature",
+  });
+  assert.equal(emailed.status, 200);
+  assert.equal(emailed.body.result.isError, undefined);
+  assert.equal(emailed.body.result.structuredContent.lead.email, "hdadkhah@ramp.com");
+  assert.match(emailed.body.result.structuredContent.lead.notes, /Take a chance/);
+  assert.match(emailed.body.result.structuredContent.lead.notes, /__done__/);
+
+  // Strip marker via store-level path is blocked by merge; mark_lead_done is idempotent.
+  const marked = await mcpCall("mark_lead_done", {
+    personName: "Hamid Dadkhah",
+    companyName: "Ramp",
+  });
+  assert.equal(marked.status, 200);
+  assert.equal(marked.body.result.isError, undefined);
+  assert.equal((marked.body.result.structuredContent.lead.notes.match(/__done__/g) || []).length, 1);
+});
+
 test("shell is people-list rail and demos omit GTM", () => {
   const shell = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages-shell.js"), "utf8");
   assert.match(shell, /selectLead/);

@@ -391,8 +391,15 @@
     }
   }
 
-  async function importChangedIntoServer(personId, body) {
+  async function importChangedIntoServer(personId, body, appBody) {
     var nextBody = core.normalizeBody(body);
+    // Never drop a completed ### __done__ marker when the file lags the app.
+    var app = core.normalizeBody(appBody || "");
+    if (/(?:^|\n)###\s*__done__\s*(?:\n|$)/.test(app)
+      && !/(?:^|\n)###\s*__done__\s*(?:\n|$)/.test(nextBody)) {
+      nextBody = nextBody.replace(/\n+$/, "");
+      nextBody = (nextBody ? nextBody + "\n\n" : "") + "### __done__\n";
+    }
     var patched = await api("/api/leads", "PATCH", "edit", { notes: nextBody }, { id: personId });
     return patched && patched.lead;
   }
@@ -475,15 +482,16 @@
             });
           }
         } else if (decision.action === "import") {
-          var updated = await importChangedIntoServer(lead.id, decision.body);
+          var updated = await importChangedIntoServer(lead.id, decision.body, appBody);
+          var importedBody = (updated && updated.notes != null) ? updated.notes : decision.body;
           setPersonMeta(lead.id, {
             relPath: file.relPath,
-            lastSyncedBody: core.normalizeBody(decision.body),
+            lastSyncedBody: core.normalizeBody(importedBody),
             lastSyncedAt: new Date().toISOString(),
           });
           // Refresh open notepad if this lead is active.
           if (window.tinkerMessagesComposer && typeof window.tinkerMessagesComposer.applyImportedBody === "function") {
-            window.tinkerMessagesComposer.applyImportedBody(lead.id, decision.body, updated);
+            window.tinkerMessagesComposer.applyImportedBody(lead.id, importedBody, updated);
           }
         } else if (decision.action === "conflict") {
           var conflictPath = core.conflictRelPath(file.relPath);
