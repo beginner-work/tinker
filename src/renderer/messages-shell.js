@@ -24,6 +24,7 @@
   };
   var DUE_ORDER = ["THIS WEEK", "LATER"];
   var YOU_ID = "__you__";
+  var READING_PREFIX = "__read__:";
   var OWNER_LABEL = "Lindow Labs";
   var OWNER_LOGO = "./icons/lindow-labs.svg";
   var LOGO_CACHE_KEY = "tinker.companyLogos.v1";
@@ -37,6 +38,7 @@
     companies: [],
     companiesById: {},
     touchesByLead: {},
+    readingThreads: [],
     loading: false,
     error: "",
     companyFilter: "",
@@ -76,6 +78,16 @@
   }
   function leadsApi(action, query) { return api("/api/leads", action, query); }
   function scheduleApi(action, query) { return api("/api/schedule", action, query); }
+  function readingApi(action, query) { return api("/api/reading-thread", action, query); }
+  function readingConvId(threadId) { return READING_PREFIX + String(threadId || ""); }
+  function readingIdFromConv(convId) {
+    var id = String(convId || "");
+    if (id.indexOf(READING_PREFIX) !== 0) return "";
+    return id.slice(READING_PREFIX.length);
+  }
+  function isReadingSelected() {
+    return String(state.selectedId || "").indexOf(READING_PREFIX) === 0;
+  }
   function relativeTime(iso) {
     if (!iso) return "";
     var ms = Date.now() - new Date(iso).getTime();
@@ -413,6 +425,7 @@
       });
     }
     document.body.classList.add("messages-you-active", "messages-thread-active");
+    document.body.classList.remove("messages-reading-active");
     // Clear person profile links before owner chrome mounts.
     if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.clearProfileLinks === "function") {
       window.tinkerMessagesThread.clearProfileLinks();
@@ -440,12 +453,60 @@
       window.tinkerMessagesYou.open();
     }
   }
-  function selectLead(id, opts) {
+  function selectReading(threadId, opts) {
     opts = opts || {};
-    if (id === YOU_ID) { selectYou(opts); return; }
+    var id = String(threadId || "").trim();
+    if (!id) return;
     if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.close === "function") {
       window.tinkerMessagesYou.close();
     }
+    if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.clearProfileLinks === "function") {
+      window.tinkerMessagesThread.clearProfileLinks();
+    }
+    state.selectedId = readingConvId(id);
+    if (root) {
+      root.querySelectorAll("[data-conv-id]").forEach(function (btn) {
+        btn.setAttribute("aria-current", btn.getAttribute("data-conv-id") === state.selectedId ? "true" : "false");
+      });
+    }
+    document.body.classList.add("messages-thread-active", "messages-reading-active");
+    document.body.classList.remove("messages-you-active");
+    var thread = (state.readingThreads || []).find(function (row) { return row && row.id === id; }) || null;
+    var title = String(thread && thread.title || "Reading").trim() || "Reading";
+    var sub = "";
+    if (thread && thread.currentSection && thread.currentSection.title) {
+      sub = String(thread.currentSection.title).trim();
+    } else if (thread && thread.author) {
+      sub = String(thread.author).trim();
+    }
+    setPaneHeader(title, sub, {});
+    showPane();
+    var emptyEl = pane && pane.querySelector("[data-messages-empty]");
+    var threadEl = pane && pane.querySelector("[data-messages-thread]");
+    if (emptyEl) emptyEl.hidden = true;
+    if (threadEl) {
+      threadEl.hidden = false;
+      threadEl.setAttribute("data-thread-ready", "1");
+    }
+    if (!opts.silent) {
+      try {
+        window.dispatchEvent(new CustomEvent("tinker:messages-select", {
+          detail: { leadId: "", reading: true, threadId: id },
+        }));
+      } catch (e) { /* ignore */ }
+    }
+    if (!opts.silent && !opts.stayOnList && window.matchMedia && window.matchMedia("(max-width: 720px)").matches) {
+      document.body.classList.add("messages-mobile-thread");
+    }
+  }
+  function selectLead(id, opts) {
+    opts = opts || {};
+    if (id === YOU_ID) { selectYou(opts); return; }
+    if (readingIdFromConv(id)) { selectReading(readingIdFromConv(id), opts); return; }
+    if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.close === "function") {
+      window.tinkerMessagesYou.close();
+    }
+    document.body.classList.remove("messages-reading-active");
     // Drop prior thread links immediately so a previous person or owner URL
     // cannot linger while the new lead header loads.
     if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.clearProfileLinks === "function") {
@@ -525,6 +586,57 @@
     btn.addEventListener("click", function () { selectYou(); });
     slot.appendChild(btn);
   }
+  function renderReadingRows(list) {
+    var threads = Array.isArray(state.readingThreads) ? state.readingThreads : [];
+    if (!threads.length || !list) return;
+    var group = el("li", "messages-rail__group");
+    var head = el("div", "messages-rail__group-head messages-rail__group-head--static");
+    var headLabel = el("span", "messages-rail__group-label");
+    headLabel.textContent = "READING";
+    var headCount = el("span", "messages-rail__group-count");
+    headCount.textContent = String(threads.length);
+    head.appendChild(headLabel);
+    head.appendChild(headCount);
+    group.appendChild(head);
+    var ul = el("ul", "messages-rail__group-list");
+    threads.forEach(function (thread) {
+      if (!thread || !thread.id) return;
+      var convId = readingConvId(thread.id);
+      var li = el("li");
+      var unread = !thread.done;
+      var btn = el("button", "messages-rail__row messages-rail__row--reading" + (unread ? " messages-rail__row--unread" : ""), {
+        type: "button",
+        "data-conv-id": convId,
+        "data-reading-id": thread.id,
+        "aria-current": convId === state.selectedId ? "true" : "false",
+      });
+      var avatar = el("span", "messages-rail__avatar messages-rail__avatar--reading", { "aria-hidden": "true" });
+      avatar.textContent = "R";
+      var main = el("span", "messages-rail__main");
+      var top = el("span", "messages-rail__top");
+      var name = el("span", "messages-rail__name");
+      name.textContent = String(thread.title || "Reading").trim() || "Reading";
+      top.appendChild(name);
+      main.appendChild(top);
+      var preview = el("span", "messages-rail__preview");
+      if (thread.done) preview.textContent = "Done";
+      else if (thread.currentSection && thread.currentSection.title) {
+        preview.textContent = String(thread.currentSection.title).trim();
+      } else if (thread.author) {
+        preview.textContent = String(thread.author).trim();
+      } else {
+        preview.textContent = "Pre-read";
+      }
+      main.appendChild(preview);
+      btn.appendChild(avatar);
+      btn.appendChild(main);
+      btn.addEventListener("click", function () { selectReading(thread.id); });
+      li.appendChild(btn);
+      ul.appendChild(li);
+    });
+    group.appendChild(ul);
+    list.appendChild(group);
+  }
   function renderList() {
     if (!root) return;
     var list = root.querySelector("[data-messages-list]");
@@ -537,15 +649,17 @@
     else { err.hidden = true; err.textContent = ""; }
 
     var leads = visibleLeads();
+    var readingCount = (state.readingThreads || []).length;
     var needs = leads.filter(needsDraft).length;
     if (badge) {
       badge.hidden = needs < 1;
       badge.textContent = needs > 0 ? String(needs) : "";
     }
-    empty.hidden = leads.length > 0 || !!state.error || state.loading;
+    empty.hidden = leads.length > 0 || readingCount > 0 || !!state.error || state.loading;
     empty.textContent = "No people yet. Add them with the lead tools.";
     list.innerHTML = "";
     renderYouRow();
+    renderReadingRows(list);
     if (!leads.length) return;
 
     var grouped = groupByDue(leads);
@@ -638,6 +752,9 @@
     state.leads = Array.isArray(payload.leads) ? payload.leads : [];
     state.drafts = Array.isArray(payload.drafts) ? payload.drafts : [];
     state.touchesByLead = payload.byLeadId || payload.touchesByLead || {};
+    if (Object.prototype.hasOwnProperty.call(payload, "readingThreads")) {
+      state.readingThreads = Array.isArray(payload.readingThreads) ? payload.readingThreads : [];
+    }
     var companies = Array.isArray(payload.companies) ? payload.companies : [];
     state.companies = companies;
     state.companiesById = {};
@@ -659,6 +776,7 @@
       drafts: state.drafts,
       companies: state.companies,
       byLeadId: state.touchesByLead,
+      readingThreads: state.readingThreads,
       ownerPersonName: state.ownerPersonName,
       ownerAvatarUrl: state.ownerAvatarUrl,
       ownerTitle: state.ownerTitle,
@@ -683,16 +801,31 @@
   function paintSelection() {
     if (state.selectedId === YOU_ID) {
       selectYou({ silent: true, stayOnList: !document.body.classList.contains("messages-mobile-thread") });
+    } else if (isReadingSelected()) {
+      selectReading(readingIdFromConv(state.selectedId), {
+        silent: true,
+        stayOnList: !document.body.classList.contains("messages-mobile-thread"),
+      });
     } else if (state.selectedId) {
       selectLead(state.selectedId, { silent: true, stayOnList: !document.body.classList.contains("messages-mobile-thread") });
     } else {
       selectLead("", { silent: true });
     }
   }
+  function fetchReadingThreads() {
+    return readingApi("list").then(function (payload) {
+      state.readingThreads = Array.isArray(payload.threads) ? payload.threads : [];
+    }).catch(function () {
+      // Older deploys / auth miss: keep any cached reading rows.
+      if (!Array.isArray(state.readingThreads)) state.readingThreads = [];
+    });
+  }
   function fetchInboxBatched() {
     return leadsApi("inbox").then(function (payload) {
       applyInboxPayload(payload);
-      writeInboxCache();
+      return fetchReadingThreads().then(function () {
+        writeInboxCache();
+      });
     });
   }
   function fetchInboxLegacyParallel() {
@@ -712,7 +845,9 @@
         companies: (results[3] && results[3].companies) || [],
         profile: results[4] && results[4].data ? results[4].data : null,
       });
-      writeInboxCache();
+      return fetchReadingThreads().then(function () {
+        writeInboxCache();
+      });
     });
   }
   function refresh() {
@@ -724,10 +859,11 @@
       state.companies = [];
       state.companiesById = {};
       state.touchesByLead = {};
+      state.readingThreads = [];
       applyOwnerProfile(null);
       state.error = "";
       if (pane) pane.hidden = false;
-      document.body.classList.remove("messages-thread-active", "messages-mobile-thread", "messages-you-active");
+      document.body.classList.remove("messages-thread-active", "messages-mobile-thread", "messages-you-active", "messages-reading-active");
       renderList();
       selectLead("", { silent: true });
       return Promise.resolve();
@@ -818,6 +954,7 @@
     refresh: refresh,
     selectLead: selectLead,
     selectYou: selectYou,
+    selectReading: selectReading,
     selectCompany: function () { /* company view removed; no-op for older callers */ },
     showCompanyList: function () {
       document.body.classList.remove("messages-mobile-thread");
@@ -842,6 +979,7 @@
       };
     },
     YOU_ID: YOU_ID,
+    READING_PREFIX: READING_PREFIX,
     OWNER_LABEL: OWNER_LABEL,
     OWNER_LOGO: OWNER_LOGO,
     CHANNEL_LABEL: CHANNEL_LABEL,

@@ -230,6 +230,32 @@ a.sidebar__secondary-link { display: inline; }
   background: var(--color-accent-dim, #eef2ff);
   border-color: var(--color-accent, #a5b4fc);
 }
+.messages-rail__row--reading {
+  border: 1px solid transparent;
+}
+.messages-rail__avatar--reading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ink-muted, #6b7280);
+  background: var(--color-cream, #f5f3ef);
+}
+.messages-notepad__section {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--color-ink-muted, #6b7280);
+}
+.messages-notepad__done {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--color-ink-muted, #6b7280);
+}
+.messages-rail__group-head--static {
+  cursor: default;
+  pointer-events: none;
+}
 .messages-rail__badge {
   flex-shrink: 0;
   min-width: 1.4em;

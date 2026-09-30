@@ -313,36 +313,12 @@ async function listDrafts({ userId, emailHint, status, company } = {}) {
   drafts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   return drafts.map((draft) => ({ draft, lead: (draft.leadId && byId.get(draft.leadId)) || null }));
 }
-const DONE_MARKER_LINE = "### __done__";
-
-function notesHaveDoneMarker(text) {
-  return /(?:^|\n)###\s*__done__\s*(?:\n|$)/.test(String(text || ""));
-}
-
-/** Preserve completed Keep crafting state across field updates / sync imports. */
-function mergeLeadNotes(existing, incoming) {
-  const prev = String(existing || "");
-  // Omitted incoming must never wipe an existing notepad.
-  if (incoming == null) return prev;
-  const next = readText(incoming, "notes", 8000, false);
-  // Explicit empty must not wipe Q&A that already exists.
-  if (!String(next || "").trim() && prev.trim()) return prev;
-  if (notesHaveDoneMarker(prev) && !notesHaveDoneMarker(next)) {
-    const trimmed = String(next || "").replace(/\n+$/, "");
-    return (trimmed ? trimmed + "\n\n" : "") + DONE_MARKER_LINE + "\n";
-  }
-  if (notesHaveDoneMarker(next)) {
-    return String(next || "").replace(/\n+$/, "") + "\n";
-  }
-  return next;
-}
-
-function ensureDoneMarker(notes) {
-  const text = String(notes || "").replace(/\r\n/g, "\n");
-  if (notesHaveDoneMarker(text)) return text.replace(/\n+$/, "") + "\n";
-  const trimmed = text.replace(/\n+$/, "");
-  return (trimmed ? trimmed + "\n\n" : "") + DONE_MARKER_LINE + "\n";
-}
+const {
+  DONE_MARKER_LINE,
+  notesHaveDoneMarker,
+  mergeLeadNotes,
+  ensureDoneMarker,
+} = require("./notes-merge.js");
 
 async function updateLead({ id, userId, emailHint, actor, patch }) {
   const owner = requireUserId(userId);
