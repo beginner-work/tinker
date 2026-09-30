@@ -226,8 +226,13 @@ function classifyPerson(lead, touch, company, ctx) {
 }
 
 function classifyReading(thread) {
-  if (!thread || thread.done) {
-    return { tier: TIER.PREP, dueDay: "", rankReason: "reading · done", hide: !!thread.done };
+  if (!thread || thread.done || thread.paused) {
+    return {
+      tier: TIER.PREP,
+      dueDay: "",
+      rankReason: thread && thread.paused ? "reading · on hold" : "reading · done",
+      hide: true,
+    };
   }
   const section = thread.currentSection && thread.currentSection.title
     ? String(thread.currentSection.title).trim()

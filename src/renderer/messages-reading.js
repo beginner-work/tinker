@@ -1,6 +1,8 @@
 /* Reading workbook thread: one pre-read question + notepad + Keep crafting.
  * Reuses tinkerMessagesNotepad. No review UI, no sent bubbles, no subject card.
- * Persist via /api/reading-thread (merge-safe notes). Advance marks section done.
+ * Persist via /api/reading-thread (merge-safe notes).
+ * "This is everything" finishes the current answer only.
+ * "Section done" advances; never via This is everything.
  */
 (function () {
   "use strict";
@@ -18,6 +20,7 @@
     saving: false,
     asking: false,
     done: false,
+    moveNote: "",
   };
 
   function token() {
@@ -124,6 +127,22 @@
     // Do not repeat it in the notepad opening.
     void thread;
     var opening = el("div", "messages-notepad__opening");
+    if (state.moveNote) {
+      var move = el("p", "messages-notepad__move", { "data-reading-move": "1" });
+      var moveText = el("span");
+      moveText.textContent = state.moveNote + " ";
+      move.appendChild(moveText);
+      if (canGoBack()) {
+        var back = el("button", "messages-notepad__back", {
+          type: "button",
+          "data-reading-back": "1",
+        });
+        back.textContent = "Go back";
+        back.addEventListener("click", function () { goBack(); });
+        move.appendChild(back);
+      }
+      opening.appendChild(move);
+    }
     appendTurns(opening);
     if (state.pending) {
       var q = el("p", "messages-notepad__question");
@@ -132,6 +151,10 @@
       opening.appendChild(q);
     }
     return opening;
+  }
+  function canGoBack() {
+    var idx = state.thread && Number(state.thread.currentSectionIndex);
+    return Number.isFinite(idx) && idx > 0 && !state.done;
   }
   function buildDoneOpening() {
     var opening = el("div", "messages-notepad__opening");
@@ -164,6 +187,7 @@
       np.mount(host, {
         primaryLabel: "",
         secondaryLabel: "",
+        tertiaryLabel: "",
         heading: "",
         value: "",
         hideInput: true,
@@ -172,12 +196,14 @@
         onInput: null,
         onPrimary: null,
         onSecondary: null,
+        onTertiary: null,
       });
       return;
     }
     np.mount(host, {
-      primaryLabel: "Section done",
+      primaryLabel: "This is everything",
       secondaryLabel: "Keep crafting",
+      tertiaryLabel: "Section done",
       heading: "",
       value: state.draft,
       hideInput: false,
@@ -188,12 +214,15 @@
         state.draft = value;
         state.notes = serializeNotes(state.transcript, state.pending, state.draft);
       },
-      onPrimary: function () { sectionDone(); },
+      onPrimary: function () { finishAnswer(); },
       onSecondary: function () { keepCrafting(); },
+      onTertiary: function () { sectionDone(); },
     });
     np.setPrimaryEnabled(!state.saving && !state.asking);
     var secondary = np.el && np.el().querySelector("[data-notepad-secondary]");
     if (secondary) secondary.disabled = !!(state.saving || state.asking);
+    var tertiary = np.el && np.el().querySelector("[data-notepad-tertiary]");
+    if (tertiary) tertiary.disabled = !!(state.saving || state.asking);
     setTimeout(function () { np.focus(); }, 60);
   }
   function unmountNotepad() {
@@ -345,6 +374,49 @@
       }
     });
   }
+  function setFootEnabled(on) {
+    var n = notepad();
+    if (!n) return;
+    n.setPrimaryEnabled(on);
+    var root = n.el && n.el();
+    if (!root) return;
+    var secondary = root.querySelector("[data-notepad-secondary]");
+    var tertiary = root.querySelector("[data-notepad-tertiary]");
+    if (secondary) secondary.disabled = !on;
+    if (tertiary) tertiary.disabled = !on;
+  }
+  /** Finish the current answer only — never advance the chapter. */
+  function finishAnswer() {
+    if (state.saving || state.asking || !state.threadId || state.done) return;
+    var np = notepad();
+    if (np) state.draft = np.getValue();
+    var answer = String(state.draft || "").trim();
+    if (!answer) {
+      showNudge("Type an answer first. This is everything saves it without moving to the next section.");
+      return;
+    }
+    if (!state.pending) {
+      showNudge("No open question to finish. Use Section done when you want the next chapter.");
+      return;
+    }
+    state.saving = true;
+    setFootEnabled(false);
+    state.transcript = state.transcript.concat([{ q: state.pending, a: answer }]);
+    state.draft = "";
+    state.pending = "";
+    state.moveNote = "";
+    state.notes = serializeNotes(state.transcript, "", "");
+    persistNotes().then(function () {
+      mountNotepad();
+      showNudge("Answer saved. Keep crafting for another question, or Section done to move on.");
+    }).catch(function (err) {
+      mountNotepad();
+      showNudge((err && err.message) || "Could not save the answer.");
+    }).finally(function () {
+      state.saving = false;
+      if (!state.done) setFootEnabled(true);
+    });
+  }
   function sectionDone() {
     if (state.saving || state.asking || !state.threadId || state.done) return;
     var np = notepad();
@@ -355,13 +427,10 @@
       state.draft = "";
       state.pending = "";
     }
+    // Keep full transcript in notes when advancing — do not wipe prior sections.
     state.notes = serializeNotes(state.transcript, "", "");
     state.saving = true;
-    if (np) {
-      np.setPrimaryEnabled(false);
-      var secondary = np.el().querySelector("[data-notepad-secondary]");
-      if (secondary) secondary.disabled = true;
-    }
+    setFootEnabled(false);
     api("POST", "advance", { notes: state.notes }, { id: state.threadId }).then(function (res) {
       var thread = res && res.thread;
       if (!thread) return;
@@ -370,8 +439,13 @@
       if (state.done) {
         state.pending = "";
         state.draft = "";
+        state.moveNote = "";
         state.notes = serializeDoneNotes(state.transcript);
       } else {
+        var nextTitle = thread.currentSection && thread.currentSection.title
+          ? String(thread.currentSection.title).trim()
+          : "the next section";
+        state.moveNote = "Moved to " + nextTitle;
         var parsed = parseNotes(thread.notes || state.notes, thread);
         // Prefer server notes for completed turns; pending comes from next section.
         state.transcript = parsed.transcript.length ? parsed.transcript : state.transcript;
@@ -387,20 +461,55 @@
     }).then(function () {
       mountNotepad();
       setTimeout(scrollQuestionIntoView, 80);
-      if (window.tinkerMessagesShell && window.tinkerMessagesShell.refresh) {
-        window.tinkerMessagesShell.refresh();
-      }
+      return refreshReadingChrome();
     }).catch(function (err) {
       mountNotepad();
       showNudge((err && err.message) || "Could not mark the section done.");
     }).finally(function () {
       state.saving = false;
-      var n = notepad();
-      if (n && !state.done) {
-        n.setPrimaryEnabled(true);
-        var secondary = n.el().querySelector("[data-notepad-secondary]");
-        if (secondary) secondary.disabled = false;
+      if (!state.done) setFootEnabled(true);
+    });
+  }
+  function refreshReadingChrome() {
+    var shell = window.tinkerMessagesShell;
+    if (!shell) return Promise.resolve();
+    var refresh = typeof shell.refresh === "function" ? shell.refresh() : Promise.resolve();
+    return Promise.resolve(refresh).then(function () {
+      if (typeof shell.selectReading === "function" && state.threadId) {
+        shell.selectReading(state.threadId, { silent: true, stayOnList: true });
       }
+    }).catch(function () { /* ignore */ });
+  }
+  function goBack() {
+    if (state.saving || state.asking || !state.threadId || !canGoBack()) return;
+    state.saving = true;
+    setFootEnabled(false);
+    api("POST", "retreat", {}, { id: state.threadId }).then(function (res) {
+      var thread = res && res.thread;
+      if (!thread) return;
+      state.thread = thread;
+      state.done = !!thread.done;
+      state.moveNote = "";
+      var parsed = parseNotes(thread.notes || state.notes, thread);
+      state.transcript = parsed.transcript.length ? parsed.transcript : state.transcript;
+      state.pending = (thread.currentSection && thread.currentSection.preReadQuestion)
+        || parsed.pending
+        || defaultQuestion(thread);
+      state.draft = "";
+      state.notes = serializeNotes(state.transcript, state.pending, "");
+      return api("POST", "edit", { notes: state.notes }, { id: state.threadId }).then(function (edited) {
+        if (edited && edited.thread) state.thread = edited.thread;
+      });
+    }).then(function () {
+      mountNotepad();
+      setTimeout(scrollQuestionIntoView, 80);
+      return refreshReadingChrome();
+    }).catch(function (err) {
+      mountNotepad();
+      showNudge((err && err.message) || "Could not go back.");
+    }).finally(function () {
+      state.saving = false;
+      if (!state.done) setFootEnabled(true);
     });
   }
   function hydrate(thread) {
@@ -408,6 +517,7 @@
     state.threadId = thread && thread.id || "";
     state.asking = false;
     state.saving = false;
+    state.moveNote = "";
     if (!thread) {
       state.notes = "";
       state.transcript = [];

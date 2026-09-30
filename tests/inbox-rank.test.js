@@ -89,13 +89,16 @@ test("warm follow-up beats cold; reading is prep tier", () => {
     },
     readingThreads: [
       { id: "book", title: "DDD", done: false, currentSection: { title: "Ch 1" } },
+      { id: "held", title: "Paused Book", done: false, paused: true, currentSection: { title: "Ch 2" } },
     ],
   });
   assert.equal(items[0].id, "david");
   assert.equal(items[0].tier, TIER.WARM);
   const reading = items.find((row) => row.kind === "reading");
   assert.ok(reading);
+  assert.equal(reading.id, "book");
   assert.equal(reading.tier, TIER.PREP);
+  assert.equal(items.some((row) => row.id === "held"), false);
   assert.equal(items.find((row) => row.id === "cold").tier, TIER.COLD);
 });
 

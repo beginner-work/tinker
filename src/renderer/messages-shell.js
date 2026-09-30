@@ -84,6 +84,27 @@
   function leadsApi(action, query) { return api("/api/leads", action, query); }
   function scheduleApi(action, query) { return api("/api/schedule", action, query); }
   function readingApi(action, query) { return api("/api/reading-thread", action, query); }
+  function readingPost(action, query) {
+    var q = new URLSearchParams(Object.assign({ action: action }, query || {}));
+    return fetch("/api/reading-thread?" + q.toString(), {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token(),
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (payload) {
+        if (!res.ok) {
+          var err = new Error((payload && payload.error) || "Request failed");
+          err.status = res.status;
+          throw err;
+        }
+        return payload;
+      });
+    });
+  }
   function applicationApi(action, query) { return api("/api/job-application", action, query); }
   function readingConvId(threadId) { return READING_PREFIX + String(threadId || ""); }
   function readingIdFromConv(convId) {
@@ -102,6 +123,19 @@
   }
   function isApplicationSelected() {
     return String(state.selectedId || "").indexOf(APPLICATION_PREFIX) === 0;
+  }
+  /** Desktop home lands on the owner self-reflection (You) thread. Mobile keeps the inbox list. */
+  function isDesktopHomeWidth() {
+    return !(window.matchMedia && window.matchMedia("(max-width: 720px)").matches);
+  }
+  function openDesktopYouHome(opts) {
+    opts = opts || {};
+    if (!isDesktopHomeWidth()) return false;
+    selectYou({
+      silent: opts.silent !== false,
+      stayOnList: true,
+    });
+    return true;
   }
   function contactSeq(lead, touch) {
     var type = String(lead && lead.contactType || "").toLowerCase();
@@ -318,8 +352,13 @@
     };
   }
   function classifyReading(thread) {
-    if (!thread || thread.done) {
-      return { tier: RANK_TIER.PREP, dueDay: "", rankReason: "reading · done", hide: true };
+    if (!thread || thread.done || thread.paused) {
+      return {
+        tier: RANK_TIER.PREP,
+        dueDay: "",
+        rankReason: thread && thread.paused ? "reading · on hold" : "reading · done",
+        hide: true,
+      };
     }
     var section = thread.currentSection && thread.currentSection.title
       ? String(thread.currentSection.title).trim()
@@ -665,6 +704,54 @@
       window.tinkerMessagesYou.open();
     }
   }
+  function setReadingHoldControl(thread) {
+    var links = pane && pane.querySelector("[data-messages-links]");
+    if (!links) return;
+    links.innerHTML = "";
+    if (!thread || !thread.id || thread.done) {
+      links.hidden = true;
+      return;
+    }
+    var paused = !!thread.paused;
+    var btn = el("button", "messages-pane__hold", {
+      type: "button",
+      "data-reading-hold": "1",
+      "aria-pressed": paused ? "true" : "false",
+    });
+    btn.textContent = paused ? "Resume" : "Pause";
+    btn.addEventListener("click", function () {
+      toggleReadingHold(thread.id, !paused);
+    });
+    links.appendChild(btn);
+    links.hidden = false;
+  }
+  function toggleReadingHold(threadId, pause) {
+    var id = String(threadId || "").trim();
+    if (!id) return;
+    var action = pause ? "pause" : "resume";
+    var btn = pane && pane.querySelector("[data-reading-hold]");
+    if (btn) btn.disabled = true;
+    readingPost(action, { id: id }).then(function (payload) {
+      var thread = payload && payload.thread;
+      if (!thread) return;
+      var next = [];
+      var found = false;
+      (state.readingThreads || []).forEach(function (row) {
+        if (row && row.id === thread.id) {
+          next.push(thread);
+          found = true;
+        } else {
+          next.push(row);
+        }
+      });
+      if (!found) next.push(thread);
+      state.readingThreads = next;
+      renderList();
+      selectReading(id, { silent: true, stayOnList: true });
+    }).catch(function () {
+      if (btn) btn.disabled = false;
+    });
+  }
   function selectReading(threadId, opts) {
     opts = opts || {};
     var id = String(threadId || "").trim();
@@ -691,7 +778,11 @@
     } else if (thread && thread.author) {
       sub = String(thread.author).trim();
     }
+    if (thread && thread.paused) {
+      sub = sub ? (sub + " · on hold") : "On hold";
+    }
     setPaneHeader(title, sub, {});
+    setReadingHoldControl(thread);
     showPane();
     var emptyEl = pane && pane.querySelector("[data-messages-empty]");
     var threadEl = pane && pane.querySelector("[data-messages-thread]");
@@ -902,24 +993,25 @@
     li.appendChild(btn);
     return li;
   }
-  function renderKindDotMark() {
-    // Non-person inbox kinds (reading) use a colored dot in the logo slot
-    // so rows stay aligned with person/company logos. Not book-specific.
-    var mark = el("span", "messages-rail__logo messages-rail__logo--dot", { "aria-hidden": "true" });
-    mark.appendChild(el("span", "messages-rail__dot"));
+  function renderReadingBookMark() {
+    // Reading rows use a book glyph in the same 18px logo slot as company logos.
+    // Do not use a plain accent dot — that reads as "unread".
+    var mark = el("span", "messages-rail__logo messages-rail__logo--book", { "aria-hidden": "true" });
+    mark.innerHTML = '<svg class="messages-rail__book" viewBox="0 0 24 24" width="14" height="14" focusable="false">'
+      + '<path fill="currentColor" d="M6.5 3.75A2.25 2.25 0 0 0 4.25 6v12A2.25 2.25 0 0 0 6.5 20.25h12.25a.75.75 0 0 0 0-1.5H6.5a.75.75 0 0 1-.75-.75V6A.75.75 0 0 1 6.5 5.25h11.5v12.5a.75.75 0 0 0 1.5 0V4.5A.75.75 0 0 0 18.75 3.75H6.5Z"/>'
+      + '</svg>';
     return mark;
   }
   function renderReadingItem(thread, rankReason) {
     var convId = readingConvId(thread.id);
     var li = el("li");
-    var unread = !thread.done;
-    var btn = el("button", "messages-rail__row messages-rail__row--reading" + (unread ? " messages-rail__row--unread" : ""), {
+    var btn = el("button", "messages-rail__row messages-rail__row--reading", {
       type: "button",
       "data-conv-id": convId,
       "data-reading-id": thread.id,
       "aria-current": convId === state.selectedId ? "true" : "false",
     });
-    var avatar = renderKindDotMark();
+    var avatar = renderReadingBookMark();
     var main = el("span", "messages-rail__main");
     var top = el("span", "messages-rail__top");
     var name = el("span", "messages-rail__name");
@@ -1083,7 +1175,7 @@
       });
     } else if (state.selectedId) {
       selectLead(state.selectedId, { silent: true, stayOnList: !document.body.classList.contains("messages-mobile-thread") });
-    } else {
+    } else if (!openDesktopYouHome({ silent: true })) {
       selectLead("", { silent: true });
     }
   }
@@ -1204,7 +1296,6 @@
         e.preventDefault();
         document.body.classList.remove(
           "messages-mobile-thread",
-          "messages-you-active",
           "messages-notepad-active",
           "messages-reading-active",
           "messages-application-active"
@@ -1212,7 +1303,11 @@
         if (window.tinkerMobileDrawer && typeof window.tinkerMobileDrawer.close === "function") {
           window.tinkerMobileDrawer.close();
         }
-        selectLead("", { silent: true });
+        // Desktop home always re-opens self-reflection; mobile stays on the list.
+        if (!openDesktopYouHome({ silent: false })) {
+          document.body.classList.remove("messages-you-active");
+          selectLead("", { silent: true });
+        }
         renderList();
         showPane();
       });
@@ -1231,6 +1326,9 @@
     var tabs = pane && pane.querySelector("[data-messages-tabs]");
     if (tabs) { tabs.innerHTML = ""; tabs.hidden = true; }
     bindChrome();
+    // Desktop + signed-in: open You immediately so the detail pane never
+    // flashes empty or a different thread before the inbox finishes loading.
+    if (token()) openDesktopYouHome({ silent: true });
     // Warm path: paint the last inbox snapshot before the network returns.
     if (token()) {
       var cached = readInboxCache();
@@ -1241,6 +1339,10 @@
         try {
           performance.mark("tinker-inbox-cache-paint");
         } catch (e) { /* ignore */ }
+      }
+      // Re-paint You after cache so the header shows the owner profile.
+      if (isDesktopHomeWidth() && (!state.selectedId || state.selectedId === YOU_ID)) {
+        selectYou({ silent: true, stayOnList: true });
       }
     }
     refresh();

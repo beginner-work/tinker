@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Reading thread demo (local fixture)</title>
+  <title>Reading paused demo (local fixture)</title>
   <link rel="stylesheet" href="../design-tokens.css" />
   <link rel="stylesheet" href="../styles.css" />
   <style>
@@ -23,7 +23,7 @@
   </style>
 </head>
 <body class="messages-shell-open messages-inbox-primary messages-thread-active messages-reading-active messages-notepad-active">
-  <p class="demo-note">LOCAL FIXTURE - not Tyler's account, not production auth. Shows reading rail + one pre-read question + notepad.</p>
+  <p class="demo-note">LOCAL FIXTURE - paused reading thread. Held books leave the inbox; Resume stays in the thread header.</p>
   <div class="demo-frame">
     <aside id="sidebar-messages" class="messages-rail">
       <ul class="messages-rail__list" data-messages-list>
@@ -39,15 +39,7 @@
             
           </div>
           <ul class="messages-rail__group-list">
-            <li>
-              <button type="button" class="messages-rail__row messages-rail__row--reading messages-rail__row--unread" data-conv-id="__read__:demo" aria-current="true">
-                <span class="messages-rail__logo messages-rail__logo--book" aria-hidden="true"><svg class="messages-rail__book" viewBox="0 0 24 24" width="14" height="14" focusable="false"><path fill="currentColor" d="M6.5 3.75A2.25 2.25 0 0 0 4.25 6v12A2.25 2.25 0 0 0 6.5 20.25h12.25a.75.75 0 0 0 0-1.5H6.5a.75.75 0 0 1-.75-.75V6A.75.75 0 0 1 6.5 5.25h11.5v12.5a.75.75 0 0 0 1.5 0V4.5A.75.75 0 0 0 18.75 3.75H6.5Z"/></svg></span>
-                <span class="messages-rail__main">
-                  <span class="messages-rail__top"><span class="messages-rail__name">Example Book</span></span>
-                  <span class="messages-rail__preview">reading · Ch 2: Communication and the …</span>
-                </span>
-              </button>
-            </li>
+            <!-- paused reading threads drop out of the inbox list -->
           </ul>
         </li>
       </ul>
@@ -57,11 +49,11 @@
         <div class="messages-pane__lead">
           <h2 class="messages-pane__title">
             <span class="messages-pane__name" data-messages-name>Example Book</span>
-            <span class="messages-pane__role" data-messages-role>Ch 2: Communication and the Use of Language</span>
+            <span class="messages-pane__role" data-messages-role>Ch 2: Communication and the Use of Language · on hold</span>
           </h2>
         </div>
         <div class="messages-pane__links" data-messages-links>
-          <button type="button" class="messages-pane__hold" data-reading-hold="1" aria-pressed="false">Pause</button>
+          <button type="button" class="messages-pane__hold" data-reading-hold="1" aria-pressed="true">Resume</button>
         </div>
       </header>
       <div data-messages-thread class="messages-thread" data-thread-ready="1">
