@@ -281,7 +281,7 @@ test("inbox and electron wire notes folder without extra chrome", () => {
 
 test("service worker leaves /settings on the network and bumps cache version", () => {
   const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
-  assert.match(sw, /tinker-shell-v15/);
+  assert.match(sw, /tinker-shell-v16/);
   assert.match(sw, /pathname === "\/settings"/);
   assert.match(sw, /isShellNav/);
 });

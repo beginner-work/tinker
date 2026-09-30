@@ -713,6 +713,10 @@
       setYouMode(true);
       return;
     }
+    if (e && e.detail && e.detail.reading) {
+      setYouMode(true);
+      return;
+    }
     var id = e && e.detail && e.detail.leadId;
     var touch = e && e.detail && e.detail.touch;
     if (!id) { setYouMode(false); setLead("", null, null); return; }

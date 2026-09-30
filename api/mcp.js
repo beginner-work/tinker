@@ -15,8 +15,10 @@
  * (get_career_record, check_text), site content (list_content,
  * read_content, create_content_draft), story parts (list_story_parts,
  * get_story_part), outreach schedule (get_outreach_schedule,
- * set_busy_times), and post_to_self_thread (assistant posts into the
- * owner's You inbox thread). There is no raw converse proxy and no
+ * set_busy_times), post_to_self_thread (assistant posts into the
+ * owner's You inbox thread), and reading workbook tools
+ * (create_reading_thread, get_reading_thread, list_reading_threads,
+ * advance_reading_section). There is no raw converse proxy and no
  * write tool for autonomy settings, the career record, or story parts.
  * Content tools can draft. They cannot publish. Story-part tools are
  * read-only: paste the user's approved wording into Formation drafts;
@@ -48,6 +50,7 @@ const { checkText } = require("./_lib/career-check.js");
 const contentStore = require("./_lib/content-store.js");
 const storyParts = require("./_lib/story-parts-store.js");
 const selfThread = require("./_lib/self-thread-store.js");
+const readingThreads = require("./_lib/reading-thread-store.js");
 const prisma = require("./_lib/db.js");
 const pkg = require("../package.json");
 const MCP_BOT_ACTOR = { kind: "bot", label: "bot:mcp" };
@@ -105,6 +108,10 @@ const INSTRUCTIONS = [
   "Call post_to_self_thread with title and short markdown body only for brief personal assistant notes in the You thread.",
   "Never post deploy checks, production status, allowlist/gate notes, or other ops chatter there - that thread is the owner's own story.",
   "The owner sees it as an incoming assistant bubble. It does not send email or LinkedIn messages.",
+  "Call create_reading_thread to start a generic reading workbook (any book): title, optional author, ordered sections (string titles).",
+  "It generates one pre-read question for the first section via KEEP_CRAFTING_MODEL and shows the thread in the inbox like a lead.",
+  "Call list_reading_threads or get_reading_thread to read threads. Call advance_reading_section when the owner finished a section to mark it done and generate the next pre-read question.",
+  "Reading notepad notes use the same merge-safe ### __done__ contract as lead notes. Do not seed books in app code; create them with create_reading_thread after deploy.",
   "Call update_owner_profile to set optional title and/or linkedInUrl on this connector user's own profile.",
   "Omitted fields are left unchanged. Pass an empty string to clear a field. A user id in args is ignored.",
   "This server does not accept a custom system prompt.",
@@ -601,6 +608,85 @@ const UPDATE_OWNER_PROFILE_TOOL = {
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
 
+const CREATE_READING_THREAD_TOOL = {
+  name: "create_reading_thread",
+  title: "Create reading thread",
+  description: [
+    "Create a generic reading workbook thread for any book (not book-specific code).",
+    "Pass title, optional author, and ordered sections (section title strings).",
+    "Generates one pre-read question for the first section using KEEP_CRAFTING_MODEL.",
+    "The thread appears in the Tinker inbox like a lead; the owner answers in the notepad.",
+    "Does not touch leads or outreach. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      title: { type: "string", description: "Book or workbook title." },
+      author: { type: "string", description: "Optional author name." },
+      sections: {
+        type: "array",
+        description: "Ordered section titles the owner will read.",
+        items: { type: "string" },
+      },
+    },
+    required: ["title", "sections"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const LIST_READING_THREADS_TOOL = {
+  name: "list_reading_threads",
+  title: "List reading threads",
+  description: [
+    "List this connector user's reading workbook threads.",
+    "Returns id, title, author, sections, current section, notes, and done.",
+    "Read-only. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const GET_READING_THREAD_TOOL = {
+  name: "get_reading_thread",
+  title: "Get reading thread",
+  description: [
+    "Read one reading workbook thread by threadId.",
+    "Returns sections, current pre-read question, notepad notes, and done.",
+    "Read-only. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      threadId: { type: "string", description: "Reading thread id from create_reading_thread or list_reading_threads." },
+    },
+    required: ["threadId"],
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const ADVANCE_READING_SECTION_TOOL = {
+  name: "advance_reading_section",
+  title: "Advance reading section",
+  description: [
+    "Mark the current section done and generate the next section's pre-read question (KEEP_CRAFTING_MODEL).",
+    "Pass threadId. Optional notes are merge-safe (same ### __done__ rules as lead notes).",
+    "When the last section finishes, the thread notes gain ### __done__.",
+    "Does not touch leads. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      threadId: { type: "string", description: "Reading thread id." },
+      notes: { type: "string", description: "Optional notepad markdown to merge before advancing." },
+    },
+    required: ["threadId"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
 const SET_COMPANY_PRIORITY_TOOL = {
   name: "set_company_priority",
   title: "Set company priority",
@@ -922,6 +1008,10 @@ const TOOLS = [
   SET_BUSY_TIMES_TOOL,
   POST_TO_SELF_THREAD_TOOL,
   UPDATE_OWNER_PROFILE_TOOL,
+  CREATE_READING_THREAD_TOOL,
+  LIST_READING_THREADS_TOOL,
+  GET_READING_THREAD_TOOL,
+  ADVANCE_READING_SECTION_TOOL,
   SET_COMPANY_PRIORITY_TOOL,
   PLAN_LEAD_TOUCH_TOOL,
   UPSERT_TARGET_COMPANY_TOOL,
@@ -1293,6 +1383,58 @@ async function selfThreadCall(msg, user, args) {
       body: rpcOk(msg.id, toolError(message || selfThread.UNAVAILABLE)),
     };
   }
+}
+
+function readingFailure(msg, err) {
+  const status = err && err.status;
+  const message = status && status >= 400 && status < 500
+    ? err.message
+    : readingThreads.UNAVAILABLE;
+  return {
+    status: 200,
+    headers: NO_STORE,
+    body: rpcOk(msg.id, toolError(message || readingThreads.UNAVAILABLE)),
+  };
+}
+
+async function createReadingThreadCall(msg, user, args) {
+  try {
+    const thread = await readingThreads.createThread({
+      userId: storyUserId(user),
+      title: args.title,
+      author: args.author,
+      sections: args.sections,
+    });
+    return contentToolOk(msg, { thread });
+  } catch (err) { return readingFailure(msg, err); }
+}
+
+async function listReadingThreadsCall(msg, user) {
+  try {
+    const threads = await readingThreads.listThreads({ userId: storyUserId(user) });
+    return contentToolOk(msg, { threads });
+  } catch (err) { return readingFailure(msg, err); }
+}
+
+async function getReadingThreadCall(msg, user, args) {
+  try {
+    const thread = await readingThreads.getThread({
+      userId: storyUserId(user),
+      threadId: args.threadId,
+    });
+    return contentToolOk(msg, { thread });
+  } catch (err) { return readingFailure(msg, err); }
+}
+
+async function advanceReadingSectionCall(msg, user, args) {
+  try {
+    const thread = await readingThreads.advanceSection({
+      userId: storyUserId(user),
+      threadId: args.threadId,
+      notes: Object.prototype.hasOwnProperty.call(args, "notes") ? args.notes : undefined,
+    });
+    return contentToolOk(msg, { thread });
+  } catch (err) { return readingFailure(msg, err); }
 }
 
 function trimOwnerField(value, label, max) {
@@ -1872,6 +2014,10 @@ async function handleRpc(msg, user) {
       && name !== "set_busy_times"
       && name !== "post_to_self_thread"
       && name !== "update_owner_profile"
+      && name !== "create_reading_thread"
+      && name !== "list_reading_threads"
+      && name !== "get_reading_thread"
+      && name !== "advance_reading_section"
       && name !== "set_company_priority"
       && name !== "plan_lead_touch"
       && name !== "upsert_target_company"
@@ -1923,6 +2069,18 @@ async function handleRpc(msg, user) {
     }
     if (name === "update_owner_profile") {
       return updateOwnerProfileCall(msg, user, args);
+    }
+    if (name === "create_reading_thread") {
+      return createReadingThreadCall(msg, user, args);
+    }
+    if (name === "list_reading_threads") {
+      return listReadingThreadsCall(msg, user);
+    }
+    if (name === "get_reading_thread") {
+      return getReadingThreadCall(msg, user, args);
+    }
+    if (name === "advance_reading_section") {
+      return advanceReadingSectionCall(msg, user, args);
     }
     if (name === "set_company_priority") {
       return setCompanyPriorityCall(msg, user, args);

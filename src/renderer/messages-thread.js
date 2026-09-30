@@ -260,7 +260,7 @@
     var empty = pane.querySelector("[data-messages-empty]");
     var thread = pane.querySelector("[data-messages-thread]");
     if (!thread) return;
-    if (state.mode === "you") return;
+    if (state.mode === "you" || state.mode === "reading") return;
     if (empty) empty.hidden = true;
     thread.hidden = false;
     thread.setAttribute("data-thread-ready", "1");
@@ -363,6 +363,14 @@
       state.drafts = [];
       state.replies = [];
       // Drop person header links so they do not linger on the owner thread.
+      clearProfileLinks();
+      return;
+    }
+    if (e && e.detail && e.detail.reading) {
+      state.mode = "reading";
+      state.lead = null;
+      state.drafts = [];
+      state.replies = [];
       clearProfileLinks();
       return;
     }
