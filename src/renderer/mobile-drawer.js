@@ -3,6 +3,9 @@
  * The CSS in mobile-drawer.css handles styling and transitions; this
  * file toggles body[data-drawer-open] in response to the hamburger,
  * the backdrop, Escape, and selecting a session. Inert on ≥541px.
+ *
+ * On a messages mobile thread, the hamburger parks inside the pane
+ * lead row (with back / logo / name) instead of floating fixed.
  */
 
 (function () {
@@ -14,6 +17,7 @@
   const homeListEl = document.getElementById('home-list');
   const treeNav = document.querySelector('.sidebar__tree');
   const navHome = document.getElementById('nav-home');
+  const toggleHome = toggle ? toggle.parentNode : null;
 
   function open() {
     document.body.dataset.drawerOpen = '';
@@ -25,6 +29,37 @@
   }
   function isOpen() {
     return 'drawerOpen' in document.body.dataset;
+  }
+
+  function leadSlot() {
+    return document.querySelector('#messages-pane [data-messages-lead]');
+  }
+
+  function syncToggleHome() {
+    if (!toggle || !toggleHome) return;
+    const lead = leadSlot();
+    const inThread = isMobile()
+      && document.body.classList.contains('messages-mobile-thread')
+      && document.body.classList.contains('messages-shell-open')
+      && lead;
+    if (inThread) {
+      if (toggle.parentNode !== lead) {
+        lead.insertBefore(toggle, lead.firstChild);
+      }
+      toggle.classList.add('drawer-toggle--in-header');
+      toggle.setAttribute('aria-label', 'Open conversations');
+    } else {
+      if (toggle.parentNode !== toggleHome) {
+        // Keep toggle before the backdrop when restoring.
+        if (backdrop && backdrop.parentNode === toggleHome) {
+          toggleHome.insertBefore(toggle, backdrop);
+        } else {
+          toggleHome.appendChild(toggle);
+        }
+      }
+      toggle.classList.remove('drawer-toggle--in-header');
+      toggle.setAttribute('aria-label', 'Open sidebar');
+    }
   }
 
   toggle && toggle.addEventListener('click', () => {
@@ -51,11 +86,27 @@
   // Resizing from mobile to desktop drops the open state.
   window.addEventListener('resize', () => {
     if (!isMobile() && isOpen()) close();
+    syncToggleHome();
   });
 
   // Escape closes the drawer.
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isOpen()) close();
   });
+
+  const mo = typeof MutationObserver === 'function'
+    ? new MutationObserver(syncToggleHome)
+    : null;
+  if (mo) {
+    mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', syncToggleHome);
+  } else {
+    syncToggleHome();
+  }
+  // Messages shell may mount the lead slot a tick later.
+  setTimeout(syncToggleHome, 0);
+  setTimeout(syncToggleHome, 200);
 
 })();

@@ -34,6 +34,22 @@ test("person writing uses Keep crafting / This is everything (no Ship/Send)", ()
   assert.equal(/\bSend\b/.test(html.match(/id="messages-composer"[\s\S]*?<\/footer>/)[0]), false);
 });
 
+test("sent bubble times use the viewer local timezone (no UTC override)", () => {
+  assert.match(js, /function formatDay/);
+  assert.match(js, /toLocaleString\(undefined/);
+  assert.equal(/timeZone:\s*["']UTC["']/.test(js), false);
+  // 22:57Z is 3:57 PM in America/Los_Angeles (PDT).
+  const formatted = new Date("2026-09-29T22:57:00.000Z").toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  assert.match(formatted, /3:57\s*PM/);
+  assert.equal(/10:57/.test(formatted), false);
+});
+
 test("bubble styles: solid sent right, draft tint, lead left", () => {
   assert.match(css, /\.messages-thread__item--owner\b/);
   assert.match(css, /\.messages-thread__item--lead\b/);

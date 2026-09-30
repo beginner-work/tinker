@@ -95,9 +95,14 @@ test("channel and date selectors are not in the composer chrome", () => {
   assert.equal(/messages-composer__field--block/.test(html), false);
 });
 
-test("mobile thread header clears the hamburger and spaces title from links", () => {
-  assert.match(css, /body\.messages-mobile-thread \.messages-pane__top/);
-  assert.match(css, /padding:[^;]*68px/);
-  assert.match(css, /\.messages-pane__heading[\s\S]*flex-direction:\s*column/);
-  assert.match(css, /body\.messages-mobile-thread \.messages-pane__heading[^}]*gap:\s*10px/);
+test("mobile thread header parks hamburger in the lead row with links below", () => {
+  assert.match(html, /data-messages-lead/);
+  assert.match(css, /\.messages-pane__lead/);
+  assert.match(css, /body\.messages-mobile-thread \.messages-pane__lead/);
+  assert.match(css, /drawer-toggle--in-header/);
+  assert.match(css, /position:\s*relative\s*!important/);
+  assert.match(css, /body\.messages-mobile-thread \.messages-pane__links[^}]*padding-left:\s*98px/);
+  const drawer = fs.readFileSync(path.join(__dirname, "..", "src/renderer/mobile-drawer.js"), "utf8");
+  assert.match(drawer, /data-messages-lead/);
+  assert.match(drawer, /drawer-toggle--in-header/);
 });

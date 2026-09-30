@@ -418,6 +418,7 @@ a.sidebar__secondary-link { display: inline; }
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+  min-height: 0;
 }
 .messages-pane__links[hidden] { display: none !important; }
 /* Profile link icons: see icon rules near messages-notepad styles. */
@@ -534,14 +535,22 @@ body.messages-shell-open #welcome[data-active],
 body.messages-inbox-primary #welcome[data-active] { display: none; }
 .messages-pane__top {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   padding: 10px 18px;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
+.messages-pane__lead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
 .messages-pane__back {
   display: none;
+  flex-shrink: 0;
   padding: 4px 8px;
   font-size: 18px;
   line-height: 1;
@@ -551,6 +560,7 @@ body.messages-inbox-primary #welcome[data-active] { display: none; }
 .messages-pane__title {
   margin: 0;
   min-width: 0;
+  flex: 1;
   font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 650;
@@ -568,6 +578,9 @@ body.messages-inbox-primary #welcome[data-active] { display: none; }
   font-size: 13px;
   font-weight: 500;
   color: var(--color-muted);
+}
+.messages-pane__links {
+  padding-left: 0;
 }
 .messages-pane__body {
   flex: 1;
@@ -701,19 +714,23 @@ button.messages-thread__bubble {
   body.messages-mobile-thread .messages-thread__item { width: 84%; max-width: 84%; }
   body.messages-mobile-thread .messages-thread__bubble { padding: 9px 12px; font-size: 15px; }
   body.messages-mobile-thread .messages-pane__top {
-    /* Clear the fixed 48px hamburger (left:safe+12) plus a gap. */
-    padding: 12px 14px 12px 68px;
-    gap: 12px;
-    align-items: flex-start;
+    padding: 10px 14px 12px;
+    gap: 10px;
+  }
+  body.messages-mobile-thread .messages-pane__lead {
+    gap: 10px;
+    min-height: 44px;
   }
   body.messages-mobile-thread .messages-pane__avatar {
     width: 22px;
     height: 22px;
-    margin-top: 2px;
   }
-  body.messages-mobile-thread .messages-pane__heading { gap: 10px; }
   body.messages-mobile-thread .messages-pane__title { font-size: 15px; }
-  body.messages-mobile-thread .messages-pane__links { gap: 12px; }
+  /* Indent links under the name, past menu + back + logo. */
+  body.messages-mobile-thread .messages-pane__links {
+    gap: 12px;
+    padding-left: 98px;
+  }
 }
 
 /* Composer — Grok/ChatGPT-style shell with Ship + Next. */
@@ -1055,20 +1072,12 @@ body.messages-you-active .writing--in-messages .writing__next {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
   }
 }
-/* Hamburger is fixed at left:safe+12 / 48×48 (mobile-drawer.css ≤540px).
- * It used to cover the first words of the You interview question — sit the
- * notepad beside it. Also clear vertically when the install banner shifts
- * the toggle down (html.pwa-hint-visible adds +64px to top). */
+/* Hamburger parks in the messages lead row on mobile threads, so the You
+ * prompt no longer needs a left/top clearance for a fixed overlay menu. */
 @media (max-width: 540px) {
   body.messages-you-active.messages-mobile-thread .writing--in-messages .writing__body {
-    /* 12 gutter + 48 toggle + 8 gap → prompt never starts under ☰. */
-    padding-left: 68px;
+    padding-left: 12px;
     padding-top: 12px;
-  }
-  html.pwa-hint-visible body.messages-you-active.messages-mobile-thread .writing--in-messages .writing__body {
-    /* Banner-lowered toggle bottom ≈ safe+124; header ~49 + body pad 10.
-     * Extra top pad drops the prompt fully below the round menu. */
-    padding-top: 72px;
   }
 }
 body.messages-you-active .messages-thread__list--self {
@@ -1233,9 +1242,22 @@ body.messages-you-active .writing--in-messages .writing-recall__text {
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
   }
-  /* From the thread, hamburger reopens the company list as a drawer. */
-  body.messages-shell-open.messages-mobile-thread .drawer-toggle {
+  /* From the thread, hamburger lives in the header lead row — not fixed. */
+  body.messages-shell-open.messages-mobile-thread .drawer-toggle,
+  body.messages-shell-open.messages-mobile-thread .drawer-toggle.drawer-toggle--in-header,
+  html.pwa-hint-visible body.messages-shell-open.messages-mobile-thread .drawer-toggle {
     display: inline-flex !important;
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    z-index: 2;
+    flex-shrink: 0;
+    align-self: center;
+    width: 40px;
+    height: 40px;
+    margin: 0;
   }
   body.messages-shell-open.messages-mobile-thread[data-drawer-open] .sidebar {
     display: flex !important;

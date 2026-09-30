@@ -269,14 +269,14 @@
            (slice 3). Flat empty state until a person is selected. -->
       <section id="messages-pane" class="messages-pane" hidden aria-label="Conversation">
         <header class="messages-pane__top">
-          <button type="button" class="messages-pane__back" data-messages-back aria-label="Back to conversations">←</button>
-          <span class="messages-pane__avatar" data-messages-avatar hidden aria-hidden="true"></span>
-          <div class="messages-pane__heading">
+          <div class="messages-pane__lead" data-messages-lead>
+            <button type="button" class="messages-pane__back" data-messages-back aria-label="Back to conversations">←</button>
+            <span class="messages-pane__avatar" data-messages-avatar hidden aria-hidden="true"></span>
             <h2 class="messages-pane__title">
               <span data-messages-name>Messages</span><span class="messages-pane__role" data-messages-role hidden></span>
             </h2>
-            <div class="messages-pane__links" data-messages-links hidden></div>
           </div>
+          <div class="messages-pane__links" data-messages-links hidden></div>
         </header>
         <div class="messages-pane__body">
           <p class="messages-pane__empty" data-messages-empty>Select a conversation to see drafts and touch history for that person.</p>

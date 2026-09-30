@@ -61,22 +61,21 @@ test("You-mode writing sits in normal flow under the pane header", () => {
   assert.equal(/—/.test(demo), false);
 });
 
-test("You interview question clears the mobile hamburger and stays full ink contrast", () => {
+test("You interview question stays full ink contrast; hamburger is in the header row", () => {
   assert.match(css, /color:\s*var\(--color-ink/);
   assert.match(
     css,
     /body\.messages-you-active[\s\S]*writing-question[\s\S]*opacity:\s*1/
   );
-  // Must not leave the prompt under the fixed 48px drawer-toggle.
+  // Menu parks in the lead row — prompt uses normal gutter, not 68px clearance.
   const mobileYou = css.match(
     /@media \(max-width:\s*540px\)\s*\{[\s\S]*?body\.messages-you-active\.messages-mobile-thread \.writing--in-messages \.writing__body\s*\{([^}]+)\}/
   );
-  assert.ok(mobileYou, "expected ≤540px You writing__body clearance rule");
-  assert.match(mobileYou[1], /padding-left:\s*68px/);
-  assert.match(
-    css,
-    /html\.pwa-hint-visible body\.messages-you-active\.messages-mobile-thread[\s\S]*padding-top:\s*72px/
-  );
+  assert.ok(mobileYou, "expected ≤540px You writing__body rule");
+  assert.match(mobileYou[1], /padding-left:\s*12px/);
+  assert.equal(/padding-left:\s*68px/.test(mobileYou[1]), false);
+  assert.match(html, /data-messages-lead/);
+  assert.match(css, /drawer-toggle--in-header/);
 });
 
 test("owner notepad is borderless and floating actions replace composer + mode-nav", () => {
