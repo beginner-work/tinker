@@ -21,6 +21,10 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  // Single switch for Keep crafting question + subject generation.
+  // Flip back to claude-opus-4-8 (or another id) without hunting call sites.
+  const KEEP_CRAFTING_MODEL = "claude-opus-4-8";
+
   const SYSTEM_PROMPT = [
     "You are an interviewer for tinker, a writing tool for founders.",
     "",
@@ -218,6 +222,69 @@
 
   function keepCraftingUserInstruction({ tighter = false } = {}) {
     return tighter ? KEEP_CRAFTING_TIGHTER_INSTRUCTION : KEEP_CRAFTING_INSTRUCTION;
+  }
+
+  const SUBJECT_SYSTEM_PROMPT = [
+    "You write short outreach email subject lines for founders.",
+    "Return strict JSON only: { \"subject\": string }.",
+    "The subject must be one line, under 90 characters, concrete, and grounded in the person and what the founder shared.",
+    "No quotes around the subject value beyond JSON. No emoji. No leading Re:/Fwd:.",
+    "Never wrap the JSON in code fences.",
+  ].join("\n");
+
+  function fallbackOutreachSubject(personName, companyName) {
+    const person = String(personName || "").trim() || "you";
+    const company = String(companyName || "").trim();
+    if (company) return ("Quick note — " + person + " at " + company).slice(0, 90);
+    return ("Quick note — " + person).slice(0, 90);
+  }
+
+  function normalizeOutreachSubject(parsed, personName, companyName) {
+    const raw = parsed && typeof parsed.subject === "string" ? parsed.subject.trim() : "";
+    const cleaned = raw
+      .replace(/^["'\s]+|["'\s]+$/g, "")
+      .replace(/^(re|fwd)\s*:\s*/i, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 90);
+    if (!cleaned) return null;
+    return cleaned;
+  }
+
+  function parseSubjectResponse(text) {
+    const stripped = stripFences(text);
+    try {
+      const obj = JSON.parse(stripped);
+      return { subject: typeof obj.subject === "string" ? obj.subject : "" };
+    } catch {
+      const line = stripped.split(/\n/).map((s) => s.trim()).filter(Boolean)[0] || "";
+      return { subject: line.slice(0, 90) };
+    }
+  }
+
+  function buildSubjectUserMessage({ personName, personTitle, companyName, companyContext, transcript }) {
+    const person = String(personName || "").trim() || "this person";
+    const title = String(personTitle || "").trim();
+    const company = String(companyName || "").trim();
+    const lines = [];
+    lines.push("Propose one email subject line for founder outreach.");
+    lines.push("Person: " + person + (title ? " (" + title + ")" : "") + (company ? " at " + company : "") + ".");
+    const ctx = String(companyContext || "").trim();
+    if (ctx) lines.push("Company context: " + ctx.slice(0, 800));
+    lines.push("");
+    lines.push("What the founder shared:");
+    const turns = Array.isArray(transcript) ? transcript : [];
+    if (!turns.length) {
+      lines.push("(no answered turns yet)");
+    } else {
+      turns.forEach((t, i) => {
+        lines.push("Q" + (i + 1) + ": " + String(t && t.q || "").trim());
+        lines.push("A" + (i + 1) + ": " + String(t && t.a || "").trim());
+      });
+    }
+    lines.push("");
+    lines.push('Return JSON { "subject": "..." } only.');
+    return lines.join("\n");
   }
 
   function stripFences(text) {
@@ -467,14 +534,18 @@
   }
 
   return {
+    KEEP_CRAFTING_MODEL,
     SYSTEM_PROMPT,
     FREEFORM_SYSTEM_PROMPT,
+    SUBJECT_SYSTEM_PROMPT,
     KEEP_CRAFTING_INSTRUCTION,
     KEEP_CRAFTING_TIGHTER_INSTRUCTION,
     KEEP_CRAFTING_FALLBACKS,
     parseInterviewResponse,
     parseFreeformResponse,
+    parseSubjectResponse,
     buildFollowupRequest,
+    buildSubjectUserMessage,
     transcriptStage,
     normalizeQuestionKey,
     askedQuestionKeys,
@@ -483,5 +554,7 @@
     fallbackKeepCraftingQuestion,
     normalizeKeepCraftingQuestion,
     keepCraftingUserInstruction,
+    fallbackOutreachSubject,
+    normalizeOutreachSubject,
   };
 });

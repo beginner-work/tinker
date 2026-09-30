@@ -72,7 +72,16 @@
   function applyLabels() {
     var primary = root && root.querySelector("[data-notepad-primary]");
     var secondary = root && root.querySelector("[data-notepad-secondary]");
-    if (primary) primary.textContent = opts.primaryLabel || "Save draft";
+    if (primary) {
+      var primaryLabel = String(opts.primaryLabel || "").trim();
+      if (!primaryLabel && opts.hideFoot) {
+        primary.hidden = true;
+        primary.textContent = "";
+      } else {
+        primary.hidden = false;
+        primary.textContent = primaryLabel || "Save draft";
+      }
+    }
     if (secondary) {
       var label = String(opts.secondaryLabel || "").trim();
       secondary.hidden = !label;
@@ -100,6 +109,16 @@
     meta.hidden = true;
   }
 
+  function applyChrome() {
+    var input = root && root.querySelector("[data-notepad-input]");
+    var foot = root && root.querySelector("[data-notepad-foot]");
+    if (input) {
+      input.hidden = !!opts.hideInput;
+      if (opts.hideInput) input.value = "";
+    }
+    if (foot) foot.hidden = !!opts.hideFoot;
+  }
+
   function mount(host, nextOpts) {
     ensure();
     opts = Object.assign({}, opts, nextOpts || {});
@@ -113,7 +132,8 @@
     applyLabels();
     applyHeading();
     applyMeta();
-    if (Object.prototype.hasOwnProperty.call(opts, "value")) {
+    applyChrome();
+    if (!opts.hideInput && Object.prototype.hasOwnProperty.call(opts, "value")) {
       var input = root.querySelector("[data-notepad-input]");
       if (input && document.activeElement !== input) input.value = opts.value || "";
     }

@@ -773,7 +773,7 @@
         result = await window.tinker.callClaude({
           system,
           messages: [{ role: "user", content: userMessage }],
-          model: "claude-opus-4-8",
+          model: (api && api.KEEP_CRAFTING_MODEL) || "claude-opus-4-8",
           maxTokens: 2048,
         });
       } catch (err) {

@@ -1,13 +1,15 @@
 /* Lead/person chat: owner notes + Keep crafting interview turns.
- * Outreach recipient/subject/body stay data-only via MCP. Review happens
- * outside Tinker. Keep crafting asks a new person-scoped question (never a
- * repeat) and scrolls it into view. This is everything saves notes only.
+ * Outreach recipient/body stay data-only via MCP. Keep crafting asks a new
+ * person-scoped question (never a repeat). This is everything saves notes
+ * and shows one read-only Subject card (generated subject on the gmail draft
+ * for Clair). No To/Body review UI, no edit/send controls.
  */
 (function () {
   "use strict";
   if (typeof document === "undefined") return;
 
   var TOKEN_KEY = "tinker_jwt";
+  var DONE_MARKER = "__done__";
   var CHANNELS = [
     { key: "linkedin_connection", label: "LinkedIn" },
     { key: "gmail_outreach", label: "Email" },
@@ -24,6 +26,8 @@
     draft: "",
     saving: false,
     asking: false,
+    done: false,
+    proposedSubject: "",
   };
   var legacyRoot = null;
 
@@ -122,25 +126,44 @@
     }
     return parts.join("\n").replace(/\n+$/, "");
   }
+  function serializeDoneNotes(transcript) {
+    var parts = [];
+    (transcript || []).forEach(function (turn) {
+      if (!turn || !turn.q) return;
+      parts.push("### " + String(turn.q).trim());
+      parts.push(String(turn.a || "").trim());
+      parts.push("");
+    });
+    parts.push("### " + DONE_MARKER);
+    parts.push("");
+    return parts.join("\n").replace(/\n+$/, "");
+  }
   function parseNotes(raw, lead, company) {
     var text = String(raw || "").replace(/\r\n/g, "\n");
     var fallbackQ = defaultQuestion(lead, company);
     if (!text.trim()) {
-      return { transcript: [], pending: fallbackQ, draft: "" };
+      return { transcript: [], pending: fallbackQ, draft: "", done: false };
     }
     if (!/^###\s+/m.test(text)) {
       // Legacy freeform notes = draft under the default prompt.
-      return { transcript: [], pending: fallbackQ, draft: text.trim() };
+      return { transcript: [], pending: fallbackQ, draft: text.trim(), done: false };
     }
     var chunks = text.split(/^###\s+/m).filter(function (c) { return String(c || "").trim(); });
     var transcript = [];
     var pending = fallbackQ;
     var draft = "";
+    var done = false;
     chunks.forEach(function (chunk, i) {
       var nl = chunk.indexOf("\n");
       var q = (nl === -1 ? chunk : chunk.slice(0, nl)).trim();
       var a = (nl === -1 ? "" : chunk.slice(nl + 1)).replace(/^\n+/, "").replace(/\n+$/, "");
       if (!q) return;
+      if (q === DONE_MARKER) {
+        done = true;
+        pending = "";
+        draft = "";
+        return;
+      }
       var isLast = i === chunks.length - 1;
       if (isLast) {
         pending = q;
@@ -149,7 +172,8 @@
         transcript.push({ q: q, a: a });
       }
     });
-    return { transcript: transcript, pending: pending || fallbackQ, draft: draft };
+    if (done) return { transcript: transcript, pending: "", draft: "", done: true };
+    return { transcript: transcript, pending: pending || fallbackQ, draft: draft, done: false };
   }
   function logoMark(company) {
     var wrap = el("span", "messages-notepad__mark", { "aria-hidden": "true" });
@@ -165,19 +189,7 @@
     wrap.appendChild(img);
     return wrap;
   }
-  function buildOpening(lead, company) {
-    var opening = el("div", "messages-notepad__opening");
-    var mark = logoMark(company);
-    if (!mark.hidden) opening.appendChild(mark);
-    var context = el("p", "messages-notepad__context");
-    context.textContent = contextLine(lead, company);
-    opening.appendChild(context);
-    var research = researchProse(company);
-    if (research) {
-      var prose = el("p", "messages-notepad__research");
-      prose.textContent = research;
-      opening.appendChild(prose);
-    }
+  function appendTurns(opening) {
     state.transcript.forEach(function (turn) {
       if (!turn || !turn.q) return;
       var block = el("div", "messages-notepad__turn");
@@ -191,9 +203,45 @@
       }
       opening.appendChild(block);
     });
+  }
+  function buildOpening(lead, company) {
+    var opening = el("div", "messages-notepad__opening");
+    var mark = logoMark(company);
+    if (!mark.hidden) opening.appendChild(mark);
+    var context = el("p", "messages-notepad__context");
+    context.textContent = contextLine(lead, company);
+    opening.appendChild(context);
+    var research = researchProse(company);
+    if (research) {
+      var prose = el("p", "messages-notepad__research");
+      prose.textContent = research;
+      opening.appendChild(prose);
+    }
+    appendTurns(opening);
     var q = el("h2", "messages-notepad__question", { "data-notepad-question": "1" });
     q.textContent = state.pending || defaultQuestion(lead, company);
     opening.appendChild(q);
+    return opening;
+  }
+  function buildSubjectCard(subject) {
+    var card = el("div", "messages-notepad__subject", { "data-notepad-subject": "1" });
+    var label = el("p", "messages-notepad__subject-label");
+    label.textContent = "Subject";
+    var text = el("p", "messages-notepad__subject-text");
+    text.textContent = String(subject || "").trim();
+    card.appendChild(label);
+    card.appendChild(text);
+    return card;
+  }
+  function buildDoneOpening(lead, company, subject) {
+    var opening = el("div", "messages-notepad__opening");
+    var mark = logoMark(company);
+    if (!mark.hidden) opening.appendChild(mark);
+    var context = el("p", "messages-notepad__context");
+    context.textContent = contextLine(lead, company);
+    opening.appendChild(context);
+    appendTurns(opening);
+    opening.appendChild(buildSubjectCard(subject));
     return opening;
   }
   function stripReviewUi(host) {
@@ -203,6 +251,19 @@
     ).forEach(function (node) {
       if (node.parentNode) node.parentNode.removeChild(node);
     });
+  }
+  function keepCraftingModel() {
+    var api = interviewApi();
+    return (api && api.KEEP_CRAFTING_MODEL) || "claude-opus-4-8";
+  }
+  function fallbackSubject() {
+    var api = interviewApi();
+    var person = String(state.lead && state.lead.personName || "").trim();
+    var co = String((state.company && state.company.name) || (state.lead && state.lead.company) || "").trim();
+    if (api && typeof api.fallbackOutreachSubject === "function") {
+      return api.fallbackOutreachSubject(person, co);
+    }
+    return co ? ("Quick note — " + (person || "you") + " at " + co) : ("Quick note — " + (person || "you"));
   }
   function scrollQuestionIntoView() {
     var host = threadHost();
@@ -247,11 +308,29 @@
     host.querySelectorAll(".messages-thread__empty").forEach(function (node) {
       if (/loading/i.test(node.textContent || "") && node.parentNode) node.parentNode.removeChild(node);
     });
+    if (state.done) {
+      np.mount(host, {
+        primaryLabel: "",
+        secondaryLabel: "",
+        heading: "",
+        value: "",
+        hideInput: true,
+        hideFoot: true,
+        metaNode: buildDoneOpening(state.lead, state.company, state.proposedSubject || fallbackSubject()),
+        onInput: null,
+        onPrimary: null,
+        onSecondary: null,
+      });
+      setTimeout(scrollSubjectIntoView, 80);
+      return;
+    }
     np.mount(host, {
       primaryLabel: "This is everything",
       secondaryLabel: "Keep crafting",
       heading: "",
       value: state.draft,
+      hideInput: false,
+      hideFoot: false,
       metaNode: buildOpening(state.lead, state.company),
       onInput: function (value) {
         state.draft = value;
@@ -266,24 +345,36 @@
     if (secondary) secondary.disabled = !!(state.saving || state.asking);
     setTimeout(function () { np.focus(); }, 60);
   }
+  function scrollSubjectIntoView() {
+    var host = threadHost();
+    var card = host && host.querySelector("[data-notepad-subject], .messages-notepad__subject");
+    if (!card) return;
+    try { card.scrollIntoView({ behavior: "smooth", block: "center" }); }
+    catch (e) { try { card.scrollIntoView(true); } catch (e2) { /* ignore */ } }
+  }
   function unmountNotepad() {
     var np = notepad();
     if (np) np.unmount();
     stripReviewUi(threadHost());
     document.body.classList.remove("messages-notepad-active");
   }
-  function persistNotes() {
-    state.notes = serializeNotes(state.transcript, state.pending, state.draft);
+  function persistNotes(opts) {
+    var asDone = !!(opts && opts.done) || state.done;
+    state.notes = asDone
+      ? serializeDoneNotes(state.transcript)
+      : serializeNotes(state.transcript, state.pending, state.draft);
     if (state.lead) state.lead.notes = state.notes;
     return api("/api/leads", "PATCH", "edit", { notes: state.notes }, { id: state.leadId }).then(function (res) {
       if (res && res.lead) {
         state.lead = res.lead;
         var parsed = parseNotes(res.lead.notes || state.notes, state.lead, state.company);
-        // Keep in-memory pending/transcript authoritative after Keep crafting.
-        if (!state.asking) {
+        // Keep in-memory pending/transcript authoritative after Keep crafting / done.
+        if (!state.asking && !asDone) {
           state.transcript = parsed.transcript;
           state.pending = parsed.pending;
           state.draft = parsed.draft;
+          state.notes = res.lead.notes || state.notes;
+        } else if (asDone) {
           state.notes = res.lead.notes || state.notes;
         }
       }
@@ -294,8 +385,64 @@
       return res;
     });
   }
+  function resolveSubject() {
+    var api = interviewApi();
+    var maxAttempts = 3;
+    var system = (api && api.SUBJECT_SYSTEM_PROMPT) ||
+      'Return JSON { "subject": string } for one short outreach email subject.';
+    var person = String(state.lead && state.lead.personName || "").trim();
+    var co = String((state.company && state.company.name) || (state.lead && state.lead.company) || "").trim();
+    function attempt(i) {
+      if (!window.tinker || typeof window.tinker.callClaude !== "function") {
+        return Promise.resolve(fallbackSubject());
+      }
+      var user = api && typeof api.buildSubjectUserMessage === "function"
+        ? api.buildSubjectUserMessage({
+            personName: person,
+            personTitle: state.lead && state.lead.personTitle,
+            companyName: co,
+            companyContext: researchProse(state.company),
+            transcript: state.transcript,
+          })
+        : "Propose a short email subject for outreach to " + person + ".";
+      return window.tinker.callClaude({
+        system: system,
+        messages: [{ role: "user", content: user }],
+        model: keepCraftingModel(),
+        maxTokens: 256,
+      }).then(function (result) {
+        var parsed = api && typeof api.parseSubjectResponse === "function"
+          ? api.parseSubjectResponse(result && result.text)
+          : (function () {
+              try { return JSON.parse(String(result && result.text || "{}")); }
+              catch (e) { return { subject: String(result && result.text || "").trim() }; }
+            })();
+        var subject = api && typeof api.normalizeOutreachSubject === "function"
+          ? api.normalizeOutreachSubject(parsed, person, co)
+          : String(parsed && parsed.subject || "").trim().slice(0, 90);
+        if (subject) return subject;
+        if (i + 1 < maxAttempts) return attempt(i + 1);
+        return fallbackSubject();
+      }).catch(function () {
+        if (i + 1 < maxAttempts) return attempt(i + 1);
+        return fallbackSubject();
+      });
+    }
+    return attempt(0);
+  }
+  function persistProposedSubject(subject) {
+    return api("/api/leads", "POST", "proposed-subject", {
+      leadId: state.leadId,
+      subject: subject,
+    }).then(function (res) {
+      if (res && res.draft && res.draft.subject) {
+        state.proposedSubject = String(res.draft.subject).trim();
+      }
+      return res;
+    });
+  }
   function saveNotes(mode) {
-    if (state.saving || state.asking || !state.leadId) return;
+    if (state.saving || state.asking || !state.leadId || state.done) return;
     state.saving = true;
     var np = notepad();
     if (np) {
@@ -304,15 +451,34 @@
       if (secondary) secondary.disabled = true;
     }
     if (np) state.draft = np.getValue();
-    persistNotes().then(function () {
-      mountNotepad();
-      return mode;
+    // Fold the current answer into the transcript so the subject sees it.
+    var answer = String(state.draft || "").trim();
+    if (answer && state.pending) {
+      state.transcript = state.transcript.concat([{ q: state.pending, a: answer }]);
+    }
+    state.pending = "";
+    state.draft = "";
+    persistNotes({ done: true }).then(function () {
+      if (mode !== "done") {
+        mountNotepad();
+        return null;
+      }
+      return resolveSubject().then(function (subject) {
+        state.proposedSubject = String(subject || fallbackSubject()).trim() || fallbackSubject();
+        state.done = true;
+        return persistProposedSubject(state.proposedSubject).catch(function () {
+          // Subject card still renders even if draft write fails.
+          return null;
+        });
+      }).then(function () {
+        mountNotepad();
+      });
     }).catch(function () {
       mountNotepad();
     }).finally(function () {
       state.saving = false;
       var n = notepad();
-      if (n) {
+      if (n && !state.done) {
         n.setPrimaryEnabled(true);
         var secondary = n.el().querySelector("[data-notepad-secondary]");
         if (secondary) secondary.disabled = false;
@@ -373,7 +539,7 @@
       return window.tinker.callClaude({
         system: system,
         messages: [{ role: "user", content: buildPersonUserMessage(asked, i > 0) }],
-        model: "claude-opus-4-8",
+        model: keepCraftingModel(),
         maxTokens: 1024,
       }).then(function (result) {
         var parsed = api && typeof api.parseInterviewResponse === "function"
@@ -412,7 +578,7 @@
     note.textContent = msg;
   }
   function keepCrafting() {
-    if (state.saving || state.asking || !state.leadId) return;
+    if (state.saving || state.asking || !state.leadId || state.done) return;
     var np = notepad();
     if (np) state.draft = np.getValue();
     var answer = String(state.draft || "").trim();
@@ -465,14 +631,39 @@
       }
     });
   }
-  function hydrateFromLead(lead) {
+  function subjectFromDrafts(drafts) {
+    var rows = Array.isArray(drafts) ? drafts.slice() : [];
+    rows.sort(function (a, b) {
+      var aG = a && a.channel === "gmail_outreach" ? 0 : 1;
+      var bG = b && b.channel === "gmail_outreach" ? 0 : 1;
+      if (aG !== bG) return aG - bG;
+      return String(b && b.updatedAt || "").localeCompare(String(a && a.updatedAt || ""));
+    });
+    for (var i = 0; i < rows.length; i++) {
+      var status = String(rows[i] && rows[i].status || "");
+      if (status === "sent_by_owner") continue;
+      var subject = String(rows[i] && rows[i].subject || "").trim();
+      if (subject) return subject;
+    }
+    return "";
+  }
+  function hydrateFromLead(lead, drafts) {
     var parsed = parseNotes(lead && lead.notes || "", lead, state.company);
     state.transcript = parsed.transcript;
     state.pending = parsed.pending;
     state.draft = parsed.draft;
-    state.notes = serializeNotes(state.transcript, state.pending, state.draft);
+    state.done = !!parsed.done;
+    state.proposedSubject = subjectFromDrafts(drafts);
+    if (state.done) {
+      state.pending = "";
+      state.draft = "";
+      state.notes = serializeDoneNotes(state.transcript);
+      if (!state.proposedSubject) state.proposedSubject = fallbackSubject();
+    } else {
+      state.notes = serializeNotes(state.transcript, state.pending, state.draft);
+    }
   }
-  function setLead(leadId, lead, touch) {
+  function setLead(leadId, lead, touch, drafts) {
     state.leadId = leadId || "";
     state.lead = lead || null;
     state.company = companyForLead(lead);
@@ -484,12 +675,14 @@
       state.pending = "";
       state.draft = "";
       state.notes = "";
+      state.done = false;
+      state.proposedSubject = "";
       unmountNotepad();
       return;
     }
-    hydrateFromLead(lead);
+    hydrateFromLead(lead, drafts);
     mountNotepad();
-    setTimeout(scrollQuestionIntoView, 100);
+    setTimeout(state.done ? scrollSubjectIntoView : scrollQuestionIntoView, 100);
   }
   function setYouMode(on) {
     if (on) {
@@ -501,6 +694,8 @@
       state.transcript = [];
       state.pending = "";
       state.draft = "";
+      state.done = false;
+      state.proposedSubject = "";
       unmountNotepad();
       hideLegacyComposer();
     }
@@ -515,9 +710,9 @@
     if (!id) { setYouMode(false); setLead("", null, null); return; }
     api("/api/leads", "GET", "lead", null, { id: id }).then(function (res) {
       var lead = res.lead || { id: id };
-      setLead(id, lead, touch || null);
+      setLead(id, lead, touch || null, res.drafts || []);
     }).catch(function () {
-      setLead(id, { id: id }, touch || null);
+      setLead(id, { id: id }, touch || null, []);
     });
   }
   function boot() {

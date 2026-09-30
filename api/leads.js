@@ -94,6 +94,19 @@ async function dispatch(method, action, auth, body, req) {
   if (method === "PATCH" && action === "draft") {
     return { status: 200, body: { draft: store.presentDraft(await store.updateDraft({ id, userId, emailHint, actor, patch: body })) } };
   }
+  if (method === "POST" && action === "proposed-subject") {
+    const leadId = (typeof body.leadId === "string" && body.leadId.trim()) || id;
+    const result = await store.setProposedSubject({
+      userId, emailHint, actor, leadId, subject: body.subject,
+    });
+    return {
+      status: 200,
+      body: {
+        draft: store.presentDraft(result.draft),
+        lead: result.lead ? store.presentLead(result.lead) : null,
+      },
+    };
+  }
   if (method === "POST" && action === "approve") {
     const result = await store.approveDraft({ id, userId, emailHint, actor });
     return { status: 200, body: { draft: store.presentDraft(result.draft), event: store.presentEvent(result.event) } };

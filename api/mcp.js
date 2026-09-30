@@ -758,6 +758,9 @@ const LIST_TARGET_COMPANIES_TOOL = {
     "Optional status filter (active|dropped). Returns companies ordered by",
     "North Star / priority, each with people (name, title, contactType,",
     "linkedInUrl, githubUrl, nextStep, nextStepAt, queueOrder).",
+    "When the owner finished Keep crafting with This is everything, people may",
+    "also include proposedSubject — the generated outreach email subject on",
+    "their open gmail draft. Use that same subject when composing save_outreach_draft.",
     "Read-only. A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
@@ -1624,10 +1627,20 @@ async function listTargetCompaniesCall(msg, user, args) {
     const status = args.status || "active";
     const companies = await companiesStore.listCompanies({ userId, emailHint, status });
     const leads = await leadsStore.listLeads({ userId, emailHint });
+    const subjects = await leadsStore.proposedSubjectByLeadIds({
+      userId,
+      emailHint,
+      leadIds: leads.map((row) => row.id),
+    }).catch(() => ({}));
     const shaped = companies.map((company) => {
       const people = leads
         .filter((row) => row.companyId === company.id || nameMatch(row.company, company.name))
-        .map((row) => leadsStore.presentLead(row));
+        .map((row) => {
+          const person = leadsStore.presentLead(row);
+          const proposedSubject = subjects[row.id] || "";
+          if (proposedSubject) person.proposedSubject = proposedSubject;
+          return person;
+        });
       return { company: companiesStore.presentCompany(company), people };
     });
     return contentToolOk(msg, { companies: shaped });

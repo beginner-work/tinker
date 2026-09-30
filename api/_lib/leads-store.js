@@ -479,6 +479,79 @@ async function createDraft(input) {
     return { draft: saved, lead: updatedLead };
   });
 }
+/** Upsert the proposed email subject on the open gmail draft for a lead.
+ * Creates a draft shell (empty body) when none exists so Clair can read it
+ * via list_target_companies.proposedSubject / list_approved_outreach.subject.
+ */
+async function setProposedSubject({ userId, emailHint, actor, leadId, subject } = {}) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  const label = actorLabel(actor);
+  const subjectText = readText(subject, "subject", 300, true);
+  if (!leadId || typeof leadId !== "string") throw fail(400, "leadId is required.");
+  await ensureTable();
+  const lead = await loadOwned("lead", leadId, owner, "lead");
+  let openDrafts;
+  try {
+    openDrafts = await db().leadDraft.findMany({ where: { userId: owner, leadId: lead.id } });
+  } catch (err) { throw storeDown(err); }
+  const replaceable = openDrafts
+    .filter((row) => row.status === "draft" || row.status === "approved_to_send"
+      || row.status === "approved" || row.status === "send_failed")
+    .sort((a, b) => {
+      const aSame = a.channel === "gmail_outreach" ? 0 : 1;
+      const bSame = b.channel === "gmail_outreach" ? 0 : 1;
+      if (aSame !== bSame) return aSame - bSame;
+      return new Date(b.updatedAt) - new Date(a.updatedAt);
+    });
+  if (replaceable.length) {
+    const row = replaceable[0];
+    if (row.channel !== "gmail_outreach") {
+      // Prefer creating a gmail shell rather than stuffing subject onto LinkedIn.
+      return createDraft({
+        userId: owner, emailHint, actor: label, leadId: lead.id,
+        channel: "gmail_outreach", subject: subjectText, body: "",
+      });
+    }
+    const saved = await updateDraft({
+      id: row.id, userId: owner, emailHint, actor: label,
+      patch: { subject: subjectText },
+    });
+    return { draft: saved, lead };
+  }
+  return createDraft({
+    userId: owner, emailHint, actor: label, leadId: lead.id,
+    channel: "gmail_outreach", subject: subjectText, body: "",
+  });
+}
+
+async function proposedSubjectByLeadIds({ userId, emailHint, leadIds } = {}) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  const ids = Array.isArray(leadIds) ? leadIds.filter((id) => typeof id === "string" && id.trim()) : [];
+  const out = {};
+  if (!ids.length) return out;
+  await ensureTable();
+  let rows;
+  try {
+    rows = await db().leadDraft.findMany({
+      where: {
+        userId: owner,
+        leadId: { in: ids },
+        channel: "gmail_outreach",
+        status: { in: ["draft", "approved", "approved_to_send", "send_failed"] },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+  } catch (err) { throw storeDown(err); }
+  for (const row of rows) {
+    if (!row.leadId || out[row.leadId]) continue;
+    const subject = String(row.subject || "").trim();
+    if (subject) out[row.leadId] = subject;
+  }
+  return out;
+}
+
 async function updateDraft({ id, userId, emailHint, actor, patch }) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
@@ -945,7 +1018,8 @@ module.exports = {
   UNAVAILABLE, TABLE_STATEMENTS, SOURCES, STAGES, OUTCOMES, CHANNELS, DRAFT_STATUSES,
   ensureTable, resetTableCache, assertAllowed, presentLead: shape, presentDraft: shape, presentEvent: shape,
   parseImportText, createLead, listLeads, getLead, listDrafts, updateLead, setStage, importLeads,
-  createDraft, updateDraft, approveDraft, listApprovedOutreach, markDraftSent, markDraftFailed,
+  createDraft, updateDraft, setProposedSubject, proposedSubjectByLeadIds,
+  approveDraft, listApprovedOutreach, markDraftSent, markDraftFailed,
   saveOutreachDraft, revokeDraftApproval, isSendableOutreach, sendableError, outreachRecipient, mapOutreachChannel,
   getOutreachSettings, setOutreachSettings,
 };
