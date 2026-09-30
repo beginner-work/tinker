@@ -553,17 +553,18 @@ body.messages-inbox-primary #welcome[data-active] { display: none; }
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   margin: 0;
   padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.72);
+  border-radius: 0;
+  background: transparent;
   color: var(--color-foreground);
+  box-shadow: none;
   -webkit-tap-highlight-color: transparent;
 }
-.messages-pane__menu:active { transform: scale(0.96); }
+.messages-pane__menu:active { opacity: 0.7; }
 .messages-pane__back {
   display: none;
   flex-shrink: 0;
