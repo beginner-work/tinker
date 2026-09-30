@@ -27,14 +27,19 @@ test("composer is invisible notepad with Keep crafting / This is everything", ()
   assert.equal(/\bTyler\b/.test(js + html), false);
 });
 
-test("notes stay on the lead; no outreach review form in Tinker", () => {
+test("notes stay on the lead; Keep crafting asks a new person question", () => {
   assert.match(js, /saveNotes/);
-  assert.match(js, /notes:\s*notes/);
+  assert.match(js, /notes:\s*state\.notes|notes:\s*notes/);
   assert.match(js, /PATCH\",\s*\"edit\"/);
   assert.match(js, /Notes for /);
   assert.match(js, /onPrimary:\s*function\s*\(\)\s*\{\s*saveNotes\("done"\)/);
+  assert.match(js, /onSecondary:\s*function\s*\(\)\s*\{\s*keepCrafting\(\)/);
+  assert.match(js, /function keepCrafting/);
+  assert.match(js, /callClaude/);
+  assert.match(js, /normalizeKeepCraftingQuestion|fallbackKeepCraftingQuestion/);
+  assert.match(js, /scrollQuestionIntoView|scrollIntoView/);
+  assert.match(js, /isRepeatQuestion/);
   // Review happens outside Tinker: never build To/Subject/Body or approve UI.
-  // stripReviewUi may still name legacy selectors so old nodes get removed.
   assert.equal(/Review before handoff/.test(js), false);
   assert.equal(/data-review-to/.test(js), false);
   assert.equal(/data-review-subject/.test(js), false);
@@ -95,14 +100,15 @@ test("channel and date selectors are not in the composer chrome", () => {
   assert.equal(/messages-composer__field--block/.test(html), false);
 });
 
-test("mobile thread header parks hamburger in the lead row with links below", () => {
+test("mobile thread header uses in-header menu; floating toggle is hidden", () => {
   assert.match(html, /data-messages-lead/);
-  assert.match(css, /\.messages-pane__lead/);
+  assert.match(html, /data-messages-menu/);
+  assert.match(css, /\.messages-pane__menu/);
   assert.match(css, /body\.messages-mobile-thread \.messages-pane__lead/);
-  assert.match(css, /drawer-toggle--in-header/);
-  assert.match(css, /position:\s*relative\s*!important/);
+  assert.match(css, /body\.messages-shell-open\.messages-mobile-thread \.drawer-toggle/);
+  assert.match(css, /display:\s*none\s*!important/);
   assert.match(css, /body\.messages-mobile-thread \.messages-pane__links[^}]*padding-left:\s*98px/);
   const drawer = fs.readFileSync(path.join(__dirname, "..", "src/renderer/mobile-drawer.js"), "utf8");
-  assert.match(drawer, /data-messages-lead/);
-  assert.match(drawer, /drawer-toggle--in-header/);
+  assert.match(drawer, /data-messages-menu/);
+  assert.match(drawer, /syncHeaderMenu/);
 });

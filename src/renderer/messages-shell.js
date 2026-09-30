@@ -108,8 +108,19 @@
     }
     return false;
   }
+  function leadHasSentOutreach(leadId) {
+    if (!leadId) return false;
+    return state.drafts.some(function (d) {
+      return d && d.leadId === leadId
+        && (d.status === "sent_by_owner" || d.status === "sent");
+    });
+  }
   function visibleLeads() {
     return state.leads.filter(function (lead) {
+      if (!lead) return false;
+      // UI-only: once outreach is sent, drop the person from the rail.
+      // Thread still opens by direct selectLead / URL. Data + MCP unchanged.
+      if (leadHasSentOutreach(lead.id)) return false;
       if (state.companyFilter) {
         var c = String(lead.company || "").trim().toLowerCase();
         if (c !== state.companyFilter.toLowerCase()) return false;
