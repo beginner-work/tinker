@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reading paused demo (local fixture)</title>
+  <link rel="stylesheet" href="../design-tokens.css" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body { margin: 0; background: var(--color-bg, #faf8f5); }
+    .demo-frame {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: 100vh;
+    }
+    .demo-note {
+      grid-column: 1 / -1;
+      padding: 8px 12px;
+      background: #fff3cd;
+      color: #664d03;
+      font: 13px/1.4 system-ui, sans-serif;
+    }
+  </style>
+</head>
+<body class="messages-shell-open messages-inbox-primary messages-thread-active messages-reading-active messages-notepad-active">
+  <p class="demo-note">LOCAL FIXTURE - paused reading thread. Held books leave the inbox; Resume stays in the thread header.</p>
+  <div class="demo-frame">
+    <aside id="sidebar-messages" class="messages-rail">
+      <ul class="messages-rail__list" data-messages-list>
+        <li class="messages-rail__you" data-messages-you-slot>
+          <button type="button" class="messages-rail__row messages-rail__row--you" data-conv-id="__you__">
+            <span class="messages-rail__avatar" aria-hidden="true">TL</span>
+            <span class="messages-rail__main"><span class="messages-rail__top"><span class="messages-rail__name">You</span></span></span>
+          </button>
+        </li>
+        <li class="messages-rail__group">
+          <div class="messages-rail__group-head messages-rail__group-head--static">
+            <span class="messages-rail__group-label">READING</span>
+            
+          </div>
+          <ul class="messages-rail__group-list">
+            <!-- paused reading threads drop out of the inbox list -->
+          </ul>
+        </li>
+      </ul>
+    </aside>
+    <main id="messages-pane" class="messages-pane">
+      <header class="messages-pane__top">
+        <div class="messages-pane__lead">
+          <h2 class="messages-pane__title">
+            <span class="messages-pane__name" data-messages-name>Example Book</span>
+            <span class="messages-pane__role" data-messages-role>Ch 2: Communication and the Use of Language · on hold</span>
+          </h2>
+        </div>
+        <div class="messages-pane__links" data-messages-links>
+          <button type="button" class="messages-pane__hold" data-reading-hold="1" aria-pressed="true">Resume</button>
+        </div>
+      </header>
+      <div data-messages-thread class="messages-thread" data-thread-ready="1">
+        <div class="messages-notepad" data-messages-notepad>
+          <div class="messages-notepad__meta" data-notepad-meta>
+            <div class="messages-notepad__opening">
+              <p class="messages-notepad__move" data-reading-move="1">Moved to Ch 2: Communication and the Use of Language <button type="button" class="messages-notepad__back" data-reading-back="1">Go back</button></p>
+              <p class="messages-notepad__question" data-notepad-question="1">You mentioned that borrowing an analogy from a separate domain gets problematic in your fintech work. As you read this section on shared language, pick one fintech term your team says out loud in meetings and check whether the code actually uses that same word.</p>
+            </div>
+          </div>
+          <textarea class="messages-notepad__input" data-notepad-input placeholder="Write your answer…"></textarea>
+          <div class="messages-notepad__foot">
+            <button type="button" class="messages-notepad__secondary" data-notepad-secondary>Keep crafting</button>
+            <button type="button" class="messages-notepad__primary" data-notepad-primary>This is everything</button>
+            <button type="button" class="messages-notepad__tertiary" data-notepad-tertiary>Section done</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
