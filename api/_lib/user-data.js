@@ -102,6 +102,13 @@ function makeHandler(kind) {
         create: { userId, kind, data },
         update: { data },
       });
+      if (kind === "essays" || kind === "drafts") {
+        try {
+          const ping = require("./reflection-webhook-ping.js");
+          const latest = ping.latestFromBlob(data);
+          if (latest) void ping.notifyReflectionSaved(userId, latest);
+        } catch { /* never block saves */ }
+      }
       res.status(200).json({ ok: true, updatedAt: saved.updatedAt });
     } catch (err) {
       const status = err.status || 500;
