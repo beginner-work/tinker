@@ -816,7 +816,7 @@
     return readingApi("list").then(function (payload) {
       state.readingThreads = Array.isArray(payload.threads) ? payload.threads : [];
     }).catch(function () {
-      // Older deploys / auth miss — keep any cached reading rows.
+      // Older deploys / auth miss: keep any cached reading rows.
       if (!Array.isArray(state.readingThreads)) state.readingThreads = [];
     });
   }

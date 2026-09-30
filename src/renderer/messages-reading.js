@@ -250,9 +250,9 @@
     }
     var instr = api && typeof api.keepCraftingUserInstruction === "function"
       ? api.keepCraftingUserInstruction({ tighter: !!tighter })
-      : 'The founder pressed "Keep crafting" — return a non-empty next_question. Set done false.';
+      : 'The founder pressed "Keep crafting" - return a non-empty next_question. Set done false.';
     lines.push(instr);
-    lines.push("Ask another pre-read question that gets them ready for this section — concrete, not a repeat.");
+    lines.push("Ask another pre-read question that gets them ready for this section - concrete, not a repeat.");
     return lines.join("\n");
   }
   function resolveNextQuestion(asked) {
@@ -306,7 +306,7 @@
     if (np) state.draft = np.getValue();
     var answer = String(state.draft || "").trim();
     if (!answer) {
-      showNudge("Type an answer first — Keep crafting asks the next question from what you wrote.");
+      showNudge("Type an answer first. Keep crafting asks the next question from what you wrote.");
       return;
     }
     state.asking = true;

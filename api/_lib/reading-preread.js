@@ -74,7 +74,7 @@ function buildUser({ bookTitle, author, sectionTitle, priorSections, priorNotes,
     lines.push("Founder's earlier reading notepad notes (use these; do not ignore them):");
     lines.push(notes);
   } else {
-    lines.push("No earlier section notes yet — ground the question in the section theme and the founder's product work.");
+    lines.push("No earlier section notes yet - ground the question in the section theme and the founder's product work.");
   }
   if (Array.isArray(asked) && asked.length) {
     lines.push("Questions already asked (do not repeat):");
@@ -133,7 +133,7 @@ async function generatePreReadQuestionDetailed({
       return { question: q, source: "model", model: MODEL };
     }
     if (q) {
-      // Model echoed the template — treat as failure and keep fallback.
+      // Model echoed the template: treat as failure and keep fallback.
       return { question: fallback, source: "fallback", model: MODEL };
     }
   } catch (err) {
