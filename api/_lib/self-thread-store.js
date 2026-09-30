@@ -54,11 +54,13 @@ function newId() {
 }
 
 function present(message) {
+  const createdAt = message.createdAt;
   return {
     id: message.id,
     title: message.title,
     body: message.body,
-    createdAt: message.createdAt,
+    createdAt,
+    updatedAt: message.updatedAt || createdAt,
     source: message.source || "mcp",
   };
 }
@@ -143,11 +145,13 @@ async function purgePlanMessages({ userId } = {}) {
 async function postMessage({ userId, title, body, source } = {}) {
   try {
     const uid = requireUserId(userId);
+    const now = new Date().toISOString();
     const message = {
       id: newId(),
       title: trimTitle(title),
       body: trimBody(body),
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
       source: source === "owner" ? "owner" : "mcp",
     };
     if (isPlanDump(message)) {
