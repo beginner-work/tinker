@@ -544,7 +544,7 @@ body.messages-inbox-primary #welcome[data-active] { display: none; }
 }
 .messages-pane__lead {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   min-width: 0;
 }
@@ -556,6 +556,8 @@ body.messages-inbox-primary #welcome[data-active] { display: none; }
   width: 36px;
   height: 36px;
   margin: 0;
+  /* Optical align with the first title line when the lead row is top-aligned. */
+  margin-top: 2px;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -568,33 +570,56 @@ body.messages-inbox-primary #welcome[data-active] { display: none; }
 .messages-pane__back {
   display: none;
   flex-shrink: 0;
+  margin-top: 4px;
   padding: 4px 8px;
   font-size: 18px;
   line-height: 1;
   color: var(--color-muted);
 }
 .messages-pane__heading { min-width: 0; flex: 1; }
+/* Name on line 1, title + company on line 2. No clamp, ellipsis, or fade —
+   long titles must stay fully readable on a 390px iPhone. */
 .messages-pane__title {
   margin: 0;
   min-width: 0;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 650;
   letter-spacing: -0.01em;
   line-height: 1.3;
   white-space: normal;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: unset;
+  -webkit-line-clamp: unset;
+}
+.messages-pane__name {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .messages-pane__role {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.35;
   color: var(--color-muted);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.messages-pane__role[hidden] { display: none !important; }
+.messages-pane__avatar {
+  margin-top: 4px;
 }
 .messages-pane__links {
   padding-left: 0;
@@ -735,14 +760,19 @@ button.messages-thread__bubble {
     gap: 10px;
   }
   body.messages-mobile-thread .messages-pane__lead {
+    align-items: flex-start;
     gap: 8px;
     min-height: 44px;
   }
   body.messages-mobile-thread .messages-pane__avatar {
     width: 22px;
     height: 22px;
+    flex-shrink: 0;
+    margin-top: 4px;
   }
   body.messages-mobile-thread .messages-pane__title { font-size: 15px; }
+  body.messages-mobile-thread .messages-pane__name { font-size: 15px; }
+  body.messages-mobile-thread .messages-pane__role { font-size: 12px; }
   /* Indent links under the name, past menu + back + logo. */
   body.messages-mobile-thread .messages-pane__links {
     gap: 12px;

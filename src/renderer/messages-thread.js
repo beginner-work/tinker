@@ -200,7 +200,7 @@
       if (lead.company) bits.push("at " + String(lead.company).trim());
       var line = bits.join(" ");
       role.hidden = !line;
-      role.textContent = line ? " · " + line : "";
+      role.textContent = line || "";
     }
     renderProfileLinks({
       linkedInUrl: lead.linkedInUrl,

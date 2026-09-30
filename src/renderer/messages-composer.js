@@ -205,18 +205,12 @@
     });
   }
   function buildOpening(lead, company) {
+    // Display-only: do not render the italic "Notes for …" label, company
+    // logo mark, or company-notes paragraph. researchProse / lead.notes still
+    // feed Keep crafting + subject prompts via buildPersonUserMessage and
+    // resolveSubject — hide UI, keep prompt context.
     var opening = el("div", "messages-notepad__opening");
-    var mark = logoMark(company);
-    if (!mark.hidden) opening.appendChild(mark);
-    var context = el("p", "messages-notepad__context");
-    context.textContent = contextLine(lead, company);
-    opening.appendChild(context);
-    var research = researchProse(company);
-    if (research) {
-      var prose = el("p", "messages-notepad__research");
-      prose.textContent = research;
-      opening.appendChild(prose);
-    }
+    void company;
     appendTurns(opening);
     var q = el("h2", "messages-notepad__question", { "data-notepad-question": "1" });
     q.textContent = state.pending || defaultQuestion(lead, company);
@@ -234,12 +228,11 @@
     return card;
   }
   function buildDoneOpening(lead, company, subject) {
+    // Same display rule as buildOpening: no "Notes for …" chrome; turns +
+    // Subject card only. Company/person notes remain in prompt helpers.
     var opening = el("div", "messages-notepad__opening");
-    var mark = logoMark(company);
-    if (!mark.hidden) opening.appendChild(mark);
-    var context = el("p", "messages-notepad__context");
-    context.textContent = contextLine(lead, company);
-    opening.appendChild(context);
+    void lead;
+    void company;
     appendTurns(opening);
     opening.appendChild(buildSubjectCard(subject));
     return opening;
