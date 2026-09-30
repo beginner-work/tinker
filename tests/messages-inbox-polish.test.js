@@ -45,3 +45,16 @@ test("title fonts use Instrument Sans via --font-sans", () => {
   assert.match(css, /\.messages-pane__title\s*\{[^}]*font-family:\s*var\(--font-sans\)/);
   assert.match(css, /\.messages-rail__group-head\s*\{[^}]*font-family:\s*var\(--font-sans\)/);
 });
+
+test("person header wraps name then title; no clamp or ellipsis fade", () => {
+  assert.match(html, /messages-pane__name/);
+  assert.match(css, /\.messages-pane__title\s*\{[^}]*flex-direction:\s*column/);
+  assert.match(css, /\.messages-pane__name\s*\{/);
+  assert.match(css, /\.messages-pane__role\s*\{[^}]*overflow-wrap:\s*anywhere/);
+  assert.equal(/\.messages-pane__title\s*\{[^}]*-webkit-line-clamp\s*:\s*\d/.test(css), false);
+  assert.equal(/\.messages-pane__title\s*\{[^}]*text-overflow:\s*ellipsis/.test(css), false);
+  const shell = fs.readFileSync(path.join(root, "src/renderer/messages-shell.js"), "utf8");
+  const thread = fs.readFileSync(path.join(root, "src/renderer/messages-thread.js"), "utf8");
+  assert.equal(/" · " \+/.test(shell), false);
+  assert.equal(/" · " \+/.test(thread), false);
+});
