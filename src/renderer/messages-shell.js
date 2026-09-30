@@ -593,10 +593,7 @@
     var head = el("div", "messages-rail__group-head messages-rail__group-head--static");
     var headLabel = el("span", "messages-rail__group-label");
     headLabel.textContent = "READING";
-    var headCount = el("span", "messages-rail__group-count");
-    headCount.textContent = String(threads.length);
     head.appendChild(headLabel);
-    head.appendChild(headCount);
     group.appendChild(head);
     var ul = el("ul", "messages-rail__group-list");
     threads.forEach(function (thread) {
@@ -642,7 +639,6 @@
     var list = root.querySelector("[data-messages-list]");
     var empty = root.querySelector("[data-messages-empty]");
     var err = root.querySelector("[data-messages-error]");
-    var badge = root.querySelector("[data-messages-badge]");
     if (!list || !empty || !err) return;
 
     if (state.error) { err.hidden = false; err.textContent = state.error; }
@@ -650,11 +646,6 @@
 
     var leads = visibleLeads();
     var readingCount = (state.readingThreads || []).length;
-    var needs = leads.filter(needsDraft).length;
-    if (badge) {
-      badge.hidden = needs < 1;
-      badge.textContent = needs > 0 ? String(needs) : "";
-    }
     empty.hidden = leads.length > 0 || readingCount > 0 || !!state.error || state.loading;
     empty.textContent = "No people yet. Add them with the lead tools.";
     list.innerHTML = "";
@@ -672,10 +663,7 @@
       });
       var headLabel = el("span", "messages-rail__group-label");
       headLabel.textContent = bucket;
-      var headCount = el("span", "messages-rail__group-count");
-      headCount.textContent = String(grouped.map[bucket].length);
       head.appendChild(headLabel);
-      head.appendChild(headCount);
       head.addEventListener("click", function () {
         state.collapsed[bucket] = !state.collapsed[bucket];
         renderList();
@@ -717,11 +705,6 @@
         if (touch) main.appendChild(meta);
         btn.appendChild(avatar);
         btn.appendChild(main);
-        if (unread) {
-          var ub = el("span", "messages-rail__unread", { title: "Needs a draft", "aria-label": "Needs a draft" });
-          ub.textContent = "1";
-          btn.appendChild(ub);
-        }
         btn.addEventListener("click", function () { selectLead(lead.id); });
         li.appendChild(btn);
         ul.appendChild(li);
