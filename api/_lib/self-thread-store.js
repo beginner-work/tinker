@@ -163,6 +163,16 @@ async function postMessage({ userId, title, body, source } = {}) {
     cleaned.push(message);
     while (cleaned.length > MAX_MESSAGES) cleaned.shift();
     await writeBlob(uid, cleaned);
+    if (message.source === "owner") {
+      try {
+        const ping = require("./reflection-webhook-ping.js");
+        void ping.notifyReflectionSaved(uid, {
+          reflectionId: message.id,
+          title: message.title,
+          updatedAt: message.updatedAt || message.createdAt,
+        });
+      } catch { /* never block saves */ }
+    }
     return present(message);
   } catch (err) {
     throw storeDown(err);

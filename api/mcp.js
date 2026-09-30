@@ -51,6 +51,7 @@ const contentStore = require("./_lib/content-store.js");
 const storyParts = require("./_lib/story-parts-store.js");
 const selfThread = require("./_lib/self-thread-store.js");
 const selfReflections = require("./_lib/self-reflections.js");
+const reflectionWebhook = require("./_lib/reflection-webhook-store.js");
 const readingThreads = require("./_lib/reading-thread-store.js");
 const jobApplications = require("./_lib/job-application-store.js");
 const personPrep = require("./_lib/person-prep.js");
@@ -123,6 +124,7 @@ const INSTRUCTIONS = [
   "The owner sees it as an incoming assistant bubble. It does not send email or LinkedIn messages.",
   "Call list_self_reflections to read this connector user's You-thread posts and owner-typed reflections (essays and in-progress drafts).",
   "Newest first. Optional since (ISO) and limit. Returns id, title, full body, createdAt, updatedAt. Read-only; scoped to the connector owner.",
+  "Call set_reflection_webhook (url + authorization header) or clear_reflection_webhook for the owner's private reflection_saved ping. Secrets return masked only.",
   "Call create_reading_thread to start a generic reading workbook (any book): title, optional author, ordered sections (string titles).",
   "It generates one pre-read question for the first section via KEEP_CRAFTING_MODEL and shows the thread in the inbox like a lead.",
   "Call list_reading_threads or get_reading_thread to read threads. Call advance_reading_section when the owner finished a section to mark it done and generate the next pre-read question.",
@@ -620,6 +622,35 @@ const LIST_SELF_REFLECTIONS_TOOL = {
     },
   },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const SET_REFLECTION_WEBHOOK_TOOL = {
+  name: "set_reflection_webhook",
+  title: "Set reflection webhook",
+  description: [
+    "Store this connector owner's private reflection_saved webhook url (https) and authorization (full header value).",
+    "Encrypted at rest; response is masked hints only (last 4 chars). Never returns secrets in full.",
+    "On save/edit, Tinker POSTs {event, reflectionId, title, updatedAt} with that Authorization header. No body text.",
+    "A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      url: { type: "string", description: "HTTPS webhook URL." },
+      authorization: { type: "string", description: "Full Authorization header value sent on each ping." },
+    },
+    required: ["url", "authorization"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+};
+
+const CLEAR_REFLECTION_WEBHOOK_TOOL = {
+  name: "clear_reflection_webhook",
+  title: "Clear reflection webhook",
+  description: "Remove this connector owner's reflection webhook URL and Authorization header. Returns configured:false. A user id in args is ignored.",
+  inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
 };
 
 const UPDATE_OWNER_PROFILE_TOOL = {
@@ -1224,6 +1255,8 @@ const TOOLS = [
   SET_BUSY_TIMES_TOOL,
   POST_TO_SELF_THREAD_TOOL,
   LIST_SELF_REFLECTIONS_TOOL,
+  SET_REFLECTION_WEBHOOK_TOOL,
+  CLEAR_REFLECTION_WEBHOOK_TOOL,
   UPDATE_OWNER_PROFILE_TOOL,
   CREATE_READING_THREAD_TOOL,
   LIST_READING_THREADS_TOOL,
@@ -1627,6 +1660,46 @@ async function listSelfReflectionsCall(msg, user, args) {
       status: 200,
       headers: NO_STORE,
       body: rpcOk(msg.id, toolError(message || selfReflections.UNAVAILABLE)),
+    };
+  }
+}
+
+async function setReflectionWebhookCall(msg, user, args) {
+  try {
+    const userId = storyUserId(user);
+    const webhook = await reflectionWebhook.setWebhook({
+      userId,
+      url: args && args.url,
+      authorization: args && args.authorization,
+    });
+    return contentToolOk(msg, { webhook });
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500
+      ? err.message
+      : reflectionWebhook.UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || reflectionWebhook.UNAVAILABLE)),
+    };
+  }
+}
+
+async function clearReflectionWebhookCall(msg, user) {
+  try {
+    const userId = storyUserId(user);
+    const webhook = await reflectionWebhook.clearWebhook({ userId });
+    return contentToolOk(msg, { webhook });
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500
+      ? err.message
+      : reflectionWebhook.UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || reflectionWebhook.UNAVAILABLE)),
     };
   }
 }
@@ -2399,6 +2472,8 @@ async function handleRpc(msg, user) {
       && name !== "set_busy_times"
       && name !== "post_to_self_thread"
       && name !== "list_self_reflections"
+      && name !== "set_reflection_webhook"
+      && name !== "clear_reflection_webhook"
       && name !== "update_owner_profile"
       && name !== "create_reading_thread"
       && name !== "list_reading_threads"
@@ -2462,6 +2537,12 @@ async function handleRpc(msg, user) {
     }
     if (name === "list_self_reflections") {
       return listSelfReflectionsCall(msg, user, args);
+    }
+    if (name === "set_reflection_webhook") {
+      return setReflectionWebhookCall(msg, user, args);
+    }
+    if (name === "clear_reflection_webhook") {
+      return clearReflectionWebhookCall(msg, user);
     }
     if (name === "update_owner_profile") {
       return updateOwnerProfileCall(msg, user, args);

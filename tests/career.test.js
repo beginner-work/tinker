@@ -603,6 +603,8 @@ test("get_career_record reads only this user and check_text does not write", asy
     "set_busy_times",
     "post_to_self_thread",
     "list_self_reflections",
+    "set_reflection_webhook",
+    "clear_reflection_webhook",
     "update_owner_profile",
     "create_reading_thread",
     "list_reading_threads",

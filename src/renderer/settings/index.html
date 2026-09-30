@@ -160,6 +160,26 @@
         </label>
       </section>
 
+      <section class="settings__section" aria-labelledby="settings-webhook-heading">
+        <h2 class="settings__section-title" id="settings-webhook-heading">Reflection ping</h2>
+        <p class="settings__hint">Private HTTPS webhook for save pings (id, title, updatedAt only). URL and Authorization stay secret; only masked hints are shown.</p>
+        <label class="settings__field">
+          <span class="settings__label">Webhook URL</span>
+          <input type="url" class="settings__input" data-reflection-webhook-url placeholder="https://…" autocomplete="off" maxlength="2000" />
+          <p class="settings__hint" data-reflection-webhook-url-hint hidden></p>
+        </label>
+        <label class="settings__field">
+          <span class="settings__label">Authorization header</span>
+          <input type="password" class="settings__input" data-reflection-webhook-auth placeholder="Bearer …" autocomplete="off" maxlength="4000" />
+          <p class="settings__hint" data-reflection-webhook-auth-hint hidden></p>
+        </label>
+        <span class="settings__row">
+          <button type="button" class="settings__save" data-reflection-webhook-save>Save webhook</button>
+          <button type="button" class="settings__save" data-reflection-webhook-clear style="background:transparent;color:var(--color-foreground);border:1px solid var(--color-border)">Clear</button>
+        </span>
+        <p class="settings__status" data-reflection-webhook-status hidden></p>
+      </section>
+
       <section class="settings__section" aria-labelledby="settings-pages-heading">
         <h2 class="settings__section-title" id="settings-pages-heading">Pages</h2>
         <ul class="settings__nav">
