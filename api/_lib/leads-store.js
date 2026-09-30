@@ -313,13 +313,45 @@ async function listDrafts({ userId, emailHint, status, company } = {}) {
   drafts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   return drafts.map((draft) => ({ draft, lead: (draft.leadId && byId.get(draft.leadId)) || null }));
 }
+const DONE_MARKER_LINE = "### __done__";
+
+function notesHaveDoneMarker(text) {
+  return /(?:^|\n)###\s*__done__\s*(?:\n|$)/.test(String(text || ""));
+}
+
+/** Preserve completed Keep crafting state across field updates / sync imports. */
+function mergeLeadNotes(existing, incoming) {
+  const prev = String(existing || "");
+  // Omitted incoming must never wipe an existing notepad.
+  if (incoming == null) return prev;
+  const next = readText(incoming, "notes", 8000, false);
+  // Explicit empty must not wipe Q&A that already exists.
+  if (!String(next || "").trim() && prev.trim()) return prev;
+  if (notesHaveDoneMarker(prev) && !notesHaveDoneMarker(next)) {
+    const trimmed = String(next || "").replace(/\n+$/, "");
+    return (trimmed ? trimmed + "\n\n" : "") + DONE_MARKER_LINE + "\n";
+  }
+  if (notesHaveDoneMarker(next)) {
+    return String(next || "").replace(/\n+$/, "") + "\n";
+  }
+  return next;
+}
+
+function ensureDoneMarker(notes) {
+  const text = String(notes || "").replace(/\r\n/g, "\n");
+  if (notesHaveDoneMarker(text)) return text.replace(/\n+$/, "") + "\n";
+  const trimmed = text.replace(/\n+$/, "");
+  return (trimmed ? trimmed + "\n\n" : "") + DONE_MARKER_LINE + "\n";
+}
+
 async function updateLead({ id, userId, emailHint, actor, patch }) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
+  // Omitted fields (including notes) are left unchanged - never wipe notepad.
   const keys = ["personName", "personTitle", "linkedInUrl", "githubUrl", "email", "company", "companyId", "contactType", "queueOrder", "targetRoleTitle", "postingUrl", "source", "nextStep", "nextStepAt", "notes"]
-    .filter((key) => Object.prototype.hasOwnProperty.call(source, key));
+    .filter((key) => Object.prototype.hasOwnProperty.call(source, key) && source[key] !== undefined);
   if (!keys.length) throw fail(400, "Nothing to update.");
   await ensureTable();
   const row = await loadOwned("lead", id, owner, "lead");
@@ -336,7 +368,7 @@ async function updateLead({ id, userId, emailHint, actor, patch }) {
     else if (key === "nextStepAt") data.nextStepAt = readDate(source.nextStepAt, "nextStepAt");
     else if (key === "email") data.email = readText(source.email, "email", 320, false).toLowerCase();
     else if (key === "personName") data.personName = readText(source.personName, "personName", 200, true);
-    else if (key === "notes") data.notes = readText(source.notes, "notes", 8000, false);
+    else if (key === "notes") data.notes = mergeLeadNotes(row.notes, source.notes);
     else if (key === "linkedInUrl" || key === "githubUrl" || key === "postingUrl") data[key] = readText(source[key], key, 500, false);
     else if (key === "nextStep") data.nextStep = readText(source.nextStep, "nextStep", 500, false);
     else data[key] = readText(source[key], key, 200, false);
@@ -344,6 +376,25 @@ async function updateLead({ id, userId, emailHint, actor, patch }) {
   return commit(async (tx) => {
     const saved = await tx.lead.update({ where: { id: row.id }, data });
     await record(tx, { userId: owner, leadId: row.id, actor: label, action: "edited", detail: { fields: keys } });
+    return saved;
+  });
+}
+
+/** Append ### __done__ to existing notepad notes without replacing Q&A. */
+async function markLeadDone({ id, userId, emailHint, actor } = {}) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  const label = actorLabel(actor);
+  await ensureTable();
+  const row = await loadOwned("lead", id, owner, "lead");
+  const next = ensureDoneMarker(row.notes);
+  if (next === String(row.notes || "")) return row;
+  return commit(async (tx) => {
+    const saved = await tx.lead.update({ where: { id: row.id }, data: { notes: next } });
+    await record(tx, {
+      userId: owner, leadId: row.id, actor: label, action: "edited",
+      detail: { fields: ["notes"], markDone: true },
+    });
     return saved;
   });
 }
@@ -483,7 +534,7 @@ async function createDraft(input) {
  * Creates a draft shell (empty body) when none exists so Clair can read it
  * via list_target_companies.proposedSubject / list_approved_outreach.subject.
  */
-async function setProposedSubject({ userId, emailHint, actor, leadId, subject } = {}) {
+async function setProposedSubject({ userId, emailHint, actor, leadId, subject, force } = {}) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
@@ -509,18 +560,24 @@ async function setProposedSubject({ userId, emailHint, actor, leadId, subject } 
     if (row.channel !== "gmail_outreach") {
       // Prefer creating a gmail shell rather than stuffing subject onto LinkedIn.
       return createDraft({
-        userId: owner, emailHint, actor: label, leadId: lead.id,
+        userId: owner, emailHint, actor, leadId: lead.id,
         channel: "gmail_outreach", subject: subjectText, body: "",
       });
     }
+    const existing = String(row.subject || "").trim();
+    // Subject is generated once at This is everything - never overwrite later
+    // unless an explicit force (owner-initiated repair) is passed.
+    if (existing && !force) {
+      return { draft: row, lead, unchanged: true };
+    }
     const saved = await updateDraft({
-      id: row.id, userId: owner, emailHint, actor: label,
+      id: row.id, userId: owner, emailHint, actor,
       patch: { subject: subjectText },
     });
     return { draft: saved, lead };
   }
   return createDraft({
-    userId: owner, emailHint, actor: label, leadId: lead.id,
+    userId: owner, emailHint, actor, leadId: lead.id,
     channel: "gmail_outreach", subject: subjectText, body: "",
   });
 }
@@ -580,9 +637,15 @@ async function updateDraft({ id, userId, emailHint, actor, patch }) {
     data.approvedCompanyName = "";
     data.failedReason = "";
   }
+  const previousSubject = keys.includes("subject") ? String(row.subject || "") : "";
   return commit(async (tx) => {
     const saved = await tx.leadDraft.update({ where: { id: row.id }, data });
-    await record(tx, { userId: owner, leadId: row.leadId, actor: label, action: "draft_edited", detail: { draftId: row.id, fields: keys } });
+    const detail = { draftId: row.id, fields: keys };
+    if (keys.includes("subject")) {
+      detail.previousSubject = previousSubject;
+      detail.nextSubject = String(data.subject || "");
+    }
+    await record(tx, { userId: owner, leadId: row.leadId, actor: label, action: "draft_edited", detail });
     return saved;
   });
 }
@@ -1017,8 +1080,9 @@ async function setOutreachSettings({ userId, emailHint, patch }) {
 module.exports = {
   UNAVAILABLE, TABLE_STATEMENTS, SOURCES, STAGES, OUTCOMES, CHANNELS, DRAFT_STATUSES,
   ensureTable, resetTableCache, assertAllowed, presentLead: shape, presentDraft: shape, presentEvent: shape,
-  parseImportText, createLead, listLeads, getLead, listDrafts, updateLead, setStage, importLeads,
+  parseImportText, createLead, listLeads, getLead, listDrafts, updateLead, markLeadDone, setStage, importLeads,
   createDraft, updateDraft, setProposedSubject, proposedSubjectByLeadIds,
+  notesHaveDoneMarker, mergeLeadNotes, ensureDoneMarker,
   approveDraft, listApprovedOutreach, markDraftSent, markDraftFailed,
   saveOutreachDraft, revokeDraftApproval, isSendableOutreach, sendableError, outreachRecipient, mapOutreachChannel,
   getOutreachSettings, setOutreachSettings,

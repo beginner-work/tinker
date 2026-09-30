@@ -79,6 +79,9 @@ async function dispatch(method, action, auth, body, req) {
   if (method === "PATCH" && (action === "edit" || action === "")) {
     return { status: 200, body: { lead: store.presentLead(await store.updateLead({ id, userId, emailHint, actor, patch: body })) } };
   }
+  if (method === "POST" && action === "mark-done") {
+    return { status: 200, body: { lead: store.presentLead(await store.markLeadDone({ id, userId, emailHint, actor })) } };
+  }
   if (method === "POST" && action === "import") {
     const leads = await store.importLeads({ userId, emailHint, actor, text: body.text });
     return { status: 201, body: { leads: leads.map(store.presentLead) } };
@@ -97,13 +100,14 @@ async function dispatch(method, action, auth, body, req) {
   if (method === "POST" && action === "proposed-subject") {
     const leadId = (typeof body.leadId === "string" && body.leadId.trim()) || id;
     const result = await store.setProposedSubject({
-      userId, emailHint, actor, leadId, subject: body.subject,
+      userId, emailHint, actor, leadId, subject: body.subject, force: !!body.force,
     });
     return {
       status: 200,
       body: {
         draft: store.presentDraft(result.draft),
         lead: result.lead ? store.presentLead(result.lead) : null,
+        unchanged: !!result.unchanged,
       },
     };
   }

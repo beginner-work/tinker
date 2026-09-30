@@ -53,8 +53,10 @@ test("This is everything mounts a read-only Subject card (no answer/input)", () 
 test("proposed subject is stored on gmail draft and exposed to MCP readers", () => {
   assert.match(store, /async function setProposedSubject/);
   assert.match(store, /async function proposedSubjectByLeadIds/);
+  assert.match(store, /unchanged:\s*true|force/);
   assert.match(leadsApi, /proposed-subject/);
   assert.match(composer, /proposed-subject/);
+  assert.match(composer, /if \(state\.proposedSubject\)/);
   assert.match(mcp, /proposedSubject/);
   assert.match(mcp, /proposedSubjectByLeadIds/);
 });

@@ -85,7 +85,11 @@ const INSTRUCTIONS = [
   "Story parts are the user's approved wording for pasting into Formation drafts. Tinker does not draft or send outreach.",
   "Story-part tools are read-only. They do not mark parts ready, edit parts, or change stages.",
   "Call upsert_target_company to create or update a target company (name, priority, tier, notes, research). Omitted fields are left unchanged.",
-  "Call upsert_lead_person to create or update a person under a company (role type, next step, due date, sequence position). It does not wipe company tier/notes/research unless those args are passed.",
+  "Call upsert_lead_person to create or update a person under a company (role type, next step, due date, sequence position, optional person notes).",
+  "Omitted person fields are left unchanged. Email/nextStep updates never wipe notepad notes.",
+  "When notes are passed, the store merges and preserves a trailing ### __done__ completed marker.",
+  "Person upserts never write company notes/research - use upsert_target_company for those.",
+  "Call mark_lead_done with personId (or personName+companyName) to append ### __done__ without replacing Q&A.",
   "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
   "Prefer those lead tools over dumping GTM prose into the You thread.",
   "Call save_outreach_draft to put a composed email or LinkedIn message into a person's chat for the owner to review.",
@@ -710,8 +714,11 @@ const UPSERT_LEAD_PERSON_TOOL = {
     "Pass personName and companyName (or companyId). contactType is the role",
     "in sequence: referrer, hiring_leader, recruiter, or other.",
     "Optional personTitle, linkedInUrl, githubUrl, email, nextStep, dueDate (ISO),",
-    "queueOrder (sequence position), and touchType to plan the next outreach touch.",
-    "Does not send email or LinkedIn. A user id in args is ignored.",
+    "queueOrder (sequence position), notes (person notepad; merges and keeps ### __done__),",
+    "and touchType to plan the next outreach touch.",
+    "Omitted fields are left unchanged - email/nextStep updates never wipe notes.",
+    "Does not write company notes/research. Does not send email or LinkedIn.",
+    "A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -733,6 +740,10 @@ const UPSERT_LEAD_PERSON_TOOL = {
       nextStep: { type: "string", description: "Short next-step label." },
       dueDate: { type: "string", description: "When the next step is due (ISO)." },
       queueOrder: { type: "integer", description: "Sequence position within the role. Lower first." },
+      notes: {
+        type: "string",
+        description: "Optional person notepad notes. Merged with existing; a trailing ### __done__ marker is preserved when present on either side.",
+      },
       touchType: {
         type: "string",
         enum: ["application", "referral_outreach", "hiring_leader_outreach", "recruiter_outreach", "referral_follow_up", "call_follow_up"],
@@ -746,6 +757,27 @@ const UPSERT_LEAD_PERSON_TOOL = {
       },
     },
     required: ["personName", "companyName", "contactType"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const MARK_LEAD_DONE_TOOL = {
+  name: "mark_lead_done",
+  title: "Mark lead Keep crafting done",
+  description: [
+    "Append ### __done__ to a person's notepad notes without replacing Q&A turns.",
+    "Pass personId, or personName with companyName. Use to restore completed",
+    "This is everything state when the marker was lost. Idempotent when already done.",
+    "Does not regenerate proposedSubject. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      personId: { type: "string", description: "Existing person (lead) id." },
+      personName: { type: "string", description: "Person full name when personId is omitted." },
+      companyName: { type: "string", description: "Company name when personId is omitted." },
+    },
   },
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
@@ -894,6 +926,7 @@ const TOOLS = [
   PLAN_LEAD_TOUCH_TOOL,
   UPSERT_TARGET_COMPANY_TOOL,
   UPSERT_LEAD_PERSON_TOOL,
+  MARK_LEAD_DONE_TOOL,
   LIST_TARGET_COMPANIES_TOOL,
   SAVE_OUTREACH_DRAFT_TOOL,
   LIST_APPROVED_OUTREACH_TOOL,
@@ -1358,6 +1391,9 @@ function companyPatchFromArgs(args) {
   return patch;
 }
 function companyArgsFromLeadUpsert(args) {
+  // Person upserts must never forward notes/research onto the company -
+  // those fields are company-only (upsert_target_company). Forwarding them
+  // let a lead-field update wipe company notepad copy.
   const out = {};
   if (hasOwn(args, "companyId")) out.companyId = args.companyId;
   if (hasOwn(args, "companyName")) out.companyName = args.companyName;
@@ -1368,8 +1404,6 @@ function companyArgsFromLeadUpsert(args) {
     out.tier = args.tier;
     if (args.tier === "north_star") out.northStar = true;
   }
-  if (hasOwn(args, "notes")) out.notes = args.notes;
-  if (hasOwn(args, "research")) out.research = args.research;
   if (hasOwn(args, "status")) out.status = args.status;
   if (hasOwn(args, "northStar") && args.northStar !== undefined) out.northStar = args.northStar;
   return out;
@@ -1573,6 +1607,7 @@ async function upsertLeadPersonCall(msg, user, args) {
         queueOrder: args.queueOrder,
         nextStep: args.nextStep,
         nextStepAt: args.dueDate,
+        notes: args.notes,
         source: "other",
         stage: "new",
       });
@@ -1589,6 +1624,7 @@ async function upsertLeadPersonCall(msg, user, args) {
       if (args.email != null) patch.email = args.email;
       if (args.nextStep != null) patch.nextStep = args.nextStep;
       if (args.dueDate != null) patch.nextStepAt = args.dueDate;
+      if (args.notes != null) patch.notes = args.notes;
       lead = await leadsStore.updateLead({ id: lead.id, userId, emailHint, actor, patch });
     }
     let touch = null;
@@ -1617,6 +1653,37 @@ async function upsertLeadPersonCall(msg, user, args) {
     });
   } catch (err) {
     return planFailure(msg, err, leadsStore.UNAVAILABLE || companiesStore.UNAVAILABLE);
+  }
+}
+
+async function resolveLeadPerson(user, args) {
+  const userId = contentUserId(user);
+  const emailHint = user && user.email;
+  if (args.personId) {
+    const found = await leadsStore.getLead({ id: args.personId, userId, emailHint });
+    return found.lead;
+  }
+  const personName = typeof args.personName === "string" ? args.personName.trim() : "";
+  const companyName = typeof args.companyName === "string" ? args.companyName.trim() : "";
+  if (!personName || !companyName) {
+    throw Object.assign(new Error("personId, or personName and companyName, is required."), { status: 400 });
+  }
+  const leads = await leadsStore.listLeads({ userId, emailHint });
+  const lead = leads.find((row) => nameMatch(row.personName, personName) && nameMatch(row.company, companyName));
+  if (!lead) throw Object.assign(new Error("Person not found."), { status: 404 });
+  return lead;
+}
+
+async function markLeadDoneCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const actor = MCP_BOT_ACTOR;
+    const lead = await resolveLeadPerson(user, args);
+    const saved = await leadsStore.markLeadDone({ id: lead.id, userId, emailHint, actor });
+    return contentToolOk(msg, { lead: leadsStore.presentLead(saved) });
+  } catch (err) {
+    return planFailure(msg, err, leadsStore.UNAVAILABLE);
   }
 }
 
@@ -1809,6 +1876,7 @@ async function handleRpc(msg, user) {
       && name !== "plan_lead_touch"
       && name !== "upsert_target_company"
       && name !== "upsert_lead_person"
+      && name !== "mark_lead_done"
       && name !== "list_target_companies"
       && name !== "save_outreach_draft"
       && name !== "list_approved_outreach"
@@ -1867,6 +1935,9 @@ async function handleRpc(msg, user) {
     }
     if (name === "upsert_lead_person") {
       return upsertLeadPersonCall(msg, user, args);
+    }
+    if (name === "mark_lead_done") {
+      return markLeadDoneCall(msg, user, args);
     }
     if (name === "list_target_companies") {
       return listTargetCompaniesCall(msg, user, args);
