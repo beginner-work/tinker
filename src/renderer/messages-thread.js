@@ -72,6 +72,8 @@
     });
   }
   function channelLabel(ch) { return CHANNEL_LABEL[ch] || ch || ""; }
+  // Viewer-local wall clock (no timeZone override) — PT browser → 3:57 PM
+  // for 2026-09-29T22:57:00Z, not 10:57 PM UTC.
   function formatDay(iso) {
     if (!iso) return "";
     var s = String(iso);
@@ -84,7 +86,12 @@
     try {
       var d = new Date(s);
       if (!Number.isFinite(d.getTime())) return "";
-      return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+      return d.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
     } catch (e) { return ""; }
   }
   function parseLoggedReplies(lead) {
