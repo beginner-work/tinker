@@ -568,6 +568,17 @@ body.messages-inbox-primary #welcome[data-active] { display: none; }
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
+/* Standalone PWA (iPhone): keep every thread header below the status bar. */
+@media (display-mode: standalone) {
+  .messages-pane__top {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  }
+}
+@supports (padding-top: env(safe-area-inset-top)) {
+  body.messages-mobile-thread .messages-pane__top {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  }
+}
 .messages-pane__lead {
   display: flex;
   align-items: flex-start;
@@ -1118,6 +1129,7 @@ body.messages-you-active .writing--in-messages .writing__foot {
     left: calc(50% + (var(--sidebar-width, 300px) / 2));
   }
 }
+/* Match lead notepad pills: Keep crafting outlined, This is everything solid. */
 body.messages-you-active .writing--in-messages .writing__end,
 body.messages-you-active .writing--in-messages .writing__next {
   height: 40px;
@@ -1126,6 +1138,22 @@ body.messages-you-active .writing--in-messages .writing__next {
   font-size: 13px;
   font-weight: 600;
   box-shadow: none;
+}
+body.messages-you-active .writing--in-messages .writing__next {
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  box-shadow: none;
+}
+body.messages-you-active .writing--in-messages .writing__end {
+  border: 0;
+  background: #4f46e5;
+  color: #fff;
+}
+body.messages-you-active .writing--in-messages .writing__end:not(:disabled):hover {
+  background: #4338ca;
+  color: #fff;
+  border-color: transparent;
 }
 @media (max-width: 720px) {
   body.messages-you-active.messages-mobile-thread .messages-pane__body {

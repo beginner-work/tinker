@@ -25,22 +25,21 @@
   function ownerName() {
     try {
       var shell = window.tinkerMessagesShell;
-      if (shell && shell.OWNER_LABEL) return shell.OWNER_LABEL;
       if (shell && typeof shell.ownerProfile === "function") {
         var p = shell.ownerProfile();
-        if (p && p.name) return p.name;
+        if (p && p.name) return String(p.name).trim();
       }
     } catch (e) { /* ignore */ }
-    return "Lindow Labs";
+    return "Owner";
   }
   function ownerLogo() {
     try {
       var shell = window.tinkerMessagesShell;
-      if (shell && shell.OWNER_LOGO) return shell.OWNER_LOGO;
       if (shell && typeof shell.ownerProfile === "function") {
         var p = shell.ownerProfile();
         if (p && p.avatarUrl) return p.avatarUrl;
       }
+      if (shell && shell.OWNER_LOGO) return shell.OWNER_LOGO;
     } catch (e) { /* ignore */ }
     return "./icons/lindow-labs.svg";
   }
@@ -71,11 +70,12 @@
     var role = p.querySelector("[data-messages-role]");
     var avatar = p.querySelector("[data-messages-avatar]");
     var links = p.querySelector("[data-messages-links]");
+    // Match other inbox items: person name on line 1, title on line 2.
     if (nameEl) nameEl.textContent = ownerName();
     var title = ownerTitle();
     if (role) {
       role.hidden = !title;
-      role.textContent = title ? " · " + title : "";
+      role.textContent = title || "";
     }
     // Owner links come only from the owner profile - never a leftover person URL.
     if (window.tinkerMessagesThread && typeof window.tinkerMessagesThread.renderProfileLinks === "function") {
@@ -211,9 +211,14 @@
       .catch(function () { return []; });
   }
   function labelFloatingActions() {
+    var foot = document.querySelector("#writing .writing__foot");
     var end = document.getElementById("writing-end");
     var next = document.getElementById("writing-next");
-    if (end) end.textContent = "This is everything";
+    var actions = window.tinkerThreadActions;
+    if (actions && typeof actions.syncWritingFoot === "function") {
+      actions.syncWritingFoot(foot, end, next);
+    }
+    if (end) end.textContent = (actions && actions.PRIMARY_LABEL) || "This is everything";
     // Don't rename Continue (scene-setting) or Next (history paging).
     // Only the live pending prompt sets "Keep crafting" itself. Renaming
     // history "Next ->" made Keep crafting look broken (flash, no new ask).
@@ -221,7 +226,7 @@
       var label = String(next.textContent || "").trim();
       if (label === "Continue →" || /^Continue/i.test(label)) return;
       if (label === "Next →" || /^Next\b/i.test(label)) return;
-      next.textContent = "Keep crafting";
+      next.textContent = (actions && actions.SECONDARY_LABEL) || "Keep crafting";
     }
   }
   function focusNotepad() {
@@ -311,10 +316,24 @@
     unmountWriting();
   }
 
+  function afterPublish() {
+    if (!open) return;
+    // Reload assistant posts, then start a fresh interview turn so the
+    // thread never stays on "Stitching your essay...".
+    loadSelfPosts().then(function (messages) {
+      if (!open) return;
+      mountWriting(messages);
+      startSession();
+      labelFloatingActions();
+      focusNotepad();
+    });
+  }
+
   window.tinkerMessagesYou = {
     open: openYou,
     close: closeYou,
     isOpen: function () { return open; },
+    afterPublish: afterPublish,
   };
 
   window.addEventListener("tinker:messages-you-action", onYouAction);

@@ -71,6 +71,7 @@
     <script src="./lead-funnel.js" defer></script>
     <!-- Messaging shell (TYL-65): left conversation list of leads.
          Thread + composer land in stacked slices. -->
+    <script src="./messages-thread-actions.js" defer></script>
     <script src="./messages-notepad.js" defer></script>
     <script src="./lib/notes-folder-core.js" defer></script>
     <script src="./notes-folder.js" defer></script>
@@ -357,9 +358,10 @@
           <div id="writing-stage" class="writing__stage"></div>
         </div>
 
-        <footer class="writing__foot">
-          <button id="writing-end" class="writing__end" type="button" disabled>This is everything →</button>
+        <footer class="writing__foot" data-thread-actions="1">
+          <!-- Order matches lead notepad: Keep crafting, then This is everything. -->
           <button id="writing-next" class="writing__next" type="button">Next →</button>
+          <button id="writing-end" class="writing__end" type="button" disabled>This is everything →</button>
         </footer>
       </section>
 

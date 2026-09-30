@@ -218,7 +218,9 @@ test("owner API rejects empty posts and You renderer loads self posts", async ()
   assert.match(you, /messages-thread__item--assistant/);
   assert.match(you, /loadSelfPosts|renderSelfPosts/);
   assert.match(you, /fillMarkdown|inlineMarkdown/);
-  assert.match(you, /Lindow Labs/);
+  // Header uses profile name (Tyler Lindow), not a hard-coded brand label.
+  assert.match(you, /ownerProfile/);
+  assert.equal(/shell\.OWNER_LABEL/.test(you), false);
   assert.equal(/—/.test(you), false);
 });
 

@@ -542,7 +542,10 @@
 
   // ── Post-publish flow ────────────────────────────────────────────
   // Pitch decks removed (TYL-65): publishing returns to the feed.
+  // When the owner thread hosts writing inside the messages pane, do not
+  // call showFeed (it hides #writing and left "Stitching..." stuck).
   function showPitchAssessing(essay) {
+    if (document.body.classList.contains("messages-you-active")) return;
     if (essay) showFeed();
   }
 
