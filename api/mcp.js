@@ -51,6 +51,7 @@ const contentStore = require("./_lib/content-store.js");
 const storyParts = require("./_lib/story-parts-store.js");
 const selfThread = require("./_lib/self-thread-store.js");
 const readingThreads = require("./_lib/reading-thread-store.js");
+const personPrep = require("./_lib/person-prep.js");
 const prisma = require("./_lib/db.js");
 const pkg = require("../package.json");
 const MCP_BOT_ACTOR = { kind: "bot", label: "bot:mcp" };
@@ -93,6 +94,8 @@ const INSTRUCTIONS = [
   "When notes are passed, the store merges and preserves a trailing ### __done__ completed marker.",
   "Person upserts never write company notes/research - use upsert_target_company for those.",
   "Call mark_lead_done with personId (or personName+companyName) to append ### __done__ without replacing Q&A.",
+  "Call get_person_prep to read a person's interview-prep stepper (preamble, answered, pending, queue).",
+  "Call seed_person_prep with questions[] to append unanswered prep questions without wiping answers; the UI shows one at a time.",
   "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
   "Prefer those lead tools over dumping GTM prose into the You thread.",
   "Call save_outreach_draft to put a composed email or LinkedIn message into a person's chat for the owner to review.",
@@ -868,6 +871,57 @@ const MARK_LEAD_DONE_TOOL = {
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
 
+const GET_PERSON_PREP_TOOL = {
+  name: "get_person_prep",
+  title: "Get person interview prep",
+  description: [
+    "Read a person's interview-prep stepper from their notepad notes.",
+    "Pass personId, or personName with companyName.",
+    "Returns preamble, answered turns, the single pending question, remaining queue,",
+    "draft, done, and remaining count. The UI shows only the pending question;",
+    "queued ### headings stay hidden until Keep crafting advances.",
+    "Read-only. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      personId: { type: "string", description: "Existing person (lead) id." },
+      personName: { type: "string", description: "Person full name when personId is omitted." },
+      companyName: { type: "string", description: "Company name when personId is omitted." },
+    },
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const SEED_PERSON_PREP_TOOL = {
+  name: "seed_person_prep",
+  title: "Seed person interview prep",
+  description: [
+    "Append unanswered interview-prep questions to a person's notepad.",
+    "Pass personId, or personName with companyName, plus questions (string array).",
+    "Keeps preamble and answered turns. Skips duplicates. Does not mark done.",
+    "The owner sees one pending question at a time; Keep crafting advances the queue.",
+    "A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      personId: { type: "string", description: "Existing person (lead) id." },
+      personName: { type: "string", description: "Person full name when personId is omitted." },
+      companyName: { type: "string", description: "Company name when personId is omitted." },
+      questions: {
+        type: "array",
+        items: { type: "string" },
+        description: "Prep questions to append (unanswered ### headings).",
+      },
+    },
+    required: ["questions"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
 const LIST_TARGET_COMPANIES_TOOL = {
   name: "list_target_companies",
   title: "List target companies",
@@ -1017,6 +1071,8 @@ const TOOLS = [
   UPSERT_TARGET_COMPANY_TOOL,
   UPSERT_LEAD_PERSON_TOOL,
   MARK_LEAD_DONE_TOOL,
+  GET_PERSON_PREP_TOOL,
+  SEED_PERSON_PREP_TOOL,
   LIST_TARGET_COMPANIES_TOOL,
   SAVE_OUTREACH_DRAFT_TOOL,
   LIST_APPROVED_OUTREACH_TOOL,
@@ -1829,6 +1885,48 @@ async function markLeadDoneCall(msg, user, args) {
   }
 }
 
+async function getPersonPrepCall(msg, user, args) {
+  try {
+    const lead = await resolveLeadPerson(user, args);
+    const parsed = personPrep.parsePersonPrep(lead.notes || "");
+    return contentToolOk(msg, {
+      personId: lead.id,
+      personName: lead.personName,
+      companyName: lead.company,
+      prep: personPrep.shapePersonPrep(parsed),
+    });
+  } catch (err) {
+    return planFailure(msg, err, leadsStore.UNAVAILABLE);
+  }
+}
+
+async function seedPersonPrepCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const actor = MCP_BOT_ACTOR;
+    const lead = await resolveLeadPerson(user, args);
+    const notes = personPrep.seedPersonPrepQuestions(lead.notes || "", args.questions);
+    const saved = await leadsStore.updateLead({
+      id: lead.id,
+      userId,
+      emailHint,
+      actor,
+      patch: { notes },
+    });
+    const parsed = personPrep.parsePersonPrep(saved.notes || "");
+    return contentToolOk(msg, {
+      personId: saved.id,
+      personName: saved.personName,
+      companyName: saved.company,
+      prep: personPrep.shapePersonPrep(parsed),
+      lead: leadsStore.presentLead(saved),
+    });
+  } catch (err) {
+    return planFailure(msg, err, leadsStore.UNAVAILABLE);
+  }
+}
+
 async function listTargetCompaniesCall(msg, user, args) {
   try {
     const userId = contentUserId(user);
@@ -2096,6 +2194,12 @@ async function handleRpc(msg, user) {
     }
     if (name === "mark_lead_done") {
       return markLeadDoneCall(msg, user, args);
+    }
+    if (name === "get_person_prep") {
+      return getPersonPrepCall(msg, user, args);
+    }
+    if (name === "seed_person_prep") {
+      return seedPersonPrepCall(msg, user, args);
     }
     if (name === "list_target_companies") {
       return listTargetCompaniesCall(msg, user, args);
