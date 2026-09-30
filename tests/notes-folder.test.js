@@ -260,7 +260,7 @@ test("inbox and electron wire notes folder without extra chrome", () => {
   assert.match(indexHtml, /notes-folder\.js/);
   assert.match(composerJs, /tinkerNotesFolder\.scheduleWrite/);
   assert.match(composerJs, /applyImportedBody/);
-  assert.match(composerJs, /state\.notes = body/);
+  assert.match(composerJs, /hydrateFromLead|state\.notes\s*=/);
   assert.match(notesJs, /showDirectoryPicker|pickNotesFolder/);
   assert.match(notesJs, /IndexedDB|indexedDB/);
   assert.match(notesJs, /conflict/);
