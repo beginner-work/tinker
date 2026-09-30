@@ -1,5 +1,7 @@
 /* Mobile inbox must be list-then-thread; drawer must not blank the front screen. */
 "use strict";
+
+const { EXPECTED_SW_CACHE_VERSION } = require("./helpers/sw-cache-version.js");
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -26,7 +28,7 @@ test("body ships messages-shell-open so mobile first paint is never blank", () =
   assert.match(shell, /stayOnList/);
   // Clearing selection must NOT open You / hide the list.
   assert.equal(/if \(id === YOU_ID \|\| !id\) \{ selectYou/.test(shell), false);
-  assert.match(sw, /tinker-shell-v17/);
+  assert.match(sw, new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
 test("top-right profile avatar stays hidden", () => {

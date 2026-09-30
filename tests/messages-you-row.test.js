@@ -21,19 +21,17 @@ test("pinned You row is always wired above search and due groups", () => {
   assert.match(shell, /renderYouRow/);
 });
 
-test("You row and header use Lindow Labs name and logo", () => {
-  assert.match(shell, /Lindow Labs/);
-  assert.match(shell, /lindow-labs\.svg/);
-  assert.match(shell, /OWNER_LABEL/);
+test("You row and header use the owner profile name, not the brand label", () => {
+  assert.match(shell, /ownerPersonLabel|ownerPersonName/);
   assert.match(shell, /fillOwnerMark|messages-avatar__img/);
   assert.match(html, /data-messages-avatar/);
-  assert.match(you, /Lindow Labs/);
-  assert.match(you, /lindow-labs\.svg|OWNER_LOGO/);
+  // Header prefers profile.name (Tyler Lindow), not OWNER_LABEL / Lindow Labs.
+  assert.match(you, /ownerProfile/);
+  assert.match(you, /p\.name/);
+  assert.equal(/shell\.OWNER_LABEL/.test(you), false);
+  assert.match(you, /lindow-labs\.svg|OWNER_LOGO|avatarUrl/);
   assert.match(you, /purge_plan/);
   assert.match(you, /data-messages-links/);
-  assert.match(you, /links\.hidden = true/);
-  assert.match(demo, /Lindow Labs/);
-  assert.match(demo, /lindow-labs\.svg/);
   assert.match(demo, /Tyler Lindow/);
   assert.match(demo, /sitting here at home/);
   assert.equal(/story parts with your assistant/i.test(shell), false);

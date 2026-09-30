@@ -1,36 +1,14 @@
-/* share.js — sidebar "Share tinker" button.
+/* share.js — Share via Settings → Pages deep link only.
  *
- * The button lives in the sidebar account list and is `hidden` by
- * default. We only reveal it when the app is running as an installed
- * PWA (display-mode: standalone, or navigator.standalone on iOS). In a
- * plain browser tab the URL bar already exposes Share / Copy Link, so a
- * second control would be noise; on Electron desktop the OS menu covers
- * it.
- *
- * On click we call navigator.share() — which raises the native iOS /
- * Android share sheet, or the Web Share polyfill where present.
- * When the Web Share API isn't available (older Chromium on Linux),
- * we fall back to writing the URL to the clipboard and flashing
- * "Copied" beside the label so the tap still produces something useful.
+ * There is no standalone Share control in the main inbox chrome. Settings
+ * links to /?open=share, which triggers the native share sheet (or a
+ * clipboard fallback). #nav-share stays in the DOM as a hidden hook for
+ * that deep link and for flash text; it is never shown in the rail.
  */
 
 (function () {
-  function isStandalone() {
-    if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
-    if (window.navigator && window.navigator.standalone === true) return true;
-    return false;
-  }
-
-  function isWrappedRuntime() {
-    // Electron desktop — OS menus cover Share; skip the in-app control.
-    if (window.tinker && window.tinker.supportsWebview === true) return true;
-    return false;
-  }
-
   function shareUrl() {
-    // Prefer the manifest's start_url so a shared link opens the
-    // app's landing screen rather than whatever deep view the
-    // current user happens to be on.
+    // Prefer the origin root so a shared link opens the landing screen.
     const origin = window.location.origin;
     if (origin && /^https?:/.test(origin)) return origin + "/";
     return window.location.href;
@@ -78,7 +56,8 @@
   function init() {
     const btn = document.getElementById("nav-share");
     if (!btn) return;
-    // Settings deep link can still trigger share even when the rail button stays hidden.
+    // Never show a Share control in the main UI; Settings owns the entry.
+    btn.hidden = true;
     let openShare = false;
     try {
       const params = new URLSearchParams(window.location.search || "");
@@ -89,11 +68,6 @@
         window.history.replaceState({}, "", next);
       }
     } catch { /* ignore */ }
-    if (!isStandalone() && !isWrappedRuntime() && !openShare) return;
-    if (isStandalone() || isWrappedRuntime()) {
-      btn.hidden = false;
-      btn.addEventListener("click", () => { doShare(btn); });
-    }
     if (openShare) setTimeout(() => { doShare(btn); }, 0);
   }
 

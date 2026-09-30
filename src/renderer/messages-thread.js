@@ -72,7 +72,7 @@
     });
   }
   function channelLabel(ch) { return CHANNEL_LABEL[ch] || ch || ""; }
-  // Viewer-local wall clock (no timeZone override) — PT browser → 3:57 PM
+  // Viewer-local wall clock (no timeZone override). PT browser → 3:57 PM
   // for 2026-09-29T22:57:00Z, not 10:57 PM UTC.
   function formatDay(iso) {
     if (!iso) return "";

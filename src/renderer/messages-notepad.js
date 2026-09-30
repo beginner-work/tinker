@@ -42,27 +42,52 @@
     card.appendChild(meta);
     card.appendChild(input);
     body.appendChild(card);
-    var foot = el("footer", "messages-notepad__foot", { "data-notepad-foot": "1" });
-    var secondary = el("button", "messages-notepad__secondary", {
-      type: "button",
-      "data-notepad-secondary": "1",
-      hidden: "",
-    });
-    var primary = el("button", "messages-notepad__primary", {
-      type: "button",
-      "data-notepad-primary": "1",
-    });
-    primary.textContent = "Save draft";
-    foot.appendChild(secondary);
-    foot.appendChild(primary);
+    var actions = window.tinkerThreadActions;
+    var built = actions && typeof actions.buildFoot === "function"
+      ? actions.buildFoot({
+          footClass: "messages-notepad__foot",
+          primaryLabel: "Save draft",
+          secondaryLabel: "",
+          onPrimary: function () {
+            if (typeof opts.onPrimary === "function") opts.onPrimary();
+          },
+          onSecondary: function () {
+            if (typeof opts.onSecondary === "function") opts.onSecondary();
+          },
+        })
+      : null;
+    var foot;
+    var primary;
+    var secondary;
+    if (built) {
+      foot = built.foot;
+      foot.setAttribute("data-notepad-foot", "1");
+      primary = built.primary;
+      secondary = built.secondary;
+      secondary.hidden = true;
+    } else {
+      foot = el("footer", "messages-notepad__foot", { "data-notepad-foot": "1" });
+      secondary = el("button", "messages-notepad__secondary", {
+        type: "button",
+        "data-notepad-secondary": "1",
+        hidden: "",
+      });
+      primary = el("button", "messages-notepad__primary", {
+        type: "button",
+        "data-notepad-primary": "1",
+      });
+      primary.textContent = "Save draft";
+      foot.appendChild(secondary);
+      foot.appendChild(primary);
+      primary.addEventListener("click", function () {
+        if (typeof opts.onPrimary === "function") opts.onPrimary();
+      });
+      secondary.addEventListener("click", function () {
+        if (typeof opts.onSecondary === "function") opts.onSecondary();
+      });
+    }
     root.appendChild(body);
     root.appendChild(foot);
-    primary.addEventListener("click", function () {
-      if (typeof opts.onPrimary === "function") opts.onPrimary();
-    });
-    secondary.addEventListener("click", function () {
-      if (typeof opts.onSecondary === "function") opts.onSecondary();
-    });
     input.addEventListener("input", function () {
       if (typeof opts.onInput === "function") opts.onInput(input.value);
     });

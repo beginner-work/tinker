@@ -568,6 +568,17 @@ body.messages-inbox-primary #welcome[data-active] { display: none; }
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
+/* Standalone PWA (iPhone): keep every thread header below the status bar. */
+@media (display-mode: standalone) {
+  .messages-pane__top {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  }
+}
+@supports (padding-top: env(safe-area-inset-top)) {
+  body.messages-mobile-thread .messages-pane__top {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  }
+}
 .messages-pane__lead {
   display: flex;
   align-items: flex-start;
@@ -1118,6 +1129,7 @@ body.messages-you-active .writing--in-messages .writing__foot {
     left: calc(50% + (var(--sidebar-width, 300px) / 2));
   }
 }
+/* Match lead notepad pills: Keep crafting outlined, This is everything solid. */
 body.messages-you-active .writing--in-messages .writing__end,
 body.messages-you-active .writing--in-messages .writing__next {
   height: 40px;
@@ -1126,6 +1138,22 @@ body.messages-you-active .writing--in-messages .writing__next {
   font-size: 13px;
   font-weight: 600;
   box-shadow: none;
+}
+body.messages-you-active .writing--in-messages .writing__next {
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  box-shadow: none;
+}
+body.messages-you-active .writing--in-messages .writing__end {
+  border: 0;
+  background: #4f46e5;
+  color: #fff;
+}
+body.messages-you-active .writing--in-messages .writing__end:not(:disabled):hover {
+  background: #4338ca;
+  color: #fff;
+  border-color: transparent;
 }
 @media (max-width: 720px) {
   body.messages-you-active.messages-mobile-thread .messages-pane__body {
@@ -1922,32 +1950,60 @@ body.messages-shell-open .messages-notepad__foot {
   height: 16px;
   fill: currentColor;
 }
+/* Settings is the only account entry in the rail footer - make it easy
+ * to find and tap on iPhone (min 48px target, ink label, clear gear). */
 .messages-rail__settings {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 8px;
-  margin: 8px 10px 10px;
-  padding: 10px 12px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--color-muted);
+  gap: 10px;
+  box-sizing: border-box;
+  width: calc(100% - 20px);
+  min-height: 48px;
+  margin: 10px 10px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface, var(--color-background));
+  color: var(--color-foreground);
   font: inherit;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   text-decoration: none;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.messages-rail__settings:hover {
+.messages-rail__settings:hover,
+.messages-rail__settings:focus-visible {
   color: var(--color-foreground);
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--color-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--color-muted);
+  outline: none;
+}
+.messages-rail__settings:active {
+  transform: scale(0.99);
 }
 .messages-rail__settings-icon {
   display: block;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
+}
+.messages-rail__settings-label {
+  display: block;
+  line-height: 1.2;
+}
+@media (max-width: 720px) {
+  .messages-rail__settings {
+    min-height: 52px;
+    margin: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    font-size: 16px; /* iOS: avoid focus zoom if it becomes a control */
+  }
+  .messages-rail__settings-icon {
+    width: 24px;
+    height: 24px;
+  }
 }
 .sidebar__secondary[hidden],
 .sidebar__footer[hidden] { display: none !important; }

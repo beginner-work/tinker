@@ -24,6 +24,10 @@
    *
    * Always uses the prompt-cached system block on the server. The
    * browser bundle never sees an Anthropic key. */
+  // Owner-thread stitch and Keep crafting must never spin forever on a
+  // hung fetch (common on iOS PWA). Abort and surface a real error.
+  const CLAUDE_TIMEOUT_MS = 60000;
+
   async function callClaude({ system, messages, model, maxTokens } = {}) {
     const token = get("tinker_jwt");
     if (!token) {
@@ -36,18 +40,36 @@
     if (model) body.model = model;
     if (maxTokens) body.max_tokens = maxTokens;
 
-    const res = await fetch("/api/claude/converse", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(body),
-    });
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = controller
+      ? setTimeout(function () { try { controller.abort(); } catch (e) { /* ignore */ } }, CLAUDE_TIMEOUT_MS)
+      : null;
+    let res;
+    try {
+      res = await fetch("/api/claude/converse", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller ? controller.signal : undefined,
+      });
+    } catch (err) {
+      if (timer) clearTimeout(timer);
+      const aborted = err && (err.name === "AbortError" || err.code === "ABORT_ERR");
+      if (aborted) {
+        const e = new Error("That took too long. Try again.");
+        e.code = "TIMEOUT";
+        throw e;
+      }
+      throw err;
+    }
+    if (timer) clearTimeout(timer);
 
     if (res.status === 401) {
       try { STORE.removeItem("tinker_jwt"); } catch { /* ignore */ }
-      const e = new Error("Session expired — sign in again.");
+      const e = new Error("Session expired. Sign in again.");
       e.code = "SESSION_EXPIRED";
       // Surface the auth gate in place instead of reloading the page.
       // A reload mid-session reads as "I submitted something and got

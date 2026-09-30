@@ -877,7 +877,7 @@ const LIST_TARGET_COMPANIES_TOOL = {
     "North Star / priority, each with people (name, title, contactType,",
     "linkedInUrl, githubUrl, nextStep, nextStepAt, queueOrder).",
     "When the owner finished Keep crafting with This is everything, people may",
-    "also include proposedSubject — the generated outreach email subject on",
+    "also include proposedSubject: the generated outreach email subject on",
     "their open gmail draft. Use that same subject when composing save_outreach_draft.",
     "Read-only. A user id in args is ignored.",
   ].join(" "),

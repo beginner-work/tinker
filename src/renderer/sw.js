@@ -32,7 +32,7 @@
  * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v17";
+const CACHE_VERSION = "tinker-shell-v19";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -62,6 +62,7 @@ const PRECACHE = [
   "/interview-prompt.js",
   "/writing.js",
   "/renderer.js",
+  "/messages-thread-actions.js",
   "/messages-notepad.js",
   "/messages-shell.js",
   "/messages-thread.js",

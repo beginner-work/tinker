@@ -1,5 +1,7 @@
 /* Batched GET /api/leads?action=inbox for people-rail first paint. */
 "use strict";
+
+const { EXPECTED_SW_CACHE_VERSION } = require("./helpers/sw-cache-version.js");
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
@@ -174,7 +176,7 @@ test("shell uses batched inbox + local snapshot cache + deferred logos", () => {
   assert.match(js, /deferLogoFill|requestIdleCallback/);
   // hideOnFail slots start hidden; lazy never fetches there, so those logos are eager.
   assert.match(js, /opts\.hideOnFail\s*\?\s*["']eager["']\s*:\s*["']lazy["']/);
-  assert.match(sw, /tinker-shell-v17/);
+  assert.match(sw, new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(sw, /messages-notepad\.js/);
   assert.match(sw, /networkFirstAsset/);
 });

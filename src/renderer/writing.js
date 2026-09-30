@@ -651,7 +651,30 @@
       askNext({ keepCrafting: true }).catch((e) => renderError(e));
     });
     card.appendChild(retry);
-    // Keep crafting must still retry — do not hide it into a silent no-op.
+    // Keep crafting must still retry - do not hide it into a silent no-op.
+    wireKeepCraftingRetry();
+    swap(card);
+  }
+
+  /** Stitch path only: never leave "Stitching your essay..." up forever. */
+  function renderStitchError(err) {
+    const card = document.createElement("div");
+    card.className = "writing-card writing-card--error";
+    const msg = (err && err.message) || "Something went wrong while stitching.";
+    const timedOut = err && (err.code === "TIMEOUT" || /took too long/i.test(msg));
+    card.innerHTML =
+      `<h2 class="writing-question">${timedOut ? "Stitching timed out." : "Couldn't stitch your essay."}</h2>` +
+      `<pre class="writing-error">${escapeHtml(msg)}</pre>` +
+      `<div class="writing-note">Try again to stitch, or Keep crafting to ask another question.</div>`;
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "writing-action writing-action--primary";
+    retry.textContent = "Try stitching again";
+    retry.addEventListener("click", () => {
+      renderLoading("Stitching your essay…");
+      askNext({ forceStitch: true }).catch((e) => renderStitchError(e));
+    });
+    card.appendChild(retry);
     wireKeepCraftingRetry();
     swap(card);
   }
@@ -721,7 +744,7 @@
     active.currentStep = active.transcript.length;
     persist();
     renderLoading("Stitching your essay…");
-    askNext({ forceStitch: true }).catch((err) => renderError(err));
+    askNext({ forceStitch: true }).catch((err) => renderStitchError(err));
   }
 
   function interviewApi() {
@@ -1029,18 +1052,33 @@
 
   function doPublish() {
     if (!active || !active.stitched) {
-      renderPublishRecovery("Could not publish — the essay was empty.");
+      renderPublishRecovery("Could not publish. The essay was empty.");
       return;
     }
     if (typeof window.tinkerOnWritingPublish !== "function") {
       renderPublishRecovery("Could not publish this draft.");
       return;
     }
-    window.tinkerOnWritingPublish(active, {
-      title: active.stitched.title,
-      body: active.stitched.body,
-      author: "you",
-    });
+    const youMode = document.body.classList.contains("messages-you-active");
+    try {
+      window.tinkerOnWritingPublish(active, {
+        title: active.stitched.title,
+        body: active.stitched.body,
+        author: "you",
+      });
+    } catch (err) {
+      renderPublishRecovery((err && err.message) || "Could not publish this draft.");
+      return;
+    }
     active = null;
+    // You thread hosts #writing inside the messages pane. showFeed would
+    // hide it mid-stitch UI; stay in the thread and start a fresh turn.
+    if (youMode) {
+      if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.afterPublish === "function") {
+        window.tinkerMessagesYou.afterPublish();
+      } else if (typeof window.tinkerNewSession === "function") {
+        window.tinkerNewSession();
+      }
+    }
   }
 })();

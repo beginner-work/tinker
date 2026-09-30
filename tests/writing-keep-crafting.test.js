@@ -36,6 +36,23 @@ test("failed Keep crafting keeps retry wired; error card is for network only", (
   assert.match(writing, /Real network\/server failure/);
 });
 
+test("stitch path times out and shows a real error instead of spinning forever", () => {
+  const platform = fs.readFileSync(path.join(root, "src/renderer/platform-mobile.js"), "utf8");
+  const renderer = fs.readFileSync(path.join(root, "src/renderer/renderer.js"), "utf8");
+  assert.match(platform, /CLAUDE_TIMEOUT_MS/);
+  assert.match(platform, /AbortController/);
+  assert.match(platform, /TIMEOUT/);
+  assert.match(platform, /That took too long/);
+  assert.match(writing, /function renderStitchError/);
+  assert.match(writing, /Stitching timed out|Couldn't stitch your essay/);
+  assert.match(writing, /Try stitching again/);
+  assert.match(writing, /askNext\(\{ forceStitch: true \}\)\.catch\(\(err\) => renderStitchError\(err\)\)/);
+  // You-mode publish must not call showFeed (that hid #writing mid-stitch).
+  assert.match(renderer, /messages-you-active[\s\S]*return/);
+  assert.match(writing, /afterPublish|tinkerMessagesYou/);
+  assert.match(you, /afterPublish/);
+});
+
 test("You chrome labels interview Next as Keep crafting, not Continue", () => {
   assert.match(you, /Keep crafting/);
   assert.match(you, /Continue →/);

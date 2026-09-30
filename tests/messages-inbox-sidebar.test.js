@@ -35,3 +35,18 @@ test("inbox sidebar styles keep settings gear without pitch panel", () => {
   assert.equal(/\.pitch-deck-panel\b/.test(css), false);
   assert.match(css, /messages-inbox-primary/);
 });
+
+test("Settings control is a large labeled rail target; Share is Settings-only", () => {
+  assert.match(html, /messages-rail__settings-label/);
+  assert.match(html, /id="nav-share"[^>]*hidden/);
+  assert.match(css, /\.messages-rail__settings[\s\S]*min-height:\s*48px/);
+  assert.match(css, /\.messages-rail__settings[\s\S]*font-weight:\s*600/);
+  const share = fs.readFileSync(path.join(root, "src/renderer/share.js"), "utf8");
+  // Deep link from Settings → Pages still works; rail never unhides Share.
+  assert.match(share, /open=share|openShare/);
+  assert.match(share, /btn\.hidden\s*=\s*true/);
+  assert.equal(/btn\.hidden\s*=\s*false/.test(share), false);
+  const settings = fs.readFileSync(path.join(root, "src/renderer/settings/index.html"), "utf8");
+  assert.match(settings, /href="\/\?open=share"/);
+  assert.match(settings, />Share</);
+});
