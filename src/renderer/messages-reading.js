@@ -120,14 +120,10 @@
     });
   }
   function buildOpening(thread) {
+    // Section title lives once in the pane header (setPaneHeader subtitle).
+    // Do not repeat it in the notepad opening.
+    void thread;
     var opening = el("div", "messages-notepad__opening");
-    var section = thread && thread.currentSection;
-    if (section && section.title) {
-      var label = el("p", "messages-notepad__section");
-      label.setAttribute("data-reading-section", "1");
-      label.textContent = section.title;
-      opening.appendChild(label);
-    }
     appendTurns(opening);
     if (state.pending) {
       var q = el("p", "messages-notepad__question");

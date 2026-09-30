@@ -33,6 +33,7 @@ const SECTIONS = [
   "Chapter 16: Large-Scale Structure",
   "Chapter 17: Bringing the Strategy Together",
 ];
+// Order: Part I ch 1–3, then ch 14 (bounded contexts), then remaining book order.
 
 const url = process.env.MCP_URL || "https://tinker.beginner.work/api/mcp";
 const token = process.env.MCP_TOKEN || "";

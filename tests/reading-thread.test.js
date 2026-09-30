@@ -159,7 +159,9 @@ test("create_reading_thread is generic and ordered; advance generates next secti
   assert.equal(created.currentSectionIndex, 0);
   assert.equal(created.currentSection.title, "Section One");
   assert.ok(created.currentSection.preReadQuestion);
-  assert.match(created.currentSection.preReadQuestion, /Section One|Example Book|notice/i);
+  // No Anthropic key in this suite → fallback template only.
+  assert.match(created.currentSection.preReadQuestion, /what do you want to notice or get clearer on/i);
+  assert.match(created.currentSection.preReadQuestion, /Section One|Example Book/);
 
   const advanced = await store.advanceSection({
     userId: "user-a",
@@ -264,7 +266,7 @@ test("UI reuses notepad / Keep crafting; no review UI; SW precaches reading modu
   assert.match(html, /messages-reading\.js/);
   assert.ok(html.indexOf("messages-reading.js") < html.indexOf("messages-you.js"));
   assert.match(sw, /\/messages-reading\.js/);
-  assert.match(sw, /tinker-shell-v16/);
+  assert.match(sw, /tinker-shell-v17/);
   assert.match(vercel, /reading-thread/);
 
   // No DDD-specific hardcoding in product code.
@@ -272,6 +274,8 @@ test("UI reuses notepad / Keep crafting; no review UI; SW precaches reading modu
   assert.equal(/Domain-Driven Design|Eric Evans/i.test(
     fs.readFileSync(path.join(root, "api/_lib/reading-thread-store.js"), "utf8")
   ), false);
+  // Section title once in header — not repeated in notepad opening.
+  assert.equal(/messages-notepad__section|data-reading-section/.test(reading), false);
 });
 
 test("leads-store still exports merge helpers after extract", () => {

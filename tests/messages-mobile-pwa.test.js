@@ -26,7 +26,7 @@ test("body ships messages-shell-open so mobile first paint is never blank", () =
   assert.match(shell, /stayOnList/);
   // Clearing selection must NOT open You / hide the list.
   assert.equal(/if \(id === YOU_ID \|\| !id\) \{ selectYou/.test(shell), false);
-  assert.match(sw, /tinker-shell-v16/);
+  assert.match(sw, /tinker-shell-v17/);
 });
 
 test("top-right profile avatar stays hidden", () => {

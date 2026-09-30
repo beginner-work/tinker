@@ -172,6 +172,7 @@ async function createThread({ userId, title, author, sections } = {}) {
       author: bookAuthor,
       sectionTitle: first.title,
       priorSections: [],
+      priorNotes: "",
       asked: [],
     });
     const now = new Date().toISOString();
@@ -257,6 +258,7 @@ async function advanceSection({ userId, threadId, notes } = {}) {
       author: thread.author,
       sectionTitle: next.title,
       priorSections: prior,
+      priorNotes: thread.notes || "",
       asked,
     }) || fallbackQuestion(thread.title, next.title);
     thread.currentSectionIndex = nextIdx;
