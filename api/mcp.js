@@ -95,6 +95,8 @@ const INSTRUCTIONS = [
   "Call list_approved_outreach to read drafts the owner handed off with This is everything (approved_to_send, unsent).",
   "Only sendable approvals appear (email: recipient + subject + body; LinkedIn: profile URL + body).",
   "A bot may send only the exact approvedText, once per approval. After sending, call mark_outreach_sent; on failure call mark_outreach_failed.",
+  "mark_outreach_sent also records a send the owner already made outside Tinker for a draft that was never approved:",
+  "pass id, or personId / personName+companyName, plus channel and sentAt. One send per draft. Sent drafts cannot be approved again.",
   "Tinker itself never sends email or LinkedIn messages.",
   "Call post_to_self_thread with title and short markdown body only for brief personal assistant notes in the You thread.",
   "Never post deploy checks, production status, allowlist/gate notes, or other ops chatter there - that thread is the owner's own story.",
@@ -823,24 +825,30 @@ const MARK_OUTREACH_SENT_TOOL = {
   name: "mark_outreach_sent",
   title: "Mark outreach sent",
   description: [
-    "Mark one approved_to_send draft as sent after the bot delivered the exact approved text.",
-    "Pass id from list_approved_outreach. Optional channel, sentAt (ISO), and externalMessageId.",
-    "One approval covers one send. Tinker never sends. A user id in args is ignored.",
+    "Mark one outreach draft as sent. Use after a bot delivered an approved_to_send draft,",
+    "or to record a send the owner already made outside Tinker for a draft that was never approved.",
+    "Pass id, or personId, or personName+companyName to find the open draft.",
+    "Optional channel, sentAt (ISO), subject (email), and externalMessageId.",
+    "One send per draft; already-sent drafts error. Sent drafts cannot be approved again.",
+    "Tinker never sends. A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
     type: "object",
     additionalProperties: false,
     properties: {
-      id: { type: "string", description: "Approved draft id." },
+      id: { type: "string", description: "Draft id (from list_approved_outreach or a known draft)." },
+      personId: { type: "string", description: "Person (lead) id when id is omitted." },
+      personName: { type: "string", description: "Person full name when id and personId are omitted." },
+      companyName: { type: "string", description: "Company name with personName." },
       channel: {
         type: "string",
         enum: ["linkedin_post", "linkedin_connection", "gmail_outreach"],
         description: "Channel used to send. Defaults to the draft channel.",
       },
       sentAt: { type: "string", description: "When it was sent (ISO). Default now." },
+      subject: { type: "string", description: "Optional email subject to record on the sent draft." },
       externalMessageId: { type: "string", description: "Optional id from the external provider." },
     },
-    required: ["id"],
   },
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
@@ -1676,14 +1684,26 @@ async function markOutreachSentCall(msg, user, args) {
     const userId = contentUserId(user);
     const emailHint = user && user.email;
     const id = typeof args.id === "string" ? args.id.trim() : "";
-    if (!id) throw Object.assign(new Error("id is required."), { status: 400 });
+    const personId = typeof args.personId === "string" ? args.personId.trim() : "";
+    const personName = typeof args.personName === "string" ? args.personName.trim() : "";
+    const companyName = typeof args.companyName === "string" ? args.companyName.trim() : "";
+    if (!id && !personId && !(personName && companyName)) {
+      throw Object.assign(
+        new Error("id or personId (or personName and companyName) is required."),
+        { status: 400 },
+      );
+    }
     const result = await leadsStore.markDraftSent({
-      id,
+      id: id || undefined,
+      personId: personId || undefined,
+      personName: personName || undefined,
+      companyName: companyName || undefined,
       userId,
       emailHint,
       actor: MCP_BOT_ACTOR,
       channel: args.channel,
       sentAt: args.sentAt,
+      subject: args.subject,
       externalMessageId: args.externalMessageId,
     });
     return contentToolOk(msg, {
