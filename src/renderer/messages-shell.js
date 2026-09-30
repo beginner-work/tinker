@@ -374,8 +374,10 @@
     var links = pane.querySelector("[data-messages-links]");
     if (nameEl) nameEl.textContent = name || "Messages";
     if (role) {
+      // Second line under the name — no middle-dot prefix (that forced one
+      // long clipped line on iPhone). Title + company wrap freely.
       role.hidden = !roleText;
-      role.textContent = roleText ? " · " + roleText : "";
+      role.textContent = roleText || "";
     }
     if (opts.showOwnerAvatar) {
       // Owner chrome: never keep a previous person's links.
