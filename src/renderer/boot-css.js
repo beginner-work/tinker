@@ -1,4 +1,4 @@
-/* boot-css.js — CSP-safe activation for non-blocking stylesheets.
+/* boot-css.js: CSP-safe activation for non-blocking stylesheets.
  *
  * Fonts and secondary chrome CSS are fetched with preload / media=print so
  * they do not block first paint. script-src disallows inline onload handlers,
