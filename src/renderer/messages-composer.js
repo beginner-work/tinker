@@ -107,10 +107,14 @@
     return "Notes for " + person + ".";
   }
   function defaultQuestion(lead, company) {
+    var api = interviewApi();
     var person = String(lead && lead.personName || "").trim() || "them";
     var co = String((company && company.name) || (lead && lead.company) || "").trim();
-    if (co) return "What do you want " + person + " at " + co + " to understand about you?";
-    return "What do you want " + person + " to understand about you?";
+    if (api && typeof api.defaultPersonQuestion === "function") {
+      return api.defaultPersonQuestion(person, co);
+    }
+    if (co) return "What are you curious about in " + person + "'s work at " + co + "?";
+    return "What are you curious about in " + person + "'s work?";
   }
   function serializeNotes(preamble, transcript, pending, draft, queue) {
     var parts = [];
@@ -537,14 +541,29 @@
     var person = String(state.lead && state.lead.personName || "").trim() || "this person";
     var co = String((state.company && state.company.name) || (state.lead && state.lead.company) || "").trim();
     var title = String(state.lead && state.lead.personTitle || "").trim();
-    var lines = [];
-    lines.push("The founder is crafting personal outreach notes about a specific person.");
-    lines.push("Person: " + person + (title ? " (" + title + ")" : "") + (co ? " at " + co : "") + ".");
     var research = researchProse(state.company);
-    if (research) lines.push("Company context: " + research.slice(0, 1200));
-    // Prep preamble stays out of the thread UI but still grounds prompts.
+    // Prep preamble stays out of the thread UI but still grounds prompts lightly.
     var prepContext = String(state.preamble || "").trim();
-    if (prepContext) lines.push("Prep context: " + prepContext.slice(0, 1200));
+    if (api && typeof api.buildPersonUserMessage === "function") {
+      return api.buildPersonUserMessage({
+        personName: person,
+        personTitle: title,
+        companyName: co,
+        companyContext: research,
+        prepContext: prepContext,
+        transcript: state.transcript,
+        pendingQuestion: state.pending,
+        draftAnswer: state.draft,
+        asked: asked,
+        keepCrafting: true,
+        keepCraftingTighter: !!tighter,
+      });
+    }
+    var lines = [];
+    lines.push("The owner is crafting personal outreach notes about a specific person.");
+    lines.push("Person: " + person + (title ? " (" + title + ")" : "") + (co ? " at " + co : "") + ".");
+    if (research) lines.push("Company context (light background only — do not turn into business talk): " + research.slice(0, 1200));
+    if (prepContext) lines.push("Prep context (light background only): " + prepContext.slice(0, 1200));
     lines.push("");
     lines.push("Interview so far:");
     if (!state.transcript.length) {
@@ -563,17 +582,21 @@
       asked.forEach(function (q) { lines.push("- " + q); });
       lines.push("");
     }
-    var instr = api && typeof api.keepCraftingUserInstruction === "function"
-      ? api.keepCraftingUserInstruction({ tighter: !!tighter })
-      : 'The founder pressed "Keep crafting" - return a non-empty next_question that has not been asked yet. Set done false. Do not stitch.';
-    lines.push(instr);
-    lines.push("Ask about what the founder wants " + person + " to understand - learning-focused, concrete, not a repeat.");
+    lines.push(
+      'The owner pressed "Keep crafting" — return a non-empty next_question that has not been asked yet. Set done false. Do not stitch.'
+    );
+    lines.push(
+      "Ask about curiosity, how they know them, something shared or admired, or what would make a conversation feel natural — not what they want " +
+        person +
+        " to understand about them."
+    );
     return lines.join("\n");
   }
   function resolveNextQuestion(asked) {
     var api = interviewApi();
     var maxAttempts = 3;
-    var system = (api && api.SYSTEM_PROMPT) || "You are an interviewer. Return JSON {next_question, done:false}.";
+    var system = (api && api.PERSON_SYSTEM_PROMPT) ||
+      "You help the owner connect personally with one person. Ask one short warm question. Never resume or career framing. Return JSON {next_question, done:false}.";
     function attempt(i) {
       if (!window.tinker || typeof window.tinker.callClaude !== "function") {
         return Promise.reject(new Error("Anthropic client unavailable. Reload the page."));
@@ -599,9 +622,9 @@
         }
         if (q) return q;
         if (i + 1 < maxAttempts) return attempt(i + 1);
-        var fallback = api && typeof api.fallbackKeepCraftingQuestion === "function"
-          ? api.fallbackKeepCraftingQuestion(state.transcript.length, asked)
-          : "What else are you learning about what they should understand?";
+        var fallback = api && typeof api.fallbackPersonKeepCraftingQuestion === "function"
+          ? api.fallbackPersonKeepCraftingQuestion(state.transcript.length, asked)
+          : "What else are you curious about in them?";
         return fallback;
       });
     }
@@ -672,9 +695,9 @@
       var q = String(nextQ || "").trim();
       var api = interviewApi();
       if (!q || (api && typeof api.isRepeatQuestion === "function" && api.isRepeatQuestion(q, asked))) {
-        q = api && typeof api.fallbackKeepCraftingQuestion === "function"
-          ? api.fallbackKeepCraftingQuestion(state.transcript.length, asked)
-          : "What else are you learning about what they should understand?";
+        q = api && typeof api.fallbackPersonKeepCraftingQuestion === "function"
+          ? api.fallbackPersonKeepCraftingQuestion(state.transcript.length, asked)
+          : "What else are you curious about in them?";
       }
       state.pending = q;
       state.notes = serializeNotes(state.preamble, state.transcript, state.pending, state.draft, state.queue);

@@ -79,6 +79,67 @@
     "Never wrap the JSON in code fences. Never add explanations outside the JSON.",
   ].join("\n");
 
+  // Person-thread Keep crafting only. Relationship-first; never resume/career/pitch.
+  const PERSON_SYSTEM_PROMPT = [
+    "You help Tyler write personal notes about one person in his inbox — a recruiter, engineering leader, or other contact.",
+    "Your job is to ask questions that help him connect as a person. Not pitch. Not sell. Not brand himself.",
+    "",
+    "RULE 1 — INTERVIEW, DO NOT WRITE.",
+    "You ask one short question at a time. You never invent prose for Tyler. You never paraphrase, smooth, or improve his words. Any draft is built only from what he types, exactly as typed (join with paragraph breaks and trim whitespace if needed — nothing else).",
+    "",
+    "RULE 2 — RELATIONSHIP FIRST.",
+    "Ask about the other person and the human connection: what Tyler is curious about in them or their work, how he knows them or came across them, something he genuinely shares with them or admires, what he'd like to learn from them, what would make a conversation feel natural. One concrete question. Plain words. Warm. Never salesy.",
+    "",
+    "RULE 3 — NEVER RESUME, CAREER, OR BUSINESS FRAMING.",
+    "Never ask about or reference Tyler's resume, career record, verified facts, metrics, achievements, years of experience, job titles as selling points, story parts, transactions, or purchases.",
+    "Do not ask what he wants them to understand about him. Do not steer toward self-promotion, positioning, or pitch language.",
+    "If company context appears in the user message, treat it as light background only. Do not turn it into business talk, hiring strategy, or product framing.",
+    "",
+    "RULE 4 — RESPOND IN STRICT JSON.",
+    "Always respond as a single JSON object, with exactly these keys:",
+    '  { "next_question": string | null, "stitched_title": string | null, "stitched_body": string | null, "done": boolean }',
+    "For Keep crafting, always set a non-empty next_question, leave stitched fields null, and set done false.",
+    "Never wrap the JSON in code fences. Never add explanations outside the JSON.",
+    "",
+    "RULE 5 — NEVER REPEAT.",
+    "Do not repeat or lightly rephrase a question already listed as asked.",
+  ].join("\n");
+
+  const PERSON_KEEP_CRAFTING_FALLBACKS = {
+    early: [
+      "What are you curious about in their work right now?",
+      "How did you come across them, or how do you know them?",
+      "What about them first made you want to reach out?",
+      "Is there something in their path you genuinely admire?",
+    ],
+    mid: [
+      "What would you like to learn from them if the conversation went well?",
+      "Is there something you two might share that isn't about a job?",
+      "What would make a note to them feel natural instead of formal?",
+      "What are you still wondering about in how they work?",
+    ],
+    late: [
+      "What would you hope they feel after reading a short note from you?",
+      "Is there one small, true detail you'd want them to know about why you wrote?",
+      "What thread would you want to pick up if they replied?",
+      "What still feels unfinished in how you'd start the conversation?",
+    ],
+  };
+
+  const PERSON_KEEP_CRAFTING_INSTRUCTION =
+    'The owner pressed "Keep crafting" — they want another personal question, not a stitch and not a pitch. ' +
+    "You MUST return a non-empty next_question that is visibly different from every question already asked. " +
+    "Do not repeat or lightly rephrase a prior question. Set done to false. Set stitched_title and stitched_body to null. " +
+    "Ask one short, warm, relationship-first question about the other person or the connection. " +
+    "Never ask about resume, career facts, metrics, achievements, story parts, transactions, or purchases. " +
+    "Respond with the JSON object only.";
+
+  const PERSON_KEEP_CRAFTING_TIGHTER_INSTRUCTION =
+    "REQUIRED: Return JSON with a non-empty next_question string that has NOT been asked yet. " +
+    "It must be clearly different from every prior question. " +
+    "Set done to false. Set stitched_title and stitched_body to null. " +
+    "Ask one new personal, relationship-first question. No resume, career, metrics, or pitch framing. JSON object only.";
+
   const MAX_DRAFT = 80000;
   const MAX_TURNS = 40;
   const MAX_TURN_CHARS = 20000;
@@ -222,6 +283,146 @@
 
   function keepCraftingUserInstruction({ tighter = false } = {}) {
     return tighter ? KEEP_CRAFTING_TIGHTER_INSTRUCTION : KEEP_CRAFTING_INSTRUCTION;
+  }
+
+  function personKeepCraftingUserInstruction({ tighter = false } = {}) {
+    return tighter ? PERSON_KEEP_CRAFTING_TIGHTER_INSTRUCTION : PERSON_KEEP_CRAFTING_INSTRUCTION;
+  }
+
+  function defaultPersonQuestion(personName, companyName) {
+    const person = String(personName || "").trim() || "them";
+    const company = String(companyName || "").trim();
+    if (company) return "What are you curious about in " + person + "'s work at " + company + "?";
+    return "What are you curious about in " + person + "'s work?";
+  }
+
+  function fallbackPersonKeepCraftingQuestion(turnCount, asked) {
+    const n = Math.max(0, Number(turnCount) || 0);
+    const askedKeys = asked instanceof Set ? asked : askedQuestionKeys(asked);
+    const stage = transcriptStage(n);
+    const stageOrder =
+      stage === "late"
+        ? ["late", "mid", "early"]
+        : stage === "mid"
+          ? ["mid", "late", "early"]
+          : ["early", "mid", "late"];
+    for (const s of stageOrder) {
+      const prompts = PERSON_KEEP_CRAFTING_FALLBACKS[s] || [];
+      if (!prompts.length) continue;
+      const start = n % prompts.length;
+      for (let i = 0; i < prompts.length; i++) {
+        const q = prompts[(start + i) % prompts.length];
+        if (!isRepeatQuestion(q, askedKeys)) return q;
+      }
+    }
+    let suffix = n + 1;
+    for (let i = 0; i < 20; i++) {
+      const q = "What else are you curious about in them on pass " + suffix + "?";
+      if (!isRepeatQuestion(q, askedKeys)) return q;
+      suffix += 1;
+    }
+    return "What else would make a conversation with them feel natural (" + Date.now() + ")?";
+  }
+
+  function buildPersonUserMessage(args) {
+    const input = args && typeof args === "object" ? args : {};
+    const person = String(input.personName || "").trim() || "this person";
+    const title = String(input.personTitle || "").trim();
+    const company = String(input.companyName || "").trim();
+    const lines = [];
+    lines.push("Tyler is crafting personal outreach notes about a specific person.");
+    lines.push(
+      "Help him connect as a person. Do not steer toward resume, career facts, metrics, achievements, story parts, transactions, purchases, or self-promotion."
+    );
+    lines.push("Person: " + person + (title ? " (" + title + ")" : "") + (company ? " at " + company : "") + ".");
+    const research = asTrimmedString(input.companyContext, 1200);
+    if (research) {
+      lines.push("Company context (light background only — do not turn into business talk): " + research);
+    }
+    const prepContext = asTrimmedString(input.prepContext, 1200);
+    if (prepContext) {
+      lines.push("Prep context (light background only): " + prepContext);
+    }
+    lines.push("");
+    lines.push("Interview so far:");
+    const turns = Array.isArray(input.transcript) ? input.transcript : [];
+    if (!turns.length) {
+      lines.push("(no answered turns yet)");
+    } else {
+      turns.forEach((t, i) => {
+        lines.push("Q" + (i + 1) + ": " + String(t && t.q || "").trim());
+        lines.push("A" + (i + 1) + ": " + String(t && t.a || "").trim());
+      });
+    }
+    const pending = asTrimmedString(input.pendingQuestion, MAX_TURN_CHARS);
+    if (pending) lines.push("Current question: " + pending);
+    const draft = asTrimmedString(input.draftAnswer, MAX_TURN_CHARS);
+    if (draft) lines.push("Current draft answer: " + draft);
+    lines.push("");
+    const asked = Array.isArray(input.asked)
+      ? input.asked.map((q) => String(q || "").trim()).filter(Boolean)
+      : collectAskedQuestions(turns, input.priorTurns, pending);
+    if (asked.length) {
+      lines.push(...alreadyAskedBlock(asked));
+    }
+    if (input.keepCrafting === true) {
+      lines.push(personKeepCraftingUserInstruction({ tighter: input.keepCraftingTighter === true }));
+    } else {
+      lines.push("Ask one short personal question. Respond with the JSON object only.");
+    }
+    lines.push(
+      "Ask about curiosity, how he knows them, something shared or admired, what he'd learn from them, or what would make a conversation feel natural — not what he wants " +
+        person +
+        " to understand about him."
+    );
+    return lines.join("\n");
+  }
+
+  function buildPersonFollowupRequest(args) {
+    const input = args && typeof args === "object" && !Array.isArray(args) ? args : null;
+    if (!input) return { error: "arguments must be an object." };
+    const personName = asTrimmedString(input.personName, 200);
+    if (!personName) return { error: "personName is required for person-thread questions." };
+    if (Object.prototype.hasOwnProperty.call(input, "draft") && typeof input.draft === "string" && input.draft.trim()) {
+      return { error: "Person-thread questions use transcript, not draft." };
+    }
+    if (!Object.prototype.hasOwnProperty.call(input, "transcript")) {
+      return { error: "Pass a transcript for person-thread questions." };
+    }
+    const prior = splitPrior(input.priorTurns);
+    if (prior.error) return { error: prior.error };
+    const transcript = normalizeTranscript(input.transcript);
+    if (transcript.error) return { error: transcript.error };
+    if (input.forceStitch === true) {
+      return { error: "Person threads do not stitch essays." };
+    }
+    const turns = [];
+    const seen = new Set();
+    for (const t of [...prior.turns, ...transcript.turns]) {
+      const key = t.q + "\n" + t.a;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      turns.push(t);
+    }
+    const asked = collectAskedQuestions(turns, prior.questions, input.pendingQuestion);
+    return {
+      mode: "person",
+      system: PERSON_SYSTEM_PROMPT,
+      user: buildPersonUserMessage({
+        personName,
+        personTitle: input.personTitle,
+        companyName: input.companyName,
+        companyContext: input.companyContext,
+        prepContext: input.prepContext,
+        transcript: turns,
+        pendingQuestion: input.pendingQuestion,
+        draftAnswer: input.draftAnswer,
+        asked,
+        priorTurns: prior.questions,
+        keepCrafting: input.keepCrafting === true,
+        keepCraftingTighter: input.keepCraftingTighter === true,
+      }),
+    };
   }
 
   const SUBJECT_SYSTEM_PROMPT = [
@@ -492,12 +693,18 @@
   }
 
   // Returns { mode, system, user } or { error }.
-  // transcript present (even empty) runs the founder interview contract.
+  // personName + transcript runs the person-thread relationship interview.
+  // transcript alone (no personName) runs the founder interview contract.
   // draft alone runs freeform follow-ups. A caller-supplied system prompt
   // is ignored — the prompt is owned here.
   function buildFollowupRequest(args) {
     const input = args && typeof args === "object" && !Array.isArray(args) ? args : null;
     if (!input) return { error: "arguments must be an object." };
+    const personName = asTrimmedString(input.personName, 200);
+    if (personName) {
+      // Person threads never take founder seed/facing/purchases/transactions/voice.
+      return buildPersonFollowupRequest(input);
+    }
     const hasTranscript = Object.prototype.hasOwnProperty.call(input, "transcript");
     const hasDraft = typeof input.draft === "string" && input.draft.trim().length > 0;
     if (!hasTranscript && !hasDraft) {
@@ -537,23 +744,32 @@
     KEEP_CRAFTING_MODEL,
     SYSTEM_PROMPT,
     FREEFORM_SYSTEM_PROMPT,
+    PERSON_SYSTEM_PROMPT,
     SUBJECT_SYSTEM_PROMPT,
     KEEP_CRAFTING_INSTRUCTION,
     KEEP_CRAFTING_TIGHTER_INSTRUCTION,
     KEEP_CRAFTING_FALLBACKS,
+    PERSON_KEEP_CRAFTING_INSTRUCTION,
+    PERSON_KEEP_CRAFTING_TIGHTER_INSTRUCTION,
+    PERSON_KEEP_CRAFTING_FALLBACKS,
     parseInterviewResponse,
     parseFreeformResponse,
     parseSubjectResponse,
     buildFollowupRequest,
+    buildPersonFollowupRequest,
+    buildPersonUserMessage,
     buildSubjectUserMessage,
+    defaultPersonQuestion,
     transcriptStage,
     normalizeQuestionKey,
     askedQuestionKeys,
     collectAskedQuestions,
     isRepeatQuestion,
     fallbackKeepCraftingQuestion,
+    fallbackPersonKeepCraftingQuestion,
     normalizeKeepCraftingQuestion,
     keepCraftingUserInstruction,
+    personKeepCraftingUserInstruction,
     fallbackOutreachSubject,
     normalizeOutreachSubject,
   };

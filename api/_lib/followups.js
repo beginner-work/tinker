@@ -67,12 +67,21 @@ async function callOnce(built) {
 
 async function askKeepCrafting(args) {
   const asked = askedFromArgs(args);
+  const personMode = !!(args && typeof args.personName === "string" && args.personName.trim());
   for (let attempt = 0; attempt < KEEP_CRAFTING_MAX_ATTEMPTS; attempt++) {
     const attemptArgs = Object.assign({}, args, {
       keepCrafting: true,
       keepCraftingTighter: attempt > 0,
       forceStitch: false,
     });
+    // Person threads must never carry founder seed / purchases / transactions / voice.
+    if (personMode) {
+      delete attemptArgs.seed;
+      delete attemptArgs.facing;
+      delete attemptArgs.lastPurchased;
+      delete attemptArgs.transactions;
+      delete attemptArgs.voice;
+    }
     const built = interview.buildFollowupRequest(attemptArgs);
     if (built.error) {
       throw Object.assign(new Error(built.error), { toolError: true });
@@ -91,7 +100,9 @@ async function askKeepCrafting(args) {
       });
     }
   }
-  const q = interview.fallbackKeepCraftingQuestion(turnCountFromArgs(args), asked);
+  const q = personMode
+    ? interview.fallbackPersonKeepCraftingQuestion(turnCountFromArgs(args), asked)
+    : interview.fallbackKeepCraftingQuestion(turnCountFromArgs(args), asked);
   return shapeInterview({
     next_question: q,
     stitched_title: null,
@@ -102,16 +113,25 @@ async function askKeepCrafting(args) {
 
 async function askFollowups(args) {
   const input = args && typeof args === "object" && !Array.isArray(args) ? args : {};
+  const personMode = !!(typeof input.personName === "string" && input.personName.trim());
+  if (personMode) {
+    // Strip founder-essay scene inputs so person prompts stay relationship-first.
+    delete input.seed;
+    delete input.facing;
+    delete input.lastPurchased;
+    delete input.transactions;
+    delete input.voice;
+  }
   if (input.keepCrafting === true) {
     return askKeepCrafting(input);
   }
 
-  const built = interview.buildFollowupRequest(args);
+  const built = interview.buildFollowupRequest(input);
   if (built.error) {
     throw Object.assign(new Error(built.error), { toolError: true });
   }
   const result = await callOnce(built);
-  if (built.mode === "interview") {
+  if (built.mode === "interview" || built.mode === "person") {
     return shapeInterview(interview.parseInterviewResponse(result.text));
   }
   const shaped = shapeFreeform(interview.parseFreeformResponse(result.text));
