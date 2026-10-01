@@ -250,6 +250,7 @@ async function markApplicationDone({ userId, emailHint, applicationId, actor } =
     if (row.status !== "done") {
       row.status = "done";
       row.doneAt = now;
+      row.droppedAt = null;
       row.updatedAt = now;
       await writeBlob(uid, applications);
     }
