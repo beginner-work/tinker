@@ -389,6 +389,126 @@ async function setStage({ id, userId, emailHint, actor, stage, outcome }) {
     return { lead: saved, event };
   });
 }
+
+/** Latest close event detail for a lead (previousStage / closedReason / closedAt). */
+async function latestCloseDetail(owner, leadId) {
+  let events;
+  try {
+    events = await db().leadEvent.findMany({ where: { userId: owner, leadId } });
+  } catch (err) {
+    throw storeDown(err);
+  }
+  const closes = (events || [])
+    .filter((ev) => ev && (ev.action === "closed" || (ev.detail && ev.detail.to === "closed")))
+    .sort((a, b) => new Date(b.at) - new Date(a.at));
+  const detail = closes[0] && closes[0].detail && typeof closes[0].detail === "object"
+    ? closes[0].detail
+    : null;
+  return detail || {};
+}
+
+function presentClosedLead(row, detail) {
+  const shaped = shape(row);
+  const previousStage = detail && detail.previousStage != null
+    ? String(detail.previousStage)
+    : (detail && detail.from != null ? String(detail.from) : "");
+  const closedReason = detail && detail.closedReason != null ? String(detail.closedReason) : "";
+  const closedAt = detail && detail.closedAt
+    ? String(detail.closedAt)
+    : (row && row.updatedAt ? iso(row.updatedAt) : null);
+  return Object.assign(shaped, {
+    previousStage: previousStage || null,
+    closedReason: closedReason || "",
+    closedAt: closedAt || null,
+  });
+}
+
+/**
+ * Close a lead: stage → closed. Stores previousStage, closedReason, closedAt on the
+ * LeadEvent detail (no Prisma column changes). Does not delete notes/drafts/touches.
+ */
+async function closeLead({ id, userId, emailHint, actor, reason } = {}) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  const label = actorLabel(actor);
+  const closedReason = reason == null || reason === ""
+    ? ""
+    : readText(reason, "reason", 500, false);
+  await ensureTable();
+  const row = await loadOwned("lead", id, owner, "lead");
+  if (row.stage === "closed") {
+    const detail = await latestCloseDetail(owner, row.id);
+    const nextDetail = Object.assign({}, detail, {
+      previousStage: detail.previousStage || detail.from || "new",
+      closedReason: closedReason || detail.closedReason || "",
+      closedAt: detail.closedAt || iso(row.updatedAt) || new Date().toISOString(),
+      to: "closed",
+    });
+    if (closedReason && closedReason !== (detail.closedReason || "")) {
+      await commit(async (tx) => {
+        await record(tx, {
+          userId: owner,
+          leadId: row.id,
+          actor: label,
+          action: "closed",
+          detail: Object.assign({}, nextDetail, {
+            from: "closed",
+            previousStage: nextDetail.previousStage,
+            closedReason,
+            closedAt: nextDetail.closedAt,
+          }),
+        });
+      });
+      nextDetail.closedReason = closedReason;
+    }
+    return { lead: presentClosedLead(row, nextDetail), alreadyClosed: true };
+  }
+  const previousStage = row.stage || "new";
+  const closedAt = new Date().toISOString();
+  const detail = {
+    from: previousStage,
+    to: "closed",
+    previousStage,
+    closedReason,
+    closedAt,
+  };
+  const saved = await commit(async (tx) => {
+    const updated = await tx.lead.update({ where: { id: row.id }, data: { stage: "closed" } });
+    await record(tx, {
+      userId: owner, leadId: row.id, actor: label, action: "closed", detail,
+    });
+    return updated;
+  });
+  return { lead: presentClosedLead(saved, detail), alreadyClosed: false };
+}
+
+/**
+ * Reopen a closed lead: stage → previousStage from the close event, or "new".
+ * Does not restore skipped touches; notes/drafts/answered turns stay intact.
+ */
+async function reopenLead({ id, userId, emailHint, actor } = {}) {
+  const owner = requireUserId(userId);
+  assertAllowed(owner, emailHint);
+  const label = actorLabel(actor);
+  await ensureTable();
+  const row = await loadOwned("lead", id, owner, "lead");
+  if (row.stage !== "closed") throw fail(400, "Lead is not closed.");
+  const detail = await latestCloseDetail(owner, row.id);
+  const prior = detail.previousStage || detail.from || "new";
+  const next = STAGES.includes(prior) && prior !== "closed" ? prior : "new";
+  const saved = await commit(async (tx) => {
+    const updated = await tx.lead.update({ where: { id: row.id }, data: { stage: next } });
+    await record(tx, {
+      userId: owner,
+      leadId: row.id,
+      actor: label,
+      action: "reopened",
+      detail: { from: "closed", to: next, previousStage: prior },
+    });
+    return updated;
+  });
+  return { lead: shape(saved), previousStage: next };
+}
 function splitCsvLine(line) {
   const cells = [];
   let cur = "";
@@ -1056,7 +1176,8 @@ async function setOutreachSettings({ userId, emailHint, patch }) {
 module.exports = {
   UNAVAILABLE, TABLE_STATEMENTS, SOURCES, STAGES, OUTCOMES, CHANNELS, DRAFT_STATUSES,
   ensureTable, resetTableCache, assertAllowed, presentLead: shape, presentDraft: shape, presentEvent: shape,
-  parseImportText, createLead, listLeads, getLead, listDrafts, updateLead, markLeadDone, setStage, importLeads,
+  parseImportText, createLead, listLeads, getLead, listDrafts, updateLead, markLeadDone, setStage,
+  closeLead, reopenLead, importLeads,
   createDraft, updateDraft, setProposedSubject, proposedSubjectByLeadIds,
   notesHaveDoneMarker, mergeLeadNotes, ensureDoneMarker,
   approveDraft, listApprovedOutreach, markDraftSent, markDraftFailed,

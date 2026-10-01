@@ -468,6 +468,8 @@ function rankInboxItems(input) {
   const items = [];
   leads.forEach((lead) => {
     if (!lead || !lead.id) return;
+    // Closed leads stay in list_target_companies but leave every inbox surface.
+    if (String(lead.stage || "").toLowerCase() === "closed") return;
     if (!includeSent && leadHasSent(lead.id, drafts)) return;
     const entry = byLeadId[lead.id];
     const touch = entry && entry.touch ? entry.touch : null;

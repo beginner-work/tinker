@@ -196,6 +196,8 @@
   function visibleLeads() {
     return state.leads.filter(function (lead) {
       if (!lead) return false;
+      // Closed leads stay on the company list but leave the inbox rail.
+      if (String(lead.stage || "").toLowerCase() === "closed") return false;
       // UI-only: once outreach is sent, drop the person from the rail.
       // Thread still opens by direct selectLead / URL. Data + MCP unchanged.
       if (leadHasSentOutreach(lead.id)) return false;
