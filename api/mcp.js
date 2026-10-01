@@ -70,6 +70,8 @@ const INSTRUCTIONS = [
   "Call get_outreach_schedule to read the Mon–Fri outreach plan (sessions, touches, busyEvents). Call set_busy_times to store busy blocks from the owner's assistant. Call ask_followups with a transcript of {q, a} turns to run the founder interview",
   "(one next question, or a stitch when the draft is ready), or with a draft string",
   "for freeform follow-up questions. Optional priorTurns avoids repeats.",
+  "Pass personName (and optional personTitle, companyName, companyContext) with transcript",
+  "for person-thread Keep crafting: relationship-first questions, never resume/career/seed framing.",
   "Pass keepCrafting true when the owner pressed Keep crafting: the server must return a next_question (never done or stitch); empty model replies retry then fall back to a stage question.",
   "Call draft_linkedin_post with notes (a topic or bullets) to draft a LinkedIn post or direct message in Tyler's voice.",
   "Pass kind \"dm\" for a direct message, or start the notes with \"DM:\". Pass currentDraft and an optional instruction to revise.",
@@ -144,13 +146,16 @@ const ASK_FOLLOWUPS_TOOL = {
   name: "ask_followups",
   title: "Ask follow-up questions",
   description: [
-    "Return follow-up questions for founder writing.",
-    "Pass transcript (array of {q, a}) to run tinker's interview contract:",
+    "Return follow-up questions for founder writing or person-thread notes.",
+    "Pass transcript (array of {q, a}) to run tinker's founder interview contract:",
     "the result is JSON with next_question, optional stitched essay fields, and done.",
+    "Pass personName with transcript for person-thread questions (relationship-first;",
+    "never resume, career record, story parts, transactions, or founder seed).",
+    "Optional personTitle, companyName, and companyContext are light background only.",
     "Pass draft (string) instead for 3–5 freeform questions about what the writer is learning.",
     "Optional priorTurns (strings or {q, a}) are questions already asked.",
     "Optional seed, facing, lastPurchased, voice, and transactions",
-    "shape the interview the same way the writing UI does.",
+    "shape the founder interview the same way the writing UI does (ignored for person threads).",
     "Pass keepCrafting true when the owner wants another question (Keep crafting):",
     "the server never returns done or a stitch for that call; empty replies retry then fall back.",
     "Do not send a system prompt; the server owns it.",
@@ -165,7 +170,7 @@ const ASK_FOLLOWUPS_TOOL = {
       },
       transcript: {
         type: "array",
-        description: "Founder interview turns so far. An empty array starts the interview.",
+        description: "Founder or person-thread interview turns so far. An empty array starts the interview.",
         items: {
           type: "object",
           additionalProperties: false,
@@ -194,26 +199,43 @@ const ASK_FOLLOWUPS_TOOL = {
           ],
         },
       },
-      seed: { type: "string", description: "Where the founder is right now." },
-      facing: { type: "string", description: "What the founder is facing." },
-      lastPurchased: { type: "string", description: "What the founder last purchased." },
+      personName: {
+        type: "string",
+        description:
+          "When set with transcript, runs the person-thread relationship prompt instead of the founder essay interview.",
+      },
+      personTitle: {
+        type: "string",
+        description: "Optional title for person-thread questions.",
+      },
+      companyName: {
+        type: "string",
+        description: "Optional company name for person-thread questions.",
+      },
+      companyContext: {
+        type: "string",
+        description: "Optional light company background for person threads. Not business talk.",
+      },
+      seed: { type: "string", description: "Where the founder is right now. Founder interview only." },
+      facing: { type: "string", description: "What the founder is facing. Founder interview only." },
+      lastPurchased: { type: "string", description: "What the founder last purchased. Founder interview only." },
       voice: {
         type: "string",
-        description: "Optional writing-voice block. Shapes how questions are phrased.",
+        description: "Optional writing-voice block. Founder interview only; ignored for person threads.",
       },
       transactions: {
         type: "array",
-        description: "Recent transactions, as preformatted strings or { date, merchant, amount, category }.",
+        description: "Recent transactions, as preformatted strings or { date, merchant, amount, category }. Founder interview only.",
         items: {},
       },
       forceStitch: {
         type: "boolean",
-        description: "Interview mode only. Skip further questions and stitch the essay.",
+        description: "Founder interview mode only. Skip further questions and stitch the essay.",
       },
       keepCrafting: {
         type: "boolean",
         description:
-          "Interview mode only. Owner pressed Keep crafting: always return a next_question; never done or stitch.",
+          "Owner pressed Keep crafting: always return a next_question; never done or stitch.",
       },
     },
   },

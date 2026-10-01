@@ -68,19 +68,15 @@ test("company and person notes still reach Keep crafting + subject prompts after
   // Wiring in messages-composer: researchProse(company notes) → both prompts.
   assert.match(js, /function researchProse/);
   assert.match(js, /company\.notes/);
-  assert.match(
-    js,
-    /var research = researchProse\(state\.company\);\s*if \(research\) lines\.push\("Company context: "/
-  );
-  assert.match(js, /companyContext:\s*companyContext/);
-  assert.match(js, /Prep context:/);
+  assert.match(js, /researchProse\(state\.company\)/);
+  assert.match(js, /companyContext:\s*research/);
+  assert.match(js, /prepContext:\s*prepContext/);
   assert.match(js, /state\.preamble/);
   // Prep preamble is prompt-only — not mounted in the thread opening.
   assert.equal(/opening\.appendChild\(preamble\)/.test(js), false);
   assert.equal(/messages-notepad__section/.test(js.match(/function buildOpening[\s\S]*?return opening/)[0]), false);
   // Person notes = interview transcript turns on the lead (still in the prompt).
-  assert.match(js, /Interview so far:/);
-  assert.match(js, /state\.transcript\.forEach/);
+  assert.match(js, /api\.buildPersonUserMessage|Interview so far:/);
   assert.match(js, /What the founder shared:|buildSubjectUserMessage/);
 
   // Runtime: subject prompt includes the company-notes string unchanged.
@@ -95,7 +91,7 @@ test("company and person notes still reach Keep crafting + subject prompts after
     companyContext: companyNotes,
     transcript: [
       {
-        q: "What do you want Faria Chaudhry at Alloy to understand about you?",
+        q: "What are you curious about in Faria Chaudhry's work at Alloy?",
         a: personAnswer,
       },
     ],
@@ -106,12 +102,17 @@ test("company and person notes still reach Keep crafting + subject prompts after
   assert.match(subjectPrompt, /Faria Chaudhry/);
 });
 
-test("person Keep crafting uses window.tinker.callClaude (platform-mobile on iPhone)", () => {
+test("person Keep crafting uses PERSON_SYSTEM_PROMPT via callClaude (platform-mobile on iPhone)", () => {
   // Desktop Electron may pre-wire tinker.callClaude; on iPhone/PWA,
   // platform-mobile.js is the only provider and proxies to /api/claude/converse.
   assert.match(js, /window\.tinker\.callClaude\s*\(/);
   assert.match(js, /function keepCrafting/);
   assert.match(js, /resolveNextQuestion|buildPersonUserMessage/);
+  assert.match(js, /PERSON_SYSTEM_PROMPT/);
+  assert.match(js, /fallbackPersonKeepCraftingQuestion|defaultPersonQuestion/);
+  assert.match(js, /What are you curious about in/);
+  assert.equal(/What do you want .+ to understand about you/.test(js), false);
+  assert.equal(/api\.SYSTEM_PROMPT/.test(js), false, "person path must not use founder SYSTEM_PROMPT");
   const platform = fs.readFileSync(path.join(root, "src/renderer/platform-mobile.js"), "utf8");
   assert.match(platform, /async function callClaude/);
   assert.match(platform, /\/api\/claude\/converse/);
