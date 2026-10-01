@@ -797,18 +797,10 @@
       state.queue = [];
       state.draft = "";
       state.notes = serializeDoneNotes(state.preamble, state.transcript);
-      var hasAnswer = (state.transcript || []).some(function (t) {
-        return String(t && t.a || "").trim();
-      });
-      if (!openDraft && hasAnswer) {
-        // Done with answers but no draft (Faria/Rahul race): create answer-only.
-        state.proposedSubject = fallbackSubject(state.transcript);
-        writeAnswerOnlyDraft({
-          leadId: state.leadId,
-          transcript: snapshotTranscript(state.transcript),
-          force: false,
-        }).catch(function () { /* ignore */ });
-      } else if (openDraft && tinkerDraftNeedsRegen(openDraft, state.transcript)) {
+      // Do not backfill a draft on open when none exists (Clair may have
+      // written email outside Tinker). Drafts are created only when the owner
+      // finishes answering (This is everything → writeAnswerOnlyDraft).
+      if (openDraft && tinkerDraftNeedsRegen(openDraft, state.transcript)) {
         // Only refresh tinker_answer drafts nobody has hand-edited.
         state.proposedSubject = fallbackSubject(state.transcript);
         writeAnswerOnlyDraft({
@@ -819,7 +811,7 @@
       } else if (!state.proposedSubject) {
         state.proposedSubject = fallbackSubject(state.transcript);
       }
-      // Hand-edited / Clair / unknown origin: leave draft + subject alone.
+      // Hand-edited / Clair / unknown origin / no draft: leave alone.
     } else {
       state.notes = serializeNotes(state.preamble, state.transcript, state.pending, state.draft, state.queue);
     }

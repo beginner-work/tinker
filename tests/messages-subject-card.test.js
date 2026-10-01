@@ -62,6 +62,9 @@ test("proposed subject is stored on gmail draft and exposed to MCP readers", () 
   assert.match(composer, /proposed-subject/);
   assert.match(composer, /writeAnswerOnlyDraft|persistProposedDraft/);
   assert.match(composer, /doneLeadId|snapshotTranscript/);
+  // Opening a finished contact must not invent a draft (outreach may exist outside Tinker).
+  assert.equal(/!openDraft && hasAnswer/.test(composer), false);
+  assert.match(composer, /Do not backfill a draft on open/);
   assert.match(mcp, /proposedSubject/);
   assert.match(mcp, /proposedSubjectByLeadIds/);
 });

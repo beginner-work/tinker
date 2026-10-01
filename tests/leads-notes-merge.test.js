@@ -309,6 +309,11 @@ test("composer sets done before async subject resolve; MCP wires mark_lead_done"
   assert.match(composer, /doneLeadId|snapshotTranscript/);
   assert.match(composer, /persistProposedDraft\(leadId/);
   assert.match(composer, /hand_edited|tinker_answer/);
+  // Drafts only on This is everything - no open-thread backfill for missing drafts.
+  assert.match(composer, /Do not backfill a draft on open/);
+  assert.equal(/!openDraft && hasAnswer/.test(composer), false);
+  assert.equal(/Done with answers but no draft/.test(composer), false);
+  assert.match(composer, /writeAnswerOnlyDraft\(\{\s*leadId:\s*doneLeadId/);
   assert.match(mcp, /mark_lead_done/);
   assert.match(mcp, /markLeadDoneCall/);
   assert.match(mcp, /Person upserts never write company notes/);
