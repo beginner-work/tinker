@@ -107,7 +107,7 @@ const INSTRUCTIONS = [
   "Sent people are omitted. Prefer list_inbox over scanning list_target_companies for what to do next.",
   "Call create_application to add a job application inbox item (roleTitle, companyName, optional postingUrl, payRange, fitNotes, referrer).",
   "Call update_application to change fields. Call list_applications to read them. Call mark_application_done when the owner applied;",
-  "that bumps the company's recruiter outreach due date by 1 business day. Status open|done|dropped — dropped means decided not to apply",
+  "that bumps the company's recruiter outreach due date by 1 business day. Status open|done|dropped - dropped means decided not to apply",
   "(not a sent application, no follow-ups); dropped apps never appear in list_inbox. Do not invent applications for Tyler unless asked.",
   "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
   "Prefer those lead tools over dumping GTM prose into the You thread.",
