@@ -251,6 +251,8 @@ function buildAppsByCompany(applications) {
   const map = {};
   (applications || []).forEach((app) => {
     if (!app || !app.id) return;
+    // Dropped apps are out of the chase — they never gate recruiter or eng-lead sequencing.
+    if (app.status === "dropped") return;
     const ckey = companyKey(app.companyId, app.companyName);
     if (!ckey) return;
     if (!map[ckey]) {
@@ -299,14 +301,14 @@ function classifyApplication(app, leads, drafts, byLeadId, companiesById, now) {
   const priority = company && company.priority != null ? Number(company.priority) : 100;
   const northStar = !!(company && company.northStar);
 
-  if (app.status === "done") {
+  if (app.status === "done" || app.status === "dropped") {
     return {
       tier: TIER.COLD,
       dueDay: "",
       companySeq: COMPANY_SEQ.application,
       companyKey: ckey,
       hide: true,
-      rankReason: "applied · done",
+      rankReason: app.status === "dropped" ? "dropped · not applying" : "applied · done",
       priority,
       northStar,
     };

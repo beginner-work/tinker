@@ -344,6 +344,13 @@ test("tools/list exposes ask_followups and draft_linkedin_post, and no raw conve
   assert.match(linkedin.description, /does not post/i);
   assert.match(linkedin.description, /direct message/i);
   assert.match(linkedin.description, /em dashes/);
+  for (const name of ["create_application", "update_application", "list_applications"]) {
+    const tool = tools.find((t) => t.name === name);
+    assert.ok(tool, name);
+    assert.deepEqual(tool.inputSchema.properties.status.enum, ["open", "done", "dropped"]);
+    assert.match(tool.description, /dropped/i);
+    assert.match(tool.description, /not to apply|decided not to apply/i);
+  }
   assert.equal(anthropicCalls().length, 0);
 });
 

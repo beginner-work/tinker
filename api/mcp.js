@@ -112,7 +112,8 @@ const INSTRUCTIONS = [
   "Sent people and closed leads are omitted. Prefer list_inbox over scanning list_target_companies for what to do next.",
   "Call create_application to add a job application inbox item (roleTitle, companyName, optional postingUrl, payRange, fitNotes, referrer).",
   "Call update_application to change fields. Call list_applications to read them. Call mark_application_done when the owner applied;",
-  "that bumps the company's recruiter outreach due date by 1 business day. Do not invent applications for Tyler unless asked.",
+  "that bumps the company's recruiter outreach due date by 1 business day. Status open|done|dropped - dropped means decided not to apply",
+  "(not a sent application, no follow-ups); dropped apps never appear in list_inbox. Do not invent applications for Tyler unless asked.",
   "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
   "Prefer those lead tools over dumping GTM prose into the You thread.",
   "Call save_outreach_draft to put a composed email or LinkedIn message into a person's chat for the owner to review.",
@@ -1139,9 +1140,11 @@ const CREATE_APPLICATION_TOOL = {
   description: [
     "Create a job application inbox item for this connector user.",
     "Pass roleTitle and companyName. Optional: companyId, postingUrl, payRange,",
-    "fitNotes, referrerPersonId, referrerName, status (open|done).",
+    "fitNotes, referrerPersonId, referrerName, status (open|done|dropped).",
+    "dropped means decided not to apply; not a sent application, no follow-ups.",
     "Shows in the flat inbox next to that company's outreach (after eng-lead peer outreach).",
-    "Does not load or invent Tyler's roles unless you pass them. A user id in args is ignored.",
+    "Dropped apps do not appear in the inbox. Does not load or invent Tyler's roles unless you pass them.",
+    "A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -1155,7 +1158,11 @@ const CREATE_APPLICATION_TOOL = {
       fitNotes: { type: "string", description: "Why this role fits; shown on the application thread." },
       referrerPersonId: { type: "string", description: "Optional warm referrer lead id." },
       referrerName: { type: "string", description: "Optional warm referrer display name." },
-      status: { type: "string", enum: ["open", "done"], description: "Defaults to open." },
+      status: {
+        type: "string",
+        enum: ["open", "done", "dropped"],
+        description: "Defaults to open. dropped = decided not to apply (not sent, no follow-ups).",
+      },
     },
     required: ["roleTitle", "companyName"],
   },
@@ -1168,8 +1175,9 @@ const UPDATE_APPLICATION_TOOL = {
   description: [
     "Update fields on an existing job application. Pass applicationId plus any of:",
     "roleTitle, companyName, companyId, postingUrl, payRange, fitNotes,",
-    "referrerPersonId, referrerName, status. Omitted fields are left unchanged.",
-    "A user id in args is ignored.",
+    "referrerPersonId, referrerName, status (open|done|dropped).",
+    "dropped means decided not to apply; not a sent application, no follow-ups.",
+    "Omitted fields are left unchanged. A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -1184,7 +1192,11 @@ const UPDATE_APPLICATION_TOOL = {
       fitNotes: { type: "string" },
       referrerPersonId: { type: "string" },
       referrerName: { type: "string" },
-      status: { type: "string", enum: ["open", "done"] },
+      status: {
+        type: "string",
+        enum: ["open", "done", "dropped"],
+        description: "dropped = decided not to apply (not sent, no follow-ups).",
+      },
     },
     required: ["applicationId"],
   },
@@ -1196,13 +1208,19 @@ const LIST_APPLICATIONS_TOOL = {
   title: "List job applications",
   description: [
     "List this connector user's job application inbox items.",
-    "Optional status filter (open|done). Read-only. A user id in args is ignored.",
+    "Optional status filter (open|done|dropped).",
+    "dropped means decided not to apply; not a sent application, no follow-ups.",
+    "Read-only. A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
     type: "object",
     additionalProperties: false,
     properties: {
-      status: { type: "string", enum: ["open", "done"], description: "Optional status filter." },
+      status: {
+        type: "string",
+        enum: ["open", "done", "dropped"],
+        description: "Optional status filter. dropped = decided not to apply.",
+      },
     },
   },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },

@@ -172,6 +172,67 @@ test("create/list/update/mark done for fake user (fit-scan shaped fields)", asyn
   assert.equal(other.length, 0, "fake users stay isolated");
 });
 
+test("drop status records droppedAt, never sets doneAt, and filters correctly", async () => {
+  userDataRows.length = 0;
+  touchRows.length = 0;
+  companyRows.length = 0;
+
+  const created = await store.createApplication({
+    userId: "fake-user-drop",
+    roleTitle: "Engineering Manager, Bill Pay",
+    companyName: "Brex",
+  });
+  assert.equal(created.status, "open");
+  assert.equal(created.droppedAt, null);
+
+  const dropped = await store.updateApplication({
+    userId: "fake-user-drop",
+    applicationId: created.id,
+    patch: { status: "dropped" },
+  });
+  assert.equal(dropped.status, "dropped");
+  assert.ok(dropped.droppedAt);
+  assert.equal(dropped.doneAt, null, "dropping never sets doneAt");
+
+  const onlyDropped = await store.listApplications({ userId: "fake-user-drop", status: "dropped" });
+  assert.equal(onlyDropped.length, 1);
+  assert.equal(onlyDropped[0].id, created.id);
+
+  const onlyOpen = await store.listApplications({ userId: "fake-user-drop", status: "open" });
+  assert.equal(onlyOpen.length, 0);
+
+  const onlyDone = await store.listApplications({ userId: "fake-user-drop", status: "done" });
+  assert.equal(onlyDone.length, 0);
+
+  const reopened = await store.updateApplication({
+    userId: "fake-user-drop",
+    applicationId: created.id,
+    patch: { status: "open" },
+  });
+  assert.equal(reopened.status, "open");
+  assert.equal(reopened.droppedAt, null, "reopening clears droppedAt");
+  assert.equal(reopened.doneAt, null);
+
+  const createdDropped = await store.createApplication({
+    userId: "fake-user-drop",
+    roleTitle: "Engineering Manager, Platform",
+    companyName: "Figma",
+    status: "dropped",
+  });
+  assert.equal(createdDropped.status, "dropped");
+  assert.ok(createdDropped.droppedAt);
+  assert.equal(createdDropped.doneAt, null);
+
+  await assert.rejects(
+    () => store.updateApplication({
+      userId: "fake-user-drop",
+      applicationId: created.id,
+      patch: { status: "archived" },
+    }),
+    (err) => err && err.status === 400 && /open, done, or dropped/.test(err.message),
+  );
+});
+
 test("UI wires messages-application.js and SW precaches it", () => {
   const { EXPECTED_SW_CACHE_VERSION } = require("./helpers/sw-cache-version.js");
   const index = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "index.html"), "utf8");
