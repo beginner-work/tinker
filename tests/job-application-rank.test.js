@@ -361,6 +361,44 @@ test("4. recruiter waits until application done; then rankReason links I just ap
   assert.ok(!done.find((row) => row.id === "app_fig"), "done applications are hidden from inbox");
 });
 
+test("dropped applications are hidden from inbox and do not gate recruiter", () => {
+  const items = rankInboxItems({
+    leads: [
+      person({
+        id: "rec",
+        personName: "Recruiter",
+        companyId: "brex",
+        company: "Brex",
+        contactType: "recruiter",
+        nextStepAt: "2026-10-03",
+        stage: "new",
+      }),
+    ],
+    drafts: [],
+    companies: [company("brex", "Brex", 5)],
+    byLeadId: {
+      rec: { touch: { date: "2026-10-03", touchType: "recruiter_outreach", status: "planned" } },
+    },
+    applications: [{
+      id: "app_brex",
+      roleTitle: "Engineering Manager, Bill Pay",
+      companyName: "Brex",
+      companyId: "brex",
+      status: "dropped",
+      postingUrl: "https://www.brex.com/careers/bill-pay-em",
+      payRange: "$230k-$290k",
+      fitNotes: "On hold.",
+      droppedAt: "2026-10-01",
+    }],
+    now: NOW,
+  });
+  assert.ok(!items.find((row) => row.id === "app_brex"), "dropped applications are hidden from inbox");
+  const rec = items.find((row) => row.id === "rec");
+  assert.ok(rec);
+  assert.doesNotMatch(rec.rankReason, /waiting · after application/i);
+  assert.doesNotMatch(rec.rankReason, /I just applied/i);
+});
+
 test("full company order: referral → eng lead → application → recruiter", () => {
   const items = rankInboxItems({
     leads: [

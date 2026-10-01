@@ -267,7 +267,7 @@
     if (!ckey) return null;
     var found = null;
     (state.applications || []).forEach(function (app) {
-      if (!app || app.status === "done") return;
+      if (!app || app.status !== "open") return;
       var key = companyKeyOf(app.companyId, app.companyName);
       if (key === ckey && !found) found = app;
     });
@@ -378,8 +378,13 @@
     // Client mirror: full unlock rules live in api/_lib/inbox-rank.js.
     // Here we surface open apps with the server-shaped rankReason when present,
     // otherwise a stable apply label next to the company.
-    if (!app || app.status === "done") {
-      return { hide: true, tier: RANK_TIER.COLD, dueDay: "", rankReason: "applied · done" };
+    if (!app || app.status === "done" || app.status === "dropped") {
+      return {
+        hide: true,
+        tier: RANK_TIER.COLD,
+        dueDay: "",
+        rankReason: app && app.status === "dropped" ? "dropped · not applying" : "applied · done",
+      };
     }
     var ckey = companyKeyOf(app.companyId, app.companyName);
     var company = (app.companyId && state.companiesById[app.companyId]) || null;

@@ -105,16 +105,19 @@
     scroll.appendChild(ta);
     if (state.done) {
       var done = el("p", "messages-notepad__done");
-      done.textContent = "Application marked done.";
+      done.textContent = state.application && state.application.status === "dropped"
+        ? "Application dropped — not applying."
+        : "Application marked done.";
       scroll.appendChild(done);
     }
+    var isDropped = !!(state.application && state.application.status === "dropped");
     var act = actions();
     var foot = act && act.buildFoot
       ? act.buildFoot({
         onSecondary: function () { saveFitNotes(); },
         onPrimary: function () { markDone(); },
         secondaryLabel: state.done ? "Saved" : "Keep crafting",
-        primaryLabel: state.done ? "Done" : "This is everything",
+        primaryLabel: isDropped ? "Dropped" : (state.done ? "Done" : "This is everything"),
       })
       : null;
     if (foot) {
@@ -162,7 +165,7 @@
     state.applicationId = application && application.id ? String(application.id) : "";
     state.application = application || null;
     state.fitNotes = application && application.fitNotes ? String(application.fitNotes) : "";
-    state.done = !!(application && application.status === "done");
+    state.done = !!(application && (application.status === "done" || application.status === "dropped"));
     state.saving = false;
     render();
   }

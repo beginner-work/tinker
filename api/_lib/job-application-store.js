@@ -13,7 +13,7 @@ const { addBusinessDays, dayKey } = require("./business-days.js");
 
 const KIND = "job_applications";
 const UNAVAILABLE = "Job applications are unavailable right now.";
-const STATUSES = ["open", "done"];
+const STATUSES = ["open", "done", "dropped"];
 const MAX_ROLE = 200;
 const MAX_COMPANY = 200;
 const MAX_URL = 2000;
@@ -57,13 +57,19 @@ function trimText(value, label, max, required) {
   return text;
 }
 
+function normalizeStatus(value) {
+  const found = String(value == null ? "" : value).trim().toLowerCase();
+  if (found === "done" || found === "dropped") return found;
+  return "open";
+}
+
 function readStatus(value, required) {
   if (value == null || value === "") {
     if (required) throw fail(400, "status is required.");
     return "";
   }
   const found = String(value).trim().toLowerCase();
-  if (!STATUSES.includes(found)) throw fail(400, "status must be open or done.");
+  if (!STATUSES.includes(found)) throw fail(400, "status must be open, done, or dropped.");
   return found;
 }
 
@@ -78,8 +84,9 @@ function presentApplication(row) {
     fitNotes: row.fitNotes || "",
     referrerPersonId: row.referrerPersonId || "",
     referrerName: row.referrerName || "",
-    status: row.status === "done" ? "done" : "open",
+    status: normalizeStatus(row.status),
     doneAt: row.doneAt || null,
+    droppedAt: row.droppedAt || null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -119,7 +126,7 @@ async function listApplications({ userId, status } = {}) {
     const { applications } = await readBlob(uid);
     const filter = status ? readStatus(status, true) : "";
     return applications
-      .filter((row) => !filter || (row.status === "done" ? "done" : "open") === filter)
+      .filter((row) => !filter || normalizeStatus(row.status) === filter)
       .map(presentApplication);
   } catch (err) {
     throw storeDown(err);
@@ -163,6 +170,7 @@ async function createApplication(input = {}) {
       referrerName,
       status,
       doneAt: status === "done" ? now : null,
+      droppedAt: status === "dropped" ? now : null,
       createdAt: now,
       updatedAt: now,
     };
@@ -208,9 +216,18 @@ async function updateApplication({ userId, applicationId, patch } = {}) {
     }
     if (Object.prototype.hasOwnProperty.call(src, "status")) {
       const next = readStatus(src.status, true);
+      const now = new Date().toISOString();
       row.status = next;
-      if (next === "done" && !row.doneAt) row.doneAt = new Date().toISOString();
-      if (next === "open") row.doneAt = null;
+      if (next === "done") {
+        if (!row.doneAt) row.doneAt = now;
+        row.droppedAt = null;
+      } else if (next === "dropped") {
+        if (!row.droppedAt) row.droppedAt = now;
+        // Dropping never sets doneAt; leave an existing doneAt untouched.
+      } else if (next === "open") {
+        row.doneAt = null;
+        row.droppedAt = null;
+      }
     }
     row.updatedAt = new Date().toISOString();
     await writeBlob(uid, applications);
