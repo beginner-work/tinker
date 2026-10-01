@@ -1,8 +1,8 @@
 /* Lead/person chat: owner notes + Keep crafting interview turns.
- * Outreach recipient/body stay data-only via MCP. Keep crafting asks a new
- * person-scoped question (never a repeat). This is everything saves notes
- * and shows one read-only Subject card (generated subject on the gmail draft
- * for Clair). No To/Body review UI, no edit/send controls.
+ * This is everything saves notes and writes a gmail draft (subject + body)
+ * built only from the owner's typed answers - no career/company/wave
+ * pre-context. Keep crafting asks a new person-scoped question (never a
+ * repeat). Subject card is read-only. No To/Body review UI, no send.
  */
 (function () {
   "use strict";
@@ -222,10 +222,11 @@
   function buildOpening(lead, company) {
     // Display-only: do not render the italic "Notes for …" label, company
     // logo mark, company-notes paragraph, or interview-prep preamble.
-    // researchProse / state.preamble / lead.notes still feed Keep crafting +
-    // subject prompts via buildPersonUserMessage and resolveSubject:
-    // hide UI, keep prompt context. Seeded prep: answered turns + one
-    // pending question. Remaining queued ### headings stay hidden until advance.
+    // researchProse / state.preamble still ground Keep crafting questions
+    // only. Subject + draft body generation is answer-only (resolveSubject /
+    // stitchOutreachBody) and must not receive that pre-context.
+    // Seeded prep: answered turns + one pending question. Remaining queued
+    // ### headings stay hidden until advance.
     var opening = el("div", "messages-notepad__opening");
     void company;
     appendTurns(opening);
@@ -266,14 +267,51 @@
     var api = interviewApi();
     return (api && api.KEEP_CRAFTING_MODEL) || "claude-opus-4-8";
   }
-  function fallbackSubject() {
+  function snapshotTranscript(turns) {
+    return (Array.isArray(turns) ? turns : []).map(function (t) {
+      return { q: String(t && t.q || ""), a: String(t && t.a || "") };
+    });
+  }
+  function fallbackSubject(transcript) {
+    var turns = transcript || state.transcript;
     var api = interviewApi();
-    var person = String(state.lead && state.lead.personName || "").trim();
-    var co = String((state.company && state.company.name) || (state.lead && state.lead.company) || "").trim();
     if (api && typeof api.fallbackOutreachSubject === "function") {
-      return api.fallbackOutreachSubject(person, co);
+      return api.fallbackOutreachSubject(turns);
     }
-    return co ? ("Quick note - " + (person || "you") + " at " + co) : ("Quick note - " + (person || "you"));
+    var answers = (turns || [])
+      .map(function (t) { return String(t && t.a || "").trim(); })
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return (answers || "Quick note").slice(0, 90);
+  }
+  function stitchBody(transcript) {
+    var turns = transcript || state.transcript;
+    var api = interviewApi();
+    if (api && typeof api.stitchOutreachBody === "function") {
+      return api.stitchOutreachBody(turns);
+    }
+    return (turns || [])
+      .map(function (t) { return String(t && t.a || "").trim(); })
+      .filter(Boolean)
+      .join("\n\n");
+  }
+  function isTinkerAnswerOrigin(draft) {
+    return String(draft && draft.origin || "") === "tinker_answer";
+  }
+  // Only regenerate Tinker-owned auto-drafts. Unknown/hand/Clair drafts stay put.
+  function tinkerDraftNeedsRegen(draft, transcript) {
+    if (!draft || !isTinkerAnswerOrigin(draft)) return false;
+    var text = String(draft.subject || "").trim();
+    var bodyText = String(draft.body || "").trim();
+    if (!text) return true;
+    if (!bodyText && stitchBody(transcript)) return true;
+    var api = interviewApi();
+    if (api && typeof api.outreachTextGrounded === "function") {
+      return !api.outreachTextGrounded(text, transcript);
+    }
+    return false;
   }
   function scrollQuestionIntoView() {
     var host = threadHost();
@@ -398,33 +436,26 @@
       return res;
     });
   }
-  function resolveSubject() {
+  function resolveSubject(transcript) {
+    var turns = transcript || state.transcript;
     var api = interviewApi();
     var maxAttempts = 3;
     var system = (api && api.SUBJECT_SYSTEM_PROMPT) ||
-      'Return JSON { "subject": string } for one short outreach email subject.';
-    var person = String(state.lead && state.lead.personName || "").trim();
-    var co = String((state.company && state.company.name) || (state.lead && state.lead.company) || "").trim();
+      'Return JSON { "subject": string } from the founder\'s typed answers only.';
+    var answers = api && typeof api.answersText === "function"
+      ? api.answersText(turns)
+      : (turns || []).map(function (t) { return String(t && t.a || "").trim(); }).filter(Boolean).join(" ");
+    // Short answers are the subject as written - no model, no pre-context.
+    if (answers && answers.length <= 90) {
+      return Promise.resolve(fallbackSubject(turns));
+    }
     function attempt(i) {
       if (!window.tinker || typeof window.tinker.callClaude !== "function") {
-        return Promise.resolve(fallbackSubject());
-      }
-      var prepContext = String(state.preamble || "").trim();
-      var companyContext = researchProse(state.company) || "";
-      if (prepContext) {
-        companyContext = companyContext
-          ? (companyContext + "\n\nPrep context: " + prepContext)
-          : ("Prep context: " + prepContext);
+        return Promise.resolve(fallbackSubject(turns));
       }
       var user = api && typeof api.buildSubjectUserMessage === "function"
-        ? api.buildSubjectUserMessage({
-            personName: person,
-            personTitle: state.lead && state.lead.personTitle,
-            companyName: co,
-            companyContext: companyContext,
-            transcript: state.transcript,
-          })
-        : "Propose a short email subject for outreach to " + person + ".";
+        ? api.buildSubjectUserMessage({ transcript: turns })
+        : ("Propose a short email subject using ONLY these answers:\n" + answers);
       return window.tinker.callClaude({
         system: system,
         messages: [{ role: "user", content: user }],
@@ -438,27 +469,59 @@
               catch (e) { return { subject: String(result && result.text || "").trim() }; }
             })();
         var subject = api && typeof api.normalizeOutreachSubject === "function"
-          ? api.normalizeOutreachSubject(parsed, person, co)
+          ? api.normalizeOutreachSubject(parsed, turns)
           : String(parsed && parsed.subject || "").trim().slice(0, 90);
         if (subject) return subject;
         if (i + 1 < maxAttempts) return attempt(i + 1);
-        return fallbackSubject();
+        return fallbackSubject(turns);
       }).catch(function () {
         if (i + 1 < maxAttempts) return attempt(i + 1);
-        return fallbackSubject();
+        return fallbackSubject(turns);
       });
     }
     return attempt(0);
   }
-  function persistProposedSubject(subject) {
+  // Persist against a captured leadId so switching contacts mid-flight cannot
+  // drop Faria's draft onto Tina (the race that skipped some answered leads).
+  function persistProposedDraft(leadId, subject, body, force) {
     return api("/api/leads", "POST", "proposed-subject", {
-      leadId: state.leadId,
+      leadId: leadId,
       subject: subject,
-    }).then(function (res) {
-      if (res && res.draft && res.draft.subject) {
-        state.proposedSubject = String(res.draft.subject).trim();
-      }
-      return res;
+      body: body || "",
+      force: !!force,
+    });
+  }
+  function writeAnswerOnlyDraft(opts) {
+    var options = opts || {};
+    // Snapshot before any await - owner may switch inbox rows while Claude runs.
+    var leadId = String(options.leadId || state.leadId || "").trim();
+    var transcript = snapshotTranscript(options.transcript || state.transcript);
+    var force = !!options.force;
+    var hasAnswer = transcript.some(function (t) { return String(t.a || "").trim(); });
+    if (!leadId || !hasAnswer) return Promise.resolve(null);
+    return resolveSubject(transcript).then(function (subject) {
+      var subj = String(subject || fallbackSubject(transcript)).trim() || fallbackSubject(transcript);
+      var body = stitchBody(transcript);
+      return persistProposedDraft(leadId, subj, body, force).then(function (res) {
+        // Update UI only if the owner is still on this person.
+        if (state.leadId === leadId) {
+          if (res && res.skipped === "hand_edited" && res.draft && res.draft.subject) {
+            state.proposedSubject = String(res.draft.subject).trim();
+          } else if (res && res.draft && res.draft.subject) {
+            state.proposedSubject = String(res.draft.subject).trim();
+          } else if (!state.proposedSubject) {
+            state.proposedSubject = subj;
+          }
+          mountNotepad();
+        }
+        return res;
+      }).catch(function () {
+        if (state.leadId === leadId && !state.proposedSubject) {
+          state.proposedSubject = subj;
+          mountNotepad();
+        }
+        return null;
+      });
     });
   }
   function saveNotes(mode) {
@@ -479,44 +542,41 @@
     state.pending = "";
     state.queue = [];
     state.draft = "";
+    // Capture before async work - switching Louis→Tina must not steal this write.
+    var doneLeadId = state.leadId;
+    var doneTranscript = snapshotTranscript(state.transcript);
     // Mark done before any async work so onInput / notes-folder / Keep crafting
     // cannot re-serialize the transcript without ### __done__ and overwrite it.
     if (mode === "done") {
       state.done = true;
       state.notes = serializeDoneNotes(state.preamble, state.transcript);
       if (state.lead) state.lead.notes = state.notes;
+      state.proposedSubject = fallbackSubject(doneTranscript);
       mountNotepad();
     }
     persistNotes({ done: true }).then(function () {
       if (mode !== "done") {
-        mountNotepad();
+        if (state.leadId === doneLeadId) mountNotepad();
         return null;
       }
-      // Subject is generated once. Skip Claude if a draft subject already exists.
-      if (state.proposedSubject) {
-        mountNotepad();
-        return null;
-      }
-      return resolveSubject().then(function (subject) {
-        state.proposedSubject = String(subject || fallbackSubject()).trim() || fallbackSubject();
-        return persistProposedSubject(state.proposedSubject).catch(function () {
-          // Subject card still renders even if draft write fails.
-          return null;
-        });
-      }).then(function () {
-        mountNotepad();
+      // Create or refresh a tinker_answer draft from typed words only. Server
+      // refuses to overwrite Clair/hand-edited drafts (unknown origin).
+      return writeAnswerOnlyDraft({
+        leadId: doneLeadId,
+        transcript: doneTranscript,
+        force: true,
       });
     }).catch(function () {
       // Notes persist failed - stay done in-memory so we do not wipe the marker
       // via a non-done re-serialize; owner can reload if the server write missed.
-      mountNotepad();
+      if (state.leadId === doneLeadId) mountNotepad();
     }).finally(function () {
       state.saving = false;
       var n = notepad();
       if (n && !state.done) {
         n.setPrimaryEnabled(true);
-        var secondary = n.el().querySelector("[data-notepad-secondary]");
-        if (secondary) secondary.disabled = false;
+        var secondaryBtn = n.el().querySelector("[data-notepad-secondary]");
+        if (secondaryBtn) secondaryBtn.disabled = false;
       }
     });
   }
@@ -703,7 +763,7 @@
       }
     });
   }
-  function subjectFromDrafts(drafts) {
+  function openDraftFromList(drafts) {
     var rows = Array.isArray(drafts) ? drafts.slice() : [];
     rows.sort(function (a, b) {
       var aG = a && a.channel === "gmail_outreach" ? 0 : 1;
@@ -714,10 +774,13 @@
     for (var i = 0; i < rows.length; i++) {
       var status = String(rows[i] && rows[i].status || "");
       if (status === "sent_by_owner") continue;
-      var subject = String(rows[i] && rows[i].subject || "").trim();
-      if (subject) return subject;
+      return rows[i] || null;
     }
-    return "";
+    return null;
+  }
+  function subjectFromDrafts(drafts) {
+    var row = openDraftFromList(drafts);
+    return row ? String(row.subject || "").trim() : "";
   }
   function hydrateFromLead(lead, drafts) {
     var parsed = parseNotes(lead && lead.notes || "", lead, state.company);
@@ -727,13 +790,36 @@
     state.queue = parsed.queue || [];
     state.draft = parsed.draft;
     state.done = !!parsed.done;
-    state.proposedSubject = subjectFromDrafts(drafts);
+    var openDraft = openDraftFromList(drafts);
+    state.proposedSubject = openDraft ? String(openDraft.subject || "").trim() : "";
     if (state.done) {
       state.pending = "";
       state.queue = [];
       state.draft = "";
       state.notes = serializeDoneNotes(state.preamble, state.transcript);
-      if (!state.proposedSubject) state.proposedSubject = fallbackSubject();
+      var hasAnswer = (state.transcript || []).some(function (t) {
+        return String(t && t.a || "").trim();
+      });
+      if (!openDraft && hasAnswer) {
+        // Done with answers but no draft (Faria/Rahul race): create answer-only.
+        state.proposedSubject = fallbackSubject(state.transcript);
+        writeAnswerOnlyDraft({
+          leadId: state.leadId,
+          transcript: snapshotTranscript(state.transcript),
+          force: false,
+        }).catch(function () { /* ignore */ });
+      } else if (openDraft && tinkerDraftNeedsRegen(openDraft, state.transcript)) {
+        // Only refresh tinker_answer drafts nobody has hand-edited.
+        state.proposedSubject = fallbackSubject(state.transcript);
+        writeAnswerOnlyDraft({
+          leadId: state.leadId,
+          transcript: snapshotTranscript(state.transcript),
+          force: true,
+        }).catch(function () { /* ignore */ });
+      } else if (!state.proposedSubject) {
+        state.proposedSubject = fallbackSubject(state.transcript);
+      }
+      // Hand-edited / Clair / unknown origin: leave draft + subject alone.
     } else {
       state.notes = serializeNotes(state.preamble, state.transcript, state.pending, state.draft, state.queue);
     }

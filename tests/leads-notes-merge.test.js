@@ -172,7 +172,51 @@ test("markLeadDone appends marker without replacing Q&A", async () => {
   assert.equal((again.notes.match(/__done__/g) || []).length, 1);
 });
 
-test("setProposedSubject does not overwrite an existing subject", async () => {
+test("setProposedSubject writes body and marks origin tinker_answer", async () => {
+  const lead = await store.createLead({
+    userId: "user-a",
+    emailHint: "hunter@example.com",
+    actor: { kind: "human", label: "user:hunter@example.com" },
+    personName: "Rahul Dani",
+    company: "Ramp",
+    source: "other",
+  });
+  const first = await store.setProposedSubject({
+    userId: "user-a",
+    emailHint: "hunter@example.com",
+    actor: { kind: "human", label: "user:hunter@example.com" },
+    leadId: lead.id,
+    subject: "I believe in your ability to build software",
+    body: "I believe in your ability to build software",
+  });
+  assert.equal(first.draft.subject, "I believe in your ability to build software");
+  assert.equal(first.draft.body, "I believe in your ability to build software");
+  assert.equal(first.draft.origin, store.ORIGIN_TINKER_ANSWER);
+  const second = await store.setProposedSubject({
+    userId: "user-a",
+    emailHint: "hunter@example.com",
+    actor: { kind: "human", label: "user:hunter@example.com" },
+    leadId: lead.id,
+    subject: "Regenerated subject that must not stick",
+    body: "different body",
+  });
+  assert.equal(second.unchanged, true);
+  assert.equal(second.draft.subject, "I believe in your ability to build software");
+  const forced = await store.setProposedSubject({
+    userId: "user-a",
+    emailHint: "hunter@example.com",
+    actor: { kind: "human", label: "user:hunter@example.com" },
+    leadId: lead.id,
+    subject: "Owner repair subject",
+    body: "Owner repair body",
+    force: true,
+  });
+  assert.equal(forced.draft.subject, "Owner repair subject");
+  assert.equal(forced.draft.body, "Owner repair body");
+  assert.equal(forced.draft.origin, store.ORIGIN_TINKER_ANSWER);
+});
+
+test("hand-edited draft survives regeneration (unknown origin is left alone)", async () => {
   const lead = await store.createLead({
     userId: "user-a",
     emailHint: "hunter@example.com",
@@ -181,36 +225,75 @@ test("setProposedSubject does not overwrite an existing subject", async () => {
     company: "Alloy",
     source: "other",
   });
-  const first = await store.setProposedSubject({
+  // Clair/hand compose: origin stays empty (unknown = hand-edited).
+  const hand = await store.createDraft({
     userId: "user-a",
     emailHint: "hunter@example.com",
-    actor: { kind: "human", label: "user:hunter@example.com" },
+    actor: { kind: "bot", label: "bot:mcp" },
     leadId: lead.id,
-    subject: "Original subject for Faria",
+    channel: "gmail_outreach",
+    subject: "Clair hand-written subject for Faria",
+    body: "Clair wrote this body by hand.",
   });
-  assert.equal(first.draft.subject, "Original subject for Faria");
-  const second = await store.setProposedSubject({
+  assert.equal(hand.draft.origin, "");
+  const regen = await store.setProposedSubject({
     userId: "user-a",
     emailHint: "hunter@example.com",
     actor: { kind: "human", label: "user:hunter@example.com" },
     leadId: lead.id,
-    subject: "Regenerated subject that must not stick",
-  });
-  assert.equal(second.unchanged, true);
-  assert.equal(second.draft.subject, "Original subject for Faria");
-  const forced = await store.setProposedSubject({
-    userId: "user-a",
-    emailHint: "hunter@example.com",
-    actor: { kind: "human", label: "user:hunter@example.com" },
-    leadId: lead.id,
-    subject: "Owner repair subject",
+    subject: "I believe in your ability to build software",
+    body: "I believe in your ability to build software",
     force: true,
   });
-  assert.equal(forced.draft.subject, "Owner repair subject");
-  const event = tables.leadEvent.rows.find((row) => row.action === "draft_edited");
-  assert.ok(event, "expected draft_edited event");
-  assert.equal(event.detail.previousSubject, "Original subject for Faria");
-  assert.equal(event.detail.nextSubject, "Owner repair subject");
+  assert.equal(regen.unchanged, true);
+  assert.equal(regen.skipped, "hand_edited");
+  assert.equal(regen.draft.subject, "Clair hand-written subject for Faria");
+  assert.equal(regen.draft.body, "Clair wrote this body by hand.");
+  assert.equal(regen.draft.origin, "");
+  assert.equal(tables.leadDraft.rows.length, 1);
+});
+
+test("saveOutreachDraft clears tinker origin so later regen cannot overwrite Clair", async () => {
+  const lead = await store.createLead({
+    userId: "user-a",
+    emailHint: "hunter@example.com",
+    actor: { kind: "human", label: "user:hunter@example.com" },
+    personName: "Tina Li",
+    company: "Ramp",
+    source: "other",
+  });
+  await store.setProposedSubject({
+    userId: "user-a",
+    emailHint: "hunter@example.com",
+    actor: { kind: "human", label: "user:hunter@example.com" },
+    leadId: lead.id,
+    subject: "Auto subject",
+    body: "Auto body",
+  });
+  const saved = await store.saveOutreachDraft({
+    userId: "user-a",
+    emailHint: "hunter@example.com",
+    actor: { kind: "bot", label: "bot:mcp" },
+    personId: lead.id,
+    channel: "email",
+    to: "tina@example.com",
+    subject: "Clair subject for Tina",
+    body: "Clair body for Tina",
+  });
+  assert.equal(saved.draft.origin, "");
+  assert.equal(saved.draft.subject, "Clair subject for Tina");
+  const regen = await store.setProposedSubject({
+    userId: "user-a",
+    emailHint: "hunter@example.com",
+    actor: { kind: "human", label: "user:hunter@example.com" },
+    leadId: lead.id,
+    subject: "Should not replace Clair",
+    body: "Should not replace Clair body",
+    force: true,
+  });
+  assert.equal(regen.skipped, "hand_edited");
+  assert.equal(regen.draft.subject, "Clair subject for Tina");
+  assert.equal(regen.draft.body, "Clair body for Tina");
 });
 
 test("composer sets done before async subject resolve; MCP wires mark_lead_done", () => {
@@ -221,7 +304,11 @@ test("composer sets done before async subject resolve; MCP wires mark_lead_done"
   const notesFolder = fs.readFileSync(path.join(root, "src/renderer/notes-folder.js"), "utf8");
   assert.match(composer, /state\.done = true/);
   assert.match(composer, /if \(state\.done\) return;/);
-  assert.match(composer, /if \(state\.proposedSubject\)/);
+  // Race fix: capture leadId + transcript before awaits so contact switches
+  // cannot drop Faria's draft onto Tina.
+  assert.match(composer, /doneLeadId|snapshotTranscript/);
+  assert.match(composer, /persistProposedDraft\(leadId/);
+  assert.match(composer, /hand_edited|tinker_answer/);
   assert.match(mcp, /mark_lead_done/);
   assert.match(mcp, /markLeadDoneCall/);
   assert.match(mcp, /Person upserts never write company notes/);

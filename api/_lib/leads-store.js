@@ -32,8 +32,14 @@ const TABLE_STATEMENTS = [
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "sentAt" TIMESTAMP(3)`,
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "externalMessageId" TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "failedReason" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "origin" TEXT NOT NULL DEFAULT ''`,
 ];
 const DRAFT_STATUSES = ["draft", "approved", "approved_to_send", "sent_by_owner", "send_failed"];
+/** Auto-built from This is everything typed answers. Anything else is hand-edited. */
+const ORIGIN_TINKER_ANSWER = "tinker_answer";
+function isTinkerAnswerDraft(row) {
+  return String((row && row.origin) || "") === ORIGIN_TINKER_ANSWER;
+}
 const HEADER_MAP = {
   name: "personName", personname: "personName", person: "personName", title: "personTitle", persontitle: "personTitle",
   linkedin: "linkedInUrl", linkedinurl: "linkedInUrl", url: "linkedInUrl",
@@ -212,9 +218,13 @@ function draftPayload(input, actor, leadId, owner, statusOverride, defaultFrom) 
   if (channel !== "gmail_outreach" && input.subject != null && String(input.subject).trim()) throw fail(400, "subject is only for gmail_outreach.");
   let fromAddress = readText(input.fromAddress || input.draftFromAddress, "fromAddress", 320, false).toLowerCase();
   if (!fromAddress && channel === "gmail_outreach") fromAddress = readText(defaultFrom || "", "fromAddress", 320, false).toLowerCase();
+  const origin = Object.prototype.hasOwnProperty.call(input, "origin")
+    ? readText(input.origin, "origin", 64, false)
+    : "";
   return {
     userId: owner, leadId: leadId || null, channel, subject, body: readText(input.body || input.draftBody, "body", 100000, false),
-    fromAddress, status, storyPartIds: readIds(input.storyPartIds), factCheck: readFactCheck(input.factCheck), createdBy: actor,
+    fromAddress, status, storyPartIds: readIds(input.storyPartIds), factCheck: readFactCheck(input.factCheck),
+    createdBy: actor, origin,
   };
 }
 function attachedDraft(row) {
@@ -506,15 +516,18 @@ async function createDraft(input) {
     return { draft: saved, lead: updatedLead };
   });
 }
-/** Upsert the proposed email subject on the open gmail draft for a lead.
- * Creates a draft shell (empty body) when none exists so Clair can read it
- * via list_target_companies.proposedSubject / list_approved_outreach.subject.
+/** Upsert answer-only subject (+ optional body) on the open gmail draft.
+ * Creates a tinker_answer draft when none exists. Never overwrites hand-edited
+ * or unknown-origin drafts (Clair/owner). Only tinker_answer drafts may be
+ * regenerated; pass force to refresh those.
  */
-async function setProposedSubject({ userId, emailHint, actor, leadId, subject, force } = {}) {
+async function setProposedSubject({ userId, emailHint, actor, leadId, subject, body, force } = {}) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   const subjectText = readText(subject, "subject", 300, true);
+  const hasBody = body !== undefined && body !== null;
+  const bodyText = hasBody ? readText(body, "body", 100000, false) : null;
   if (!leadId || typeof leadId !== "string") throw fail(400, "leadId is required.");
   await ensureTable();
   const lead = await loadOwned("lead", leadId, owner, "lead");
@@ -534,27 +547,57 @@ async function setProposedSubject({ userId, emailHint, actor, leadId, subject, f
   if (replaceable.length) {
     const row = replaceable[0];
     if (row.channel !== "gmail_outreach") {
-      // Prefer creating a gmail shell rather than stuffing subject onto LinkedIn.
+      // Prefer creating a gmail answer-draft rather than stuffing subject onto LinkedIn.
       return createDraft({
         userId: owner, emailHint, actor, leadId: lead.id,
-        channel: "gmail_outreach", subject: subjectText, body: "",
+        channel: "gmail_outreach", subject: subjectText,
+        body: bodyText == null ? "" : bodyText,
+        origin: ORIGIN_TINKER_ANSWER,
       });
     }
+    // Hand-edited / Clair / unknown origin: leave alone (never overwrite).
+    if (!isTinkerAnswerDraft(row)) {
+      return { draft: row, lead, unchanged: true, skipped: "hand_edited" };
+    }
     const existing = String(row.subject || "").trim();
-    // Subject is generated once at This is everything - never overwrite later
-    // unless an explicit force (owner-initiated repair) is passed.
-    if (existing && !force) {
+    const existingBody = String(row.body || "").trim();
+    const bodyNeedsWrite = hasBody && bodyText !== String(row.body || "");
+    // Tinker-owned: skip when subject already set unless force, but still fill
+    // an empty body when This is everything supplies one.
+    if (existing && !force && !bodyNeedsWrite) {
       return { draft: row, lead, unchanged: true };
     }
-    const saved = await updateDraft({
-      id: row.id, userId: owner, emailHint, actor,
-      patch: { subject: subjectText },
+    if (existing && !force && bodyNeedsWrite && existingBody) {
+      // Non-empty tinker body without force: leave subject+body alone.
+      return { draft: row, lead, unchanged: true };
+    }
+    const data = {
+      subject: force || !existing ? subjectText : existing,
+      origin: ORIGIN_TINKER_ANSWER,
+    };
+    if (hasBody && (force || !existingBody)) data.body = bodyText;
+    const previousSubject = String(row.subject || "");
+    const saved = await commit(async (tx) => {
+      const next = await tx.leadDraft.update({ where: { id: row.id }, data });
+      await record(tx, {
+        userId: owner, leadId: lead.id, actor: label, action: "draft_edited",
+        detail: {
+          draftId: row.id,
+          fields: Object.keys(data),
+          previousSubject,
+          nextSubject: String(next.subject || ""),
+          origin: ORIGIN_TINKER_ANSWER,
+        },
+      });
+      return next;
     });
     return { draft: saved, lead };
   }
   return createDraft({
     userId: owner, emailHint, actor, leadId: lead.id,
-    channel: "gmail_outreach", subject: subjectText, body: "",
+    channel: "gmail_outreach", subject: subjectText,
+    body: bodyText == null ? "" : bodyText,
+    origin: ORIGIN_TINKER_ANSWER,
   });
 }
 
@@ -604,7 +647,11 @@ async function updateDraft({ id, userId, emailHint, actor, patch }) {
     if (row.channel !== "gmail_outreach") throw fail(400, "subject is only for gmail_outreach.");
     data.subject = readText(source.subject, "subject", 300, false);
   }
-  // Editing after handoff revokes approval — back to draft until they approve again.
+  // Subject/body edits from the API/MCP are hand edits - clear tinker origin.
+  if (keys.includes("subject") || keys.includes("body")) {
+    data.origin = "";
+  }
+  // Editing after handoff revokes approval - back to draft until they approve again.
   if (row.status === "approved" || row.status === "approved_to_send" || row.status === "send_failed") {
     data.status = "draft";
     data.approvedAt = null;
@@ -616,7 +663,7 @@ async function updateDraft({ id, userId, emailHint, actor, patch }) {
   const previousSubject = keys.includes("subject") ? String(row.subject || "") : "";
   return commit(async (tx) => {
     const saved = await tx.leadDraft.update({ where: { id: row.id }, data });
-    const detail = { draftId: row.id, fields: keys };
+    const detail = { draftId: row.id, fields: keys.concat(data.origin === "" ? ["origin"] : []) };
     if (keys.includes("subject")) {
       detail.previousSubject = previousSubject;
       detail.nextSubject = String(data.subject || "");
@@ -803,6 +850,8 @@ async function saveOutreachDraft({
           channel: mapped,
           subject: subjectText,
           body: text,
+          // Clair/hand compose replaces tinker auto-drafts; mark hand-edited.
+          origin: "",
           fromAddress: mapped === "gmail_outreach"
             ? (existing.fromAddress || settings.defaultFromAddress || "")
             : "",
@@ -831,6 +880,7 @@ async function saveOutreachDraft({
           storyPartIds: [],
           factCheck: {},
           createdBy: label,
+          origin: "",
         },
       });
       await record(tx, {
@@ -1058,6 +1108,7 @@ module.exports = {
   ensureTable, resetTableCache, assertAllowed, presentLead: shape, presentDraft: shape, presentEvent: shape,
   parseImportText, createLead, listLeads, getLead, listDrafts, updateLead, markLeadDone, setStage, importLeads,
   createDraft, updateDraft, setProposedSubject, proposedSubjectByLeadIds,
+  ORIGIN_TINKER_ANSWER, isTinkerAnswerDraft,
   notesHaveDoneMarker, mergeLeadNotes, ensureDoneMarker,
   approveDraft, listApprovedOutreach, markDraftSent, markDraftFailed,
   saveOutreachDraft, revokeDraftApproval, isSendableOutreach, sendableError, outreachRecipient, mapOutreachChannel,

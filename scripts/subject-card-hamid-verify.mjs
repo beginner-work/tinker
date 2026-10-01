@@ -138,7 +138,8 @@ async function main() {
             id: "draft-hamid",
             channel: "gmail_outreach",
             subject: body.subject,
-            body: "",
+            body: body.body || "",
+            origin: "tinker_answer",
             status: "draft",
             leadId: "cmun6g1tr000711be2llfsrjo",
           },
@@ -159,7 +160,7 @@ async function main() {
     window.tinker = {
       callClaude: async () => ({
         text: JSON.stringify({
-          subject: "Reliability with ownership — a note for Hamid at Ramp",
+          subject: "I stay close to the incident path",
         }),
       }),
       supportsWebview: false,

@@ -64,30 +64,32 @@ test("notes stay on the lead; Keep crafting asks a new person question", () => {
   assert.match(js, /proposed-subject/);
 });
 
-test("company and person notes still reach Keep crafting + subject prompts after UI hide", () => {
-  // Wiring in messages-composer: researchProse(company notes) → both prompts.
+test("Keep crafting still gets company notes; subject generation is answer-only", () => {
+  // Keep crafting may still ground questions in company/prep context.
   assert.match(js, /function researchProse/);
   assert.match(js, /company\.notes/);
   assert.match(
     js,
     /var research = researchProse\(state\.company\);\s*if \(research\) lines\.push\("Company context: "/
   );
-  assert.match(js, /companyContext:\s*companyContext/);
   assert.match(js, /Prep context:/);
   assert.match(js, /state\.preamble/);
-  // Prep preamble is prompt-only — not mounted in the thread opening.
+  // Prep preamble is prompt-only - not mounted in the thread opening.
   assert.equal(/opening\.appendChild\(preamble\)/.test(js), false);
   assert.equal(/messages-notepad__section/.test(js.match(/function buildOpening[\s\S]*?return opening/)[0]), false);
-  // Person notes = interview transcript turns on the lead (still in the prompt).
   assert.match(js, /Interview so far:/);
   assert.match(js, /state\.transcript\.forEach/);
-  assert.match(js, /What the founder shared:|buildSubjectUserMessage/);
+  // Subject path must not feed companyContext / prep into the model.
+  assert.equal(/companyContext:\s*companyContext/.test(js), false);
+  assert.match(js, /buildSubjectUserMessage\(\{\s*transcript:/);
+  assert.match(js, /writeAnswerOnlyDraft/);
+  assert.match(js, /stitchBody/);
 
-  // Runtime: subject prompt includes the company-notes string unchanged.
+  // Runtime: subject prompt is answer-only even when callers pass company notes.
   const interview = require("../src/renderer/interview-prompt.js");
   const companyNotes =
     "Alloy's Developer Experience team owns the Events API, the webhooks and the partner feeds.";
-  const personAnswer = "Not sure";
+  const personAnswer = "I believe in your ability to build software";
   const subjectPrompt = interview.buildSubjectUserMessage({
     personName: "Faria Chaudhry",
     personTitle: "Senior Technical Recruiter II",
@@ -100,10 +102,10 @@ test("company and person notes still reach Keep crafting + subject prompts after
       },
     ],
   });
-  assert.match(subjectPrompt, /Company context:/);
-  assert.match(subjectPrompt, /Alloy's Developer Experience team owns the Events API/);
-  assert.match(subjectPrompt, /Not sure/);
-  assert.match(subjectPrompt, /Faria Chaudhry/);
+  assert.equal(/Company context:/i.test(subjectPrompt), false);
+  assert.equal(/Events API/.test(subjectPrompt), false);
+  assert.match(subjectPrompt, /I believe in your ability to build software/);
+  assert.equal(/Faria Chaudhry/.test(subjectPrompt), false);
 });
 
 test("person Keep crafting uses window.tinker.callClaude (platform-mobile on iPhone)", () => {

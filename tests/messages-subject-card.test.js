@@ -28,10 +28,12 @@ test("subject helpers retry + deterministic fallback", () => {
   assert.match(interview, /buildSubjectUserMessage/);
   assert.match(interview, /parseSubjectResponse/);
   assert.match(interview, /SUBJECT_SYSTEM_PROMPT/);
+  assert.match(interview, /stitchOutreachBody/);
+  assert.match(interview, /outreachTextGrounded/);
   assert.match(composer, /resolveSubject/);
   assert.match(composer, /maxAttempts\s*=\s*3/);
   assert.match(composer, /fallbackSubject/);
-  assert.match(composer, /persistProposedSubject/);
+  assert.match(composer, /persistProposedDraft|writeAnswerOnlyDraft/);
 });
 
 test("This is everything mounts a read-only Subject card (no answer/input)", () => {
@@ -54,9 +56,12 @@ test("proposed subject is stored on gmail draft and exposed to MCP readers", () 
   assert.match(store, /async function setProposedSubject/);
   assert.match(store, /async function proposedSubjectByLeadIds/);
   assert.match(store, /unchanged:\s*true|force/);
+  assert.match(store, /ORIGIN_TINKER_ANSWER|tinker_answer/);
+  assert.match(store, /hand_edited/);
   assert.match(leadsApi, /proposed-subject/);
   assert.match(composer, /proposed-subject/);
-  assert.match(composer, /if \(state\.proposedSubject\)/);
+  assert.match(composer, /writeAnswerOnlyDraft|persistProposedDraft/);
+  assert.match(composer, /doneLeadId|snapshotTranscript/);
   assert.match(mcp, /proposedSubject/);
   assert.match(mcp, /proposedSubjectByLeadIds/);
 });
