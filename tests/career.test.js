@@ -617,6 +617,8 @@ test("get_career_record reads only this user and check_text does not write", asy
     "upsert_target_company",
     "upsert_lead_person",
     "mark_lead_done",
+    "close_lead",
+    "reopen_lead",
     "get_person_prep",
     "seed_person_prep",
     "list_inbox",

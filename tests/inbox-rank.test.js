@@ -60,6 +60,38 @@ test("sent outreach is hidden from ranked inbox", () => {
   assert.equal(items[0].id, "b");
 });
 
+test("closed leads are excluded from ranked inbox", () => {
+  const items = rankInboxItems({
+    leads: [
+      {
+        id: "closed",
+        personName: "Done",
+        companyId: "c",
+        stage: "closed",
+        nextStepAt: "2026-09-30",
+        notes: "### Keep\n\nanswer\n",
+      },
+      {
+        id: "open",
+        personName: "Open",
+        companyId: "c",
+        stage: "new",
+        nextStepAt: "2026-10-02",
+        notes: "",
+      },
+    ],
+    drafts: [],
+    companies: [{ id: "c", name: "Co", priority: 1, northStar: false, tier: "wave_1" }],
+    byLeadId: {
+      closed: { touch: { date: "2026-09-30", touchType: "call_follow_up", status: "planned" } },
+    },
+    readingThreads: [],
+  });
+  assert.equal(items.length, 1);
+  assert.equal(items[0].id, "open");
+  assert.equal(items.some((row) => row.id === "closed"), false);
+});
+
 test("warm follow-up beats cold; reading is prep tier", () => {
   const items = rankInboxItems({
     leads: [

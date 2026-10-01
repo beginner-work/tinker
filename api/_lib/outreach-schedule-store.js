@@ -243,15 +243,35 @@ async function getWeekSchedule({ userId, emailHint, weekStart, companyId, touchT
   const monday = mondayOf(weekStart ? readDate(weekStart, "weekStart") : new Date());
   const friday = fridayOf(monday);
   const settings = await leads().getOutreachSettings({ userId: owner, emailHint });
-  let sessions, allTouches, companyRows;
+  let sessions, allTouches, companyRows, leadRows;
   try {
     sessions = await db().outreachSession.findMany({ where: { userId: owner } });
     allTouches = await db().outreachTouch.findMany({ where: { userId: owner } });
     companyRows = await db().targetCompany.findMany({ where: { userId: owner } });
+    leadRows = await db().lead.findMany({ where: { userId: owner } });
   } catch (err) { throw storeDown(err); }
+  const closedLeadIds = new Set(
+    (leadRows || []).filter((row) => row && row.stage === "closed").map((row) => row.id),
+  );
+  const openLeadsByCompany = new Map();
+  for (const lead of leadRows || []) {
+    if (!lead || lead.stage === "closed" || !lead.companyId) continue;
+    if (!openLeadsByCompany.has(lead.companyId)) openLeadsByCompany.set(lead.companyId, 0);
+    openLeadsByCompany.set(lead.companyId, openLeadsByCompany.get(lead.companyId) + 1);
+  }
+  const leadsByCompany = new Map();
+  for (const lead of leadRows || []) {
+    if (!lead || !lead.companyId) continue;
+    if (!leadsByCompany.has(lead.companyId)) leadsByCompany.set(lead.companyId, []);
+    leadsByCompany.get(lead.companyId).push(lead);
+  }
   sessions = sessions.filter((row) => new Date(row.startsAt) <= friday && new Date(row.endsAt) >= monday)
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
-  let touches = allTouches.filter((row) => dayKey(row.date) >= dayKey(monday) && dayKey(row.date) <= dayKey(friday));
+  // Closed-lead follow-ups / planned touches do not drive the week view.
+  let touches = allTouches.filter((row) => {
+    if (row.leadId && closedLeadIds.has(row.leadId)) return false;
+    return dayKey(row.date) >= dayKey(monday) && dayKey(row.date) <= dayKey(friday);
+  });
   if (companyId) touches = touches.filter((row) => row.companyId === companyId);
   if (touchType) touches = touches.filter((row) => row.touchType === touchType);
   touches.sort((a, b) => new Date(a.date) - new Date(b.date) || a.touchType.localeCompare(b.touchType));
@@ -260,6 +280,7 @@ async function getWeekSchedule({ userId, emailHint, weekStart, companyId, touchT
   const openByCompany = new Map();
   for (const touch of allTouches) {
     if (!OPEN_TOUCH.includes(touch.status)) continue;
+    if (touch.leadId && closedLeadIds.has(touch.leadId)) continue;
     if (!openByCompany.has(touch.companyId) || new Date(touch.date) < new Date(openByCompany.get(touch.companyId).date)) {
       openByCompany.set(touch.companyId, touch);
     }
@@ -275,7 +296,13 @@ async function getWeekSchedule({ userId, emailHint, weekStart, companyId, touchT
     weekEnd: iso(friday),
     curriculumName: settings.curriculumName || "",
     northStar: northStar ? companies().presentCompany(northStar) : null,
-    companiesMissingTouch: active.filter((row) => !openByCompany.has(row.id)).map((row) => companies().presentCompany(row)),
+    companiesMissingTouch: active.filter((row) => {
+      if (openByCompany.has(row.id)) return false;
+      const companyLeads = leadsByCompany.get(row.id) || [];
+      // Company whose leads are all closed is squared away — not "missing" a touch.
+      if (companyLeads.length && !openLeadsByCompany.has(row.id)) return false;
+      return true;
+    }).map((row) => companies().presentCompany(row)),
     sessions: sessions.map((session) => ({
       session: shape(session),
       touches: touches.filter((touch) => touch.sessionId === session.id).map(withCompany),
@@ -314,18 +341,48 @@ async function setBusyTimes({ userId, emailHint, actor, weekStart, blocks } = {}
   return { weekStart: payload.weekStart, blocks: normalized.map(presentBusyBlock) };
 }
 
+/** Mark a lead's planned/drafted outreach touches skipped (close_lead). */
+async function skipOpenTouchesForLead({ userId, emailHint, actor, leadId } = {}) {
+  const owner = requireOwner(userId, emailHint);
+  requireWriteActor(actor);
+  const id = typeof leadId === "string" ? leadId.trim() : "";
+  if (!id) throw fail(400, "leadId is required.");
+  await ensureTable();
+  let allTouches;
+  try {
+    allTouches = await db().outreachTouch.findMany({ where: { userId: owner, leadId: id } });
+  } catch (err) { throw storeDown(err); }
+  const open = (allTouches || []).filter((touch) => touch && OPEN_TOUCH.includes(touch.status));
+  const skipped = [];
+  for (const touch of open) {
+    try {
+      const saved = await db().outreachTouch.update({
+        where: { id: touch.id },
+        data: { status: "skipped" },
+      });
+      skipped.push(shape(saved));
+    } catch (err) { throw storeDown(err); }
+  }
+  return skipped;
+}
+
 /** Open touches for the inbox: next planned/drafted touch per lead (and company-only). */
 async function listInboxTouches({ userId, emailHint } = {}) {
   const owner = requireOwner(userId, emailHint);
   await ensureTable();
-  let allTouches, companyRows;
+  let allTouches, companyRows, leadRows;
   try {
     allTouches = await db().outreachTouch.findMany({ where: { userId: owner } });
     companyRows = await db().targetCompany.findMany({ where: { userId: owner } });
+    leadRows = await db().lead.findMany({ where: { userId: owner } });
   } catch (err) { throw storeDown(err); }
+  const closedLeadIds = new Set(
+    (leadRows || []).filter((row) => row && row.stage === "closed").map((row) => row.id),
+  );
   const companyMap = new Map(companyRows.map((row) => [row.id, row]));
   const open = allTouches
     .filter((touch) => OPEN_TOUCH.includes(touch.status))
+    .filter((touch) => !(touch.leadId && closedLeadIds.has(touch.leadId)))
     .sort((a, b) => new Date(a.date) - new Date(b.date) || a.touchType.localeCompare(b.touchType));
   const byLead = new Map();
   const companyOnly = [];
@@ -384,5 +441,6 @@ module.exports = {
   UNAVAILABLE, TABLE_STATEMENTS, TOUCH_TYPES, TOUCH_STATUSES, SESSION_TYPES, BUSY_KIND_PREFIX,
   ensureTable, resetTableCache, presentTouch: shape, presentSession: shape,
   createTouch, updateTouch, createSession, updateSession, getWeekSchedule,
-  listBusyTimes, setBusyTimes, listInboxTouches, nudgeOffBusyDay, mondayOf, fridayOf,
+  listBusyTimes, setBusyTimes, listInboxTouches, skipOpenTouchesForLead,
+  nudgeOffBusyDay, mondayOf, fridayOf,
 };

@@ -101,12 +101,15 @@ const INSTRUCTIONS = [
   "When notes are passed, the store merges and preserves a trailing ### __done__ completed marker.",
   "Person upserts never write company notes/research - use upsert_target_company for those.",
   "Call mark_lead_done with personId (or personName+companyName) to append ### __done__ without replacing Q&A.",
+  "Call close_lead with personId (or personName+companyName) to take a squared-away person out of the inbox;",
+  "optional reason is stored as closedReason with closedAt. Sets stage to closed and skips that lead's planned/drafted touches.",
+  "Call reopen_lead to restore stage to previousStage (or new). Closed leads stay in list_target_companies but leave list_inbox.",
   "Call get_person_prep to read a person's interview-prep stepper (preamble, answered, pending, queue).",
   "Call seed_person_prep with questions[] to append unanswered prep questions without wiping answers; the UI shows one at a time.",
   "Call list_inbox for a flat priority-ranked work queue (deadlines, warm follow-ups, prep, cold outreach, applications) with rankReason.",
   "Per company: warm referral ask, then eng-lead peer outreach (never mention applying), then the application item,",
   "then recruiter outreach after the application is marked done (\"I just applied for X\").",
-  "Sent people are omitted. Prefer list_inbox over scanning list_target_companies for what to do next.",
+  "Sent people and closed leads are omitted. Prefer list_inbox over scanning list_target_companies for what to do next.",
   "Call create_application to add a job application inbox item (roleTitle, companyName, optional postingUrl, payRange, fitNotes, referrer).",
   "Call update_application to change fields. Call list_applications to read them. Call mark_application_done when the owner applied;",
   "that bumps the company's recruiter outreach due date by 1 business day. Do not invent applications for Tyler unless asked.",
@@ -497,6 +500,7 @@ const GET_OUTREACH_SCHEDULE_TOOL = {
     "Read this connector user's Mon–Fri outreach week: sessions, touches,",
     "North Star company, companies missing a planned next touch, curriculumName,",
     "and busyEvents for the inbox plan.",
+    "Closed leads are ignored for follow-ups and companies-missing-a-touch.",
     "Optional weekStart, companyId, and touchType filter. A user id in args is ignored.",
     "Does not send messages. There is no /schedule page.",
   ].join(" "),
@@ -1004,6 +1008,50 @@ const MARK_LEAD_DONE_TOOL = {
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
 
+const CLOSE_LEAD_TOOL = {
+  name: "close_lead",
+  title: "Close lead",
+  description: [
+    "Take a person off the inbox once the owner considers them squared away.",
+    "Pass personId, or personName with companyName. Optional reason is stored as",
+    "closedReason with closedAt. Sets stage to closed and stores previousStage for reopen.",
+    "Skips that lead's planned or drafted outreach touches so follow-up and touch planning ignore them.",
+    "Never deletes notes, drafts, answered turns, or touches. Closed leads still appear in",
+    "list_target_companies with stage closed. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      personId: { type: "string", description: "Existing person (lead) id." },
+      personName: { type: "string", description: "Person full name when personId is omitted." },
+      companyName: { type: "string", description: "Company name when personId is omitted." },
+      reason: { type: "string", description: "Optional short reason stored as closedReason." },
+    },
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const REOPEN_LEAD_TOOL = {
+  name: "reopen_lead",
+  title: "Reopen lead",
+  description: [
+    "Restore a closed lead to the inbox. Pass personId, or personName with companyName.",
+    "Sets stage back to previousStage from when it was closed, or new if that is missing.",
+    "Does not un-skip touches or delete notes/drafts. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      personId: { type: "string", description: "Existing person (lead) id." },
+      personName: { type: "string", description: "Person full name when personId is omitted." },
+      companyName: { type: "string", description: "Company name when personId is omitted." },
+    },
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
 const GET_PERSON_PREP_TOOL = {
   name: "get_person_prep",
   title: "Get person interview prep",
@@ -1066,7 +1114,7 @@ const LIST_INBOX_TOOL = {
     "Within a company: referral ask → eng-lead peer outreach → application → recruiter.",
     "Application rankReason exposes the link (waiting after referral / eng lead,",
     "apply after talk, apply after 5 business days, or recruiter I just applied).",
-    "People with sent outreach are omitted (same as the UI rail).",
+    "People with sent outreach and closed leads are omitted (same as the UI rail).",
     "Each item includes kind (person|reading|application), rank, title, rankReason, dueDay.",
     "Optional limit (default 20, max 50). Read-only. A user id in args is ignored.",
   ].join(" "),
@@ -1334,6 +1382,8 @@ const TOOLS = [
   UPSERT_TARGET_COMPANY_TOOL,
   UPSERT_LEAD_PERSON_TOOL,
   MARK_LEAD_DONE_TOOL,
+  CLOSE_LEAD_TOOL,
+  REOPEN_LEAD_TOOL,
   GET_PERSON_PREP_TOOL,
   SEED_PERSON_PREP_TOOL,
   LIST_INBOX_TOOL,
@@ -2239,6 +2289,51 @@ async function markLeadDoneCall(msg, user, args) {
   }
 }
 
+async function closeLeadCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const actor = MCP_BOT_ACTOR;
+    const lead = await resolveLeadPerson(user, args);
+    const result = await leadsStore.closeLead({
+      id: lead.id,
+      userId,
+      emailHint,
+      actor,
+      reason: args.reason,
+    });
+    const skippedTouches = await scheduleStore.skipOpenTouchesForLead({
+      userId,
+      emailHint,
+      actor,
+      leadId: lead.id,
+    });
+    return contentToolOk(msg, {
+      lead: result.lead,
+      skippedTouches,
+      alreadyClosed: !!result.alreadyClosed,
+    });
+  } catch (err) {
+    return planFailure(msg, err, leadsStore.UNAVAILABLE || scheduleStore.UNAVAILABLE);
+  }
+}
+
+async function reopenLeadCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const emailHint = user && user.email;
+    const actor = MCP_BOT_ACTOR;
+    const lead = await resolveLeadPerson(user, args);
+    const result = await leadsStore.reopenLead({ id: lead.id, userId, emailHint, actor });
+    return contentToolOk(msg, {
+      lead: leadsStore.presentLead(result.lead),
+      previousStage: result.previousStage,
+    });
+  } catch (err) {
+    return planFailure(msg, err, leadsStore.UNAVAILABLE);
+  }
+}
+
 async function getPersonPrepCall(msg, user, args) {
   try {
     const lead = await resolveLeadPerson(user, args);
@@ -2575,6 +2670,8 @@ async function handleRpc(msg, user) {
       && name !== "upsert_target_company"
       && name !== "upsert_lead_person"
       && name !== "mark_lead_done"
+      && name !== "close_lead"
+      && name !== "reopen_lead"
       && name !== "get_person_prep"
       && name !== "seed_person_prep"
       && name !== "list_inbox"
@@ -2670,6 +2767,12 @@ async function handleRpc(msg, user) {
     }
     if (name === "mark_lead_done") {
       return markLeadDoneCall(msg, user, args);
+    }
+    if (name === "close_lead") {
+      return closeLeadCall(msg, user, args);
+    }
+    if (name === "reopen_lead") {
+      return reopenLeadCall(msg, user, args);
     }
     if (name === "get_person_prep") {
       return getPersonPrepCall(msg, user, args);
