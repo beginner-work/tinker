@@ -32,7 +32,7 @@
  * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v25";
+const CACHE_VERSION = "tinker-shell-v26";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -46,15 +46,22 @@ const PRECACHE = [
   "/mobile-drawer.css",
   "/pwa-install-hint.css",
   "/profile.css",
-  // scripts (document order)
+  // critical scripts (document order)
+  "/boot-css.js",
   "/pwa-session.js",
   "/freewrite.js",
   "/sync.js",
-  "/transactions.js",
-  "/seeds.js",
-  "/heatmap.js",
-  "/lead-drafts.js",
-  "/lead-funnel.js",
+  "/messages-thread-actions.js",
+  "/messages-notepad.js",
+  "/lib/notes-folder-core.js",
+  "/notes-folder.js",
+  "/messages-shell.js",
+  "/messages-thread.js",
+  "/messages-composer.js",
+  "/messages-reading.js",
+  "/messages-application.js",
+  "/messages-you.js",
+  "/profile.js",
   "/platform-mobile.js",
   "/auth.js",
   "/lib/rainbow-web.js",
@@ -62,20 +69,19 @@ const PRECACHE = [
   "/interview-prompt.js",
   "/writing.js",
   "/renderer.js",
-  "/messages-thread-actions.js",
-  "/messages-notepad.js",
-  "/messages-shell.js",
-  "/messages-thread.js",
-  "/messages-composer.js",
-  "/messages-reading.js",
-  "/messages-application.js",
-  "/messages-you.js",
   "/mobile-drawer.js",
+  "/pwa-offline.js",
+  "/boot-lazy.js",
+  // lazy (post-paint) scripts — still precached for offline
+  "/transactions.js",
+  "/seeds.js",
+  "/heatmap.js",
+  "/lead-drafts.js",
+  "/lead-funnel.js",
   "/pwa-install-hint.js",
   "/share.js",
   "/update-banner.js",
   "/notifications.js",
-  "/profile.js",
   "/back-me.js",
   "/open-beginner.js",
   "/wallet.js",
@@ -83,7 +89,6 @@ const PRECACHE = [
   "/linkedin-draft.js",
   "/voice-model.js",
   "/membership.js",
-  "/pwa-offline.js",
   // shell chrome assets
   "/manifest.json",
   "/favicon.svg",

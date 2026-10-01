@@ -15,13 +15,26 @@
     <link rel="apple-touch-icon" href="./favicon.svg" />
 
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <!-- Brand faces only (Fraunces + Instrument Sans). Inter / Plus Jakarta
+         stay in the CSS fallback stack but are not downloaded on boot.
+         Preloaded non-blocking; boot-css.js promotes to stylesheet (CSP
+         forbids inline onload handlers). display=swap avoids FOIT. -->
+    <link rel="preload" as="style" data-tinker-async
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <noscript>
+      <link rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    </noscript>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./design-tokens.css" />
     <link rel="stylesheet" href="./mobile-drawer.css" />
-    <link rel="stylesheet" href="./pwa-install-hint.css" />
-    <link rel="stylesheet" href="./profile.css" />
+    <!-- Secondary chrome CSS: do not block first paint of the inbox shell. -->
+    <link rel="stylesheet" href="./pwa-install-hint.css" media="print" data-tinker-async />
+    <link rel="stylesheet" href="./profile.css" media="print" data-tinker-async />
+    <noscript>
+      <link rel="stylesheet" href="./pwa-install-hint.css" />
+      <link rel="stylesheet" href="./profile.css" />
+    </noscript>
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" type="image/svg+xml" href="./icons/tinker-icon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/tinker-icon-192.png" />
@@ -30,45 +43,25 @@
     <meta name="apple-mobile-web-app-title" content="tinker" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Critical path only: auth, sync gate, inbox shell, You/writing.
+         Everything else ships in #tinker-lazy-scripts and loads after the
+         first paint via boot-lazy.js so DOMContentLoaded is not held by
+         heatmap / wallet / email / drafts / etc. -->
+    <script src="./boot-css.js" defer></script>
     <!-- Reads `?#ts=<jwt>` off the PWA's launch URL into localStorage and
          rewrites the manifest with the current JWT in start_url, so a
          user who signs in on iOS Safari stays signed in after they
          Add to Home Screen. Must run before auth.js. -->
     <script src="./pwa-session.js" defer></script>
-    <!-- Bridges the client-owned blobs (essays, drafts, seeds,
-         taxonomy, tree) to /api/user-data/*. Runs before
-         seeds.js/heatmap.js so its hydrate() can fire
-         as soon as a token exists; consumer modules subscribe to the
-         tinker:hydrated event to re-render from refreshed storage. -->
     <!-- No AI mode (freewrite.js): install the /api/* network gate before
          sync.js (or anything else) can phone home, so a load taken offline
          stays grounded. Auto-detects connectivity via navigator.onLine. -->
     <script src="./freewrite.js" defer></script>
+    <!-- Bridges the client-owned blobs (essays, drafts, seeds,
+         taxonomy, tree) to /api/user-data/*. Hydrate is idle-deferred so
+         it does not compete with inbox first paint; consumers still
+         subscribe to tinker:hydrated. -->
     <script src="./sync.js" defer></script>
-    <script src="./transactions.js" defer></script>
-    <script src="./seeds.js" defer></script>
-    <script src="./heatmap.js" defer></script>
-    <!-- Shared "Back me" opener (window.tinkerBackMe): the founder's profile
-         QR on beginner. In an installed PWA it opens in an in-app iframe
-         overlay; elsewhere it hands off to the system browser. Used by both
-         the profile menu. Loaded before them so
-         the global exists when their click handlers bind. -->
-    <script src="./back-me.js" defer></script>
-    <script src="./open-beginner.js" defer></script>
-    <!-- Receives a beginner backer card deposited from /investor-relations
-         (#deposit_card=) into the local wallet, and shows it. -->
-    <script src="./wallet.js" defer></script>
-    <!-- Compose overlay: send an email from the founder's beginner.work
-         address through /api/email/send. -->
-    <script src="./email.js" defer></script>
-    <!-- LinkedIn drafts: sidebar "LinkedIn draft" opens the composer.
-         The prompt stays on the server (converse mode "linkedin" and
-         the MCP tool draft_linkedin_post). Does not post. -->
-    <script src="./linkedin-draft.js" defer></script>
-    <!-- Message draft center: every lead draft across the pipeline.
-         lead-drafts.js owns the sidebar section and the editor panel. -->
-    <script src="./lead-drafts.js" defer></script>
-    <script src="./lead-funnel.js" defer></script>
     <!-- Messaging shell (TYL-65): left conversation list of leads.
          Thread + composer land in stacked slices. -->
     <script src="./messages-thread-actions.js" defer></script>
@@ -85,6 +78,27 @@
          runs first-login onboarding. The top-right avatar is no longer shown.
          Deferred so the DOM (incl. #profile-corner) exists when it runs. -->
     <script src="./profile.js" defer></script>
+    <!-- Inert until boot-lazy.js injects them after first paint. Script
+         tags stay in the document so feature tests can assert shipping. -->
+    <template id="tinker-lazy-scripts">
+      <script src="./transactions.js" defer></script>
+      <script src="./seeds.js" defer></script>
+      <script src="./heatmap.js" defer></script>
+      <!-- Shared "Back me" opener (window.tinkerBackMe). -->
+      <script src="./back-me.js" defer></script>
+      <script src="./open-beginner.js" defer></script>
+      <script src="./wallet.js" defer></script>
+      <script src="./email.js" defer></script>
+      <script src="./linkedin-draft.js" defer></script>
+      <script src="./lead-drafts.js" defer></script>
+      <script src="./lead-funnel.js" defer></script>
+      <script src="./voice-model.js" defer></script>
+      <script src="./pwa-install-hint.js" defer></script>
+      <script src="./share.js" defer></script>
+      <script src="./membership.js" defer></script>
+      <script src="./update-banner.js" defer></script>
+      <script src="./notifications.js" defer></script>
+    </template>
   </head>
   <!-- Inbox chrome on first paint so mobile never flash-blank: without
        messages-shell-open the drawer CSS slides the sidebar off-screen
@@ -693,19 +707,15 @@
     <script src="./auth.js" defer></script>
     <script src="./lib/rainbow-web.js" defer></script>
     <script src="./icon-init.js" defer></script>
-    <script src="./voice-model.js" defer></script>
     <!-- Interview contract shared with /api/mcp. Must run before writing.js. -->
     <script src="./interview-prompt.js" defer></script>
     <script src="./writing.js" defer></script>
     <script src="./renderer.js" defer></script>
     <script src="./mobile-drawer.js" defer></script>
-    <script src="./pwa-install-hint.js" defer></script>
-    <script src="./share.js" defer></script>
-    <script src="./membership.js" defer></script>
-    <script src="./update-banner.js" defer></script>
-    <script src="./notifications.js" defer></script>
     <!-- Offline app shell: registers sw.js so a refresh (and a cold
          launch of the installed app) still loads with no connection. -->
     <script src="./pwa-offline.js" defer></script>
+    <!-- After the critical defer list: inject secondary modules post-paint. -->
+    <script src="./boot-lazy.js" defer></script>
   </body>
 </html>
