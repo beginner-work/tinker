@@ -1586,7 +1586,6 @@ button.sidebar__funnel-person:hover { background: var(--color-hover); }
   margin-top: 1px;
   color: var(--color-muted);
 }
-.sidebar__drafts-parts { word-break: break-word; }
 .sidebar__drafts-counter { margin: 4px 0 0; font-variant-numeric: tabular-nums; }
 .sidebar__drafts-counter--over { color: var(--color-danger, #b42318); font-weight: 600; }
 .sidebar__drafts-open-title { display: flex; align-items: center; gap: 10px; }

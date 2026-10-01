@@ -166,7 +166,7 @@ test("draft channels fromAddress settings and mark-sent", async () => {
   assert.equal((await call({ method: "POST", action: "settings", body: { defaultFromAddress: "hunt@example.com" } })).body.settings.defaultFromAddress, "hunt@example.com");
   const created = await call({ method: "POST", action: "create", body: { personName: "Pat Kim", company: "Orbit", source: "posting", email: "pat@orbit.test" } });
   const leadId = created.body.lead.id;
-  const draft = await call({ method: "POST", action: "draft", body: { leadId, channel: "gmail_outreach", subject: "Hello", body: "Quick note.", storyPartIds: ["part_1"] } });
+  const draft = await call({ method: "POST", action: "draft", body: { leadId, channel: "gmail_outreach", subject: "Hello", body: "Quick note." } });
   assert.equal(draft.body.draft.fromAddress, "hunt@example.com");
   assert.equal(draft.body.lead.stage, "drafting");
   const post = await call({ method: "POST", action: "draft", body: { channel: "linkedin_post", body: "Shipping a write-up." } });

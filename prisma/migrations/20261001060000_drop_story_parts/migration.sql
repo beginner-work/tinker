@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS "StoryPartEvent";
+DROP TABLE IF EXISTS "StoryPart";
+ALTER TABLE "LeadDraft" DROP COLUMN IF EXISTS "storyPartIds";

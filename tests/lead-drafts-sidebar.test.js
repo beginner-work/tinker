@@ -82,7 +82,7 @@ test.beforeEach(() => {
 test("listDrafts destinations and needs-review create; company filter", async () => {
   const lead = await call({ method: "POST", action: "create", body: { personName: "Alex Rivera", company: "Acme", source: "linkedin" } });
   const leadId = lead.body.lead.id;
-  const draft = await call({ method: "POST", action: "draft", body: { leadId, channel: "gmail_outreach", subject: "Hi", body: "Hello", storyPartIds: ["part_1"] } });
+  const draft = await call({ method: "POST", action: "draft", body: { leadId, channel: "gmail_outreach", subject: "Hi", body: "Hello" } });
   assert.equal(draft.body.draft.status, "draft");
   assert.equal(draft.body.draft.channel, "gmail_outreach");
   await call({ method: "POST", action: "approve", body: { id: draft.body.draft.id } });

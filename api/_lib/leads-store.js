@@ -11,7 +11,7 @@ const TABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "Lead" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "personName" TEXT NOT NULL DEFAULT '', "personTitle" TEXT NOT NULL DEFAULT '', "linkedInUrl" TEXT NOT NULL DEFAULT '', "email" TEXT NOT NULL DEFAULT '', "company" TEXT NOT NULL DEFAULT '', "targetRoleTitle" TEXT NOT NULL DEFAULT '', "postingUrl" TEXT NOT NULL DEFAULT '', "source" TEXT NOT NULL, "stage" TEXT NOT NULL, "nextStep" TEXT NOT NULL DEFAULT '', "nextStepAt" TIMESTAMP(3), "notes" TEXT NOT NULL DEFAULT '', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Lead_pkey" PRIMARY KEY ("id"))`,
   `CREATE INDEX IF NOT EXISTS "Lead_userId_idx" ON "Lead"("userId")`,
   `CREATE INDEX IF NOT EXISTS "Lead_userId_stage_idx" ON "Lead"("userId", "stage")`,
-  `CREATE TABLE IF NOT EXISTS "LeadDraft" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "leadId" TEXT, "channel" TEXT NOT NULL, "subject" TEXT NOT NULL DEFAULT '', "body" TEXT NOT NULL DEFAULT '', "fromAddress" TEXT NOT NULL DEFAULT '', "status" TEXT NOT NULL, "storyPartIds" JSONB NOT NULL DEFAULT '[]', "factCheck" JSONB NOT NULL DEFAULT '{}', "createdBy" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "LeadDraft_pkey" PRIMARY KEY ("id"))`,
+  `CREATE TABLE IF NOT EXISTS "LeadDraft" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "leadId" TEXT, "channel" TEXT NOT NULL, "subject" TEXT NOT NULL DEFAULT '', "body" TEXT NOT NULL DEFAULT '', "fromAddress" TEXT NOT NULL DEFAULT '', "status" TEXT NOT NULL, "factCheck" JSONB NOT NULL DEFAULT '{}', "createdBy" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "LeadDraft_pkey" PRIMARY KEY ("id"))`,
   `CREATE INDEX IF NOT EXISTS "LeadDraft_userId_idx" ON "LeadDraft"("userId")`,
   `CREATE INDEX IF NOT EXISTS "LeadDraft_leadId_idx" ON "LeadDraft"("leadId")`,
   `CREATE TABLE IF NOT EXISTS "LeadEvent" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "leadId" TEXT, "actor" TEXT NOT NULL, "action" TEXT NOT NULL, "detail" JSONB NOT NULL DEFAULT '{}', "at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "LeadEvent_pkey" PRIMARY KEY ("id"))`,
@@ -32,6 +32,7 @@ const TABLE_STATEMENTS = [
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "sentAt" TIMESTAMP(3)`,
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "externalMessageId" TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "failedReason" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" DROP COLUMN IF EXISTS "storyPartIds"`,
 ];
 const DRAFT_STATUSES = ["draft", "approved", "approved_to_send", "sent_by_owner", "send_failed"];
 const HEADER_MAP = {
@@ -87,11 +88,6 @@ function readEnum(value, allowed, label) {
 const { readCalendarDate, presentCalendarDate } = require("./calendar-date.js");
 function readDate(value, label) {
   return readCalendarDate(value, label, { required: false });
-}
-function readIds(value) {
-  if (value == null) return [];
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) throw fail(400, "storyPartIds must be a list of strings.");
-  return value.map((item) => item.trim()).filter(Boolean);
 }
 function readFactCheck(value) {
   if (value == null || value === "") return {};
@@ -214,7 +210,7 @@ function draftPayload(input, actor, leadId, owner, statusOverride, defaultFrom) 
   if (!fromAddress && channel === "gmail_outreach") fromAddress = readText(defaultFrom || "", "fromAddress", 320, false).toLowerCase();
   return {
     userId: owner, leadId: leadId || null, channel, subject, body: readText(input.body || input.draftBody, "body", 100000, false),
-    fromAddress, status, storyPartIds: readIds(input.storyPartIds), factCheck: readFactCheck(input.factCheck), createdBy: actor,
+    fromAddress, status, factCheck: readFactCheck(input.factCheck), createdBy: actor,
   };
 }
 function attachedDraft(row) {
@@ -590,14 +586,13 @@ async function updateDraft({ id, userId, emailHint, actor, patch }) {
   assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
-  const keys = ["subject", "body", "storyPartIds", "factCheck", "fromAddress"].filter((key) => Object.prototype.hasOwnProperty.call(source, key));
+  const keys = ["subject", "body", "factCheck", "fromAddress"].filter((key) => Object.prototype.hasOwnProperty.call(source, key));
   if (!keys.length) throw fail(400, "Nothing to update.");
   await ensureTable();
   const row = await loadOwned("leadDraft", id, owner, "draft");
   if (row.status === "sent_by_owner") throw fail(400, "A sent draft cannot be edited.");
   const data = {};
   if (keys.includes("body")) data.body = readText(source.body, "body", 100000, false);
-  if (keys.includes("storyPartIds")) data.storyPartIds = readIds(source.storyPartIds);
   if (keys.includes("factCheck")) data.factCheck = readFactCheck(source.factCheck);
   if (keys.includes("fromAddress")) data.fromAddress = readText(source.fromAddress, "fromAddress", 320, false).toLowerCase();
   if (keys.includes("subject")) {
@@ -828,7 +823,6 @@ async function saveOutreachDraft({
           body: text,
           fromAddress: mapped === "gmail_outreach" ? (settings.defaultFromAddress || "") : "",
           status: "draft",
-          storyPartIds: [],
           factCheck: {},
           createdBy: label,
         },
