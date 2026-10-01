@@ -195,20 +195,22 @@
     var t = token();
     if (!t) return Promise.resolve([]);
     var headers = { Authorization: "Bearer " + t, Accept: "application/json" };
-    // Hard-delete legacy GTM plan dumps before listing so the owner tab
-    // never reopens on "Your GTM approach".
-    return fetch("/api/self-thread?action=purge_plan", {
+    // Fire purge in parallel with list so You does not wait on a serial
+    // round-trip before first paint of self posts. Client-side filter still
+    // drops legacy GTM plan dumps if purge has not finished yet.
+    var purge = fetch("/api/self-thread?action=purge_plan", {
       method: "POST",
       headers: headers,
       body: "{}",
-    }).catch(function () { return null; }).then(function () {
-      return fetch("/api/self-thread?action=list", { headers: headers });
-    }).then(function (res) { return res && res.ok ? res.json() : { messages: [] }; })
-      .then(function (json) {
-        var messages = Array.isArray(json.messages) ? json.messages : [];
-        return messages.filter(function (msg) { return !isPlanDumpTitle(msg && msg.title); });
-      })
-      .catch(function () { return []; });
+    }).catch(function () { return null; });
+    var list = fetch("/api/self-thread?action=list", { headers: headers })
+      .then(function (res) { return res && res.ok ? res.json() : { messages: [] }; })
+      .catch(function () { return { messages: [] }; });
+    return Promise.all([purge, list]).then(function (results) {
+      var json = results[1] || { messages: [] };
+      var messages = Array.isArray(json.messages) ? json.messages : [];
+      return messages.filter(function (msg) { return !isPlanDumpTitle(msg && msg.title); });
+    }).catch(function () { return []; });
   }
   function labelFloatingActions() {
     var foot = document.querySelector("#writing .writing__foot");

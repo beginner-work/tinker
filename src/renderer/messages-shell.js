@@ -1202,11 +1202,14 @@
     });
   }
   function fetchInboxBatched() {
-    return leadsApi("inbox").then(function (payload) {
-      applyInboxPayload(payload);
-      return Promise.all([fetchReadingThreads(), fetchApplications()]).then(function () {
-        writeInboxCache();
-      });
+    // Inbox + reading + applications in parallel (no waterfall after inbox).
+    return Promise.all([
+      leadsApi("inbox"),
+      fetchReadingThreads(),
+      fetchApplications(),
+    ]).then(function (results) {
+      applyInboxPayload(results[0]);
+      writeInboxCache();
     });
   }
   function fetchInboxLegacyParallel() {
@@ -1218,6 +1221,8 @@
       fetch("/api/user-data/profile", {
         headers: { Authorization: "Bearer " + token(), Accept: "application/json" },
       }).then(function (res) { return res.ok ? res.json() : null; }).catch(function () { return null; }),
+      fetchReadingThreads(),
+      fetchApplications(),
     ]).then(function (results) {
       applyInboxPayload({
         leads: results[0].leads,
@@ -1226,9 +1231,7 @@
         companies: (results[3] && results[3].companies) || [],
         profile: results[4] && results[4].data ? results[4].data : null,
       });
-      return Promise.all([fetchReadingThreads(), fetchApplications()]).then(function () {
-        writeInboxCache();
-      });
+      writeInboxCache();
     });
   }
   function refresh() {
@@ -1321,6 +1324,7 @@
     }
   }
   function boot() {
+    try { performance.mark("tinker-inbox-boot"); } catch (e) { /* ignore */ }
     root = document.getElementById("sidebar-messages");
     pane = document.getElementById("messages-pane");
     if (!root) return;

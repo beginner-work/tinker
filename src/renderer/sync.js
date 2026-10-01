@@ -291,20 +291,26 @@
 
   window.tinkerSync = api;
 
-  // Hydrate as soon as a token is present. On the plain web build
-  // auth.js shows a gate when there's no token; the auth-changed
-  // event fires after a successful PIN verify. Hydrating then catches
-  // first-time sign-in too. On Electron there's no Stytch
-  // token and hydrate() returns early.
-  //
-  // Wait for DOMContentLoaded so consumer modules (seeds.js,
-  // renderer.js) have registered their `tinker:hydrated` listeners
-  // before the first fetch could finish.
-  function kick() { if (token()) hydrate(); }
+  // Hydrate once a token is present, but not on the critical path.
+  // Idle / timeout so the five /api/user-data/* GETs do not compete with
+  // inbox first paint. auth-changed still hydrates immediately after PIN
+  // verify (first-time sign-in). Electron has no Stytch token and returns
+  // early. Wait for DOMContentLoaded so renderer.js can register its
+  // tinker:hydrated listener; seeds/heatmap may load later via boot-lazy
+  // and will re-render when the event fires (or on their own boot).
+  function kickIdle() {
+    if (!token()) return;
+    var run = function () { hydrate(); };
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(run, { timeout: 1200 });
+    } else {
+      setTimeout(run, 200);
+    }
+  }
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", kick, { once: true });
+    document.addEventListener("DOMContentLoaded", kickIdle, { once: true });
   } else {
-    kick();
+    kickIdle();
   }
   window.addEventListener("tinker:auth-changed", () => { hydrate(); });
 

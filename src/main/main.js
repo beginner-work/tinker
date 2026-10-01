@@ -2,7 +2,9 @@ const { app, BrowserWindow, session, ipcMain, shell, nativeImage, dialog } = req
 const path = require("path");
 const fs = require("fs");
 const fsp = require("fs/promises");
-const Anthropic = require("@anthropic-ai/sdk").default;
+// Lazy-load the Anthropic SDK on first search so cold launch is not paying
+// for a module the inbox shell never needs.
+let Anthropic = null;
 
 const isDev = process.argv.includes("--dev");
 
@@ -36,6 +38,9 @@ function getAnthropic() {
     err.code = "MISSING_API_KEY";
     throw err;
   }
+  if (!Anthropic) {
+    Anthropic = require("@anthropic-ai/sdk").default;
+  }
   anthropicClient = new Anthropic({ apiKey });
   return anthropicClient;
 }
@@ -48,6 +53,7 @@ function createWindow() {
     minHeight: 480,
     backgroundColor: "#FFFDF7",
     title: "tinker",
+    show: false,
     autoHideMenuBar: true,
     // Drop the native title bar — our chrome paints the whole top.
     // 'hiddenInset' keeps the macOS traffic lights but removes the bar;
@@ -61,6 +67,11 @@ function createWindow() {
       sandbox: true,
       webviewTag: true,
     },
+  });
+
+  // Show once the first paint is ready so users never see an empty frame.
+  win.once("ready-to-show", () => {
+    win.show();
   });
 
   win.loadFile(path.join(__dirname, "..", "renderer", "index.html"));

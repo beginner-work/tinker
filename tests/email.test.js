@@ -216,7 +216,8 @@ test("the composer sends through the server with the founder's session token", (
 
 test("index.html ships the entry point and the module", () => {
   assert.match(INDEX_HTML, /id="profile-email"/, "profile menu has the Send an email action");
-  assert.match(INDEX_HTML, /<script src="\.\/email\.js" defer><\/script>/, "email.js is loaded");
+  assert.match(INDEX_HTML, /<script src="\.\/email\.js" defer><\/script>/, "email.js is shipped");
+  assert.match(INDEX_HTML, /id="tinker-lazy-scripts"/, "email.js loads via the post-paint lazy template");
 });
 
 test("profile.js wires the menu action to the composer", () => {
