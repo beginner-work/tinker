@@ -100,7 +100,10 @@ async function dispatch(method, action, auth, body, req) {
   if (method === "POST" && action === "proposed-subject") {
     const leadId = (typeof body.leadId === "string" && body.leadId.trim()) || id;
     const result = await store.setProposedSubject({
-      userId, emailHint, actor, leadId, subject: body.subject, force: !!body.force,
+      userId, emailHint, actor, leadId,
+      subject: body.subject,
+      body: Object.prototype.hasOwnProperty.call(body, "body") ? body.body : undefined,
+      force: !!body.force,
     });
     return {
       status: 200,
@@ -108,6 +111,7 @@ async function dispatch(method, action, auth, body, req) {
         draft: store.presentDraft(result.draft),
         lead: result.lead ? store.presentLead(result.lead) : null,
         unchanged: !!result.unchanged,
+        skipped: result.skipped || null,
       },
     };
   }

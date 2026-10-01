@@ -428,27 +428,70 @@
   const SUBJECT_SYSTEM_PROMPT = [
     "You write short outreach email subject lines for founders.",
     "Return strict JSON only: { \"subject\": string }.",
-    "The subject must be one line, under 90 characters, concrete, and grounded in the person and what the founder shared.",
-    "No quotes around the subject value beyond JSON. No emoji. No leading Re:/Fwd:.",
-    "Never wrap the JSON in code fences.",
+    "Use ONLY the founder's typed answers in the user message. Do not use career history,",
+    "company research, wave labels, contact notes, prior drafts, or any other pre-context.",
+    "Do not invent facts, numbers, metrics, titles, or claims the founder did not type.",
+    "Every number in the subject must appear in the founder's answers. If the answers are",
+    "short, prefer their words as written (trimmed) over inventing a punchier line.",
+    "The subject must be one line, under 90 characters. No emoji. No leading Re:/Fwd:.",
+    "Never wrap the JSON in code fences. Never use an em dash.",
   ].join("\n");
 
-  function fallbackOutreachSubject(personName, companyName) {
-    const person = String(personName || "").trim() || "you";
-    const company = String(companyName || "").trim();
-    if (company) return ("Quick note — " + person + " at " + company).slice(0, 90);
-    return ("Quick note — " + person).slice(0, 90);
+  function answersText(transcript) {
+    const turns = Array.isArray(transcript) ? transcript : [];
+    return turns
+      .map((t) => String(t && t.a || "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
-  function normalizeOutreachSubject(parsed, personName, companyName) {
+  function stitchOutreachBody(transcript) {
+    const turns = Array.isArray(transcript) ? transcript : [];
+    return turns
+      .map((t) => String(t && t.a || "").trim())
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
+  // Reject subjects that introduce numbers the founder never typed (e.g. 99.9).
+  function outreachTextGrounded(text, transcript) {
+    const source = answersText(transcript);
+    if (!source) return !String(text || "").trim();
+    const nums = String(text || "").match(/\d+(?:\.\d+)?%?/g) || [];
+    for (const n of nums) {
+      if (!source.includes(n)) return false;
+    }
+    return true;
+  }
+
+  // Prefer the founder's own words. Short answers become the subject verbatim.
+  function fallbackOutreachSubject(transcript) {
+    // Legacy callers passed (personName, companyName). Ignore that shape -
+    // subjects must not invent person/company filler.
+    let source = "";
+    if (Array.isArray(transcript)) {
+      source = answersText(transcript);
+    } else if (typeof transcript === "string" && arguments.length === 1) {
+      // Single string = the founder's answer text already joined.
+      source = transcript.trim().replace(/\s+/g, " ");
+    }
+    if (!source) return "Quick note";
+    return source.slice(0, 90);
+  }
+
+  function normalizeOutreachSubject(parsed, transcript) {
     const raw = parsed && typeof parsed.subject === "string" ? parsed.subject.trim() : "";
     const cleaned = raw
       .replace(/^["'\s]+|["'\s]+$/g, "")
       .replace(/^(re|fwd)\s*:\s*/i, "")
+      .replace(/\u2014/g, "-")
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 90);
     if (!cleaned) return null;
+    if (!outreachTextGrounded(cleaned, transcript)) return null;
     return cleaned;
   }
 
@@ -463,24 +506,21 @@
     }
   }
 
-  function buildSubjectUserMessage({ personName, personTitle, companyName, companyContext, transcript }) {
-    const person = String(personName || "").trim() || "this person";
-    const title = String(personTitle || "").trim();
-    const company = String(companyName || "").trim();
+  // Answer-only: never feed person/company/career/wave/prep context into subject gen.
+  function buildSubjectUserMessage({ transcript }) {
     const lines = [];
     lines.push("Propose one email subject line for founder outreach.");
-    lines.push("Person: " + person + (title ? " (" + title + ")" : "") + (company ? " at " + company : "") + ".");
-    const ctx = String(companyContext || "").trim();
-    if (ctx) lines.push("Company context: " + ctx.slice(0, 800));
+    lines.push("Use ONLY the founder's typed answers below. Do not add facts, numbers, or claims they did not write.");
+    lines.push("If the answers are short, you may return their words as written.");
     lines.push("");
-    lines.push("What the founder shared:");
+    lines.push("Founder's typed answers:");
     const turns = Array.isArray(transcript) ? transcript : [];
-    if (!turns.length) {
+    const answers = turns.map((t) => String(t && t.a || "").trim()).filter(Boolean);
+    if (!answers.length) {
       lines.push("(no answered turns yet)");
     } else {
-      turns.forEach((t, i) => {
-        lines.push("Q" + (i + 1) + ": " + String(t && t.q || "").trim());
-        lines.push("A" + (i + 1) + ": " + String(t && t.a || "").trim());
+      answers.forEach((a, i) => {
+        lines.push("A" + (i + 1) + ": " + a);
       });
     }
     lines.push("");
@@ -760,6 +800,9 @@
     buildPersonUserMessage,
     buildSubjectUserMessage,
     defaultPersonQuestion,
+    answersText,
+    stitchOutreachBody,
+    outreachTextGrounded,
     transcriptStage,
     normalizeQuestionKey,
     askedQuestionKeys,
