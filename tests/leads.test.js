@@ -91,7 +91,8 @@ test("migration matches, allowlist gates, and no send path", () => {
     + fs.readFileSync(path.join(root, "prisma/migrations/20260929070000_leads_draft_channels/migration.sql"), "utf8")
     + fs.readFileSync(path.join(root, "prisma/migrations/20260929080000_leads_companies_funnel/migration.sql"), "utf8")
     + fs.readFileSync(path.join(root, "prisma/migrations/20260929211000_draft_approved_to_send/migration.sql"), "utf8")
-    + fs.readFileSync(path.join(root, "prisma/migrations/20260929212000_lead_github_url/migration.sql"), "utf8");
+    + fs.readFileSync(path.join(root, "prisma/migrations/20260929212000_lead_github_url/migration.sql"), "utf8")
+    + fs.readFileSync(path.join(root, "prisma/migrations/20261001060000_drop_story_parts/migration.sql"), "utf8");
   for (const statement of store.TABLE_STATEMENTS) assert.ok(migrations.includes(statement), statement.slice(0, 60));
   assert.deepEqual(store.CHANNELS, ["linkedin_post", "linkedin_connection", "gmail_outreach"]);
   const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
