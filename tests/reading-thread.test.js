@@ -378,7 +378,8 @@ test("UI reuses notepad / Keep crafting; no review UI; SW precaches reading modu
   assert.match(shell, /"pause"/);
   assert.match(shell, /"resume"/);
   assert.match(html, /messages-reading\.js/);
-  assert.ok(html.indexOf("messages-reading.js") < html.indexOf("messages-you.js"));
+  // Reading loads post-paint via the lazy template (not on the critical path).
+  assert.match(html, /id="tinker-lazy-scripts"[\s\S]*messages-reading\.js/);
   assert.match(sw, /\/messages-reading\.js/);
   assert.match(sw, new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(vercel, /reading-thread/);

@@ -1,4 +1,4 @@
-/* boot-lazy.js — load non-critical first-page modules after the inbox shell
+/* boot-lazy.js: load non-critical first-page modules after the inbox shell
  * can paint. Those scripts used to sit in <script defer> tags and block
  * DOMContentLoaded (and therefore messages-shell boot) until every one of
  * them downloaded and ran. Keeping them out of the critical defer list cuts
@@ -16,23 +16,24 @@
   }
 
   function loadScripts(nodes) {
-    var chain = Promise.resolve();
+    // Parallel download; preserve document order for execution via async=false
+    // on a single append batch (browser executes in append order when async
+    // is false).
+    var loaders = [];
     Array.prototype.forEach.call(nodes, function (node) {
       if (!node || node.tagName !== "SCRIPT") return;
       var src = node.getAttribute("src");
       if (!src) return;
-      chain = chain.then(function () {
-        return new Promise(function (resolve) {
-          var s = document.createElement("script");
-          s.src = src;
-          s.async = false;
-          s.onload = function () { resolve(); };
-          s.onerror = function () { resolve(); };
-          document.head.appendChild(s);
-        });
-      });
+      loaders.push(new Promise(function (resolve) {
+        var s = document.createElement("script");
+        s.src = src;
+        s.async = false;
+        s.onload = function () { resolve(); };
+        s.onerror = function () { resolve(); };
+        document.head.appendChild(s);
+      }));
     });
-    return chain;
+    return Promise.all(loaders);
   }
 
   function kick() {

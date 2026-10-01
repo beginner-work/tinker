@@ -41,6 +41,10 @@ test("secondary modules ship in the lazy template, not the critical defer list",
   assert.ok(critical.includes("writing.js"));
   assert.ok(critical.includes("boot-lazy.js"));
   for (const lazy of [
+    "messages-notepad.js",
+    "notes-folder.js",
+    "messages-reading.js",
+    "messages-application.js",
     "heatmap.js",
     "wallet.js",
     "email.js",
@@ -74,6 +78,13 @@ test("fonts are brand-only and non-blocking", () => {
   assert.equal(/family=Inter:/.test(html), false);
   assert.equal(/Plus\+Jakarta\+Sans/.test(html), false);
   assert.equal(/SOFT@/.test(html), false);
+});
+
+test("critical inbox CSS is inlined; full stylesheets load async", () => {
+  assert.match(html, /<style>[\s\S]*body\.messages-shell-open \.messages-pane/);
+  assert.match(html, /rel="preload" as="style" href="\.\/styles\.css" data-tinker-async/);
+  assert.match(html, /design-tokens\.css" data-tinker-async/);
+  assert.match(html, /mobile-drawer\.css" data-tinker-async/);
 });
 
 test("inbox refresh does not waterfall reading and applications", () => {
