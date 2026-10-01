@@ -26,7 +26,8 @@ test("left rail is the inbox with no pitch deck chrome", () => {
   assert.equal(/openPitchPanel|pitch-deck-open/.test(js), false);
   assert.equal(/\bTyler\b/.test(html + js), false);
   const settings = fs.readFileSync(path.join(root, "src/renderer/settings/index.html"), "utf8");
-  assert.match(settings, /href="\/story-parts"/);
+  assert.match(settings, /href="\/leads"/);
+  assert.equal(/href="\/story-parts"/.test(settings), false);
 });
 
 test("inbox sidebar styles keep settings gear without pitch panel", () => {

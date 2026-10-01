@@ -91,7 +91,8 @@ test("migration matches, allowlist gates, and no send path", () => {
     + fs.readFileSync(path.join(root, "prisma/migrations/20260929070000_leads_draft_channels/migration.sql"), "utf8")
     + fs.readFileSync(path.join(root, "prisma/migrations/20260929080000_leads_companies_funnel/migration.sql"), "utf8")
     + fs.readFileSync(path.join(root, "prisma/migrations/20260929211000_draft_approved_to_send/migration.sql"), "utf8")
-    + fs.readFileSync(path.join(root, "prisma/migrations/20260929212000_lead_github_url/migration.sql"), "utf8");
+    + fs.readFileSync(path.join(root, "prisma/migrations/20260929212000_lead_github_url/migration.sql"), "utf8")
+    + fs.readFileSync(path.join(root, "prisma/migrations/20261001060000_drop_story_parts/migration.sql"), "utf8");
   for (const statement of store.TABLE_STATEMENTS) assert.ok(migrations.includes(statement), statement.slice(0, 60));
   assert.deepEqual(store.CHANNELS, ["linkedin_post", "linkedin_connection", "gmail_outreach"]);
   const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
@@ -166,7 +167,7 @@ test("draft channels fromAddress settings and mark-sent", async () => {
   assert.equal((await call({ method: "POST", action: "settings", body: { defaultFromAddress: "hunt@example.com" } })).body.settings.defaultFromAddress, "hunt@example.com");
   const created = await call({ method: "POST", action: "create", body: { personName: "Pat Kim", company: "Orbit", source: "posting", email: "pat@orbit.test" } });
   const leadId = created.body.lead.id;
-  const draft = await call({ method: "POST", action: "draft", body: { leadId, channel: "gmail_outreach", subject: "Hello", body: "Quick note.", storyPartIds: ["part_1"] } });
+  const draft = await call({ method: "POST", action: "draft", body: { leadId, channel: "gmail_outreach", subject: "Hello", body: "Quick note." } });
   assert.equal(draft.body.draft.fromAddress, "hunt@example.com");
   assert.equal(draft.body.lead.stage, "drafting");
   const post = await call({ method: "POST", action: "draft", body: { channel: "linkedin_post", body: "Shipping a write-up." } });
