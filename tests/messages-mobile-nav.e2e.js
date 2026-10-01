@@ -234,7 +234,7 @@ async function stubApis(page) {
       body = { facts: [], unverified: [], answerRules: [] };
     } else if (url.includes("/api/autonomy")) {
       body = { settings: [] };
-    } else if (url.includes("/api/story-parts") || url.includes("/api/content")) {
+    } else if (url.includes("/api/content")) {
       body = { parts: [], items: [], stages: [] };
     } else if (url.includes("/api/user-data") || url.includes("/api/profile")) {
       body = {
@@ -437,7 +437,6 @@ describe("mobile front screen never blank (local demos)", () => {
 
 describe("production mobile nav", { skip: !PROD }, () => {
   const destinations = [
-    { name: "Story parts", path: "/story-parts", expect: /Story parts/i, urlRe: /\/story-parts/, shot: "prod-nav-story-parts" },
     { name: "Leads", path: "/leads", expect: /\bLeads\b/, urlRe: /\/leads/, shot: "prod-nav-leads" },
     { name: "Career", path: "/career", expect: /\bCareer\b|fact/i, urlRe: /\/career/, shot: "prod-nav-career" },
     { name: "Autonomy", path: "/autonomy", expect: /\bAutonomy\b/i, urlRe: /\/autonomy/, shot: "prod-nav-autonomy" },

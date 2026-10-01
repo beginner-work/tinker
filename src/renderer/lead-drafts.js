@@ -237,10 +237,6 @@
       }
       bodyInput.addEventListener("input", syncCount); syncCount(); card.appendChild(counter);
     }
-    var parts = Array.isArray(draft.storyPartIds) ? draft.storyPartIds : [];
-    card.appendChild(Object.assign(el("p", "writing-note sidebar__drafts-parts"), {
-      textContent: parts.length ? ("Story parts used: " + parts.join(", ")) : "No story parts recorded on this draft.",
-    }));
     var status = el("p", "writing-note", { role: "status", "aria-live": "polite" }); status.hidden = true; card.appendChild(status);
     body.appendChild(el("div", "writing__stage")).appendChild(card);
     var foot = el("footer", "writing__foot");

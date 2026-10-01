@@ -150,7 +150,7 @@ async function stubApis(page) {
       body = { facts: [], unverified: [], answerRules: [] };
     } else if (url.includes("/api/autonomy")) {
       body = { settings: [] };
-    } else if (url.includes("/api/story-parts") || url.includes("/api/content")) {
+    } else if (url.includes("/api/content")) {
       body = { parts: [], items: [], stages: [] };
     } else {
       body = { ok: true };

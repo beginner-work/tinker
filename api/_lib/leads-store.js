@@ -33,6 +33,7 @@ const TABLE_STATEMENTS = [
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "externalMessageId" TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "failedReason" TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE "LeadDraft" ADD COLUMN IF NOT EXISTS "origin" TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE "LeadDraft" DROP COLUMN IF EXISTS "storyPartIds"`,
 ];
 const DRAFT_STATUSES = ["draft", "approved", "approved_to_send", "sent_by_owner", "send_failed"];
 /** Auto-built from This is everything typed answers. Anything else is hand-edited. */
@@ -93,11 +94,6 @@ function readEnum(value, allowed, label) {
 const { readCalendarDate, presentCalendarDate } = require("./calendar-date.js");
 function readDate(value, label) {
   return readCalendarDate(value, label, { required: false });
-}
-function readIds(value) {
-  if (value == null) return [];
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) throw fail(400, "storyPartIds must be a list of strings.");
-  return value.map((item) => item.trim()).filter(Boolean);
 }
 function readFactCheck(value) {
   if (value == null || value === "") return {};
@@ -223,7 +219,7 @@ function draftPayload(input, actor, leadId, owner, statusOverride, defaultFrom) 
     : "";
   return {
     userId: owner, leadId: leadId || null, channel, subject, body: readText(input.body || input.draftBody, "body", 100000, false),
-    fromAddress, status, storyPartIds: readIds(input.storyPartIds), factCheck: readFactCheck(input.factCheck),
+    fromAddress, status, factCheck: readFactCheck(input.factCheck),
     createdBy: actor, origin,
   };
 }
@@ -753,14 +749,13 @@ async function updateDraft({ id, userId, emailHint, actor, patch }) {
   assertAllowed(owner, emailHint);
   const label = actorLabel(actor);
   const source = patch && typeof patch === "object" && !Array.isArray(patch) ? patch : {};
-  const keys = ["subject", "body", "storyPartIds", "factCheck", "fromAddress"].filter((key) => Object.prototype.hasOwnProperty.call(source, key));
+  const keys = ["subject", "body", "factCheck", "fromAddress"].filter((key) => Object.prototype.hasOwnProperty.call(source, key));
   if (!keys.length) throw fail(400, "Nothing to update.");
   await ensureTable();
   const row = await loadOwned("leadDraft", id, owner, "draft");
   if (row.status === "sent_by_owner") throw fail(400, "A sent draft cannot be edited.");
   const data = {};
   if (keys.includes("body")) data.body = readText(source.body, "body", 100000, false);
-  if (keys.includes("storyPartIds")) data.storyPartIds = readIds(source.storyPartIds);
   if (keys.includes("factCheck")) data.factCheck = readFactCheck(source.factCheck);
   if (keys.includes("fromAddress")) data.fromAddress = readText(source.fromAddress, "fromAddress", 320, false).toLowerCase();
   if (keys.includes("subject")) {
@@ -997,7 +992,6 @@ async function saveOutreachDraft({
           body: text,
           fromAddress: mapped === "gmail_outreach" ? (settings.defaultFromAddress || "") : "",
           status: "draft",
-          storyPartIds: [],
           factCheck: {},
           createdBy: label,
           origin: "",
