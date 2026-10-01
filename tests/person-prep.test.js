@@ -77,7 +77,8 @@ test("prep preamble stays out of the thread UI but reaches Keep crafting prompts
   assert.ok(opening, "buildOpening present");
   assert.equal(/appendChild\(preamble\)/.test(opening[0]), false);
   assert.equal(/messages-notepad__section/.test(opening[0]), false);
-  assert.match(js, /Prep context:/);
+  // #416 labels prep as light background; fallback and interview-prompt both keep it.
+  assert.match(js, /Prep context(?: \(light background only\))?:/);
   assert.match(js, /prepContext\.slice\(0,\s*1200\)|prepContext/);
   // Serialization still keeps preamble in stored notes for MCP / prompts.
   assert.match(js, /serializeNotes\(state\.preamble/);
