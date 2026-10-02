@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://vercel.live wss://ws-us3.pusher.com; script-src 'self' https://vercel.live; frame-src https://vercel.live https://www.beginner.work https://beginner.work; manifest-src 'self' data: blob:;" />
+          content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://vercel.live wss://ws-us3.pusher.com; script-src 'self' https://vercel.live; frame-src https://vercel.live https://www.beginner.work https://beginner.work; manifest-src 'self' data: blob:;" />
     <title>tinker</title>
     <!-- Belt + suspenders: this tag tells well-behaved crawlers not to
          index the app; the X-Robots-Tag header in vercel.json catches
@@ -234,8 +234,7 @@
 
     <!-- First-login profile capture. Shown by profile.js to any web account
          without a profile blob (claim tokens pre-fill the same row, so this
-         is the single source of truth). The avatar is downscaled to a data
-         URL and stored in the profile row. -->
+         is the single source of truth). Initials only — no photo upload. -->
     <div id="profile-onboarding" class="onboarding" hidden>
       <div class="onboarding__inner">
         <div class="onboarding__brand" aria-hidden="true">
@@ -251,25 +250,8 @@
           </svg>
         </div>
         <h1 class="onboarding__title">Set up your profile</h1>
-        <p class="onboarding__lede">A photo and your name, so your writing has an author.</p>
+        <p class="onboarding__lede">Your name, so your writing has an author.</p>
         <form id="onboarding-form" class="onboarding__form" novalidate>
-          <label class="onboarding__photo">
-            <span class="onboarding__avatar">
-              <img class="onboarding__avatar-img" alt="" hidden />
-              <span class="onboarding__avatar-ph" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
-                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
-                  <circle cx="12" cy="13" r="3"></circle>
-                </svg>
-              </span>
-            </span>
-            <span class="onboarding__photo-text">
-              <span class="onboarding__photo-title">Profile picture</span>
-              <span class="onboarding__photo-hint">Tap to add a photo</span>
-            </span>
-            <input id="onboarding-avatar" type="file" accept="image/*" />
-          </label>
           <input id="onboarding-name" class="onboarding__input" type="text"
                  placeholder="Your name" autocomplete="name" maxlength="80" />
           <input id="onboarding-email" class="onboarding__input" type="email"

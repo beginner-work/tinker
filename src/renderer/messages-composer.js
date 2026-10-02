@@ -195,17 +195,16 @@
     return { preamble: preamble, transcript: transcript, pending: pending, queue: queue, draft: "", done: false };
   }
   function logoMark(company) {
-    var wrap = el("span", "messages-notepad__mark", { "aria-hidden": "true" });
-    var domain = String(company && company.domain || "").trim().toLowerCase().replace(/^www\./, "");
-    if (!domain) { wrap.hidden = true; return wrap; }
-    var img = el("img", "messages-notepad__mark-img", {
-      src: "https://icons.duckduckgo.com/ip3/" + encodeURIComponent(domain) + ".ico",
-      alt: "",
-      width: "18",
-      height: "18",
+    var wrap = el("span", "messages-notepad__mark messages-notepad__mark--initials", {
+      "aria-hidden": "true",
     });
-    img.addEventListener("error", function () { wrap.hidden = true; wrap.innerHTML = ""; });
-    wrap.appendChild(img);
+    var name = String(company && company.name || "").trim();
+    var parts = name.split(/\s+/).filter(Boolean);
+    var letters = !parts.length ? "?"
+      : parts.length === 1 ? parts[0].slice(0, 2).toUpperCase()
+      : (parts[0][0] + parts[1][0]).toUpperCase();
+    wrap.textContent = letters;
+    if (!name) wrap.hidden = true;
     return wrap;
   }
   function appendTurns(opening) {

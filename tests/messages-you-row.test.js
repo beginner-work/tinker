@@ -38,13 +38,14 @@ test("desktop home lands on You/self-reflection immediately; mobile stays on lis
 
 test("You row and header use the owner profile name, not the brand label", () => {
   assert.match(shell, /ownerPersonLabel|ownerPersonName/);
-  assert.match(shell, /fillOwnerMark|messages-avatar__img/);
+  assert.match(shell, /fillOwnerMark|messages-rail__avatar--fallback/);
   assert.match(html, /data-messages-avatar/);
   // Header prefers profile.name (Tyler Lindow), not OWNER_LABEL / Lindow Labs.
   assert.match(you, /ownerProfile/);
   assert.match(you, /p\.name/);
   assert.equal(/shell\.OWNER_LABEL/.test(you), false);
-  assert.match(you, /lindow-labs\.svg|OWNER_LOGO|avatarUrl/);
+  assert.match(you, /ownerInitials|messages-rail__avatar--fallback/);
+  assert.equal(/createElement\(\s*["']img["']\)/.test(you), false);
   assert.match(you, /purge_plan/);
   assert.match(you, /data-messages-links/);
   assert.match(demo, /Tyler Lindow/);

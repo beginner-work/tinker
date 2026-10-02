@@ -165,7 +165,7 @@ test("action=inbox returns leads, drafts, companies, touches, and profile in one
   assert.equal(out.body.profile.linkedInUrl, "https://www.linkedin.com/in/tyler-owner");
 });
 
-test("shell uses batched inbox + local snapshot cache + deferred logos", () => {
+test("shell uses batched inbox + local snapshot cache without remote logos", () => {
   const root = path.join(__dirname, "..");
   const js = fs.readFileSync(path.join(root, "src/renderer/messages-shell.js"), "utf8");
   const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
@@ -173,9 +173,9 @@ test("shell uses batched inbox + local snapshot cache + deferred logos", () => {
   assert.match(js, /tinker\.inboxSnapshot/);
   assert.match(js, /readInboxCache/);
   assert.match(js, /writeInboxCache/);
-  assert.match(js, /deferLogoFill|requestIdleCallback/);
-  // hideOnFail slots start hidden; lazy never fetches there, so those logos are eager.
-  assert.match(js, /opts\.hideOnFail\s*\?\s*["']eager["']\s*:\s*["']lazy["']/);
+  assert.match(js, /fillInitials|messages-rail__avatar--fallback/);
+  assert.equal(/deferLogoFill/.test(js), false);
+  assert.equal(/icons\.duckduckgo\.com/.test(js), false);
   assert.match(sw, new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(sw, /messages-notepad\.js/);
   assert.match(sw, /networkFirstAsset/);

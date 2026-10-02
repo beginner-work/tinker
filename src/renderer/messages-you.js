@@ -32,16 +32,11 @@
     } catch (e) { /* ignore */ }
     return "Owner";
   }
-  function ownerLogo() {
-    try {
-      var shell = window.tinkerMessagesShell;
-      if (shell && typeof shell.ownerProfile === "function") {
-        var p = shell.ownerProfile();
-        if (p && p.avatarUrl) return p.avatarUrl;
-      }
-      if (shell && shell.OWNER_LOGO) return shell.OWNER_LOGO;
-    } catch (e) { /* ignore */ }
-    return "./icons/lindow-labs.svg";
+  function ownerInitials(name) {
+    var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "?";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
   }
   function ownerTitle() {
     try {
@@ -90,12 +85,9 @@
     if (avatar) {
       avatar.hidden = false;
       avatar.innerHTML = "";
-      var img = document.createElement("img");
-      img.className = "messages-avatar__img";
-      img.src = ownerLogo();
-      img.alt = ownerName();
-      avatar.appendChild(img);
-      avatar.classList.add("messages-avatar--photo", "messages-avatar--brand");
+      avatar.classList.remove("messages-avatar--photo", "messages-avatar--brand");
+      avatar.classList.add("messages-rail__avatar--fallback");
+      avatar.textContent = ownerInitials(ownerName());
     }
   }
   function token() {

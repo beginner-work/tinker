@@ -1,15 +1,11 @@
 /* Sidebar hunt funnel above Drafts. Uses GET /api/leads?action=funnel.
- * Logos: DuckDuckGo Icons (https://icons.duckduckgo.com/ip3/{domain}.ico)
- * — free, no API key, no account. Privacy policy:
- * https://duckduckgo.com/privacy. Fallback to initials on error.
- * Cache keys in localStorage. Tinker never sends.
+ * Company marks are text initials only — no remote favicons or logos.
+ * Tinker never sends.
  */
 (function () {
   "use strict";
   if (typeof document === "undefined") return;
   var TOKEN_KEY = "tinker_jwt";
-  var LOGO_CACHE_KEY = "tinker.funnelLogos.v1";
-  var LOGO_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   var state = { companies: [], loading: false, error: "" };
   var root = null;
 
@@ -29,20 +25,6 @@
         return payload;
       });
     });
-  }
-  function loadLogoCache() {
-    try {
-      var raw = localStorage.getItem(LOGO_CACHE_KEY);
-      var parsed = raw ? JSON.parse(raw) : {};
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch (e) { return {}; }
-  }
-  function saveLogoCache(cache) {
-    try { localStorage.setItem(LOGO_CACHE_KEY, JSON.stringify(cache)); } catch (e) { /* ignore */ }
-  }
-  function logoUrl(domain) {
-    var d = String(domain || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
-    return d ? ("https://icons.duckduckgo.com/ip3/" + encodeURIComponent(d) + ".ico") : "";
   }
   function initials(name) {
     var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
@@ -76,37 +58,10 @@
     }
   }
   function logoNode(company, large) {
-    var wrap = el("span", "sidebar__funnel-logo" + (large ? " sidebar__funnel-logo--lg" : ""), {
-      role: "img", "aria-label": (company.name || "Company") + " logo",
+    var wrap = el("span", "sidebar__funnel-logo sidebar__funnel-logo--fallback" + (large ? " sidebar__funnel-logo--lg" : ""), {
+      role: "img", "aria-label": (company.name || "Company") + " initials",
     });
-    var domain = company.domain || "";
-    var url = logoUrl(domain);
-    var cache = loadLogoCache();
-    var hit = cache[domain];
-    var now = Date.now();
-    function showInitials() {
-      wrap.textContent = initials(company.name);
-      wrap.classList.add("sidebar__funnel-logo--fallback");
-    }
-    if (!url) { showInitials(); return wrap; }
-    if (hit && hit.failed && now - hit.at < LOGO_TTL_MS) { showInitials(); return wrap; }
-    if (hit && hit.ok && now - hit.at < LOGO_TTL_MS) {
-      var imgCached = el("img", "", { src: url, alt: "" });
-      imgCached.addEventListener("error", function () {
-        cache[domain] = { failed: true, at: Date.now() }; saveLogoCache(cache);
-        wrap.innerHTML = ""; showInitials();
-      });
-      wrap.appendChild(imgCached); return wrap;
-    }
-    var img = el("img", "", { src: url, alt: "" });
-    img.addEventListener("load", function () {
-      cache[domain] = { ok: true, at: Date.now() }; saveLogoCache(cache);
-    });
-    img.addEventListener("error", function () {
-      cache[domain] = { failed: true, at: Date.now() }; saveLogoCache(cache);
-      wrap.innerHTML = ""; showInitials();
-    });
-    wrap.appendChild(img);
+    wrap.textContent = initials(company.name);
     return wrap;
   }
   function slotButton(label, lead, emptyPrompt) {

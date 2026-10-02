@@ -2,7 +2,7 @@
  * Left rail: owner row, then one flat list ranked by priority
  * (deadlines → warm follow-ups → prep → cold outreach).
  * Opening a person goes straight to their chat (invisible notepad).
- * Company logo badges the person avatar; research opens in the chat.
+ * Avatars are text initials only — no remote logos, favicons, or photos.
  */
 (function () {
   "use strict";
@@ -30,12 +30,9 @@
   var READING_PREFIX = "__read__:";
   var APPLICATION_PREFIX = "__app__:";
   var OWNER_LABEL = "Lindow Labs";
+  // Bundled brand mark kept for tests / exports; never loaded as an <img>.
   var OWNER_LOGO = "./icons/lindow-labs.svg";
-  var LOGO_CACHE_KEY = "tinker.companyLogos.v1";
-  var LOGO_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   var INBOX_CACHE_KEY = "tinker.inboxSnapshot.v2";
-  var logoIdleQueued = false;
-  var pendingLogoFills = [];
   var state = {
     leads: [],
     drafts: [],
@@ -491,20 +488,6 @@
     items.sort(compareRanked);
     return items;
   }
-  function loadLogoCache() {
-    try {
-      var raw = localStorage.getItem(LOGO_CACHE_KEY);
-      var parsed = raw ? JSON.parse(raw) : {};
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch (e) { return {}; }
-  }
-  function saveLogoCache(cache) {
-    try { localStorage.setItem(LOGO_CACHE_KEY, JSON.stringify(cache)); } catch (e) { /* ignore */ }
-  }
-  function logoUrl(domain) {
-    var d = String(domain || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
-    return d ? ("https://icons.duckduckgo.com/ip3/" + encodeURIComponent(d) + ".ico") : "";
-  }
   function companyInitials(name) {
     var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
     if (!parts.length) return "?";
@@ -527,108 +510,40 @@
     }
     return null;
   }
-  function runPendingLogoFills() {
-    logoIdleQueued = false;
-    var jobs = pendingLogoFills.splice(0, pendingLogoFills.length);
-    jobs.forEach(function (job) {
-      try { job(); } catch (e) { /* ignore */ }
-    });
-  }
-  function deferLogoFill(fn) {
-    pendingLogoFills.push(fn);
-    if (logoIdleQueued) return;
-    logoIdleQueued = true;
-    var kick = typeof requestIdleCallback === "function"
-      ? function (cb) { requestIdleCallback(cb, { timeout: 400 }); }
-      : function (cb) { setTimeout(cb, 0); };
-    // Paint the rail text first; logos fill on the next idle frame.
-    requestAnimationFrame(function () { kick(runPendingLogoFills); });
+  function fillInitials(node, letters) {
+    if (!node) return;
+    node.innerHTML = "";
+    node.classList.remove("messages-avatar--photo", "messages-avatar--brand");
+    node.classList.add("messages-rail__avatar--fallback");
+    node.hidden = false;
+    node.textContent = letters || "?";
   }
   function fillCompanyLogo(node, company, opts) {
     opts = opts || {};
     if (!node) return;
-    node.innerHTML = "";
-    node.classList.remove("messages-avatar--photo", "messages-avatar--brand", "messages-rail__avatar--fallback");
-    node.hidden = false;
-    var domain = (company && company.domain) || "";
-    var url = logoUrl(domain);
-    var cache = loadLogoCache();
-    var hit = domain ? cache[domain] : null;
-    var now = Date.now();
-    function fail() {
-      node.innerHTML = "";
-      node.classList.remove("messages-avatar--photo");
-      if (opts.hideOnFail) node.hidden = true;
-      if (typeof opts.onReady === "function") opts.onReady(false);
-    }
-    // No monogram fallback - only a resolved logo, else nothing.
-    if (!url) { fail(); return; }
-    if (hit && hit.failed && now - hit.at < LOGO_TTL_MS) { fail(); return; }
-    // Reserve the badge slot so deferred logo loads do not shift the rail.
-    if (opts.hideOnFail) node.hidden = true;
-    function attach() {
-      if (!node.isConnected) return;
-      var img = el("img", "messages-avatar__img", {
-        alt: "",
-        // hideOnFail keeps the slot hidden until load; lazy images in a
-        // hidden parent often never fetch, so those logos must be eager.
-        loading: opts.hideOnFail ? "eager" : "lazy",
-        decoding: "async",
-      });
-      img.addEventListener("load", function () {
-        if (domain) { cache[domain] = { ok: true, at: Date.now() }; saveLogoCache(cache); }
-        node.hidden = false;
-        if (typeof opts.onReady === "function") opts.onReady(true);
-      });
-      img.addEventListener("error", function () {
-        if (domain) { cache[domain] = { failed: true, at: Date.now() }; saveLogoCache(cache); }
-        fail();
-      });
-      node.appendChild(img);
-      node.classList.add("messages-avatar--photo");
-      img.src = url;
-    }
-    if (opts.eager) attach();
-    else deferLogoFill(attach);
+    // Text initials only — never fetch favicons or remote logos.
+    fillInitials(node, companyInitials(company && company.name));
+    if (typeof opts.onReady === "function") opts.onReady(true);
   }
   function ownerPersonLabel() {
     return state.ownerPersonName || "Owner";
   }
   function fillOwnerMark(node, opts) {
     opts = opts || {};
-    node.innerHTML = "";
-    node.classList.remove("messages-avatar--photo", "messages-avatar--brand", "messages-rail__avatar--fallback");
-    node.hidden = false;
-    var alt = opts.alt || ownerPersonLabel();
-    var url = state.ownerAvatarUrl || "";
-    // Owner row keeps the real profile photo only - no initials fallback.
-    if (!url) {
-      node.hidden = true;
-      return;
-    }
-    var img = el("img", "messages-avatar__img", { src: url, alt: alt });
-    img.addEventListener("error", function () {
-      node.innerHTML = "";
-      node.classList.remove("messages-avatar--photo");
-      node.hidden = true;
-    });
-    node.appendChild(img);
-    node.classList.add("messages-avatar--photo");
+    if (!node) return;
+    var label = opts.alt || ownerPersonLabel();
+    fillInitials(node, personInitials(label));
   }
   function fillPersonAvatar(node, lead) {
-    // Person rows: only a small company logo when it resolves. No circle, no monogram.
-    node.innerHTML = "";
-    node.classList.remove("messages-avatar--photo", "messages-rail__avatar--fallback");
-    node.hidden = false;
-    var company = companyForLead(lead);
-    if (!company) {
-      node.hidden = true;
+    // Person rows: initials from the person name (no remote company favicon).
+    if (!node) return;
+    var name = lead && String(lead.personName || "").trim();
+    if (!name) {
+      var company = companyForLead(lead);
+      fillInitials(node, companyInitials(company && company.name));
       return;
     }
-    fillCompanyLogo(node, company, {
-      hideOnFail: true,
-      onReady: function (ok) { node.hidden = !ok; },
-    });
+    fillInitials(node, personInitials(name));
   }
   function showPane() {
     if (!pane) return;

@@ -1,12 +1,13 @@
 /* profile.js — claim the landing-form profile, run first-login onboarding
- * for everyone else, and show the founder's avatar in the top-right corner.
+ * for everyone else, and keep the founder's initials mark wired (corner UI
+ * stays hidden; no runtime photo loading).
  *
  * Flow after sign-in (auth.js dispatches tinker:auth-changed) and on every
  * resume (page load with a stored token):
  *   1. exchange any parked claim token for the stashed profile
  *      (POST /api/profile/claim — first write wins, single-use), else
  *   2. read the canonical profile (GET /api/user-data/profile);
- *   3a. if a profile exists → render the avatar top-right;
+ *   3a. if a profile exists → wire initials (corner remains hidden);
  *   3b. if it's definitively missing (and we're on the web gate) → park the
  *       capture and fire `tinker:profile-needed` instead of interrupting.
  *       Founders try the product first: renderer.js calls runOnboarding()
@@ -16,8 +17,7 @@
  *       writes, then renders.
  *
  * Source of truth: every path ends at one profile blob in the shared
- * TinkerUserData store. The in-app photo is a downscaled data: URL kept in
- * that row (well under the 256 KB cap) — no separate blob store on tinker.
+ * TinkerUserData store. Photos are not loaded at runtime — initials only.
  *
  * Everything is best-effort and same-origin (CSP connect-src 'self').
  */
@@ -28,7 +28,6 @@
   var TOKEN_KEY = "tinker_jwt";
   var CLAIM_KEY = "tinker_claim";
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  var AVATAR_MAX = 384; // px, longest edge
 
   function read(key) {
     try { return localStorage.getItem(key) || ""; } catch { return ""; }
@@ -40,7 +39,7 @@
     return { Authorization: "Bearer " + token };
   }
   // Onboarding only belongs on the plain web sign-in gate. Electron
-  // authenticates differently; we still render an avatar there if a profile
+  // authenticates differently; we still wire initials there if a profile
   // happens to exist, but never force the capture screen.
   function isWebGate() {
     try {
@@ -93,29 +92,6 @@
     });
   }
 
-  // Shrink an image file to a small JPEG data URL that fits the profile
-  // row's 256 KB cap and renders anywhere (CSP img-src allows data:).
-  function downscale(file) {
-    return new Promise(function (resolve, reject) {
-      var url = URL.createObjectURL(file);
-      var img = new Image();
-      img.onload = function () {
-        URL.revokeObjectURL(url);
-        var scale = Math.min(1, AVATAR_MAX / Math.max(img.width, img.height));
-        var w = Math.max(1, Math.round(img.width * scale));
-        var h = Math.max(1, Math.round(img.height * scale));
-        var canvas = document.createElement("canvas");
-        canvas.width = w; canvas.height = h;
-        var ctx = canvas.getContext("2d");
-        if (!ctx) { reject(new Error("no-canvas")); return; }
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", 0.72));
-      };
-      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("bad-image")); };
-      img.src = url;
-    });
-  }
-
   // ── Avatar render (top-right) ───────────────────────────────────────
   function initial(name, email) {
     var s = (name || email || "").trim();
@@ -139,21 +115,14 @@
     if (emailEl) emailEl.textContent = email;
     if (btn) btn.setAttribute("aria-label", name ? "Your profile: " + name : "Your profile");
 
-    if (img && profile.avatarUrl) {
-      img.alt = name ? name + "’s profile picture" : "";
-      img.onload = function () {
-        img.removeAttribute("hidden");
-        if (ini) ini.setAttribute("hidden", "");
-      };
-      img.onerror = function () {
-        img.setAttribute("hidden", "");
-        if (ini) { ini.textContent = initial(name, email); ini.removeAttribute("hidden"); }
-      };
-      img.src = profile.avatarUrl;
-    } else if (ini) {
+    // Never load avatarUrl / remote photos — initials only.
+    if (img) {
+      img.removeAttribute("src");
+      img.setAttribute("hidden", "");
+    }
+    if (ini) {
       ini.textContent = initial(name, email);
       ini.removeAttribute("hidden");
-      if (img) img.setAttribute("hidden", "");
     }
 
     // Top-right profile avatar removed: keep the corner hidden and do not
@@ -215,9 +184,9 @@
       }
       // "Send an email" — compose mail sent from the founder's beginner.work
       // address (see email.js). No-op if the module didn't load.
-      var email = document.getElementById("profile-email");
-      if (email) {
-        email.addEventListener("click", function () {
+      var emailBtn = document.getElementById("profile-email");
+      if (emailBtn) {
+        emailBtn.addEventListener("click", function () {
           pop.setAttribute("hidden", "");
           btn.setAttribute("aria-expanded", "false");
           if (window.tinkerEmail && typeof window.tinkerEmail.open === "function") {
@@ -249,15 +218,11 @@
     var gate = document.getElementById("profile-onboarding");
     if (!gate) return;
     var form = document.getElementById("onboarding-form");
-    var fileInput = document.getElementById("onboarding-avatar");
     var nameInput = document.getElementById("onboarding-name");
     var emailInput = document.getElementById("onboarding-email");
     var saveBtn = document.getElementById("onboarding-save");
     var errEl = document.getElementById("onboarding-error");
-    var avatarImg = gate.querySelector(".onboarding__avatar-img");
-    var avatarPh = gate.querySelector(".onboarding__avatar-ph");
-    var hint = gate.querySelector(".onboarding__photo-hint");
-    if (!form || !fileInput || !nameInput) return;
+    if (!form || !nameInput) return;
 
     gate.removeAttribute("hidden");
     document.documentElement.classList.add("onboarding-active");
@@ -266,32 +231,11 @@
     if (onboardingBound) return;
     onboardingBound = true;
 
-    var previewUrl = null;
-    var pendingAvatar = null; // downscaled data URL once a file is chosen
-
     function setError(msg) {
       if (!errEl) return;
       errEl.textContent = msg || "";
       if (msg) errEl.removeAttribute("hidden"); else errEl.setAttribute("hidden", "");
     }
-
-    fileInput.addEventListener("change", function () {
-      setError("");
-      var file = fileInput.files && fileInput.files[0];
-      if (!file) return;
-      if (avatarImg) {
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
-        previewUrl = URL.createObjectURL(file);
-        avatarImg.src = previewUrl;
-        avatarImg.removeAttribute("hidden");
-        if (avatarPh) avatarPh.setAttribute("hidden", "");
-      }
-      if (hint) hint.textContent = file.name;
-      pendingAvatar = null;
-      downscale(file)
-        .then(function (dataUrl) { pendingAvatar = dataUrl; })
-        .catch(function () { setError("That image couldn’t be read — try another."); });
-    });
 
     form.addEventListener("submit", function (e) {
       e.preventDefault();
@@ -299,32 +243,24 @@
       var name = (nameInput.value || "").trim();
       var email = (emailInput && emailInput.value || "").trim();
       if (!name) { setError("Add your name so your writing has an author."); nameInput.focus(); return; }
-      if (!(fileInput.files && fileInput.files.length)) { setError("Add a profile picture — this is you, founder."); return; }
       if (email && !EMAIL_RE.test(email)) { setError("That doesn’t look like an email address."); emailInput.focus(); return; }
 
       saveBtn.disabled = true;
       var prev = saveBtn.textContent;
       saveBtn.textContent = "Saving…";
 
-      var ready = pendingAvatar
-        ? Promise.resolve(pendingAvatar)
-        : downscale(fileInput.files[0]);
+      var profile = {
+        name: name,
+        email: email,
+        avatarUrl: "",
+        createdAt: new Date().toISOString(),
+      };
 
-      ready
-        .then(function (avatarUrl) {
-          var profile = {
-            name: name,
-            email: email,
-            avatarUrl: avatarUrl,
-            createdAt: new Date().toISOString(),
-          };
-          return saveProfile(token, profile);
-        })
-        .then(function (profile) {
-          if (previewUrl) URL.revokeObjectURL(previewUrl);
+      saveProfile(token, profile)
+        .then(function (saved) {
           gate.setAttribute("hidden", "");
           document.documentElement.classList.remove("onboarding-active");
-          render(profile);
+          render(saved);
           pendingToken = null;
           var cb = onSavedCb;
           onSavedCb = null;
