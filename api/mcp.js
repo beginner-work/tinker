@@ -100,10 +100,11 @@ const INSTRUCTIONS = [
   "Per company: warm referral ask, then eng-lead peer outreach (never mention applying), then the application item,",
   "then recruiter outreach after the application is marked done (\"I just applied for X\").",
   "Sent people and closed leads are omitted. Prefer list_inbox over scanning list_target_companies for what to do next.",
-  "Call create_application to add a job application inbox item (roleTitle, companyName, optional postingUrl, payRange, fitNotes, referrer).",
-  "Call update_application to change fields. Call list_applications to read them. Call mark_application_done when the owner applied;",
+  "Call create_application to add a job application inbox item (roleTitle, companyName, optional postingUrl, payRange, fitNotes, referrer, stage, appliedAt).",
+  "Call update_application to change fields. Call list_applications to read them (optional status or stage filter). Call mark_application_done when the owner applied;",
   "that bumps the company's recruiter outreach due date by 1 business day. Status open|done|dropped - dropped means decided not to apply",
-  "(not a sent application, no follow-ups); dropped apps never appear in list_inbox. Do not invent applications for Tyler unless asked.",
+  "(not a sent application, no follow-ups); dropped apps never appear in list_inbox. Pipeline stage is applied|screening|interviewing|offer|rejected|withdrawn|closed.",
+  "Do not invent applications for Tyler unless asked.",
   "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
   "Prefer those lead tools over dumping GTM prose into the You thread.",
   "Call save_outreach_draft to put a composed email or LinkedIn message into a person's chat for the owner to review.",
@@ -1076,7 +1077,9 @@ const CREATE_APPLICATION_TOOL = {
   description: [
     "Create a job application inbox item for this connector user.",
     "Pass roleTitle and companyName. Optional: companyId, postingUrl, payRange,",
-    "fitNotes, referrerPersonId, referrerName, status (open|done|dropped).",
+    "fitNotes, referrerPersonId, referrerName, status (open|done|dropped),",
+    "stage (applied|screening|interviewing|offer|rejected|withdrawn|closed),",
+    "appliedAt (YYYY-MM-DD). stageUpdatedAt is set automatically when stage is set.",
     "dropped means decided not to apply; not a sent application, no follow-ups.",
     "Shows in the flat inbox next to that company's outreach (after eng-lead peer outreach).",
     "Dropped apps do not appear in the inbox. Does not load or invent Tyler's roles unless you pass them.",
@@ -1099,6 +1102,15 @@ const CREATE_APPLICATION_TOOL = {
         enum: ["open", "done", "dropped"],
         description: "Defaults to open. dropped = decided not to apply (not sent, no follow-ups).",
       },
+      stage: {
+        type: "string",
+        enum: ["applied", "screening", "interviewing", "offer", "rejected", "withdrawn", "closed"],
+        description: "Pipeline stage. closed = role filled or closed by the employer.",
+      },
+      appliedAt: {
+        type: "string",
+        description: "Date the application was submitted (YYYY-MM-DD).",
+      },
     },
     required: ["roleTitle", "companyName"],
   },
@@ -1111,7 +1123,9 @@ const UPDATE_APPLICATION_TOOL = {
   description: [
     "Update fields on an existing job application. Pass applicationId plus any of:",
     "roleTitle, companyName, companyId, postingUrl, payRange, fitNotes,",
-    "referrerPersonId, referrerName, status (open|done|dropped).",
+    "referrerPersonId, referrerName, status (open|done|dropped),",
+    "stage (applied|screening|interviewing|offer|rejected|withdrawn|closed),",
+    "appliedAt (YYYY-MM-DD). stageUpdatedAt is set automatically when stage changes.",
     "dropped means decided not to apply; not a sent application, no follow-ups.",
     "Omitted fields are left unchanged. A user id in args is ignored.",
   ].join(" "),
@@ -1133,6 +1147,15 @@ const UPDATE_APPLICATION_TOOL = {
         enum: ["open", "done", "dropped"],
         description: "dropped = decided not to apply (not sent, no follow-ups).",
       },
+      stage: {
+        type: "string",
+        enum: ["applied", "screening", "interviewing", "offer", "rejected", "withdrawn", "closed"],
+        description: "Pipeline stage. closed = role filled or closed by the employer.",
+      },
+      appliedAt: {
+        type: "string",
+        description: "Date the application was submitted (YYYY-MM-DD). Empty clears.",
+      },
     },
     required: ["applicationId"],
   },
@@ -1144,7 +1167,9 @@ const LIST_APPLICATIONS_TOOL = {
   title: "List job applications",
   description: [
     "List this connector user's job application inbox items.",
-    "Optional status filter (open|done|dropped).",
+    "Optional status filter (open|done|dropped) and stage filter",
+    "(applied|screening|interviewing|offer|rejected|withdrawn|closed).",
+    "Returns stage, appliedAt, and stageUpdatedAt with each application.",
     "dropped means decided not to apply; not a sent application, no follow-ups.",
     "Read-only. A user id in args is ignored.",
   ].join(" "),
@@ -1156,6 +1181,11 @@ const LIST_APPLICATIONS_TOOL = {
         type: "string",
         enum: ["open", "done", "dropped"],
         description: "Optional status filter. dropped = decided not to apply.",
+      },
+      stage: {
+        type: "string",
+        enum: ["applied", "screening", "interviewing", "offer", "rejected", "withdrawn", "closed"],
+        description: "Optional pipeline stage filter.",
       },
     },
   },
@@ -2374,6 +2404,7 @@ async function listApplicationsCall(msg, user, args) {
     const applications = await jobApplications.listApplications({
       userId,
       status: args && args.status,
+      stage: args && args.stage,
     });
     return contentToolOk(msg, { applications });
   } catch (err) {

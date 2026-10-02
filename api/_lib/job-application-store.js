@@ -10,10 +10,20 @@
 
 const crypto = require("crypto");
 const { addBusinessDays, dayKey } = require("./business-days.js");
+const { readCalendarDate, presentCalendarDate } = require("./calendar-date.js");
 
 const KIND = "job_applications";
 const UNAVAILABLE = "Job applications are unavailable right now.";
 const STATUSES = ["open", "done", "dropped"];
+const STAGES = [
+  "applied",
+  "screening",
+  "interviewing",
+  "offer",
+  "rejected",
+  "withdrawn",
+  "closed",
+];
 const MAX_ROLE = 200;
 const MAX_COMPANY = 200;
 const MAX_URL = 2000;
@@ -73,6 +83,30 @@ function readStatus(value, required) {
   return found;
 }
 
+function readStage(value, required) {
+  if (value == null || value === "") {
+    if (required) throw fail(400, "stage is required.");
+    return null;
+  }
+  const found = String(value).trim().toLowerCase();
+  if (!STAGES.includes(found)) {
+    throw fail(400, "stage must be " + STAGES.join(", ") + ".");
+  }
+  return found;
+}
+
+function readAppliedAt(value) {
+  if (value == null || value === "") return null;
+  const date = readCalendarDate(value, "appliedAt", { required: true });
+  return presentCalendarDate(date);
+}
+
+function presentStage(row) {
+  if (row.stage == null || row.stage === "") return null;
+  const found = String(row.stage).trim().toLowerCase();
+  return STAGES.includes(found) ? found : null;
+}
+
 function presentApplication(row) {
   return {
     id: row.id,
@@ -85,6 +119,9 @@ function presentApplication(row) {
     referrerPersonId: row.referrerPersonId || "",
     referrerName: row.referrerName || "",
     status: normalizeStatus(row.status),
+    stage: presentStage(row),
+    appliedAt: row.appliedAt ? presentCalendarDate(row.appliedAt) : null,
+    stageUpdatedAt: row.stageUpdatedAt || null,
     doneAt: row.doneAt || null,
     droppedAt: row.droppedAt || null,
     createdAt: row.createdAt,
@@ -120,13 +157,18 @@ function findApp(applications, applicationId) {
   return row;
 }
 
-async function listApplications({ userId, status } = {}) {
+async function listApplications({ userId, status, stage } = {}) {
   try {
     const uid = requireUserId(userId);
     const { applications } = await readBlob(uid);
-    const filter = status ? readStatus(status, true) : "";
+    const statusFilter = status ? readStatus(status, true) : "";
+    const stageFilter = stage ? readStage(stage, true) : null;
     return applications
-      .filter((row) => !filter || normalizeStatus(row.status) === filter)
+      .filter((row) => {
+        if (statusFilter && normalizeStatus(row.status) !== statusFilter) return false;
+        if (stageFilter && presentStage(row) !== stageFilter) return false;
+        return true;
+      })
       .map(presentApplication);
   } catch (err) {
     throw storeDown(err);
@@ -157,6 +199,11 @@ async function createApplication(input = {}) {
     const status = input.status != null && input.status !== ""
       ? readStatus(input.status, true)
       : "open";
+    const hasStage = Object.prototype.hasOwnProperty.call(input, "stage")
+      && input.stage != null && input.stage !== "";
+    const stage = hasStage ? readStage(input.stage, true) : null;
+    const hasAppliedAt = Object.prototype.hasOwnProperty.call(input, "appliedAt");
+    const appliedAt = hasAppliedAt ? readAppliedAt(input.appliedAt) : null;
     const now = new Date().toISOString();
     const row = {
       id: newAppId(),
@@ -169,6 +216,9 @@ async function createApplication(input = {}) {
       referrerPersonId,
       referrerName,
       status,
+      stage,
+      appliedAt,
+      stageUpdatedAt: stage ? now : null,
       doneAt: status === "done" ? now : null,
       droppedAt: status === "dropped" ? now : null,
       createdAt: now,
@@ -228,6 +278,17 @@ async function updateApplication({ userId, applicationId, patch } = {}) {
         row.doneAt = null;
         row.droppedAt = null;
       }
+    }
+    if (Object.prototype.hasOwnProperty.call(src, "stage")) {
+      const nextStage = readStage(src.stage, src.stage != null && src.stage !== "");
+      const prevStage = presentStage(row);
+      if (nextStage !== prevStage) {
+        row.stage = nextStage;
+        row.stageUpdatedAt = nextStage ? new Date().toISOString() : null;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(src, "appliedAt")) {
+      row.appliedAt = readAppliedAt(src.appliedAt);
     }
     row.updatedAt = new Date().toISOString();
     await writeBlob(uid, applications);
@@ -323,6 +384,7 @@ module.exports = {
   KIND,
   UNAVAILABLE,
   STATUSES,
+  STAGES,
   RECRUITER_BUMP_BUSINESS_DAYS,
   presentApplication,
   listApplications,

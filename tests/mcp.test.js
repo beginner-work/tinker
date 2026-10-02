@@ -349,6 +349,17 @@ test("tools/list exposes ask_followups and draft_linkedin_post, and no raw conve
     assert.match(tool.description, /dropped/i);
     assert.match(tool.description, /not to apply|decided not to apply/i);
   }
+  const createApp = tools.find((t) => t.name === "create_application");
+  const updateApp = tools.find((t) => t.name === "update_application");
+  const listApp = tools.find((t) => t.name === "list_applications");
+  const stageEnum = ["applied", "screening", "interviewing", "offer", "rejected", "withdrawn", "closed"];
+  assert.deepEqual(createApp.inputSchema.properties.stage.enum, stageEnum);
+  assert.deepEqual(updateApp.inputSchema.properties.stage.enum, stageEnum);
+  assert.deepEqual(listApp.inputSchema.properties.stage.enum, stageEnum);
+  assert.ok(createApp.inputSchema.properties.appliedAt);
+  assert.ok(updateApp.inputSchema.properties.appliedAt);
+  assert.match(createApp.description, /appliedAt/);
+  assert.match(listApp.description, /stage/);
   assert.equal(anthropicCalls().length, 0);
 });
 

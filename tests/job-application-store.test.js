@@ -233,6 +233,98 @@ test("drop status records droppedAt, never sets doneAt, and filters correctly", 
   );
 });
 
+test("stage and appliedAt validate, auto-set stageUpdatedAt, and filter", async () => {
+  userDataRows.length = 0;
+  touchRows.length = 0;
+  companyRows.length = 0;
+
+  const created = await store.createApplication({
+    userId: "fake-user-stage",
+    roleTitle: "Engineering Manager, Platform",
+    companyName: "Figma",
+    stage: "applied",
+    appliedAt: "2026-09-15",
+  });
+  assert.equal(created.stage, "applied");
+  assert.equal(created.appliedAt, "2026-09-15");
+  assert.ok(created.stageUpdatedAt);
+  const firstStageAt = created.stageUpdatedAt;
+
+  const legacy = await store.createApplication({
+    userId: "fake-user-stage",
+    roleTitle: "Staff Engineer",
+    companyName: "Notion",
+  });
+  assert.equal(legacy.stage, null);
+  assert.equal(legacy.appliedAt, null);
+  assert.equal(legacy.stageUpdatedAt, null);
+
+  const sameStage = await store.updateApplication({
+    userId: "fake-user-stage",
+    applicationId: created.id,
+    patch: { stage: "applied", fitNotes: "still applied" },
+  });
+  assert.equal(sameStage.stageUpdatedAt, firstStageAt, "unchanged stage does not bump stageUpdatedAt");
+  assert.equal(sameStage.fitNotes, "still applied");
+
+  const advanced = await store.updateApplication({
+    userId: "fake-user-stage",
+    applicationId: created.id,
+    patch: { stage: "interviewing" },
+  });
+  assert.equal(advanced.stage, "interviewing");
+  assert.ok(advanced.stageUpdatedAt);
+  assert.notEqual(advanced.stageUpdatedAt, firstStageAt);
+
+  const byStage = await store.listApplications({ userId: "fake-user-stage", stage: "interviewing" });
+  assert.equal(byStage.length, 1);
+  assert.equal(byStage[0].id, created.id);
+  assert.equal(byStage[0].stage, "interviewing");
+  assert.equal(byStage[0].appliedAt, "2026-09-15");
+
+  const byApplied = await store.listApplications({ userId: "fake-user-stage", stage: "applied" });
+  assert.equal(byApplied.length, 0);
+
+  const got = await store.getApplication({ userId: "fake-user-stage", applicationId: created.id });
+  assert.equal(got.stage, "interviewing");
+  assert.equal(got.appliedAt, "2026-09-15");
+  assert.ok(got.stageUpdatedAt);
+
+  await assert.rejects(
+    () => store.createApplication({
+      userId: "fake-user-stage",
+      roleTitle: "EM",
+      companyName: "X",
+      stage: "phone_screen",
+    }),
+    (err) => err && err.status === 400 && /stage must be/.test(err.message),
+  );
+
+  await assert.rejects(
+    () => store.updateApplication({
+      userId: "fake-user-stage",
+      applicationId: created.id,
+      patch: { stage: "onsite" },
+    }),
+    (err) => err && err.status === 400 && /stage must be/.test(err.message),
+  );
+
+  await assert.rejects(
+    () => store.createApplication({
+      userId: "fake-user-stage",
+      roleTitle: "EM",
+      companyName: "X",
+      appliedAt: "not-a-date",
+    }),
+    (err) => err && err.status === 400 && /appliedAt must be a date/.test(err.message),
+  );
+
+  await assert.rejects(
+    () => store.listApplications({ userId: "fake-user-stage", stage: "bogus" }),
+    (err) => err && err.status === 400 && /stage must be/.test(err.message),
+  );
+});
+
 test("UI wires messages-application.js and SW precaches it", () => {
   const { EXPECTED_SW_CACHE_VERSION } = require("./helpers/sw-cache-version.js");
   const index = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "index.html"), "utf8");
@@ -248,4 +340,7 @@ test("UI wires messages-application.js and SW precaches it", () => {
   assert.match(shell, /postingUrl/);
   assert.match(app, /postingUrl/);
   assert.match(app, /renderProfileLinks/);
+  assert.match(app, /appliedAt|stage/);
+  assert.match(shell, /messages-rail__stage/);
+  assert.match(shell, /formatAppliedAt|appliedAt/);
 });
