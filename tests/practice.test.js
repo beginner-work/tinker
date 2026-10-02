@@ -93,7 +93,7 @@ test("runner keeps the intentional Tyler-rep TODOs", () => {
   assert.match(runnerJs, /new Worker\("\/practice\/runner-worker\.js"\)/);
 });
 
-test("three sample reps ship with specs, failing starters, hints, and no solutions", () => {
+test("three sample reps ship empty prompts, clear specs, hints, and no solutions", () => {
   const reps = loadReps();
   assert.equal(reps.length, 3);
   const ids = reps.map((rep) => rep.id).sort();
@@ -101,24 +101,30 @@ test("three sample reps ship with specs, failing starters, hints, and no solutio
 
   for (const rep of reps) {
     assert.ok(rep.spec && rep.spec.length > 40, rep.id + " needs a plain-language spec");
-    assert.ok(rep.starterCode && rep.starterCode.includes("module.exports"), rep.id + " starter");
+    assert.ok(typeof rep.emptyPrompt === "string", rep.id + " emptyPrompt");
+    assert.match(rep.emptyPrompt, /^\/\/ write /);
+    assert.doesNotMatch(rep.emptyPrompt, /function |module\.exports|return /);
+    assert.equal(rep.starterCode, undefined, rep.id + " must not ship starter skeletons");
     assert.ok(Array.isArray(rep.hints) && rep.hints.length >= 2 && rep.hints.length <= 3, rep.id + " hints");
     assert.ok(Array.isArray(rep.tests) && rep.tests.length >= 2, rep.id + " tests");
-    assert.doesNotMatch(rep.starterCode, /SOLUTION|FIXME: pass all/i);
+    assert.match(rep.spec, /module\.exports/);
     const fixtures = rep.id === "stripe-payment-intent"
       ? { paymentIntent: fixture }
       : (rep.fixtures || {});
+    // One-line comment seed must not pass the packaged tests.
     const report = runnerCore.runTests({
-      code: rep.starterCode,
+      code: rep.emptyPrompt,
       tests: rep.tests,
       fixtures: fixtures,
     });
-    assert.equal(report.ok, false, rep.id + " starter should not pass all tests");
+    assert.equal(report.ok, false, rep.id + " empty prompt should not pass all tests");
     assert.ok(report.results.some((row) => !row.pass), rep.id + " needs a failing case");
   }
 
   const stripe = reps.find((rep) => rep.id === "stripe-payment-intent");
   assert.equal(stripe.learnFromDocs, true);
+  assert.match(stripe.emptyPrompt, /readPaymentIntentClient\(fixture\)/);
+  assert.match(stripe.spec, /readPaymentIntentClient\(fixture\)/);
   assert.match(stripe.fixtureUrl, /stripe-payment-intent-create\.json/);
   assert.equal(fixture.livemode, false);
   assert.equal(fixture.amount, 1099);
@@ -136,6 +142,33 @@ test("runner core reports pass/fail for a tiny module", () => {
   assert.equal(report.ok, false);
   assert.equal(report.results[0].pass, true);
   assert.equal(report.results[1].pass, false);
+});
+
+test("pseudocode syntax errors get a friendly message, not a stack", () => {
+  const report = runnerCore.runTests({
+    code: [
+      "// write readPaymentIntentClient(fixture)",
+      "take fixture.client_secret",
+      "return { clientSecret: that }",
+    ].join("\n"),
+    tests: [{ name: "should not run", body: "assert.ok(false);" }],
+  });
+  assert.equal(report.ok, false);
+  assert.equal(report.syntaxError, true);
+  assert.equal(report.results.length, 1);
+  assert.match(report.results[0].error, /This doesn't run yet\. That's fine, pseudocode is a good start\./);
+  assert.doesNotMatch(report.results[0].error, /at Object\.|at Module|stack/i);
+  // Still includes a short error detail line after the friendly sentence.
+  assert.ok(report.results[0].error.split("\n").length >= 2);
+});
+
+test("rep page codes from scratch and softens syntax failures", () => {
+  assert.match(repJs, /emptyPrompt/);
+  assert.doesNotMatch(repJs, /starterCode/);
+  assert.match(repJs, /fresh/);
+  assert.match(repJs, /practice-results__nudge/);
+  assert.match(repJs, /Pseudocode is fine/);
+  assert.match(css, /practice-results__nudge/);
 });
 
 test("streak counts consecutive weekdays and essays stay local", () => {
@@ -169,7 +202,7 @@ test("streak counts consecutive weekdays and essays stay local", () => {
   assert.equal(api.readEssay("pacific-wall-time").text, "Wall time is civil time, not a fixed offset.");
 });
 
-test("mark-touch-sent and pacific starters isolate from the real data model", () => {
+test("mark-touch-sent and pacific reps isolate from the real data model", () => {
   const touchRep = fs.readFileSync(path.join(practiceDir, "reps/mark-touch-sent.js"), "utf8");
   const pacific = fs.readFileSync(path.join(practiceDir, "reps/pacific-wall-time.js"), "utf8");
   assert.match(touchRep, /Isolated function/);
@@ -177,4 +210,6 @@ test("mark-touch-sent and pacific starters isolate from the real data model", ()
   assert.doesNotMatch(pacific, /require\(|prisma|outreach-schedule-store/);
   assert.match(pacific, /Nov 1, 2026/);
   assert.match(touchRep, /status: \\"sent\\"/);
+  assert.doesNotMatch(touchRep, /function markTouchSent/);
+  assert.doesNotMatch(pacific, /function saveWallTime/);
 });

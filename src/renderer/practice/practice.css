@@ -249,9 +249,11 @@ html, body.practice-page {
 
 .practice-results__badge--pass { color: #2f6b3a; }
 .practice-results__badge--fail { color: #b3261e; }
+.practice-results__badge--soft { color: var(--ll-muted); }
 
 .practice-results__error,
-.practice-results__console {
+.practice-results__console,
+.practice-results__nudge {
   grid-column: 1 / -1;
   margin: 0;
   padding: 10px 12px;
@@ -269,6 +271,15 @@ html, body.practice-page {
   background: #fde6dc;
   border-color: #d9a48c;
   color: #5c2410;
+}
+
+.practice-results__nudge {
+  background: color-mix(in srgb, var(--ll-sand) 70%, #fff);
+  border-color: var(--ll-border);
+  color: var(--ll-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 .practice-sr {

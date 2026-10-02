@@ -111,15 +111,16 @@
       var item = document.createElement("div");
       item.className = "practice-results__row";
       var badge = document.createElement("span");
-      badge.className = "practice-results__badge " + (row.pass ? "practice-results__badge--pass" : "practice-results__badge--fail");
-      badge.textContent = row.pass ? "pass" : "fail";
+      var soft = !!(report && report.syntaxError && !row.pass);
+      badge.className = "practice-results__badge " + (row.pass ? "practice-results__badge--pass" : soft ? "practice-results__badge--soft" : "practice-results__badge--fail");
+      badge.textContent = row.pass ? "pass" : soft ? "not yet" : "fail";
       var name = document.createElement("span");
       name.textContent = row.name || ("test " + (i + 1));
       item.appendChild(badge);
       item.appendChild(name);
       if (!row.pass && row.error) {
         var err = document.createElement("pre");
-        err.className = "practice-results__error";
+        err.className = soft ? "practice-results__nudge" : "practice-results__error";
         err.textContent = row.error;
         item.appendChild(err);
       }
@@ -134,6 +135,21 @@
       }).join("\n");
       into.appendChild(log);
     }
+  }
+
+  function initialEditorValue() {
+    // ?fresh=1 ignores any prior draft (for clean demos / screenshots).
+    if (params.get("fresh") === "1") {
+      try { localStorage.removeItem(codeKey); } catch (err) { /* ignore */ }
+      return rep.emptyPrompt || "";
+    }
+    try {
+      if (Object.prototype.hasOwnProperty.call(localStorage, codeKey) || localStorage.getItem(codeKey) !== null) {
+        var saved = localStorage.getItem(codeKey);
+        if (saved !== null) return saved;
+      }
+    } catch (err) { /* ignore */ }
+    return rep.emptyPrompt || "";
   }
 
   function paintHints(listEl, metaEl) {
@@ -253,7 +269,7 @@
     bar.className = "practice-editor-shell__bar";
     var barLabel = document.createElement("p");
     barLabel.className = "practice-editor-shell__label";
-    barLabel.textContent = "starter.js";
+    barLabel.textContent = "your-code.js";
     bar.appendChild(barLabel);
     shell.appendChild(bar);
 
@@ -269,7 +285,8 @@
     editorEl.spellcheck = false;
     editorEl.setAttribute("autocomplete", "off");
     editorEl.setAttribute("autocapitalize", "off");
-    editorEl.value = loadSavedCode() || rep.starterCode || "";
+    editorEl.placeholder = "Pseudocode is fine. Write the function from scratch when you're ready.";
+    editorEl.value = initialEditorValue();
     editorEl.addEventListener("input", function () {
       saveCode(editorEl.value);
     });

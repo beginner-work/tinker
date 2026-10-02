@@ -1,5 +1,5 @@
 /* Practice rep: Learn from docs — Stripe payments quickstart (test mode).
- * Spec + failing starter + hints only. Tests use a checked-in fixture (no network).
+ * Spec + empty editor seed + hints only. Tests use a checked-in fixture (no network).
  */
 (function (root) {
   "use strict";
@@ -20,33 +20,22 @@
       "checked into the repo as a fixture. Your job is to read the fields",
       "the quickstart cares about.",
       "",
-      "Implement:",
+      "Write from scratch (pseudocode first is fine):",
       "",
       "  readPaymentIntentClient(fixture)",
+      "    Input: fixture — the PaymentIntent create-response object",
+      "    Output: an object with:",
+      "      - clientSecret  ← fixture.client_secret",
+      "      - amountCents  ← fixture.amount   (integer cents)",
+      "      - currency     ← fixture.currency",
+      "      - livemode     ← fixture.livemode (false for this test fixture)",
       "",
-      "Return an object with:",
-      "",
-      "  - clientSecret  ← fixture.client_secret",
-      "  - amountCents  ← fixture.amount   (Stripe amounts are integer cents)",
-      "  - currency     ← fixture.currency",
-      "  - livemode     ← fixture.livemode (must be false for this test fixture)",
+      "Export it so the tests can call it:",
+      "  module.exports = { readPaymentIntentClient };",
       "",
       "Do not call fetch. Do not invent secrets. Use only the fixture object.",
-      "The starter looks at the wrong property names on purpose.",
     ].join("\n"),
-    starterCode: [
-      "// BUG: wrong property names vs the Stripe PaymentIntent object.",
-      "function readPaymentIntentClient(fixture) {",
-      "  return {",
-      "    clientSecret: fixture.secret,",
-      "    amountCents: fixture.amount_dollars,",
-      "    currency: fixture.currency_code,",
-      "    livemode: fixture.live,",
-      "  };",
-      "}",
-      "",
-      "module.exports = { readPaymentIntentClient: readPaymentIntentClient };",
-    ].join("\n"),
+    emptyPrompt: "// write readPaymentIntentClient(fixture)\n",
     hints: [
       "Stripe's PaymentIntent JSON uses snake_case: client_secret, not secret.",
       "amount is already integer cents (1099 means $10.99). There is no amount_dollars field on the create response.",
