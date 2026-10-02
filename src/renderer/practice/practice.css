@@ -1,0 +1,353 @@
+/* Practice prototype styles — matches tinker tokens / hairline language. */
+
+html, body.practice-page {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: auto;
+  display: block;
+  background: var(--color-background);
+}
+
+.practice {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+.practice--rep {
+  max-width: 72rem;
+}
+
+.practice__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0 0 18px;
+  font-size: 13px;
+}
+
+.practice__nav a {
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.practice__nav a:hover,
+.practice__nav a[aria-current="page"] {
+  color: var(--color-foreground);
+}
+
+.practice__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin: 0 0 12px;
+}
+
+.practice__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: var(--font-display-settings);
+  font-size: 32px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.practice__lede,
+.practice__note {
+  margin: 8px 0 0;
+  color: var(--color-muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.practice__note {
+  margin: 0 0 24px;
+  font-size: 13px;
+}
+
+.practice__streak {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-foreground);
+  border-bottom: 2px solid var(--color-accent-strong);
+  padding-bottom: 2px;
+}
+
+.practice__eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.practice__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.practice__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-border);
+  text-decoration: none;
+  color: inherit;
+}
+
+.practice__row:hover {
+  background: var(--color-hover);
+}
+
+.practice__row-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.practice__row-summary {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.practice__row-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted);
+  text-align: right;
+  align-self: start;
+}
+
+.practice__tag {
+  display: inline-block;
+  margin-top: 6px;
+  margin-right: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.practice__button {
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 2px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.practice__button--primary {
+  border-bottom-color: var(--color-accent-strong);
+}
+
+.practice__button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.practice-ide {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.9fr) minmax(20rem, 1.2fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.practice-ide__heading {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.practice-ide__spec-body {
+  margin: 0 0 20px;
+  padding: 0;
+  white-space: pre-wrap;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-foreground);
+}
+
+.practice-ide__hints {
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.practice-ide__hint-list {
+  margin: 0 0 12px;
+  padding-left: 1.2rem;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-foreground);
+}
+
+.practice-ide__hint-list:empty::before {
+  content: "Hints unlock one at a time. No solution is shipped with the rep.";
+  display: block;
+  margin-left: -1.2rem;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.practice-ide__hint-meta {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.practice-ide__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.practice-ide__toolbar .practice-ide__heading {
+  margin: 0;
+}
+
+.practice-ide__editor {
+  display: block;
+  width: 100%;
+  min-height: 280px;
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-surface, #fff);
+  color: var(--color-foreground);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.45;
+  resize: vertical;
+  tab-size: 2;
+}
+
+.practice-ide__results {
+  margin: 0 0 24px;
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+.practice-ide__empty {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.practice-ide__result {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 10px;
+  padding: 6px 0;
+}
+
+.practice-ide__badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.practice-ide__badge--pass { color: #2f6b3a; }
+.practice-ide__badge--fail { color: #b3261e; }
+
+.practice-ide__error,
+.practice-ide__console {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.practice-ide__console {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.practice-ide__essay {
+  padding-top: 8px;
+}
+
+.practice-ide__essay.is-hidden {
+  display: none;
+}
+
+.practice-ide__essay-lede {
+  margin: 0 0 10px;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.practice-ide__essay-input {
+  display: block;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.practice-ide__essay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.practice-ide__essay-status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.practice-ide__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 860px) {
+  .practice-ide {
+    grid-template-columns: 1fr;
+  }
+}

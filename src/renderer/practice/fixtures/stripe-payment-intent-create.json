@@ -1,0 +1,18 @@
+{
+  "id": "pi_3PracticeDemo00000000000001",
+  "object": "payment_intent",
+  "amount": 1099,
+  "amount_received": 0,
+  "capture_method": "automatic",
+  "client_secret": "pi_3PracticeDemo00000000000001_secret_practiceOnlyNotReal",
+  "confirmation_method": "automatic",
+  "created": 1769900000,
+  "currency": "usd",
+  "livemode": false,
+  "metadata": {
+    "source": "tinker-practice-fixture"
+  },
+  "payment_method_types": ["card"],
+  "status": "requires_payment_method",
+  "description": "Sample PaymentIntent from the Stripe payments quickstart (test mode). Checked into the repo so Practice tests never call the network."
+}

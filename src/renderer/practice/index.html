@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self';" />
+    <title>Practice</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/practice/practice.css" />
+  </head>
+  <body class="practice-page">
+    <main class="practice">
+      <nav class="practice__nav" aria-label="Shell">
+        <a href="/">Messages</a>
+        <a href="/leads">Leads</a>
+        <a href="/career">Career</a>
+        <a href="/practice" aria-current="page">Practice</a>
+      </nav>
+      <header class="practice__header">
+        <div>
+          <h1 class="practice__title">Practice</h1>
+          <p class="practice__lede">A 45-minute weekday morning rep. Spec, starter, tests, and hints — no solution and no AI that writes code.</p>
+        </div>
+        <p class="practice__streak" id="practice-streak" aria-live="polite">Streak: 0 weekdays</p>
+      </header>
+      <p class="practice__note">Prototype only. Progress and essay drafts stay in this browser (localStorage). Nothing here touches Tinker&rsquo;s essay or outreach data model.</p>
+      <ul class="practice__list" id="practice-list"></ul>
+    </main>
+    <script src="/practice/streak.js"></script>
+    <script src="/practice/reps/pacific-wall-time.js"></script>
+    <script src="/practice/reps/mark-touch-sent.js"></script>
+    <script src="/practice/reps/stripe-payment-intent.js"></script>
+    <script src="/practice/catalog.js"></script>
+    <script src="/practice/practice.js"></script>
+  </body>
+</html>
