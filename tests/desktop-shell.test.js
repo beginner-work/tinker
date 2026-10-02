@@ -40,6 +40,16 @@ test("desktop shell loads production Tinker in a BrowserWindow", () => {
   assert.doesNotMatch(mainJs, /webviewTag:\s*true/);
 });
 
+test("desktop docks ElevenReader/Formation in a WebContentsView side panel", () => {
+  assert.match(mainJs, /WebContentsView/);
+  assert.match(mainJs, /persist:tinker-docked/);
+  assert.match(mainJs, /dock:open|openDockedPanel/);
+  assert.match(mainJs, /Open in browser/);
+  assert.match(preloadJs, /openDockedPanel/);
+  assert.match(preloadJs, /pickCursorRoot/);
+  assert.doesNotMatch(mainJs, /executeJavaScript\([\s\S]*elevenreader|formation\.dev[\s\S]*inject/i);
+});
+
 test("desktop shell remembers window size and builds native menus", () => {
   assert.match(mainJs, /window-state\.json/);
   assert.match(mainJs, /buildAppMenu|setApplicationMenu/);
@@ -154,7 +164,7 @@ test("packaging targets universal Mac dmg named tinker-mac", () => {
 
 test("release marker matches package version; workflows publish on marker", () => {
   assert.equal(marker, pkg.version);
-  assert.equal(pkg.version, "0.1.8");
+  assert.equal(pkg.version, "0.1.9");
   assert.match(markerYml, /\.release-version/);
   assert.match(markerYml, /publish:\s*true/);
   assert.match(releaseYml, /macos-latest/);

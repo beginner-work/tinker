@@ -9,6 +9,7 @@ const {
   nativeImage,
   nativeTheme,
   net,
+  WebContentsView,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -16,9 +17,17 @@ const fsp = require("fs/promises");
 
 // Production Tinker. The desktop shell is a hardened BrowserWindow around
 // this origin — web product changes ship without a new dmg; only shell
-// changes (menus, notes IPC, packaging) need a rebuild.
+// changes (menus, notes IPC, packaging, docked panels) need a rebuild.
 const APP_ORIGIN = "https://tinker.beginner.work";
 const APP_URL = process.env.TINKER_DESKTOP_URL || APP_ORIGIN;
+const DOCK_PARTITION = "persist:tinker-docked";
+const DOCK_TOOLBAR_H = 44;
+const DOCKABLE_HOSTS = new Set([
+  "elevenreader.io",
+  "www.elevenreader.io",
+  "formation.dev",
+  "www.formation.dev",
+]);
 
 // Matches --color-background in src/renderer/styles.css / critical CSS.
 // The product is light-only today; keep one cream surface so the native
@@ -82,6 +91,174 @@ function isTinkerUrl(url) {
   } catch {
     return false;
   }
+}
+
+function isDockableUrl(url) {
+  try {
+    const u = new URL(url);
+    return (u.protocol === "https:" || u.protocol === "http:") && DOCKABLE_HOSTS.has(u.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+// Per-window docked ElevenReader / Formation panel (WebContentsView).
+const dockByWin = new WeakMap();
+
+function mainContentView(win) {
+  if (!win || win.isDestroyed()) return null;
+  const root = win.contentView;
+  const children = root && root.children ? root.children : [];
+  for (const child of children) {
+    if (child && child.webContents && win.webContents && child.webContents.id === win.webContents.id) {
+      return child;
+    }
+  }
+  return children[0] || null;
+}
+
+function dockToolbarHtml() {
+  return `<!doctype html><html><head><meta charset="utf-8"/>
+<style>
+  html,body{margin:0;height:100%;background:#FFFDF7;color:#2D2A26;
+    font:13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;}
+  .bar{display:flex;align-items:center;gap:8px;height:100%;padding:0 10px;
+    border-bottom:1px solid #EDE8E0;box-sizing:border-box;
+    -webkit-app-region:drag;}
+  button{-webkit-app-region:no-drag;appearance:none;border:1px solid #EDE8E0;
+    background:transparent;color:#2D2A26;border-radius:8px;padding:5px 10px;
+    font:inherit;cursor:pointer;}
+  button:hover{background:#F5F3EF;}
+  .spacer{flex:1}
+  .title{color:#6F6A65;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+</style></head><body>
+<div class="bar">
+  <button type="button" id="close">Close</button>
+  <button type="button" id="browser">Open in browser</button>
+  <span class="spacer"></span>
+  <span class="title" id="title"></span>
+</div>
+<script>
+  document.getElementById("close").onclick = () => window.tinkerDock && window.tinkerDock.close();
+  document.getElementById("browser").onclick = () => window.tinkerDock && window.tinkerDock.openBrowser();
+  if (window.tinkerDock && window.tinkerDock.onTitle) {
+    window.tinkerDock.onTitle((t) => { document.getElementById("title").textContent = t || ""; });
+  }
+</script>
+</body></html>`;
+}
+
+function layoutDock(win) {
+  const state = dockByWin.get(win);
+  if (!state || !state.panel) return;
+  const [width, height] = win.getContentSize();
+  const dockW = Math.max(320, Math.min(560, Math.floor(width * 0.46)));
+  const mainW = Math.max(360, width - dockW);
+  const actualDockW = width - mainW;
+  const main = mainContentView(win);
+  if (main && typeof main.setBounds === "function") {
+    main.setBounds({ x: 0, y: 0, width: mainW, height });
+  }
+  if (state.toolbar) {
+    state.toolbar.setBounds({ x: mainW, y: 0, width: actualDockW, height: DOCK_TOOLBAR_H });
+  }
+  state.panel.setBounds({
+    x: mainW,
+    y: DOCK_TOOLBAR_H,
+    width: actualDockW,
+    height: Math.max(0, height - DOCK_TOOLBAR_H),
+  });
+}
+
+function clearDockLayout(win) {
+  const [width, height] = win.getContentSize();
+  const main = mainContentView(win);
+  if (main && typeof main.setBounds === "function") {
+    main.setBounds({ x: 0, y: 0, width, height });
+  }
+}
+
+function closeDockedPanel(win) {
+  const state = dockByWin.get(win);
+  if (!state) return false;
+  try {
+    if (state.panel) win.contentView.removeChildView(state.panel);
+    if (state.toolbar) win.contentView.removeChildView(state.toolbar);
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (state.panel && state.panel.webContents && !state.panel.webContents.isDestroyed()) {
+      state.panel.webContents.destroy();
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (state.toolbar && state.toolbar.webContents && !state.toolbar.webContents.isDestroyed()) {
+      state.toolbar.webContents.destroy();
+    }
+  } catch {
+    /* ignore */
+  }
+  dockByWin.delete(win);
+  clearDockLayout(win);
+  return true;
+}
+
+function openDockedPanel(win, url) {
+  if (!win || win.isDestroyed()) return false;
+  if (!isDockableUrl(url)) return false;
+  let state = dockByWin.get(win);
+  if (!state) {
+    const toolbar = new WebContentsView({
+      webPreferences: {
+        preload: path.join(__dirname, "dock-toolbar-preload.js"),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+      },
+    });
+    const panel = new WebContentsView({
+      webPreferences: {
+        partition: DOCK_PARTITION,
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+        spellcheck: true,
+      },
+    });
+    // Pure browsing pane — no script injection into Formation / ElevenReader.
+    panel.webContents.setWindowOpenHandler(({ url: openUrl }) => {
+      if (isDockableUrl(openUrl)) {
+        panel.webContents.loadURL(openUrl);
+      } else if (/^https?:\/\//i.test(openUrl)) {
+        shell.openExternal(openUrl);
+      }
+      return { action: "deny" };
+    });
+    win.contentView.addChildView(toolbar);
+    win.contentView.addChildView(panel);
+    toolbar.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(dockToolbarHtml()));
+    state = { toolbar, panel, url: "" };
+    dockByWin.set(win, state);
+    win.on("resize", () => layoutDock(win));
+  }
+  state.url = url;
+  state.panel.webContents.loadURL(url);
+  const sendTitle = () => {
+    try {
+      if (state.toolbar && !state.toolbar.webContents.isDestroyed()) {
+        state.toolbar.webContents.send("dock:title", url);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+  state.toolbar.webContents.once("did-finish-load", sendTitle);
+  sendTitle();
+  layoutDock(win);
+  return true;
 }
 
 function appIconPath() {
@@ -380,6 +557,10 @@ function createWindow() {
     reloadIfDeployed(win);
   });
 
+  win.on("closed", () => {
+    closeDockedPanel(win);
+  });
+
   win.loadURL(APP_URL);
 
   if (isDev) {
@@ -467,6 +648,42 @@ ipcMain.handle("app:openExternal", (_event, url) => {
   if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return false;
   shell.openExternal(url);
   return true;
+});
+
+ipcMain.handle("dock:open", (event, url) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+  if (!win) return false;
+  return openDockedPanel(win, String(url || ""));
+});
+
+ipcMain.handle("dock:close", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+  if (!win) return false;
+  return closeDockedPanel(win);
+});
+
+ipcMain.on("dock:close", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+  if (win) closeDockedPanel(win);
+});
+
+ipcMain.on("dock:openBrowser", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+  const state = win ? dockByWin.get(win) : null;
+  if (state && state.url && /^https?:\/\//i.test(state.url)) {
+    shell.openExternal(state.url);
+  }
+});
+
+ipcMain.handle("cursorRoot:pick", async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+  const result = await dialog.showOpenDialog(win || undefined, {
+    title: "Choose Cursor project folder",
+    properties: ["openDirectory"],
+  });
+  if (result.canceled || !result.filePaths || !result.filePaths[0]) return null;
+  const folderPath = result.filePaths[0];
+  return { path: folderPath, name: path.basename(folderPath) };
 });
 
 // Renderer (or production icon-init) may hand a PNG data URL for the dock.

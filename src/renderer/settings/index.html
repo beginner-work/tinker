@@ -136,9 +136,9 @@
   </head>
   <body class="settings-page">
     <main class="settings">
-      <a class="settings__back" href="/">← Inbox</a>
+      <a class="settings__back" href="/">← Home</a>
       <h1 class="settings__title">Settings</h1>
-      <p class="settings__lede">Your profile, pages, and outreach defaults. Tinker never sends.</p>
+      <p class="settings__lede">Your profile, pages, and local folder paths.</p>
 
       <section class="settings__section" aria-labelledby="settings-profile-heading">
         <h2 class="settings__section-title" id="settings-profile-heading">Owner profile</h2>
@@ -209,6 +209,22 @@
           </span>
           <p class="settings__status" data-settings-status hidden></p>
         </label>
+      </section>
+
+      <section class="settings__section" aria-labelledby="settings-cursor-heading">
+        <h2 class="settings__section-title" id="settings-cursor-heading">Cursor</h2>
+        <div class="settings__field" data-cursor-root>
+          <span class="settings__label">cursorProjectRoot</span>
+          <p class="settings__hint">Local absolute path to the Tinker repo root. Exercise links open that file in Cursor via <code>cursor://file/…</code>.</p>
+          <input type="text" class="settings__input" data-cursor-root-input
+                 placeholder="/Users/you/src/tinker" autocomplete="off" spellcheck="false" />
+          <span class="settings__row" style="margin-top:8px">
+            <button type="button" class="settings__save" data-cursor-root-save>Save</button>
+            <button type="button" class="settings__save" data-cursor-root-pick hidden style="background:transparent;color:var(--color-foreground);border:1px solid var(--color-border)">Choose folder</button>
+            <button type="button" class="settings__save" data-cursor-root-clear hidden style="background:transparent;color:var(--color-foreground);border:1px solid var(--color-border)">Clear</button>
+          </span>
+          <p class="settings__status" data-cursor-root-status hidden></p>
+        </div>
       </section>
 
       <section class="settings__section" aria-labelledby="settings-notes-heading">

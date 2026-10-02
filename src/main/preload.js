@@ -74,9 +74,11 @@ contextBridge.exposeInMainWorld("tinker", {
   // Closes the focused window — backs the post-publish "Close app" button.
   close: () => ipcRenderer.invoke("app:close"),
   openExternal: (url) => ipcRenderer.invoke("app:openExternal", url),
+  // Docked side panel for ElevenReader / Formation (WebContentsView).
+  openDockedPanel: (url) => ipcRenderer.invoke("dock:open", url),
+  closeDockedPanel: () => ipcRenderer.invoke("dock:close"),
   // Marks this runtime as the Electron shell so PWA install / SW registration
-  // stay out of the way. Not a browser webview host — there is no quiet-
-  // browser webview chrome anymore.
+  // stay out of the way. Docked panels use WebContentsView, not <webview>.
   supportsWebview: true,
   isDesktopApp: true,
   // Notes folder: native directory access for Markdown notepad files.
@@ -89,4 +91,6 @@ contextBridge.exposeInMainWorld("tinker", {
     ipcRenderer.invoke("notesFolder:move", rootDir, fromRel, toRel),
   removeNotesFile: (rootDir, relPath) =>
     ipcRenderer.invoke("notesFolder:remove", rootDir, relPath),
+  // Local Cursor / repo root for cursor://file deep links.
+  pickCursorRoot: () => ipcRenderer.invoke("cursorRoot:pick"),
 });

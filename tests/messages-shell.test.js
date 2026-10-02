@@ -54,10 +54,15 @@ test("inbox boots from one batched endpoint and paints a cached snapshot first",
   assert.match(js, /tinker\.inboxSnapshot/);
 });
 
-test("desktop home auto-opens the You self-reflection thread", () => {
+test("overview mode keeps Write one click away without auto-opening inbox You", () => {
   assert.match(js, /openDesktopYouHome/);
   assert.match(js, /isDesktopHomeWidth/);
-  assert.match(js, /function boot[\s\S]*openDesktopYouHome/);
+  assert.match(js, /isOverviewMode/);
+  assert.match(js, /openWriteFromOverview|openWrite/);
+  assert.match(js, /showOverviewHome/);
+  // Inbox auto-open still exists for non-overview shells; overview boot skips it.
+  assert.match(js, /if \(isOverviewMode\(\)\)/);
+  assert.match(html, /data-overview-write/);
 });
 
 test("avatars are text initials only — no remote logos or photos", () => {

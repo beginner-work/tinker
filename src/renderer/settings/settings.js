@@ -139,6 +139,53 @@
       })
       .finally(function () { if (btn) btn.disabled = false; });
   }
+  var CURSOR_ROOT_KEY = "tinker.cursorProjectRoot";
+
+  function loadCursorRoot() {
+    var input = document.querySelector("[data-cursor-root-input]");
+    var clearBtn = document.querySelector("[data-cursor-root-clear]");
+    var pickBtn = document.querySelector("[data-cursor-root-pick]");
+    var value = "";
+    try { value = localStorage.getItem(CURSOR_ROOT_KEY) || ""; } catch (e) { value = ""; }
+    if (input) input.value = value;
+    if (clearBtn) clearBtn.hidden = !value;
+    if (pickBtn && window.tinker && typeof window.tinker.pickCursorRoot === "function") {
+      pickBtn.hidden = false;
+    }
+  }
+  function saveCursorRoot() {
+    var input = document.querySelector("[data-cursor-root-input]");
+    var value = input ? String(input.value || "").trim() : "";
+    try {
+      if (value) localStorage.setItem(CURSOR_ROOT_KEY, value);
+      else localStorage.removeItem(CURSOR_ROOT_KEY);
+    } catch (e) {
+      setStatus("[data-cursor-root-status]", "Could not save locally.", true);
+      return;
+    }
+    loadCursorRoot();
+    setStatus("[data-cursor-root-status]", value ? "Saved." : "Cleared.");
+    try {
+      window.dispatchEvent(new StorageEvent("storage", { key: CURSOR_ROOT_KEY }));
+    } catch (e) { /* ignore */ }
+  }
+  function clearCursorRoot() {
+    var input = document.querySelector("[data-cursor-root-input]");
+    if (input) input.value = "";
+    saveCursorRoot();
+  }
+  function pickCursorRoot() {
+    if (!(window.tinker && typeof window.tinker.pickCursorRoot === "function")) return;
+    window.tinker.pickCursorRoot().then(function (result) {
+      if (!result || !result.path) return;
+      var input = document.querySelector("[data-cursor-root-input]");
+      if (input) input.value = result.path;
+      saveCursorRoot();
+    }).catch(function () {
+      setStatus("[data-cursor-root-status]", "Could not choose a folder.", true);
+    });
+  }
+
   function boot() {
     var saveBtn = document.querySelector("[data-owner-profile-save]");
     if (saveBtn) saveBtn.addEventListener("click", save);
@@ -146,8 +193,15 @@
     var whClear = document.querySelector("[data-reflection-webhook-clear]");
     if (whSave) whSave.addEventListener("click", saveWebhook);
     if (whClear) whClear.addEventListener("click", clearWebhook);
+    var cursorSave = document.querySelector("[data-cursor-root-save]");
+    var cursorClear = document.querySelector("[data-cursor-root-clear]");
+    var cursorPick = document.querySelector("[data-cursor-root-pick]");
+    if (cursorSave) cursorSave.addEventListener("click", saveCursorRoot);
+    if (cursorClear) cursorClear.addEventListener("click", clearCursorRoot);
+    if (cursorPick) cursorPick.addEventListener("click", pickCursorRoot);
     load();
     loadWebhook();
+    loadCursorRoot();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
