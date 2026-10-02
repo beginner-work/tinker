@@ -321,8 +321,8 @@
 
     const ta = document.createElement("textarea");
     ta.className = "writing-input";
-    ta.placeholder = "Type your answer in your own words…";
-    ta.rows = 8;
+    ta.placeholder = "Start writing...";
+    ta.rows = 2;
     // Restore an in-progress draft; if none, fall back to any answers
     // already given in an interview so dropping into No AI mode mid-draft
     // never loses words.
@@ -492,8 +492,8 @@
 
     const ta = document.createElement("textarea");
     ta.className = "writing-input";
-    ta.placeholder = "Type your answer in your own words…";
-    ta.rows = 8;
+    ta.placeholder = "Start writing...";
+    ta.rows = 2;
     ta.autofocus = true;
     // Restore in-progress draft answer for this slot if one exists.
     ta.value = (active._scratch && active._scratch[question]) || "";
@@ -536,7 +536,8 @@
 
     const ta = document.createElement("textarea");
     ta.className = "writing-input";
-    ta.rows = 8;
+    ta.rows = 2;
+    ta.placeholder = "Start writing...";
     ta.value = turn.a;
     card.appendChild(ta);
 

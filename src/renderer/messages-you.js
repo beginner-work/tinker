@@ -83,13 +83,25 @@
       links.innerHTML = "";
     }
     if (avatar) {
-      avatar.removeAttribute("hidden");
-      avatar.hidden = false;
-      avatar.innerHTML = "";
-      avatar.classList.remove("messages-avatar--photo", "messages-avatar--brand");
-      avatar.classList.add("messages-rail__avatar--fallback");
-      avatar.textContent = ownerInitials(ownerName()) || "?";
-      avatar.setAttribute("aria-hidden", "true");
+      // Prefer the shell's hardened initials paint (inner span + data-initials)
+      // so Electron does not blank the mark the way bare textContent can.
+      var shell = window.tinkerMessagesShell;
+      if (shell && typeof shell.fillOwnerMark === "function") {
+        shell.fillOwnerMark(avatar, { alt: ownerName() });
+      } else {
+        avatar.removeAttribute("hidden");
+        avatar.hidden = false;
+        avatar.innerHTML = "";
+        avatar.classList.remove("messages-avatar--photo", "messages-avatar--brand");
+        avatar.classList.add("messages-rail__avatar--fallback");
+        var letters = ownerInitials(ownerName()) || "?";
+        avatar.setAttribute("data-initials", letters);
+        avatar.setAttribute("aria-hidden", "true");
+        var label = document.createElement("span");
+        label.className = "messages-rail__initials";
+        label.textContent = letters;
+        avatar.appendChild(label);
+      }
     }
   }
   function token() {
