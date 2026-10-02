@@ -212,19 +212,3 @@ model OutreachSession {
   @@index([userId])
   @@index([userId, startsAt])
 }
-
-// Cached TTS audio for the private /feed reader. Keyed by essay + voice
-// so swapping ELEVENLABS_VOICE_ID does not serve stale audio. Does not
-// touch the essays blob / essay data model.
-model EssayFeedAudioCache {
-  userId       String
-  essayId      String
-  voiceId      String
-  audioBase64  String
-  contentType  String   @default("audio/mpeg")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@id([userId, essayId, voiceId])
-  @@index([userId])
-}
