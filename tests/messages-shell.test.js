@@ -52,7 +52,6 @@ test("inbox boots from one batched endpoint and paints a cached snapshot first",
   assert.match(js, /readInboxCache/);
   assert.match(js, /writeInboxCache/);
   assert.match(js, /tinker\.inboxSnapshot/);
-  assert.match(js, /deferLogoFill|requestIdleCallback/);
 });
 
 test("desktop home auto-opens the You self-reflection thread", () => {
@@ -61,12 +60,13 @@ test("desktop home auto-opens the You self-reflection thread", () => {
   assert.match(js, /function boot[\s\S]*openDesktopYouHome/);
 });
 
-test("no initials monograms; company logo only when resolved; owner keeps photo", () => {
-  assert.match(js, /hideOnFail:\s*true/);
-  assert.match(js, /No monogram fallback/);
+test("avatars are text initials only — no remote logos or photos", () => {
+  assert.match(js, /fillInitials|messages-rail__avatar--fallback/);
   assert.match(js, /fillOwnerMark/);
-  assert.match(js, /ownerAvatarUrl/);
-  assert.equal(/messages-rail__avatar--fallback/.test(js) && /textContent = personInitials/.test(js), false);
+  assert.match(js, /personInitials|companyInitials/);
+  assert.equal(/icons\.duckduckgo\.com/.test(js), false);
+  assert.equal(/createElement\(\s*["']img["']\)|el\(\s*["']img["']/.test(js), false);
+  assert.equal(/No monogram fallback/.test(js), false);
 });
 
 test("thread has no scheduled planning bubbles; sent outreach is UI-hidden", () => {

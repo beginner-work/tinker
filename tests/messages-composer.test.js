@@ -150,11 +150,11 @@ test("composer styles stay flat", () => {
   assert.equal(/\.messages-composer[^{]*\{[^}]*box-shadow/.test(css), false);
 });
 
-test("person notepad opening logo is a small fixed mark, not a fill avatar", () => {
+test("person notepad opening mark is a small fixed initials badge, not a remote logo", () => {
   assert.match(js, /messages-notepad__mark/);
-  assert.match(js, /width:\s*["']18["']/);
-  assert.match(js, /height:\s*["']18["']/);
-  assert.match(js, /messages-notepad__mark-img/);
+  assert.match(js, /messages-notepad__mark--initials/);
+  assert.equal(/icons\.duckduckgo\.com/.test(js), false);
+  assert.equal(/messages-notepad__mark-img/.test(js), false);
   assert.equal(/fillCompanyLogo\(wrap/.test(js), false);
   assert.match(css, /\.messages-notepad__mark\b/);
   assert.match(css, /width:\s*18px\s*!important/);

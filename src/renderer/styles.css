@@ -324,6 +324,20 @@ a.sidebar__secondary-link { display: inline; }
   height: 18px;
   object-fit: contain;
 }
+.messages-rail__logo.messages-rail__avatar--fallback,
+.messages-pane__avatar.messages-rail__avatar--fallback {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-muted);
+  background: var(--color-cream, #f5f3ef);
+  border-radius: 3px;
+  border: 1px solid var(--color-border);
+}
+.messages-rail__avatar.messages-rail__avatar--fallback {
+  font-size: 12px;
+  font-weight: 600;
+}
 .messages-rail__row:has(.messages-rail__logo[hidden]) .messages-rail__main,
 .messages-rail__row:not(:has(.messages-rail__logo)) .messages-rail__main {
   /* text left-aligns when no logo */
@@ -1452,7 +1466,7 @@ body.messages-you-active .writing--in-messages .writing-recall__text {
   color: var(--color-muted);
 }
 .sidebar__funnel-logo--lg { width: 32px; height: 32px; font-size: 12px; border-radius: 7px; }
-.sidebar__funnel-logo img { width: 100%; height: 100%; object-fit: contain; }
+.sidebar__funnel-logo--fallback { background: var(--color-cream, #f5f3ef); border: 1px solid var(--color-border); }
 .sidebar__funnel-company-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .sidebar__funnel-company-name {
   font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1791,6 +1805,17 @@ body.messages-notepad-active .mode-nav {
   background: transparent !important;
   overflow: hidden;
   flex-shrink: 0;
+}
+.messages-notepad__mark--initials {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-muted);
+  background: var(--color-cream, #f5f3ef) !important;
+  border: 1px solid var(--color-border) !important;
 }
 .messages-notepad__mark.messages-avatar--photo {
   width: 18px !important;

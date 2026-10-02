@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-test("funnel sidebar uses GET funnel, DuckDuckGo logos, referral first, pay labels", () => {
+test("funnel sidebar uses GET funnel, initials marks, referral first, pay labels", () => {
   const root = path.join(__dirname, "..");
   const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
   const js = fs.readFileSync(path.join(root, "src/renderer/lead-funnel.js"), "utf8");
@@ -19,8 +19,8 @@ test("funnel sidebar uses GET funnel, DuckDuckGo logos, referral first, pay labe
   assert.ok(html.indexOf("sidebar-funnel") < html.indexOf("sidebar-drafts"), "funnel above drafts");
   assert.match(html, /lead-funnel\.js/);
   assert.match(js, /action=funnel|action=" \+ encodeURIComponent\(action\)/);
-  assert.match(js, /icons\.duckduckgo\.com\/ip3/);
-  assert.match(js, /duckduckgo\.com\/privacy/);
+  assert.equal(/icons\.duckduckgo\.com/.test(js), false);
+  assert.match(js, /sidebar__funnel-logo--fallback|initials\(/);
   assert.match(js, /nextReferrer/);
   assert.match(js, /Referral/);
   assert.match(js, /Clears floor|Below floor|No pay data/);

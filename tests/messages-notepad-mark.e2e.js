@@ -140,29 +140,23 @@ describe("notepad mark size and owner LinkedIn switch", () => {
       await page.goto(base + "/messages/demo-people-header.html", { waitUntil: "networkidle" });
       const probe = await page.evaluate(() => {
         const mark = document.querySelector(".messages-notepad__mark");
-        const img = document.querySelector(".messages-notepad__mark img, .messages-notepad__mark-img");
         const ta = document.querySelector(".messages-notepad__input");
         const mr = mark ? mark.getBoundingClientRect() : null;
-        const ir = img ? img.getBoundingClientRect() : null;
         const tr = ta ? ta.getBoundingClientRect() : null;
         return {
           markW: mr ? Math.round(mr.width) : 0,
           markH: mr ? Math.round(mr.height) : 0,
-          imgW: ir ? Math.round(ir.width) : 0,
-          imgH: ir ? Math.round(ir.height) : 0,
+          markText: mark ? (mark.textContent || "").trim() : "",
+          hasImg: !!document.querySelector(".messages-notepad__mark img, .messages-notepad__mark-img"),
           taVisible: !!(ta && tr && tr.height > 40 && getComputedStyle(ta).display !== "none"),
-          attrW: img ? img.getAttribute("width") : "",
-          attrH: img ? img.getAttribute("height") : "",
         };
       });
       fs.mkdirSync(ART, { recursive: true });
       await page.screenshot({ path: path.join(ART, "notepad-mark-size.png"), fullPage: false });
       assert.ok(probe.markW >= 16 && probe.markW <= 20, "mark width " + probe.markW);
       assert.ok(probe.markH >= 16 && probe.markH <= 20, "mark height " + probe.markH);
-      assert.ok(probe.imgW >= 16 && probe.imgW <= 20, "img width " + probe.imgW);
-      assert.ok(probe.imgH >= 16 && probe.imgH <= 20, "img height " + probe.imgH);
-      assert.equal(probe.attrW, "18");
-      assert.equal(probe.attrH, "18");
+      assert.equal(probe.hasImg, false, "mark must not load an image");
+      assert.ok(probe.markText.length >= 1 && probe.markText.length <= 2, "mark initials " + probe.markText);
       assert.equal(probe.taVisible, true);
     } finally {
       await browser.close();

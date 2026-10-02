@@ -34,16 +34,15 @@ test("shell keeps the onboarding capture markup", () => {
   for (const id of [
     "profile-onboarding",
     "onboarding-form",
-    "onboarding-avatar",
     "onboarding-name",
     "onboarding-email",
     "onboarding-save",
   ]) {
     assert.match(html, new RegExp(`id="${id}"`), `#${id} is missing`);
   }
-  assert.match(html, /class="onboarding__avatar-img"/, "onboarding avatar preview missing");
-  // The file input must accept images for the photo picker.
-  assert.match(html, /id="onboarding-avatar"[^>]*accept="image\/\*"/, "avatar input must accept images");
+  // Photo upload removed — initials only; no image file input.
+  assert.equal(/id="onboarding-avatar"/.test(html), false);
+  assert.equal(/onboarding__avatar-img/.test(html), false);
 });
 
 test("profile.js talks to the claim + profile endpoints", () => {
@@ -79,9 +78,11 @@ test("renderer prompts only after the first saved essay, at a transition", () =>
   assert.match(rendererJs, /maybePromptProfile\(\)/, "must call the prompt at transitions");
 });
 
-test("profile.js saves onboarding via PUT with an avatarUrl", () => {
+test("profile.js saves onboarding via PUT without loading a photo", () => {
   assert.match(js, /method:\s*"PUT"/, "onboarding save must PUT the profile");
-  assert.match(js, /avatarUrl/, "saved profile must carry an avatarUrl");
+  assert.match(js, /avatarUrl:\s*["']["']/, "saved profile keeps empty avatarUrl");
+  assert.equal(/new Image\(/.test(js), false);
+  assert.equal(/downscale\(/.test(js), false);
   // Onboarding is gated to the web sign-in surface, not wrapped runtimes.
   assert.match(js, /on-web/, "onboarding should be gated to the web platform");
   // Claim/render run after sign-in.
