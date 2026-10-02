@@ -518,9 +518,17 @@
     node.removeAttribute("hidden");
     node.hidden = false;
     // Always paint visible initials (never leave an empty cream circle).
+    // Use an inner <span> + data-initials: Electron can fail to paint bare
+    // textContent inside overflow:hidden + border-radius:50% avatars
+    // (especially near -webkit-app-region drag strips). PR #428 set
+    // textContent + no-drag and Tyler's Mac still showed a blank circle.
     var text = String(letters || "").trim() || "?";
-    node.textContent = text;
+    node.setAttribute("data-initials", text);
     node.setAttribute("aria-hidden", "true");
+    var label = document.createElement("span");
+    label.className = "messages-rail__initials";
+    label.textContent = text;
+    node.appendChild(label);
   }
   function fillCompanyLogo(node, company, opts) {
     opts = opts || {};
@@ -1004,7 +1012,7 @@
 
     var ranked = rankInboxItems();
     empty.hidden = ranked.length > 0 || !!state.error || state.loading;
-    empty.textContent = "No people yet. Add them with the lead tools.";
+    empty.textContent = "No people yet.";
     list.innerHTML = "";
     renderYouRow();
     // One flat priority list — no due-bucket or reading section heads.
@@ -1301,6 +1309,9 @@
     companyForLead: companyForLead,
     getCompany: function (id) { return (id && state.companiesById[id]) || null; },
     fillCompanyLogo: fillCompanyLogo,
+    fillOwnerMark: fillOwnerMark,
+    fillInitials: fillInitials,
+    personInitials: personInitials,
     ownerProfile: function () {
       return {
         name: ownerPersonLabel(),

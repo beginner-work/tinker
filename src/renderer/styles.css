@@ -49,10 +49,43 @@ html, body {
 body { display: flex; flex-direction: row; }
 
 ::selection { background-color: rgba(123, 196, 122, 0.32); }
-::-webkit-scrollbar { width: 6px; height: 6px; }
+
+/* Overlay scrollbars: thin, only visible while hovering/scrolling.
+ * Avoid always-on beige thumbs (Chrome/Electron default track). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+*:hover {
+  scrollbar-color: rgba(45, 42, 38, 0.28) transparent;
+}
+::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #c9c2b6; }
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*:hover::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb:vertical:hover,
+::-webkit-scrollbar-thumb:horizontal:hover {
+  background: rgba(45, 42, 38, 0.28);
+  background-clip: padding-box;
+}
+*:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(45, 42, 38, 0.42);
+  background-clip: padding-box;
+}
+/* Writing / thread panes: keep overlay feel even when not hovered yet
+ * while actively scrolling (Firefox + WebKit). */
+.messages-pane__body,
+.messages-pane__thread,
+body.messages-you-active .messages-thread--you,
+body.messages-you-active .writing--in-messages .writing__body,
+.messages-rail__list {
+  scrollbar-gutter: auto;
+}
 
 button { font: inherit; color: inherit; cursor: pointer; border: none; background: transparent; }
 input, textarea { font: inherit; color: inherit; }
@@ -213,12 +246,18 @@ body.messages-inbox-primary { --sidebar-width: 300px; }
  * Sidebar already pads for the iPhone home-indicator safe area. */
 .sidebar--inbox .sidebar__footer,
 .sidebar--inbox .sidebar__footer--gear {
+  border: 0;
   border-top: 0;
+  box-shadow: none;
   margin-top: auto;
   flex: 0 0 auto;
   padding: 2px 8px 6px;
   width: 100%;
   box-sizing: border-box;
+}
+.sidebar--inbox .messages-rail__settings {
+  border: 0;
+  box-shadow: none;
 }
 .sidebar__secondary {
   display: flex;
@@ -259,7 +298,8 @@ a.sidebar__secondary-link { display: inline; }
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 12px 2px;
+  /* Match logo row / Settings left edge (~14px). */
+  padding: 0 14px 2px;
 }
 .messages-rail__title {
   flex: 1;
@@ -366,8 +406,7 @@ a.sidebar__secondary-link { display: inline; }
   height: 18px;
   object-fit: contain;
 }
-.messages-rail__logo.messages-rail__avatar--fallback,
-.messages-pane__avatar.messages-rail__avatar--fallback {
+.messages-rail__logo.messages-rail__avatar--fallback {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -375,13 +414,38 @@ a.sidebar__secondary-link { display: inline; }
   background: var(--color-cream, #f5f3ef);
   border-radius: 3px;
   border: 1px solid var(--color-border);
+  overflow: visible;
 }
-.messages-rail__avatar.messages-rail__avatar--fallback {
+/* Owner / person initials — never overflow:hidden (Electron blanks text
+ * paint inside rounded clipped circles near app-region chrome). */
+.messages-rail__avatar.messages-rail__avatar--fallback,
+.messages-pane__avatar.messages-rail__avatar--fallback {
+  overflow: visible;
   font-size: 12px;
   font-weight: 600;
   line-height: 1;
-  color: var(--color-foreground);
+  color: var(--color-foreground, #2d2a26);
+  background: var(--color-cream, #f5f3ef);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
   -webkit-app-region: no-drag;
+  /* Force a compositing layer so initials stay painted in Electron. */
+  transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+}
+.messages-rail__initials {
+  display: block;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: inherit;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.messages-rail__avatar.messages-rail__avatar--fallback::before,
+.messages-pane__avatar.messages-rail__avatar--fallback::before {
+  /* Fallback paint path if the inner span is stripped by a future edit. */
+  content: none;
 }
 .messages-rail__row:has(.messages-rail__logo[hidden]) .messages-rail__main,
 .messages-rail__row:not(:has(.messages-rail__logo)) .messages-rail__main {
@@ -429,10 +493,11 @@ a.sidebar__secondary-link { display: inline; }
 .messages-rail__empty,
 .messages-rail__error {
   margin: 0;
-  padding: 8px 14px;
-  font-size: 12px;
-  line-height: 1.4;
+  padding: 10px 14px 12px;
+  font-size: 11px;
+  line-height: 1.45;
   color: var(--color-muted);
+  opacity: 0.85;
 }
 .messages-rail__error { color: var(--color-danger, #b42318); }
 .messages-rail__list {
@@ -508,14 +573,27 @@ a.sidebar__secondary-link { display: inline; }
   border: 1px solid var(--color-border);
   overflow: hidden;
 }
+/* Pane header: small circular initials (readable TL), not a clipped 18px
+ * square that read as a stray "L" glyph next to the name. */
 .messages-pane__avatar {
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
   font-size: 11px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: var(--color-cream, #f5f3ef);
+  border: 1px solid var(--color-border);
   padding: 0;
+  overflow: visible;
+}
+.messages-pane__avatar.messages-rail__avatar--fallback {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+  border-radius: 50%;
+  color: var(--color-foreground, #2d2a26);
+  background: var(--color-cream, #f5f3ef);
+  border: 1px solid var(--color-border);
 }
 .messages-pane__avatar[hidden] { display: none !important; }
 .messages-pane__heading {
@@ -757,9 +835,6 @@ body.messages-inbox-primary #welcome[data-active] { display: none; }
   word-break: break-word;
 }
 .messages-pane__role[hidden] { display: none !important; }
-.messages-pane__avatar {
-  margin-top: 4px;
-}
 .messages-pane__links {
   padding-left: 0;
 }
@@ -1127,15 +1202,15 @@ body.messages-you-active .writing--in-messages .writing-card {
   max-width: none;
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: min(70vh, 36rem);
+  flex: 0 0 auto;
+  min-height: 0;
   /* forwards keeps the settled card at opacity:1 (not mid fade-up). */
   animation: fade-up 0.28s ease forwards;
 }
 body.messages-you-active .writing--in-messages .writing-question {
   display: block;
   max-width: none;
-  margin: 0 0 18px;
+  margin: 0 0 8px;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -1152,10 +1227,10 @@ body.messages-you-active .writing--in-messages .writing-question {
 /* Invisible notepad: caret starts under the opening, grows with the page. */
 body.messages-you-active .writing--in-messages .writing-input {
   display: block;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   width: 100%;
-  min-height: 50vh;
-  margin: 0;
+  min-height: 2.75em;
+  margin: 0 0 1.25rem;
   padding: 0 0 8px;
   border: 0 !important;
   border-radius: 0;
@@ -1176,7 +1251,8 @@ body.messages-you-active .writing--in-messages .writing-input:focus {
   outline: none;
 }
 body.messages-you-active .writing--in-messages .writing-input::placeholder {
-  color: transparent;
+  color: var(--color-muted, #6f6a65);
+  opacity: 0.55;
 }
 body.messages-you-active .writing--in-messages .writing-note,
 body.messages-you-active .writing--in-messages .writing-recall {
@@ -1267,7 +1343,7 @@ body.messages-you-active .writing--in-messages .writing__end:not(:disabled):hove
     padding: 4px 12px calc(110px + env(safe-area-inset-bottom, 0px));
   }
   body.messages-you-active.messages-mobile-thread .writing--in-messages .writing-input {
-    min-height: 55vh;
+    min-height: 4.5em;
     font-size: 16px; /* iOS: avoid focus zoom */
   }
   body.messages-you-active.messages-mobile-thread .writing--in-messages .writing__foot {

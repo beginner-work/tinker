@@ -33,13 +33,13 @@
     <div class="messages-rail__head"><span class="messages-rail__title">Inbox</span></div>
     <div class="messages-rail__you" data-messages-you-slot>
       <button type="button" class="messages-rail__row messages-rail__row--you" aria-current="true" data-conv-id="__you__">
-        <span class="messages-rail__avatar messages-rail__avatar--fallback" aria-hidden="true">TL</span>
+        <span class="messages-rail__avatar messages-rail__avatar--fallback" data-initials="TL" aria-hidden="true"><span class="messages-rail__initials">TL</span></span>
         <span class="messages-rail__main">
           <span class="messages-rail__top"><span class="messages-rail__name">Owner</span></span>
         </span>
       </button>
     </div>
-    <p class="messages-rail__empty" data-messages-empty>No people yet. Add them with the lead tools.</p>
+    <p class="messages-rail__empty" data-messages-empty>No people yet.</p>
     <ul class="messages-rail__list" data-messages-list></ul>
   </nav>
   <footer class="sidebar__footer sidebar__footer--gear">
@@ -57,7 +57,7 @@
     <header class="messages-pane__top">
       <div class="messages-pane__lead" data-messages-lead>
         <button type="button" class="messages-pane__back" data-messages-back aria-label="Back to conversations">←</button>
-        <span class="messages-pane__avatar messages-rail__avatar--fallback" data-messages-avatar aria-hidden="true">TL</span>
+        <span class="messages-pane__avatar messages-rail__avatar--fallback" data-messages-avatar data-initials="TL" aria-hidden="true"><span class="messages-rail__initials">TL</span></span>
         <h2 class="messages-pane__title">
           <span class="messages-pane__name" data-messages-name>Owner</span>
           <span class="messages-pane__role" data-messages-role hidden></span>
@@ -66,20 +66,23 @@
       <div class="messages-pane__links" data-messages-links hidden></div>
     </header>
     <div class="messages-pane__body">
-      <div class="messages-pane__thread messages-thread" data-messages-thread>
-        <div class="writing writing--in-messages" id="writing">
-          <div class="writing-scroll">
-            <h1 class="writing-prompt">Where have you been and where are you going?</h1>
-            <div class="writing-card">
-              <h2 class="writing-question">Where are you, physically?</h2>
-              <textarea class="writing-input" rows="3" aria-label="Your answer"></textarea>
-            </div>
-            <div class="writing-card">
-              <h2 class="writing-question">What are you facing?</h2>
+      <div class="messages-pane__thread messages-thread messages-thread--you" data-messages-thread>
+        <div class="writing writing--in-messages" id="writing" style="display:flex">
+          <div class="writing__body">
+            <div class="writing__stage">
+              <h1 class="writing-question" style="font-size:clamp(26px,3.6vw,34px);margin-bottom:1.25rem">Where have you been and where are you going?</h1>
+              <div class="writing-card">
+                <h2 class="writing-question">Where are you, physically?</h2>
+                <textarea class="writing-input" rows="3" placeholder="Start writing..." aria-label="Your answer"></textarea>
+              </div>
+              <div class="writing-card">
+                <h2 class="writing-question">What are you facing?</h2>
+                <textarea class="writing-input" rows="3" placeholder="Start writing..." aria-label="Your answer"></textarea>
+              </div>
             </div>
           </div>
-          <footer class="writing-foot">
-            <button type="button" class="writing-secondary">Keep crafting</button>
+          <footer class="writing__foot">
+            <button type="button" class="writing__next">Keep crafting</button>
           </footer>
         </div>
       </div>
