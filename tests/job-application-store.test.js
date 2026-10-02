@@ -267,6 +267,7 @@ test("stage and appliedAt validate, auto-set stageUpdatedAt, and filter", async 
   assert.equal(sameStage.stageUpdatedAt, firstStageAt, "unchanged stage does not bump stageUpdatedAt");
   assert.equal(sameStage.fitNotes, "still applied");
 
+  await new Promise((resolve) => setTimeout(resolve, 5));
   const advanced = await store.updateApplication({
     userId: "fake-user-stage",
     applicationId: created.id,
