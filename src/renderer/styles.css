@@ -74,21 +74,68 @@ input:focus, button:focus, textarea:focus { outline: none; }
   border-right: 1px solid var(--color-border);
   user-select: none;
   position: relative;
-  -webkit-app-region: drag;
   /* Keep the bottom rows (account list + footer) above the iOS home
      indicator when running as an installed PWA. */
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .sidebar__top {
-  padding: 52px 12px 8px 14px;
+  padding: 14px 12px 8px 14px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 10px;
 }
-html.on-web .sidebar__top {
-  padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
+
+/* Electron desktop shell only (preload sets data-tinker-desktop).
+   Web browsers are unchanged: no traffic-light offset, no app-region. */
+html[data-tinker-desktop],
+html.tinker-desktop {
+  --tinker-desktop-titlebar: 52px;
+}
+html[data-tinker-desktop] .sidebar,
+html.tinker-desktop .sidebar {
+  -webkit-app-region: drag;
+}
+html[data-tinker-desktop] .sidebar__top,
+html.tinker-desktop .sidebar__top {
+  padding-top: var(--tinker-desktop-titlebar);
+}
+html[data-tinker-desktop] .messages-pane__top,
+html.tinker-desktop .messages-pane__top {
+  -webkit-app-region: drag;
+  padding-top: 36px;
+}
+html[data-tinker-desktop] .sidebar a,
+html[data-tinker-desktop] .sidebar button,
+html[data-tinker-desktop] .sidebar input,
+html[data-tinker-desktop] .sidebar textarea,
+html[data-tinker-desktop] .sidebar select,
+html[data-tinker-desktop] .sidebar [role="button"],
+html[data-tinker-desktop] .messages-pane__top a,
+html[data-tinker-desktop] .messages-pane__top button,
+html[data-tinker-desktop] .messages-pane__top input,
+html.tinker-desktop .sidebar a,
+html.tinker-desktop .sidebar button,
+html.tinker-desktop .sidebar input,
+html.tinker-desktop .sidebar textarea,
+html.tinker-desktop .sidebar select,
+html.tinker-desktop .sidebar [role="button"],
+html.tinker-desktop .messages-pane__top a,
+html.tinker-desktop .messages-pane__top button,
+html.tinker-desktop .messages-pane__top input {
+  -webkit-app-region: no-drag;
+}
+html[data-tinker-desktop] body.settings-page .settings,
+html.tinker-desktop body.settings-page .settings {
+  padding-top: calc(var(--tinker-desktop-titlebar) + 16px);
+}
+html[data-tinker-desktop] .feed-shell,
+html.tinker-desktop .feed-shell,
+html[data-tinker-desktop] .feed,
+html.tinker-desktop .feed {
+  padding-top: max(var(--tinker-desktop-titlebar), env(safe-area-inset-top, 0px));
 }
 
 .sidebar__brand {

@@ -83,8 +83,9 @@ test("profile.js saves onboarding via PUT without loading a photo", () => {
   assert.match(js, /avatarUrl:\s*["']["']/, "saved profile keeps empty avatarUrl");
   assert.equal(/new Image\(/.test(js), false);
   assert.equal(/downscale\(/.test(js), false);
-  // Onboarding is gated to the web sign-in surface, not wrapped runtimes.
-  assert.match(js, /on-web/, "onboarding should be gated to the web platform");
+  // Onboarding runs on web and the desktop shell (same Stytch product path).
+  assert.match(js, /on-web/, "onboarding should include the web platform");
+  assert.match(js, /isDesktopApp/, "onboarding should include the desktop shell");
   // Claim/render run after sign-in.
   assert.match(js, /tinker:auth-changed/, "must hydrate on auth-changed");
 });
