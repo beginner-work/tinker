@@ -1,0 +1,308 @@
+/* Practice prototype — wrap Tinker writing chrome; Lindow Labs editor feel.
+ *
+ * Page shell reuses .writing / .writing-card / .writing-question /
+ * .writing-input / .writing__foot from styles.css.
+ * The code editor alone uses lindowlabs.dev homepage tokens (lavender
+ * surface, Space Mono, soft violet borders) — see .practice-editor.
+ */
+
+:root {
+  /* From lindowlabs.dev homepage-theme (--hp-*). */
+  --ll-lavender: #f3eef8;
+  --ll-surface: #fbf8fe;
+  --ll-sand: #ede6f6;
+  --ll-border: #c9b9df;
+  --ll-border-subtle: #ddd0ea;
+  --ll-ink: #1a1428;
+  --ll-muted: #564d66;
+  --ll-accent: #4f46e5;
+  --ll-mono: "Space Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
+
+html, body.practice-page {
+  height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  background: var(--color-background);
+}
+
+/* Full-viewport writing shell on the Practice routes. */
+.practice-writing.writing {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.practice-writing__streak {
+  margin: 0 0 0 12px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.practice-writing .writing__close {
+  text-decoration: none;
+}
+
+/* ── List of reps (prompt picker) ───────────────────────────────────── */
+
+.practice-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid rgba(237, 232, 224, 0.9);
+}
+
+.practice-list__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 16px;
+  padding: 18px 4px;
+  border-bottom: 1px solid rgba(237, 232, 224, 0.9);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease;
+}
+
+.practice-list__row:hover {
+  background: rgba(45, 90, 61, 0.04);
+}
+
+.practice-list__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: var(--font-display-settings);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  color: var(--color-foreground);
+}
+
+.practice-list__summary {
+  margin: 6px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.practice-list__meta {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  align-self: start;
+  padding-top: 4px;
+}
+
+.practice-list__tags {
+  margin: 8px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.practice-list__tag {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* ── Spec / hints inside the writing card ───────────────────────────── */
+
+.practice-spec {
+  margin: 0;
+  padding: 0;
+  white-space: pre-wrap;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-muted);
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.practice-hints {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-foreground);
+}
+
+.practice-hints:empty {
+  display: none;
+}
+
+.practice-hint-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+/* ── Lindow Labs–styled code editor ─────────────────────────────────── */
+
+.practice-editor-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--ll-border);
+  border-radius: 16px;
+  background: var(--ll-surface);
+  box-shadow: 0 1px 2px rgba(26, 20, 40, 0.04);
+  overflow: hidden;
+}
+
+.practice-editor-shell__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--ll-sand);
+  border-bottom: 1px solid var(--ll-border-subtle);
+}
+
+.practice-editor-shell__label {
+  margin: 0;
+  font-family: var(--ll-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ll-muted);
+}
+
+.practice-editor {
+  display: block;
+  width: 100%;
+  min-height: 240px;
+  margin: 0;
+  padding: 18px 18px 22px;
+  border: 0;
+  border-radius: 0;
+  background: var(--ll-surface);
+  color: var(--ll-ink);
+  font-family: var(--ll-mono);
+  font-size: 13.5px;
+  line-height: 1.65;
+  letter-spacing: 0;
+  resize: vertical;
+  tab-size: 2;
+  -webkit-font-smoothing: antialiased;
+}
+
+.practice-editor:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ll-accent) 35%, transparent);
+}
+
+.practice-editor::placeholder {
+  color: var(--ll-muted);
+  opacity: 0.7;
+}
+
+/* Results sit under the editor like a writing-note / error strip. */
+.practice-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.practice-results__empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.practice-results__row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 10px;
+  align-items: baseline;
+  font-size: 14px;
+}
+
+.practice-results__badge {
+  font-family: var(--ll-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.practice-results__badge--pass { color: #2f6b3a; }
+.practice-results__badge--fail { color: #b3261e; }
+.practice-results__badge--soft { color: var(--ll-muted); }
+
+.practice-results__error,
+.practice-results__console,
+.practice-results__nudge {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--ll-sand);
+  border: 1px solid var(--ll-border-subtle);
+  color: var(--ll-ink);
+  font-family: var(--ll-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.practice-results__error {
+  background: #fde6dc;
+  border-color: #d9a48c;
+  color: #5c2410;
+}
+
+.practice-results__nudge {
+  background: color-mix(in srgb, var(--ll-sand) 70%, #fff);
+  border-color: var(--ll-border);
+  color: var(--ll-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.practice-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 720px) {
+  .practice-writing .writing__body {
+    padding: 24px 16px 110px;
+  }
+  .practice-editor {
+    min-height: 200px;
+    font-size: 13px;
+  }
+  .practice-list__title {
+    font-size: 18px;
+  }
+}
