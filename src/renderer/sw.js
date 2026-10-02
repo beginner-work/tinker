@@ -32,7 +32,7 @@
  * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v28";
+const CACHE_VERSION = "tinker-shell-v29";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -142,17 +142,14 @@ self.addEventListener("fetch", (event) => {
   // Leave the API on the network — freewrite.js gates it page-side, and
   // it's per-user/authenticated, so it must never be cached.
   if (sameOrigin && url.pathname.startsWith("/api/")) return;
-  // /autonomy, /career, /leads, /settings, /practice, and /feed are their
-  // own pages. Leave them on the network so a visit does not get stored as
-  // the offline shell for "/". (networkFirstDoc used to cache any navigate
-  // response under "/" / index.html, which made Settings overwrite the
-  // People inbox shell in the iPhone PWA.)
+  // /autonomy, /career, /leads, and /settings are their own pages. Leave them
+  // on the network so a visit does not get stored as the offline shell for "/".
+  // (networkFirstDoc used to cache any navigate response under "/" / index.html,
+  // which made Settings overwrite the People inbox shell in the iPhone PWA.)
   if (sameOrigin && (url.pathname === "/autonomy" || url.pathname.startsWith("/autonomy/"))) return;
   if (sameOrigin && (url.pathname === "/career" || url.pathname.startsWith("/career/"))) return;
   if (sameOrigin && (url.pathname === "/leads" || url.pathname.startsWith("/leads/"))) return;
   if (sameOrigin && (url.pathname === "/settings" || url.pathname.startsWith("/settings/"))) return;
-  if (sameOrigin && (url.pathname === "/practice" || url.pathname.startsWith("/practice/"))) return;
-  if (sameOrigin && (url.pathname === "/feed" || url.pathname.startsWith("/feed/"))) return;
   // Cross-origin (fonts, vercel.live preview comments): pass through.
   if (!sameOrigin) return;
 
