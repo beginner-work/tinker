@@ -326,6 +326,119 @@ test("stage and appliedAt validate, auto-set stageUpdatedAt, and filter", async 
   );
 });
 
+test("stage history appends events, orders oldest first, and honors stageChangedAt backfill", async () => {
+  userDataRows.length = 0;
+  touchRows.length = 0;
+  companyRows.length = 0;
+
+  const created = await store.createApplication({
+    userId: "fake-user-history",
+    roleTitle: "Engineering Manager, Issuing",
+    companyName: "Stripe",
+    stage: "applied",
+    source: "employer email",
+    stageChangedAt: "2026-08-01T15:30:00.000Z",
+  });
+  assert.equal(created.stage, "applied");
+  assert.equal(created.stageUpdatedAt, "2026-08-01T15:30:00.000Z");
+
+  const first = await store.getApplicationHistory({
+    userId: "fake-user-history",
+    applicationId: created.id,
+  });
+  assert.equal(first.applicationId, created.id);
+  assert.equal(first.stageHistory.length, 1);
+  assert.equal(first.stageHistory[0].fromStage, null);
+  assert.equal(first.stageHistory[0].toStage, "applied");
+  assert.equal(first.stageHistory[0].changedAt, "2026-08-01T15:30:00.000Z");
+  assert.equal(first.stageHistory[0].source, "employer email");
+  assert.equal(first.stageHistory[0].applicationId, created.id);
+  assert.ok(String(first.stageHistory[0].id).startsWith("ase_"));
+
+  const screened = await store.updateApplication({
+    userId: "fake-user-history",
+    applicationId: created.id,
+    patch: {
+      stage: "screening",
+      stageChangedAt: "2026-08-10",
+      source: "recruiter note",
+    },
+  });
+  assert.equal(screened.stage, "screening");
+  assert.equal(screened.stageUpdatedAt, "2026-08-10T00:00:00.000Z");
+
+  const interviewed = await store.updateApplication({
+    userId: "fake-user-history",
+    applicationId: created.id,
+    patch: {
+      stage: "interviewing",
+      stageChangedAt: "2026-09-01T12:00:00.000Z",
+    },
+  });
+  assert.equal(interviewed.stageUpdatedAt, "2026-09-01T12:00:00.000Z");
+
+  // Same stage does not append another event.
+  await store.updateApplication({
+    userId: "fake-user-history",
+    applicationId: created.id,
+    patch: { stage: "interviewing", fitNotes: "still interviewing" },
+  });
+
+  const history = await store.getApplicationHistory({
+    userId: "fake-user-history",
+    applicationId: created.id,
+  });
+  assert.equal(history.stageHistory.length, 3);
+  assert.deepEqual(
+    history.stageHistory.map((row) => [row.fromStage, row.toStage, row.changedAt, row.source]),
+    [
+      [null, "applied", "2026-08-01T15:30:00.000Z", "employer email"],
+      ["applied", "screening", "2026-08-10T00:00:00.000Z", "recruiter note"],
+      ["screening", "interviewing", "2026-09-01T12:00:00.000Z", ""],
+    ],
+  );
+
+  const other = await store.createApplication({
+    userId: "fake-user-history",
+    roleTitle: "Staff Engineer",
+    companyName: "Notion",
+    stage: "applied",
+    stageChangedAt: "2026-07-01T00:00:00.000Z",
+  });
+  const otherHistory = await store.getApplicationHistory({
+    userId: "fake-user-history",
+    applicationId: other.id,
+  });
+  assert.equal(otherHistory.stageHistory.length, 1);
+  assert.equal(otherHistory.stageHistory[0].toStage, "applied");
+
+  const isolated = await store.getApplicationHistory({
+    userId: "fake-user-history",
+    applicationId: created.id,
+  });
+  assert.equal(isolated.stageHistory.length, 3, "history is scoped to one application");
+
+  const emptyUser = await store.createApplication({
+    userId: "fake-user-history-b",
+    roleTitle: "EM",
+    companyName: "X",
+  });
+  const noEvents = await store.getApplicationHistory({
+    userId: "fake-user-history-b",
+    applicationId: emptyUser.id,
+  });
+  assert.equal(noEvents.stageHistory.length, 0);
+
+  await assert.rejects(
+    () => store.updateApplication({
+      userId: "fake-user-history",
+      applicationId: created.id,
+      patch: { stage: "offer", stageChangedAt: "not-a-timestamp" },
+    }),
+    (err) => err && err.status === 400 && /stageChangedAt must be/.test(err.message),
+  );
+});
+
 test("UI wires messages-application.js and SW precaches it", () => {
   const { EXPECTED_SW_CACHE_VERSION } = require("./helpers/sw-cache-version.js");
   const index = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "index.html"), "utf8");

@@ -320,6 +320,7 @@ test("tools/list exposes ask_followups and draft_linkedin_post, and no raw conve
     "create_application",
     "update_application",
     "list_applications",
+    "get_application_history",
     "mark_application_done",
     "list_target_companies",
     "save_outreach_draft",
@@ -358,8 +359,17 @@ test("tools/list exposes ask_followups and draft_linkedin_post, and no raw conve
   assert.deepEqual(listApp.inputSchema.properties.stage.enum, stageEnum);
   assert.ok(createApp.inputSchema.properties.appliedAt);
   assert.ok(updateApp.inputSchema.properties.appliedAt);
+  assert.ok(createApp.inputSchema.properties.stageChangedAt);
+  assert.ok(updateApp.inputSchema.properties.stageChangedAt);
+  assert.ok(createApp.inputSchema.properties.source);
+  assert.ok(updateApp.inputSchema.properties.source);
   assert.match(createApp.description, /appliedAt/);
   assert.match(listApp.description, /stage/);
+  const historyTool = tools.find((t) => t.name === "get_application_history");
+  assert.ok(historyTool);
+  assert.equal(historyTool.annotations.readOnlyHint, true);
+  assert.deepEqual(historyTool.inputSchema.required, ["applicationId"]);
+  assert.match(historyTool.description, /stageHistory/);
   assert.equal(anthropicCalls().length, 0);
 });
 
@@ -688,6 +698,7 @@ test("get_autonomy_settings returns this user's 14 settings and no write tool", 
     "create_application",
     "update_application",
     "list_applications",
+    "get_application_history",
     "mark_application_done",
     "list_target_companies",
     "save_outreach_draft",

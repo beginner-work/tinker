@@ -1,9 +1,11 @@
 /* Job application inbox items.
  *
- * One TinkerUserData row per user, kind "job_applications". Each application
- * sits in the flat inbox next to that company's outreach. Bots create/update
- * via MCP; the owner marks done in the thread (This is everything) or via
- * mark_application_done. Do not seed Tyler's roles in app code.
+ * One TinkerUserData row per user, kind "job_applications". Stage history
+ * lives in a separate append-only blob, kind "job_application_stage_history".
+ * Each application sits in the flat inbox next to that company's outreach.
+ * Bots create/update via MCP; the owner marks done in the thread
+ * (This is everything) or via mark_application_done. Do not seed Tyler's
+ * roles in app code.
  */
 
 "use strict";
@@ -13,6 +15,7 @@ const { addBusinessDays, dayKey } = require("./business-days.js");
 const { readCalendarDate, presentCalendarDate } = require("./calendar-date.js");
 
 const KIND = "job_applications";
+const HISTORY_KIND = "job_application_stage_history";
 const UNAVAILABLE = "Job applications are unavailable right now.";
 const STATUSES = ["open", "done", "dropped"];
 const STAGES = [
@@ -30,7 +33,9 @@ const MAX_URL = 2000;
 const MAX_PAY = 200;
 const MAX_FIT = 8000;
 const MAX_REFERRER = 200;
+const MAX_SOURCE = 200;
 const MAX_APPS = 80;
+const MAX_STAGE_EVENTS = 2000;
 const RECRUITER_BUMP_BUSINESS_DAYS = 1;
 
 function db() {
@@ -55,6 +60,10 @@ function storeDown(err) {
 
 function newAppId() {
   return "app_" + crypto.randomBytes(8).toString("hex");
+}
+
+function newEventId() {
+  return "ase_" + crypto.randomBytes(8).toString("hex");
 }
 
 function trimText(value, label, max, required) {
@@ -101,10 +110,42 @@ function readAppliedAt(value) {
   return presentCalendarDate(date);
 }
 
+function readChangedAt(value, fallbackIso) {
+  if (value == null || value === "") return fallbackIso || new Date().toISOString();
+  if (typeof value !== "string" && !(value instanceof Date)) {
+    throw fail(400, "stageChangedAt must be a timestamp.");
+  }
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) throw fail(400, "stageChangedAt must be a timestamp.");
+    return value.toISOString();
+  }
+  const text = value.trim();
+  if (!text) return fallbackIso || new Date().toISOString();
+  // Date-only backfills become UTC midnight; timed values keep the instant.
+  const date = readCalendarDate(text, "stageChangedAt", { required: true });
+  return date.toISOString();
+}
+
+function readSource(value) {
+  if (value == null || value === "") return "";
+  return trimText(value, "source", MAX_SOURCE, false);
+}
+
 function presentStage(row) {
   if (row.stage == null || row.stage === "") return null;
   const found = String(row.stage).trim().toLowerCase();
   return STAGES.includes(found) ? found : null;
+}
+
+function presentStageEvent(row) {
+  return {
+    id: row.id,
+    applicationId: row.applicationId,
+    fromStage: row.fromStage == null || row.fromStage === "" ? null : String(row.fromStage),
+    toStage: row.toStage == null || row.toStage === "" ? null : String(row.toStage),
+    changedAt: row.changedAt || null,
+    source: row.source || "",
+  };
 }
 
 function presentApplication(row) {
@@ -149,12 +190,58 @@ async function writeBlob(userId, applications) {
   });
 }
 
+async function readHistoryBlob(userId) {
+  const prisma = db();
+  const row = await prisma.tinkerUserData.findUnique({
+    where: { userId_kind: { userId, kind: HISTORY_KIND } },
+  });
+  const data = row && row.data && typeof row.data === "object" ? row.data : {};
+  const events = Array.isArray(data.events) ? data.events : [];
+  return { events, updatedAt: row ? row.updatedAt : null };
+}
+
+async function writeHistoryBlob(userId, events) {
+  const prisma = db();
+  const data = { events };
+  await prisma.tinkerUserData.upsert({
+    where: { userId_kind: { userId, kind: HISTORY_KIND } },
+    create: { userId, kind: HISTORY_KIND, data },
+    update: { data },
+  });
+}
+
 function findApp(applications, applicationId) {
   const id = String(applicationId || "").trim();
   if (!id) throw fail(400, "applicationId is required.");
   const row = applications.find((item) => item && item.id === id);
   if (!row) throw fail(404, "Application not found.");
   return row;
+}
+
+function sortEventsOldestFirst(events) {
+  return events.slice().sort((a, b) => {
+    const aAt = String(a && a.changedAt || "");
+    const bAt = String(b && b.changedAt || "");
+    if (aAt < bAt) return -1;
+    if (aAt > bAt) return 1;
+    return String(a && a.id || "").localeCompare(String(b && b.id || ""));
+  });
+}
+
+async function appendStageEvent(userId, { applicationId, fromStage, toStage, changedAt, source }) {
+  const { events } = await readHistoryBlob(userId);
+  const event = {
+    id: newEventId(),
+    applicationId,
+    fromStage: fromStage == null ? null : fromStage,
+    toStage: toStage == null ? null : toStage,
+    changedAt,
+    source: source || "",
+  };
+  events.push(event);
+  while (events.length > MAX_STAGE_EVENTS) events.shift();
+  await writeHistoryBlob(userId, events);
+  return presentStageEvent(event);
 }
 
 async function listApplications({ userId, status, stage } = {}) {
@@ -185,6 +272,21 @@ async function getApplication({ userId, applicationId } = {}) {
   }
 }
 
+async function getApplicationHistory({ userId, applicationId } = {}) {
+  try {
+    const uid = requireUserId(userId);
+    const { applications } = await readBlob(uid);
+    const app = findApp(applications, applicationId);
+    const { events } = await readHistoryBlob(uid);
+    const stageHistory = sortEventsOldestFirst(
+      events.filter((row) => row && row.applicationId === app.id),
+    ).map(presentStageEvent);
+    return { applicationId: app.id, stageHistory };
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
 async function createApplication(input = {}) {
   try {
     const uid = requireUserId(input.userId);
@@ -204,7 +306,14 @@ async function createApplication(input = {}) {
     const stage = hasStage ? readStage(input.stage, true) : null;
     const hasAppliedAt = Object.prototype.hasOwnProperty.call(input, "appliedAt");
     const appliedAt = hasAppliedAt ? readAppliedAt(input.appliedAt) : null;
+    const source = readSource(input.source);
     const now = new Date().toISOString();
+    const stageAt = stage
+      ? readChangedAt(
+        Object.prototype.hasOwnProperty.call(input, "stageChangedAt") ? input.stageChangedAt : null,
+        now,
+      )
+      : null;
     const row = {
       id: newAppId(),
       roleTitle,
@@ -218,7 +327,7 @@ async function createApplication(input = {}) {
       status,
       stage,
       appliedAt,
-      stageUpdatedAt: stage ? now : null,
+      stageUpdatedAt: stageAt,
       doneAt: status === "done" ? now : null,
       droppedAt: status === "dropped" ? now : null,
       createdAt: now,
@@ -228,6 +337,15 @@ async function createApplication(input = {}) {
     applications.push(row);
     while (applications.length > MAX_APPS) applications.shift();
     await writeBlob(uid, applications);
+    if (stage) {
+      await appendStageEvent(uid, {
+        applicationId: row.id,
+        fromStage: null,
+        toStage: stage,
+        changedAt: stageAt,
+        source,
+      });
+    }
     return presentApplication(row);
   } catch (err) {
     throw storeDown(err);
@@ -279,12 +397,25 @@ async function updateApplication({ userId, applicationId, patch } = {}) {
         row.droppedAt = null;
       }
     }
+    let stageEvent = null;
     if (Object.prototype.hasOwnProperty.call(src, "stage")) {
       const nextStage = readStage(src.stage, src.stage != null && src.stage !== "");
       const prevStage = presentStage(row);
       if (nextStage !== prevStage) {
+        const changedAt = readChangedAt(
+          Object.prototype.hasOwnProperty.call(src, "stageChangedAt") ? src.stageChangedAt : null,
+          new Date().toISOString(),
+        );
+        const source = readSource(src.source);
         row.stage = nextStage;
-        row.stageUpdatedAt = nextStage ? new Date().toISOString() : null;
+        row.stageUpdatedAt = changedAt;
+        stageEvent = {
+          applicationId: row.id,
+          fromStage: prevStage,
+          toStage: nextStage,
+          changedAt,
+          source,
+        };
       }
     }
     if (Object.prototype.hasOwnProperty.call(src, "appliedAt")) {
@@ -292,6 +423,7 @@ async function updateApplication({ userId, applicationId, patch } = {}) {
     }
     row.updatedAt = new Date().toISOString();
     await writeBlob(uid, applications);
+    if (stageEvent) await appendStageEvent(uid, stageEvent);
     return presentApplication(row);
   } catch (err) {
     throw storeDown(err);
@@ -382,13 +514,16 @@ async function bumpRecruiterTouches({ userId, emailHint, actor, companyId, compa
 
 module.exports = {
   KIND,
+  HISTORY_KIND,
   UNAVAILABLE,
   STATUSES,
   STAGES,
   RECRUITER_BUMP_BUSINESS_DAYS,
   presentApplication,
+  presentStageEvent,
   listApplications,
   getApplication,
+  getApplicationHistory,
   createApplication,
   updateApplication,
   markApplicationDone,

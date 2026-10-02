@@ -623,6 +623,7 @@ test("get_career_record reads only this user and check_text does not write", asy
     "create_application",
     "update_application",
     "list_applications",
+    "get_application_history",
     "mark_application_done",
     "list_target_companies",
     "save_outreach_draft",
