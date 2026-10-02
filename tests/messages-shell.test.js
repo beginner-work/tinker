@@ -129,8 +129,8 @@ test("conversation list styling is flat (no nested cards)", () => {
   assert.match(css, /messages-shell-open/);
   assert.match(css, /messages-mobile-thread/);
   assert.equal(/\.messages-rail__row[^{]*\{[^}]*box-shadow/.test(css), false);
-  // Exact .messages-pane / .messages-rail blocks only — not BEM children
-  // like .messages-pane__menu (which may set box-shadow: none).
+  // Exact .messages-pane block only (word boundary), not BEM children like
+  // .messages-pane__menu which may set box-shadow: none (#388).
   assert.equal(/(?:^|[^\w-])\.messages-pane\s*\{[^}]*box-shadow/.test(css), false);
 });
 

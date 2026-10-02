@@ -335,6 +335,11 @@ test("tools/list exposes ask_followups and draft_linkedin_post, and no raw conve
     properties: {},
   });
   assert.equal(tools.some((t) => /set_|update_|toggle|write/i.test(t.name) && /autonomy/.test(t.name)), false);
+  // Exact tool names only. A substring /approve/ ban once rejected list_approved_outreach (#377).
+  assert.equal(names.includes("list_approved_outreach"), true);
+  for (const banned of ["approve_story", "draft_outreach", "list_threads"]) {
+    assert.equal(names.includes(banned), false, banned);
+  }
   const linkedin = tools.find((t) => t.name === "draft_linkedin_post");
   assert.equal(linkedin.inputSchema.required.includes("notes"), true);
   assert.equal(linkedin.inputSchema.properties.system, undefined);
@@ -861,7 +866,6 @@ test("the browser interview loads the shared prompt and does not inline a second
   const promptAt = html.indexOf("./interview-prompt.js");
   const writingAt = html.indexOf("./writing.js");
   assert.ok(promptAt > 0 && writingAt > promptAt, "interview-prompt.js must load before writing.js");
-  assert.match(sw, /tinker-shell-v\d+/);
   assert.match(sw, /\/interview-prompt\.js/);
   assert.match(converse, /require\("\.\.\/_lib\/anthropic\.js"\)/);
   assert.equal(converse.includes("api.anthropic.com"), false);

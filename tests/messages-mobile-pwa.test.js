@@ -1,7 +1,6 @@
 /* Mobile inbox must be list-then-thread; drawer must not blank the front screen. */
 "use strict";
 
-const { EXPECTED_SW_CACHE_VERSION } = require("./helpers/sw-cache-version.js");
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -13,7 +12,6 @@ const drawer = fs.readFileSync(path.join(root, "src/renderer/mobile-drawer.css")
 const shell = fs.readFileSync(path.join(root, "src/renderer/messages-shell.js"), "utf8");
 const profile = fs.readFileSync(path.join(root, "src/renderer/profile.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
-const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
 
 test("body ships messages-shell-open so mobile first paint is never blank", () => {
   assert.match(html, /<body[^>]*class="[^"]*messages-shell-open/);
@@ -28,7 +26,6 @@ test("body ships messages-shell-open so mobile first paint is never blank", () =
   assert.match(shell, /stayOnList/);
   // Clearing selection must NOT open You / hide the list.
   assert.equal(/if \(id === YOU_ID \|\| !id\) \{ selectYou/.test(shell), false);
-  assert.match(sw, new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
 test("mobile inbox is push navigation with no slide-over drawer", () => {

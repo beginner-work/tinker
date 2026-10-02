@@ -87,13 +87,14 @@ test.beforeEach(() => {
 });
 test("migration matches, allowlist gates, and no send path", () => {
   const root = path.join(__dirname, "..");
-  const migrations = fs.readFileSync(path.join(root, "prisma/migrations/20260929060000_add_leads/migration.sql"), "utf8")
-    + fs.readFileSync(path.join(root, "prisma/migrations/20260929070000_leads_draft_channels/migration.sql"), "utf8")
-    + fs.readFileSync(path.join(root, "prisma/migrations/20260929080000_leads_companies_funnel/migration.sql"), "utf8")
-    + fs.readFileSync(path.join(root, "prisma/migrations/20260929211000_draft_approved_to_send/migration.sql"), "utf8")
-    + fs.readFileSync(path.join(root, "prisma/migrations/20260929212000_lead_github_url/migration.sql"), "utf8")
-    + fs.readFileSync(path.join(root, "prisma/migrations/20261001020000_lead_draft_origin/migration.sql"), "utf8")
-    + fs.readFileSync(path.join(root, "prisma/migrations/20261001060000_drop_story_parts/migration.sql"), "utf8");
+  // Derive SQL from prisma/migrations/ so schema drops/adds do not require
+  // a hand-kept filename list (drift after story-parts removal: #413).
+  const migrationsDir = path.join(root, "prisma", "migrations");
+  const migrations = fs.readdirSync(migrationsDir)
+    .filter((name) => fs.statSync(path.join(migrationsDir, name)).isDirectory())
+    .sort()
+    .map((name) => fs.readFileSync(path.join(migrationsDir, name, "migration.sql"), "utf8"))
+    .join("\n");
   for (const statement of store.TABLE_STATEMENTS) assert.ok(migrations.includes(statement), statement.slice(0, 60));
   assert.deepEqual(store.CHANNELS, ["linkedin_post", "linkedin_connection", "gmail_outreach"]);
   const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
