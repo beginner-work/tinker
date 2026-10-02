@@ -100,10 +100,13 @@ const INSTRUCTIONS = [
   "Per company: warm referral ask, then eng-lead peer outreach (never mention applying), then the application item,",
   "then recruiter outreach after the application is marked done (\"I just applied for X\").",
   "Sent people and closed leads are omitted. Prefer list_inbox over scanning list_target_companies for what to do next.",
-  "Call create_application to add a job application inbox item (roleTitle, companyName, optional postingUrl, payRange, fitNotes, referrer).",
-  "Call update_application to change fields. Call list_applications to read them. Call mark_application_done when the owner applied;",
+  "Call create_application to add a job application inbox item (roleTitle, companyName, optional postingUrl, payRange, fitNotes, referrer, stage, appliedAt, source, stageChangedAt).",
+  "Call update_application to change fields (optional stageChangedAt backfills when a stage change really happened; source notes why).",
+  "Call list_applications to read them (optional status or stage filter). Call get_application_history for append-only stageHistory (oldest first).",
+  "Call mark_application_done when the owner applied;",
   "that bumps the company's recruiter outreach due date by 1 business day. Status open|done|dropped - dropped means decided not to apply",
-  "(not a sent application, no follow-ups); dropped apps never appear in list_inbox. Do not invent applications for Tyler unless asked.",
+  "(not a sent application, no follow-ups); dropped apps never appear in list_inbox. Pipeline stage is applied|screening|interviewing|offer|rejected|withdrawn|closed.",
+  "Do not invent applications for Tyler unless asked.",
   "Call list_target_companies to read companies with their people. Bots write lead structure only; they never send.",
   "Prefer those lead tools over dumping GTM prose into the You thread.",
   "Call save_outreach_draft to put a composed email or LinkedIn message into a person's chat for the owner to review.",
@@ -1076,8 +1079,12 @@ const CREATE_APPLICATION_TOOL = {
   description: [
     "Create a job application inbox item for this connector user.",
     "Pass roleTitle and companyName. Optional: companyId, postingUrl, payRange,",
-    "fitNotes, referrerPersonId, referrerName, status (open|done|dropped).",
-    "dropped means decided not to apply; not a sent application, no follow-ups.",
+    "fitNotes, referrerPersonId, referrerName, status (open|done|dropped),",
+    "stage (applied|screening|interviewing|offer|rejected|withdrawn|closed),",
+    "appliedAt (YYYY-MM-DD), source (short note, e.g. employer email),",
+    "stageChangedAt (ISO timestamp or YYYY-MM-DD when the stage really happened; defaults to now).",
+    "Setting stage appends the first stageHistory event (fromStage null).",
+    "stageUpdatedAt matches that event. dropped means decided not to apply; not a sent application, no follow-ups.",
     "Shows in the flat inbox next to that company's outreach (after eng-lead peer outreach).",
     "Dropped apps do not appear in the inbox. Does not load or invent Tyler's roles unless you pass them.",
     "A user id in args is ignored.",
@@ -1099,6 +1106,23 @@ const CREATE_APPLICATION_TOOL = {
         enum: ["open", "done", "dropped"],
         description: "Defaults to open. dropped = decided not to apply (not sent, no follow-ups).",
       },
+      stage: {
+        type: "string",
+        enum: ["applied", "screening", "interviewing", "offer", "rejected", "withdrawn", "closed"],
+        description: "Pipeline stage. closed = role filled or closed by the employer.",
+      },
+      appliedAt: {
+        type: "string",
+        description: "Date the application was submitted (YYYY-MM-DD).",
+      },
+      source: {
+        type: "string",
+        description: "Optional short note for the stageHistory event (e.g. employer email).",
+      },
+      stageChangedAt: {
+        type: "string",
+        description: "When the stage change really happened (ISO or YYYY-MM-DD). Defaults to now.",
+      },
     },
     required: ["roleTitle", "companyName"],
   },
@@ -1111,7 +1135,11 @@ const UPDATE_APPLICATION_TOOL = {
   description: [
     "Update fields on an existing job application. Pass applicationId plus any of:",
     "roleTitle, companyName, companyId, postingUrl, payRange, fitNotes,",
-    "referrerPersonId, referrerName, status (open|done|dropped).",
+    "referrerPersonId, referrerName, status (open|done|dropped),",
+    "stage (applied|screening|interviewing|offer|rejected|withdrawn|closed),",
+    "appliedAt (YYYY-MM-DD), source (short note for the stageHistory event),",
+    "stageChangedAt (ISO or YYYY-MM-DD when the stage change really happened; defaults to now).",
+    "Changing stage appends an append-only stageHistory event and sets stageUpdatedAt to that event's changedAt.",
     "dropped means decided not to apply; not a sent application, no follow-ups.",
     "Omitted fields are left unchanged. A user id in args is ignored.",
   ].join(" "),
@@ -1133,6 +1161,23 @@ const UPDATE_APPLICATION_TOOL = {
         enum: ["open", "done", "dropped"],
         description: "dropped = decided not to apply (not sent, no follow-ups).",
       },
+      stage: {
+        type: "string",
+        enum: ["applied", "screening", "interviewing", "offer", "rejected", "withdrawn", "closed"],
+        description: "Pipeline stage. closed = role filled or closed by the employer.",
+      },
+      appliedAt: {
+        type: "string",
+        description: "Date the application was submitted (YYYY-MM-DD). Empty clears.",
+      },
+      source: {
+        type: "string",
+        description: "Optional short note for the stageHistory event (e.g. employer email).",
+      },
+      stageChangedAt: {
+        type: "string",
+        description: "When the stage change really happened (ISO or YYYY-MM-DD). Defaults to now. For backfill.",
+      },
     },
     required: ["applicationId"],
   },
@@ -1144,7 +1189,10 @@ const LIST_APPLICATIONS_TOOL = {
   title: "List job applications",
   description: [
     "List this connector user's job application inbox items.",
-    "Optional status filter (open|done|dropped).",
+    "Optional status filter (open|done|dropped) and stage filter",
+    "(applied|screening|interviewing|offer|rejected|withdrawn|closed).",
+    "Returns stage, appliedAt, and stageUpdatedAt with each application.",
+    "Use get_application_history for the append-only stageHistory array.",
     "dropped means decided not to apply; not a sent application, no follow-ups.",
     "Read-only. A user id in args is ignored.",
   ].join(" "),
@@ -1157,7 +1205,32 @@ const LIST_APPLICATIONS_TOOL = {
         enum: ["open", "done", "dropped"],
         description: "Optional status filter. dropped = decided not to apply.",
       },
+      stage: {
+        type: "string",
+        enum: ["applied", "screening", "interviewing", "offer", "rejected", "withdrawn", "closed"],
+        description: "Optional pipeline stage filter.",
+      },
     },
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const GET_APPLICATION_HISTORY_TOOL = {
+  name: "get_application_history",
+  title: "Get application stage history",
+  description: [
+    "Return the append-only stageHistory for one job application (oldest first).",
+    "Each event has id, applicationId, fromStage (null on the first set), toStage,",
+    "changedAt, and optional source. Pass applicationId. Read-only.",
+    "A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      applicationId: { type: "string", description: "Application id from create_application or list_applications." },
+    },
+    required: ["applicationId"],
   },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 };
@@ -1342,6 +1415,7 @@ const TOOLS = [
   CREATE_APPLICATION_TOOL,
   UPDATE_APPLICATION_TOOL,
   LIST_APPLICATIONS_TOOL,
+  GET_APPLICATION_HISTORY_TOOL,
   MARK_APPLICATION_DONE_TOOL,
   LIST_TARGET_COMPANIES_TOOL,
   SAVE_OUTREACH_DRAFT_TOOL,
@@ -2374,8 +2448,21 @@ async function listApplicationsCall(msg, user, args) {
     const applications = await jobApplications.listApplications({
       userId,
       status: args && args.status,
+      stage: args && args.stage,
     });
     return contentToolOk(msg, { applications });
+  } catch (err) {
+    return planFailure(msg, err, jobApplications.UNAVAILABLE);
+  }
+}
+
+async function getApplicationHistoryCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const applicationId = typeof args.applicationId === "string" ? args.applicationId.trim() : "";
+    if (!applicationId) throw Object.assign(new Error("applicationId is required."), { status: 400 });
+    const result = await jobApplications.getApplicationHistory({ userId, applicationId });
+    return contentToolOk(msg, result);
   } catch (err) {
     return planFailure(msg, err, jobApplications.UNAVAILABLE);
   }
@@ -2604,6 +2691,7 @@ async function handleRpc(msg, user) {
       && name !== "create_application"
       && name !== "update_application"
       && name !== "list_applications"
+      && name !== "get_application_history"
       && name !== "mark_application_done"
       && name !== "list_target_companies"
       && name !== "save_outreach_draft"
@@ -2711,6 +2799,9 @@ async function handleRpc(msg, user) {
     }
     if (name === "list_applications") {
       return listApplicationsCall(msg, user, args);
+    }
+    if (name === "get_application_history") {
+      return getApplicationHistoryCall(msg, user, args);
     }
     if (name === "mark_application_done") {
       return markApplicationDoneCall(msg, user, args);

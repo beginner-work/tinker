@@ -68,6 +68,14 @@
   }
   function buildFacts(app) {
     var wrap = el("div", "messages-application__facts");
+    if (app.stage || app.appliedAt) {
+      var pipeline = el("p", "messages-application__row messages-application__muted");
+      var bits = [];
+      if (app.stage) bits.push(String(app.stage).replace(/_/g, " "));
+      if (app.appliedAt) bits.push("applied " + String(app.appliedAt));
+      pipeline.textContent = bits.join(" · ");
+      wrap.appendChild(pipeline);
+    }
     if (app.payRange) {
       var pay = el("p", "messages-application__row");
       pay.textContent = app.payRange;

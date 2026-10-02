@@ -128,7 +128,14 @@ module.exports = withResponseLogging(async function handler(req, res) {
     // For list, pass query status through body helper awkwardly — read from req.
     if (req.method === "GET" && (action === "list" || action === "")) {
       const status = queryValue(req, "status");
-      send(res, 200, { applications: await store.listApplications({ userId: auth.userId, status: status || undefined }) });
+      const stage = queryValue(req, "stage");
+      send(res, 200, {
+        applications: await store.listApplications({
+          userId: auth.userId,
+          status: status || undefined,
+          stage: stage || undefined,
+        }),
+      });
       return;
     }
     const out = await dispatch(req.method, action, auth, body, id);

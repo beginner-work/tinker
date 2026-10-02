@@ -231,6 +231,17 @@
       return key;
     }
   }
+  function formatAppliedAt(value) {
+    var key = calendarDayKey(value);
+    if (!key) return "";
+    var parts = key.split("-");
+    var d = new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2], 12, 0, 0));
+    try {
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+    } catch (e) {
+      return key;
+    }
+  }
   function touchTypeLabel(touch) {
     if (!touch) return "";
     return TOUCH_LABEL[touch.touchType] || String(touch.touchType || "").replace(/_/g, " ");
@@ -915,12 +926,28 @@
     preview.textContent = rankReason
       || (app.payRange ? String(app.payRange) : "Job application");
     var meta = el("span", "messages-rail__meta");
-    var reason = el("span", "messages-rail__touch");
-    reason.textContent = rankReason || "";
-    if (reason.textContent) meta.appendChild(reason);
+    var hasMeta = false;
+    if (app.stage) {
+      var stage = el("span", "messages-rail__stage");
+      stage.textContent = String(app.stage).replace(/_/g, " ");
+      meta.appendChild(stage);
+      hasMeta = true;
+    }
+    if (app.appliedAt) {
+      var applied = el("span", "messages-rail__applied");
+      applied.textContent = "applied " + formatAppliedAt(app.appliedAt);
+      meta.appendChild(applied);
+      hasMeta = true;
+    }
+    if (!hasMeta && rankReason) {
+      var reason = el("span", "messages-rail__touch");
+      reason.textContent = rankReason || "";
+      meta.appendChild(reason);
+      hasMeta = true;
+    }
     main.appendChild(top);
     main.appendChild(preview);
-    if (reason.textContent) main.appendChild(meta);
+    if (hasMeta) main.appendChild(meta);
     btn.appendChild(avatar);
     btn.appendChild(main);
     btn.addEventListener("click", function () { selectApplication(app.id); });
