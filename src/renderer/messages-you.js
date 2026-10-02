@@ -83,11 +83,13 @@
       links.innerHTML = "";
     }
     if (avatar) {
+      avatar.removeAttribute("hidden");
       avatar.hidden = false;
       avatar.innerHTML = "";
       avatar.classList.remove("messages-avatar--photo", "messages-avatar--brand");
       avatar.classList.add("messages-rail__avatar--fallback");
-      avatar.textContent = ownerInitials(ownerName());
+      avatar.textContent = ownerInitials(ownerName()) || "?";
+      avatar.setAttribute("aria-hidden", "true");
     }
   }
   function token() {

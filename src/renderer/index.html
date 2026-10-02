@@ -102,14 +102,12 @@
         flex-shrink: 0;
       }
       .messages-rail__settings-label { line-height: 1.4; font-weight: 400; }
-      /* Desktop shell: logo clears macOS traffic lights (left inset).
-         Preload / platform-mobile / main insertCSS set the marker. */
+      /* Desktop shell: logo clears macOS traffic lights (left inset only).
+         Preload / platform-mobile / main insertCSS set the marker.
+         Do not change padding-top — match web at the same size. */
       html[data-tinker-desktop] .sidebar__top,
       html.tinker-desktop .sidebar__top {
-        padding-top: 12px;
         padding-left: 78px;
-        padding-right: 12px;
-        padding-bottom: 8px;
       }
       @media (max-width: 720px) {
         body.messages-shell-open,
