@@ -50,42 +50,84 @@ body { display: flex; flex-direction: row; }
 
 ::selection { background-color: rgba(123, 196, 122, 0.32); }
 
-/* Overlay scrollbars: thin, only visible while hovering/scrolling.
- * Avoid always-on beige thumbs (Chrome/Electron default track). */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-}
-*:hover {
-  scrollbar-color: rgba(45, 42, 38, 0.28) transparent;
-}
-::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 3px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-*:hover::-webkit-scrollbar-thumb,
-::-webkit-scrollbar-thumb:vertical:hover,
-::-webkit-scrollbar-thumb:horizontal:hover {
-  background: rgba(45, 42, 38, 0.28);
-  background-clip: padding-box;
-}
-*:hover::-webkit-scrollbar-thumb:hover {
-  background: rgba(45, 42, 38, 0.42);
-  background-clip: padding-box;
-}
-/* Writing / thread panes: keep overlay feel even when not hovered yet
- * while actively scrolling (Firefox + WebKit). */
+/* Overlay scrollbars: hidden until the scroll container is hovered
+ * (Chrome/Safari/Electron). Avoid always-on beige thumbs. */
 .messages-pane__body,
 .messages-pane__thread,
 body.messages-you-active .messages-thread--you,
 body.messages-you-active .writing--in-messages .writing__body,
-.messages-rail__list {
+.messages-rail__list,
+.writing__body {
+  scrollbar-width: none;
   scrollbar-gutter: auto;
 }
+.messages-pane__body:hover,
+.messages-pane__thread:hover,
+body.messages-you-active .messages-thread--you:hover,
+body.messages-you-active .writing--in-messages .writing__body:hover,
+.messages-rail__list:hover,
+.writing__body:hover {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(45, 42, 38, 0.28) transparent;
+}
+.messages-pane__body::-webkit-scrollbar,
+.messages-pane__thread::-webkit-scrollbar,
+body.messages-you-active .messages-thread--you::-webkit-scrollbar,
+body.messages-you-active .writing--in-messages .writing__body::-webkit-scrollbar,
+.messages-rail__list::-webkit-scrollbar,
+.writing__body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+.messages-pane__body:hover::-webkit-scrollbar,
+.messages-pane__thread:hover::-webkit-scrollbar,
+body.messages-you-active .messages-thread--you:hover::-webkit-scrollbar,
+body.messages-you-active .writing--in-messages .writing__body:hover::-webkit-scrollbar,
+.messages-rail__list:hover::-webkit-scrollbar,
+.writing__body:hover::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.messages-pane__body::-webkit-scrollbar-track,
+.messages-pane__thread::-webkit-scrollbar-track,
+body.messages-you-active .messages-thread--you::-webkit-scrollbar-track,
+body.messages-you-active .writing--in-messages .writing__body::-webkit-scrollbar-track,
+.messages-rail__list::-webkit-scrollbar-track,
+.writing__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.messages-pane__body::-webkit-scrollbar-thumb,
+.messages-pane__thread::-webkit-scrollbar-thumb,
+body.messages-you-active .messages-thread--you::-webkit-scrollbar-thumb,
+body.messages-you-active .writing--in-messages .writing__body::-webkit-scrollbar-thumb,
+.messages-rail__list::-webkit-scrollbar-thumb,
+.writing__body::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+.messages-pane__body:hover::-webkit-scrollbar-thumb,
+.messages-pane__thread:hover::-webkit-scrollbar-thumb,
+body.messages-you-active .messages-thread--you:hover::-webkit-scrollbar-thumb,
+body.messages-you-active .writing--in-messages .writing__body:hover::-webkit-scrollbar-thumb,
+.messages-rail__list:hover::-webkit-scrollbar-thumb,
+.writing__body:hover::-webkit-scrollbar-thumb {
+  background: rgba(45, 42, 38, 0.28);
+}
+.messages-pane__body:hover::-webkit-scrollbar-thumb:hover,
+.messages-pane__thread:hover::-webkit-scrollbar-thumb:hover,
+body.messages-you-active .messages-thread--you:hover::-webkit-scrollbar-thumb:hover,
+body.messages-you-active .writing--in-messages .writing__body:hover::-webkit-scrollbar-thumb:hover,
+.messages-rail__list:hover::-webkit-scrollbar-thumb:hover,
+.writing__body:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(45, 42, 38, 0.42);
+}
+/* Non-messages surfaces: thin thumb only on hover. */
+::-webkit-scrollbar { width: 0; height: 0; }
+*:hover::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+*:hover::-webkit-scrollbar-thumb { background: rgba(45, 42, 38, 0.22); }
 
 button { font: inherit; color: inherit; cursor: pointer; border: none; background: transparent; }
 input, textarea { font: inherit; color: inherit; }
@@ -246,18 +288,21 @@ body.messages-inbox-primary { --sidebar-width: 300px; }
  * Sidebar already pads for the iPhone home-indicator safe area. */
 .sidebar--inbox .sidebar__footer,
 .sidebar--inbox .sidebar__footer--gear {
-  border: 0;
-  border-top: 0;
-  box-shadow: none;
+  border: 0 !important;
+  border-top: 0 !important;
+  box-shadow: none !important;
+  outline: none;
   margin-top: auto;
   flex: 0 0 auto;
-  padding: 2px 8px 6px;
+  /* 0 horizontal pad so Settings' own 14px padding matches INBOX/logo. */
+  padding: 2px 0 6px;
   width: 100%;
   box-sizing: border-box;
 }
 .sidebar--inbox .messages-rail__settings {
-  border: 0;
-  box-shadow: none;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 6px 14px;
 }
 .sidebar__secondary {
   display: flex;
@@ -793,6 +838,18 @@ body.messages-inbox-primary #welcome[data-active] { display: none; }
   line-height: 1;
   color: var(--color-muted);
 }
+/* Desktop / wide: never show the push-nav back glyph next to Owner. */
+@media (min-width: 721px) {
+  .messages-pane__back {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border: 0 !important;
+  }
+}
 .messages-pane__heading { min-width: 0; flex: 1; }
 /* Name on line 1, title + company on line 2. No clamp, ellipsis, or fade —
    long titles must stay fully readable on a 390px iPhone. */
@@ -1229,9 +1286,10 @@ body.messages-you-active .writing--in-messages .writing-input {
   display: block;
   flex: 0 0 auto;
   width: 100%;
-  min-height: 2.75em;
-  margin: 0 0 1.25rem;
-  padding: 0 0 8px;
+  min-height: 1.65em;
+  height: auto;
+  margin: 0 0 0.85rem;
+  padding: 0 0 4px;
   border: 0 !important;
   border-radius: 0;
   box-shadow: none !important;
@@ -1343,7 +1401,7 @@ body.messages-you-active .writing--in-messages .writing__end:not(:disabled):hove
     padding: 4px 12px calc(110px + env(safe-area-inset-bottom, 0px));
   }
   body.messages-you-active.messages-mobile-thread .writing--in-messages .writing-input {
-    min-height: 4.5em;
+    min-height: 2.5em;
     font-size: 16px; /* iOS: avoid focus zoom */
   }
   body.messages-you-active.messages-mobile-thread .writing--in-messages .writing__foot {

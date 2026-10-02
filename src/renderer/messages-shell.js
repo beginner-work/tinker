@@ -521,7 +521,7 @@
     // Use an inner <span> + data-initials: Electron can fail to paint bare
     // textContent inside overflow:hidden + border-radius:50% avatars
     // (especially near -webkit-app-region drag strips). PR #428 set
-    // textContent + no-drag and Tyler's Mac still showed a blank circle.
+    // textContent + no-drag and the Mac desktop shell still showed a blank circle.
     var text = String(letters || "").trim() || "?";
     node.setAttribute("data-initials", text);
     node.setAttribute("aria-hidden", "true");

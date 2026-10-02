@@ -118,32 +118,31 @@ test("sidebar INBOX / empty-state share the ~14px left edge; empty copy is quiet
 
 test("writing placeholders are muted Start writing...; answer blocks are not huge", () => {
   assert.match(writing, /placeholder\s*=\s*["']Start writing\.\.\./);
+  const ph = css.match(
+    /body\.messages-you-active \.writing--in-messages \.writing-input::placeholder\s*\{[^}]+\}/
+  );
+  assert.ok(ph, "expected You-mode placeholder rule");
+  assert.match(ph[0], /color:\s*var\(--color-muted/);
+  assert.doesNotMatch(ph[0], /color:\s*transparent/);
   assert.match(
     css,
-    /body\.messages-you-active[\s\S]*writing-input::placeholder[\s\S]*color:\s*var\(--color-muted/
-  );
-  assert.doesNotMatch(
-    css,
-    /body\.messages-you-active[\s\S]*writing-input::placeholder[\s\S]*color:\s*transparent/
-  );
-  assert.match(
-    css,
-    /body\.messages-you-active \.writing--in-messages \.writing-input\s*\{[\s\S]*?min-height:\s*2\.75em/
+    /body\.messages-you-active \.writing--in-messages \.writing-input\s*\{[\s\S]*?min-height:\s*1\.65em/
   );
   assert.match(
     css,
     /body\.messages-you-active \.writing--in-messages \.writing-card\s*\{[\s\S]*?min-height:\s*0/
   );
   assert.doesNotMatch(css, /min-height:\s*min\(70vh/);
-  assert.doesNotMatch(
-    css,
-    /body\.messages-you-active \.writing--in-messages \.writing-input\s*\{[\s\S]*?min-height:\s*50vh/
+  const youInput = css.match(
+    /body\.messages-you-active \.writing--in-messages \.writing-input\s*\{[^}]+\}/
   );
+  assert.ok(youInput, "expected You-mode writing-input rule");
+  assert.doesNotMatch(youInput[0], /min-height:\s*50vh/);
 });
 
 test("writing pane scrollbar is thin overlay; Settings has no hairline divider", () => {
-  assert.match(css, /scrollbar-width:\s*thin/);
-  assert.match(css, /scrollbar-color:\s*transparent transparent/);
+  assert.match(css, /scrollbar-width:\s*none/);
+  assert.match(css, /\.writing__body:hover[\s\S]*scrollbar-width:\s*thin/);
   assert.match(css, /\.writing__body:hover::-webkit-scrollbar-thumb/);
   assert.match(
     css,
@@ -153,6 +152,8 @@ test("writing pane scrollbar is thin overlay; Settings has no hairline divider",
     css,
     /\.sidebar--inbox \.sidebar__footer--gear[\s\S]*border:\s*0|\.sidebar--inbox \.sidebar__footer[\s\S]*border:\s*0/
   );
+  // Settings left pad matches INBOX (~14px).
+  assert.match(css, /\.sidebar--inbox \.messages-rail__settings[\s\S]*padding:\s*6px 14px/);
 });
 
 test("pane header avatar is a readable circular initials mark, not a clipped L", () => {
