@@ -1,110 +1,252 @@
-const { app, BrowserWindow, session, ipcMain, shell, nativeImage, dialog } = require("electron");
+const { app, BrowserWindow, Menu, session, ipcMain, shell, dialog, nativeImage } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const fsp = require("fs/promises");
-// Lazy-load the Anthropic SDK on first search so cold launch is not paying
-// for a module the inbox shell never needs.
-let Anthropic = null;
+
+// Production Tinker. The desktop shell is a hardened BrowserWindow around
+// this origin — web product changes ship without a new dmg; only shell
+// changes (menus, notes IPC, packaging) need a rebuild.
+const APP_ORIGIN = "https://tinker.beginner.work";
+const APP_URL = process.env.TINKER_DESKTOP_URL || APP_ORIGIN;
 
 const isDev = process.argv.includes("--dev");
 
 // Show "tinker" in the macOS menu bar / app menus instead of "Electron".
-// (Note: the dock label still comes from the bundle Info.plist when the app
-// is packaged. Setting it here covers the unpackaged dev case.)
 app.setName("tinker");
 
-// ── Search engine (Claude Haiku) ────────────────────────────────────────
-//
-// The system prompt is identical across queries, so we mark it for prompt
-// caching — after the first call the prefix is read from cache instead of
-// re-processed on every search.
+const STATE_PATH = () => path.join(app.getPath("userData"), "window-state.json");
 
-const SEARCH_SYSTEM_PROMPT = `You are the search engine for the tinker web browser — a quiet alternative to ad-driven search.
-
-When you receive a query, write a calm, conversational answer in three to five short paragraphs that helps the reader understand the topic and where to go next. Embed Markdown links to specific, well-known websites — Wikipedia, official organisation sites, established publications, .gov pages — where the reader can read more or take action. Format links exactly as [label](https://example.com).
-
-Voice: warm, plainspoken, calm. Address the reader as "you" where natural. No headings, no bulleted lists — just flowing prose, with short paragraphs separated by blank lines.
-
-Only include links to sources you'd actually recommend and that you are confident exist. Do not invent URLs. If you are uncertain about a specific URL, omit the link rather than guess. It is better to write a confident paragraph with no link than to fabricate one.`;
-
-let anthropicClient = null;
-function getAnthropic() {
-  if (anthropicClient) return anthropicClient;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    const err = new Error(
-      "ANTHROPIC_API_KEY is not set. Add it to your environment and restart tinker."
-    );
-    err.code = "MISSING_API_KEY";
-    throw err;
+function loadWindowState() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(STATE_PATH(), "utf8"));
+    if (!raw || typeof raw !== "object") return defaultWindowState();
+    return {
+      x: Number.isFinite(raw.x) ? raw.x : undefined,
+      y: Number.isFinite(raw.y) ? raw.y : undefined,
+      width: Number.isFinite(raw.width) && raw.width >= 720 ? raw.width : 1280,
+      height: Number.isFinite(raw.height) && raw.height >= 480 ? raw.height : 820,
+      isMaximized: !!raw.isMaximized,
+    };
+  } catch {
+    return defaultWindowState();
   }
-  if (!Anthropic) {
-    Anthropic = require("@anthropic-ai/sdk").default;
+}
+
+function defaultWindowState() {
+  return { width: 1280, height: 820, isMaximized: false };
+}
+
+function saveWindowState(win) {
+  if (!win || win.isDestroyed()) return;
+  const bounds = win.getBounds();
+  const state = {
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    isMaximized: win.isMaximized(),
+  };
+  try {
+    fs.writeFileSync(STATE_PATH(), JSON.stringify(state));
+  } catch {
+    // Ignore disk errors — losing window size is fine.
   }
-  anthropicClient = new Anthropic({ apiKey });
-  return anthropicClient;
+}
+
+function isTinkerUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.origin === APP_ORIGIN || (isDev && u.origin === new URL(APP_URL).origin);
+  } catch {
+    return false;
+  }
+}
+
+function appIconPath() {
+  // Packaged: resources/icon.png (electron-builder). Dev: renderer icons.
+  const packaged = path.join(process.resourcesPath || "", "icon.png");
+  if (process.resourcesPath && fs.existsSync(packaged)) return packaged;
+  return path.join(__dirname, "..", "renderer", "icons", "tinker-icon-512.png");
+}
+
+function buildAppMenu() {
+  const isMac = process.platform === "darwin";
+  const template = [
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: "about" },
+              { type: "separator" },
+              { role: "services" },
+              { type: "separator" },
+              { role: "hide" },
+              { role: "hideOthers" },
+              { role: "unhide" },
+              { type: "separator" },
+              { role: "quit" },
+            ],
+          },
+        ]
+      : []),
+    {
+      label: "File",
+      submenu: [
+        {
+          label: "Reload",
+          accelerator: "CmdOrCtrl+R",
+          click: (_item, win) => {
+            if (win) win.reload();
+          },
+        },
+        isMac ? { role: "close" } : { role: "quit" },
+      ],
+    },
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        ...(isMac
+          ? [
+              { role: "pasteAndMatchStyle" },
+              { role: "delete" },
+              { role: "selectAll" },
+              { type: "separator" },
+              {
+                label: "Speech",
+                submenu: [{ role: "startSpeaking" }, { role: "stopSpeaking" }],
+              },
+            ]
+          : [{ role: "delete" }, { type: "separator" }, { role: "selectAll" }]),
+      ],
+    },
+    {
+      label: "View",
+      submenu: [
+        { role: "togglefullscreen" },
+        { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+        ...(isDev
+          ? [{ type: "separator" }, { role: "toggleDevTools" }]
+          : []),
+      ],
+    },
+    {
+      label: "Window",
+      submenu: [
+        { role: "minimize" },
+        { role: "zoom" },
+        ...(isMac
+          ? [{ type: "separator" }, { role: "front" }]
+          : [{ role: "close" }]),
+      ],
+    },
+    {
+      role: "help",
+      submenu: [
+        {
+          label: "Open Tinker in browser",
+          click: () => {
+            shell.openExternal(APP_ORIGIN);
+          },
+        },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 function createWindow() {
+  const state = loadWindowState();
+  const icon = appIconPath();
   const win = new BrowserWindow({
-    width: 1280,
-    height: 820,
+    width: state.width,
+    height: state.height,
+    x: state.x,
+    y: state.y,
     minWidth: 720,
     minHeight: 480,
     backgroundColor: "#FFFDF7",
     title: "tinker",
     show: false,
-    autoHideMenuBar: true,
-    // Drop the native title bar — our chrome paints the whole top.
-    // 'hiddenInset' keeps the macOS traffic lights but removes the bar;
-    // on Windows/Linux it falls back gracefully to a frameless window.
-    titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 14, y: 16 },
+    autoHideMenuBar: process.platform !== "darwin",
+    icon: fs.existsSync(icon) ? icon : undefined,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      webviewTag: true,
+      webviewTag: false,
+      // Persist sign-in (localStorage JWT) and site data across launches.
+      partition: "persist:tinker",
+      spellcheck: true,
     },
   });
 
-  // Show once the first paint is ready so users never see an empty frame.
+  if (state.isMaximized) win.maximize();
+
   win.once("ready-to-show", () => {
     win.show();
   });
 
-  win.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
+  const persist = () => saveWindowState(win);
+  win.on("resize", persist);
+  win.on("move", persist);
+  win.on("close", persist);
+
+  // Stay on the Tinker origin; everything else opens in the OS browser.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (isTinkerUrl(url)) {
+      win.loadURL(url);
+    } else {
+      shell.openExternal(url);
+    }
+    return { action: "deny" };
+  });
+
+  win.webContents.on("will-navigate", (event, url) => {
+    if (!isTinkerUrl(url)) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+
+  win.loadURL(APP_URL);
 
   if (isDev) {
     win.webContents.openDevTools({ mode: "detach" });
   }
 
-  // External windows (target=_blank, window.open) open in the user's
-  // default OS browser instead of stealing focus inside the app.
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: "deny" };
-  });
-}
-
-// Reasonable, modern UA string. The default Electron UA leaks the
-// Electron version and trips bot detection on some sites.
-function userAgent() {
-  const chromeVersion = process.versions.chrome;
-  return `Mozilla/5.0 (${process.platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36 tinker-browser/${app.getVersion()}`;
+  return win;
 }
 
 app.whenReady().then(() => {
-  session.defaultSession.setUserAgent(userAgent());
+  // Modern Chrome UA without advertising Electron (some auth / bot checks
+  // treat the default Electron UA as non-browser).
+  const chromeVersion = process.versions.chrome;
+  const ua = `Mozilla/5.0 (${process.platform === "darwin" ? "Macintosh; Intel Mac OS X 10_15_7" : process.platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+  session.fromPartition("persist:tinker").setUserAgent(ua);
 
-  // Permission prompts — for now allow clipboard / fullscreen by default,
-  // and deny camera/mic/notifications until we have a trust UI.
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => {
-    const allowed = ["clipboard-read", "clipboard-sanitized-write", "fullscreen"];
+  session.fromPartition("persist:tinker").setPermissionRequestHandler((_wc, permission, cb) => {
+    const allowed = ["clipboard-read", "clipboard-sanitized-write", "fullscreen", "notifications"];
     cb(allowed.includes(permission));
   });
 
+  const icon = appIconPath();
+  if (process.platform === "darwin" && app.dock && fs.existsSync(icon)) {
+    const img = nativeImage.createFromPath(icon);
+    if (!img.isEmpty()) app.dock.setIcon(img);
+  }
+
+  buildAppMenu();
   createWindow();
 
   app.on("activate", () => {
@@ -122,34 +264,13 @@ ipcMain.handle("app:close", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
   if (win) win.close();
 });
-
-ipcMain.handle("search:query", async (_event, query) => {
-  if (typeof query !== "string" || !query.trim()) {
-    throw new Error("Query is required");
-  }
-  const client = getAnthropic();
-  const message = await client.messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: 1024,
-    system: [
-      {
-        type: "text",
-        text: SEARCH_SYSTEM_PROMPT,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: [{ role: "user", content: query.trim() }],
-  });
-  const textBlock = message.content.find((b) => b.type === "text");
-  return {
-    text: textBlock ? textBlock.text : "",
-    usage: message.usage,
-  };
+ipcMain.handle("app:openExternal", (_event, url) => {
+  if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return false;
+  shell.openExternal(url);
+  return true;
 });
 
-// Renderer renders the seed-mark SVG to a PNG data URL and hands it
-// here so we can set the dock / window icon. (nativeImage doesn't
-// read SVG, so we delegate the rasterization to the renderer.)
+// Renderer (or production icon-init) may hand a PNG data URL for the dock.
 ipcMain.handle("app:setIcon", (_event, dataUrl) => {
   if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/png")) {
     return false;
@@ -165,7 +286,7 @@ ipcMain.handle("app:setIcon", (_event, dataUrl) => {
   return true;
 });
 
-// ── Notes folder (LL-72): native directory pick + Markdown file IO ──────
+// ── Notes folder: native directory pick + Markdown file IO ──────────────
 // Paths stay on the user's machine. No owner-specific defaults.
 
 function assertInsideRoot(rootDir, relPath) {

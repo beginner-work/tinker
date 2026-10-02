@@ -2,10 +2,11 @@
 
 tinker — a quiet place to be on the web.
 
-A minimal desktop browser built on Electron, with a Vercel-hosted web
-app and Expo native shells that share the same renderer. The chrome
-wears tinker's multi-colored globe mark on a warm cream background,
-with Plus Jakarta Sans for display and Inter for body.
+A writing surface with a Vercel-hosted web app, an Electron Mac
+desktop shell that loads that same production app, and shared
+`src/renderer/` code. The chrome wears tinker's multi-colored globe
+mark on a warm cream background, with Fraunces for display and
+Instrument Sans for body.
 
 ## What's in this repo
 
@@ -29,17 +30,40 @@ repos either — just not what this tree *is*.
 
 ## Run it (desktop)
 
+The Mac app is a real desktop window (dock icon, native menus, remembered
+size) around **production** Tinker at `https://tinker.beginner.work`.
+Sign-in, inbox, writing, `/feed`, and notes-folder sync are the live web
+app; the shell only adds native chrome and local folder IPC. Web product
+changes appear without reinstalling — only shell changes need a new dmg.
+
 ```bash
 npm install
-export ANTHROPIC_API_KEY="sk-ant-..."   # required for search
-npm start
+npm start                 # loads https://tinker.beginner.work
 ```
 
-Use `npm run dev` to open with DevTools attached.
+Use `npm run dev` to open with DevTools attached. To point the shell at a
+local or preview URL instead: `TINKER_DESKTOP_URL=http://localhost:3000 npm run dev`.
+
+### Install the Mac app (unsigned)
+
+Download
+[`tinker-mac.dmg`](https://github.com/beginner-work/tinker/releases/latest/download/tinker-mac.dmg),
+open it, and drag **tinker** into Applications.
+
+There is **no Apple Developer account**, so the build is **unsigned**.
+macOS Gatekeeper will block the first open. One-time allow:
+
+1. Open **System Settings → Privacy & Security**.
+2. Find the message that tinker was blocked.
+3. Click **Open Anyway**, then confirm **Open**.
+
+After that, launches work normally. Auto-update is skipped on purpose —
+unsigned apps cannot use a trustworthy Mac update channel; the shell
+loads production so most changes do not need a new dmg.
 
 ## Build it (desktop)
 
-To package the desktop app into a distributable, use
+To package the desktop shell, use
 [electron-builder](https://www.electron.build) — configured in
 [`electron-builder.yml`](electron-builder.yml):
 
@@ -55,41 +79,48 @@ so build on the matching platform (or a CI runner per platform):
 | Script | Host OS | Output |
 |--------|---------|--------|
 | `npm run dist:linux` | Linux | `tinker-<version>-x86_64.AppImage`, `tinker-<version>-x64.tar.gz` |
-| `npm run dist:mac` | macOS | `.dmg` + `.zip` |
+| `npm run dist:mac` | macOS | universal `tinker-mac.dmg` + `.zip` |
 | `npm run dist:win` | Windows (or Linux + wine) | NSIS installer + portable `.exe` |
 
-The renderer + main process are plain JS with nothing to compile, so the
-build just collects `src/main/` + `src/renderer/` and the one runtime
-dependency the desktop main needs (`@anthropic-ai/sdk`) into an asar — the
-Prisma tree that belongs to the web / API variant is left out. The Linux
-`.desktop` entry's `StartupWMClass` is synced to the app's
-`desktopName` so window managers group tinker's windows under its launcher.
+The shell is plain JS with nothing to compile. Packaging collects
+`src/main/` (and the dock icon) into an asar; the Prisma tree stays out.
+Linux/Windows targets still build when CI runs them; Mac is the priority.
 
-### Releasing
+### Releasing (what produces `tinker-mac.dmg`)
 
-Pushing a version tag builds every desktop installer on its native runner
-(macOS / Linux / Windows) and uploads them to a GitHub Release — see
-[`.github/workflows/release.yml`](.github/workflows/release.yml):
+A downloadable Mac build is published to
+`https://github.com/beginner-work/tinker/releases/latest/download/tinker-mac.dmg`
+when either of these happens:
 
-```bash
-npm version patch        # bumps package.json + creates the v* tag
-git push --follow-tags   # triggers the Release workflow
-```
+1. **Version-marker merge to `main` (preferred for agent PRs).** Bump
+   `version` in `package.json` and the contents of `.release-version` to
+   the **same** value in a PR. When that merge lands on `main`,
+   [`release-on-marker.yml`](.github/workflows/release-on-marker.yml)
+   verifies the two match and calls
+   [`release.yml`](.github/workflows/release.yml) with `publish: true`.
+2. **Version tag push.** `npm version patch` then `git push --follow-tags`
+   pushes a `v*` tag, which runs the same Release workflow.
+3. **Manual workflow_dispatch** on `release.yml` with `publish: true`
+   (escape hatch).
 
-A release can also be cut **by PR**, for sessions that can merge to main but
-can't push tags: bump `version` in `package.json` and `.release-version` to
-the same value in the PR. When the merge lands on main,
-[`release-on-marker.yml`](.github/workflows/release-on-marker.yml) verifies
-the two match and runs the same Release workflow with publishing on.
+The Release workflow builds on `macos-latest`, `ubuntu-latest`, and
+`windows-latest`, pre-creates the GitHub Release for `v<version>`, and
+uploads installers with `electron-builder --publish always`.
 
-macOS produces a single **universal** `tinker-mac.dmg` (Intel + Apple
-Silicon) under a stable name, so the beginner landing page can link straight
-to `releases/latest/download/tinker-mac.dmg`. To ship a Gatekeeper-clean
-build (no "unidentified developer" warning), add the Apple signing secrets
-to the repo — `MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`,
-`APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`; without them the build still
-ships, just unsigned. Note that release assets inherit the repo's
-visibility, so a public download needs the asset hosted somewhere public.
+**Code signing / notarization:** not configured. Builds ship **unsigned**.
+To produce a Gatekeeper-clean Mac build later, add these **exact** repo
+secrets and drop `identity: null` from `electron-builder.yml`:
+
+| Secret | Purpose |
+|--------|---------|
+| `MAC_CSC_LINK` | Base64 of the Developer ID Application `.p12` |
+| `MAC_CSC_KEY_PASSWORD` | Password for that `.p12` |
+| `APPLE_ID` | Apple ID for notarization |
+| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for that Apple ID |
+| `APPLE_TEAM_ID` | Apple Team ID |
+
+Release assets inherit repo visibility; a public download needs a public
+release (or hosting elsewhere).
 
 ## Run it (web)
 
@@ -361,14 +392,12 @@ The session auto-expires after 10 minutes of inactivity. Pass
 
 ## Search
 
-The address-bar / welcome-page search uses Claude Haiku 4.5 instead of
-a third-party engine. Queries are answered as short essays — three to
-five paragraphs of plain prose with embedded links to real sites you
-can click through to. The Anthropic system prompt is marked for prompt
-caching, so repeat queries skip the cold-start cost.
-
-If `ANTHROPIC_API_KEY` isn't set, the search pane shows a friendly
-error explaining how to fix it.
+In-app Claude calls (writing, Keep crafting, LinkedIn draft, and related
+surfaces) go through same-origin `/api/claude/converse` on Vercel, gated
+by the phone/PIN JWT. The desktop shell uses that same production API —
+there is no local Anthropic key and no address-bar search engine in the
+app. Server routes such as `api/search.js` still exist for product
+features that need them; they use `ANTHROPIC_API_KEY` on Vercel.
 
 ## MCP
 
@@ -516,15 +545,17 @@ longer part of this repo — there is no `capacitor.config.json`, no
 
 | | Electron desktop | Web (Vercel) / Expo |
 |---|---|---|
-| Tabs / sessions | Yes — left sidebar | Yes (collapsed rail on phones) |
-| In-app browsing | Native `<webview>` | External — opens in the system browser |
-| Search / Claude | IPC → main process → Anthropic SDK | Same-origin `/api/*` on Vercel, JWT-gated |
-| Auth | Local `ANTHROPIC_API_KEY` env var | Phone/PIN via Stytch (`tinker_jwt`) |
+| Product UI | Production `tinker.beginner.work` in a BrowserWindow | Same `src/renderer/` hosted on Vercel |
+| Sign-in | Persistent session partition (`tinker_jwt`) | `localStorage` / PWA session |
+| Claude / APIs | Same-origin `/api/*` on production | Same-origin `/api/*` on Vercel, JWT-gated |
+| Notes folder | Native folder dialog + IPC | File System Access API (desktop browsers) |
+| External links | OS browser via `shell.openExternal` | System browser / `window.open` |
 
-The `src/renderer/platform-mobile.js` shim detects the runtime —
-Electron preload short-circuits it; on the plain web (and inside the
-Expo shell) it polyfills the same `window.tinker.*` surface so the rest
-of the renderer code path is identical.
+`src/renderer/platform-mobile.js` detects the runtime. On the plain web
+(and inside the Expo shell) it installs `window.tinker.*`. In the
+desktop app, Electron preload installs notes/dock bridges first; the
+shim **merges** `callClaude` onto that object so notes-folder sync keeps
+working.
 
 ## Style dictionary
 
@@ -548,27 +579,23 @@ that wants the mark as an SVG string.
 │   ├── pitches/ …       # Pitch / publish / feed / user-data / …
 │   └── membership/ …    # Stripe membership wire-up
 ├── src/
-│   ├── main/            # Electron main + preload
-│   ├── renderer/        # Shared web / Expo / Electron UI
+│   ├── main/            # Electron desktop shell (loads production)
+│   ├── renderer/        # Shared web / Expo UI (also what desktop loads remotely)
 │   └── web/             # Static local host (`npm run web`)
 ├── prisma/              # Shared Postgres schema
 └── package.json
 ```
 
-The renderer is plain HTML/CSS/JS — no build step, no bundler. Each
-Electron tab maps to either the welcome page (in-DOM) or a
-`<webview>` mounted lazily on first navigation. Web and Expo load the
+The renderer is plain HTML/CSS/JS — no build step, no bundler. The
+desktop shell loads production in a hardened BrowserWindow (persistent
+session, native menus, remembered window size). Web and Expo load the
 same `src/renderer/` files against the Vercel `api/` back end.
 
-## Shortcuts
+## Shortcuts (desktop shell)
 
 | Action | Shortcut |
 |--------|----------|
-| New tab | ⌘/Ctrl + T |
-| Close tab | ⌘/Ctrl + W |
-| Focus address bar | ⌘/Ctrl + L |
 | Reload | ⌘/Ctrl + R |
-| Close tab (mouse) | Middle-click the tab |
-
-The address bar accepts URLs, hostnames, and search queries
-(anything else falls through to Google).
+| Quit | ⌘/Ctrl + Q (macOS app menu) |
+| Close window | ⌘/Ctrl + W |
+| Toggle fullscreen | Ctrl+Cmd+F (macOS) / F11 |

@@ -1,7 +1,7 @@
 {
-  "name": "tinker-browser",
-  "version": "0.1.2",
-  "description": "tinker — a quiet place to be on the web",
+  "name": "tinker",
+  "version": "0.1.3",
+  "description": "tinker — a quiet writing surface on the desktop",
   "main": "src/main/main.js",
   "desktopName": "tinker.desktop",
   "scripts": {
@@ -16,7 +16,6 @@
     "lint": "eslint src/",
     "test": "node --test tests/*.test.js",
     "test:e2e:mobile": "node --test tests/messages-mobile-nav.e2e.js",
-
     "debug:preview": "node scripts/browserbase-debug.js",
     "preview:url": "node scripts/preview-bootstrap-url.js",
     "eval:product-spec": "node .claude/skills/product-spec/evals/run-evals.mjs",
@@ -24,19 +23,18 @@
     "db:migrate": "prisma migrate deploy"
   },
   "keywords": [
-    "browser",
     "electron",
-    "expo",
-    "tinker"
+    "tinker",
+    "writing"
   ],
   "author": "tinker",
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.65.0",
     "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.65.0",
     "electron": "^33.0.0",
     "electron-builder": "^26.15.2",
     "eslint": "^9.0.0",
