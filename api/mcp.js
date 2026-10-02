@@ -50,6 +50,7 @@ const selfThread = require("./_lib/self-thread-store.js");
 const selfReflections = require("./_lib/self-reflections.js");
 const reflectionWebhook = require("./_lib/reflection-webhook-store.js");
 const readingThreads = require("./_lib/reading-thread-store.js");
+const roleMatches = require("./_lib/role-matches-store.js");
 const jobApplications = require("./_lib/job-application-store.js");
 const personPrep = require("./_lib/person-prep.js");
 const inboxRank = require("./_lib/inbox-rank.js");
@@ -125,12 +126,15 @@ const INSTRUCTIONS = [
   "Call list_self_reflections to read this connector user's You-thread posts and owner-typed reflections (essays and in-progress drafts).",
   "Newest first. Optional since (ISO) and limit. Returns id, title, full body, createdAt, updatedAt. Read-only; scoped to the connector owner.",
   "Call set_reflection_webhook (url + authorization header) or clear_reflection_webhook for the owner's private reflection_saved ping. Secrets return masked only.",
-  "Call create_reading_thread to start a generic reading workbook (any book): title, optional author, ordered sections (string titles).",
-  "It generates one pre-read question for the first section via KEEP_CRAFTING_MODEL and shows the thread in the inbox like a lead.",
+  "Call create_reading_thread to start a generic reading workbook (any book): title, optional author, ordered sections (string titles), optional elevenReaderUrl.",
+  "It generates one pre-read question for the first section via KEEP_CRAFTING_MODEL. Readings appear on the Lindow Labs overview.",
+  "Call update_reading_thread to patch title, author, and/or elevenReaderUrl on an existing thread.",
   "Call list_reading_threads or get_reading_thread to read threads (includes paused with paused:true).",
   "Call advance_reading_section when the owner finished a section to mark it done and generate the next pre-read question.",
-  "Call pause_reading_thread / resume_reading_thread with threadId to put a workbook on hold or bring it back; notes and section progress stay intact. Paused threads drop out of list_inbox and the app inbox.",
+  "Call pause_reading_thread / resume_reading_thread with threadId to put a workbook on hold or bring it back; notes and section progress stay intact. Paused threads drop out of list_inbox.",
   "Reading notepad notes use the same merge-safe ### __done__ contract as lead notes. Do not seed books in app code; create them with create_reading_thread after deploy.",
+  "Call save_role_match to upsert an open role for the overview (company, title, postingUrl, location, fitReason; upsert by postingUrl).",
+  "Call list_role_matches to read non-dismissed role matches. Roles are separate from applications.",
   "Call update_owner_profile to set optional title and/or linkedInUrl on this connector user's own profile.",
   "Omitted fields are left unchanged. Pass an empty string to clear a field. A user id in args is ignored.",
   "This server does not accept a custom system prompt.",
@@ -649,9 +653,9 @@ const CREATE_READING_THREAD_TOOL = {
   title: "Create reading thread",
   description: [
     "Create a generic reading workbook thread for any book (not book-specific code).",
-    "Pass title, optional author, and ordered sections (section title strings).",
+    "Pass title, optional author, ordered sections (section title strings), and optional elevenReaderUrl.",
     "Generates one pre-read question for the first section using KEEP_CRAFTING_MODEL.",
-    "The thread appears in the Tinker inbox like a lead; the owner answers in the notepad.",
+    "The thread appears on the Lindow Labs overview Readings section.",
     "Does not touch leads or outreach. A user id in args is ignored.",
   ].join(" "),
   inputSchema: {
@@ -660,6 +664,10 @@ const CREATE_READING_THREAD_TOOL = {
     properties: {
       title: { type: "string", description: "Book or workbook title." },
       author: { type: "string", description: "Optional author name." },
+      elevenReaderUrl: {
+        type: "string",
+        description: "Optional https://elevenreader.io/... book link for the overview. Empty string clears on update; omit on create for none.",
+      },
       sections: {
         type: "array",
         description: "Ordered section titles the owner will read.",
@@ -671,14 +679,77 @@ const CREATE_READING_THREAD_TOOL = {
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
 
+const UPDATE_READING_THREAD_TOOL = {
+  name: "update_reading_thread",
+  title: "Update reading thread",
+  description: [
+    "Patch fields on an existing reading workbook thread.",
+    "Pass threadId plus any of title, author, elevenReaderUrl.",
+    "Omitted fields stay unchanged. Pass an empty string for elevenReaderUrl to clear it.",
+    "Does not change sections, notes, or pause state. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      threadId: { type: "string", description: "Reading thread id from create_reading_thread or list_reading_threads." },
+      title: { type: "string", description: "Book or workbook title." },
+      author: { type: "string", description: "Author name. Empty string clears." },
+      elevenReaderUrl: {
+        type: "string",
+        description: "https://elevenreader.io/... book link. Empty string clears.",
+      },
+    },
+    required: ["threadId"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
 const LIST_READING_THREADS_TOOL = {
   name: "list_reading_threads",
   title: "List reading threads",
   description: [
     "List this connector user's reading workbook threads.",
-    "Returns id, title, author, sections, current section, notes, done, and paused.",
+    "Returns id, title, author, elevenReaderUrl, sections, current section, notes, done, and paused.",
     "Paused threads are included here (paused:true) even though they are omitted from list_inbox.",
     "Read-only. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const SAVE_ROLE_MATCH_TOOL = {
+  name: "save_role_match",
+  title: "Save role match",
+  description: [
+    "Upsert an open role for the Lindow Labs overview Roles section.",
+    "Pass company, title, postingUrl, optional location, and optional fitReason (one-line why it fits).",
+    "Upserts by postingUrl: a repeat save refreshes fields and clears any prior dismiss.",
+    "Prefer merchant onboarding / payments / KYB / identity / merchant platforms roles,",
+    "EM level, West Coast or remote. Separate from applications. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      company: { type: "string", description: "Company name." },
+      title: { type: "string", description: "Role title." },
+      postingUrl: { type: "string", description: "Public job posting URL (upsert key)." },
+      location: { type: "string", description: "Location (e.g. Remote, San Francisco)." },
+      fitReason: { type: "string", description: "One-line fit reason for the overview." },
+    },
+    required: ["company", "title", "postingUrl"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const LIST_ROLE_MATCHES_TOOL = {
+  name: "list_role_matches",
+  title: "List role matches",
+  description: [
+    "List non-dismissed role matches for the Lindow Labs overview.",
+    "Returns company, title, postingUrl, location, fitReason, and savedAt.",
+    "Separate from list_applications. Read-only. A user id in args is ignored.",
   ].join(" "),
   inputSchema: { type: "object", additionalProperties: false, properties: {} },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
@@ -1397,11 +1468,14 @@ const TOOLS = [
   CLEAR_REFLECTION_WEBHOOK_TOOL,
   UPDATE_OWNER_PROFILE_TOOL,
   CREATE_READING_THREAD_TOOL,
+  UPDATE_READING_THREAD_TOOL,
   LIST_READING_THREADS_TOOL,
   GET_READING_THREAD_TOOL,
   ADVANCE_READING_SECTION_TOOL,
   PAUSE_READING_THREAD_TOOL,
   RESUME_READING_THREAD_TOOL,
+  SAVE_ROLE_MATCH_TOOL,
+  LIST_ROLE_MATCHES_TOOL,
   SET_COMPANY_PRIORITY_TOOL,
   PLAN_LEAD_TOUCH_TOOL,
   UPSERT_TARGET_COMPANY_TOOL,
@@ -1837,12 +1911,32 @@ function readingFailure(msg, err) {
 
 async function createReadingThreadCall(msg, user, args) {
   try {
-    const thread = await readingThreads.createThread({
+    const input = {
       userId: storyUserId(user),
       title: args.title,
       author: args.author,
       sections: args.sections,
-    });
+    };
+    if (Object.prototype.hasOwnProperty.call(args, "elevenReaderUrl")) {
+      input.elevenReaderUrl = args.elevenReaderUrl;
+    }
+    const thread = await readingThreads.createThread(input);
+    return contentToolOk(msg, { thread });
+  } catch (err) { return readingFailure(msg, err); }
+}
+
+async function updateReadingThreadCall(msg, user, args) {
+  try {
+    const input = {
+      userId: storyUserId(user),
+      threadId: args.threadId,
+    };
+    if (Object.prototype.hasOwnProperty.call(args, "title")) input.title = args.title;
+    if (Object.prototype.hasOwnProperty.call(args, "author")) input.author = args.author;
+    if (Object.prototype.hasOwnProperty.call(args, "elevenReaderUrl")) {
+      input.elevenReaderUrl = args.elevenReaderUrl;
+    }
+    const thread = await readingThreads.updateThread(input);
     return contentToolOk(msg, { thread });
   } catch (err) { return readingFailure(msg, err); }
 }
@@ -1852,6 +1946,38 @@ async function listReadingThreadsCall(msg, user) {
     const threads = await readingThreads.listThreads({ userId: storyUserId(user) });
     return contentToolOk(msg, { threads });
   } catch (err) { return readingFailure(msg, err); }
+}
+
+function roleFailure(msg, err) {
+  const message = err && err.message
+    ? err.message
+    : roleMatches.UNAVAILABLE;
+  return {
+    status: 200,
+    headers: NO_STORE,
+    body: rpcOk(msg.id, toolError(message || roleMatches.UNAVAILABLE)),
+  };
+}
+
+async function saveRoleMatchCall(msg, user, args) {
+  try {
+    const role = await roleMatches.saveRoleMatch({
+      userId: storyUserId(user),
+      company: args.company,
+      title: args.title,
+      postingUrl: args.postingUrl,
+      location: args.location,
+      fitReason: args.fitReason,
+    });
+    return contentToolOk(msg, { role });
+  } catch (err) { return roleFailure(msg, err); }
+}
+
+async function listRoleMatchesCall(msg, user) {
+  try {
+    const roles = await roleMatches.listRoleMatches({ userId: storyUserId(user) });
+    return contentToolOk(msg, { roles });
+  } catch (err) { return roleFailure(msg, err); }
 }
 
 async function getReadingThreadCall(msg, user, args) {
@@ -2673,11 +2799,14 @@ async function handleRpc(msg, user) {
       && name !== "clear_reflection_webhook"
       && name !== "update_owner_profile"
       && name !== "create_reading_thread"
+      && name !== "update_reading_thread"
       && name !== "list_reading_threads"
       && name !== "get_reading_thread"
       && name !== "advance_reading_section"
       && name !== "pause_reading_thread"
       && name !== "resume_reading_thread"
+      && name !== "save_role_match"
+      && name !== "list_role_matches"
       && name !== "set_company_priority"
       && name !== "plan_lead_touch"
       && name !== "upsert_target_company"
@@ -2746,6 +2875,9 @@ async function handleRpc(msg, user) {
     if (name === "create_reading_thread") {
       return createReadingThreadCall(msg, user, args);
     }
+    if (name === "update_reading_thread") {
+      return updateReadingThreadCall(msg, user, args);
+    }
     if (name === "list_reading_threads") {
       return listReadingThreadsCall(msg, user);
     }
@@ -2760,6 +2892,12 @@ async function handleRpc(msg, user) {
     }
     if (name === "resume_reading_thread") {
       return resumeReadingThreadCall(msg, user, args);
+    }
+    if (name === "save_role_match") {
+      return saveRoleMatchCall(msg, user, args);
+    }
+    if (name === "list_role_matches") {
+      return listRoleMatchesCall(msg, user);
     }
     if (name === "set_company_priority") {
       return setCompanyPriorityCall(msg, user, args);

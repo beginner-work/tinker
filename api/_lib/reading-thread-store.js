@@ -24,6 +24,7 @@ const MAX_AUTHOR = 200;
 const MAX_SECTION_TITLE = 300;
 const MAX_SECTIONS = 80;
 const MAX_THREADS = 40;
+const MAX_READER_URL = 2000;
 
 function db() {
   return require("./db.js");
@@ -94,6 +95,19 @@ function presentSection(section) {
   };
 }
 
+function normalizeReaderUrl(value, { required } = {}) {
+  const text = String(value == null ? "" : value).trim();
+  if (!text) {
+    if (required) throw fail(400, "elevenReaderUrl is required.");
+    return "";
+  }
+  if (text.length > MAX_READER_URL) throw fail(400, "elevenReaderUrl is too long.");
+  if (!/^https?:\/\//i.test(text)) {
+    throw fail(400, "elevenReaderUrl must start with http:// or https://.");
+  }
+  return text;
+}
+
 function presentThread(thread) {
   const sections = Array.isArray(thread.sections) ? thread.sections : [];
   const idx = Math.max(0, Math.min(Number(thread.currentSectionIndex) || 0, Math.max(sections.length - 1, 0)));
@@ -102,6 +116,7 @@ function presentThread(thread) {
     id: thread.id,
     title: thread.title,
     author: thread.author || "",
+    elevenReaderUrl: thread.elevenReaderUrl || "",
     sections: sections.map(presentSection),
     currentSectionIndex: idx,
     currentSection: current ? presentSection(current) : null,
@@ -161,11 +176,14 @@ async function getThread({ userId, threadId } = {}) {
   }
 }
 
-async function createThread({ userId, title, author, sections } = {}) {
+async function createThread({ userId, title, author, sections, elevenReaderUrl } = {}) {
   try {
     const uid = requireUserId(userId);
     const bookTitle = trimTitle(title, "title", MAX_TITLE, true);
     const bookAuthor = trimTitle(author, "author", MAX_AUTHOR, false);
+    const readerUrl = elevenReaderUrl !== undefined
+      ? normalizeReaderUrl(elevenReaderUrl)
+      : "";
     const normalized = normalizeSectionInput(sections);
     const first = normalized[0];
     first.preReadQuestion = await generatePreReadQuestion({
@@ -181,6 +199,7 @@ async function createThread({ userId, title, author, sections } = {}) {
       id: newThreadId(),
       title: bookTitle,
       author: bookAuthor,
+      elevenReaderUrl: readerUrl,
       sections: normalized,
       currentSectionIndex: 0,
       notes: "",
@@ -192,6 +211,30 @@ async function createThread({ userId, title, author, sections } = {}) {
     const { threads } = await readBlob(uid);
     threads.push(thread);
     while (threads.length > MAX_THREADS) threads.shift();
+    await writeBlob(uid, threads);
+    return presentThread(thread);
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
+/** Patch optional reading-thread fields (title/author/elevenReaderUrl). */
+async function updateThread(input = {}) {
+  try {
+    const { userId, threadId, title, author, elevenReaderUrl } = input;
+    const uid = requireUserId(userId);
+    const { threads } = await readBlob(uid);
+    const thread = findThread(threads, threadId);
+    if (Object.prototype.hasOwnProperty.call(input, "title")) {
+      thread.title = trimTitle(title, "title", MAX_TITLE, true);
+    }
+    if (Object.prototype.hasOwnProperty.call(input, "author")) {
+      thread.author = trimTitle(author, "author", MAX_AUTHOR, false);
+    }
+    if (Object.prototype.hasOwnProperty.call(input, "elevenReaderUrl")) {
+      thread.elevenReaderUrl = normalizeReaderUrl(elevenReaderUrl);
+    }
+    thread.updatedAt = new Date().toISOString();
     await writeBlob(uid, threads);
     return presentThread(thread);
   } catch (err) {
@@ -331,6 +374,7 @@ module.exports = {
   listThreads,
   getThread,
   createThread,
+  updateThread,
   updateNotes,
   advanceSection,
   retreatSection,

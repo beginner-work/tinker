@@ -265,6 +265,28 @@ html.tinker-desktop .messages-pane__top [role="button"] {
 body.messages-shell-open,
 body.messages-inbox-primary { --sidebar-width: 300px; }
 
+/* Overview home rail (inbox UI removed). */
+.sidebar--overview {
+  display: flex;
+  flex-direction: column;
+}
+.sidebar--overview .sidebar__footer,
+.sidebar--overview .sidebar__footer--gear {
+  border: 0 !important;
+  border-top: 0 !important;
+  box-shadow: none !important;
+  margin-top: auto;
+  flex: 0 0 auto;
+  padding: 2px 0 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.sidebar--overview .messages-rail__settings {
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 6px 14px;
+}
+
 /* Inbox is the whole left rail (TYL-65 slice 6). */
 .sidebar--inbox {
   display: flex;

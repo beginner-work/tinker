@@ -9,6 +9,10 @@
   if (typeof document === "undefined") return;
 
   var TOKEN_KEY = "tinker_jwt";
+  // Overview home: keep the You writing surface, skip inbox list/polling.
+  function isOverviewMode() {
+    return !!(document.body && document.body.classList.contains("overview-primary"));
+  }
   var CHANNEL_LABEL = {
     linkedin_post: "LinkedIn post",
     linkedin_connection: "LinkedIn connection request",
@@ -571,7 +575,42 @@
   function showPane() {
     if (!pane) return;
     pane.hidden = false;
-    document.body.classList.add("messages-shell-open", "messages-inbox-primary");
+    if (isOverviewMode()) {
+      document.body.classList.add("messages-shell-open", "overview-writing");
+      var overview = document.getElementById("overview");
+      if (overview) overview.hidden = true;
+    } else {
+      document.body.classList.add("messages-shell-open", "messages-inbox-primary");
+    }
+  }
+  function showOverviewHome() {
+    if (!isOverviewMode()) return;
+    if (window.tinkerMessagesYou && typeof window.tinkerMessagesYou.close === "function") {
+      window.tinkerMessagesYou.close();
+    }
+    state.selectedId = "";
+    document.body.classList.remove(
+      "overview-writing",
+      "messages-you-active",
+      "messages-thread-active",
+      "messages-mobile-thread",
+      "messages-reading-active",
+      "messages-application-active",
+      "messages-notepad-active"
+    );
+    if (pane) pane.hidden = true;
+    var overview = document.getElementById("overview");
+    if (overview) overview.hidden = false;
+    if (window.tinkerOverview && typeof window.tinkerOverview.refresh === "function") {
+      window.tinkerOverview.refresh();
+    }
+  }
+  function openWriteFromOverview(opts) {
+    opts = opts || {};
+    selectYou({
+      silent: opts.silent === true,
+      stayOnList: false,
+    });
   }
   function setPaneHeader(name, roleText, opts) {
     opts = opts || {};
@@ -1090,7 +1129,8 @@
       state.ownerLinkedInUrl = payload.ownerLinkedInUrl || "";
     }
     state.error = "";
-    if (pane) pane.hidden = false;
+    // Overview home keeps the writing pane closed until Write is clicked.
+    if (pane && !isOverviewMode()) pane.hidden = false;
   }
   function inboxSnapshot() {
     return {
@@ -1188,7 +1228,27 @@
       writeInboxCache();
     });
   }
+  function refreshOwnerProfileOnly() {
+    if (!token()) {
+      state.ownerPersonName = "";
+      state.ownerAvatarUrl = "";
+      state.ownerTitle = "";
+      state.ownerLinkedInUrl = "";
+      return Promise.resolve();
+    }
+    return fetch("/api/user-data/profile", {
+      headers: { Authorization: "Bearer " + token(), Accept: "application/json" },
+    }).then(function (res) { return res.ok ? res.json() : null; }).catch(function () { return null; })
+      .then(function (json) {
+        var data = json && json.data && typeof json.data === "object" ? json.data : null;
+        applyInboxPayload({ profile: data, leads: [], drafts: [], companies: [], byLeadId: {} });
+      });
+  }
   function refresh() {
+    if (isOverviewMode()) {
+      // Writing surface only — no inbox list or triage polling.
+      return refreshOwnerProfileOnly();
+    }
     document.body.classList.add("messages-inbox-primary", "messages-shell-open");
     if (root) root.hidden = false;
     if (!token()) {
@@ -1239,7 +1299,12 @@
     var back = pane && pane.querySelector("[data-messages-back]");
     if (chip) chip.addEventListener("click", function () { setCompanyFilter(""); });
     if (back) {
-      back.addEventListener("click", function () {
+      back.addEventListener("click", function (e) {
+        if (isOverviewMode()) {
+          e.preventDefault();
+          showOverviewHome();
+          return;
+        }
         document.body.classList.remove(
           "messages-mobile-thread",
           "messages-you-active",
@@ -1267,6 +1332,10 @@
         if (window.tinkerMobileDrawer && typeof window.tinkerMobileDrawer.close === "function") {
           window.tinkerMobileDrawer.close();
         }
+        if (isOverviewMode()) {
+          showOverviewHome();
+          return;
+        }
         // Desktop home always re-opens self-reflection; mobile stays on the list.
         if (!openDesktopYouHome({ silent: false })) {
           document.body.classList.remove("messages-you-active");
@@ -1281,16 +1350,25 @@
     try { performance.mark("tinker-inbox-boot"); } catch (e) { /* ignore */ }
     root = document.getElementById("sidebar-messages");
     pane = document.getElementById("messages-pane");
-    if (!root) return;
-    document.body.classList.add("messages-inbox-primary", "messages-shell-open");
-    // Inbox is primary: clear the welcome "active" flag so the AI / No AI
-    // pill (keyed off #welcome[data-active]) cannot float over the rail.
+    if (!pane && !root) return;
     var welcome = document.getElementById("welcome");
     if (welcome) welcome.removeAttribute("data-active");
     // Drop leftover company-tab hosts from older builds.
     var tabs = pane && pane.querySelector("[data-messages-tabs]");
     if (tabs) { tabs.innerHTML = ""; tabs.hidden = true; }
     bindChrome();
+
+    if (isOverviewMode()) {
+      // Overview home: writing stays one click away; no inbox chrome/polling.
+      document.body.classList.remove("messages-inbox-primary");
+      if (root) root.hidden = true;
+      if (pane && !document.body.classList.contains("overview-writing")) pane.hidden = true;
+      refreshOwnerProfileOnly();
+      window.addEventListener("storage", function (e) { if (e.key === TOKEN_KEY) refreshOwnerProfileOnly(); });
+      return;
+    }
+
+    document.body.classList.add("messages-inbox-primary", "messages-shell-open");
     // Desktop + signed-in: open You immediately so the detail pane never
     // flashes empty or a different thread before the inbox finishes loading.
     if (token()) openDesktopYouHome({ silent: true });
@@ -1322,6 +1400,8 @@
     refresh: refresh,
     selectLead: selectLead,
     selectYou: selectYou,
+    openWrite: openWriteFromOverview,
+    showOverview: showOverviewHome,
     selectReading: selectReading,
     selectCompany: function () { /* company view removed; no-op for older callers */ },
     showCompanyList: function () {

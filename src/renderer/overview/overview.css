@@ -1,0 +1,259 @@
+/* Lindow Labs overview — calm, plain labels, existing brand tokens. */
+
+body.overview-primary {
+  --sidebar-width: 220px;
+}
+
+body.overview-primary:not(.overview-writing) .mode-nav,
+body.overview-primary #welcome[data-active],
+body.overview-primary:not(.overview-writing) #messages-pane,
+body.overview-primary .messages-rail,
+body.overview-primary #drawer-toggle,
+body.overview-primary #drawer-backdrop {
+  display: none !important;
+}
+
+body.overview-primary.overview-writing #overview {
+  display: none !important;
+}
+
+body.overview-primary.overview-writing #messages-pane {
+  display: flex !important;
+}
+
+body.overview-primary.overview-writing .mode-nav {
+  display: none !important;
+}
+
+.overview-nav {
+  padding: 8px 14px 16px;
+}
+
+.overview-nav__write {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+.overview-nav__write:hover {
+  color: var(--color-muted);
+}
+
+.overview__ext--write {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+body.overview-primary .sidebar {
+  width: var(--sidebar-width);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-background);
+}
+
+body.overview-primary .sidebar__name {
+  font-family: var(--font-display, "Fraunces", Georgia, serif);
+  font-weight: 560;
+  letter-spacing: -0.02em;
+}
+
+body.overview-primary .stage {
+  overflow: auto;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #f5f3ef 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, #eef2ff 0%, transparent 50%),
+    var(--color-background);
+}
+
+.overview {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 40px 28px 80px;
+}
+
+.overview__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.overview__brand-mark {
+  display: block;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.overview__brand-name {
+  margin: 0;
+  font-family: var(--font-display, "Fraunces", Georgia, serif);
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: var(--color-foreground);
+}
+
+.overview__lede {
+  margin: 0 0 28px;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.overview__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 0 0 36px;
+}
+
+.overview__ext {
+  color: var(--color-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.overview__ext:hover {
+  color: var(--color-muted);
+}
+
+.overview__section {
+  margin: 0 0 36px;
+}
+
+.overview__section-title {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.overview__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.overview__item {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.overview__item:last-child {
+  border-bottom: 0;
+}
+
+.overview__item-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-foreground);
+}
+
+.overview__item-desc {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.overview__item-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.overview__item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.overview__link,
+.overview__dismiss {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.overview__link:hover,
+.overview__dismiss:hover {
+  background: var(--color-cream, #f5f3ef);
+}
+
+.overview__link:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.overview__dismiss {
+  color: var(--color-muted);
+}
+
+.overview__empty,
+.overview__note,
+.overview__error {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-muted);
+  line-height: 1.45;
+}
+
+.overview__error {
+  color: var(--color-danger, #b42318);
+  margin-bottom: 16px;
+}
+
+.overview__note {
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  body.overview-primary {
+    --sidebar-width: 0px;
+  }
+  body.overview-primary .sidebar {
+    display: none !important;
+  }
+  body.overview-primary .stage {
+    width: 100%;
+  }
+  .overview {
+    padding: 24px 18px 64px;
+  }
+  .overview__brand-name {
+    font-size: 24px;
+  }
+}
+
+/* Desktop traffic-light clearance when overview brand sits in the sidebar. */
+html[data-tinker-desktop] body.overview-primary .sidebar__top,
+html.tinker-desktop body.overview-primary .sidebar__top {
+  padding-left: 78px;
+}

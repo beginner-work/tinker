@@ -15,9 +15,10 @@ const profile = fs.readFileSync(path.join(root, "src/renderer/profile.js"), "utf
 const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
 const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
 
-test("body ships messages-shell-open so mobile first paint is never blank", () => {
-  assert.match(html, /<body[^>]*class="[^"]*messages-shell-open/);
-  assert.match(html, /messages-inbox-primary/);
+test("body ships overview-primary so mobile first paint is never blank", () => {
+  assert.match(html, /<body[^>]*class="[^"]*overview-primary/);
+  assert.equal(/<body[^>]*messages-inbox-primary/.test(html), false);
+  assert.match(html, /id="overview"/);
   assert.match(styles, /body\.messages-shell-open:not\(\.messages-mobile-thread\) \.stage/);
   assert.match(styles, /display:\s*none\s*!important/);
   assert.match(styles, /transform:\s*none\s*!important/);
@@ -26,6 +27,7 @@ test("body ships messages-shell-open so mobile first paint is never blank", () =
   assert.match(shell, /showCompanyList/);
   assert.match(shell, /messages-mobile-thread/);
   assert.match(shell, /stayOnList/);
+  assert.match(shell, /isOverviewMode/);
   // Clearing selection must NOT open You / hide the list.
   assert.equal(/if \(id === YOU_ID \|\| !id\) \{ selectYou/.test(shell), false);
   assert.match(sw, new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
