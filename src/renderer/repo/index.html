@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#fffdf7" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
+    <title>Repository preview</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/repo/repo.css" />
+  </head>
+  <body class="repo-page">
+    <header class="repo-top" aria-label="Repository">
+      <a class="repo-top__back" href="/">← Inbox</a>
+      <p class="repo-top__name" id="repo-name">Sample writing repo</p>
+      <p class="repo-top__branch" id="repo-branch">main (sample)</p>
+      <p class="repo-top__badge">Preview</p>
+    </header>
+
+    <div class="repo-layout">
+      <aside class="repo-sidebar" aria-label="Reflections and pieces">
+        <section class="repo-reflections" aria-labelledby="repo-reflections-heading">
+          <h2 class="repo-sidebar__heading" id="repo-reflections-heading">Reflections</h2>
+          <ul class="repo-reflections__list" id="repo-reflections-list"></ul>
+        </section>
+
+        <section class="repo-tree" aria-labelledby="repo-tree-heading">
+          <div class="repo-tree__head">
+            <h2 class="repo-sidebar__heading" id="repo-tree-heading">Repository</h2>
+            <button type="button" class="repo-tree__new" id="repo-new-piece">New piece</button>
+          </div>
+          <div class="repo-tree__body" id="repo-tree" role="tree"></div>
+        </section>
+      </aside>
+
+      <main class="repo-center" aria-label="Writing">
+        <div class="repo-empty" id="repo-empty">
+          <p class="repo-empty__title">Select a reflection or piece</p>
+          <p class="repo-empty__note">Sample data only. Nothing is saved.</p>
+        </div>
+
+        <div class="repo-reflection-pane writing" id="repo-reflection-pane" hidden>
+          <div class="writing__body">
+            <div class="writing__stage">
+              <div class="writing-card">
+                <h1 class="writing-question" id="repo-reflection-title"></h1>
+                <p class="writing-note" id="repo-reflection-body"></p>
+                <div class="repo-reflection-actions">
+                  <button type="button" class="writing__next" id="repo-develop">
+                    Develop into the repository
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="repo-editor writing" id="repo-editor" hidden>
+          <div class="writing__body">
+            <div class="writing__stage">
+              <div class="writing-card">
+                <label class="repo-editor__title-label" for="repo-title">Title</label>
+                <input type="text" class="repo-editor__title" id="repo-title" maxlength="200" />
+                <label class="repo-editor__body-label" for="repo-body">Body</label>
+                <textarea class="writing-input" id="repo-body" rows="14"></textarea>
+                <p class="writing-note" id="repo-readonly-note" hidden>Read-only sample version</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <aside class="repo-right" aria-label="Changes and history">
+        <section class="repo-changes" aria-labelledby="repo-changes-heading">
+          <h2 class="repo-sidebar__heading" id="repo-changes-heading">Changes</h2>
+          <ul class="repo-changes__list" id="repo-changes-list"></ul>
+          <label class="repo-changes__note-label" for="repo-change-note">Note</label>
+          <input type="text" class="repo-changes__note" id="repo-change-note" placeholder="Short note" maxlength="120" />
+          <button type="button" class="repo-changes__save" id="repo-save-version" aria-disabled="true">
+            Save version
+          </button>
+          <p class="repo-changes__hint" id="repo-save-hint" hidden>Not wired yet</p>
+        </section>
+
+        <section class="repo-history" aria-labelledby="repo-history-heading">
+          <h2 class="repo-sidebar__heading" id="repo-history-heading">History</h2>
+          <ul class="repo-history__list" id="repo-history-list"></ul>
+        </section>
+      </aside>
+    </div>
+
+    <div class="repo-mobile" id="repo-mobile" hidden>
+      <p class="repo-mobile__note">Read-only preview on small screens.</p>
+      <section aria-labelledby="repo-mobile-reflections-heading">
+        <h2 class="repo-sidebar__heading" id="repo-mobile-reflections-heading">Reflections</h2>
+        <ul class="repo-reflections__list" id="repo-mobile-reflections"></ul>
+      </section>
+      <section aria-labelledby="repo-mobile-tree-heading">
+        <h2 class="repo-sidebar__heading" id="repo-mobile-tree-heading">Repository</h2>
+        <div id="repo-mobile-tree"></div>
+      </section>
+      <section class="repo-mobile__piece" id="repo-mobile-piece" hidden>
+        <h2 class="writing-question" id="repo-mobile-title"></h2>
+        <p class="writing-note" id="repo-mobile-body"></p>
+      </section>
+    </div>
+
+    <script src="/repo/fixtures.js"></script>
+    <script src="/repo/repo.js"></script>
+  </body>
+</html>
