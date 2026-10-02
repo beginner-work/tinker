@@ -16,4 +16,4 @@ Loops: `outer: Copilot` or `inner: Cursor`. Use `none yet` when a fix landed wit
 2026-09-30 | outer: Copilot | Em dash (U+2014) in product source / comments failed contract tests | #379 #398 #418 | inner: `npm run check:em-dash` / `scripts/check-em-dash.js` before push
 2026-09-30 | outer: Copilot | Tests hardcoded service worker `CACHE_VERSION` (`tinker-shell-v13` / `v14`) | #391 #393 #394 | inner: read version from `src/renderer/sw.js` via `tests/helpers/sw-cache-version.js`; one format assertion in `tests/offline-shell.test.js`
 2026-10-01 | outer: Copilot | Leads migration contract drifted after story-parts removal | #413 | inner: migration contract concatenates SQL from `prisma/migrations/` instead of a hand-kept list
-2026-10-01 | inner: Cursor | Pre-push CI mirror + loop handoff | (this PR) | `npm run check`, `AGENTS.md` pre-push section, `.github/copilot-instructions.md`, this log
+2026-10-01 | inner: Cursor | Pre-push CI mirror + loop handoff | #419 | `npm run check`, `AGENTS.md` pre-push section, `.github/copilot-instructions.md`, this log
