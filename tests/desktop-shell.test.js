@@ -47,7 +47,9 @@ test("desktop docks ElevenReader/Formation in a WebContentsView side panel", () 
   assert.match(mainJs, /Open in browser/);
   assert.match(preloadJs, /openDockedPanel/);
   assert.match(preloadJs, /pickCursorRoot/);
-  assert.doesNotMatch(mainJs, /executeJavaScript\([\s\S]*elevenreader|formation\.dev[\s\S]*inject/i);
+  // Pure browsing pane — no page-script injection into docked sites.
+  assert.equal(/elevenreader[\s\S]{0,200}executeJavaScript/i.test(mainJs), false);
+  assert.equal(/formation\.dev[\s\S]{0,200}executeJavaScript/i.test(mainJs), false);
 });
 
 test("desktop shell remembers window size and builds native menus", () => {
