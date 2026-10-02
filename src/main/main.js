@@ -245,10 +245,12 @@ async function reloadIfDeployed(win) {
 function windowChromeOptions() {
   const backgroundColor = appBackgroundColor();
   if (process.platform === "darwin") {
+    // Align traffic lights with the sidebar brand row (logo sits to the
+    // right via ~78px left inset from desktop CSS / insertDesktopCss).
     return {
       backgroundColor,
       titleBarStyle: "hiddenInset",
-      trafficLightPosition: { x: 14, y: 16 },
+      trafficLightPosition: { x: 16, y: 18 },
     };
   }
   // Windows / Linux: overlay traffic-control buttons on the same cream.
@@ -261,6 +263,61 @@ function windowChromeOptions() {
       height: 36,
     },
   };
+}
+
+// Electron-only chrome. Belt-and-suspenders with the web bundle's
+// html[data-tinker-desktop] rules: even if the attribute races first
+// paint on a remote navigation, the logo stays clear of traffic lights.
+const DESKTOP_CHROME_CSS = `
+html {
+  --tinker-desktop-titlebar: 12px;
+  --tinker-desktop-traffic-inset: 78px;
+}
+.sidebar {
+  -webkit-app-region: drag;
+}
+.sidebar__top {
+  padding-top: 12px !important;
+  padding-left: 78px !important;
+  padding-right: 12px !important;
+  padding-bottom: 8px !important;
+}
+.messages-pane__top {
+  -webkit-app-region: drag;
+  padding-top: 12px !important;
+  padding-left: 12px !important;
+}
+.sidebar a,
+.sidebar button,
+.sidebar input,
+.sidebar textarea,
+.sidebar select,
+.sidebar [role="button"],
+.messages-pane__top a,
+.messages-pane__top button,
+.messages-pane__top input {
+  -webkit-app-region: no-drag;
+}
+body.settings-page .settings {
+  padding-top: calc(12px + 28px) !important;
+}
+.feed-shell,
+.feed {
+  padding-top: max(36px, env(safe-area-inset-top, 0px)) !important;
+}
+`;
+
+function markDesktopInPage(wc) {
+  if (!wc || wc.isDestroyed()) return;
+  wc.executeJavaScript(
+    `(function(){var r=document.documentElement;if(!r)return;r.setAttribute("data-tinker-desktop","1");r.classList.add("tinker-desktop");})();`,
+    true
+  ).catch(() => {});
+}
+
+function insertDesktopCss(wc) {
+  if (!wc || wc.isDestroyed()) return;
+  wc.insertCSS(DESKTOP_CHROME_CSS).catch(() => {});
 }
 
 function createWindow() {
@@ -318,6 +375,16 @@ function createWindow() {
       event.preventDefault();
       shell.openExternal(url);
     }
+  });
+
+  // Re-apply marker + chrome CSS on every in-window navigation (preload
+  // also marks, but remote loads have raced past first paint before).
+  win.webContents.on("dom-ready", () => {
+    markDesktopInPage(win.webContents);
+    insertDesktopCss(win.webContents);
+  });
+  win.webContents.on("did-finish-load", () => {
+    markDesktopInPage(win.webContents);
   });
 
   win.on("focus", () => {

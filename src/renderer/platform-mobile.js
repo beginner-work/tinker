@@ -20,7 +20,14 @@
   const isDesktop =
     !!(existing && (existing.supportsWebview === true || existing.isDesktopApp === true));
 
-  if (!isDesktop) {
+  if (isDesktop) {
+    // Belt-and-suspenders with preload: ensure traffic-light CSS gates
+    // apply even if preload raced a remote navigation's first paint.
+    try {
+      document.documentElement.setAttribute("data-tinker-desktop", "1");
+      document.documentElement.classList.add("tinker-desktop");
+    } catch (e) { /* ignore */ }
+  } else {
     document.documentElement.classList.add("on-web");
   }
 
