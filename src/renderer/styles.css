@@ -88,11 +88,14 @@ input:focus, button:focus, textarea:focus { outline: none; }
   gap: 10px;
 }
 
-/* Electron desktop shell only (preload sets data-tinker-desktop).
-   Web browsers are unchanged: no traffic-light offset, no app-region. */
+/* Electron desktop shell only (preload / platform-mobile set
+   data-tinker-desktop). Web browsers are unchanged: no traffic-light
+   offset, no app-region. Logo sits to the right of macOS traffic lights
+   via left inset; trafficLightPosition aligns buttons with the brand row. */
 html[data-tinker-desktop],
 html.tinker-desktop {
-  --tinker-desktop-titlebar: 52px;
+  --tinker-desktop-titlebar: 12px;
+  --tinker-desktop-traffic-inset: 78px;
 }
 html[data-tinker-desktop] .sidebar,
 html.tinker-desktop .sidebar {
@@ -101,11 +104,14 @@ html.tinker-desktop .sidebar {
 html[data-tinker-desktop] .sidebar__top,
 html.tinker-desktop .sidebar__top {
   padding-top: var(--tinker-desktop-titlebar);
+  padding-left: var(--tinker-desktop-traffic-inset);
+  padding-right: 12px;
+  padding-bottom: 8px;
 }
 html[data-tinker-desktop] .messages-pane__top,
 html.tinker-desktop .messages-pane__top {
   -webkit-app-region: drag;
-  padding-top: 36px;
+  padding-top: var(--tinker-desktop-titlebar);
 }
 html[data-tinker-desktop] .sidebar a,
 html[data-tinker-desktop] .sidebar button,
@@ -129,13 +135,13 @@ html.tinker-desktop .messages-pane__top input {
 }
 html[data-tinker-desktop] body.settings-page .settings,
 html.tinker-desktop body.settings-page .settings {
-  padding-top: calc(var(--tinker-desktop-titlebar) + 16px);
+  padding-top: calc(var(--tinker-desktop-titlebar) + 28px);
 }
 html[data-tinker-desktop] .feed-shell,
 html.tinker-desktop .feed-shell,
 html[data-tinker-desktop] .feed,
 html.tinker-desktop .feed {
-  padding-top: max(var(--tinker-desktop-titlebar), env(safe-area-inset-top, 0px));
+  padding-top: max(36px, env(safe-area-inset-top, 0px));
 }
 
 .sidebar__brand {
@@ -221,7 +227,7 @@ body.messages-inbox-primary { --sidebar-width: 300px; }
   border-top: 0;
   margin-top: auto;
   flex: 0 0 auto;
-  padding: 4px 10px 8px;
+  padding: 2px 8px 6px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -2072,50 +2078,54 @@ body.messages-shell-open .messages-notepad__foot {
   height: 16px;
   fill: currentColor;
 }
-/* Settings is the only account entry in the rail footer - make it easy
- * to find and tap on iPhone (min 48px target, ink label, clear gear).
- * Flat: no card border / hairlines; footer + sidebar safe-area pin it
- * above the home indicator. */
+/* Settings in the rail footer — quiet secondary control (matches the
+ * muted empty-state line), not a primary nav target. Flat: no card
+ * border / hairlines; footer + sidebar safe-area pin it above the
+ * home indicator. */
 .messages-rail__settings {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 10px;
+  gap: 8px;
   box-sizing: border-box;
   width: 100%;
-  min-height: 48px;
+  min-height: 0;
   margin: 0;
-  padding: 12px 14px;
+  padding: 6px 10px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
-  color: var(--color-foreground);
+  color: var(--color-muted);
   font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.4;
   text-decoration: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 .messages-rail__settings:hover,
 .messages-rail__settings:focus-visible {
-  color: var(--color-foreground);
-  background: var(--color-hover, rgba(0, 0, 0, 0.04));
+  color: var(--color-muted);
+  background: var(--color-hover, rgba(0, 0, 0, 0.03));
   outline: none;
 }
 .messages-rail__settings:active {
-  transform: scale(0.99);
+  transform: none;
+  opacity: 0.85;
 }
 .messages-rail__settings-icon {
   display: block;
-  width: 22px;
-  height: 22px;
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
+  opacity: 0.85;
 }
 .messages-rail__settings-label {
   display: block;
-  line-height: 1.2;
+  line-height: 1.4;
+  font-weight: 400;
 }
 @media (max-width: 720px) {
   body.messages-shell-open .sidebar__footer,
@@ -2124,18 +2134,19 @@ body.messages-shell-open .messages-notepad__foot {
   body.messages-inbox-primary .sidebar__footer--gear {
     display: flex !important;
     /* Sidebar already applies safe-area-inset-bottom; keep a little air. */
-    padding: 6px 12px 10px;
+    padding: 4px 10px 8px;
     margin-top: auto;
     border-top: 0;
   }
   .messages-rail__settings {
-    min-height: 52px;
+    min-height: 40px;
     margin: 0;
-    font-size: 16px; /* iOS: avoid focus zoom if it becomes a control */
+    font-size: 12px;
+    padding: 8px 10px;
   }
   .messages-rail__settings-icon {
-    width: 24px;
-    height: 24px;
+    width: 16px;
+    height: 16px;
   }
 }
 .sidebar__secondary[hidden],

@@ -77,21 +77,33 @@ test("desktop CSS chrome is gated so browsers stay unchanged", () => {
   assert.match(stylesCss, /-webkit-app-region:\s*drag/);
   assert.match(stylesCss, /-webkit-app-region:\s*no-drag/);
   assert.match(stylesCss, /--tinker-desktop-titlebar/);
+  assert.match(stylesCss, /--tinker-desktop-traffic-inset/);
   // Default sidebar padding is web-safe; Electron offset is gated.
   assert.match(stylesCss, /\.sidebar__top\s*\{[^}]*padding-top:\s*calc\(env\(safe-area-inset-top/);
   assert.match(
     stylesCss,
-    /html\[data-tinker-desktop\][\s\S]*\.sidebar__top[\s\S]*--tinker-desktop-titlebar/
+    /html\[data-tinker-desktop\][\s\S]*\.sidebar__top[\s\S]*--tinker-desktop-traffic-inset/
   );
+  // Critical CSS also clears traffic lights via left inset (not top-only).
+  assert.match(indexHtml, /html\[data-tinker-desktop\][\s\S]*\.sidebar__top[\s\S]*padding-left:\s*78px/);
+});
+
+test("desktop shell inserts chrome CSS and re-marks on navigation", () => {
+  assert.match(mainJs, /insertCSS|DESKTOP_CHROME_CSS/);
+  assert.match(mainJs, /data-tinker-desktop/);
+  assert.match(mainJs, /dom-ready/);
+  assert.match(mainJs, /trafficLightPosition:\s*\{\s*x:\s*16,\s*y:\s*18/);
+  assert.match(preloadJs, /setInterval|DOMContentLoaded/);
+  assert.match(platformJs, /data-tinker-desktop/);
 });
 
 test("settings gear has intrinsic size and critical CSS to avoid FOUC", () => {
   assert.match(
     indexHtml,
-    /messages-rail__settings-icon"[^>]*width="22"[^>]*height="22"|messages-rail__settings-icon"[^>]*height="22"[^>]*width="22"/
+    /messages-rail__settings-icon"[^>]*width="15"[^>]*height="15"|messages-rail__settings-icon"[^>]*height="15"[^>]*width="15"/
   );
-  assert.match(indexHtml, /\.messages-rail__settings-icon\s*\{[^}]*width:\s*22px/);
-  assert.match(indexHtml, /\.messages-rail__settings-icon\s*\{[^}]*height:\s*22px/);
+  assert.match(indexHtml, /\.messages-rail__settings-icon\s*\{[^}]*width:\s*15px/);
+  assert.match(indexHtml, /\.messages-rail__settings-icon\s*\{[^}]*height:\s*15px/);
 });
 
 test("desktop shell uses the same Stytch auth gate as the web app", () => {
@@ -119,7 +131,7 @@ test("packaging targets universal Mac dmg named tinker-mac", () => {
 
 test("release marker matches package version; workflows publish on marker", () => {
   assert.equal(marker, pkg.version);
-  assert.equal(pkg.version, "0.1.4");
+  assert.equal(pkg.version, "0.1.5");
   assert.match(markerYml, /\.release-version/);
   assert.match(markerYml, /publish:\s*true/);
   assert.match(releaseYml, /macos-latest/);

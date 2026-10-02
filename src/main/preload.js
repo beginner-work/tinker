@@ -2,10 +2,17 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 // Mark the document as the desktop shell as early as possible so CSS can
 // gate traffic-light padding and drag regions without affecting browsers.
+// Remote navigations (https://tinker.beginner.work) can briefly lack a
+// documentElement at preload eval time — retry across several hooks so
+// the attribute is set before / as the first paint settles.
 function markDesktopDocument() {
   try {
     const root = document.documentElement;
     if (!root) return false;
+    if (root.getAttribute("data-tinker-desktop") === "1") {
+      root.classList.add("tinker-desktop");
+      return true;
+    }
     root.setAttribute("data-tinker-desktop", "1");
     root.classList.add("tinker-desktop");
     return true;
@@ -14,16 +21,48 @@ function markDesktopDocument() {
   }
 }
 
-if (!markDesktopDocument()) {
-  const obs = new MutationObserver(() => {
-    if (markDesktopDocument()) obs.disconnect();
-  });
+function armDesktopMark() {
+  if (markDesktopDocument()) return;
+
+  let tries = 0;
+  const tick = () => {
+    if (markDesktopDocument() || ++tries > 40) {
+      clearInterval(interval);
+      return;
+    }
+  };
+  const interval = setInterval(tick, 16);
+
   try {
+    const obs = new MutationObserver(() => {
+      if (markDesktopDocument()) {
+        obs.disconnect();
+        clearInterval(interval);
+      }
+    });
     obs.observe(document, { childList: true, subtree: true });
   } catch {
-    // document may be unavailable for a tick in some navigations
+    // document may be unavailable for a tick on some navigations
+  }
+
+  try {
+    document.addEventListener("DOMContentLoaded", () => {
+      markDesktopDocument();
+    });
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    window.addEventListener("DOMContentLoaded", () => {
+      markDesktopDocument();
+    });
+  } catch {
+    /* ignore */
   }
 }
+
+armDesktopMark();
 
 // Desktop bridge for the production web app loaded in BrowserWindow.
 // platform-mobile.js merges these into window.tinker (keeps callClaude

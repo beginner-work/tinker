@@ -37,11 +37,15 @@ test("inbox sidebar styles keep settings gear without pitch panel", () => {
   assert.match(css, /messages-inbox-primary/);
 });
 
-test("Settings control is a large labeled rail target; Share is Settings-only", () => {
+test("Settings control is a quiet labeled rail target; Share is Settings-only", () => {
   assert.match(html, /messages-rail__settings-label/);
   assert.match(html, /id="nav-share"[^>]*hidden/);
-  assert.match(css, /\.messages-rail__settings[\s\S]*min-height:\s*48px/);
-  assert.match(css, /\.messages-rail__settings[\s\S]*font-weight:\s*600/);
+  // Quiet secondary styling (muted empty-state scale), not a heavy primary row.
+  assert.match(css, /\.messages-rail__settings[\s\S]*font-size:\s*12px/);
+  assert.match(css, /\.messages-rail__settings[\s\S]*font-weight:\s*400/);
+  assert.match(css, /\.messages-rail__settings[\s\S]*color:\s*var\(--color-muted\)/);
+  assert.match(css, /\.messages-rail__settings-icon[\s\S]*width:\s*15px/);
+  assert.match(css, /\.messages-rail__settings-icon[\s\S]*height:\s*15px/);
   // Bottom-anchored, no hairline dividers around Settings.
   assert.match(css, /\.sidebar--inbox \.sidebar__footer[\s\S]*border-top:\s*0/);
   assert.match(css, /\.sidebar--inbox \.sidebar__footer[\s\S]*margin-top:\s*auto/);
