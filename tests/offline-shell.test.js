@@ -47,10 +47,16 @@ test("the activate handler evicts stale caches", () => {
     /caches\.delete/,
     "activate handler no longer evicts old cache versions",
   );
+  // Single format + value assertion for CACHE_VERSION (satellites must not pin vNN).
   assert.match(
     sw,
     /CACHE_VERSION\s*=\s*["']tinker-shell-v\d+["']/,
     "CACHE_VERSION is missing or malformed",
+  );
+  assert.equal(
+    EXPECTED_SW_CACHE_VERSION,
+    sw.match(/CACHE_VERSION\s*=\s*["'](tinker-shell-v\d+)["']/)[1],
+    "helpers/sw-cache-version.js must track sw.js",
   );
 });
 
@@ -70,11 +76,6 @@ test("CSS and JS use network-first so deployed PWAs pick up new shell assets", (
     /if\s*\(\s*isShellAssetPath\([^)]*\)\s*\)\s*\{[^}]*staleWhileRevalidate/.test(fetchHandler),
     false,
     "CSS/JS must not use stale-while-revalidate (strands installed PWAs)",
-  );
-  assert.match(
-    sw,
-    new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
-    "bump CACHE_VERSION in sw.js when changing SW strategy (tests read it via helpers/sw-cache-version.js)",
   );
   assert.match(sw, /\/profile\.css/, "profile.css must be precached");
   assert.match(sw, /\/messages-shell\.js/, "messages shell must be precached");

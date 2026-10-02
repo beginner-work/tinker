@@ -5,8 +5,6 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { EXPECTED_SW_CACHE_VERSION } = require("./helpers/sw-cache-version.js");
-
 const root = path.join(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
 const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
@@ -111,7 +109,6 @@ test("sync hydrate is idle-deferred off the critical path", () => {
 
 test("static asset cache headers and SW precache stay in sync", () => {
   assert.match(vercel, /max-age=86400/);
-  assert.match(sw, new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(sw, /boot-lazy\.js/);
   assert.match(sw, /boot-css\.js/);
   assert.match(sw, /notes-folder\.js/);
