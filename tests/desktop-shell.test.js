@@ -1,8 +1,9 @@
 /* Structural contract for the Electron desktop shell.
  *
  * The Mac app must load production Tinker in a hardened BrowserWindow
- * (not a quiet-browser / local file shell), keep notes-folder IPC, and
- * never revive address-bar search or <webview> browsing.
+ * (not a quiet-browser / local file shell), keep notes-folder IPC, match
+ * the web app (auth, routes, fresh deploys), and paint a seamless
+ * title-bar surface — never revive address-bar search or <webview>.
  */
 "use strict";
 
@@ -15,6 +16,10 @@ const root = path.join(__dirname, "..");
 const mainJs = fs.readFileSync(path.join(root, "src/main/main.js"), "utf8");
 const preloadJs = fs.readFileSync(path.join(root, "src/main/preload.js"), "utf8");
 const platformJs = fs.readFileSync(path.join(root, "src/renderer/platform-mobile.js"), "utf8");
+const authJs = fs.readFileSync(path.join(root, "src/renderer/auth.js"), "utf8");
+const profileJs = fs.readFileSync(path.join(root, "src/renderer/profile.js"), "utf8");
+const stylesCss = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
+const indexHtml = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
 const builderYml = fs.readFileSync(path.join(root, "electron-builder.yml"), "utf8");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const marker = fs.readFileSync(path.join(root, ".release-version"), "utf8").trim();
@@ -41,11 +46,61 @@ test("desktop shell remembers window size and builds native menus", () => {
   assert.match(mainJs, /Menu\.buildFromTemplate/);
 });
 
-test("preload keeps notes folder bridges and drops quiet-browser search", () => {
+test("desktop title bar is seamless with app background", () => {
+  assert.match(mainJs, /titleBarStyle:\s*"hiddenInset"/);
+  assert.match(mainJs, /trafficLightPosition/);
+  assert.match(mainJs, /titleBarOverlay/);
+  assert.match(mainJs, /#FFFDF7/);
+  assert.match(mainJs, /nativeTheme/);
+  assert.match(mainJs, /setBackgroundColor|backgroundColor/);
+});
+
+test("desktop session bypasses long-lived HTTP cache and reloads after deploys", () => {
+  assert.match(mainJs, /onHeadersReceived/);
+  assert.match(mainJs, /Cache-Control/);
+  assert.match(mainJs, /no-cache/);
+  assert.match(mainJs, /reloadIgnoringCache/);
+  assert.match(mainJs, /etag|last-modified/);
+  assert.match(mainJs, /win\.on\(\s*"focus"/);
+});
+
+test("preload marks desktop document and keeps notes folder bridges", () => {
   assert.match(preloadJs, /pickNotesFolder/);
   assert.match(preloadJs, /listNotesFiles/);
   assert.match(preloadJs, /isDesktopApp:\s*true/);
+  assert.match(preloadJs, /data-tinker-desktop|tinker-desktop/);
   assert.doesNotMatch(preloadJs, /searchQuery/);
+});
+
+test("desktop CSS chrome is gated so browsers stay unchanged", () => {
+  assert.match(stylesCss, /data-tinker-desktop/);
+  assert.match(stylesCss, /-webkit-app-region:\s*drag/);
+  assert.match(stylesCss, /-webkit-app-region:\s*no-drag/);
+  assert.match(stylesCss, /--tinker-desktop-titlebar/);
+  // Default sidebar padding is web-safe; Electron offset is gated.
+  assert.match(stylesCss, /\.sidebar__top\s*\{[^}]*padding-top:\s*calc\(env\(safe-area-inset-top/);
+  assert.match(
+    stylesCss,
+    /html\[data-tinker-desktop\][\s\S]*\.sidebar__top[\s\S]*--tinker-desktop-titlebar/
+  );
+});
+
+test("settings gear has intrinsic size and critical CSS to avoid FOUC", () => {
+  assert.match(
+    indexHtml,
+    /messages-rail__settings-icon"[^>]*width="22"[^>]*height="22"|messages-rail__settings-icon"[^>]*height="22"[^>]*width="22"/
+  );
+  assert.match(indexHtml, /\.messages-rail__settings-icon\s*\{[^}]*width:\s*22px/);
+  assert.match(indexHtml, /\.messages-rail__settings-icon\s*\{[^}]*height:\s*22px/);
+});
+
+test("desktop shell uses the same Stytch auth gate as the web app", () => {
+  assert.match(authJs, /isDesktopApp/);
+  assert.match(authJs, /data-tinker-desktop/);
+  assert.doesNotMatch(authJs, /supportsWebview === true\) return false/);
+  assert.doesNotMatch(authJs, /ANTHROPIC_API_KEY/);
+  assert.match(profileJs, /isDesktopApp/);
+  assert.doesNotMatch(profileJs, /supportsWebview === true\) return false/);
 });
 
 test("platform-mobile merges Electron bridges instead of overwriting", () => {
@@ -64,6 +119,7 @@ test("packaging targets universal Mac dmg named tinker-mac", () => {
 
 test("release marker matches package version; workflows publish on marker", () => {
   assert.equal(marker, pkg.version);
+  assert.equal(pkg.version, "0.1.4");
   assert.match(markerYml, /\.release-version/);
   assert.match(markerYml, /publish:\s*true/);
   assert.match(releaseYml, /macos-latest/);

@@ -1,5 +1,30 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+// Mark the document as the desktop shell as early as possible so CSS can
+// gate traffic-light padding and drag regions without affecting browsers.
+function markDesktopDocument() {
+  try {
+    const root = document.documentElement;
+    if (!root) return false;
+    root.setAttribute("data-tinker-desktop", "1");
+    root.classList.add("tinker-desktop");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+if (!markDesktopDocument()) {
+  const obs = new MutationObserver(() => {
+    if (markDesktopDocument()) obs.disconnect();
+  });
+  try {
+    obs.observe(document, { childList: true, subtree: true });
+  } catch {
+    // document may be unavailable for a tick in some navigations
+  }
+}
+
 // Desktop bridge for the production web app loaded in BrowserWindow.
 // platform-mobile.js merges these into window.tinker (keeps callClaude
 // from the web shim) so notes-folder sync and dock icon still work.

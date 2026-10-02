@@ -38,13 +38,14 @@
   function authHeaders(token) {
     return { Authorization: "Bearer " + token };
   }
-  // Onboarding only belongs on the plain web sign-in gate. Electron
-  // authenticates differently; we still wire initials there if a profile
-  // happens to exist, but never force the capture screen.
+  // Onboarding belongs on the product sign-in path — plain web and the
+  // desktop BrowserWindow shell (same Stytch session).
   function isWebGate() {
     try {
-      if (window.tinker && window.tinker.supportsWebview === true) return false;
-      return document.documentElement.classList.contains("on-web");
+      if (document.documentElement.classList.contains("on-web")) return true;
+      if (window.tinker && window.tinker.isDesktopApp === true) return true;
+      if (document.documentElement.hasAttribute("data-tinker-desktop")) return true;
+      return false;
     } catch { return false; }
   }
 

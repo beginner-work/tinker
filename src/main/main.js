@@ -1,4 +1,15 @@
-const { app, BrowserWindow, Menu, session, ipcMain, shell, dialog, nativeImage } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  session,
+  ipcMain,
+  shell,
+  dialog,
+  nativeImage,
+  nativeTheme,
+  net,
+} = require("electron");
 const path = require("path");
 const fs = require("fs");
 const fsp = require("fs/promises");
@@ -9,12 +20,23 @@ const fsp = require("fs/promises");
 const APP_ORIGIN = "https://tinker.beginner.work";
 const APP_URL = process.env.TINKER_DESKTOP_URL || APP_ORIGIN;
 
+// Matches --color-background in src/renderer/styles.css / critical CSS.
+// The product is light-only today; keep one cream surface so the native
+// title-bar chrome and the web content read as one plane.
+const APP_BG_LIGHT = "#FFFDF7";
+const APP_BG_DARK = "#FFFDF7";
+const APP_FG = "#2D2A26";
+
 const isDev = process.argv.includes("--dev");
 
 // Show "tinker" in the macOS menu bar / app menus instead of "Electron".
 app.setName("tinker");
 
 const STATE_PATH = () => path.join(app.getPath("userData"), "window-state.json");
+
+function appBackgroundColor() {
+  return nativeTheme.shouldUseDarkColors ? APP_BG_DARK : APP_BG_LIGHT;
+}
 
 function loadWindowState() {
   try {
@@ -97,7 +119,7 @@ function buildAppMenu() {
           label: "Reload",
           accelerator: "CmdOrCtrl+R",
           click: (_item, win) => {
-            if (win) win.reload();
+            if (win) win.webContents.reloadIgnoringCache();
           },
         },
         isMac ? { role: "close" } : { role: "quit" },
@@ -164,6 +186,83 @@ function buildAppMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+function tinkerSession() {
+  return session.fromPartition("persist:tinker");
+}
+
+// Strip long-lived HTTP cache so new web deploys show up without a
+// reinstall. HTML already ships must-revalidate; CSS/JS on Vercel can
+// sit at max-age=86400 — override that inside the desktop session only.
+function installDesktopCachePolicy(ses) {
+  ses.webRequest.onHeadersReceived((details, callback) => {
+    if (!isTinkerUrl(details.url)) {
+      callback({});
+      return;
+    }
+    const headers = { ...(details.responseHeaders || {}) };
+    const bypass = ["no-cache", "max-age=0", "must-revalidate"];
+    // Electron may lowercase keys; clear every Cache-Control variant.
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase() === "cache-control") delete headers[key];
+    }
+    headers["Cache-Control"] = bypass;
+    callback({ responseHeaders: headers });
+  });
+}
+
+// Reload when a focus returns after a deploy (etag / last-modified change).
+let lastDeployToken = null;
+let deployCheckInFlight = false;
+
+async function deployToken() {
+  const res = await net.fetch(APP_URL, {
+    method: "HEAD",
+    cache: "no-store",
+    headers: { "Cache-Control": "no-cache" },
+  });
+  // Prefer stable validators only — age / request ids change every hit
+  // and would reload on every focus.
+  return res.headers.get("etag") || res.headers.get("last-modified") || "";
+}
+
+async function reloadIfDeployed(win) {
+  if (!win || win.isDestroyed() || deployCheckInFlight) return;
+  deployCheckInFlight = true;
+  try {
+    const token = await deployToken();
+    if (!token) return;
+    if (lastDeployToken && token !== lastDeployToken) {
+      win.webContents.reloadIgnoringCache();
+    }
+    lastDeployToken = token;
+  } catch {
+    // Offline / preview — leave the current page alone.
+  } finally {
+    deployCheckInFlight = false;
+  }
+}
+
+function windowChromeOptions() {
+  const backgroundColor = appBackgroundColor();
+  if (process.platform === "darwin") {
+    return {
+      backgroundColor,
+      titleBarStyle: "hiddenInset",
+      trafficLightPosition: { x: 14, y: 16 },
+    };
+  }
+  // Windows / Linux: overlay traffic-control buttons on the same cream.
+  return {
+    backgroundColor,
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: backgroundColor,
+      symbolColor: APP_FG,
+      height: 36,
+    },
+  };
+}
+
 function createWindow() {
   const state = loadWindowState();
   const icon = appIconPath();
@@ -174,11 +273,11 @@ function createWindow() {
     y: state.y,
     minWidth: 720,
     minHeight: 480,
-    backgroundColor: "#FFFDF7",
     title: "tinker",
     show: false,
     autoHideMenuBar: process.platform !== "darwin",
     icon: fs.existsSync(icon) ? icon : undefined,
+    ...windowChromeOptions(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -203,6 +302,8 @@ function createWindow() {
   win.on("close", persist);
 
   // Stay on the Tinker origin; everything else opens in the OS browser.
+  // Same-origin routes (/, /feed, /settings, inbox deep links, …) load
+  // in-window so the desktop shell matches the web app.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (isTinkerUrl(url)) {
       win.loadURL(url);
@@ -219,6 +320,10 @@ function createWindow() {
     }
   });
 
+  win.on("focus", () => {
+    reloadIfDeployed(win);
+  });
+
   win.loadURL(APP_URL);
 
   if (isDev) {
@@ -228,17 +333,44 @@ function createWindow() {
   return win;
 }
 
+function syncNativeChromeColor() {
+  const color = appBackgroundColor();
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (w.isDestroyed()) continue;
+    try {
+      w.setBackgroundColor(color);
+    } catch {
+      /* ignore */
+    }
+    if (process.platform !== "darwin" && typeof w.setTitleBarOverlay === "function") {
+      try {
+        w.setTitleBarOverlay({
+          color,
+          symbolColor: APP_FG,
+          height: 36,
+        });
+      } catch {
+        /* overlay unsupported on this build */
+      }
+    }
+  }
+}
+
 app.whenReady().then(() => {
+  const ses = tinkerSession();
+
   // Modern Chrome UA without advertising Electron (some auth / bot checks
   // treat the default Electron UA as non-browser).
   const chromeVersion = process.versions.chrome;
   const ua = `Mozilla/5.0 (${process.platform === "darwin" ? "Macintosh; Intel Mac OS X 10_15_7" : process.platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
-  session.fromPartition("persist:tinker").setUserAgent(ua);
+  ses.setUserAgent(ua);
 
-  session.fromPartition("persist:tinker").setPermissionRequestHandler((_wc, permission, cb) => {
+  ses.setPermissionRequestHandler((_wc, permission, cb) => {
     const allowed = ["clipboard-read", "clipboard-sanitized-write", "fullscreen", "notifications"];
     cb(allowed.includes(permission));
   });
+
+  installDesktopCachePolicy(ses);
 
   const icon = appIconPath();
   if (process.platform === "darwin" && app.dock && fs.existsSync(icon)) {
@@ -248,6 +380,11 @@ app.whenReady().then(() => {
 
   buildAppMenu();
   createWindow();
+
+  nativeTheme.on("updated", syncNativeChromeColor);
+
+  // Seed deploy token so the first focus after launch can detect a change.
+  reloadIfDeployed(BrowserWindow.getAllWindows()[0]).catch(() => {});
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

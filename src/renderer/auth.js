@@ -1,18 +1,15 @@
 /* tinker — phone/PIN auth gate
  *
- * On the plain web build (the one served by src/web/server.js) we put a
- * sign-in screen in front of the renderer until the user has a Stytch
- * session token for the Claude proxy. The token is stored under
+ * Puts a sign-in screen in front of the renderer until the user has a
+ * Stytch session token for the Claude proxy. The token is stored under
  * `tinker_jwt` in localStorage (legacy key — the value is now Stytch's
  * long-lived `session_token`, not a JWT) so the platform-mobile shim
  * can read it for proxied Claude calls. Validation happens server-side
  * on every request via Stytch's /sessions/authenticate, so there is no
  * client-side `exp` to check — the server is the source of truth.
  *
- * On Electron desktop this file is loaded too but the gate is
- * skipped — desktop already has its own ANTHROPIC_API_KEY env var.
- * Only the plain web build (`html.on-web` and
- * `window.tinker.platform === "web"`) shows the gate.
+ * Runs on the plain web build and on the Electron desktop shell (which
+ * loads the same production app). Both need the same Stytch gate.
  */
 
 (function () {
@@ -24,12 +21,14 @@
 
   // ── Platform detection ───────────────────────────────────────────────
   //
-  // The platform-mobile shim adds .on-web to <html> on plain web; Electron
-  // has its own window.tinker so we can also check that as a backstop.
+  // Plain web: platform-mobile adds .on-web. Desktop shell: preload sets
+  // isDesktopApp / data-tinker-desktop. Both need product auth.
 
   function isWebPlatform() {
-    if (window.tinker && window.tinker.supportsWebview === true) return false; // Electron
-    return document.documentElement.classList.contains("on-web");
+    if (document.documentElement.classList.contains("on-web")) return true;
+    if (window.tinker && window.tinker.isDesktopApp === true) return true;
+    if (document.documentElement.hasAttribute("data-tinker-desktop")) return true;
+    return false;
   }
 
   // ── Token store ──────────────────────────────────────────────────────
