@@ -53,6 +53,8 @@ const PRETTY = {
   "/practice/": "/practice/index.html",
   "/practice/rep": "/practice/rep.html",
   "/practice/rep/": "/practice/rep.html",
+  "/feed": "/feed/index.html",
+  "/feed/": "/feed/index.html",
   "/career": "/career/index.html",
   "/career/": "/career/index.html",
   "/leads": "/leads/index.html",

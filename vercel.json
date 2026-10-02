@@ -35,6 +35,9 @@
     { "source": "/practice/", "destination": "/practice/index.html" },
     { "source": "/practice/rep", "destination": "/practice/rep.html" },
     { "source": "/practice/rep/", "destination": "/practice/rep.html" },
+    { "source": "/feed", "destination": "/feed/index.html" },
+    { "source": "/feed/", "destination": "/feed/index.html" },
+    { "source": "/api/essay-feed/:action", "destination": "/api/essay-feed?action=:action" },
     { "source": "/gmail", "destination": "/api/gmail" },
     { "source": "/gmail/", "destination": "/api/gmail" }
   ],

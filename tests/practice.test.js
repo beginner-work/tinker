@@ -81,7 +81,7 @@ test("vercel and service worker leave /practice on the network", () => {
   assert.match(vercel, /\/practice\/rep\.html/);
   assert.match(sw, /pathname === "\/practice"/);
   assert.match(sw, new RegExp(EXPECTED_SW_CACHE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.equal(EXPECTED_SW_CACHE_VERSION, "tinker-shell-v27");
+  assert.equal(EXPECTED_SW_CACHE_VERSION, "tinker-shell-v28");
 });
 
 test("runner keeps the intentional Tyler-rep TODOs", () => {
