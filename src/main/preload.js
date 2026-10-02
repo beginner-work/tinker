@@ -1,17 +1,21 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+// Desktop bridge for the production web app loaded in BrowserWindow.
+// platform-mobile.js merges these into window.tinker (keeps callClaude
+// from the web shim) so notes-folder sync and dock icon still work.
 contextBridge.exposeInMainWorld("tinker", {
   version: () => ipcRenderer.invoke("app:version"),
   platform: () => ipcRenderer.invoke("app:platform"),
   setIcon: (dataUrl) => ipcRenderer.invoke("app:setIcon", dataUrl),
-  searchQuery: (query) => ipcRenderer.invoke("search:query", query),
   // Closes the focused window — backs the post-publish "Close app" button.
   close: () => ipcRenderer.invoke("app:close"),
-  // The platform-mobile.js shim (loaded for plain web / Expo) sets
-  // this to false so the renderer routes external URLs through the OS
-  // browser instead of trying to mount an Electron <webview>.
+  openExternal: (url) => ipcRenderer.invoke("app:openExternal", url),
+  // Marks this runtime as the Electron shell so PWA install / SW registration
+  // stay out of the way. Not a browser webview host — there is no quiet-
+  // browser webview chrome anymore.
   supportsWebview: true,
-  // Notes folder (LL-72): native directory access for Markdown notepad files.
+  isDesktopApp: true,
+  // Notes folder: native directory access for Markdown notepad files.
   pickNotesFolder: () => ipcRenderer.invoke("notesFolder:pick"),
   clearNotesFolder: () => Promise.resolve(true),
   listNotesFiles: (rootDir) => ipcRenderer.invoke("notesFolder:list", rootDir),

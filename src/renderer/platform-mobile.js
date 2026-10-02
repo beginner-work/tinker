@@ -1,7 +1,7 @@
-/* Platform shim — runs on plain web (and inside the Expo WebView shell),
- * but stays out of the way when Electron's preload has already
- * installed window.tinker. Exposes the same window.tinker.* surface
- * the renderer relies on.
+/* Platform shim — runs on plain web (and inside the Expo WebView shell).
+ * When Electron's preload already installed window.tinker (desktop app),
+ * keep those bridges (notes folder, dock icon, openExternal) and only
+ * fill in callClaude + settings helpers the shell does not provide.
  *
  * In this deployment the browser does NOT hold an Anthropic key —
  * every Claude call is proxied through /api/claude/converse on the
@@ -9,11 +9,20 @@
  * forwards the founder's `tinker_jwt` Bearer token on each request. */
 
 (function () {
-  if (window.tinker && typeof window.tinker.callClaude === "function") {
-    return; // Electron preload already wired things up.
+  const existing =
+    window.tinker && typeof window.tinker === "object" ? window.tinker : null;
+
+  // Fully wired Electron (or a prior shim) already has Claude — leave it.
+  if (existing && typeof existing.callClaude === "function") {
+    return;
   }
 
-  document.documentElement.classList.add("on-web");
+  const isDesktop =
+    !!(existing && (existing.supportsWebview === true || existing.isDesktopApp === true));
+
+  if (!isDesktop) {
+    document.documentElement.classList.add("on-web");
+  }
 
   const STORE = window.localStorage;
   const get = (k) => STORE.getItem(k) || "";
@@ -90,20 +99,40 @@
   }
 
   async function openExternal(url) {
+    if (existing && typeof existing.openExternal === "function") {
+      return existing.openExternal(url);
+    }
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
-  window.tinker = {
-    version: () => Promise.resolve("0.1.0-tinker-v1"),
-    platform: () => Promise.resolve("web"),
-    setIcon: () => Promise.resolve(true),
+  // Merge: keep Electron notes/dock bridges; add web Claude + settings.
+  window.tinker = Object.assign({}, existing || {}, {
+    version:
+      existing && typeof existing.version === "function"
+        ? existing.version
+        : () => Promise.resolve("0.1.0-tinker-v1"),
+    platform:
+      existing && typeof existing.platform === "function"
+        ? existing.platform
+        : () => Promise.resolve("web"),
+    setIcon:
+      existing && typeof existing.setIcon === "function"
+        ? existing.setIcon
+        : () => Promise.resolve(true),
     callClaude,
     openExternal,
-    supportsWebview: false,
-    setSetting: (k, v) => {
-      STORE.setItem(k, v);
-      return Promise.resolve(true);
-    },
-    getSetting: (k) => Promise.resolve(get(k)),
-  };
+    supportsWebview: isDesktop ? true : false,
+    isDesktopApp: isDesktop ? true : !!(existing && existing.isDesktopApp),
+    setSetting:
+      existing && typeof existing.setSetting === "function"
+        ? existing.setSetting
+        : (k, v) => {
+            STORE.setItem(k, v);
+            return Promise.resolve(true);
+          },
+    getSetting:
+      existing && typeof existing.getSetting === "function"
+        ? existing.getSetting
+        : (k) => Promise.resolve(get(k)),
+  });
 })();

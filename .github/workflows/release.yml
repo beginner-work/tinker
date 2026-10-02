@@ -1,15 +1,15 @@
 name: Release
 
-# Build the desktop apps and publish them to GitHub Releases whenever a
-# version tag is pushed:
-#
-#   npm version patch        # bumps package.json + creates the tag
-#   git push --follow-tags   # triggers this workflow
+# Build the desktop shell and publish installers to GitHub Releases.
+# Triggers: v* tag push, workflow_dispatch with publish=true, or
+# release-on-marker.yml after a .release-version bump merges to main.
 #
 # Each OS job builds its own native installers (electron-builder packages for
 # the host platform) and uploads them to the release for the tag via
-# `--publish always`. macOS produces the universal tinker-mac.dmg the landing
-# page links to.
+# `--publish always`. macOS produces the universal unsigned tinker-mac.dmg at
+# releases/latest/download/tinker-mac.dmg. Signing secrets (MAC_CSC_LINK,
+# MAC_CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID)
+# are optional — without them the Mac build still ships, unsigned.
 on:
   push:
     tags:

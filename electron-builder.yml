@@ -1,12 +1,13 @@
 # electron-builder configuration for the tinker desktop app.
 #
-# The renderer + main process are plain HTML/CSS/JS — there is no bundler
-# and nothing native to compile, so packaging is just "collect the entry
-# points + the shared renderer + the runtime deps, wrap them in Electron".
+# The Mac/Windows/Linux shell is a hardened Electron BrowserWindow that
+# loads production Tinker (https://tinker.beginner.work). Packaging is
+# just "wrap the main/preload entry points in Electron" — the product UI
+# ships from the web deploy, so most product changes need no new dmg.
 #
 #   npm run dist          # package for the current OS
 #   npm run dist:linux    # AppImage + tar.gz   (build on Linux)
-#   npm run dist:mac      # dmg + zip            (build on macOS)
+#   npm run dist:mac      # universal dmg + zip (build on macOS)
 #   npm run dist:win      # nsis + portable      (build on Windows / wine)
 #   npm run pack          # unpacked dir only, for a quick smoke test
 #
@@ -28,17 +29,15 @@ directories:
   output: dist
   buildResources: build
 
-# Nothing to rebuild — every runtime dependency is pure JS.
+# Nothing to rebuild — the shell is plain JS; product UI is remote.
 npmRebuild: false
 asar: true
 
-# Ship only the desktop entry points and the shared renderer. Production
-# dependencies are bundled automatically by electron-builder; the desktop
-# main process only needs @anthropic-ai/sdk at runtime, so drop the
-# Prisma tree that belongs to the web / API variant.
+# Ship only the desktop shell. The shared renderer is loaded from
+# production at runtime; Prisma belongs to the web / API variant.
 files:
   - src/main/**/*
-  - src/renderer/**/*
+  - src/renderer/icons/tinker-icon-512.png
   - package.json
   - "!**/*.map"
   - "!node_modules/@prisma/**"
@@ -72,7 +71,9 @@ mac:
   artifactName: tinker-mac.${ext}
   # hardenedRuntime + a Developer ID signing identity (provided via CI secrets)
   # are what let notarization succeed; without secrets the build is unsigned.
+  # This project currently ships unsigned (no Apple Developer account).
   hardenedRuntime: true
+  identity: null
 
 win:
   target:

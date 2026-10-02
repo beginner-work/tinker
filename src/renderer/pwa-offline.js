@@ -6,8 +6,8 @@
  * (online-only).
  *
  * Skipped where a service worker is the wrong tool or unavailable:
- *   - Electron — it ships its own shell and updater, and runs from
- *     file:// where SW isn't available anyway.
+ *   - Electron — the desktop shell loads production in a BrowserWindow
+ *     and skips the PWA service worker (supportsWebview / isDesktopApp).
  *   - Browsers without serviceWorker support, or non-secure contexts.
  *
  * When a new worker takes control (skipWaiting + clients.claim), reload
