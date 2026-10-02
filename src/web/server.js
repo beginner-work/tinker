@@ -47,28 +47,8 @@ function sendFile(filePath, stat, res) {
   fs.createReadStream(filePath).pipe(res);
 }
 
-/** Pretty paths that map to a specific HTML file (mirrors vercel.json rewrites). */
-const PRETTY = {
-  "/practice": "/practice/index.html",
-  "/practice/": "/practice/index.html",
-  "/practice/rep": "/practice/rep.html",
-  "/practice/rep/": "/practice/rep.html",
-  "/feed": "/feed/index.html",
-  "/feed/": "/feed/index.html",
-  "/career": "/career/index.html",
-  "/career/": "/career/index.html",
-  "/leads": "/leads/index.html",
-  "/leads/": "/leads/index.html",
-  "/autonomy": "/autonomy/index.html",
-  "/autonomy/": "/autonomy/index.html",
-  "/settings": "/settings/index.html",
-  "/settings/": "/settings/index.html",
-};
-
 function serveStatic(req, res) {
-  const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
-  const pretty = PRETTY[urlPath];
-  const target = safeJoin(RENDERER_DIR, pretty || req.url);
+  const target = safeJoin(RENDERER_DIR, req.url);
   if (!target) {
     res.writeHead(403);
     res.end("Forbidden");
