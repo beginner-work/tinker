@@ -33,6 +33,8 @@
     { "source": "/settings/", "destination": "/settings/index.html" },
     { "source": "/feed", "destination": "/feed/index.html" },
     { "source": "/feed/", "destination": "/feed/index.html" },
+    { "source": "/repo", "destination": "/repo/index.html" },
+    { "source": "/repo/", "destination": "/repo/index.html" },
     { "source": "/api/essay-feed/:action", "destination": "/api/essay-feed?action=:action" },
     { "source": "/gmail", "destination": "/api/gmail" },
     { "source": "/gmail/", "destination": "/api/gmail" }

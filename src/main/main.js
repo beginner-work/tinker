@@ -156,6 +156,20 @@ function buildAppMenu() {
         { role: "resetZoom" },
         { role: "zoomIn" },
         { role: "zoomOut" },
+        { type: "separator" },
+        {
+          label: "Repository preview",
+          click: (_item, win) => {
+            const target = win && !win.isDestroyed() ? win : BrowserWindow.getFocusedWindow();
+            if (!target || target.isDestroyed()) return;
+            try {
+              const base = new URL(APP_URL);
+              target.loadURL(new URL("/repo", base).toString());
+            } catch {
+              target.loadURL(`${APP_ORIGIN}/repo`);
+            }
+          },
+        },
         ...(isDev
           ? [{ type: "separator" }, { role: "toggleDevTools" }]
           : []),
