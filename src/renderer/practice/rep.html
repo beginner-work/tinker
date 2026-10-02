@@ -10,62 +10,35 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" />
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/design-tokens.css" />
     <link rel="stylesheet" href="/practice/practice.css" />
   </head>
   <body class="practice-page practice-page--rep">
-    <main class="practice practice--rep">
-      <nav class="practice__nav" aria-label="Shell">
-        <a href="/practice">All reps</a>
-        <a href="/">Messages</a>
-      </nav>
-      <header class="practice__header practice__header--rep">
-        <div>
-          <p class="practice__eyebrow" id="rep-eyebrow"></p>
-          <h1 class="practice__title" id="rep-title">Practice rep</h1>
-        </div>
-        <p class="practice__streak" id="practice-streak" aria-live="polite">Streak: 0 weekdays</p>
+    <!-- Mirrors #writing in index.html: progress, stage card, foot actions. -->
+    <section class="writing practice-writing" id="practice-writing">
+      <header class="writing__top">
+        <a href="/practice" class="writing__close" id="practice-close" aria-label="Close — back to Practice">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </a>
+        <div id="practice-progress" class="writing__progress" aria-hidden="true"></div>
+        <div class="writing__step" id="practice-step">Code</div>
+        <p class="practice-writing__streak" id="practice-streak" aria-live="polite">Streak: 0 weekdays</p>
       </header>
 
-      <div class="practice-ide" id="practice-ide">
-        <section class="practice-ide__spec" aria-label="Spec">
-          <h2 class="practice-ide__heading">Spec</h2>
-          <pre class="practice-ide__spec-body" id="rep-spec"></pre>
-          <div class="practice-ide__hints">
-            <h2 class="practice-ide__heading">Hints</h2>
-            <ol class="practice-ide__hint-list" id="rep-hints"></ol>
-            <button type="button" class="practice__button" id="rep-hint-btn">Unlock next hint</button>
-            <p class="practice-ide__hint-meta" id="rep-hint-meta"></p>
-          </div>
-        </section>
-
-        <section class="practice-ide__work" aria-label="Editor and tests">
-          <div class="practice-ide__toolbar">
-            <h2 class="practice-ide__heading">Code</h2>
-            <button type="button" class="practice__button practice__button--primary" id="rep-run">Run tests</button>
-          </div>
-          <label class="practice-ide__sr" for="rep-editor">Code editor</label>
-          <textarea id="rep-editor" class="practice-ide__editor" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
-
-          <h2 class="practice-ide__heading">Results</h2>
-          <div class="practice-ide__results" id="rep-results" role="status" aria-live="polite">
-            <p class="practice-ide__empty">Run tests to see pass/fail per case and any console output.</p>
-          </div>
-
-          <section class="practice-ide__essay is-hidden" id="rep-essay" aria-label="Essay draft">
-            <h2 class="practice-ide__heading">Write it up</h2>
-            <p class="practice-ide__essay-lede">All tests passed. Capture what you learned as a short essay draft. Prototype saves locally only — it does not write into Tinker essays.</p>
-            <textarea id="rep-essay-text" class="practice-ide__essay-input" rows="6" placeholder="What broke, what you changed, what you would tell morning-you next week…"></textarea>
-            <div class="practice-ide__essay-actions">
-              <button type="button" class="practice__button practice__button--primary" id="rep-essay-save">Save draft locally</button>
-              <p class="practice-ide__essay-status" id="rep-essay-status" role="status"></p>
-            </div>
-          </section>
-        </section>
+      <div class="writing__body">
+        <div id="practice-stage" class="writing__stage" role="main"></div>
       </div>
-    </main>
+
+      <footer class="writing__foot" data-thread-actions="1">
+        <button id="practice-secondary" class="writing__end" type="button">Unlock hint</button>
+        <button id="practice-primary" class="writing__next" type="button">Run tests →</button>
+      </footer>
+    </section>
+
     <script src="/practice/streak.js"></script>
     <script src="/practice/reps/pacific-wall-time.js"></script>
     <script src="/practice/reps/mark-touch-sent.js"></script>

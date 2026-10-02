@@ -11,6 +11,7 @@ const root = path.join(__dirname, "..");
 const practiceDir = path.join(root, "src/renderer/practice");
 const html = fs.readFileSync(path.join(practiceDir, "index.html"), "utf8");
 const repHtml = fs.readFileSync(path.join(practiceDir, "rep.html"), "utf8");
+const css = fs.readFileSync(path.join(practiceDir, "practice.css"), "utf8");
 const practiceJs = fs.readFileSync(path.join(practiceDir, "practice.js"), "utf8");
 const repJs = fs.readFileSync(path.join(practiceDir, "rep.js"), "utf8");
 const runnerJs = fs.readFileSync(path.join(practiceDir, "runner.js"), "utf8");
@@ -19,6 +20,7 @@ const runnerCore = require("../src/renderer/practice/runner-core.js");
 const { EXPECTED_SW_CACHE_VERSION } = require("./helpers/sw-cache-version.js");
 const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
+const styles = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
 const fixture = JSON.parse(
   fs.readFileSync(path.join(practiceDir, "fixtures/stripe-payment-intent-create.json"), "utf8"),
 );
@@ -35,26 +37,43 @@ function loadReps() {
   return sandbox.TINKER_PRACTICE_REPS;
 }
 
-test("practice pages wire list + IDE chrome without innerHTML", () => {
-  assert.match(html, /Practice/);
+test("practice pages reuse writing-flow chrome", () => {
+  assert.match(html, /class="writing practice-writing/);
+  assert.match(html, /writing-question/);
+  assert.match(html, /What are you practicing\?/);
   assert.match(html, /id="practice-list"/);
   assert.match(html, /id="practice-streak"/);
-  assert.match(html, /localStorage/);
-  assert.match(html, /src="\/practice\/practice\.js"/);
-  assert.match(repHtml, /id="rep-editor"/);
-  assert.match(repHtml, /id="rep-run"/);
-  assert.match(repHtml, /Run tests/);
-  assert.match(repHtml, /id="rep-hints"/);
-  assert.match(repHtml, /Unlock next hint/);
-  assert.match(repHtml, /id="rep-essay"/);
+  assert.match(html, /Space\+Mono/);
+  assert.match(repHtml, /class="writing practice-writing"/);
+  assert.match(repHtml, /id="practice-stage"/);
+  assert.match(repHtml, /id="practice-progress"/);
+  assert.match(repHtml, /id="practice-primary"/);
+  assert.match(repHtml, /id="practice-secondary"/);
+  assert.match(repHtml, /Run tests →/);
+  assert.match(repHtml, /Unlock hint/);
+  assert.match(repHtml, /writing__next/);
+  assert.match(repHtml, /writing__end/);
   assert.match(repHtml, /worker-src 'self'/);
   assert.match(repHtml, /unsafe-eval/);
+  assert.match(styles, /\.writing-question/);
+  assert.match(styles, /\.writing__next/);
+  assert.match(styles, /This is everything/);
+});
+
+test("practice pages avoid innerHTML and keep local-only notes", () => {
   assert.equal(html.includes("innerHTML"), false);
   assert.equal(repHtml.includes("innerHTML"), false);
   assert.equal(practiceJs.includes("innerHTML"), false);
   assert.equal(repJs.includes("innerHTML"), false);
   assert.match(practiceJs, /textContent/);
   assert.match(repJs, /textContent/);
+  assert.match(repJs, /This is everything/);
+  assert.match(repJs, /Saved on this device/);
+  assert.match(repJs, /What are you learning\?/);
+  assert.match(repJs, /practice-editor/);
+  assert.match(css, /--ll-lavender:\s*#f3eef8/);
+  assert.match(css, /Space Mono/);
+  assert.match(css, /\.practice-editor\b/);
 });
 
 test("vercel and service worker leave /practice on the network", () => {
@@ -86,7 +105,6 @@ test("three sample reps ship with specs, failing starters, hints, and no solutio
     assert.ok(Array.isArray(rep.hints) && rep.hints.length >= 2 && rep.hints.length <= 3, rep.id + " hints");
     assert.ok(Array.isArray(rep.tests) && rep.tests.length >= 2, rep.id + " tests");
     assert.doesNotMatch(rep.starterCode, /SOLUTION|FIXME: pass all/i);
-    // Starter must fail at least one packaged test.
     const fixtures = rep.id === "stripe-payment-intent"
       ? { paymentIntent: fixture }
       : (rep.fixtures || {});
@@ -127,7 +145,6 @@ test("streak counts consecutive weekdays and essays stay local", () => {
     setItem(key, value) { memory[key] = String(value); },
     removeItem(key) { delete memory[key]; },
   };
-  // Re-bind streak helpers against a fresh in-memory store.
   const src = fs.readFileSync(path.join(practiceDir, "streak.js"), "utf8");
   const sandbox = { localStorage: localStorage, console: { log() {} }, module: { exports: {} } };
   sandbox.globalThis = sandbox;
@@ -135,18 +152,16 @@ test("streak counts consecutive weekdays and essays stay local", () => {
   vm.runInNewContext(src, vm.createContext(sandbox));
   const api = sandbox.module.exports;
 
-  assert.equal(api.isWeekday(new Date(2026, 9, 2)), true); // Fri Oct 2, 2026
-  assert.equal(api.isWeekday(new Date(2026, 9, 3)), false); // Sat
+  assert.equal(api.isWeekday(new Date(2026, 9, 2)), true);
+  assert.equal(api.isWeekday(new Date(2026, 9, 3)), false);
 
-  api.recordPass("pacific-wall-time", new Date(2026, 9, 1, 9)); // Thu
+  api.recordPass("pacific-wall-time", new Date(2026, 9, 1, 9));
   assert.equal(api.getStreak(), 1);
-  api.recordPass("mark-touch-sent", new Date(2026, 9, 2, 9)); // Fri
+  api.recordPass("mark-touch-sent", new Date(2026, 9, 2, 9));
   assert.equal(api.getStreak(), 2);
-  // Weekend pass does not advance the weekday streak counter.
-  api.recordPass("stripe-payment-intent", new Date(2026, 9, 3, 9)); // Sat
+  api.recordPass("stripe-payment-intent", new Date(2026, 9, 3, 9));
   assert.equal(api.getStreak(), 2);
-  // Monday continues from Friday.
-  api.recordPass("pacific-wall-time", new Date(2026, 9, 5, 9)); // Mon
+  api.recordPass("pacific-wall-time", new Date(2026, 9, 5, 9));
   assert.equal(api.getStreak(), 3);
 
   const essay = api.saveEssay("pacific-wall-time", "Wall time is civil time, not a fixed offset.");
