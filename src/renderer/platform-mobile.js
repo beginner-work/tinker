@@ -12,20 +12,33 @@
   const existing =
     window.tinker && typeof window.tinker === "object" ? window.tinker : null;
 
-  // Fully wired Electron (or a prior shim) already has Claude — leave it.
+  // Fully wired Electron (or a prior shim) already has Claude — leave it,
+  // but still ensure the desktop document marker is set for CSS gates.
   if (existing && typeof existing.callClaude === "function") {
+    if (existing.supportsWebview === true || existing.isDesktopApp === true) {
+      try {
+        document.documentElement.setAttribute("data-tinker-desktop", "1");
+        document.documentElement.classList.add("tinker-desktop");
+        document.documentElement.classList.remove("on-web");
+      } catch (e) { /* ignore */ }
+    }
     return;
   }
 
   const isDesktop =
-    !!(existing && (existing.supportsWebview === true || existing.isDesktopApp === true));
+    !!(existing && (existing.supportsWebview === true || existing.isDesktopApp === true))
+    || (typeof document !== "undefined"
+      && document.documentElement
+      && document.documentElement.hasAttribute("data-tinker-desktop"));
 
   if (isDesktop) {
     // Belt-and-suspenders with preload: ensure traffic-light CSS gates
     // apply even if preload raced a remote navigation's first paint.
+    // Never add mobile / on-web classes — the shell is desktop Chrome.
     try {
       document.documentElement.setAttribute("data-tinker-desktop", "1");
       document.documentElement.classList.add("tinker-desktop");
+      document.documentElement.classList.remove("on-web");
     } catch (e) { /* ignore */ }
   } else {
     document.documentElement.classList.add("on-web");

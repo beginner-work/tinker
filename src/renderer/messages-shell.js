@@ -515,8 +515,12 @@
     node.innerHTML = "";
     node.classList.remove("messages-avatar--photo", "messages-avatar--brand");
     node.classList.add("messages-rail__avatar--fallback");
+    node.removeAttribute("hidden");
     node.hidden = false;
-    node.textContent = letters || "?";
+    // Always paint visible initials (never leave an empty cream circle).
+    var text = String(letters || "").trim() || "?";
+    node.textContent = text;
+    node.setAttribute("aria-hidden", "true");
   }
   function fillCompanyLogo(node, company, opts) {
     opts = opts || {};

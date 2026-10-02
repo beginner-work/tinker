@@ -265,45 +265,34 @@ function windowChromeOptions() {
   };
 }
 
-// Electron-only chrome. Belt-and-suspenders with the web bundle's
-// html[data-tinker-desktop] rules: even if the attribute races first
-// paint on a remote navigation, the logo stays clear of traffic lights.
+// Electron-only chrome. Allowed differences vs web at the same size:
+//   (a) traffic-light clearance — left inset on .sidebar__top only + drag
+//   (b) native window background (BrowserWindow backgroundColor)
+// Do NOT change paddings, font sizes, sidebar width, or pane chrome.
 const DESKTOP_CHROME_CSS = `
 html {
-  --tinker-desktop-titlebar: 12px;
   --tinker-desktop-traffic-inset: 78px;
 }
-.sidebar {
-  -webkit-app-region: drag;
-}
 .sidebar__top {
-  padding-top: 12px !important;
+  -webkit-app-region: drag;
   padding-left: 78px !important;
-  padding-right: 12px !important;
-  padding-bottom: 8px !important;
 }
 .messages-pane__top {
   -webkit-app-region: drag;
-  padding-top: 12px !important;
-  padding-left: 12px !important;
 }
-.sidebar a,
-.sidebar button,
-.sidebar input,
-.sidebar textarea,
-.sidebar select,
-.sidebar [role="button"],
+.sidebar__top a,
+.sidebar__top button,
+.sidebar__top input,
+.sidebar__top textarea,
+.sidebar__top select,
+.sidebar__top [role="button"],
 .messages-pane__top a,
 .messages-pane__top button,
-.messages-pane__top input {
+.messages-pane__top input,
+.messages-pane__top textarea,
+.messages-pane__top select,
+.messages-pane__top [role="button"] {
   -webkit-app-region: no-drag;
-}
-body.settings-page .settings {
-  padding-top: calc(12px + 28px) !important;
-}
-.feed-shell,
-.feed {
-  padding-top: max(36px, env(safe-area-inset-top, 0px)) !important;
 }
 `;
 
@@ -426,10 +415,16 @@ function syncNativeChromeColor() {
 app.whenReady().then(() => {
   const ses = tinkerSession();
 
-  // Modern Chrome UA without advertising Electron (some auth / bot checks
-  // treat the default Electron UA as non-browser).
+  // Desktop Chrome UA (no Electron token). Match real Chrome/Safari desktop
+  // so feature / UA detection never takes a mobile or odd-platform branch.
   const chromeVersion = process.versions.chrome;
-  const ua = `Mozilla/5.0 (${process.platform === "darwin" ? "Macintosh; Intel Mac OS X 10_15_7" : process.platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+  const platformToken =
+    process.platform === "darwin"
+      ? "Macintosh; Intel Mac OS X 10_15_7"
+      : process.platform === "win32"
+        ? "Windows NT 10.0; Win64; x64"
+        : "X11; Linux x86_64";
+  const ua = `Mozilla/5.0 (${platformToken}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
   ses.setUserAgent(ua);
 
   ses.setPermissionRequestHandler((_wc, permission, cb) => {

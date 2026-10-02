@@ -88,60 +88,49 @@ input:focus, button:focus, textarea:focus { outline: none; }
   gap: 10px;
 }
 
-/* Electron desktop shell only (preload / platform-mobile set
-   data-tinker-desktop). Web browsers are unchanged: no traffic-light
-   offset, no app-region. Logo sits to the right of macOS traffic lights
-   via left inset; trafficLightPosition aligns buttons with the brand row. */
+/* Electron desktop shell only (preload / platform-mobile / main insertCSS
+   set data-tinker-desktop). Allowed deltas vs web at the same size:
+   left inset on .sidebar__top for traffic lights, and drag regions on the
+   title-bar strips. Everything else (padding-top, pane padding, fonts,
+   Settings, avatars) must match Chrome/Safari. */
 html[data-tinker-desktop],
 html.tinker-desktop {
-  --tinker-desktop-titlebar: 12px;
   --tinker-desktop-traffic-inset: 78px;
-}
-html[data-tinker-desktop] .sidebar,
-html.tinker-desktop .sidebar {
-  -webkit-app-region: drag;
 }
 html[data-tinker-desktop] .sidebar__top,
 html.tinker-desktop .sidebar__top {
-  padding-top: var(--tinker-desktop-titlebar);
+  -webkit-app-region: drag;
   padding-left: var(--tinker-desktop-traffic-inset);
-  padding-right: 12px;
-  padding-bottom: 8px;
 }
 html[data-tinker-desktop] .messages-pane__top,
 html.tinker-desktop .messages-pane__top {
   -webkit-app-region: drag;
-  padding-top: var(--tinker-desktop-titlebar);
 }
-html[data-tinker-desktop] .sidebar a,
-html[data-tinker-desktop] .sidebar button,
-html[data-tinker-desktop] .sidebar input,
-html[data-tinker-desktop] .sidebar textarea,
-html[data-tinker-desktop] .sidebar select,
-html[data-tinker-desktop] .sidebar [role="button"],
+html[data-tinker-desktop] .sidebar__top a,
+html[data-tinker-desktop] .sidebar__top button,
+html[data-tinker-desktop] .sidebar__top input,
+html[data-tinker-desktop] .sidebar__top textarea,
+html[data-tinker-desktop] .sidebar__top select,
+html[data-tinker-desktop] .sidebar__top [role="button"],
 html[data-tinker-desktop] .messages-pane__top a,
 html[data-tinker-desktop] .messages-pane__top button,
 html[data-tinker-desktop] .messages-pane__top input,
-html.tinker-desktop .sidebar a,
-html.tinker-desktop .sidebar button,
-html.tinker-desktop .sidebar input,
-html.tinker-desktop .sidebar textarea,
-html.tinker-desktop .sidebar select,
-html.tinker-desktop .sidebar [role="button"],
+html[data-tinker-desktop] .messages-pane__top textarea,
+html[data-tinker-desktop] .messages-pane__top select,
+html[data-tinker-desktop] .messages-pane__top [role="button"],
+html.tinker-desktop .sidebar__top a,
+html.tinker-desktop .sidebar__top button,
+html.tinker-desktop .sidebar__top input,
+html.tinker-desktop .sidebar__top textarea,
+html.tinker-desktop .sidebar__top select,
+html.tinker-desktop .sidebar__top [role="button"],
 html.tinker-desktop .messages-pane__top a,
 html.tinker-desktop .messages-pane__top button,
-html.tinker-desktop .messages-pane__top input {
+html.tinker-desktop .messages-pane__top input,
+html.tinker-desktop .messages-pane__top textarea,
+html.tinker-desktop .messages-pane__top select,
+html.tinker-desktop .messages-pane__top [role="button"] {
   -webkit-app-region: no-drag;
-}
-html[data-tinker-desktop] body.settings-page .settings,
-html.tinker-desktop body.settings-page .settings {
-  padding-top: calc(var(--tinker-desktop-titlebar) + 28px);
-}
-html[data-tinker-desktop] .feed-shell,
-html.tinker-desktop .feed-shell,
-html[data-tinker-desktop] .feed,
-html.tinker-desktop .feed {
-  padding-top: max(36px, env(safe-area-inset-top, 0px));
 }
 
 .sidebar__brand {
@@ -390,6 +379,9 @@ a.sidebar__secondary-link { display: inline; }
 .messages-rail__avatar.messages-rail__avatar--fallback {
   font-size: 12px;
   font-weight: 600;
+  line-height: 1;
+  color: var(--color-foreground);
+  -webkit-app-region: no-drag;
 }
 .messages-rail__row:has(.messages-rail__logo[hidden]) .messages-rail__main,
 .messages-rail__row:not(:has(.messages-rail__logo)) .messages-rail__main {

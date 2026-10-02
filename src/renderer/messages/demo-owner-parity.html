@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Owner parity fixture</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap"/>
+<link rel="stylesheet" href="/styles.css"/>
+<link rel="stylesheet" href="/design-tokens.css"/>
+<link rel="stylesheet" href="/mobile-drawer.css"/>
+<style>
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+</style>
+</head>
+<body class="messages-shell-open messages-inbox-primary messages-you-active messages-thread-active">
+<aside class="sidebar sidebar--inbox" id="sidebar" role="navigation" aria-label="Inbox">
+  <header class="sidebar__top">
+    <button id="nav-home" class="sidebar__brand" type="button" title="Inbox">
+      <svg data-rainbow-logo viewBox="0 0 200 200" width="22" height="22" aria-hidden="true" fill="none">
+        <rect width="200" height="200" rx="44" fill="#f5f3ef" />
+        <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
+        <line x1="24" y1="100" x2="176" y2="100" stroke="#fdba74" stroke-width="9" stroke-linecap="round" />
+        <line x1="34.2" y1="62" x2="165.8" y2="62" stroke="#f9a8d4" stroke-width="9" stroke-linecap="round" />
+        <line x1="34.2" y1="138" x2="165.8" y2="138" stroke="#fde68a" stroke-width="9" stroke-linecap="round" />
+        <line x1="100" y1="24" x2="100" y2="176" stroke="#6ee7b7" stroke-width="9" stroke-linecap="round" />
+        <ellipse cx="100" cy="100" rx="26" ry="76" stroke="#7dd3fc" stroke-width="9" />
+        <ellipse cx="100" cy="100" rx="52" ry="76" stroke="#7bc47a" stroke-width="9" />
+      </svg>
+      <span class="sidebar__name">tinker</span>
+    </button>
+  </header>
+  <nav class="messages-rail" id="sidebar-messages" aria-label="Conversations">
+    <div class="messages-rail__head"><span class="messages-rail__title">Inbox</span></div>
+    <div class="messages-rail__you" data-messages-you-slot>
+      <button type="button" class="messages-rail__row messages-rail__row--you" aria-current="true" data-conv-id="__you__">
+        <span class="messages-rail__avatar messages-rail__avatar--fallback" aria-hidden="true">TL</span>
+        <span class="messages-rail__main">
+          <span class="messages-rail__top"><span class="messages-rail__name">Owner</span></span>
+        </span>
+      </button>
+    </div>
+    <p class="messages-rail__empty" data-messages-empty>No people yet. Add them with the lead tools.</p>
+    <ul class="messages-rail__list" data-messages-list></ul>
+  </nav>
+  <footer class="sidebar__footer sidebar__footer--gear">
+    <a class="messages-rail__settings" href="/settings" aria-label="Settings">
+      <svg class="messages-rail__settings-icon" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+      </svg>
+      <span class="messages-rail__settings-label">Settings</span>
+    </a>
+  </footer>
+</aside>
+<main class="stage" id="stage" role="main">
+  <section id="messages-pane" class="messages-pane" aria-label="Conversation">
+    <header class="messages-pane__top">
+      <div class="messages-pane__lead" data-messages-lead>
+        <button type="button" class="messages-pane__back" data-messages-back aria-label="Back to conversations">←</button>
+        <span class="messages-pane__avatar messages-rail__avatar--fallback" data-messages-avatar aria-hidden="true">TL</span>
+        <h2 class="messages-pane__title">
+          <span class="messages-pane__name" data-messages-name>Owner</span>
+          <span class="messages-pane__role" data-messages-role hidden></span>
+        </h2>
+      </div>
+      <div class="messages-pane__links" data-messages-links hidden></div>
+    </header>
+    <div class="messages-pane__body">
+      <div class="messages-pane__thread messages-thread" data-messages-thread>
+        <div class="writing writing--in-messages" id="writing">
+          <div class="writing-scroll">
+            <h1 class="writing-prompt">Where have you been and where are you going?</h1>
+            <div class="writing-card">
+              <h2 class="writing-question">Where are you, physically?</h2>
+              <textarea class="writing-input" rows="3" aria-label="Your answer"></textarea>
+            </div>
+            <div class="writing-card">
+              <h2 class="writing-question">What are you facing?</h2>
+            </div>
+          </div>
+          <footer class="writing-foot">
+            <button type="button" class="writing-secondary">Keep crafting</button>
+          </footer>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

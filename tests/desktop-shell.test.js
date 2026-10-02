@@ -76,16 +76,32 @@ test("desktop CSS chrome is gated so browsers stay unchanged", () => {
   assert.match(stylesCss, /data-tinker-desktop/);
   assert.match(stylesCss, /-webkit-app-region:\s*drag/);
   assert.match(stylesCss, /-webkit-app-region:\s*no-drag/);
-  assert.match(stylesCss, /--tinker-desktop-titlebar/);
   assert.match(stylesCss, /--tinker-desktop-traffic-inset/);
-  // Default sidebar padding is web-safe; Electron offset is gated.
+  // Desktop must NOT invent a separate titlebar padding-top — only left inset.
+  assert.doesNotMatch(stylesCss, /--tinker-desktop-titlebar/);
+  // Default sidebar padding is web-safe; Electron offset is gated to left only.
   assert.match(stylesCss, /\.sidebar__top\s*\{[^}]*padding-top:\s*calc\(env\(safe-area-inset-top/);
   assert.match(
     stylesCss,
     /html\[data-tinker-desktop\][\s\S]*\.sidebar__top[\s\S]*--tinker-desktop-traffic-inset/
   );
-  // Critical CSS also clears traffic lights via left inset (not top-only).
+  // Must not restyle the whole sidebar as drag (breaks avatar paint) or
+  // override messages-pane padding (web/desktop parity).
+  assert.doesNotMatch(
+    stylesCss,
+    /html\[data-tinker-desktop\]\s*\.sidebar\s*,\s*html\.tinker-desktop\s*\.sidebar\s*\{[^}]*-webkit-app-region:\s*drag/
+  );
+  // Desktop pane top may set drag, but must not override padding.
+  assert.doesNotMatch(
+    stylesCss,
+    /html\[data-tinker-desktop\][^{]*\.messages-pane__top\s*,\s*html\.tinker-desktop\s*\.messages-pane__top\s*\{[^}]*padding/
+  );
+  // Critical CSS also clears traffic lights via left inset only.
   assert.match(indexHtml, /html\[data-tinker-desktop\][\s\S]*\.sidebar__top[\s\S]*padding-left:\s*78px/);
+  assert.doesNotMatch(
+    indexHtml,
+    /html\[data-tinker-desktop\][\s\S]*\.sidebar__top[\s\S]*padding-top:\s*12px/
+  );
 });
 
 test("desktop shell inserts chrome CSS and re-marks on navigation", () => {
@@ -95,6 +111,13 @@ test("desktop shell inserts chrome CSS and re-marks on navigation", () => {
   assert.match(mainJs, /trafficLightPosition:\s*\{\s*x:\s*16,\s*y:\s*18/);
   assert.match(preloadJs, /setInterval|DOMContentLoaded/);
   assert.match(platformJs, /data-tinker-desktop/);
+  // insertCSS may only add left inset + drag — not pane/settings padding.
+  assert.match(mainJs, /padding-left:\s*78px\s*!important/);
+  assert.doesNotMatch(mainJs, /messages-pane__top[\s\S]*padding-top:\s*12px/);
+  assert.doesNotMatch(mainJs, /body\.settings-page[\s\S]*padding-top/);
+  // Desktop Chrome UA — never bare "linux" / Electron token.
+  assert.match(mainJs, /X11; Linux x86_64|Macintosh; Intel Mac OS X/);
+  assert.doesNotMatch(mainJs, /Electron\//);
 });
 
 test("settings gear has intrinsic size and critical CSS to avoid FOUC", () => {
@@ -131,7 +154,7 @@ test("packaging targets universal Mac dmg named tinker-mac", () => {
 
 test("release marker matches package version; workflows publish on marker", () => {
   assert.equal(marker, pkg.version);
-  assert.equal(pkg.version, "0.1.5");
+  assert.equal(pkg.version, "0.1.6");
   assert.match(markerYml, /\.release-version/);
   assert.match(markerYml, /publish:\s*true/);
   assert.match(releaseYml, /macos-latest/);
