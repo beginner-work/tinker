@@ -1,0 +1,155 @@
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TinkerGlass } from "./TinkerGlass";
+import { colors } from "../theme";
+
+export type WritingMode = "ai" | "noai";
+
+type Props = {
+  mode: WritingMode;
+  offline?: boolean;
+  visible?: boolean;
+  onChange: (mode: WritingMode) => void;
+};
+
+export function ModeNav({
+  mode,
+  offline = false,
+  visible = true,
+  onChange,
+}: Props) {
+  const insets = useSafeAreaInsets();
+  if (!visible) return null;
+
+  return (
+    <View
+      style={[styles.wrap, { bottom: Math.max(insets.bottom, 8) + 4 }]}
+      pointerEvents="box-none"
+    >
+      <TinkerGlass shape="capsule" glassStyle="regular" style={styles.bar}>
+        <Segment
+          label="AI"
+          icon="sparkles"
+          selected={mode === "ai"}
+          disabled={offline}
+          title={
+            offline
+              ? "You're offline — No AI mode is on automatically"
+              : "Write with AI — the guided interview"
+          }
+          onPress={() => onChange("ai")}
+        />
+        <Segment
+          label="No AI"
+          icon="create-outline"
+          selected={mode === "noai"}
+          disabled={false}
+          title="No AI — write freely, no questions"
+          onPress={() => onChange("noai")}
+        />
+      </TinkerGlass>
+      {offline ? (
+        <View style={styles.offline}>
+          <Text style={styles.offlineText}>You're offline</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function Segment({
+  label,
+  icon,
+  selected,
+  disabled,
+  title,
+  onPress,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  selected: boolean;
+  disabled: boolean;
+  title: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ selected, disabled }}
+      style={[
+        styles.segment,
+        selected && styles.segmentSelected,
+        disabled && styles.segmentDisabled,
+      ]}
+    >
+      <Ionicons
+        name={icon}
+        size={16}
+        color={selected ? "#fff" : colors.muted}
+      />
+      <Text style={[styles.label, selected && styles.labelSelected]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 40,
+  },
+  bar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    padding: 3,
+  },
+  segment: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+  },
+  segmentSelected: {
+    backgroundColor: colors.accentStrong,
+  },
+  segmentDisabled: {
+    opacity: 0.4,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.2,
+    color: colors.muted,
+    fontFamily: "InstrumentSans_600SemiBold",
+  },
+  labelSelected: {
+    color: "#fff",
+  },
+  offline: {
+    marginTop: -4,
+    paddingHorizontal: 16,
+    paddingTop: 5,
+    paddingBottom: 4,
+    borderBottomLeftRadius: 999,
+    borderBottomRightRadius: 999,
+    backgroundColor: "rgba(45, 42, 38, 0.85)",
+  },
+  offlineText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.4,
+    fontFamily: "InstrumentSans_600SemiBold",
+  },
+});

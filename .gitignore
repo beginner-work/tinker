@@ -8,3 +8,8 @@ out/
 .vercel/
 .vscode/
 .idea/
+.expo/
+mobile/.expo/
+mobile/dist/
+mobile/ios/
+mobile/android/

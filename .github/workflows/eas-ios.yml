@@ -1,0 +1,84 @@
+name: EAS iOS
+
+# Expo is the release manager for the native iOS app. This workflow
+# queues an EAS production (or profile-selected) build. Submit stays
+# opt-in so a dry build does not push to App Store Connect.
+#
+# Requires repo secret EXPO_TOKEN (expo.dev → Access tokens).
+# Apple creds live on the Expo project, not in GitHub secrets.
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile
+        type: choice
+        options:
+          - production
+          - preview
+          - simulator
+          - development
+        default: production
+      submit:
+        description: Auto-submit the iOS binary to App Store Connect
+        type: boolean
+        default: false
+  push:
+    tags:
+      - "ios-v*"
+
+concurrency:
+  group: eas-ios-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: EAS iOS build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm ci
+
+      - name: Setup Expo / EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Resolve profile
+        id: profile
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ inputs.profile }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=production" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build iOS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          EXTRA=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.submit }}" = "true" ]; then
+            EXTRA="--auto-submit"
+          fi
+          if [ "${{ github.event_name }}" = "push" ]; then
+            EXTRA="--auto-submit"
+          fi
+          npx eas-cli build \
+            --profile "${{ steps.profile.outputs.name }}" \
+            --platform ios \
+            --non-interactive \
+            --no-wait \
+            $EXTRA

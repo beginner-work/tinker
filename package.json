@@ -21,12 +21,22 @@
     "preview:url": "node scripts/preview-bootstrap-url.js",
     "eval:product-spec": "node .claude/skills/product-spec/evals/run-evals.mjs",
     "postinstall": "prisma generate",
-    "db:migrate": "prisma migrate deploy"
+    "db:migrate": "prisma migrate deploy",
+    "expo:start": "npm --prefix mobile start",
+    "expo:ios": "npm --prefix mobile run ios",
+    "expo:web": "npm --prefix mobile run web",
+    "expo:build:ios": "npm --prefix mobile run build:ios",
+    "expo:build:simulator": "npm --prefix mobile run build:simulator",
+    "expo:submit:ios": "npm --prefix mobile run submit:ios",
+    "expo:release:ios": "npm --prefix mobile run release:ios",
+    "expo:publish": "npm --prefix mobile run publish:preview",
+    "expo:publish:production": "npm --prefix mobile run publish:production"
   },
   "keywords": [
     "browser",
     "electron",
     "expo",
+    "eas",
     "tinker"
   ],
   "author": "tinker",
