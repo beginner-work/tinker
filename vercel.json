@@ -53,6 +53,15 @@
       ]
     },
     {
+      "source": "/repo/(.*)\\.(js|css)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=60, stale-while-revalidate=600"
+        }
+      ]
+    },
+    {
       "source": "/(.*)\\.(js|css|svg|png|woff2|json)",
       "headers": [
         {
