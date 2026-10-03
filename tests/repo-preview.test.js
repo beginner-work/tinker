@@ -11,6 +11,7 @@ const vm = require("node:vm");
 const root = path.join(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "src/renderer/repo/index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "src/renderer/repo/repo.css"), "utf8");
+const styles = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
 const page = fs.readFileSync(path.join(root, "src/renderer/repo/repo.js"), "utf8");
 const storiesSrc = fs.readFileSync(path.join(root, "src/renderer/lib/stories-md.js"), "utf8");
 const foldersSrc = fs.readFileSync(path.join(root, "src/renderer/lib/repo-folders-core.js"), "utf8");
@@ -29,7 +30,6 @@ function makeEl(tag, id, store) {
     hidden: false,
     disabled: false,
     value: "",
-    textContent: "",
     title: "",
     placeholder: "",
     type: tag === "button" ? "button" : (tag === "input" ? "text" : ""),
@@ -38,6 +38,15 @@ function makeEl(tag, id, store) {
     style: {},
     dataset: {},
     firstChild: null,
+    _text: "",
+    classList: {
+      add() {},
+      remove() {},
+      contains(name) {
+        return String(el.className || "").split(/\s+/).includes(String(name));
+      },
+      toggle() {},
+    },
     addEventListener(type, fn) {
       (listeners[type] || (listeners[type] = [])).push(fn);
     },
@@ -61,8 +70,11 @@ function makeEl(tag, id, store) {
       if (name === "hidden") el.hidden = value !== false && value !== "false";
       if (name === "aria-expanded") el["aria-expanded"] = String(value);
       if (name === "aria-label") el["aria-label"] = String(value);
+      if (name === "aria-selected") el["aria-selected"] = String(value);
       if (name === "data-story-id") el.dataset = Object.assign(el.dataset || {}, { storyId: String(value) });
       if (name === "data-folder-id") el.dataset = Object.assign(el.dataset || {}, { folderId: String(value) });
+      if (name === "data-location-custom") el.dataset = Object.assign(el.dataset || {}, { locationCustom: String(value) });
+      if (name === "data-location-storage") el.dataset = Object.assign(el.dataset || {}, { locationStorage: String(value) });
       if (name === "data-open") el.dataset = Object.assign(el.dataset || {}, { open: String(value) });
       if (name === "id") {
         el.id = String(value);
@@ -72,8 +84,12 @@ function makeEl(tag, id, store) {
     getAttribute(name) {
       return attrs[name] == null ? null : attrs[name];
     },
+    removeAttribute(name) {
+      delete attrs[name];
+    },
     focus() {},
     select() {},
+    scrollIntoView() {},
     contains(node) {
       if (node === el) return true;
       return el.children.some((c) => c === node || (c.contains && c.contains(node)));
@@ -97,6 +113,19 @@ function makeEl(tag, id, store) {
     set(value) {
       attrs.id = String(value || "");
       if (store && attrs.id) store[attrs.id] = el;
+    },
+  });
+  Object.defineProperty(el, "textContent", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (el.children && el.children.length) {
+        return el.children.map((c) => (c && c.textContent != null ? c.textContent : "")).join("");
+      }
+      return el._text || "";
+    },
+    set(value) {
+      el._text = value == null ? "" : String(value);
     },
   });
   if (id) {
@@ -123,6 +152,11 @@ function bootRepoPage(options) {
     "repo-location-input",
     "repo-location-save",
     "repo-location-choose",
+    "repo-location-value",
+    "repo-location-list",
+    "repo-location-custom",
+    "repo-location-error",
+    "repo-location-caption",
     "repo-file-path",
     "repo-file-type",
     "repo-sync-hint",
@@ -143,12 +177,18 @@ function bootRepoPage(options) {
   for (const id of ids) makeEl("div", id, byId);
   byId["repo-body"].tagName = "TEXTAREA";
   byId["repo-location-btn"].tagName = "BUTTON";
-  byId["repo-location-btn"].textContent = "Tinker location";
+  byId["repo-location-btn"].textContent = "";
+  byId["repo-location-value"].textContent = "tinker";
   byId["repo-location-panel"].hidden = true;
+  byId["repo-location-custom"].hidden = true;
+  byId["repo-location-list"].tagName = "UL";
+  byId["repo-location-list"].hidden = false;
   byId["repo-location-input"].tagName = "INPUT";
   byId["repo-location-save"].tagName = "BUTTON";
   byId["repo-location-choose"].tagName = "BUTTON";
   byId["repo-location-choose"].hidden = true;
+  byId["repo-location-error"].hidden = true;
+  byId["repo-location-caption"].textContent = "Location";
   byId["repo-download-one"].tagName = "BUTTON";
   byId["repo-download-one"].hidden = true;
   byId["repo-download-all"].tagName = "BUTTON";
@@ -160,14 +200,18 @@ function bootRepoPage(options) {
   byId["repo-file-type"].hidden = true;
   byId["repo-stories-empty"].hidden = true;
   byId["repo-location"].contains = function (node) {
-    return (
-      node === byId["repo-location"] ||
+    function walk(parent) {
+      if (node === parent) return true;
+      return (parent.children || []).some((c) => walk(c));
+    }
+    return walk(byId["repo-location"]) ||
       node === byId["repo-location-btn"] ||
       node === byId["repo-location-panel"] ||
+      node === byId["repo-location-list"] ||
       node === byId["repo-location-input"] ||
       node === byId["repo-location-save"] ||
-      node === byId["repo-location-choose"]
-    );
+      node === byId["repo-location-choose"] ||
+      node === byId["repo-location-custom"];
   };
 
   const storage = new Map();
@@ -245,20 +289,37 @@ function bootRepoPage(options) {
           const body = JSON.parse(init.body || "{}");
           const tree = opts.folderTree || { folders: [], placements: {} };
           if (href.includes("create_folder")) {
+            opts._folderSeq = (opts._folderSeq || 0) + 1;
             const folder = {
-              id: "fld_test_1",
+              id: "fld_test_" + opts._folderSeq,
               name: body.name,
               parentId: body.parentId || null,
               contentType: body.contentType || "stories",
               createdAt: "2026-10-03T00:00:00.000Z",
               updatedAt: "2026-10-03T00:00:00.000Z",
             };
+            if (body.parentId) {
+              const parent = (tree.folders || []).find((f) => f.id === body.parentId);
+              if (parent) folder.contentType = parent.contentType;
+            }
             tree.folders = (tree.folders || []).concat([folder]);
             opts.folderTree = tree;
+            if (typeof opts.onCreateFolder === "function") opts.onCreateFolder(body, folder);
             return Promise.resolve({
               status: 200,
               ok: true,
               json() { return Promise.resolve({ folder, tree }); },
+            });
+          }
+          if (href.includes("move_file")) {
+            tree.placements = Object.assign({}, tree.placements || {});
+            if (body.fileId) tree.placements[body.fileId] = body.folderId || null;
+            opts.folderTree = tree;
+            if (typeof opts.onMoveFile === "function") opts.onMoveFile(body);
+            return Promise.resolve({
+              status: 200,
+              ok: true,
+              json() { return Promise.resolve({ tree }); },
             });
           }
           return Promise.resolve({
@@ -369,14 +430,21 @@ test("repo page lists stories and opens blank Markdown surface", () => {
   assert.match(html, /href="\/\?write=1"/);
   assert.match(html, />Write</);
   assert.match(html, /Files/);
-  assert.match(html, /Tinker location/);
+  assert.match(html, /repo-location__logo/);
+  assert.match(html, /icons\/tinker-mark\.svg/);
+  assert.match(html, /id="repo-location-caption"[^>]*>Location</);
+  assert.match(html, /aria-haspopup="listbox"/);
+  assert.match(html, /id="repo-location-list"/);
+  assert.match(html, /id="repo-location-value"/);
+  assert.match(html, /Custom location/);
   assert.match(html, /id="repo-download-one"/);
   assert.match(html, /id="repo-download-all"/);
   assert.match(html, /id="repo-move-sheet"/);
-  assert.match(html, /src="\/lib\/stories-md\.js(\?v=\d+)?"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js(\?v=\d+)?"/);
-  assert.match(html, /src="\/repo\/repo\.js(\?v=\d+)?"/);
-  assert.match(html, /href="\/repo\/repo\.css(\?v=\d+)?"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=6"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=6"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=6"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=6"/);
+  assert.match(html, /href="\/styles\.css\?v=6"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -384,6 +452,26 @@ test("repo page lists stories and opens blank Markdown surface", () => {
   assert.match(html, /<textarea class="writing-input repo-surface__input" id="repo-body" spellcheck="true"><\/textarea>/);
   assert.equal(html.includes("innerHTML"), false);
   assert.equal(page.includes("innerHTML"), false);
+  assert.match(page, /registerLocationSection/);
+  assert.match(page, /refreshLocation/);
+});
+
+test("writing-input and /repo surface are invisible (no box)", () => {
+  const base = styles.match(/\.writing-input\s*\{[^}]+\}/);
+  assert.ok(base, "base .writing-input rule");
+  assert.match(base[0], /border:\s*0/);
+  assert.match(base[0], /background:\s*transparent/);
+  assert.match(base[0], /box-shadow:\s*none/);
+  assert.match(base[0], /resize:\s*none/);
+  assert.match(styles, /\.writing-input:focus-visible/);
+  const repoInput = css.match(/\.repo-surface__input\.writing-input\s*\{[^}]+\}/);
+  assert.ok(repoInput, "repo surface writing-input rule");
+  assert.match(repoInput[0], /border:\s*0/);
+  assert.match(repoInput[0], /background:\s*transparent/);
+  assert.match(repoInput[0], /box-shadow:\s*none/);
+  assert.match(repoInput[0], /resize:\s*none/);
+  assert.match(css, /\.repo-surface__input\.writing-input:focus-visible/);
+  assert.doesNotMatch(styles, /\.writing-input--needs-answer\s*\{\s*outline:/);
 });
 
 test("repo routes, desktop landing, and auth return include /repo", () => {
@@ -468,7 +556,7 @@ test("web offers download controls; new file keeps blank editor", async () => {
   assert.match(env.byId["repo-file-path"].textContent, /^stories\//);
 });
 
-test("desktop folder picker is offered when pickNotesFolder exists", async () => {
+test("desktop Mac folder picker in Storage section sets getLocation()", async () => {
   let called = false;
   const env = bootRepoPage({
     token: "jwt-test",
@@ -479,12 +567,23 @@ test("desktop folder picker is offered when pickNotesFolder exists", async () =>
     },
   });
   await env.flush();
-  assert.equal(env.byId["repo-location-choose"].hidden, false);
   env.click("repo-location-btn");
-  env.click("repo-location-choose");
+  const mac = (env.byId["repo-location-list"].children || []).find((row) =>
+    String(row.getAttribute("data-location-storage") || "") === "mac-folder" ||
+    String(row.textContent || "").includes("Mac folder")
+  );
+  assert.ok(mac, "Storage section should list Mac folder… when pickNotesFolder exists");
+  mac.dispatch("click", {
+    type: "click",
+    target: mac,
+    preventDefault() {},
+    stopPropagation() {},
+  });
   await env.flush();
   assert.equal(called, true);
   assert.equal(env.window.tinkerRepo.getLocation(), "/Users/tyler/code/tinker");
+  // Legacy choose control stays in the DOM for id stability but stays hidden.
+  assert.equal(env.byId["repo-location-choose"].hidden, true);
 });
 
 test("New folder inline create appears and posts to API", async () => {
@@ -509,4 +608,191 @@ test("New folder inline create appears and posts to API", async () => {
   assert.equal(folders.length, 1);
   assert.equal(folders[0].name, "Career");
   assert.equal(folders[0].contentType, "stories");
+});
+
+function seedTypedFolders() {
+  return {
+    folders: [
+      {
+        id: "fld_reflections",
+        name: "reflections",
+        parentId: null,
+        contentType: "reflections",
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
+      {
+        id: "fld_2026",
+        name: "2026",
+        parentId: "fld_reflections",
+        contentType: "reflections",
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
+      {
+        id: "fld_essays",
+        name: "essays",
+        parentId: null,
+        contentType: "drafts",
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
+    ],
+    placements: {},
+  };
+}
+
+test("location dropdown lists nested typed folders with type labels", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    folderTree: seedTypedFolders(),
+  });
+  await env.flush();
+  env.click("repo-location-btn");
+  const labels = (env.byId["repo-location-list"].children || []).map((row) => row.textContent);
+  assert.ok(labels.some((t) => t.includes("tinker") && t.includes("Stories")));
+  assert.ok(labels.some((t) => t.includes("reflections") && t.includes("Reflections")));
+  assert.ok(labels.some((t) => t.includes("reflections/2026")));
+  assert.ok(labels.some((t) => t.includes("essays") && t.includes("Drafts")));
+  assert.ok(labels.some((t) => t.includes("Custom location")));
+  const selected = (env.byId["repo-location-list"].children || []).find(
+    (row) => row.getAttribute("aria-selected") === "true"
+  );
+  assert.ok(selected);
+  assert.match(selected.textContent, /tinker/);
+});
+
+test("picking a folder location moves the selected draft", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    folderTree: seedTypedFolders(),
+  });
+  await env.flush();
+  env.click("repo-new-piece");
+  const draftPath = env.byId["repo-file-path"].textContent;
+  assert.match(draftPath, /^stories\//);
+  env.click("repo-location-btn");
+  const essays = (env.byId["repo-location-list"].children || []).find((row) =>
+    String(row.textContent || "").includes("essays") &&
+    String(row.className || "").includes("repo-location__option")
+  );
+  assert.ok(essays);
+  essays.dispatch("click", {
+    type: "click",
+    target: essays,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  // Drafts update locally (no move_file API) until first save.
+  assert.match(env.byId["repo-file-path"].textContent, /essays\//);
+  assert.match(env.byId["repo-location-value"].textContent, /essays/);
+});
+
+test("custom location path creates missing folders in order and places the draft", async () => {
+  const creates = [];
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    folderTree: {
+      folders: [
+        {
+          id: "fld_reflections",
+          name: "reflections",
+          parentId: null,
+          contentType: "reflections",
+          createdAt: "2026-10-01T00:00:00.000Z",
+          updatedAt: "2026-10-01T00:00:00.000Z",
+        },
+        {
+          id: "fld_2026",
+          name: "2026",
+          parentId: "fld_reflections",
+          contentType: "reflections",
+          createdAt: "2026-10-01T00:00:00.000Z",
+          updatedAt: "2026-10-01T00:00:00.000Z",
+        },
+      ],
+      placements: {},
+    },
+    onCreateFolder(body) { creates.push(body); },
+  });
+  await env.flush();
+  env.click("repo-new-piece");
+  env.click("repo-location-btn");
+  const custom = (env.byId["repo-location-list"].children || []).find(
+    (row) => row.getAttribute("data-location-custom") === "true"
+  );
+  assert.ok(custom);
+  custom.dispatch("click", {
+    type: "click",
+    target: custom,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  assert.equal(env.byId["repo-location-custom"].hidden, false);
+  env.byId["repo-location-input"].value = "reflections/2026/october";
+  env.byId["repo-location-input"].dispatch("keydown", {
+    type: "keydown",
+    key: "Enter",
+    target: env.byId["repo-location-input"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(creates.length, 1);
+  assert.equal(creates[0].name, "october");
+  assert.equal(creates[0].parentId, "fld_2026");
+  assert.match(env.byId["repo-location-value"].textContent, /reflections\/2026\/october/);
+  assert.match(env.byId["repo-file-path"].textContent, /october\//);
+});
+
+test("Escape closes the location dropdown", async () => {
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, folderTree: seedTypedFolders() });
+  await env.flush();
+  env.click("repo-location-btn");
+  assert.equal(env.byId["repo-location-panel"].hidden, false);
+  env.byId["repo-location-list"].dispatch("keydown", {
+    type: "keydown",
+    key: "Escape",
+    target: env.byId["repo-location-list"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  assert.equal(env.byId["repo-location-panel"].hidden, true);
+});
+
+test("registerLocationSection adds a Storage option that fires onSelect", async () => {
+  let selected = null;
+  const env = bootRepoPage({ token: "jwt-test", desktop: true });
+  await env.flush();
+  env.window.tinkerRepo.registerLocationSection({
+    key: "storage",
+    label: "Storage",
+    order: 100,
+    getOptions() {
+      return [{ id: "icloud", label: "iCloud Drive", badge: "Soon" }];
+    },
+    onSelect(option) {
+      selected = option;
+    },
+  });
+  env.window.tinkerRepo.refreshLocation();
+  env.click("repo-location-btn");
+  const icloud = (env.byId["repo-location-list"].children || []).find((row) =>
+    String(row.getAttribute("data-location-storage") || "") === "icloud" ||
+    String(row.textContent || "").includes("iCloud Drive")
+  );
+  assert.ok(icloud, "registered Storage option should render");
+  icloud.dispatch("click", {
+    type: "click",
+    target: icloud,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  assert.ok(selected);
+  assert.equal(selected.id, "icloud");
 });
