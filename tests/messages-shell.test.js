@@ -54,10 +54,12 @@ test("inbox boots from one batched endpoint and paints a cached snapshot first",
   assert.match(js, /tinker\.inboxSnapshot/);
 });
 
-test("desktop home auto-opens the You self-reflection thread", () => {
+test("signed-in boot sends home to /repo; write mode opens You", () => {
+  assert.match(js, /goRepoHome/);
+  assert.match(js, /wantsWriteSurface/);
   assert.match(js, /openDesktopYouHome/);
-  assert.match(js, /isDesktopHomeWidth/);
-  assert.match(js, /function boot[\s\S]*openDesktopYouHome/);
+  assert.match(js, /function boot[\s\S]*goRepoHome/);
+  assert.match(js, /function boot[\s\S]*wantsWriteSurface/);
 });
 
 test("avatars are text initials only — no remote logos or photos", () => {

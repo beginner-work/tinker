@@ -18,7 +18,8 @@ const fsp = require("fs/promises");
 // this origin — web product changes ship without a new dmg; only shell
 // changes (menus, notes IPC, packaging) need a rebuild.
 const APP_ORIGIN = "https://tinker.beginner.work";
-const APP_URL = process.env.TINKER_DESKTOP_URL || APP_ORIGIN;
+// Desktop lands on /repo (stories as Markdown). Writing stays at /?write=1.
+const APP_URL = process.env.TINKER_DESKTOP_URL || `${APP_ORIGIN}/repo`;
 
 // Matches --color-background in src/renderer/styles.css / critical CSS.
 // The product is light-only today; keep one cream surface so the native
@@ -158,15 +159,28 @@ function buildAppMenu() {
         { role: "zoomOut" },
         { type: "separator" },
         {
-          label: "Repository preview",
+          label: "Stories",
           click: (_item, win) => {
             const target = win && !win.isDestroyed() ? win : BrowserWindow.getFocusedWindow();
             if (!target || target.isDestroyed()) return;
             try {
-              const base = new URL(APP_URL);
+              const base = new URL(APP_ORIGIN);
               target.loadURL(new URL("/repo", base).toString());
             } catch {
               target.loadURL(`${APP_ORIGIN}/repo`);
+            }
+          },
+        },
+        {
+          label: "Writing",
+          click: (_item, win) => {
+            const target = win && !win.isDestroyed() ? win : BrowserWindow.getFocusedWindow();
+            if (!target || target.isDestroyed()) return;
+            try {
+              const base = new URL(APP_ORIGIN);
+              target.loadURL(new URL("/?write=1", base).toString());
+            } catch {
+              target.loadURL(`${APP_ORIGIN}/?write=1`);
             }
           },
         },

@@ -121,18 +121,42 @@
   function isApplicationSelected() {
     return String(state.selectedId || "").indexOf(APPLICATION_PREFIX) === 0;
   }
-  /** Desktop home lands on the owner self-reflection (You) thread. Mobile keeps the inbox list. */
+  /** Desktop home used to open You; landing is now /repo. Write mode keeps You. */
   function isDesktopHomeWidth() {
     return !(window.matchMedia && window.matchMedia("(max-width: 720px)").matches);
   }
+  function wantsWriteSurface() {
+    try {
+      return new URLSearchParams(window.location.search || "").get("write") === "1";
+    } catch (e) {
+      return false;
+    }
+  }
   function openDesktopYouHome(opts) {
     opts = opts || {};
-    if (!isDesktopHomeWidth()) return false;
+    // Landing moved to /repo. Only open the writing surface when asked.
+    if (!wantsWriteSurface()) return false;
+    if (!isDesktopHomeWidth()) {
+      // Mobile write still mounts You; hide inbox chrome via body class.
+      selectYou({
+        silent: opts.silent !== false,
+        stayOnList: true,
+      });
+      return true;
+    }
     selectYou({
       silent: opts.silent !== false,
       stayOnList: true,
     });
     return true;
+  }
+  function goRepoHome() {
+    try {
+      window.location.assign("/repo");
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
   function contactSeq(lead, touch) {
     var type = String(lead && lead.contactType || "").toLowerCase();
@@ -1039,7 +1063,7 @@
 
     var ranked = rankInboxItems();
     empty.hidden = ranked.length > 0 || !!state.error || state.loading;
-    empty.textContent = "No people yet.";
+    empty.textContent = "";
     list.innerHTML = "";
     renderYouRow();
     // One flat priority list — no due-bucket or reading section heads.
@@ -1136,7 +1160,11 @@
       });
     } else if (state.selectedId) {
       selectLead(state.selectedId, { silent: true, stayOnList: !document.body.classList.contains("messages-mobile-thread") });
-    } else if (!openDesktopYouHome({ silent: true })) {
+    } else if (wantsWriteSurface()) {
+      openDesktopYouHome({ silent: true });
+    } else if (token()) {
+      goRepoHome();
+    } else {
       selectLead("", { silent: true });
     }
   }
@@ -1267,13 +1295,14 @@
         if (window.tinkerMobileDrawer && typeof window.tinkerMobileDrawer.close === "function") {
           window.tinkerMobileDrawer.close();
         }
-        // Desktop home always re-opens self-reflection; mobile stays on the list.
-        if (!openDesktopYouHome({ silent: false })) {
-          document.body.classList.remove("messages-you-active");
-          selectLead("", { silent: true });
+        // Brand/home goes to /repo (stories). Write mode stays on the notepad.
+        if (wantsWriteSurface()) {
+          openDesktopYouHome({ silent: false });
+          renderList();
+          showPane();
+        } else {
+          goRepoHome();
         }
-        renderList();
-        showPane();
       });
     }
   }
@@ -1282,37 +1311,45 @@
     root = document.getElementById("sidebar-messages");
     pane = document.getElementById("messages-pane");
     if (!root) return;
-    document.body.classList.add("messages-inbox-primary", "messages-shell-open");
-    // Inbox is primary: clear the welcome "active" flag so the AI / No AI
-    // pill (keyed off #welcome[data-active]) cannot float over the rail.
+
+    // Signed-in landing is /repo. Keep /?write=1 for the writing flow.
+    if (token() && !wantsWriteSurface()) {
+      goRepoHome();
+      return;
+    }
+
+    document.body.classList.add("messages-shell-open");
+    if (wantsWriteSurface()) {
+      document.body.classList.add("write-surface");
+      document.body.classList.remove("messages-inbox-primary");
+    } else {
+      document.body.classList.add("messages-inbox-primary");
+    }
+    // Clear the welcome "active" flag so the AI / No AI pill cannot float.
     var welcome = document.getElementById("welcome");
     if (welcome) welcome.removeAttribute("data-active");
     // Drop leftover company-tab hosts from older builds.
     var tabs = pane && pane.querySelector("[data-messages-tabs]");
     if (tabs) { tabs.innerHTML = ""; tabs.hidden = true; }
     bindChrome();
-    // Desktop + signed-in: open You immediately so the detail pane never
-    // flashes empty or a different thread before the inbox finishes loading.
-    if (token()) openDesktopYouHome({ silent: true });
-    // Warm path: paint the last inbox snapshot before the network returns.
+    if (token() && wantsWriteSurface()) {
+      openDesktopYouHome({ silent: true });
+      selectYou({ silent: true, stayOnList: true });
+    }
+    // Inbox APIs still refresh in the background for MCP/tools; UI chrome is hidden.
     if (token()) {
       var cached = readInboxCache();
       if (cached) {
         applyInboxPayload(cached);
-        renderList();
-        if (pane) pane.hidden = false;
-        try {
-          performance.mark("tinker-inbox-cache-paint");
-        } catch (e) { /* ignore */ }
-      }
-      // Re-paint You after cache so the header shows the owner profile.
-      if (isDesktopHomeWidth() && (!state.selectedId || state.selectedId === YOU_ID)) {
-        selectYou({ silent: true, stayOnList: true });
+        if (wantsWriteSurface()) {
+          renderList();
+          if (pane) pane.hidden = false;
+        }
       }
     }
-    refresh();
+    if (token()) refresh();
     window.addEventListener("storage", function (e) { if (e.key === TOKEN_KEY) refresh(); });
-    document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
+    document.addEventListener("visibilitychange", function () { if (!document.hidden && token()) refresh(); });
     window.addEventListener("tinker:messages-filter-company", function (e) {
       setCompanyFilter(e && e.detail && e.detail.company);
     });
