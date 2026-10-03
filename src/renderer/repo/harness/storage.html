@@ -16,42 +16,50 @@
         font-family: "Instrument Sans", system-ui, sans-serif;
         padding: 32px;
       }
-      .harness {
-        max-width: 420px;
-      }
-      .harness h1 {
-        margin: 0 0 8px;
-        font-size: 18px;
-      }
-      .harness p {
-        margin: 0 0 16px;
-        color: var(--color-muted, #6f6a65);
-        font-size: 13px;
-      }
+      .harness { max-width: 420px; }
+      .harness h1 { margin: 0 0 8px; font-size: 18px; }
+      .harness > p { margin: 0 0 16px; color: var(--color-muted, #6f6a65); font-size: 13px; }
       .panel {
         border: 1px solid var(--color-border, #e7e2d9);
         border-radius: 12px;
         background: var(--color-surface, #fff);
         padding: 14px;
       }
-      .modes {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 16px;
-      }
+      .modes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
       .modes button {
-        height: 32px;
-        padding: 0 12px;
+        height: 32px; padding: 0 12px; border: 1px solid var(--color-border, #e7e2d9);
+        border-radius: 8px; background: #fff; cursor: pointer; font: inherit; font-size: 12px;
+      }
+      .modes button.is-active { border-color: var(--color-accent, #2d5a3d); }
+      .repo-location__section {
+        margin: 0 0 6px;
+        font-size: 11px;
+        font-weight: 650;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-muted, #6f6a65);
+      }
+      .repo-location__option {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        width: 100%;
+        margin: 0 0 6px;
+        padding: 8px 10px;
         border: 1px solid var(--color-border, #e7e2d9);
         border-radius: 8px;
-        background: #fff;
-        cursor: pointer;
+        background: var(--color-background, #fffdf7);
+        text-align: left;
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
+        cursor: pointer;
       }
-      .modes button.is-active {
-        border-color: var(--color-accent, #2d5a3d);
+      .repo-location__option.is-selected { border-color: var(--color-accent, #2d5a3d); }
+      .repo-location__option-label { font-weight: 600; }
+      .repo-location__option-detail { font-size: 11px; color: var(--color-muted, #6f6a65); }
+      .repo-location__badge {
+        font-size: 11px;
+        color: var(--color-muted, #6f6a65);
       }
     </style>
   </head>
@@ -65,7 +73,7 @@
         <button type="button" data-mode="web-chooser">Web Choose folder</button>
         <button type="button" data-mode="mobile">Mobile note</button>
       </div>
-      <div class="panel" id="repo-location-panel"></div>
+      <div class="panel" id="storage-panel" data-testid="storage-panel"></div>
     </div>
 
     <script src="/lib/storage-path-core.js"></script>
@@ -73,6 +81,65 @@
     <script src="/lib/storage-adapters.js"></script>
     <script>
       (function () {
+        var registered = null;
+        var macFolder = {
+          id: "mac-folder",
+          label: "Mac folder…",
+          detail: "",
+          selected: false,
+        };
+
+        window.tinkerRepo = {
+          registerLocationSection: function (spec) {
+            if (!spec || spec.key !== "storage") return;
+            registered = spec;
+            renderPanel();
+          },
+          refreshLocation: function () { renderPanel(); },
+        };
+
+        function renderPanel() {
+          var panel = document.getElementById("storage-panel");
+          panel.innerHTML = "";
+          var heading = document.createElement("p");
+          heading.className = "repo-location__section";
+          heading.textContent = "Storage";
+          panel.appendChild(heading);
+
+          var options = [macFolder];
+          if (registered && typeof registered.getOptions === "function") {
+            try { options = options.concat(registered.getOptions() || []); }
+            catch (e) { /* ignore */ }
+          }
+          options.forEach(function (opt) {
+            if (!opt) return;
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "repo-location__option" + (opt.selected ? " is-selected" : "");
+            btn.setAttribute("data-option-id", opt.id || "");
+            var label = document.createElement("span");
+            label.className = "repo-location__option-label";
+            label.textContent = opt.label || "";
+            btn.appendChild(label);
+            if (opt.detail) {
+              var detail = document.createElement("span");
+              detail.className = "repo-location__option-detail";
+              detail.textContent = opt.detail;
+              btn.appendChild(detail);
+            }
+            if (opt.badge) {
+              var badge = document.createElement("span");
+              badge.className = "repo-location__badge";
+              badge.textContent = opt.badge;
+              btn.appendChild(badge);
+            }
+            btn.addEventListener("click", function () {
+              if (registered && registered.onSelect) registered.onSelect(opt);
+            });
+            panel.appendChild(btn);
+          });
+        }
+
         var modes = {
           "desktop-installed": {
             label: "Mac desktop: iCloud + Google Drive detected",
@@ -95,18 +162,12 @@
                       installed: true,
                       account: "tyler@lindowlabs.dev",
                     },
-                    {
-                      id: "cloud:Dropbox",
-                      label: "Dropbox",
-                      path: "/Users/tyler/Library/CloudStorage/Dropbox",
-                      installed: true,
-                    },
                   ]);
                 },
                 useCloudStorageRoot: function (id) {
                   return Promise.resolve({
                     id: id,
-                    label: id === "icloud" ? "iCloud Drive" : "Google Drive",
+                    label: id.indexOf("icloud") === 0 ? "iCloud Drive" : "Google Drive (tyler@lindowlabs.dev)",
                     path: "/Users/tyler/Cloud/" + id + "/Tinker",
                     name: "Tinker",
                   });
@@ -115,7 +176,6 @@
                 writeNotesFile: function () { return Promise.resolve(true); },
                 listNotesFiles: function () { return Promise.resolve([]); },
               };
-              // Pretend FS Access is unavailable so only cloud roots show.
               window.showDirectoryPicker = undefined;
             },
           },
@@ -146,14 +206,15 @@
               window.showDirectoryPicker = function () {
                 return Promise.reject(Object.assign(new Error("cancelled"), { name: "AbortError" }));
               };
-              Object.defineProperty(window, "isSecureContext", { value: true, configurable: true });
-              // Force desktop UA for this harness pane.
+              try {
+                Object.defineProperty(window, "isSecureContext", { value: true, configurable: true });
+              } catch (e) { /* ignore */ }
               try {
                 Object.defineProperty(navigator, "userAgent", {
                   value: "Mozilla/5.0 (Macintosh; Intel Mac OS X) Chrome/120.0.0.0",
                   configurable: true,
                 });
-              } catch (e) { /* ignore */ }
+              } catch (e2) { /* ignore */ }
             },
           },
           mobile: {
@@ -173,12 +234,10 @@
 
         function loadSection() {
           return new Promise(function (resolve, reject) {
+            registered = null;
             var prev = document.getElementById("storage-section-script");
             if (prev) prev.parentNode.removeChild(prev);
-            // Reset module globals that storage-section sets.
             window.tinkerRepoStorage = undefined;
-            var panel = document.getElementById("repo-location-panel");
-            panel.innerHTML = "";
             var s = document.createElement("script");
             s.id = "storage-section-script";
             s.src = "/repo/storage-section.js?ts=" + Date.now();
@@ -195,10 +254,11 @@
           document.querySelectorAll("#harness-modes button").forEach(function (btn) {
             btn.classList.toggle("is-active", btn.getAttribute("data-mode") === mode);
           });
+          document.body.setAttribute("data-harness-mode", mode);
           cfg.setup();
           await loadSection();
-          // Give async root load a tick.
-          await new Promise(function (r) { setTimeout(r, 80); });
+          await new Promise(function (r) { setTimeout(r, 120); });
+          renderPanel();
         }
 
         document.getElementById("harness-modes").addEventListener("click", function (event) {
