@@ -95,4 +95,7 @@ test("new service workers claim clients and can skip waiting on message", () => 
   );
   assert.match(offline, /controllerchange/);
   assert.match(offline, /location\.reload/);
+  // Versioned registration bypasses a CDN-cached bare /sw.js.
+  const swPin = EXPECTED_SW_CACHE_VERSION.replace("tinker-shell-v", "");
+  assert.match(offline, new RegExp("/sw\\.js\\?v=" + swPin));
 });
