@@ -54,6 +54,15 @@
       ]
     },
     {
+      "source": "/(.*)\\.(js|css|svg|png|woff2|json)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        }
+      ]
+    },
+    {
       "source": "/repo/(.*)\\.(js|css)",
       "headers": [
         {
@@ -63,11 +72,11 @@
       ]
     },
     {
-      "source": "/(.*)\\.(js|css|svg|png|woff2|json)",
+      "source": "/(messages-shell|messages-you|lib/stories-md)\\.js",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=86400, stale-while-revalidate=604800"
+          "value": "public, max-age=60, stale-while-revalidate=600"
         }
       ]
     }
