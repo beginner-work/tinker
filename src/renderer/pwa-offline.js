@@ -22,9 +22,9 @@
 (function () {
   "use strict";
 
-  // Keep in sync with CACHE_VERSION in sw.js (tinker-shell-v34 → v=34).
+  // Keep in sync with CACHE_VERSION in sw.js (tinker-shell-v36 → v=36).
   // Bump the query whenever bare /sw.js or a prior pin is stuck in a CDN HIT.
-  var SW_URL = "/sw.js?v=34";
+  var SW_URL = "/sw.js?v=36";
 
   function isWrappedRuntime() {
     if (window.tinker && window.tinker.supportsWebview === true) return true;

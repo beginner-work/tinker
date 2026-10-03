@@ -207,7 +207,11 @@ test("list_self_reflections returns owner-typed essays and bot posts; cross-owne
   assert.ok(rows.some((r) => r.title === "Bot note"));
   assert.equal(ids.includes("e_other"), false);
   assert.equal(rows.some((r) => /Must not leak|Secret to user-b/.test(r.body)), false);
-  assert.deepEqual(Object.keys(rows[0]).sort(), ["body", "createdAt", "id", "title", "updatedAt"]);
+  assert.deepEqual(Object.keys(rows[0]).sort(), [
+    "body", "contentType", "createdAt", "folderId", "id", "title", "updatedAt",
+  ]);
+  assert.equal(rows[0].contentType, "stories");
+  assert.equal(rows[0].folderId, null);
   // Newest first by updatedAt
   for (let i = 1; i < rows.length; i++) {
     const prev = Date.parse(rows[i - 1].updatedAt);
