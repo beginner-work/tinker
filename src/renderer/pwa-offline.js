@@ -5,6 +5,10 @@
  * best-effort: if it fails, the app simply behaves as it does today
  * (online-only).
  *
+ * The worker URL is versioned (`sw.js?v=N`) so clients fetch a new script
+ * even when a CDN still holds a long-cached `/sw.js`. Keep N in sync with
+ * CACHE_VERSION in sw.js (tinker-shell-vN).
+ *
  * Skipped where a service worker is the wrong tool or unavailable:
  *   - Electron — the desktop shell loads production in a BrowserWindow
  *     and skips the PWA service worker (supportsWebview / isDesktopApp).
@@ -18,8 +22,17 @@
 (function () {
   "use strict";
 
+  // Keep in sync with CACHE_VERSION in sw.js (tinker-shell-v33 → v=33).
+  var SW_URL = "/sw.js?v=33";
+
   function isWrappedRuntime() {
     if (window.tinker && window.tinker.supportsWebview === true) return true;
+    if (window.tinker && window.tinker.isDesktopApp === true) return true;
+    try {
+      if (document.documentElement && document.documentElement.getAttribute("data-tinker-desktop") === "1") {
+        return true;
+      }
+    } catch (e) { /* ignore */ }
     return false;
   }
 
@@ -34,9 +47,9 @@
     window.location.reload();
   });
 
-  window.addEventListener("load", () => {
+  window.addEventListener("load", function () {
     navigator.serviceWorker
-      .register("/sw.js")
+      .register(SW_URL)
       .then(function (reg) {
         // If a new worker is already waiting (e.g. tab was open across a
         // deploy), ask it to activate. sw.js also calls skipWaiting on
@@ -55,6 +68,6 @@
           });
         });
       })
-      .catch(() => { /* offline shell is a progressive enhancement */ });
+      .catch(function () { /* offline shell is a progressive enhancement */ });
   });
 })();

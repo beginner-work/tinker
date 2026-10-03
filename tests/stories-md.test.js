@@ -100,4 +100,5 @@ test("inbox chrome is gone; /repo is the landing surface", () => {
   // CDN cache bust for shell scripts that left the inbox / story cards.
   assert.match(html, /messages-shell\.js\?v=\d+/);
   assert.match(html, /messages-you\.js\?v=\d+/);
+  assert.match(html, /repo-redirect\.js\?v=\d+/);
 });
