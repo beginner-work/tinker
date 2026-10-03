@@ -440,11 +440,11 @@ test("repo page lists stories and opens blank Markdown surface", () => {
   assert.match(html, /id="repo-download-one"/);
   assert.match(html, /id="repo-download-all"/);
   assert.match(html, /id="repo-move-sheet"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=6"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=6"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=6"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=6"/);
-  assert.match(html, /href="\/styles\.css\?v=6"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=7"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=7"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=7"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=7"/);
+  assert.match(html, /href="\/styles\.css\?v=7"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
