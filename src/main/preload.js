@@ -89,4 +89,7 @@ contextBridge.exposeInMainWorld("tinker", {
     ipcRenderer.invoke("notesFolder:move", rootDir, fromRel, toRel),
   removeNotesFile: (rootDir, relPath) =>
     ipcRenderer.invoke("notesFolder:remove", rootDir, relPath),
+  // Cloud roots (iCloud / Google Drive for desktop). Missing on older builds.
+  cloudStorageRoots: () => ipcRenderer.invoke("storage:cloudRoots"),
+  useCloudStorageRoot: (id) => ipcRenderer.invoke("storage:useCloudRoot", id),
 });

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Storage section harness</title>
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/repo/repo.css" />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--color-background, #fffdf7);
+        color: var(--color-foreground, #2d2a26);
+        font-family: "Instrument Sans", system-ui, sans-serif;
+        padding: 32px;
+      }
+      .harness {
+        max-width: 420px;
+      }
+      .harness h1 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+      .harness p {
+        margin: 0 0 16px;
+        color: var(--color-muted, #6f6a65);
+        font-size: 13px;
+      }
+      .panel {
+        border: 1px solid var(--color-border, #e7e2d9);
+        border-radius: 12px;
+        background: var(--color-surface, #fff);
+        padding: 14px;
+      }
+      .modes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .modes button {
+        height: 32px;
+        padding: 0 12px;
+        border: 1px solid var(--color-border, #e7e2d9);
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+      }
+      .modes button.is-active {
+        border-color: var(--color-accent, #2d5a3d);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="harness">
+      <h1>Storage harness</h1>
+      <p id="harness-mode-label">Stubbed desktop cloud roots</p>
+      <div class="modes" id="harness-modes">
+        <button type="button" data-mode="desktop-installed" class="is-active">Mac detected</button>
+        <button type="button" data-mode="desktop-missing">Mac not installed</button>
+        <button type="button" data-mode="web-chooser">Web Choose folder</button>
+        <button type="button" data-mode="mobile">Mobile note</button>
+      </div>
+      <div class="panel" id="repo-location-panel"></div>
+    </div>
+
+    <script src="/lib/storage-path-core.js"></script>
+    <script src="/lib/fs-access-folder.js"></script>
+    <script src="/lib/storage-adapters.js"></script>
+    <script>
+      (function () {
+        var modes = {
+          "desktop-installed": {
+            label: "Mac desktop: iCloud + Google Drive detected",
+            setup: function () {
+              window.tinker = {
+                isDesktopApp: true,
+                supportsWebview: true,
+                cloudStorageRoots: function () {
+                  return Promise.resolve([
+                    {
+                      id: "icloud",
+                      label: "iCloud Drive",
+                      path: "/Users/tyler/Library/Mobile Documents/com~apple~CloudDocs",
+                      installed: true,
+                    },
+                    {
+                      id: "google-drive:tyler@lindowlabs.dev",
+                      label: "Google Drive (tyler@lindowlabs.dev)",
+                      path: "/Users/tyler/Library/CloudStorage/GoogleDrive-tyler@lindowlabs.dev/My Drive",
+                      installed: true,
+                      account: "tyler@lindowlabs.dev",
+                    },
+                    {
+                      id: "cloud:Dropbox",
+                      label: "Dropbox",
+                      path: "/Users/tyler/Library/CloudStorage/Dropbox",
+                      installed: true,
+                    },
+                  ]);
+                },
+                useCloudStorageRoot: function (id) {
+                  return Promise.resolve({
+                    id: id,
+                    label: id === "icloud" ? "iCloud Drive" : "Google Drive",
+                    path: "/Users/tyler/Cloud/" + id + "/Tinker",
+                    name: "Tinker",
+                  });
+                },
+                pickNotesFolder: function () { return Promise.resolve(null); },
+                writeNotesFile: function () { return Promise.resolve(true); },
+                listNotesFiles: function () { return Promise.resolve([]); },
+              };
+              // Pretend FS Access is unavailable so only cloud roots show.
+              window.showDirectoryPicker = undefined;
+            },
+          },
+          "desktop-missing": {
+            label: "Mac desktop: cloud roots not installed",
+            setup: function () {
+              window.tinker = {
+                isDesktopApp: true,
+                supportsWebview: true,
+                cloudStorageRoots: function () {
+                  return Promise.resolve([
+                    { id: "icloud", label: "iCloud Drive", path: "", installed: false },
+                    { id: "google-drive", label: "Google Drive", path: "", installed: false, account: "" },
+                  ]);
+                },
+                useCloudStorageRoot: function () { return Promise.resolve(null); },
+                pickNotesFolder: function () { return Promise.resolve(null); },
+                writeNotesFile: function () { return Promise.resolve(true); },
+                listNotesFiles: function () { return Promise.resolve([]); },
+              };
+              window.showDirectoryPicker = undefined;
+            },
+          },
+          "web-chooser": {
+            label: "Desktop Chrome/Edge: Choose folder",
+            setup: function () {
+              window.tinker = undefined;
+              window.showDirectoryPicker = function () {
+                return Promise.reject(Object.assign(new Error("cancelled"), { name: "AbortError" }));
+              };
+              Object.defineProperty(window, "isSecureContext", { value: true, configurable: true });
+              // Force desktop UA for this harness pane.
+              try {
+                Object.defineProperty(navigator, "userAgent", {
+                  value: "Mozilla/5.0 (Macintosh; Intel Mac OS X) Chrome/120.0.0.0",
+                  configurable: true,
+                });
+              } catch (e) { /* ignore */ }
+            },
+          },
+          mobile: {
+            label: "Mobile web: quiet Mac app note",
+            setup: function () {
+              window.tinker = undefined;
+              window.showDirectoryPicker = undefined;
+              try {
+                Object.defineProperty(navigator, "userAgent", {
+                  value: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+                  configurable: true,
+                });
+              } catch (e) { /* ignore */ }
+            },
+          },
+        };
+
+        function loadSection() {
+          return new Promise(function (resolve, reject) {
+            var prev = document.getElementById("storage-section-script");
+            if (prev) prev.parentNode.removeChild(prev);
+            // Reset module globals that storage-section sets.
+            window.tinkerRepoStorage = undefined;
+            var panel = document.getElementById("repo-location-panel");
+            panel.innerHTML = "";
+            var s = document.createElement("script");
+            s.id = "storage-section-script";
+            s.src = "/repo/storage-section.js?ts=" + Date.now();
+            s.onload = resolve;
+            s.onerror = reject;
+            document.body.appendChild(s);
+          });
+        }
+
+        async function applyMode(mode) {
+          var cfg = modes[mode];
+          if (!cfg) return;
+          document.getElementById("harness-mode-label").textContent = cfg.label;
+          document.querySelectorAll("#harness-modes button").forEach(function (btn) {
+            btn.classList.toggle("is-active", btn.getAttribute("data-mode") === mode);
+          });
+          cfg.setup();
+          await loadSection();
+          // Give async root load a tick.
+          await new Promise(function (r) { setTimeout(r, 80); });
+        }
+
+        document.getElementById("harness-modes").addEventListener("click", function (event) {
+          var btn = event.target.closest("button[data-mode]");
+          if (!btn) return;
+          applyMode(btn.getAttribute("data-mode"));
+        });
+
+        applyMode("desktop-installed");
+      })();
+    </script>
+  </body>
+</html>
