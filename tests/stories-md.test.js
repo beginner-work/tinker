@@ -91,7 +91,8 @@ test("inbox chrome is gone; /repo is the landing surface", () => {
   assert.match(mainJs, /\/repo/);
   assert.match(mainJs, /APP_URL[\s\S]*\/repo/);
   assert.match(repoHtml, /id="repo-tree"/);
-  assert.match(repoHtml, /Stories/);
+  assert.match(repoHtml, /Files|Stories/);
+  assert.match(repoHtml, /New folder/);
   assert.match(repoHtml, /Write/);
   assert.doesNotMatch(repoHtml, /← Inbox|Inbox/);
   // Story cards no longer mount above the writing flow.

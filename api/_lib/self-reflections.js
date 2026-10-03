@@ -155,10 +155,11 @@ async function listSelfReflections({ userId, since, limit } = {}) {
     const sinceMs = parseSince(since);
     const cap = Math.min(Math.max(Number(limit) || DEFAULT_LIMIT, 1), MAX_LIMIT);
 
-    const [threadMessages, essaysData, draftsData] = await Promise.all([
+    const [threadMessages, essaysData, draftsData, folderBlob] = await Promise.all([
       selfThread.listMessages({ userId: uid, limit: MAX_LIMIT }),
       readUserBlob(uid, "essays"),
       readUserBlob(uid, "drafts"),
+      readUserBlob(uid, "repo_folders").catch(() => null),
     ]);
 
     const combined = []
@@ -180,7 +181,18 @@ async function listSelfReflections({ userId, since, limit } = {}) {
       return String(b.id).localeCompare(String(a.id));
     });
 
-    return filtered.slice(0, cap);
+    const sliced = filtered.slice(0, cap);
+    // Attach folder placement + effective content type when the repo tree exists.
+    try {
+      const repoFolders = require("./repo-folders-store.js");
+      const tree = repoFolders.normalizeState(folderBlob);
+      return repoFolders.attachTypes(sliced, tree);
+    } catch {
+      return sliced.map((row) => Object.assign({}, row, {
+        folderId: null,
+        contentType: "stories",
+      }));
+    }
   } catch (err) {
     throw storeDown(err);
   }
