@@ -210,14 +210,14 @@ test("listMessages and purge_plan hard-delete legacy GTM approach dumps", async 
   );
 });
 
-test("owner API rejects empty posts and You renderer loads self posts", async () => {
+test("owner API rejects empty posts; You writing no longer mounts story cards", async () => {
   const bad = await ownerCall({ method: "POST", action: "post", body: { title: "", body: "x" } });
   assert.equal(bad.status, 400);
   const you = fs.readFileSync(path.join(__dirname, "..", "src/renderer/messages-you.js"), "utf8");
-  assert.match(you, /\/api\/self-thread/);
-  assert.match(you, /messages-thread__item--assistant/);
-  assert.match(you, /loadSelfPosts|renderSelfPosts/);
-  assert.match(you, /fillMarkdown|inlineMarkdown/);
+  // Self-thread API remains for MCP / data; UI cards are gone.
+  assert.match(you, /\/api\/self-thread|loadSelfPosts/);
+  assert.doesNotMatch(you, /host\.appendChild\(renderSelfPosts/);
+  assert.match(you, /Stories live on \/repo|Do not render story cards/);
   // Header uses profile name (Tyler Lindow), not a hard-coded brand label.
   assert.match(you, /ownerProfile/);
   assert.equal(/shell\.OWNER_LABEL/.test(you), false);

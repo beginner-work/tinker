@@ -60,7 +60,29 @@
       }
       body.messages-shell-open .messages-pane { display: flex; }
       body.messages-shell-open #welcome[data-active],
-      body.messages-inbox-primary #welcome[data-active] { display: none; }
+      body.messages-inbox-primary #welcome[data-active],
+      body.write-surface #welcome[data-active] { display: none; }
+      /* Inbox rail removed: writing surface is full-bleed; Stories is /repo. */
+      .write-surface__repo {
+        display: none;
+        position: fixed;
+        top: 12px;
+        right: 16px;
+        z-index: 40;
+        font-size: 13px;
+        color: var(--color-muted);
+        text-decoration: none;
+      }
+      body.write-surface .write-surface__repo { display: inline; }
+      body.write-surface .write-surface__repo:hover { color: var(--color-foreground); }
+      body.write-surface .sidebar,
+      body.write-surface #sidebar { display: none !important; }
+      body.write-surface { --sidebar-width: 0px; }
+      body.write-surface .stage { width: 100%; }
+      body.write-surface .drawer-toggle,
+      body.write-surface .drawer-backdrop { display: none !important; }
+      body.write-surface #messages-pane { display: flex; }
+      body.write-surface .messages-pane__back { display: none; }
       .auth-gate {
         position: fixed;
         inset: 0;
@@ -110,18 +132,19 @@
         padding-left: 78px;
       }
       @media (max-width: 720px) {
-        body.messages-shell-open,
-        body.messages-inbox-primary { --sidebar-width: 100%; }
-        body.messages-shell-open .sidebar,
-        body.messages-inbox-primary .sidebar {
+        body.messages-shell-open:not(.write-surface),
+        body.messages-inbox-primary:not(.write-surface) { --sidebar-width: 100%; }
+        body.messages-shell-open:not(.write-surface) .sidebar,
+        body.messages-inbox-primary:not(.write-surface) .sidebar {
           width: 100% !important;
           height: 100dvh !important;
           border-right: 0;
         }
-        body.messages-shell-open:not(.messages-mobile-thread) .stage,
-        body.messages-inbox-primary:not(.messages-mobile-thread) .stage {
+        body.messages-shell-open:not(.write-surface):not(.messages-mobile-thread) .stage,
+        body.messages-inbox-primary:not(.write-surface):not(.messages-mobile-thread) .stage {
           display: none !important;
         }
+        body.write-surface .stage { display: block !important; width: 100%; }
       }
     </style>
     <!-- Brand faces only (Fraunces + Instrument Sans). Inter / Plus Jakarta
@@ -212,7 +235,8 @@
   <!-- Inbox chrome on first paint so mobile never flash-blank: without
        messages-shell-open the drawer CSS slides the sidebar off-screen
        and the stage can look empty before messages-shell.js boots. -->
-  <body class="messages-shell-open messages-inbox-primary">
+  <body class="messages-shell-open">
+    <a class="write-surface__repo" href="/repo">Stories</a>
     <svg class="liquid-glass-defs" width="0" height="0" aria-hidden="true" focusable="false">
       <defs>
         <filter id="liquid-glass" x="-10%" y="-10%" width="120%" height="120%">
@@ -299,11 +323,11 @@
       </div>
     </div>
 
-    <!-- TYL-65: the left rail is the messages inbox. Hunt/outreach stay
-         in DOM for existing JS but are not the primary chrome. -->
-    <aside class="sidebar sidebar--inbox" id="sidebar" role="navigation" aria-label="Inbox">
+    <!-- Writing surface chrome. Inbox list is gone from the UI; stories live on /repo.
+         sidebar-messages stays as a hidden host so messages-shell.js can boot. -->
+    <aside class="sidebar sidebar--write" id="sidebar" role="navigation" aria-label="tinker" hidden>
       <header class="sidebar__top">
-        <button id="nav-home" class="sidebar__brand" type="button" title="Inbox">
+        <button id="nav-home" class="sidebar__brand" type="button" title="tinker">
           <svg data-rainbow-logo viewBox="0 0 200 200" width="22" height="22" aria-hidden="true" fill="none">
             <rect width="200" height="200" rx="44" fill="#f5f3ef" />
             <circle cx="100" cy="100" r="76" stroke="#c8b6e2" stroke-width="9" />
@@ -318,16 +342,15 @@
         </button>
       </header>
 
-      <!-- Inbox: conversation list fills the rail. -->
-      <nav class="messages-rail" id="sidebar-messages" aria-label="Conversations">
-        <div class="messages-rail__head">
-          <span class="messages-rail__title">Inbox</span>
+      <nav class="messages-rail" id="sidebar-messages" aria-label="Writing" hidden>
+        <div class="messages-rail__head" hidden>
+          <span class="messages-rail__title">Writing</span>
         </div>
-        <div class="messages-rail__you" data-messages-you-slot></div>
+        <div class="messages-rail__you" data-messages-you-slot hidden></div>
         <button type="button" class="messages-rail__filter" data-messages-filter hidden></button>
-        <p class="messages-rail__empty" data-messages-empty>No people yet.</p>
+        <p class="messages-rail__empty" data-messages-empty hidden></p>
         <p class="messages-rail__error" data-messages-error hidden></p>
-        <ul class="messages-rail__list" data-messages-list></ul>
+        <ul class="messages-rail__list" data-messages-list hidden></ul>
       </nav>
 
       <!-- Hidden hooks for LinkedIn draft JS and Settings→Pages Share deep link. -->

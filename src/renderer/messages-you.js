@@ -248,7 +248,7 @@
       if (!len && typeof ta.setSelectionRange === "function") ta.setSelectionRange(0, 0);
     } catch (e) { /* ignore */ }
   }
-  function mountWriting(messages) {
+  function mountWriting() {
     ensureHosts();
     if (!writing || !host) return;
     var empty = document.querySelector("#messages-pane [data-messages-empty]");
@@ -257,8 +257,8 @@
     host.setAttribute("data-thread-ready", "1");
     host.classList.add("messages-thread", "messages-thread--you");
     if (writing.parentNode) writing.parentNode.removeChild(writing);
+    // Stories live on /repo as Markdown files. Keep the writing flow only.
     host.innerHTML = "";
-    if (messages && messages.length) host.appendChild(renderSelfPosts(messages));
     host.appendChild(writing);
     writing.hidden = false;
     writing.classList.add("writing--in-messages");
@@ -306,14 +306,11 @@
   function openYou() {
     ensureHosts();
     open = true;
-    mountWriting([]);
+    mountWriting();
     startSession();
-    loadSelfPosts().then(function (messages) {
-      if (!open) return;
-      mountWriting(messages);
-      labelFloatingActions();
-      focusNotepad();
-    });
+    // Self-thread data stays available via MCP /api/self-thread and /repo.
+    // Do not render story cards above the writing flow.
+    labelFloatingActions();
     setTimeout(labelFloatingActions, 80);
     setTimeout(focusNotepad, 120);
     setTimeout(focusNotepad, 400);
@@ -326,15 +323,11 @@
 
   function afterPublish() {
     if (!open) return;
-    // Reload assistant posts, then start a fresh interview turn so the
-    // thread never stays on "Stitching your essay...".
-    loadSelfPosts().then(function (messages) {
-      if (!open) return;
-      mountWriting(messages);
-      startSession();
-      labelFloatingActions();
-      focusNotepad();
-    });
+    // Start a fresh interview turn. Stories surface on /repo, not here.
+    mountWriting();
+    startSession();
+    labelFloatingActions();
+    focusNotepad();
   }
 
   window.tinkerMessagesYou = {

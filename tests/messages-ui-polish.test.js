@@ -105,15 +105,13 @@ test("fillInitials paints TL for Tyler Lindow into a real DOM node", () => {
   assert.equal(node.children[0].textContent, "TL");
 });
 
-test("sidebar INBOX / empty-state share the ~14px left edge; empty copy is quiet", () => {
-  assert.match(css, /\.messages-rail__head\s*\{[^}]*padding:\s*0 14px/);
-  assert.match(css, /\.messages-rail__empty[\s\S]*?font-size:\s*11px/);
-  assert.match(css, /\.messages-rail__empty[\s\S]*?opacity:\s*0\.85/);
-  assert.match(shell, /No people yet\./);
+test("inbox empty-state chrome is gone from the live app shell", () => {
+  assert.doesNotMatch(html, /No people yet\./);
+  assert.doesNotMatch(html, />Inbox</);
+  assert.doesNotMatch(shell, /No people yet\./);
   assert.doesNotMatch(shell, /lead tools/);
-  assert.match(html, /No people yet\./);
   assert.doesNotMatch(html, /lead tools|Add a lead on Leads/);
-  assert.match(demo, /No people yet\./);
+  assert.match(shell, /goRepoHome|write-surface/);
 });
 
 test("writing placeholders are muted Start writing...; answer blocks are not huge", () => {
@@ -140,20 +138,12 @@ test("writing placeholders are muted Start writing...; answer blocks are not hug
   assert.doesNotMatch(youInput[0], /min-height:\s*50vh/);
 });
 
-test("writing pane scrollbar is thin overlay; Settings has no hairline divider", () => {
+test("writing pane scrollbar is thin overlay; write surface has Stories link", () => {
   assert.match(css, /scrollbar-width:\s*none/);
   assert.match(css, /\.writing__body:hover[\s\S]*scrollbar-width:\s*thin/);
   assert.match(css, /\.writing__body:hover::-webkit-scrollbar-thumb/);
-  assert.match(
-    css,
-    /\.sidebar--inbox \.sidebar__footer[\s\S]*border-top:\s*0/
-  );
-  assert.match(
-    css,
-    /\.sidebar--inbox \.sidebar__footer--gear[\s\S]*border:\s*0|\.sidebar--inbox \.sidebar__footer[\s\S]*border:\s*0/
-  );
-  // Settings left pad matches INBOX (~14px).
-  assert.match(css, /\.sidebar--inbox \.messages-rail__settings[\s\S]*padding:\s*6px 14px/);
+  assert.match(html, /write-surface__repo/);
+  assert.match(html, /href="\/repo"/);
 });
 
 test("pane header avatar is a readable circular initials mark, not a clipped L", () => {
