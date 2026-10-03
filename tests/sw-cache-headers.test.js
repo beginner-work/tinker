@@ -63,7 +63,7 @@ test("long-cache asset rule excludes sw.js; sw.js no-cache is last", () => {
 test("service worker registers a versioned URL matching CACHE_VERSION", () => {
   const ver = sw.match(/CACHE_VERSION\s*=\s*["']tinker-shell-v(\d+)["']/);
   assert.ok(ver, "CACHE_VERSION missing");
-  assert.equal(ver[1], "33");
+  assert.equal(ver[1], "34");
   assert.match(offline, new RegExp(`register\\(\\s*SW_URL|register\\(\\s*["']/sw\\.js\\?v=${ver[1]}["']`));
   assert.match(offline, new RegExp(`/sw\\.js\\?v=${ver[1]}`));
   assert.match(offline, /skipWaiting|SKIP_WAITING/);
@@ -71,11 +71,16 @@ test("service worker registers a versioned URL matching CACHE_VERSION", () => {
   assert.match(offline, /location\.reload/);
   assert.match(sw, /skipWaiting/);
   assert.match(sw, /clients\.claim/);
-  assert.match(html, /pwa-offline\.js\?v=33/);
+  assert.match(html, /pwa-offline\.js\?v=34/);
+
+  const swRule = (vercel.headers || []).find((row) => row.source === "/sw.js");
+  const keys = (swRule.headers || []).map((h) => h.key);
+  assert.ok(keys.includes("CDN-Cache-Control"), "CDN-Cache-Control tells Cloudflare not to store /sw.js");
+  assert.ok(keys.includes("Cloudflare-CDN-Cache-Control"));
 });
 
 test("signed-in / redirects to /repo unless write=1", () => {
-  assert.match(html, /repo-redirect\.js\?v=33/);
+  assert.match(html, /repo-redirect\.js\?v=34/);
   assert.match(redirect, /tinker_jwt/);
   assert.match(redirect, /write=1/);
   assert.match(redirect, /location\.replace\(\s*["']\/repo["']\s*\)/);
