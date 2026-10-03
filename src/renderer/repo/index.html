@@ -21,6 +21,21 @@
       <a class="repo-top__back" href="/">← Inbox</a>
       <p class="repo-top__name" id="repo-name">Sample writing repo</p>
       <p class="repo-top__branch" id="repo-branch">main (sample)</p>
+
+      <div class="repo-location" id="repo-location">
+        <button type="button" class="repo-location__btn" id="repo-location-btn" aria-expanded="false" aria-controls="repo-location-panel">
+          Tinker location
+        </button>
+        <div class="repo-location__panel" id="repo-location-panel" hidden>
+          <label class="repo-location__label" for="repo-location-input">Local Tinker folder path</label>
+          <input type="text" class="repo-location__input" id="repo-location-input" autocomplete="off" spellcheck="false" />
+          <div class="repo-location__actions">
+            <button type="button" class="repo-location__choose" id="repo-location-choose" hidden>Choose folder</button>
+            <button type="button" class="repo-location__save" id="repo-location-save">Save</button>
+          </div>
+        </div>
+      </div>
+
       <p class="repo-top__badge">Preview</p>
     </header>
 
@@ -41,39 +56,8 @@
       </aside>
 
       <main class="repo-center" aria-label="Writing">
-        <div class="repo-empty" id="repo-empty">
-          <p class="repo-empty__title">Select a reflection or piece</p>
-          <p class="repo-empty__note">Sample data only. Nothing is saved.</p>
-        </div>
-
-        <div class="repo-reflection-pane writing" id="repo-reflection-pane" hidden>
-          <div class="writing__body">
-            <div class="writing__stage">
-              <div class="writing-card">
-                <h1 class="writing-question" id="repo-reflection-title"></h1>
-                <p class="writing-note" id="repo-reflection-body"></p>
-                <div class="repo-reflection-actions">
-                  <button type="button" class="writing__next" id="repo-develop">
-                    Develop into the repository
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="repo-editor writing" id="repo-editor" hidden>
-          <div class="writing__body">
-            <div class="writing__stage">
-              <div class="writing-card">
-                <label class="repo-editor__title-label" for="repo-title">Title</label>
-                <input type="text" class="repo-editor__title" id="repo-title" maxlength="200" />
-                <label class="repo-editor__body-label" for="repo-body">Body</label>
-                <textarea class="writing-input" id="repo-body" rows="14"></textarea>
-                <p class="writing-note" id="repo-readonly-note" hidden>Read-only sample version</p>
-              </div>
-            </div>
-          </div>
+        <div class="repo-surface writing" id="repo-surface">
+          <textarea class="writing-input repo-surface__input" id="repo-body" spellcheck="true"></textarea>
         </div>
       </main>
 

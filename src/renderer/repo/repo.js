@@ -1,11 +1,14 @@
 /* /repo — UI-only repository preview.
  *
- * Sample fixtures only. Edits, new pieces, and "Develop into the
- * repository" stay in memory for this page load. No API or persistence.
+ * Sample fixtures only. Edits, new pieces stay in memory for this page
+ * load. Tinker location is the only value persisted (localStorage on
+ * this device). No API or git wiring.
  */
 
 (function () {
   "use strict";
+
+  var LOCATION_KEY = "tinker.repo.location.v1";
 
   var fixtures = window.tinkerRepoFixtures && window.tinkerRepoFixtures.SAMPLE_REPO;
   if (!fixtures) return;
@@ -26,6 +29,8 @@
     changeNote: "",
     viewingHistory: null,
     pieceCounter: 0,
+    location: "",
+    locationOpen: false,
   };
 
   state.folders.forEach(function (folder) {
@@ -38,15 +43,12 @@
     reflectionsList: document.getElementById("repo-reflections-list"),
     tree: document.getElementById("repo-tree"),
     newPiece: document.getElementById("repo-new-piece"),
-    empty: document.getElementById("repo-empty"),
-    reflectionPane: document.getElementById("repo-reflection-pane"),
-    reflectionTitle: document.getElementById("repo-reflection-title"),
-    reflectionBody: document.getElementById("repo-reflection-body"),
-    develop: document.getElementById("repo-develop"),
-    editor: document.getElementById("repo-editor"),
-    title: document.getElementById("repo-title"),
     body: document.getElementById("repo-body"),
-    readonlyNote: document.getElementById("repo-readonly-note"),
+    locationBtn: document.getElementById("repo-location-btn"),
+    locationPanel: document.getElementById("repo-location-panel"),
+    locationInput: document.getElementById("repo-location-input"),
+    locationSave: document.getElementById("repo-location-save"),
+    locationChoose: document.getElementById("repo-location-choose"),
     changesList: document.getElementById("repo-changes-list"),
     changeNote: document.getElementById("repo-change-note"),
     saveVersion: document.getElementById("repo-save-version"),
@@ -93,6 +95,14 @@
     renderChanges();
   }
 
+  function markdownFor(title, body) {
+    var t = String(title || "").trim();
+    var b = String(body || "");
+    if (t && b) return "# " + t + "\n\n" + b;
+    if (t) return "# " + t;
+    return b;
+  }
+
   function selectReflection(id) {
     state.selected = { kind: "reflection", id: id };
     state.viewingHistory = null;
@@ -119,39 +129,6 @@
     render();
   }
 
-  function developReflection() {
-    if (!state.selected || state.selected.kind !== "reflection") return;
-    var reflection = findReflection(state.selected.id);
-    if (!reflection) return;
-
-    var target = state.folders[0] || {
-      id: "folder-developed",
-      name: "Developed",
-      pieces: [],
-    };
-    if (state.folders.indexOf(target) === -1) {
-      state.folders.push(target);
-      state.openFolders[target.id] = true;
-    }
-
-    state.pieceCounter += 1;
-    var piece = {
-      id: "piece-developed-" + state.pieceCounter,
-      title: reflection.title || "Sample piece",
-      body: reflection.body || "",
-      fromReflectionId: reflection.id,
-    };
-    target.pieces.push(piece);
-    state.openFolders[target.id] = true;
-
-    state.reflections = state.reflections.filter(function (item) {
-      return item.id !== reflection.id;
-    });
-
-    markDirty(piece.id);
-    selectPiece(piece.id);
-  }
-
   function addNewPiece() {
     var target = state.folders[0];
     if (!target) {
@@ -170,18 +147,6 @@
     selectPiece(piece.id);
   }
 
-  function onTitleInput() {
-    if (state.viewingHistory) return;
-    if (!state.selected || state.selected.kind !== "piece") return;
-    var found = findPiece(state.selected.id);
-    if (!found) return;
-    found.piece.title = els.title.value;
-    markDirty(found.piece.id);
-    renderTree();
-    renderMobile();
-    renderChanges();
-  }
-
   function onBodyInput() {
     if (state.viewingHistory) return;
     if (!state.selected || state.selected.kind !== "piece") return;
@@ -190,6 +155,92 @@
     found.piece.body = els.body.value;
     markDirty(found.piece.id);
     renderChanges();
+  }
+
+  function shortenPath(value) {
+    var s = String(value || "").trim().replace(/\\/g, "/");
+    if (!s) return "";
+    var parts = s.split("/").filter(Boolean);
+    if (parts.length <= 2) return s;
+    return "…/" + parts.slice(-2).join("/");
+  }
+
+  function readStoredLocation() {
+    try {
+      var raw = window.localStorage.getItem(LOCATION_KEY);
+      return raw ? String(raw) : "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function writeStoredLocation(value) {
+    try {
+      if (value) window.localStorage.setItem(LOCATION_KEY, value);
+      else window.localStorage.removeItem(LOCATION_KEY);
+    } catch (e) {
+      /* ignore quota / private mode */
+    }
+  }
+
+  function getLocation() {
+    return state.location || "";
+  }
+
+  function setLocation(value) {
+    state.location = String(value || "").trim();
+    writeStoredLocation(state.location);
+    renderLocation();
+  }
+
+  function canPickFolder() {
+    return !!(window.tinker && typeof window.tinker.pickNotesFolder === "function");
+  }
+
+  function renderLocation() {
+    if (!els.locationBtn) return;
+    var short = shortenPath(state.location);
+    text(els.locationBtn, short || "Tinker location");
+    els.locationBtn.setAttribute("title", state.location || "Set local Tinker folder path");
+    els.locationBtn.setAttribute("aria-expanded", state.locationOpen ? "true" : "false");
+    if (els.locationPanel) els.locationPanel.hidden = !state.locationOpen;
+    if (els.locationInput && document.activeElement !== els.locationInput) {
+      els.locationInput.value = state.location;
+    }
+    if (els.locationChoose) {
+      els.locationChoose.hidden = !canPickFolder();
+    }
+  }
+
+  function toggleLocationPanel(force) {
+    state.locationOpen = typeof force === "boolean" ? force : !state.locationOpen;
+    if (state.locationOpen && els.locationInput) {
+      els.locationInput.value = state.location;
+    }
+    renderLocation();
+    if (state.locationOpen && els.locationInput) {
+      try { els.locationInput.focus(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function saveLocationFromInput() {
+    if (!els.locationInput) return;
+    setLocation(els.locationInput.value);
+    state.locationOpen = false;
+    renderLocation();
+  }
+
+  function chooseLocationFolder() {
+    if (!canPickFolder()) return;
+    window.tinker.pickNotesFolder().then(function (picked) {
+      if (!picked || !picked.path) return;
+      if (els.locationInput) els.locationInput.value = picked.path;
+      setLocation(picked.path);
+      state.locationOpen = false;
+      renderLocation();
+    }).catch(function () {
+      /* user cancelled or picker unavailable */
+    });
   }
 
   function renderReflections() {
@@ -269,47 +320,36 @@
   }
 
   function renderCenter() {
-    els.empty.hidden = true;
-    els.reflectionPane.hidden = true;
-    els.editor.hidden = true;
-    els.readonlyNote.hidden = true;
-    els.title.disabled = false;
+    if (!els.body) return;
     els.body.disabled = false;
 
     if (!state.selected) {
-      els.empty.hidden = false;
+      if (document.activeElement !== els.body) els.body.value = "";
       return;
     }
 
     if (state.viewingHistory) {
-      els.editor.hidden = false;
-      els.title.value = state.viewingHistory.title || "";
-      els.body.value = state.viewingHistory.body || "";
-      els.title.disabled = true;
+      els.body.value = markdownFor(state.viewingHistory.title, state.viewingHistory.body);
       els.body.disabled = true;
-      els.readonlyNote.hidden = false;
       return;
     }
 
     if (state.selected.kind === "reflection") {
       var reflection = findReflection(state.selected.id);
       if (!reflection) {
-        els.empty.hidden = false;
+        els.body.value = "";
         return;
       }
-      els.reflectionPane.hidden = false;
-      text(els.reflectionTitle, reflection.title);
-      text(els.reflectionBody, reflection.body);
+      els.body.value = markdownFor(reflection.title, reflection.body);
       return;
     }
 
     var found = findPiece(state.selected.id);
     if (!found) {
-      els.empty.hidden = false;
+      els.body.value = "";
       return;
     }
-    els.editor.hidden = false;
-    els.title.value = found.piece.title || "";
+    // Pieces keep title in the tree; the surface edits Markdown body only.
     els.body.value = found.piece.body || "";
   }
 
@@ -438,16 +478,11 @@
     renderChanges();
     renderHistory();
     renderMobile();
+    renderLocation();
   }
 
   if (els.newPiece) {
     els.newPiece.addEventListener("click", addNewPiece);
-  }
-  if (els.develop) {
-    els.develop.addEventListener("click", developReflection);
-  }
-  if (els.title) {
-    els.title.addEventListener("input", onTitleInput);
   }
   if (els.body) {
     els.body.addEventListener("input", onBodyInput);
@@ -462,6 +497,47 @@
       if (els.saveHint) els.saveHint.hidden = false;
     });
   }
+  if (els.locationBtn) {
+    els.locationBtn.addEventListener("click", function (event) {
+      event.stopPropagation();
+      toggleLocationPanel();
+    });
+  }
+  if (els.locationSave) {
+    els.locationSave.addEventListener("click", function (event) {
+      event.preventDefault();
+      saveLocationFromInput();
+    });
+  }
+  if (els.locationChoose) {
+    els.locationChoose.addEventListener("click", function (event) {
+      event.preventDefault();
+      chooseLocationFolder();
+    });
+  }
+  if (els.locationInput) {
+    els.locationInput.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveLocationFromInput();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        toggleLocationPanel(false);
+      }
+    });
+  }
+  document.addEventListener("click", function (event) {
+    if (!state.locationOpen) return;
+    var root = document.getElementById("repo-location");
+    if (root && root.contains(event.target)) return;
+    toggleLocationPanel(false);
+  });
+
+  state.location = readStoredLocation();
+
+  window.tinkerRepo = {
+    getLocation: getLocation,
+  };
 
   render();
 })();

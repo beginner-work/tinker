@@ -1,6 +1,6 @@
 /* /repo — UI-only repository preview skeleton.
- * Reuses Tinker writing chrome (.writing, .writing-card, .writing-question,
- * .writing-input) and Lindow Labs tokens from styles.css / design-tokens.css.
+ * Reuses Tinker writing chrome (.writing, .writing-input) and Lindow Labs
+ * tokens from styles.css / design-tokens.css.
  */
 
 html, body.repo-page {
@@ -59,6 +59,113 @@ html, body.repo-page {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-muted);
+}
+
+.repo-location {
+  position: relative;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.repo-location + .repo-top__badge {
+  margin-left: 0;
+}
+
+.repo-location__btn {
+  max-width: 220px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.repo-location__btn:hover {
+  border-color: var(--color-accent);
+}
+
+.repo-location__btn[aria-expanded="true"] {
+  border-color: var(--color-accent-strong);
+}
+
+.repo-location__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: min(360px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: 0 10px 28px rgba(28, 25, 23, 0.08);
+}
+
+.repo-location__label {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.repo-location__input {
+  width: 100%;
+  height: 36px;
+  margin: 0 0 12px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-foreground);
+}
+
+.repo-location__input:focus {
+  outline: none;
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+}
+
+.repo-location__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.repo-location__choose,
+.repo-location__save {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-cream, #f5f3ef);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.repo-location__save {
+  background: var(--color-accent-dim, rgba(45, 90, 61, 0.12));
+  border-color: var(--color-accent);
+}
+
+.repo-location__choose:hover,
+.repo-location__save:hover {
+  border-color: var(--color-accent-strong);
 }
 
 .repo-layout {
@@ -222,28 +329,7 @@ html, body.repo-page {
   display: none;
 }
 
-.repo-empty {
-  margin: auto;
-  text-align: center;
-  padding: 40px 24px;
-}
-
-.repo-empty__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-variation-settings: var(--font-display-settings);
-  font-size: 22px;
-  font-weight: 650;
-}
-
-.repo-empty__note {
-  margin: 8px 0 0;
-  color: var(--color-muted);
-  font-size: 14px;
-}
-
-.repo-reflection-pane.writing,
-.repo-editor.writing {
+.repo-surface.writing {
   position: relative;
   inset: auto;
   flex: 1;
@@ -252,56 +338,44 @@ html, body.repo-page {
   flex-direction: column;
   overflow: hidden;
   background: transparent;
+  padding: 20px 24px 28px;
 }
 
-.repo-reflection-pane .writing__body,
-.repo-editor .writing__body {
+.repo-surface__input.writing-input {
   flex: 1;
-  align-items: flex-start;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 18px 20px;
+  resize: none;
+  border-radius: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--color-foreground);
 }
 
-.repo-editor__title-label,
-.repo-editor__body-label,
+.repo-surface__input.writing-input:focus {
+  outline: none;
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+}
+
+.repo-surface__input.writing-input:disabled {
+  opacity: 0.85;
+  color: var(--color-foreground);
+  cursor: default;
+}
+
 .repo-changes__note-label {
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-muted);
-}
-
-.repo-editor__title {
-  width: 100%;
-  margin: 0 0 8px;
-  padding: 10px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-surface);
-  font-family: var(--font-display);
-  font-variation-settings: var(--font-display-settings);
-  font-size: 24px;
-  font-weight: 650;
-  letter-spacing: -0.015em;
-  color: var(--color-foreground);
-}
-
-.repo-editor__title:focus {
-  outline: none;
-  border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
-}
-
-.repo-editor__title:disabled,
-.repo-editor .writing-input:disabled {
-  opacity: 0.85;
-  color: var(--color-foreground);
-  cursor: default;
-}
-
-.repo-reflection-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 8px;
 }
 
 .repo-changes__list,
@@ -399,7 +473,8 @@ html, body.repo-page {
 @media (max-width: 800px) {
   .repo-layout,
   .repo-top__branch,
-  .repo-top__badge {
+  .repo-top__badge,
+  .repo-location {
     display: none;
   }
 
