@@ -223,8 +223,9 @@ test("repo preview page is a blank writing surface with location dropdown", () =
   assert.match(html, /id="repo-save-version"/);
   assert.match(html, /id="repo-history-list"/);
   assert.match(html, /id="repo-mobile"/);
-  assert.match(html, /src="\/repo\/fixtures\.js"/);
-  assert.match(html, /src="\/repo\/repo\.js"/);
+  assert.match(html, /src="\/repo\/fixtures\.js(\?v=\d+)?"/);
+  assert.match(html, /src="\/repo\/repo\.js(\?v=\d+)?"/);
+  assert.match(html, /href="\/repo\/repo\.css(\?v=\d+)?"/);
   assert.equal(html.includes("innerHTML"), false);
   assert.equal(page.includes("innerHTML"), false);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
