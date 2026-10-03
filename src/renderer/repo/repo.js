@@ -35,6 +35,7 @@
     renameError: "",
     moveFileId: null,
     pendingDeleteId: null,
+    openMenuFolderId: null,
     dragFileId: null,
     mirroredFolders: {},
   };
@@ -787,27 +788,69 @@
     });
     row.appendChild(folderBtn);
 
+    var menuWrap = document.createElement("div");
+    menuWrap.className = "repo-tree__more";
+    var menuOpen = state.openMenuFolderId === folder.id;
+    var menuId = "repo-folder-menu-" + folder.id;
+
+    var moreBtn = document.createElement("button");
+    moreBtn.type = "button";
+    moreBtn.className = "repo-tree__icon-btn repo-tree__more-btn";
+    moreBtn.setAttribute("aria-label", "More folder actions");
+    moreBtn.setAttribute("aria-haspopup", "menu");
+    moreBtn.setAttribute("aria-expanded", menuOpen ? "true" : "false");
+    moreBtn.setAttribute("aria-controls", menuId);
+    moreBtn.textContent = "⋯";
+    moreBtn.addEventListener("click", function (event) {
+      event.stopPropagation();
+      state.openMenuFolderId = menuOpen ? null : folder.id;
+      renderTree();
+      if (!menuOpen) {
+        var first = document.querySelector("#" + menuId + " [role='menuitem']");
+        if (first) first.focus();
+      }
+    });
+    menuWrap.appendChild(moreBtn);
+
+    var pop = document.createElement("ul");
+    pop.className = "repo-tree__more-pop";
+    pop.id = menuId;
+    pop.setAttribute("role", "menu");
+    pop.setAttribute("aria-label", "Folder actions");
+    if (!menuOpen) pop.hidden = true;
+
+    var renameItem = document.createElement("li");
+    renameItem.setAttribute("role", "none");
     var renameBtn = document.createElement("button");
     renameBtn.type = "button";
-    renameBtn.className = "repo-tree__icon-btn";
-    renameBtn.setAttribute("aria-label", "Rename folder");
+    renameBtn.className = "repo-tree__more-item";
+    renameBtn.setAttribute("role", "menuitem");
     renameBtn.textContent = "Rename";
     renameBtn.addEventListener("click", function (event) {
       event.stopPropagation();
+      state.openMenuFolderId = null;
       startRenameFolder(folder.id);
     });
-    row.appendChild(renameBtn);
+    renameItem.appendChild(renameBtn);
+    pop.appendChild(renameItem);
 
+    var deleteItem = document.createElement("li");
+    deleteItem.setAttribute("role", "none");
     var deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
-    deleteBtn.className = "repo-tree__icon-btn";
-    deleteBtn.setAttribute("aria-label", "Delete folder");
+    deleteBtn.className = "repo-tree__more-item repo-tree__more-item--danger";
+    deleteBtn.setAttribute("role", "menuitem");
     deleteBtn.textContent = "Delete";
     deleteBtn.addEventListener("click", function (event) {
       event.stopPropagation();
+      state.openMenuFolderId = null;
       requestDeleteFolder(folder.id);
     });
-    row.appendChild(deleteBtn);
+    deleteItem.appendChild(deleteBtn);
+    pop.appendChild(deleteItem);
+
+    menuWrap.appendChild(pop);
+    row.appendChild(menuWrap);
 
     wrap.appendChild(row);
 
@@ -877,6 +920,20 @@
       moveFileTo(state.dragFileId, null);
     });
   }
+
+  document.addEventListener("click", function (event) {
+    if (!state.openMenuFolderId) return;
+    var target = event.target;
+    if (target && target.closest && target.closest(".repo-tree__more")) return;
+    state.openMenuFolderId = null;
+    renderTree();
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape" || !state.openMenuFolderId) return;
+    state.openMenuFolderId = null;
+    renderTree();
+  });
 
   function renderCenter() {
     if (!els.body) return;

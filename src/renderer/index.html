@@ -197,10 +197,10 @@
          Thread + composer stay critical; notepad / reading / applications
          load post-paint (opened on demand). -->
     <script src="./messages-thread-actions.js" defer></script>
-    <script src="./messages-shell.js?v=35" defer></script>
+    <script src="./messages-shell.js?v=36" defer></script>
     <script src="./messages-thread.js" defer></script>
     <script src="./messages-composer.js" defer></script>
-    <script src="./messages-you.js?v=35" defer></script>
+    <script src="./messages-you.js?v=36" defer></script>
     <!-- Claims the landing-form profile (#claim=<token>) after sign-in and
          runs first-login onboarding. The top-right avatar is no longer shown.
          Deferred so the DOM (incl. #profile-corner) exists when it runs. -->
@@ -239,7 +239,7 @@
     <!-- Signed-in landing is /repo. Sync (no defer) so a stale cached
          messages-shell.js cannot leave the old inbox / Hunt chrome up.
          Writing stays at /?write=1. -->
-    <script src="./repo-redirect.js?v=35"></script>
+    <script src="./repo-redirect.js?v=36"></script>
     <a class="write-surface__repo" href="/repo">Stories</a>
     <svg class="liquid-glass-defs" width="0" height="0" aria-hidden="true" focusable="false">
       <defs>
@@ -831,7 +831,7 @@
     <script src="./mobile-drawer.js" defer></script>
     <!-- Offline app shell: registers versioned sw.js so a refresh (and a
          cold launch of the installed app) still loads with no connection. -->
-    <script src="./pwa-offline.js?v=35" defer></script>
+    <script src="./pwa-offline.js?v=36" defer></script>
     <!-- After the critical defer list: inject secondary modules post-paint. -->
     <script src="./boot-lazy.js" defer></script>
   </body>
