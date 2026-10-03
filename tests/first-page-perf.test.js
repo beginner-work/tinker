@@ -26,9 +26,10 @@ function criticalDeferScripts() {
   );
 }
 
-test("inbox shell remains the first-paint body class", () => {
+test("writing shell remains the first-paint body class", () => {
   assert.match(html, /<body[^>]*class="[^"]*messages-shell-open/);
-  assert.match(html, /messages-inbox-primary/);
+  // Inbox is no longer the landing chrome; write surface /repo redirect owns home.
+  assert.doesNotMatch(html, /<body[^>]*messages-inbox-primary/);
 });
 
 test("secondary modules ship in the lazy template, not the critical defer list", () => {
@@ -36,8 +37,8 @@ test("secondary modules ship in the lazy template, not the critical defer list",
   assert.match(html, /boot-lazy\.js/);
   assert.match(html, /boot-css\.js/);
   const critical = criticalDeferScripts();
-  assert.ok(critical.includes("messages-shell.js"));
-  assert.ok(critical.includes("messages-you.js"));
+  assert.ok(critical.some((src) => src.includes("messages-shell.js")));
+  assert.ok(critical.some((src) => src.includes("messages-you.js")));
   assert.ok(critical.includes("writing.js"));
   assert.ok(critical.includes("boot-lazy.js"));
   for (const lazy of [
