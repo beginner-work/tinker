@@ -36,10 +36,12 @@ function makeEl(tag, id, store) {
     type: tag === "button" ? "button" : (tag === "input" ? "text" : ""),
     children: [],
     parentNode: null,
-    style: {},
+    style: { height: "" },
     dataset: {},
     firstChild: null,
+    nodeType: 1,
     _text: "",
+    get childNodes() { return el.children; },
     classList: {
       add(name) {
         const parts = String(el.className || "").split(/\s+/).filter(Boolean);
@@ -107,6 +109,27 @@ function makeEl(tag, id, store) {
       if (node === el) return true;
       return el.children.some((c) => c === node || (c.contains && c.contains(node)));
     },
+    querySelector(selector) {
+      const all = el.querySelectorAll(selector);
+      return all[0] || null;
+    },
+    querySelectorAll(selector) {
+      const out = [];
+      function match(node) {
+        if (!node || node.nodeType === 3) return;
+        const cls = String(node.className || "").split(/\s+/);
+        if (selector === "textarea.repo-pad__turn") {
+          if (node.tagName === "TEXTAREA" && cls.includes("repo-pad__turn")) out.push(node);
+        } else if (selector === "[data-pad-q='1']") {
+          if (node.getAttribute && node.getAttribute("data-pad-q") === "1") out.push(node);
+        } else if (selector.startsWith(".")) {
+          if (cls.includes(selector.slice(1))) out.push(node);
+        }
+        for (const child of node.children || []) match(child);
+      }
+      match(el);
+      return out;
+    },
     closest(selector) {
       let cur = el;
       while (cur) {
@@ -159,6 +182,7 @@ function bootRepoPage(options) {
     "repo-new-piece",
     "repo-new-folder",
     "repo-body",
+    "repo-pad",
     "repo-location",
     "repo-location-btn",
     "repo-location-panel",
@@ -203,6 +227,9 @@ function bootRepoPage(options) {
   ];
   for (const id of ids) makeEl("div", id, byId);
   byId["repo-body"].tagName = "TEXTAREA";
+  byId["repo-pad"].tagName = "DIV";
+  byId["repo-pad"].className = "repo-pad";
+  byId["repo-pad"].nodeType = 1;
   byId["repo-location-btn"].tagName = "BUTTON";
   byId["repo-location-btn"].textContent = "";
   byId["repo-location-value"].textContent = "";
@@ -310,7 +337,10 @@ function bootRepoPage(options) {
       return byId[id] || null;
     },
     createElement(tag) {
-      return makeEl(tag, "", byId);
+      const el = makeEl(tag, "", byId);
+      el.nodeType = 1;
+      if (String(tag).toLowerCase() === "textarea") el.tagName = "TEXTAREA";
+      return el;
     },
     addEventListener(type, fn) {
       (docListeners[type] || (docListeners[type] = [])).push(fn);
@@ -574,7 +604,7 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=12/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=13/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -587,6 +617,8 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(html, /id="repo-this-is-everything"/);
   assert.match(html, />Keep crafting</);
   assert.match(html, />This is everything</);
+  assert.match(html, /id="repo-pad"/);
+  assert.match(html, /repo-pad__mirror/);
   assert.doesNotMatch(html, />Write</);
   assert.match(html, /id="repo-surface"[\s\S]*id="repo-location"/);
   assert.match(html, /id="repo-surface"[\s\S]*id="repo-pad-actions"/);
@@ -597,20 +629,21 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.doesNotMatch(html, /id="repo-new-folder"/);
   assert.doesNotMatch(html, /id="repo-move-sheet"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=12"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=12"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=12"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=12"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=12"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=12"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=12"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=12"/);
-  assert.match(html, /href="\/styles\.css\?v=12"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=13"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=13"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=13"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=13"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=13"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=13"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=13"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=13"/);
+  assert.match(html, /href="\/styles\.css\?v=13"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(html, /id="repo-body"[^>]*placeholder=/);
-  assert.match(html, /<textarea class="writing-input repo-surface__input" id="repo-body" spellcheck="true"><\/textarea>/);
+  assert.match(html, /id="repo-body"/);
+  assert.match(html, /class="repo-pad__mirror"/);
   assert.equal(html.includes("innerHTML"), false);
   assert.equal(page.includes("innerHTML"), false);
   assert.match(page, /registerLocationSection/);
@@ -620,8 +653,13 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(page, /set_place/);
   assert.match(css, /\.repo-location__field/);
   assert.match(css, /\.repo-location__globe/);
-  assert.match(css, /\.repo-location\s*\{[^}]*position:\s*absolute/s);
-  assert.match(css, /\.repo-surface__input\.writing-input\s*\{[^}]*padding:\s*56px/s);
+  assert.match(css, /\.repo-location\s*\{[^}]*position:\s*sticky/s);
+  assert.match(css, /\.repo-pad\s*\{/);
+  assert.match(css, /\.repo-pad__q\s*\{/);
+  assert.match(css, /\.repo-pad__mirror/);
+  assert.match(css, /body\.repo-page--write\s+\.repo-center\s*\{[^}]*background:\s*transparent/s);
+  assert.doesNotMatch(css, /min-height:\s*42vh/);
+  assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /\.repo-surface__foot/);
   assert.match(css, /\.repo-surface__foot\.is-visible/);
   assert.match(css, /transition:\s*opacity\s*300ms/);
@@ -1084,6 +1122,40 @@ test("This is everything saves the pad essay", async () => {
   assert.ok(stories.some((s) => s.id === puts[0][0].id));
 });
 
+test("pad Markdown round-trip keeps user text and stores questions as blockquotes", async () => {
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "write" });
+  await env.flush();
+  const samples = [
+    "Just a note with no questions.\nSecond line.",
+    "Lead-in paragraph.\n\n> What are you noticing about this?\n\nMy answer stays intact.",
+    "> First question alone?\n\nAnswer after a leading question.",
+    "Trailing space case.  \n\n> What changed when you sat with that longer?\n\n",
+  ];
+  for (const sample of samples) {
+    const parsed = env.window.tinkerRepo.parsePadMarkdown(sample);
+    const again = env.window.tinkerRepo.serializePadSegments(parsed);
+    assert.equal(again, sample);
+  }
+  env.window.tinkerRepo.setPadMarkdown(
+    "Lead-in paragraph.\n\n> What are you noticing about this?\n\nMy answer stays intact."
+  );
+  assert.equal(
+    env.window.tinkerRepo.getPadMarkdown(),
+    "Lead-in paragraph.\n\n> What are you noticing about this?\n\nMy answer stays intact."
+  );
+  assert.equal(
+    JSON.stringify(env.window.tinkerRepo.visibleQuestionTexts()),
+    JSON.stringify(["What are you noticing about this?"])
+  );
+  const qNode = env.byId["repo-pad"].children.find(
+    (n) => n.getAttribute && n.getAttribute("data-pad-q") === "1"
+  );
+  assert.ok(qNode);
+  assert.equal(qNode.textContent, "What are you noticing about this?");
+  assert.doesNotMatch(qNode.textContent, /^>\s/);
+  assert.match(env.byId["repo-body"].value, /^Lead-in paragraph\.\n\n> What are you noticing about this\?/);
+});
+
 test("Keep crafting inserts the follow-up question inline in the pad", async () => {
   const calls = [];
   const builds = [];
@@ -1113,6 +1185,10 @@ test("Keep crafting inserts the follow-up question inline in the pad", async () 
   assert.match(env.byId["repo-body"].value, /> What are you noticing about this\?\n\n$/);
   assert.equal(env.byId["repo-body"].selectionStart, env.byId["repo-body"].value.length);
   assert.equal(env.byId["repo-body"].selectionEnd, env.byId["repo-body"].value.length);
+  assert.equal(
+    JSON.stringify(env.window.tinkerRepo.visibleQuestionTexts()),
+    JSON.stringify(["What are you noticing about this?"])
+  );
   assert.equal(env.byId["repo-followup"].hidden, true);
   assert.equal(env.byId["repo-pad-error"].hidden, true);
 });

@@ -75,6 +75,7 @@
     newPiece: document.getElementById("repo-new-piece"),
     newFolder: document.getElementById("repo-new-folder"),
     body: document.getElementById("repo-body"),
+    pad: document.getElementById("repo-pad"),
     followup: document.getElementById("repo-followup"),
     padError: document.getElementById("repo-pad-error"),
     padErrorText: document.getElementById("repo-pad-error-text"),
@@ -163,7 +164,7 @@
     try { parsed = JSON.parse(raw); } catch (e3) { return; }
     if (!parsed || typeof parsed.body !== "string" || !parsed.body.trim()) return;
     if (padBody().trim()) return;
-    els.body.value = parsed.body;
+    setPadMarkdown(parsed.body, { focusEnd: true });
     if (parsed.place) {
       state.currentPlace = String(parsed.place).slice(0, 120);
       pushRecentPlace(state.currentPlace);
@@ -494,6 +495,184 @@
     return els.body ? String(els.body.value || "") : "";
   }
 
+  // Parse Markdown into text / question segments. Question lines are
+  // `> …` in the file; the visual pad renders them without the marker.
+  function parsePadMarkdown(md) {
+    var src = String(md == null ? "" : md);
+    var segments = [];
+    var re = /(^|\n)(>\s+)(.+?)[ \t]*(?=\n|$)/g;
+    var last = 0;
+    var match;
+    while ((match = re.exec(src))) {
+      var markerStart = match.index + match[1].length;
+      segments.push({ type: "text", text: src.slice(last, markerStart) });
+      segments.push({
+        type: "question",
+        text: String(match[3] || "").replace(/\s+/g, " ").trim(),
+        marker: match[2],
+      });
+      last = match.index + match[0].length;
+    }
+    segments.push({ type: "text", text: src.slice(last) });
+    if (!segments.length) segments.push({ type: "text", text: "" });
+    return segments;
+  }
+
+  function serializePadSegments(segments) {
+    var out = "";
+    var list = Array.isArray(segments) ? segments : [];
+    for (var i = 0; i < list.length; i += 1) {
+      var seg = list[i];
+      if (!seg) continue;
+      if (seg.type === "question") {
+        out += (seg.marker || "> ") + String(seg.text || "");
+      } else {
+        out += String(seg.text == null ? "" : seg.text);
+      }
+    }
+    return out;
+  }
+
+  function readPadSegmentsFromDom() {
+    if (!els.pad) return parsePadMarkdown(padBody());
+    var segments = [];
+    var nodes = els.pad.childNodes || [];
+    for (var i = 0; i < nodes.length; i += 1) {
+      var node = nodes[i];
+      if (!node || node.nodeType !== 1) continue;
+      if (node.getAttribute && node.getAttribute("data-pad-q") === "1") {
+        var q = node.getAttribute("data-q") || (node.textContent || "");
+        segments.push({
+          type: "question",
+          text: String(q).replace(/\s+/g, " ").trim(),
+          marker: node.getAttribute("data-marker") || "> ",
+        });
+      } else if (node.tagName === "TEXTAREA") {
+        segments.push({ type: "text", text: String(node.value || "") });
+      }
+    }
+    if (!segments.length) segments.push({ type: "text", text: "" });
+    return segments;
+  }
+
+  function syncMirrorFromPadDom() {
+    if (!els.body) return padBody();
+    var next = serializePadSegments(readPadSegmentsFromDom());
+    if (els.body.value !== next) els.body.value = next;
+    return next;
+  }
+
+  function resizePadTurn(ta) {
+    if (!ta) return;
+    try {
+      ta.style.height = "auto";
+      var minPx = 0;
+      try {
+        minPx = parseFloat(window.getComputedStyle(ta).minHeight) || 0;
+      } catch (e) { minPx = 0; }
+      var next = Math.max(ta.scrollHeight || 0, minPx || 0);
+      ta.style.height = Math.max(next, 48) + "px";
+    } catch (err) { /* ignore */ }
+  }
+
+  function resizeAllPadTurns() {
+    if (!els.pad) return;
+    var turns = els.pad.querySelectorAll("textarea.repo-pad__turn");
+    for (var i = 0; i < turns.length; i += 1) resizePadTurn(turns[i]);
+  }
+
+  function focusLastPadTurn(caretEnd) {
+    if (!els.pad) return null;
+    var turns = els.pad.querySelectorAll("textarea.repo-pad__turn");
+    var ta = turns.length ? turns[turns.length - 1] : null;
+    if (!ta) return null;
+    try {
+      ta.focus();
+      if (caretEnd && typeof ta.setSelectionRange === "function") {
+        var end = String(ta.value || "").length;
+        ta.setSelectionRange(end, end);
+      }
+      if (typeof ta.scrollIntoView === "function") {
+        ta.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+      try {
+        window.scrollTo({
+          top: Math.max(0, (window.scrollY || 0) + (ta.getBoundingClientRect().bottom - (window.innerHeight * 0.72))),
+          behavior: "smooth",
+        });
+      } catch (e2) { /* ignore */ }
+    } catch (e) { /* ignore */ }
+    return ta;
+  }
+
+  function padHasFocus() {
+    var active = document.activeElement;
+    if (!active) return false;
+    if (els.pad && els.pad.contains(active)) return true;
+    if (els.body && active === els.body) return true;
+    return false;
+  }
+
+  function renderPadFromMarkdown(md, opts) {
+    opts = opts || {};
+    if (!els.pad) {
+      if (els.body && md != null) els.body.value = String(md);
+      return;
+    }
+    var source = md == null ? padBody() : String(md);
+    if (els.body && els.body.value !== source) els.body.value = source;
+    var segments = parsePadMarkdown(source);
+    if (segments[0] && segments[0].type !== "text") {
+      segments = [{ type: "text", text: "" }].concat(segments);
+    }
+    if (segments[segments.length - 1] && segments[segments.length - 1].type !== "text") {
+      segments = segments.concat([{ type: "text", text: "" }]);
+    }
+    while (els.pad.firstChild) els.pad.removeChild(els.pad.firstChild);
+    for (var i = 0; i < segments.length; i += 1) {
+      var seg = segments[i];
+      if (seg.type === "question") {
+        var qEl = document.createElement("div");
+        qEl.className = "repo-pad__q";
+        qEl.setAttribute("data-pad-q", "1");
+        qEl.setAttribute("data-q", seg.text || "");
+        qEl.setAttribute("data-marker", seg.marker || "> ");
+        qEl.setAttribute("contenteditable", "false");
+        var qText = document.createElement("span");
+        qText.className = "repo-pad__q-text";
+        qText.textContent = seg.text || "";
+        qEl.appendChild(qText);
+        els.pad.appendChild(qEl);
+      } else {
+        var ta = document.createElement("textarea");
+        ta.className = "writing-input repo-pad__turn";
+        ta.setAttribute("data-pad-turn", "1");
+        ta.spellcheck = true;
+        ta.value = seg.text == null ? "" : String(seg.text);
+        ta.addEventListener("input", onPadTurnInput);
+        ta.addEventListener("keydown", onPadTurnKeydown);
+        els.pad.appendChild(ta);
+      }
+    }
+    resizeAllPadTurns();
+    if (opts.focusEnd) focusLastPadTurn(true);
+  }
+
+  function onPadTurnInput(event) {
+    var ta = event && event.target;
+    resizePadTurn(ta);
+    syncMirrorFromPadDom();
+    onBodyInput();
+  }
+
+  function onPadTurnKeydown() {
+    if (padBody().trim()) setPadActionsVisible(false);
+  }
+
+  function setPadMarkdown(md, opts) {
+    renderPadFromMarkdown(md == null ? "" : String(md), opts || {});
+  }
+
   function firstLineTitle(text) {
     var lines = String(text || "").split(/\r?\n/);
     for (var i = 0; i < lines.length; i += 1) {
@@ -633,24 +812,19 @@
   }
 
   function insertQuestionInline(question) {
-    if (!els.body) return "";
+    if (!els.body && !els.pad) return "";
     var q = String(question || "").replace(/\s+/g, " ").trim();
     if (!q) return "";
+    syncMirrorFromPadDom();
     var current = padBody().replace(/\s+$/g, "");
     if (questionAlreadyInPad(q, current)) return current;
     var block = (current ? current + "\n\n" : "") + "> " + q + "\n\n";
-    els.body.value = block;
-    var caret = block.length;
-    try {
-      els.body.focus();
-      if (typeof els.body.setSelectionRange === "function") {
-        els.body.setSelectionRange(caret, caret);
-      }
-      els.body.scrollTop = els.body.scrollHeight;
-      if (typeof els.body.scrollIntoView === "function") {
-        els.body.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      }
-    } catch (e) { /* ignore */ }
+    setPadMarkdown(block, { focusEnd: true });
+    if (els.body) {
+      try {
+        els.body.selectionStart = els.body.selectionEnd = block.length;
+      } catch (e) { /* ignore */ }
+    }
     state.followupQuestion = q;
     syncPadFromDom();
     renderFollowup();
@@ -2160,11 +2334,11 @@
   });
 
   function renderCenter() {
-    if (!els.body) return;
-    els.body.disabled = false;
+    if (!els.body && !els.pad) return;
+    if (els.body) els.body.disabled = false;
     var story = selectedStory();
     if (!story) {
-      if (document.activeElement !== els.body) els.body.value = "";
+      if (!padHasFocus()) setPadMarkdown("");
       text(els.filePath, "");
       if (els.fileType) {
         els.fileType.hidden = true;
@@ -2173,8 +2347,8 @@
       if (els.downloadOne) els.downloadOne.hidden = true;
       return;
     }
-    if (document.activeElement !== els.body) {
-      els.body.value = story.isNew ? (story.markdown || "") : story.markdown;
+    if (!padHasFocus()) {
+      setPadMarkdown(story.isNew ? (story.markdown || "") : (story.markdown || ""));
     }
     text(els.filePath, story.relPath);
     if (els.fileType) {
@@ -2384,11 +2558,23 @@
   if (els.newPiece) els.newPiece.addEventListener("click", addNewFile);
   if (els.newFolder) els.newFolder.addEventListener("click", startCreateFolder);
   if (els.body) {
-    els.body.addEventListener("input", onBodyInput);
+    // Mirror holds canonical Markdown (with "> "). Tests and restore write here;
+    // re-render the visual pad so questions never show the raw marker.
+    els.body.addEventListener("input", function () {
+      if (!padHasFocus() || (document.activeElement === els.body)) {
+        renderPadFromMarkdown(els.body.value || "");
+      }
+      onBodyInput();
+    });
     els.body.addEventListener("keydown", function () {
-      // Keydown catches navigation keys that may not fire input; keep actions hidden while active.
       if (padBody().trim()) setPadActionsVisible(false);
     });
+  }
+  if (isWritePage) {
+    renderPadFromMarkdown(padBody());
+    try {
+      window.addEventListener("resize", resizeAllPadTurns);
+    } catch (e) { /* ignore */ }
   }
   if (els.keepCrafting) {
     els.keepCrafting.addEventListener("click", function (event) {
@@ -2545,6 +2731,19 @@
     keepCraftingPad: keepCraftingPad,
     insertQuestionInline: insertQuestionInline,
     extractAskedQuestions: extractAskedQuestions,
+    parsePadMarkdown: parsePadMarkdown,
+    serializePadSegments: serializePadSegments,
+    setPadMarkdown: setPadMarkdown,
+    getPadMarkdown: padBody,
+    visibleQuestionTexts: function () {
+      if (!els.pad) return [];
+      var nodes = els.pad.querySelectorAll("[data-pad-q='1']");
+      var out = [];
+      for (var i = 0; i < nodes.length; i += 1) {
+        out.push(String(nodes[i].getAttribute("data-q") || nodes[i].textContent || "").trim());
+      }
+      return out;
+    },
     arePadActionsVisible: function () { return !!state.padActionsVisible; },
     getFollowupQuestion: function () { return state.followupQuestion || ""; },
     showPadError: showPadError,
