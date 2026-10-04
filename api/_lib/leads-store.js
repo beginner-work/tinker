@@ -1194,8 +1194,10 @@ async function markDraftFailed({ id, userId, emailHint, actor, reason } = {}) {
     return { draft: saved, event };
   });
 }
-// Per-user outreach-from defaults keyed by the owner's email. Only applied
-// when the setting is still empty so a saved value always wins.
+// Per-user outreach-from defaults keyed by the owner's *sign-in* email.
+// Only applied when the setting is still empty so a saved value always wins.
+// Keep the Gmail key: it is account identity for seeding, not a public contact
+// string. The seeded public From address is tyler@lindowlabs.dev.
 const OUTREACH_FROM_DEFAULTS = {
   "tyler.lindow@gmail.com": "tyler@lindowlabs.dev",
 };
