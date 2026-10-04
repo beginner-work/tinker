@@ -238,6 +238,8 @@ function resetStore() {
   delete process.env.KV_REST_API_READ_ONLY_TOKEN;
   delete process.env.VERCEL_ENV;
   delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.LEADS_OWNER_ALLOWLIST;
+  delete process.env.CAREER_EXPORT_TOKEN;
 }
 
 global.fetch = async (url, opts) => {
@@ -706,6 +708,157 @@ test("an unreachable store is an error, not an empty record", async () => {
   assert.equal(browser.captured.status, 503);
   assert.deepEqual(browser.captured.body, { error: CAREER_UNAVAILABLE });
   assert.equal(logs.join("\n").includes(REST_URL), false);
+});
+
+const bootstrapRows = new Map();
+stubAt(path.join(__dirname, "..", "api", "_lib", "content-store.js"), {
+  findByDraftKey: async (userId, draftKey) => {
+    if (draftKey !== "career-employment-bootstrap-v1") return null;
+    return bootstrapRows.has(userId) ? bootstrapRows.get(userId) : null;
+  },
+});
+
+test("owner session can export the raw career record with all statuses", async () => {
+  process.env.LEADS_OWNER_ALLOWLIST = "user-1";
+  const raw = {
+    facts: [
+      {
+        id: "fact_verified",
+        kind: "other",
+        value: "verified value",
+        source: { document: "owner", excerpt: "verified value" },
+        status: "verified",
+        updated_at: "2026-10-01T00:00:00.000Z",
+      },
+      {
+        id: "fact_proposed",
+        kind: "other",
+        value: "proposed value",
+        source: { document: "owner", excerpt: "proposed value" },
+        status: "proposed",
+        updated_at: "2026-10-01T00:00:00.000Z",
+      },
+      {
+        id: "fact_rejected",
+        kind: "other",
+        value: "rejected value",
+        source: { document: "owner", excerpt: "rejected value" },
+        status: "rejected",
+        updated_at: "2026-10-01T00:00:00.000Z",
+      },
+    ],
+    rules: [
+      {
+        id: "rule_open",
+        field: "company",
+        rule: "leave blank",
+        machine: { action: "blank" },
+        status: "verified",
+        updated_at: "2026-10-01T00:00:00.000Z",
+      },
+      {
+        id: "rule_draft",
+        field: "notes",
+        rule: "draft rule",
+        machine: { action: "skip" },
+        status: "proposed",
+        updated_at: "2026-10-01T00:00:00.000Z",
+      },
+    ],
+  };
+  docs.set("career:user-1", JSON.stringify(raw));
+  bootstrapRows.set("user-1", {
+    id: "bootstrap-1",
+    userId: "user-1",
+    draftKey: "career-employment-bootstrap-v1",
+    fields: { employment: [{ employer: "Northwind" }] },
+  });
+
+  const res = fakeRes();
+  await handler(careerReq({ action: "export" }), res);
+  assert.equal(res.captured.status, 200);
+  assert.equal(res.captured.headers["cache-control"], "no-store");
+  assert.equal(res.captured.body.user_id, "user-1");
+  assert.equal(res.captured.body.redis_key, "career:user-1");
+  assert.equal(typeof res.captured.body.exported_at, "string");
+  assert.deepEqual(res.captured.body.record, raw);
+  assert.equal(res.captured.body.record.facts.length, 3);
+  assert.equal(res.captured.body.record.rules.some((rule) => rule.status === "proposed"), true);
+  assert.equal(res.captured.body.employment_bootstrap.id, "bootstrap-1");
+  assert.equal(commands.length, 1);
+  assert.deepEqual(commands[0].args, ["GET", "career:user-1"]);
+  assert.equal(commands[0].authorization, "Bearer " + READ_TOKEN);
+  assertNoSecrets(res.captured.body);
+  bootstrapRows.clear();
+});
+
+test("non-owner session gets 404 on export", async () => {
+  process.env.LEADS_OWNER_ALLOWLIST = "someone-else";
+  docs.set("career:user-1", JSON.stringify({ facts: [], rules: [] }));
+  const res = fakeRes();
+  await handler(careerReq({ action: "export" }), res);
+  assert.equal(res.captured.status, 404);
+  assert.deepEqual(res.captured.body, { error: "Not found" });
+  assert.equal(res.captured.headers["cache-control"], "no-store");
+  assert.equal(commands.length, 0);
+});
+
+test("CAREER_EXPORT_TOKEN bearer exports the allowlist owner record", async () => {
+  process.env.LEADS_OWNER_ALLOWLIST = "user-1,other-user";
+  process.env.CAREER_EXPORT_TOKEN = "export-secret-token";
+  const raw = {
+    facts: [{
+      id: "f1",
+      status: "rejected",
+      kind: "other",
+      value: "x",
+      source: { document: "d", excerpt: "x" },
+    }],
+    rules: [],
+  };
+  docs.set("career:user-1", JSON.stringify(raw));
+  const res = fakeRes();
+  await handler(careerReq({ action: "export", token: "export-secret-token" }), res);
+  assert.equal(res.captured.status, 200);
+  assert.equal(res.captured.body.user_id, "user-1");
+  assert.deepEqual(res.captured.body.record, raw);
+  assert.equal(stytchCalls.length, 0);
+  assert.equal(commands[0].authorization, "Bearer " + READ_TOKEN);
+  assert.equal(JSON.stringify(res.captured.body).includes("export-secret-token"), false);
+});
+
+test("when CAREER_EXPORT_TOKEN is unset bearer access is disabled", async () => {
+  process.env.LEADS_OWNER_ALLOWLIST = "user-1";
+  delete process.env.CAREER_EXPORT_TOKEN;
+  docs.set("career:user-1", JSON.stringify({ facts: [{ id: "f1" }], rules: [] }));
+  const res = fakeRes();
+  await handler(careerReq({ action: "export", token: "export-secret-token" }), res);
+  assert.equal(res.captured.status, 404);
+  assert.deepEqual(res.captured.body, { error: "Not found" });
+  assert.equal(commands.length, 0);
+  assert.equal(stytchCalls.length, 1);
+});
+
+test("wrong CAREER_EXPORT_TOKEN bearer is 404", async () => {
+  process.env.LEADS_OWNER_ALLOWLIST = "user-1";
+  process.env.CAREER_EXPORT_TOKEN = "export-secret-token";
+  docs.set("career:user-1", JSON.stringify({ facts: [{ id: "f1" }], rules: [] }));
+  const res = fakeRes();
+  await handler(careerReq({ action: "export", token: "wrong-token" }), res);
+  assert.equal(res.captured.status, 404);
+  assert.deepEqual(res.captured.body, { error: "Not found" });
+  assert.equal(commands.length, 0);
+});
+
+test("export returns 503 when Redis is unreachable", async () => {
+  process.env.LEADS_OWNER_ALLOWLIST = "user-1";
+  fetchError = Object.assign(new Error("network " + REST_URL), { name: "AbortError" });
+  const res = fakeRes();
+  await handler(careerReq({ action: "export" }), res);
+  assert.equal(res.captured.status, 503);
+  assert.deepEqual(res.captured.body, { error: CAREER_UNAVAILABLE });
+  assert.equal(res.captured.headers["cache-control"], "no-store");
+  assert.equal(JSON.stringify(res.captured.body).includes(REST_URL), false);
 });
 
 test("the career page uses the existing sign-in and does not render HTML from facts", () => {
