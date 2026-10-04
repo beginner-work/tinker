@@ -869,6 +869,14 @@ test("repo write page is writing surface + Location place + structure sidebar", 
     /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-layout--write[\s\S]*align-items:\s*stretch/,
   );
   assert.match(css, /\.repo-location\s*\{[^}]*top:\s*calc\(\s*12px \+ env\(safe-area-inset-top/s);
+  assert.match(
+    css,
+    /@media\s*\(min-width:\s*801px\)[\s\S]*\.repo-location\s*\{[^}]*top:\s*calc\(\s*56px \+ env\(safe-area-inset-top/s,
+  );
+  assert.match(
+    css,
+    /@media\s*\(min-width:\s*801px\)[\s\S]*\.repo-location\s*\{[^}]*margin-top:\s*44px/s,
+  );
   assert.match(css, /\.repo-surface\.writing\s*\{[^}]*safe-area-inset-top/s);
   // Phones: clear breathing room under the notch (safe-area + ~40–56px).
   assert.match(
