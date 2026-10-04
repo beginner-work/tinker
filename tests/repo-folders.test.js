@@ -280,6 +280,28 @@ test("HTTP list/create and auth", async () => {
   assert.ok(listed.body.contentTypes.includes("readings"));
 });
 
+test("HTTP set_place stores and clears a writing place per file", async () => {
+  tables.tinkerUserData.rows.length = 0;
+  const set = await call("POST", "set_place", "user-a", {
+    fileId: "self_1",
+    place: "San Diego",
+  });
+  assert.equal(set.statusCode, 200);
+  assert.equal(set.body.place, "San Diego");
+  assert.equal(set.body.tree.places.self_1, "San Diego");
+
+  const listed = await call("GET", "list", "user-a", null);
+  assert.equal(listed.body.places.self_1, "San Diego");
+
+  const cleared = await call("POST", "set_place", "user-a", {
+    fileId: "self_1",
+    place: "",
+  });
+  assert.equal(cleared.statusCode, 200);
+  assert.equal(cleared.body.place, null);
+  assert.equal(cleared.body.tree.places.self_1, undefined);
+});
+
 test("self-reflections attach effective contentType from placements", async () => {
   tables.tinkerUserData.rows.length = 0;
   // Seed a self_thread message via blob the reflections reader understands.
@@ -335,7 +357,7 @@ test("repo page wires New folder, Move to sheet, and cache-busted assets", () =>
   assert.match(css, /minmax\(280px,\s*340px\)/);
   assert.match(css, /\.repo-tree__more-pop/);
   assert.match(css, /\.repo-tree__more-item/);
-  assert.match(page, /create_folder|move_file|delete_folder/);
+  assert.match(page, /create_folder|move_file|delete_folder|set_place/);
   assert.match(page, /contentType|CONTENT_TYPES/);
   assert.match(page, /More folder actions/);
   assert.match(page, /aria-haspopup["']\s*,\s*["']menu["']/);
