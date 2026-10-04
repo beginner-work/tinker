@@ -37,6 +37,8 @@
     { "source": "/feed/", "destination": "/feed/index.html" },
     { "source": "/repo", "destination": "/repo/index.html" },
     { "source": "/repo/", "destination": "/repo/index.html" },
+    { "source": "/repo/files", "destination": "/repo/files/index.html" },
+    { "source": "/repo/files/", "destination": "/repo/files/index.html" },
     { "source": "/api/essay-feed/:action", "destination": "/api/essay-feed?action=:action" },
     { "source": "/gmail", "destination": "/api/gmail" },
     { "source": "/gmail/", "destination": "/api/gmail" }
@@ -113,6 +115,33 @@
     },
     {
       "source": "/repo/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/repo/files",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/repo/files/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/repo/files/index.html",
       "headers": [
         {
           "key": "Cache-Control",

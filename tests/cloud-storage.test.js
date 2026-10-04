@@ -92,7 +92,7 @@ test("repo page loads storage scripts and registerLocationSection hook", () => {
   assert.match(storageSection, /Cloud folders sync from the Mac app\./);
   assert.match(storageSection, /not installed/);
   assert.equal(/\u2014/.test(storageSection), false);
-  assert.match(repoHtml, /\?v=7/);
+  assert.match(repoHtml, /\?v=8/);
 });
 
 test("detectCloudRoots: iCloud missing and Google Drive missing on fake home", () => {
