@@ -55,6 +55,43 @@
     return slug || "untitled";
   }
 
+  /** Turn a date-slug filename (or path) into readable words — no .md. */
+  function deslugTitle(fileNameOrPath) {
+    var name = String(fileNameOrPath == null ? "" : fileNameOrPath).trim();
+    if (!name) return "";
+    name = name.replace(/\\/g, "/");
+    var slash = name.lastIndexOf("/");
+    if (slash >= 0) name = name.slice(slash + 1);
+    name = name.replace(/\.md$/i, "");
+    name = name.replace(/^\d{4}-\d{2}-\d{2}-/, "");
+    if (!name || name === "untitled") return "Untitled";
+    return name.replace(/-+/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  /** First ATX `# heading` in markdown, or empty string. */
+  function headingTitle(markdown) {
+    var lines = String(markdown == null ? "" : markdown).split(/\r?\n/);
+    for (var i = 0; i < lines.length; i += 1) {
+      var m = String(lines[i] || "").match(/^#\s+(.+?)\s*$/);
+      if (m && m[1]) return String(m[1]).trim().slice(0, 120);
+    }
+    return "";
+  }
+
+  /**
+   * Human title for UI: first Markdown heading, else story.title, else
+   * de-slugged filename. Never includes .md or a folder path.
+   */
+  function displayTitle(story) {
+    if (!story) return "Untitled";
+    var fromHeading = headingTitle(story.markdown || story.body || "");
+    if (fromHeading) return fromHeading;
+    var titled = story.title != null ? String(story.title).trim() : "";
+    if (titled) return titled.slice(0, 120);
+    var fromFile = deslugTitle(story.fileName || story.relPath || "");
+    return fromFile || "Untitled";
+  }
+
   /**
    * Markdown bytes for a story. Body is concatenated byte-for-byte after
    * the heading and blank line — no trimming, no line-ending rewrites.
@@ -232,6 +269,9 @@
   return {
     storyDate: storyDate,
     slugifyTitle: slugifyTitle,
+    deslugTitle: deslugTitle,
+    headingTitle: headingTitle,
+    displayTitle: displayTitle,
     storyMarkdown: storyMarkdown,
     storyFileName: storyFileName,
     storyRelPath: storyRelPath,

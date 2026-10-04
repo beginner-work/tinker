@@ -904,18 +904,21 @@
     if (!story && value.trim()) {
       story = ensureDraftFromPad();
       if (story) {
-        text(els.filePath, story.relPath);
+        text(els.filePath, md.displayTitle(story));
         if (els.fileType) {
           els.fileType.hidden = false;
           text(els.fileType, "Type: " + core.contentTypeLabel(story.contentType || core.DEFAULT_CONTENT_TYPE));
         }
         renderPlace();
+        if (els.tree) renderTree();
       }
     } else if (story) {
       story.markdown = value;
       story.body = value;
+      story.title = firstLineTitle(value);
       story.updatedAt = new Date().toISOString();
       if (!story.isNew) story.dirty = true;
+      if (els.filePath) text(els.filePath, md.displayTitle(story));
     }
     bumpPadTypingIdle();
   }
@@ -1384,7 +1387,7 @@
     clear(els.moveList);
     var file = allFiles().find(function (s) { return s.id === state.moveFileId; });
     if (els.moveHint) {
-      text(els.moveHint, file ? ("Move " + (file.fileName || "file")) : "Choose a folder");
+      text(els.moveHint, file ? ("Move " + md.displayTitle(file)) : "Choose a folder");
     }
 
     function addOption(label, folderId, depth) {
@@ -2158,8 +2161,9 @@
     btn.setAttribute("data-story-id", story.id);
     btn.setAttribute("draggable", "true");
     if (state.selectedId === story.id) btn.className += " is-selected";
-    btn.textContent = story.fileName || story.relPath;
-    btn.title = story.title || story.fileName || "";
+    var label = md.displayTitle(story);
+    btn.textContent = label;
+    btn.title = label;
     btn.addEventListener("click", function () {
       selectStory(story.id);
     });
@@ -2422,7 +2426,7 @@
     if (!padHasFocus()) {
       setPadMarkdown(story.isNew ? (story.markdown || "") : (story.markdown || ""));
     }
-    text(els.filePath, story.relPath);
+    text(els.filePath, md.displayTitle(story));
     if (els.fileType) {
       els.fileType.hidden = false;
       text(els.fileType, "Type: " + core.contentTypeLabel(story.contentType || core.DEFAULT_CONTENT_TYPE));
@@ -2452,7 +2456,8 @@
   }
 
   function render() {
-    text(els.name, "tinker");
+    // No on-screen wordmark; #repo-name stays hidden for harness/id stability.
+    if (els.name && els.name.hidden) text(els.name, "tinker");
     if (els.branch) text(els.branch, isFilesPage ? "files" : "writing");
     renderAuthChrome();
     if (isFilesPage) {

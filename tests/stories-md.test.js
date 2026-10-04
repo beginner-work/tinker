@@ -35,6 +35,37 @@ test("slug and date naming match stories/<YYYY-MM-DD>-<slug>.md", () => {
   assert.match(md.storyRelPath(story, new Date(when)), /^stories\/\d{4}-\d{2}-\d{2}-merchant-portal-reliability\.md$/);
 });
 
+test("displayTitle prefers heading, then title, then deslug — never .md or path", () => {
+  assert.equal(
+    md.displayTitle({
+      markdown: "# Merchant portal reliability\n\nbody",
+      fileName: "2026-10-03-s.md",
+      relPath: "stories/2026-10-03-s.md",
+    }),
+    "Merchant portal reliability"
+  );
+  assert.equal(
+    md.displayTitle({
+      title: "affirm.com",
+      body: "no heading here",
+      fileName: "2026-10-02-affirm-com.md",
+    }),
+    "affirm.com"
+  );
+  assert.equal(
+    md.displayTitle({
+      fileName: "2026-10-03-quiet-morning.md",
+      relPath: "stories/2026-10-03-quiet-morning.md",
+    }),
+    "quiet morning"
+  );
+  assert.equal(md.deslugTitle("stories/2026-10-03-s.md"), "s");
+  assert.equal(md.headingTitle("# Hello\n\nworld"), "Hello");
+  assert.equal(md.headingTitle("no heading"), "");
+  assert.doesNotMatch(md.displayTitle({ fileName: "2026-10-03-s.md" }), /\.md/);
+  assert.doesNotMatch(md.displayTitle({ relPath: "stories/2026-10-03-s.md" }), /stories\//);
+});
+
 test("uniqueStoryFiles keeps verbatim markdown and resolves collisions", () => {
   const when = "2026-10-02T17:33:00.000Z";
   const rows = [
@@ -91,8 +122,8 @@ test("inbox chrome is gone; /repo is the landing surface", () => {
   assert.match(shell, /wantsWriteSurface|write=1/);
   assert.match(mainJs, /\/repo/);
   assert.match(mainJs, /APP_URL[\s\S]*\/repo/);
-  assert.match(repoHtml, /href="\/repo\/files"/);
-  assert.match(repoHtml, /Files|Stories/);
+  assert.doesNotMatch(repoHtml, /id="repo-files-link"/);
+  assert.match(repoHtml, /Essays|id="repo-tree"/);
   assert.doesNotMatch(repoHtml, /repo-top__back/);
   assert.doesNotMatch(repoHtml, />Home</);
   assert.doesNotMatch(repoHtml, />Write</);
