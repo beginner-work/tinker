@@ -1276,12 +1276,14 @@ body.repo-page--write .repo-center {
   overflow: visible;
   background: transparent;
   padding: 12px 24px 96px;
-  /* Extra floor so sticky Keep crafting never covers the last line. */
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  /* Room for fixed action island: floor gap + pill (~52px) + breathing room. */
+  padding-bottom: calc(
+    var(--repo-foot-floor, max(48px, 8vh)) + 72px + env(safe-area-inset-bottom, 0px)
+  );
 }
 
 .repo-surface.writing .repo-pad {
-  padding-bottom: 72px;
+  padding-bottom: calc(var(--repo-foot-floor, max(48px, 8vh)) + 56px);
 }
 
 /* Legacy follow-up slot kept hidden; questions insert into the pad. */
@@ -1292,10 +1294,12 @@ body.repo-page--write .repo-center {
 .repo-pad-error {
   position: fixed;
   left: 50%;
-  /* Above the action island (z-index 30). Desktop foot sits ~40px up. */
+  /* Above the fixed action island (z-index 30). */
   z-index: 40;
   transform: translateX(-50%);
-  bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(
+    var(--repo-foot-floor, max(48px, 8vh)) + 60px + env(safe-area-inset-bottom, 0px)
+  );
   top: auto;
 }
 
@@ -1307,15 +1311,18 @@ body.repo-page--write .repo-center {
 @supports (height: 100dvh) {
   .repo-pad-error {
     bottom: auto;
-    top: calc(100vh - 100px);
-    top: calc(100dvh - 100px - env(safe-area-inset-bottom, 0px));
+    top: calc(
+      100dvh - var(--repo-foot-floor, max(48px, 8dvh)) - 60px - env(safe-area-inset-bottom, 0px)
+    );
     transform: translate(-50%, -100%);
   }
 }
 
 @supports (height: 100svh) {
   .repo-pad-error {
-    top: calc(100svh - 100px - env(safe-area-inset-bottom, 0px));
+    top: calc(
+      100svh - var(--repo-foot-floor, max(48px, 8svh)) - 60px - env(safe-area-inset-bottom, 0px)
+    );
   }
 }
 
@@ -1385,21 +1392,24 @@ body.repo-page--write .repo-center {
   opacity: 0.9;
 }
 
-/* Keep crafting / This is everything — desktop: sticky inside the writing
-   surface at bottom-right with comfortable floor spacing (~40px).
-   Mobile (≤800px): fixed to the visual viewport above the home indicator /
-   keyboard (--repo-keyboard-inset from visualViewport). Pad padding keeps
-   the last line clear. */
+/* Keep crafting / This is everything.
+   Desktop (≥768px): fixed to the visual viewport with a real floor —
+   bottom of the pill sits at least max(48px, 8vh) above the window
+   bottom (works in browser and Electron; uses dvh when available).
+   Phone (≤767px): fixed above the home indicator / keyboard (#453). */
+:root {
+  --repo-foot-floor: max(48px, 8vh);
+  --repo-foot-floor: max(48px, 8dvh);
+}
+
 .repo-surface__foot {
-  position: sticky;
-  align-self: flex-end;
+  position: fixed;
+  align-self: auto;
+  margin: 0;
   margin-left: auto;
-  margin-top: auto;
-  margin-right: 0;
-  margin-bottom: 0;
-  right: 0;
+  right: 24px;
   left: auto;
-  z-index: 11;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -1415,7 +1425,7 @@ body.repo-page--write .repo-center {
   pointer-events: none;
   transition: opacity 200ms ease, transform 200ms ease;
   -webkit-app-region: no-drag;
-  bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--repo-foot-floor) + env(safe-area-inset-bottom, 0px));
   top: auto;
   transform: translateY(8px);
 }
@@ -1778,7 +1788,9 @@ body.repo-page--write .repo-center {
   }
 
   /* Fixed to the visual viewport so the island is on screen on load,
-     while scrolling, and above the iOS home indicator / keyboard. */
+     while scrolling, and above the iOS home indicator / keyboard.
+     Phone (<768px) keeps the tight #453 floor; wider viewports keep the
+     desktop max(48px, 8vh) floor from the base rule. */
   .repo-surface__foot {
     position: fixed;
     right: 12px;
@@ -1786,9 +1798,6 @@ body.repo-page--write .repo-center {
     margin: 0;
     align-self: auto;
     z-index: 30;
-    bottom: calc(
-      12px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
-    );
     top: auto;
     transform: translateY(8px);
   }
@@ -1797,7 +1806,7 @@ body.repo-page--write .repo-center {
     transform: translateY(0);
   }
 
-  /* Phone foot sits lower; keep Saving…/Saved. just above it. */
+  /* Phone foot sits lower; keep pad notices just above it. */
   .repo-pad-error {
     bottom: calc(
       64px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
@@ -1822,6 +1831,30 @@ body.repo-page--write .repo-center {
         100svh - 64px - env(safe-area-inset-bottom, 0px) - var(--repo-keyboard-inset, 0px)
       );
     }
+  }
+}
+
+/* Phone: #453 — above the home bar with safe-area + keyboard inset. */
+@media (max-width: 767px) {
+  :root {
+    --repo-foot-floor: 12px;
+  }
+
+  .repo-surface__foot {
+    right: 12px;
+    bottom: calc(
+      12px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
+    );
+  }
+
+  .repo-surface.writing {
+    padding-bottom: calc(
+      96px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
+    );
+  }
+
+  .repo-surface.writing .repo-pad {
+    padding-bottom: 72px;
   }
 }
 

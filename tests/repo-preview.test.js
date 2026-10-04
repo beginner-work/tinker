@@ -745,7 +745,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=20/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=21/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -787,16 +787,16 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=20"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=20"/);
-  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=20"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=20"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=20"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=20"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=20"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=20"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=20"/);
-  assert.match(html, /href="\/styles\.css\?v=20"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=21"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=21"/);
+  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=21"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=21"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=21"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=21"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=21"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=21"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=21"/);
+  assert.match(html, /href="\/styles\.css\?v=21"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -820,11 +820,20 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-pad__mirror/);
   assert.match(css, /body\.repo-page--write\s+\.repo-center\s*\{[^}]*background:\s*transparent/s);
   assert.doesNotMatch(css, /min-height:\s*42vh/);
-  // Desktop keeps sticky with ~40px floor; mobile (≤800px) pins fixed above safe-area + keyboard.
-  assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*sticky/s);
-  assert.match(css, /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*40px/s);
-  assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
-  assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-surface__foot\s*\{[^}]*12px \+ env\(safe-area-inset-bottom/s);
+  // Desktop (≥768px): fixed to the viewport with floor max(48px, 8vh|8dvh).
+  // Phone (≤767px): #453 — 12px + safe-area + keyboard inset.
+  assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
+  assert.match(css, /--repo-foot-floor:\s*max\(\s*48px,\s*8vh\s*\)/);
+  assert.match(css, /--repo-foot-floor:\s*max\(\s*48px,\s*8dvh\s*\)/);
+  assert.match(
+    css,
+    /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*var\(--repo-foot-floor\)\s*\+\s*env\(safe-area-inset-bottom/s,
+  );
+  assert.match(css, /\.repo-surface\.writing\s+\.repo-pad\s*\{[^}]*--repo-foot-floor/s);
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*767px\)[\s\S]*--repo-foot-floor:\s*12px[\s\S]*\.repo-surface__foot\s*\{[^}]*12px \+ env\(safe-area-inset-bottom/s,
+  );
   assert.match(css, /\.repo-surface__foot/);
   assert.match(css, /\.repo-surface__foot\.is-visible/);
   assert.match(css, /\.repo-surface__kbd/);
@@ -872,6 +881,46 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /repo-layout--write/);
   assert.match(css, /repo-layout--files/);
   assert.match(css, /tinker-desktop-traffic-inset/);
+});
+
+/** Desktop foot floor: max(48px, 8vh). Used by UI-contract + screenshot gates. */
+function repoFootFloorPx(viewportHeight) {
+  return Math.max(48, Math.round(0.08 * viewportHeight));
+}
+
+test("UI-contract: desktop Keep crafting pill bottom offset is max(48px, 8vh)", () => {
+  // Computed floor at the viewports Tyler reported (and Electron content area).
+  assert.equal(repoFootFloorPx(900), 72, "1440x900 → 8vh = 72px");
+  assert.equal(repoFootFloorPx(600), 48, "1024x600 → max(48, 48) = 48px");
+  assert.equal(repoFootFloorPx(820), 66, "Electron default ~820h → 66px");
+  assert.ok(repoFootFloorPx(900) >= 48);
+  assert.ok(repoFootFloorPx(600) >= 48);
+
+  // CSS must encode that floor on desktop and keep phone (#453) separate.
+  assert.match(css, /--repo-foot-floor:\s*max\(\s*48px,\s*8vh\s*\)/);
+  assert.match(css, /--repo-foot-floor:\s*max\(\s*48px,\s*8dvh\s*\)/);
+  assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
+  assert.match(
+    css,
+    /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*var\(--repo-foot-floor\)\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\s*\)/s,
+  );
+  // Editor scroll area clears the fixed pill (floor + pill height).
+  assert.match(
+    css,
+    /\.repo-surface\.writing\s+\.repo-pad\s*\{[^}]*padding-bottom:\s*calc\(\s*var\(--repo-foot-floor(?:,\s*max\(\s*48px,\s*8vh\s*\))?\s*\)\s*\+\s*56px\s*\)/s,
+  );
+  assert.match(
+    css,
+    /\.repo-surface\.writing\s*\{[^}]*padding-bottom:\s*calc\(\s*var\(--repo-foot-floor(?:,\s*max\(\s*48px,\s*8vh\s*\))?\s*\)\s*\+\s*72px/s,
+  );
+  // Write-mode ancestors must not clip a fixed foot (overflow visible / page scroll).
+  assert.match(css, /body\.repo-page--write\s+\.repo-center\s*\{[^}]*overflow:\s*visible/s);
+  assert.match(css, /\.repo-layout--write\s*\{[^}]*overflow:\s*visible/s);
+  assert.match(css, /\.repo-surface\.writing\s*\{[^}]*overflow:\s*visible/s);
+  // Phone keeps the tight #453 floor (not the desktop raise).
+  assert.match(css, /@media\s*\(max-width:\s*767px\)\s*\{[\s\S]*--repo-foot-floor:\s*12px/);
+  assert.doesNotMatch(css, /\.repo-surface__foot\s*\{[^}]*position:\s*sticky/s);
+  assert.doesNotMatch(css, /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*40px/s);
 });
 
 test("writing-input and /repo surface are invisible (no box)", () => {
