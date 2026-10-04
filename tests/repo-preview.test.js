@@ -859,6 +859,10 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-location\s*\{[^}]*align-self:\s*center/s);
   assert.match(css, /\.repo-location\s*\{[^}]*margin-left:\s*auto/s);
   assert.match(css, /\.repo-location\s*\{[^}]*margin-right:\s*auto/s);
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-layout--write[\s\S]*align-items:\s*stretch/,
+  );
   assert.match(css, /\.repo-location\s*\{[^}]*top:\s*calc\(\s*12px \+ env\(safe-area-inset-top/s);
   assert.match(css, /\.repo-surface\.writing\s*\{[^}]*safe-area-inset-top/s);
   assert.match(page, /visualViewport/);
@@ -1167,6 +1171,10 @@ test("write page has no top-right account / Sign out / Download chrome", () => {
   assert.match(css, /\.repo-location\s*\{[^}]*align-self:\s*center/s);
   assert.match(css, /\.repo-location\s*\{[^}]*margin-left:\s*auto/s);
   assert.match(css, /\.repo-location\s*\{[^}]*margin-right:\s*auto/s);
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-layout--write[\s\S]*align-items:\s*stretch/,
+  );
   assert.match(html, /id="repo-location"/);
   assert.match(html, /placeholder="Where are you\?"/);
 });

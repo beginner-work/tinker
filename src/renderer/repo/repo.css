@@ -211,8 +211,8 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 /* Location = floating island over the writing surface (globe + place field).
- * Centered horizontally in the editor column (not the full page / sidebar).
- * Safe-area top so it clears the iPhone notch when the auth header is gone. */
+ * Shrink-wrapped and centered in the editor column (not the full page /
+ * sidebar). Safe-area top clears the iPhone notch without an auth header. */
 .repo-location {
   position: sticky;
   top: calc(12px + env(safe-area-inset-top, 0px));
@@ -220,6 +220,7 @@ html.tinker-desktop .repo-top [role="button"] {
   right: auto;
   z-index: 12;
   align-self: center;
+  justify-self: center;
   margin-left: auto;
   margin-right: auto;
   margin-top: 0;
@@ -230,6 +231,7 @@ html.tinker-desktop .repo-top [role="button"] {
   align-items: center;
   justify-content: center;
   width: min(280px, calc(100% - 32px));
+  max-width: min(280px, calc(100% - 32px));
   pointer-events: none;
 }
 
@@ -259,7 +261,8 @@ html.tinker-desktop .repo-top [role="button"] {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  box-sizing: border-box;
+  width: min(280px, 100%);
   max-width: 280px;
   min-width: 0;
   height: 36px;
@@ -1725,6 +1728,7 @@ body.repo-page--write .repo-center {
     margin-left: auto;
     margin-right: auto;
     width: min(260px, calc(100% - 24px));
+    max-width: min(260px, calc(100% - 24px));
   }
 
   .repo-location__field {
@@ -1745,9 +1749,17 @@ body.repo-page--write .repo-center {
   .repo-layout--write {
     display: flex;
     flex-direction: column;
+    align-items: stretch;
     overflow: visible;
     min-height: 0;
     height: auto;
+  }
+
+  .repo-layout--write .repo-center,
+  body.repo-page--write .repo-center {
+    width: 100%;
+    max-width: none;
+    align-self: stretch;
   }
 
   .repo-sidebar {
@@ -1888,6 +1900,7 @@ body.repo-page--write .repo-center {
     margin-left: auto;
     margin-right: auto;
     width: min(240px, calc(100% - 20px));
+    max-width: min(240px, calc(100% - 20px));
   }
 
   .repo-location__field {
