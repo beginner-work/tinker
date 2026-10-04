@@ -281,7 +281,7 @@ test("shipped assets and routes include analytics + metrics + vercel pageviews",
   assert.match(html, /analytics-keystrokes\.js\?v=2/);
   assert.match(html, /analytics-owner-edit\.js\?v=1/);
   assert.match(html, /analytics-core\.js\?v=2/);
-  assert.match(sw, /tinker-shell-v58/);
+  assert.match(sw, /tinker-shell-v59/);
   assert.match(sw, /analytics\.js/);
   assert.match(sw, /analytics-owner-edit\.js/);
   assert.ok((vercel.rewrites || []).some((r) => r.source === "/metrics"));

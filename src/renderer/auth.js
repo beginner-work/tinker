@@ -162,7 +162,7 @@
       phoneForm.hidden = false;
       backBtn.hidden = true;
       titleEl.textContent = "Sign in or sign up";
-      ledeEl.textContent = "Enter your phone — we'll text a six-digit code. New numbers create an account.";
+      ledeEl.textContent = "Enter your phone number and we'll text you a six-digit code. New numbers create an account.";
       setTimeout(() => phoneInput.focus(), 0);
     }
   }
