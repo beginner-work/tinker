@@ -16,6 +16,10 @@ html, body.repo-page {
 html:has(body.repo-page--write),
 body.repo-page--write {
   height: auto;
+  min-height: 100%;
+  min-height: 100svh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
   overflow-x: hidden;
   overflow-y: auto;
   background:
@@ -1355,10 +1359,10 @@ body.repo-page--write .repo-center {
   opacity: 0.9;
 }
 
-/* Keep crafting / This is everything — inside the writing surface, sticky
-   to the bottom-right of the visible pad as the page scrolls. Pad padding
-   keeps the last line clear of the island. dvh/svh + safe-area keep it
-   on-screen on mobile URL-bar show/hide. */
+/* Keep crafting / This is everything — desktop: sticky inside the writing
+   surface at bottom-right. Mobile (≤800px): fixed to the visual viewport
+   above the home indicator / keyboard (--repo-keyboard-inset from
+   visualViewport). Pad padding keeps the last line clear. */
 .repo-surface__foot {
   position: sticky;
   align-self: flex-end;
@@ -1686,20 +1690,26 @@ body.repo-page--write .repo-center {
   }
 
   body.repo-page--write .repo-center {
-    min-height: calc(100vh - 64px);
-    min-height: calc(100dvh - 64px);
+    min-height: calc(100vh - 56px);
+    min-height: calc(100svh - 56px);
+    min-height: calc(100dvh - 56px);
   }
 
   .repo-surface.writing {
     padding: 8px 12px 88px;
-    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
-    min-height: calc(100vh - 64px);
-    min-height: calc(100dvh - 64px);
+    /* Room for fixed action island + home indicator + open keyboard. */
+    padding-bottom: calc(
+      96px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
+    );
+    min-height: calc(100vh - 56px);
+    min-height: calc(100svh - 56px);
+    min-height: calc(100dvh - 56px);
+    min-height: -webkit-fill-available;
   }
 
   .repo-pad {
-    min-height: calc(100vh - 140px);
-    min-height: calc(100dvh - 140px);
+    min-height: calc(100svh - 160px);
+    min-height: calc(100dvh - 160px);
   }
 
   .repo-pad__turn {
@@ -1708,7 +1718,9 @@ body.repo-page--write .repo-center {
   }
 
   .repo-pad__turn:last-of-type {
-    min-height: min(70vh, 32rem);
+    /* Tall tap target for “tap blank space to type”, but not so tall that
+       content alone pushes past one phone screen without scrolling. */
+    min-height: min(55svh, 22rem);
   }
 
   .repo-pad__q {
@@ -1721,9 +1733,24 @@ body.repo-page--write .repo-center {
     font-size: 17px;
   }
 
+  /* Fixed to the visual viewport so the island is on screen on load,
+     while scrolling, and above the iOS home indicator / keyboard. */
   .repo-surface__foot {
-    right: 0;
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    position: fixed;
+    right: 12px;
+    left: auto;
+    margin: 0;
+    align-self: auto;
+    z-index: 30;
+    bottom: calc(
+      12px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
+    );
+    top: auto;
+    transform: translateY(8px);
+  }
+
+  .repo-surface__foot.is-visible {
+    transform: translateY(0);
   }
 }
 
@@ -1750,6 +1777,9 @@ body.repo-page--write .repo-center {
 
   .repo-surface.writing {
     padding: 6px 10px 84px;
+    padding-bottom: calc(
+      96px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
+    );
   }
 
   .repo-pad__turn {
@@ -1767,9 +1797,11 @@ body.repo-page--write .repo-center {
   }
 
   .repo-surface__foot {
-    right: 0;
+    right: 10px;
     left: auto;
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(
+      12px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
+    );
     gap: 4px;
     padding: 5px;
   }

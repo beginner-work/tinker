@@ -103,9 +103,15 @@ function makeEl(tag, id, store) {
     removeAttribute(name) {
       delete attrs[name];
     },
-    focus() {},
+    focus() {
+      if (store && store.__document) store.__document.activeElement = el;
+    },
     select() {},
     scrollIntoView() {},
+    setSelectionRange(start, end) {
+      el.selectionStart = start;
+      el.selectionEnd = end;
+    },
     contains(node) {
       if (node === el) return true;
       return el.children.some((c) => c === node || (c.contains && c.contains(node)));
@@ -134,9 +140,20 @@ function makeEl(tag, id, store) {
     closest(selector) {
       let cur = el;
       while (cur) {
-        if (selector.startsWith("[data-folder-id]") && cur.dataset && cur.dataset.folderId) return cur;
-        if (selector.startsWith(".") && String(cur.className || "").split(/\s+/).includes(selector.slice(1))) {
-          return cur;
+        const sels = String(selector || "").split(",").map((s) => s.trim()).filter(Boolean);
+        for (const sel of sels) {
+          if (sel.startsWith("#") && cur.id === sel.slice(1)) return cur;
+          if (sel.startsWith("[data-folder-id]") && cur.dataset && cur.dataset.folderId) return cur;
+          if (sel.startsWith(".") && String(cur.className || "").split(/\s+/).includes(sel.slice(1))) {
+            return cur;
+          }
+          if (sel === "textarea.repo-pad__turn") {
+            const cls = String(cur.className || "").split(/\s+/);
+            if (cur.tagName === "TEXTAREA" && cls.includes("repo-pad__turn")) return cur;
+          }
+          if (/^(a|button|input|select|label)$/i.test(sel) && cur.tagName === sel.toUpperCase()) {
+            return cur;
+          }
         }
         cur = cur.parentNode;
       }
@@ -184,6 +201,7 @@ function bootRepoPage(options) {
     "repo-sidebar-new-piece",
     "repo-new-folder",
     "repo-body",
+    "repo-surface",
     "repo-pad",
     "repo-location",
     "repo-location-btn",
@@ -233,9 +251,16 @@ function bootRepoPage(options) {
   ];
   for (const id of ids) makeEl("div", id, byId);
   byId["repo-body"].tagName = "TEXTAREA";
+  byId["repo-surface"].tagName = "DIV";
+  byId["repo-surface"].className = "repo-surface writing";
+  byId["repo-surface"].nodeType = 1;
   byId["repo-pad"].tagName = "DIV";
   byId["repo-pad"].className = "repo-pad";
   byId["repo-pad"].nodeType = 1;
+  byId["repo-surface"].appendChild(byId["repo-location"]);
+  byId["repo-surface"].appendChild(byId["repo-pad"]);
+  byId["repo-surface"].appendChild(byId["repo-pad-actions"]);
+  byId["repo-location"].appendChild(byId["repo-location-btn"]);
   byId["repo-location-btn"].tagName = "BUTTON";
   byId["repo-location-btn"].textContent = "";
   byId["repo-location-value"].textContent = "";
@@ -350,9 +375,18 @@ function bootRepoPage(options) {
   bodyEl.className = opts.mode === "files" ? "repo-page repo-page--files" : "repo-page repo-page--write";
   const assigned = [];
   const htmlEl = makeEl("html", "", byId);
+  htmlEl.style = htmlEl.style || {};
+  const cssVars = {};
+  htmlEl.style.setProperty = function (name, value) {
+    cssVars[String(name)] = String(value);
+  };
+  htmlEl.style.getPropertyValue = function (name) {
+    return cssVars[String(name)] || "";
+  };
   const document = {
     body: bodyEl,
     documentElement: htmlEl,
+    activeElement: null,
     getElementById(id) {
       return byId[id] || null;
     },
@@ -365,8 +399,8 @@ function bootRepoPage(options) {
     addEventListener(type, fn) {
       (docListeners[type] || (docListeners[type] = [])).push(fn);
     },
-    activeElement: null,
   };
+  byId.__document = document;
 
   const windowObj = {
     localStorage: {
@@ -398,6 +432,14 @@ function bootRepoPage(options) {
       assign(url) { assigned.push(String(url)); },
       replace(url) { assigned.push(String(url)); },
     },
+    innerHeight: opts.innerHeight || 844,
+    visualViewport: opts.visualViewport || {
+      height: opts.vvHeight != null ? opts.vvHeight : 844,
+      offsetTop: opts.vvOffsetTop != null ? opts.vvOffsetTop : 0,
+      addEventListener() {},
+    },
+    scrollTo() {},
+    scrollY: 0,
     fetch(url, init) {
       const href = String(url || "");
       if (href.includes("/api/user-data/essays")) {
@@ -681,7 +723,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=17/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=18/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -719,15 +761,15 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=17"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=17"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=17"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=17"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=17"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=17"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=17"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=17"/);
-  assert.match(html, /href="\/styles\.css\?v=17"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=18"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=18"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=18"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=18"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=18"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=18"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=18"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=18"/);
+  assert.match(html, /href="\/styles\.css\?v=18"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -751,17 +793,25 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-pad__mirror/);
   assert.match(css, /body\.repo-page--write\s+\.repo-center\s*\{[^}]*background:\s*transparent/s);
   assert.doesNotMatch(css, /min-height:\s*42vh/);
+  // Desktop keeps sticky; mobile (≤800px) pins fixed above safe-area + keyboard.
   assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*sticky/s);
+  assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /\.repo-surface__foot/);
   assert.match(css, /\.repo-surface__foot\.is-visible/);
   assert.match(css, /transition:\s*opacity\s*300ms/);
   assert.match(css, /100dvh/);
   assert.match(css, /100svh/);
+  assert.match(css, /-webkit-fill-available/);
   assert.match(css, /env\(safe-area-inset-bottom/);
+  assert.match(css, /--repo-keyboard-inset/);
   assert.match(css, /\.repo-layout--write\s+\.repo-right/);
   assert.match(css, /body\.repo-page--write\s+\.repo-right\s*\{[^}]*display:\s*none/s);
   assert.match(css, /\.repo-saved-in/);
   assert.match(css, /\.repo-top--auth/);
+  assert.match(html, /viewport-fit=cover/);
+  assert.match(page, /visualViewport/);
+  assert.match(page, /--repo-keyboard-inset/);
+  assert.match(page, /onBlankPadActivate|focusLastPadTurn/);
 
   assert.match(filesHtml, /data-repo-mode="files"/);
   assert.match(filesHtml, /id="repo-tree"/);
@@ -1740,4 +1790,77 @@ test("Keep crafting names the missing helper when interview API is absent", asyn
     String(env.byId["repo-pad-error-text"].textContent || ""),
     /Reload the page/
   );
+});
+
+test("visualViewport inset lifts mobile action bar above the keyboard", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: false,
+    mode: "write",
+    innerHeight: 844,
+    vvHeight: 500,
+    vvOffsetTop: 0,
+  });
+  await env.flush();
+  env.window.tinkerRepo.syncVisualViewportInset();
+  assert.equal(
+    env.document.documentElement.style.getPropertyValue("--repo-keyboard-inset"),
+    "344px"
+  );
+});
+
+test("tap blank writing space focuses the editor at the end", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+  });
+  await env.flush();
+  env.byId["repo-body"].value = "I’m afraid to complete formation modules";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.flush();
+  const turns = env.byId["repo-pad"].querySelectorAll("textarea.repo-pad__turn");
+  assert.ok(turns.length >= 1);
+  // Simulate caret not at end, then tap blank surface (not a control).
+  turns[turns.length - 1].selectionStart = 0;
+  turns[turns.length - 1].selectionEnd = 0;
+  env.byId["repo-surface"].dispatch("click", {
+    type: "click",
+    target: env.byId["repo-surface"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  const focused = env.document.activeElement;
+  assert.ok(focused);
+  assert.equal(focused.tagName, "TEXTAREA");
+  assert.ok(String(focused.className || "").includes("repo-pad__turn"));
+  assert.equal(focused.selectionStart, String(focused.value || "").length);
+  assert.equal(focused.selectionEnd, String(focused.value || "").length);
+});
+
+test("tap on location / action controls does not steal focus for typing", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+  });
+  await env.flush();
+  env.byId["repo-body"].value = "Keep this caret alone.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.flush();
+  env.document.activeElement = null;
+  env.byId["repo-surface"].dispatch("click", {
+    type: "click",
+    target: env.byId["repo-location-btn"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  // Location click is ignored by blank-pad handler (no focusLastPadTurn).
+  assert.equal(env.document.activeElement, null);
 });

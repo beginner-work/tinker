@@ -78,6 +78,7 @@
     newFolder: document.getElementById("repo-new-folder"),
     body: document.getElementById("repo-body"),
     pad: document.getElementById("repo-pad"),
+    surface: document.getElementById("repo-surface"),
     followup: document.getElementById("repo-followup"),
     padError: document.getElementById("repo-pad-error"),
     padErrorText: document.getElementById("repo-pad-error-text"),
@@ -641,6 +642,12 @@
     if (!els.pad) return null;
     var turns = els.pad.querySelectorAll("textarea.repo-pad__turn");
     var ta = turns.length ? turns[turns.length - 1] : null;
+    if (!ta) {
+      // Ensure there is a turn to type into (blank pad / after load).
+      renderPadFromMarkdown(padBody(), {});
+      turns = els.pad.querySelectorAll("textarea.repo-pad__turn");
+      ta = turns.length ? turns[turns.length - 1] : null;
+    }
     if (!ta) return null;
     try {
       ta.focus();
@@ -659,6 +666,48 @@
       } catch (e2) { /* ignore */ }
     } catch (e) { /* ignore */ }
     return ta;
+  }
+
+  /** Keep fixed mobile actions above the soft keyboard via visualViewport. */
+  function syncVisualViewportInset() {
+    if (!isWritePage) return;
+    var inset = 0;
+    try {
+      var vv = window.visualViewport;
+      if (vv && typeof vv.height === "number") {
+        inset = Math.max(0, Math.round(window.innerHeight - vv.height - (vv.offsetTop || 0)));
+      }
+    } catch (e) {
+      inset = 0;
+    }
+    try {
+      document.documentElement.style.setProperty("--repo-keyboard-inset", inset + "px");
+    } catch (e2) { /* ignore */ }
+  }
+
+  function isInteractiveChrome(node) {
+    if (!node || !node.closest) return false;
+    if (node.closest("#repo-location")) return true;
+    if (node.closest("#repo-pad-actions")) return true;
+    if (node.closest("#repo-pad-error")) return true;
+    if (node.closest(".repo-top")) return true;
+    if (node.closest(".repo-right")) return true;
+    if (node.closest(".repo-sheet")) return true;
+    if (node.closest(".repo-pad__q")) return true;
+    if (node.closest("a, button, input, select, label")) return true;
+    // Existing turn: let the caret land where the user tapped.
+    if (node.closest("textarea.repo-pad__turn")) return true;
+    return false;
+  }
+
+  /** Tap blank writing space → focus editor, caret at end (opens keyboard on mobile). */
+  function onBlankPadActivate(event) {
+    if (!isWritePage) return;
+    var target = event && event.target;
+    if (isInteractiveChrome(target)) return;
+    if (!els.surface || !els.surface.contains(target)) return;
+    if (event && event.preventDefault) event.preventDefault();
+    focusLastPadTurn(true);
   }
 
   function padHasFocus() {
@@ -2658,8 +2707,12 @@
   if (els.body) {
     // Mirror holds canonical Markdown (with "> "). Tests and restore write here;
     // re-render the visual pad so questions never show the raw marker.
-    els.body.addEventListener("input", function () {
-      if (!padHasFocus() || (document.activeElement === els.body)) {
+    els.body.addEventListener("input", function (event) {
+      // Mirror edits (tests / restore) always win. While a visual turn has
+      // focus, skip so we don't clobber live typing — unless this event
+      // itself came from the mirror.
+      var fromMirror = !event || event.target === els.body;
+      if (fromMirror || !padHasFocus()) {
         renderPadFromMarkdown(els.body.value || "");
       }
       onBodyInput();
@@ -2673,6 +2726,17 @@
     try {
       window.addEventListener("resize", resizeAllPadTurns);
     } catch (e) { /* ignore */ }
+    syncVisualViewportInset();
+    try {
+      window.addEventListener("resize", syncVisualViewportInset);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", syncVisualViewportInset);
+        window.visualViewport.addEventListener("scroll", syncVisualViewportInset);
+      }
+    } catch (eVv) { /* ignore */ }
+    if (els.surface) {
+      els.surface.addEventListener("click", onBlankPadActivate);
+    }
   }
   if (els.keepCrafting) {
     els.keepCrafting.addEventListener("click", function (event) {
@@ -2848,6 +2912,8 @@
     getFollowupQuestion: function () { return state.followupQuestion || ""; },
     showPadError: showPadError,
     clearPadError: clearPadError,
+    focusLastPadTurn: focusLastPadTurn,
+    syncVisualViewportInset: syncVisualViewportInset,
     setPadIdleMs: function (ms) {
       var n = Number(ms);
       if (Number.isFinite(n) && n >= 0) state.padIdleMs = n;
