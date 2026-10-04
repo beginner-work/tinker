@@ -707,26 +707,46 @@ html.tinker-desktop .repo-top [role="button"] {
   align-items: start;
 }
 
-/* Desktop write page: structure sidebar stays in view while the pad scrolls. */
+/* Desktop write page: sidebar pinned to the viewport while the pad scrolls.
+   Tree scrolls on its own; Essay preview stays below the list (never overlaps). */
 .repo-layout--write .repo-right {
   position: sticky;
-  top: calc(72px + env(safe-area-inset-top, 0px));
-  max-height: calc(100vh - 72px);
-  max-height: calc(100dvh - 72px);
-  overflow: auto;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 18px;
+  box-sizing: border-box;
   padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
 }
 
 .repo-layout--write .repo-right .repo-tree {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.repo-layout--write .repo-right .repo-tree__head {
+  flex: 0 0 auto;
+}
+
+.repo-layout--write .repo-right .repo-tree__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .repo-layout--write .repo-right .repo-changes {
   flex: 0 0 auto;
+  flex-shrink: 0;
   padding-top: 12px;
   border-top: 1px solid var(--color-border);
 }
@@ -1272,10 +1292,10 @@ body.repo-page--write .repo-center {
 .repo-pad-error {
   position: fixed;
   left: 50%;
-  /* Above the fixed mobile action island (z-index 30). */
+  /* Above the action island (z-index 30). Desktop foot sits ~40px up. */
   z-index: 40;
   transform: translateX(-50%);
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(100px + env(safe-area-inset-bottom, 0px));
   top: auto;
 }
 
@@ -1287,15 +1307,15 @@ body.repo-page--write .repo-center {
 @supports (height: 100dvh) {
   .repo-pad-error {
     bottom: auto;
-    top: calc(100vh - 64px);
-    top: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px));
+    top: calc(100vh - 100px);
+    top: calc(100dvh - 100px - env(safe-area-inset-bottom, 0px));
     transform: translate(-50%, -100%);
   }
 }
 
 @supports (height: 100svh) {
   .repo-pad-error {
-    top: calc(100svh - 64px - env(safe-area-inset-bottom, 0px));
+    top: calc(100svh - 100px - env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -1366,9 +1386,10 @@ body.repo-page--write .repo-center {
 }
 
 /* Keep crafting / This is everything — desktop: sticky inside the writing
-   surface at bottom-right. Mobile (≤800px): fixed to the visual viewport
-   above the home indicator / keyboard (--repo-keyboard-inset from
-   visualViewport). Pad padding keeps the last line clear. */
+   surface at bottom-right with comfortable floor spacing (~40px).
+   Mobile (≤800px): fixed to the visual viewport above the home indicator /
+   keyboard (--repo-keyboard-inset from visualViewport). Pad padding keeps
+   the last line clear. */
 .repo-surface__foot {
   position: sticky;
   align-self: flex-end;
@@ -1394,7 +1415,7 @@ body.repo-page--write .repo-center {
   pointer-events: none;
   transition: opacity 300ms ease, transform 300ms ease;
   -webkit-app-region: no-drag;
-  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(40px + env(safe-area-inset-bottom, 0px));
   top: auto;
   transform: translateY(8px);
 }
@@ -1424,6 +1445,9 @@ body.repo-page--write .repo-center {
 }
 
 .repo-surface__action--secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   border: 1px solid var(--color-border);
   background: var(--color-background);
   color: var(--color-foreground);
@@ -1431,6 +1455,14 @@ body.repo-page--write .repo-center {
 
 .repo-surface__action--secondary:not(:disabled):hover {
   border-color: var(--color-accent);
+}
+
+.repo-surface__kbd {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+  opacity: 0.85;
 }
 
 .repo-surface__action--primary {
@@ -1757,6 +1789,33 @@ body.repo-page--write .repo-center {
 
   .repo-surface__foot.is-visible {
     transform: translateY(0);
+  }
+
+  /* Phone foot sits lower; keep Saving…/Saved. just above it. */
+  .repo-pad-error {
+    bottom: calc(
+      64px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
+    );
+    top: auto;
+    transform: translateX(-50%);
+  }
+
+  @supports (height: 100dvh) {
+    .repo-pad-error {
+      bottom: auto;
+      top: calc(
+        100dvh - 64px - env(safe-area-inset-bottom, 0px) - var(--repo-keyboard-inset, 0px)
+      );
+      transform: translate(-50%, -100%);
+    }
+  }
+
+  @supports (height: 100svh) {
+    .repo-pad-error {
+      top: calc(
+        100svh - 64px - env(safe-area-inset-bottom, 0px) - var(--repo-keyboard-inset, 0px)
+      );
+    }
   }
 }
 

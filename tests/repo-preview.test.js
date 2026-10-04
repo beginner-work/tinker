@@ -221,6 +221,7 @@ function bootRepoPage(options) {
     "repo-pad-error-signin",
     "repo-pad-actions",
     "repo-keep-crafting",
+    "repo-keep-crafting-kbd",
     "repo-this-is-everything",
     "repo-file-path",
     "repo-file-type",
@@ -289,6 +290,12 @@ function bootRepoPage(options) {
   byId["repo-keep-crafting"].tagName = "BUTTON";
   byId["repo-keep-crafting"].textContent = "Keep crafting";
   byId["repo-keep-crafting"].tabIndex = -1;
+  byId["repo-keep-crafting"].setAttribute("aria-keyshortcuts", "Meta+Enter Control+Enter");
+  byId["repo-keep-crafting-kbd"].tagName = "SPAN";
+  byId["repo-keep-crafting-kbd"].className = "repo-surface__kbd";
+  byId["repo-keep-crafting-kbd"].textContent = "⌘↵";
+  byId["repo-keep-crafting-kbd"].setAttribute("aria-hidden", "true");
+  byId["repo-keep-crafting"].appendChild(byId["repo-keep-crafting-kbd"]);
   byId["repo-this-is-everything"].tagName = "BUTTON";
   byId["repo-this-is-everything"].textContent = "This is everything";
   byId["repo-this-is-everything"].disabled = true;
@@ -403,6 +410,10 @@ function bootRepoPage(options) {
   byId.__document = document;
 
   const windowObj = {
+    navigator: opts.navigator || {
+      platform: opts.platform || "MacIntel",
+      userAgent: opts.userAgent || "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    },
     localStorage: {
       getItem(key) {
         return storage.has(key) ? storage.get(key) : null;
@@ -447,6 +458,13 @@ function bootRepoPage(options) {
           const body = JSON.parse(init.body || "{}");
           opts._essays = Array.isArray(body.data) ? body.data : [];
           if (typeof opts.onPutEssays === "function") opts.onPutEssays(opts._essays);
+          if (opts.failPutEssays) {
+            return Promise.resolve({
+              status: opts.putEssaysStatus || 500,
+              ok: false,
+              json() { return Promise.resolve({ error: "fail" }); },
+            });
+          }
           return Promise.resolve({
             status: 200,
             ok: true,
@@ -723,7 +741,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=19/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=20/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -734,8 +752,12 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-download-all"/);
   assert.match(html, /id="repo-keep-crafting"/);
   assert.match(html, /id="repo-this-is-everything"/);
-  assert.match(html, />Keep crafting</);
+  assert.match(html, /Keep crafting/);
   assert.match(html, />This is everything</);
+  assert.match(html, /aria-keyshortcuts="Meta\+Enter Control\+Enter"/);
+  assert.match(html, /id="repo-keep-crafting-kbd"/);
+  assert.match(html, /repo-surface__kbd/);
+  assert.match(html, /⌘↵|Ctrl↵/);
   assert.match(html, /id="repo-pad"/);
   assert.match(html, /repo-pad__mirror/);
   assert.doesNotMatch(html, />Write</);
@@ -761,15 +783,15 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=19"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=19"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=19"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=19"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=19"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=19"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=19"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=19"/);
-  assert.match(html, /href="\/styles\.css\?v=19"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=20"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=20"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=20"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=20"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=20"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=20"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=20"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=20"/);
+  assert.match(html, /href="\/styles\.css\?v=20"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -793,17 +815,24 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-pad__mirror/);
   assert.match(css, /body\.repo-page--write\s+\.repo-center\s*\{[^}]*background:\s*transparent/s);
   assert.doesNotMatch(css, /min-height:\s*42vh/);
-  // Desktop keeps sticky; mobile (≤800px) pins fixed above safe-area + keyboard.
+  // Desktop keeps sticky with ~40px floor; mobile (≤800px) pins fixed above safe-area + keyboard.
   assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*sticky/s);
+  assert.match(css, /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*40px/s);
   assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
+  assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-surface__foot\s*\{[^}]*12px \+ env\(safe-area-inset-bottom/s);
   assert.match(css, /\.repo-surface__foot/);
   assert.match(css, /\.repo-surface__foot\.is-visible/);
+  assert.match(css, /\.repo-surface__kbd/);
   assert.match(css, /transition:\s*opacity\s*300ms/);
   assert.match(css, /100dvh/);
   assert.match(css, /100svh/);
   assert.match(css, /-webkit-fill-available/);
   assert.match(css, /env\(safe-area-inset-bottom/);
   assert.match(css, /--repo-keyboard-inset/);
+  assert.match(css, /\.repo-layout--write\s+\.repo-right\s*\{[^}]*position:\s*sticky/s);
+  assert.match(css, /\.repo-layout--write\s+\.repo-right\s*\{[^}]*overflow:\s*hidden/s);
+  assert.match(css, /\.repo-layout--write\s+\.repo-right\s+\.repo-tree__body\s*\{[^}]*overflow-y:\s*auto/s);
+  assert.match(css, /\.repo-layout--write\s+\.repo-right\s+\.repo-changes\s*\{[^}]*flex-shrink:\s*0/s);
   assert.match(css, /\.repo-layout--write\s+\.repo-right/);
   assert.match(css, /body\.repo-page--write\s+\.repo-right\s*\{[^}]*display:\s*none/s);
   assert.match(css, /\.repo-saved-in/);
@@ -1491,7 +1520,7 @@ test("savePad signed-out sends to /?signin=1 without writing essays", async () =
   assert.ok(env.session.get("tinker.repo.padDraft.v1"));
 });
 
-test("This is everything button click saves and shows a visible pad notice", async () => {
+test("This is everything button click saves, blanks the pad, and lists the essay", async () => {
   const puts = [];
   const env = bootRepoPage({
     token: "jwt-test",
@@ -1508,7 +1537,6 @@ test("This is everything button click saves and shows a visible pad notice", asy
   });
   await new Promise((r) => setTimeout(r, 25));
   assert.equal(env.window.tinkerRepo.arePadActionsVisible(), true);
-  // Click the real button (not savePad() directly) — regression for #453 no-op.
   env.byId["repo-this-is-everything"].dispatch("click", {
     type: "click",
     target: env.byId["repo-this-is-everything"],
@@ -1518,9 +1546,71 @@ test("This is everything button click saves and shows a visible pad notice", asy
   await env.flush();
   assert.equal(puts.length, 1);
   assert.equal(puts[0][0].body, "Finished thought about the work.");
+  assert.match(puts[0][0].title, /Finished thought/i);
+  // Blank starting screen — no Saved. / Saving… notice.
+  assert.equal(String(env.byId["repo-body"].value || "").trim(), "");
+  assert.equal(env.byId["repo-pad-error"].hidden, true);
+  assert.doesNotMatch(String(env.byId["repo-pad-error-text"].textContent || ""), /Saved|Saving/);
+  assert.equal(env.window.tinkerRepo.arePadActionsVisible(), false);
+  const stories = env.window.tinkerRepo.getStories();
+  assert.ok(stories.length >= 1);
+  assert.equal(stories[0].id, puts[0][0].id);
+  const treeText = String(env.byId["repo-tree"].textContent || "");
+  assert.match(treeText, /Finished thought about the work/i);
+});
+
+test("This is everything failed save keeps the editor text and shows an inline error", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    failPutEssays: true,
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  const draft = "Keep this writing if save fails.";
+  env.byId["repo-body"].value = draft;
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  env.byId["repo-this-is-everything"].dispatch("click", {
+    type: "click",
+    target: env.byId["repo-this-is-everything"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.match(String(env.byId["repo-body"].value || ""), /Keep this writing if save fails/);
   assert.equal(env.byId["repo-pad-error"].hidden, false);
-  assert.match(env.byId["repo-pad-error-text"].textContent, /^Saved/);
-  assert.ok(env.byId["repo-pad-error"].classList.contains("repo-pad-error--ok"));
+  assert.match(String(env.byId["repo-pad-error-text"].textContent || ""), /Could not save this piece/);
+  assert.doesNotMatch(String(env.byId["repo-pad-error-text"].textContent || ""), /\u2014/);
+  assert.ok(!env.byId["repo-pad-error"].classList.contains("repo-pad-error--ok"));
+});
+
+test("This is everything double click does not create two essays", async () => {
+  const puts = [];
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    onPutEssays(list) { puts.push(list); },
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.byId["repo-body"].value = "Only one essay please.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  const first = env.window.tinkerRepo.savePad();
+  const second = env.window.tinkerRepo.savePad();
+  await Promise.all([first, second]);
+  await env.flush();
+  assert.equal(puts.length, 1);
+  assert.equal(String(env.byId["repo-body"].value || "").trim(), "");
 });
 
 test("This is everything signed-out click navigates to sign-in", async () => {
@@ -1917,4 +2007,98 @@ test("tap on location / action controls does not steal focus for typing", async 
   });
   // Location click is ignored by blank-pad handler (no focusLastPadTurn).
   assert.equal(env.document.activeElement, null);
+});
+
+test("Keep crafting button shows shortcut hint and aria-keyshortcuts", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+  });
+  await env.flush();
+  const btn = env.byId["repo-keep-crafting"];
+  assert.ok(btn);
+  assert.equal(btn.getAttribute("aria-keyshortcuts"), "Meta+Enter Control+Enter");
+  const kbd = env.document.getElementById("repo-keep-crafting-kbd");
+  assert.ok(kbd);
+  assert.match(String(kbd.textContent || ""), /^(⌘↵|Ctrl↵)$/);
+});
+
+test("Cmd/Ctrl+Enter on the pad triggers Keep crafting without inserting a newline", async () => {
+  const builds = [];
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    onBuildFollowup(args) { builds.push(args); },
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.byId["repo-body"].value = "I keep noticing the same pattern.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  const turns = env.byId["repo-pad"].querySelectorAll("textarea.repo-pad__turn");
+  assert.ok(turns.length >= 1);
+  const turn = turns[turns.length - 1];
+  const before = String(turn.value || "");
+  let prevented = false;
+  turn.dispatch("keydown", {
+    type: "keydown",
+    key: "Enter",
+    metaKey: true,
+    ctrlKey: false,
+    target: turn,
+    preventDefault() { prevented = true; },
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(prevented, true);
+  assert.equal(String(turn.value || ""), before);
+  assert.equal(builds.length, 1);
+  assert.match(env.byId["repo-body"].value, /> What are you noticing about this\?/);
+});
+
+test("Cmd/Ctrl+Enter does not fire Keep crafting while a request is in flight", async () => {
+  let resolveClaude;
+  const builds = [];
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    onBuildFollowup(args) { builds.push(args); },
+    callClaude() {
+      return new Promise((resolve) => {
+        resolveClaude = resolve;
+      });
+    },
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.byId["repo-body"].value = "Still figuring this out.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  const first = env.window.tinkerRepo.keepCraftingPad();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(builds.length, 1);
+  const turns = env.byId["repo-pad"].querySelectorAll("textarea.repo-pad__turn");
+  turns[turns.length - 1].dispatch("keydown", {
+    type: "keydown",
+    key: "Enter",
+    ctrlKey: true,
+    metaKey: false,
+    target: turns[turns.length - 1],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await new Promise((r) => setImmediate(r));
+  assert.equal(builds.length, 1);
+  resolveClaude({ text: JSON.stringify({ questions: ["What are you figuring out next?"] }) });
+  await first;
+  await env.flush();
 });

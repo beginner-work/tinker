@@ -215,3 +215,71 @@ test("askFollowups keepCrafting on a long thread rejects duplicate model questio
     restore.mock.restore();
   }
 });
+
+test("sanitizeAiQuestion strips em dashes and en dashes from AI prompts", () => {
+  assert.equal(
+    interview.sanitizeAiQuestion(
+      "When you compare these notes-style resources to something that reads like a book, what specifically are you discovering is missing—is it sequencing, context, or the connective tissue between topics?"
+    ),
+    "When you compare these notes-style resources to something that reads like a book, what specifically are you discovering is missing, is it sequencing, context, or the connective tissue between topics?"
+  );
+  assert.equal(
+    interview.sanitizeAiQuestion("What are you noticing — really — about the pace?"),
+    "What are you noticing, really, about the pace?"
+  );
+  assert.equal(
+    interview.sanitizeAiQuestion("What are you noticing – about the pace?"),
+    "What are you noticing, about the pace?"
+  );
+  assert.equal(
+    interview.sanitizeAiQuestion("What are you noticing -- about the pace?"),
+    "What are you noticing, about the pace?"
+  );
+  assert.equal(
+    interview.sanitizeAiQuestion("What (if anything — today) are you learning?"),
+    "What (if anything, today) are you learning?"
+  );
+  assert.equal(interview.sanitizeAiQuestion("What are you noticing about the pace?"), "What are you noticing about the pace?");
+  assert.equal(interview.sanitizeAiQuestion(""), "");
+});
+
+test("parseFreeformResponse and normalizeKeepCraftingQuestion sanitize dashes", () => {
+  const parsed = interview.parseFreeformResponse(
+    JSON.stringify({
+      questions: [
+        "What are you discovering is missing—is it sequencing?",
+        "What are you figuring out – next?",
+      ],
+    })
+  );
+  assert.equal(parsed.questions[0].includes("\u2014"), false);
+  assert.equal(parsed.questions[0].includes("\u2013"), false);
+  assert.match(parsed.questions[0], /missing, is it sequencing/);
+  assert.match(parsed.questions[1], /figuring out, next/);
+
+  const interviewParsed = interview.parseInterviewResponse(
+    JSON.stringify({
+      next_question: "What are you learning—really?",
+      done: false,
+    })
+  );
+  assert.equal(interviewParsed.next_question.includes("\u2014"), false);
+  assert.match(interviewParsed.next_question, /learning, really/);
+
+  assert.equal(
+    interview.normalizeKeepCraftingQuestion({
+      next_question: "What are you noticing—about trust?",
+      done: false,
+    }),
+    "What are you noticing, about trust?"
+  );
+});
+
+test("interview prompts ban em dashes in generated questions", () => {
+  assert.match(interview.SYSTEM_PROMPT, /NO EM DASHES IN QUESTIONS/);
+  assert.match(interview.SYSTEM_PROMPT, /Never use an em dash/);
+  assert.match(interview.FREEFORM_SYSTEM_PROMPT, /Never use an em dash/);
+  assert.match(interview.PERSON_SYSTEM_PROMPT, /NO EM DASHES IN QUESTIONS/);
+  assert.match(interview.KEEP_CRAFTING_INSTRUCTION, /em dash/);
+  assert.match(interview.keepCraftingUserInstruction({ tighter: true }), /em dash/);
+});

@@ -771,8 +771,48 @@
     onBodyInput();
   }
 
-  function onPadTurnKeydown() {
+  function onPadTurnKeydown(event) {
+    if (handleKeepCraftingShortcut(event)) return;
     if (padBody().trim()) setPadActionsVisible(false);
+  }
+
+  function isAppleModHint() {
+    try {
+      var nav = window.navigator || {};
+      var p = String(nav.platform || "");
+      var ua = String(nav.userAgent || "");
+      if (/Mac|iPhone|iPad|iPod/i.test(p)) return true;
+      if (/Mac OS X|Macintosh/i.test(ua)) return true;
+    } catch (e) { /* ignore */ }
+    return false;
+  }
+
+  function syncKeepCraftingShortcutHint() {
+    var kbd = document.getElementById("repo-keep-crafting-kbd");
+    if (!kbd) return;
+    kbd.textContent = isAppleModHint() ? "⌘↵" : "Ctrl↵";
+    if (els.keepCrafting) {
+      els.keepCrafting.setAttribute("aria-keyshortcuts", "Meta+Enter Control+Enter");
+    }
+  }
+
+  /** Cmd/Ctrl+Enter → Keep crafting (same as the button). No newline; ignore in-flight. */
+  function handleKeepCraftingShortcut(event) {
+    if (!event) return false;
+    var key = event.key || event.code || "";
+    var isEnter = key === "Enter" || key === "NumpadEnter" || event.keyCode === 13;
+    if (!isEnter || !(event.metaKey || event.ctrlKey)) return false;
+    if (typeof event.preventDefault === "function") event.preventDefault();
+    if (typeof event.stopPropagation === "function") event.stopPropagation();
+    if (!isWritePage || state.padSaving || state.padAsking) return true;
+    if (!padBody().trim()) return true;
+    try {
+      if (window.tinkerAnalytics && typeof window.tinkerAnalytics.keepCrafting === "function") {
+        window.tinkerAnalytics.keepCrafting();
+      }
+    } catch (e) { /* ignore */ }
+    keepCraftingPad();
+    return true;
   }
 
   function setPadMarkdown(md, opts) {
@@ -1058,6 +1098,26 @@
     });
   }
 
+  /** After a successful This is everything: blank pad, essay already in the tree. */
+  function startBlankPadAfterSave() {
+    state.draft = null;
+    state.selectedId = null;
+    state.selectedFolderId = null;
+    state.followupQuestion = "";
+    state.followupAsked = [];
+    state.status = "";
+    clearPadError();
+    clearPadIdleTimer();
+    state.padActionsVisible = false;
+    if (els.body) els.body.value = "";
+    setPadMarkdown("");
+    setPadActionsVisible(false);
+    render();
+    try {
+      focusLastPadTurn(true);
+    } catch (e) { /* ignore */ }
+  }
+
   function storyFromEssay(essay, folderId) {
     var title = essay.title || firstLineTitle(essay.body || "");
     var createdAt = essay.createdAt
@@ -1096,9 +1156,8 @@
     }
     state.padSaving = true;
     setPadActionsVisible(false);
-    state.status = "Saving…";
+    state.status = "";
     renderSyncHint();
-    showPadNotice("Saving…", { autoHideMs: 0 });
 
     var place = activePlace();
     var folderId = draft.folderId || null;
@@ -1138,7 +1197,13 @@
         };
         essays = [essay].concat(essays);
       }
-      return putEssays(essays).then(function () {
+      return putEssays(essays).then(function (putResult) {
+        if (!putResult || !putResult.ok) {
+          state.status = "";
+          renderSyncHint();
+          showPadError("Could not save this piece. Try again.", { retry: false });
+          return null;
+        }
         var saved = storyFromEssay(essay, folderId);
         if (place) state.places[saved.id] = place.slice(0, 120);
         if (draft.isNew && state.draft && state.draft.id === draft.id) state.draft = null;
@@ -1151,13 +1216,10 @@
           return s;
         });
         if (!replaced) state.stories = [saved].concat(state.stories);
-        state.selectedId = saved.id;
         state.followupQuestion = "";
-        state.status = "Saved.";
-        render();
-        renderFollowup();
-        // Sidebar sync hint is display:none on mobile write — surface a pad notice.
-        showPadNotice("Saved.", { autoHideMs: 2800 });
+        state.status = "";
+        // Blank editor for the next piece; saved essay is already first in the tree.
+        startBlankPadAfterSave();
         var placePromise = place && !isDraftId(saved.id)
           ? apiPost("set_place", { fileId: saved.id, place: place }).then(function (result) {
               if (result && result.ok && result.json && result.json.tree) applyTree(result.json.tree);
@@ -1168,13 +1230,14 @@
         });
       });
     }).catch(function () {
-      state.status = "Could not save.";
+      state.status = "";
       renderSyncHint();
       showPadError("Could not save this piece. Try again.", { retry: false });
       return null;
     }).finally(function () {
       state.padSaving = false;
-      bumpPadTypingIdle();
+      // Do not re-show actions on a cleared blank pad after success.
+      if (padBody().trim()) bumpPadTypingIdle();
     });
   }
 
@@ -2771,12 +2834,14 @@
       }
       onBodyInput();
     });
-    els.body.addEventListener("keydown", function () {
+    els.body.addEventListener("keydown", function (event) {
+      if (handleKeepCraftingShortcut(event)) return;
       if (padBody().trim()) setPadActionsVisible(false);
     });
   }
   if (isWritePage) {
     renderPadFromMarkdown(padBody());
+    syncKeepCraftingShortcutHint();
     try {
       window.addEventListener("resize", resizeAllPadTurns);
     } catch (e) { /* ignore */ }
