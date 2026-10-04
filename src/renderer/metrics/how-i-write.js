@@ -363,8 +363,15 @@
       .then(function (res) {
         if (res.status === 403) throw Object.assign(new Error("Not available for this account."), { status: 403 });
         if (res.status === 401) throw Object.assign(new Error("Sign in required."), { status: 401 });
-        if (!res.ok) throw new Error("Could not load How I write.");
-        return res.json();
+        return res.json().then(function (json) {
+          if (!res.ok) {
+            if (json && (json.code === "metrics_not_setup" || /not set up yet/i.test(json.error || ""))) {
+              throw Object.assign(new Error("metrics not set up yet"), { status: 503, code: "metrics_not_setup" });
+            }
+            throw new Error((json && json.error) || "Could not load How I write.");
+          }
+          return json;
+        });
       })
       .then(function (json) {
         setStatus("");
@@ -381,6 +388,10 @@
         if (sid) loadDetail(sid);
       })
       .catch(function (err) {
+        if (err && err.code === "metrics_not_setup") {
+          setStatus("metrics not set up yet");
+          return;
+        }
         setStatus((err && err.message) || "Could not load.", true);
       });
   }

@@ -212,6 +212,13 @@ module.exports = withResponseLogging(async function handler(req, res) {
       const summary = await analytics.metricsSummary(days === 30 ? 30 : 7);
       res.status(200).json(summary);
     } catch (err) {
+      if (analytics.isMissingAnalyticsSchema(err)) {
+        res.status(503).json({
+          error: "metrics not set up yet",
+          code: "metrics_not_setup",
+        });
+        return;
+      }
       res.status(err.status || 503).json({ error: err.message || "Unavailable" });
     }
     return;

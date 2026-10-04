@@ -33,21 +33,43 @@ const MAX_SURFACE_EVENTS = 40;
 const KEYSTROKE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_CONTEXT_TAG = 64;
 
-function ownerAllowlist() {
-  const raw = String(process.env.METRICS_OWNER_ALLOWLIST || "").trim();
-  if (!raw) return new Set();
+function parseAllowlist(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return new Set();
   return new Set(
-    raw.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean),
+    text.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean),
   );
+}
+
+/**
+ * Prefer METRICS_OWNER_ALLOWLIST. If unset/empty, fall back to
+ * LEADS_OWNER_ALLOWLIST (already set on Vercel for Tyler). Both empty
+ * → nobody (fail closed).
+ */
+function ownerAllowlist() {
+  const metrics = parseAllowlist(process.env.METRICS_OWNER_ALLOWLIST);
+  if (metrics.size) return metrics;
+  return parseAllowlist(process.env.LEADS_OWNER_ALLOWLIST);
 }
 
 function isMetricsOwner(userId) {
   const id = String(userId || "").trim();
   if (!id) return false;
-  const list = ownerAllowlist();
-  // Empty allowlist = nobody (fail closed). Set METRICS_OWNER_ALLOWLIST
-  // to Tyler's Stytch user id(s) in Vercel env.
-  return list.has(id);
+  // Empty allowlist (both METRICS and LEADS) = nobody (fail closed).
+  return ownerAllowlist().has(id);
+}
+
+/** True when Postgres is missing analytics tables (migrations not applied). */
+function isMissingAnalyticsSchema(err) {
+  if (!err) return false;
+  const code = String(err.code || "");
+  if (code === "P2021") return true; // table does not exist
+  const msg = String(err.message || err);
+  if (/P2021\b/.test(msg)) return true;
+  if (/does not exist/i.test(msg) && /(relation|table|Analytics)/i.test(msg)) {
+    return true;
+  }
+  return false;
 }
 
 async function upsertIdentity(ev, userId) {
@@ -771,7 +793,7 @@ async function writingSummaryExport() {
       timeZone: "America/Los_Angeles",
       weekly: [],
       promptRankings: [],
-      note: "METRICS_OWNER_ALLOWLIST is empty; no owner sessions exported.",
+      note: "No owner allowlist configured (METRICS_OWNER_ALLOWLIST / LEADS_OWNER_ALLOWLIST); no owner sessions exported.",
     };
   }
   const since = new Date(Date.now() - 84 * 24 * 60 * 60 * 1000);
@@ -788,6 +810,7 @@ module.exports = {
   KEYSTROKE_RETENTION_MS,
   ownerAllowlist,
   isMetricsOwner,
+  isMissingAnalyticsSchema,
   upsertIdentity,
   ingestBatch,
   ingestKeystrokeChunks,

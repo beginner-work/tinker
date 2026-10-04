@@ -301,16 +301,147 @@ test("shipped assets and routes include analytics + metrics + vercel pageviews",
   assert.match(envEx, /WRITING_SUMMARY_TOKEN/);
 });
 
-test("owner gate fails closed without METRICS_OWNER_ALLOWLIST", () => {
+test("owner gate fails closed when both allowlists empty; falls back to LEADS", () => {
   const analytics = require("../api/_lib/analytics.js");
-  const prev = process.env.METRICS_OWNER_ALLOWLIST;
+  const prevM = process.env.METRICS_OWNER_ALLOWLIST;
+  const prevL = process.env.LEADS_OWNER_ALLOWLIST;
   process.env.METRICS_OWNER_ALLOWLIST = "";
+  process.env.LEADS_OWNER_ALLOWLIST = "";
   assert.equal(analytics.isMetricsOwner("user-live-anything"), false);
+
   process.env.METRICS_OWNER_ALLOWLIST = "user-live-tyler,user-test-1";
+  process.env.LEADS_OWNER_ALLOWLIST = "";
   assert.equal(analytics.isMetricsOwner("user-live-tyler"), true);
   assert.equal(analytics.isMetricsOwner("user-other"), false);
-  if (prev == null) delete process.env.METRICS_OWNER_ALLOWLIST;
-  else process.env.METRICS_OWNER_ALLOWLIST = prev;
+
+  // METRICS empty → fall back to LEADS_OWNER_ALLOWLIST
+  process.env.METRICS_OWNER_ALLOWLIST = "";
+  process.env.LEADS_OWNER_ALLOWLIST = "user-from-leads";
+  assert.equal(analytics.isMetricsOwner("user-from-leads"), true);
+  assert.equal(analytics.isMetricsOwner("user-live-tyler"), false);
+
+  // METRICS wins when both set
+  process.env.METRICS_OWNER_ALLOWLIST = "user-metrics-only";
+  process.env.LEADS_OWNER_ALLOWLIST = "user-from-leads";
+  assert.equal(analytics.isMetricsOwner("user-metrics-only"), true);
+  assert.equal(analytics.isMetricsOwner("user-from-leads"), false);
+
+  if (prevM == null) delete process.env.METRICS_OWNER_ALLOWLIST;
+  else process.env.METRICS_OWNER_ALLOWLIST = prevM;
+  if (prevL == null) delete process.env.LEADS_OWNER_ALLOWLIST;
+  else process.env.LEADS_OWNER_ALLOWLIST = prevL;
+});
+
+test("missing analytics tables are detected as metrics_not_setup", () => {
+  const analytics = require("../api/_lib/analytics.js");
+  assert.equal(analytics.isMissingAnalyticsSchema(null), false);
+  assert.equal(analytics.isMissingAnalyticsSchema({ code: "P2021", message: "x" }), true);
+  assert.equal(
+    analytics.isMissingAnalyticsSchema({
+      message: 'relation "AnalyticsEvent" does not exist',
+    }),
+    true,
+  );
+  assert.equal(
+    analytics.isMissingAnalyticsSchema({ code: "P2002", message: "Unique constraint" }),
+    false,
+  );
+});
+
+test("POST ingest returns 202 and never throws when tables are missing", async () => {
+  const analytics = require("../api/_lib/analytics.js");
+  const handler = require("../api/analytics.js");
+  const prev = analytics.ingestBatch;
+  analytics.ingestBatch = async () => {
+    const err = new Error('relation "AnalyticsEvent" does not exist');
+    err.code = "P2021";
+    throw err;
+  };
+  const res = {
+    statusCode: 0,
+    body: null,
+    setHeader() {},
+    status(n) { this.statusCode = n; return this; },
+    json(b) { this.body = b; return this; },
+  };
+  const req = {
+    method: "POST",
+    headers: {},
+    url: "/api/analytics",
+    body: { events: [{ name: "page_view", anonymousId: "anon12345", sessionId: "s1" }] },
+  };
+  await handler(req, res);
+  assert.equal(res.statusCode, 202);
+  assert.equal(res.body.ok, false);
+  assert.equal(res.body.accepted, 0);
+  analytics.ingestBatch = prev;
+});
+
+test("GET summary returns metrics_not_setup when tables are missing", async () => {
+  const analytics = require("../api/_lib/analytics.js");
+  const stytchPath = require.resolve("../api/_lib/stytch.js");
+  const handlerPath = require.resolve("../api/analytics.js");
+  const prevAllow = process.env.METRICS_OWNER_ALLOWLIST;
+  const prevLeads = process.env.LEADS_OWNER_ALLOWLIST;
+  process.env.METRICS_OWNER_ALLOWLIST = "owner-1";
+  process.env.LEADS_OWNER_ALLOWLIST = "";
+
+  const stytch = require("../api/_lib/stytch.js");
+  const prevAuth = stytch.authenticateSession;
+  stytch.authenticateSession = async () => ({ session: { user_id: "owner-1" } });
+  // analytics.js destructures authenticateSession at load time — reload after stub.
+  delete require.cache[handlerPath];
+  const handler = require("../api/analytics.js");
+
+  const prevSummary = analytics.metricsSummary;
+  analytics.metricsSummary = async () => {
+    const err = new Error("The table `public.AnalyticsEvent` does not exist in the current database.");
+    err.code = "P2021";
+    throw err;
+  };
+  const prevRollup = analytics.rollupExpiredKeystrokes;
+  analytics.rollupExpiredKeystrokes = async () => {};
+
+  const res = {
+    statusCode: 0,
+    body: null,
+    setHeader() {},
+    status(n) { this.statusCode = n; return this; },
+    json(b) { this.body = b; return this; },
+    end() { return this; },
+  };
+  await handler({
+    method: "GET",
+    headers: { authorization: "Bearer sess" },
+    url: "/api/analytics?action=summary&days=7",
+  }, res);
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.body.code, "metrics_not_setup");
+  assert.match(res.body.error, /not set up yet/i);
+
+  stytch.authenticateSession = prevAuth;
+  analytics.metricsSummary = prevSummary;
+  analytics.rollupExpiredKeystrokes = prevRollup;
+  delete require.cache[handlerPath];
+  delete require.cache[stytchPath];
+  if (prevAllow == null) delete process.env.METRICS_OWNER_ALLOWLIST;
+  else process.env.METRICS_OWNER_ALLOWLIST = prevAllow;
+  if (prevLeads == null) delete process.env.LEADS_OWNER_ALLOWLIST;
+  else process.env.LEADS_OWNER_ALLOWLIST = prevLeads;
+});
+
+test("analytics client flush never throws when send fails (editor stays unaffected)", async () => {
+  const core = require("../src/renderer/lib/analytics-core.js");
+  const client = core.createAnalyticsClient({
+    storage: memStorage(),
+    navigator: {},
+    send: async () => { throw new Error("network / missing table"); },
+    flushMs: 60_000,
+  });
+  client.track("page_view", {}, { path: "/" });
+  const result = await client.flush();
+  assert.equal(result.sent, false);
+  assert.equal(result.reason, "network");
 });
 
 test("flow detection finds stretches and end causes without text", () => {
