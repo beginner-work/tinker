@@ -106,7 +106,12 @@
           heading.textContent = "Storage";
           panel.appendChild(heading);
 
-          var options = [macFolder];
+          var mode = document.body.getAttribute("data-harness-mode") || "";
+          var options = [];
+          // Mac folder is desktop-only (matches repo.js canPickFolder gate).
+          if (mode === "desktop-installed" || mode === "desktop-missing") {
+            options.push(macFolder);
+          }
           if (registered && typeof registered.getOptions === "function") {
             try { options = options.concat(registered.getOptions() || []); }
             catch (e) { /* ignore */ }
