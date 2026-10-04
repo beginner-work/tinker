@@ -706,6 +706,7 @@
     var target = event && event.target;
     if (isInteractiveChrome(target)) return;
     if (!els.surface || !els.surface.contains(target)) return;
+    // Never cancel a real control click that bubbled past a miss in closest().
     if (event && event.preventDefault) event.preventDefault();
     focusLastPadTurn(true);
   }
@@ -857,8 +858,17 @@
     }
   }
 
+  var padNoticeTimer = null;
+
   function clearPadError() {
-    if (els.padError) els.padError.hidden = true;
+    if (padNoticeTimer) {
+      clearTimeout(padNoticeTimer);
+      padNoticeTimer = null;
+    }
+    if (els.padError) {
+      els.padError.hidden = true;
+      els.padError.classList.remove("repo-pad-error--ok");
+    }
     if (els.padErrorText) text(els.padErrorText, "");
     if (els.padErrorRetry) els.padErrorRetry.hidden = true;
     if (els.padErrorSignin) els.padErrorSignin.hidden = true;
@@ -871,12 +881,48 @@
       renderSyncHint();
       return;
     }
+    if (padNoticeTimer) {
+      clearTimeout(padNoticeTimer);
+      padNoticeTimer = null;
+    }
+    els.padError.classList.remove("repo-pad-error--ok");
     text(els.padErrorText, message || "Something went wrong.");
     els.padError.hidden = false;
     if (els.padErrorRetry) els.padErrorRetry.hidden = !opts.retry;
     if (els.padErrorSignin) els.padErrorSignin.hidden = !opts.signin;
     state.status = "";
     renderSyncHint();
+  }
+
+  /** Visible on the write pad (including mobile, where the sidebar sync hint is hidden). */
+  function showPadNotice(message, opts) {
+    opts = opts || {};
+    if (!els.padError || !els.padErrorText) {
+      state.status = message || "";
+      renderSyncHint();
+      return;
+    }
+    if (padNoticeTimer) {
+      clearTimeout(padNoticeTimer);
+      padNoticeTimer = null;
+    }
+    text(els.padErrorText, message || "");
+    els.padError.hidden = false;
+    els.padError.classList.add("repo-pad-error--ok");
+    if (els.padErrorRetry) els.padErrorRetry.hidden = true;
+    if (els.padErrorSignin) els.padErrorSignin.hidden = true;
+    var ms = Number(opts.autoHideMs);
+    if (!Number.isFinite(ms) || ms < 0) ms = 2800;
+    if (ms > 0) {
+      padNoticeTimer = setTimeout(function () {
+        padNoticeTimer = null;
+        if (els.padError && els.padError.classList.contains("repo-pad-error--ok")) {
+          els.padError.hidden = true;
+          els.padError.classList.remove("repo-pad-error--ok");
+          if (els.padErrorText) text(els.padErrorText, "");
+        }
+      }, ms);
+    }
   }
 
   function syncPadFromDom() {
@@ -1039,15 +1085,20 @@
     if (!body) return Promise.resolve(null);
     clearPadError();
     if (!hasSessionToken()) {
-      showPadError("Sign in to save this piece.", { signin: true });
+      // Don't silently toast — send the owner to the phone gate with draft stashed.
+      sendHomeForAuth();
       return Promise.resolve(null);
     }
     var draft = ensureDraftFromPad();
-    if (!draft) return Promise.resolve(null);
+    if (!draft) {
+      showPadError("Could not prepare this piece to save.", { retry: false });
+      return Promise.resolve(null);
+    }
     state.padSaving = true;
     setPadActionsVisible(false);
     state.status = "Saving…";
     renderSyncHint();
+    showPadNotice("Saving…", { autoHideMs: 0 });
 
     var place = activePlace();
     var folderId = draft.folderId || null;
@@ -1105,6 +1156,8 @@
         state.status = "Saved.";
         render();
         renderFollowup();
+        // Sidebar sync hint is display:none on mobile write — surface a pad notice.
+        showPadNotice("Saved.", { autoHideMs: 2800 });
         var placePromise = place && !isDraftId(saved.id)
           ? apiPost("set_place", { fileId: saved.id, place: place }).then(function (result) {
               if (result && result.ok && result.json && result.json.tree) applyTree(result.json.tree);
@@ -1117,6 +1170,7 @@
     }).catch(function () {
       state.status = "Could not save.";
       renderSyncHint();
+      showPadError("Could not save this piece. Try again.", { retry: false });
       return null;
     }).finally(function () {
       state.padSaving = false;
@@ -2741,13 +2795,21 @@
   if (els.keepCrafting) {
     els.keepCrafting.addEventListener("click", function (event) {
       if (event && event.preventDefault) event.preventDefault();
+      if (event && event.stopPropagation) event.stopPropagation();
       keepCraftingPad();
     });
   }
   if (els.thisIsEverything) {
     els.thisIsEverything.addEventListener("click", function (event) {
       if (event && event.preventDefault) event.preventDefault();
+      if (event && event.stopPropagation) event.stopPropagation();
       savePad();
+    });
+  }
+  if (els.padActions) {
+    // Fixed mobile island sits over the tall pad; keep clicks on the chrome.
+    els.padActions.addEventListener("click", function (event) {
+      if (event && event.stopPropagation) event.stopPropagation();
     });
   }
   if (els.padErrorRetry) {
@@ -2911,6 +2973,7 @@
     arePadActionsVisible: function () { return !!state.padActionsVisible; },
     getFollowupQuestion: function () { return state.followupQuestion || ""; },
     showPadError: showPadError,
+    showPadNotice: showPadNotice,
     clearPadError: clearPadError,
     focusLastPadTurn: focusLastPadTurn,
     syncVisualViewportInset: syncVisualViewportInset,
