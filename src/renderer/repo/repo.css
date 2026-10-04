@@ -120,6 +120,12 @@ html.tinker-desktop .repo-top [role="button"] {
   word-break: break-all;
 }
 
+.repo-file__place {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
 .repo-mobile__body {
   margin: 0;
   white-space: pre-wrap;
@@ -128,11 +134,9 @@ html.tinker-desktop .repo-top [role="button"] {
   color: var(--color-foreground);
 }
 
-/* Tinker location: custom dropdown (not a native <select>). Tinker mark +
- * "Location" caption, pill trigger, listbox of typed folders, and a
- * "Custom location…" row that turns into a path input. Storage section
- * options (Mac folder, and later iCloud/Drive) register via
- * window.tinkerRepo.registerLocationSection. */
+/* Location = writing place combobox (globe + invisible input + chevron).
+ * Place suggestions reuse the panel/option styles below. Disk/cloud
+ * storage lives on Files as Saved in (same option styles). */
 .repo-location {
   position: relative;
   margin-left: auto;
@@ -145,6 +149,14 @@ html.tinker-desktop .repo-top [role="button"] {
 
 .repo-location + .repo-top__badge {
   margin-left: 0;
+}
+
+.repo-location__globe {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  display: block;
+  color: var(--color-muted);
 }
 
 .repo-location__logo {
@@ -163,26 +175,68 @@ html.tinker-desktop .repo-top [role="button"] {
   white-space: nowrap;
 }
 
-.repo-location__btn {
+.repo-location__field {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  max-width: 240px;
-  min-width: 0;
+  gap: 2px;
+  max-width: 280px;
+  min-width: 148px;
   height: 32px;
-  padding: 0 10px 0 12px;
+  padding: 0 4px 0 12px;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-surface);
-  color: var(--color-foreground);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.repo-location__field:focus-within {
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 3px var(--color-accent-dim, rgba(45, 90, 61, 0.14));
+}
+
+.repo-location__input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
+  color: var(--color-foreground);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.repo-location__input:focus,
+.repo-location__input:focus-visible {
+  outline: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.repo-location__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
   -webkit-tap-highlight-color: transparent;
-  transition: border-color 0.15s ease;
 }
 
 .repo-location__value {
@@ -201,17 +255,12 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-location__btn:hover {
-  border-color: var(--color-accent);
+  background: var(--color-accent-dim, rgba(45, 90, 61, 0.1));
 }
 
 .repo-location__btn:focus-visible {
   outline: none;
-  border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 3px var(--color-accent-dim, rgba(45, 90, 61, 0.14));
-}
-
-.repo-location__btn[aria-expanded="true"] {
-  border-color: var(--color-accent-strong);
+  background: var(--color-accent-dim, rgba(45, 90, 61, 0.1));
 }
 
 .repo-location__btn[aria-expanded="true"] .repo-location__chevron {
@@ -350,27 +399,6 @@ html.tinker-desktop .repo-top [role="button"] {
   color: var(--color-muted);
 }
 
-.repo-location__input {
-  width: 100%;
-  height: 38px;
-  margin: 0;
-  padding: 0 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-background);
-  font: inherit;
-  font-size: 16px; /* iOS: avoid focus zoom */
-  color: var(--color-foreground);
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.repo-location__input:focus {
-  outline: none;
-  border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 3px var(--color-accent-dim, rgba(45, 90, 61, 0.14));
-}
-
 .repo-location__hint,
 .repo-location__error {
   margin: 6px 2px 0;
@@ -413,7 +441,92 @@ html.tinker-desktop .repo-top [role="button"] {
   border-color: var(--color-accent-strong);
 }
 
-/* Storage section (location dropdown / fallback panel) */
+/* Saved in (Files page): disk / cloud root picker */
+.repo-saved-in {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.repo-saved-in__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.repo-saved-in__custom {
+  margin-top: 10px;
+  padding: 8px 2px 0;
+}
+
+.repo-saved-in__label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.repo-saved-in__input {
+  width: 100%;
+  height: 38px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-background);
+  font: inherit;
+  font-size: 16px; /* iOS: avoid focus zoom */
+  color: var(--color-foreground);
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+}
+
+.repo-saved-in__input:focus {
+  outline: none;
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 3px var(--color-accent-dim, rgba(45, 90, 61, 0.14));
+}
+
+.repo-saved-in__hint,
+.repo-saved-in__error {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.repo-saved-in__error {
+  color: #b42318;
+}
+
+.repo-saved-in__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.repo-saved-in__save {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--color-accent);
+  border-radius: 999px;
+  background: var(--color-accent-dim, rgba(45, 90, 61, 0.12));
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.repo-saved-in__save:hover {
+  border-color: var(--color-accent-strong);
+}
+
+/* Storage section (legacy / fallback panel) */
 .repo-storage {
   margin-top: 14px;
   padding-top: 12px;

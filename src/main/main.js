@@ -14,6 +14,7 @@ const path = require("path");
 const fs = require("fs");
 const fsp = require("fs/promises");
 const { detectCloudRoots, useCloudRoot } = require("./lib/cloud-roots.js");
+const { useCustomPath } = require("./lib/custom-path.js");
 
 // Production Tinker. The desktop shell is a hardened BrowserWindow around
 // this origin — web product changes ship without a new dmg; only shell
@@ -610,5 +611,19 @@ ipcMain.handle("storage:useCloudRoot", async (_event, id) => {
     });
   } catch {
     return null;
+  }
+});
+
+// Typed filesystem path for Files → Saved in → Custom location…
+// Feature-detect via window.tinker.useCustomStoragePath on older dmgs.
+ipcMain.handle("storage:useCustomPath", async (_event, rawPath) => {
+  try {
+    return useCustomPath(rawPath, {
+      homeDir: app.getPath("home"),
+    });
+  } catch (err) {
+    return {
+      error: (err && err.message) || "Could not use that path.",
+    };
   }
 });
