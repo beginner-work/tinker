@@ -94,6 +94,7 @@ html.tinker-desktop .repo-top [role="button"] {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .repo-top__action {
@@ -134,36 +135,32 @@ html.tinker-desktop .repo-top [role="button"] {
   color: var(--color-foreground);
 }
 
-/* Location = writing place combobox (globe + invisible input + chevron).
- * Place suggestions reuse the panel/option styles below. Disk/cloud
- * storage lives on Files as Saved in (same option styles). */
+/* Location = floating island over the writing surface (globe + place field).
+ * Place suggestions open below the island. Disk/cloud storage lives on
+ * Files as Saved in (same option styles). */
 .repo-location {
-  position: relative;
-  margin-left: auto;
-  flex-shrink: 0;
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 12;
+  transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.repo-location + .repo-top__badge {
-  margin-left: 0;
+  width: min(280px, calc(100% - 32px));
+  pointer-events: none;
 }
 
 .repo-location__globe {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
   display: block;
-  color: var(--color-muted);
-}
-
-.repo-location__logo {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  display: block;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .repo-location__caption {
@@ -176,22 +173,27 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-location__field {
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
+  width: 100%;
   max-width: 280px;
-  min-width: 148px;
-  height: 32px;
+  min-width: 0;
+  height: 36px;
   padding: 0 4px 0 12px;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-surface);
+  box-shadow: 0 6px 20px rgba(28, 25, 23, 0.08), 0 1px 3px rgba(28, 25, 23, 0.04);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .repo-location__field:focus-within {
   border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 3px var(--color-accent-dim, rgba(45, 90, 61, 0.14));
+  box-shadow:
+    0 6px 20px rgba(28, 25, 23, 0.1),
+    0 0 0 3px var(--color-accent-dim, rgba(45, 90, 61, 0.14));
 }
 
 .repo-location__input {
@@ -268,11 +270,13 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-location__panel {
+  pointer-events: auto;
   position: absolute;
   top: calc(100% + 8px);
-  right: 0;
+  left: 50%;
+  right: auto;
   z-index: 20;
-  width: min(320px, calc(100vw - 24px));
+  width: min(280px, calc(100vw - 24px));
   max-height: min(420px, 70vh);
   overflow-y: auto;
   padding: 6px;
@@ -281,6 +285,7 @@ html.tinker-desktop .repo-top [role="button"] {
   background: var(--color-surface);
   box-shadow: 0 14px 34px rgba(28, 25, 23, 0.12);
   scrollbar-width: thin;
+  transform: translateX(-50%);
 }
 
 .repo-location__list {
@@ -1136,13 +1141,105 @@ html.tinker-desktop .repo-top [role="button"] {
   padding: 20px 24px 28px;
 }
 
+.repo-followup {
+  position: relative;
+  z-index: 5;
+  margin: 48px 20px 0;
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  color: var(--color-foreground);
+}
+
+.repo-followup[hidden] {
+  display: none;
+}
+
+/* Keep crafting / This is everything — float bottom-right; idle fade-in. */
+.repo-surface__foot {
+  position: absolute;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-background) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(45, 42, 38, 0.12);
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 300ms ease, transform 300ms ease;
+  -webkit-app-region: no-drag;
+}
+
+.repo-surface__foot.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.repo-surface__action {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.repo-surface__action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.repo-surface__action--secondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.repo-surface__action--secondary:not(:disabled):hover {
+  border-color: var(--color-accent);
+}
+
+.repo-surface__action--primary {
+  border: 0;
+  background: #4f46e5;
+  color: #fff;
+}
+
+.repo-surface__action--primary:not(:disabled):hover {
+  background: #4338ca;
+}
+
+.repo-surface__action:focus-visible {
+  outline: 2px solid var(--color-accent-strong, #4f46e5);
+  outline-offset: 2px;
+}
+
 .repo-surface__input.writing-input {
   flex: 1;
   min-height: 0;
   width: 100%;
   height: 100%;
   margin: 0;
-  padding: 18px 20px;
+  /* Clear the floating Location island at the top of the pad. */
+  padding: 56px 20px 72px;
   resize: none;
   /* Invisible notepad: only text, placeholder, and caret show. */
   border: 0;
@@ -1264,24 +1361,17 @@ html.tinker-desktop .repo-top [role="button"] {
   }
 
   .repo-location {
-    margin-left: 0;
-    width: 100%;
-    order: 5;
+    top: 10px;
+    width: min(260px, calc(100% - 24px));
   }
 
-  .repo-location__btn {
-    flex: 1;
-    max-width: none;
-    min-height: 44px;
-    height: auto;
-    justify-content: space-between;
+  .repo-location__field {
+    height: 34px;
   }
 
   .repo-location__panel {
-    left: 0;
-    right: 0;
-    width: auto;
-    max-height: 60vh;
+    width: min(260px, calc(100vw - 24px));
+    max-height: 50vh;
   }
 
   .repo-location__option {
@@ -1311,10 +1401,70 @@ html.tinker-desktop .repo-top [role="button"] {
   }
 
   .repo-surface.writing {
-    padding: 12px;
+    padding: 10px 12px 16px;
+  }
+
+  .repo-surface__input.writing-input {
+    padding: 52px 12px 68px;
+  }
+
+  .repo-followup {
+    margin: 44px 12px 0;
+    font-size: 17px;
+  }
+
+  .repo-surface__foot {
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
 
   body.repo-page {
     overflow: auto;
+  }
+}
+
+/* Narrow phone (e.g. 390px): keep the island centered and clear of pad text. */
+@media (max-width: 430px) {
+  .repo-location {
+    top: 8px;
+    width: min(240px, calc(100% - 20px));
+  }
+
+  .repo-location__field {
+    height: 32px;
+    gap: 6px;
+    padding-left: 10px;
+  }
+
+  .repo-location__globe {
+    width: 12px;
+    height: 12px;
+  }
+
+  .repo-surface.writing {
+    padding: 8px 10px 14px;
+  }
+
+  .repo-surface__input.writing-input {
+    padding: 48px 10px 64px;
+    font-size: 16px;
+  }
+
+  .repo-followup {
+    margin: 40px 10px 0;
+    font-size: 16px;
+  }
+
+  .repo-surface__foot {
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    gap: 4px;
+    padding: 5px;
+  }
+
+  .repo-surface__action {
+    height: 36px;
+    padding: 0 12px;
+    font-size: 12px;
   }
 }

@@ -12,10 +12,12 @@
 
   var LOCATION_KEY = "tinker.repo.location.v1";
   var RECENT_PLACES_KEY = "tinker.repo.placesRecent.v1";
+  var ESSAYS_KEY = "tinker.essays.v1";
   var PLACE_STARTERS = ["Home", "Coffee shop", "San Diego"];
   var STORAGE_EVENT = "tinker-storage-root-changed";
   var TOKEN_KEY = "tinker_jwt";
   var RETURN_KEY = "tinker_mcp_return";
+  var PAD_IDLE_MS = 3000;
   var md = window.tinkerStoriesMd;
   var core = window.tinkerRepoFoldersCore;
   if (!md || !core) return;
@@ -35,6 +37,8 @@
     draft: null,
     location: "",
     locationOpen: false,
+    // Session writing place when no file is selected yet; also seeds new files.
+    currentPlace: "",
     placeActive: 0,
     placeRows: [],
     savedInCustom: false,
@@ -53,6 +57,13 @@
     openMenuFolderId: null,
     dragFileId: null,
     mirroredFolders: {},
+    padActionsVisible: false,
+    padIdleTimer: null,
+    padIdleMs: PAD_IDLE_MS,
+    padSaving: false,
+    padAsking: false,
+    followupAsked: [],
+    followupQuestion: "",
   };
 
   var els = {
@@ -63,6 +74,10 @@
     newPiece: document.getElementById("repo-new-piece"),
     newFolder: document.getElementById("repo-new-folder"),
     body: document.getElementById("repo-body"),
+    followup: document.getElementById("repo-followup"),
+    padActions: document.getElementById("repo-pad-actions"),
+    keepCrafting: document.getElementById("repo-keep-crafting"),
+    thisIsEverything: document.getElementById("repo-this-is-everything"),
     locationBtn: document.getElementById("repo-location-btn"),
     locationPanel: document.getElementById("repo-location-panel"),
     locationInput: document.getElementById("repo-location-input"),
@@ -168,7 +183,7 @@
   }
 
   function getPlace() {
-    return placeForSelectedFile();
+    return activePlace();
   }
 
   function setLocation(value) {
@@ -410,17 +425,341 @@
     state.draft = draft;
     state.selectedId = draft.id;
     state.selectedFolderId = folderId;
+    // Carry the session place onto the new file so it shows and survives first save.
+    if (state.currentPlace) {
+      state.places[draft.id] = state.currentPlace.slice(0, 120);
+    }
     render();
     if (els.body) {
       try { els.body.focus(); } catch (e) { /* ignore */ }
     }
   }
 
+  function padBody() {
+    return els.body ? String(els.body.value || "") : "";
+  }
+
+  function firstLineTitle(text) {
+    var lines = String(text || "").split(/\r?\n/);
+    for (var i = 0; i < lines.length; i += 1) {
+      var line = String(lines[i] || "").trim().replace(/^#\s*/, "");
+      if (line) return line.slice(0, 120);
+    }
+    return "Untitled";
+  }
+
+  function ensureDraftFromPad() {
+    var story = selectedStory();
+    if (story) return story;
+    if (!isWritePage) return null;
+    var body = padBody();
+    state.pieceCounter += 1;
+    var now = new Date();
+    var folderId = state.selectedFolderId || null;
+    var draft = {
+      id: "draft-new-" + state.pieceCounter,
+      title: firstLineTitle(body),
+      body: body,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+      fileName: md.storyDate(now) + "-" + md.slugifyTitle(firstLineTitle(body)) + ".md",
+      folderId: folderId,
+      contentType: folderId
+        ? core.normalizeContentType((core.folderById(state.folders, folderId) || {}).contentType)
+        : core.DEFAULT_CONTENT_TYPE,
+      markdown: body,
+      isNew: true,
+    };
+    var used = {};
+    allFiles().forEach(function (s) { used[s.fileName] = true; });
+    var n = 1;
+    while (used[draft.fileName]) {
+      n += 1;
+      draft.fileName = md.storyDate(now) + "-" + md.slugifyTitle(firstLineTitle(body)) + "-" + n + ".md";
+    }
+    draft.relPath = core.fileRelPath(state.folders, folderId, draft.fileName);
+    if (state.currentPlace) state.places[draft.id] = state.currentPlace.slice(0, 120);
+    state.draft = draft;
+    state.selectedId = draft.id;
+    state.selectedFolderId = folderId;
+    return draft;
+  }
+
+  function clearPadIdleTimer() {
+    if (state.padIdleTimer) {
+      clearTimeout(state.padIdleTimer);
+      state.padIdleTimer = null;
+    }
+  }
+
+  function setPadActionsVisible(visible) {
+    var show = !!visible && !!padBody().trim() && !state.padSaving && !state.padAsking;
+    state.padActionsVisible = show;
+    if (!els.padActions) return;
+    if (show) els.padActions.classList.add("is-visible");
+    else els.padActions.classList.remove("is-visible");
+    els.padActions.setAttribute("aria-hidden", show ? "false" : "true");
+    var tab = show ? 0 : -1;
+    if (els.keepCrafting) {
+      els.keepCrafting.tabIndex = tab;
+      els.keepCrafting.disabled = !show || state.padSaving || state.padAsking || !padBody().trim();
+    }
+    if (els.thisIsEverything) {
+      els.thisIsEverything.tabIndex = tab;
+      els.thisIsEverything.disabled = !show || state.padSaving || state.padAsking || !padBody().trim();
+    }
+  }
+
+  function renderFollowup() {
+    if (!els.followup) return;
+    var q = String(state.followupQuestion || "").trim();
+    if (!q) {
+      els.followup.hidden = true;
+      text(els.followup, "");
+      return;
+    }
+    els.followup.hidden = false;
+    text(els.followup, q);
+  }
+
+  function bumpPadTypingIdle() {
+    if (!isWritePage) return;
+    clearPadIdleTimer();
+    setPadActionsVisible(false);
+    if (!padBody().trim()) return;
+    state.padIdleTimer = setTimeout(function () {
+      state.padIdleTimer = null;
+      setPadActionsVisible(true);
+    }, state.padIdleMs || PAD_IDLE_MS);
+  }
+
   function onBodyInput() {
     var story = selectedStory();
-    if (!story || !story.isNew) return;
-    story.markdown = els.body.value;
-    story.body = els.body.value;
+    var value = padBody();
+    if (!story && value.trim()) {
+      story = ensureDraftFromPad();
+      if (story) {
+        text(els.filePath, story.relPath);
+        if (els.fileType) {
+          els.fileType.hidden = false;
+          text(els.fileType, "Type: " + core.contentTypeLabel(story.contentType || core.DEFAULT_CONTENT_TYPE));
+        }
+        renderPlace();
+      }
+    } else if (story) {
+      story.markdown = value;
+      story.body = value;
+      story.updatedAt = new Date().toISOString();
+      if (!story.isNew) story.dirty = true;
+    }
+    bumpPadTypingIdle();
+  }
+
+  function readLocalEssays() {
+    try {
+      var raw = window.localStorage.getItem(ESSAYS_KEY);
+      if (!raw) return [];
+      var parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function writeLocalEssays(list) {
+    try {
+      window.localStorage.setItem(ESSAYS_KEY, JSON.stringify(list || []));
+    } catch (e) { /* ignore */ }
+  }
+
+  function fetchEssays() {
+    return fetch("/api/user-data/essays", { headers: authHeaders() }).then(function (res) {
+      if (res.status === 401) return null;
+      if (!res.ok) return readLocalEssays();
+      return res.json().then(function (json) {
+        return Array.isArray(json && json.data) ? json.data : readLocalEssays();
+      }).catch(function () { return readLocalEssays(); });
+    }).catch(function () { return readLocalEssays(); });
+  }
+
+  function putEssays(list) {
+    writeLocalEssays(list);
+    return fetch("/api/user-data/essays", {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify({ data: list }),
+    }).then(function (res) {
+      return { ok: res.ok, status: res.status };
+    }).catch(function () {
+      return { ok: false, status: 0 };
+    });
+  }
+
+  function storyFromEssay(essay, folderId) {
+    var title = essay.title || firstLineTitle(essay.body || "");
+    var createdAt = essay.createdAt
+      ? (typeof essay.createdAt === "number" ? new Date(essay.createdAt).toISOString() : String(essay.createdAt))
+      : new Date().toISOString();
+    var fileName = md.storyFileName({ title: title, createdAt: createdAt, updatedAt: createdAt });
+    return {
+      id: essay.id,
+      title: title,
+      body: essay.body || "",
+      createdAt: createdAt,
+      updatedAt: createdAt,
+      fileName: fileName,
+      folderId: folderId || null,
+      contentType: core.DEFAULT_CONTENT_TYPE,
+      markdown: md.storyMarkdown(title, essay.body || ""),
+      isNew: false,
+      relPath: core.fileRelPath(state.folders, folderId || null, fileName),
+    };
+  }
+
+  function savePad() {
+    if (!isWritePage || state.padSaving || state.padAsking) return Promise.resolve(null);
+    var body = padBody().trim();
+    if (!body) return Promise.resolve(null);
+    var draft = ensureDraftFromPad();
+    if (!draft) return Promise.resolve(null);
+    state.padSaving = true;
+    setPadActionsVisible(false);
+    state.status = "Saving…";
+    renderSyncHint();
+
+    var place = activePlace();
+    var folderId = draft.folderId || null;
+    var existingId = draft.isNew ? null : draft.id;
+
+    return fetchEssays().then(function (list) {
+      var essays = Array.isArray(list) ? list.slice() : [];
+      var title = firstLineTitle(body);
+      var essay;
+      if (existingId) {
+        var idx = -1;
+        for (var i = 0; i < essays.length; i += 1) {
+          if (essays[i] && essays[i].id === existingId) { idx = i; break; }
+        }
+        if (idx >= 0) {
+          essay = Object.assign({}, essays[idx], {
+            title: title,
+            body: body,
+            updatedAt: Date.now(),
+          });
+          essays[idx] = essay;
+        }
+      }
+      if (!essay) {
+        essay = {
+          id: "e_" + Math.random().toString(36).slice(2, 10),
+          slug: md.slugifyTitle(title) + "-" + Math.random().toString(36).slice(2, 6),
+          author: "you",
+          title: title,
+          body: body,
+          createdAt: Date.now(),
+          url: "/you/" + md.slugifyTitle(title),
+          sourceDraft: draft.isNew ? draft.id : null,
+          kind: "essay",
+          seed: place || null,
+          pendingPitch: true,
+        };
+        essays = [essay].concat(essays);
+      }
+      return putEssays(essays).then(function () {
+        var saved = storyFromEssay(essay, folderId);
+        if (place) state.places[saved.id] = place.slice(0, 120);
+        if (draft.isNew && state.draft && state.draft.id === draft.id) state.draft = null;
+        var replaced = false;
+        state.stories = state.stories.map(function (s) {
+          if (s.id === saved.id || (draft.isNew && s.id === draft.id)) {
+            replaced = true;
+            return saved;
+          }
+          return s;
+        });
+        if (!replaced) state.stories = [saved].concat(state.stories);
+        state.selectedId = saved.id;
+        state.followupQuestion = "";
+        state.status = "Saved.";
+        render();
+        renderFollowup();
+        var placePromise = place && !isDraftId(saved.id)
+          ? apiPost("set_place", { fileId: saved.id, place: place }).then(function (result) {
+              if (result && result.ok && result.json && result.json.tree) applyTree(result.json.tree);
+            }).catch(function () { /* ignore */ })
+          : Promise.resolve();
+        return placePromise.then(function () { return syncStoriesToDisk(); }).then(function () {
+          return saved;
+        });
+      });
+    }).catch(function () {
+      state.status = "Could not save.";
+      renderSyncHint();
+      return null;
+    }).finally(function () {
+      state.padSaving = false;
+      bumpPadTypingIdle();
+    });
+  }
+
+  function keepCraftingPad() {
+    if (!isWritePage || state.padSaving || state.padAsking) return Promise.resolve(null);
+    var draftText = padBody().trim();
+    if (!draftText) return Promise.resolve(null);
+    var interview = window.tinkerInterview;
+    if (!interview || typeof interview.buildFollowupRequest !== "function") {
+      state.status = "Follow-ups unavailable. Reload the page.";
+      renderSyncHint();
+      return Promise.resolve(null);
+    }
+    if (!window.tinker || typeof window.tinker.callClaude !== "function") {
+      state.status = "Sign in to get follow-up questions.";
+      renderSyncHint();
+      return Promise.resolve(null);
+    }
+    var built = interview.buildFollowupRequest({
+      draft: draftText,
+      seed: activePlace() || undefined,
+      priorTurns: state.followupAsked.slice(),
+    });
+    if (built.error) {
+      state.status = built.error;
+      renderSyncHint();
+      return Promise.resolve(null);
+    }
+    state.padAsking = true;
+    setPadActionsVisible(false);
+    state.status = "Thinking through what to ask next…";
+    renderSyncHint();
+    return window.tinker.callClaude({
+      system: built.system,
+      messages: [{ role: "user", content: built.user }],
+      model: interview.KEEP_CRAFTING_MODEL || "claude-opus-4-8",
+      maxTokens: 2048,
+    }).then(function (result) {
+      var parsed = typeof interview.parseFreeformResponse === "function"
+        ? interview.parseFreeformResponse(result && result.text)
+        : { questions: [] };
+      var questions = Array.isArray(parsed.questions) ? parsed.questions.filter(Boolean) : [];
+      var next = questions[0] || (
+        typeof interview.fallbackKeepCraftingQuestion === "function"
+          ? interview.fallbackKeepCraftingQuestion(state.followupAsked.length, state.followupAsked)
+          : "What else are you learning about this?"
+      );
+      state.followupAsked = state.followupAsked.concat(questions.length ? questions : [next]);
+      state.followupQuestion = next;
+      state.status = "";
+      renderFollowup();
+      renderSyncHint();
+      return next;
+    }).catch(function (err) {
+      state.status = (err && err.message) || "Could not ask a follow-up.";
+      renderSyncHint();
+      return null;
+    }).finally(function () {
+      state.padAsking = false;
+      bumpPadTypingIdle();
+    });
   }
 
   function apiGetTree() {
@@ -766,6 +1105,18 @@
     return state.places[story.id] ? String(state.places[story.id]) : "";
   }
 
+  // Displayed / active place: per-file when a story is open, else session place.
+  function activePlace() {
+    var story = selectedStory();
+    if (story && story.id) {
+      if (state.places[story.id]) return String(state.places[story.id]);
+      // Draft/new file with no stored place yet still shows the session place.
+      if (isDraftId(story.id) && state.currentPlace) return state.currentPlace;
+      return "";
+    }
+    return state.currentPlace || "";
+  }
+
   function isDraftId(id) {
     return String(id || "").indexOf("draft-") === 0;
   }
@@ -803,7 +1154,7 @@
     var q = String(query || "").trim().toLowerCase();
     var rows = [];
     var seen = {};
-    var current = placeForSelectedFile();
+    var current = activePlace();
 
     function addRow(label, kind) {
       var name = String(label || "").trim();
@@ -851,7 +1202,7 @@
 
   function renderPlace() {
     if (!isWritePage) return;
-    var place = placeForSelectedFile();
+    var place = activePlace();
     if (els.locationValue) text(els.locationValue, place || "");
     if (els.locationInput && !placeInputIsTyping()) {
       els.locationInput.value = place;
@@ -990,26 +1341,26 @@
   }
 
   function choosePlace(label) {
+    var place = String(label || "").trim().slice(0, 120);
+    // Always hold as the session place so the field stays filled with no file open
+    // and the next new file / first save inherits it.
+    state.currentPlace = place;
+    if (place) pushRecentPlace(place);
+
     var story = selectedStory();
-    if (!story || !story.id) {
-      closePlacePanel(false);
-      return;
+    if (story && story.id) {
+      if (place) state.places[story.id] = place;
+      else delete state.places[story.id];
+      if (!isDraftId(story.id)) {
+        apiPost("set_place", { fileId: story.id, place: place || "" }).then(function (result) {
+          if (result && result.ok && result.json && result.json.tree) {
+            applyTree(result.json.tree);
+            render();
+          }
+        }).catch(function () { /* ignore */ });
+      }
     }
-    var place = String(label || "").trim();
-    if (place) {
-      state.places[story.id] = place.slice(0, 120);
-      pushRecentPlace(place);
-    } else {
-      delete state.places[story.id];
-    }
-    if (!isDraftId(story.id)) {
-      apiPost("set_place", { fileId: story.id, place: place || "" }).then(function (result) {
-        if (result && result.ok && result.json && result.json.tree) {
-          applyTree(result.json.tree);
-          render();
-        }
-      }).catch(function () { /* ignore */ });
-    }
+
     state.locationOpen = false;
     if (els.locationInput) els.locationInput.value = place;
     render();
@@ -1708,8 +2059,10 @@
     if (isWritePage) {
       renderCenter();
       renderPlace();
+      renderFollowup();
       renderDownloads();
       renderSyncHint();
+      setPadActionsVisible(state.padActionsVisible && !!padBody().trim());
     }
   }
 
@@ -1866,7 +2219,25 @@
 
   if (els.newPiece) els.newPiece.addEventListener("click", addNewFile);
   if (els.newFolder) els.newFolder.addEventListener("click", startCreateFolder);
-  if (els.body) els.body.addEventListener("input", onBodyInput);
+  if (els.body) {
+    els.body.addEventListener("input", onBodyInput);
+    els.body.addEventListener("keydown", function () {
+      // Keydown catches navigation keys that may not fire input; keep actions hidden while active.
+      if (padBody().trim()) setPadActionsVisible(false);
+    });
+  }
+  if (els.keepCrafting) {
+    els.keepCrafting.addEventListener("click", function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      keepCraftingPad();
+    });
+  }
+  if (els.thisIsEverything) {
+    els.thisIsEverything.addEventListener("click", function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      savePad();
+    });
+  }
   if (els.locationBtn) {
     els.locationBtn.addEventListener("click", function (event) {
       event.stopPropagation();
@@ -1899,6 +2270,17 @@
       els.locationInput.setAttribute("aria-expanded", "true");
     });
     els.locationInput.addEventListener("keydown", onPlaceInputKey);
+    els.locationInput.addEventListener("blur", function () {
+      // Commit typed custom place on blur (list mousedown preventDefault keeps
+      // focus so option clicks do not race this).
+      var typed = placeQueryFromInput().trim();
+      var shown = activePlace();
+      if (typed === shown) {
+        if (state.locationOpen) closePlacePanel(false);
+        return;
+      }
+      choosePlace(typed);
+    });
   }
   if (els.savedInSave) {
     els.savedInSave.addEventListener("mousedown", function (event) {
@@ -1982,6 +2364,14 @@
     syncStoriesToDisk: syncStoriesToDisk,
     registerLocationSection: registerLocationSection,
     refreshLocation: refreshLocation,
+    savePad: savePad,
+    keepCraftingPad: keepCraftingPad,
+    arePadActionsVisible: function () { return !!state.padActionsVisible; },
+    getFollowupQuestion: function () { return state.followupQuestion || ""; },
+    setPadIdleMs: function (ms) {
+      var n = Number(ms);
+      if (Number.isFinite(n) && n >= 0) state.padIdleMs = n;
+    },
     ready: null,
   };
 

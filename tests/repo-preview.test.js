@@ -41,12 +41,24 @@ function makeEl(tag, id, store) {
     firstChild: null,
     _text: "",
     classList: {
-      add() {},
-      remove() {},
+      add(name) {
+        const parts = String(el.className || "").split(/\s+/).filter(Boolean);
+        if (!parts.includes(String(name))) parts.push(String(name));
+        el.className = parts.join(" ");
+      },
+      remove(name) {
+        el.className = String(el.className || "")
+          .split(/\s+/)
+          .filter((part) => part && part !== String(name))
+          .join(" ");
+      },
       contains(name) {
         return String(el.className || "").split(/\s+/).includes(String(name));
       },
-      toggle() {},
+      toggle(name) {
+        if (el.classList.contains(name)) el.classList.remove(name);
+        else el.classList.add(name);
+      },
     },
     addEventListener(type, fn) {
       (listeners[type] || (listeners[type] = [])).push(fn);
@@ -158,6 +170,10 @@ function bootRepoPage(options) {
     "repo-location-custom",
     "repo-location-error",
     "repo-location-caption",
+    "repo-followup",
+    "repo-pad-actions",
+    "repo-keep-crafting",
+    "repo-this-is-everything",
     "repo-file-path",
     "repo-file-type",
     "repo-file-place",
@@ -196,6 +212,16 @@ function bootRepoPage(options) {
   byId["repo-location-choose"].hidden = true;
   byId["repo-location-error"].hidden = true;
   byId["repo-location-caption"].textContent = "Location";
+  byId["repo-followup"].hidden = true;
+  byId["repo-pad-actions"].tagName = "FOOTER";
+  byId["repo-pad-actions"].className = "repo-surface__foot";
+  byId["repo-keep-crafting"].tagName = "BUTTON";
+  byId["repo-keep-crafting"].textContent = "Keep crafting";
+  byId["repo-keep-crafting"].tabIndex = -1;
+  byId["repo-this-is-everything"].tagName = "BUTTON";
+  byId["repo-this-is-everything"].textContent = "This is everything";
+  byId["repo-this-is-everything"].disabled = true;
+  byId["repo-this-is-everything"].tabIndex = -1;
   byId["repo-file-place"].hidden = true;
   byId["repo-saved-in-list"].tagName = "UL";
   byId["repo-saved-in-custom"].hidden = true;
@@ -298,6 +324,32 @@ function bootRepoPage(options) {
       pickNotesFolder: opts.pickNotesFolder,
       useCustomStoragePath: opts.useCustomStoragePath,
       isDesktopApp: !!opts.desktop,
+      callClaude(payload) {
+        if (typeof opts.onCallClaude === "function") opts.onCallClaude(payload);
+        if (typeof opts.callClaude === "function") return opts.callClaude(payload);
+        return Promise.resolve({
+          text: JSON.stringify({ questions: ["What are you noticing about this?"] }),
+        });
+      },
+    },
+    tinkerInterview: opts.tinkerInterview || {
+      KEEP_CRAFTING_MODEL: "test-model",
+      buildFollowupRequest(args) {
+        if (typeof opts.onBuildFollowup === "function") opts.onBuildFollowup(args);
+        if (!args || !String(args.draft || "").trim()) return { error: "Pass a draft." };
+        return { mode: "freeform", system: "sys", user: "user:" + args.draft };
+      },
+      parseFreeformResponse(text) {
+        try {
+          const parsed = JSON.parse(String(text || "{}"));
+          return { questions: Array.isArray(parsed.questions) ? parsed.questions : [] };
+        } catch {
+          return { questions: [] };
+        }
+      },
+      fallbackKeepCraftingQuestion() {
+        return "What else are you learning about this?";
+      },
     },
     location: {
       search: opts.search || "",
@@ -307,6 +359,25 @@ function bootRepoPage(options) {
     },
     fetch(url, init) {
       const href = String(url || "");
+      if (href.includes("/api/user-data/essays")) {
+        if (init && init.method === "PUT") {
+          const body = JSON.parse(init.body || "{}");
+          opts._essays = Array.isArray(body.data) ? body.data : [];
+          if (typeof opts.onPutEssays === "function") opts.onPutEssays(opts._essays);
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            json() { return Promise.resolve({ ok: true }); },
+          });
+        }
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json() {
+            return Promise.resolve({ data: opts._essays || opts.essays || [] });
+          },
+        });
+      }
       if (href.includes("/api/repo-folders")) {
         if (init && init.method === "POST") {
           const body = JSON.parse(init.body || "{}");
@@ -413,6 +484,8 @@ function bootRepoPage(options) {
   vm.runInContext(foldersSrc, context);
   windowObj.tinkerStoriesMd = context.tinkerStoriesMd || sandbox.tinkerStoriesMd;
   windowObj.tinkerRepoFoldersCore = context.tinkerRepoFoldersCore || sandbox.tinkerRepoFoldersCore;
+  // Interview helpers are injected on window for pad Keep crafting.
+  context.tinkerInterview = windowObj.tinkerInterview;
   assert.ok(windowObj.tinkerStoriesMd, "stories-md helpers must load");
   assert.ok(windowObj.tinkerRepoFoldersCore, "repo-folders-core helpers must load");
   vm.runInContext(page, context);
@@ -469,6 +542,7 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(html, /href="\/\?write=1"/);
   assert.match(html, />Home</);
   assert.match(html, /repo-location__globe/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=11/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -477,17 +551,29 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(html, /id="repo-file-place"/);
   assert.match(html, /id="repo-download-one"/);
   assert.match(html, /id="repo-download-all"/);
+  assert.match(html, /id="repo-keep-crafting"/);
+  assert.match(html, /id="repo-this-is-everything"/);
+  assert.match(html, />Keep crafting</);
+  assert.match(html, />This is everything</);
+  assert.doesNotMatch(html, />Write</);
+  assert.match(html, /id="repo-surface"[\s\S]*id="repo-location"/);
+  assert.match(html, /id="repo-surface"[\s\S]*id="repo-pad-actions"/);
+  const headerHtml = (html.match(/<header[\s\S]*?<\/header>/) || [""])[0];
+  assert.doesNotMatch(headerHtml, /id="repo-location"/);
+  assert.doesNotMatch(headerHtml, /repo-location__globe/);
   assert.doesNotMatch(html, /id="repo-tree"/);
   assert.doesNotMatch(html, /id="repo-new-folder"/);
   assert.doesNotMatch(html, /id="repo-move-sheet"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=9"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=9"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=9"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=9"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=9"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=9"/);
-  assert.match(html, /href="\/styles\.css\?v=9"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=11"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=11"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=11"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=11"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=11"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=11"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=11"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=11"/);
+  assert.match(html, /href="\/styles\.css\?v=11"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -502,6 +588,11 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(page, /set_place/);
   assert.match(css, /\.repo-location__field/);
   assert.match(css, /\.repo-location__globe/);
+  assert.match(css, /\.repo-location\s*\{[^}]*position:\s*absolute/s);
+  assert.match(css, /\.repo-surface__input\.writing-input\s*\{[^}]*padding:\s*56px/s);
+  assert.match(css, /\.repo-surface__foot/);
+  assert.match(css, /\.repo-surface__foot\.is-visible/);
+  assert.match(css, /transition:\s*opacity\s*300ms/);
   assert.match(css, /\.repo-saved-in/);
 
   assert.match(filesHtml, /data-repo-mode="files"/);
@@ -825,6 +916,170 @@ test("typed place commits with Enter and Escape closes the panel", async () => {
     stopPropagation() {},
   });
   assert.equal(env.byId["repo-location-panel"].hidden, true);
+});
+
+test("click-select place with no file open fills the field and remembers recent", async () => {
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "write" });
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.getPlace(), "");
+  assert.equal(env.byId["repo-location-input"].value, "");
+  env.click("repo-location-btn");
+  assert.equal(env.byId["repo-location-panel"].hidden, false);
+  const home = (env.byId["repo-location-list"].children || []).find((row) =>
+    String(row.textContent || "").includes("Home")
+  );
+  assert.ok(home);
+  home.dispatch("click", {
+    type: "click",
+    target: home,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.getPlace(), "Home");
+  assert.equal(env.byId["repo-location-input"].value, "Home");
+  assert.equal(env.byId["repo-location-panel"].hidden, true);
+  const recent = JSON.parse(env.storage.get("tinker.repo.placesRecent.v1") || "[]");
+  assert.equal(recent[0], "Home");
+  // Session place carries onto the next new file.
+  env.click("repo-new-piece");
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.getPlace(), "Home");
+  assert.equal(env.byId["repo-location-input"].value, "Home");
+  assert.equal(env.byId["repo-file-place"].hidden, false);
+  assert.match(env.byId["repo-file-place"].textContent, /Home/);
+});
+
+test("keyboard-select place with no file open fills the field", async () => {
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "write" });
+  await env.flush();
+  env.click("repo-location-btn");
+  assert.equal(env.byId["repo-location-panel"].hidden, false);
+  env.byId["repo-location-list"].dispatch("keydown", {
+    type: "keydown",
+    key: "ArrowDown",
+    target: env.byId["repo-location-list"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  env.byId["repo-location-list"].dispatch("keydown", {
+    type: "keydown",
+    key: "Enter",
+    target: env.byId["repo-location-list"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  const place = env.window.tinkerRepo.getPlace();
+  assert.ok(place);
+  assert.equal(env.byId["repo-location-input"].value, place);
+  assert.equal(env.byId["repo-location-panel"].hidden, true);
+});
+
+test("custom typed place commits on blur with no file open", async () => {
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "write" });
+  await env.flush();
+  env.document.activeElement = env.byId["repo-location-input"];
+  env.byId["repo-location-input"].value = "Train car";
+  env.byId["repo-location-input"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-location-input"],
+  });
+  env.byId["repo-location-input"].dispatch("blur", {
+    type: "blur",
+    target: env.byId["repo-location-input"],
+  });
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.getPlace(), "Train car");
+  assert.equal(env.byId["repo-location-input"].value, "Train car");
+  const recent = JSON.parse(env.storage.get("tinker.repo.placesRecent.v1") || "[]");
+  assert.equal(recent[0], "Train car");
+});
+
+test("pad actions stay hidden while typing and show after idle", async () => {
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "write" });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(25);
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "Learning in the quiet.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  assert.equal(env.window.tinkerRepo.arePadActionsVisible(), false);
+  assert.ok(!env.byId["repo-pad-actions"].classList.contains("is-visible"));
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(env.window.tinkerRepo.arePadActionsVisible(), true);
+  assert.ok(env.byId["repo-pad-actions"].classList.contains("is-visible"));
+  assert.equal(env.byId["repo-keep-crafting"].tabIndex, 0);
+  assert.equal(env.byId["repo-this-is-everything"].tabIndex, 0);
+  assert.equal(env.byId["repo-this-is-everything"].disabled, false);
+  env.byId["repo-body"].value = "Learning in the quiet.\nAnother line.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  assert.equal(env.window.tinkerRepo.arePadActionsVisible(), false);
+  assert.ok(!env.byId["repo-pad-actions"].classList.contains("is-visible"));
+});
+
+test("This is everything saves the pad essay", async () => {
+  const puts = [];
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    onPutEssays(list) { puts.push(list); },
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "A quiet note about learning.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  assert.equal(env.window.tinkerRepo.arePadActionsVisible(), true);
+  await env.window.tinkerRepo.savePad();
+  await env.flush();
+  assert.equal(puts.length, 1);
+  assert.equal(puts[0].length, 1);
+  assert.equal(puts[0][0].body, "A quiet note about learning.");
+  assert.match(puts[0][0].title, /quiet note/i);
+  assert.ok(String(puts[0][0].id || "").startsWith("e_"));
+  const stories = env.window.tinkerRepo.getStories();
+  assert.ok(stories.some((s) => s.id === puts[0][0].id));
+});
+
+test("Keep crafting asks freeform follow-ups via callClaude", async () => {
+  const calls = [];
+  const builds = [];
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    onCallClaude(payload) { calls.push(payload); },
+    onBuildFollowup(args) { builds.push(args); },
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "I keep noticing the same pattern.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  await env.window.tinkerRepo.keepCraftingPad();
+  await env.flush();
+  assert.equal(builds.length, 1);
+  assert.equal(builds[0].draft, "I keep noticing the same pattern.");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].system, "sys");
+  assert.equal(env.window.tinkerRepo.getFollowupQuestion(), "What are you noticing about this?");
+  assert.equal(env.byId["repo-followup"].hidden, false);
+  assert.match(env.byId["repo-followup"].textContent, /noticing/i);
 });
 
 test("registerLocationSection adds a Saved in option that fires onSelect", async () => {
