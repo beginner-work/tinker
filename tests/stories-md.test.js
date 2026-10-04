@@ -93,7 +93,8 @@ test("inbox chrome is gone; /repo is the landing surface", () => {
   assert.match(mainJs, /APP_URL[\s\S]*\/repo/);
   assert.match(repoHtml, /href="\/repo\/files"/);
   assert.match(repoHtml, /Files|Stories/);
-  assert.match(repoHtml, /Write/);
+  assert.match(repoHtml, />Home</);
+  assert.doesNotMatch(repoHtml, />Write</);
   assert.match(repoHtml, /id="repo-body"/);
   assert.doesNotMatch(repoHtml, /← Inbox|Inbox/);
   assert.match(filesHtml, /id="repo-tree"/);

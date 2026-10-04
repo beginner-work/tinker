@@ -97,7 +97,7 @@
       aiBtn.disabled = offline;
       aiBtn.title = offline
         ? "You're offline — No AI mode is on automatically"
-        : "Write with AI — the guided interview";
+        : "With AI - the guided interview";
     }
     if (noaiBtn) {
       noaiBtn.setAttribute("aria-pressed", on ? "true" : "false");

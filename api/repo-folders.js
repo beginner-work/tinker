@@ -9,6 +9,7 @@
  * POST ?action=move_folder body { id, parentId }
  * POST ?action=delete_folder body { id, confirm?, deleteContents? }
  * POST ?action=move_file body { fileId, folderId|null }
+ * POST ?action=set_place body { fileId, place|null }  // where Tyler is when writing
  */
 
 "use strict";
@@ -128,6 +129,16 @@ async function dispatch(method, action, auth, body) {
         userId,
         fileId: body.fileId || body.id,
         folderId: Object.prototype.hasOwnProperty.call(body, "folderId") ? body.folderId : null,
+      }),
+    };
+  }
+  if (method === "POST" && action === "set_place") {
+    return {
+      status: 200,
+      body: await store.setPlace({
+        userId,
+        fileId: body.fileId || body.id,
+        place: Object.prototype.hasOwnProperty.call(body, "place") ? body.place : "",
       }),
     };
   }

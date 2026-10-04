@@ -1,14 +1,19 @@
 /* /repo — stories as Markdown files + blank writing surface + folders.
  *
- * Left list: nested folders (content-typed) and files. Center: blank
- * Markdown editor. Folders/placements persist via /api/repo-folders.
- * Mac: when a Tinker location is set, write into mirrored directories.
+ * Write page: blank Markdown editor + Location as writing place
+ * (where the writer is). Files page: nested folders and Saved in
+ * (disk / cloud root). Folders/placements/places persist via
+ * /api/repo-folders. Mac: when a Tinker disk root is set, write into
+ * mirrored directories.
  */
 
 (function () {
   "use strict";
 
   var LOCATION_KEY = "tinker.repo.location.v1";
+  var RECENT_PLACES_KEY = "tinker.repo.placesRecent.v1";
+  var PLACE_STARTERS = ["Home", "Coffee shop", "San Diego"];
+  var STORAGE_EVENT = "tinker-storage-root-changed";
   var TOKEN_KEY = "tinker_jwt";
   var RETURN_KEY = "tinker_mcp_return";
   var md = window.tinkerStoriesMd;
@@ -23,17 +28,18 @@
     stories: [],
     folders: [],
     placements: {},
+    places: {},
     localFiles: {},
     selectedId: null,
     selectedFolderId: null,
     draft: null,
     location: "",
     locationOpen: false,
-    locationCustom: false,
-    locationActive: 0,
-    locationRows: [],
-    locationError: "",
-    locationSaving: false,
+    placeActive: 0,
+    placeRows: [],
+    savedInCustom: false,
+    savedInError: "",
+    savedInSaving: false,
     status: "",
     pieceCounter: 0,
     collapsed: {},
@@ -68,9 +74,15 @@
     locationError: document.getElementById("repo-location-error"),
     filePath: document.getElementById("repo-file-path"),
     fileType: document.getElementById("repo-file-type"),
+    filePlace: document.getElementById("repo-file-place"),
     syncHint: document.getElementById("repo-sync-hint"),
     downloadOne: document.getElementById("repo-download-one"),
     downloadAll: document.getElementById("repo-download-all"),
+    savedInList: document.getElementById("repo-saved-in-list"),
+    savedInCustom: document.getElementById("repo-saved-in-custom"),
+    savedInInput: document.getElementById("repo-saved-in-input"),
+    savedInError: document.getElementById("repo-saved-in-error"),
+    savedInSave: document.getElementById("repo-saved-in-save"),
     moveSheet: document.getElementById("repo-move-sheet"),
     moveList: document.getElementById("repo-move-list"),
     moveCancel: document.getElementById("repo-move-cancel"),
@@ -120,6 +132,21 @@
     return "…/" + parts.slice(-2).join("/");
   }
 
+  function formatUserPath(absPath) {
+    var s = String(absPath || "").trim().replace(/\\/g, "/");
+    if (!s) return "";
+    var userMatch = s.match(/^\/Users\/[^/]+(\/.*)?$/);
+    if (userMatch) return "~" + (userMatch[1] || "");
+    if (s.indexOf("/home/") === 0) {
+      var parts = s.split("/").filter(Boolean);
+      if (parts.length >= 2) {
+        var rest = parts.slice(2).join("/");
+        return rest ? "~/" + rest : "~";
+      }
+    }
+    return shortenPath(s) || s;
+  }
+
   function readStoredLocation() {
     try {
       var raw = window.localStorage.getItem(LOCATION_KEY);
@@ -140,15 +167,95 @@
     return state.location || "";
   }
 
+  function getPlace() {
+    return placeForSelectedFile();
+  }
+
   function setLocation(value) {
     state.location = String(value || "").trim();
     writeStoredLocation(state.location);
-    renderLocation();
+    refreshLocation();
     syncStoriesToDisk();
   }
 
   function canPickFolder() {
     return !!(window.tinker && typeof window.tinker.pickNotesFolder === "function");
+  }
+
+  function canUseCustomPath() {
+    return !!(window.tinker && typeof window.tinker.useCustomStoragePath === "function");
+  }
+
+  function selectedStorageInfo() {
+    var storage = window.tinkerRepoStorage;
+    if (storage && typeof storage.getSelected === "function") {
+      try {
+        var selected = storage.getSelected();
+        if (selected) return selected;
+      } catch (e) { /* ignore */ }
+    }
+    return null;
+  }
+
+  function readStorageMeta() {
+    var fsAccess = window.tinkerFsAccessFolder;
+    if (fsAccess && typeof fsAccess.readMeta === "function") {
+      try { return fsAccess.readMeta(); } catch (e) { return null; }
+    }
+    return null;
+  }
+
+  function isMacFolderSelected() {
+    var meta = readStorageMeta();
+    if (meta && meta.id === "mac-folder" && meta.path && meta.path === state.location) return true;
+    var selected = selectedStorageInfo();
+    if (selected && selected.id === "mac-folder") return true;
+    if (selected && (selected.id === "custom" || selected.kind === "fs-access")) return false;
+    if (selected && selected.path && state.location && selected.path === state.location) return false;
+    return !selected && !!state.location;
+  }
+
+  function isCustomPathSelected() {
+    var meta = readStorageMeta();
+    if (meta && meta.id === "custom" && meta.path && meta.path === state.location) return true;
+    var selected = selectedStorageInfo();
+    return !!(selected && selected.id === "custom");
+  }
+
+  function persistPhysicalRoot(info) {
+    if (!info || !info.path) return;
+    var fsAccess = window.tinkerFsAccessFolder;
+    if (fsAccess && typeof fsAccess.writeMeta === "function") {
+      try {
+        fsAccess.writeMeta({
+          folderName: info.name || "Tinker",
+          kind: "electron",
+          id: info.id || "electron",
+          label: info.label || info.name || "Tinker",
+          path: info.path,
+        });
+      } catch (e) { /* ignore */ }
+    }
+    try {
+      window.dispatchEvent(new CustomEvent(STORAGE_EVENT, {
+        detail: {
+          id: info.id || "",
+          label: info.label || info.name || "Tinker",
+          path: info.path || "",
+          kind: info.kind || "electron",
+          name: info.name || "Tinker",
+        },
+      }));
+    } catch (e) { /* ignore */ }
+  }
+
+  function applyPhysicalRoot(info) {
+    if (!info || !info.path) return;
+    persistPhysicalRoot(info);
+    setLocation(info.path);
+    state.savedInCustom = false;
+    state.savedInError = "";
+    refreshLocation();
   }
 
   function canWriteDisk() {
@@ -198,6 +305,7 @@
     if (!tree) return;
     state.folders = Array.isArray(tree.folders) ? tree.folders : [];
     state.placements = tree.placements && typeof tree.placements === "object" ? tree.placements : {};
+    state.places = tree.places && typeof tree.places === "object" ? tree.places : {};
     recomputeStoryPaths();
   }
 
@@ -606,11 +714,10 @@
     return chain;
   }
 
-  /* Location dropdown
-   * Custom listbox (not a native <select>): Folders section, then
-   * "Custom location...", then Storage section options. Storage providers
-   * (Mac folder built-in; iCloud/Drive via registerLocationSection) share
-   * keyboard nav, selected state, and outside-click close. */
+  /* Writing place (Write page) + Saved in storage (Files page).
+   * Place: combobox of recent/starters for where the writer is.
+   * Saved in: disk/cloud roots via registerLocationSection (cloud first,
+   * then Mac folder, then Custom path). No geolocation. */
 
   var locationSections = {};
 
@@ -627,85 +734,352 @@
     };
     var prev = locationSections[key];
     if (prev && prev._builtin && !incoming._builtin) {
-      // Append registered options onto the built-in Storage slot so Mac
-      // folder stays available when iCloud/Drive register the same key.
+      // Cloud roots (incoming) first, then Mac folder / Custom path.
       locationSections[key] = {
         key: key,
-        label: incoming.label || prev.label,
+        label: "",
         order: typeof spec.order === "number" ? spec.order : prev.order,
         _builtin: true,
         getOptions: function () {
-          return [].concat(prev.getOptions() || [], incoming.getOptions() || []);
+          return [].concat(incoming.getOptions() || [], prev.getOptions() || []);
         },
         onSelect: function (option) {
           var id = option && option.id;
-          if (id === "mac-folder") return prev.onSelect(option);
+          if (id === "mac-folder" || id === "custom-path") return prev.onSelect(option);
           return incoming.onSelect(option);
         },
       };
     } else {
       locationSections[key] = incoming;
     }
-    if (state.locationOpen) renderLocation();
+    refreshLocation();
   }
 
   function refreshLocation() {
-    renderLocation();
+    if (isWritePage) renderPlace();
+    if (isFilesPage) renderSavedIn();
   }
 
-  function folderDisplayPath(folderId) {
-    if (!folderId) return "tinker";
-    return core.ancestors(state.folders, folderId).reverse().map(function (f) {
-      return String(f.name || "");
-    }).join("/");
-  }
-
-  function currentLocationFolderId() {
+  function placeForSelectedFile() {
     var story = selectedStory();
-    if (story) return story.folderId || null;
-    return state.selectedFolderId || null;
+    if (!story || !story.id) return "";
+    return state.places[story.id] ? String(state.places[story.id]) : "";
   }
 
-  function buildLocationRows() {
+  function isDraftId(id) {
+    return String(id || "").indexOf("draft-") === 0;
+  }
+
+  function readRecentPlaces() {
+    try {
+      var raw = window.localStorage.getItem(RECENT_PLACES_KEY);
+      if (!raw) return [];
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map(function (item) { return String(item || "").trim(); }).filter(Boolean).slice(0, 12);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function writeRecentPlaces(list) {
+    try {
+      window.localStorage.setItem(RECENT_PLACES_KEY, JSON.stringify((list || []).slice(0, 12)));
+    } catch (e) { /* ignore */ }
+  }
+
+  function pushRecentPlace(label) {
+    var place = String(label || "").trim();
+    if (!place) return;
+    var next = [place];
+    readRecentPlaces().forEach(function (item) {
+      if (item.toLowerCase() === place.toLowerCase()) return;
+      next.push(item);
+    });
+    writeRecentPlaces(next.slice(0, 12));
+  }
+
+  function buildPlaceRows(query) {
+    var q = String(query || "").trim().toLowerCase();
     var rows = [];
-    var currentId = currentLocationFolderId();
+    var seen = {};
+    var current = placeForSelectedFile();
 
-    rows.push({
-      kind: "section",
-      sectionKey: "folders",
-      label: "Folders",
-    });
-    rows.push({
-      kind: "folder",
-      folderId: null,
-      label: "tinker",
-      type: core.DEFAULT_CONTENT_TYPE,
-      depth: 0,
-      selected: currentId == null,
-    });
-
-    function walk(parentId, depth) {
-      core.sortByName(core.childFolders(state.folders, parentId)).forEach(function (folder) {
-        rows.push({
-          kind: "folder",
-          folderId: folder.id,
-          label: folderDisplayPath(folder.id),
-          type: core.normalizeContentType(folder.contentType),
-          depth: depth,
-          selected: (folder.id || null) === (currentId || null),
-        });
-        walk(folder.id, depth + 1);
+    function addRow(label, kind) {
+      var name = String(label || "").trim();
+      if (!name) return;
+      var key = name.toLowerCase();
+      if (seen[key]) return;
+      if (q && key.indexOf(q) === -1) return;
+      seen[key] = true;
+      rows.push({
+        kind: kind || "place",
+        label: name,
+        selected: current.toLowerCase() === key,
       });
     }
-    walk(null, 1);
 
-    rows.push({
-      kind: "custom",
-      label: "Custom location…",
-      depth: 0,
-      selected: false,
+    readRecentPlaces().forEach(function (item) { addRow(item, "recent"); });
+    PLACE_STARTERS.forEach(function (item) { addRow(item, "starter"); });
+
+    var typed = String(query || "").trim();
+    if (typed && !seen[typed.toLowerCase()]) {
+      rows.push({
+        kind: "use",
+        label: typed,
+        display: 'Use "' + typed + '"',
+        selected: false,
+      });
+    }
+    return rows;
+  }
+
+  function placeQueryFromInput() {
+    if (!els.locationInput) return "";
+    return String(els.locationInput.value || "");
+  }
+
+  function placeInputIsTyping() {
+    return !!(els.locationInput && document.activeElement === els.locationInput);
+  }
+
+  // While typing, filter suggestions. Opening the chevron shows the full list.
+  function placeListQuery() {
+    if (placeInputIsTyping()) return placeQueryFromInput();
+    return "";
+  }
+
+  function renderPlace() {
+    if (!isWritePage) return;
+    var place = placeForSelectedFile();
+    if (els.locationValue) text(els.locationValue, place || "");
+    if (els.locationInput && !placeInputIsTyping()) {
+      els.locationInput.value = place;
+    }
+    var expanded = state.locationOpen ? "true" : "false";
+    if (els.locationInput) els.locationInput.setAttribute("aria-expanded", expanded);
+    if (els.locationBtn) {
+      els.locationBtn.setAttribute("aria-expanded", expanded);
+      els.locationBtn.setAttribute("title", place ? ("Place: " + place) : "Suggested places");
+    }
+    if (els.locationPanel) els.locationPanel.hidden = !state.locationOpen;
+    if (els.locationChoose) els.locationChoose.hidden = true;
+    if (els.locationCustom) els.locationCustom.hidden = true;
+    if (els.locationError) els.locationError.hidden = true;
+    if (els.filePlace) {
+      if (place) {
+        els.filePlace.hidden = false;
+        text(els.filePlace, "Place: " + place);
+      } else {
+        els.filePlace.hidden = true;
+        text(els.filePlace, "");
+      }
+    }
+    renderPlaceList();
+  }
+
+  function renderPlaceList() {
+    if (!els.locationList) return;
+    clear(els.locationList);
+    var rows = buildPlaceRows(placeListQuery());
+    state.placeRows = rows;
+    if (state.placeActive >= rows.length) state.placeActive = Math.max(0, rows.length - 1);
+    var activeId = "";
+
+    rows.forEach(function (row, index) {
+      var li = document.createElement("li");
+      var id = "repo-location-opt-" + index;
+      li.setAttribute("id", id);
+      li.setAttribute("role", "option");
+      li.setAttribute("aria-selected", row.selected ? "true" : "false");
+      var className = "repo-location__option";
+      if (row.kind === "use") className += " repo-location__option--custom";
+      if (index === state.placeActive) className += " is-active";
+      li.className = className;
+      if (index === state.placeActive) activeId = id;
+
+      var check = document.createElement("span");
+      check.className = "repo-location__check";
+      check.setAttribute("aria-hidden", "true");
+      text(check, row.selected ? "\u2713" : "");
+      li.appendChild(check);
+
+      var name = document.createElement("span");
+      name.className = "repo-location__option-name";
+      text(name, row.display || row.label);
+      li.appendChild(name);
+
+      li.addEventListener("mousedown", function (event) {
+        if (event && event.preventDefault) event.preventDefault();
+      });
+      li.addEventListener("click", function (event) {
+        if (event && event.stopPropagation) event.stopPropagation();
+        choosePlace(row.label);
+      });
+      li.addEventListener("mousemove", function () {
+        if (state.placeActive === index) return;
+        setPlaceActive(index);
+      });
+      els.locationList.appendChild(li);
     });
 
+    if (els.locationList) {
+      els.locationList.setAttribute("role", "listbox");
+      if (activeId) els.locationList.setAttribute("aria-activedescendant", activeId);
+      else els.locationList.removeAttribute("aria-activedescendant");
+    }
+  }
+
+  function setPlaceActive(index) {
+    var rows = state.placeRows || [];
+    if (!rows.length) return;
+    var next = Math.max(0, Math.min(rows.length - 1, index));
+    state.placeActive = next;
+    var items = els.locationList ? els.locationList.children || [] : [];
+    for (var i = 0; i < items.length; i += 1) {
+      var node = items[i];
+      if (!node || !node.className || String(node.className).indexOf("repo-location__option") === -1) continue;
+      var base = String(node.className || "").replace(/\s*is-active\b/g, "");
+      var isActive = node.id === "repo-location-opt-" + next;
+      node.className = isActive ? base + " is-active" : base;
+    }
+    if (els.locationList) els.locationList.setAttribute("aria-activedescendant", "repo-location-opt-" + next);
+    var active = document.getElementById("repo-location-opt-" + next);
+    if (active && typeof active.scrollIntoView === "function") {
+      try { active.scrollIntoView({ block: "nearest" }); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function movePlaceActive(delta) {
+    var rows = state.placeRows || [];
+    if (!rows.length) return;
+    var next = state.placeActive + delta;
+    if (next < 0) next = rows.length - 1;
+    if (next >= rows.length) next = 0;
+    setPlaceActive(next);
+  }
+
+  function togglePlacePanel(force) {
+    var open = typeof force === "boolean" ? force : !state.locationOpen;
+    state.locationOpen = open;
+    if (open) {
+      // Chevron open shows the full list; typing filters separately.
+      state.placeRows = buildPlaceRows("");
+      var idx = 0;
+      for (var i = 0; i < state.placeRows.length; i += 1) {
+        if (state.placeRows[i].selected) {
+          idx = i;
+          break;
+        }
+      }
+      state.placeActive = idx;
+    }
+    renderPlace();
+    if (open && els.locationList) {
+      try { els.locationList.focus(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function closePlacePanel(returnFocus) {
+    if (!state.locationOpen) return;
+    state.locationOpen = false;
+    renderPlace();
+    if (returnFocus && els.locationBtn) {
+      try { els.locationBtn.focus(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function choosePlace(label) {
+    var story = selectedStory();
+    if (!story || !story.id) {
+      closePlacePanel(false);
+      return;
+    }
+    var place = String(label || "").trim();
+    if (place) {
+      state.places[story.id] = place.slice(0, 120);
+      pushRecentPlace(place);
+    } else {
+      delete state.places[story.id];
+    }
+    if (!isDraftId(story.id)) {
+      apiPost("set_place", { fileId: story.id, place: place || "" }).then(function (result) {
+        if (result && result.ok && result.json && result.json.tree) {
+          applyTree(result.json.tree);
+          render();
+        }
+      }).catch(function () { /* ignore */ });
+    }
+    state.locationOpen = false;
+    if (els.locationInput) els.locationInput.value = place;
+    render();
+  }
+
+  function commitPlaceFromInput() {
+    var typed = placeQueryFromInput().trim();
+    var rows = state.placeRows || [];
+    var active = rows[state.placeActive];
+    if (active && active.label) {
+      choosePlace(active.label);
+      return;
+    }
+    choosePlace(typed);
+  }
+
+  function onPlaceInputKey(event) {
+    var key = event && event.key;
+    if (key === "ArrowDown") {
+      if (event.preventDefault) event.preventDefault();
+      if (!state.locationOpen) togglePlacePanel(true);
+      else movePlaceActive(1);
+    } else if (key === "ArrowUp") {
+      if (event.preventDefault) event.preventDefault();
+      if (!state.locationOpen) togglePlacePanel(true);
+      else movePlaceActive(-1);
+    } else if (key === "Enter") {
+      if (event.preventDefault) event.preventDefault();
+      commitPlaceFromInput();
+    } else if (key === "Escape") {
+      if (event.preventDefault) event.preventDefault();
+      if (event.stopPropagation) event.stopPropagation();
+      closePlacePanel(true);
+    }
+  }
+
+  function onPlaceListKey(event) {
+    var key = event && event.key;
+    if (key === "ArrowDown") {
+      if (event.preventDefault) event.preventDefault();
+      movePlaceActive(1);
+    } else if (key === "ArrowUp") {
+      if (event.preventDefault) event.preventDefault();
+      movePlaceActive(-1);
+    } else if (key === "Enter" || key === " ") {
+      if (event.preventDefault) event.preventDefault();
+      var row = (state.placeRows || [])[state.placeActive];
+      if (row) choosePlace(row.label);
+    } else if (key === "Escape") {
+      if (event.preventDefault) event.preventDefault();
+      if (event.stopPropagation) event.stopPropagation();
+      closePlacePanel(true);
+    } else if (key === "Tab") {
+      closePlacePanel(false);
+    }
+  }
+
+  function onPlaceTriggerKey(event) {
+    var key = event && event.key;
+    if (key === "ArrowDown" || key === "ArrowUp" || key === "Enter" || key === " ") {
+      if (event.preventDefault) event.preventDefault();
+      togglePlacePanel(true);
+    } else if (key === "Escape" && state.locationOpen) {
+      if (event.preventDefault) event.preventDefault();
+      closePlacePanel(true);
+    }
+  }
+
+  function buildSavedInRows() {
+    var rows = [];
     var sections = Object.keys(locationSections).map(function (key) {
       return locationSections[key];
     }).sort(function (a, b) {
@@ -725,10 +1099,11 @@
       }
       options.forEach(function (opt, i) {
         if (!opt) return;
+        var optionId = opt.id == null ? section.key + "-" + i : String(opt.id);
         rows.push({
-          kind: "storage",
+          kind: optionId === "custom-path" ? "custom" : "storage",
           sectionKey: section.key,
-          optionId: opt.id == null ? section.key + "-" + i : String(opt.id),
+          optionId: optionId,
           label: String(opt.label || opt.id || "Option"),
           detail: opt.detail ? String(opt.detail) : "",
           badge: opt.badge ? String(opt.badge) : "",
@@ -738,87 +1113,46 @@
         });
       });
     });
-
     return rows;
   }
 
-  function renderLocation() {
-    if (!els.locationBtn) return;
-    var currentId = currentLocationFolderId();
-    var label = folderDisplayPath(currentId);
-    if (els.locationValue) text(els.locationValue, label);
-    else text(els.locationBtn, label);
-    els.locationBtn.setAttribute("title", "Location: " + label);
-    els.locationBtn.setAttribute("aria-expanded", state.locationOpen ? "true" : "false");
-    if (els.locationPanel) els.locationPanel.hidden = !state.locationOpen;
-    if (els.locationCustom) els.locationCustom.hidden = !state.locationCustom;
-    if (els.locationList) els.locationList.hidden = !!state.locationCustom;
-    if (els.locationError) {
-      els.locationError.hidden = !state.locationError;
-      text(els.locationError, state.locationError);
-    }
-    // Keep the legacy choose button in the DOM for id stability / tests,
-    // but hide it; Mac folder lives in the Storage listbox section.
-    if (els.locationChoose) {
-      els.locationChoose.hidden = true;
-      text(els.locationChoose, state.location ? "Mac folder: " + shortenPath(state.location) : "Mac folder…");
-      els.locationChoose.setAttribute("title", state.location || "Choose the Mac folder Tinker mirrors into");
-    }
-    renderLocationList();
-  }
-
-  function renderLocationList() {
-    if (!els.locationList) return;
-    clear(els.locationList);
-    var rows = buildLocationRows();
-    state.locationRows = rows;
-    if (state.locationActive >= rows.length) state.locationActive = Math.max(0, rows.length - 1);
-    var activeId = "";
-    var optionIndex = -1;
-
+  function renderSavedIn() {
+    if (!isFilesPage || !els.savedInList) return;
+    clear(els.savedInList);
+    var rows = buildSavedInRows();
     rows.forEach(function (row, index) {
       if (row.kind === "section") {
         var heading = document.createElement("li");
         heading.className = "repo-location__section-label";
         heading.setAttribute("role", "presentation");
         text(heading, row.label);
-        els.locationList.appendChild(heading);
+        els.savedInList.appendChild(heading);
         return;
       }
 
-      optionIndex += 1;
       var li = document.createElement("li");
-      var id = "repo-location-opt-" + index;
+      var id = "repo-saved-in-opt-" + index;
       li.setAttribute("id", id);
       li.setAttribute("role", "option");
       li.setAttribute("aria-selected", row.selected ? "true" : "false");
       var className = "repo-location__option";
       if (row.kind === "custom") className += " repo-location__option--custom";
       if (row.kind === "storage") className += " repo-location__option--storage";
-      if (index === state.locationActive) className += " is-active";
       li.className = className;
       if (row.kind === "custom") li.setAttribute("data-location-custom", "true");
       if (row.kind === "storage") li.setAttribute("data-location-storage", row.optionId || "");
-      if (index === state.locationActive) activeId = id;
 
       var check = document.createElement("span");
       check.className = "repo-location__check";
       check.setAttribute("aria-hidden", "true");
-      text(check, row.selected ? "✓" : "");
+      text(check, row.selected ? "\u2713" : "");
       li.appendChild(check);
 
       var name = document.createElement("span");
       name.className = "repo-location__option-name";
-      if (row.depth > 1) name.style.paddingLeft = ((row.depth - 1) * 12) + "px";
       text(name, row.label);
       li.appendChild(name);
 
-      if (row.type) {
-        var pill = document.createElement("span");
-        pill.className = "repo-location__option-type";
-        text(pill, core.contentTypeLabel(row.type));
-        li.appendChild(pill);
-      }
       if (row.badge) {
         var badge = document.createElement("span");
         badge.className = "repo-location__option-badge";
@@ -832,289 +1166,146 @@
         li.appendChild(detail);
       }
 
-      li.addEventListener("mousedown", function (event) {
-        if (event && event.preventDefault) event.preventDefault();
-      });
       li.addEventListener("click", function (event) {
         if (event && event.stopPropagation) event.stopPropagation();
-        chooseLocationRow(index);
+        chooseSavedInRow(row);
       });
-      li.addEventListener("mousemove", function () {
-        if (state.locationActive === index) return;
-        setLocationActive(index);
-      });
-      els.locationList.appendChild(li);
+      els.savedInList.appendChild(li);
     });
 
-    // role=group wrappers are logical; the listbox owns the option rows.
-    if (els.locationList) {
-      els.locationList.setAttribute("role", "listbox");
-      if (activeId) els.locationList.setAttribute("aria-activedescendant", activeId);
-      else els.locationList.removeAttribute("aria-activedescendant");
+    if (els.savedInCustom) els.savedInCustom.hidden = !state.savedInCustom;
+    if (els.savedInError) {
+      els.savedInError.hidden = !state.savedInError;
+      text(els.savedInError, state.savedInError || "");
+    }
+    if (els.locationChoose) {
+      els.locationChoose.hidden = true;
+      text(els.locationChoose, state.location ? "Mac folder: " + shortenPath(state.location) : "Mac folder\u2026");
     }
   }
 
-  function setLocationActive(index) {
-    var rows = state.locationRows || [];
-    if (!rows.length) return;
-    var next = Math.max(0, Math.min(rows.length - 1, index));
-    // Skip section headings when moving with keyboard helpers.
-    while (next < rows.length && rows[next] && rows[next].kind === "section") next += 1;
-    while (next > 0 && rows[next] && rows[next].kind === "section") next -= 1;
-    if (rows[next] && rows[next].kind === "section") return;
-    state.locationActive = next;
-    var items = els.locationList ? els.locationList.children || [] : [];
-    for (var i = 0; i < items.length; i += 1) {
-      var node = items[i];
-      if (!node || !node.className || String(node.className).indexOf("repo-location__option") === -1) continue;
-      var base = String(node.className || "").replace(/\s*is-active\b/g, "");
-      var isActive = node.id === "repo-location-opt-" + next;
-      node.className = isActive ? base + " is-active" : base;
-    }
-    if (els.locationList) els.locationList.setAttribute("aria-activedescendant", "repo-location-opt-" + next);
-    var active = document.getElementById("repo-location-opt-" + next);
-    if (active && typeof active.scrollIntoView === "function") {
-      try { active.scrollIntoView({ block: "nearest" }); } catch (e) { /* ignore */ }
-    }
-  }
-
-  function focusLocationList() {
-    if (!els.locationList) return;
-    try { els.locationList.focus(); } catch (e) { /* ignore */ }
-  }
-
-  function toggleLocationPanel(force) {
-    var open = typeof force === "boolean" ? force : !state.locationOpen;
-    state.locationOpen = open;
-    state.locationCustom = false;
-    state.locationError = "";
-    if (open) {
-      var rows = buildLocationRows();
-      var currentId = currentLocationFolderId();
-      var idx = 0;
-      for (var i = 0; i < rows.length; i += 1) {
-        if (rows[i].kind === "folder" && (rows[i].folderId || null) === (currentId || null)) {
-          idx = i;
-          break;
-        }
-      }
-      state.locationActive = idx;
-    }
-    renderLocation();
-    if (open) focusLocationList();
-  }
-
-  function closeLocationPanel(returnFocus) {
-    if (!state.locationOpen) return;
-    toggleLocationPanel(false);
-    if (returnFocus && els.locationBtn) {
-      try { els.locationBtn.focus(); } catch (e) { /* ignore */ }
-    }
-  }
-
-  function openCustomLocation() {
-    state.locationOpen = true;
-    state.locationCustom = true;
-    state.locationError = "";
-    renderLocation();
-    if (els.locationInput) {
-      var currentId = currentLocationFolderId();
-      els.locationInput.value = currentId ? folderDisplayPath(currentId) : "";
-      try { els.locationInput.focus(); } catch (e) { /* ignore */ }
-      try { if (els.locationInput.select) els.locationInput.select(); } catch (e) { /* ignore */ }
-    }
-  }
-
-  function chooseLocationRow(index) {
-    var row = (state.locationRows || [])[index];
-    if (!row || row.kind === "section") return;
-    if (row.kind === "custom") {
-      openCustomLocation();
+  function openSavedInCustom() {
+    if (!canUseCustomPath()) {
+      state.savedInError = "Custom paths need the desktop app.";
+      state.savedInCustom = true;
+      renderSavedIn();
       return;
     }
+    state.savedInCustom = true;
+    state.savedInError = "";
+    renderSavedIn();
+    if (els.savedInInput) {
+      var selected = selectedStorageInfo();
+      var seed = "";
+      if (selected && selected.id === "custom" && selected.label) seed = selected.label;
+      else if (selected && selected.id === "custom" && selected.path) seed = formatUserPath(selected.path);
+      else if (state.location && isCustomPathSelected()) seed = formatUserPath(state.location);
+      els.savedInInput.value = seed;
+      try { els.savedInInput.focus(); } catch (e) { /* ignore */ }
+      try { if (els.savedInInput.select) els.savedInInput.select(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function chooseSavedInRow(row) {
+    if (!row || row.kind === "section") return;
+    if (row.kind === "custom" || row.optionId === "custom-path") {
+      openSavedInCustom();
+      return;
+    }
+    state.savedInCustom = false;
+    state.savedInError = "";
     if (row.kind === "storage") {
       try { row.onSelect(row.option || row); } catch (e) { /* ignore */ }
-      return;
     }
-    placeCurrentAt(row.folderId || null);
-    closeLocationPanel(true);
+    renderSavedIn();
   }
 
-  function placeCurrentAt(folderId) {
-    var story = selectedStory();
-    if (story) {
-      if ((story.folderId || null) !== (folderId || null)) moveFileTo(story.id, folderId || null);
-      else render();
-      return;
-    }
-    selectFolder(folderId || null);
-  }
-
-  function parseLocationPath(value) {
-    return String(value || "")
-      .replace(/\\/g, "/")
-      .split("/")
-      .map(function (seg) { return seg.trim(); })
-      .filter(function (seg) { return seg && seg !== "." && seg !== ".."; });
-  }
-
-  function findChildByName(parentId, name) {
-    var want = String(name).toLowerCase();
-    var kids = core.childFolders(state.folders, parentId);
-    for (var i = 0; i < kids.length; i += 1) {
-      var f = kids[i];
-      if (String(f.name || "").toLowerCase() === want) return f;
-      if (core.pathSegment(f.name).toLowerCase() === core.pathSegment(name).toLowerCase()) return f;
-    }
-    return null;
-  }
-
-  function ensureFolderPath(segments) {
-    var chain = Promise.resolve(null);
-    segments.forEach(function (seg, i) {
-      chain = chain.then(function (parentId) {
-        var existing = findChildByName(parentId, seg);
-        if (existing) return existing.id;
-        var body = { name: seg, parentId: parentId };
-        if (!parentId) {
-          var guess = String(seg).toLowerCase();
-          body.contentType = core.CONTENT_TYPES && core.CONTENT_TYPES.indexOf(guess) !== -1
-            ? guess
-            : core.DEFAULT_CONTENT_TYPE;
-        }
-        return apiPost("create_folder", body).then(function (result) {
-          if (!result.ok || !result.json || !result.json.folder) {
-            throw new Error((result.json && result.json.error) || "Could not create " + segments.slice(0, i + 1).join("/") + ".");
-          }
-          if (result.json.tree) applyTree(result.json.tree);
-          return result.json.folder.id;
-        });
-      });
-    });
-    return chain;
-  }
-
-  function saveCustomLocation() {
-    if (!els.locationInput || state.locationSaving) return Promise.resolve();
-    var raw = String(els.locationInput.value || "");
-    var segs = parseLocationPath(raw);
-    if (segs.length && String(segs[0]).toLowerCase() === "tinker" && !findChildByName(null, segs[0])) {
-      segs = segs.slice(1);
-    }
-    if (!raw.trim()) {
-      state.locationCustom = false;
-      state.locationError = "";
-      renderLocation();
-      focusLocationList();
+  function saveSavedInCustomPath() {
+    if (!els.savedInInput || state.savedInSaving) return Promise.resolve();
+    if (!canUseCustomPath()) {
+      state.savedInError = "Custom paths need the desktop app.";
+      renderSavedIn();
       return Promise.resolve();
     }
-    state.locationSaving = true;
-    state.locationError = "";
-    return ensureFolderPath(segs).then(function (folderId) {
-      state.locationSaving = false;
-      state.locationOpen = false;
-      state.locationCustom = false;
-      placeCurrentAt(folderId || null);
-      renderLocation();
+    var raw = String(els.savedInInput.value || "").trim();
+    if (!raw) {
+      state.savedInCustom = false;
+      state.savedInError = "";
+      renderSavedIn();
+      return Promise.resolve();
+    }
+    state.savedInSaving = true;
+    state.savedInError = "";
+    renderSavedIn();
+    return window.tinker.useCustomStoragePath(raw).then(function (result) {
+      state.savedInSaving = false;
+      if (!result || result.error || !result.path) {
+        state.savedInCustom = true;
+        state.savedInError = (result && result.error) || "Could not use that path.";
+        renderSavedIn();
+        return null;
+      }
+      applyPhysicalRoot({
+        id: result.id || "custom",
+        label: result.label || formatUserPath(result.path),
+        name: result.name || "Tinker",
+        path: result.path,
+        kind: "electron",
+      });
       return syncStoriesToDisk();
     }).catch(function (err) {
-      state.locationSaving = false;
-      state.locationOpen = true;
-      state.locationCustom = true;
-      state.locationError = (err && err.message) || "Could not save location.";
-      render();
+      state.savedInSaving = false;
+      state.savedInCustom = true;
+      state.savedInError = (err && err.message) || "Could not save location.";
+      renderSavedIn();
     });
-  }
-
-  function moveLocationActive(delta) {
-    var rows = state.locationRows || [];
-    if (!rows.length) return;
-    var next = state.locationActive;
-    var guard = 0;
-    do {
-      next += delta;
-      if (next < 0) next = rows.length - 1;
-      if (next >= rows.length) next = 0;
-      guard += 1;
-    } while (rows[next] && rows[next].kind === "section" && guard < rows.length + 2);
-    setLocationActive(next);
-  }
-
-  function onLocationTriggerKey(event) {
-    var key = event && event.key;
-    if (key === "ArrowDown" || key === "ArrowUp" || key === "Enter" || key === " ") {
-      if (event.preventDefault) event.preventDefault();
-      if (!state.locationOpen) toggleLocationPanel(true);
-      else focusLocationList();
-    } else if (key === "Escape" && state.locationOpen) {
-      if (event.preventDefault) event.preventDefault();
-      closeLocationPanel(true);
-    }
-  }
-
-  function onLocationListKey(event) {
-    var key = event && event.key;
-    var rows = state.locationRows || [];
-    if (key === "ArrowDown") {
-      if (event.preventDefault) event.preventDefault();
-      moveLocationActive(1);
-    } else if (key === "ArrowUp") {
-      if (event.preventDefault) event.preventDefault();
-      moveLocationActive(-1);
-    } else if (key === "Home") {
-      if (event.preventDefault) event.preventDefault();
-      var first = 0;
-      while (first < rows.length && rows[first] && rows[first].kind === "section") first += 1;
-      setLocationActive(first);
-    } else if (key === "End") {
-      if (event.preventDefault) event.preventDefault();
-      var last = rows.length - 1;
-      while (last > 0 && rows[last] && rows[last].kind === "section") last -= 1;
-      setLocationActive(last);
-    } else if (key === "Enter" || key === " ") {
-      if (event.preventDefault) event.preventDefault();
-      chooseLocationRow(state.locationActive);
-    } else if (key === "Escape") {
-      if (event.preventDefault) event.preventDefault();
-      if (event.stopPropagation) event.stopPropagation();
-      closeLocationPanel(true);
-    } else if (key === "Tab") {
-      closeLocationPanel(false);
-    }
-  }
-
-  function saveLocationFromInput() {
-    return saveCustomLocation();
   }
 
   function chooseLocationFolder() {
     if (!canPickFolder()) return;
     window.tinker.pickNotesFolder().then(function (picked) {
       if (!picked || !picked.path) return;
-      setLocation(picked.path);
-      state.locationOpen = false;
-      state.locationCustom = false;
-      renderLocation();
+      applyPhysicalRoot({
+        id: "mac-folder",
+        label: picked.name || formatUserPath(picked.path),
+        name: picked.name || "Tinker",
+        path: picked.path,
+        kind: "electron",
+      });
     }).catch(function () { /* cancelled */ });
   }
 
-  // Built-in Storage section: Mac disk root picker (desktop only).
+  // Built-in Saved in options: Mac folder + typed Custom path (desktop IPC).
+  // Cloud roots / Choose folder merge in via storage-section.js.
   registerLocationSection({
     key: "storage",
-    label: "Storage",
+    label: "",
     order: 100,
     _builtin: true,
     getOptions: function () {
-      if (!canPickFolder()) return [];
-      return [{
-        id: "mac-folder",
-        label: state.location ? "Mac folder: " + shortenPath(state.location) : "Mac folder…",
-        detail: state.location || "",
-        selected: !!state.location,
-      }];
+      var options = [];
+      if (canPickFolder()) {
+        options.push({
+          id: "mac-folder",
+          label: "Mac folder\u2026",
+          detail: isMacFolderSelected() && state.location ? formatUserPath(state.location) : "",
+          selected: isMacFolderSelected() && !isCustomPathSelected(),
+        });
+      }
+      if (canUseCustomPath()) {
+        options.push({
+          id: "custom-path",
+          label: "Custom path\u2026",
+          detail: isCustomPathSelected() && state.location ? formatUserPath(state.location) : "",
+          selected: isCustomPathSelected(),
+        });
+      }
+      return options;
     },
     onSelect: function (option) {
-      if (option && option.id === "mac-folder") chooseLocationFolder();
+      if (!option) return;
+      if (option.id === "mac-folder") chooseLocationFolder();
+      else if (option.id === "custom-path") openSavedInCustom();
     },
   });
 
@@ -1510,10 +1701,13 @@
   function render() {
     text(els.name, "tinker");
     if (els.branch) text(els.branch, isFilesPage ? "files" : "writing");
-    if (isFilesPage) renderTree();
+    if (isFilesPage) {
+      renderTree();
+      renderSavedIn();
+    }
     if (isWritePage) {
       renderCenter();
-      renderLocation();
+      renderPlace();
       renderDownloads();
       renderSyncHint();
     }
@@ -1676,23 +1870,12 @@
   if (els.locationBtn) {
     els.locationBtn.addEventListener("click", function (event) {
       event.stopPropagation();
-      toggleLocationPanel();
+      togglePlacePanel();
     });
-    els.locationBtn.addEventListener("keydown", onLocationTriggerKey);
+    els.locationBtn.addEventListener("keydown", onPlaceTriggerKey);
   }
   if (els.locationList) {
-    els.locationList.addEventListener("keydown", onLocationListKey);
-  }
-  if (els.locationSave) {
-    els.locationSave.addEventListener("mousedown", function (event) {
-      // Save via click, not via the input's blur racing it.
-      if (event && event.preventDefault) event.preventDefault();
-    });
-    els.locationSave.addEventListener("click", function (event) {
-      event.preventDefault();
-      if (event.stopPropagation) event.stopPropagation();
-      saveLocationFromInput();
-    });
+    els.locationList.addEventListener("keydown", onPlaceListKey);
   }
   if (els.locationChoose) {
     els.locationChoose.addEventListener("click", function (event) {
@@ -1701,29 +1884,43 @@
     });
   }
   if (els.locationInput) {
-    els.locationInput.addEventListener("keydown", function (event) {
+    els.locationInput.addEventListener("focus", function () {
+      if (state.locationOpen) return;
+      state.locationOpen = true;
+      state.placeActive = 0;
+      renderPlace();
+    });
+    els.locationInput.addEventListener("input", function () {
+      if (!state.locationOpen) state.locationOpen = true;
+      state.placeActive = 0;
+      renderPlaceList();
+      if (els.locationPanel) els.locationPanel.hidden = false;
+      if (els.locationBtn) els.locationBtn.setAttribute("aria-expanded", "true");
+      els.locationInput.setAttribute("aria-expanded", "true");
+    });
+    els.locationInput.addEventListener("keydown", onPlaceInputKey);
+  }
+  if (els.savedInSave) {
+    els.savedInSave.addEventListener("mousedown", function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+    });
+    els.savedInSave.addEventListener("click", function (event) {
+      event.preventDefault();
+      if (event.stopPropagation) event.stopPropagation();
+      saveSavedInCustomPath();
+    });
+  }
+  if (els.savedInInput) {
+    els.savedInInput.addEventListener("keydown", function (event) {
       if (event.key === "Enter") {
         event.preventDefault();
-        saveLocationFromInput();
+        saveSavedInCustomPath();
       } else if (event.key === "Escape") {
         event.preventDefault();
-        if (event.stopPropagation) event.stopPropagation();
-        state.locationCustom = false;
-        state.locationError = "";
-        renderLocation();
-        focusLocationList();
+        state.savedInCustom = false;
+        state.savedInError = "";
+        renderSavedIn();
       }
-    });
-    els.locationInput.addEventListener("blur", function () {
-      if (!state.locationCustom || state.locationSaving) return;
-      if (!String(els.locationInput.value || "").trim()) {
-        state.locationCustom = false;
-        state.locationError = "";
-        renderLocation();
-        focusLocationList();
-        return;
-      }
-      saveLocationFromInput();
     });
   }
   if (els.downloadOne) els.downloadOne.addEventListener("click", downloadOne);
@@ -1746,7 +1943,7 @@
     if (!state.locationOpen) return;
     var root = document.getElementById("repo-location");
     if (root && root.contains(event.target)) return;
-    toggleLocationPanel(false);
+    closePlacePanel(false);
   });
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") {
@@ -1754,13 +1951,19 @@
       if (state.pendingDeleteId) closeConfirmSheet();
       if (state.creatingFolder) cancelCreateFolder();
       if (state.renamingFolderId) cancelRenameFolder();
+      if (state.locationOpen) closePlacePanel(false);
+      if (state.savedInCustom) {
+        state.savedInCustom = false;
+        state.savedInError = "";
+        renderSavedIn();
+      }
     }
   });
 
   state.location = readStoredLocation();
 
   if (typeof window.addEventListener === "function") {
-    window.addEventListener("tinker-storage-root-changed", function (event) {
+    window.addEventListener(STORAGE_EVENT, function (event) {
       var detail = event && event.detail;
       if (detail && detail.path) {
         setLocation(detail.path);
@@ -1772,6 +1975,7 @@
 
   window.tinkerRepo = {
     getLocation: getLocation,
+    getPlace: getPlace,
     getStories: function () { return state.stories.slice(); },
     getFolders: function () { return state.folders.slice(); },
     getPlacements: function () { return Object.assign({}, state.placements); },

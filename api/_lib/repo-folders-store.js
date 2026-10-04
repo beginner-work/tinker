@@ -34,7 +34,20 @@ function newFolderId() {
 }
 
 function emptyState() {
-  return { folders: [], placements: {} };
+  return { folders: [], placements: {}, places: {} };
+}
+
+function normalizePlaces(raw) {
+  const places = {};
+  if (!raw || typeof raw !== "object") return places;
+  Object.keys(raw).forEach((fileId) => {
+    const value = raw[fileId];
+    if (value == null) return;
+    const place = String(value).trim();
+    if (!place) return;
+    places[String(fileId)] = place.slice(0, 120);
+  });
+  return places;
 }
 
 function normalizeState(raw) {
@@ -57,7 +70,7 @@ function normalizeState(raw) {
       placements[String(fileId)] = String(folderId);
     });
   }
-  return { folders, placements };
+  return { folders, placements, places: normalizePlaces(data.places) };
 }
 
 function presentFolder(folder) {
@@ -87,6 +100,7 @@ async function writeBlob(userId, state) {
   const data = {
     folders: state.folders.map(presentFolder),
     placements: state.placements,
+    places: normalizePlaces(state.places),
   };
   const saved = await prisma.tinkerUserData.upsert({
     where: { userId_kind: { userId, kind: KIND } },
@@ -99,6 +113,7 @@ async function writeBlob(userId, state) {
 function presentState(state, updatedAt) {
   const folders = state.folders.map(presentFolder);
   const placements = Object.assign({}, state.placements);
+  const places = normalizePlaces(state.places);
   const fileTypes = {};
   Object.keys(placements).forEach((fileId) => {
     fileTypes[fileId] = core.effectiveContentType(folders, placements, fileId);
@@ -106,6 +121,7 @@ function presentState(state, updatedAt) {
   return {
     folders,
     placements,
+    places,
     fileTypes,
     defaultContentType: core.DEFAULT_CONTENT_TYPE,
     contentTypes: core.CONTENT_TYPES.slice(),
@@ -295,6 +311,27 @@ async function moveFile({ userId, fileId, folderId } = {}) {
   }
 }
 
+async function setPlace({ userId, fileId, place } = {}) {
+  try {
+    const uid = requireUserId(userId);
+    const id = String(fileId || "").trim();
+    if (!id) throw core.fail(400, "fileId is required.");
+    const { state } = await readBlob(uid);
+    if (!state.places) state.places = {};
+    const value = place == null ? "" : String(place).trim().slice(0, 120);
+    if (value) state.places[id] = value;
+    else delete state.places[id];
+    const updatedAt = await writeBlob(uid, state);
+    return {
+      fileId: id,
+      place: value || null,
+      tree: presentState(state, updatedAt),
+    };
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
 function attachTypes(reflections, tree) {
   const folders = tree && tree.folders ? tree.folders : [];
   const placements = tree && tree.placements ? tree.placements : {};
@@ -319,6 +356,7 @@ module.exports = {
   moveFolder,
   deleteFolder,
   moveFile,
+  setPlace,
   attachTypes,
   normalizeState,
   emptyState,

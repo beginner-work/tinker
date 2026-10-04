@@ -1,10 +1,11 @@
-/* /repo Storage options for the location dropdown.
+/* /repo Storage options for Files Saved in.
  *
- * Registers into the built-in Storage section via
- * window.tinkerRepo.registerLocationSection({ key: "storage", getOptions, onSelect }).
+ * Registers into Saved in via
+ * window.tinkerRepo.registerLocationSection({ key: "storage", label: "", getOptions, onSelect }).
  * Mac: one-click iCloud / Google Drive / other CloudStorage roots.
  * Desktop Chrome/Edge: Choose folder via File System Access API.
  * Mobile web: one quiet note that cloud folders sync from the Mac app.
+ * Mac folder and Custom path stay in repo.js (desktop IPC).
  */
 (function () {
   "use strict";
@@ -181,7 +182,7 @@
           options.push({
             id: root.id,
             label: root.label,
-            detail: isSelected ? (root.label + " / Tinker") : (root.path || ""),
+            detail: isSelected ? (root.label + " / Tinker") : "",
             badge: root.installed ? "" : "not installed",
             selected: isSelected,
             installed: !!root.installed,
@@ -232,7 +233,7 @@
     if (!host || typeof host.registerLocationSection !== "function") return false;
     host.registerLocationSection({
       key: "storage",
-      label: "Storage",
+      label: "",
       order: 100,
       getOptions: getOptions,
       onSelect: onSelect,
