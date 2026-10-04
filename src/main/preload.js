@@ -92,4 +92,6 @@ contextBridge.exposeInMainWorld("tinker", {
   // Cloud roots (iCloud / Google Drive for desktop). Missing on older builds.
   cloudStorageRoots: () => ipcRenderer.invoke("storage:cloudRoots"),
   useCloudStorageRoot: (id) => ipcRenderer.invoke("storage:useCloudRoot", id),
+  // Typed path for Location → Custom location… Missing on older builds / web.
+  useCustomStoragePath: (rawPath) => ipcRenderer.invoke("storage:useCustomPath", rawPath),
 });

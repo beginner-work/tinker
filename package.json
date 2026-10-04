@@ -1,6 +1,6 @@
 {
   "name": "tinker",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "tinker \u2014 a quiet writing surface on the desktop",
   "main": "src/main/main.js",
   "desktopName": "tinker.desktop",

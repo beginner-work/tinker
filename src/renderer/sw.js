@@ -32,7 +32,7 @@
  * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v39";
+const CACHE_VERSION = "tinker-shell-v40";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added

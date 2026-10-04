@@ -68,16 +68,18 @@ function memFs(tree) {
   };
 }
 
-test("version bump is 0.1.9 in package.json and .release-version", () => {
-  assert.equal(packageJson.version, "0.1.9");
-  assert.equal(releaseVersion, "0.1.9");
+test("version bump is 0.1.10 in package.json and .release-version", () => {
+  assert.equal(packageJson.version, "0.1.10");
+  assert.equal(releaseVersion, "0.1.10");
 });
 
-test("main and preload expose storage cloud root IPC", () => {
+test("main and preload expose storage cloud root and custom path IPC", () => {
   assert.match(mainJs, /storage:cloudRoots/);
   assert.match(mainJs, /storage:useCloudRoot/);
+  assert.match(mainJs, /storage:useCustomPath/);
   assert.match(preloadJs, /cloudStorageRoots/);
   assert.match(preloadJs, /useCloudStorageRoot/);
+  assert.match(preloadJs, /useCustomStoragePath/);
 });
 
 test("repo page loads storage scripts and registerLocationSection hook", () => {
@@ -92,7 +94,8 @@ test("repo page loads storage scripts and registerLocationSection hook", () => {
   assert.match(storageSection, /Cloud folders sync from the Mac app\./);
   assert.match(storageSection, /not installed/);
   assert.equal(/\u2014/.test(storageSection), false);
-  assert.match(repoHtml, /\?v=8/);
+  assert.match(repoHtml, /\?v=9/);
+  assert.match(repoHtml, /~\/Documents\/Writing/);
 });
 
 test("detectCloudRoots: iCloud missing and Google Drive missing on fake home", () => {
@@ -247,9 +250,61 @@ test("storage adapters expose electron and fs-access factories", () => {
   assert.equal(local.available(), false);
 });
 
+test("useCustomPath expands ~, creates folder, and rejects non-writable", () => {
+  const customPath = require("../src/main/lib/custom-path.js");
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "tinker-custom-home-"));
+  try {
+    const writing = customPath.useCustomPath("~/Documents/Writing", { homeDir: home });
+    assert.equal(writing.path, path.join(home, "Documents", "Writing"));
+    assert.equal(writing.id, "custom");
+    assert.equal(writing.label, "~/Documents/Writing");
+    assert.equal(fs.existsSync(writing.path), true);
+
+    const again = customPath.useCustomPath("~/Documents/Writing", { homeDir: home });
+    assert.equal(again.path, writing.path);
+
+    const bare = customPath.useCustomPath("~", { homeDir: home });
+    assert.equal(bare.path, path.resolve(home));
+    assert.equal(bare.label, "~");
+
+    assert.throws(
+      () => customPath.useCustomPath("   ", { homeDir: home }),
+      /Enter a folder path/
+    );
+
+    const filePath = path.join(home, "not-a-dir.txt");
+    fs.writeFileSync(filePath, "x");
+    assert.throws(
+      () => customPath.useCustomPath(filePath, { homeDir: home }),
+      /not a folder/
+    );
+
+    const blocked = path.join(home, "blocked");
+    fs.mkdirSync(blocked);
+    const fsApi = {
+      existsSync: fs.existsSync.bind(fs),
+      mkdirSync: fs.mkdirSync.bind(fs),
+      statSync: fs.statSync.bind(fs),
+      accessSync() {
+        const err = new Error("EACCES");
+        err.code = "EACCES";
+        throw err;
+      },
+      constants: fs.constants,
+    };
+    assert.throws(
+      () => customPath.useCustomPath(blocked, { homeDir: home, fs: fsApi }),
+      /not writable/
+    );
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test("no em dashes in new storage modules", () => {
   const files = [
     "src/main/lib/cloud-roots.js",
+    "src/main/lib/custom-path.js",
     "src/renderer/lib/storage-path-core.js",
     "src/renderer/lib/fs-access-folder.js",
     "src/renderer/lib/storage-adapters.js",

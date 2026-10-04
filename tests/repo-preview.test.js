@@ -179,7 +179,7 @@ function bootRepoPage(options) {
   byId["repo-body"].tagName = "TEXTAREA";
   byId["repo-location-btn"].tagName = "BUTTON";
   byId["repo-location-btn"].textContent = "";
-  byId["repo-location-value"].textContent = "tinker";
+  byId["repo-location-value"].textContent = "Choose location…";
   byId["repo-location-panel"].hidden = true;
   byId["repo-location-custom"].hidden = true;
   byId["repo-location-list"].tagName = "UL";
@@ -284,6 +284,7 @@ function bootRepoPage(options) {
         return Promise.resolve(true);
       },
       pickNotesFolder: opts.pickNotesFolder,
+      useCustomStoragePath: opts.useCustomStoragePath,
       isDesktopApp: !!opts.desktop,
     },
     location: {
@@ -357,6 +358,25 @@ function bootRepoPage(options) {
   };
   if (opts.pickNotesFolder) {
     windowObj.tinker.pickNotesFolder = opts.pickNotesFolder;
+  }
+  if (opts.useCustomStoragePath) {
+    windowObj.tinker.useCustomStoragePath = opts.useCustomStoragePath;
+  }
+  if (opts.desktop && !opts.useCustomStoragePath && opts.useCustomStoragePath !== null) {
+    // Desktop builds expose custom-path IPC; tests can pass null to hide it.
+    windowObj.tinker.useCustomStoragePath = function (rawPath) {
+      const home = "/Users/tyler";
+      let input = String(rawPath || "").trim();
+      if (!input) return Promise.resolve({ error: "Enter a folder path." });
+      if (input === "~") input = home;
+      else if (input.startsWith("~/")) input = home + "/" + input.slice(2);
+      return Promise.resolve({
+        path: input,
+        name: input.split("/").pop() || "Tinker",
+        id: "custom",
+        label: input.startsWith(home) ? "~" + input.slice(home.length) : input,
+      });
+    };
   }
 
   const sandbox = {
@@ -446,19 +466,21 @@ test("repo write page is writing surface + Location; Files page holds the tree",
   assert.match(html, /aria-haspopup="listbox"/);
   assert.match(html, /id="repo-location-list"/);
   assert.match(html, /id="repo-location-value"/);
+  assert.match(html, /Choose location/);
   assert.match(html, /Custom location/);
+  assert.match(html, /~\/Documents\/Writing/);
   assert.match(html, /id="repo-download-one"/);
   assert.match(html, /id="repo-download-all"/);
   assert.doesNotMatch(html, /id="repo-tree"/);
   assert.doesNotMatch(html, /id="repo-new-folder"/);
   assert.doesNotMatch(html, /id="repo-move-sheet"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=8"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=8"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=8"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=8"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=8"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=8"/);
-  assert.match(html, /href="\/styles\.css\?v=8"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=9"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=9"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=9"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=9"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=9"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=9"/);
+  assert.match(html, /href="\/styles\.css\?v=9"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -690,88 +712,54 @@ test("New folder inline create appears and posts to API", async () => {
   assert.equal(folders[0].contentType, "stories");
 });
 
-test("location dropdown lists nested typed folders with type labels", async () => {
+test("location dropdown lists physical storage options, not in-Tinker folders", async () => {
   const env = bootRepoPage({
     token: "jwt-test",
     desktop: true,
     folderTree: seedTypedFolders(),
+    pickNotesFolder() {
+      return Promise.resolve({ path: "/Users/tyler/code/tinker", name: "tinker" });
+    },
   });
   await env.flush();
+  assert.match(env.byId["repo-location-value"].textContent, /Choose location/);
   env.click("repo-location-btn");
   const labels = (env.byId["repo-location-list"].children || []).map((row) => row.textContent);
-  assert.ok(labels.some((t) => t.includes("tinker") && t.includes("Stories")));
-  assert.ok(labels.some((t) => t.includes("reflections") && t.includes("Reflections")));
-  assert.ok(labels.some((t) => t.includes("reflections/2026")));
-  assert.ok(labels.some((t) => t.includes("essays") && t.includes("Drafts")));
+  assert.ok(labels.some((t) => t.includes("Mac folder")));
   assert.ok(labels.some((t) => t.includes("Custom location")));
-  const selected = (env.byId["repo-location-list"].children || []).find(
-    (row) => row.getAttribute("aria-selected") === "true"
+  assert.equal(labels.some((t) => t.includes("Stories")), false);
+  assert.equal(labels.some((t) => t.includes("Reflections")), false);
+  assert.equal(labels.some((t) => /(?:^|[^a-z])essays/.test(String(t))), false);
+  assert.equal(
+    (env.byId["repo-location-list"].children || []).some(
+      (row) => String(row.className || "").includes("repo-location__option-type")
+    ),
+    false
   );
-  assert.ok(selected);
-  assert.match(selected.textContent, /tinker/);
 });
 
-test("picking a folder location moves the selected draft", async () => {
+test("custom location typed path uses desktop IPC and updates the trigger", async () => {
+  let calledWith = "";
   const env = bootRepoPage({
     token: "jwt-test",
     desktop: true,
-    folderTree: seedTypedFolders(),
-  });
-  await env.flush();
-  env.click("repo-new-piece");
-  const draftPath = env.byId["repo-file-path"].textContent;
-  assert.match(draftPath, /^stories\//);
-  env.click("repo-location-btn");
-  const essays = (env.byId["repo-location-list"].children || []).find((row) =>
-    String(row.textContent || "").includes("essays") &&
-    String(row.className || "").includes("repo-location__option")
-  );
-  assert.ok(essays);
-  essays.dispatch("click", {
-    type: "click",
-    target: essays,
-    preventDefault() {},
-    stopPropagation() {},
-  });
-  await env.flush();
-  // Drafts update locally (no move_file API) until first save.
-  assert.match(env.byId["repo-file-path"].textContent, /essays\//);
-  assert.match(env.byId["repo-location-value"].textContent, /essays/);
-});
-
-test("custom location path creates missing folders in order and places the draft", async () => {
-  const creates = [];
-  const env = bootRepoPage({
-    token: "jwt-test",
-    desktop: true,
-    folderTree: {
-      folders: [
-        {
-          id: "fld_reflections",
-          name: "reflections",
-          parentId: null,
-          contentType: "reflections",
-          createdAt: "2026-10-01T00:00:00.000Z",
-          updatedAt: "2026-10-01T00:00:00.000Z",
-        },
-        {
-          id: "fld_2026",
-          name: "2026",
-          parentId: "fld_reflections",
-          contentType: "reflections",
-          createdAt: "2026-10-01T00:00:00.000Z",
-          updatedAt: "2026-10-01T00:00:00.000Z",
-        },
-      ],
-      placements: {},
+    useCustomStoragePath(rawPath) {
+      calledWith = String(rawPath || "");
+      return Promise.resolve({
+        path: "/Users/tyler/Documents/Writing",
+        name: "Writing",
+        id: "custom",
+        label: "~/Documents/Writing",
+      });
     },
-    onCreateFolder(body) { creates.push(body); },
   });
   await env.flush();
-  env.click("repo-new-piece");
   env.click("repo-location-btn");
   const custom = (env.byId["repo-location-list"].children || []).find(
-    (row) => row.getAttribute("data-location-custom") === "true"
+    (row) =>
+      row.getAttribute("data-location-custom") === "true" ||
+      String(row.getAttribute("data-location-storage") || "") === "custom-path" ||
+      String(row.textContent || "").includes("Custom location")
   );
   assert.ok(custom);
   custom.dispatch("click", {
@@ -781,7 +769,7 @@ test("custom location path creates missing folders in order and places the draft
     stopPropagation() {},
   });
   assert.equal(env.byId["repo-location-custom"].hidden, false);
-  env.byId["repo-location-input"].value = "reflections/2026/october";
+  env.byId["repo-location-input"].value = "~/Documents/Writing";
   env.byId["repo-location-input"].dispatch("keydown", {
     type: "keydown",
     key: "Enter",
@@ -791,11 +779,71 @@ test("custom location path creates missing folders in order and places the draft
   });
   await env.flush();
   await new Promise((r) => setTimeout(r, 20));
-  assert.equal(creates.length, 1);
-  assert.equal(creates[0].name, "october");
-  assert.equal(creates[0].parentId, "fld_2026");
-  assert.match(env.byId["repo-location-value"].textContent, /reflections\/2026\/october/);
-  assert.match(env.byId["repo-file-path"].textContent, /october\//);
+  assert.equal(calledWith, "~/Documents/Writing");
+  assert.equal(env.window.tinkerRepo.getLocation(), "/Users/tyler/Documents/Writing");
+  assert.match(env.byId["repo-location-value"].textContent, /~\/Documents\/Writing/);
+});
+
+test("custom location stays hidden without useCustomStoragePath IPC", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    useCustomStoragePath: null,
+    pickNotesFolder() {
+      return Promise.resolve({ path: "/Users/tyler/code/tinker", name: "tinker" });
+    },
+  });
+  await env.flush();
+  env.click("repo-location-btn");
+  const labels = (env.byId["repo-location-list"].children || []).map((row) => row.textContent);
+  assert.ok(labels.some((t) => t.includes("Mac folder")));
+  assert.equal(labels.some((t) => t.includes("Custom location")), false);
+});
+
+test("new file on /repo uses last folder chosen on Files", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "files",
+    folderTree: seedTypedFolders(),
+  });
+  await env.flush();
+  // Select essays folder on Files (persists last folder).
+  const essaysBtn = (function findFolder(node) {
+    if (!node) return null;
+    if (
+      node.className &&
+      String(node.className).includes("repo-tree__folder-btn") &&
+      String(node.textContent || "").includes("essays")
+    ) {
+      return node;
+    }
+    for (const child of node.children || []) {
+      const found = findFolder(child);
+      if (found) return found;
+    }
+    return null;
+  })(env.byId["repo-tree"]);
+  assert.ok(essaysBtn, "essays folder on Files page");
+  essaysBtn.dispatch("click", {
+    type: "click",
+    target: essaysBtn,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(env.storage.get("tinker.repo.lastFolder.v1"), "fld_essays");
+
+  const writeEnv = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    folderTree: seedTypedFolders(),
+  });
+  writeEnv.storage.set("tinker.repo.lastFolder.v1", "fld_essays");
+  await writeEnv.flush();
+  writeEnv.click("repo-new-piece");
+  assert.match(writeEnv.byId["repo-file-path"].textContent, /essays\//);
 });
 
 test("Escape closes the location dropdown", async () => {

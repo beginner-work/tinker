@@ -1,10 +1,11 @@
-/* /repo Storage options for the location dropdown.
+/* /repo physical Location options (cloud roots + web Choose folder).
  *
- * Registers into the built-in Storage section via
+ * Registers into the Location dropdown via
  * window.tinkerRepo.registerLocationSection({ key: "storage", getOptions, onSelect }).
  * Mac: one-click iCloud / Google Drive / other CloudStorage roots.
  * Desktop Chrome/Edge: Choose folder via File System Access API.
  * Mobile web: one quiet note that cloud folders sync from the Mac app.
+ * Mac folder… and Custom location… stay in repo.js (desktop IPC).
  */
 (function () {
   "use strict";
@@ -57,15 +58,20 @@
     });
   }
 
-  function emitRootChanged(info) {
+  function applySelected(info) {
     state.selected = info
       ? {
         id: info.id || "",
         label: info.label || info.name || "Tinker",
         path: info.path || "",
         kind: info.kind || (info.path ? "electron" : "fs-access"),
+        name: info.name || info.label || "Tinker",
       }
       : null;
+  }
+
+  function emitRootChanged(info) {
+    applySelected(info);
     try {
       window.dispatchEvent(new CustomEvent(STORAGE_EVENT, { detail: state.selected }));
     } catch (e) { /* ignore */ }
@@ -232,7 +238,7 @@
     if (!host || typeof host.registerLocationSection !== "function") return false;
     host.registerLocationSection({
       key: "storage",
-      label: "Storage",
+      label: "",
       order: 100,
       getOptions: getOptions,
       onSelect: onSelect,
@@ -249,6 +255,25 @@
         tries += 1;
         if (register() || tries > 40) clearInterval(timer);
       }, 25);
+    }
+
+    // Mac folder / Custom location picks from repo.js share this event.
+    if (typeof window.addEventListener === "function") {
+      window.addEventListener(STORAGE_EVENT, function (event) {
+        var detail = event && event.detail;
+        if (!detail) return;
+        if (
+          state.selected &&
+          state.selected.id === detail.id &&
+          state.selected.path === detail.path &&
+          state.selected.kind === detail.kind
+        ) {
+          return;
+        }
+        applySelected(detail);
+        if (detail.kind === "fs-access" && detail.handle) state.handle = detail.handle;
+        refreshHost();
+      });
     }
 
     var tasks = [];

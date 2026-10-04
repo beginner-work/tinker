@@ -9,8 +9,10 @@
   "use strict";
 
   var LOCATION_KEY = "tinker.repo.location.v1";
+  var LAST_FOLDER_KEY = "tinker.repo.lastFolder.v1";
   var TOKEN_KEY = "tinker_jwt";
   var RETURN_KEY = "tinker_mcp_return";
+  var STORAGE_EVENT = "tinker-storage-root-changed";
   var md = window.tinkerStoriesMd;
   var core = window.tinkerRepoFoldersCore;
   if (!md || !core) return;
@@ -120,6 +122,22 @@
     return "…/" + parts.slice(-2).join("/");
   }
 
+  function formatUserPath(absPath) {
+    var s = String(absPath || "").trim().replace(/\\/g, "/");
+    if (!s) return "";
+    var userMatch = s.match(/^\/Users\/[^/]+(\/.*)?$/);
+    if (userMatch) return "~" + (userMatch[1] || "");
+    if (s.indexOf("/home/") === 0) {
+      var parts = s.split("/").filter(Boolean);
+      // home/<user>/...
+      if (parts.length >= 2) {
+        var rest = parts.slice(2).join("/");
+        return rest ? "~/" + rest : "~";
+      }
+    }
+    return shortenPath(s) || s;
+  }
+
   function readStoredLocation() {
     try {
       var raw = window.localStorage.getItem(LOCATION_KEY);
@@ -136,6 +154,22 @@
     } catch (e) { /* ignore */ }
   }
 
+  function readLastFolderId() {
+    try {
+      var raw = window.localStorage.getItem(LAST_FOLDER_KEY);
+      return raw ? String(raw) : "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function writeLastFolderId(id) {
+    try {
+      if (id) window.localStorage.setItem(LAST_FOLDER_KEY, String(id));
+      else window.localStorage.removeItem(LAST_FOLDER_KEY);
+    } catch (e) { /* ignore */ }
+  }
+
   function getLocation() {
     return state.location || "";
   }
@@ -149,6 +183,78 @@
 
   function canPickFolder() {
     return !!(window.tinker && typeof window.tinker.pickNotesFolder === "function");
+  }
+
+  function canUseCustomPath() {
+    return !!(window.tinker && typeof window.tinker.useCustomStoragePath === "function");
+  }
+
+  function selectedStorageInfo() {
+    var storage = window.tinkerRepoStorage;
+    if (storage && typeof storage.getSelected === "function") {
+      try {
+        var selected = storage.getSelected();
+        if (selected) return selected;
+      } catch (e) { /* ignore */ }
+    }
+    return null;
+  }
+
+  function physicalLocationLabel() {
+    var selected = selectedStorageInfo();
+    if (selected) {
+      if (selected.kind === "fs-access") {
+        return selected.label || "Chosen folder";
+      }
+      var sid = selected.id ? String(selected.id) : "";
+      if (sid && sid !== "mac-folder" && sid !== "custom" && sid !== "electron" && sid !== "local-folder") {
+        return (selected.label || "Cloud") + " / Tinker";
+      }
+      if (selected.label && (sid === "custom" || String(selected.label).charAt(0) === "~")) {
+        return selected.label;
+      }
+      if (selected.path) return formatUserPath(selected.path);
+      if (selected.label) return selected.label;
+    }
+    if (state.location) return formatUserPath(state.location);
+    return "Choose location…";
+  }
+
+  function persistPhysicalRoot(info) {
+    if (!info || !info.path) return;
+    var fsAccess = window.tinkerFsAccessFolder;
+    if (fsAccess && typeof fsAccess.writeMeta === "function") {
+      try {
+        fsAccess.writeMeta({
+          folderName: info.name || "Tinker",
+          kind: "electron",
+          id: info.id || "electron",
+          label: info.label || info.name || "Tinker",
+          path: info.path,
+        });
+      } catch (e) { /* ignore */ }
+    }
+    try {
+      window.dispatchEvent(new CustomEvent(STORAGE_EVENT, {
+        detail: {
+          id: info.id || "",
+          label: info.label || info.name || "Tinker",
+          path: info.path || "",
+          kind: info.kind || "electron",
+          name: info.name || "Tinker",
+        },
+      }));
+    } catch (e) { /* ignore */ }
+  }
+
+  function applyPhysicalRoot(info) {
+    if (!info || !info.path) return;
+    persistPhysicalRoot(info);
+    setLocation(info.path);
+    state.locationOpen = false;
+    state.locationCustom = false;
+    state.locationError = "";
+    renderLocation();
   }
 
   function canWriteDisk() {
@@ -248,6 +354,7 @@
   function selectFolder(id) {
     state.selectedFolderId = id || null;
     state.selectedId = null;
+    if (isFilesPage) writeLastFolderId(id || "");
     render();
   }
 
@@ -264,6 +371,7 @@
 
   function addNewFile() {
     if (isFilesPage) {
+      writeLastFolderId(state.selectedFolderId || "");
       var folderQ = state.selectedFolderId
         ? "&folder=" + encodeURIComponent(state.selectedFolderId)
         : "";
@@ -277,6 +385,10 @@
     state.pieceCounter += 1;
     var now = new Date();
     var folderId = state.selectedFolderId || null;
+    if (!folderId) {
+      var lastId = readLastFolderId();
+      if (lastId && core.folderById(state.folders, lastId)) folderId = lastId;
+    }
     var draft = {
       id: "draft-new-" + state.pieceCounter,
       title: "",
@@ -394,7 +506,10 @@
       state.creatingFolder = false;
       state.createError = "";
       applyTree(result.json.tree);
-      if (result.json.folder) state.selectedFolderId = result.json.folder.id;
+      if (result.json.folder) {
+        state.selectedFolderId = result.json.folder.id;
+        if (isFilesPage) writeLastFolderId(result.json.folder.id);
+      }
       render();
       return syncStoriesToDisk();
     }).catch(function () {
@@ -607,10 +722,9 @@
   }
 
   /* Location dropdown
-   * Custom listbox (not a native <select>): Folders section, then
-   * "Custom location...", then Storage section options. Storage providers
-   * (Mac folder built-in; iCloud/Drive via registerLocationSection) share
-   * keyboard nav, selected state, and outside-click close. */
+   * Physical storage only (disk / cloud roots). In-Tinker folders live on
+   * /repo/files. Custom listbox: cloud roots via registerLocationSection,
+   * Mac folder…, Choose folder… (web), Custom location… (typed path IPC). */
 
   var locationSections = {};
 
@@ -627,19 +741,18 @@
     };
     var prev = locationSections[key];
     if (prev && prev._builtin && !incoming._builtin) {
-      // Append registered options onto the built-in Storage slot so Mac
-      // folder stays available when iCloud/Drive register the same key.
+      // Cloud roots (incoming) first, then Mac folder / Custom location.
       locationSections[key] = {
         key: key,
-        label: incoming.label || prev.label,
+        label: "",
         order: typeof spec.order === "number" ? spec.order : prev.order,
         _builtin: true,
         getOptions: function () {
-          return [].concat(prev.getOptions() || [], incoming.getOptions() || []);
+          return [].concat(incoming.getOptions() || [], prev.getOptions() || []);
         },
         onSelect: function (option) {
           var id = option && option.id;
-          if (id === "mac-folder") return prev.onSelect(option);
+          if (id === "mac-folder" || id === "custom-path") return prev.onSelect(option);
           return incoming.onSelect(option);
         },
       };
@@ -653,59 +766,22 @@
     renderLocation();
   }
 
-  function folderDisplayPath(folderId) {
-    if (!folderId) return "tinker";
-    return core.ancestors(state.folders, folderId).reverse().map(function (f) {
-      return String(f.name || "");
-    }).join("/");
+  function isMacFolderSelected() {
+    var selected = selectedStorageInfo();
+    if (selected && selected.id === "mac-folder") return true;
+    if (selected && selected.path && state.location && selected.path === state.location) {
+      return selected.id === "mac-folder";
+    }
+    return false;
   }
 
-  function currentLocationFolderId() {
-    var story = selectedStory();
-    if (story) return story.folderId || null;
-    return state.selectedFolderId || null;
+  function isCustomPathSelected() {
+    var selected = selectedStorageInfo();
+    return !!(selected && selected.id === "custom");
   }
 
   function buildLocationRows() {
     var rows = [];
-    var currentId = currentLocationFolderId();
-
-    rows.push({
-      kind: "section",
-      sectionKey: "folders",
-      label: "Folders",
-    });
-    rows.push({
-      kind: "folder",
-      folderId: null,
-      label: "tinker",
-      type: core.DEFAULT_CONTENT_TYPE,
-      depth: 0,
-      selected: currentId == null,
-    });
-
-    function walk(parentId, depth) {
-      core.sortByName(core.childFolders(state.folders, parentId)).forEach(function (folder) {
-        rows.push({
-          kind: "folder",
-          folderId: folder.id,
-          label: folderDisplayPath(folder.id),
-          type: core.normalizeContentType(folder.contentType),
-          depth: depth,
-          selected: (folder.id || null) === (currentId || null),
-        });
-        walk(folder.id, depth + 1);
-      });
-    }
-    walk(null, 1);
-
-    rows.push({
-      kind: "custom",
-      label: "Custom location…",
-      depth: 0,
-      selected: false,
-    });
-
     var sections = Object.keys(locationSections).map(function (key) {
       return locationSections[key];
     }).sort(function (a, b) {
@@ -725,10 +801,11 @@
       }
       options.forEach(function (opt, i) {
         if (!opt) return;
+        var optionId = opt.id == null ? section.key + "-" + i : String(opt.id);
         rows.push({
-          kind: "storage",
+          kind: optionId === "custom-path" ? "custom" : "storage",
           sectionKey: section.key,
-          optionId: opt.id == null ? section.key + "-" + i : String(opt.id),
+          optionId: optionId,
           label: String(opt.label || opt.id || "Option"),
           detail: opt.detail ? String(opt.detail) : "",
           badge: opt.badge ? String(opt.badge) : "",
@@ -744,8 +821,7 @@
 
   function renderLocation() {
     if (!els.locationBtn) return;
-    var currentId = currentLocationFolderId();
-    var label = folderDisplayPath(currentId);
+    var label = physicalLocationLabel();
     if (els.locationValue) text(els.locationValue, label);
     else text(els.locationBtn, label);
     els.locationBtn.setAttribute("title", "Location: " + label);
@@ -758,7 +834,7 @@
       text(els.locationError, state.locationError);
     }
     // Keep the legacy choose button in the DOM for id stability / tests,
-    // but hide it; Mac folder lives in the Storage listbox section.
+    // but hide it; Mac folder lives in the listbox.
     if (els.locationChoose) {
       els.locationChoose.hidden = true;
       text(els.locationChoose, state.location ? "Mac folder: " + shortenPath(state.location) : "Mac folder…");
@@ -813,12 +889,6 @@
       text(name, row.label);
       li.appendChild(name);
 
-      if (row.type) {
-        var pill = document.createElement("span");
-        pill.className = "repo-location__option-type";
-        text(pill, core.contentTypeLabel(row.type));
-        li.appendChild(pill);
-      }
       if (row.badge) {
         var badge = document.createElement("span");
         badge.className = "repo-location__option-badge";
@@ -890,14 +960,15 @@
     state.locationError = "";
     if (open) {
       var rows = buildLocationRows();
-      var currentId = currentLocationFolderId();
       var idx = 0;
       for (var i = 0; i < rows.length; i += 1) {
-        if (rows[i].kind === "folder" && (rows[i].folderId || null) === (currentId || null)) {
+        if (rows[i] && rows[i].selected && rows[i].kind !== "section") {
           idx = i;
           break;
         }
+        if (rows[i] && rows[i].kind !== "section" && idx === 0 && i === 0) idx = i;
       }
+      while (idx < rows.length && rows[idx] && rows[idx].kind === "section") idx += 1;
       state.locationActive = idx;
     }
     renderLocation();
@@ -913,13 +984,18 @@
   }
 
   function openCustomLocation() {
+    if (!canUseCustomPath()) return;
     state.locationOpen = true;
     state.locationCustom = true;
     state.locationError = "";
     renderLocation();
     if (els.locationInput) {
-      var currentId = currentLocationFolderId();
-      els.locationInput.value = currentId ? folderDisplayPath(currentId) : "";
+      var selected = selectedStorageInfo();
+      var seed = "";
+      if (selected && selected.id === "custom" && selected.label) seed = selected.label;
+      else if (selected && selected.id === "custom" && selected.path) seed = formatUserPath(selected.path);
+      else if (state.location && isCustomPathSelected()) seed = formatUserPath(state.location);
+      els.locationInput.value = seed;
       try { els.locationInput.focus(); } catch (e) { /* ignore */ }
       try { if (els.locationInput.select) els.locationInput.select(); } catch (e) { /* ignore */ }
     }
@@ -928,80 +1004,24 @@
   function chooseLocationRow(index) {
     var row = (state.locationRows || [])[index];
     if (!row || row.kind === "section") return;
-    if (row.kind === "custom") {
+    if (row.kind === "custom" || row.optionId === "custom-path") {
       openCustomLocation();
       return;
     }
     if (row.kind === "storage") {
       try { row.onSelect(row.option || row); } catch (e) { /* ignore */ }
-      return;
     }
-    placeCurrentAt(row.folderId || null);
-    closeLocationPanel(true);
-  }
-
-  function placeCurrentAt(folderId) {
-    var story = selectedStory();
-    if (story) {
-      if ((story.folderId || null) !== (folderId || null)) moveFileTo(story.id, folderId || null);
-      else render();
-      return;
-    }
-    selectFolder(folderId || null);
-  }
-
-  function parseLocationPath(value) {
-    return String(value || "")
-      .replace(/\\/g, "/")
-      .split("/")
-      .map(function (seg) { return seg.trim(); })
-      .filter(function (seg) { return seg && seg !== "." && seg !== ".."; });
-  }
-
-  function findChildByName(parentId, name) {
-    var want = String(name).toLowerCase();
-    var kids = core.childFolders(state.folders, parentId);
-    for (var i = 0; i < kids.length; i += 1) {
-      var f = kids[i];
-      if (String(f.name || "").toLowerCase() === want) return f;
-      if (core.pathSegment(f.name).toLowerCase() === core.pathSegment(name).toLowerCase()) return f;
-    }
-    return null;
-  }
-
-  function ensureFolderPath(segments) {
-    var chain = Promise.resolve(null);
-    segments.forEach(function (seg, i) {
-      chain = chain.then(function (parentId) {
-        var existing = findChildByName(parentId, seg);
-        if (existing) return existing.id;
-        var body = { name: seg, parentId: parentId };
-        if (!parentId) {
-          var guess = String(seg).toLowerCase();
-          body.contentType = core.CONTENT_TYPES && core.CONTENT_TYPES.indexOf(guess) !== -1
-            ? guess
-            : core.DEFAULT_CONTENT_TYPE;
-        }
-        return apiPost("create_folder", body).then(function (result) {
-          if (!result.ok || !result.json || !result.json.folder) {
-            throw new Error((result.json && result.json.error) || "Could not create " + segments.slice(0, i + 1).join("/") + ".");
-          }
-          if (result.json.tree) applyTree(result.json.tree);
-          return result.json.folder.id;
-        });
-      });
-    });
-    return chain;
   }
 
   function saveCustomLocation() {
     if (!els.locationInput || state.locationSaving) return Promise.resolve();
-    var raw = String(els.locationInput.value || "");
-    var segs = parseLocationPath(raw);
-    if (segs.length && String(segs[0]).toLowerCase() === "tinker" && !findChildByName(null, segs[0])) {
-      segs = segs.slice(1);
+    if (!canUseCustomPath()) {
+      state.locationError = "Custom paths need the desktop app.";
+      renderLocation();
+      return Promise.resolve();
     }
-    if (!raw.trim()) {
+    var raw = String(els.locationInput.value || "").trim();
+    if (!raw) {
       state.locationCustom = false;
       state.locationError = "";
       renderLocation();
@@ -1010,19 +1030,30 @@
     }
     state.locationSaving = true;
     state.locationError = "";
-    return ensureFolderPath(segs).then(function (folderId) {
+    renderLocation();
+    return window.tinker.useCustomStoragePath(raw).then(function (result) {
       state.locationSaving = false;
-      state.locationOpen = false;
-      state.locationCustom = false;
-      placeCurrentAt(folderId || null);
-      renderLocation();
+      if (!result || result.error || !result.path) {
+        state.locationOpen = true;
+        state.locationCustom = true;
+        state.locationError = (result && result.error) || "Could not use that path.";
+        renderLocation();
+        return null;
+      }
+      applyPhysicalRoot({
+        id: result.id || "custom",
+        label: result.label || formatUserPath(result.path),
+        name: result.name || "Tinker",
+        path: result.path,
+        kind: "electron",
+      });
       return syncStoriesToDisk();
     }).catch(function (err) {
       state.locationSaving = false;
       state.locationOpen = true;
       state.locationCustom = true;
       state.locationError = (err && err.message) || "Could not save location.";
-      render();
+      renderLocation();
     });
   }
 
@@ -1091,30 +1122,48 @@
     if (!canPickFolder()) return;
     window.tinker.pickNotesFolder().then(function (picked) {
       if (!picked || !picked.path) return;
-      setLocation(picked.path);
-      state.locationOpen = false;
-      state.locationCustom = false;
-      renderLocation();
+      applyPhysicalRoot({
+        id: "mac-folder",
+        label: picked.name || formatUserPath(picked.path),
+        name: picked.name || "Tinker",
+        path: picked.path,
+        kind: "electron",
+      });
     }).catch(function () { /* cancelled */ });
   }
 
-  // Built-in Storage section: Mac disk root picker (desktop only).
+  // Built-in Storage options: Mac folder picker + typed Custom location…
+  // (desktop IPC only). Cloud roots / Choose folder merge in via
+  // registerLocationSection from storage-section.js.
   registerLocationSection({
     key: "storage",
-    label: "Storage",
+    label: "",
     order: 100,
     _builtin: true,
     getOptions: function () {
-      if (!canPickFolder()) return [];
-      return [{
-        id: "mac-folder",
-        label: state.location ? "Mac folder: " + shortenPath(state.location) : "Mac folder…",
-        detail: state.location || "",
-        selected: !!state.location,
-      }];
+      var options = [];
+      if (canPickFolder()) {
+        options.push({
+          id: "mac-folder",
+          label: "Mac folder…",
+          detail: isMacFolderSelected() && state.location ? formatUserPath(state.location) : "",
+          selected: isMacFolderSelected(),
+        });
+      }
+      if (canUseCustomPath()) {
+        options.push({
+          id: "custom-path",
+          label: "Custom location…",
+          detail: isCustomPathSelected() && state.location ? formatUserPath(state.location) : "",
+          selected: isCustomPathSelected(),
+        });
+      }
+      return options;
     },
     onSelect: function (option) {
-      if (option && option.id === "mac-folder") chooseLocationFolder();
+      if (!option) return;
+      if (option.id === "mac-folder") chooseLocationFolder();
+      else if (option.id === "custom-path") openCustomLocation();
     },
   });
 
