@@ -132,6 +132,19 @@
         font-size: 12px;
         color: var(--color-muted);
       }
+      .settings__made-by {
+        margin: 12px 0 0;
+      }
+      .settings__made-by-link {
+        font-size: 12px;
+        line-height: 1.4;
+        color: var(--color-muted);
+        text-decoration: none;
+      }
+      .settings__made-by-link:hover {
+        color: var(--color-foreground);
+        text-decoration: underline;
+      }
     </style>
   </head>
   <body class="settings-page">
@@ -231,11 +244,21 @@
       </section>
 
       <p class="settings__copy">© 2026 tinker</p>
+      <p class="settings__made-by">
+        <a
+          class="settings__made-by-link"
+          href="https://lindowlabs.dev/?utm_source=tinker&amp;utm_campaign=made-by"
+          target="_blank"
+          rel="noopener"
+          data-made-by-lindow-labs
+        >Made by Lindow Labs</a>
+      </p>
     </main>
     <script src="/auth.js" defer></script>
     <script src="/lib/notes-folder-core.js" defer></script>
     <script src="/notes-folder.js" defer></script>
     <script src="/lead-drafts.js" defer></script>
+    <script src="/made-by-lindow-labs.js" defer></script>
     <script src="/settings/settings.js" defer></script>
   </body>
 </html>

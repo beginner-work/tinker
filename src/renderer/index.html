@@ -227,6 +227,7 @@
       <!-- Shared "Back me" opener (window.tinkerBackMe). -->
       <script src="./back-me.js" defer></script>
       <script src="./open-beginner.js" defer></script>
+      <script src="./made-by-lindow-labs.js" defer></script>
       <script src="./wallet.js" defer></script>
       <script src="./email.js" defer></script>
       <script src="./linkedin-draft.js" defer></script>
@@ -600,6 +601,16 @@
           Sign-up and login share this screen — first-time users get an
           account created automatically when they verify.
         </p>
+
+        <p class="auth-gate__made-by">
+          <a
+            class="auth-gate__made-by-link"
+            href="https://lindowlabs.dev/?utm_source=tinker&amp;utm_campaign=made-by"
+            target="_blank"
+            rel="noopener"
+            data-made-by-lindow-labs
+          >Made by Lindow Labs</a>
+        </p>
       </div>
     </div>
 
@@ -843,7 +854,7 @@
     <script src="./mobile-drawer.js" defer></script>
     <!-- Offline app shell: registers versioned sw.js so a refresh (and a
          cold launch of the installed app) still loads with no connection. -->
-    <script src="./pwa-offline.js?v=57" defer></script>
+    <script src="./pwa-offline.js?v=58" defer></script>
     <!-- After the critical defer list: inject secondary modules post-paint. -->
     <script src="./boot-lazy.js" defer></script>
   </body>
