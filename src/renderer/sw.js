@@ -32,7 +32,7 @@
  * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v50";
+const CACHE_VERSION = "tinker-shell-v51";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -50,6 +50,7 @@ const PRECACHE = [
   "/boot-css.js",
   "/pwa-session.js",
   "/lib/analytics-keystrokes.js",
+  "/lib/analytics-owner-edit.js",
   "/lib/analytics-core.js",
   "/analytics.js",
   "/vercel-analytics.js",

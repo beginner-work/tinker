@@ -22,10 +22,16 @@ const {
   deriveSessionMetrics,
   writingBehaviorRollup,
 } = require("./analytics-keystrokes.js");
+const ownerEdit = require("./analytics-owner-edit.js");
+const howIWrite = require("./analytics-how-i-write.js");
+const writingMetrics = require("./analytics-writing-metrics.js");
 
 const MAX_BATCH = 40;
 const MAX_KEYSTROKE_CHUNKS = 20;
+const MAX_OWNER_EDIT_CHUNKS = 20;
+const MAX_SURFACE_EVENTS = 40;
 const KEYSTROKE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+const MAX_CONTEXT_TAG = 64;
 
 function ownerAllowlist() {
   const raw = String(process.env.METRICS_OWNER_ALLOWLIST || "").trim();
@@ -484,6 +490,299 @@ async function recentEvents({ name, limit } = {}) {
   });
 }
 
+/**
+ * Owner-only edit logs. Non-owners are rejected (accepted: 0) and any
+ * text in their payload is dropped by sanitizeOps({ allowText: false })
+ * if somehow called — ingestOwnerEdits never persists for non-owners.
+ */
+async function ingestOwnerEdits(rawChunks, sessionUserId) {
+  if (!isMetricsOwner(sessionUserId)) {
+    return { accepted: 0, rejected: "not_owner" };
+  }
+  const list = Array.isArray(rawChunks) ? rawChunks.slice(0, MAX_OWNER_EDIT_CHUNKS) : [];
+  let accepted = 0;
+  for (const raw of list) {
+    if (!raw || typeof raw !== "object") continue;
+    const sessionId = trimId(raw.sessionId || raw.session_id, 80);
+    const anonymousId = trimId(raw.anonymousId || raw.anonymous_id, 80);
+    if (!sessionId) continue;
+    const ops = ownerEdit.sanitizeOps(raw.ops, { allowText: true });
+    if (!ops.length) continue;
+    const startedAt = raw.startedAt || raw.started_at
+      ? new Date(raw.startedAt || raw.started_at)
+      : new Date();
+    if (Number.isNaN(startedAt.getTime())) continue;
+    const chunkIndex = Math.max(0, Math.min(100000, Number(raw.chunkIndex || raw.chunk_index) || 0)) | 0;
+    await prisma.analyticsOwnerEditChunk.create({
+      data: {
+        sessionId,
+        userId: sessionUserId,
+        anonymousId: anonymousId || "",
+        startedAt,
+        chunkIndex,
+        ops,
+      },
+    });
+    accepted += 1;
+  }
+  return { accepted };
+}
+
+async function loadOwnerOps(sessionId, userId) {
+  const chunks = await prisma.analyticsOwnerEditChunk.findMany({
+    where: { sessionId, userId },
+    orderBy: [{ chunkIndex: "asc" }, { createdAt: "asc" }],
+    take: 500,
+  });
+  const ops = [];
+  for (const chunk of chunks) {
+    const rows = ownerEdit.sanitizeOps(chunk.ops, { allowText: true });
+    for (const row of rows) ops.push(row);
+  }
+  return { chunks, ops };
+}
+
+async function howIWriteOverview(userId) {
+  if (!isMetricsOwner(userId)) {
+    throw Object.assign(new Error("Not available for this account."), { status: 403 });
+  }
+  const since = new Date(Date.now() - 84 * 24 * 60 * 60 * 1000); // ~12 weeks
+  const bags = await loadSessionBags(userId, since);
+  const metrics = writingMetrics.assembleWritingMetrics(bags, "12w");
+  // Owner UI still gets the learning summary text (rule-based, not session drafts).
+  const sessionsForSummary = bags.map((bag) =>
+    howIWrite.analyzeSession(bag.ops, {
+      sessionId: bag.sessionId,
+      startedAt: bag.startedAt,
+    })
+  );
+  const summary = howIWrite.summarizeLearning(sessionsForSummary, Date.now());
+  return {
+    summary,
+    trends: metrics.weeklyTrends,
+    rankings: metrics.rankings,
+    timing: metrics.timing,
+    byContextTag: metrics.byContextTag,
+    flowStretches: metrics.flowStretches.slice(0, 40),
+    sessions: metrics.sessions,
+  };
+}
+
+async function howIWriteSession(userId, sessionId) {
+  if (!isMetricsOwner(userId)) {
+    throw Object.assign(new Error("Not available for this account."), { status: 403 });
+  }
+  const id = trimId(sessionId, 80);
+  if (!id) return null;
+  const { chunks, ops } = await loadOwnerOps(id, userId);
+  if (!chunks.length) return null;
+  const analyzed = howIWrite.analyzeSession(ops, {
+    sessionId: id,
+    startedAt: chunks[0].startedAt,
+  });
+  // UI may show passage snippets for the owner only — keep those here.
+  const surfaceEvents = await prisma.analyticsSurfaceEvent.findMany({
+    where: { sessionId: id },
+    orderBy: { ts: "asc" },
+    take: 500,
+  });
+  const markers = writingMetrics.markersFromSurfaceEvents(surfaceEvents, chunks[0].startedAt);
+  const flowLib = require("./analytics-flow.js");
+  const stretches = flowLib.detectFlowFromOps(ops, markers);
+  const sessionRow = await prisma.analyticsWritingSession.findUnique({
+    where: { sessionId: id },
+  });
+  return {
+    ...analyzed,
+    contextTag: (sessionRow && sessionRow.contextTag) || "",
+    flowStretches: stretches.map((s) => ({
+      startMs: s.startMs,
+      endMs: s.endMs,
+      lengthMs: s.lengthMs,
+      startCause: s.startCause,
+      endCause: s.endCause,
+      startPromptId: (s.startDetail && s.startDetail.promptId) || "",
+      endPromptId: (s.endDetail && s.endDetail.promptId) || "",
+      startSurfaceId: (s.startDetail && s.startDetail.surfaceId) || "",
+      endSurfaceId: (s.endDetail && s.endDetail.surfaceId) || "",
+    })),
+  };
+}
+
+async function ingestSurfaceEvents(rawEvents, sessionUserId) {
+  const list = Array.isArray(rawEvents) ? rawEvents.slice(0, MAX_SURFACE_EVENTS) : [];
+  let accepted = 0;
+  for (const raw of list) {
+    const ev = writingMetrics.sanitizeSurfaceEvent(raw);
+    if (!ev) continue;
+    await prisma.analyticsSurfaceEvent.create({
+      data: {
+        sessionId: ev.sessionId,
+        anonymousId: ev.anonymousId || "",
+        userId: sessionUserId || "",
+        name: ev.name,
+        surfaceId: ev.surfaceId,
+        promptId: ev.promptId,
+        variantId: ev.variantId,
+        position: ev.position,
+        ts: ev.ts,
+        props: ev.props,
+      },
+    });
+    accepted += 1;
+  }
+  return { accepted };
+}
+
+async function loadSessionBags(userId, since) {
+  const chunks = await prisma.analyticsOwnerEditChunk.findMany({
+    where: { userId, startedAt: { gte: since } },
+    orderBy: [{ sessionId: "asc" }, { chunkIndex: "asc" }],
+    take: 5000,
+  });
+  const bySession = new Map();
+  for (const chunk of chunks) {
+    if (!bySession.has(chunk.sessionId)) {
+      bySession.set(chunk.sessionId, {
+        sessionId: chunk.sessionId,
+        startedAt: chunk.startedAt,
+        ops: [],
+        contextTag: "",
+        surfaceEvents: [],
+      });
+    }
+    const bag = bySession.get(chunk.sessionId);
+    if (chunk.startedAt < bag.startedAt) bag.startedAt = chunk.startedAt;
+    const rows = ownerEdit.sanitizeOps(chunk.ops, { allowText: true });
+    for (const row of rows) bag.ops.push(row);
+  }
+  const sessionIds = Array.from(bySession.keys());
+  if (!sessionIds.length) return [];
+
+  const sessionRows = await prisma.analyticsWritingSession.findMany({
+    where: { sessionId: { in: sessionIds } },
+    select: { sessionId: true, contextTag: true },
+  });
+  for (const row of sessionRows) {
+    const bag = bySession.get(row.sessionId);
+    if (bag) bag.contextTag = row.contextTag || "";
+  }
+
+  const surfaceEvents = await prisma.analyticsSurfaceEvent.findMany({
+    where: {
+      sessionId: { in: sessionIds },
+      ts: { gte: since },
+    },
+    orderBy: { ts: "asc" },
+    take: 10000,
+  });
+  for (const ev of surfaceEvents) {
+    const bag = bySession.get(ev.sessionId);
+    if (bag) bag.surfaceEvents.push(ev);
+  }
+
+  return Array.from(bySession.values());
+}
+
+/** MCP: numbers-only writing metrics for the connector user. */
+async function getWritingMetrics(userId, range) {
+  const uid = String(userId || "").trim();
+  if (!uid) {
+    throw Object.assign(new Error("Sign in required."), { status: 401 });
+  }
+  const parsed = writingMetrics.parseRange(range);
+  const since = new Date(Date.now() - parsed.days * 24 * 60 * 60 * 1000);
+  const bags = await loadSessionBags(uid, since);
+  return writingMetrics.assembleWritingMetrics(bags, parsed.label);
+}
+
+/** MCP: list writing sessions (numbers + day + tag; no text). */
+async function listWritingSessions(userId, { limit, range } = {}) {
+  const uid = String(userId || "").trim();
+  if (!uid) {
+    throw Object.assign(new Error("Sign in required."), { status: 401 });
+  }
+  const take = Math.max(1, Math.min(100, Number(limit) || 40));
+  const parsed = writingMetrics.parseRange(range || "12w");
+  const since = new Date(Date.now() - parsed.days * 24 * 60 * 60 * 1000);
+  const bags = await loadSessionBags(uid, since);
+  const metrics = writingMetrics.assembleWritingMetrics(bags, parsed.label);
+  return {
+    range: parsed.label,
+    sessions: (metrics.sessions || []).slice(0, take),
+  };
+}
+
+/** MCP: set a short context tag on a writing session (owner's own only). */
+async function tagWritingSession(userId, sessionId, contextTag) {
+  const uid = String(userId || "").trim();
+  if (!uid) {
+    throw Object.assign(new Error("Sign in required."), { status: 401 });
+  }
+  const id = trimId(sessionId, 80);
+  if (!id) {
+    throw Object.assign(new Error("sessionId is required."), { status: 400 });
+  }
+  const tag = trimId(String(contextTag == null ? "" : contextTag), MAX_CONTEXT_TAG);
+  // Confirm the session belongs to this user via owner edit chunks or session row.
+  const chunk = await prisma.analyticsOwnerEditChunk.findFirst({
+    where: { sessionId: id, userId: uid },
+    select: { sessionId: true, anonymousId: true, startedAt: true },
+  });
+  const existing = await prisma.analyticsWritingSession.findUnique({
+    where: { sessionId: id },
+  });
+  if (!chunk && !(existing && existing.userId === uid)) {
+    throw Object.assign(new Error("Session not found."), { status: 404 });
+  }
+  if (existing && existing.userId && existing.userId !== uid) {
+    throw Object.assign(new Error("Session not found."), { status: 404 });
+  }
+  const data = {
+    sessionId: id,
+    anonymousId: (existing && existing.anonymousId)
+      || (chunk && chunk.anonymousId)
+      || "",
+    userId: uid,
+    startedAt: (existing && existing.startedAt)
+      || (chunk && chunk.startedAt)
+      || new Date(),
+    contextTag: tag,
+    updatedAt: new Date(),
+  };
+  await prisma.analyticsWritingSession.upsert({
+    where: { sessionId: id },
+    create: data,
+    update: { contextTag: tag, userId: uid, updatedAt: new Date() },
+  });
+  return { sessionId: id, contextTag: tag };
+}
+
+/**
+ * Public build-time export for lindowlabs.dev.
+ * Auth is the caller's responsibility (bearer WRITING_SUMMARY_TOKEN).
+ * Always scoped to METRICS_OWNER_ALLOWLIST owner ids — never arbitrary users.
+ */
+async function writingSummaryExport() {
+  const owners = Array.from(ownerAllowlist());
+  if (!owners.length) {
+    return {
+      generatedDay: writingMetrics.dayKey(new Date()),
+      timeZone: "America/Los_Angeles",
+      weekly: [],
+      promptRankings: [],
+      note: "METRICS_OWNER_ALLOWLIST is empty; no owner sessions exported.",
+    };
+  }
+  const since = new Date(Date.now() - 84 * 24 * 60 * 60 * 1000);
+  const bags = [];
+  for (const ownerId of owners) {
+    const ownerBags = await loadSessionBags(ownerId, since);
+    for (const b of ownerBags) bags.push(b);
+  }
+  return writingMetrics.assembleWritingSummary(bags);
+}
+
 module.exports = {
   MAX_BATCH,
   KEYSTROKE_RETENTION_MS,
@@ -492,10 +791,18 @@ module.exports = {
   upsertIdentity,
   ingestBatch,
   ingestKeystrokeChunks,
+  ingestOwnerEdits,
+  ingestSurfaceEvents,
   recomputeWritingSession,
   rollupExpiredKeystrokes,
   loadEventsSince,
   metricsSummary,
   recentEvents,
   sessionTimeline,
+  howIWriteOverview,
+  howIWriteSession,
+  getWritingMetrics,
+  listWritingSessions,
+  tagWritingSession,
+  writingSummaryExport,
 };

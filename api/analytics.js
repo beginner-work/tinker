@@ -1,13 +1,14 @@
 /* /api/analytics
  *
- * POST  body { events?: [...], keystrokes?: [...] }
- *       → ingest (optional Bearer links user id). Keystrokes never go to
- *       Vercel Web Analytics — first-party DB only.
- * GET   ?action=summary&days=7|30  → owner-only aggregates
- * GET   ?action=events&name=&limit= → owner-only raw recent rows
- * GET   ?action=session&sessionId= → owner-only writing timeline
- *
- * Anonymous ingest is intentional: pre-signin funnels need it.
+ * POST  body { events?, keystrokes?, ownerEdits? }
+ *       → ingest. ownerEdits accepted only for METRICS_OWNER_ALLOWLIST.
+ *       Keystrokes + events never go to Vercel Web Analytics.
+ * GET   ?action=capabilities     → { ownerReplay: bool } for signed-in user
+ * GET   ?action=summary&days=    → owner-only product funnel aggregates
+ * GET   ?action=events&name=     → owner-only raw recent rows
+ * GET   ?action=session&sessionId= → owner-only keystroke timeline (no text)
+ * GET   ?action=how_i_write      → owner-only learning overview
+ * GET   ?action=how_i_write_session&sessionId= → owner-only session breakdown
  */
 
 "use strict";
@@ -34,7 +35,7 @@ function readJsonBody(req) {
     let total = 0;
     req.on("data", (chunk) => {
       total += chunk.length;
-      if (total > 256 * 1024) {
+      if (total > 512 * 1024) {
         reject(Object.assign(new Error("Payload too large"), { status: 413 }));
         req.destroy();
         return;
@@ -66,7 +67,7 @@ async function optionalUserId(req) {
   }
 }
 
-async function requireOwner(req) {
+async function requireUser(req) {
   const token = extractBearer(req.headers && req.headers.authorization);
   if (!token) {
     throw Object.assign(new Error("Sign in required."), { status: 401 });
@@ -79,6 +80,11 @@ async function requireOwner(req) {
   if (!userId) {
     throw Object.assign(new Error("Session missing user id"), { status: 401 });
   }
+  return userId;
+}
+
+async function requireOwner(req) {
+  const userId = await requireUser(req);
   if (!analytics.isMetricsOwner(userId)) {
     throw Object.assign(new Error("Not available for this account."), { status: 403 });
   }
@@ -97,6 +103,8 @@ module.exports = withResponseLogging(async function handler(req, res) {
     const userId = await optionalUserId(req);
     let eventsAccepted = 0;
     let keystrokesAccepted = 0;
+    let ownerEditsAccepted = 0;
+    let surfaceAccepted = 0;
     try {
       if (body && Array.isArray(body.events) && body.events.length) {
         const result = await analytics.ingestBatch(body.events, userId);
@@ -106,28 +114,63 @@ module.exports = withResponseLogging(async function handler(req, res) {
         const result = await analytics.ingestKeystrokeChunks(body.keystrokes, userId);
         keystrokesAccepted = result.accepted;
       }
+      if (body && Array.isArray(body.ownerEdits) && body.ownerEdits.length) {
+        const result = await analytics.ingestOwnerEdits(body.ownerEdits, userId);
+        ownerEditsAccepted = result.accepted;
+      }
+      if (body && Array.isArray(body.surfaceEvents) && body.surfaceEvents.length) {
+        const result = await analytics.ingestSurfaceEvents(body.surfaceEvents, userId);
+        surfaceAccepted = result.accepted;
+      }
       res.status(202).json({
         ok: true,
         accepted: eventsAccepted,
         keystrokesAccepted,
+        ownerEditsAccepted,
+        surfaceAccepted,
       });
     } catch {
-      res.status(202).json({ ok: false, accepted: 0, keystrokesAccepted: 0 });
+      res.status(202).json({
+        ok: false,
+        accepted: 0,
+        keystrokesAccepted: 0,
+        ownerEditsAccepted: 0,
+        surfaceAccepted: 0,
+      });
     }
     return;
   }
 
   if (req.method === "GET" || req.method === "HEAD") {
+    const url = new URL(req.url || "/", "https://tinker.local");
+    const action = actionOf(req) || "summary";
+
+    // capabilities: any signed-in user can ask; tells the client whether
+    // owner edit-log recording is on (never enables text for others).
+    if (action === "capabilities") {
+      try {
+        const userId = await requireUser(req);
+        res.status(200).json({
+          ownerEditLog: analytics.isMetricsOwner(userId),
+        });
+      } catch (err) {
+        if (err.status === 401) {
+          res.status(200).json({ ownerEditLog: false });
+          return;
+        }
+        res.status(err.status || 401).json({ error: err.message || "Unauthorized" });
+      }
+      return;
+    }
+
+    let ownerId;
     try {
-      await requireOwner(req);
+      ownerId = await requireOwner(req);
     } catch (err) {
       res.status(err.status || 401).json({ error: err.message || "Unauthorized" });
       return;
     }
-    const url = new URL(req.url || "/", "https://tinker.local");
-    const action = actionOf(req) || "summary";
     try {
-      // Opportunistic 90-day rollup while the owner is looking.
       if (action === "summary") {
         try { await analytics.rollupExpiredKeystrokes(); } catch { /* ignore */ }
       }
@@ -146,6 +189,23 @@ module.exports = withResponseLogging(async function handler(req, res) {
           return;
         }
         res.status(200).json(timeline);
+        return;
+      }
+      if (action === "how_i_write") {
+        const overview = await analytics.howIWriteOverview(ownerId);
+        res.status(200).json(overview);
+        return;
+      }
+      if (action === "how_i_write_session") {
+        const detail = await analytics.howIWriteSession(
+          ownerId,
+          url.searchParams.get("sessionId") || ""
+        );
+        if (!detail) {
+          res.status(404).json({ error: "Session not found" });
+          return;
+        }
+        res.status(200).json(detail);
         return;
       }
       const days = Number(url.searchParams.get("days") || 7);

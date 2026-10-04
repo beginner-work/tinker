@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Metrics preview</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/design-tokens.css" />
+  <link rel="stylesheet" href="/metrics/metrics.css?v=1" />
+</head>
+<body class="metrics-page">
+  <main class="metrics">
+    <a class="metrics__back" href="/">Back</a>
+    <h1 class="metrics__title">Metrics</h1>
+    <p class="metrics__lede">Owner view of first-party product analytics. No draft text is stored.</p>
+    <div class="metrics__range">
+      <button type="button" class="metrics__range-btn is-active">7 days</button>
+      <button type="button" class="metrics__range-btn">30 days</button>
+    </div>
+    <section class="metrics__section">
+      <h2 class="metrics__section-title">Funnel</h2>
+      <div class="metrics__funnel" id="funnel"></div>
+    </section>
+    <section class="metrics__section metrics__grid">
+      <div>
+        <h2 class="metrics__section-title">Day-2 return</h2>
+        <p class="metrics__stat">42% (21 / 50 eligible day pairs)</p>
+      </div>
+      <div>
+        <h2 class="metrics__section-title">Phone vs desktop</h2>
+        <div class="metrics__stat">Phone: 18 unique<br>Tablet: 2 unique<br>Desktop: 31 unique</div>
+      </div>
+    </section>
+    <section class="metrics__section">
+      <h2 class="metrics__section-title">Top sources</h2>
+      <div class="metrics__table-wrap">
+        <table class="metrics__table">
+          <thead><tr><th>Source</th><th>Subjects</th><th>Campaigns</th></tr></thead>
+          <tbody>
+            <tr><td>linkedin</td><td>22</td><td>beacon_q2 (14), (none) (8)</td></tr>
+            <tr><td>direct</td><td>15</td><td>(none) (15)</td></tr>
+            <tr><td>news.ycombinator.com</td><td>4</td><td>(none) (4)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="metrics__section">
+      <h2 class="metrics__section-title">Writing behavior</h2>
+      <div class="metrics__stat">
+        Sessions: 37<br>
+        Keys / min: 148.2<br>
+        Active typing: 4.2 s avg<br>
+        Pauses &gt;2s: 3.1 avg · &gt;10s: 0.6 avg<br>
+        Avg burst length: 12.4<br>
+        Backspace/delete ratio: 0.082<br>
+        Pastes / session: 0.4<br>
+        Time to first word: 1.8 s<br>
+        First word → This is everything: 6.4 s
+      </div>
+      <h3 class="metrics__subhead">Session timeline</h3>
+      <p class="metrics__muted">Sample session · 842 keys · 151 kpm</p>
+      <div class="metrics__timeline" id="timeline"></div>
+    </section>
+  </main>
+  <script>
+    const funnel = [
+      ["page_view", 100],
+      ["signin_gate_shown", 64],
+      ["signup_completed", 28],
+      ["first_words_typed", 22],
+      ["keep_crafting_tapped", 18],
+      ["this_is_everything_tapped", 14],
+      ["save_succeeded", 12],
+    ];
+    const root = document.getElementById("funnel");
+    funnel.forEach(([name, n]) => {
+      const line = document.createElement("div");
+      line.className = "metrics__funnel-row";
+      line.innerHTML = `<div>${name}</div><div class="metrics__bar"><span style="width:${n}%"></span></div><div>${Math.round(n*0.5)}</div>`;
+      root.appendChild(line);
+    });
+    const tl = document.getElementById("timeline");
+    const pts = [];
+    for (let i = 0; i < 40; i++) {
+      pts.push({ t: i * 1000, rate: Math.max(0, Math.round(8 + Math.sin(i/3)*5 + (i%7===0?0:-2))), del: i%11===0?2:0, pause: i===12||i===27 });
+    }
+    const maxT = pts[pts.length-1].t, maxRate = Math.max(...pts.map(p=>p.rate),1);
+    const w=600,h=120,pad=8;
+    let svg = `<svg viewBox="0 0 ${w} ${h}">`;
+    pts.forEach(p => {
+      const x = pad + (p.t/maxT)*(w-pad*2);
+      const barH = Math.max(1,(p.rate/maxRate)*(h-pad*2));
+      const y = h-pad-barH;
+      svg += `<rect x="${x}" y="${y}" width="3" height="${barH}" fill="currentColor" opacity="0.55"/>`;
+      if (p.del) svg += `<rect x="${x}" y="${h-pad-4}" width="3" height="4" fill="#b42318" opacity="0.85"/>`;
+      if (p.pause) svg += `<line x1="${x}" y1="${pad}" x2="${x}" y2="${h-pad}" stroke="currentColor" stroke-opacity="0.25" stroke-dasharray="2 3"/>`;
+    });
+    svg += "</svg>";
+    tl.innerHTML = svg;
+  </script>
+</body>
+</html>

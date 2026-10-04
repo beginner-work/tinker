@@ -343,12 +343,13 @@
       if (Array.isArray(pendingKs) && pendingKs.length) {
         for (var i = 0; i < pendingKs.length; i++) keystrokesOut.push(pendingKs[i]);
       }
-      if (!events.length && !keystrokesOut.length && !(extra && extra.events)) {
+      if (!events.length && !keystrokesOut.length && !(extra && extra.events) && !(extra && extra.ownerEdits && extra.ownerEdits.length)) {
         return Promise.resolve({ sent: false, reason: "empty" });
       }
       var body = {
         events: (extra && extra.events ? events.concat(extra.events) : events).slice(0, MAX_QUEUE),
         keystrokes: keystrokesOut.slice(0, 20),
+        ownerEdits: (extra && Array.isArray(extra.ownerEdits) ? extra.ownerEdits : []).slice(0, 20),
       };
       setQueue([]);
       store.set(KS_QUEUE_KEY, []);

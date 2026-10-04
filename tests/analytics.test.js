@@ -276,17 +276,29 @@ test("shipped assets and routes include analytics + metrics + vercel pageviews",
   const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
   const vercel = JSON.parse(fs.readFileSync(path.join(root, "vercel.json"), "utf8"));
   const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-  assert.match(html, /analytics\.js\?v=1/);
+  assert.match(html, /analytics\.js\?v=2/);
   assert.match(html, /vercel-analytics\.js\?v=1/);
-  assert.match(html, /analytics-keystrokes\.js\?v=1/);
-  assert.match(sw, /tinker-shell-v50/);
+  assert.match(html, /analytics-keystrokes\.js\?v=2/);
+  assert.match(html, /analytics-owner-edit\.js\?v=1/);
+  assert.match(html, /analytics-core\.js\?v=2/);
+  assert.match(sw, /tinker-shell-v51/);
   assert.match(sw, /analytics\.js/);
+  assert.match(sw, /analytics-owner-edit\.js/);
   assert.ok((vercel.rewrites || []).some((r) => r.source === "/metrics"));
+  assert.ok((vercel.rewrites || []).some((r) => r.source === "/metrics/how-i-write"));
   assert.ok(pkg.dependencies["@vercel/analytics"]);
   assert.ok(fs.existsSync(path.join(root, "src/renderer/metrics/index.html")));
+  assert.ok(fs.existsSync(path.join(root, "src/renderer/metrics/how-i-write.html")));
+  assert.ok(fs.existsSync(path.join(root, "api/writing-summary.js")));
   const va = fs.readFileSync(path.join(root, "src/renderer/vercel-analytics.js"), "utf8");
   assert.match(va, /\/_vercel\/insights\/script\.js/);
   assert.doesNotMatch(va, /\.track\(/);
+  const mcp = fs.readFileSync(path.join(root, "api/mcp.js"), "utf8");
+  assert.match(mcp, /get_writing_metrics/);
+  assert.match(mcp, /list_writing_sessions/);
+  assert.match(mcp, /tag_writing_session/);
+  const envEx = fs.readFileSync(path.join(root, ".env.example"), "utf8");
+  assert.match(envEx, /WRITING_SUMMARY_TOKEN/);
 });
 
 test("owner gate fails closed without METRICS_OWNER_ALLOWLIST", () => {
@@ -299,4 +311,135 @@ test("owner gate fails closed without METRICS_OWNER_ALLOWLIST", () => {
   assert.equal(analytics.isMetricsOwner("user-other"), false);
   if (prev == null) delete process.env.METRICS_OWNER_ALLOWLIST;
   else process.env.METRICS_OWNER_ALLOWLIST = prev;
+});
+
+test("flow detection finds stretches and end causes without text", () => {
+  const flow = require("../src/renderer/lib/analytics-flow.js");
+  const packed = [];
+  // 4 minutes of typing with small gaps, then a long pause
+  for (let t = 0; t < 4 * 60 * 1000; t += 200) {
+    packed.push([t, 0]); // letter
+  }
+  const markers = [
+    { t: 0, kind: "prompt_shown", promptId: "interview.next_question", variantId: "B" },
+    { t: 4 * 60 * 1000 + 100, kind: "surface_tapped", surfaceId: "btn.keep_crafting" },
+  ];
+  const stretches = flow.detectFlowStretches(packed, markers);
+  assert.ok(stretches.length >= 1);
+  assert.equal(stretches[0].startCause, "prompt_shown");
+  assert.equal(stretches[0].endCause, "surface_tapped");
+  assert.ok(stretches[0].lengthMs >= flow.FLOW_MIN_MS);
+  const json = JSON.stringify(stretches);
+  assert.equal(json.includes("The quick"), false);
+});
+
+test("writing metrics + summary are numbers-only (no draft text, no fine timestamps in export)", () => {
+  const ownerEdit = require("../src/renderer/lib/analytics-owner-edit.js");
+  const wm = require("../api/_lib/analytics-writing-metrics.js");
+  const SECRET = "secret draft about fundraising that must never leak";
+  const ops = [];
+  let t = 0;
+  // Simulate ~4 min of inserts with the secret sentence, then a delete, then more typing
+  const words = (SECRET + " more words here to keep going ").repeat(20);
+  for (let i = 0; i < words.length; i++) {
+    ops.push({ t: t, op: "ins", pos: i, text: words[i] });
+    t += 50; // 50ms per char → plenty of flow time
+  }
+  ops.push({ t: t + 100, op: "mark", mark: "keep_crafting" });
+  ops.push(...ownerEdit.diffEdit(words, words.slice(0, 40), t + 200));
+
+  const bags = [{
+    sessionId: "sess-test-1",
+    startedAt: new Date("2026-10-01T17:00:00.000Z"),
+    ops,
+    contextTag: "morning-pitch",
+    surfaceEvents: [
+      {
+        name: "prompt_shown",
+        promptId: "interview.next_question",
+        variantId: "B",
+        surfaceId: "",
+        ts: new Date("2026-10-01T17:00:01.000Z"),
+      },
+      {
+        name: "surface_tapped",
+        surfaceId: "btn.keep_crafting",
+        promptId: "",
+        variantId: "",
+        ts: new Date("2026-10-01T17:05:00.000Z"),
+      },
+    ],
+  }];
+
+  const metrics = wm.assembleWritingMetrics(bags, "12w");
+  const blob = JSON.stringify(metrics);
+  assert.equal(blob.includes(SECRET), false);
+  assert.equal(blob.includes("fundraising"), false);
+  assert.ok(Array.isArray(metrics.weeklyTrends));
+  assert.ok(Array.isArray(metrics.flowStretches));
+  assert.ok(metrics.rankings);
+  assert.ok(metrics.timing);
+  assert.ok(metrics.byContextTag.some((r) => r.contextTag === "morning-pitch"));
+
+  const summary = wm.assembleWritingSummary(bags);
+  const sumBlob = JSON.stringify(summary);
+  assert.equal(sumBlob.includes(SECRET), false);
+  assert.equal(sumBlob.includes("morning-pitch"), false);
+  assert.equal(sumBlob.includes("contextTag"), false);
+  assert.ok(Array.isArray(summary.weekly));
+  assert.ok(summary.weekly[0].flowMinutes != null || summary.weekly[0].flowMinutes === 0);
+  assert.ok("timeToFirstWordMs" in summary.weekly[0]);
+  assert.ok("revisionRate" in summary.weekly[0]);
+  assert.ok(Array.isArray(summary.promptRankings));
+  // No ISO timestamps with time-of-day in the export
+  assert.doesNotMatch(sumBlob, /T\d{2}:\d{2}:\d{2}/);
+});
+
+test("non-owner sanitizeOps strips text", () => {
+  const ownerEdit = require("../src/renderer/lib/analytics-owner-edit.js");
+  const ops = ownerEdit.sanitizeOps(
+    [{ t: 0, op: "ins", pos: 0, text: "secret words" }],
+    { allowText: false }
+  );
+  assert.equal(ops.length, 1);
+  assert.equal(ops[0].text, undefined);
+  assert.ok(ops[0].len >= 1);
+});
+
+test("writing-summary endpoint requires WRITING_SUMMARY_TOKEN", async () => {
+  const prev = process.env.WRITING_SUMMARY_TOKEN;
+  delete process.env.WRITING_SUMMARY_TOKEN;
+  const handler = require("../api/writing-summary.js");
+  const res = {
+    statusCode: 0,
+    headers: {},
+    body: null,
+    setHeader(k, v) { this.headers[k] = v; },
+    status(n) { this.statusCode = n; return this; },
+    json(b) { this.body = b; return this; },
+    end() { return this; },
+  };
+  await handler({ method: "GET", headers: {}, url: "/api/writing-summary" }, res);
+  assert.equal(res.statusCode, 503);
+  assert.match(String(res.body && res.body.error), /WRITING_SUMMARY_TOKEN/);
+
+  process.env.WRITING_SUMMARY_TOKEN = "test-token-abc";
+  const res2 = {
+    statusCode: 0,
+    headers: {},
+    body: null,
+    setHeader(k, v) { this.headers[k] = v; },
+    status(n) { this.statusCode = n; return this; },
+    json(b) { this.body = b; return this; },
+    end() { return this; },
+  };
+  await handler({
+    method: "GET",
+    headers: { authorization: "Bearer wrong" },
+    url: "/api/writing-summary",
+  }, res2);
+  assert.equal(res2.statusCode, 401);
+
+  if (prev == null) delete process.env.WRITING_SUMMARY_TOKEN;
+  else process.env.WRITING_SUMMARY_TOKEN = prev;
 });

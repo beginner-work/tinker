@@ -73,7 +73,7 @@
     const path = value.split("?")[0];
     if (path.includes(":")) return "";
     // /repo and /repo/files (plus query) are valid returns from the writing pad.
-    if (path !== "/mcp/authorize" && path !== "/mcp/access" && path !== "/autonomy" && path !== "/career" && path !== "/leads" && path !== "/settings" && path !== "/feed" && path !== "/repo" && path !== "/repo/files" && path !== "/metrics") return "";
+    if (path !== "/mcp/authorize" && path !== "/mcp/access" && path !== "/autonomy" && path !== "/career" && path !== "/leads" && path !== "/settings" && path !== "/feed" && path !== "/repo" && path !== "/repo/files" && path !== "/metrics" && path !== "/metrics/how-i-write") return "";
     return value;
   }
 
