@@ -1240,6 +1240,12 @@ body.repo-page--write .repo-center {
 }
 
 @media (min-width: 801px) {
+  /* Desktop: give the centered location picker breathing room under the top edge. */
+  .repo-location {
+    top: calc(56px + env(safe-area-inset-top, 0px));
+    margin-top: 44px;
+  }
+
   .repo-sheet {
     align-items: center;
   }
