@@ -746,7 +746,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=23/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=24/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -788,16 +788,16 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=23"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=23"/);
-  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=23"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=23"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=23"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=23"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=23"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=23"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=23"/);
-  assert.match(html, /href="\/styles\.css\?v=23"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=24"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=24"/);
+  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=24"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=24"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=24"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=24"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=24"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=24"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=24"/);
+  assert.match(html, /href="\/styles\.css\?v=24"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -838,6 +838,11 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-surface__foot/);
   assert.match(css, /\.repo-surface__foot\.is-visible/);
   assert.match(css, /\.repo-surface__kbd/);
+  assert.match(css, /\.repo-surface__kbd\s*\{[^}]*display:\s*none/s);
+  assert.match(
+    css,
+    /@media\s*\(\s*hover:\s*hover\s*\)\s*and\s*\(\s*pointer:\s*fine\s*\)\s*\{[\s\S]*\.repo-surface__kbd\s*\{[^}]*display:\s*inline/s,
+  );
   assert.match(css, /transition:\s*opacity\s*200ms/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /100dvh/);
@@ -2218,7 +2223,15 @@ test("tap on location / action controls does not steal focus for typing", async 
   assert.equal(env.document.activeElement, null);
 });
 
-test("Keep crafting button shows shortcut hint and aria-keyshortcuts", async () => {
+test("Keep crafting kbd hint is desktop-only and uses ⌘/Ctrl", async () => {
+  assert.match(css, /\.repo-surface__kbd\s*\{[^}]*display:\s*none/s);
+  assert.match(
+    css,
+    /@media\s*\(\s*hover:\s*hover\s*\)\s*and\s*\(\s*pointer:\s*fine\s*\)\s*\{[\s\S]*\.repo-surface__kbd\s*\{[^}]*display:\s*inline/s,
+  );
+  assert.match(html, /aria-keyshortcuts="Meta\+Enter Control\+Enter"/);
+  assert.match(html, /id="repo-keep-crafting-kbd"/);
+
   const env = bootRepoPage({
     token: "jwt-test",
     desktop: true,
@@ -2231,6 +2244,21 @@ test("Keep crafting button shows shortcut hint and aria-keyshortcuts", async () 
   const kbd = env.document.getElementById("repo-keep-crafting-kbd");
   assert.ok(kbd);
   assert.match(String(kbd.textContent || ""), /^(⌘↵|Ctrl↵)$/);
+
+  // Non-Mac desktop → Ctrl↵
+  env.window.navigator = { platform: "Win32", userAgent: "Windows NT 10.0" };
+  env.window.tinkerRepo.syncKeepCraftingShortcutHint();
+  assert.equal(kbd.textContent, "Ctrl↵");
+
+  // Mac desktop → ⌘↵
+  env.window.navigator = { platform: "MacIntel", userAgent: "Macintosh; Intel Mac OS X" };
+  env.window.tinkerRepo.syncKeepCraftingShortcutHint();
+  assert.equal(kbd.textContent, "⌘↵");
+
+  // iPhone must not claim the ⌘ label (CSS also hides the hint on touch).
+  env.window.navigator = { platform: "iPhone", userAgent: "iPhone; CPU iPhone OS 17_0" };
+  env.window.tinkerRepo.syncKeepCraftingShortcutHint();
+  assert.equal(kbd.textContent, "Ctrl↵");
 });
 
 test("Cmd/Ctrl+Enter on the pad triggers Keep crafting without inserting a newline", async () => {

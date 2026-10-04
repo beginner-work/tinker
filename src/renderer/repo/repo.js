@@ -783,8 +783,9 @@
       var nav = window.navigator || {};
       var p = String(nav.platform || "");
       var ua = String(nav.userAgent || "");
-      if (/Mac|iPhone|iPad|iPod/i.test(p)) return true;
-      if (/Mac OS X|Macintosh/i.test(ua)) return true;
+      // Mac desktop / laptop only — not iPhone/iPad (hint is CSS-hidden there).
+      if (/iPhone|iPad|iPod/i.test(p) || /iPhone|iPad|iPod/i.test(ua)) return false;
+      if (/Mac/i.test(p) || /Mac OS X|Macintosh/i.test(ua)) return true;
     } catch (e) { /* ignore */ }
     return false;
   }
@@ -3067,6 +3068,7 @@
     },
     getPadRevealDelayMs: function () { return resolveRevealDelayMs(); },
     getPadKeystrokeGaps: function () { return state.keystrokeGaps.slice(); },
+    syncKeepCraftingShortcutHint: syncKeepCraftingShortcutHint,
     ready: null,
   };
 
