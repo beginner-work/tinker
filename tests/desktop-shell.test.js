@@ -143,6 +143,112 @@ test("platform-mobile merges Electron bridges instead of overwriting", () => {
   assert.match(platformJs, /supportsWebview|isDesktopApp/);
   assert.match(platformJs, /callClaude/);
   assert.match(platformJs, /existing/);
+  assert.match(platformJs, /tinkerApi/);
+});
+
+test("platform-mobile installs callClaude when contextBridge freezes window.tinker", () => {
+  const vm = require("node:vm");
+  const document = {
+    documentElement: {
+      attrs: {},
+      classList: {
+        _c: new Set(),
+        add(x) { this._c.add(x); },
+        remove(x) { this._c.delete(x); },
+      },
+      setAttribute(k, v) { this.attrs[k] = v; },
+      getAttribute(k) { return this.attrs[k]; },
+      hasAttribute(k) { return Object.prototype.hasOwnProperty.call(this.attrs, k); },
+    },
+  };
+  const window = {
+    localStorage: {
+      store: { tinker_jwt: "jwt-test" },
+      getItem(k) { return this.store[k] || ""; },
+      setItem(k, v) { this.store[k] = String(v); },
+      removeItem(k) { delete this.store[k]; },
+    },
+    document,
+  };
+  const frozen = Object.freeze({
+    version: () => Promise.resolve("0.1.0"),
+    platform: () => Promise.resolve("darwin"),
+    pickNotesFolder: () => Promise.resolve("/notes"),
+    writeNotesFile: () => Promise.resolve(true),
+    supportsWebview: true,
+    isDesktopApp: true,
+  });
+  Object.defineProperty(window, "tinker", {
+    value: frozen,
+    writable: false,
+    configurable: false,
+    enumerable: true,
+  });
+
+  vm.runInNewContext(platformJs, {
+    window,
+    document,
+    Object,
+    Promise,
+    setTimeout,
+    clearTimeout,
+    fetch: undefined,
+    console,
+    Date,
+    JSON,
+  });
+
+  assert.equal(window.tinker, frozen, "frozen preload tinker must remain");
+  assert.equal(typeof window.tinker.callClaude, "undefined");
+  assert.equal(typeof window.tinker.pickNotesFolder, "function");
+  assert.ok(window.tinkerApi);
+  assert.equal(typeof window.tinkerApi.callClaude, "function");
+  assert.equal(typeof window.tinkerApi.pickNotesFolder, "function");
+  assert.equal(window.tinkerApi.isDesktopApp, true);
+});
+
+test("platform-mobile still owns window.tinker on plain web (no preload)", () => {
+  const vm = require("node:vm");
+  const document = {
+    documentElement: {
+      attrs: {},
+      classList: {
+        _c: new Set(),
+        add(x) { this._c.add(x); },
+        remove(x) { this._c.delete(x); },
+      },
+      setAttribute(k, v) { this.attrs[k] = v; },
+      getAttribute(k) { return this.attrs[k]; },
+      hasAttribute(k) { return Object.prototype.hasOwnProperty.call(this.attrs, k); },
+    },
+  };
+  const window = {
+    localStorage: {
+      store: {},
+      getItem(k) { return this.store[k] || ""; },
+      setItem(k, v) { this.store[k] = String(v); },
+      removeItem(k) { delete this.store[k]; },
+    },
+    document,
+  };
+
+  vm.runInNewContext(platformJs, {
+    window,
+    document,
+    Object,
+    Promise,
+    setTimeout,
+    clearTimeout,
+    fetch: undefined,
+    console,
+    Date,
+    JSON,
+  });
+
+  assert.equal(typeof window.tinker.callClaude, "function");
+  assert.equal(typeof window.tinkerApi.callClaude, "function");
+  assert.equal(window.tinker, window.tinkerApi);
+  assert.equal(window.tinker.isDesktopApp, false);
 });
 
 test("packaging targets universal Mac dmg named tinker-mac", () => {

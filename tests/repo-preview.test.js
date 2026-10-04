@@ -14,6 +14,7 @@ const filesHtml = fs.readFileSync(path.join(root, "src/renderer/repo/files/index
 const css = fs.readFileSync(path.join(root, "src/renderer/repo/repo.css"), "utf8");
 const styles = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
 const page = fs.readFileSync(path.join(root, "src/renderer/repo/repo.js"), "utf8");
+const platformSrc = fs.readFileSync(path.join(root, "src/renderer/platform-mobile.js"), "utf8");
 const storiesSrc = fs.readFileSync(path.join(root, "src/renderer/lib/stories-md.js"), "utf8");
 const foldersSrc = fs.readFileSync(path.join(root, "src/renderer/lib/repo-folders-core.js"), "utf8");
 const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
@@ -331,8 +332,10 @@ function bootRepoPage(options) {
   bodyEl.setAttribute("data-repo-mode", opts.mode || "write");
   bodyEl.className = opts.mode === "files" ? "repo-page repo-page--files" : "repo-page repo-page--write";
   const assigned = [];
+  const htmlEl = makeEl("html", "", byId);
   const document = {
     body: bodyEl,
+    documentElement: htmlEl,
     getElementById(id) {
       return byId[id] || null;
     },
@@ -369,44 +372,6 @@ function bootRepoPage(options) {
       },
       removeItem(key) {
         session.delete(key);
-      },
-    },
-    tinker: opts.tinker || {
-      listNotesFiles() {
-        return Promise.resolve(listedFiles);
-      },
-      writeNotesFile(rootDir, relPath, text) {
-        written.push({ rootDir, relPath, text });
-        return Promise.resolve(true);
-      },
-      pickNotesFolder: opts.pickNotesFolder,
-      useCustomStoragePath: opts.useCustomStoragePath,
-      isDesktopApp: !!opts.desktop,
-      callClaude(payload) {
-        if (typeof opts.onCallClaude === "function") opts.onCallClaude(payload);
-        if (typeof opts.callClaude === "function") return opts.callClaude(payload);
-        return Promise.resolve({
-          text: JSON.stringify({ questions: ["What are you noticing about this?"] }),
-        });
-      },
-    },
-    tinkerInterview: opts.tinkerInterview || {
-      KEEP_CRAFTING_MODEL: "test-model",
-      buildFollowupRequest(args) {
-        if (typeof opts.onBuildFollowup === "function") opts.onBuildFollowup(args);
-        if (!args || !String(args.draft || "").trim()) return { error: "Pass a draft." };
-        return { mode: "freeform", system: "sys", user: "user:" + args.draft };
-      },
-      parseFreeformResponse(text) {
-        try {
-          const parsed = JSON.parse(String(text || "{}"));
-          return { questions: Array.isArray(parsed.questions) ? parsed.questions : [] };
-        } catch {
-          return { questions: [] };
-        }
-      },
-      fallbackKeepCraftingQuestion() {
-        return "What else are you learning about this?";
       },
     },
     location: {
@@ -512,8 +477,80 @@ function bootRepoPage(options) {
       });
     },
   };
-  if (opts.pickNotesFolder) {
-    windowObj.tinker.pickNotesFolder = opts.pickNotesFolder;
+
+  windowObj.tinkerInterview = opts.tinkerInterview || {
+    KEEP_CRAFTING_MODEL: "test-model",
+    buildFollowupRequest(args) {
+      if (typeof opts.onBuildFollowup === "function") opts.onBuildFollowup(args);
+      if (!args || !String(args.draft || "").trim()) return { error: "Pass a draft." };
+      return { mode: "freeform", system: "sys", user: "user:" + args.draft };
+    },
+    parseFreeformResponse(text) {
+      try {
+        const parsed = JSON.parse(String(text || "{}"));
+        return { questions: Array.isArray(parsed.questions) ? parsed.questions : [] };
+      } catch {
+        return { questions: [] };
+      }
+    },
+    fallbackKeepCraftingQuestion() {
+      return "What else are you learning about this?";
+    },
+  };
+
+  function defaultCallClaude(payload) {
+    if (typeof opts.onCallClaude === "function") opts.onCallClaude(payload);
+    if (typeof opts.callClaude === "function") return opts.callClaude(payload);
+    return Promise.resolve({
+      text: JSON.stringify({ questions: ["What are you noticing about this?"] }),
+    });
+  }
+
+  if (opts.frozenPreload) {
+    // Simulate Electron contextBridge.exposeInMainWorld("tinker", …):
+    // frozen API object + non-writable window.tinker without callClaude.
+    const preloadApi = Object.assign(
+      {
+        listNotesFiles() {
+          return Promise.resolve(listedFiles);
+        },
+        writeNotesFile(rootDir, relPath, text) {
+          written.push({ rootDir, relPath, text });
+          return Promise.resolve(true);
+        },
+        pickNotesFolder: opts.pickNotesFolder,
+        useCustomStoragePath: opts.useCustomStoragePath,
+        isDesktopApp: true,
+        supportsWebview: true,
+      },
+      typeof opts.frozenPreload === "object" ? opts.frozenPreload : {},
+      opts.tinker && typeof opts.tinker === "object" ? opts.tinker : {}
+    );
+    delete preloadApi.callClaude;
+    const frozen = Object.freeze(preloadApi);
+    Object.defineProperty(windowObj, "tinker", {
+      value: frozen,
+      writable: false,
+      configurable: false,
+      enumerable: true,
+    });
+  } else {
+    windowObj.tinker = opts.tinker || {
+      listNotesFiles() {
+        return Promise.resolve(listedFiles);
+      },
+      writeNotesFile(rootDir, relPath, text) {
+        written.push({ rootDir, relPath, text });
+        return Promise.resolve(true);
+      },
+      pickNotesFolder: opts.pickNotesFolder,
+      useCustomStoragePath: opts.useCustomStoragePath,
+      isDesktopApp: !!opts.desktop,
+      callClaude: defaultCallClaude,
+    };
+    if (opts.pickNotesFolder) {
+      windowObj.tinker.pickNotesFolder = opts.pickNotesFolder;
+    }
   }
 
   const sandbox = {
@@ -547,6 +584,24 @@ function bootRepoPage(options) {
   context.tinkerInterview = windowObj.tinkerInterview;
   assert.ok(windowObj.tinkerStoriesMd, "stories-md helpers must load");
   assert.ok(windowObj.tinkerRepoFoldersCore, "repo-folders-core helpers must load");
+
+  if (opts.frozenPreload) {
+    // Same order as /repo/index.html: platform-mobile before repo.js.
+    vm.runInContext(platformSrc, context);
+    assert.equal(
+      typeof windowObj.tinker.callClaude,
+      "undefined",
+      "frozen preload tinker must stay without callClaude"
+    );
+    assert.equal(
+      typeof windowObj.tinkerApi.callClaude,
+      "function",
+      "platform-mobile must install writable tinkerApi.callClaude"
+    );
+    // Use the test mock instead of the real converse fetch.
+    windowObj.tinkerApi.callClaude = defaultCallClaude;
+  }
+
   vm.runInContext(page, context);
 
   return {
@@ -1472,4 +1527,83 @@ test("registerLocationSection adds a Saved in option that fires onSelect", async
   });
   assert.ok(selected);
   assert.equal(selected.id, "icloud");
+});
+
+test("repo.js never tells signed-in users to Reload the page for missing helpers", () => {
+  assert.doesNotMatch(page, /Reload the page/);
+  assert.match(page, /resolveTinkerApi/);
+  assert.match(page, /tinkerApi/);
+  assert.match(page, /callClaude\) did not load/);
+  assert.match(page, /buildFollowupRequest\) did not load/);
+});
+
+test("Keep crafting works with frozen Electron window.tinker (no callClaude on preload)", async () => {
+  const calls = [];
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    frozenPreload: true,
+    pickNotesFolder() {
+      return Promise.resolve("/Users/tyler/notes");
+    },
+    onCallClaude(payload) { calls.push(payload); },
+  });
+  await env.flush();
+
+  assert.equal(Object.isFrozen(env.window.tinker), true);
+  assert.equal(typeof env.window.tinker.callClaude, "undefined");
+  assert.equal(typeof env.window.tinker.pickNotesFolder, "function");
+  assert.equal(typeof env.window.tinkerApi.callClaude, "function");
+  assert.equal(typeof env.window.tinkerApi.pickNotesFolder, "function");
+  assert.equal(env.window.tinkerRepo.ensureClaudeClient(), true);
+  assert.equal(env.window.tinkerRepo.resolveTinkerApi(), env.window.tinkerApi);
+
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "I keep noticing the same pattern.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  await env.window.tinkerRepo.keepCraftingPad();
+  await env.flush();
+
+  assert.equal(calls.length, 1);
+  assert.equal(env.window.tinkerRepo.getFollowupQuestion(), "What are you noticing about this?");
+  assert.equal(env.byId["repo-pad-error"].hidden, true);
+  assert.doesNotMatch(
+    String(env.byId["repo-pad-error-text"].textContent || ""),
+    /Reload the page/
+  );
+});
+
+test("Keep crafting names the missing helper when interview API is absent", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    frozenPreload: true,
+    tinkerInterview: {},
+  });
+  await env.flush();
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "Draft with no interview helpers.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.keepCraftingPad();
+  await env.flush();
+  assert.equal(env.byId["repo-pad-error"].hidden, false);
+  assert.equal(env.byId["repo-pad-error-retry"].hidden, false);
+  assert.match(
+    String(env.byId["repo-pad-error-text"].textContent || ""),
+    /buildFollowupRequest/
+  );
+  assert.doesNotMatch(
+    String(env.byId["repo-pad-error-text"].textContent || ""),
+    /Reload the page/
+  );
 });

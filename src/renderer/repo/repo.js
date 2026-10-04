@@ -198,12 +198,16 @@
     return !!token();
   }
 
+  /** Prefer window.tinker when it has callClaude; else platform-mobile's
+   * writable facade (window.tinkerApi) for Electron contextBridge freezes. */
+  function resolveTinkerApi() {
+    if (window.tinker && typeof window.tinker.callClaude === "function") return window.tinker;
+    if (window.tinkerApi && typeof window.tinkerApi.callClaude === "function") return window.tinkerApi;
+    return null;
+  }
+
   function ensureClaudeClient() {
-    if (window.tinker && typeof window.tinker.callClaude === "function") return true;
-    // Desktop preload exposes window.tinker without callClaude; the web shim
-    // should have merged it. If it did not, surface sign-in rather than a
-    // dead message with no action.
-    return false;
+    return !!resolveTinkerApi();
   }
 
   function authHeaders() {
@@ -1044,12 +1048,18 @@
     if (!ensureClaudeClient()) {
       // Token is present but the Claude client never mounted — not an auth
       // failure. Asking to "Sign in" here caused the stale-token bounce loop.
-      showPadError("Follow-ups unavailable. Reload the page.", { retry: true });
+      showPadError(
+        "Follow-ups unavailable: Claude client (callClaude) did not load.",
+        { retry: true }
+      );
       return Promise.resolve(null);
     }
     var interview = window.tinkerInterview;
     if (!interview || typeof interview.buildFollowupRequest !== "function") {
-      showPadError("Follow-ups unavailable. Reload the page.", { retry: true });
+      showPadError(
+        "Follow-ups unavailable: interview helpers (buildFollowupRequest) did not load.",
+        { retry: true }
+      );
       return Promise.resolve(null);
     }
 
@@ -1070,7 +1080,8 @@
     state.status = "Thinking through what to ask next…";
     renderSyncHint();
 
-    return window.tinker.callClaude({
+    var api = resolveTinkerApi();
+    return api.callClaude({
       system: built.system,
       messages: [{ role: "user", content: built.user }],
       model: interview.KEEP_CRAFTING_MODEL || "claude-opus-4-8",
@@ -2753,6 +2764,8 @@
     refreshLocation: refreshLocation,
     savePad: savePad,
     keepCraftingPad: keepCraftingPad,
+    ensureClaudeClient: ensureClaudeClient,
+    resolveTinkerApi: resolveTinkerApi,
     insertQuestionInline: insertQuestionInline,
     extractAskedQuestions: extractAskedQuestions,
     parsePadMarkdown: parsePadMarkdown,
