@@ -201,9 +201,7 @@
       options.push({
         id: "fs-access-choose",
         label: "Choose folder…",
-        detail: fsSelected
-          ? (state.selected.label || "Selected folder")
-          : "Pick iCloud Drive or Google Drive through the OS picker",
+        detail: fsSelected ? (state.selected.label || "Selected folder") : "",
         selected: fsSelected,
       });
     }
