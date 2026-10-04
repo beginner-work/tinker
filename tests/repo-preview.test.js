@@ -746,7 +746,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=24/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=25/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -788,16 +788,16 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=24"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=24"/);
-  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=24"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=24"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=24"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=24"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=24"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=24"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=24"/);
-  assert.match(html, /href="\/styles\.css\?v=24"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=25"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=25"/);
+  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=25"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=25"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=25"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=25"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=25"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=25"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=25"/);
+  assert.match(html, /href="\/styles\.css\?v=25"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -870,6 +870,23 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   );
   assert.match(css, /\.repo-location\s*\{[^}]*top:\s*calc\(\s*12px \+ env\(safe-area-inset-top/s);
   assert.match(css, /\.repo-surface\.writing\s*\{[^}]*safe-area-inset-top/s);
+  // Phones: clear breathing room under the notch (safe-area + ~40–56px).
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-location\s*\{[^}]*top:\s*calc\(\s*48px \+ env\(safe-area-inset-top/s,
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*430px\)[\s\S]*\.repo-location\s*\{[^}]*top:\s*calc\(\s*48px \+ env\(safe-area-inset-top/s,
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-surface\.writing\s*\{[^}]*padding:\s*calc\(\s*48px \+ env\(safe-area-inset-top/s,
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*430px\)[\s\S]*\.repo-surface\.writing\s*\{[^}]*padding:\s*calc\(\s*48px \+ env\(safe-area-inset-top/s,
+  );
   assert.match(page, /visualViewport/);
   assert.match(page, /--repo-keyboard-inset/);
   assert.match(page, /onBlankPadActivate|focusLastPadTurn/);

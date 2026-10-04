@@ -1729,8 +1729,9 @@ body.repo-page--write .repo-center {
     display: none;
   }
 
+  /* Breathing room under the status bar / notch (~40–56px past safe-area). */
   .repo-location {
-    top: calc(10px + env(safe-area-inset-top, 0px));
+    top: calc(48px + env(safe-area-inset-top, 0px));
     left: auto;
     right: auto;
     align-self: center;
@@ -1791,7 +1792,8 @@ body.repo-page--write .repo-center {
   }
 
   .repo-surface.writing {
-    padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 88px;
+    /* Match location sticky top so the pad text starts below the pill. */
+    padding: calc(48px + env(safe-area-inset-top, 0px)) 12px 88px;
     /* Room for fixed action island + home indicator + open keyboard. */
     padding-bottom: calc(
       96px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
@@ -1902,7 +1904,7 @@ body.repo-page--write .repo-center {
 /* Narrow phone (e.g. 390px): keep the island centered and clear of pad text. */
 @media (max-width: 430px) {
   .repo-location {
-    top: calc(8px + env(safe-area-inset-top, 0px));
+    top: calc(48px + env(safe-area-inset-top, 0px));
     left: auto;
     right: auto;
     align-self: center;
@@ -1924,7 +1926,7 @@ body.repo-page--write .repo-center {
   }
 
   .repo-surface.writing {
-    padding: calc(6px + env(safe-area-inset-top, 0px)) 10px 84px;
+    padding: calc(48px + env(safe-area-inset-top, 0px)) 10px 84px;
     padding-bottom: calc(
       96px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
     );
