@@ -3368,37 +3368,62 @@ body:has(.stage > .welcome.feed[data-active]) .sidebar::before {
   color: var(--color-foreground);
 }
 
+/* Invisible writing area: no box, border, fill, focus ring, resize grip,
+ * or scrollbar track. Only the text, placeholder, and caret show. Applies
+ * to every Tinker writing textarea (write flow, /repo, drafts). */
 .writing-input {
   width: 100%;
   min-height: 220px;
   padding: 18px 20px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
   font-size: 17px;
   line-height: 1.65;
   color: var(--color-foreground);
-  resize: vertical;
+  caret-color: var(--color-foreground);
+  resize: none;
   font-family: var(--font-sans);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  scrollbar-width: none;
 }
-.writing-input:focus {
-  border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+.writing-input:hover,
+.writing-input:focus,
+.writing-input:focus-visible,
+.writing-input:active {
+  background: transparent;
+  border: 0;
+  outline: none;
+  box-shadow: none;
 }
-.writing-input::placeholder { color: var(--color-muted); }
+.writing-input:hover {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(45, 42, 38, 0.28) transparent;
+}
+.writing-input::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+.writing-input:hover::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.writing-input::-webkit-scrollbar-track { background: transparent; }
+.writing-input::-webkit-scrollbar-thumb {
+  background: rgba(45, 42, 38, 0.28);
+  border-radius: 999px;
+}
+.writing-input::-webkit-resizer { display: none; }
+.writing-input::placeholder { color: var(--color-muted); opacity: 0.55; }
 
-.writing-input--needs-answer {
-  outline: 2px solid color-mix(in srgb, var(--color-accent, #2563eb) 55%, transparent);
-  outline-offset: 2px;
-}
-.writing-note--nudge {
-  color: var(--color-ink, #1f2937);
-  font-weight: 500;
-}
-.writing-input--needs-answer {
-  outline: 2px solid color-mix(in srgb, var(--color-accent, #2563eb) 55%, transparent);
-  outline-offset: 2px;
+/* Empty-answer nudge stays boxless: tint the placeholder, not an outline. */
+.writing-input--needs-answer::placeholder {
+  color: var(--color-accent-strong, #2563eb);
+  opacity: 0.9;
 }
 .writing-note--nudge {
   color: var(--color-ink, #1f2937);

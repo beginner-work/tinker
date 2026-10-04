@@ -91,39 +91,94 @@ html, body.repo-page {
   color: var(--color-foreground);
 }
 
+/* Tinker location: custom dropdown (not a native <select>). Tinker mark +
+ * "Location" caption, pill trigger, listbox of typed folders, and a
+ * "Custom location…" row that turns into a path input. Storage section
+ * options (Mac folder, and later iCloud/Drive) register via
+ * window.tinkerRepo.registerLocationSection. */
 .repo-location {
   position: relative;
   margin-left: auto;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .repo-location + .repo-top__badge {
   margin-left: 0;
 }
 
+.repo-location__logo {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.repo-location__caption {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
 .repo-location__btn {
-  max-width: 220px;
-  height: 30px;
-  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px 0 12px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: 999px;
   background: var(--color-surface);
   color: var(--color-foreground);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  white-space: nowrap;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s ease;
+}
+
+.repo-location__value {
+  min-width: 0;
   overflow: hidden;
+  white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.repo-location__chevron {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  color: var(--color-muted);
+  transition: transform 0.15s ease;
 }
 
 .repo-location__btn:hover {
   border-color: var(--color-accent);
 }
 
+.repo-location__btn:focus-visible {
+  outline: none;
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 3px var(--color-accent-dim, rgba(45, 90, 61, 0.14));
+}
+
 .repo-location__btn[aria-expanded="true"] {
   border-color: var(--color-accent-strong);
+}
+
+.repo-location__btn[aria-expanded="true"] .repo-location__chevron {
+  transform: rotate(180deg);
 }
 
 .repo-location__panel {
@@ -131,17 +186,126 @@ html, body.repo-page {
   top: calc(100% + 8px);
   right: 0;
   z-index: 20;
-  width: min(360px, calc(100vw - 32px));
-  padding: 14px;
+  width: min(320px, calc(100vw - 24px));
+  max-height: min(420px, 70vh);
+  overflow-y: auto;
+  padding: 6px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--color-surface);
-  box-shadow: 0 10px 28px rgba(28, 25, 23, 0.08);
+  box-shadow: 0 14px 34px rgba(28, 25, 23, 0.12);
+  scrollbar-width: thin;
+}
+
+.repo-location__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.repo-location__list:focus {
+  outline: none;
+}
+
+.repo-location__section {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.repo-location__section-label {
+  margin: 6px 10px 2px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.repo-location__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  font-size: 13px;
+  color: var(--color-foreground);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.repo-location__check {
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--color-accent-strong);
+  font-size: 13px;
+  text-align: center;
+}
+
+.repo-location__option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.repo-location__option-type,
+.repo-location__option-badge {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.repo-location__option-detail {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.repo-location__option:hover,
+.repo-location__option.is-active {
+  background: var(--color-accent-dim, rgba(45, 90, 61, 0.1));
+}
+
+.repo-location__option[aria-selected="true"] {
+  font-weight: 650;
+}
+
+.repo-location__option--custom,
+.repo-location__option--storage {
+  color: var(--color-muted);
+}
+
+.repo-location__option--custom {
+  position: relative;
+  margin-top: 7px;
+}
+
+.repo-location__option--custom::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 8px;
+  right: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.repo-location__custom {
+  padding: 8px 6px 6px;
 }
 
 .repo-location__label {
   display: block;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.06em;
@@ -151,33 +315,47 @@ html, body.repo-page {
 
 .repo-location__input {
   width: 100%;
-  height: 36px;
-  margin: 0 0 12px;
-  padding: 0 10px;
+  height: 38px;
+  margin: 0;
+  padding: 0 12px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--color-background);
   font: inherit;
-  font-size: 13px;
+  font-size: 16px; /* iOS: avoid focus zoom */
   color: var(--color-foreground);
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .repo-location__input:focus {
   outline: none;
   border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 0 0 3px var(--color-accent-dim, rgba(45, 90, 61, 0.14));
+}
+
+.repo-location__hint,
+.repo-location__error {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.repo-location__error {
+  color: #b42318;
 }
 
 .repo-location__actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  margin-top: 8px;
 }
 
 .repo-location__choose,
 .repo-location__save {
   height: 32px;
-  padding: 0 12px;
+  padding: 0 14px;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-cream, #f5f3ef);
@@ -720,24 +898,34 @@ html, body.repo-page {
   margin: 0;
   padding: 18px 20px;
   resize: none;
-  border-radius: 16px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  /* Invisible notepad: only text, placeholder, and caret show. */
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
   font-family: var(--font-sans);
   font-size: 17px;
   line-height: 1.65;
   color: var(--color-foreground);
+  caret-color: var(--color-foreground);
 }
 
-.repo-surface__input.writing-input:focus {
+.repo-surface__input.writing-input:hover,
+.repo-surface__input.writing-input:focus,
+.repo-surface__input.writing-input:focus-visible {
+  border: 0;
   outline: none;
-  border-color: var(--color-accent-strong);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+  box-shadow: none;
+  background: transparent;
 }
 
 .repo-surface__input.writing-input:disabled {
   opacity: 0.85;
   color: var(--color-foreground);
+  background: transparent;
   cursor: default;
 }
 
@@ -836,10 +1024,23 @@ html, body.repo-page {
   }
 
   .repo-location__btn {
+    flex: 1;
     max-width: none;
-    width: 100%;
     min-height: 44px;
     height: auto;
+    justify-content: space-between;
+  }
+
+  .repo-location__panel {
+    left: 0;
+    right: 0;
+    width: auto;
+    max-height: 60vh;
+  }
+
+  .repo-location__option {
+    min-height: 44px;
+    font-size: 15px;
   }
 
   .repo-layout {

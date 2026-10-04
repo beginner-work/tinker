@@ -25,6 +25,11 @@
     draft: null,
     location: "",
     locationOpen: false,
+    locationCustom: false,
+    locationActive: 0,
+    locationRows: [],
+    locationError: "",
+    locationSaving: false,
     status: "",
     pieceCounter: 0,
     collapsed: {},
@@ -53,6 +58,10 @@
     locationInput: document.getElementById("repo-location-input"),
     locationSave: document.getElementById("repo-location-save"),
     locationChoose: document.getElementById("repo-location-choose"),
+    locationValue: document.getElementById("repo-location-value"),
+    locationList: document.getElementById("repo-location-list"),
+    locationCustom: document.getElementById("repo-location-custom"),
+    locationError: document.getElementById("repo-location-error"),
     filePath: document.getElementById("repo-file-path"),
     fileType: document.getElementById("repo-file-type"),
     syncHint: document.getElementById("repo-sync-hint"),
@@ -548,49 +557,517 @@
     return chain;
   }
 
+  /* Location dropdown
+   * Custom listbox (not a native <select>): Folders section, then
+   * "Custom location...", then Storage section options. Storage providers
+   * (Mac folder built-in; iCloud/Drive via registerLocationSection) share
+   * keyboard nav, selected state, and outside-click close. */
+
+  var locationSections = {};
+
+  function registerLocationSection(spec) {
+    if (!spec || !spec.key) return;
+    var key = String(spec.key);
+    var incoming = {
+      key: key,
+      label: spec.label == null ? "" : String(spec.label),
+      order: typeof spec.order === "number" ? spec.order : 100,
+      getOptions: typeof spec.getOptions === "function" ? spec.getOptions : function () { return []; },
+      onSelect: typeof spec.onSelect === "function" ? spec.onSelect : function () {},
+      _builtin: !!spec._builtin,
+    };
+    var prev = locationSections[key];
+    if (prev && prev._builtin && !incoming._builtin) {
+      // Append registered options onto the built-in Storage slot so Mac
+      // folder stays available when iCloud/Drive register the same key.
+      locationSections[key] = {
+        key: key,
+        label: incoming.label || prev.label,
+        order: typeof spec.order === "number" ? spec.order : prev.order,
+        _builtin: true,
+        getOptions: function () {
+          return [].concat(prev.getOptions() || [], incoming.getOptions() || []);
+        },
+        onSelect: function (option) {
+          var id = option && option.id;
+          if (id === "mac-folder") return prev.onSelect(option);
+          return incoming.onSelect(option);
+        },
+      };
+    } else {
+      locationSections[key] = incoming;
+    }
+    if (state.locationOpen) renderLocation();
+  }
+
+  function refreshLocation() {
+    renderLocation();
+  }
+
+  function folderDisplayPath(folderId) {
+    if (!folderId) return "tinker";
+    return core.ancestors(state.folders, folderId).reverse().map(function (f) {
+      return String(f.name || "");
+    }).join("/");
+  }
+
+  function currentLocationFolderId() {
+    var story = selectedStory();
+    if (story) return story.folderId || null;
+    return state.selectedFolderId || null;
+  }
+
+  function buildLocationRows() {
+    var rows = [];
+    var currentId = currentLocationFolderId();
+
+    rows.push({
+      kind: "section",
+      sectionKey: "folders",
+      label: "Folders",
+    });
+    rows.push({
+      kind: "folder",
+      folderId: null,
+      label: "tinker",
+      type: core.DEFAULT_CONTENT_TYPE,
+      depth: 0,
+      selected: currentId == null,
+    });
+
+    function walk(parentId, depth) {
+      core.sortByName(core.childFolders(state.folders, parentId)).forEach(function (folder) {
+        rows.push({
+          kind: "folder",
+          folderId: folder.id,
+          label: folderDisplayPath(folder.id),
+          type: core.normalizeContentType(folder.contentType),
+          depth: depth,
+          selected: (folder.id || null) === (currentId || null),
+        });
+        walk(folder.id, depth + 1);
+      });
+    }
+    walk(null, 1);
+
+    rows.push({
+      kind: "custom",
+      label: "Custom location…",
+      depth: 0,
+      selected: false,
+    });
+
+    var sections = Object.keys(locationSections).map(function (key) {
+      return locationSections[key];
+    }).sort(function (a, b) {
+      return (a.order || 0) - (b.order || 0);
+    });
+
+    sections.forEach(function (section) {
+      var options = [];
+      try { options = section.getOptions() || []; } catch (e) { options = []; }
+      if (!options.length) return;
+      if (section.label) {
+        rows.push({
+          kind: "section",
+          sectionKey: section.key,
+          label: section.label,
+        });
+      }
+      options.forEach(function (opt, i) {
+        if (!opt) return;
+        rows.push({
+          kind: "storage",
+          sectionKey: section.key,
+          optionId: opt.id == null ? section.key + "-" + i : String(opt.id),
+          label: String(opt.label || opt.id || "Option"),
+          detail: opt.detail ? String(opt.detail) : "",
+          badge: opt.badge ? String(opt.badge) : "",
+          selected: !!opt.selected,
+          option: opt,
+          onSelect: section.onSelect,
+        });
+      });
+    });
+
+    return rows;
+  }
+
   function renderLocation() {
     if (!els.locationBtn) return;
-    var short = shortenPath(state.location);
-    text(els.locationBtn, short || "Tinker location");
-    els.locationBtn.setAttribute("title", state.location || "Set local Tinker folder path");
+    var currentId = currentLocationFolderId();
+    var label = folderDisplayPath(currentId);
+    if (els.locationValue) text(els.locationValue, label);
+    else text(els.locationBtn, label);
+    els.locationBtn.setAttribute("title", "Location: " + label);
     els.locationBtn.setAttribute("aria-expanded", state.locationOpen ? "true" : "false");
     if (els.locationPanel) els.locationPanel.hidden = !state.locationOpen;
-    if (els.locationInput && document.activeElement !== els.locationInput) {
-      els.locationInput.value = state.location;
+    if (els.locationCustom) els.locationCustom.hidden = !state.locationCustom;
+    if (els.locationList) els.locationList.hidden = !!state.locationCustom;
+    if (els.locationError) {
+      els.locationError.hidden = !state.locationError;
+      text(els.locationError, state.locationError);
     }
+    // Keep the legacy choose button in the DOM for id stability / tests,
+    // but hide it; Mac folder lives in the Storage listbox section.
     if (els.locationChoose) {
-      els.locationChoose.hidden = !canPickFolder();
+      els.locationChoose.hidden = true;
+      text(els.locationChoose, state.location ? "Mac folder: " + shortenPath(state.location) : "Mac folder…");
+      els.locationChoose.setAttribute("title", state.location || "Choose the Mac folder Tinker mirrors into");
+    }
+    renderLocationList();
+  }
+
+  function renderLocationList() {
+    if (!els.locationList) return;
+    clear(els.locationList);
+    var rows = buildLocationRows();
+    state.locationRows = rows;
+    if (state.locationActive >= rows.length) state.locationActive = Math.max(0, rows.length - 1);
+    var activeId = "";
+    var optionIndex = -1;
+
+    rows.forEach(function (row, index) {
+      if (row.kind === "section") {
+        var heading = document.createElement("li");
+        heading.className = "repo-location__section-label";
+        heading.setAttribute("role", "presentation");
+        text(heading, row.label);
+        els.locationList.appendChild(heading);
+        return;
+      }
+
+      optionIndex += 1;
+      var li = document.createElement("li");
+      var id = "repo-location-opt-" + index;
+      li.setAttribute("id", id);
+      li.setAttribute("role", "option");
+      li.setAttribute("aria-selected", row.selected ? "true" : "false");
+      var className = "repo-location__option";
+      if (row.kind === "custom") className += " repo-location__option--custom";
+      if (row.kind === "storage") className += " repo-location__option--storage";
+      if (index === state.locationActive) className += " is-active";
+      li.className = className;
+      if (row.kind === "custom") li.setAttribute("data-location-custom", "true");
+      if (row.kind === "storage") li.setAttribute("data-location-storage", row.optionId || "");
+      if (index === state.locationActive) activeId = id;
+
+      var check = document.createElement("span");
+      check.className = "repo-location__check";
+      check.setAttribute("aria-hidden", "true");
+      text(check, row.selected ? "✓" : "");
+      li.appendChild(check);
+
+      var name = document.createElement("span");
+      name.className = "repo-location__option-name";
+      if (row.depth > 1) name.style.paddingLeft = ((row.depth - 1) * 12) + "px";
+      text(name, row.label);
+      li.appendChild(name);
+
+      if (row.type) {
+        var pill = document.createElement("span");
+        pill.className = "repo-location__option-type";
+        text(pill, core.contentTypeLabel(row.type));
+        li.appendChild(pill);
+      }
+      if (row.badge) {
+        var badge = document.createElement("span");
+        badge.className = "repo-location__option-badge";
+        text(badge, row.badge);
+        li.appendChild(badge);
+      }
+      if (row.detail) {
+        var detail = document.createElement("span");
+        detail.className = "repo-location__option-detail";
+        text(detail, row.detail);
+        li.appendChild(detail);
+      }
+
+      li.addEventListener("mousedown", function (event) {
+        if (event && event.preventDefault) event.preventDefault();
+      });
+      li.addEventListener("click", function (event) {
+        if (event && event.stopPropagation) event.stopPropagation();
+        chooseLocationRow(index);
+      });
+      li.addEventListener("mousemove", function () {
+        if (state.locationActive === index) return;
+        setLocationActive(index);
+      });
+      els.locationList.appendChild(li);
+    });
+
+    // role=group wrappers are logical; the listbox owns the option rows.
+    if (els.locationList) {
+      els.locationList.setAttribute("role", "listbox");
+      if (activeId) els.locationList.setAttribute("aria-activedescendant", activeId);
+      else els.locationList.removeAttribute("aria-activedescendant");
     }
   }
 
+  function setLocationActive(index) {
+    var rows = state.locationRows || [];
+    if (!rows.length) return;
+    var next = Math.max(0, Math.min(rows.length - 1, index));
+    // Skip section headings when moving with keyboard helpers.
+    while (next < rows.length && rows[next] && rows[next].kind === "section") next += 1;
+    while (next > 0 && rows[next] && rows[next].kind === "section") next -= 1;
+    if (rows[next] && rows[next].kind === "section") return;
+    state.locationActive = next;
+    var items = els.locationList ? els.locationList.children || [] : [];
+    for (var i = 0; i < items.length; i += 1) {
+      var node = items[i];
+      if (!node || !node.className || String(node.className).indexOf("repo-location__option") === -1) continue;
+      var base = String(node.className || "").replace(/\s*is-active\b/g, "");
+      var isActive = node.id === "repo-location-opt-" + next;
+      node.className = isActive ? base + " is-active" : base;
+    }
+    if (els.locationList) els.locationList.setAttribute("aria-activedescendant", "repo-location-opt-" + next);
+    var active = document.getElementById("repo-location-opt-" + next);
+    if (active && typeof active.scrollIntoView === "function") {
+      try { active.scrollIntoView({ block: "nearest" }); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function focusLocationList() {
+    if (!els.locationList) return;
+    try { els.locationList.focus(); } catch (e) { /* ignore */ }
+  }
+
   function toggleLocationPanel(force) {
-    state.locationOpen = typeof force === "boolean" ? force : !state.locationOpen;
-    if (state.locationOpen && els.locationInput) {
-      els.locationInput.value = state.location;
+    var open = typeof force === "boolean" ? force : !state.locationOpen;
+    state.locationOpen = open;
+    state.locationCustom = false;
+    state.locationError = "";
+    if (open) {
+      var rows = buildLocationRows();
+      var currentId = currentLocationFolderId();
+      var idx = 0;
+      for (var i = 0; i < rows.length; i += 1) {
+        if (rows[i].kind === "folder" && (rows[i].folderId || null) === (currentId || null)) {
+          idx = i;
+          break;
+        }
+      }
+      state.locationActive = idx;
     }
     renderLocation();
-    if (state.locationOpen && els.locationInput) {
+    if (open) focusLocationList();
+  }
+
+  function closeLocationPanel(returnFocus) {
+    if (!state.locationOpen) return;
+    toggleLocationPanel(false);
+    if (returnFocus && els.locationBtn) {
+      try { els.locationBtn.focus(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function openCustomLocation() {
+    state.locationOpen = true;
+    state.locationCustom = true;
+    state.locationError = "";
+    renderLocation();
+    if (els.locationInput) {
+      var currentId = currentLocationFolderId();
+      els.locationInput.value = currentId ? folderDisplayPath(currentId) : "";
       try { els.locationInput.focus(); } catch (e) { /* ignore */ }
+      try { if (els.locationInput.select) els.locationInput.select(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function chooseLocationRow(index) {
+    var row = (state.locationRows || [])[index];
+    if (!row || row.kind === "section") return;
+    if (row.kind === "custom") {
+      openCustomLocation();
+      return;
+    }
+    if (row.kind === "storage") {
+      try { row.onSelect(row.option || row); } catch (e) { /* ignore */ }
+      return;
+    }
+    placeCurrentAt(row.folderId || null);
+    closeLocationPanel(true);
+  }
+
+  function placeCurrentAt(folderId) {
+    var story = selectedStory();
+    if (story) {
+      if ((story.folderId || null) !== (folderId || null)) moveFileTo(story.id, folderId || null);
+      else render();
+      return;
+    }
+    selectFolder(folderId || null);
+  }
+
+  function parseLocationPath(value) {
+    return String(value || "")
+      .replace(/\\/g, "/")
+      .split("/")
+      .map(function (seg) { return seg.trim(); })
+      .filter(function (seg) { return seg && seg !== "." && seg !== ".."; });
+  }
+
+  function findChildByName(parentId, name) {
+    var want = String(name).toLowerCase();
+    var kids = core.childFolders(state.folders, parentId);
+    for (var i = 0; i < kids.length; i += 1) {
+      var f = kids[i];
+      if (String(f.name || "").toLowerCase() === want) return f;
+      if (core.pathSegment(f.name).toLowerCase() === core.pathSegment(name).toLowerCase()) return f;
+    }
+    return null;
+  }
+
+  function ensureFolderPath(segments) {
+    var chain = Promise.resolve(null);
+    segments.forEach(function (seg, i) {
+      chain = chain.then(function (parentId) {
+        var existing = findChildByName(parentId, seg);
+        if (existing) return existing.id;
+        var body = { name: seg, parentId: parentId };
+        if (!parentId) {
+          var guess = String(seg).toLowerCase();
+          body.contentType = core.CONTENT_TYPES && core.CONTENT_TYPES.indexOf(guess) !== -1
+            ? guess
+            : core.DEFAULT_CONTENT_TYPE;
+        }
+        return apiPost("create_folder", body).then(function (result) {
+          if (!result.ok || !result.json || !result.json.folder) {
+            throw new Error((result.json && result.json.error) || "Could not create " + segments.slice(0, i + 1).join("/") + ".");
+          }
+          if (result.json.tree) applyTree(result.json.tree);
+          return result.json.folder.id;
+        });
+      });
+    });
+    return chain;
+  }
+
+  function saveCustomLocation() {
+    if (!els.locationInput || state.locationSaving) return Promise.resolve();
+    var raw = String(els.locationInput.value || "");
+    var segs = parseLocationPath(raw);
+    if (segs.length && String(segs[0]).toLowerCase() === "tinker" && !findChildByName(null, segs[0])) {
+      segs = segs.slice(1);
+    }
+    if (!raw.trim()) {
+      state.locationCustom = false;
+      state.locationError = "";
+      renderLocation();
+      focusLocationList();
+      return Promise.resolve();
+    }
+    state.locationSaving = true;
+    state.locationError = "";
+    return ensureFolderPath(segs).then(function (folderId) {
+      state.locationSaving = false;
+      state.locationOpen = false;
+      state.locationCustom = false;
+      placeCurrentAt(folderId || null);
+      renderLocation();
+      return syncStoriesToDisk();
+    }).catch(function (err) {
+      state.locationSaving = false;
+      state.locationOpen = true;
+      state.locationCustom = true;
+      state.locationError = (err && err.message) || "Could not save location.";
+      render();
+    });
+  }
+
+  function moveLocationActive(delta) {
+    var rows = state.locationRows || [];
+    if (!rows.length) return;
+    var next = state.locationActive;
+    var guard = 0;
+    do {
+      next += delta;
+      if (next < 0) next = rows.length - 1;
+      if (next >= rows.length) next = 0;
+      guard += 1;
+    } while (rows[next] && rows[next].kind === "section" && guard < rows.length + 2);
+    setLocationActive(next);
+  }
+
+  function onLocationTriggerKey(event) {
+    var key = event && event.key;
+    if (key === "ArrowDown" || key === "ArrowUp" || key === "Enter" || key === " ") {
+      if (event.preventDefault) event.preventDefault();
+      if (!state.locationOpen) toggleLocationPanel(true);
+      else focusLocationList();
+    } else if (key === "Escape" && state.locationOpen) {
+      if (event.preventDefault) event.preventDefault();
+      closeLocationPanel(true);
+    }
+  }
+
+  function onLocationListKey(event) {
+    var key = event && event.key;
+    var rows = state.locationRows || [];
+    if (key === "ArrowDown") {
+      if (event.preventDefault) event.preventDefault();
+      moveLocationActive(1);
+    } else if (key === "ArrowUp") {
+      if (event.preventDefault) event.preventDefault();
+      moveLocationActive(-1);
+    } else if (key === "Home") {
+      if (event.preventDefault) event.preventDefault();
+      var first = 0;
+      while (first < rows.length && rows[first] && rows[first].kind === "section") first += 1;
+      setLocationActive(first);
+    } else if (key === "End") {
+      if (event.preventDefault) event.preventDefault();
+      var last = rows.length - 1;
+      while (last > 0 && rows[last] && rows[last].kind === "section") last -= 1;
+      setLocationActive(last);
+    } else if (key === "Enter" || key === " ") {
+      if (event.preventDefault) event.preventDefault();
+      chooseLocationRow(state.locationActive);
+    } else if (key === "Escape") {
+      if (event.preventDefault) event.preventDefault();
+      if (event.stopPropagation) event.stopPropagation();
+      closeLocationPanel(true);
+    } else if (key === "Tab") {
+      closeLocationPanel(false);
     }
   }
 
   function saveLocationFromInput() {
-    if (!els.locationInput) return;
-    setLocation(els.locationInput.value);
-    state.locationOpen = false;
-    renderLocation();
+    return saveCustomLocation();
   }
 
   function chooseLocationFolder() {
     if (!canPickFolder()) return;
     window.tinker.pickNotesFolder().then(function (picked) {
       if (!picked || !picked.path) return;
-      if (els.locationInput) els.locationInput.value = picked.path;
       setLocation(picked.path);
       state.locationOpen = false;
+      state.locationCustom = false;
       renderLocation();
     }).catch(function () { /* cancelled */ });
   }
+
+  // Built-in Storage section: Mac disk root picker (desktop only).
+  registerLocationSection({
+    key: "storage",
+    label: "Storage",
+    order: 100,
+    _builtin: true,
+    getOptions: function () {
+      if (!canPickFolder()) return [];
+      return [{
+        id: "mac-folder",
+        label: state.location ? "Mac folder: " + shortenPath(state.location) : "Mac folder…",
+        detail: state.location || "",
+        selected: !!state.location,
+      }];
+    },
+    onSelect: function (option) {
+      if (option && option.id === "mac-folder") chooseLocationFolder();
+    },
+  });
 
   function appendCreateForm(parent, parentId) {
     var wrap = document.createElement("div");
@@ -1129,10 +1606,19 @@
       event.stopPropagation();
       toggleLocationPanel();
     });
+    els.locationBtn.addEventListener("keydown", onLocationTriggerKey);
+  }
+  if (els.locationList) {
+    els.locationList.addEventListener("keydown", onLocationListKey);
   }
   if (els.locationSave) {
+    els.locationSave.addEventListener("mousedown", function (event) {
+      // Save via click, not via the input's blur racing it.
+      if (event && event.preventDefault) event.preventDefault();
+    });
     els.locationSave.addEventListener("click", function (event) {
       event.preventDefault();
+      if (event.stopPropagation) event.stopPropagation();
       saveLocationFromInput();
     });
   }
@@ -1149,8 +1635,23 @@
         saveLocationFromInput();
       } else if (event.key === "Escape") {
         event.preventDefault();
-        toggleLocationPanel(false);
+        if (event.stopPropagation) event.stopPropagation();
+        state.locationCustom = false;
+        state.locationError = "";
+        renderLocation();
+        focusLocationList();
       }
+    });
+    els.locationInput.addEventListener("blur", function () {
+      if (!state.locationCustom || state.locationSaving) return;
+      if (!String(els.locationInput.value || "").trim()) {
+        state.locationCustom = false;
+        state.locationError = "";
+        renderLocation();
+        focusLocationList();
+        return;
+      }
+      saveLocationFromInput();
     });
   }
   if (els.downloadOne) els.downloadOne.addEventListener("click", downloadOne);
@@ -1192,6 +1693,8 @@
     getFolders: function () { return state.folders.slice(); },
     getPlacements: function () { return Object.assign({}, state.placements); },
     syncStoriesToDisk: syncStoriesToDisk,
+    registerLocationSection: registerLocationSection,
+    refreshLocation: refreshLocation,
     ready: null,
   };
 
