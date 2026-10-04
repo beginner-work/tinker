@@ -171,6 +171,10 @@ function bootRepoPage(options) {
     "repo-location-error",
     "repo-location-caption",
     "repo-followup",
+    "repo-pad-error",
+    "repo-pad-error-text",
+    "repo-pad-error-retry",
+    "repo-pad-error-signin",
     "repo-pad-actions",
     "repo-keep-crafting",
     "repo-this-is-everything",
@@ -213,6 +217,15 @@ function bootRepoPage(options) {
   byId["repo-location-error"].hidden = true;
   byId["repo-location-caption"].textContent = "Location";
   byId["repo-followup"].hidden = true;
+  byId["repo-pad-error"].hidden = true;
+  byId["repo-pad-error"].tagName = "DIV";
+  byId["repo-pad-error-text"].tagName = "P";
+  byId["repo-pad-error-retry"].tagName = "BUTTON";
+  byId["repo-pad-error-retry"].textContent = "Retry";
+  byId["repo-pad-error-retry"].hidden = true;
+  byId["repo-pad-error-signin"].tagName = "BUTTON";
+  byId["repo-pad-error-signin"].textContent = "Sign in";
+  byId["repo-pad-error-signin"].hidden = true;
   byId["repo-pad-actions"].tagName = "FOOTER";
   byId["repo-pad-actions"].className = "repo-surface__foot";
   byId["repo-keep-crafting"].tagName = "BUTTON";
@@ -222,6 +235,13 @@ function bootRepoPage(options) {
   byId["repo-this-is-everything"].textContent = "This is everything";
   byId["repo-this-is-everything"].disabled = true;
   byId["repo-this-is-everything"].tabIndex = -1;
+  byId["repo-body"].scrollTop = 0;
+  byId["repo-body"].selectionStart = 0;
+  byId["repo-body"].selectionEnd = 0;
+  byId["repo-body"].setSelectionRange = function (start, end) {
+    byId["repo-body"].selectionStart = start;
+    byId["repo-body"].selectionEnd = end;
+  };
   byId["repo-file-place"].hidden = true;
   byId["repo-saved-in-list"].tagName = "UL";
   byId["repo-saved-in-custom"].hidden = true;
@@ -254,8 +274,10 @@ function bootRepoPage(options) {
   };
 
   const storage = new Map();
+  const session = new Map();
   if (opts.storedLocation) storage.set("tinker.repo.location.v1", opts.storedLocation);
   if (opts.token) storage.set("tinker_jwt", opts.token);
+  if (opts.sessionDraft) session.set("tinker.repo.padDraft.v1", opts.sessionDraft);
 
   const reflections = opts.reflections || [
     {
@@ -309,9 +331,15 @@ function bootRepoPage(options) {
       },
     },
     sessionStorage: {
-      getItem() { return null; },
-      setItem() {},
-      removeItem() {},
+      getItem(key) {
+        return session.has(key) ? session.get(key) : null;
+      },
+      setItem(key, value) {
+        session.set(key, String(value));
+      },
+      removeItem(key) {
+        session.delete(key);
+      },
     },
     tinker: opts.tinker || {
       listNotesFiles() {
@@ -472,6 +500,7 @@ function bootRepoPage(options) {
     URLSearchParams,
     Uint8Array,
     setTimeout,
+    clearTimeout,
     setImmediate,
     Promise,
     self: undefined,
@@ -493,6 +522,7 @@ function bootRepoPage(options) {
   return {
     byId,
     storage,
+    session,
     window: windowObj,
     document,
     written,
@@ -539,10 +569,12 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(html, /id="repo-new-piece"/);
   assert.match(html, /href="\/repo\/files"/);
   assert.match(html, />Files</);
-  assert.match(html, /href="\/\?write=1"/);
-  assert.match(html, />Home</);
+  assert.doesNotMatch(html, /repo-top__back/);
+  assert.doesNotMatch(html, /href="\/\?write=1"/);
+  assert.doesNotMatch(html, />Home</);
+  assert.match(html, /id="repo-name"[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=11/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=12/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -565,15 +597,15 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.doesNotMatch(html, /id="repo-new-folder"/);
   assert.doesNotMatch(html, /id="repo-move-sheet"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=11"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=11"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=11"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=11"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=11"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=11"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=11"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=11"/);
-  assert.match(html, /href="\/styles\.css\?v=11"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=12"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=12"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=12"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=12"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=12"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=12"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=12"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=12"/);
+  assert.match(html, /href="\/styles\.css\?v=12"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -1052,7 +1084,7 @@ test("This is everything saves the pad essay", async () => {
   assert.ok(stories.some((s) => s.id === puts[0][0].id));
 });
 
-test("Keep crafting asks freeform follow-ups via callClaude", async () => {
+test("Keep crafting inserts the follow-up question inline in the pad", async () => {
   const calls = [];
   const builds = [];
   const env = bootRepoPage({
@@ -1078,8 +1110,180 @@ test("Keep crafting asks freeform follow-ups via callClaude", async () => {
   assert.equal(calls.length, 1);
   assert.equal(calls[0].system, "sys");
   assert.equal(env.window.tinkerRepo.getFollowupQuestion(), "What are you noticing about this?");
-  assert.equal(env.byId["repo-followup"].hidden, false);
-  assert.match(env.byId["repo-followup"].textContent, /noticing/i);
+  assert.match(env.byId["repo-body"].value, /> What are you noticing about this\?\n\n$/);
+  assert.equal(env.byId["repo-body"].selectionStart, env.byId["repo-body"].value.length);
+  assert.equal(env.byId["repo-body"].selectionEnd, env.byId["repo-body"].value.length);
+  assert.equal(env.byId["repo-followup"].hidden, true);
+  assert.equal(env.byId["repo-pad-error"].hidden, true);
+});
+
+test("Keep crafting second click appends after new writing and skips repeats", async () => {
+  let n = 0;
+  const builds = [];
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    onBuildFollowup(args) { builds.push(args); },
+    callClaude() {
+      n += 1;
+      const q = n === 1
+        ? "What are you noticing about this?"
+        : "What changed when you sat with that longer?";
+      return Promise.resolve({ text: JSON.stringify({ questions: [q] }) });
+    },
+  });
+  await env.flush();
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "I keep noticing the same pattern.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.keepCraftingPad();
+  await env.flush();
+  env.byId["repo-body"].value += "It shows up when I rush.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.keepCraftingPad();
+  await env.flush();
+  assert.equal(builds.length, 2);
+  assert.equal(
+    JSON.stringify(builds[1].priorTurns || []),
+    JSON.stringify(["What are you noticing about this?"])
+  );
+  assert.match(
+    env.byId["repo-body"].value,
+    /> What are you noticing about this\?\n\nIt shows up when I rush\.\n\n> What changed when you sat with that longer\?\n\n$/
+  );
+  assert.equal(
+    JSON.stringify(env.window.tinkerRepo.extractAskedQuestions(env.byId["repo-body"].value)),
+    JSON.stringify([
+      "What are you noticing about this?",
+      "What changed when you sat with that longer?",
+    ])
+  );
+});
+
+test("This is everything persists inline questions with the essay", async () => {
+  const puts = [];
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    onPutEssays(list) { puts.push(list); },
+    callClaude() {
+      return Promise.resolve({
+        text: JSON.stringify({ questions: ["What are you noticing about this?"] }),
+      });
+    },
+  });
+  await env.flush();
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "A quiet note about learning.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.keepCraftingPad();
+  await env.window.tinkerRepo.savePad();
+  await env.flush();
+  assert.equal(puts.length, 1);
+  assert.match(puts[0][0].body, /A quiet note about learning\./);
+  assert.match(puts[0][0].body, /> What are you noticing about this\?/);
+});
+
+test("Keep crafting signed-out shows Sign in and starts auth return to /repo", async () => {
+  const env = bootRepoPage({
+    desktop: true,
+    mode: "write",
+  });
+  await env.flush();
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "Signed-out draft about the work.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.keepCraftingPad();
+  assert.equal(env.byId["repo-pad-error"].hidden, false);
+  assert.match(env.byId["repo-pad-error-text"].textContent, /Sign in to get follow-up questions/);
+  assert.equal(env.byId["repo-pad-error-signin"].hidden, false);
+  assert.equal(env.byId["repo-pad-error-retry"].hidden, true);
+  env.click("repo-pad-error-signin");
+  assert.deepEqual(env.assigned, ["/"]);
+  assert.equal(env.session.get("tinker_mcp_return"), "/repo");
+  const draft = JSON.parse(env.session.get("tinker.repo.padDraft.v1") || "{}");
+  assert.match(draft.body || "", /Signed-out draft about the work/);
+});
+
+test("Keep crafting signed-in inserts without sign-in prompt", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+  });
+  await env.flush();
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "Signed-in draft.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.keepCraftingPad();
+  assert.equal(env.byId["repo-pad-error"].hidden, true);
+  assert.equal(env.byId["repo-pad-error-signin"].hidden, true);
+  assert.match(env.byId["repo-body"].value, /> What are you noticing about this\?/);
+});
+
+test("Keep crafting error shows Retry and retries the request", async () => {
+  let n = 0;
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    callClaude() {
+      n += 1;
+      if (n === 1) {
+        const err = new Error("Upstream failed");
+        err.code = "UPSTREAM";
+        return Promise.reject(err);
+      }
+      return Promise.resolve({
+        text: JSON.stringify({ questions: ["What are you noticing about this?"] }),
+      });
+    },
+  });
+  await env.flush();
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "A draft that needs a retry.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.keepCraftingPad();
+  assert.equal(env.byId["repo-pad-error"].hidden, false);
+  assert.match(env.byId["repo-pad-error-text"].textContent, /Upstream failed/);
+  assert.equal(env.byId["repo-pad-error-retry"].hidden, false);
+  env.click("repo-pad-error-retry");
+  await env.flush();
+  await new Promise((r) => setTimeout(r, 10));
+  assert.equal(n, 2);
+  assert.equal(env.byId["repo-pad-error"].hidden, true);
+  assert.match(env.byId["repo-body"].value, /> What are you noticing about this\?/);
+});
+
+test("/repo header has no legacy Home link to old pages", () => {
+  const headerHtml = (html.match(/<header[\s\S]*?<\/header>/) || [""])[0];
+  assert.doesNotMatch(headerHtml, /repo-top__back/);
+  assert.doesNotMatch(headerHtml, /href="\/\?write=1"/);
+  assert.doesNotMatch(headerHtml, /href="\/"/);
+  assert.doesNotMatch(headerHtml, /href="\/messages"/);
+  assert.doesNotMatch(html, /href="\/\?write=1"/);
+  assert.match(headerHtml, /id="repo-name"/);
+  assert.doesNotMatch(headerHtml, /<a[^>]*id="repo-name"/);
 });
 
 test("registerLocationSection adds a Saved in option that fires onSelect", async () => {

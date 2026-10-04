@@ -1141,21 +1141,79 @@ html.tinker-desktop .repo-top [role="button"] {
   padding: 20px 24px 28px;
 }
 
-.repo-followup {
-  position: relative;
-  z-index: 5;
-  margin: 48px 20px 0;
-  padding: 0;
-  font-family: var(--font-display);
-  font-size: 18px;
+/* Legacy follow-up slot kept hidden; questions insert into the pad. */
+.repo-followup[hidden] {
+  display: none !important;
+}
+
+.repo-pad-error {
+  position: absolute;
+  left: 50%;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  z-index: 12;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(360px, calc(100% - 24px));
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-background) 94%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 28px rgba(45, 42, 38, 0.14);
+  pointer-events: auto;
+}
+
+.repo-pad-error[hidden] {
+  display: none !important;
+}
+
+.repo-pad-error__text {
+  margin: 0;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.35;
+  line-height: 1.4;
+  text-align: center;
   color: var(--color-foreground);
 }
 
-.repo-followup[hidden] {
-  display: none;
+.repo-pad-error__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.repo-pad-error__retry,
+.repo-pad-error__signin {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.repo-pad-error__retry {
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.repo-pad-error__signin {
+  border: 0;
+  background: var(--color-foreground);
+  color: var(--color-background);
+}
+
+.repo-pad-error__signin:hover {
+  opacity: 0.9;
 }
 
 /* Keep crafting / This is everything — float bottom-right; idle fade-in. */

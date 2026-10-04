@@ -13,6 +13,7 @@
   var LOCATION_KEY = "tinker.repo.location.v1";
   var RECENT_PLACES_KEY = "tinker.repo.placesRecent.v1";
   var ESSAYS_KEY = "tinker.essays.v1";
+  var PAD_DRAFT_KEY = "tinker.repo.padDraft.v1";
   var PLACE_STARTERS = ["Home", "Coffee shop", "San Diego"];
   var STORAGE_EVENT = "tinker-storage-root-changed";
   var TOKEN_KEY = "tinker_jwt";
@@ -75,6 +76,10 @@
     newFolder: document.getElementById("repo-new-folder"),
     body: document.getElementById("repo-body"),
     followup: document.getElementById("repo-followup"),
+    padError: document.getElementById("repo-pad-error"),
+    padErrorText: document.getElementById("repo-pad-error-text"),
+    padErrorRetry: document.getElementById("repo-pad-error-retry"),
+    padErrorSignin: document.getElementById("repo-pad-error-signin"),
     padActions: document.getElementById("repo-pad-actions"),
     keepCrafting: document.getElementById("repo-keep-crafting"),
     thisIsEverything: document.getElementById("repo-this-is-everything"),
@@ -126,9 +131,59 @@
   }
 
   function sendHomeForAuth() {
+    stashPadDraftForAuth();
     try { window.sessionStorage.setItem(RETURN_KEY, "/repo"); }
     catch (e) { /* ignore */ }
     window.location.assign("/");
+  }
+
+  function stashPadDraftForAuth() {
+    try {
+      var body = padBody();
+      if (!String(body || "").trim()) {
+        window.sessionStorage.removeItem(PAD_DRAFT_KEY);
+        return;
+      }
+      window.sessionStorage.setItem(PAD_DRAFT_KEY, JSON.stringify({
+        body: body,
+        place: activePlace() || "",
+        at: Date.now(),
+      }));
+    } catch (e) { /* ignore */ }
+  }
+
+  function restorePadDraftAfterAuth() {
+    if (!isWritePage || !els.body) return;
+    var raw = "";
+    try { raw = window.sessionStorage.getItem(PAD_DRAFT_KEY) || ""; }
+    catch (e) { return; }
+    if (!raw) return;
+    try { window.sessionStorage.removeItem(PAD_DRAFT_KEY); } catch (e2) { /* ignore */ }
+    var parsed = null;
+    try { parsed = JSON.parse(raw); } catch (e3) { return; }
+    if (!parsed || typeof parsed.body !== "string" || !parsed.body.trim()) return;
+    if (padBody().trim()) return;
+    els.body.value = parsed.body;
+    if (parsed.place) {
+      state.currentPlace = String(parsed.place).slice(0, 120);
+      pushRecentPlace(state.currentPlace);
+    }
+    ensureDraftFromPad();
+    syncPadFromDom();
+    renderPlace();
+    bumpPadTypingIdle();
+  }
+
+  function hasSessionToken() {
+    return !!token();
+  }
+
+  function ensureClaudeClient() {
+    if (window.tinker && typeof window.tinker.callClaude === "function") return true;
+    // Desktop preload exposes window.tinker without callClaude; the web shim
+    // should have merged it. If it did not, surface sign-in rather than a
+    // dead message with no action.
+    return false;
   }
 
   function authHeaders() {
@@ -511,15 +566,95 @@
   }
 
   function renderFollowup() {
-    if (!els.followup) return;
-    var q = String(state.followupQuestion || "").trim();
-    if (!q) {
+    // Questions are inserted into the pad; keep the legacy slot hidden.
+    if (els.followup) {
       els.followup.hidden = true;
       text(els.followup, "");
+    }
+  }
+
+  function clearPadError() {
+    if (els.padError) els.padError.hidden = true;
+    if (els.padErrorText) text(els.padErrorText, "");
+    if (els.padErrorRetry) els.padErrorRetry.hidden = true;
+    if (els.padErrorSignin) els.padErrorSignin.hidden = true;
+  }
+
+  function showPadError(message, opts) {
+    opts = opts || {};
+    if (!els.padError || !els.padErrorText) {
+      state.status = message || "";
+      renderSyncHint();
       return;
     }
-    els.followup.hidden = false;
-    text(els.followup, q);
+    text(els.padErrorText, message || "Something went wrong.");
+    els.padError.hidden = false;
+    if (els.padErrorRetry) els.padErrorRetry.hidden = !opts.retry;
+    if (els.padErrorSignin) els.padErrorSignin.hidden = !opts.signin;
+    state.status = "";
+    renderSyncHint();
+  }
+
+  function syncPadFromDom() {
+    var story = selectedStory();
+    var value = padBody();
+    if (!story && value.trim()) story = ensureDraftFromPad();
+    if (story) {
+      story.markdown = value;
+      story.body = value;
+      story.updatedAt = new Date().toISOString();
+      if (!story.isNew) story.dirty = true;
+    }
+  }
+
+  // Questions persist as Markdown blockquotes in the same pad document.
+  function extractAskedQuestions(text) {
+    var asked = [];
+    var seen = {};
+    String(text || "").split(/\r?\n/).forEach(function (line) {
+      var m = String(line || "").match(/^>\s+(.+?)\s*$/);
+      if (!m) return;
+      var q = m[1].replace(/\s+/g, " ").trim();
+      if (!q) return;
+      var key = q.toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      asked.push(q);
+    });
+    return asked;
+  }
+
+  function questionAlreadyInPad(question, text) {
+    var key = String(question || "").replace(/\s+/g, " ").trim().toLowerCase();
+    if (!key) return true;
+    return extractAskedQuestions(text).some(function (q) {
+      return q.toLowerCase() === key;
+    });
+  }
+
+  function insertQuestionInline(question) {
+    if (!els.body) return "";
+    var q = String(question || "").replace(/\s+/g, " ").trim();
+    if (!q) return "";
+    var current = padBody().replace(/\s+$/g, "");
+    if (questionAlreadyInPad(q, current)) return current;
+    var block = (current ? current + "\n\n" : "") + "> " + q + "\n\n";
+    els.body.value = block;
+    var caret = block.length;
+    try {
+      els.body.focus();
+      if (typeof els.body.setSelectionRange === "function") {
+        els.body.setSelectionRange(caret, caret);
+      }
+      els.body.scrollTop = els.body.scrollHeight;
+      if (typeof els.body.scrollIntoView === "function") {
+        els.body.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    } catch (e) { /* ignore */ }
+    state.followupQuestion = q;
+    syncPadFromDom();
+    renderFollowup();
+    return block;
   }
 
   function bumpPadTypingIdle() {
@@ -706,31 +841,39 @@
     if (!isWritePage || state.padSaving || state.padAsking) return Promise.resolve(null);
     var draftText = padBody().trim();
     if (!draftText) return Promise.resolve(null);
+    clearPadError();
+
+    if (!hasSessionToken()) {
+      showPadError("Sign in to get follow-up questions.", { signin: true });
+      return Promise.resolve(null);
+    }
+    if (!ensureClaudeClient()) {
+      showPadError("Follow-ups unavailable right now. Sign in again to continue.", { signin: true });
+      return Promise.resolve(null);
+    }
     var interview = window.tinkerInterview;
     if (!interview || typeof interview.buildFollowupRequest !== "function") {
-      state.status = "Follow-ups unavailable. Reload the page.";
-      renderSyncHint();
+      showPadError("Follow-ups unavailable. Reload the page.", { retry: true });
       return Promise.resolve(null);
     }
-    if (!window.tinker || typeof window.tinker.callClaude !== "function") {
-      state.status = "Sign in to get follow-up questions.";
-      renderSyncHint();
-      return Promise.resolve(null);
-    }
+
+    var asked = extractAskedQuestions(padBody());
+    state.followupAsked = asked.slice();
     var built = interview.buildFollowupRequest({
       draft: draftText,
       seed: activePlace() || undefined,
-      priorTurns: state.followupAsked.slice(),
+      priorTurns: asked.slice(),
     });
     if (built.error) {
-      state.status = built.error;
-      renderSyncHint();
+      showPadError(built.error, { retry: true });
       return Promise.resolve(null);
     }
+
     state.padAsking = true;
     setPadActionsVisible(false);
     state.status = "Thinking through what to ask next…";
     renderSyncHint();
+
     return window.tinker.callClaude({
       system: built.system,
       messages: [{ role: "user", content: built.user }],
@@ -740,21 +883,34 @@
       var parsed = typeof interview.parseFreeformResponse === "function"
         ? interview.parseFreeformResponse(result && result.text)
         : { questions: [] };
-      var questions = Array.isArray(parsed.questions) ? parsed.questions.filter(Boolean) : [];
-      var next = questions[0] || (
-        typeof interview.fallbackKeepCraftingQuestion === "function"
-          ? interview.fallbackKeepCraftingQuestion(state.followupAsked.length, state.followupAsked)
-          : "What else are you learning about this?"
-      );
-      state.followupAsked = state.followupAsked.concat(questions.length ? questions : [next]);
-      state.followupQuestion = next;
+      var questions = Array.isArray(parsed.questions)
+        ? parsed.questions.map(function (q) { return String(q || "").replace(/\s+/g, " ").trim(); }).filter(Boolean)
+        : [];
+      var next = "";
+      for (var i = 0; i < questions.length; i += 1) {
+        if (!questionAlreadyInPad(questions[i], padBody())) {
+          next = questions[i];
+          break;
+        }
+      }
+      if (!next) {
+        showPadError("Could not get a new follow-up question. Try again.", { retry: true });
+        return null;
+      }
+      insertQuestionInline(next);
+      state.followupAsked = extractAskedQuestions(padBody());
       state.status = "";
-      renderFollowup();
       renderSyncHint();
+      clearPadError();
       return next;
     }).catch(function (err) {
-      state.status = (err && err.message) || "Could not ask a follow-up.";
-      renderSyncHint();
+      var code = err && err.code;
+      var msg = (err && err.message) || "Could not ask a follow-up.";
+      if (code === "MISSING_TOKEN" || code === "SESSION_EXPIRED" || /sign in/i.test(msg)) {
+        showPadError("Sign in to get follow-up questions.", { signin: true });
+      } else {
+        showPadError(msg, { retry: true });
+      }
       return null;
     }).finally(function () {
       state.padAsking = false;
@@ -2169,7 +2325,12 @@
   function loadStories() {
     var t = token();
     if (!t) {
-      sendHomeForAuth();
+      // Stay on /repo so the pad remains usable while signed out. Keep
+      // crafting and cloud save surface an inline Sign in control instead
+      // of bouncing to the legacy shell with no return path on the pad.
+      state.stories = [];
+      applyTree({ folders: [], placements: {} });
+      render();
       return Promise.resolve();
     }
     return Promise.all([
@@ -2188,7 +2349,10 @@
       var tree = parts[1];
       if (!storiesRes || storiesRes.auth === false) {
         try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* ignore */ }
-        sendHomeForAuth();
+        // Keep the pad; ask for sign-in when the owner tries Keep crafting.
+        state.stories = [];
+        applyTree({ folders: [], placements: {} });
+        render();
         return null;
       }
       if (tree) applyTree(tree);
@@ -2236,6 +2400,19 @@
     els.thisIsEverything.addEventListener("click", function (event) {
       if (event && event.preventDefault) event.preventDefault();
       savePad();
+    });
+  }
+  if (els.padErrorRetry) {
+    els.padErrorRetry.addEventListener("click", function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      clearPadError();
+      keepCraftingPad();
+    });
+  }
+  if (els.padErrorSignin) {
+    els.padErrorSignin.addEventListener("click", function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      sendHomeForAuth();
     });
   }
   if (els.locationBtn) {
@@ -2366,8 +2543,12 @@
     refreshLocation: refreshLocation,
     savePad: savePad,
     keepCraftingPad: keepCraftingPad,
+    insertQuestionInline: insertQuestionInline,
+    extractAskedQuestions: extractAskedQuestions,
     arePadActionsVisible: function () { return !!state.padActionsVisible; },
     getFollowupQuestion: function () { return state.followupQuestion || ""; },
+    showPadError: showPadError,
+    clearPadError: clearPadError,
     setPadIdleMs: function (ms) {
       var n = Number(ms);
       if (Number.isFinite(n) && n >= 0) state.padIdleMs = n;
@@ -2378,5 +2559,6 @@
   render();
   window.tinkerRepo.ready = loadStories().then(function () {
     applyWriteQuery();
+    restorePadDraftAfterAuth();
   });
 })();
