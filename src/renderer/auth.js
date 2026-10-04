@@ -216,7 +216,7 @@
       catch { return ""; }
     })();
     if (!phoneId) {
-      setStatus("Session expired — request a new code.", "error");
+      setStatus("Your code expired. Request a new one.", "error");
       showStep("phone");
       return;
     }
