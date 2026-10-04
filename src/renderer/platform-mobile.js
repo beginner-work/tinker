@@ -3,6 +3,12 @@
  * keep those bridges (notes folder, dock icon, openExternal) and only
  * fill in callClaude + settings helpers the shell does not provide.
  *
+ * Electron contextBridge.exposeInMainWorld freezes window.tinker and makes
+ * the property non-writable, so `window.tinker = Object.assign(...)` silently
+ * no-ops. This shim always installs a writable facade at window.tinkerApi
+ * that carries callClaude (and copied IPC bridges). Callers should prefer
+ * window.tinker when it already has callClaude, else window.tinkerApi.
+ *
  * In this deployment the browser does NOT hold an Anthropic key —
  * every Claude call is proxied through /api/claude/converse on the
  * Vercel serverless layer, gated by the phone/PIN JWT. The shim
@@ -22,6 +28,8 @@
         document.documentElement.classList.remove("on-web");
       } catch (e) { /* ignore */ }
     }
+    // Writable alias so resolve helpers always find callClaude.
+    window.tinkerApi = existing;
     return;
   }
 
@@ -134,7 +142,7 @@
   }
 
   // Merge: keep Electron notes/dock bridges; add web Claude + settings.
-  window.tinker = Object.assign({}, existing || {}, {
+  const merged = Object.assign({}, existing || {}, {
     version:
       existing && typeof existing.version === "function"
         ? existing.version
@@ -163,4 +171,16 @@
         ? existing.getSetting
         : (k) => Promise.resolve(get(k)),
   });
+
+  // Best-effort install on window.tinker (works on web). Under Electron
+  // contextBridge the property is non-writable and this assignment no-ops
+  // without throwing in non-strict scripts.
+  try {
+    window.tinker = merged;
+  } catch (e) { /* ignore */ }
+
+  // Always expose a writable facade with callClaude. When contextBridge left
+  // a frozen window.tinker, IPC bridges stay on that object and Claude lives
+  // here (callers resolve via window.tinker || window.tinkerApi).
+  window.tinkerApi = merged;
 })();
