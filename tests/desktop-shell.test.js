@@ -147,6 +147,8 @@ test("platform-mobile merges Electron bridges instead of overwriting", () => {
 
 test("packaging targets universal Mac dmg named tinker-mac", () => {
   assert.match(builderYml, /artifactName:\s*tinker-mac\.\$\{ext\}/);
+  assert.match(builderYml, /^nsis:\s*\n\s+artifactName:\s*\$\{productName\}-\$\{version\}-\$\{arch\}-setup\.\$\{ext\}/m);
+  assert.match(builderYml, /^portable:\s*\n\s+artifactName:\s*\$\{productName\}-\$\{version\}-\$\{arch\}-portable\.\$\{ext\}/m);
   assert.match(builderYml, /arch:\s*universal/);
   assert.match(builderYml, /identity:\s*null/);
   assert.match(builderYml, /src\/main\/\*\*\/\*/);

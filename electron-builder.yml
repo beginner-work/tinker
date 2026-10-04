@@ -80,4 +80,9 @@ win:
     - nsis
     - portable
   icon: src/renderer/icons/tinker-icon-512.png
-  artifactName: ${productName}-${version}-${arch}.${ext}
+
+nsis:
+  artifactName: ${productName}-${version}-${arch}-setup.${ext}
+
+portable:
+  artifactName: ${productName}-${version}-${arch}-portable.${ext}
