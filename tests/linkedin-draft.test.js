@@ -299,6 +299,16 @@ test("a normal converse turn still requires messages", async () => {
   assert.equal(fetchCalls.some((c) => c.url.includes("api.anthropic.com")), false);
 });
 
+test("converse accepts max_tokens from the web shim as well as maxTokens", () => {
+  const root = path.join(__dirname, "..");
+  const converse = fs.readFileSync(path.join(root, "api/claude/converse.js"), "utf8");
+  const shim = fs.readFileSync(path.join(root, "src/renderer/platform-mobile.js"), "utf8");
+  assert.match(converse, /body\.maxTokens/);
+  assert.match(converse, /body\.max_tokens/);
+  assert.match(shim, /body\.maxTokens\s*=\s*maxTokens/);
+  assert.match(shim, /body\.max_tokens\s*=\s*maxTokens/);
+});
+
 test("the sidebar composer posts to converse and does not own the prompt", () => {
   const root = path.join(__dirname, "..");
   const html = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");

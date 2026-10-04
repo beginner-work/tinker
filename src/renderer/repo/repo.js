@@ -131,11 +131,30 @@
     catch (e) { return ""; }
   }
 
+  function clearAuthSession() {
+    try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* ignore */ }
+    try { window.localStorage.removeItem("tinker_phone"); } catch (e2) { /* ignore */ }
+    try { window.localStorage.removeItem("tinker_phone_id"); } catch (e3) { /* ignore */ }
+  }
+
   function sendHomeForAuth() {
     stashPadDraftForAuth();
+    // Drop any stale/rejected token first. Otherwise repo-redirect.js sees
+    // tinker_jwt and bounces / → /repo before the phone gate can render.
+    clearAuthSession();
     try { window.sessionStorage.setItem(RETURN_KEY, "/repo"); }
     catch (e) { /* ignore */ }
-    window.location.assign("/");
+    // signin=1 is an explicit allowlist skip in repo-redirect.js.
+    window.location.assign("/?signin=1");
+  }
+
+  function isAuthFailure(err) {
+    if (!err) return false;
+    var code = err.code;
+    if (code === "MISSING_TOKEN" || code === "SESSION_EXPIRED") return true;
+    var status = Number(err.status);
+    if (status === 401 || status === 403) return true;
+    return false;
   }
 
   function stashPadDraftForAuth() {
@@ -525,7 +544,8 @@
       var seg = list[i];
       if (!seg) continue;
       if (seg.type === "question") {
-        out += (seg.marker || "> ") + String(seg.text || "");
+        var marker = seg.marker && String(seg.marker).indexOf(">") >= 0 ? seg.marker : "> ";
+        out += marker + String(seg.text || "");
       } else {
         out += String(seg.text == null ? "" : seg.text);
       }
@@ -1022,7 +1042,9 @@
       return Promise.resolve(null);
     }
     if (!ensureClaudeClient()) {
-      showPadError("Follow-ups unavailable right now. Sign in again to continue.", { signin: true });
+      // Token is present but the Claude client never mounted — not an auth
+      // failure. Asking to "Sign in" here caused the stale-token bounce loop.
+      showPadError("Follow-ups unavailable. Reload the page.", { retry: true });
       return Promise.resolve(null);
     }
     var interview = window.tinkerInterview;
@@ -1078,9 +1100,11 @@
       clearPadError();
       return next;
     }).catch(function (err) {
-      var code = err && err.code;
       var msg = (err && err.message) || "Could not ask a follow-up.";
-      if (code === "MISSING_TOKEN" || code === "SESSION_EXPIRED" || /sign in/i.test(msg)) {
+      // Only genuine auth failures get the Sign in control. 5xx / model /
+      // timeout / parse errors must show Retry with the real message.
+      if (isAuthFailure(err)) {
+        clearAuthSession();
         showPadError("Sign in to get follow-up questions.", { signin: true });
       } else {
         showPadError(msg, { retry: true });

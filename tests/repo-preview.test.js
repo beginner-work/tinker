@@ -604,7 +604,7 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=13/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=14/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -629,15 +629,15 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.doesNotMatch(html, /id="repo-new-folder"/);
   assert.doesNotMatch(html, /id="repo-move-sheet"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=13"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=13"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=13"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=13"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=13"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=13"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=13"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=13"/);
-  assert.match(html, /href="\/styles\.css\?v=13"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=14"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=14"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=14"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=14"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=14"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=14"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=14"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=14"/);
+  assert.match(html, /href="\/styles\.css\?v=14"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -1289,10 +1289,62 @@ test("Keep crafting signed-out shows Sign in and starts auth return to /repo", a
   assert.equal(env.byId["repo-pad-error-signin"].hidden, false);
   assert.equal(env.byId["repo-pad-error-retry"].hidden, true);
   env.click("repo-pad-error-signin");
-  assert.deepEqual(env.assigned, ["/"]);
+  assert.deepEqual(env.assigned, ["/?signin=1"]);
   assert.equal(env.session.get("tinker_mcp_return"), "/repo");
   const draft = JSON.parse(env.session.get("tinker.repo.padDraft.v1") || "{}");
   assert.match(draft.body || "", /Signed-out draft about the work/);
+});
+
+test("stale-token Sign in clears jwt and opens /?signin=1 without bounce", async () => {
+  const env = bootRepoPage({
+    token: "stale-rejected-token",
+    desktop: true,
+    mode: "write",
+    callClaude() {
+      const err = new Error("Session expired. Sign in again.");
+      err.code = "SESSION_EXPIRED";
+      err.status = 401;
+      return Promise.reject(err);
+    },
+  });
+  await env.flush();
+  assert.equal(env.storage.get("tinker_jwt"), "stale-rejected-token");
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "Draft kept across reauth.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.keepCraftingPad();
+  assert.equal(env.byId["repo-pad-error-signin"].hidden, false);
+  env.click("repo-pad-error-signin");
+  assert.equal(env.storage.get("tinker_jwt"), undefined);
+  assert.ok(!env.storage.has("tinker_jwt"));
+  assert.deepEqual(env.assigned, ["/?signin=1"]);
+  assert.equal(env.session.get("tinker_mcp_return"), "/repo");
+  const draft = JSON.parse(env.session.get("tinker.repo.padDraft.v1") || "{}");
+  assert.match(draft.body || "", /Draft kept across reauth/);
+});
+
+test("draft restores after auth return to /repo", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    sessionDraft: JSON.stringify({
+      body: "Restored after phone code.\n\n> What stayed with you?\n\n",
+      place: "Coffee shop",
+      at: Date.now(),
+    }),
+  });
+  await env.flush();
+  assert.match(env.window.tinkerRepo.getPadMarkdown(), /Restored after phone code/);
+  assert.match(env.window.tinkerRepo.getPadMarkdown(), /> What stayed with you\?/);
+  assert.equal(
+    JSON.stringify(env.window.tinkerRepo.visibleQuestionTexts()),
+    JSON.stringify(["What stayed with you?"])
+  );
+  assert.ok(!env.session.has("tinker.repo.padDraft.v1"));
 });
 
 test("Keep crafting signed-in inserts without sign-in prompt", async () => {
@@ -1325,6 +1377,7 @@ test("Keep crafting error shows Retry and retries the request", async () => {
       if (n === 1) {
         const err = new Error("Upstream failed");
         err.code = "UPSTREAM";
+        err.status = 502;
         return Promise.reject(err);
       }
       return Promise.resolve({
@@ -1343,12 +1396,40 @@ test("Keep crafting error shows Retry and retries the request", async () => {
   assert.equal(env.byId["repo-pad-error"].hidden, false);
   assert.match(env.byId["repo-pad-error-text"].textContent, /Upstream failed/);
   assert.equal(env.byId["repo-pad-error-retry"].hidden, false);
+  assert.equal(env.byId["repo-pad-error-signin"].hidden, true);
   env.click("repo-pad-error-retry");
   await env.flush();
   await new Promise((r) => setTimeout(r, 10));
   assert.equal(n, 2);
   assert.equal(env.byId["repo-pad-error"].hidden, true);
   assert.match(env.byId["repo-body"].value, /> What are you noticing about this\?/);
+});
+
+test("non-auth Keep crafting failure with Sign in wording still shows Retry", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    callClaude() {
+      const err = new Error("Model overloaded — sign in later and retry.");
+      err.code = "UPSTREAM";
+      err.status = 529;
+      return Promise.reject(err);
+    },
+  });
+  await env.flush();
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "Should not treat this as auth.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.keepCraftingPad();
+  assert.equal(env.byId["repo-pad-error"].hidden, false);
+  assert.equal(env.byId["repo-pad-error-retry"].hidden, false);
+  assert.equal(env.byId["repo-pad-error-signin"].hidden, true);
+  assert.equal(env.storage.get("tinker_jwt"), "jwt-test");
+  assert.equal(env.assigned.length, 0);
 });
 
 test("/repo header has no legacy Home link to old pages", () => {
