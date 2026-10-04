@@ -63,6 +63,9 @@
     "",
     "RULE 10 — ASK IN THE FOUNDER'S OWN WRITING VOICE.",
     "If the user message includes a 'THE FOUNDER'S WRITING VOICE' block, it is a profile learned from the founder's own published essays — their tone, cadence, vocabulary, and the moves they reach for. Phrase your questions so they sound like they came from inside that same voice: match the cadence and lean on the words they actually use. This shapes HOW you ask, never WHAT they answer. It does NOT relax any rule above — every question still pursues what they are learning (RULE 4), and the stitched essay is still built only from words the founder typed (RULE 1, RULE 2). Never quote the profile back to the founder, never describe their voice to them.",
+    "",
+    "RULE 11 — NO EM DASHES IN QUESTIONS.",
+    "Never use an em dash (—) or an en dash (–) in next_question or any question text shown to the founder. Use a comma, a period, or plain wording instead. Do not substitute two hyphens or three hyphens for a dash.",
   ].join("\n");
 
 
@@ -76,6 +79,7 @@
     "Return a single JSON object and nothing else:",
     '{ "questions": string[] }',
     "Provide three to five questions. Each question MUST contain the word 'learning' or one close synonym from this list: discovering, noticing, figuring out, realising, understanding, picking up, working out, coming to see, finding out, recognising. Vary the synonym. Do not repeat a question listed as already asked.",
+    "Never use an em dash (—) or an en dash (–) in any question. Use a comma, a period, or plain wording instead. Do not substitute two hyphens for a dash.",
     "Never wrap the JSON in code fences. Never add explanations outside the JSON.",
   ].join("\n");
 
@@ -103,6 +107,9 @@
     "",
     "RULE 5 — NEVER REPEAT.",
     "Do not repeat or lightly rephrase a question already listed as asked.",
+    "",
+    "RULE 6 — NO EM DASHES IN QUESTIONS.",
+    "Never use an em dash (—) or an en dash (–) in next_question. Use a comma, a period, or plain wording instead. Do not substitute two hyphens for a dash.",
   ].join("\n");
 
   const PERSON_KEEP_CRAFTING_FALLBACKS = {
@@ -132,13 +139,15 @@
     "Do not repeat or lightly rephrase a prior question. Set done to false. Set stitched_title and stitched_body to null. " +
     "Ask one short, warm, relationship-first question about the other person or the connection. " +
     "Never ask about resume, career facts, metrics, achievements, story parts, transactions, or purchases. " +
+    "Never use an em dash or en dash in the question; use a comma, period, or plain wording. " +
     "Respond with the JSON object only.";
 
   const PERSON_KEEP_CRAFTING_TIGHTER_INSTRUCTION =
     "REQUIRED: Return JSON with a non-empty next_question string that has NOT been asked yet. " +
     "It must be clearly different from every prior question. " +
     "Set done to false. Set stitched_title and stitched_body to null. " +
-    "Ask one new personal, relationship-first question. No resume, career, metrics, or pitch framing. JSON object only.";
+    "Ask one new personal, relationship-first question. No resume, career, metrics, or pitch framing. " +
+    "No em dashes or en dashes in the question. JSON object only.";
 
   const MAX_DRAFT = 80000;
   const MAX_TURNS = 40;
@@ -175,13 +184,15 @@
     "You MUST return a non-empty next_question that is visibly different from every question already asked. " +
     "Do not repeat or lightly rephrase a prior question. Set done to false. Set stitched_title and stitched_body to null. " +
     "Do not stitch. Do not set done true. Ask one concrete learning-focused follow-up that has not been asked yet. " +
+    "Never use an em dash or en dash in the question; use a comma, period, or plain wording. " +
     "Respond with the JSON object only.";
 
   const KEEP_CRAFTING_TIGHTER_INSTRUCTION =
     "REQUIRED: Return JSON with a non-empty next_question string that has NOT been asked yet. " +
     "It must be clearly different from every prior question. " +
     "Set done to false. Set stitched_title and stitched_body to null. " +
-    "Do not stitch. Do not mark done. Ask one new learning-focused question. JSON object only.";
+    "Do not stitch. Do not mark done. Ask one new learning-focused question. " +
+    "No em dashes or en dashes in the question. JSON object only.";
 
   function transcriptStage(turnCount) {
     const n = Math.max(0, Number(turnCount) || 0);
@@ -275,10 +286,53 @@
 
   // Keep crafting never accepts a stitch/done payload, empty string, or a repeat.
   function normalizeKeepCraftingQuestion(parsed, asked) {
-    const q = parsed && typeof parsed.next_question === "string" ? parsed.next_question.trim() : "";
+    const raw = parsed && typeof parsed.next_question === "string" ? parsed.next_question.trim() : "";
+    const q = sanitizeAiQuestion(raw);
     if (!q) return null;
     if (asked != null && isRepeatQuestion(q, asked)) return null;
     return q;
+  }
+
+  function questionDashInsideParens(before) {
+    let depth = 0;
+    for (const ch of before) {
+      if (ch === "(") depth += 1;
+      else if (ch === ")" && depth > 0) depth -= 1;
+    }
+    return depth > 0;
+  }
+
+  /**
+   * Safety net for RULE 11: strip em dashes / en dashes (and -- / ---)
+   * from AI question text so none reach the UI even if the model ignores
+   * the prompt. Prefer comma mid-clause; period when a new sentence fits.
+   */
+  function sanitizeAiQuestion(text) {
+    const original = String(text || "");
+    if (!/[\u2013\u2014\u2015]|--/.test(original)) return original.trim();
+
+    let src = original.replace(/\u2015/g, "\u2014").replace(/\u2013/g, "\u2014");
+    src = src.replace(/[^\S\n]*---[^\S\n]*/g, "\u2014");
+    src = src.replace(/[^\S\n]*--[^\S\n]*/g, "\u2014");
+
+    src = src.replace(/\s*\u2014+\s*/g, (match, offset, str) => {
+      const before = str.slice(0, offset);
+      const after = str.slice(offset + match.length);
+      const prev = before.replace(/\s+$/, "").slice(-1);
+      const next = after.replace(/^\s+/, "");
+      const nextChar = next.charAt(0);
+      if (!nextChar) return prev && !/[.!?)]/.test(prev) ? "." : "";
+      if (!prev) return "";
+      if (questionDashInsideParens(before)) return ", ";
+      if (/[,:;]/.test(prev)) return " ";
+      if (/[.!?]/.test(prev)) return " ";
+      // Mid-sentence "word—word" → comma (questions often continue after the dash).
+      if (/[a-z]/.test(nextChar)) return ", ";
+      return ". ";
+    });
+
+    src = src.replace(/\.(\s+)([a-z])/g, (full, ws, ch) => `.${ws}${ch.toUpperCase()}`);
+    return src.replace(/\s+/g, " ").trim();
   }
 
   function keepCraftingUserInstruction({ tighter = false } = {}) {
@@ -540,15 +594,17 @@
     const stripped = stripFences(text);
     try {
       const obj = JSON.parse(stripped);
+      const next = obj.next_question == null ? null : sanitizeAiQuestion(String(obj.next_question));
       return {
-        next_question: obj.next_question || null,
+        next_question: next || null,
         stitched_title: obj.stitched_title || null,
         stitched_body: obj.stitched_body || null,
         done: !!obj.done,
       };
     } catch {
+      const fallback = sanitizeAiQuestion(stripped.slice(0, 240));
       return {
-        next_question: stripped.slice(0, 240),
+        next_question: fallback || null,
         stitched_title: null,
         stitched_body: null,
         done: false,
@@ -563,7 +619,8 @@
       const questions = Array.isArray(obj.questions)
         ? obj.questions
             .filter((q) => typeof q === "string" && q.trim())
-            .map((q) => q.trim())
+            .map((q) => sanitizeAiQuestion(q))
+            .filter(Boolean)
             .slice(0, 5)
         : [];
       return { questions };
@@ -811,6 +868,7 @@
     fallbackKeepCraftingQuestion,
     fallbackPersonKeepCraftingQuestion,
     normalizeKeepCraftingQuestion,
+    sanitizeAiQuestion,
     keepCraftingUserInstruction,
     personKeepCraftingUserInstruction,
     fallbackOutreachSubject,
