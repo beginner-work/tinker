@@ -13,6 +13,8 @@ const LEDE =
   "Enter your phone number and we'll text you a six-digit code. New numbers create an account.";
 const FINEPRINT =
   "Sign-up and login use the same screen. First-time users get an account created automatically when they verify.";
+const CODE_EXPIRED = "Your code expired. Request a new one.";
+const CLOSE_LABEL = "Close, save and return to feed";
 
 function stripCommentsAndScripts(html) {
   return html
@@ -49,4 +51,23 @@ test("sign-in auth-gate visible copy has no em dash", () => {
     false,
     "auth-gate user-visible markup must not contain an em dash",
   );
+});
+
+test("auth and writing close use owner-approved copy without em dashes", () => {
+  const html = fs.readFileSync(path.join(RENDERER, "index.html"), "utf8");
+  const auth = fs.readFileSync(path.join(RENDERER, "auth.js"), "utf8");
+  assert.ok(auth.includes(CODE_EXPIRED), "auth.js must use the exact expired-code status");
+  assert.ok(
+    !auth.includes("Session expired — request a new code."),
+    "old session-expired status must be gone",
+  );
+  assert.ok(
+    html.includes(`aria-label="${CLOSE_LABEL}"`),
+    "writing-close must use the exact aria-label",
+  );
+  assert.ok(
+    !html.includes("Close — save and return to feed"),
+    "old writing-close aria-label must be gone",
+  );
+  assert.ok(!CODE_EXPIRED.includes("—") && !CLOSE_LABEL.includes("—"));
 });
