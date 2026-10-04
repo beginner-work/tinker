@@ -4212,6 +4212,23 @@ html.auth-gating, html.auth-gating body { overflow: hidden; }
   text-align: center;
 }
 
+.auth-gate__made-by {
+  margin: 16px 0 0;
+  text-align: center;
+}
+
+.auth-gate__made-by-link {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.auth-gate__made-by-link:hover {
+  color: var(--color-foreground);
+  text-decoration: underline;
+}
+
 @media (min-width: 540px) {
   .auth-gate { align-items: center; }
   .auth-gate__inner {
