@@ -104,8 +104,6 @@
     fileType: document.getElementById("repo-file-type"),
     filePlace: document.getElementById("repo-file-place"),
     syncHint: document.getElementById("repo-sync-hint"),
-    downloadOne: document.getElementById("repo-download-one"),
-    downloadAll: document.getElementById("repo-download-all"),
     signin: document.getElementById("repo-signin"),
     account: document.getElementById("repo-account"),
     accountLabel: document.getElementById("repo-account-label"),
@@ -2641,7 +2639,6 @@
         els.fileType.hidden = true;
         text(els.fileType, "");
       }
-      if (els.downloadOne) els.downloadOne.hidden = true;
       return;
     }
     if (!padHasFocus()) {
@@ -2651,17 +2648,6 @@
     if (els.fileType) {
       els.fileType.hidden = false;
       text(els.fileType, "Type: " + core.contentTypeLabel(story.contentType || core.DEFAULT_CONTENT_TYPE));
-    }
-    if (els.downloadOne) els.downloadOne.hidden = isDesktopShell();
-  }
-
-  function renderDownloads() {
-    var web = !isDesktopShell();
-    if (els.downloadAll) {
-      els.downloadAll.hidden = !(web && state.stories.length);
-    }
-    if (els.downloadOne) {
-      els.downloadOne.hidden = !(web && selectedStory() && !selectedStory().isNew);
     }
   }
 
@@ -2691,7 +2677,6 @@
       renderCenter();
       renderPlace();
       renderFollowup();
-      renderDownloads();
       renderSyncHint();
       setPadActionsVisible(state.padActionsVisible && !!padBody().trim());
     }
@@ -2715,35 +2700,6 @@
     }
     var fileId = readQueryParam("file");
     if (fileId) selectStory(fileId);
-  }
-
-  function triggerDownload(filename, blob) {
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.parentNode.removeChild(a);
-    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-  }
-
-  function downloadOne() {
-    var story = selectedStory();
-    if (!story || story.isNew) return;
-    var blob = new Blob([story.markdown], { type: "text/markdown;charset=utf-8" });
-    triggerDownload(story.fileName, blob);
-  }
-
-  function downloadAll() {
-    if (!state.stories.length) return;
-    var files = state.stories.map(function (s) {
-      return { name: s.relPath, text: s.markdown };
-    });
-    var bytes = md.buildZip(files);
-    var blob = new Blob([bytes], { type: "application/zip" });
-    triggerDownload("stories.zip", blob);
   }
 
   function syncStoriesToDisk() {
@@ -3022,8 +2978,6 @@
       }
     });
   }
-  if (els.downloadOne) els.downloadOne.addEventListener("click", downloadOne);
-  if (els.downloadAll) els.downloadAll.addEventListener("click", downloadAll);
   if (els.moveCancel) els.moveCancel.addEventListener("click", closeMoveSheet);
   if (els.moveBackdrop) els.moveBackdrop.addEventListener("click", closeMoveSheet);
   if (els.confirmCancel) els.confirmCancel.addEventListener("click", closeConfirmSheet);

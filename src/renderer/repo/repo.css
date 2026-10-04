@@ -211,20 +211,24 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 /* Location = floating island over the writing surface (globe + place field).
- * Centered on the pad column (not the full page / sidebar). Disk/cloud
- * storage lives on Files as Saved in (same option styles). */
+ * Centered horizontally in the editor column (not the full page / sidebar).
+ * Safe-area top so it clears the iPhone notch when the auth header is gone. */
 .repo-location {
   position: sticky;
-  top: 12px;
+  top: calc(12px + env(safe-area-inset-top, 0px));
   left: auto;
   right: auto;
   z-index: 12;
   align-self: center;
-  margin: 0 auto 8px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 0;
+  margin-bottom: 8px;
   transform: none;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   width: min(280px, calc(100% - 32px));
   pointer-events: none;
 }
@@ -1276,7 +1280,8 @@ body.repo-page--write .repo-center {
   flex-direction: column;
   overflow: visible;
   background: transparent;
-  padding: 12px 24px 96px;
+  /* No auth header — clear the notch / status bar; location sits in this pad. */
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 24px 96px;
   /* Room for fixed action island: floor gap + pill (~52px) + breathing room. */
   padding-bottom: calc(
     var(--repo-foot-floor, max(48px, 8vh)) + 72px + env(safe-area-inset-bottom, 0px)
@@ -1713,10 +1718,12 @@ body.repo-page--write .repo-center {
   }
 
   .repo-location {
-    top: 10px;
+    top: calc(10px + env(safe-area-inset-top, 0px));
     left: auto;
     right: auto;
     align-self: center;
+    margin-left: auto;
+    margin-right: auto;
     width: min(260px, calc(100% - 24px));
   }
 
@@ -1763,7 +1770,7 @@ body.repo-page--write .repo-center {
   }
 
   .repo-surface.writing {
-    padding: 8px 12px 88px;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 88px;
     /* Room for fixed action island + home indicator + open keyboard. */
     padding-bottom: calc(
       96px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
@@ -1874,10 +1881,12 @@ body.repo-page--write .repo-center {
 /* Narrow phone (e.g. 390px): keep the island centered and clear of pad text. */
 @media (max-width: 430px) {
   .repo-location {
-    top: 8px;
+    top: calc(8px + env(safe-area-inset-top, 0px));
     left: auto;
     right: auto;
     align-self: center;
+    margin-left: auto;
+    margin-right: auto;
     width: min(240px, calc(100% - 20px));
   }
 
@@ -1893,7 +1902,7 @@ body.repo-page--write .repo-center {
   }
 
   .repo-surface.writing {
-    padding: 6px 10px 84px;
+    padding: calc(6px + env(safe-area-inset-top, 0px)) 10px 84px;
     padding-bottom: calc(
       96px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
     );
