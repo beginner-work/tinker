@@ -210,6 +210,10 @@ function bootRepoPage(options) {
     "repo-sync-hint",
     "repo-download-one",
     "repo-download-all",
+    "repo-signin",
+    "repo-account",
+    "repo-account-label",
+    "repo-signout",
     "repo-saved-in-list",
     "repo-saved-in-custom",
     "repo-saved-in-input",
@@ -281,6 +285,16 @@ function bootRepoPage(options) {
   byId["repo-download-one"].hidden = true;
   byId["repo-download-all"].tagName = "BUTTON";
   byId["repo-download-all"].hidden = true;
+  byId["repo-signin"].tagName = "A";
+  byId["repo-signin"].textContent = "Sign in";
+  byId["repo-signin"].href = "/?signin=1";
+  byId["repo-signin"].hidden = false;
+  byId["repo-account"].tagName = "DIV";
+  byId["repo-account"].hidden = true;
+  byId["repo-account-label"].tagName = "SPAN";
+  byId["repo-account-label"].textContent = "Signed in";
+  byId["repo-signout"].tagName = "BUTTON";
+  byId["repo-signout"].textContent = "Sign out";
   byId["repo-new-folder"].tagName = "BUTTON";
   byId["repo-new-piece"].tagName = "BUTTON";
   byId["repo-sidebar-new-piece"].tagName = "BUTTON";
@@ -307,6 +321,7 @@ function bootRepoPage(options) {
   const session = new Map();
   if (opts.storedLocation) storage.set("tinker.repo.location.v1", opts.storedLocation);
   if (opts.token) storage.set("tinker_jwt", opts.token);
+  if (opts.phone) storage.set("tinker_phone", opts.phone);
   if (opts.sessionDraft) session.set("tinker.repo.padDraft.v1", opts.sessionDraft);
 
   const reflections = opts.reflections || [
@@ -377,8 +392,9 @@ function bootRepoPage(options) {
       },
     },
     location: {
+      pathname: opts.pathname || (opts.mode === "files" ? "/repo/files" : "/repo"),
       search: opts.search || "",
-      href: opts.href || "/repo",
+      href: opts.href || (opts.mode === "files" ? "/repo/files" : "/repo"),
       assign(url) { assigned.push(String(url)); },
       replace(url) { assigned.push(String(url)); },
     },
@@ -661,7 +677,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=15/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=16/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -686,6 +702,11 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   const headerHtml = (html.match(/<header[\s\S]*?<\/header>/) || [""])[0];
   assert.doesNotMatch(headerHtml, /id="repo-location"/);
   assert.doesNotMatch(headerHtml, /repo-location__globe/);
+  assert.match(headerHtml, /id="repo-signin"/);
+  assert.match(headerHtml, /href="\/\?signin=1"/);
+  assert.match(headerHtml, />Sign in</);
+  assert.match(headerHtml, /id="repo-account"/);
+  assert.match(headerHtml, /id="repo-signout"/);
   // Desktop structure sidebar restored on write; Saved in stays on Files.
   assert.match(html, /id="repo-tree"/);
   assert.match(html, /id="repo-new-folder"/);
@@ -693,15 +714,15 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=15"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=15"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=15"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=15"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=15"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=15"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=15"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=15"/);
-  assert.match(html, /href="\/styles\.css\?v=15"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=16"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=16"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=16"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=16"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=16"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=16"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=16"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=16"/);
+  assert.match(html, /href="\/styles\.css\?v=16"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -742,6 +763,10 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(filesHtml, />New file</);
   assert.match(filesHtml, /href="\/repo"/);
   assert.match(filesHtml, />Pad</);
+  assert.match(filesHtml, /id="repo-signin"/);
+  assert.match(filesHtml, /href="\/\?signin=1"/);
+  assert.match(filesHtml, />Sign in</);
+  assert.match(filesHtml, /id="repo-account"/);
   assert.match(filesHtml, /id="repo-move-sheet"/);
   assert.match(filesHtml, /id="repo-saved-in-list"/);
   assert.match(filesHtml, /id="repo-saved-in-custom"/);
@@ -788,6 +813,15 @@ test("repo routes, desktop landing, and auth return include /repo", () => {
   assert.match(css, /\.repo-location/);
   const auth = fs.readFileSync(path.join(root, "src/renderer/auth.js"), "utf8");
   assert.match(auth, /\/repo/);
+  assert.match(auth, /\/repo\/files/);
+  assert.match(auth, /Sign in or sign up/);
+  const indexHtml = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
+  assert.match(indexHtml, /id="auth-gate"/);
+  assert.match(indexHtml, /Sign in or sign up/);
+  assert.match(indexHtml, /New numbers create an account/);
+  assert.match(indexHtml, /Sign-up and login share this screen/);
+  assert.match(css, /\.repo-top__nav--signin/);
+  assert.match(css, /\.repo-top__account/);
 });
 
 test("repo loads reflections into stories/ file names with verbatim markdown", async () => {
@@ -1338,6 +1372,57 @@ test("This is everything persists inline questions with the essay", async () => 
   assert.equal(puts.length, 1);
   assert.match(puts[0][0].body, /A quiet note about learning\./);
   assert.match(puts[0][0].body, /> What are you noticing about this\?/);
+});
+
+test("signed-out /repo top bar shows Sign in; signed-in shows account", async () => {
+  const signedOut = bootRepoPage({ desktop: true, mode: "write" });
+  await signedOut.flush();
+  assert.equal(signedOut.byId["repo-signin"].hidden, false);
+  assert.equal(signedOut.byId["repo-account"].hidden, true);
+  signedOut.click("repo-signin");
+  assert.deepEqual(signedOut.assigned, ["/?signin=1"]);
+  assert.equal(signedOut.session.get("tinker_mcp_return"), "/repo");
+
+  const signedIn = bootRepoPage({
+    token: "jwt-test",
+    phone: "5551234567",
+    desktop: true,
+    mode: "write",
+  });
+  await signedIn.flush();
+  assert.equal(signedIn.byId["repo-signin"].hidden, true);
+  assert.equal(signedIn.byId["repo-account"].hidden, false);
+  assert.match(signedIn.byId["repo-account-label"].textContent, /4567/);
+});
+
+test("signed-out Files Sign in returns to /repo/files", async () => {
+  const env = bootRepoPage({ desktop: true, mode: "files" });
+  await env.flush();
+  assert.equal(env.byId["repo-signin"].hidden, false);
+  env.click("repo-signin");
+  assert.deepEqual(env.assigned, ["/?signin=1"]);
+  assert.equal(env.session.get("tinker_mcp_return"), "/repo/files");
+});
+
+test("savePad signed-out prompts Sign in without writing essays", async () => {
+  let puts = 0;
+  const env = bootRepoPage({
+    desktop: true,
+    mode: "write",
+    onPutEssays() { puts += 1; },
+  });
+  await env.flush();
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "Unsigned draft that should not save.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.savePad();
+  assert.equal(puts, 0);
+  assert.equal(env.byId["repo-pad-error"].hidden, false);
+  assert.match(env.byId["repo-pad-error-text"].textContent, /Sign in to save/);
+  assert.equal(env.byId["repo-pad-error-signin"].hidden, false);
 });
 
 test("Keep crafting signed-out shows Sign in and starts auth return to /repo", async () => {

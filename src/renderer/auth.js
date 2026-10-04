@@ -72,7 +72,8 @@
     if (value.includes("\n") || value.includes("\r")) return "";
     const path = value.split("?")[0];
     if (path.includes(":")) return "";
-    if (path !== "/mcp/authorize" && path !== "/mcp/access" && path !== "/autonomy" && path !== "/career" && path !== "/leads" && path !== "/settings" && path !== "/feed" && path !== "/repo") return "";
+    // /repo and /repo/files (plus query) are valid returns from the writing pad.
+    if (path !== "/mcp/authorize" && path !== "/mcp/access" && path !== "/autonomy" && path !== "/career" && path !== "/leads" && path !== "/settings" && path !== "/feed" && path !== "/repo" && path !== "/repo/files") return "";
     return value;
   }
 
@@ -155,8 +156,8 @@
       pinForm.hidden = true;
       phoneForm.hidden = false;
       backBtn.hidden = true;
-      titleEl.textContent = "Sign in to tinker";
-      ledeEl.textContent = "Enter your phone — we'll text you a six-digit code.";
+      titleEl.textContent = "Sign in or sign up";
+      ledeEl.textContent = "Enter your phone — we'll text a six-digit code. New numbers create an account.";
       setTimeout(() => phoneInput.focus(), 0);
     }
   }

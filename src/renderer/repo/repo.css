@@ -86,6 +86,37 @@ html.tinker-desktop .repo-top [role="button"] {
   border-color: var(--color-accent);
 }
 
+.repo-top__nav--signin {
+  color: var(--color-foreground);
+  border-color: var(--color-foreground);
+  background: var(--color-background);
+}
+
+.repo-top__nav--signin:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+.repo-top__account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.repo-top__account[hidden] {
+  display: none !important;
+}
+
+.repo-top__account-label {
+  font-size: 12px;
+  color: var(--color-muted);
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .repo-top__name {
   margin: 0;
   font-family: var(--font-display);
