@@ -229,3 +229,140 @@ model EssayFeedAudioCache {
   @@index([userId])
 }
 
+// First-party product analytics. Never stores draft text, titles, or
+// keystroke contents — only event names, ids, lengths/buckets, and
+// first-touch attribution (utm_*/ref/referrer host).
+model AnalyticsEvent {
+  id           String   @id @default(cuid())
+  name         String
+  ts           DateTime
+  receivedAt   DateTime @default(now())
+  anonymousId  String
+  userId       String   @default("")
+  sessionId    String
+  deviceType   String   @default("desktop")
+  viewportW    Int      @default(0)
+  viewportH    Int      @default(0)
+  path         String   @default("/")
+  appVersion   String   @default("")
+  utmSource    String   @default("")
+  utmMedium    String   @default("")
+  utmCampaign  String   @default("")
+  utmContent   String   @default("")
+  ref          String   @default("")
+  referrerHost String   @default("")
+  props        Json     @default("{}")
+
+  @@index([name, ts])
+  @@index([ts])
+  @@index([anonymousId, ts])
+  @@index([userId, ts])
+  @@index([sessionId])
+}
+
+// Maps anonymous browser ids to signed-in users and locks first-touch
+// attribution so a utm-tagged landing survives through signup.
+model AnalyticsIdentity {
+  anonymousId  String   @id
+  userId       String   @default("")
+  utmSource    String   @default("")
+  utmMedium    String   @default("")
+  utmCampaign  String   @default("")
+  utmContent   String   @default("")
+  ref          String   @default("")
+  referrerHost String   @default("")
+  firstSeenAt  DateTime @default(now())
+  linkedAt     DateTime?
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Compact keystroke chunks. packed is [[ms, cat, count?], ...] — never
+// key values or text. Raw rows kept ~90 days, then rolled into
+// AnalyticsWritingSession aggregates.
+model AnalyticsKeystrokeChunk {
+  id          String   @id @default(cuid())
+  sessionId   String
+  anonymousId String
+  userId      String   @default("")
+  startedAt   DateTime
+  chunkIndex  Int      @default(0)
+  packed      Json
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId, chunkIndex])
+  @@index([createdAt])
+  @@index([anonymousId])
+}
+
+// Per writing-session aggregates derived from keystroke chunks + CTA
+// events. Survives after raw chunks are purged at 90 days.
+model AnalyticsWritingSession {
+  sessionId              String   @id
+  anonymousId            String
+  userId                 String   @default("")
+  startedAt              DateTime
+  endedAt                DateTime?
+  keyCount               Int      @default(0)
+  keysPerMinute          Float    @default(0)
+  activeTypingMs         Int      @default(0)
+  pausesOver2s           Int      @default(0)
+  pausesOver10s          Int      @default(0)
+  burstCount             Int      @default(0)
+  avgBurstLength         Float    @default(0)
+  backspaceDeleteRatio   Float    @default(0)
+  pasteCount             Int      @default(0)
+  cutCount               Int      @default(0)
+  timeToFirstWordMs      Int?
+  timeFirstWordToDoneMs  Int?
+  timeline               Json     @default("[]")
+  contextTag             String   @default("")
+  rolledUpAt             DateTime?
+  updatedAt              DateTime @updatedAt
+
+  @@index([userId])
+  @@index([startedAt])
+  @@index([anonymousId])
+  @@index([userId, contextTag])
+}
+
+// Owner-only full edit log for "How I write" analysis.
+// Only rows for METRICS_OWNER_ALLOWLIST user ids. ops may contain text.
+// Never written for other accounts; never sent to Vercel.
+model AnalyticsOwnerEditChunk {
+  id          String   @id @default(cuid())
+  sessionId   String
+  userId      String
+  anonymousId String   @default("")
+  startedAt   DateTime
+  chunkIndex  Int      @default(0)
+  ops         Json
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId, chunkIndex])
+  @@index([userId, startedAt])
+}
+
+// Surface / prompt attribution events (ids + variants only — no copy).
+model AnalyticsSurfaceEvent {
+  id          String   @id @default(cuid())
+  sessionId   String
+  anonymousId String   @default("")
+  userId      String   @default("")
+  name        String
+  surfaceId   String   @default("")
+  promptId    String   @default("")
+  variantId   String   @default("")
+  position    String   @default("")
+  ts          DateTime
+  receivedAt  DateTime @default(now())
+  props       Json     @default("{}")
+
+  @@index([sessionId, ts])
+  @@index([userId, ts])
+  @@index([name, ts])
+  @@index([promptId, variantId])
+  @@index([surfaceId])
+}
+

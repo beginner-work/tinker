@@ -1,0 +1,217 @@
+/* /metrics — owner analytics, matches settings/feed quiet chrome. */
+
+html, body.metrics-page {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: auto;
+  display: block;
+  background: var(--color-background, #fffdf7);
+  color: var(--color-foreground, #2d2a26);
+  font-family: var(--font-sans, "Instrument Sans", system-ui, sans-serif);
+}
+
+.metrics {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 48px 20px 96px;
+}
+
+.metrics__back {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: var(--color-muted);
+  text-decoration: none;
+  font-size: 14px;
+}
+.metrics__back:hover { color: var(--color-foreground); }
+
+.metrics__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.metrics__lede {
+  margin: 8px 0 20px;
+  color: var(--color-muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.metrics__status {
+  min-height: 1.25em;
+  margin: 0 0 16px;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.metrics__range {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+.metrics__range-btn {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: var(--radius-button, 10px);
+  cursor: pointer;
+}
+.metrics__range-btn.is-active {
+  color: var(--color-foreground);
+  border-color: var(--color-foreground);
+}
+
+.metrics__section {
+  margin: 0 0 40px;
+}
+
+.metrics__section-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.metrics__subhead {
+  margin: 20px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.metrics__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 640px) {
+  .metrics__grid { grid-template-columns: 1fr; }
+}
+
+.metrics__stat {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.metrics__muted {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.metrics__funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metrics__funnel-row {
+  display: grid;
+  grid-template-columns: 11rem 1fr 4rem;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .metrics__funnel-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+.metrics__bar {
+  height: 10px;
+  background: var(--color-cream, #f5f3ef);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.metrics__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--color-foreground);
+  opacity: 0.55;
+  min-width: 0;
+}
+
+.metrics__table-wrap {
+  overflow-x: auto;
+}
+
+.metrics__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.metrics__table th,
+.metrics__table td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.metrics__table th {
+  color: var(--color-muted);
+  font-weight: 500;
+}
+.metrics__table button {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--color-foreground);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+.metrics__filter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.metrics__filter input {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button, 10px);
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.metrics__timeline {
+  position: relative;
+  height: 120px;
+  margin-top: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-cream, #f5f3ef);
+  overflow: hidden;
+}
+.metrics__timeline svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.metrics__campaigns {
+  margin: 4px 0 0;
+  padding: 0 0 0 1rem;
+  color: var(--color-muted);
+  font-size: 12px;
+}

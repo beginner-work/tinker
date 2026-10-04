@@ -54,6 +54,7 @@ const jobApplications = require("./_lib/job-application-store.js");
 const personPrep = require("./_lib/person-prep.js");
 const inboxRank = require("./_lib/inbox-rank.js");
 const prisma = require("./_lib/db.js");
+const analytics = require("./_lib/analytics.js");
 const pkg = require("../package.json");
 const MCP_BOT_ACTOR = { kind: "bot", label: "bot:mcp" };
 const OWNER_PROFILE_UNAVAILABLE = "Owner profile is unavailable right now.";
@@ -133,6 +134,11 @@ const INSTRUCTIONS = [
   "Reading notepad notes use the same merge-safe ### __done__ contract as lead notes. Do not seed books in app code; create them with create_reading_thread after deploy.",
   "Call update_owner_profile to set optional title and/or linkedInUrl on this connector user's own profile.",
   "Omitted fields are left unchanged. Pass an empty string to clear a field. A user id in args is ignored.",
+  "Call get_writing_metrics with optional range (7d|30d|90d|12w) for numbers-only writing behavior:",
+  "weekly flow minutes, longest stretch, time to first word, pace, pause share, revision ratio, words kept,",
+  "Keep crafting rounds, flow stretches (start/end/what ended them), surface and prompt-variant rankings",
+  "(starts flow vs breaks flow), hour-of-day and day-of-week flow, and stats by context tag. Never returns draft text.",
+  "Call list_writing_sessions for a compact session list (day, tag, numbers). Call tag_writing_session to set a short context tag.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -1380,6 +1386,79 @@ const MARK_OUTREACH_FAILED_TOOL = {
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
 
+const GET_WRITING_METRICS_TOOL = {
+  name: "get_writing_metrics",
+  title: "Get writing metrics",
+  description: [
+    "Numbers-only writing behavior for this connector user (Lindow Labs / Beacon / Ledger / Forge).",
+    "Returns weekly trends (flow minutes, longest stretch, time to first word, pace, pause share,",
+    "revision ratio, words kept, Keep crafting rounds), flow stretches with start/end/what ended them,",
+    "surface and prompt-variant rankings (starts flow vs breaks flow), hour-of-day and day-of-week flow,",
+    "and stats grouped by context tag. Never returns draft text or session prose.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    properties: {
+      range: {
+        type: "string",
+        description: "Optional window: 7d, 30d, 90d, or 12w (default).",
+      },
+    },
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const LIST_WRITING_SESSIONS_TOOL = {
+  name: "list_writing_sessions",
+  title: "List writing sessions",
+  description: [
+    "List recent writing sessions for this connector user with numbers only:",
+    "started day, context tag, flow minutes, time to first word, pace, pause share,",
+    "revision ratio, words kept, Keep crafting rounds. No draft text.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    properties: {
+      range: {
+        type: "string",
+        description: "Optional window: 7d, 30d, 90d, or 12w (default).",
+      },
+      limit: {
+        type: "number",
+        description: "Max sessions to return (1–100, default 40).",
+      },
+    },
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const TAG_WRITING_SESSION_TOOL = {
+  name: "tag_writing_session",
+  title: "Tag writing session",
+  description: [
+    "Set a short context tag on one of this user's writing sessions (e.g. morning, pitch, lead-notes).",
+    "Tags group get_writing_metrics stats. Never stores draft text.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    properties: {
+      sessionId: {
+        type: "string",
+        description: "Writing session id from list_writing_sessions.",
+      },
+      contextTag: {
+        type: "string",
+        description: "Short tag (max 64 chars). Empty string clears the tag.",
+      },
+    },
+    required: ["sessionId"],
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
 const TOOLS = [
   ASK_FOLLOWUPS_TOOL,
   DRAFT_LINKEDIN_TOOL,
@@ -1422,6 +1501,9 @@ const TOOLS = [
   LIST_APPROVED_OUTREACH_TOOL,
   MARK_OUTREACH_SENT_TOOL,
   MARK_OUTREACH_FAILED_TOOL,
+  GET_WRITING_METRICS_TOOL,
+  LIST_WRITING_SESSIONS_TOOL,
+  TAG_WRITING_SESSION_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -2613,6 +2695,49 @@ async function markOutreachFailedCall(msg, user, args) {
   }
 }
 
+async function getWritingMetricsCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const range = typeof args.range === "string" ? args.range.trim() : "12w";
+    const shaped = await analytics.getWritingMetrics(userId, range);
+    return contentToolOk(msg, shaped);
+  } catch (err) {
+    return planFailure(msg, err, "Writing metrics are unavailable right now.");
+  }
+}
+
+async function listWritingSessionsCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const shaped = await analytics.listWritingSessions(userId, {
+      range: typeof args.range === "string" ? args.range.trim() : "12w",
+      limit: args.limit,
+    });
+    return contentToolOk(msg, shaped);
+  } catch (err) {
+    return planFailure(msg, err, "Writing sessions are unavailable right now.");
+  }
+}
+
+async function tagWritingSessionCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const sessionId = typeof args.sessionId === "string" ? args.sessionId.trim() : "";
+    if (!sessionId) {
+      return {
+        status: 200,
+        headers: NO_STORE,
+        body: rpcOk(msg.id, toolError("sessionId is required.")),
+      };
+    }
+    const contextTag = typeof args.contextTag === "string" ? args.contextTag : "";
+    const shaped = await analytics.tagWritingSession(userId, sessionId, contextTag);
+    return contentToolOk(msg, shaped);
+  } catch (err) {
+    return planFailure(msg, err, "Could not tag that writing session.");
+  }
+}
+
 async function handleRpc(msg, user) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
@@ -2698,6 +2823,9 @@ async function handleRpc(msg, user) {
       && name !== "list_approved_outreach"
       && name !== "mark_outreach_sent"
       && name !== "mark_outreach_failed"
+      && name !== "get_writing_metrics"
+      && name !== "list_writing_sessions"
+      && name !== "tag_writing_session"
     ) {
       return {
         status: 200,
@@ -2820,6 +2948,15 @@ async function handleRpc(msg, user) {
     }
     if (name === "mark_outreach_failed") {
       return markOutreachFailedCall(msg, user, args);
+    }
+    if (name === "get_writing_metrics") {
+      return getWritingMetricsCall(msg, user, args);
+    }
+    if (name === "list_writing_sessions") {
+      return listWritingSessionsCall(msg, user, args);
+    }
+    if (name === "tag_writing_session") {
+      return tagWritingSessionCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {

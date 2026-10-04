@@ -184,6 +184,14 @@
          user who signs in on iOS Safari stays signed in after they
          Add to Home Screen. Must run before auth.js. -->
     <script src="./pwa-session.js" defer></script>
+    <!-- First-party analytics (events + keystrokes). Before auth so the
+         gate can emit signin_gate_shown. Never records draft text. -->
+    <script src="./lib/analytics-keystrokes.js?v=2" defer></script>
+    <script src="./lib/analytics-owner-edit.js?v=1" defer></script>
+    <script src="./lib/analytics-core.js?v=2" defer></script>
+    <script src="./analytics.js?v=2" defer></script>
+    <!-- Vercel Web Analytics: page views only (Hobby). No custom events. -->
+    <script src="./vercel-analytics.js?v=1" defer></script>
     <!-- No AI mode (freewrite.js): install the /api/* network gate before
          sync.js (or anything else) can phone home, so a load taken offline
          stays grounded. Auto-detects connectivity via navigator.onLine. -->
@@ -585,6 +593,10 @@
         <button type="button" id="auth-back" class="auth-gate__link" hidden>← Use a different number</button>
 
         <p class="auth-gate__fineprint">
+          Tinker measures how you write, like pace and pauses, never the words.
+        </p>
+
+        <p class="auth-gate__fineprint">
           Sign-up and login share this screen — first-time users get an
           account created automatically when they verify.
         </p>
@@ -831,7 +843,7 @@
     <script src="./mobile-drawer.js" defer></script>
     <!-- Offline app shell: registers versioned sw.js so a refresh (and a
          cold launch of the installed app) still loads with no connection. -->
-    <script src="./pwa-offline.js?v=49" defer></script>
+    <script src="./pwa-offline.js?v=51" defer></script>
     <!-- After the critical defer list: inject secondary modules post-paint. -->
     <script src="./boot-lazy.js" defer></script>
   </body>

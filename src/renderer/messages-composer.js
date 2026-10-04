@@ -530,6 +530,13 @@
   function saveNotes(mode) {
     if (state.saving || state.asking || !state.leadId || state.done) return;
     state.saving = true;
+    try {
+      if (window.tinkerAnalytics) {
+        if (mode === "done" && typeof window.tinkerAnalytics.thisIsEverything === "function") {
+          window.tinkerAnalytics.thisIsEverything();
+        }
+      }
+    } catch (e) { /* ignore */ }
     var np = notepad();
     if (np) {
       np.setPrimaryEnabled(false);
@@ -562,6 +569,11 @@
         if (state.leadId === doneLeadId) mountNotepad();
         return null;
       }
+      try {
+        if (window.tinkerAnalytics && typeof window.tinkerAnalytics.saveSucceeded === "function") {
+          window.tinkerAnalytics.saveSucceeded();
+        }
+      } catch (e) { /* ignore */ }
       // Create or refresh a tinker_answer draft from typed words only. Server
       // refuses to overwrite Clair/hand-edited drafts (unknown origin).
       return writeAnswerOnlyDraft({
@@ -570,6 +582,11 @@
         force: true,
       });
     }).catch(function () {
+      try {
+        if (window.tinkerAnalytics && typeof window.tinkerAnalytics.saveFailed === "function") {
+          window.tinkerAnalytics.saveFailed("notes_persist");
+        }
+      } catch (e) { /* ignore */ }
       // Notes persist failed - stay done in-memory so we do not wipe the marker
       // via a non-done re-serialize; owner can reload if the server write missed.
       if (state.leadId === doneLeadId) mountNotepad();
@@ -710,6 +727,11 @@
       showNudge("Type an answer first. Keep crafting asks the next question from what you wrote.");
       return;
     }
+    try {
+      if (window.tinkerAnalytics && typeof window.tinkerAnalytics.keepCrafting === "function") {
+        window.tinkerAnalytics.keepCrafting();
+      }
+    } catch (e) { /* ignore */ }
     state.asking = true;
     if (np) {
       np.setPrimaryEnabled(false);

@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "notes": "Beacon can add more wording variants later. Ship current copy as variant A. Rotate randomly per showing.",
+  "prompts": {
+    "interview.next_question": {
+      "id": "interview.next_question",
+      "label": "Interview follow-up question",
+      "variants": [
+        {
+          "id": "A",
+          "source": "model",
+          "note": "Current model-generated next_question wording (as shown)."
+        },
+        {
+          "id": "B",
+          "source": "template",
+          "template": "What happened next that made this matter?"
+        },
+        {
+          "id": "C",
+          "source": "template",
+          "template": "Who was with you, and what did they see?"
+        }
+      ]
+    },
+    "interview.first_question": {
+      "id": "interview.first_question",
+      "label": "Opening interview question",
+      "variants": [
+        {
+          "id": "A",
+          "source": "model",
+          "note": "Current model-generated first question."
+        },
+        {
+          "id": "B",
+          "source": "template",
+          "template": "Start with the moment that still won't leave you alone."
+        }
+      ]
+    },
+    "person.keep_crafting": {
+      "id": "person.keep_crafting",
+      "label": "Person-thread Keep crafting question",
+      "variants": [
+        {
+          "id": "A",
+          "source": "model",
+          "note": "Current person-scoped next_question."
+        },
+        {
+          "id": "B",
+          "source": "template",
+          "template": "What's one small thing you already know about them that feels personal?"
+        }
+      ]
+    }
+  },
+  "surfaces": {
+    "btn.keep_crafting": { "id": "btn.keep_crafting", "label": "Keep crafting" },
+    "btn.this_is_everything": { "id": "btn.this_is_everything", "label": "This is everything" },
+    "btn.next": { "id": "btn.next", "label": "Next" },
+    "editor.writing_input": { "id": "editor.writing_input", "label": "Writing textarea" },
+    "editor.repo_pad": { "id": "editor.repo_pad", "label": "Repo writing pad" },
+    "editor.notepad": { "id": "editor.notepad", "label": "Lead notepad" },
+    "nav.stories": { "id": "nav.stories", "label": "Stories /repo" },
+    "nav.write": { "id": "nav.write", "label": "Write surface" }
+  }
+}

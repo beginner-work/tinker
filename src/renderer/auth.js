@@ -67,13 +67,13 @@
     let value = "";
     try { value = sessionStorage.getItem(MCP_RETURN_KEY) || ""; } catch { return ""; }
     try { sessionStorage.removeItem(MCP_RETURN_KEY); } catch { /* ignore */ }
-    if (!value.startsWith("/autonomy") && !value.startsWith("/career") && !value.startsWith("/leads") && !value.startsWith("/settings") && !value.startsWith("/feed") && !value.startsWith("/repo") && !value.startsWith("/mcp/")) return "";
+    if (!value.startsWith("/autonomy") && !value.startsWith("/career") && !value.startsWith("/leads") && !value.startsWith("/settings") && !value.startsWith("/feed") && !value.startsWith("/repo") && !value.startsWith("/metrics") && !value.startsWith("/mcp/")) return "";
     if (value.startsWith("//") || value.includes("\\")) return "";
     if (value.includes("\n") || value.includes("\r")) return "";
     const path = value.split("?")[0];
     if (path.includes(":")) return "";
     // /repo and /repo/files (plus query) are valid returns from the writing pad.
-    if (path !== "/mcp/authorize" && path !== "/mcp/access" && path !== "/autonomy" && path !== "/career" && path !== "/leads" && path !== "/settings" && path !== "/feed" && path !== "/repo" && path !== "/repo/files") return "";
+    if (path !== "/mcp/authorize" && path !== "/mcp/access" && path !== "/autonomy" && path !== "/career" && path !== "/leads" && path !== "/settings" && path !== "/feed" && path !== "/repo" && path !== "/repo/files" && path !== "/metrics" && path !== "/metrics/how-i-write") return "";
     return value;
   }
 
@@ -119,6 +119,11 @@
   function showGate() {
     gate.hidden = false;
     document.documentElement.classList.add("auth-gating");
+    try {
+      if (window.tinkerAnalytics && typeof window.tinkerAnalytics.track === "function") {
+        window.tinkerAnalytics.track("signin_gate_shown");
+      }
+    } catch { /* ignore */ }
     setTimeout(() => phoneInput.focus(), 0);
   }
 
@@ -225,6 +230,8 @@
       const data = await postJson("/api/auth/phone/verify", { phone_id: phoneId, pin });
       auth.token = data.token;
       try { localStorage.removeItem(PHONE_ID_KEY); } catch { /* ignore */ }
+      // analytics.js reads this once on tinker:auth-changed for signup_completed.
+      try { window.__tinkerAuthIsNew = !!data.isNew; } catch { /* ignore */ }
       // Let pwa-session.js fold the fresh JWT into the manifest's
       // start_url so an immediate "Add to Home Screen" carries the
       // session into the standalone PWA.

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How I write (preview)</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/design-tokens.css" />
+  <link rel="stylesheet" href="/metrics/metrics.css?v=2" />
+  <link rel="stylesheet" href="/metrics/how-i-write.css?v=2" />
+</head>
+<body class="metrics-page how-i-write-page">
+  <main class="metrics how-i-write">
+    <a class="metrics__back" href="/metrics">Back to metrics</a>
+    <h1 class="metrics__title">How I write</h1>
+    <p class="metrics__lede">Preview with sample numbers (no live API). Used for walkthrough screenshots.</p>
+    <p id="hiw-status" class="metrics__status" role="status"></p>
+
+    <section class="metrics__section">
+      <h2 class="metrics__section-title">This week vs last month</h2>
+      <p id="hiw-summary" class="how-i-write__summary">You start writing faster, your typing pace is up, and you revise less overall.</p>
+    </section>
+
+    <section class="metrics__section">
+      <h2 class="metrics__section-title">Week-over-week (12 weeks)</h2>
+      <div id="hiw-charts" class="how-i-write__charts"></div>
+    </section>
+
+    <section class="metrics__section">
+      <h2 class="metrics__section-title">Flow timing (America/Los_Angeles)</h2>
+      <div id="hiw-timing" class="how-i-write__timing">
+        <p class="metrics__muted">Timezone: America/Los_Angeles</p>
+        <div class="how-i-write__bars"><h3 class="metrics__subhead">By hour</h3>
+          <ul>
+            <li><span>7:00</span> <strong>42.0 min</strong></li>
+            <li><span>8:00</span> <strong>61.5 min</strong></li>
+            <li><span>9:00</span> <strong>28.0 min</strong></li>
+            <li><span>21:00</span> <strong>18.5 min</strong></li>
+          </ul>
+        </div>
+        <div class="how-i-write__bars"><h3 class="metrics__subhead">By weekday</h3>
+          <ul>
+            <li><span>Mon</span> <strong>55.0 min</strong></li>
+            <li><span>Tue</span> <strong>48.0 min</strong></li>
+            <li><span>Wed</span> <strong>72.5 min</strong></li>
+            <li><span>Thu</span> <strong>40.0 min</strong></li>
+            <li><span>Fri</span> <strong>35.0 min</strong></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="metrics__section">
+      <h2 class="metrics__section-title">What starts vs breaks flow</h2>
+      <div id="hiw-rankings" class="how-i-write__rankings">
+        <div class="how-i-write__rank-grid">
+          <div>
+            <h3 class="metrics__subhead">Surfaces</h3>
+            <table class="metrics__table"><thead><tr><th>Id</th><th>Starts flow</th><th>Breaks flow</th></tr></thead>
+            <tbody>
+              <tr><td>editor.writing_input</td><td>12</td><td>2</td></tr>
+              <tr><td>btn.keep_crafting</td><td>3</td><td>9</td></tr>
+              <tr><td>btn.this_is_everything</td><td>0</td><td>6</td></tr>
+            </tbody></table>
+          </div>
+          <div>
+            <h3 class="metrics__subhead">Prompt variants</h3>
+            <table class="metrics__table"><thead><tr><th>Id</th><th>Starts flow</th><th>Breaks flow</th></tr></thead>
+            <tbody>
+              <tr><td>interview.next_question::B</td><td>8</td><td>1</td></tr>
+              <tr><td>interview.next_question::A</td><td>4</td><td>5</td></tr>
+              <tr><td>person.keep_crafting::A</td><td>2</td><td>3</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="metrics__section">
+      <h2 class="metrics__section-title">By context tag</h2>
+      <div id="hiw-tags">
+        <table class="metrics__table"><thead><tr><th>Tag</th><th>Sessions</th><th>Flow min</th><th>First word</th><th>Revise</th><th>Words</th></tr></thead>
+        <tbody>
+          <tr><td>morning</td><td>6</td><td>88.0</td><td>12.4 s</td><td>18.2%</td><td>420</td></tr>
+          <tr><td>pitch</td><td>3</td><td>41.5</td><td>28.0 s</td><td>31.0%</td><td>310</td></tr>
+          <tr><td>(untagged)</td><td>4</td><td>52.0</td><td>19.5 s</td><td>22.0%</td><td>280</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <section class="metrics__section">
+      <h2 class="metrics__section-title">Sessions</h2>
+      <div class="metrics__table-wrap">
+        <table class="metrics__table">
+          <thead><tr><th>Started</th><th>Tag</th><th>Flow min</th><th>First word</th><th>Pace</th><th>Paused</th><th>Revise</th><th>KC</th><th>Words</th></tr></thead>
+          <tbody>
+            <tr><td>2026-10-03</td><td>morning</td><td>18.5</td><td>9.2 s</td><td>210</td><td>22%</td><td>15%</td><td>2</td><td>480</td></tr>
+            <tr><td>2026-10-02</td><td>pitch</td><td>12.0</td><td>31.0 s</td><td>180</td><td>35%</td><td>28%</td><td>4</td><td>290</td></tr>
+            <tr><td>2026-09-30</td><td>—</td><td>9.5</td><td>14.0 s</td><td>195</td><td>18%</td><td>20%</td><td>1</td><td>310</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script>
+    (function () {
+      var root = document.getElementById("hiw-charts");
+      var series = [
+        ["Flow minutes", [40, 48, 55, 62, 58, 70, 66]],
+        ["Time to first word", [28000, 24000, 21000, 18000, 16000, 14000, 12000]],
+        ["Revision ratio", [0.32, 0.30, 0.28, 0.26, 0.24, 0.22, 0.18]],
+        ["Keep crafting rounds", [3.2, 3.0, 2.8, 2.5, 2.4, 2.2, 2.0]],
+      ];
+      series.forEach(function (pair) {
+        var wrap = document.createElement("div");
+        wrap.className = "how-i-write__chart";
+        var title = document.createElement("p");
+        title.className = "how-i-write__chart-title";
+        title.textContent = pair[0];
+        wrap.appendChild(title);
+        var vals = pair[1];
+        var min = Math.min.apply(null, vals);
+        var max = Math.max.apply(null, vals);
+        if (min === max) { min -= 1; max += 1; }
+        var w = 240, h = 72, pad = 6, pts = [];
+        for (var i = 0; i < vals.length; i++) {
+          var x = pad + (i / (vals.length - 1)) * (w - pad * 2);
+          var y = h - pad - ((vals[i] - min) / (max - min)) * (h - pad * 2);
+          pts.push(x.toFixed(1) + "," + y.toFixed(1));
+        }
+        var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+        var poly = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+        poly.setAttribute("fill", "none");
+        poly.setAttribute("stroke", "currentColor");
+        poly.setAttribute("stroke-width", "2");
+        poly.setAttribute("points", pts.join(" "));
+        svg.appendChild(poly);
+        wrap.appendChild(svg);
+        root.appendChild(wrap);
+      });
+    })();
+  </script>
+</body>
+</html>

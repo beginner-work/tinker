@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
+    <title>How I write</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/metrics/metrics.css?v=2" />
+    <link rel="stylesheet" href="/metrics/how-i-write.css?v=2" />
+  </head>
+  <body class="metrics-page how-i-write-page">
+    <main class="metrics how-i-write">
+      <a class="metrics__back" href="/metrics">Back to metrics</a>
+      <h1 class="metrics__title">How I write</h1>
+      <p class="metrics__lede">Your own sessions only. Built from the owner edit log — no one else’s text is stored.</p>
+      <p id="hiw-status" class="metrics__status" role="status"></p>
+
+      <section class="metrics__section" aria-labelledby="hiw-summary-heading">
+        <h2 id="hiw-summary-heading" class="metrics__section-title">This week vs last month</h2>
+        <p id="hiw-summary" class="how-i-write__summary"></p>
+      </section>
+
+      <section class="metrics__section" aria-labelledby="hiw-trends-heading">
+        <h2 id="hiw-trends-heading" class="metrics__section-title">Week-over-week (12 weeks)</h2>
+        <div id="hiw-charts" class="how-i-write__charts"></div>
+      </section>
+
+      <section class="metrics__section" aria-labelledby="hiw-flow-heading">
+        <h2 id="hiw-flow-heading" class="metrics__section-title">Flow timing (America/Los_Angeles)</h2>
+        <div id="hiw-timing" class="how-i-write__timing"></div>
+      </section>
+
+      <section class="metrics__section" aria-labelledby="hiw-rank-heading">
+        <h2 id="hiw-rank-heading" class="metrics__section-title">What starts vs breaks flow</h2>
+        <div id="hiw-rankings" class="how-i-write__rankings"></div>
+      </section>
+
+      <section class="metrics__section" aria-labelledby="hiw-tags-heading">
+        <h2 id="hiw-tags-heading" class="metrics__section-title">By context tag</h2>
+        <div id="hiw-tags" class="how-i-write__tags"></div>
+      </section>
+
+      <section class="metrics__section" aria-labelledby="hiw-sessions-heading">
+        <h2 id="hiw-sessions-heading" class="metrics__section-title">Sessions</h2>
+        <div id="hiw-sessions" class="metrics__table-wrap"></div>
+      </section>
+
+      <section class="metrics__section" id="hiw-detail-section" hidden>
+        <h2 class="metrics__section-title">Session breakdown</h2>
+        <p id="hiw-detail-label" class="metrics__muted"></p>
+        <div id="hiw-detail"></div>
+      </section>
+    </main>
+    <script src="/metrics/how-i-write.js?v=3" defer></script>
+  </body>
+</html>
