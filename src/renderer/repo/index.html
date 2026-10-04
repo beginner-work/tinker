@@ -12,13 +12,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="/styles.css?v=11" />
+    <link rel="stylesheet" href="/styles.css?v=12" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=11" />
+    <link rel="stylesheet" href="/repo/repo.css?v=12" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
     <header class="repo-top" aria-label="Repository">
-      <a class="repo-top__back" href="/?write=1">Home</a>
       <p class="repo-top__name" id="repo-name">tinker</p>
       <a class="repo-top__nav" id="repo-files-link" href="/repo/files">Files</a>
 
@@ -34,7 +33,7 @@
         <div class="repo-surface writing" id="repo-surface">
           <div class="repo-location" id="repo-location">
             <div class="repo-location__field">
-              <img class="repo-location__globe" src="/icons/tinker-mark.svg?v=11" alt="" width="14" height="14" aria-hidden="true" />
+              <img class="repo-location__globe" src="/icons/tinker-mark.svg?v=12" alt="" width="14" height="14" aria-hidden="true" />
               <span class="visually-hidden" id="repo-location-caption">Location</span>
               <input type="text" class="repo-location__input writing-input" id="repo-location-input" placeholder="Where are you?" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" aria-autocomplete="list" aria-controls="repo-location-panel" aria-expanded="false" aria-labelledby="repo-location-caption" maxlength="120" />
               <button type="button" class="repo-location__btn" id="repo-location-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="repo-location-panel" aria-label="Suggested places">
@@ -47,6 +46,13 @@
           </div>
           <p class="repo-followup" id="repo-followup" hidden></p>
           <textarea class="writing-input repo-surface__input" id="repo-body" spellcheck="true"></textarea>
+          <div class="repo-pad-error" id="repo-pad-error" hidden role="alert">
+            <p class="repo-pad-error__text" id="repo-pad-error-text"></p>
+            <div class="repo-pad-error__actions">
+              <button type="button" class="repo-pad-error__retry" id="repo-pad-error-retry" hidden>Retry</button>
+              <button type="button" class="repo-pad-error__signin" id="repo-pad-error-signin" hidden>Sign in</button>
+            </div>
+          </div>
           <footer class="repo-surface__foot" id="repo-pad-actions" data-thread-actions="1" aria-hidden="true">
             <button type="button" class="repo-surface__action repo-surface__action--secondary" id="repo-keep-crafting" tabindex="-1">Keep crafting</button>
             <button type="button" class="repo-surface__action repo-surface__action--primary" id="repo-this-is-everything" tabindex="-1" disabled>This is everything</button>
@@ -72,14 +78,14 @@
     <span id="repo-location-value" hidden></span>
     <button type="button" id="repo-location-save" hidden>Save</button>
 
-    <script src="/platform-mobile.js?v=11"></script>
-    <script src="/interview-prompt.js?v=11"></script>
-    <script src="/lib/stories-md.js?v=11"></script>
-    <script src="/lib/repo-folders-core.js?v=11"></script>
-    <script src="/lib/storage-path-core.js?v=11"></script>
-    <script src="/lib/fs-access-folder.js?v=11"></script>
-    <script src="/lib/storage-adapters.js?v=11"></script>
-    <script src="/repo/repo.js?v=11"></script>
-    <script src="/repo/storage-section.js?v=11"></script>
+    <script src="/platform-mobile.js?v=12"></script>
+    <script src="/interview-prompt.js?v=12"></script>
+    <script src="/lib/stories-md.js?v=12"></script>
+    <script src="/lib/repo-folders-core.js?v=12"></script>
+    <script src="/lib/storage-path-core.js?v=12"></script>
+    <script src="/lib/fs-access-folder.js?v=12"></script>
+    <script src="/lib/storage-adapters.js?v=12"></script>
+    <script src="/repo/repo.js?v=12"></script>
+    <script src="/repo/storage-section.js?v=12"></script>
   </body>
 </html>
