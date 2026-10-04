@@ -41,6 +41,30 @@ body.repo-page--files {
   background: var(--color-background);
 }
 
+/* Write page: auth-only strip — Sign in / account on the right, no wordmark. */
+.repo-top--auth {
+  justify-content: flex-end;
+  gap: 10px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 8px 16px;
+  border-bottom: 0;
+  background: transparent;
+  min-height: 0;
+}
+
+.repo-top--auth .repo-top__back {
+  margin-right: auto;
+}
+
+.repo-top--auth .repo-top__actions {
+  margin-left: 0;
+}
+
+.repo-top--auth:not(:has(.repo-top__back)):not(:has(.repo-top__actions:not(:empty))) {
+  /* Keep a slim hit area when only Sign in / account is present. */
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  padding-bottom: 4px;
+}
+
 /* Mac desktop: clear traffic lights (same inset as the main shell). */
 html[data-tinker-desktop] .repo-top,
 html.tinker-desktop .repo-top {
@@ -84,6 +108,37 @@ html.tinker-desktop .repo-top [role="button"] {
 
 .repo-top__nav:hover {
   border-color: var(--color-accent);
+}
+
+.repo-top__nav--signin {
+  color: var(--color-foreground);
+  border-color: var(--color-foreground);
+  background: var(--color-background);
+}
+
+.repo-top__nav--signin:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+.repo-top__account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.repo-top__account[hidden] {
+  display: none !important;
+}
+
+.repo-top__account-label {
+  font-size: 12px;
+  color: var(--color-muted);
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .repo-top__name {
@@ -152,13 +207,15 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 /* Location = floating island over the writing surface (globe + place field).
- * Place suggestions open below the island. Disk/cloud storage lives on
- * Files as Saved in (same option styles). */
+ * Centered on the pad column (not the full page / sidebar). Disk/cloud
+ * storage lives on Files as Saved in (same option styles). */
 .repo-location {
   position: sticky;
   top: 12px;
-  left: 50%;
+  left: auto;
+  right: auto;
   z-index: 12;
+  align-self: center;
   margin: 0 auto 8px;
   transform: none;
   display: flex;
@@ -1187,15 +1244,20 @@ body.repo-page--write .repo-center {
   position: relative;
   inset: auto;
   flex: 1;
-  min-height: calc(100vh - 72px);
-  min-height: calc(100dvh - 72px);
+  min-height: calc(100vh - 56px);
+  min-height: calc(100dvh - 56px);
   height: auto;
   display: flex;
   flex-direction: column;
   overflow: visible;
   background: transparent;
   padding: 12px 24px 96px;
+  /* Extra floor so sticky Keep crafting never covers the last line. */
   padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+
+.repo-surface.writing .repo-pad {
+  padding-bottom: 72px;
 }
 
 /* Legacy follow-up slot kept hidden; questions insert into the pad. */
@@ -1293,19 +1355,24 @@ body.repo-page--write .repo-center {
   opacity: 0.9;
 }
 
-/* Keep crafting / This is everything — pinned to the *visual* viewport.
-   Prefer 100dvh/100svh so iOS/Android URL-bar show/hide cannot push the bar
-   below the screen; fall back to 100vh. Lives outside the scrolling pad. */
+/* Keep crafting / This is everything — inside the writing surface, sticky
+   to the bottom-right of the visible pad as the page scrolls. Pad padding
+   keeps the last line clear of the island. dvh/svh + safe-area keep it
+   on-screen on mobile URL-bar show/hide. */
 .repo-surface__foot {
-  position: fixed;
-  right: 16px;
+  position: sticky;
+  align-self: flex-end;
+  margin-left: auto;
+  margin-top: auto;
+  margin-right: 0;
+  margin-bottom: 0;
+  right: 0;
   left: auto;
   z-index: 11;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  margin: 0;
   padding: 6px;
   border: 1px solid var(--color-border);
   border-radius: 999px;
@@ -1317,39 +1384,15 @@ body.repo-page--write .repo-center {
   pointer-events: none;
   transition: opacity 300ms ease, transform 300ms ease;
   -webkit-app-region: no-drag;
-  /* Legacy engines: bottom + safe area. */
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   top: auto;
   transform: translateY(8px);
-}
-
-@supports (height: 100dvh) {
-  .repo-surface__foot {
-    /* Pin with top + dvh so the bar stays inside the dynamic viewport. */
-    bottom: auto;
-    top: calc(100vh - 16px);
-    top: calc(100dvh - 16px - env(safe-area-inset-bottom, 0px));
-    transform: translateY(calc(-100% + 8px));
-  }
-}
-
-@supports (height: 100svh) {
-  .repo-surface__foot {
-    /* svh = small viewport (URL bar visible) — safest floor on mobile. */
-    top: calc(100svh - 16px - env(safe-area-inset-bottom, 0px));
-  }
 }
 
 .repo-surface__foot.is-visible {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
-}
-
-@supports (height: 100dvh) {
-  .repo-surface__foot.is-visible {
-    transform: translateY(-100%);
-  }
 }
 
 .repo-surface__action {
@@ -1600,6 +1643,9 @@ body.repo-page--write .repo-center {
 
   .repo-location {
     top: 10px;
+    left: auto;
+    right: auto;
+    align-self: center;
     width: min(260px, calc(100% - 24px));
   }
 
@@ -1676,21 +1722,8 @@ body.repo-page--write .repo-center {
   }
 
   .repo-surface__foot {
-    right: 12px;
+    right: 0;
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  }
-
-  @supports (height: 100dvh) {
-    .repo-surface__foot {
-      bottom: auto;
-      top: calc(100dvh - 12px - env(safe-area-inset-bottom, 0px));
-    }
-  }
-
-  @supports (height: 100svh) {
-    .repo-surface__foot {
-      top: calc(100svh - 12px - env(safe-area-inset-bottom, 0px));
-    }
   }
 }
 
@@ -1698,6 +1731,9 @@ body.repo-page--write .repo-center {
 @media (max-width: 430px) {
   .repo-location {
     top: 8px;
+    left: auto;
+    right: auto;
+    align-self: center;
     width: min(240px, calc(100% - 20px));
   }
 
@@ -1731,24 +1767,11 @@ body.repo-page--write .repo-center {
   }
 
   .repo-surface__foot {
-    right: 10px;
+    right: 0;
     left: auto;
     bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     gap: 4px;
     padding: 5px;
-  }
-
-  @supports (height: 100dvh) {
-    .repo-surface__foot {
-      bottom: auto;
-      top: calc(100dvh - 10px - env(safe-area-inset-bottom, 0px));
-    }
-  }
-
-  @supports (height: 100svh) {
-    .repo-surface__foot {
-      top: calc(100svh - 10px - env(safe-area-inset-bottom, 0px));
-    }
   }
 
   .repo-surface__action {

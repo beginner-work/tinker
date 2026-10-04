@@ -210,6 +210,10 @@ function bootRepoPage(options) {
     "repo-sync-hint",
     "repo-download-one",
     "repo-download-all",
+    "repo-signin",
+    "repo-account",
+    "repo-account-label",
+    "repo-signout",
     "repo-saved-in-list",
     "repo-saved-in-custom",
     "repo-saved-in-input",
@@ -281,6 +285,16 @@ function bootRepoPage(options) {
   byId["repo-download-one"].hidden = true;
   byId["repo-download-all"].tagName = "BUTTON";
   byId["repo-download-all"].hidden = true;
+  byId["repo-signin"].tagName = "A";
+  byId["repo-signin"].textContent = "Sign in";
+  byId["repo-signin"].href = "/?signin=1";
+  byId["repo-signin"].hidden = false;
+  byId["repo-account"].tagName = "DIV";
+  byId["repo-account"].hidden = true;
+  byId["repo-account-label"].tagName = "SPAN";
+  byId["repo-account-label"].textContent = "Signed in";
+  byId["repo-signout"].tagName = "BUTTON";
+  byId["repo-signout"].textContent = "Sign out";
   byId["repo-new-folder"].tagName = "BUTTON";
   byId["repo-new-piece"].tagName = "BUTTON";
   byId["repo-sidebar-new-piece"].tagName = "BUTTON";
@@ -307,6 +321,7 @@ function bootRepoPage(options) {
   const session = new Map();
   if (opts.storedLocation) storage.set("tinker.repo.location.v1", opts.storedLocation);
   if (opts.token) storage.set("tinker_jwt", opts.token);
+  if (opts.phone) storage.set("tinker_phone", opts.phone);
   if (opts.sessionDraft) session.set("tinker.repo.padDraft.v1", opts.sessionDraft);
 
   const reflections = opts.reflections || [
@@ -377,8 +392,9 @@ function bootRepoPage(options) {
       },
     },
     location: {
+      pathname: opts.pathname || (opts.mode === "files" ? "/repo/files" : "/repo"),
       search: opts.search || "",
-      href: opts.href || "/repo",
+      href: opts.href || (opts.mode === "files" ? "/repo/files" : "/repo"),
       assign(url) { assigned.push(String(url)); },
       replace(url) { assigned.push(String(url)); },
     },
@@ -629,13 +645,13 @@ function bootRepoPage(options) {
         stopPropagation() {},
       });
     },
-    findStoryButton(fileName) {
+    findStoryButton(label) {
       function walk(node) {
         if (!node) return null;
         if (
           node.className &&
           String(node.className).includes("repo-tree__piece") &&
-          node.textContent === fileName
+          node.textContent === label
         ) {
           return node;
         }
@@ -653,15 +669,19 @@ function bootRepoPage(options) {
 test("repo write page is writing surface + Location place + structure sidebar", () => {
   assert.match(html, /data-repo-mode="write"/);
   assert.match(html, /id="repo-body"/);
-  assert.match(html, /id="repo-new-piece"/);
-  assert.match(html, /href="\/repo\/files"/);
-  assert.match(html, />Files</);
+  assert.match(html, /<title>tinker<\/title>/);
+  // No visible Files pill, New file, or on-screen tinker wordmark.
+  assert.doesNotMatch(html, /id="repo-files-link"/);
+  assert.doesNotMatch(html, /<header[\s\S]*?>Files</);
+  assert.doesNotMatch(html, /class="repo-tree__new"[^>]*>New file</);
+  assert.doesNotMatch(html, /class="repo-top__action"[^>]*>New file</);
+  assert.doesNotMatch(html, /class="repo-top__name"/);
   assert.doesNotMatch(html, /repo-top__back/);
   assert.doesNotMatch(html, /href="\/\?write=1"/);
   assert.doesNotMatch(html, />Home</);
-  assert.match(html, /id="repo-name"[^>]*>tinker</);
+  assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=15/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=17/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -678,30 +698,36 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /repo-pad__mirror/);
   assert.doesNotMatch(html, />Write</);
   assert.match(html, /id="repo-surface"[\s\S]*id="repo-location"/);
-  // Action bar is a viewport-fixed sibling (not inside the scrolling pad).
+  // Action bar lives inside the writing surface (sticky bottom-right).
   assert.match(html, /id="repo-pad-actions"/);
   const surfaceChunk = (html.match(/id="repo-surface"[\s\S]*?<\/div>\s*<\/main>/) || [""])[0];
-  assert.doesNotMatch(surfaceChunk, /id="repo-pad-actions"/);
-  assert.match(html, /<\/main>[\s\S]*id="repo-pad-actions"/);
+  assert.match(surfaceChunk, /id="repo-pad-actions"/);
+  assert.match(surfaceChunk, /id="repo-keep-crafting"/);
   const headerHtml = (html.match(/<header[\s\S]*?<\/header>/) || [""])[0];
   assert.doesNotMatch(headerHtml, /id="repo-location"/);
   assert.doesNotMatch(headerHtml, /repo-location__globe/);
-  // Desktop structure sidebar restored on write; Saved in stays on Files.
+  assert.doesNotMatch(headerHtml, />tinker</);
+  assert.match(headerHtml, /id="repo-signin"/);
+  assert.match(headerHtml, /href="\/\?signin=1"/);
+  assert.match(headerHtml, />Sign in</);
+  assert.match(headerHtml, /id="repo-account"/);
+  assert.match(headerHtml, /id="repo-signout"/);
+  assert.match(headerHtml, /repo-top--auth/);
+  // Desktop structure sidebar; Saved in stays on Files. Mobile: desktop-only.
   assert.match(html, /id="repo-tree"/);
   assert.match(html, /id="repo-new-folder"/);
-  assert.match(html, /id="repo-sidebar-new-piece"/);
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=15"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=15"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=15"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=15"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=15"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=15"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=15"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=15"/);
-  assert.match(html, /href="\/styles\.css\?v=15"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=17"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=17"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=17"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=17"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=17"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=17"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=17"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=17"/);
+  assert.match(html, /href="\/styles\.css\?v=17"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -715,15 +741,17 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(page, /RECENT_PLACES_KEY/);
   assert.match(page, /PLACE_STARTERS/);
   assert.match(page, /set_place/);
+  assert.match(page, /displayTitle/);
   assert.match(css, /\.repo-location__field/);
   assert.match(css, /\.repo-location__globe/);
   assert.match(css, /\.repo-location\s*\{[^}]*position:\s*sticky/s);
+  assert.match(css, /\.repo-location\s*\{[^}]*align-self:\s*center/s);
   assert.match(css, /\.repo-pad\s*\{/);
   assert.match(css, /\.repo-pad__q\s*\{/);
   assert.match(css, /\.repo-pad__mirror/);
   assert.match(css, /body\.repo-page--write\s+\.repo-center\s*\{[^}]*background:\s*transparent/s);
   assert.doesNotMatch(css, /min-height:\s*42vh/);
-  assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
+  assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*sticky/s);
   assert.match(css, /\.repo-surface__foot/);
   assert.match(css, /\.repo-surface__foot\.is-visible/);
   assert.match(css, /transition:\s*opacity\s*300ms/);
@@ -733,15 +761,20 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-layout--write\s+\.repo-right/);
   assert.match(css, /body\.repo-page--write\s+\.repo-right\s*\{[^}]*display:\s*none/s);
   assert.match(css, /\.repo-saved-in/);
+  assert.match(css, /\.repo-top--auth/);
 
   assert.match(filesHtml, /data-repo-mode="files"/);
   assert.match(filesHtml, /id="repo-tree"/);
   assert.match(filesHtml, /id="repo-new-folder"/);
   assert.match(filesHtml, />New folder</);
   assert.match(filesHtml, /id="repo-new-piece"/);
-  assert.match(filesHtml, />New file</);
+  assert.doesNotMatch(filesHtml, /class="repo-tree__new"[^>]*>New file</);
   assert.match(filesHtml, /href="\/repo"/);
   assert.match(filesHtml, />Pad</);
+  assert.match(filesHtml, /id="repo-signin"/);
+  assert.match(filesHtml, /href="\/\?signin=1"/);
+  assert.match(filesHtml, />Sign in</);
+  assert.match(filesHtml, /id="repo-account"/);
   assert.match(filesHtml, /id="repo-move-sheet"/);
   assert.match(filesHtml, /id="repo-saved-in-list"/);
   assert.match(filesHtml, /id="repo-saved-in-custom"/);
@@ -788,6 +821,15 @@ test("repo routes, desktop landing, and auth return include /repo", () => {
   assert.match(css, /\.repo-location/);
   const auth = fs.readFileSync(path.join(root, "src/renderer/auth.js"), "utf8");
   assert.match(auth, /\/repo/);
+  assert.match(auth, /\/repo\/files/);
+  assert.match(auth, /Sign in or sign up/);
+  const indexHtml = fs.readFileSync(path.join(root, "src/renderer/index.html"), "utf8");
+  assert.match(indexHtml, /id="auth-gate"/);
+  assert.match(indexHtml, /Sign in or sign up/);
+  assert.match(indexHtml, /New numbers create an account/);
+  assert.match(indexHtml, /Sign-up and login share this screen/);
+  assert.match(css, /\.repo-top__nav--signin/);
+  assert.match(css, /\.repo-top__account/);
 });
 
 test("repo loads reflections into stories/ file names with verbatim markdown", async () => {
@@ -808,7 +850,8 @@ test("repo loads reflections into stories/ file names with verbatim markdown", a
     md.storyMarkdown("Merchant portal reliability", "While managing 10 incidents might sound like a failure")
   );
   assert.equal(env.byId["repo-body"].value, merchant.markdown);
-  assert.equal(env.byId["repo-file-path"].textContent, merchant.relPath);
+  assert.equal(env.byId["repo-file-path"].textContent, "Merchant portal reliability");
+  assert.doesNotMatch(env.byId["repo-file-path"].textContent, /\.md|stories\//);
 });
 
 function seedTypedFolders() {
@@ -854,8 +897,10 @@ test("Files page opens a file by navigating to /repo?file=", async () => {
   const stories = env.window.tinkerRepo.getStories();
   const merchant = stories.find((s) => s.title === "Merchant portal reliability");
   assert.ok(merchant);
-  const btn = env.findStoryButton(merchant.fileName);
-  assert.ok(btn, "expected story file button on Files page");
+  const btn = env.findStoryButton("Merchant portal reliability");
+  assert.ok(btn, "expected essay title button on Files page");
+  assert.doesNotMatch(btn.textContent, /\.md$/);
+  assert.doesNotMatch(btn.textContent, /stories\//);
   btn.dispatch("click", { type: "click", target: btn, preventDefault() {}, stopPropagation() {} });
   assert.ok(env.assigned.some((url) => url.includes("/repo?file=" + encodeURIComponent(merchant.id))));
 });
@@ -896,13 +941,19 @@ test("location saves across reload; desktop writes stories without clobbering ed
   assert.ok(env2.written.some((w) => w.text === desired));
 });
 
-test("web offers download controls; new file keeps blank editor", async () => {
+test("web offers download controls; blank pad is the new essay", async () => {
   const env = bootRepoPage({ token: "jwt-test", desktop: false, mode: "write" });
   await env.flush();
   assert.equal(env.byId["repo-download-all"].hidden, false);
-  env.click("repo-new-piece");
   assert.equal(env.byId["repo-body"].value, "");
-  assert.match(env.byId["repo-file-path"].textContent, /^stories\//);
+  assert.equal(env.byId["repo-file-path"].textContent, "");
+  env.byId["repo-body"].value = "# Quiet morning\n\nA note.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  assert.equal(env.byId["repo-file-path"].textContent, "Quiet morning");
+  assert.doesNotMatch(env.byId["repo-file-path"].textContent, /\.md|stories\//);
 });
 
 test("desktop Mac folder picker in Files Saved in sets getLocation()", async () => {
@@ -1340,6 +1391,57 @@ test("This is everything persists inline questions with the essay", async () => 
   assert.match(puts[0][0].body, /> What are you noticing about this\?/);
 });
 
+test("signed-out /repo top bar shows Sign in; signed-in shows account", async () => {
+  const signedOut = bootRepoPage({ desktop: true, mode: "write" });
+  await signedOut.flush();
+  assert.equal(signedOut.byId["repo-signin"].hidden, false);
+  assert.equal(signedOut.byId["repo-account"].hidden, true);
+  signedOut.click("repo-signin");
+  assert.deepEqual(signedOut.assigned, ["/?signin=1"]);
+  assert.equal(signedOut.session.get("tinker_mcp_return"), "/repo");
+
+  const signedIn = bootRepoPage({
+    token: "jwt-test",
+    phone: "5551234567",
+    desktop: true,
+    mode: "write",
+  });
+  await signedIn.flush();
+  assert.equal(signedIn.byId["repo-signin"].hidden, true);
+  assert.equal(signedIn.byId["repo-account"].hidden, false);
+  assert.match(signedIn.byId["repo-account-label"].textContent, /4567/);
+});
+
+test("signed-out Files Sign in returns to /repo/files", async () => {
+  const env = bootRepoPage({ desktop: true, mode: "files" });
+  await env.flush();
+  assert.equal(env.byId["repo-signin"].hidden, false);
+  env.click("repo-signin");
+  assert.deepEqual(env.assigned, ["/?signin=1"]);
+  assert.equal(env.session.get("tinker_mcp_return"), "/repo/files");
+});
+
+test("savePad signed-out prompts Sign in without writing essays", async () => {
+  let puts = 0;
+  const env = bootRepoPage({
+    desktop: true,
+    mode: "write",
+    onPutEssays() { puts += 1; },
+  });
+  await env.flush();
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "Unsigned draft that should not save.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.savePad();
+  assert.equal(puts, 0);
+  assert.equal(env.byId["repo-pad-error"].hidden, false);
+  assert.match(env.byId["repo-pad-error-text"].textContent, /Sign in to save/);
+  assert.equal(env.byId["repo-pad-error-signin"].hidden, false);
+});
+
 test("Keep crafting signed-out shows Sign in and starts auth return to /repo", async () => {
   const env = bootRepoPage({
     desktop: true,
@@ -1508,8 +1610,26 @@ test("/repo header has no legacy Home link to old pages", () => {
   assert.doesNotMatch(headerHtml, /href="\/"/);
   assert.doesNotMatch(headerHtml, /href="\/messages"/);
   assert.doesNotMatch(html, /href="\/\?write=1"/);
-  assert.match(headerHtml, /id="repo-name"/);
-  assert.doesNotMatch(headerHtml, /<a[^>]*id="repo-name"/);
+  assert.doesNotMatch(headerHtml, /id="repo-name"/);
+  assert.doesNotMatch(headerHtml, />tinker</);
+  assert.doesNotMatch(headerHtml, /href="\/repo\/files"/);
+  assert.match(headerHtml, /id="repo-signin"/);
+});
+
+test("sidebar and Files show essay titles without .md or path", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    search: "?file=self_1",
+  });
+  await env.flush();
+  const btn = env.findStoryButton("Merchant portal reliability");
+  assert.ok(btn, "sidebar should show the essay title");
+  assert.doesNotMatch(btn.textContent, /\.md$/);
+  assert.doesNotMatch(btn.textContent, /stories\//);
+  assert.equal(env.byId["repo-file-path"].textContent, "Merchant portal reliability");
+  assert.doesNotMatch(env.byId["repo-file-path"].textContent, /\.md|stories\//);
 });
 
 test("registerLocationSection adds a Saved in option that fires onSelect", async () => {

@@ -722,6 +722,10 @@ test("sign-in returns to the same authorize URL, query string included", () => {
   assert.equal(sessionStorage.getItem("tinker_mcp_return"), null);
   map.tinker_mcp_return = "/elsewhere";
   assert.equal(readBack(), "");
+  map.tinker_mcp_return = "/repo/files";
+  assert.equal(readBack(), "/repo/files");
+  map.tinker_mcp_return = "/repo?file=self_1";
+  assert.equal(readBack(), "/repo?file=self_1");
 });
 
 test("approve 401 clears the stale token and returns through sign-in", async () => {

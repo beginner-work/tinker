@@ -17,6 +17,7 @@
   var PLACE_STARTERS = ["Home", "Coffee shop", "San Diego"];
   var STORAGE_EVENT = "tinker-storage-root-changed";
   var TOKEN_KEY = "tinker_jwt";
+  var PHONE_KEY = "tinker_phone";
   var RETURN_KEY = "tinker_mcp_return";
   var PAD_IDLE_MS = 3000;
   var md = window.tinkerStoriesMd;
@@ -100,6 +101,10 @@
     syncHint: document.getElementById("repo-sync-hint"),
     downloadOne: document.getElementById("repo-download-one"),
     downloadAll: document.getElementById("repo-download-all"),
+    signin: document.getElementById("repo-signin"),
+    account: document.getElementById("repo-account"),
+    accountLabel: document.getElementById("repo-account-label"),
+    signout: document.getElementById("repo-signout"),
     savedInList: document.getElementById("repo-saved-in-list"),
     savedInCustom: document.getElementById("repo-saved-in-custom"),
     savedInInput: document.getElementById("repo-saved-in-input"),
@@ -138,15 +143,41 @@
     try { window.localStorage.removeItem("tinker_phone_id"); } catch (e3) { /* ignore */ }
   }
 
+  function returnPathForAuth() {
+    try {
+      var path = String(window.location.pathname || "/repo");
+      var search = String(window.location.search || "");
+      if (path.indexOf("/repo") !== 0) return "/repo";
+      return path + search;
+    } catch (e) {
+      return "/repo";
+    }
+  }
+
   function sendHomeForAuth() {
     stashPadDraftForAuth();
     // Drop any stale/rejected token first. Otherwise repo-redirect.js sees
     // tinker_jwt and bounces / → /repo before the phone gate can render.
     clearAuthSession();
-    try { window.sessionStorage.setItem(RETURN_KEY, "/repo"); }
+    try { window.sessionStorage.setItem(RETURN_KEY, returnPathForAuth()); }
     catch (e) { /* ignore */ }
     // signin=1 is an explicit allowlist skip in repo-redirect.js.
     window.location.assign("/?signin=1");
+  }
+
+  function accountLabelText() {
+    var phone = "";
+    try { phone = String(window.localStorage.getItem(PHONE_KEY) || "").replace(/\D/g, ""); }
+    catch (e) { phone = ""; }
+    if (phone.length >= 4) return "••• " + phone.slice(-4);
+    return "Signed in";
+  }
+
+  function renderAuthChrome() {
+    var signedIn = hasSessionToken();
+    if (els.signin) els.signin.hidden = signedIn;
+    if (els.account) els.account.hidden = !signedIn;
+    if (els.accountLabel) text(els.accountLabel, signedIn ? accountLabelText() : "");
   }
 
   function isAuthFailure(err) {
@@ -873,18 +904,21 @@
     if (!story && value.trim()) {
       story = ensureDraftFromPad();
       if (story) {
-        text(els.filePath, story.relPath);
+        text(els.filePath, md.displayTitle(story));
         if (els.fileType) {
           els.fileType.hidden = false;
           text(els.fileType, "Type: " + core.contentTypeLabel(story.contentType || core.DEFAULT_CONTENT_TYPE));
         }
         renderPlace();
+        if (els.tree) renderTree();
       }
     } else if (story) {
       story.markdown = value;
       story.body = value;
+      story.title = firstLineTitle(value);
       story.updatedAt = new Date().toISOString();
       if (!story.isNew) story.dirty = true;
+      if (els.filePath) text(els.filePath, md.displayTitle(story));
     }
     bumpPadTypingIdle();
   }
@@ -954,6 +988,11 @@
     if (!isWritePage || state.padSaving || state.padAsking) return Promise.resolve(null);
     var body = padBody().trim();
     if (!body) return Promise.resolve(null);
+    clearPadError();
+    if (!hasSessionToken()) {
+      showPadError("Sign in to save this piece.", { signin: true });
+      return Promise.resolve(null);
+    }
     var draft = ensureDraftFromPad();
     if (!draft) return Promise.resolve(null);
     state.padSaving = true;
@@ -1348,7 +1387,7 @@
     clear(els.moveList);
     var file = allFiles().find(function (s) { return s.id === state.moveFileId; });
     if (els.moveHint) {
-      text(els.moveHint, file ? ("Move " + (file.fileName || "file")) : "Choose a folder");
+      text(els.moveHint, file ? ("Move " + md.displayTitle(file)) : "Choose a folder");
     }
 
     function addOption(label, folderId, depth) {
@@ -2122,8 +2161,9 @@
     btn.setAttribute("data-story-id", story.id);
     btn.setAttribute("draggable", "true");
     if (state.selectedId === story.id) btn.className += " is-selected";
-    btn.textContent = story.fileName || story.relPath;
-    btn.title = story.title || story.fileName || "";
+    var label = md.displayTitle(story);
+    btn.textContent = label;
+    btn.title = label;
     btn.addEventListener("click", function () {
       selectStory(story.id);
     });
@@ -2386,7 +2426,7 @@
     if (!padHasFocus()) {
       setPadMarkdown(story.isNew ? (story.markdown || "") : (story.markdown || ""));
     }
-    text(els.filePath, story.relPath);
+    text(els.filePath, md.displayTitle(story));
     if (els.fileType) {
       els.fileType.hidden = false;
       text(els.fileType, "Type: " + core.contentTypeLabel(story.contentType || core.DEFAULT_CONTENT_TYPE));
@@ -2416,8 +2456,10 @@
   }
 
   function render() {
-    text(els.name, "tinker");
+    // No on-screen wordmark; #repo-name stays hidden for harness/id stability.
+    if (els.name && els.name.hidden) text(els.name, "tinker");
     if (els.branch) text(els.branch, isFilesPage ? "files" : "writing");
+    renderAuthChrome();
     if (isFilesPage) {
       renderTree();
       renderSavedIn();
@@ -2596,6 +2638,23 @@
   if (els.newPiece) els.newPiece.addEventListener("click", addNewFile);
   if (els.sidebarNewPiece) els.sidebarNewPiece.addEventListener("click", addNewFile);
   if (els.newFolder) els.newFolder.addEventListener("click", startCreateFolder);
+  if (els.signin) {
+    els.signin.addEventListener("click", function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      sendHomeForAuth();
+    });
+  }
+  if (els.signout) {
+    els.signout.addEventListener("click", function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      clearAuthSession();
+      try { window.localStorage.removeItem(PHONE_KEY); } catch (e) { /* ignore */ }
+      renderAuthChrome();
+      state.stories = [];
+      applyTree({ folders: [], placements: {} });
+      render();
+    });
+  }
   if (els.body) {
     // Mirror holds canonical Markdown (with "> "). Tests and restore write here;
     // re-render the visual pad so questions never show the raw marker.

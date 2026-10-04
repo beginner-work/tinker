@@ -7,34 +7,36 @@
     <meta name="theme-color" content="#fffdf7" />
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
-    <title>Files · tinker</title>
+    <title>tinker</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="/styles.css?v=15" />
+    <link rel="stylesheet" href="/styles.css?v=17" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=15" />
+    <link rel="stylesheet" href="/repo/repo.css?v=17" />
   </head>
   <body class="repo-page repo-page--files" data-repo-mode="files">
-    <header class="repo-top" aria-label="Files">
+    <header class="repo-top repo-top--auth" aria-label="Account">
       <a class="repo-top__back" href="/repo">Pad</a>
-      <p class="repo-top__name" id="repo-name">tinker</p>
-      <p class="repo-top__branch" id="repo-branch">files</p>
+      <a class="repo-top__nav repo-top__nav--signin" id="repo-signin" href="/?signin=1">Sign in</a>
+      <div class="repo-top__account" id="repo-account" hidden>
+        <span class="repo-top__account-label" id="repo-account-label">Signed in</span>
+        <button type="button" class="repo-top__action" id="repo-signout">Sign out</button>
+      </div>
     </header>
 
     <div class="repo-layout repo-layout--files">
-      <aside class="repo-sidebar" aria-label="Files">
+      <aside class="repo-sidebar" aria-label="Essays">
         <section class="repo-tree" aria-labelledby="repo-stories-heading">
           <div class="repo-tree__head">
-            <h2 class="repo-sidebar__heading" id="repo-stories-heading">Files</h2>
+            <h2 class="repo-sidebar__heading" id="repo-stories-heading">Essays</h2>
             <div class="repo-tree__actions">
               <button type="button" class="repo-tree__new" id="repo-new-folder">New folder</button>
-              <button type="button" class="repo-tree__new" id="repo-new-piece">New file</button>
             </div>
           </div>
           <div class="repo-tree__body" id="repo-tree" role="tree"></div>
-          <p class="repo-changes__empty" id="repo-stories-empty" hidden>No files yet.</p>
+          <p class="repo-changes__empty" id="repo-stories-empty" hidden>No essays yet.</p>
         </section>
 
         <section class="repo-saved-in" aria-labelledby="repo-saved-in-heading">
@@ -76,12 +78,21 @@
       </div>
     </div>
 
-    <script src="/lib/stories-md.js?v=15"></script>
-    <script src="/lib/repo-folders-core.js?v=15"></script>
-    <script src="/lib/storage-path-core.js?v=15"></script>
-    <script src="/lib/fs-access-folder.js?v=15"></script>
-    <script src="/lib/storage-adapters.js?v=15"></script>
-    <script src="/repo/repo.js?v=15"></script>
-    <script src="/repo/storage-section.js?v=15"></script>
+    <!-- Hidden ids for test harness / deep-link helpers. -->
+    <p id="repo-name" hidden>tinker</p>
+    <p id="repo-branch" hidden>files</p>
+    <button type="button" id="repo-new-piece" hidden>New file</button>
+    <p id="repo-file-path" hidden></p>
+    <p id="repo-file-type" hidden></p>
+    <p id="repo-file-place" hidden></p>
+    <p id="repo-sync-hint" hidden></p>
+
+    <script src="/lib/stories-md.js?v=17"></script>
+    <script src="/lib/repo-folders-core.js?v=17"></script>
+    <script src="/lib/storage-path-core.js?v=17"></script>
+    <script src="/lib/fs-access-folder.js?v=17"></script>
+    <script src="/lib/storage-adapters.js?v=17"></script>
+    <script src="/repo/repo.js?v=17"></script>
+    <script src="/repo/storage-section.js?v=17"></script>
   </body>
 </html>
