@@ -80,6 +80,7 @@ test("inbox chrome is gone; /repo is the landing surface", () => {
   const shell = fs.readFileSync(path.join(root, "src/renderer/messages-shell.js"), "utf8");
   const mainJs = fs.readFileSync(path.join(root, "src/main/main.js"), "utf8");
   const repoHtml = fs.readFileSync(path.join(root, "src/renderer/repo/index.html"), "utf8");
+  const filesHtml = fs.readFileSync(path.join(root, "src/renderer/repo/files/index.html"), "utf8");
   const you = fs.readFileSync(path.join(root, "src/renderer/messages-you.js"), "utf8");
 
   assert.doesNotMatch(html, />Inbox</);
@@ -90,11 +91,13 @@ test("inbox chrome is gone; /repo is the landing surface", () => {
   assert.match(shell, /wantsWriteSurface|write=1/);
   assert.match(mainJs, /\/repo/);
   assert.match(mainJs, /APP_URL[\s\S]*\/repo/);
-  assert.match(repoHtml, /id="repo-tree"/);
+  assert.match(repoHtml, /href="\/repo\/files"/);
   assert.match(repoHtml, /Files|Stories/);
-  assert.match(repoHtml, /New folder/);
   assert.match(repoHtml, /Write/);
+  assert.match(repoHtml, /id="repo-body"/);
   assert.doesNotMatch(repoHtml, /← Inbox|Inbox/);
+  assert.match(filesHtml, /id="repo-tree"/);
+  assert.match(filesHtml, /New folder/);
   // Story cards no longer mount above the writing flow.
   assert.match(you, /Stories live on \/repo|Do not render story cards/);
   assert.doesNotMatch(you, /host\.appendChild\(renderSelfPosts/);

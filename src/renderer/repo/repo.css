@@ -19,19 +19,56 @@ html, body.repo-page {
   align-items: center;
   gap: 14px;
   flex-shrink: 0;
-  padding: 12px 20px;
+  /* +16px top so header sits a little lower; safe-area for notched phones. */
+  padding: calc(28px + env(safe-area-inset-top, 0px)) 20px 12px 20px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-background);
 }
 
-.repo-top__back {
+/* Mac desktop: clear traffic lights (same inset as the main shell). */
+html[data-tinker-desktop] .repo-top,
+html.tinker-desktop .repo-top {
+  padding-left: var(--tinker-desktop-traffic-inset, 78px);
+  -webkit-app-region: drag;
+}
+
+html[data-tinker-desktop] .repo-top a,
+html[data-tinker-desktop] .repo-top button,
+html[data-tinker-desktop] .repo-top input,
+html[data-tinker-desktop] .repo-top textarea,
+html[data-tinker-desktop] .repo-top select,
+html[data-tinker-desktop] .repo-top [role="button"],
+html.tinker-desktop .repo-top a,
+html.tinker-desktop .repo-top button,
+html.tinker-desktop .repo-top input,
+html.tinker-desktop .repo-top textarea,
+html.tinker-desktop .repo-top select,
+html.tinker-desktop .repo-top [role="button"] {
+  -webkit-app-region: no-drag;
+}
+
+.repo-top__back,
+.repo-top__nav {
   color: var(--color-muted);
   text-decoration: none;
   font-size: 13px;
   flex-shrink: 0;
 }
 
-.repo-top__back:hover { color: var(--color-foreground); }
+.repo-top__back:hover,
+.repo-top__nav:hover { color: var(--color-foreground); }
+
+.repo-top__nav {
+  font-weight: 600;
+  padding: 2px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+}
+
+.repo-top__nav:hover {
+  border-color: var(--color-accent);
+}
 
 .repo-top__name {
   margin: 0;
@@ -463,6 +500,21 @@ html, body.repo-page {
   display: grid;
   grid-template-columns: minmax(280px, 340px) 1fr minmax(220px, 260px);
   overflow: hidden;
+}
+
+.repo-layout--write {
+  grid-template-columns: 1fr minmax(220px, 260px);
+}
+
+.repo-layout--files {
+  grid-template-columns: 1fr;
+}
+
+.repo-layout--files .repo-sidebar {
+  border-right: 0;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .repo-sidebar,
@@ -1090,7 +1142,7 @@ html, body.repo-page {
   .repo-top {
     flex-wrap: wrap;
     gap: 10px;
-    padding: 10px 12px;
+    padding: calc(26px + env(safe-area-inset-top, 0px)) 12px 10px 12px;
   }
 
   .repo-top__branch,

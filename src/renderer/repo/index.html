@@ -12,15 +12,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="/styles.css?v=7" />
+    <link rel="stylesheet" href="/styles.css?v=8" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=7" />
+    <link rel="stylesheet" href="/repo/repo.css?v=8" />
   </head>
-  <body class="repo-page">
+  <body class="repo-page repo-page--write" data-repo-mode="write">
     <header class="repo-top" aria-label="Repository">
       <a class="repo-top__back" href="/?write=1">Write</a>
       <p class="repo-top__name" id="repo-name">tinker</p>
-      <p class="repo-top__branch" id="repo-branch">stories</p>
+      <a class="repo-top__nav" id="repo-files-link" href="/repo/files">Files</a>
 
       <div class="repo-location" id="repo-location">
         <img class="repo-location__logo" src="/icons/tinker-mark.svg" alt="" aria-hidden="true" width="20" height="20" />
@@ -45,26 +45,13 @@
       </div>
 
       <div class="repo-top__actions" id="repo-download-actions">
+        <button type="button" class="repo-top__action" id="repo-new-piece">New file</button>
         <button type="button" class="repo-top__action" id="repo-download-one" hidden>Download</button>
         <button type="button" class="repo-top__action" id="repo-download-all" hidden>Download all</button>
       </div>
     </header>
 
-    <div class="repo-layout">
-      <aside class="repo-sidebar" aria-label="Files">
-        <section class="repo-tree" aria-labelledby="repo-stories-heading">
-          <div class="repo-tree__head">
-            <h2 class="repo-sidebar__heading" id="repo-stories-heading">Files</h2>
-            <div class="repo-tree__actions">
-              <button type="button" class="repo-tree__new" id="repo-new-folder">New folder</button>
-              <button type="button" class="repo-tree__new" id="repo-new-piece">New file</button>
-            </div>
-          </div>
-          <div class="repo-tree__body" id="repo-tree" role="tree"></div>
-          <p class="repo-changes__empty" id="repo-stories-empty" hidden>No files yet.</p>
-        </section>
-      </aside>
-
+    <div class="repo-layout repo-layout--write">
       <main class="repo-center" aria-label="Writing">
         <div class="repo-surface writing" id="repo-surface">
           <textarea class="writing-input repo-surface__input" id="repo-body" spellcheck="true"></textarea>
@@ -81,35 +68,12 @@
       </aside>
     </div>
 
-    <div class="repo-sheet" id="repo-move-sheet" hidden>
-      <div class="repo-sheet__backdrop" id="repo-move-backdrop"></div>
-      <div class="repo-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="repo-move-title">
-        <h2 class="repo-sheet__title" id="repo-move-title">Move to</h2>
-        <p class="repo-sheet__hint" id="repo-move-hint">Choose a folder</p>
-        <div class="repo-sheet__list" id="repo-move-list"></div>
-        <button type="button" class="repo-sheet__cancel" id="repo-move-cancel">Cancel</button>
-      </div>
-    </div>
-
-    <div class="repo-sheet" id="repo-confirm-sheet" hidden>
-      <div class="repo-sheet__backdrop" id="repo-confirm-backdrop"></div>
-      <div class="repo-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="repo-confirm-title">
-        <h2 class="repo-sheet__title" id="repo-confirm-title">Delete folder?</h2>
-        <p class="repo-sheet__hint" id="repo-confirm-hint"></p>
-        <div class="repo-sheet__actions">
-          <button type="button" class="repo-sheet__primary" id="repo-confirm-keep">Move files to parent</button>
-          <button type="button" class="repo-sheet__danger" id="repo-confirm-delete">Delete folder tree</button>
-          <button type="button" class="repo-sheet__cancel" id="repo-confirm-cancel">Cancel</button>
-        </div>
-      </div>
-    </div>
-
-    <script src="/lib/stories-md.js?v=7"></script>
-    <script src="/lib/repo-folders-core.js?v=7"></script>
-    <script src="/lib/storage-path-core.js?v=7"></script>
-    <script src="/lib/fs-access-folder.js?v=7"></script>
-    <script src="/lib/storage-adapters.js?v=7"></script>
-    <script src="/repo/repo.js?v=7"></script>
-    <script src="/repo/storage-section.js?v=7"></script>
+    <script src="/lib/stories-md.js?v=8"></script>
+    <script src="/lib/repo-folders-core.js?v=8"></script>
+    <script src="/lib/storage-path-core.js?v=8"></script>
+    <script src="/lib/fs-access-folder.js?v=8"></script>
+    <script src="/lib/storage-adapters.js?v=8"></script>
+    <script src="/repo/repo.js?v=8"></script>
+    <script src="/repo/storage-section.js?v=8"></script>
   </body>
 </html>

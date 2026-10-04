@@ -15,6 +15,10 @@
   var core = window.tinkerRepoFoldersCore;
   if (!md || !core) return;
 
+  var pageMode = (document.body && document.body.getAttribute("data-repo-mode")) || "write";
+  var isFilesPage = pageMode === "files";
+  var isWritePage = !isFilesPage;
+
   var state = {
     stories: [],
     folders: [],
@@ -228,6 +232,14 @@
   }
 
   function selectStory(id) {
+    if (isFilesPage && id) {
+      try {
+        window.location.assign("/repo?file=" + encodeURIComponent(id));
+      } catch (e) {
+        window.location.href = "/repo?file=" + encodeURIComponent(id);
+      }
+      return;
+    }
     state.selectedId = id || null;
     state.selectedFolderId = null;
     render();
@@ -251,6 +263,17 @@
   }
 
   function addNewFile() {
+    if (isFilesPage) {
+      var folderQ = state.selectedFolderId
+        ? "&folder=" + encodeURIComponent(state.selectedFolderId)
+        : "";
+      try {
+        window.location.assign("/repo?new=1" + folderQ);
+      } catch (e) {
+        window.location.href = "/repo?new=1" + folderQ;
+      }
+      return;
+    }
     state.pieceCounter += 1;
     var now = new Date();
     var folderId = state.selectedFolderId || null;
@@ -1486,12 +1509,34 @@
 
   function render() {
     text(els.name, "tinker");
-    text(els.branch, "files");
-    renderTree();
-    renderCenter();
-    renderLocation();
-    renderDownloads();
-    renderSyncHint();
+    if (els.branch) text(els.branch, isFilesPage ? "files" : "writing");
+    if (isFilesPage) renderTree();
+    if (isWritePage) {
+      renderCenter();
+      renderLocation();
+      renderDownloads();
+      renderSyncHint();
+    }
+  }
+
+  function readQueryParam(name) {
+    try {
+      return new URLSearchParams(window.location.search || "").get(name) || "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function applyWriteQuery() {
+    if (!isWritePage) return;
+    var folderId = readQueryParam("folder");
+    if (folderId) state.selectedFolderId = folderId;
+    if (readQueryParam("new") === "1") {
+      addNewFile();
+      return;
+    }
+    var fileId = readQueryParam("file");
+    if (fileId) selectStory(fileId);
   }
 
   function triggerDownload(filename, blob) {
@@ -1737,5 +1782,7 @@
   };
 
   render();
-  window.tinkerRepo.ready = loadStories();
+  window.tinkerRepo.ready = loadStories().then(function () {
+    applyWriteQuery();
+  });
 })();

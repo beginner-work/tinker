@@ -316,7 +316,8 @@ test("self-reflections attach effective contentType from placements", async () =
 });
 
 test("repo page wires New folder, Move to sheet, and cache-busted assets", () => {
-  const html = fs.readFileSync(path.join(__dirname, "../src/renderer/repo/index.html"), "utf8");
+  const writeHtml = fs.readFileSync(path.join(__dirname, "../src/renderer/repo/index.html"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "../src/renderer/repo/files/index.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../src/renderer/repo/repo.css"), "utf8");
   const page = fs.readFileSync(path.join(__dirname, "../src/renderer/repo/repo.js"), "utf8");
   const vercel = fs.readFileSync(path.join(__dirname, "../vercel.json"), "utf8");
@@ -324,9 +325,11 @@ test("repo page wires New folder, Move to sheet, and cache-busted assets", () =>
   assert.match(html, />New folder</);
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /Move to/);
-  assert.match(html, /repo-folders-core\.js\?v=7/);
-  assert.match(html, /repo\.js\?v=7/);
-  assert.match(html, /repo\.css\?v=7/);
+  assert.match(html, /repo-folders-core\.js\?v=8/);
+  assert.match(html, /repo\.js\?v=8/);
+  assert.match(html, /repo\.css\?v=8/);
+  assert.match(writeHtml, /href="\/repo\/files"/);
+  assert.match(writeHtml, /storage-section\.js\?v=8/);
   assert.match(css, /min-height:\s*44px/);
   assert.match(css, /\.repo-sheet/);
   assert.match(css, /minmax\(280px,\s*340px\)/);
@@ -341,8 +344,9 @@ test("repo page wires New folder, Move to sheet, and cache-busted assets", () =>
   assert.match(page, /startRenameFolder/);
   assert.match(page, /requestDeleteFolder/);
   assert.match(vercel, /repo-folders/);
+  assert.match(vercel, /\/repo\/files/);
   assert.equal(page.includes("innerHTML"), false);
-  // One More button per folder row — Rename/Delete are menuitems, not row icon buttons.
+  // One More button per folder row. Rename/Delete are menuitems, not row icon buttons.
   assert.equal((page.match(/repo-tree__more-btn/g) || []).length >= 1, true);
   assert.equal(page.includes('renameBtn.className = "repo-tree__icon-btn"'), false);
   assert.equal(page.includes('deleteBtn.className = "repo-tree__icon-btn"'), false);

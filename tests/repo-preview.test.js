@@ -10,6 +10,7 @@ const vm = require("node:vm");
 
 const root = path.join(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "src/renderer/repo/index.html"), "utf8");
+const filesHtml = fs.readFileSync(path.join(root, "src/renderer/repo/files/index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "src/renderer/repo/repo.css"), "utf8");
 const styles = fs.readFileSync(path.join(root, "src/renderer/styles.css"), "utf8");
 const page = fs.readFileSync(path.join(root, "src/renderer/repo/repo.js"), "utf8");
@@ -239,8 +240,12 @@ function bootRepoPage(options) {
   const listedFiles = opts.listedFiles || [];
 
   const docListeners = {};
+  const bodyEl = makeEl("body", "", byId);
+  bodyEl.setAttribute("data-repo-mode", opts.mode || "write");
+  bodyEl.className = opts.mode === "files" ? "repo-page repo-page--files" : "repo-page repo-page--write";
+  const assigned = [];
   const document = {
-    body: makeEl("body", "", byId),
+    body: bodyEl,
     getElementById(id) {
       return byId[id] || null;
     },
@@ -281,7 +286,12 @@ function bootRepoPage(options) {
       pickNotesFolder: opts.pickNotesFolder,
       isDesktopApp: !!opts.desktop,
     },
-    location: { assign() {} },
+    location: {
+      search: opts.search || "",
+      href: opts.href || "/repo",
+      assign(url) { assigned.push(String(url)); },
+      replace(url) { assigned.push(String(url)); },
+    },
     fetch(url, init) {
       const href = String(url || "");
       if (href.includes("/api/repo-folders")) {
@@ -360,6 +370,7 @@ function bootRepoPage(options) {
       createObjectURL() { return "blob:test"; },
       revokeObjectURL() {},
     },
+    URLSearchParams,
     Uint8Array,
     setTimeout,
     setImmediate,
@@ -384,6 +395,7 @@ function bootRepoPage(options) {
     window: windowObj,
     document,
     written,
+    assigned,
     async flush() {
       if (windowObj.tinkerRepo && windowObj.tinkerRepo.ready) {
         await windowObj.tinkerRepo.ready;
@@ -420,16 +432,14 @@ function bootRepoPage(options) {
   };
 }
 
-test("repo page lists stories and opens blank Markdown surface", () => {
-  assert.match(html, /id="repo-tree"/);
+test("repo write page is writing surface + Location; Files page holds the tree", () => {
+  assert.match(html, /data-repo-mode="write"/);
   assert.match(html, /id="repo-body"/);
   assert.match(html, /id="repo-new-piece"/);
-  assert.match(html, /id="repo-new-folder"/);
-  assert.match(html, />New file</);
-  assert.match(html, />New folder</);
+  assert.match(html, /href="\/repo\/files"/);
+  assert.match(html, />Files</);
   assert.match(html, /href="\/\?write=1"/);
   assert.match(html, />Write</);
-  assert.match(html, /Files/);
   assert.match(html, /repo-location__logo/);
   assert.match(html, /icons\/tinker-mark\.svg/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
@@ -439,12 +449,16 @@ test("repo page lists stories and opens blank Markdown surface", () => {
   assert.match(html, /Custom location/);
   assert.match(html, /id="repo-download-one"/);
   assert.match(html, /id="repo-download-all"/);
-  assert.match(html, /id="repo-move-sheet"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=7"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=7"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=7"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=7"/);
-  assert.match(html, /href="\/styles\.css\?v=7"/);
+  assert.doesNotMatch(html, /id="repo-tree"/);
+  assert.doesNotMatch(html, /id="repo-new-folder"/);
+  assert.doesNotMatch(html, /id="repo-move-sheet"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=8"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=8"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=8"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=8"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=8"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=8"/);
+  assert.match(html, /href="\/styles\.css\?v=8"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -454,6 +468,23 @@ test("repo page lists stories and opens blank Markdown surface", () => {
   assert.equal(page.includes("innerHTML"), false);
   assert.match(page, /registerLocationSection/);
   assert.match(page, /refreshLocation/);
+
+  assert.match(filesHtml, /data-repo-mode="files"/);
+  assert.match(filesHtml, /id="repo-tree"/);
+  assert.match(filesHtml, /id="repo-new-folder"/);
+  assert.match(filesHtml, />New folder</);
+  assert.match(filesHtml, /id="repo-new-piece"/);
+  assert.match(filesHtml, />New file</);
+  assert.match(filesHtml, /href="\/repo"/);
+  assert.match(filesHtml, />Writing</);
+  assert.match(filesHtml, /id="repo-move-sheet"/);
+  assert.doesNotMatch(filesHtml, /id="repo-body"/);
+  assert.doesNotMatch(filesHtml, /id="repo-location"/);
+  assert.match(vercel, /\/repo\/files/);
+  assert.match(css, /safe-area-inset-top/);
+  assert.match(css, /repo-layout--write/);
+  assert.match(css, /repo-layout--files/);
+  assert.match(css, /tinker-desktop-traffic-inset/);
 });
 
 test("writing-input and /repo surface are invisible (no box)", () => {
@@ -491,7 +522,12 @@ test("repo routes, desktop landing, and auth return include /repo", () => {
 });
 
 test("repo loads reflections into stories/ file names with verbatim markdown", async () => {
-  const env = bootRepoPage({ token: "jwt-test", desktop: true });
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    search: "?file=self_1",
+  });
   await env.flush();
   const stories = env.window.tinkerRepo.getStories();
   assert.equal(stories.length, 2);
@@ -502,13 +538,57 @@ test("repo loads reflections into stories/ file names with verbatim markdown", a
     merchant.markdown,
     md.storyMarkdown("Merchant portal reliability", "While managing 10 incidents might sound like a failure")
   );
-  assert.equal(env.byId["repo-body"].value, "", "default center is blank");
-
-  const btn = env.findStoryButton(merchant.fileName);
-  assert.ok(btn, "expected story file button");
-  btn.dispatch("click", { type: "click", target: btn, preventDefault() {}, stopPropagation() {} });
   assert.equal(env.byId["repo-body"].value, merchant.markdown);
   assert.equal(env.byId["repo-file-path"].textContent, merchant.relPath);
+});
+
+function seedTypedFolders() {
+  return {
+    folders: [
+      {
+        id: "fld_reflections",
+        name: "reflections",
+        parentId: null,
+        contentType: "reflections",
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
+      {
+        id: "fld_2026",
+        name: "2026",
+        parentId: "fld_reflections",
+        contentType: "reflections",
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
+      {
+        id: "fld_essays",
+        name: "essays",
+        parentId: null,
+        contentType: "drafts",
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
+    ],
+    placements: {},
+  };
+}
+
+test("Files page opens a file by navigating to /repo?file=", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "files",
+    folderTree: seedTypedFolders(),
+  });
+  await env.flush();
+  const stories = env.window.tinkerRepo.getStories();
+  const merchant = stories.find((s) => s.title === "Merchant portal reliability");
+  assert.ok(merchant);
+  const btn = env.findStoryButton(merchant.fileName);
+  assert.ok(btn, "expected story file button on Files page");
+  btn.dispatch("click", { type: "click", target: btn, preventDefault() {}, stopPropagation() {} });
+  assert.ok(env.assigned.some((url) => url.includes("/repo?file=" + encodeURIComponent(merchant.id))));
 });
 
 test("location saves across reload; desktop writes stories without clobbering edits", async () => {
@@ -548,7 +628,7 @@ test("location saves across reload; desktop writes stories without clobbering ed
 });
 
 test("web offers download controls; new file keeps blank editor", async () => {
-  const env = bootRepoPage({ token: "jwt-test", desktop: false });
+  const env = bootRepoPage({ token: "jwt-test", desktop: false, mode: "write" });
   await env.flush();
   assert.equal(env.byId["repo-download-all"].hidden, false);
   env.click("repo-new-piece");
@@ -587,7 +667,7 @@ test("desktop Mac folder picker in Storage section sets getLocation()", async ()
 });
 
 test("New folder inline create appears and posts to API", async () => {
-  const env = bootRepoPage({ token: "jwt-test", desktop: true });
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "files" });
   await env.flush();
   env.click("repo-new-folder");
   const input = env.document.getElementById("repo-folder-create-name");
@@ -609,38 +689,6 @@ test("New folder inline create appears and posts to API", async () => {
   assert.equal(folders[0].name, "Career");
   assert.equal(folders[0].contentType, "stories");
 });
-
-function seedTypedFolders() {
-  return {
-    folders: [
-      {
-        id: "fld_reflections",
-        name: "reflections",
-        parentId: null,
-        contentType: "reflections",
-        createdAt: "2026-10-01T00:00:00.000Z",
-        updatedAt: "2026-10-01T00:00:00.000Z",
-      },
-      {
-        id: "fld_2026",
-        name: "2026",
-        parentId: "fld_reflections",
-        contentType: "reflections",
-        createdAt: "2026-10-01T00:00:00.000Z",
-        updatedAt: "2026-10-01T00:00:00.000Z",
-      },
-      {
-        id: "fld_essays",
-        name: "essays",
-        parentId: null,
-        contentType: "drafts",
-        createdAt: "2026-10-01T00:00:00.000Z",
-        updatedAt: "2026-10-01T00:00:00.000Z",
-      },
-    ],
-    placements: {},
-  };
-}
 
 test("location dropdown lists nested typed folders with type labels", async () => {
   const env = bootRepoPage({
