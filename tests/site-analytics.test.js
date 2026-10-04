@@ -38,15 +38,39 @@ test("normalizeRef keeps hostname only", () => {
   assert.equal(site.normalizeRef(""), "");
 });
 
-test("mapSource buckets LinkedIn Email GitHub Direct Other", () => {
+test("mapSource buckets LinkedIn Email GitHub Tinker Direct Other", () => {
   assert.equal(site.mapSource("linkedin.com", ""), "LinkedIn");
   assert.equal(site.mapSource("", "linkedin"), "LinkedIn");
   assert.equal(site.mapSource("", "email"), "Email");
   assert.equal(site.mapSource("mail.google.com", ""), "Email");
   assert.equal(site.mapSource("github.com", ""), "GitHub");
   assert.equal(site.mapSource("", "github"), "GitHub");
+  assert.equal(site.mapSource("", "tinker"), "Tinker");
+  assert.equal(site.mapSource("tinker.beginner.work", ""), "Tinker");
+  assert.equal(site.mapSource("preview.beginner.work", ""), "Tinker");
+  assert.equal(site.mapSource("beginner.work", ""), "Tinker");
   assert.equal(site.mapSource("", ""), "Direct");
   assert.equal(site.mapSource("news.ycombinator.com", ""), "Other");
+});
+
+test("sources are ordered LinkedIn Email GitHub Tinker Direct Other", () => {
+  assert.deepEqual(site.SOURCE_ORDER, [
+    "LinkedIn",
+    "Email",
+    "GitHub",
+    "Tinker",
+    "Direct",
+    "Other",
+  ]);
+  const ordered = site.sortSources([
+    { source: "Other", views: 9 },
+    { source: "Direct", views: 3 },
+    { source: "Tinker", views: 2 },
+    { source: "GitHub", views: 1 },
+    { source: "Email", views: 4 },
+    { source: "LinkedIn", views: 5 },
+  ]);
+  assert.deepEqual(ordered.map((s) => s.source), site.SOURCE_ORDER);
 });
 
 test("funnel buckets match resume / explore / schedule_time", () => {
@@ -278,19 +302,25 @@ test("visitorsSummary aggregates weeks sources pages and funnel", async () => {
       { path: "/visitors", source: "Other", week: "2026-W41", createdAt: new Date("2026-10-05T11:00:00Z") },
       { path: "/learning", source: "Email", week: "2026-W41", createdAt: new Date("2026-10-05T12:00:00Z") },
       { path: "/schedule-time", source: "LinkedIn", week: "2026-W41", createdAt: new Date("2026-10-05T13:00:00Z") },
+      { path: "/resume", source: "Tinker", week: "2026-W41", createdAt: new Date("2026-10-05T14:00:00Z") },
     ]),
   };
   const summary = await site.visitorsSummary();
   assert.equal(summary.since, "2026-09-28");
   assert.deepEqual(summary.funnel, {
-    resume: 1,
+    resume: 2,
     explore: 4,
     schedule_time: 1,
     booked: null,
   });
   assert.equal(summary.weeks.length, 2);
-  assert.equal(summary.pages.find((p) => p.path === "/resume").views, 1);
+  assert.equal(summary.pages.find((p) => p.path === "/resume").views, 2);
   assert.equal(summary.sources.find((s) => s.source === "LinkedIn").views, 2);
+  assert.equal(summary.sources.find((s) => s.source === "Tinker").views, 1);
+  assert.deepEqual(
+    summary.sources.map((s) => s.source),
+    ["LinkedIn", "Email", "GitHub", "Tinker", "Direct", "Other"],
+  );
   prisma.sitePageView = prev;
 });
 

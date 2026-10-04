@@ -92,7 +92,16 @@ function normalizeUtm(raw) {
   return trimStr(raw, MAX_UTM).toLowerCase();
 }
 
-/** Map ref + utm into LinkedIn | Email | GitHub | Direct | Other. */
+/** Preferred source order for /api/site/visitors. */
+const SOURCE_ORDER = ["LinkedIn", "Email", "GitHub", "Tinker", "Direct", "Other"];
+
+function isTinkerRef(ref) {
+  const r = String(ref || "").toLowerCase();
+  if (!r) return false;
+  return r === "beginner.work" || r.endsWith(".beginner.work");
+}
+
+/** Map ref + utm into LinkedIn | Email | GitHub | Tinker | Direct | Other. */
 function mapSource(ref, utmSource) {
   const r = String(ref || "").toLowerCase();
   const u = String(utmSource || "").toLowerCase();
@@ -107,6 +116,7 @@ function mapSource(ref, utmSource) {
     return "Email";
   }
   if (u.includes("github") || r.includes("github")) return "GitHub";
+  if (u === "tinker" || isTinkerRef(r)) return "Tinker";
   if (!r && !u) return "Direct";
   return "Other";
 }
@@ -276,6 +286,17 @@ function sortByViewsDesc(rows) {
     .localeCompare(String(b.path || b.source || b.week)));
 }
 
+/** Stable source order: LinkedIn, Email, GitHub, Tinker, Direct, Other. */
+function sortSources(rows) {
+  const rank = new Map(SOURCE_ORDER.map((name, i) => [name, i]));
+  return rows.sort((a, b) => {
+    const ra = rank.has(a.source) ? rank.get(a.source) : SOURCE_ORDER.length;
+    const rb = rank.has(b.source) ? rank.get(b.source) : SOURCE_ORDER.length;
+    if (ra !== rb) return ra - rb;
+    return b.views - a.views;
+  });
+}
+
 async function visitorsSummary() {
   const rows = await prisma.sitePageView.findMany({
     select: {
@@ -315,7 +336,7 @@ async function visitorsSummary() {
   const weeks = sortByViewsDesc(
     [...weekMap.entries()].map(([week, views]) => ({ week, views })),
   ).sort((a, b) => String(a.week).localeCompare(String(b.week)));
-  const sources = sortByViewsDesc(
+  const sources = sortSources(
     [...sourceMap.entries()].map(([source, views]) => ({ source, views })),
   );
   const pages = sortByViewsDesc(
@@ -350,5 +371,7 @@ module.exports = {
   funnelBucket,
   visitorsSummary,
   isAllowedOrigin,
+  SOURCE_ORDER,
+  sortSources,
   _resetRateLimitForTests,
 };
