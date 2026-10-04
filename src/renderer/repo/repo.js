@@ -148,12 +148,38 @@
   }
 
   function canWriteDisk() {
+    var storage = window.tinkerRepoStorage;
+    if (storage && typeof storage.getAdapter === "function") {
+      var adapter = storage.getAdapter();
+      if (adapter && adapter.available && adapter.available()) return true;
+    }
     return !!(
       state.location &&
       window.tinker &&
       typeof window.tinker.writeNotesFile === "function" &&
       typeof window.tinker.listNotesFiles === "function"
     );
+  }
+
+  function activeStorageAdapter() {
+    var storage = window.tinkerRepoStorage;
+    if (storage && typeof storage.getAdapter === "function") {
+      var adapter = storage.getAdapter();
+      if (adapter && adapter.available && adapter.available()) return adapter;
+    }
+    if (
+      state.location &&
+      window.tinker &&
+      typeof window.tinker.writeNotesFile === "function"
+    ) {
+      return {
+        list: function () { return window.tinker.listNotesFiles(state.location); },
+        write: function (rel, text) { return window.tinker.writeNotesFile(state.location, rel, text); },
+        move: function (from, to) { return window.tinker.moveNotesFile(state.location, from, to); },
+        remove: function (rel) { return window.tinker.removeNotesFile(state.location, rel); },
+      };
+    }
+    return null;
   }
 
   function canMoveDisk() {
@@ -1499,8 +1525,9 @@
 
   function syncStoriesToDisk() {
     if (!canWriteDisk()) return Promise.resolve({ wrote: 0, skipped: 0 });
-    var root = state.location;
-    return window.tinker.listNotesFiles(root).then(function (listed) {
+    var adapter = activeStorageAdapter();
+    if (!adapter) return Promise.resolve({ wrote: 0, skipped: 0 });
+    return adapter.list().then(function (listed) {
       var byPath = Object.create(null);
       (listed || []).forEach(function (row) {
         if (row && row.relPath) byPath[String(row.relPath).replace(/\\/g, "/")] = row.text;
@@ -1517,7 +1544,7 @@
             return null;
           }
           if (!md.needsStoryFileWrite(local, story.markdown)) return null;
-          return window.tinker.writeNotesFile(root, story.relPath, story.markdown).then(function () {
+          return adapter.write(story.relPath, story.markdown).then(function () {
             wrote += 1;
           });
         });
@@ -1528,7 +1555,7 @@
           if (state.mirroredFolders[folder.id]) return null;
           var dir = core.folderRelDir(state.folders, folder.id);
           var marker = dir + "/.tinker-folder";
-          return window.tinker.writeNotesFile(root, marker, folder.contentType + "\n").then(function () {
+          return adapter.write(marker, folder.contentType + "\n").then(function () {
             state.mirroredFolders[folder.id] = true;
           });
         });
@@ -1686,6 +1713,17 @@
   });
 
   state.location = readStoredLocation();
+
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("tinker-storage-root-changed", function (event) {
+      var detail = event && event.detail;
+      if (detail && detail.path) {
+        setLocation(detail.path);
+        return;
+      }
+      syncStoriesToDisk();
+    });
+  }
 
   window.tinkerRepo = {
     getLocation: getLocation,

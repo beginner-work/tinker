@@ -376,6 +376,87 @@ html, body.repo-page {
   border-color: var(--color-accent-strong);
 }
 
+/* Storage section (location dropdown / fallback panel) */
+.repo-storage {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.repo-storage__heading {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.repo-storage__current {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--color-foreground);
+  word-break: break-word;
+}
+
+.repo-storage__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.repo-storage__option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.repo-storage__option:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.repo-storage__option.is-selected {
+  border-color: var(--color-accent-strong);
+}
+
+.repo-storage__option.is-disabled,
+.repo-storage__option:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.repo-storage__option-label {
+  font-weight: 600;
+}
+
+.repo-storage__option-hint {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.repo-storage__note,
+.repo-storage__error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.repo-storage__error {
+  color: #9a3412;
+}
+
 .repo-layout {
   flex: 1;
   min-height: 0;

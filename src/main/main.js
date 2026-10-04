@@ -13,6 +13,7 @@ const {
 const path = require("path");
 const fs = require("fs");
 const fsp = require("fs/promises");
+const { detectCloudRoots, useCloudRoot } = require("./lib/cloud-roots.js");
 
 // Production Tinker. The desktop shell is a hardened BrowserWindow around
 // this origin — web product changes ship without a new dmg; only shell
@@ -583,4 +584,31 @@ ipcMain.handle("notesFolder:remove", async (_event, rootDir, relPath) => {
   if (!fs.existsSync(target)) return false;
   await fsp.unlink(target);
   return true;
+});
+
+// Cloud storage roots (iCloud Drive / Google Drive for desktop). Feature-detect
+// in the renderer via window.tinker.cloudStorageRoots so older dmgs degrade.
+ipcMain.handle("storage:cloudRoots", async () => {
+  try {
+    return detectCloudRoots({
+      homeDir: app.getPath("home"),
+      platform: process.platform,
+    });
+  } catch {
+    return [
+      { id: "icloud", label: "iCloud Drive", path: "", installed: false },
+      { id: "google-drive", label: "Google Drive", path: "", installed: false, account: "" },
+    ];
+  }
+});
+
+ipcMain.handle("storage:useCloudRoot", async (_event, id) => {
+  try {
+    return useCloudRoot(id, {
+      homeDir: app.getPath("home"),
+      platform: process.platform,
+    });
+  } catch {
+    return null;
+  }
 });
