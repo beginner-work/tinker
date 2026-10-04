@@ -90,11 +90,13 @@ module.exports = withResponseLogging(async function handler(req, res) {
   }
 
   try {
+    // Client shim historically sent max_tokens; older docs said maxTokens.
+    const maxTokens = body.maxTokens != null ? body.maxTokens : body.max_tokens;
     const result = await callAnthropic({
       system: body.system,
       messages,
       model: body.model,
-      maxTokens: body.maxTokens,
+      maxTokens,
     });
     res.status(200).json(result);
   } catch (err) {

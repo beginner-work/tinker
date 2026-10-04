@@ -36,10 +36,12 @@ function makeEl(tag, id, store) {
     type: tag === "button" ? "button" : (tag === "input" ? "text" : ""),
     children: [],
     parentNode: null,
-    style: {},
+    style: { height: "" },
     dataset: {},
     firstChild: null,
+    nodeType: 1,
     _text: "",
+    get childNodes() { return el.children; },
     classList: {
       add(name) {
         const parts = String(el.className || "").split(/\s+/).filter(Boolean);
@@ -107,6 +109,27 @@ function makeEl(tag, id, store) {
       if (node === el) return true;
       return el.children.some((c) => c === node || (c.contains && c.contains(node)));
     },
+    querySelector(selector) {
+      const all = el.querySelectorAll(selector);
+      return all[0] || null;
+    },
+    querySelectorAll(selector) {
+      const out = [];
+      function match(node) {
+        if (!node || node.nodeType === 3) return;
+        const cls = String(node.className || "").split(/\s+/);
+        if (selector === "textarea.repo-pad__turn") {
+          if (node.tagName === "TEXTAREA" && cls.includes("repo-pad__turn")) out.push(node);
+        } else if (selector === "[data-pad-q='1']") {
+          if (node.getAttribute && node.getAttribute("data-pad-q") === "1") out.push(node);
+        } else if (selector.startsWith(".")) {
+          if (cls.includes(selector.slice(1))) out.push(node);
+        }
+        for (const child of node.children || []) match(child);
+      }
+      match(el);
+      return out;
+    },
     closest(selector) {
       let cur = el;
       while (cur) {
@@ -159,6 +182,7 @@ function bootRepoPage(options) {
     "repo-new-piece",
     "repo-new-folder",
     "repo-body",
+    "repo-pad",
     "repo-location",
     "repo-location-btn",
     "repo-location-panel",
@@ -203,6 +227,9 @@ function bootRepoPage(options) {
   ];
   for (const id of ids) makeEl("div", id, byId);
   byId["repo-body"].tagName = "TEXTAREA";
+  byId["repo-pad"].tagName = "DIV";
+  byId["repo-pad"].className = "repo-pad";
+  byId["repo-pad"].nodeType = 1;
   byId["repo-location-btn"].tagName = "BUTTON";
   byId["repo-location-btn"].textContent = "";
   byId["repo-location-value"].textContent = "";
@@ -310,7 +337,10 @@ function bootRepoPage(options) {
       return byId[id] || null;
     },
     createElement(tag) {
-      return makeEl(tag, "", byId);
+      const el = makeEl(tag, "", byId);
+      el.nodeType = 1;
+      if (String(tag).toLowerCase() === "textarea") el.tagName = "TEXTAREA";
+      return el;
     },
     addEventListener(type, fn) {
       (docListeners[type] || (docListeners[type] = [])).push(fn);
@@ -574,7 +604,7 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=12/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=14/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -587,6 +617,8 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(html, /id="repo-this-is-everything"/);
   assert.match(html, />Keep crafting</);
   assert.match(html, />This is everything</);
+  assert.match(html, /id="repo-pad"/);
+  assert.match(html, /repo-pad__mirror/);
   assert.doesNotMatch(html, />Write</);
   assert.match(html, /id="repo-surface"[\s\S]*id="repo-location"/);
   assert.match(html, /id="repo-surface"[\s\S]*id="repo-pad-actions"/);
@@ -597,20 +629,21 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.doesNotMatch(html, /id="repo-new-folder"/);
   assert.doesNotMatch(html, /id="repo-move-sheet"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=12"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=12"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=12"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=12"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=12"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=12"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=12"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=12"/);
-  assert.match(html, /href="\/styles\.css\?v=12"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=14"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=14"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=14"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=14"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=14"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=14"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=14"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=14"/);
+  assert.match(html, /href="\/styles\.css\?v=14"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(html, /id="repo-body"[^>]*placeholder=/);
-  assert.match(html, /<textarea class="writing-input repo-surface__input" id="repo-body" spellcheck="true"><\/textarea>/);
+  assert.match(html, /id="repo-body"/);
+  assert.match(html, /class="repo-pad__mirror"/);
   assert.equal(html.includes("innerHTML"), false);
   assert.equal(page.includes("innerHTML"), false);
   assert.match(page, /registerLocationSection/);
@@ -620,8 +653,13 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(page, /set_place/);
   assert.match(css, /\.repo-location__field/);
   assert.match(css, /\.repo-location__globe/);
-  assert.match(css, /\.repo-location\s*\{[^}]*position:\s*absolute/s);
-  assert.match(css, /\.repo-surface__input\.writing-input\s*\{[^}]*padding:\s*56px/s);
+  assert.match(css, /\.repo-location\s*\{[^}]*position:\s*sticky/s);
+  assert.match(css, /\.repo-pad\s*\{/);
+  assert.match(css, /\.repo-pad__q\s*\{/);
+  assert.match(css, /\.repo-pad__mirror/);
+  assert.match(css, /body\.repo-page--write\s+\.repo-center\s*\{[^}]*background:\s*transparent/s);
+  assert.doesNotMatch(css, /min-height:\s*42vh/);
+  assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /\.repo-surface__foot/);
   assert.match(css, /\.repo-surface__foot\.is-visible/);
   assert.match(css, /transition:\s*opacity\s*300ms/);
@@ -1084,6 +1122,40 @@ test("This is everything saves the pad essay", async () => {
   assert.ok(stories.some((s) => s.id === puts[0][0].id));
 });
 
+test("pad Markdown round-trip keeps user text and stores questions as blockquotes", async () => {
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "write" });
+  await env.flush();
+  const samples = [
+    "Just a note with no questions.\nSecond line.",
+    "Lead-in paragraph.\n\n> What are you noticing about this?\n\nMy answer stays intact.",
+    "> First question alone?\n\nAnswer after a leading question.",
+    "Trailing space case.  \n\n> What changed when you sat with that longer?\n\n",
+  ];
+  for (const sample of samples) {
+    const parsed = env.window.tinkerRepo.parsePadMarkdown(sample);
+    const again = env.window.tinkerRepo.serializePadSegments(parsed);
+    assert.equal(again, sample);
+  }
+  env.window.tinkerRepo.setPadMarkdown(
+    "Lead-in paragraph.\n\n> What are you noticing about this?\n\nMy answer stays intact."
+  );
+  assert.equal(
+    env.window.tinkerRepo.getPadMarkdown(),
+    "Lead-in paragraph.\n\n> What are you noticing about this?\n\nMy answer stays intact."
+  );
+  assert.equal(
+    JSON.stringify(env.window.tinkerRepo.visibleQuestionTexts()),
+    JSON.stringify(["What are you noticing about this?"])
+  );
+  const qNode = env.byId["repo-pad"].children.find(
+    (n) => n.getAttribute && n.getAttribute("data-pad-q") === "1"
+  );
+  assert.ok(qNode);
+  assert.equal(qNode.textContent, "What are you noticing about this?");
+  assert.doesNotMatch(qNode.textContent, /^>\s/);
+  assert.match(env.byId["repo-body"].value, /^Lead-in paragraph\.\n\n> What are you noticing about this\?/);
+});
+
 test("Keep crafting inserts the follow-up question inline in the pad", async () => {
   const calls = [];
   const builds = [];
@@ -1113,6 +1185,10 @@ test("Keep crafting inserts the follow-up question inline in the pad", async () 
   assert.match(env.byId["repo-body"].value, /> What are you noticing about this\?\n\n$/);
   assert.equal(env.byId["repo-body"].selectionStart, env.byId["repo-body"].value.length);
   assert.equal(env.byId["repo-body"].selectionEnd, env.byId["repo-body"].value.length);
+  assert.equal(
+    JSON.stringify(env.window.tinkerRepo.visibleQuestionTexts()),
+    JSON.stringify(["What are you noticing about this?"])
+  );
   assert.equal(env.byId["repo-followup"].hidden, true);
   assert.equal(env.byId["repo-pad-error"].hidden, true);
 });
@@ -1213,10 +1289,62 @@ test("Keep crafting signed-out shows Sign in and starts auth return to /repo", a
   assert.equal(env.byId["repo-pad-error-signin"].hidden, false);
   assert.equal(env.byId["repo-pad-error-retry"].hidden, true);
   env.click("repo-pad-error-signin");
-  assert.deepEqual(env.assigned, ["/"]);
+  assert.deepEqual(env.assigned, ["/?signin=1"]);
   assert.equal(env.session.get("tinker_mcp_return"), "/repo");
   const draft = JSON.parse(env.session.get("tinker.repo.padDraft.v1") || "{}");
   assert.match(draft.body || "", /Signed-out draft about the work/);
+});
+
+test("stale-token Sign in clears jwt and opens /?signin=1 without bounce", async () => {
+  const env = bootRepoPage({
+    token: "stale-rejected-token",
+    desktop: true,
+    mode: "write",
+    callClaude() {
+      const err = new Error("Session expired. Sign in again.");
+      err.code = "SESSION_EXPIRED";
+      err.status = 401;
+      return Promise.reject(err);
+    },
+  });
+  await env.flush();
+  assert.equal(env.storage.get("tinker_jwt"), "stale-rejected-token");
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "Draft kept across reauth.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.keepCraftingPad();
+  assert.equal(env.byId["repo-pad-error-signin"].hidden, false);
+  env.click("repo-pad-error-signin");
+  assert.equal(env.storage.get("tinker_jwt"), undefined);
+  assert.ok(!env.storage.has("tinker_jwt"));
+  assert.deepEqual(env.assigned, ["/?signin=1"]);
+  assert.equal(env.session.get("tinker_mcp_return"), "/repo");
+  const draft = JSON.parse(env.session.get("tinker.repo.padDraft.v1") || "{}");
+  assert.match(draft.body || "", /Draft kept across reauth/);
+});
+
+test("draft restores after auth return to /repo", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    sessionDraft: JSON.stringify({
+      body: "Restored after phone code.\n\n> What stayed with you?\n\n",
+      place: "Coffee shop",
+      at: Date.now(),
+    }),
+  });
+  await env.flush();
+  assert.match(env.window.tinkerRepo.getPadMarkdown(), /Restored after phone code/);
+  assert.match(env.window.tinkerRepo.getPadMarkdown(), /> What stayed with you\?/);
+  assert.equal(
+    JSON.stringify(env.window.tinkerRepo.visibleQuestionTexts()),
+    JSON.stringify(["What stayed with you?"])
+  );
+  assert.ok(!env.session.has("tinker.repo.padDraft.v1"));
 });
 
 test("Keep crafting signed-in inserts without sign-in prompt", async () => {
@@ -1249,6 +1377,7 @@ test("Keep crafting error shows Retry and retries the request", async () => {
       if (n === 1) {
         const err = new Error("Upstream failed");
         err.code = "UPSTREAM";
+        err.status = 502;
         return Promise.reject(err);
       }
       return Promise.resolve({
@@ -1267,12 +1396,40 @@ test("Keep crafting error shows Retry and retries the request", async () => {
   assert.equal(env.byId["repo-pad-error"].hidden, false);
   assert.match(env.byId["repo-pad-error-text"].textContent, /Upstream failed/);
   assert.equal(env.byId["repo-pad-error-retry"].hidden, false);
+  assert.equal(env.byId["repo-pad-error-signin"].hidden, true);
   env.click("repo-pad-error-retry");
   await env.flush();
   await new Promise((r) => setTimeout(r, 10));
   assert.equal(n, 2);
   assert.equal(env.byId["repo-pad-error"].hidden, true);
   assert.match(env.byId["repo-body"].value, /> What are you noticing about this\?/);
+});
+
+test("non-auth Keep crafting failure with Sign in wording still shows Retry", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    callClaude() {
+      const err = new Error("Model overloaded — sign in later and retry.");
+      err.code = "UPSTREAM";
+      err.status = 529;
+      return Promise.reject(err);
+    },
+  });
+  await env.flush();
+  env.click("repo-new-piece");
+  env.byId["repo-body"].value = "Should not treat this as auth.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await env.window.tinkerRepo.keepCraftingPad();
+  assert.equal(env.byId["repo-pad-error"].hidden, false);
+  assert.equal(env.byId["repo-pad-error-retry"].hidden, false);
+  assert.equal(env.byId["repo-pad-error-signin"].hidden, true);
+  assert.equal(env.storage.get("tinker_jwt"), "jwt-test");
+  assert.equal(env.assigned.length, 0);
 });
 
 test("/repo header has no legacy Home link to old pages", () => {

@@ -4,14 +4,30 @@
  */
 
 html, body.repo-page {
-  height: 100%;
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--color-background);
+}
+
+/* Write page: continuous document scroll (page scrolls, not an inner box). */
+html:has(body.repo-page--write),
+body.repo-page--write {
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
+    radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
+    var(--color-background);
+}
+
+/* Files page keeps the older contained shell. */
+body.repo-page--files {
+  height: 100%;
+  overflow: hidden;
 }
 
 .repo-top {
@@ -139,11 +155,12 @@ html.tinker-desktop .repo-top [role="button"] {
  * Place suggestions open below the island. Disk/cloud storage lives on
  * Files as Saved in (same option styles). */
 .repo-location {
-  position: absolute;
+  position: sticky;
   top: 12px;
   left: 50%;
   z-index: 12;
-  transform: translateX(-50%);
+  margin: 0 auto 8px;
+  transform: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -622,6 +639,10 @@ html.tinker-desktop .repo-top [role="button"] {
 
 .repo-layout--write {
   grid-template-columns: 1fr minmax(220px, 260px);
+  min-height: calc(100dvh - 72px);
+  height: auto;
+  overflow: visible;
+  align-items: start;
 }
 
 .repo-layout--files {
@@ -660,6 +681,14 @@ html.tinker-desktop .repo-top [role="button"] {
     radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
     radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
     var(--color-background);
+}
+
+body.repo-page--write .repo-center {
+  min-height: calc(100dvh - 72px);
+  height: auto;
+  overflow: visible;
+  /* Same wash as the page — no seam where a short tinted box used to end. */
+  background: transparent;
 }
 
 .repo-sidebar__heading {
@@ -1133,12 +1162,13 @@ html.tinker-desktop .repo-top [role="button"] {
   position: relative;
   inset: auto;
   flex: 1;
-  min-height: 0;
+  min-height: calc(100dvh - 72px);
+  height: auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   background: transparent;
-  padding: 20px 24px 28px;
+  padding: 12px 24px 96px;
 }
 
 /* Legacy follow-up slot kept hidden; questions insert into the pad. */
@@ -1147,7 +1177,7 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-pad-error {
-  position: absolute;
+  position: fixed;
   left: 50%;
   bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   z-index: 12;
@@ -1216,9 +1246,9 @@ html.tinker-desktop .repo-top [role="button"] {
   opacity: 0.9;
 }
 
-/* Keep crafting / This is everything — float bottom-right; idle fade-in. */
+/* Keep crafting / This is everything — fixed to the viewport; idle fade-in. */
 .repo-surface__foot {
-  position: absolute;
+  position: fixed;
   right: 16px;
   bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   z-index: 11;
@@ -1290,16 +1320,98 @@ html.tinker-desktop .repo-top [role="button"] {
   outline-offset: 2px;
 }
 
+/* Canonical Markdown mirror (includes "> " blockquotes). Visual pad is separate. */
+.repo-pad__mirror {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.repo-pad {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: calc(100dvh - 160px);
+  margin: 0;
+  padding: 8px 4px 0;
+}
+
+.repo-pad__turn {
+  display: block;
+  width: 100%;
+  min-height: 8rem;
+  margin: 0;
+  padding: 4px 12px 12px;
+  resize: none;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--color-foreground);
+  caret-color: var(--color-foreground);
+}
+
+.repo-pad__turn:last-of-type {
+  flex: 1 1 auto;
+  min-height: min(62vh, 36rem);
+}
+
+.repo-pad__turn:hover,
+.repo-pad__turn:focus,
+.repo-pad__turn:focus-visible {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Styled question line — Markdown stores "> …"; the editor never shows the marker. */
+.repo-pad__q {
+  margin: 10px 12px 4px;
+  padding: 10px 14px 10px 16px;
+  border-left: 3px solid var(--color-accent-strong, #2d5a3d);
+  border-radius: 0 12px 12px 0;
+  background: color-mix(in srgb, var(--color-accent-dim, rgba(45, 90, 61, 0.12)) 70%, transparent);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  color: var(--color-foreground);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.repo-pad__q-text {
+  display: block;
+}
+
 .repo-surface__input.writing-input {
+  /* Legacy single-textarea class kept for shared writing-input resets if reused. */
   flex: 1;
   min-height: 0;
   width: 100%;
-  height: 100%;
   margin: 0;
-  /* Clear the floating Location island at the top of the pad. */
-  padding: 56px 20px 72px;
+  padding: 8px 12px;
   resize: none;
-  /* Invisible notepad: only text, placeholder, and caret show. */
   border: 0;
   border-radius: 0;
   outline: none;
@@ -1321,13 +1433,6 @@ html.tinker-desktop .repo-top [role="button"] {
   outline: none;
   box-shadow: none;
   background: transparent;
-}
-
-.repo-surface__input.writing-input:disabled {
-  opacity: 0.85;
-  color: var(--color-foreground);
-  background: transparent;
-  cursor: default;
 }
 
 .repo-changes__note-label {
@@ -1437,10 +1542,13 @@ html.tinker-desktop .repo-top [role="button"] {
     font-size: 15px;
   }
 
-  .repo-layout {
+  .repo-layout,
+  .repo-layout--write {
     display: flex;
     flex-direction: column;
-    overflow: auto;
+    overflow: visible;
+    min-height: 0;
+    height: auto;
   }
 
   .repo-sidebar {
@@ -1454,16 +1562,31 @@ html.tinker-desktop .repo-top [role="button"] {
     display: none;
   }
 
-  .repo-center {
-    min-height: 42vh;
+  body.repo-page--write .repo-center {
+    min-height: calc(100dvh - 64px);
   }
 
   .repo-surface.writing {
-    padding: 10px 12px 16px;
+    padding: 8px 12px 88px;
+    min-height: calc(100dvh - 64px);
   }
 
-  .repo-surface__input.writing-input {
-    padding: 52px 12px 68px;
+  .repo-pad {
+    min-height: calc(100dvh - 140px);
+  }
+
+  .repo-pad__turn {
+    font-size: 16px;
+    padding: 4px 8px 12px;
+  }
+
+  .repo-pad__turn:last-of-type {
+    min-height: min(70vh, 32rem);
+  }
+
+  .repo-pad__q {
+    margin: 8px 8px 4px;
+    font-size: 17px;
   }
 
   .repo-followup {
@@ -1474,10 +1597,6 @@ html.tinker-desktop .repo-top [role="button"] {
   .repo-surface__foot {
     right: 12px;
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  }
-
-  body.repo-page {
-    overflow: auto;
   }
 }
 
@@ -1500,12 +1619,16 @@ html.tinker-desktop .repo-top [role="button"] {
   }
 
   .repo-surface.writing {
-    padding: 8px 10px 14px;
+    padding: 6px 10px 84px;
   }
 
-  .repo-surface__input.writing-input {
-    padding: 48px 10px 64px;
+  .repo-pad__turn {
     font-size: 16px;
+  }
+
+  .repo-pad__q {
+    font-size: 16px;
+    padding: 9px 12px 9px 14px;
   }
 
   .repo-followup {

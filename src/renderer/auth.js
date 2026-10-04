@@ -84,6 +84,22 @@
     return true;
   }
 
+  // /?signin=1 is the recovery path from /repo when a stale token would
+  // otherwise bounce past this gate via repo-redirect.js. Clear the token
+  // so the phone screen always shows, then continue into the gate.
+  function wantsSignInScreen() {
+    try {
+      return /(?:^|[?&])signin=1(?:&|$)/.test(window.location.search || "");
+    } catch {
+      return false;
+    }
+  }
+
+  if (wantsSignInScreen()) {
+    auth.token = "";
+    try { localStorage.removeItem(PHONE_ID_KEY); } catch { /* ignore */ }
+  }
+
   if (resumeMcpReturn()) return;
 
   // ── DOM refs ─────────────────────────────────────────────────────────
@@ -109,7 +125,7 @@
   // proxied request 401s, instead of reloading the page).
   auth.showGate = showGate;
 
-  if (!auth.token) {
+  if (!auth.token || wantsSignInScreen()) {
     showGate();
   }
 

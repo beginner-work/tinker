@@ -67,7 +67,12 @@
     const body = { messages };
     if (system) body.system = system;
     if (model) body.model = model;
-    if (maxTokens) body.max_tokens = maxTokens;
+    if (maxTokens) {
+      // Send both spellings — converse historically read maxTokens while
+      // this shim sent max_tokens, so the server defaulted every call.
+      body.maxTokens = maxTokens;
+      body.max_tokens = maxTokens;
+    }
 
     const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
     const timer = controller
@@ -96,14 +101,14 @@
     }
     if (timer) clearTimeout(timer);
 
-    if (res.status === 401) {
+    if (res.status === 401 || res.status === 403) {
       try { STORE.removeItem("tinker_jwt"); } catch { /* ignore */ }
       const e = new Error("Session expired. Sign in again.");
       e.code = "SESSION_EXPIRED";
-      // Surface the auth gate in place instead of reloading the page.
-      // A reload mid-session reads as "I submitted something and got
-      // bounced to login", which is exactly the experience we want to
-      // avoid.
+      e.status = res.status;
+      // Surface the auth gate in place when the shell has one. /repo does
+      // not load auth.js, so callers there show an inline Sign in control
+      // that navigates to /?signin=1 instead.
       if (window.tinkerAuth && typeof window.tinkerAuth.showGate === "function") {
         window.tinkerAuth.showGate();
       }
@@ -113,7 +118,10 @@
     try { data = await res.json(); } catch { data = {}; }
     if (!res.ok) {
       const message = (data && (data.error || data.detail)) || `Claude call failed (${res.status})`;
-      throw new Error(message);
+      const e = new Error(message);
+      e.code = "UPSTREAM";
+      e.status = res.status;
+      throw e;
     }
     return { text: data.text || "", usage: data.usage, model: data.model };
   }
