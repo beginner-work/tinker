@@ -699,7 +699,8 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-layout--write {
-  grid-template-columns: 1fr minmax(260px, 320px);
+  /* Essays rail width is --repo-essays-rail (shared with the fixed action island). */
+  grid-template-columns: 1fr minmax(260px, var(--repo-essays-rail, 320px));
   min-height: calc(100vh - 72px);
   min-height: calc(100dvh - 72px);
   height: auto;
@@ -1396,10 +1397,16 @@ body.repo-page--write .repo-center {
    Desktop (≥768px): fixed to the visual viewport with a real floor —
    bottom of the pill sits at least max(48px, 8vh) above the window
    bottom (works in browser and Electron; uses dvh when available).
+   Horizontally: anchored to the editor column — right edge clears the
+   essays rail by --repo-foot-gutter (same as #456 sticky + pad padding),
+   never overlapping .repo-right. When the rail is hidden (≤800px),
+   --repo-essays-rail collapses to 0.
    Phone (≤767px): fixed above the home indicator / keyboard (#453). */
 :root {
   --repo-foot-floor: max(48px, 8vh);
   --repo-foot-floor: max(48px, 8dvh);
+  --repo-essays-rail: 320px;
+  --repo-foot-gutter: 24px;
 }
 
 .repo-surface__foot {
@@ -1407,7 +1414,8 @@ body.repo-page--write .repo-center {
   align-self: auto;
   margin: 0;
   margin-left: auto;
-  right: 24px;
+  /* Editor-column right edge: essays rail + inner gutter (#456 parity). */
+  right: calc(var(--repo-essays-rail) + var(--repo-foot-gutter));
   left: auto;
   z-index: 30;
   display: flex;
@@ -1688,6 +1696,11 @@ body.repo-page--write .repo-center {
 }
 
 @media (max-width: 800px) {
+  :root {
+    /* Essays rail hidden — action island uses the narrow right gutter. */
+    --repo-essays-rail: 0px;
+  }
+
   .repo-top {
     flex-wrap: wrap;
     gap: 10px;

@@ -745,7 +745,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=21/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=22/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -787,16 +787,16 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=21"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=21"/);
-  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=21"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=21"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=21"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=21"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=21"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=21"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=21"/);
-  assert.match(html, /href="\/styles\.css\?v=21"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=22"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=22"/);
+  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=22"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=22"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=22"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=22"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=22"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=22"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=22"/);
+  assert.match(html, /href="\/styles\.css\?v=22"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -888,6 +888,38 @@ function repoFootFloorPx(viewportHeight) {
   return Math.max(48, Math.round(0.08 * viewportHeight));
 }
 
+/** Desktop essays rail + foot gutter — mirrors --repo-essays-rail / --repo-foot-gutter. */
+function repoFootSidebarGeometry(viewportWidth, viewportHeight, footWidthPx = 280) {
+  const sidebarHidden = viewportWidth <= 800;
+  const rail = sidebarHidden ? 0 : 320;
+  const gutter = sidebarHidden ? 12 : 24;
+  const rightInset = rail + gutter;
+  const footRight = viewportWidth - rightInset;
+  const footLeft = footRight - footWidthPx;
+  const sidebarLeft = sidebarHidden ? null : viewportWidth - rail;
+  const sidebarRight = sidebarHidden ? null : viewportWidth;
+  const intersects =
+    !sidebarHidden &&
+    footRight > sidebarLeft &&
+    footLeft < sidebarRight;
+  const clearancePx = sidebarHidden ? null : sidebarLeft - footRight;
+  return {
+    viewportWidth,
+    viewportHeight,
+    sidebarVisible: !sidebarHidden,
+    rail,
+    gutter,
+    rightInset,
+    footLeft,
+    footRight,
+    sidebarLeft,
+    sidebarRight,
+    clearancePx,
+    intersects,
+    floorPx: repoFootFloorPx(viewportHeight),
+  };
+}
+
 test("UI-contract: desktop Keep crafting pill bottom offset is max(48px, 8vh)", () => {
   // Computed floor at the viewports Tyler reported (and Electron content area).
   assert.equal(repoFootFloorPx(900), 72, "1440x900 → 8vh = 72px");
@@ -921,6 +953,42 @@ test("UI-contract: desktop Keep crafting pill bottom offset is max(48px, 8vh)", 
   assert.match(css, /@media\s*\(max-width:\s*767px\)\s*\{[\s\S]*--repo-foot-floor:\s*12px/);
   assert.doesNotMatch(css, /\.repo-surface__foot\s*\{[^}]*position:\s*sticky/s);
   assert.doesNotMatch(css, /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*40px/s);
+});
+
+test("UI-contract: desktop action pill never intersects essays sidebar", () => {
+  // Shared rail token: grid track + fixed foot right offset.
+  assert.match(css, /--repo-essays-rail:\s*320px/);
+  assert.match(css, /--repo-foot-gutter:\s*24px/);
+  assert.match(
+    css,
+    /\.repo-layout--write\s*\{[^}]*minmax\(\s*260px,\s*var\(--repo-essays-rail(?:,\s*320px)?\)/s,
+  );
+  assert.match(
+    css,
+    /\.repo-surface__foot\s*\{[^}]*right:\s*calc\(\s*var\(--repo-essays-rail\)\s*\+\s*var\(--repo-foot-gutter\)\s*\)/s,
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*--repo-essays-rail:\s*0px/,
+  );
+
+  for (const [w, h] of [
+    [1440, 900],
+    [1280, 800],
+    [1024, 600],
+  ]) {
+    const geo = repoFootSidebarGeometry(w, h);
+    assert.equal(geo.sidebarVisible, true, `${w}x${h} sidebar visible`);
+    assert.equal(geo.intersects, false, `${w}x${h} no intersection`);
+    assert.ok(
+      geo.clearancePx >= 24,
+      `${w}x${h} clearance ${geo.clearancePx}px >= 24px gutter`,
+    );
+    assert.ok(
+      geo.footRight <= geo.sidebarLeft,
+      `${w}x${h} footRight ${geo.footRight} <= sidebarLeft ${geo.sidebarLeft}`,
+    );
+  }
 });
 
 test("writing-input and /repo surface are invisible (no box)", () => {
