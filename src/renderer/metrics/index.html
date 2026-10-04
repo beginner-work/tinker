@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
+    <title>Metrics</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/metrics/metrics.css?v=1" />
+  </head>
+  <body class="metrics-page">
+    <main class="metrics">
+      <a class="metrics__back" href="/">Back</a>
+      <h1 class="metrics__title">Metrics</h1>
+      <p class="metrics__lede">Owner view of first-party product analytics. No draft text is stored.</p>
+
+      <p id="metrics-status" class="metrics__status" role="status"></p>
+
+      <div class="metrics__range" role="tablist" aria-label="Range">
+        <button type="button" class="metrics__range-btn is-active" data-days="7" role="tab" aria-selected="true">7 days</button>
+        <button type="button" class="metrics__range-btn" data-days="30" role="tab" aria-selected="false">30 days</button>
+      </div>
+
+      <section class="metrics__section" aria-labelledby="funnel-heading">
+        <h2 id="funnel-heading" class="metrics__section-title">Funnel</h2>
+        <div id="metrics-funnel" class="metrics__funnel"></div>
+      </section>
+
+      <section class="metrics__section" aria-labelledby="dau-heading">
+        <h2 id="dau-heading" class="metrics__section-title">Daily active writers</h2>
+        <div id="metrics-dau" class="metrics__table-wrap"></div>
+      </section>
+
+      <section class="metrics__section metrics__grid">
+        <div>
+          <h2 class="metrics__section-title">Day-2 return</h2>
+          <p id="metrics-day2" class="metrics__stat"></p>
+        </div>
+        <div>
+          <h2 class="metrics__section-title">Phone vs desktop</h2>
+          <div id="metrics-devices" class="metrics__stat"></div>
+        </div>
+      </section>
+
+      <section class="metrics__section" aria-labelledby="sources-heading">
+        <h2 id="sources-heading" class="metrics__section-title">Top sources</h2>
+        <div id="metrics-sources" class="metrics__table-wrap"></div>
+      </section>
+
+      <section class="metrics__section" aria-labelledby="writing-heading">
+        <h2 id="writing-heading" class="metrics__section-title">Writing behavior</h2>
+        <div id="metrics-writing" class="metrics__stat"></div>
+        <h3 class="metrics__subhead">Recent sessions</h3>
+        <div id="metrics-sessions" class="metrics__table-wrap"></div>
+        <h3 class="metrics__subhead">Session timeline</h3>
+        <p id="metrics-timeline-label" class="metrics__muted">Pick a session above.</p>
+        <div id="metrics-timeline" class="metrics__timeline" hidden></div>
+      </section>
+
+      <section class="metrics__section" aria-labelledby="events-heading">
+        <h2 id="events-heading" class="metrics__section-title">Recent events</h2>
+        <label class="metrics__filter">
+          Filter by name
+          <input id="metrics-event-filter" type="text" placeholder="e.g. page_view" autocomplete="off" />
+        </label>
+        <div id="metrics-events" class="metrics__table-wrap"></div>
+      </section>
+    </main>
+
+    <script src="/metrics/metrics.js?v=1" defer></script>
+  </body>
+</html>

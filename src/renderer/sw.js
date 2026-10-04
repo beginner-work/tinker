@@ -32,7 +32,7 @@
  * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v49";
+const CACHE_VERSION = "tinker-shell-v50";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -49,6 +49,10 @@ const PRECACHE = [
   // critical scripts (document order)
   "/boot-css.js",
   "/pwa-session.js",
+  "/lib/analytics-keystrokes.js",
+  "/lib/analytics-core.js",
+  "/analytics.js",
+  "/vercel-analytics.js",
   "/freewrite.js",
   "/sync.js",
   "/messages-thread-actions.js",
@@ -142,7 +146,7 @@ self.addEventListener("fetch", (event) => {
   // Leave the API on the network — freewrite.js gates it page-side, and
   // it's per-user/authenticated, so it must never be cached.
   if (sameOrigin && url.pathname.startsWith("/api/")) return;
-  // /autonomy, /career, /leads, /settings, /feed, and /repo are their own pages.
+  // /autonomy, /career, /leads, /settings, /feed, /metrics, and /repo are their own pages.
   // Leave them on the network so a visit does not get stored as the offline
   // shell for "/". (networkFirstDoc used to cache any navigate response under
   // "/" / index.html, which made Settings overwrite the People inbox shell
@@ -152,6 +156,7 @@ self.addEventListener("fetch", (event) => {
   if (sameOrigin && (url.pathname === "/leads" || url.pathname.startsWith("/leads/"))) return;
   if (sameOrigin && (url.pathname === "/settings" || url.pathname.startsWith("/settings/"))) return;
   if (sameOrigin && (url.pathname === "/feed" || url.pathname.startsWith("/feed/"))) return;
+  if (sameOrigin && (url.pathname === "/metrics" || url.pathname.startsWith("/metrics/"))) return;
   if (sameOrigin && (url.pathname === "/repo" || url.pathname.startsWith("/repo/"))) return;
   // Cross-origin (fonts, vercel.live preview comments): pass through.
   if (!sameOrigin) return;

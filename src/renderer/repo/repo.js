@@ -2796,6 +2796,11 @@
     els.keepCrafting.addEventListener("click", function (event) {
       if (event && event.preventDefault) event.preventDefault();
       if (event && event.stopPropagation) event.stopPropagation();
+      try {
+        if (window.tinkerAnalytics && typeof window.tinkerAnalytics.keepCrafting === "function") {
+          window.tinkerAnalytics.keepCrafting();
+        }
+      } catch (e) { /* ignore */ }
       keepCraftingPad();
     });
   }
@@ -2803,6 +2808,11 @@
     els.thisIsEverything.addEventListener("click", function (event) {
       if (event && event.preventDefault) event.preventDefault();
       if (event && event.stopPropagation) event.stopPropagation();
+      try {
+        if (window.tinkerAnalytics && typeof window.tinkerAnalytics.thisIsEverything === "function") {
+          window.tinkerAnalytics.thisIsEverything();
+        }
+      } catch (e) { /* ignore */ }
       savePad();
     });
   }

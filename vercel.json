@@ -35,6 +35,8 @@
     { "source": "/settings/", "destination": "/settings/index.html" },
     { "source": "/feed", "destination": "/feed/index.html" },
     { "source": "/feed/", "destination": "/feed/index.html" },
+    { "source": "/metrics", "destination": "/metrics/index.html" },
+    { "source": "/metrics/", "destination": "/metrics/index.html" },
     { "source": "/repo", "destination": "/repo/index.html" },
     { "source": "/repo/", "destination": "/repo/index.html" },
     { "source": "/repo/files", "destination": "/repo/files/index.html" },

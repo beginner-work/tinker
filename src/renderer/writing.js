@@ -710,6 +710,11 @@
       nudgeEmptyAnswer();
       return;
     }
+    try {
+      if (window.tinkerAnalytics && typeof window.tinkerAnalytics.keepCrafting === "function") {
+        window.tinkerAnalytics.keepCrafting();
+      }
+    } catch { /* ignore */ }
     active.transcript = active.transcript || [];
     active.transcript.push({ q: question, a });
     active.pending = null;
@@ -727,6 +732,11 @@
    *  and force the engine straight into stitch mode. */
   function endNow(question, answer) {
     if (!active) return;
+    try {
+      if (window.tinkerAnalytics && typeof window.tinkerAnalytics.thisIsEverything === "function") {
+        window.tinkerAnalytics.thisIsEverything();
+      }
+    } catch { /* ignore */ }
     const a = (answer || "").trim();
     if (a) {
       active.transcript = active.transcript || [];
@@ -1054,10 +1064,20 @@
   function doPublish() {
     if (!active || !active.stitched) {
       renderPublishRecovery("Could not publish. The essay was empty.");
+      try {
+        if (window.tinkerAnalytics && typeof window.tinkerAnalytics.saveFailed === "function") {
+          window.tinkerAnalytics.saveFailed("empty_essay");
+        }
+      } catch { /* ignore */ }
       return;
     }
     if (typeof window.tinkerOnWritingPublish !== "function") {
       renderPublishRecovery("Could not publish this draft.");
+      try {
+        if (window.tinkerAnalytics && typeof window.tinkerAnalytics.saveFailed === "function") {
+          window.tinkerAnalytics.saveFailed("no_publisher");
+        }
+      } catch { /* ignore */ }
       return;
     }
     const youMode = document.body.classList.contains("messages-you-active");
@@ -1067,8 +1087,27 @@
         body: active.stitched.body,
         author: "you",
       });
+      try {
+        if (window.tinkerAnalytics) {
+          if (typeof window.tinkerAnalytics.saveSucceeded === "function") {
+            window.tinkerAnalytics.saveSucceeded();
+          }
+          const words = String((active.stitched && active.stitched.body) || "")
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean).length;
+          if (typeof window.tinkerAnalytics.writingSessionEnded === "function") {
+            window.tinkerAnalytics.writingSessionEnded(0, words);
+          }
+        }
+      } catch { /* ignore */ }
     } catch (err) {
       renderPublishRecovery((err && err.message) || "Could not publish this draft.");
+      try {
+        if (window.tinkerAnalytics && typeof window.tinkerAnalytics.saveFailed === "function") {
+          window.tinkerAnalytics.saveFailed("publish_threw");
+        }
+      } catch { /* ignore */ }
       return;
     }
     active = null;
