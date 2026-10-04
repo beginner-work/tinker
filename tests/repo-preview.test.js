@@ -723,7 +723,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=18/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=19/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -761,15 +761,15 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=18"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=18"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=18"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=18"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=18"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=18"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=18"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=18"/);
-  assert.match(html, /href="\/styles\.css\?v=18"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=19"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=19"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=19"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=19"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=19"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=19"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=19"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=19"/);
+  assert.match(html, /href="\/styles\.css\?v=19"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -1471,7 +1471,7 @@ test("signed-out Files Sign in returns to /repo/files", async () => {
   assert.equal(env.session.get("tinker_mcp_return"), "/repo/files");
 });
 
-test("savePad signed-out prompts Sign in without writing essays", async () => {
+test("savePad signed-out sends to /?signin=1 without writing essays", async () => {
   let puts = 0;
   const env = bootRepoPage({
     desktop: true,
@@ -1487,9 +1487,63 @@ test("savePad signed-out prompts Sign in without writing essays", async () => {
   });
   await env.window.tinkerRepo.savePad();
   assert.equal(puts, 0);
+  assert.deepEqual(env.assigned, ["/?signin=1"]);
+  assert.ok(env.session.get("tinker.repo.padDraft.v1"));
+});
+
+test("This is everything button click saves and shows a visible pad notice", async () => {
+  const puts = [];
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    onPutEssays(list) { puts.push(list); },
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.byId["repo-body"].value = "Finished thought about the work.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  assert.equal(env.window.tinkerRepo.arePadActionsVisible(), true);
+  // Click the real button (not savePad() directly) — regression for #453 no-op.
+  env.byId["repo-this-is-everything"].dispatch("click", {
+    type: "click",
+    target: env.byId["repo-this-is-everything"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(puts.length, 1);
+  assert.equal(puts[0][0].body, "Finished thought about the work.");
   assert.equal(env.byId["repo-pad-error"].hidden, false);
-  assert.match(env.byId["repo-pad-error-text"].textContent, /Sign in to save/);
-  assert.equal(env.byId["repo-pad-error-signin"].hidden, false);
+  assert.match(env.byId["repo-pad-error-text"].textContent, /^Saved/);
+  assert.ok(env.byId["repo-pad-error"].classList.contains("repo-pad-error--ok"));
+});
+
+test("This is everything signed-out click navigates to sign-in", async () => {
+  const env = bootRepoPage({
+    desktop: true,
+    mode: "write",
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.byId["repo-body"].value = "Need an account before this is everything.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  env.byId["repo-this-is-everything"].dispatch("click", {
+    type: "click",
+    target: env.byId["repo-this-is-everything"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.deepEqual(env.assigned, ["/?signin=1"]);
 });
 
 test("Keep crafting signed-out shows Sign in and starts auth return to /repo", async () => {

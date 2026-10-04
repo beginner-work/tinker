@@ -1272,10 +1272,16 @@ body.repo-page--write .repo-center {
 .repo-pad-error {
   position: fixed;
   left: 50%;
-  z-index: 12;
+  /* Above the fixed mobile action island (z-index 30). */
+  z-index: 40;
   transform: translateX(-50%);
   bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   top: auto;
+}
+
+.repo-pad-error.repo-pad-error--ok {
+  border-color: color-mix(in srgb, var(--color-accent, #4f46e5) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-background) 92%, var(--color-accent, #4f46e5));
 }
 
 @supports (height: 100dvh) {
