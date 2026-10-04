@@ -1,4 +1,5 @@
 /* GET /api/career
+ * GET /api/career?action=export
  * POST /api/career?action=extract
  * POST /api/career?action=fact
  *
@@ -10,19 +11,26 @@
  * GET uses the read-only Redis token, then writes the seed once if
  * the user has no record yet. Extract and fact updates use the write
  * token. The uploaded file is not stored.
+ *
+ * Export is owner-only: a Stytch session whose user id is on
+ * LEADS_OWNER_ALLOWLIST, or Authorization: Bearer matching
+ * CAREER_EXPORT_TOKEN (constant-time). Bearer calls export the first
+ * id listed in LEADS_OWNER_ALLOWLIST. Everyone else gets 404.
  */
 
 "use strict";
 
+const crypto = require("node:crypto");
 const { authenticateSession } = require("./_lib/stytch.js");
 const { withResponseLogging } = require("./_lib/log.js");
 const { callerFromSession } = require("./_lib/autonomy.js");
-const { UNAVAILABLE } = require("./_lib/career-redis.js");
+const { UNAVAILABLE, recordKey, readRaw } = require("./_lib/career-redis.js");
 const {
   ensureSeed,
   mutate,
   storeProposed,
   shapeForBrowser,
+  EMPLOYMENT_BOOTSTRAP_DRAFT_KEY,
 } = require("./_lib/career.js");
 const { extractProposed } = require("./_lib/career-extract.js");
 
@@ -32,6 +40,38 @@ function extractBearer(header) {
   if (!header || typeof header !== "string") return "";
   const match = header.match(/^Bearer\s+(\S+)$/i);
   return match ? match[1] : "";
+}
+
+function timingSafeEqual(a, b) {
+  const left = Buffer.from(String(a || ""), "utf8");
+  const right = Buffer.from(String(b || ""), "utf8");
+  if (left.length !== right.length) return false;
+  return crypto.timingSafeEqual(left, right);
+}
+
+function leadsOwnerAllowlist() {
+  const text = String(process.env.LEADS_OWNER_ALLOWLIST || "").trim();
+  if (!text) return [];
+  return text.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
+}
+
+function isLeadsOwner(userId) {
+  const id = String(userId || "").trim();
+  if (!id) return false;
+  return leadsOwnerAllowlist().includes(id);
+}
+
+/** First entry in LEADS_OWNER_ALLOWLIST — the owner's Stytch user id. */
+function ownerUserIdFromAllowlist() {
+  return leadsOwnerAllowlist()[0] || "";
+}
+
+function exportTokenConfigured() {
+  return String(process.env.CAREER_EXPORT_TOKEN || "").trim();
+}
+
+function notFoundError() {
+  return Object.assign(new Error("Not found"), { status: 404 });
 }
 
 function actionFrom(req) {
@@ -121,6 +161,105 @@ async function getCareer(req, res) {
   }
 }
 
+async function loadEmploymentBootstrapRow(userId) {
+  let contentStore;
+  try {
+    contentStore = require("./_lib/content-store.js");
+  } catch {
+    return null;
+  }
+  try {
+    const row = await contentStore.findByDraftKey(userId, EMPLOYMENT_BOOTSTRAP_DRAFT_KEY);
+    return row || null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveExportUserId(req) {
+  const token = extractBearer(req.headers && req.headers.authorization);
+  const expected = exportTokenConfigured();
+  if (expected && token && timingSafeEqual(token, expected)) {
+    const ownerId = ownerUserIdFromAllowlist();
+    if (!ownerId) throw notFoundError();
+    return ownerId;
+  }
+
+  if (!token || token.startsWith("mcp_")) throw notFoundError();
+
+  let session;
+  try {
+    session = await authenticateSession(token);
+  } catch {
+    throw notFoundError();
+  }
+  let caller;
+  try {
+    caller = callerFromSession(session);
+  } catch {
+    throw notFoundError();
+  }
+  if (!isLeadsOwner(caller.userId)) throw notFoundError();
+  return caller.userId;
+}
+
+function parseExportRecord(raw) {
+  if (raw == null) return null;
+  if (typeof raw === "object" && !Array.isArray(raw)) return raw;
+  if (typeof raw !== "string" || !raw) return null;
+  try {
+    const value = JSON.parse(raw);
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    return value;
+  } catch {
+    throw Object.assign(new Error(UNAVAILABLE), { status: 503 });
+  }
+}
+
+async function getExport(req, res) {
+  let userId;
+  try {
+    userId = await resolveExportUserId(req);
+  } catch (err) {
+    if (err && err.status === 404) {
+      sendJson(res, 404, { error: "Not found" }, { "Cache-Control": NO_STORE });
+      return;
+    }
+    throw err;
+  }
+
+  let raw;
+  try {
+    raw = await readRaw(userId);
+  } catch (err) {
+    if (asUnavailable(err)) {
+      sendUnavailable(res);
+      return;
+    }
+    throw err;
+  }
+
+  let record;
+  try {
+    record = parseExportRecord(raw);
+  } catch (err) {
+    if (asUnavailable(err)) {
+      sendUnavailable(res);
+      return;
+    }
+    throw err;
+  }
+
+  const employment_bootstrap = await loadEmploymentBootstrapRow(userId);
+  sendJson(res, 200, {
+    exported_at: new Date().toISOString(),
+    user_id: userId,
+    redis_key: recordKey(userId),
+    record,
+    employment_bootstrap,
+  }, { "Cache-Control": NO_STORE });
+}
+
 async function postExtract(req, res) {
   const caller = await requireCaller(req);
   const body = readBody(req);
@@ -165,6 +304,10 @@ async function postFact(req, res) {
 module.exports = withResponseLogging(async function handler(req, res) {
   try {
     const action = actionFrom(req);
+    if (req.method === "GET" && action === "export") {
+      await getExport(req, res);
+      return;
+    }
     if (req.method === "GET" && !action) {
       await getCareer(req, res);
       return;
