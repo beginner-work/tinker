@@ -73,6 +73,7 @@
     tree: document.getElementById("repo-tree"),
     empty: document.getElementById("repo-stories-empty"),
     newPiece: document.getElementById("repo-new-piece"),
+    sidebarNewPiece: document.getElementById("repo-sidebar-new-piece"),
     newFolder: document.getElementById("repo-new-folder"),
     body: document.getElementById("repo-body"),
     pad: document.getElementById("repo-pad"),
@@ -2422,6 +2423,8 @@
       renderSavedIn();
     }
     if (isWritePage) {
+      // Structure sidebar on desktop write — same tree as /repo/files.
+      if (els.tree) renderTree();
       renderCenter();
       renderPlace();
       renderFollowup();
@@ -2591,6 +2594,7 @@
   }
 
   if (els.newPiece) els.newPiece.addEventListener("click", addNewFile);
+  if (els.sidebarNewPiece) els.sidebarNewPiece.addEventListener("click", addNewFile);
   if (els.newFolder) els.newFolder.addEventListener("click", startCreateFolder);
   if (els.body) {
     // Mirror holds canonical Markdown (with "> "). Tests and restore write here;

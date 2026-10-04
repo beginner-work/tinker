@@ -638,11 +638,36 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-layout--write {
-  grid-template-columns: 1fr minmax(220px, 260px);
+  grid-template-columns: 1fr minmax(260px, 320px);
+  min-height: calc(100vh - 72px);
   min-height: calc(100dvh - 72px);
   height: auto;
   overflow: visible;
   align-items: start;
+}
+
+/* Desktop write page: structure sidebar stays in view while the pad scrolls. */
+.repo-layout--write .repo-right {
+  position: sticky;
+  top: calc(72px + env(safe-area-inset-top, 0px));
+  max-height: calc(100vh - 72px);
+  max-height: calc(100dvh - 72px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+.repo-layout--write .repo-right .repo-tree {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.repo-layout--write .repo-right .repo-changes {
+  flex: 0 0 auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
 }
 
 .repo-layout--files {
@@ -1162,6 +1187,7 @@ body.repo-page--write .repo-center {
   position: relative;
   inset: auto;
   flex: 1;
+  min-height: calc(100vh - 72px);
   min-height: calc(100dvh - 72px);
   height: auto;
   display: flex;
@@ -1169,6 +1195,7 @@ body.repo-page--write .repo-center {
   overflow: visible;
   background: transparent;
   padding: 12px 24px 96px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Legacy follow-up slot kept hidden; questions insert into the pad. */
@@ -1179,9 +1206,29 @@ body.repo-page--write .repo-center {
 .repo-pad-error {
   position: fixed;
   left: 50%;
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   z-index: 12;
   transform: translateX(-50%);
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  top: auto;
+}
+
+@supports (height: 100dvh) {
+  .repo-pad-error {
+    bottom: auto;
+    top: calc(100vh - 64px);
+    top: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px));
+    transform: translate(-50%, -100%);
+  }
+}
+
+@supports (height: 100svh) {
+  .repo-pad-error {
+    top: calc(100svh - 64px - env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.repo-pad-error {
+  /* continue shared pad-error styles below */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1246,11 +1293,13 @@ body.repo-page--write .repo-center {
   opacity: 0.9;
 }
 
-/* Keep crafting / This is everything — fixed to the viewport; idle fade-in. */
+/* Keep crafting / This is everything — pinned to the *visual* viewport.
+   Prefer 100dvh/100svh so iOS/Android URL-bar show/hide cannot push the bar
+   below the screen; fall back to 100vh. Lives outside the scrolling pad. */
 .repo-surface__foot {
   position: fixed;
   right: 16px;
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  left: auto;
   z-index: 11;
   display: flex;
   align-items: center;
@@ -1265,16 +1314,42 @@ body.repo-page--write .repo-center {
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 8px 24px rgba(45, 42, 38, 0.12);
   opacity: 0;
-  transform: translateY(8px);
   pointer-events: none;
   transition: opacity 300ms ease, transform 300ms ease;
   -webkit-app-region: no-drag;
+  /* Legacy engines: bottom + safe area. */
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  top: auto;
+  transform: translateY(8px);
+}
+
+@supports (height: 100dvh) {
+  .repo-surface__foot {
+    /* Pin with top + dvh so the bar stays inside the dynamic viewport. */
+    bottom: auto;
+    top: calc(100vh - 16px);
+    top: calc(100dvh - 16px - env(safe-area-inset-bottom, 0px));
+    transform: translateY(calc(-100% + 8px));
+  }
+}
+
+@supports (height: 100svh) {
+  .repo-surface__foot {
+    /* svh = small viewport (URL bar visible) — safest floor on mobile. */
+    top: calc(100svh - 16px - env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .repo-surface__foot.is-visible {
   opacity: 1;
-  transform: translateY(0);
   pointer-events: auto;
+  transform: translateY(0);
+}
+
+@supports (height: 100dvh) {
+  .repo-surface__foot.is-visible {
+    transform: translateY(-100%);
+  }
 }
 
 .repo-surface__action {
@@ -1558,20 +1633,26 @@ body.repo-page--write .repo-center {
     padding: 12px;
   }
 
-  .repo-right {
+  /* Mobile write: keep the structure panel off the pad — use Files. */
+  .repo-layout--write .repo-right,
+  body.repo-page--write .repo-right {
     display: none;
   }
 
   body.repo-page--write .repo-center {
+    min-height: calc(100vh - 64px);
     min-height: calc(100dvh - 64px);
   }
 
   .repo-surface.writing {
     padding: 8px 12px 88px;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    min-height: calc(100vh - 64px);
     min-height: calc(100dvh - 64px);
   }
 
   .repo-pad {
+    min-height: calc(100vh - 140px);
     min-height: calc(100dvh - 140px);
   }
 
@@ -1597,6 +1678,19 @@ body.repo-page--write .repo-center {
   .repo-surface__foot {
     right: 12px;
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  @supports (height: 100dvh) {
+    .repo-surface__foot {
+      bottom: auto;
+      top: calc(100dvh - 12px - env(safe-area-inset-bottom, 0px));
+    }
+  }
+
+  @supports (height: 100svh) {
+    .repo-surface__foot {
+      top: calc(100svh - 12px - env(safe-area-inset-bottom, 0px));
+    }
   }
 }
 
@@ -1638,9 +1732,23 @@ body.repo-page--write .repo-center {
 
   .repo-surface__foot {
     right: 10px;
+    left: auto;
     bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     gap: 4px;
     padding: 5px;
+  }
+
+  @supports (height: 100dvh) {
+    .repo-surface__foot {
+      bottom: auto;
+      top: calc(100dvh - 10px - env(safe-area-inset-bottom, 0px));
+    }
+  }
+
+  @supports (height: 100svh) {
+    .repo-surface__foot {
+      top: calc(100svh - 10px - env(safe-area-inset-bottom, 0px));
+    }
   }
 
   .repo-surface__action {

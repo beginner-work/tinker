@@ -181,6 +181,7 @@ function bootRepoPage(options) {
     "repo-tree",
     "repo-stories-empty",
     "repo-new-piece",
+    "repo-sidebar-new-piece",
     "repo-new-folder",
     "repo-body",
     "repo-pad",
@@ -282,6 +283,7 @@ function bootRepoPage(options) {
   byId["repo-download-all"].hidden = true;
   byId["repo-new-folder"].tagName = "BUTTON";
   byId["repo-new-piece"].tagName = "BUTTON";
+  byId["repo-sidebar-new-piece"].tagName = "BUTTON";
   byId["repo-move-sheet"].hidden = true;
   byId["repo-confirm-sheet"].hidden = true;
   byId["repo-file-type"].hidden = true;
@@ -648,7 +650,7 @@ function bootRepoPage(options) {
   };
 }
 
-test("repo write page is writing surface + Location place; Files page holds tree + Saved in", () => {
+test("repo write page is writing surface + Location place + structure sidebar", () => {
   assert.match(html, /data-repo-mode="write"/);
   assert.match(html, /id="repo-body"/);
   assert.match(html, /id="repo-new-piece"/);
@@ -659,7 +661,7 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=14/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=15/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -676,23 +678,30 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(html, /repo-pad__mirror/);
   assert.doesNotMatch(html, />Write</);
   assert.match(html, /id="repo-surface"[\s\S]*id="repo-location"/);
-  assert.match(html, /id="repo-surface"[\s\S]*id="repo-pad-actions"/);
+  // Action bar is a viewport-fixed sibling (not inside the scrolling pad).
+  assert.match(html, /id="repo-pad-actions"/);
+  const surfaceChunk = (html.match(/id="repo-surface"[\s\S]*?<\/div>\s*<\/main>/) || [""])[0];
+  assert.doesNotMatch(surfaceChunk, /id="repo-pad-actions"/);
+  assert.match(html, /<\/main>[\s\S]*id="repo-pad-actions"/);
   const headerHtml = (html.match(/<header[\s\S]*?<\/header>/) || [""])[0];
   assert.doesNotMatch(headerHtml, /id="repo-location"/);
   assert.doesNotMatch(headerHtml, /repo-location__globe/);
-  assert.doesNotMatch(html, /id="repo-tree"/);
-  assert.doesNotMatch(html, /id="repo-new-folder"/);
-  assert.doesNotMatch(html, /id="repo-move-sheet"/);
+  // Desktop structure sidebar restored on write; Saved in stays on Files.
+  assert.match(html, /id="repo-tree"/);
+  assert.match(html, /id="repo-new-folder"/);
+  assert.match(html, /id="repo-sidebar-new-piece"/);
+  assert.match(html, /id="repo-move-sheet"/);
+  assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=14"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=14"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=14"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=14"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=14"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=14"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=14"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=14"/);
-  assert.match(html, /href="\/styles\.css\?v=14"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=15"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=15"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=15"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=15"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=15"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=15"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=15"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=15"/);
+  assert.match(html, /href="\/styles\.css\?v=15"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -718,6 +727,11 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(css, /\.repo-surface__foot/);
   assert.match(css, /\.repo-surface__foot\.is-visible/);
   assert.match(css, /transition:\s*opacity\s*300ms/);
+  assert.match(css, /100dvh/);
+  assert.match(css, /100svh/);
+  assert.match(css, /env\(safe-area-inset-bottom/);
+  assert.match(css, /\.repo-layout--write\s+\.repo-right/);
+  assert.match(css, /body\.repo-page--write\s+\.repo-right\s*\{[^}]*display:\s*none/s);
   assert.match(css, /\.repo-saved-in/);
 
   assert.match(filesHtml, /data-repo-mode="files"/);
