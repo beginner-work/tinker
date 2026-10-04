@@ -827,7 +827,7 @@
       rows.push({
         kind: "use",
         label: typed,
-        display: "Use \u201c" + typed + "\u201d",
+        display: 'Use "' + typed + '"',
         selected: false,
       });
     }
@@ -840,7 +840,13 @@
   }
 
   function placeInputIsTyping() {
-    return !!(els.locationInput && document.activeElement === els.locationInput && state.locationOpen);
+    return !!(els.locationInput && document.activeElement === els.locationInput);
+  }
+
+  // While typing, filter suggestions. Opening the chevron shows the full list.
+  function placeListQuery() {
+    if (placeInputIsTyping()) return placeQueryFromInput();
+    return "";
   }
 
   function renderPlace() {
@@ -875,7 +881,7 @@
   function renderPlaceList() {
     if (!els.locationList) return;
     clear(els.locationList);
-    var rows = buildPlaceRows(placeQueryFromInput());
+    var rows = buildPlaceRows(placeListQuery());
     state.placeRows = rows;
     if (state.placeActive >= rows.length) state.placeActive = Math.max(0, rows.length - 1);
     var activeId = "";
@@ -957,7 +963,8 @@
     var open = typeof force === "boolean" ? force : !state.locationOpen;
     state.locationOpen = open;
     if (open) {
-      state.placeRows = buildPlaceRows(placeQueryFromInput());
+      // Chevron open shows the full list; typing filters separately.
+      state.placeRows = buildPlaceRows("");
       var idx = 0;
       for (var i = 0; i < state.placeRows.length; i += 1) {
         if (state.placeRows[i].selected) {
@@ -968,8 +975,8 @@
       state.placeActive = idx;
     }
     renderPlace();
-    if (open && els.locationInput) {
-      try { els.locationInput.focus(); } catch (e) { /* ignore */ }
+    if (open && els.locationList) {
+      try { els.locationList.focus(); } catch (e) { /* ignore */ }
     }
   }
 
@@ -1878,7 +1885,10 @@
   }
   if (els.locationInput) {
     els.locationInput.addEventListener("focus", function () {
-      if (!state.locationOpen) togglePlacePanel(true);
+      if (state.locationOpen) return;
+      state.locationOpen = true;
+      state.placeActive = 0;
+      renderPlace();
     });
     els.locationInput.addEventListener("input", function () {
       if (!state.locationOpen) state.locationOpen = true;

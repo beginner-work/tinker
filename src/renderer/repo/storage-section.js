@@ -182,7 +182,7 @@
           options.push({
             id: root.id,
             label: root.label,
-            detail: isSelected ? (root.label + " / Tinker") : (root.path || ""),
+            detail: isSelected ? (root.label + " / Tinker") : "",
             badge: root.installed ? "" : "not installed",
             selected: isSelected,
             installed: !!root.installed,
