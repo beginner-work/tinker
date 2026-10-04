@@ -1413,11 +1413,17 @@ body.repo-page--write .repo-center {
   box-shadow: 0 8px 24px rgba(45, 42, 38, 0.12);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 300ms ease, transform 300ms ease;
+  transition: opacity 200ms ease, transform 200ms ease;
   -webkit-app-region: no-drag;
   bottom: calc(40px + env(safe-area-inset-bottom, 0px));
   top: auto;
   transform: translateY(8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .repo-surface__foot {
+    transition: none;
+  }
 }
 
 .repo-surface__foot.is-visible {

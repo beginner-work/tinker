@@ -17,6 +17,7 @@ const SURFACE_EVENT_NAMES = new Set([
   "scroll_up",
   "session_open",
   "session_end",
+  "pad_actions_revealed",
 ]);
 
 function trimId(value, max) {
@@ -453,6 +454,12 @@ function sanitizeSurfaceEvent(raw) {
   const position = trimId(raw.position, 32);
   let ts = raw.ts || raw.timestamp ? new Date(raw.ts || raw.timestamp) : new Date();
   if (Number.isNaN(ts.getTime())) ts = new Date();
+  const props = {};
+  const src = raw.props && typeof raw.props === "object" ? raw.props : raw;
+  ["delay_ms", "median_gap_ms"].forEach((key) => {
+    const n = Number(src[key]);
+    if (Number.isFinite(n) && n >= 0 && n <= 600000) props[key] = Math.round(n);
+  });
   return {
     name,
     sessionId,
@@ -462,7 +469,7 @@ function sanitizeSurfaceEvent(raw) {
     variantId,
     position,
     ts,
-    props: {},
+    props,
   };
 }
 

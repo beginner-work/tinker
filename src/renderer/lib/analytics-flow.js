@@ -65,6 +65,7 @@
     if (m) {
       if (m.kind === "prompt_shown") return { cause: "prompt_shown", detail: m };
       if (m.kind === "surface_tapped") return { cause: "surface_tapped", detail: m };
+      if (m.kind === "pad_actions_revealed") return { cause: "pad_actions_revealed", detail: m };
       if (m.kind === "blur") return { cause: "blur", detail: m };
       if (m.kind === "scroll_up") return { cause: "scroll_up", detail: m };
       if (m.kind === "session_end") return { cause: "session_end", detail: m };

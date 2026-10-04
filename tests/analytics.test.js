@@ -276,12 +276,12 @@ test("shipped assets and routes include analytics + metrics + vercel pageviews",
   const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
   const vercel = JSON.parse(fs.readFileSync(path.join(root, "vercel.json"), "utf8"));
   const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-  assert.match(html, /analytics\.js\?v=2/);
+  assert.match(html, /analytics\.js\?v=3/);
   assert.match(html, /vercel-analytics\.js\?v=1/);
   assert.match(html, /analytics-keystrokes\.js\?v=2/);
   assert.match(html, /analytics-owner-edit\.js\?v=1/);
   assert.match(html, /analytics-core\.js\?v=2/);
-  assert.match(sw, /tinker-shell-v52/);
+  assert.match(sw, /tinker-shell-v53/);
   assert.match(sw, /analytics\.js/);
   assert.match(sw, /analytics-owner-edit\.js/);
   assert.ok((vercel.rewrites || []).some((r) => r.source === "/metrics"));

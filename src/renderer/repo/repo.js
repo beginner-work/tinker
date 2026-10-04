@@ -19,9 +19,9 @@
   var TOKEN_KEY = "tinker_jwt";
   var PHONE_KEY = "tinker_phone";
   var RETURN_KEY = "tinker_mcp_return";
-  var PAD_IDLE_MS = 3000;
   var md = window.tinkerStoriesMd;
   var core = window.tinkerRepoFoldersCore;
+  var padReveal = window.tinkerRepoPadReveal || null;
   if (!md || !core) return;
 
   var pageMode = (document.body && document.body.getAttribute("data-repo-mode")) || "write";
@@ -61,7 +61,11 @@
     mirroredFolders: {},
     padActionsVisible: false,
     padIdleTimer: null,
-    padIdleMs: PAD_IDLE_MS,
+    padIdleMsOverride: null,
+    keystrokeGaps: [],
+    lastKeystrokeAt: 0,
+    lastRevealDelayMs: 0,
+    lastMedianGapMs: 0,
     padSaving: false,
     padAsking: false,
     followupAsked: [],
@@ -773,7 +777,7 @@
 
   function onPadTurnKeydown(event) {
     if (handleKeepCraftingShortcut(event)) return;
-    if (padBody().trim()) setPadActionsVisible(false);
+    onPadTypingKey(event);
   }
 
   function isAppleModHint() {
@@ -1022,15 +1026,66 @@
     return block;
   }
 
+  function medianGapMs() {
+    if (!padReveal || typeof padReveal.median !== "function") return 0;
+    var med = padReveal.median(state.keystrokeGaps);
+    return med == null ? 0 : Math.round(med);
+  }
+
+  function resolveRevealDelayMs() {
+    if (state.padIdleMsOverride != null && Number.isFinite(state.padIdleMsOverride)) {
+      return Math.max(0, state.padIdleMsOverride);
+    }
+    if (padReveal && typeof padReveal.computeRevealDelayMs === "function") {
+      return padReveal.computeRevealDelayMs(state.keystrokeGaps);
+    }
+    return 1500;
+  }
+
+  function emitPadActionsRevealed(delayMs, medianMs) {
+    try {
+      if (window.tinkerAnalytics && typeof window.tinkerAnalytics.padActionsRevealed === "function") {
+        window.tinkerAnalytics.padActionsRevealed(delayMs, medianMs);
+      }
+    } catch (e) { /* ignore */ }
+  }
+
   function bumpPadTypingIdle() {
     if (!isWritePage) return;
     clearPadIdleTimer();
     setPadActionsVisible(false);
     if (!padBody().trim()) return;
+    var delay = resolveRevealDelayMs();
+    var med = medianGapMs();
+    state.lastRevealDelayMs = delay;
+    state.lastMedianGapMs = med;
     state.padIdleTimer = setTimeout(function () {
       state.padIdleTimer = null;
       setPadActionsVisible(true);
-    }, state.padIdleMs || PAD_IDLE_MS);
+      if (state.padActionsVisible) {
+        emitPadActionsRevealed(state.lastRevealDelayMs, state.lastMedianGapMs);
+      }
+    }, delay);
+  }
+
+  function onPadTypingKey(event) {
+    if (!isWritePage) return;
+    var typing = padReveal && typeof padReveal.isTypingKey === "function"
+      ? padReveal.isTypingKey(event)
+      : !!(event && event.key && event.key.length === 1 && !event.metaKey && !event.ctrlKey);
+    var reset = padReveal && typeof padReveal.isRevealResetKey === "function"
+      ? padReveal.isRevealResetKey(event)
+      : true;
+    if (typing && padReveal && typeof padReveal.recordGap === "function") {
+      var next = padReveal.recordGap(state.keystrokeGaps, state.lastKeystrokeAt, Date.now());
+      state.keystrokeGaps = next.gaps;
+      state.lastKeystrokeAt = next.lastAt;
+    } else if (typing) {
+      state.lastKeystrokeAt = Date.now();
+    }
+    if (!reset) return;
+    if (padBody().trim()) bumpPadTypingIdle();
+    else setPadActionsVisible(false);
   }
 
   function onBodyInput() {
@@ -2836,7 +2891,7 @@
     });
     els.body.addEventListener("keydown", function (event) {
       if (handleKeepCraftingShortcut(event)) return;
-      if (padBody().trim()) setPadActionsVisible(false);
+      onPadTypingKey(event);
     });
   }
   if (isWritePage) {
@@ -3054,8 +3109,10 @@
     syncVisualViewportInset: syncVisualViewportInset,
     setPadIdleMs: function (ms) {
       var n = Number(ms);
-      if (Number.isFinite(n) && n >= 0) state.padIdleMs = n;
+      if (Number.isFinite(n) && n >= 0) state.padIdleMsOverride = n;
     },
+    getPadRevealDelayMs: function () { return resolveRevealDelayMs(); },
+    getPadKeystrokeGaps: function () { return state.keystrokeGaps.slice(); },
     ready: null,
   };
 

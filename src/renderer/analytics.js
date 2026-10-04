@@ -163,6 +163,18 @@
     try {
       var ids = client.ensureIds();
       var f = fields || {};
+      var props = {};
+      if (f.props && typeof f.props === "object") {
+        props = client.sanitizeClientProps
+          ? client.sanitizeClientProps(f.props)
+          : f.props;
+      }
+      // Allow top-level numeric shorthand used by pad reveal.
+      ["delay_ms", "median_gap_ms"].forEach(function (key) {
+        if (typeof f[key] === "number" && Number.isFinite(f[key])) {
+          props[key] = Math.round(f[key]);
+        }
+      });
       surfaceQueue.push({
         name: String(name || "").slice(0, 64),
         sessionId: ids.sessionId,
@@ -171,6 +183,7 @@
         promptId: String(f.promptId || "").slice(0, 64),
         variantId: String(f.variantId || "").slice(0, 32),
         position: String(f.position || "").slice(0, 32),
+        props: props,
         ts: Date.now(),
       });
       if (surfaceQueue.length > 40) surfaceQueue = surfaceQueue.slice(-40);
@@ -435,6 +448,19 @@
       track("this_is_everything_tapped");
       trackSurface("surface_tapped", { surfaceId: "btn.this_is_everything" });
       markOwner("this_is_everything");
+    },
+    padActionsRevealed: function (delayMs, medianGapMs) {
+      var delay = Math.round(Number(delayMs) || 0);
+      var median = Math.round(Number(medianGapMs) || 0);
+      track("pad_actions_revealed", {
+        delay_ms: delay,
+        median_gap_ms: median,
+      });
+      return trackSurface("pad_actions_revealed", {
+        surfaceId: "repo.pad_actions",
+        delay_ms: delay,
+        median_gap_ms: median,
+      });
     },
     saveSucceeded: function () { track("save_succeeded"); },
     saveFailed: function (kind) {

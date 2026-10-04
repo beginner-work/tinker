@@ -17,6 +17,7 @@ const page = fs.readFileSync(path.join(root, "src/renderer/repo/repo.js"), "utf8
 const platformSrc = fs.readFileSync(path.join(root, "src/renderer/platform-mobile.js"), "utf8");
 const storiesSrc = fs.readFileSync(path.join(root, "src/renderer/lib/stories-md.js"), "utf8");
 const foldersSrc = fs.readFileSync(path.join(root, "src/renderer/lib/repo-folders-core.js"), "utf8");
+const padRevealSrc = fs.readFileSync(path.join(root, "src/renderer/lib/repo-pad-reveal.js"), "utf8");
 const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
 const settings = fs.readFileSync(path.join(root, "src/renderer/settings/index.html"), "utf8");
@@ -656,12 +657,15 @@ function bootRepoPage(options) {
   // UMD attaches to the context global (this), not window.
   vm.runInContext(storiesSrc, context);
   vm.runInContext(foldersSrc, context);
+  vm.runInContext(padRevealSrc, context);
   windowObj.tinkerStoriesMd = context.tinkerStoriesMd || sandbox.tinkerStoriesMd;
   windowObj.tinkerRepoFoldersCore = context.tinkerRepoFoldersCore || sandbox.tinkerRepoFoldersCore;
+  windowObj.tinkerRepoPadReveal = context.tinkerRepoPadReveal || sandbox.tinkerRepoPadReveal;
   // Interview helpers are injected on window for pad Keep crafting.
   context.tinkerInterview = windowObj.tinkerInterview;
   assert.ok(windowObj.tinkerStoriesMd, "stories-md helpers must load");
   assert.ok(windowObj.tinkerRepoFoldersCore, "repo-folders-core helpers must load");
+  assert.ok(windowObj.tinkerRepoPadReveal, "repo-pad-reveal helpers must load");
 
   if (opts.frozenPreload) {
     // Same order as /repo/index.html: platform-mobile before repo.js.
@@ -785,6 +789,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
   assert.match(html, /src="\/lib\/stories-md\.js\?v=20"/);
   assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=20"/);
+  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=20"/);
   assert.match(html, /src="\/lib\/storage-path-core\.js\?v=20"/);
   assert.match(html, /src="\/repo\/repo\.js\?v=20"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=20"/);
@@ -823,7 +828,8 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-surface__foot/);
   assert.match(css, /\.repo-surface__foot\.is-visible/);
   assert.match(css, /\.repo-surface__kbd/);
-  assert.match(css, /transition:\s*opacity\s*300ms/);
+  assert.match(css, /transition:\s*opacity\s*200ms/);
+  assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /100dvh/);
   assert.match(css, /100svh/);
   assert.match(css, /-webkit-fill-available/);
@@ -1290,6 +1296,54 @@ test("pad actions stay hidden while typing and show after idle", async () => {
   });
   assert.equal(env.window.tinkerRepo.arePadActionsVisible(), false);
   assert.ok(!env.byId["repo-pad-actions"].classList.contains("is-visible"));
+});
+
+test("pad actions hide on keystroke and restart the adaptive timer", async () => {
+  const revealed = [];
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "write" });
+  await env.flush();
+  env.window.tinkerAnalytics = {
+    padActionsRevealed(delayMs, medianGapMs) {
+      revealed.push({ delayMs, medianGapMs });
+    },
+  };
+  env.window.tinkerRepo.setPadIdleMs(30);
+  env.byId["repo-body"].value = "Pace matches typing.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(env.window.tinkerRepo.arePadActionsVisible(), true);
+  assert.ok(revealed.length >= 1);
+
+  const turns = env.byId["repo-pad"].querySelectorAll("textarea.repo-pad__turn");
+  assert.ok(turns.length >= 1);
+  turns[turns.length - 1].dispatch("keydown", {
+    type: "keydown",
+    key: "x",
+    target: turns[turns.length - 1],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  assert.equal(env.window.tinkerRepo.arePadActionsVisible(), false);
+  assert.ok(!env.byId["repo-pad-actions"].classList.contains("is-visible"));
+  // Cmd+Enter still works while hidden.
+  let builds = 0;
+  env.window.tinkerInterview.buildFollowupRequest = function (args) {
+    builds += 1;
+    return { mode: "freeform", system: "sys", user: "user:" + args.draft };
+  };
+  turns[turns.length - 1].dispatch("keydown", {
+    type: "keydown",
+    key: "Enter",
+    metaKey: true,
+    target: turns[turns.length - 1],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(builds, 1);
 });
 
 test("This is everything saves the pad essay", async () => {
