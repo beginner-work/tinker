@@ -469,6 +469,7 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(html, /href="\/\?write=1"/);
   assert.match(html, />Home</);
   assert.match(html, /repo-location__globe/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=10/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -477,17 +478,21 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(html, /id="repo-file-place"/);
   assert.match(html, /id="repo-download-one"/);
   assert.match(html, /id="repo-download-all"/);
+  assert.match(html, /id="repo-surface"[\s\S]*id="repo-location"/);
+  const headerHtml = (html.match(/<header[\s\S]*?<\/header>/) || [""])[0];
+  assert.doesNotMatch(headerHtml, /id="repo-location"/);
+  assert.doesNotMatch(headerHtml, /repo-location__globe/);
   assert.doesNotMatch(html, /id="repo-tree"/);
   assert.doesNotMatch(html, /id="repo-new-folder"/);
   assert.doesNotMatch(html, /id="repo-move-sheet"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=9"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=9"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=9"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=9"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=9"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=9"/);
-  assert.match(html, /href="\/styles\.css\?v=9"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=10"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=10"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=10"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=10"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=10"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=10"/);
+  assert.match(html, /href="\/styles\.css\?v=10"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -502,6 +507,8 @@ test("repo write page is writing surface + Location place; Files page holds tree
   assert.match(page, /set_place/);
   assert.match(css, /\.repo-location__field/);
   assert.match(css, /\.repo-location__globe/);
+  assert.match(css, /\.repo-location\s*\{[^}]*position:\s*absolute/s);
+  assert.match(css, /\.repo-surface__input\.writing-input\s*\{[^}]*padding:\s*56px/s);
   assert.match(css, /\.repo-saved-in/);
 
   assert.match(filesHtml, /data-repo-mode="files"/);
@@ -825,6 +832,84 @@ test("typed place commits with Enter and Escape closes the panel", async () => {
     stopPropagation() {},
   });
   assert.equal(env.byId["repo-location-panel"].hidden, true);
+});
+
+test("click-select place with no file open fills the field and remembers recent", async () => {
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "write" });
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.getPlace(), "");
+  assert.equal(env.byId["repo-location-input"].value, "");
+  env.click("repo-location-btn");
+  assert.equal(env.byId["repo-location-panel"].hidden, false);
+  const home = (env.byId["repo-location-list"].children || []).find((row) =>
+    String(row.textContent || "").includes("Home")
+  );
+  assert.ok(home);
+  home.dispatch("click", {
+    type: "click",
+    target: home,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.getPlace(), "Home");
+  assert.equal(env.byId["repo-location-input"].value, "Home");
+  assert.equal(env.byId["repo-location-panel"].hidden, true);
+  const recent = JSON.parse(env.storage.get("tinker.repo.placesRecent.v1") || "[]");
+  assert.equal(recent[0], "Home");
+  // Session place carries onto the next new file.
+  env.click("repo-new-piece");
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.getPlace(), "Home");
+  assert.equal(env.byId["repo-location-input"].value, "Home");
+  assert.equal(env.byId["repo-file-place"].hidden, false);
+  assert.match(env.byId["repo-file-place"].textContent, /Home/);
+});
+
+test("keyboard-select place with no file open fills the field", async () => {
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "write" });
+  await env.flush();
+  env.click("repo-location-btn");
+  assert.equal(env.byId["repo-location-panel"].hidden, false);
+  env.byId["repo-location-list"].dispatch("keydown", {
+    type: "keydown",
+    key: "ArrowDown",
+    target: env.byId["repo-location-list"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  env.byId["repo-location-list"].dispatch("keydown", {
+    type: "keydown",
+    key: "Enter",
+    target: env.byId["repo-location-list"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  const place = env.window.tinkerRepo.getPlace();
+  assert.ok(place);
+  assert.equal(env.byId["repo-location-input"].value, place);
+  assert.equal(env.byId["repo-location-panel"].hidden, true);
+});
+
+test("custom typed place commits on blur with no file open", async () => {
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "write" });
+  await env.flush();
+  env.document.activeElement = env.byId["repo-location-input"];
+  env.byId["repo-location-input"].value = "Train car";
+  env.byId["repo-location-input"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-location-input"],
+  });
+  env.byId["repo-location-input"].dispatch("blur", {
+    type: "blur",
+    target: env.byId["repo-location-input"],
+  });
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.getPlace(), "Train car");
+  assert.equal(env.byId["repo-location-input"].value, "Train car");
+  const recent = JSON.parse(env.storage.get("tinker.repo.placesRecent.v1") || "[]");
+  assert.equal(recent[0], "Train car");
 });
 
 test("registerLocationSection adds a Saved in option that fires onSelect", async () => {

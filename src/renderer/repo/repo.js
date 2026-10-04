@@ -35,6 +35,8 @@
     draft: null,
     location: "",
     locationOpen: false,
+    // Session writing place when no file is selected yet; also seeds new files.
+    currentPlace: "",
     placeActive: 0,
     placeRows: [],
     savedInCustom: false,
@@ -168,7 +170,7 @@
   }
 
   function getPlace() {
-    return placeForSelectedFile();
+    return activePlace();
   }
 
   function setLocation(value) {
@@ -410,6 +412,10 @@
     state.draft = draft;
     state.selectedId = draft.id;
     state.selectedFolderId = folderId;
+    // Carry the session place onto the new file so it shows and survives first save.
+    if (state.currentPlace) {
+      state.places[draft.id] = state.currentPlace.slice(0, 120);
+    }
     render();
     if (els.body) {
       try { els.body.focus(); } catch (e) { /* ignore */ }
@@ -766,6 +772,18 @@
     return state.places[story.id] ? String(state.places[story.id]) : "";
   }
 
+  // Displayed / active place: per-file when a story is open, else session place.
+  function activePlace() {
+    var story = selectedStory();
+    if (story && story.id) {
+      if (state.places[story.id]) return String(state.places[story.id]);
+      // Draft/new file with no stored place yet still shows the session place.
+      if (isDraftId(story.id) && state.currentPlace) return state.currentPlace;
+      return "";
+    }
+    return state.currentPlace || "";
+  }
+
   function isDraftId(id) {
     return String(id || "").indexOf("draft-") === 0;
   }
@@ -803,7 +821,7 @@
     var q = String(query || "").trim().toLowerCase();
     var rows = [];
     var seen = {};
-    var current = placeForSelectedFile();
+    var current = activePlace();
 
     function addRow(label, kind) {
       var name = String(label || "").trim();
@@ -851,7 +869,7 @@
 
   function renderPlace() {
     if (!isWritePage) return;
-    var place = placeForSelectedFile();
+    var place = activePlace();
     if (els.locationValue) text(els.locationValue, place || "");
     if (els.locationInput && !placeInputIsTyping()) {
       els.locationInput.value = place;
@@ -990,26 +1008,26 @@
   }
 
   function choosePlace(label) {
+    var place = String(label || "").trim().slice(0, 120);
+    // Always hold as the session place so the field stays filled with no file open
+    // and the next new file / first save inherits it.
+    state.currentPlace = place;
+    if (place) pushRecentPlace(place);
+
     var story = selectedStory();
-    if (!story || !story.id) {
-      closePlacePanel(false);
-      return;
+    if (story && story.id) {
+      if (place) state.places[story.id] = place;
+      else delete state.places[story.id];
+      if (!isDraftId(story.id)) {
+        apiPost("set_place", { fileId: story.id, place: place || "" }).then(function (result) {
+          if (result && result.ok && result.json && result.json.tree) {
+            applyTree(result.json.tree);
+            render();
+          }
+        }).catch(function () { /* ignore */ });
+      }
     }
-    var place = String(label || "").trim();
-    if (place) {
-      state.places[story.id] = place.slice(0, 120);
-      pushRecentPlace(place);
-    } else {
-      delete state.places[story.id];
-    }
-    if (!isDraftId(story.id)) {
-      apiPost("set_place", { fileId: story.id, place: place || "" }).then(function (result) {
-        if (result && result.ok && result.json && result.json.tree) {
-          applyTree(result.json.tree);
-          render();
-        }
-      }).catch(function () { /* ignore */ });
-    }
+
     state.locationOpen = false;
     if (els.locationInput) els.locationInput.value = place;
     render();
@@ -1899,6 +1917,17 @@
       els.locationInput.setAttribute("aria-expanded", "true");
     });
     els.locationInput.addEventListener("keydown", onPlaceInputKey);
+    els.locationInput.addEventListener("blur", function () {
+      // Commit typed custom place on blur (list mousedown preventDefault keeps
+      // focus so option clicks do not race this).
+      var typed = placeQueryFromInput().trim();
+      var shown = activePlace();
+      if (typed === shown) {
+        if (state.locationOpen) closePlacePanel(false);
+        return;
+      }
+      choosePlace(typed);
+    });
   }
   if (els.savedInSave) {
     els.savedInSave.addEventListener("mousedown", function (event) {
