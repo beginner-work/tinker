@@ -59,14 +59,13 @@
       },
       // TODO: add api-design when that worksheet lands under exercises/api-design/.
     ],
-    // Reading order is fixed (do not sort by status).
+    // Reading order is fixed.
     readings: [
       {
         id: "site-reliability-engineering",
         name: "Site Reliability Engineering",
         author: "Google",
         topic: "Reliability",
-        status: "Not started",
         note: "Chapters 3, 4, 6, 14 and 15.",
         link: "https://sre.google/sre-book/table-of-contents/",
       },
@@ -75,15 +74,13 @@
         name: "Domain-Driven Design",
         author: "Eric Evans",
         topic: "System design",
-        status: "In progress",
-        note: "Cover to cover, picking up at Chapter 3.",
+        note: "Cover to cover; Chapter 1 done; currently reading Chapter 2, Communication and the Use of Language.",
       },
       {
         id: "transformative-tools-for-thought",
         name: "How can we develop transformative tools for thought?",
         author: "Andy Matuschak and Michael Nielsen",
         topic: "Tools for thought",
-        status: "Not started",
         note: "Free essay.",
         link: "https://numinous.productions/ttft/",
       },
@@ -92,7 +89,6 @@
         name: "TypeScript and React foundations",
         author: "Official docs",
         topic: "Web",
-        status: "Not started",
         note: "Three short official pieces, each under an hour.",
         links: [
           {

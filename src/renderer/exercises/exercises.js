@@ -167,7 +167,7 @@
   function renderReadings() {
     if (!readingEl) return;
     while (readingEl.firstChild) readingEl.removeChild(readingEl.firstChild);
-    // Manifest order is the reading plan order. Do not sort by status.
+    // Manifest order is the reading plan order.
     var readings = (manifest && Array.isArray(manifest.readings)) ? manifest.readings : [];
     if (!readings.length) {
       var empty = document.createElement("li");
@@ -185,10 +185,13 @@
       row.className = "exercises__row";
       if (book.id) row.setAttribute("data-reading-id", String(book.id));
 
-      var meta = document.createElement("p");
-      meta.className = "exercises__meta";
-      meta.textContent = metaLine(book.topic, book.status);
-      if (meta.textContent) row.appendChild(meta);
+      var topic = String(book.topic || "").trim();
+      if (topic) {
+        var meta = document.createElement("p");
+        meta.className = "exercises__meta";
+        meta.textContent = topic;
+        row.appendChild(meta);
+      }
 
       var name = document.createElement("h3");
       name.className = "exercises__name";
