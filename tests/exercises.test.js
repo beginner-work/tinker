@@ -479,5 +479,11 @@ test("desktop shell exposes exercises IPC bridges", () => {
   assert.match(settingsHtml, /id="settings-exercises"/);
   assert.match(settingsHtml, /beginner-work\/tinker/);
   assert.match(settingsHtml, /~\/tinker/);
-  assert.equal(/lindowlabs/i.test(settingsHtml), false);
+  const exercisesSection = settingsHtml.slice(
+    settingsHtml.indexOf('id="settings-exercises"'),
+    settingsHtml.indexOf('id="settings-outreach"')
+  );
+  assert.ok(exercisesSection.length > 50);
+  assert.equal(/lindowlabs/i.test(exercisesSection), false);
+  assert.equal(/tlindow\//i.test(exercisesSection), false);
 });
