@@ -26,6 +26,25 @@ body.repo-page--write {
     radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
     radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
     var(--color-background);
+  /* Top safe area for titlebar / notch; JS may refine --repo-write-safe-top. */
+  --repo-write-safe-top: calc(16px + env(safe-area-inset-top, 0px));
+  --repo-write-fade: 48px;
+  --repo-write-safe-inset-top: env(safe-area-inset-top, 0px);
+}
+
+/* Electron hiddenInset: clear traffic lights + drag strip before pad text. */
+html[data-tinker-desktop] body.repo-page--write,
+html.tinker-desktop body.repo-page--write {
+  --repo-write-safe-top: calc(64px + env(safe-area-inset-top, 0px));
+  --repo-write-fade: 56px;
+}
+
+@media (max-width: 800px) {
+  html:has(body.repo-page--write),
+  body.repo-page--write {
+    --repo-write-safe-top: calc(48px + env(safe-area-inset-top, 0px));
+    --repo-write-fade: 48px;
+  }
 }
 
 /* Files page keeps the older contained shell. */
@@ -795,6 +814,34 @@ html.tinker-desktop .repo-top [role="button"] {
     radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
     radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
     var(--color-background);
+}
+
+/* Soft top fade on the writing column: earlier text scrolling up under the
+   safe area dissolves instead of hard-slicing at the window edge. Sticky so
+   it stays pinned to the viewport while the page scrolls. */
+body.repo-page--write .repo-center.repo-write-safe-top {
+  position: relative;
+}
+
+body.repo-page--write .repo-center.repo-write-safe-top::before {
+  content: "";
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Below .repo-location (z-index 12) so the place pill stays sharp. */
+  z-index: 8;
+  display: block;
+  height: var(--repo-write-safe-top, 64px);
+  margin-bottom: calc(-1 * var(--repo-write-safe-top, 64px));
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    var(--color-background) 0%,
+    var(--color-background) 28%,
+    color-mix(in srgb, var(--color-background) 65%, transparent) 62%,
+    transparent 100%
+  );
 }
 
 body.repo-page--write .repo-center {

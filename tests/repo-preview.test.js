@@ -18,6 +18,7 @@ const platformSrc = fs.readFileSync(path.join(root, "src/renderer/platform-mobil
 const storiesSrc = fs.readFileSync(path.join(root, "src/renderer/lib/stories-md.js"), "utf8");
 const foldersSrc = fs.readFileSync(path.join(root, "src/renderer/lib/repo-folders-core.js"), "utf8");
 const padRevealSrc = fs.readFileSync(path.join(root, "src/renderer/lib/repo-pad-reveal.js"), "utf8");
+const writeScrollSrc = fs.readFileSync(path.join(root, "src/renderer/lib/repo-write-scroll.js"), "utf8");
 const sw = fs.readFileSync(path.join(root, "src/renderer/sw.js"), "utf8");
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
 const settings = fs.readFileSync(path.join(root, "src/renderer/settings/index.html"), "utf8");
@@ -665,14 +666,17 @@ function bootRepoPage(options) {
   vm.runInContext(storiesSrc, context);
   vm.runInContext(foldersSrc, context);
   vm.runInContext(padRevealSrc, context);
+  vm.runInContext(writeScrollSrc, context);
   windowObj.tinkerStoriesMd = context.tinkerStoriesMd || sandbox.tinkerStoriesMd;
   windowObj.tinkerRepoFoldersCore = context.tinkerRepoFoldersCore || sandbox.tinkerRepoFoldersCore;
   windowObj.tinkerRepoPadReveal = context.tinkerRepoPadReveal || sandbox.tinkerRepoPadReveal;
+  windowObj.tinkerRepoWriteScroll = context.tinkerRepoWriteScroll || sandbox.tinkerRepoWriteScroll;
   // Interview helpers are injected on window for pad Keep crafting.
   context.tinkerInterview = windowObj.tinkerInterview;
   assert.ok(windowObj.tinkerStoriesMd, "stories-md helpers must load");
   assert.ok(windowObj.tinkerRepoFoldersCore, "repo-folders-core helpers must load");
   assert.ok(windowObj.tinkerRepoPadReveal, "repo-pad-reveal helpers must load");
+  assert.ok(windowObj.tinkerRepoWriteScroll, "repo-write-scroll helpers must load");
 
   if (opts.frozenPreload) {
     // Same order as /repo/index.html: platform-mobile before repo.js.
@@ -752,7 +756,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=28/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=29/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -796,19 +800,20 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=28"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=28"/);
-  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=28"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=28"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=29"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=29"/);
+  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=29"/);
+  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=29"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=29"/);
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
   assert.match(html, /src="\/repo\/repo\.js\?v=29"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=28"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=28"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=28"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=29"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=29"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=29"/);
   assert.match(html, /href="\/repo\/repo\.css\?v=29"/);
-  assert.match(html, /href="\/styles\.css\?v=28"/);
+  assert.match(html, /href="\/styles\.css\?v=29"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);

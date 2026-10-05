@@ -68,9 +68,9 @@ function memFs(tree) {
   };
 }
 
-test("version bump is 0.1.10 in package.json and .release-version", () => {
-  assert.equal(packageJson.version, "0.1.10");
-  assert.equal(releaseVersion, "0.1.10");
+test("version bump is 0.1.11 in package.json and .release-version", () => {
+  assert.equal(packageJson.version, "0.1.11");
+  assert.equal(releaseVersion, "0.1.11");
 });
 
 test("main and preload expose storage cloud root and custom path IPC", () => {
@@ -94,10 +94,10 @@ test("repo page loads storage scripts and registerLocationSection hook", () => {
   assert.match(storageSection, /Cloud folders sync from the Mac app\./);
   assert.match(storageSection, /not installed/);
   assert.equal(/\u2014/.test(storageSection), false);
-  assert.match(repoHtml, /\?v=28/);
+  assert.match(repoHtml, /\?v=29/);
   const filesHtml = fs.readFileSync(path.join(root, "src/renderer/repo/files/index.html"), "utf8");
   assert.match(filesHtml, /Saved in/);
-  assert.match(filesHtml, /storage-section\.js\?v=28/);
+  assert.match(filesHtml, /storage-section\.js\?v=29/);
 });
 
 test("detectCloudRoots: iCloud missing and Google Drive missing on fake home", () => {
