@@ -88,6 +88,13 @@
   }
 
   function paragraphsHtml(body) {
+    var essayRead = window.tinkerEssayRead;
+    if (essayRead && typeof essayRead.renderEssayHtml === "function") {
+      return essayRead.renderEssayHtml({
+        markdown: String(body || ""),
+        showQuestions: false,
+      });
+    }
     var text = String(body || "");
     var parts = text.split(/\n{2,}/);
     var html = "";
@@ -97,6 +104,19 @@
       html += "<p>" + esc.innerHTML.replace(/\n/g, "<br>") + "</p>";
     }
     return html || "<p></p>";
+  }
+
+  function mountFeedEssayBody(host, item) {
+    var essayRead = window.tinkerEssayRead;
+    var markdown = String(item.body || "");
+    if (essayRead && typeof essayRead.mount === "function") {
+      essayRead.mount(host, {
+        markdown: markdown,
+        showQuestions: false,
+      });
+      return;
+    }
+    host.innerHTML = paragraphsHtml(markdown);
   }
 
   function visibleItems() {
@@ -172,7 +192,7 @@
 
     var body = document.createElement("div");
     body.className = "feed-card__body";
-    body.innerHTML = paragraphsHtml(item.body);
+    mountFeedEssayBody(body, item);
     card.appendChild(body);
 
     return card;

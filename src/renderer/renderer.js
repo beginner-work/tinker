@@ -494,7 +494,7 @@
     activeId = null;
     readingEssayId = essay.id;
     renderSidebar();
-    readBody.innerHTML = readBookHtml(essay);
+    paintReadEssay(essay);
   }
   function showCategoryFeed(categoryKey, originatingSeed) {
     if (!categoryFeedView) return false;
@@ -562,17 +562,86 @@
     return turns.map((t) => String((t && t.a) || "").trim()).filter(Boolean).join("\n\n");
   }
 
+  let readEssayMount = null;
+  let readEssayMountId = null;
+
+  function essayMarkdownForRead(essay) {
+    if (!essay) return "";
+    const title = essay.title ? String(essay.title).trim() : "";
+    const body = essay.body == null ? "" : String(essay.body);
+    if (title && body) return "# " + title + "\n\n" + body;
+    if (title) return "# " + title;
+    return body;
+  }
+
+  function sessionQuestionsForEssay(essay) {
+    // Prefer transcript questions when still attached (drafts); else markers in body.
+    const turns = essay && Array.isArray(essay.transcript) ? essay.transcript : [];
+    const fromTurns = turns
+      .map((t) => String((t && t.q) || "").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+    return fromTurns;
+  }
+
+  function paintReadEssay(essay) {
+    if (!readBody || !essay) return;
+    const essayRead = window.tinkerEssayRead;
+    const subtitle = escapeHtml(essay.author || "you");
+    const head =
+      `<header class="read__head">` +
+        `<div class="read__author">${subtitle}</div>` +
+      `</header>`;
+
+    if (!essayRead || typeof essayRead.mount !== "function") {
+      readBody.innerHTML =
+        `<div class="read__book"><article class="read__page read__page--current">` +
+        head +
+        paragraphs(essay.body) +
+        `</article></div>`;
+      readEssayMount = null;
+      readEssayMountId = null;
+      return;
+    }
+
+    readBody.innerHTML =
+      `<div class="read__book"><article class="read__page read__page--current">` +
+      head +
+      `<div class="read__essay-mount" id="read-essay-mount"></div>` +
+      `</article></div>`;
+    const mountEl = readBody.querySelector("#read-essay-mount");
+    const markdown = essayMarkdownForRead(essay);
+    const questions = sessionQuestionsForEssay(essay);
+    // Fresh essay: questions toggle always off.
+    readEssayMountId = essay.id;
+    readEssayMount = essayRead.mount(mountEl, {
+      markdown: markdown,
+      showQuestions: false,
+      questions: questions,
+    });
+  }
+
   function readPageHtml(essay, placement, extraClass) {
+    // Legacy string builder kept for tests that call it directly; live path uses paintReadEssay.
+    const essayRead = window.tinkerEssayRead;
     const subtitle = escapeHtml(essay.author || "you");
     const titleHtml = essay.title
       ? `<h1 class="read__title"><span>${escapeHtml(essay.title)}</span></h1>`
       : "";
+    let bodyHtml = paragraphs(essay.body);
+    if (essayRead && typeof essayRead.renderShellHtml === "function") {
+      const md = essayMarkdownForRead(essay);
+      bodyHtml = essayRead.renderShellHtml({
+        markdown: md,
+        showQuestions: false,
+        questions: sessionQuestionsForEssay(essay),
+      });
+    }
     return `<article class="read__page${extraClass ? " " + extraClass : ""}">` +
       `<header class="read__head">` +
         `<div class="read__author">${subtitle}</div>` +
         titleHtml +
       `</header>` +
-      paragraphs(essay.body) +
+      bodyHtml +
     `</article>`;
   }
 
@@ -601,7 +670,15 @@
     card.type = "button";
     card.className = "category-feed__card";
     if (essay.kind === "status") card.classList.add("category-feed__card--status");
-    const body = paragraphs(essay.body);
+    const essayRead = window.tinkerEssayRead;
+    let body = paragraphs(essay.body);
+    if (essayRead && typeof essayRead.renderEssayHtml === "function") {
+      // Cards stay compact: prose only (questions off). Full toggle is on the read view.
+      body = essayRead.renderEssayHtml({
+        markdown: String(essay.body || ""),
+        showQuestions: false,
+      });
+    }
     const titleHtml = essay.title
       ? `<h3 class="category-feed__card-title">${escapeHtml(essay.title)}</h3>`
       : "";

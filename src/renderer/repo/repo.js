@@ -22,6 +22,7 @@
   var md = window.tinkerStoriesMd;
   var core = window.tinkerRepoFoldersCore;
   var padReveal = window.tinkerRepoPadReveal || null;
+  var essayRead = window.tinkerEssayRead || null;
   if (!md || !core) return;
 
   var pageMode = (document.body && document.body.getAttribute("data-repo-mode")) || "write";
@@ -70,6 +71,9 @@
     padAsking: false,
     followupAsked: [],
     followupQuestion: "",
+    // Read-view mount for saved essays (toggle always starts off per essay).
+    essayReadMount: null,
+    essayReadStoryId: null,
   };
 
   var els = {
@@ -82,6 +86,7 @@
     newFolder: document.getElementById("repo-new-folder"),
     body: document.getElementById("repo-body"),
     pad: document.getElementById("repo-pad"),
+    essayView: document.getElementById("repo-essay-view"),
     surface: document.getElementById("repo-surface"),
     followup: document.getElementById("repo-followup"),
     padError: document.getElementById("repo-pad-error"),
@@ -692,6 +697,7 @@
     if (node.closest("#repo-location")) return true;
     if (node.closest("#repo-pad-actions")) return true;
     if (node.closest("#repo-pad-error")) return true;
+    if (node.closest("#repo-essay-view")) return true;
     if (node.closest(".repo-top")) return true;
     if (node.closest(".repo-right")) return true;
     if (node.closest(".repo-sheet")) return true;
@@ -705,6 +711,7 @@
   /** Tap blank writing space → focus editor, caret at end (opens keyboard on mobile). */
   function onBlankPadActivate(event) {
     if (!isWritePage) return;
+    if (isEssayReadMode()) return;
     var target = event && event.target;
     if (isInteractiveChrome(target)) return;
     if (!els.surface || !els.surface.contains(target)) return;
@@ -820,6 +827,64 @@
 
   function setPadMarkdown(md, opts) {
     renderPadFromMarkdown(md == null ? "" : String(md), opts || {});
+  }
+
+  function isEssayReadMode() {
+    var story = selectedStory();
+    return !!(story && !story.isNew && essayRead && els.essayView);
+  }
+
+  function clearEssayViewNode() {
+    if (!els.essayView) return;
+    while (els.essayView.firstChild) {
+      els.essayView.removeChild(els.essayView.firstChild);
+    }
+  }
+
+  function hideEssayReadView() {
+    if (els.essayView) {
+      els.essayView.hidden = true;
+      clearEssayViewNode();
+    }
+    if (els.pad) els.pad.hidden = false;
+    if (els.body) els.body.hidden = false;
+    state.essayReadMount = null;
+    state.essayReadStoryId = null;
+    if (els.surface) els.surface.classList.remove("repo-surface--reading");
+  }
+
+  function showEssayReadView(story) {
+    if (!els.essayView || !essayRead || !story) {
+      hideEssayReadView();
+      return;
+    }
+    var markdown = story.markdown != null ? String(story.markdown) : String(story.body || "");
+    els.essayView.hidden = false;
+    if (els.pad) els.pad.hidden = true;
+    if (els.body) els.body.hidden = true;
+    setPadActionsVisible(false);
+    if (els.surface) els.surface.classList.add("repo-surface--reading");
+
+    // Fresh essay open: toggle always off (do not persist across essays).
+    if (!state.essayReadMount || state.essayReadStoryId !== story.id) {
+      state.essayReadStoryId = story.id;
+      state.essayReadMount = essayRead.mount(els.essayView, {
+        markdown: markdown,
+        showQuestions: false,
+      });
+    } else if (state.essayReadMount && typeof state.essayReadMount.setMarkdown === "function") {
+      // Same story re-render (tree refresh): keep toggle state for this essay only.
+      var keep = state.essayReadMount.getShowQuestions
+        ? state.essayReadMount.getShowQuestions()
+        : false;
+      state.essayReadMount.setMarkdown(markdown);
+      if (keep && typeof state.essayReadMount.setShowQuestions === "function") {
+        state.essayReadMount.setShowQuestions(true);
+      }
+    }
+
+    // Keep the mirror in sync so save/export paths still see the bytes.
+    if (els.body && els.body.value !== markdown) els.body.value = markdown;
   }
 
   function firstLineTitle(text) {
@@ -1163,6 +1228,7 @@
     clearPadError();
     clearPadIdleTimer();
     state.padActionsVisible = false;
+    hideEssayReadView();
     if (els.body) els.body.value = "";
     setPadMarkdown("");
     setPadActionsVisible(false);
@@ -2630,10 +2696,11 @@
   });
 
   function renderCenter() {
-    if (!els.body && !els.pad) return;
+    if (!els.body && !els.pad && !els.essayView) return;
     if (els.body) els.body.disabled = false;
     var story = selectedStory();
     if (!story) {
+      hideEssayReadView();
       if (!padHasFocus()) setPadMarkdown("");
       text(els.filePath, "");
       if (els.fileType) {
@@ -2642,8 +2709,13 @@
       }
       return;
     }
-    if (!padHasFocus()) {
-      setPadMarkdown(story.isNew ? (story.markdown || "") : (story.markdown || ""));
+    if (!story.isNew && essayRead && els.essayView) {
+      showEssayReadView(story);
+    } else {
+      hideEssayReadView();
+      if (!padHasFocus()) {
+        setPadMarkdown(story.markdown || "");
+      }
     }
     text(els.filePath, md.displayTitle(story));
     if (els.fileType) {
@@ -2679,7 +2751,8 @@
       renderPlace();
       renderFollowup();
       renderSyncHint();
-      setPadActionsVisible(state.padActionsVisible && !!padBody().trim());
+      if (isEssayReadMode()) setPadActionsVisible(false);
+      else setPadActionsVisible(state.padActionsVisible && !!padBody().trim());
     }
   }
 
@@ -3046,6 +3119,10 @@
     serializePadSegments: serializePadSegments,
     setPadMarkdown: setPadMarkdown,
     getPadMarkdown: padBody,
+    isEssayReadMode: isEssayReadMode,
+    showEssayReadView: showEssayReadView,
+    hideEssayReadView: hideEssayReadView,
+    getEssayReadMount: function () { return state.essayReadMount; },
     visibleQuestionTexts: function () {
       if (!els.pad) return [];
       var nodes = els.pad.querySelectorAll("[data-pad-q='1']");
