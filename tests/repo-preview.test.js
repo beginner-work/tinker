@@ -318,7 +318,7 @@ function bootRepoPage(options) {
   byId["repo-grok-handoff"].hidden = true;
   byId["repo-grok-handoff"].href =
     "grokbot://app/v1/agent?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5";
-  byId["repo-grok-handoff"].textContent = "Open in Grok Bot";
+  byId["repo-grok-handoff"].textContent = "Grok Bot";
   byId["repo-surface"].appendChild(byId["repo-grok-handoff"]);
   byId["repo-body"].scrollTop = 0;
   byId["repo-body"].selectionStart = 0;
@@ -787,7 +787,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-grok-handoff"/);
   assert.match(html, /grokbot:\/\/app\/v1\/agent\?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5/);
   assert.match(html, /grok-bot-logo\.png/);
-  assert.match(html, /Open in Grok Bot/);
+  assert.match(html, />Grok Bot</);
   assert.match(html, /aria-keyshortcuts="Meta\+Enter Control\+Enter"/);
   assert.match(html, /id="repo-keep-crafting-kbd"/);
   assert.match(html, /repo-surface__kbd/);
@@ -1796,7 +1796,7 @@ test("savePad signed-out sends to /?signin=1 without writing essays", async () =
   assert.ok(env.session.get("tinker.repo.padDraft.v1"));
 });
 
-test("This is everything button click saves, blanks the pad, and lists the essay", async () => {
+test("This is everything button click saves, keeps writing visible, and lists the essay", async () => {
   const puts = [];
   const env = bootRepoPage({
     token: "jwt-test",
@@ -1823,8 +1823,8 @@ test("This is everything button click saves, blanks the pad, and lists the essay
   assert.equal(puts.length, 1);
   assert.equal(puts[0][0].body, "Finished thought about the work.");
   assert.match(puts[0][0].title, /Finished thought/i);
-  // Blank starting screen — no Saved. / Saving… notice.
-  assert.equal(String(env.byId["repo-body"].value || "").trim(), "");
+  // Writing stays on screen with the slim Grok Bot handoff under it.
+  assert.match(String(env.byId["repo-body"].value || ""), /Finished thought about the work/);
   assert.equal(env.byId["repo-pad-error"].hidden, true);
   assert.doesNotMatch(String(env.byId["repo-pad-error-text"].textContent || ""), /Saved|Saving/);
   assert.equal(env.window.tinkerRepo.arePadActionsVisible(), false);
@@ -1834,6 +1834,8 @@ test("This is everything button click saves, blanks the pad, and lists the essay
   const treeText = String(env.byId["repo-tree"].textContent || "");
   assert.match(treeText, /Finished thought about the work/i);
   assert.equal(env.byId["repo-grok-handoff"].hidden, false);
+  assert.equal(env.byId["repo-grok-handoff"].parentNode, env.byId["repo-pad"]);
+  assert.ok(env.byId["repo-pad"].classList.contains("repo-pad--with-handoff"));
   assert.match(
     String(env.byId["repo-grok-handoff"].href || ""),
     /grokbot:\/\/app\/v1\/agent\?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5/,
@@ -1921,7 +1923,8 @@ test("This is everything double click does not create two essays", async () => {
   await Promise.all([first, second]);
   await env.flush();
   assert.equal(puts.length, 1);
-  assert.equal(String(env.byId["repo-body"].value || "").trim(), "");
+  assert.match(String(env.byId["repo-body"].value || ""), /Only one essay please/);
+  assert.equal(env.byId["repo-grok-handoff"].hidden, false);
 });
 
 test("This is everything signed-out click navigates to sign-in", async () => {

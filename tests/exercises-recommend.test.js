@@ -150,8 +150,11 @@ test("repo page wires recommendation card, sidebar row, and checked-in Cursor lo
   assert.match(repoHtml, /id="repo-grok-handoff"/);
   assert.match(repoHtml, /grokbot:\/\/app\/v1\/agent\?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5/);
   assert.match(repoHtml, /grok-bot-logo\.png/);
+  assert.match(repoHtml, />Grok Bot</);
   assert.match(repoCss, /\.repo-grok-handoff\b/);
-  assert.match(repoJs, /showGrokHandoff/);
+  assert.match(repoCss, /\.repo-pad--with-handoff\b/);
+  assert.match(repoJs, /showGrokHandoff|mountGrokHandoffUnderPad/);
+  assert.match(repoJs, /finishWritingAfterSave/);
   assert.match(repoJs, /GROK_BOT_SWITCHBOARD_HREF/);
   assert.equal(
     fs.existsSync(path.join(root, "src/renderer/icons/cursor-logo.svg")),
