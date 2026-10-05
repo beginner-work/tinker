@@ -3,8 +3,8 @@
  * Owner route for generic reading workbook threads. MCP bots create and
  * advance via create_reading_thread / get_reading_thread /
  * advance_reading_section / pause_reading_thread /
- * resume_reading_thread on /api/mcp. Notes use the same merge-safe
- * notepad contract as leads (#395).
+ * resume_reading_thread / reorder_reading_sections on /api/mcp. Notes
+ * use the same merge-safe notepad contract as leads (#395).
  *
  * GET  ?action=list → { threads }
  * GET  ?action=get&id= → { thread }
@@ -12,6 +12,7 @@
  * POST ?action=advance body { notes? } &id= → { thread }
  * POST ?action=retreat &id= → { thread } (go back one section; notes kept)
  * POST ?action=pause|resume &id= → { thread } (hold / unhold; notes kept)
+ * POST ?action=reorder body { sectionIds } &id= → { thread }
  */
 
 "use strict";
@@ -106,6 +107,18 @@ async function dispatch(method, action, auth, body, id) {
           userId,
           threadId: id,
           paused: action === "pause",
+        }),
+      },
+    };
+  }
+  if (method === "POST" && action === "reorder") {
+    return {
+      status: 200,
+      body: {
+        thread: await store.reorderSections({
+          userId,
+          threadId: id,
+          sectionIds: body.sectionIds,
         }),
       },
     };

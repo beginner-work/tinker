@@ -17,7 +17,8 @@
  * set_busy_times), post_to_self_thread (assistant posts into the
  * owner's You inbox thread), and reading workbook tools
  * (create_reading_thread, get_reading_thread, list_reading_threads,
- * advance_reading_section, pause_reading_thread, resume_reading_thread).
+ * advance_reading_section, pause_reading_thread, resume_reading_thread,
+ * reorder_reading_sections).
  * There is no raw converse proxy and no
  * write tool for autonomy settings or the career record.
  * Content tools can draft. They cannot publish. GET/DELETE return 405: this
@@ -131,6 +132,7 @@ const INSTRUCTIONS = [
   "Call list_reading_threads or get_reading_thread to read threads (includes paused with paused:true).",
   "Call advance_reading_section when the owner finished a section to mark it done and generate the next pre-read question.",
   "Call pause_reading_thread / resume_reading_thread with threadId to put a workbook on hold or bring it back; notes and section progress stay intact. Paused threads drop out of list_inbox and the app inbox.",
+  "Call reorder_reading_sections with threadId and the full ordered list of section ids (exact permutation) to reorder sections without changing status, questions, completedAt, or notes; currentSectionIndex follows the same section id.",
   "Reading notepad notes use the same merge-safe ### __done__ contract as lead notes. Do not seed books in app code; create them with create_reading_thread after deploy.",
   "Call update_owner_profile to set optional title and/or linkedInUrl on this connector user's own profile.",
   "Omitted fields are left unchanged. Pass an empty string to clear a field. A user id in args is ignored.",
@@ -765,6 +767,32 @@ const RESUME_READING_THREAD_TOOL = {
       threadId: { type: "string", description: "Reading thread id from list_reading_threads." },
     },
     required: ["threadId"],
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+};
+
+const REORDER_READING_SECTIONS_TOOL = {
+  name: "reorder_reading_sections",
+  title: "Reorder reading sections",
+  description: [
+    "Reorder sections in an existing reading workbook. Pass threadId and sectionIds",
+    "(the full ordered list of existing section ids — must be an exact permutation).",
+    "Keeps each section's status, preReadQuestion, and completedAt, and leaves notes untouched.",
+    "currentSectionIndex is recomputed so it still points at the same current section id.",
+    "Owner-scoped; other users get not found. A user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      threadId: { type: "string", description: "Reading thread id from create_reading_thread or list_reading_threads." },
+      sectionIds: {
+        type: "array",
+        description: "Exact permutation of the thread's existing section ids, in the new order.",
+        items: { type: "string" },
+      },
+    },
+    required: ["threadId", "sectionIds"],
   },
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
@@ -1481,6 +1509,7 @@ const TOOLS = [
   ADVANCE_READING_SECTION_TOOL,
   PAUSE_READING_THREAD_TOOL,
   RESUME_READING_THREAD_TOOL,
+  REORDER_READING_SECTIONS_TOOL,
   SET_COMPANY_PRIORITY_TOOL,
   PLAN_LEAD_TOUCH_TOOL,
   UPSERT_TARGET_COMPANY_TOOL,
@@ -1974,6 +2003,17 @@ async function resumeReadingThreadCall(msg, user, args) {
       userId: storyUserId(user),
       threadId: args.threadId,
       paused: false,
+    });
+    return contentToolOk(msg, { thread });
+  } catch (err) { return readingFailure(msg, err); }
+}
+
+async function reorderReadingSectionsCall(msg, user, args) {
+  try {
+    const thread = await readingThreads.reorderSections({
+      userId: storyUserId(user),
+      threadId: args.threadId,
+      sectionIds: args.sectionIds,
     });
     return contentToolOk(msg, { thread });
   } catch (err) { return readingFailure(msg, err); }
@@ -2803,6 +2843,7 @@ async function handleRpc(msg, user) {
       && name !== "advance_reading_section"
       && name !== "pause_reading_thread"
       && name !== "resume_reading_thread"
+      && name !== "reorder_reading_sections"
       && name !== "set_company_priority"
       && name !== "plan_lead_touch"
       && name !== "upsert_target_company"
@@ -2888,6 +2929,9 @@ async function handleRpc(msg, user) {
     }
     if (name === "resume_reading_thread") {
       return resumeReadingThreadCall(msg, user, args);
+    }
+    if (name === "reorder_reading_sections") {
+      return reorderReadingSectionsCall(msg, user, args);
     }
     if (name === "set_company_priority") {
       return setCompanyPriorityCall(msg, user, args);

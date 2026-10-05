@@ -354,6 +354,100 @@ test("pause / resume keeps notes; drops from inbox; list_reading keeps paused; c
   assert.match(toolPayload(mcpResume).thread.notes, /Keep this answer/);
 });
 
+test("reorder_reading_sections happy path; rejects bad ids; preserves current + done", async () => {
+  const created = await store.createThread({
+    userId: "user-a",
+    title: "Order Book",
+    sections: ["Ch 1", "Ch 2", "Ch 3", "Ch 4"],
+  });
+  const first = await store.advanceSection({
+    userId: "user-a",
+    threadId: created.id,
+    notes: "### Q1\nRead one.\n",
+  });
+  assert.equal(first.currentSectionIndex, 1);
+  assert.equal(first.sections[0].status, "done");
+  assert.ok(first.sections[0].completedAt);
+  const doneId = first.sections[0].id;
+  const doneAt = first.sections[0].completedAt;
+  const doneQ = first.sections[0].preReadQuestion;
+  const currentId = first.currentSection.id;
+  const currentQ = first.currentSection.preReadQuestion;
+  const ids = first.sections.map((s) => s.id);
+  // Move section 0 (done) to the end: [1,2,3,0]
+  const reorderedIds = [ids[1], ids[2], ids[3], ids[0]];
+
+  const reordered = await store.reorderSections({
+    userId: "user-a",
+    threadId: created.id,
+    sectionIds: reorderedIds,
+  });
+  assert.deepEqual(reordered.sections.map((s) => s.id), reorderedIds);
+  assert.equal(reordered.currentSection.id, currentId);
+  assert.equal(reordered.currentSectionIndex, 0);
+  assert.equal(reordered.currentSection.preReadQuestion, currentQ);
+  assert.equal(reordered.sections[0].status, "current");
+  const movedDone = reordered.sections.find((s) => s.id === doneId);
+  assert.equal(movedDone.status, "done");
+  assert.equal(movedDone.completedAt, doneAt);
+  assert.equal(movedDone.preReadQuestion, doneQ);
+  assert.match(reordered.notes, /Read one/);
+
+  await assert.rejects(
+    () => store.reorderSections({
+      userId: "user-a",
+      threadId: created.id,
+      sectionIds: [ids[0], ids[1], ids[2]],
+    }),
+    (err) => err && err.status === 400,
+  );
+  await assert.rejects(
+    () => store.reorderSections({
+      userId: "user-a",
+      threadId: created.id,
+      sectionIds: [ids[0], ids[1], ids[2], "sec_missing"],
+    }),
+    (err) => err && err.status === 400,
+  );
+  await assert.rejects(
+    () => store.reorderSections({
+      userId: "user-a",
+      threadId: created.id,
+      sectionIds: [ids[0], ids[1], ids[2], ids[0]],
+    }),
+    (err) => err && err.status === 400,
+  );
+
+  const ownerRes = await ownerCall({
+    method: "POST",
+    action: "reorder",
+    id: created.id,
+    body: { sectionIds: ids },
+  });
+  assert.equal(ownerRes.status, 200);
+  assert.deepEqual(ownerRes.body.thread.sections.map((s) => s.id), ids);
+  assert.equal(ownerRes.body.thread.currentSection.id, currentId);
+
+  const tokenA = "mcp_" + "a".repeat(43);
+  const tokenB = "mcp_" + "b".repeat(43);
+  const mcpOk = await mcpCall("reorder_reading_sections", {
+    threadId: created.id,
+    sectionIds: reorderedIds,
+  }, tokenA);
+  assert.equal(mcpOk.status, 200);
+  assert.equal(mcpOk.body.result.isError, undefined);
+  assert.deepEqual(toolPayload(mcpOk).thread.sections.map((s) => s.id), reorderedIds);
+  assert.equal(toolPayload(mcpOk).thread.currentSection.id, currentId);
+
+  const cross = await mcpCall("reorder_reading_sections", {
+    threadId: created.id,
+    sectionIds: reorderedIds,
+  }, tokenB);
+  assert.equal(cross.status, 200);
+  assert.equal(cross.body.result.isError, true);
+  assert.match(cross.body.result.content[0].text, /not found/i);
+});
+
 test("UI reuses notepad / Keep crafting; no review UI; SW precaches reading module", () => {
   const reading = fs.readFileSync(path.join(root, "src/renderer/messages-reading.js"), "utf8");
   const shell = fs.readFileSync(path.join(root, "src/renderer/messages-shell.js"), "utf8");
