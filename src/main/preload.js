@@ -94,4 +94,11 @@ contextBridge.exposeInMainWorld("tinker", {
   useCloudStorageRoot: (id) => ipcRenderer.invoke("storage:useCloudRoot", id),
   // Typed path for Files → Saved in → Custom location… Missing on older builds.
   useCustomStoragePath: (rawPath) => ipcRenderer.invoke("storage:useCustomPath", rawPath),
+  // Exercises lab: local clone of tlindow/lindowlabs + Open in IDE.
+  // Missing on older builds; renderer falls back to GitHub.
+  getExerciseLabSettings: () => ipcRenderer.invoke("exercises:getSettings"),
+  setExerciseLabSettings: (patch) => ipcRenderer.invoke("exercises:setSettings", patch),
+  pickExerciseLabPath: () => ipcRenderer.invoke("exercises:pickClonePath"),
+  openExerciseModule: (moduleId, opts) =>
+    ipcRenderer.invoke("exercises:openModule", moduleId, opts || {}),
 });

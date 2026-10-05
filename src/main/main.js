@@ -15,6 +15,9 @@ const fs = require("fs");
 const fsp = require("fs/promises");
 const { detectCloudRoots, useCloudRoot } = require("./lib/cloud-roots.js");
 const { useCustomPath } = require("./lib/custom-path.js");
+const { spawn } = require("child_process");
+const exercisesLab = require("./lib/exercises-lab.js");
+const exercisesManifest = require("../renderer/exercises/manifest.js");
 
 // Production Tinker. The desktop shell is a hardened BrowserWindow around
 // this origin — web product changes ship without a new dmg; only shell
@@ -624,6 +627,167 @@ ipcMain.handle("storage:useCustomPath", async (_event, rawPath) => {
   } catch (err) {
     return {
       error: (err && err.message) || "Could not use that path.",
+    };
+  }
+});
+
+// ── Exercises lab: local clone of tlindow/lindowlabs + Open in IDE ─────
+const EXERCISES_SETTINGS_PATH = () =>
+  path.join(app.getPath("userData"), "exercises-lab.json");
+
+function allowedExerciseIds() {
+  const modules = exercisesManifest && Array.isArray(exercisesManifest.modules)
+    ? exercisesManifest.modules
+    : [];
+  return modules.map((m) => String(m && m.id || "").trim()).filter(Boolean);
+}
+
+function readExercisesSettings() {
+  let raw = {};
+  try {
+    raw = JSON.parse(fs.readFileSync(EXERCISES_SETTINGS_PATH(), "utf8"));
+  } catch {
+    raw = {};
+  }
+  return exercisesLab.normalizeSettings(raw, app.getPath("home"));
+}
+
+function writeExercisesSettings(next) {
+  const normalized = exercisesLab.normalizeSettings(next, app.getPath("home"));
+  fs.writeFileSync(
+    EXERCISES_SETTINGS_PATH(),
+    JSON.stringify({
+      clonePath: normalized.clonePath,
+      ideCommand: normalized.ideCommand,
+    }, null, 2),
+    "utf8"
+  );
+  return normalized;
+}
+
+function runGit(cmd, args, cwd) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, {
+      cwd: cwd || undefined,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stderr = "";
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk || "");
+    });
+    child.on("error", (err) => {
+      reject(err || new Error("Could not run " + cmd));
+    });
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve(true);
+        return;
+      }
+      const err = new Error(
+        (stderr && stderr.trim()) || (cmd + " exited with " + code)
+      );
+      err.code = "GIT_FAILED";
+      reject(err);
+    });
+  });
+}
+
+ipcMain.handle("exercises:getSettings", async () => {
+  return readExercisesSettings();
+});
+
+ipcMain.handle("exercises:setSettings", async (_event, patch) => {
+  const current = readExercisesSettings();
+  const next = {
+    clonePath:
+      patch && Object.prototype.hasOwnProperty.call(patch, "clonePath")
+        ? patch.clonePath
+        : current.clonePath,
+    ideCommand:
+      patch && Object.prototype.hasOwnProperty.call(patch, "ideCommand")
+        ? patch.ideCommand
+        : current.ideCommand,
+  };
+  return writeExercisesSettings(next);
+});
+
+ipcMain.handle("exercises:pickClonePath", async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+  const result = await dialog.showOpenDialog(win || undefined, {
+    title: "Choose exercises lab folder",
+    properties: ["openDirectory", "createDirectory"],
+  });
+  if (result.canceled || !result.filePaths || !result.filePaths[0]) return null;
+  const folderPath = result.filePaths[0];
+  return writeExercisesSettings({
+    clonePath: folderPath,
+    ideCommand: readExercisesSettings().ideCommand,
+  });
+});
+
+ipcMain.handle("exercises:openModule", async (_event, moduleId, opts) => {
+  try {
+    const options = opts && typeof opts === "object" ? opts : {};
+    const settings = readExercisesSettings();
+    const ids = allowedExerciseIds();
+    await exercisesLab.ensureLabRepo({
+      clonePath: settings.clonePath,
+      fs,
+      run: runGit,
+    });
+    const folder = exercisesLab.moduleAbsPath(
+      settings.clonePath,
+      moduleId,
+      ids
+    );
+    if (!fs.existsSync(folder)) {
+      return {
+        ok: false,
+        error: "That module folder is missing after clone. Check the repo.",
+      };
+    }
+    let ideCommand = settings.ideCommand;
+    const prefer = String(options.preferCommand || "").trim();
+    if (prefer && !ideCommand) ideCommand = prefer;
+    const action = exercisesLab.chooseOpenAction({
+      isDesktop: true,
+      ideCommand: ideCommand,
+      moduleAbsPath: folder,
+      githubUrl: exercisesLab.githubModuleUrl(moduleId),
+    });
+    if (action.kind === "command") {
+      await new Promise((resolve, reject) => {
+        const child = spawn(action.command, action.args, {
+          detached: true,
+          stdio: "ignore",
+          env: process.env,
+        });
+        child.on("error", reject);
+        child.unref();
+        resolve(true);
+      });
+      return {
+        ok: true,
+        via: "command",
+        path: folder,
+        message: "Opened with " + action.command + ".",
+      };
+    }
+    const openErr = await shell.openPath(folder);
+    if (openErr) {
+      return { ok: false, error: openErr || "Could not open the folder." };
+    }
+    return {
+      ok: true,
+      via: "openPath",
+      path: folder,
+      message: "Opened the module folder.",
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: (err && err.message) || "Could not open that module.",
     };
   }
 });

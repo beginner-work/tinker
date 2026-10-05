@@ -167,6 +167,7 @@ test("settings page hosts profile fields, page links, and outreach", () => {
   assert.match(settings, /data-owner-linkedin/);
   assert.match(settings, /href="\/leads"/);
   assert.equal(/href="\/story-parts"/.test(settings), false);
+  assert.match(settings, /href="\/exercises"/);
   assert.match(settings, /href="\/career"/);
   assert.match(settings, /href="\/autonomy"/);
   assert.match(settings, /href="\/mcp\/access"/);

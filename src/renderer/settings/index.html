@@ -198,6 +198,7 @@
         <h2 class="settings__section-title" id="settings-pages-heading">Pages</h2>
         <ul class="settings__nav">
           <li><a href="/metrics">Metrics</a></li>
+          <li><a href="/exercises">Exercises</a></li>
           <li><a href="/leads">Leads</a></li>
           <li><a href="/career">Career</a></li>
           <li><a href="/autonomy">Autonomy</a></li>
@@ -207,6 +208,27 @@
           <li><a href="/?open=linkedin-draft">LinkedIn draft</a></li>
           <li><a href="/?open=share">Share</a></li>
         </ul>
+      </section>
+
+      <section class="settings__section" id="settings-exercises" aria-labelledby="settings-exercises-heading" hidden>
+        <h2 class="settings__section-title" id="settings-exercises-heading">Exercises lab</h2>
+        <p class="settings__hint">Desktop only. Open in IDE clones or updates tlindow/lindowlabs at this path, then opens exercises/&lt;module&gt;. Leave the IDE command blank to use the OS default handler, or set something like <code>code</code> or <code>cursor</code>.</p>
+        <label class="settings__field">
+          <span class="settings__label">Lab folder</span>
+          <span class="settings__row">
+            <input type="text" class="settings__input" data-exercises-clone-path placeholder="~/lindowlabs" autocomplete="off" spellcheck="false" />
+            <button type="button" class="settings__save" data-exercises-clone-pick>Choose</button>
+          </span>
+          <p class="settings__hint" data-exercises-clone-default></p>
+        </label>
+        <label class="settings__field">
+          <span class="settings__label">IDE command (optional)</span>
+          <span class="settings__row">
+            <input type="text" class="settings__input" data-exercises-ide-command placeholder="code" autocomplete="off" spellcheck="false" />
+            <button type="button" class="settings__save" data-exercises-lab-save>Save</button>
+          </span>
+          <p class="settings__status" data-exercises-lab-status hidden></p>
+        </label>
       </section>
 
       <section class="settings__section" id="settings-outreach" aria-labelledby="settings-outreach-heading">

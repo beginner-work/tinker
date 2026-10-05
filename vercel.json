@@ -39,6 +39,8 @@
     { "source": "/metrics/", "destination": "/metrics/index.html" },
     { "source": "/metrics/how-i-write", "destination": "/metrics/how-i-write.html" },
     { "source": "/metrics/how-i-write/", "destination": "/metrics/how-i-write.html" },
+    { "source": "/exercises", "destination": "/exercises/index.html" },
+    { "source": "/exercises/", "destination": "/exercises/index.html" },
     { "source": "/repo", "destination": "/repo/index.html" },
     { "source": "/repo/", "destination": "/repo/index.html" },
     { "source": "/repo/files", "destination": "/repo/files/index.html" },

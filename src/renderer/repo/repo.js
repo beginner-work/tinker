@@ -97,6 +97,11 @@
     padActions: document.getElementById("repo-pad-actions"),
     keepCrafting: document.getElementById("repo-keep-crafting"),
     thisIsEverything: document.getElementById("repo-this-is-everything"),
+    exerciseRec: document.getElementById("repo-exercise-rec"),
+    exerciseRecName: document.getElementById("repo-exercise-rec-name"),
+    exerciseRecDesc: document.getElementById("repo-exercise-rec-desc"),
+    exerciseRecOpen: document.getElementById("repo-exercise-rec-open"),
+    exerciseRecDismiss: document.getElementById("repo-exercise-rec-dismiss"),
     locationBtn: document.getElementById("repo-location-btn"),
     locationPanel: document.getElementById("repo-location-panel"),
     locationInput: document.getElementById("repo-location-input"),
@@ -1314,6 +1319,107 @@
     } catch (e) { /* ignore */ }
   }
 
+  function attachExerciseRecommendation(essay, ctx) {
+    var pick = window.tinkerExercisesPick;
+    var manifest = window.tinkerExercisesManifest;
+    if (!pick || !manifest || !essay) return null;
+    if (essay.exerciseRecommendation && essay.exerciseRecommendation.moduleId) {
+      return essay.exerciseRecommendation;
+    }
+    return pick.ensureRecommendation(essay, {
+      modules: manifest.modules || [],
+      title: ctx && ctx.title,
+      body: ctx && ctx.body,
+      place: ctx && ctx.place,
+      storage: window.localStorage,
+    });
+  }
+
+  function isPhoneViewport() {
+    try {
+      return window.matchMedia && window.matchMedia("(max-width: 767px)").matches;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function hideExerciseRecommendationCard() {
+    if (els.exerciseRec) els.exerciseRec.hidden = true;
+    state.exerciseRecEssayId = null;
+  }
+
+  function showExerciseRecommendationCard(story) {
+    var rec = story && story.exerciseRecommendation;
+    if (!rec || !rec.moduleId || rec.dismissed) {
+      hideExerciseRecommendationCard();
+      return;
+    }
+    // Phone: save on the essay only; sidebar shows the link. No popup card.
+    if (isPhoneViewport()) {
+      hideExerciseRecommendationCard();
+      return;
+    }
+    if (!els.exerciseRec) return;
+    state.exerciseRecEssayId = story.id;
+    if (els.exerciseRecName) els.exerciseRecName.textContent = rec.name || rec.moduleId;
+    if (els.exerciseRecDesc) els.exerciseRecDesc.textContent = rec.description || "";
+    els.exerciseRec.hidden = false;
+  }
+
+  function openRecommendedExercise(rec) {
+    if (!rec || !rec.moduleId) return Promise.resolve(null);
+    var openApi = window.tinkerExercisesOpen;
+    var pick = window.tinkerExercisesPick;
+    if (pick && typeof pick.markOpened === "function") {
+      pick.markOpened(rec.moduleId, window.localStorage);
+    }
+    if (!openApi) return Promise.resolve(null);
+    if (typeof openApi.openInCursor === "function") {
+      return openApi.openInCursor(rec.moduleId);
+    }
+    return openApi.openModule(rec.moduleId);
+  }
+
+  function dismissExerciseRecommendation(essayId) {
+    hideExerciseRecommendationCard();
+    if (!essayId) return;
+    state.stories = state.stories.map(function (s) {
+      if (s.id !== essayId || !s.exerciseRecommendation) return s;
+      return Object.assign({}, s, {
+        exerciseRecommendation: Object.assign({}, s.exerciseRecommendation, { dismissed: true }),
+      });
+    });
+    fetchEssays().then(function (list) {
+      if (!Array.isArray(list)) return null;
+      var next = list.map(function (essay) {
+        if (!essay || essay.id !== essayId || !essay.exerciseRecommendation) return essay;
+        return Object.assign({}, essay, {
+          exerciseRecommendation: Object.assign({}, essay.exerciseRecommendation, {
+            dismissed: true,
+          }),
+        });
+      });
+      return putEssays(next);
+    }).catch(function () { /* ignore */ });
+    if (els.tree) renderTree();
+  }
+
+  function mergeExerciseRecommendationsFromEssays(stories, essays) {
+    if (!Array.isArray(stories) || !Array.isArray(essays)) return stories;
+    var byId = {};
+    essays.forEach(function (essay) {
+      if (essay && essay.id && essay.exerciseRecommendation) {
+        byId[essay.id] = essay.exerciseRecommendation;
+      }
+    });
+    return stories.map(function (story) {
+      if (!story || !story.id) return story;
+      if (story.exerciseRecommendation && story.exerciseRecommendation.moduleId) return story;
+      if (!byId[story.id]) return story;
+      return Object.assign({}, story, { exerciseRecommendation: byId[story.id] });
+    });
+  }
+
   function storyFromEssay(essay, folderId) {
     var title = essay.title || firstLineTitle(essay.body || "");
     var createdAt = essay.createdAt
@@ -1332,6 +1438,7 @@
       markdown: md.storyMarkdown(title, essay.body || ""),
       isNew: false,
       relPath: core.fileRelPath(state.folders, folderId || null, fileName),
+      exerciseRecommendation: essay.exerciseRecommendation || null,
     };
   }
 
@@ -1393,6 +1500,7 @@
         };
         essays = [essay].concat(essays);
       }
+      attachExerciseRecommendation(essay, { title: title, body: body, place: place });
       return putEssays(essays).then(function (putResult) {
         if (!putResult || !putResult.ok) {
           state.status = "";
@@ -1416,6 +1524,7 @@
         state.status = "";
         // Blank editor for the next piece; saved essay is already first in the tree.
         startBlankPadAfterSave();
+        showExerciseRecommendationCard(saved);
         var placePromise = place && !isDraftId(saved.id)
           ? apiPost("set_place", { fileId: saved.id, place: place }).then(function (result) {
               if (result && result.ok && result.json && result.json.tree) applyTree(result.json.tree);
@@ -2553,6 +2662,32 @@
     row.appendChild(moveBtn);
 
     li.appendChild(row);
+
+    var rec = story && story.exerciseRecommendation;
+    if (rec && rec.moduleId) {
+      var exBtn = document.createElement("button");
+      exBtn.type = "button";
+      exBtn.className = "repo-tree__exercise";
+      exBtn.setAttribute("data-exercise-module", rec.moduleId);
+      exBtn.setAttribute("aria-label", "Open " + (rec.name || rec.moduleId) + " in Cursor");
+      var logo = document.createElement("img");
+      logo.className = "repo-tree__exercise-logo";
+      logo.src = "/icons/cursor-logo.svg";
+      logo.alt = "";
+      logo.width = 14;
+      logo.height = 14;
+      exBtn.appendChild(logo);
+      var exLabel = document.createElement("span");
+      exLabel.className = "repo-tree__exercise-label";
+      exLabel.textContent = rec.name || rec.moduleId;
+      exBtn.appendChild(exLabel);
+      exBtn.addEventListener("click", function (event) {
+        event.stopPropagation();
+        openRecommendedExercise(rec);
+      });
+      li.appendChild(exBtn);
+    }
+
     list.appendChild(li);
   }
 
@@ -2945,6 +3080,9 @@
           var src = rows.find(function (r) { return r && r.id === story.id; });
           if (src && src.folderId) folderId = src.folderId;
           if (src && src.contentType) story.contentType = src.contentType;
+          if (src && src.exerciseRecommendation) {
+            story.exerciseRecommendation = src.exerciseRecommendation;
+          }
         }
         if (folderId) state.placements[story.id] = folderId;
         var fileName = story.fileName;
@@ -2954,8 +3092,11 @@
           relPath: core.fileRelPath(state.folders, folderId, fileName),
         });
       });
-      render();
-      return syncStoriesToDisk();
+      return fetchEssays().then(function (essays) {
+        state.stories = mergeExerciseRecommendationsFromEssays(state.stories, essays || []);
+        render();
+        return syncStoriesToDisk();
+      });
     }).catch(function () {
       state.stories = [];
       render();
@@ -3040,6 +3181,25 @@
         }
       } catch (e) { /* ignore */ }
       savePad();
+    });
+  }
+  if (els.exerciseRecOpen) {
+    els.exerciseRecOpen.addEventListener("click", function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      var story = null;
+      for (var i = 0; i < state.stories.length; i += 1) {
+        if (state.stories[i] && state.stories[i].id === state.exerciseRecEssayId) {
+          story = state.stories[i];
+          break;
+        }
+      }
+      openRecommendedExercise(story && story.exerciseRecommendation);
+    });
+  }
+  if (els.exerciseRecDismiss) {
+    els.exerciseRecDismiss.addEventListener("click", function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      dismissExerciseRecommendation(state.exerciseRecEssayId);
     });
   }
   if (els.padActions) {

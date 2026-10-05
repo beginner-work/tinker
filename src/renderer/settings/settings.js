@@ -139,6 +139,81 @@
       })
       .finally(function () { if (btn) btn.disabled = false; });
   }
+
+  function exercisesBridge() {
+    var tinker = window.tinker;
+    if (!tinker || typeof tinker.getExerciseLabSettings !== "function") return null;
+    return tinker;
+  }
+
+  function fillExercisesLab(settings) {
+    var pathInput = document.querySelector("[data-exercises-clone-path]");
+    var ideInput = document.querySelector("[data-exercises-ide-command]");
+    var defHint = document.querySelector("[data-exercises-clone-default]");
+    if (pathInput) pathInput.value = settings && settings.clonePath ? String(settings.clonePath) : "";
+    if (ideInput) ideInput.value = settings && settings.ideCommand ? String(settings.ideCommand) : "";
+    if (defHint && settings && settings.defaultClonePath) {
+      defHint.textContent = "Default when blank: " + settings.defaultClonePath;
+    }
+  }
+
+  function loadExercisesLab() {
+    var section = document.getElementById("settings-exercises");
+    var bridge = exercisesBridge();
+    if (!section) return Promise.resolve();
+    if (!bridge) {
+      section.hidden = true;
+      return Promise.resolve();
+    }
+    section.hidden = false;
+    return bridge.getExerciseLabSettings().then(function (settings) {
+      fillExercisesLab(settings || {});
+    }).catch(function () {
+      setStatus("[data-exercises-lab-status]", "Could not load exercises lab settings.", true);
+    });
+  }
+
+  function saveExercisesLab() {
+    var bridge = exercisesBridge();
+    if (!bridge || typeof bridge.setExerciseLabSettings !== "function") {
+      setStatus("[data-exercises-lab-status]", "Exercises lab settings need the desktop app.", true);
+      return;
+    }
+    var pathInput = document.querySelector("[data-exercises-clone-path]");
+    var ideInput = document.querySelector("[data-exercises-ide-command]");
+    var btn = document.querySelector("[data-exercises-lab-save]");
+    if (btn) btn.disabled = true;
+    setStatus("[data-exercises-lab-status]", "Saving…");
+    bridge.setExerciseLabSettings({
+      clonePath: pathInput ? String(pathInput.value || "").trim() : "",
+      ideCommand: ideInput ? String(ideInput.value || "").trim() : "",
+    }).then(function (settings) {
+      fillExercisesLab(settings || {});
+      setStatus("[data-exercises-lab-status]", "Saved.");
+    }).catch(function () {
+      setStatus("[data-exercises-lab-status]", "Could not save right now.", true);
+    }).finally(function () { if (btn) btn.disabled = false; });
+  }
+
+  function pickExercisesLabPath() {
+    var bridge = exercisesBridge();
+    if (!bridge || typeof bridge.pickExerciseLabPath !== "function") {
+      setStatus("[data-exercises-lab-status]", "Choosing a folder needs the desktop app.", true);
+      return;
+    }
+    setStatus("[data-exercises-lab-status]", "Choose a folder…");
+    bridge.pickExerciseLabPath().then(function (settings) {
+      if (!settings) {
+        setStatus("[data-exercises-lab-status]", "");
+        return;
+      }
+      fillExercisesLab(settings);
+      setStatus("[data-exercises-lab-status]", "Lab folder updated.");
+    }).catch(function () {
+      setStatus("[data-exercises-lab-status]", "Could not update the lab folder.", true);
+    });
+  }
+
   function boot() {
     var saveBtn = document.querySelector("[data-owner-profile-save]");
     if (saveBtn) saveBtn.addEventListener("click", save);
@@ -146,8 +221,13 @@
     var whClear = document.querySelector("[data-reflection-webhook-clear]");
     if (whSave) whSave.addEventListener("click", saveWebhook);
     if (whClear) whClear.addEventListener("click", clearWebhook);
+    var exSave = document.querySelector("[data-exercises-lab-save]");
+    var exPick = document.querySelector("[data-exercises-clone-pick]");
+    if (exSave) exSave.addEventListener("click", saveExercisesLab);
+    if (exPick) exPick.addEventListener("click", pickExercisesLabPath);
     load();
     loadWebhook();
+    loadExercisesLab();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
