@@ -169,14 +169,14 @@
     return bridge.getExerciseLabSettings().then(function (settings) {
       fillExercisesLab(settings || {});
     }).catch(function () {
-      setStatus("[data-exercises-lab-status]", "Could not load exercises lab settings.", true);
+      setStatus("[data-exercises-lab-status]", "Could not load exercises settings.", true);
     });
   }
 
   function saveExercisesLab() {
     var bridge = exercisesBridge();
     if (!bridge || typeof bridge.setExerciseLabSettings !== "function") {
-      setStatus("[data-exercises-lab-status]", "Exercises lab settings need the desktop app.", true);
+      setStatus("[data-exercises-lab-status]", "Exercises settings need the desktop app.", true);
       return;
     }
     var pathInput = document.querySelector("[data-exercises-clone-path]");
@@ -208,9 +208,9 @@
         return;
       }
       fillExercisesLab(settings);
-      setStatus("[data-exercises-lab-status]", "Lab folder updated.");
+      setStatus("[data-exercises-lab-status]", "Clone folder updated.");
     }).catch(function () {
-      setStatus("[data-exercises-lab-status]", "Could not update the lab folder.", true);
+      setStatus("[data-exercises-lab-status]", "Could not update the clone folder.", true);
     });
   }
 

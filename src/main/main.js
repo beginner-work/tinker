@@ -715,7 +715,7 @@ ipcMain.handle("exercises:setSettings", async (_event, patch) => {
 ipcMain.handle("exercises:pickClonePath", async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
   const result = await dialog.showOpenDialog(win || undefined, {
-    title: "Choose exercises lab folder",
+    title: "Choose exercises clone folder",
     properties: ["openDirectory", "createDirectory"],
   });
   if (result.canceled || !result.filePaths || !result.filePaths[0]) return null;
@@ -731,20 +731,35 @@ ipcMain.handle("exercises:openModule", async (_event, moduleId, opts) => {
     const options = opts && typeof opts === "object" ? opts : {};
     const settings = readExercisesSettings();
     const ids = allowedExerciseIds();
+    const mod = exercisesLab.findModule(
+      exercisesManifest && exercisesManifest.modules,
+      moduleId
+    );
+    const externalUrl = mod && mod.externalUrl ? String(mod.externalUrl).trim() : "";
+    if (externalUrl) {
+      await shell.openExternal(externalUrl);
+      return {
+        ok: true,
+        via: "external",
+        url: externalUrl,
+        message: "Opened externally.",
+      };
+    }
     await exercisesLab.ensureLabRepo({
       clonePath: settings.clonePath,
       fs,
       run: runGit,
     });
-    const folder = exercisesLab.moduleAbsPath(
+    const target = exercisesLab.moduleAbsPath(
       settings.clonePath,
       moduleId,
-      ids
+      ids,
+      mod && mod.path
     );
-    if (!fs.existsSync(folder)) {
+    if (!fs.existsSync(target)) {
       return {
         ok: false,
-        error: "That module folder is missing after clone. Check the repo.",
+        error: "That module path is missing after clone. Check the repo.",
       };
     }
     let ideCommand = settings.ideCommand;
@@ -753,9 +768,19 @@ ipcMain.handle("exercises:openModule", async (_event, moduleId, opts) => {
     const action = exercisesLab.chooseOpenAction({
       isDesktop: true,
       ideCommand: ideCommand,
-      moduleAbsPath: folder,
-      githubUrl: exercisesLab.githubModuleUrl(moduleId),
+      moduleAbsPath: target,
+      githubUrl: exercisesLab.githubModuleUrl(moduleId, mod),
+      externalUrl: "",
     });
+    if (action.kind === "external") {
+      await shell.openExternal(action.url);
+      return {
+        ok: true,
+        via: "external",
+        url: action.url,
+        message: "Opened externally.",
+      };
+    }
     if (action.kind === "command") {
       await new Promise((resolve, reject) => {
         const child = spawn(action.command, action.args, {
@@ -770,19 +795,19 @@ ipcMain.handle("exercises:openModule", async (_event, moduleId, opts) => {
       return {
         ok: true,
         via: "command",
-        path: folder,
+        path: target,
         message: "Opened with " + action.command + ".",
       };
     }
-    const openErr = await shell.openPath(folder);
+    const openErr = await shell.openPath(target);
     if (openErr) {
-      return { ok: false, error: openErr || "Could not open the folder." };
+      return { ok: false, error: openErr || "Could not open the module." };
     }
     return {
       ok: true,
       via: "openPath",
-      path: folder,
-      message: "Opened the module folder.",
+      path: target,
+      message: "Opened the module.",
     };
   } catch (err) {
     return {

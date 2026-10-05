@@ -1,18 +1,58 @@
-/* Shared open helpers for /exercises (desktop IDE vs GitHub fallback). */
+/* Shared open helpers for /exercises (desktop IDE vs GitHub / external). */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
-    module.exports = factory();
+    module.exports = factory(typeof require === "function" ? require : null);
   } else {
-    root.tinkerExercisesOpen = factory();
+    root.tinkerExercisesOpen = factory(null);
   }
-})(typeof self !== "undefined" ? self : this, function () {
+})(typeof self !== "undefined" ? self : this, function (nodeRequire) {
   "use strict";
 
+  var GITHUB_BLOB = "https://github.com/beginner-work/tinker/blob/main";
   var GITHUB_TREE =
-    "https://github.com/tlindow/lindowlabs/tree/main/exercises";
+    "https://github.com/beginner-work/tinker/tree/main/exercises";
+
+  function getManifest() {
+    if (typeof window !== "undefined" && window.tinkerExercisesManifest) {
+      return window.tinkerExercisesManifest;
+    }
+    if (nodeRequire) {
+      try {
+        return nodeRequire("./manifest.js");
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function findModule(moduleId) {
+    var id = String(moduleId || "").trim();
+    var manifest = getManifest();
+    var modules = manifest && Array.isArray(manifest.modules) ? manifest.modules : [];
+    for (var i = 0; i < modules.length; i += 1) {
+      if (modules[i] && String(modules[i].id || "").trim() === id) return modules[i];
+    }
+    return null;
+  }
 
   function githubModuleUrl(moduleId) {
     var id = String(moduleId || "").trim();
+    var mod = findModule(id);
+    if (mod && mod.externalUrl) return String(mod.externalUrl);
+    if (mod && mod.path) {
+      var clean = String(mod.path).replace(/^\/+/, "");
+      return (
+        GITHUB_BLOB +
+        "/" +
+        clean
+          .split("/")
+          .map(function (part) {
+            return encodeURIComponent(part);
+          })
+          .join("/")
+      );
+    }
     return GITHUB_TREE + "/" + encodeURIComponent(id);
   }
 
@@ -40,12 +80,22 @@
 
   /**
    * Open a module. Desktop uses the Electron bridge (clone/pull + IDE).
-   * Web and phone fall back to the GitHub tree URL.
+   * External-only modules open their URL. Web and phone fall back to GitHub.
    */
   function openModule(moduleId, api, opts) {
     var tinker = api || (typeof window !== "undefined" ? window.tinker : null);
     var options = opts || {};
+    var mod = findModule(moduleId);
     var url = githubModuleUrl(moduleId);
+
+    if (mod && mod.externalUrl) {
+      openExternalUrl(String(mod.externalUrl), tinker);
+      return Promise.resolve({
+        ok: true,
+        via: "external",
+        url: String(mod.externalUrl),
+      });
+    }
 
     if (tinker && typeof tinker.openExerciseModule === "function") {
       return Promise.resolve(
@@ -65,10 +115,19 @@
 
   /**
    * Prefer Cursor on desktop (local open with preferCommand=cursor, then
-   * cursor:// deep link). Phone and web always use GitHub.
+   * cursor:// deep link). Phone and web always use GitHub or external URL.
    */
   function openInCursor(moduleId, api) {
     var tinker = api || (typeof window !== "undefined" ? window.tinker : null);
+    var mod = findModule(moduleId);
+    if (mod && mod.externalUrl) {
+      openExternalUrl(String(mod.externalUrl), tinker);
+      return Promise.resolve({
+        ok: true,
+        via: "external",
+        url: String(mod.externalUrl),
+      });
+    }
     if (isDesktopShell(tinker) && tinker && typeof tinker.openExerciseModule === "function") {
       return openModule(moduleId, tinker, { preferCommand: "cursor" }).then(function (result) {
         if (result && result.ok !== false) return result;
@@ -83,7 +142,9 @@
   }
 
   return {
+    GITHUB_BLOB: GITHUB_BLOB,
     GITHUB_TREE: GITHUB_TREE,
+    findModule: findModule,
     githubModuleUrl: githubModuleUrl,
     cursorDeepLink: cursorDeepLink,
     isDesktopShell: isDesktopShell,

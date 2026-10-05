@@ -1,24 +1,26 @@
-/* Learning exercises lab: local clone path, git ensure, and IDE open plan.
+/* Learning exercises: local clone path, git ensure, and IDE open plan.
  *
  * Pure helpers for Node tests. The Electron main process injects fs,
  * spawn, and shell.openPath. The renderer never talks to git directly.
+ * Modules live in beginner-work/tinker under exercises/.
  */
 "use strict";
 
 const path = require("path");
 const { expandHome } = require("./custom-path.js");
 
-const REPO_SLUG = "tlindow/lindowlabs";
-const REPO_HTTPS = "https://github.com/tlindow/lindowlabs.git";
+const REPO_SLUG = "beginner-work/tinker";
+const REPO_HTTPS = "https://github.com/beginner-work/tinker.git";
+const GITHUB_BLOB = "https://github.com/beginner-work/tinker/blob/main";
 const GITHUB_TREE =
-  "https://github.com/tlindow/lindowlabs/tree/main/exercises";
+  "https://github.com/beginner-work/tinker/tree/main/exercises";
 
 const MODULE_ID_RE = /^[a-z0-9][a-z0-9_-]*$/i;
 
 function defaultClonePath(homeDir) {
   const home = String(homeDir || "").trim();
-  if (!home) return path.join("lindowlabs");
-  return path.join(home, "lindowlabs");
+  if (!home) return path.join("tinker");
+  return path.join(home, "tinker");
 }
 
 function resolveClonePath(configured, homeDir) {
@@ -27,12 +29,34 @@ function resolveClonePath(configured, homeDir) {
   return expandHome(raw, homeDir);
 }
 
-function githubModuleUrl(moduleId) {
+function findModule(modules, moduleId) {
+  const id = String(moduleId || "").trim();
+  const list = Array.isArray(modules) ? modules : [];
+  for (let i = 0; i < list.length; i += 1) {
+    if (list[i] && String(list[i].id || "").trim() === id) return list[i];
+  }
+  return null;
+}
+
+function githubModuleUrl(moduleId, moduleOrPath) {
   const id = String(moduleId || "").trim();
   if (!MODULE_ID_RE.test(id)) {
     const err = new Error("Unknown exercise module.");
     err.code = "BAD_MODULE";
     throw err;
+  }
+  let rel = "";
+  let external = "";
+  if (moduleOrPath && typeof moduleOrPath === "object") {
+    rel = String(moduleOrPath.path || "").trim();
+    external = String(moduleOrPath.externalUrl || "").trim();
+  } else if (typeof moduleOrPath === "string") {
+    rel = String(moduleOrPath || "").trim();
+  }
+  if (external) return external;
+  if (rel) {
+    const clean = rel.replace(/^\/+/, "");
+    return GITHUB_BLOB + "/" + clean.split("/").map(encodeURIComponent).join("/");
   }
   return GITHUB_TREE + "/" + encodeURIComponent(id);
 }
@@ -54,13 +78,21 @@ function assertModuleId(moduleId, allowedIds) {
   return id;
 }
 
-function moduleAbsPath(cloneRoot, moduleId, allowedIds) {
+/**
+ * Resolve a module path under the clone root.
+ * `relPath` is a repo-relative path like exercises/foo.js, or empty to
+ * fall back to exercises/<id>.
+ */
+function moduleAbsPath(cloneRoot, moduleId, allowedIds, relPath) {
   const id = assertModuleId(moduleId, allowedIds);
   const root = path.resolve(String(cloneRoot || ""));
-  const target = path.resolve(root, "exercises", id);
+  const leaf = String(relPath || "").trim()
+    ? String(relPath).replace(/^\/+/, "")
+    : path.join("exercises", id);
+  const target = path.resolve(root, leaf);
   const rel = path.relative(root, target);
   if (!root || rel.startsWith("..") || path.isAbsolute(rel)) {
-    const err = new Error("Module path escapes the lab folder.");
+    const err = new Error("Module path escapes the exercises folder.");
     err.code = "PATH_ESCAPE";
     throw err;
   }
@@ -70,11 +102,16 @@ function moduleAbsPath(cloneRoot, moduleId, allowedIds) {
 /**
  * Decide how to open a module.
  * Desktop with no IDE command → OS default handler (openPath).
- * Desktop with IDE command → spawn that command with the folder path.
- * Web / phone → GitHub URL fallback.
+ * Desktop with IDE command → spawn that command with the folder/file path.
+ * Web / phone → GitHub or external URL fallback.
+ * External-only modules always use the external URL.
  */
 function chooseOpenAction(opts) {
   const options = opts || {};
+  const externalUrl = String(options.externalUrl || "").trim();
+  if (externalUrl) {
+    return { kind: "external", url: externalUrl };
+  }
   const githubUrl = String(options.githubUrl || "");
   if (!options.isDesktop) {
     return { kind: "github", url: githubUrl };
@@ -134,7 +171,7 @@ function isGitRepoSync(dir, fsApi) {
 }
 
 /**
- * Clone the lab repo on first use; pull when it already exists.
+ * Clone the exercises repo on first use; pull when it already exists.
  * `run(cmd, args, cwd)` must return a Promise that resolves on exit 0.
  */
 async function ensureLabRepo(opts) {
@@ -190,10 +227,12 @@ function normalizeSettings(raw, homeDir) {
 module.exports = {
   REPO_SLUG,
   REPO_HTTPS,
+  GITHUB_BLOB,
   GITHUB_TREE,
   MODULE_ID_RE,
   defaultClonePath,
   resolveClonePath,
+  findModule,
   githubModuleUrl,
   assertModuleId,
   moduleAbsPath,

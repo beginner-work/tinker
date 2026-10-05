@@ -1,8 +1,9 @@
-/* /exercises - owner-only list of learning modules from the manifest.
+/* /exercises - owner-only list of Tinker learning modules from the manifest.
  *
  * Sign-in is the same Stytch session as the rest of tinker. Nothing is
  * stored about visitors here. Open in IDE uses the desktop bridge when
- * present; otherwise it falls back to GitHub.
+ * present; otherwise it falls back to GitHub. External modules open their
+ * link. Tinker never stores non-owners' writing.
  */
 (function () {
   "use strict";
@@ -11,6 +12,7 @@
   var RETURN_KEY = "tinker_mcp_return";
   var statusEl = document.getElementById("exercises-status");
   var listEl = document.getElementById("exercises-list");
+  var readingEl = document.getElementById("exercises-reading-list");
   var manifest = window.tinkerExercisesManifest;
   var openApi = window.tinkerExercisesOpen;
 
@@ -37,25 +39,39 @@
     else statusEl.classList.remove("is-error");
   }
 
-  function githubUrl(moduleId) {
+  function moduleUrl(mod) {
+    if (mod && mod.externalUrl) return String(mod.externalUrl);
     if (openApi && typeof openApi.githubModuleUrl === "function") {
-      return openApi.githubModuleUrl(moduleId);
+      return openApi.githubModuleUrl(mod && mod.id);
     }
-    return "https://github.com/tlindow/lindowlabs/tree/main/exercises/" +
-      encodeURIComponent(moduleId);
+    if (mod && mod.path) {
+      return (
+        "https://github.com/beginner-work/tinker/blob/main/" +
+        String(mod.path).replace(/^\/+/, "")
+      );
+    }
+    return (
+      "https://github.com/beginner-work/tinker/tree/main/exercises/" +
+      encodeURIComponent(String(mod && mod.id || ""))
+    );
   }
 
-  function onOpenClick(moduleId, button) {
+  function onOpenClick(mod, button) {
     if (!openApi || typeof openApi.openModule !== "function") return;
+    var id = String(mod && mod.id || "").trim();
     button.disabled = true;
     setStatus("Opening…");
-    openApi.openModule(moduleId).then(function (result) {
+    openApi.openModule(id).then(function (result) {
       button.disabled = false;
       if (window.tinkerExercisesPick && typeof window.tinkerExercisesPick.markOpened === "function") {
-        window.tinkerExercisesPick.markOpened(moduleId, window.localStorage);
+        window.tinkerExercisesPick.markOpened(id, window.localStorage);
       }
       if (result && result.ok === false) {
         setStatus(result.error || "Could not open that module.", true);
+        return;
+      }
+      if (result && result.via === "external") {
+        setStatus("Opened externally.");
         return;
       }
       if (result && result.via === "github") {
@@ -69,7 +85,14 @@
     });
   }
 
-  function render() {
+  function metaLine(topic, status) {
+    var parts = [];
+    if (status) parts.push(String(status));
+    if (topic) parts.push(String(topic));
+    return parts.join(" · ");
+  }
+
+  function renderModules() {
     if (!listEl) return;
     while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
     var modules = (manifest && Array.isArray(manifest.modules)) ? manifest.modules : [];
@@ -91,6 +114,11 @@
       row.className = "exercises__row";
       row.setAttribute("data-module-id", id);
 
+      var meta = document.createElement("p");
+      meta.className = "exercises__meta";
+      meta.textContent = metaLine(mod.topic, mod.status);
+      if (meta.textContent) row.appendChild(meta);
+
       var name = document.createElement("h2");
       name.className = "exercises__name";
       name.textContent = String(mod.name || id);
@@ -107,18 +135,18 @@
       var openBtn = document.createElement("button");
       openBtn.type = "button";
       openBtn.className = "exercises__open";
-      openBtn.textContent = "Open in IDE";
+      openBtn.textContent = mod.externalUrl ? "Open link" : "Open in IDE";
       openBtn.addEventListener("click", function () {
-        onOpenClick(id, openBtn);
+        onOpenClick(mod, openBtn);
       });
       actions.appendChild(openBtn);
 
       var gh = document.createElement("a");
       gh.className = "exercises__github";
-      gh.href = githubUrl(id);
+      gh.href = moduleUrl(mod);
       gh.target = "_blank";
       gh.rel = "noopener noreferrer";
-      gh.textContent = "View on GitHub";
+      gh.textContent = mod.externalUrl ? "Open Formation" : "View on GitHub";
       actions.appendChild(gh);
 
       row.appendChild(actions);
@@ -126,5 +154,54 @@
     });
   }
 
-  render();
+  function renderReadings() {
+    if (!readingEl) return;
+    while (readingEl.firstChild) readingEl.removeChild(readingEl.firstChild);
+    var readings = (manifest && Array.isArray(manifest.readings)) ? manifest.readings : [];
+    if (!readings.length) {
+      var empty = document.createElement("li");
+      empty.className = "exercises__row";
+      var emptyText = document.createElement("p");
+      emptyText.className = "exercises__desc";
+      emptyText.textContent = "No readings in the manifest yet.";
+      empty.appendChild(emptyText);
+      readingEl.appendChild(empty);
+      return;
+    }
+
+    readings.forEach(function (book) {
+      var row = document.createElement("li");
+      row.className = "exercises__row";
+      if (book.id) row.setAttribute("data-reading-id", String(book.id));
+
+      var meta = document.createElement("p");
+      meta.className = "exercises__meta";
+      meta.textContent = metaLine(book.topic, book.status);
+      if (meta.textContent) row.appendChild(meta);
+
+      var name = document.createElement("h3");
+      name.className = "exercises__name";
+      name.textContent = String(book.name || "");
+      row.appendChild(name);
+
+      if (book.author) {
+        var author = document.createElement("p");
+        author.className = "exercises__author";
+        author.textContent = String(book.author);
+        row.appendChild(author);
+      }
+
+      if (book.note) {
+        var note = document.createElement("p");
+        note.className = "exercises__desc";
+        note.textContent = String(book.note);
+        row.appendChild(note);
+      }
+
+      readingEl.appendChild(row);
+    });
+  }
+
+  renderModules();
+  renderReadings();
 })();

@@ -1,7 +1,8 @@
-/* Checked-in list of learning exercise modules in tlindow/lindowlabs.
+/* Checked-in list of learning exercise modules in beginner-work/tinker.
  *
  * Add one object under modules[] to surface a new track (for example
- * api-design). Keep ids identical to the folder name under exercises/.
+ * api-design). Keep ids identical to the file or folder under exercises/.
+ * External-only modules set externalUrl and omit path.
  */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
@@ -13,40 +14,76 @@
   "use strict";
 
   return {
-    repo: "tlindow/lindowlabs",
+    repo: "beginner-work/tinker",
     branch: "main",
     exercisesRoot: "exercises",
     modules: [
       {
-        id: "realtime-deal-room",
-        name: "Real-time deal room",
-        // Compare transports for a small collaborative session.
-        description:
-          "Compare short polling, SSE, and WebSockets for a collaborative deal room.",
-        tags: ["realtime", "websocket", "websockets", "sse", "deal room", "collaboration", "polling"],
+        id: "formation-persistent-storage",
+        name: "Formation: Persistent Storage",
+        description: "Current Formation system design module.",
+        topic: "System design",
+        status: "In progress",
+        externalUrl: "https://formation.dev",
+        tags: ["formation", "system design", "storage", "persistent"],
       },
       {
-        id: "rest-api-trading",
-        name: "REST API trading",
+        id: "pacific-wall-time",
+        name: "Keep 9:00 AM after daylight saving ends",
         description:
-          "Design REST contracts for a Robinhood-style stock trading platform.",
-        tags: ["rest", "api", "trading", "robinhood", "http", "stock"],
+          "Keep a saved America/Los_Angeles wall time at 9:00 AM across the Nov 1, 2026 fall-back.",
+        topic: "Scheduling",
+        status: "Not started",
+        path: "exercises/pacific-wall-time.js",
+        tags: ["scheduling", "dst", "timezone", "pacific", "wall time"],
       },
       {
-        id: "proto-learning",
-        name: "Protobuf settlements",
+        id: "mark-touch-sent",
+        name: "Sending a touch marks it sent",
         description:
-          "Practice Protobuf schemas for merchant settlements and payout rails.",
-        tags: ["protobuf", "proto", "grpc", "settlement", "settlements", "payout"],
+          "markTouchSent(touch, sentAt) returns a new touch with status sent. From a real Tinker bug.",
+        topic: "Outreach",
+        status: "Not started",
+        path: "exercises/mark-touch-sent.js",
+        tags: ["outreach", "touch", "sent", "markTouchSent"],
       },
       {
-        id: "nextjs-learning",
-        name: "Next.js App Router",
+        id: "stripe-payment-intent",
+        name: "Stripe PaymentIntent (test mode)",
         description:
-          "Learn Next.js App Router patterns with a treasury and streaming dashboard.",
-        tags: ["nextjs", "next.js", "react", "rsc", "app router", "streaming", "suspense"],
+          "Read client_secret, amount, currency and livemode from a PaymentIntent create fixture, no network.",
+        topic: "Payments",
+        status: "Not started",
+        path: "exercises/stripe-payment-intent.js",
+        tags: ["stripe", "payments", "paymentintent", "fixture"],
       },
       // TODO: add api-design when that worksheet lands under exercises/api-design/.
+    ],
+    readings: [
+      {
+        id: "domain-driven-design",
+        name: "Domain-Driven Design",
+        author: "Eric Evans",
+        topic: "System design",
+        status: "In progress",
+        note: "Chapter 1 done; now on Chapter 2, Communication and the Use of Language.",
+      },
+      {
+        id: "designing-data-intensive-applications",
+        name: "Designing Data-Intensive Applications",
+        author: "Martin Kleppmann",
+        topic: "System design",
+        status: "Not started",
+        note: "",
+      },
+      {
+        id: "payments-systems-us",
+        name: "Payments Systems in the U.S.",
+        author: "Glenbrook Partners",
+        topic: "Payments",
+        status: "Not started",
+        note: "",
+      },
     ],
   };
 });
