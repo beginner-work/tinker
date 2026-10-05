@@ -51,6 +51,9 @@
     setStatus("Opening…");
     openApi.openModule(moduleId).then(function (result) {
       button.disabled = false;
+      if (window.tinkerExercisesPick && typeof window.tinkerExercisesPick.markOpened === "function") {
+        window.tinkerExercisesPick.markOpened(moduleId, window.localStorage);
+      }
       if (result && result.ok === false) {
         setStatus(result.error || "Could not open that module.", true);
         return;

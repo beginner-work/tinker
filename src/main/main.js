@@ -726,8 +726,9 @@ ipcMain.handle("exercises:pickClonePath", async (event) => {
   });
 });
 
-ipcMain.handle("exercises:openModule", async (_event, moduleId) => {
+ipcMain.handle("exercises:openModule", async (_event, moduleId, opts) => {
   try {
+    const options = opts && typeof opts === "object" ? opts : {};
     const settings = readExercisesSettings();
     const ids = allowedExerciseIds();
     await exercisesLab.ensureLabRepo({
@@ -746,9 +747,12 @@ ipcMain.handle("exercises:openModule", async (_event, moduleId) => {
         error: "That module folder is missing after clone. Check the repo.",
       };
     }
+    let ideCommand = settings.ideCommand;
+    const prefer = String(options.preferCommand || "").trim();
+    if (prefer && !ideCommand) ideCommand = prefer;
     const action = exercisesLab.chooseOpenAction({
       isDesktop: true,
-      ideCommand: settings.ideCommand,
+      ideCommand: ideCommand,
       moduleAbsPath: folder,
       githubUrl: exercisesLab.githubModuleUrl(moduleId),
     });

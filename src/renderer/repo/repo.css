@@ -2193,3 +2193,126 @@ body.repo-page--write .repo-center {
     font-size: 12px;
   }
 }
+
+/* Exercise recommendation after This is everything (desktop). */
+.repo-exercise-rec {
+  position: fixed;
+  z-index: 28;
+  right: calc(var(--repo-essays-rail) + var(--repo-foot-gutter));
+  left: auto;
+  bottom: calc(var(--repo-foot-floor) + 56px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 14px;
+  max-width: min(26rem, calc(100vw - var(--repo-essays-rail) - 48px));
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-background) 94%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--color-foreground) 8%, transparent);
+}
+.repo-exercise-rec[hidden] { display: none !important; }
+.repo-exercise-rec__logo {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin-top: 2px;
+  border-radius: 6px;
+}
+.repo-exercise-rec__copy { flex: 1 1 12rem; min-width: 0; }
+.repo-exercise-rec__eyebrow {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.repo-exercise-rec__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.repo-exercise-rec__desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+.repo-exercise-rec__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+.repo-exercise-rec__open {
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.repo-exercise-rec__dismiss {
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.repo-exercise-rec__dismiss:hover { color: var(--color-foreground); }
+
+.repo-tree__exercise {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 4px 8px 4px 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.repo-tree__exercise:hover {
+  background: var(--color-hover);
+  color: var(--color-foreground);
+}
+.repo-tree__exercise-logo {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+.repo-tree__exercise-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .repo-exercise-rec { display: none !important; }
+  .repo-tree__exercise {
+    padding-left: 12px;
+    font-size: 13px;
+  }
+}

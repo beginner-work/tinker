@@ -260,7 +260,7 @@ test("packaging targets universal Mac dmg named tinker-mac", () => {
 
 test("release marker matches package version; workflows publish on marker", () => {
   assert.equal(marker, pkg.version);
-  assert.equal(pkg.version, "0.1.11");
+  assert.equal(pkg.version, "0.1.12");
   assert.match(markerYml, /\.release-version/);
   assert.match(markerYml, /publish:\s*true/);
   assert.match(releaseYml, /macos-latest/);

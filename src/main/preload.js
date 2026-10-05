@@ -99,5 +99,6 @@ contextBridge.exposeInMainWorld("tinker", {
   getExerciseLabSettings: () => ipcRenderer.invoke("exercises:getSettings"),
   setExerciseLabSettings: (patch) => ipcRenderer.invoke("exercises:setSettings", patch),
   pickExerciseLabPath: () => ipcRenderer.invoke("exercises:pickClonePath"),
-  openExerciseModule: (moduleId) => ipcRenderer.invoke("exercises:openModule", moduleId),
+  openExerciseModule: (moduleId, opts) =>
+    ipcRenderer.invoke("exercises:openModule", moduleId, opts || {}),
 });
