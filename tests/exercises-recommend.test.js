@@ -35,7 +35,15 @@ function memoryStorage(seed) {
 }
 
 function loadOpen() {
-  const sandbox = { window: {}, module: { exports: {} }, exports: {} };
+  const sandbox = {
+    window: { tinkerExercisesManifest: manifest },
+    module: { exports: {} },
+    exports: {},
+    require(id) {
+      if (id === "./manifest.js") return manifest;
+      throw new Error("unexpected require: " + id);
+    },
+  };
   sandbox.self = sandbox.window;
   vm.runInNewContext(openSrc, vm.createContext(sandbox));
   return sandbox.window.tinkerExercisesOpen || sandbox.module.exports;
@@ -45,13 +53,13 @@ test("pickExercise matches manifest tags in the session text", () => {
   const storage = memoryStorage();
   const picked = pick.pickExercise({
     modules: manifest.modules,
-    title: "Notes on protobuf money types",
-    body: "I want to practice settlements.",
+    title: "Notes on Stripe PaymentIntent fixtures",
+    body: "I want to practice payments without a live key.",
     place: "Home",
     storage,
     advanceRotate: false,
   });
-  assert.equal(picked.id, "proto-learning");
+  assert.equal(picked.id, "stripe-payment-intent");
 });
 
 test("pickExercise rotates through unopened modules when tags miss", () => {
@@ -76,36 +84,43 @@ test("pickExercise rotates through unopened modules when tags miss", () => {
 
 test("ensureRecommendation stores once on the essay and skips re-pick", () => {
   const storage = memoryStorage();
-  const essay = { id: "e_1", title: "REST notes", body: "trading api design" };
+  const essay = {
+    id: "e_1",
+    title: "Outreach notes",
+    body: "markTouchSent and touch status sent",
+  };
   const first = pick.ensureRecommendation(essay, {
     modules: manifest.modules,
     title: essay.title,
     body: essay.body,
     storage,
   });
-  assert.equal(first.moduleId, "rest-api-trading");
-  assert.equal(essay.exerciseRecommendation.moduleId, "rest-api-trading");
+  assert.equal(first.moduleId, "mark-touch-sent");
+  assert.equal(essay.exerciseRecommendation.moduleId, "mark-touch-sent");
   assert.equal(essay.exerciseRecommendation.dismissed, false);
   const again = pick.ensureRecommendation(essay, {
     modules: manifest.modules,
-    title: "protobuf now",
-    body: "grpc settlements",
+    title: "stripe now",
+    body: "paymentintent fixture",
     storage,
   });
-  assert.equal(again.moduleId, "rest-api-trading");
+  assert.equal(again.moduleId, "mark-touch-sent");
 });
 
 test("openInCursor falls back to GitHub off desktop and prefers Cursor on desktop", async () => {
   const open = loadOpen();
   const opened = [];
-  const web = await open.openInCursor("nextjs-learning", {
+  const web = await open.openInCursor("pacific-wall-time", {
     openExternal(url) { opened.push(url); },
   });
   assert.equal(web.via, "github");
-  assert.match(opened[0], /github\.com\/tlindow\/lindowlabs\/tree\/main\/exercises\/nextjs-learning/);
+  assert.match(
+    opened[0],
+    /github\.com\/beginner-work\/tinker\/blob\/main\/exercises\/pacific-wall-time\.js/
+  );
 
   const desktopCalls = [];
-  const desk = await open.openInCursor("nextjs-learning", {
+  const desk = await open.openInCursor("pacific-wall-time", {
     isDesktopApp: true,
     openExerciseModule(id, opts) {
       desktopCalls.push({ id, opts });
@@ -113,7 +128,7 @@ test("openInCursor falls back to GitHub off desktop and prefers Cursor on deskto
     },
   });
   assert.equal(desk.via, "command");
-  assert.equal(desktopCalls[0].id, "nextjs-learning");
+  assert.equal(desktopCalls[0].id, "pacific-wall-time");
   assert.equal(desktopCalls[0].opts.preferCommand, "cursor");
 });
 

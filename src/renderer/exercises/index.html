@@ -11,8 +11,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="/styles.css" />
-    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/styles.css?v=32" />
+    <link rel="stylesheet" href="/design-tokens.css?v=32" />
     <style>
       html, body.exercises-page {
         height: auto;
@@ -53,6 +53,13 @@
         font-size: 15px;
         line-height: 1.5;
       }
+      .exercises__mark {
+        width: 16px;
+        height: 16px;
+        display: inline-block;
+        vertical-align: -3px;
+        margin-right: 2px;
+      }
       .exercises__status {
         min-height: 1.2em;
         margin: 0 0 16px;
@@ -60,6 +67,17 @@
         font-size: 14px;
       }
       .exercises__status.is-error { color: #b3261e; }
+      .exercises__section-title {
+        margin: 36px 0 12px;
+        font-family: var(--font-display);
+        font-variation-settings: var(--font-display-settings);
+        font-size: 22px;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+      }
+      .exercises__section-title:first-of-type {
+        margin-top: 0;
+      }
       .exercises__list {
         list-style: none;
         margin: 0;
@@ -75,11 +93,25 @@
       .exercises__row:last-child {
         border-bottom: 1px solid var(--color-border);
       }
+      .exercises__meta {
+        margin: 0 0 6px;
+        color: var(--color-muted);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
       .exercises__name {
         margin: 0;
         font-size: 16px;
         font-weight: 600;
         line-height: 1.35;
+      }
+      .exercises__author {
+        margin: 4px 0 0;
+        color: var(--color-muted);
+        font-size: 13px;
+        line-height: 1.4;
       }
       .exercises__desc {
         margin: 6px 0 0;
@@ -140,13 +172,22 @@
         <a href="/leads">Leads</a>
       </nav>
       <h1 class="exercises__title">Exercises</h1>
-      <p class="exercises__lede">Hands-on modules from your lindowlabs lab. On the desktop app, Open in IDE clones or updates the repo and opens the module folder. On web or phone, that action opens GitHub instead.</p>
+      <p class="exercises__lede">
+        <img class="exercises__mark" src="/icons/tinker-mark.svg?v=32" alt="" width="16" height="16" aria-hidden="true" />
+        Tinker's hands-on modules. On the desktop app, Open in IDE clones or updates the repo and opens the module. On web or phone, that action opens GitHub instead. External modules open their link.
+      </p>
       <p id="exercises-status" class="exercises__status" role="status"></p>
+
+      <h2 class="exercises__section-title">Modules</h2>
       <ul id="exercises-list" class="exercises__list"></ul>
-      <p class="exercises__hint">Set the local clone path and an optional IDE command under <a href="/settings">Settings</a>. Adding a module is one entry in the checked-in manifest.</p>
+
+      <h2 class="exercises__section-title">Reading</h2>
+      <ul id="exercises-reading-list" class="exercises__list"></ul>
+
+      <p class="exercises__hint">Set the local clone path and an optional IDE command under <a href="/settings">Settings</a>. Adding a module is one entry in the checked-in manifest. <img class="exercises__mark" src="/icons/tinker-mark.svg?v=32" alt="" width="16" height="16" aria-hidden="true" /> Tinker never stores non-owners' writing.</p>
     </main>
-    <script src="/exercises/manifest.js"></script>
-    <script src="/exercises/exercises-open.js"></script>
-    <script src="/exercises/exercises.js"></script>
+    <script src="/exercises/manifest.js?v=32"></script>
+    <script src="/exercises/exercises-open.js?v=32"></script>
+    <script src="/exercises/exercises.js?v=32"></script>
   </body>
 </html>
