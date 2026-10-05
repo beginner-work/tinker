@@ -98,17 +98,17 @@ test("manifest lists Tinker modules and readings, easy to extend", () => {
   );
   assert.equal(manifest.readings[0].author, "Google");
   assert.equal(manifest.readings[0].topic, "Reliability");
-  assert.equal(manifest.readings[0].status, "Not started");
+  assert.equal(manifest.readings[0].status, undefined);
   assert.equal(manifest.readings[0].note, "Chapters 3, 4, 6, 14 and 15.");
   assert.equal(
     manifest.readings[0].link,
     "https://sre.google/sre-book/table-of-contents/"
   );
   assert.equal(manifest.readings[1].author, "Eric Evans");
-  assert.equal(manifest.readings[1].status, "In progress");
+  assert.equal(manifest.readings[1].status, undefined);
   assert.equal(
     manifest.readings[1].note,
-    "Cover to cover, picking up at Chapter 3."
+    "Cover to cover; Chapter 1 done; currently reading Chapter 2, Communication and the Use of Language."
   );
   assert.equal(manifest.readings[1].link, undefined);
   assert.equal(
@@ -116,10 +116,12 @@ test("manifest lists Tinker modules and readings, easy to extend", () => {
     "Andy Matuschak and Michael Nielsen"
   );
   assert.equal(manifest.readings[2].topic, "Tools for thought");
+  assert.equal(manifest.readings[2].status, undefined);
   assert.equal(manifest.readings[2].note, "Free essay.");
   assert.equal(manifest.readings[2].link, "https://numinous.productions/ttft/");
   assert.equal(manifest.readings[3].author, "Official docs");
   assert.equal(manifest.readings[3].topic, "Web");
+  assert.equal(manifest.readings[3].status, undefined);
   assert.equal(
     manifest.readings[3].note,
     "Three short official pieces, each under an hour."
@@ -138,6 +140,7 @@ test("manifest lists Tinker modules and readings, easy to extend", () => {
     false
   );
   for (const book of manifest.readings) {
+    assert.equal(Object.prototype.hasOwnProperty.call(book, "status"), false);
     assert.equal(String(book.note || "").includes("—"), false);
     assert.equal(String(book.note || "").includes("–"), false);
     assert.equal(String(book.name || "").includes("—"), false);
@@ -149,6 +152,9 @@ test("manifest lists Tinker modules and readings, easy to extend", () => {
   assert.match(src, /TODO: add api-design/);
   assert.match(src, /Reading order is fixed/);
   assert.equal(src.includes("—"), false);
+  // Module statuses stay; reading entries must not carry status.
+  assert.match(src, /status: "In progress"/);
+  assert.equal(/readings:[\s\S]*?status:/.test(src), false);
 });
 
 test("module files live in beginner-work/tinker with specs and failing tests", () => {
@@ -197,9 +203,9 @@ test("exercises page copy is Tinker-home, with logo and reading section", () => 
   assert.match(html, /never stores non-owners' writing/);
   assert.equal(/lindowlabs/i.test(html), false);
   assert.equal(html.includes("beginner.work"), false);
-  assert.match(html, /src="\/exercises\/manifest\.js\?v=33"/);
-  assert.match(html, /src="\/exercises\/exercises-open\.js\?v=33"/);
-  assert.match(html, /src="\/exercises\/exercises\.js\?v=33"/);
+  assert.match(html, /src="\/exercises\/manifest\.js\?v=34"/);
+  assert.match(html, /src="\/exercises\/exercises-open\.js\?v=34"/);
+  assert.match(html, /src="\/exercises\/exercises\.js\?v=34"/);
   assert.match(pageJs, /Open in IDE/);
   assert.match(pageJs, /View on GitHub/);
   assert.match(pageJs, /Open link/);
@@ -316,6 +322,9 @@ test("page render lists each manifest module and reading", () => {
 
   assert.equal(readingKids.length, manifest.readings.length);
   const firstName = readingKids[0].children.find((c) => c.className === "exercises__name");
+  const firstMeta = readingKids[0].children.find((c) => c.className === "exercises__meta");
+  assert.equal(firstMeta.textContent, "Reliability");
+  assert.equal(/in progress|not started/i.test(firstMeta.textContent), false);
   const firstLink = firstName.children.find(
     (c) => c.className === "exercises__reading-title-link"
   );
@@ -331,9 +340,18 @@ test("page render lists each manifest module and reading", () => {
     "Domain-Driven Design"
   );
   assert.equal(
-    ddd.children.find((c) => c.className === "exercises__desc").textContent,
-    "Cover to cover, picking up at Chapter 3."
+    ddd.children.find((c) => c.className === "exercises__meta").textContent,
+    "System design"
   );
+  assert.equal(
+    ddd.children.find((c) => c.className === "exercises__desc").textContent,
+    "Cover to cover; Chapter 1 done; currently reading Chapter 2, Communication and the Use of Language."
+  );
+  for (const row of readingKids) {
+    const meta = row.children.find((c) => c.className === "exercises__meta");
+    assert.ok(meta);
+    assert.equal(/in progress|not started/i.test(meta.textContent), false);
+  }
 
   const essay = readingKids[2];
   const essayLink = essay.children
