@@ -23,6 +23,7 @@
   var core = window.tinkerRepoFoldersCore;
   var padReveal = window.tinkerRepoPadReveal || null;
   var essayRead = window.tinkerEssayRead || null;
+  var writeScroll = window.tinkerRepoWriteScroll || null;
   if (!md || !core) return;
 
   var pageMode = (document.body && document.body.getAttribute("data-repo-mode")) || "write";
@@ -645,6 +646,83 @@
     for (var i = 0; i < turns.length; i += 1) resizePadTurn(turns[i]);
   }
 
+  function isPhoneWriteWidth() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(max-width: 800px)").matches);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function readSafeAreaInsetTop() {
+    try {
+      var raw = window.getComputedStyle(document.documentElement)
+        .getPropertyValue("--repo-write-safe-inset-top");
+      var n = parseFloat(raw);
+      if (Number.isFinite(n) && n >= 0) return n;
+    } catch (e) { /* ignore */ }
+    try {
+      // env() is not readable directly; probe a zero-size measuring node.
+      var probe = document.createElement("div");
+      probe.style.cssText = "position:absolute;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px)";
+      document.body.appendChild(probe);
+      var pt = parseFloat(window.getComputedStyle(probe).paddingTop) || 0;
+      document.body.removeChild(probe);
+      return pt;
+    } catch (e2) {
+      return 0;
+    }
+  }
+
+  /** Align the latest question below the top safe area; fade covers the rest. */
+  function scrollQuestionIntoSafeView() {
+    if (!els.pad || !writeScroll) return;
+    var questions = els.pad.querySelectorAll(".repo-pad__q");
+    var q = questions.length ? questions[questions.length - 1] : null;
+    if (!q) return;
+    var scrollY = window.scrollY || 0;
+    var safeTop = writeScroll.resolveWriteSafeTopPx({
+      isDesktop: isDesktopShell()
+        || !!(document.documentElement
+          && document.documentElement.hasAttribute("data-tinker-desktop")),
+      isPhone: isPhoneWriteWidth(),
+      safeAreaInsetTop: readSafeAreaInsetTop(),
+    });
+    try {
+      document.documentElement.style.setProperty("--repo-write-safe-top", safeTop + "px");
+    } catch (e) { /* ignore */ }
+    var questionTop = writeScroll.documentTop(q, scrollY);
+    var prevBottom = null;
+    var prev = q.previousElementSibling;
+    if (prev) {
+      try {
+        var prevRect = prev.getBoundingClientRect();
+        prevBottom = prevRect.bottom + scrollY;
+      } catch (e2) {
+        prevBottom = writeScroll.documentTop(prev, scrollY)
+          + (prev.offsetHeight || 0);
+      }
+    }
+    var lineHeight = 24;
+    try {
+      var cs = window.getComputedStyle(prev || q);
+      lineHeight = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.65 || 24;
+    } catch (e3) { /* ignore */ }
+    var top = writeScroll.computeQuestionScrollTop({
+      questionTop: questionTop,
+      safeTop: safeTop,
+      prevBottom: prevBottom,
+      lineHeight: lineHeight,
+      fadePx: writeScroll.WRITE_SCROLL.FADE_PX,
+      scrollY: scrollY,
+    });
+    try {
+      window.scrollTo({ top: top, behavior: "smooth" });
+    } catch (e4) {
+      try { window.scrollTo(0, top); } catch (e5) { /* ignore */ }
+    }
+  }
+
   function focusLastPadTurn(caretEnd) {
     if (!els.pad) return null;
     var turns = els.pad.querySelectorAll("textarea.repo-pad__turn");
@@ -662,15 +740,13 @@
         var end = String(ta.value || "").length;
         ta.setSelectionRange(end, end);
       }
-      if (typeof ta.scrollIntoView === "function") {
+      // Prefer question-aligned safe-area scroll so earlier writing never
+      // peeks as a sliced line under the titlebar / traffic lights.
+      if (writeScroll && els.pad.querySelector(".repo-pad__q")) {
+        scrollQuestionIntoSafeView();
+      } else if (typeof ta.scrollIntoView === "function") {
         ta.scrollIntoView({ block: "nearest", behavior: "smooth" });
       }
-      try {
-        window.scrollTo({
-          top: Math.max(0, (window.scrollY || 0) + (ta.getBoundingClientRect().bottom - (window.innerHeight * 0.72))),
-          behavior: "smooth",
-        });
-      } catch (e2) { /* ignore */ }
     } catch (e) { /* ignore */ }
     return ta;
   }
@@ -3138,6 +3214,7 @@
     showPadNotice: showPadNotice,
     clearPadError: clearPadError,
     focusLastPadTurn: focusLastPadTurn,
+    scrollQuestionIntoSafeView: scrollQuestionIntoSafeView,
     syncVisualViewportInset: syncVisualViewportInset,
     setPadIdleMs: function (ms) {
       var n = Number(ms);

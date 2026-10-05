@@ -26,6 +26,25 @@ body.repo-page--write {
     radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
     radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
     var(--color-background);
+  /* Top safe area for titlebar / notch; JS may refine --repo-write-safe-top. */
+  --repo-write-safe-top: calc(16px + env(safe-area-inset-top, 0px));
+  --repo-write-fade: 48px;
+  --repo-write-safe-inset-top: env(safe-area-inset-top, 0px);
+}
+
+/* Electron hiddenInset: clear traffic lights + drag strip before pad text. */
+html[data-tinker-desktop] body.repo-page--write,
+html.tinker-desktop body.repo-page--write {
+  --repo-write-safe-top: calc(64px + env(safe-area-inset-top, 0px));
+  --repo-write-fade: 56px;
+}
+
+@media (max-width: 800px) {
+  html:has(body.repo-page--write),
+  body.repo-page--write {
+    --repo-write-safe-top: calc(48px + env(safe-area-inset-top, 0px));
+    --repo-write-fade: 48px;
+  }
 }
 
 /* Files page keeps the older contained shell. */
@@ -795,6 +814,42 @@ html.tinker-desktop .repo-top [role="button"] {
     radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
     radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
     var(--color-background);
+}
+
+/* Soft top fade on the writing column. Fixed (not sticky): .repo-center uses
+   overflow:hidden, which would clip sticky descendants. Covers the titlebar /
+   traffic-light band so earlier text dissolves instead of hard-slicing. */
+body.repo-page--write .repo-center.repo-write-safe-top {
+  position: relative;
+  overflow: visible;
+}
+
+body.repo-page--write .repo-center.repo-write-safe-top::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  /* Writing column only; essays rail stays unmasked on desktop. */
+  width: calc(100vw - var(--repo-essays-rail, 320px));
+  max-width: 100%;
+  height: var(--repo-write-safe-top, 64px);
+  /* Below .repo-location (z-index 12) so the place pill stays sharp. */
+  z-index: 8;
+  pointer-events: none;
+  /* Solid through most of the band so a mid-line peek cannot read through;
+     soft dissolve only in the last stretch into the pad. */
+  background: linear-gradient(
+    to bottom,
+    var(--color-background) 0%,
+    var(--color-background) 72%,
+    transparent 100%
+  );
+}
+
+@media (max-width: 800px) {
+  body.repo-page--write .repo-center.repo-write-safe-top::before {
+    width: 100vw;
+  }
 }
 
 body.repo-page--write .repo-center {
@@ -1773,6 +1828,8 @@ body.repo-page--write .repo-center {
   color: var(--color-foreground);
   user-select: text;
   -webkit-user-select: text;
+  /* Keep scroll/focus targets below the titlebar safe area. */
+  scroll-margin-top: var(--repo-write-safe-top, 64px);
 }
 
 .repo-pad__q-text {
