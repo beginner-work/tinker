@@ -147,8 +147,18 @@ test("repo page wires recommendation card, sidebar row, and checked-in Cursor lo
   assert.match(repoJs, /isPhoneViewport/);
   assert.match(repoCss, /\.repo-exercise-rec\b/);
   assert.match(repoCss, /\.repo-tree__exercise\b/);
+  assert.match(repoHtml, /id="repo-grok-handoff"/);
+  assert.match(repoHtml, /grokbot:\/\/app\/v1\/agent\?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5/);
+  assert.match(repoHtml, /grok-bot-logo\.png/);
+  assert.match(repoCss, /\.repo-grok-handoff\b/);
+  assert.match(repoJs, /showGrokHandoff/);
+  assert.match(repoJs, /GROK_BOT_SWITCHBOARD_HREF/);
   assert.equal(
     fs.existsSync(path.join(root, "src/renderer/icons/cursor-logo.svg")),
+    true
+  );
+  assert.equal(
+    fs.existsSync(path.join(root, "src/renderer/icons/grok-bot-logo.png")),
     true
   );
   const logo = fs.readFileSync(

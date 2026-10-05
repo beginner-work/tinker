@@ -97,6 +97,7 @@
     padActions: document.getElementById("repo-pad-actions"),
     keepCrafting: document.getElementById("repo-keep-crafting"),
     thisIsEverything: document.getElementById("repo-this-is-everything"),
+    grokHandoff: document.getElementById("repo-grok-handoff"),
     exerciseRec: document.getElementById("repo-exercise-rec"),
     exerciseRecName: document.getElementById("repo-exercise-rec-name"),
     exerciseRecDesc: document.getElementById("repo-exercise-rec-desc"),
@@ -488,6 +489,7 @@
       }
       return;
     }
+    hideGrokHandoff();
     state.selectedId = id || null;
     state.selectedFolderId = null;
     render();
@@ -939,6 +941,7 @@
       hideEssayReadView();
       return;
     }
+    hideGrokHandoff();
     var markdown = story.markdown != null ? String(story.markdown) : String(story.body || "");
     els.essayView.hidden = false;
     if (els.pad) els.pad.hidden = true;
@@ -1200,6 +1203,7 @@
     clearPadIdleTimer();
     setPadActionsVisible(false);
     if (!padBody().trim()) return;
+    hideGrokHandoff();
     var delay = resolveRevealDelayMs();
     var med = medianGapMs();
     state.lastRevealDelayMs = delay;
@@ -1313,6 +1317,7 @@
     if (els.body) els.body.value = "";
     setPadMarkdown("");
     setPadActionsVisible(false);
+    showGrokHandoff();
     render();
     try {
       focusLastPadTurn(true);
@@ -1341,6 +1346,43 @@
     } catch (e) {
       return false;
     }
+  }
+
+  /** Switchboard agent deep link in the Grok Bot app (do not invent another chat). */
+  var GROK_BOT_SWITCHBOARD_HREF =
+    "grokbot://app/v1/agent?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5";
+
+  function hideGrokHandoff() {
+    if (els.grokHandoff) els.grokHandoff.hidden = true;
+  }
+
+  function showGrokHandoff() {
+    if (!els.grokHandoff) return;
+    if (els.grokHandoff.getAttribute("href") !== GROK_BOT_SWITCHBOARD_HREF) {
+      els.grokHandoff.setAttribute("href", GROK_BOT_SWITCHBOARD_HREF);
+    }
+    els.grokHandoff.hidden = false;
+  }
+
+  /**
+   * Open the Switchboard deep link. Prefer the grokbot:// scheme (works when the
+   * Grok Bot app is installed). Mobile Safari/Chrome hand off from an <a> tap;
+   * Electron/mobile shells use openExternal. No https URL opens this specific
+   * Switchboard chat — https://apps.apple.com/us/app/grok-bot/id6794501026 is
+   * install-only if the scheme fails.
+   */
+  function openGrokHandoff(event) {
+    var href = GROK_BOT_SWITCHBOARD_HREF;
+    if (els.grokHandoff && els.grokHandoff.href) href = els.grokHandoff.href;
+    try {
+      if (window.tinker && typeof window.tinker.openExternal === "function") {
+        if (event && event.preventDefault) event.preventDefault();
+        window.tinker.openExternal(href);
+        return true;
+      }
+    } catch (e) { /* fall through to native <a> navigation */ }
+    // Let the browser/OS handle grokbot:// from the user gesture.
+    return false;
   }
 
   function hideExerciseRecommendationCard() {
@@ -3181,6 +3223,11 @@
         }
       } catch (e) { /* ignore */ }
       savePad();
+    });
+  }
+  if (els.grokHandoff) {
+    els.grokHandoff.addEventListener("click", function (event) {
+      openGrokHandoff(event);
     });
   }
   if (els.exerciseRecOpen) {
