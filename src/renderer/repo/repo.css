@@ -836,10 +836,12 @@ body.repo-page--write .repo-center.repo-write-safe-top::before {
   /* Below .repo-location (z-index 12) so the place pill stays sharp. */
   z-index: 8;
   pointer-events: none;
+  /* Solid through most of the band so a mid-line peek cannot read through;
+     soft dissolve only in the last stretch into the pad. */
   background: linear-gradient(
     to bottom,
     var(--color-background) 0%,
-    var(--color-background) 42%,
+    var(--color-background) 72%,
     transparent 100%
   );
 }
