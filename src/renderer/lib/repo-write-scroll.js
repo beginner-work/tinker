@@ -5,10 +5,9 @@
  * under the Electron titlebar / traffic lights. These helpers:
  *   1. Reserve a top safe area (titlebar + padding, phone notch).
  *   2. Place the question top at or below that offset.
- *   3. Snap so a previous paragraph is either fully above the fold or
- *      fully visible — never a mid-line peek. Choice: fully away when the
- *      peek would be less than ~1.5 lines (calm; the soft CSS fade covers
- *      the boundary).
+ *   3. Leave prior text in the safe band to the fixed top fade (opaque at
+ *      y=0) so nothing hard-slices under the titlebar. Never pull the
+ *      question up into that band just to hide a previous line.
  *
  * Pure helpers so unit tests cover offsets without booting Electron.
  */
@@ -60,40 +59,25 @@
   /**
    * Window scrollY so the question lands at/below the safe area.
    *
+   * Snap choice (calm): always park the question at safeTop. Previous
+   * writing that would sit in the titlebar band is covered by the fixed
+   * top fade (opaque near y=0, soft dissolve into the pad). Never bump
+   * scroll to prevBottom when that would pull the question up under the
+   * traffic lights / fade.
+   *
    * opts:
    *   questionTop  — document Y of the question block top
    *   safeTop      — viewport offset from resolveWriteSafeTopPx
    *   prevBottom   — document Y of the previous paragraph/turn bottom (optional)
-   *   lineHeight   — approx line height for partial-line detection
-   *   fadePx       — fade band height (informational; snap uses lineHeight)
+   *   lineHeight   — approx line height (reserved for callers/tests)
+   *   fadePx       — fade band height (reserved for callers/tests)
    *   scrollY      — current scroll (unused; kept for callers/tests)
    */
   function computeQuestionScrollTop(opts) {
     opts = opts || {};
     var questionTop = clampNonNeg(opts.questionTop);
     var safeTop = clampNonNeg(opts.safeTop);
-    var lineHeight = Number(opts.lineHeight);
-    if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
-      lineHeight = WRITE_SCROLL.DEFAULT_LINE_HEIGHT_PX;
-    }
-    var target = Math.max(0, questionTop - safeTop);
-
-    var prevBottom = opts.prevBottom;
-    if (prevBottom != null && Number.isFinite(Number(prevBottom))) {
-      prevBottom = Number(prevBottom);
-      // How much of the previous block would stick into the viewport above
-      // the question once we align the question to safeTop.
-      var visiblePrev = prevBottom - target;
-      if (visiblePrev > 0 && visiblePrev < lineHeight * WRITE_SCROLL.PARTIAL_LINE_FACTOR) {
-        // Partial line peek — scroll it fully away (previous bottom at or
-        // above the viewport top). Question stays below safeTop because
-        // questionTop >= prevBottom and safeTop is positive; if the gap is
-        // tiny, prefer no sliced text over exact safeTop alignment.
-        target = Math.max(target, prevBottom);
-      }
-    }
-
-    return Math.max(0, Math.round(target));
+    return Math.max(0, Math.round(questionTop - safeTop));
   }
 
   /**

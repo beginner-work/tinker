@@ -816,32 +816,38 @@ html.tinker-desktop .repo-top [role="button"] {
     var(--color-background);
 }
 
-/* Soft top fade on the writing column: earlier text scrolling up under the
-   safe area dissolves instead of hard-slicing at the window edge. Sticky so
-   it stays pinned to the viewport while the page scrolls. */
+/* Soft top fade on the writing column. Fixed (not sticky): .repo-center uses
+   overflow:hidden, which would clip sticky descendants. Covers the titlebar /
+   traffic-light band so earlier text dissolves instead of hard-slicing. */
 body.repo-page--write .repo-center.repo-write-safe-top {
   position: relative;
+  overflow: visible;
 }
 
 body.repo-page--write .repo-center.repo-write-safe-top::before {
   content: "";
-  position: sticky;
+  position: fixed;
   top: 0;
   left: 0;
-  right: 0;
+  /* Writing column only; essays rail stays unmasked on desktop. */
+  width: calc(100vw - var(--repo-essays-rail, 320px));
+  max-width: 100%;
+  height: var(--repo-write-safe-top, 64px);
   /* Below .repo-location (z-index 12) so the place pill stays sharp. */
   z-index: 8;
-  display: block;
-  height: var(--repo-write-safe-top, 64px);
-  margin-bottom: calc(-1 * var(--repo-write-safe-top, 64px));
   pointer-events: none;
   background: linear-gradient(
     to bottom,
     var(--color-background) 0%,
-    var(--color-background) 28%,
-    color-mix(in srgb, var(--color-background) 65%, transparent) 62%,
+    var(--color-background) 42%,
     transparent 100%
   );
+}
+
+@media (max-width: 800px) {
+  body.repo-page--write .repo-center.repo-write-safe-top::before {
+    width: 100vw;
+  }
 }
 
 body.repo-page--write .repo-center {
@@ -1820,6 +1826,8 @@ body.repo-page--write .repo-center {
   color: var(--color-foreground);
   user-select: text;
   -webkit-user-select: text;
+  /* Keep scroll/focus targets below the titlebar safe area. */
+  scroll-margin-top: var(--repo-write-safe-top, 64px);
 }
 
 .repo-pad__q-text {

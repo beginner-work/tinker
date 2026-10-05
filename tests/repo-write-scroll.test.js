@@ -52,28 +52,28 @@ test("question scroll target lands at or below the safe-area offset", () => {
   assert.equal(top, questionTop - safeTop);
 });
 
-test("partial previous line snaps fully away instead of peeking", () => {
+test("previous peek stays under the fade; question never rises into the titlebar", () => {
   const safeTop = 64;
   const questionTop = 500;
-  // Previous turn ends just above the question. Aligning question to safeTop
-  // would leave only a thin band of previous text (one sliced line).
+  // Previous turn ends just above the question. Aligning to safeTop leaves
+  // prior text only in the fade band — covered by the fixed overlay, not
+  // snapped away (snapping would pull the question under the traffic lights).
   const prevBottom = 450;
-  const aligned = questionTop - safeTop; // 436
-  assert.ok(prevBottom - aligned > 0 && prevBottom - aligned < 26 * 1.5);
   const top = scroll.computeQuestionScrollTop({
     questionTop,
     safeTop,
     prevBottom,
     lineHeight: 26,
+    fadePx: 48,
   });
-  assert.ok(top >= prevBottom, "previous paragraph fully above the fold");
-  assert.ok(questionTop - top >= 0);
+  assert.equal(top, questionTop - safeTop);
+  assert.equal(questionTop - top, safeTop);
+  assert.ok(prevBottom - top > 0 && prevBottom - top <= safeTop);
 });
 
 test("full previous paragraphs keep question aligned to safe top", () => {
   const safeTop = 64;
   const questionTop = 900;
-  // Previous block ends well above the aligned viewport top — no partial peek.
   const prevBottom = 700;
   const top = scroll.computeQuestionScrollTop({
     questionTop,
@@ -90,9 +90,11 @@ test("write page applies the safe-area class and fade overlay", () => {
   assert.match(html, /repo-center[^>]*repo-write-safe-top/);
   assert.match(html, /repo-write-scroll\.js/);
   assert.match(css, /\.repo-center\.repo-write-safe-top::before/);
+  assert.match(css, /position:\s*fixed/);
   assert.match(css, /--repo-write-safe-top/);
   assert.match(css, /--repo-write-fade/);
   assert.match(css, /linear-gradient\(\s*to bottom/);
+  assert.match(css, /scroll-margin-top:\s*var\(--repo-write-safe-top/);
   assert.match(
     css,
     /html\[data-tinker-desktop\][\s\S]*--repo-write-safe-top:\s*calc\(\s*64px/,
