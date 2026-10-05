@@ -2204,7 +2204,7 @@ body.repo-page--write .repo-center {
   }
 }
 
-/* Slim Grok Bot Switchboard handoff — same visual weight as the location dropdown. */
+/* Plain Grok Bot Switchboard button under last typed writing (not a pill/chip). */
 .repo-grok-handoff {
   pointer-events: auto;
   display: inline-flex;
@@ -2214,13 +2214,13 @@ body.repo-page--write .repo-center {
   box-sizing: border-box;
   width: auto;
   max-width: min(280px, 100%);
-  height: 36px;
+  height: 34px;
   margin: 4px 12px 12px;
-  padding: 0 12px 0 10px;
+  padding: 0 12px;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-surface);
-  box-shadow: 0 6px 20px rgba(28, 25, 23, 0.08), 0 1px 3px rgba(28, 25, 23, 0.04);
+  border-radius: 8px;
+  background: var(--color-background);
+  box-shadow: none;
   color: var(--color-foreground);
   text-decoration: none;
   font-family: var(--font-sans);
@@ -2229,16 +2229,20 @@ body.repo-page--write .repo-center {
   letter-spacing: -0.01em;
   line-height: 1;
   white-space: nowrap;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 .repo-grok-handoff[hidden] { display: none !important; }
-.repo-grok-handoff:hover,
+.repo-grok-handoff:hover {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-background) 92%, var(--color-foreground));
+}
 .repo-grok-handoff:focus-visible {
-  border-color: var(--color-accent-strong);
-  outline: none;
-  box-shadow:
-    0 6px 20px rgba(28, 25, 23, 0.1),
-    0 0 0 3px var(--color-accent-dim, rgba(45, 90, 61, 0.14));
+  outline: 2px solid var(--color-accent-strong, #4f46e5);
+  outline-offset: 2px;
 }
 .repo-grok-handoff__logo {
   flex: 0 0 auto;
