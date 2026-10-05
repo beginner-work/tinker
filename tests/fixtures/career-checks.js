@@ -1,18 +1,17 @@
 /* Known answers for check_text. Claim lists stand in for the model.
  * The comparator decides the verdict.
  *
+ * Verified metric wording matches resume v81 (lindowlabs.dev/resume).
  * "a salary of $250K" is a wrong answer. It is not a stored fact.
  */
 
 "use strict";
 
 const ANSWER_SENTENCES = [
-  "At Affirm I owned technical operations and SLA reliability for our largest partner, Amazon, at over $10B in GMV",
-  "plus merchant accounts above $100M",
-  "Our 99.9% availability target was also our partner commitment",
-  "That automated about 80% of report and RCA drafting",
-  "removed 16 hours a month of manual work",
-  "cut detection of merchant-scoped outages from as long as 2 hours to under 5 minutes",
+  "Amazon, flagship partner (21% of Affirm's GMV in FY2024)",
+  "held Merchant Portal at 99.9% availability with zero incidents during BFCM 2025",
+  "raising the share of enterprise merchant emails sent within the 15-minute SLA from near zero to ~70%",
+  "Built per-merchant dashboards and alerting that cut detection of higher-volume merchant outages from ~1 hour to under 5 minutes",
 ].join(". ");
 
 module.exports = [
@@ -91,23 +90,16 @@ module.exports = [
     expect: [{ verdict: "mismatch", id: "rule_current_location", correct: "San Diego, CA" }],
   },
   {
-    name: "99.9% availability target passes",
-    text: "Our 99.9% availability target was also our partner commitment",
-    claims: [{ text: "Our 99.9% availability target was also our partner commitment", kind: "metric" }],
+    name: "99.9% availability with zero BFCM incidents passes",
+    text: "held Merchant Portal at 99.9% availability with zero incidents during BFCM 2025",
+    claims: [{ text: "held Merchant Portal at 99.9% availability with zero incidents during BFCM 2025", kind: "metric" }],
     ready: true,
     expect: [{ verdict: "pass", id: "fact_metric_999_target" }],
   },
   {
-    name: "16 hours a month passes",
-    text: "removed 16 hours a month of manual work",
-    claims: [{ text: "removed 16 hours a month of manual work", kind: "metric" }],
-    ready: true,
-    expect: [{ verdict: "pass", id: "fact_metric_16_hours" }],
-  },
-  {
-    name: "detection from 2 hours to under 5 minutes passes",
-    text: "cut detection of merchant-scoped outages from as long as 2 hours to under 5 minutes",
-    claims: [{ text: "cut detection of merchant-scoped outages from as long as 2 hours to under 5 minutes", kind: "metric" }],
+    name: "detection from ~1 hour to under 5 minutes passes",
+    text: "cut detection of higher-volume merchant outages from ~1 hour to under 5 minutes",
+    claims: [{ text: "cut detection of higher-volume merchant outages from ~1 hour to under 5 minutes", kind: "metric" }],
     ready: true,
     expect: [{ verdict: "pass", id: "fact_metric_detection" }],
   },
@@ -133,25 +125,18 @@ module.exports = [
     expect: [{ verdict: "pass", id: "fact_team_1_to_9" }],
   },
   {
-    name: "about 80% of report and RCA drafting passes",
-    text: "That automated about 80% of report and RCA drafting",
-    claims: [{ text: "That automated about 80% of report and RCA drafting", kind: "metric" }],
-    ready: true,
-    expect: [{ verdict: "pass", id: "fact_metric_80" }],
-  },
-  {
-    name: "Amazon over $10B in GMV passes",
-    text: "At Affirm I owned technical operations for Amazon, at over $10B in GMV",
-    claims: [{ text: "At Affirm I owned technical operations for Amazon, at over $10B in GMV", kind: "metric" }],
+    name: "Amazon 21% of Affirm GMV passes",
+    text: "Amazon, flagship partner (21% of Affirm's GMV in FY2024)",
+    claims: [{ text: "Amazon, flagship partner (21% of Affirm's GMV in FY2024)", kind: "metric" }],
     ready: true,
     expect: [{ verdict: "pass", id: "fact_metric_amazon_gmv" }],
   },
   {
-    name: "merchant accounts above $100M pass",
-    text: "plus merchant accounts above $100M",
-    claims: [{ text: "plus merchant accounts above $100M", kind: "metric" }],
+    name: "enterprise merchant emails within 15-minute SLA to ~70% passes",
+    text: "raising the share of enterprise merchant emails sent within the 15-minute SLA from near zero to ~70%",
+    claims: [{ text: "raising the share of enterprise merchant emails sent within the 15-minute SLA from near zero to ~70%", kind: "metric" }],
     ready: true,
-    expect: [{ verdict: "pass", id: "fact_metric_100m" }],
+    expect: [{ verdict: "pass", id: "fact_metric_sla_70" }],
   },
   {
     name: "92 in-person conversations pass",
@@ -231,16 +216,16 @@ module.exports = [
     expect: [{ verdict: "mismatch", id: "fact_team_6", correct: "6 software engineers" }],
   },
   {
-    name: "the 99.7% to 99.9% baseline is unsupported while unverified",
+    name: "the obsolete 99.7% to 99.9% raise is unsupported",
     text: "Raised availability from 99.7% to 99.9% in one quarter",
     claims: [{ text: "Raised availability from 99.7% to 99.9% in one quarter", kind: "metric" }],
     ready: false,
     expect: [{ verdict: "unsupported" }],
   },
   {
-    name: "the mechanism behind $500K is unsupported while unverified",
-    text: "The mechanism and baseline behind the additional $500K GMV are still open.",
-    claims: [{ text: "The mechanism and baseline behind the additional $500K GMV are still open.", kind: "metric" }],
+    name: "an obsolete $500K GMV claim is unsupported",
+    text: "generated an additional $500K GMV in a 3-day pre–Black Friday sale",
+    claims: [{ text: "generated an additional $500K GMV in a 3-day pre–Black Friday sale", kind: "metric" }],
     ready: false,
     expect: [{ verdict: "unsupported" }],
   },
@@ -308,28 +293,24 @@ module.exports = [
     name: "the application answer sentences pass together",
     text: ANSWER_SENTENCES,
     claims: [
-      { text: "At Affirm I owned technical operations and SLA reliability for our largest partner, Amazon, at over $10B in GMV", kind: "metric" },
-      { text: "plus merchant accounts above $100M", kind: "metric" },
-      { text: "Our 99.9% availability target was also our partner commitment", kind: "metric" },
-      { text: "That automated about 80% of report and RCA drafting", kind: "metric" },
-      { text: "removed 16 hours a month of manual work", kind: "metric" },
-      { text: "cut detection of merchant-scoped outages from as long as 2 hours to under 5 minutes", kind: "metric" },
+      { text: "Amazon, flagship partner (21% of Affirm's GMV in FY2024)", kind: "metric" },
+      { text: "held Merchant Portal at 99.9% availability with zero incidents during BFCM 2025", kind: "metric" },
+      { text: "raising the share of enterprise merchant emails sent within the 15-minute SLA from near zero to ~70%", kind: "metric" },
+      { text: "Built per-merchant dashboards and alerting that cut detection of higher-volume merchant outages from ~1 hour to under 5 minutes", kind: "metric" },
     ],
     ready: true,
     expect: [
       { verdict: "pass", id: "fact_metric_amazon_gmv" },
-      { verdict: "pass", id: "fact_metric_100m" },
       { verdict: "pass", id: "fact_metric_999_target" },
-      { verdict: "pass", id: "fact_metric_80" },
-      { verdict: "pass", id: "fact_metric_16_hours" },
+      { verdict: "pass", id: "fact_metric_sla_70" },
       { verdict: "pass", id: "fact_metric_detection" },
     ],
   },
   {
     name: "one mismatch keeps the draft from being ready",
-    text: "Our 99.9% availability target held, and I grew the team from 1 to 12.",
+    text: "Held 99.9% availability with zero incidents during BFCM 2025, and I grew the team from 1 to 12.",
     claims: [
-      { text: "Our 99.9% availability target held", kind: "metric" },
+      { text: "Held 99.9% availability with zero incidents during BFCM 2025", kind: "metric" },
       { text: "I grew the team from 1 to 12.", kind: "team_size" },
     ],
     ready: false,
@@ -339,54 +320,30 @@ module.exports = [
     ],
   },
   {
-    name: "a changed $500K amount is a mismatch",
-    text: "The mechanism and baseline behind the additional $500K GMV were actually $600K.",
-    claims: [{ text: "The mechanism and baseline behind the additional $500K GMV were actually $600K.", kind: "metric" }],
-    verify: { seed_500k_baseline_mechanism: {} },
-    ready: false,
-    expect: [{
-      verdict: "mismatch",
-      id: "seed_500k_baseline_mechanism",
-      correct: "Mechanism and baseline behind the additional $500K GMV",
-    }],
-  },
-  {
-    name: "a changed 99.9% is a mismatch",
-    text: "The mechanism and baseline behind the 99.9% availability figure was 99.5%.",
-    claims: [{ text: "The mechanism and baseline behind the 99.9% availability figure was 99.5%.", kind: "metric" }],
-    verify: { seed_999_baseline_mechanism: {} },
+    name: "a changed 99.9% is a mismatch when the seed carries a mechanism",
+    text: "The mechanism behind the 99.5% availability figure.",
+    claims: [{ text: "The mechanism behind the 99.5% availability figure.", kind: "metric" }],
+    verify: {
+      seed_999_baseline_mechanism: {
+        mechanism: "metrics dashboards linked to logs, plus on-call alerting",
+      },
+    },
     ready: false,
     expect: [{
       verdict: "mismatch",
       id: "seed_999_baseline_mechanism",
-      correct: "Mechanism and baseline behind the 99.9% availability figure",
+      correct: "Held Merchant Portal at 99.9% availability with zero incidents during BFCM 2025; mechanism metrics dashboards linked to logs, plus on-call alerting",
     }],
   },
   {
-    name: "a different baseline behind 99.9% is a mismatch",
-    text: "The baseline behind the 99.9% availability figure was 98%.",
-    claims: [{ text: "The baseline behind the 99.9% availability figure was 98%.", kind: "metric" }],
-    verify: { seed_999_baseline_mechanism: { baseline: "99.7%" } },
-    ready: false,
-    expect: [{
-      verdict: "mismatch",
-      id: "seed_999_baseline_mechanism",
-      correct: "Mechanism and baseline behind the 99.9% availability figure; baseline 99.7%",
-    }],
-  },
-  {
-    name: "the verified $500K baseline passes when the amount matches",
-    text: "The mechanism and baseline behind the additional $500K GMV.",
-    claims: [{ text: "The mechanism and baseline behind the additional $500K GMV.", kind: "metric" }],
-    verify: { seed_500k_baseline_mechanism: {} },
-    ready: true,
-    expect: [{ verdict: "pass", id: "seed_500k_baseline_mechanism" }],
-  },
-  {
-    name: "the verified 99.9% baseline passes when the percentage matches",
-    text: "The mechanism and baseline behind the 99.9% availability figure.",
-    claims: [{ text: "The mechanism and baseline behind the 99.9% availability figure.", kind: "metric" }],
-    verify: { seed_999_baseline_mechanism: {} },
+    name: "the verified 99.9% seed with mechanism passes when the percentage matches",
+    text: "The mechanism behind holding Merchant Portal at 99.9% availability.",
+    claims: [{ text: "The mechanism behind holding Merchant Portal at 99.9% availability.", kind: "metric" }],
+    verify: {
+      seed_999_baseline_mechanism: {
+        mechanism: "metrics dashboards linked to logs, plus on-call alerting",
+      },
+    },
     ready: true,
     expect: [{ verdict: "pass", id: "seed_999_baseline_mechanism" }],
   },

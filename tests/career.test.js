@@ -370,7 +370,6 @@ test("first load seeds proposed facts and verified rules, then only reads", asyn
   const proposedIds = first.captured.body.proposed_facts.map((fact) => fact.id);
   assert.deepEqual(proposedIds, [
     "seed_l7_people_leadership",
-    "seed_500k_baseline_mechanism",
     "seed_999_baseline_mechanism",
     "seed_same_team_span",
   ]);
@@ -444,7 +443,7 @@ test("confirm and reject change only the signed-in user's fact", async () => {
   await handler(careerReq({
     method: "POST",
     action: "fact",
-    body: { id: "seed_l7_people_leadership", action: "verify", value: "L7 people-leadership outcome" },
+    body: { id: "seed_l7_people_leadership", action: "verify", value: "Software Engineering Manager, Merchant Advocacy at Affirm" },
   }), verified);
   assert.equal(verified.captured.status, 200);
   assert.equal(verified.captured.body.verified_facts.some((fact) => fact.id === "seed_l7_people_leadership"), true);
