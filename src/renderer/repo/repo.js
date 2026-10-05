@@ -72,6 +72,7 @@
     padAsking: false,
     followupAsked: [],
     followupQuestion: "",
+    grokHandoffVisible: false,
     // Read-view mount for saved essays (toggle always starts off per essay).
     essayReadMount: null,
     essayReadStoryId: null,
@@ -853,6 +854,7 @@
       }
     }
     resizeAllPadTurns();
+    if (state.grokHandoffVisible) mountGrokHandoffUnderPad();
     if (opts.focusEnd) focusLastPadTurn(true);
   }
 
@@ -1203,7 +1205,7 @@
     clearPadIdleTimer();
     setPadActionsVisible(false);
     if (!padBody().trim()) return;
-    hideGrokHandoff();
+    if (state.grokHandoffVisible) hideGrokHandoff();
     var delay = resolveRevealDelayMs();
     var med = medianGapMs();
     state.lastRevealDelayMs = delay;
@@ -1302,8 +1304,11 @@
     });
   }
 
-  /** After a successful This is everything: blank pad, essay already in the tree. */
-  function startBlankPadAfterSave() {
+  /**
+   * After a successful This is everything: keep the typed conversation on
+   * screen and pin a slim Grok Bot handoff under the last content.
+   */
+  function finishWritingAfterSave() {
     state.draft = null;
     state.selectedId = null;
     state.selectedFolderId = null;
@@ -1313,15 +1318,11 @@
     clearPadError();
     clearPadIdleTimer();
     state.padActionsVisible = false;
+    state.grokHandoffVisible = true;
     hideEssayReadView();
-    if (els.body) els.body.value = "";
-    setPadMarkdown("");
     setPadActionsVisible(false);
-    showGrokHandoff();
+    mountGrokHandoffUnderPad();
     render();
-    try {
-      focusLastPadTurn(true);
-    } catch (e) { /* ignore */ }
   }
 
   function attachExerciseRecommendation(essay, ctx) {
@@ -1353,15 +1354,30 @@
     "grokbot://app/v1/agent?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5";
 
   function hideGrokHandoff() {
+    state.grokHandoffVisible = false;
+    if (els.pad) els.pad.classList.remove("repo-pad--with-handoff");
     if (els.grokHandoff) els.grokHandoff.hidden = true;
   }
 
-  function showGrokHandoff() {
+  /** Place the slim handoff as the last child of the pad, under the last turn. */
+  function mountGrokHandoffUnderPad() {
     if (!els.grokHandoff) return;
     if (els.grokHandoff.getAttribute("href") !== GROK_BOT_SWITCHBOARD_HREF) {
       els.grokHandoff.setAttribute("href", GROK_BOT_SWITCHBOARD_HREF);
     }
+    if (els.pad) {
+      els.pad.classList.add("repo-pad--with-handoff");
+      els.pad.appendChild(els.grokHandoff);
+    }
     els.grokHandoff.hidden = false;
+    state.grokHandoffVisible = true;
+    try {
+      resizeAllPadTurns();
+    } catch (e) { /* ignore */ }
+  }
+
+  function showGrokHandoff() {
+    mountGrokHandoffUnderPad();
   }
 
   /**
@@ -1564,8 +1580,8 @@
         if (!replaced) state.stories = [saved].concat(state.stories);
         state.followupQuestion = "";
         state.status = "";
-        // Blank editor for the next piece; saved essay is already first in the tree.
-        startBlankPadAfterSave();
+        // Keep the conversation on screen; slim Grok Bot handoff under last line.
+        finishWritingAfterSave();
         showExerciseRecommendationCard(saved);
         var placePromise = place && !isDraftId(saved.id)
           ? apiPost("set_place", { fileId: saved.id, place: place }).then(function (result) {
@@ -1583,7 +1599,8 @@
       return null;
     }).finally(function () {
       state.padSaving = false;
-      // Do not re-show actions on a cleared blank pad after success.
+      // Post-save handoff owns the chrome; do not re-reveal pad actions.
+      if (state.grokHandoffVisible) return;
       if (padBody().trim()) bumpPadTypingIdle();
     });
   }
@@ -2954,7 +2971,8 @@
     var story = selectedStory();
     if (!story) {
       hideEssayReadView();
-      if (!padHasFocus()) setPadMarkdown("");
+      // Keep the just-finished writing on screen while the Grok handoff shows.
+      if (!state.grokHandoffVisible && !padHasFocus()) setPadMarkdown("");
       text(els.filePath, "");
       if (els.fileType) {
         els.fileType.hidden = true;

@@ -1804,6 +1804,12 @@ body.repo-page--write .repo-center {
   min-height: min(62vh, 36rem);
 }
 
+/* After This is everything: shrink the last turn so the handoff sits flush under text. */
+.repo-pad--with-handoff .repo-pad__turn:last-of-type {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
 .repo-pad__turn:hover,
 .repo-pad__turn:focus,
 .repo-pad__turn:focus-visible {
@@ -2051,6 +2057,10 @@ body.repo-page--write .repo-center {
     min-height: min(55svh, 22rem);
   }
 
+  .repo-pad--with-handoff .repo-pad__turn:last-of-type {
+    min-height: 0;
+  }
+
   .repo-pad__q {
     margin: 8px 8px 4px;
     font-size: 17px;
@@ -2194,38 +2204,47 @@ body.repo-page--write .repo-center {
   }
 }
 
-/* Grok Bot Switchboard handoff after This is everything (mobile + desktop). */
+/* Slim Grok Bot Switchboard handoff — same visual weight as the location dropdown. */
 .repo-grok-handoff {
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  margin: 8px 4px 0;
-  padding: 10px 12px;
-  max-width: min(22rem, 100%);
+  align-self: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
+  width: auto;
+  max-width: min(280px, 100%);
+  height: 36px;
+  margin: 4px 12px 12px;
+  padding: 0 12px 0 10px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--color-background) 92%, transparent);
+  border-radius: 999px;
+  background: var(--color-surface);
+  box-shadow: 0 6px 20px rgba(28, 25, 23, 0.08), 0 1px 3px rgba(28, 25, 23, 0.04);
   color: var(--color-foreground);
   text-decoration: none;
-  font-size: 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  line-height: 1.2;
+  line-height: 1;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .repo-grok-handoff[hidden] { display: none !important; }
 .repo-grok-handoff:hover,
 .repo-grok-handoff:focus-visible {
-  border-color: color-mix(in srgb, var(--color-foreground) 22%, var(--color-border));
+  border-color: var(--color-accent-strong);
   outline: none;
-}
-.repo-grok-handoff:focus-visible {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-foreground) 12%, transparent);
+  box-shadow:
+    0 6px 20px rgba(28, 25, 23, 0.1),
+    0 0 0 3px var(--color-accent-dim, rgba(45, 90, 61, 0.14));
 }
 .repo-grok-handoff__logo {
   flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
   object-fit: cover;
 }
 .repo-grok-handoff__label {
@@ -2234,10 +2253,7 @@ body.repo-page--write .repo-center {
 
 @media (max-width: 767px) {
   .repo-grok-handoff {
-    margin: 12px 0 0;
-    width: 100%;
-    max-width: none;
-    justify-content: flex-start;
+    margin: 4px 12px 16px;
   }
 }
 
