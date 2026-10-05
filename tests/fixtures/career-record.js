@@ -1,7 +1,7 @@
 /* Fixture career record for check_text.
  *
- * Verified facts are taken from the public resume at lindowlabs.dev/resume.
- * Proposed seeds and verified rules come from the shared catalog.
+ * Verified facts are taken from the public resume at lindowlabs.dev/resume
+ * (v81). Proposed seeds and verified rules come from the shared catalog.
  * The $250K figure is not in this record. It is a wrong salary answer
  * used only as a claim in the check fixture.
  *
@@ -56,13 +56,13 @@ const VERIFIED_FACTS = [
     id: "fact_team_1_to_9",
     kind: "team_size",
     value: "1 to 9",
-    excerpt: "Grew the developer-support engineering function from 1 to 9 engineers",
+    excerpt: "Managed a team that grew from 1 to 9 engineers (all software engineers by early 2025)",
   }),
   verified({
     id: "fact_team_6",
     kind: "team_size",
     value: "6 software engineers",
-    excerpt: "Managed 6 software engineers as direct reports",
+    excerpt: "9 software engineers (2 Staff, 2 SWE II, 4 SWE I, 1 contractor), later reshaped to 6",
   }),
   verified({
     id: "fact_remote_years",
@@ -74,61 +74,49 @@ const VERIFIED_FACTS = [
     id: "fact_dates_l7",
     kind: "dates",
     value: "Software Engineering Manager at Affirm, Mar 2025 - Feb 2026",
-    excerpt: "Software Engineering Manager (L7), Merchant Advocacy | Mar 2025 \u2013 Feb 2026",
+    excerpt: "Software Engineering Manager, Merchant Advocacy | Mar 2025 \u2013 Feb 2026",
   }),
   verified({
     id: "fact_dates_partner",
     kind: "dates",
     value: "Developer Support Engineering Manager at Affirm, Jul 2021 - Mar 2025",
-    excerpt: "Developer Support Engineering Manager (L6 \u2192 L7), Partner Engineering | Jul 2021 \u2013 Mar 2025",
+    excerpt: "Developer Support Engineering Manager, Partner Engineering | Jul 2021 \u2013 Mar 2025",
   }),
   verified({
     id: "fact_title_l7",
     kind: "title",
     value: "Software Engineering Manager at Affirm",
-    excerpt: "Software Engineering Manager (L7), Merchant Advocacy",
+    excerpt: "Software Engineering Manager, Merchant Advocacy",
   }),
   verified({
     id: "fact_metric_999_target",
     kind: "metric",
-    value: "99.9% availability target",
-    excerpt: "Restored monthly attainment of an internal 99.9% availability target",
-  }),
-  verified({
-    id: "fact_metric_16_hours",
-    kind: "metric",
-    value: "16 hours a month",
-    excerpt: "eliminating 16 hours/month of toil",
+    value: "99.9% availability with zero incidents during BFCM 2025",
+    excerpt: "held Merchant Portal at 99.9% availability with zero incidents during BFCM 2025",
   }),
   verified({
     id: "fact_metric_detection",
     kind: "metric",
-    value: "detection from 2 hours to under 5 minutes",
-    excerpt: "cut detection time for higher-volume merchant-scoped outages to under 5 minutes (previously 20 minutes\u20132 hours unnoticed)",
-  }),
-  verified({
-    id: "fact_metric_80",
-    kind: "metric",
-    value: "about 80% of report and RCA drafting",
-    excerpt: "automating ~80% of SLA report generation and RCA drafting",
+    value: "cut detection of higher-volume merchant outages from ~1 hour to under 5 minutes",
+    excerpt: "Built per-merchant dashboards and alerting that cut detection of higher-volume merchant outages from ~1 hour to under 5 minutes",
   }),
   verified({
     id: "fact_metric_amazon_gmv",
     kind: "metric",
-    value: "Amazon over $10B in GMV",
-    excerpt: "Amazon ($10B+ GMV)",
+    value: "Amazon 21% of Affirm's GMV in FY2024",
+    excerpt: "Amazon, flagship partner (21% of Affirm's GMV in FY2024)",
   }),
   verified({
-    id: "fact_metric_100m",
+    id: "fact_metric_sla_70",
     kind: "metric",
-    value: "$100M+ merchant accounts",
-    excerpt: "strategic merchant accounts ($100M+ GMV)",
+    value: "enterprise merchant emails within 15-minute SLA from near zero to ~70%",
+    excerpt: "raising the share of enterprise merchant emails sent within the 15-minute SLA from near zero to ~70%",
   }),
   verified({
     id: "fact_conversations_92",
     kind: "metric",
     value: "92 in-person conversations",
-    excerpt: "Validated demand through 92 in-person conversations",
+    excerpt: "Tested demand across successive prototypes through 92 in-person conversations (including 5 VCs) and 28 early users, including 6 paying",
   }),
   verified({
     id: "fact_degree_nano",

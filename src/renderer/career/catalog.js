@@ -142,34 +142,20 @@
     {
       id: "seed_l7_people_leadership",
       kind: "story",
-      value: "L7 people-leadership outcome",
+      value: "Software Engineering Manager, Merchant Advocacy at Affirm",
       source: {
         document: RESUME,
-        excerpt: "Software Engineering Manager (L7), Merchant Advocacy",
-      },
-      status: "proposed",
-    },
-    {
-      id: "seed_500k_baseline_mechanism",
-      kind: "metric",
-      value: "Mechanism and baseline behind the additional $500K GMV",
-      baseline: null,
-      mechanism: null,
-      source: {
-        document: RESUME,
-        excerpt: "generated an additional $500K GMV in a 3-day pre\u2013Black Friday sale",
+        excerpt: "Software Engineering Manager, Merchant Advocacy",
       },
       status: "proposed",
     },
     {
       id: "seed_999_baseline_mechanism",
       kind: "metric",
-      value: "Mechanism and baseline behind the 99.9% availability figure",
-      baseline: null,
-      mechanism: null,
+      value: "Held Merchant Portal at 99.9% availability with zero incidents during BFCM 2025",
       source: {
         document: RESUME,
-        excerpt: "Raised availability 99.7% \u2192 99.9% in one quarter",
+        excerpt: "Held 99.9% availability through the quarter and had zero incidents during BFCM.",
       },
       status: "proposed",
     },
