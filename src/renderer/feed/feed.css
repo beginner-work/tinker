@@ -164,7 +164,6 @@ html, body.feed-page {
   font-size: var(--text-essay, 17px);
   line-height: var(--leading-prose, 1.7);
   color: var(--color-foreground);
-  white-space: pre-wrap;
   max-width: 38rem;
 }
 
@@ -172,6 +171,33 @@ html, body.feed-page {
   margin: 0 0 1em;
 }
 .feed-card__body p:last-child { margin-bottom: 0; }
+
+.feed-card__body .essay-read__toolbar {
+  justify-content: flex-start;
+  margin-bottom: 12px;
+}
+
+.feed-card__body .essay-read__prose h1,
+.feed-card__body .essay-read__prose h2,
+.feed-card__body .essay-read__prose h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 1.1em 0 0.45em;
+}
+
+.feed-card__body .repo-pad__q {
+  margin: 12px 0 8px;
+  padding: 10px 14px 10px 16px;
+  border-left: 3px solid var(--color-accent-strong, #2d5a3d);
+  border-radius: 0 12px 12px 0;
+  background: color-mix(in srgb, var(--color-accent-dim, rgba(45, 90, 61, 0.12)) 70%, transparent);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+}
 
 .feed-empty {
   margin: auto;

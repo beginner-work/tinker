@@ -204,6 +204,7 @@ function bootRepoPage(options) {
     "repo-body",
     "repo-surface",
     "repo-pad",
+    "repo-essay-view",
     "repo-location",
     "repo-location-btn",
     "repo-location-panel",
@@ -262,7 +263,12 @@ function bootRepoPage(options) {
   byId["repo-pad"].tagName = "DIV";
   byId["repo-pad"].className = "repo-pad";
   byId["repo-pad"].nodeType = 1;
+  byId["repo-essay-view"].tagName = "DIV";
+  byId["repo-essay-view"].className = "repo-essay-view";
+  byId["repo-essay-view"].hidden = true;
+  byId["repo-essay-view"].nodeType = 1;
   byId["repo-surface"].appendChild(byId["repo-location"]);
+  byId["repo-surface"].appendChild(byId["repo-essay-view"]);
   byId["repo-surface"].appendChild(byId["repo-pad"]);
   byId["repo-surface"].appendChild(byId["repo-pad-actions"]);
   byId["repo-location"].appendChild(byId["repo-location-btn"]);
@@ -770,6 +776,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /repo-surface__kbd/);
   assert.match(html, /⌘↵|Ctrl↵/);
   assert.match(html, /id="repo-pad"/);
+  assert.match(html, /id="repo-essay-view"/);
   assert.match(html, /repo-pad__mirror/);
   assert.doesNotMatch(html, />Write</);
   assert.match(html, /id="repo-surface"[\s\S]*id="repo-location"/);
@@ -779,6 +786,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(surfaceChunk, /id="repo-pad-actions"/);
   assert.match(surfaceChunk, /id="repo-keep-crafting"/);
   assert.match(surfaceChunk, /id="repo-location"/);
+  assert.match(surfaceChunk, /id="repo-essay-view"/);
   // Write page has no top-right account / Sign out / Download chrome.
   assert.doesNotMatch(html, /id="repo-account-label"/);
   assert.doesNotMatch(html, />Sign out</);
@@ -792,11 +800,14 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=28"/);
   assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=28"/);
   assert.match(html, /src="\/lib\/storage-path-core\.js\?v=28"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=28"/);
+  assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
+  assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
+  assert.match(html, /src="\/vendor\/purify\.min\.js"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=29"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=28"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=28"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=28"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=28"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=29"/);
   assert.match(html, /href="\/styles\.css\?v=28"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);

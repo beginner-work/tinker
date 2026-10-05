@@ -14,7 +14,7 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=28" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=28" />
+    <link rel="stylesheet" href="/repo/repo.css?v=29" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
     <div class="repo-layout repo-layout--write">
@@ -34,6 +34,7 @@
             </div>
           </div>
           <p class="repo-followup" id="repo-followup" hidden></p>
+          <div class="repo-essay-view" id="repo-essay-view" hidden aria-label="Essay"></div>
           <div class="repo-pad" id="repo-pad"></div>
           <textarea class="repo-pad__mirror" id="repo-body" spellcheck="true" aria-label="Writing" tabindex="-1"></textarea>
           <div class="repo-pad-error" id="repo-pad-error" hidden role="alert">
@@ -107,13 +108,16 @@
 
     <script src="/platform-mobile.js?v=28"></script>
     <script src="/interview-prompt.js?v=28"></script>
+    <script src="/vendor/markdown-it.min.js"></script>
+    <script src="/vendor/purify.min.js"></script>
+    <script src="/lib/essay-read.js?v=1"></script>
     <script src="/lib/stories-md.js?v=28"></script>
     <script src="/lib/repo-folders-core.js?v=28"></script>
     <script src="/lib/repo-pad-reveal.js?v=28"></script>
     <script src="/lib/storage-path-core.js?v=28"></script>
     <script src="/lib/fs-access-folder.js?v=28"></script>
     <script src="/lib/storage-adapters.js?v=28"></script>
-    <script src="/repo/repo.js?v=28"></script>
+    <script src="/repo/repo.js?v=29"></script>
     <script src="/repo/storage-section.js?v=28"></script>
   </body>
 </html>
