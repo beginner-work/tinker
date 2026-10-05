@@ -59,30 +59,55 @@
       },
       // TODO: add api-design when that worksheet lands under exercises/api-design/.
     ],
+    // Reading order is fixed (do not sort by status).
     readings: [
+      {
+        id: "site-reliability-engineering",
+        name: "Site Reliability Engineering",
+        author: "Google",
+        topic: "Reliability",
+        status: "Not started",
+        note: "Chapters 3, 4, 6, 14 and 15.",
+        link: "https://sre.google/sre-book/table-of-contents/",
+      },
       {
         id: "domain-driven-design",
         name: "Domain-Driven Design",
         author: "Eric Evans",
         topic: "System design",
         status: "In progress",
-        note: "Chapter 1 done; now on Chapter 2, Communication and the Use of Language.",
+        note: "Cover to cover, picking up at Chapter 3.",
       },
       {
-        id: "designing-data-intensive-applications",
-        name: "Designing Data-Intensive Applications",
-        author: "Martin Kleppmann",
-        topic: "System design",
+        id: "transformative-tools-for-thought",
+        name: "How can we develop transformative tools for thought?",
+        author: "Andy Matuschak and Michael Nielsen",
+        topic: "Tools for thought",
         status: "Not started",
-        note: "",
+        note: "Free essay.",
+        link: "https://numinous.productions/ttft/",
       },
       {
-        id: "payments-systems-us",
-        name: "Payments Systems in the U.S.",
-        author: "Glenbrook Partners",
-        topic: "Payments",
+        id: "typescript-react-foundations",
+        name: "TypeScript and React foundations",
+        author: "Official docs",
+        topic: "Web",
         status: "Not started",
-        note: "",
+        note: "Three short official pieces, each under an hour.",
+        links: [
+          {
+            label: "Thinking in React",
+            url: "https://react.dev/learn/thinking-in-react",
+          },
+          {
+            label: "TypeScript for JavaScript Programmers",
+            url: "https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes.html",
+          },
+          {
+            label: "Using TypeScript",
+            url: "https://react.dev/learn/typescript",
+          },
+        ],
       },
     ],
   };

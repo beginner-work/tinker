@@ -154,9 +154,20 @@
     });
   }
 
+  function externalAnchor(href, label, className) {
+    var a = document.createElement("a");
+    a.className = className || "exercises__reading-link";
+    a.href = String(href || "");
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = String(label || href || "");
+    return a;
+  }
+
   function renderReadings() {
     if (!readingEl) return;
     while (readingEl.firstChild) readingEl.removeChild(readingEl.firstChild);
+    // Manifest order is the reading plan order. Do not sort by status.
     var readings = (manifest && Array.isArray(manifest.readings)) ? manifest.readings : [];
     if (!readings.length) {
       var empty = document.createElement("li");
@@ -181,7 +192,13 @@
 
       var name = document.createElement("h3");
       name.className = "exercises__name";
-      name.textContent = String(book.name || "");
+      var title = String(book.name || "");
+      var topLink = String(book.link || "").trim();
+      if (topLink) {
+        name.appendChild(externalAnchor(topLink, title, "exercises__reading-title-link"));
+      } else {
+        name.textContent = title;
+      }
       row.appendChild(name);
 
       if (book.author) {
@@ -196,6 +213,22 @@
         note.className = "exercises__desc";
         note.textContent = String(book.note);
         row.appendChild(note);
+      }
+
+      var childLinks = Array.isArray(book.links) ? book.links : [];
+      if (childLinks.length) {
+        var linkList = document.createElement("ul");
+        linkList.className = "exercises__reading-links";
+        childLinks.forEach(function (item) {
+          if (!item || !item.url) return;
+          var li = document.createElement("li");
+          li.className = "exercises__reading-links-item";
+          li.appendChild(
+            externalAnchor(item.url, item.label || item.url, "exercises__reading-link")
+          );
+          linkList.appendChild(li);
+        });
+        row.appendChild(linkList);
       }
 
       readingEl.appendChild(row);
