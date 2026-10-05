@@ -321,6 +321,57 @@ async function setPaused({ userId, threadId, paused } = {}) {
   }
 }
 
+/**
+ * Reorder sections to the given id list. Must be an exact permutation of
+ * the existing section ids. Status, preReadQuestion, completedAt, and
+ * notes stay unchanged; currentSectionIndex follows the same section id.
+ */
+async function reorderSections({ userId, threadId, sectionIds } = {}) {
+  try {
+    const uid = requireUserId(userId);
+    const { threads } = await readBlob(uid);
+    const thread = findThread(threads, threadId);
+    const sections = Array.isArray(thread.sections) ? thread.sections : [];
+    if (!Array.isArray(sectionIds)) {
+      throw fail(400, "sectionIds must be an ordered list of section ids.");
+    }
+    const incoming = sectionIds.map((id) => String(id == null ? "" : id).trim());
+    if (incoming.some((id) => !id)) {
+      throw fail(400, "sectionIds must be non-empty section ids.");
+    }
+    if (incoming.length !== sections.length || new Set(incoming).size !== incoming.length) {
+      throw fail(400, "sectionIds must be exactly the existing section ids in a new order.");
+    }
+    const byId = new Map();
+    for (const section of sections) {
+      if (!section || typeof section.id !== "string" || !section.id) {
+        throw fail(400, "sectionIds must be exactly the existing section ids in a new order.");
+      }
+      byId.set(section.id, section);
+    }
+    for (const id of incoming) {
+      if (!byId.has(id)) {
+        throw fail(400, "sectionIds must be exactly the existing section ids in a new order.");
+      }
+    }
+    let idx = Math.max(0, Number(thread.currentSectionIndex) || 0);
+    if (idx >= sections.length) idx = Math.max(0, sections.length - 1);
+    const currentId = sections[idx] ? sections[idx].id : null;
+    thread.sections = incoming.map((id) => byId.get(id));
+    if (currentId) {
+      const nextIdx = thread.sections.findIndex((section) => section.id === currentId);
+      thread.currentSectionIndex = nextIdx >= 0 ? nextIdx : 0;
+    } else {
+      thread.currentSectionIndex = 0;
+    }
+    thread.updatedAt = new Date().toISOString();
+    await writeBlob(uid, threads);
+    return presentThread(thread);
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
 module.exports = {
   KIND,
   UNAVAILABLE,
@@ -335,4 +386,5 @@ module.exports = {
   advanceSection,
   retreatSection,
   setPaused,
+  reorderSections,
 };
