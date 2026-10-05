@@ -765,7 +765,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=34/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=35/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -779,7 +779,8 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, /id="repo-account"/);
   assert.doesNotMatch(html, /id="repo-signout"/);
   assert.doesNotMatch(html, /repo-top--auth/);
-  assert.doesNotMatch(html, /<header[\s\S]*?<\/header>/);
+  assert.match(html, /repo-top--labs/);
+  assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /id="repo-keep-crafting"/);
   assert.match(html, /id="repo-this-is-everything"/);
   assert.match(html, /Keep crafting/);
@@ -813,23 +814,24 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=34"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=34"/);
-  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=34"/);
-  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=34"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=34"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=35"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=35"/);
+  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=35"/);
+  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=35"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=35"/);
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
-  assert.match(html, /src="\/exercises\/manifest\.js\?v=34"/);
-  assert.match(html, /src="\/exercises\/exercises-open\.js\?v=34"/);
-  assert.match(html, /src="\/lib\/exercises-pick\.js\?v=34"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=34"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=34"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=34"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=34"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=34"/);
-  assert.match(html, /href="\/styles\.css\?v=34"/);
+  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=35"/);
+  assert.match(html, /src="\/exercises\/manifest\.js\?v=35"/);
+  assert.match(html, /src="\/exercises\/exercises-open\.js\?v=35"/);
+  assert.match(html, /src="\/lib\/exercises-pick\.js\?v=35"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=35"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=35"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=35"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=35"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=35"/);
+  assert.match(html, /href="\/styles\.css\?v=35"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -1227,7 +1229,6 @@ test("write page has no top-right account / Sign out / Download chrome", () => {
   assert.doesNotMatch(html, /id="repo-signout"/);
   assert.doesNotMatch(html, />Sign out</);
   assert.doesNotMatch(html, /repo-top--auth/);
-  assert.doesNotMatch(html, /<header[\s\S]*?<\/header>/);
   assert.doesNotMatch(page, /downloadOne|downloadAll|renderDownloads|triggerDownload/);
   // Location stays centered in the editor column.
   assert.match(css, /\.repo-location\s*\{[^}]*align-self:\s*center/s);
@@ -1239,6 +1240,33 @@ test("write page has no top-right account / Sign out / Download chrome", () => {
   );
   assert.match(html, /id="repo-location"/);
   assert.match(html, /placeholder="Where are you\?"/);
+});
+
+test("write page Lindow Labs link is fixed top-right chrome, not under writing", () => {
+  const MADE_BY_URL =
+    "https://lindowlabs.dev/?utm_source=tinker&utm_campaign=made-by";
+  assert.match(html, /id="repo-labs-link"/);
+  assert.match(html, /repo-top--labs/);
+  assert.match(html, /class="repo-top__labs"/);
+  assert.ok(
+    html.replace(/&amp;/g, "&").includes(MADE_BY_URL),
+    "Labs link must use the existing lindowlabs.dev made-by URL",
+  );
+  assert.match(html, /data-made-by-lindow-labs/);
+  assert.match(html, /target="_blank"/);
+  assert.match(html, /rel="noopener"/);
+  assert.match(html, />Lindow Labs</);
+  // Outside the writing surface / pad / grok handoff zone.
+  const beforeSurface = html.slice(0, html.indexOf('id="repo-surface"'));
+  assert.match(beforeSurface, /id="repo-labs-link"/);
+  const surfaceChunk = (html.match(/id="repo-surface"[\s\S]*?<\/div>\s*<\/main>/) || [""])[0];
+  assert.doesNotMatch(surfaceChunk, /id="repo-labs-link"/);
+  assert.doesNotMatch(surfaceChunk, /repo-top--labs/);
+  // Grok Bot handoff stays under the writing (unchanged).
+  assert.match(surfaceChunk, /id="repo-grok-handoff"/);
+  assert.match(css, /\.repo-top--labs\s*\{[^}]*position:\s*fixed/s);
+  assert.match(css, /\.repo-top--labs\s*\{[^}]*right:\s*0/s);
+  assert.match(css, /\.repo-top__labs/);
 });
 
 test("blank pad is the new essay without download chrome", async () => {
@@ -2111,8 +2139,9 @@ test("non-auth Keep crafting failure with Sign in wording still shows Retry", as
   assert.equal(env.assigned.length, 0);
 });
 
-test("/repo write page has no header chrome", () => {
-  assert.doesNotMatch(html, /<header[\s\S]*?<\/header>/);
+test("/repo write page header chrome is Labs-only (no account / Files / Home)", () => {
+  assert.match(html, /<header class="repo-top repo-top--labs"/);
+  assert.match(html, /id="repo-labs-link"/);
   assert.doesNotMatch(html, /repo-top__back/);
   assert.doesNotMatch(html, /href="\/\?write=1"/);
   assert.doesNotMatch(html, /id="repo-signin"/);

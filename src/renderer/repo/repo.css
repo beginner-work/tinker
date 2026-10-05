@@ -74,6 +74,46 @@ body.repo-page--files {
   min-height: 0;
 }
 
+/* Write page: fixed top-right Lindow Labs link (outside the pad / footer). */
+.repo-top--labs {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: auto;
+  z-index: 40;
+  justify-content: flex-end;
+  gap: 0;
+  margin: 0;
+  padding: calc(10px + env(safe-area-inset-top, 0px))
+    calc(14px + env(safe-area-inset-right, 0px)) 8px 14px;
+  border-bottom: 0;
+  background: transparent;
+  pointer-events: none;
+  min-height: 0;
+}
+
+.repo-top__labs {
+  pointer-events: auto;
+  color: var(--color-muted);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+  padding: 4px 2px;
+}
+
+.repo-top__labs:hover,
+.repo-top__labs:focus-visible {
+  color: var(--color-foreground);
+}
+
+.repo-top__labs:focus-visible {
+  outline: 2px solid var(--color-accent-strong, #4f46e5);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .repo-top--auth .repo-top__back {
   margin-right: auto;
 }
@@ -93,6 +133,13 @@ html[data-tinker-desktop] .repo-top,
 html.tinker-desktop .repo-top {
   padding-left: var(--tinker-desktop-traffic-inset, 78px);
   -webkit-app-region: drag;
+}
+
+/* Labs chrome is fixed top-right — do not inherit traffic-light left inset. */
+html[data-tinker-desktop] .repo-top--labs,
+html.tinker-desktop .repo-top--labs {
+  padding-left: 14px;
+  -webkit-app-region: no-drag;
 }
 
 html[data-tinker-desktop] .repo-top a,
@@ -1959,6 +2006,12 @@ body.repo-page--write .repo-center {
     flex-wrap: wrap;
     gap: 10px;
     padding: calc(26px + env(safe-area-inset-top, 0px)) 12px 10px 12px;
+  }
+
+  .repo-top--labs {
+    flex-wrap: nowrap;
+    padding: calc(10px + env(safe-area-inset-top, 0px))
+      calc(12px + env(safe-area-inset-right, 0px)) 8px 12px;
   }
 
   .repo-top__branch,

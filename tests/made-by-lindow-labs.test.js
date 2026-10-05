@@ -56,3 +56,18 @@ test("made-by opener uses the desktop openExternal bridge", () => {
   const sw = fs.readFileSync(path.join(RENDERER, "sw.js"), "utf8");
   assert.match(sw, /made-by-lindow-labs\.js/);
 });
+
+test("write page wires Made by opener for the top-right Labs link", () => {
+  const html = fs.readFileSync(path.join(RENDERER, "repo", "index.html"), "utf8");
+  assert.match(html, /id="repo-labs-link"/);
+  assert.ok(html.includes("Lindow Labs"));
+  assert.ok(
+    decodeAmp(html).includes(MADE_BY_URL),
+    "write page Labs link must use the exact Lindow Labs URL with utm params",
+  );
+  assert.match(html, /data-made-by-lindow-labs/);
+  assert.match(html, /made-by-lindow-labs\.js/);
+  // Must not sit under/after the writing surface.
+  const beforeSurface = html.slice(0, html.indexOf('id="repo-surface"'));
+  assert.match(beforeSurface, /id="repo-labs-link"/);
+});
