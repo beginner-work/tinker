@@ -153,6 +153,12 @@ test("repo page wires recommendation card, sidebar row, and checked-in Cursor lo
   assert.match(repoHtml, />Grok Bot</);
   assert.match(repoCss, /\.repo-grok-handoff\b/);
   assert.match(repoCss, /\.repo-pad--with-handoff\b/);
+  // Plain button, not a pill/chip.
+  assert.match(repoCss, /\.repo-grok-handoff\s*\{[\s\S]*?border-radius:\s*8px/);
+  assert.doesNotMatch(
+    (repoCss.match(/\.repo-grok-handoff\s*\{[^}]+\}/) || [""])[0],
+    /border-radius:\s*999px/
+  );
   assert.match(repoJs, /showGrokHandoff|mountGrokHandoffUnderPad/);
   assert.match(repoJs, /finishWritingAfterSave/);
   assert.match(repoJs, /GROK_BOT_SWITCHBOARD_HREF/);
