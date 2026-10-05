@@ -71,7 +71,7 @@ test("service worker registers a versioned URL matching CACHE_VERSION", () => {
   assert.match(offline, /location\.reload/);
   assert.match(sw, /skipWaiting/);
   assert.match(sw, /clients\.claim/);
-  assert.match(html, /pwa-offline\.js\?v=64/);
+  assert.match(html, /pwa-offline\.js\?v=65/);
 
   const swRule = (vercel.headers || []).find((row) => row.source === "/sw.js");
   const keys = (swRule.headers || []).map((h) => h.key);
