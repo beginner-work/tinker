@@ -2194,6 +2194,53 @@ body.repo-page--write .repo-center {
   }
 }
 
+/* Grok Bot Switchboard handoff after This is everything (mobile + desktop). */
+.repo-grok-handoff {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 4px 0;
+  padding: 10px 12px;
+  max-width: min(22rem, 100%);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-background) 92%, transparent);
+  color: var(--color-foreground);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.repo-grok-handoff[hidden] { display: none !important; }
+.repo-grok-handoff:hover,
+.repo-grok-handoff:focus-visible {
+  border-color: color-mix(in srgb, var(--color-foreground) 22%, var(--color-border));
+  outline: none;
+}
+.repo-grok-handoff:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-foreground) 12%, transparent);
+}
+.repo-grok-handoff__logo {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.repo-grok-handoff__label {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .repo-grok-handoff {
+    margin: 12px 0 0;
+    width: 100%;
+    max-width: none;
+    justify-content: flex-start;
+  }
+}
+
 /* Exercise recommendation after This is everything (desktop). */
 .repo-exercise-rec {
   position: fixed;

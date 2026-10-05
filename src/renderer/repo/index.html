@@ -48,6 +48,13 @@
             <button type="button" class="repo-surface__action repo-surface__action--secondary" id="repo-keep-crafting" tabindex="-1" aria-keyshortcuts="Meta+Enter Control+Enter">Keep crafting<span class="repo-surface__kbd" id="repo-keep-crafting-kbd" aria-hidden="true">⌘↵</span></button>
             <button type="button" class="repo-surface__action repo-surface__action--primary" id="repo-this-is-everything" tabindex="-1" disabled>This is everything</button>
           </footer>
+          <!-- After This is everything: open Switchboard chat in the Grok Bot app. -->
+          <a id="repo-grok-handoff" class="repo-grok-handoff" hidden
+             href="grokbot://app/v1/agent?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5"
+             rel="noopener noreferrer">
+            <img class="repo-grok-handoff__logo" src="/icons/grok-bot-logo.png" alt="" width="28" height="28" />
+            <span class="repo-grok-handoff__label">Open in Grok Bot</span>
+          </a>
           <aside id="repo-exercise-rec" class="repo-exercise-rec" hidden>
             <img class="repo-exercise-rec__logo" src="/icons/cursor-logo.svg" alt="" width="28" height="28" />
             <div class="repo-exercise-rec__copy">

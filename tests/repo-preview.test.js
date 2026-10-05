@@ -86,6 +86,7 @@ function makeEl(tag, id, store) {
     setAttribute(name, value) {
       attrs[name] = String(value);
       if (name === "hidden") el.hidden = value !== false && value !== "false";
+      if (name === "href") el.href = String(value);
       if (name === "aria-expanded") el["aria-expanded"] = String(value);
       if (name === "aria-label") el["aria-label"] = String(value);
       if (name === "aria-selected") el["aria-selected"] = String(value);
@@ -226,6 +227,7 @@ function bootRepoPage(options) {
     "repo-keep-crafting",
     "repo-keep-crafting-kbd",
     "repo-this-is-everything",
+    "repo-grok-handoff",
     "repo-file-path",
     "repo-file-type",
     "repo-file-place",
@@ -311,6 +313,13 @@ function bootRepoPage(options) {
   byId["repo-this-is-everything"].textContent = "This is everything";
   byId["repo-this-is-everything"].disabled = true;
   byId["repo-this-is-everything"].tabIndex = -1;
+  byId["repo-grok-handoff"].tagName = "A";
+  byId["repo-grok-handoff"].className = "repo-grok-handoff";
+  byId["repo-grok-handoff"].hidden = true;
+  byId["repo-grok-handoff"].href =
+    "grokbot://app/v1/agent?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5";
+  byId["repo-grok-handoff"].textContent = "Open in Grok Bot";
+  byId["repo-surface"].appendChild(byId["repo-grok-handoff"]);
   byId["repo-body"].scrollTop = 0;
   byId["repo-body"].selectionStart = 0;
   byId["repo-body"].selectionEnd = 0;
@@ -775,6 +784,10 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-this-is-everything"/);
   assert.match(html, /Keep crafting/);
   assert.match(html, />This is everything</);
+  assert.match(html, /id="repo-grok-handoff"/);
+  assert.match(html, /grokbot:\/\/app\/v1\/agent\?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5/);
+  assert.match(html, /grok-bot-logo\.png/);
+  assert.match(html, /Open in Grok Bot/);
   assert.match(html, /aria-keyshortcuts="Meta\+Enter Control\+Enter"/);
   assert.match(html, /id="repo-keep-crafting-kbd"/);
   assert.match(html, /repo-surface__kbd/);
@@ -1820,6 +1833,41 @@ test("This is everything button click saves, blanks the pad, and lists the essay
   assert.equal(stories[0].id, puts[0][0].id);
   const treeText = String(env.byId["repo-tree"].textContent || "");
   assert.match(treeText, /Finished thought about the work/i);
+  assert.equal(env.byId["repo-grok-handoff"].hidden, false);
+  assert.match(
+    String(env.byId["repo-grok-handoff"].href || ""),
+    /grokbot:\/\/app\/v1\/agent\?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5/,
+  );
+});
+
+test("Grok Bot handoff hides when the founder starts typing again", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: false,
+    mode: "write",
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.byId["repo-body"].value = "Ship this and open Grok Bot.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  env.byId["repo-this-is-everything"].dispatch("click", {
+    type: "click",
+    target: env.byId["repo-this-is-everything"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(env.byId["repo-grok-handoff"].hidden, false);
+  env.byId["repo-body"].value = "Next piece.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  assert.equal(env.byId["repo-grok-handoff"].hidden, true);
 });
 
 test("This is everything failed save keeps the editor text and shows an inline error", async () => {
