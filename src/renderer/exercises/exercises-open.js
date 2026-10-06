@@ -8,28 +8,10 @@
 })(typeof self !== "undefined" ? self : this, function (nodeRequire) {
   "use strict";
 
-  var GITHUB_BLOB = "https://github.com/beginner-work/tinker/blob/main";
-  var GITHUB_TREE_ROOT = "https://github.com/beginner-work/tinker/tree/main";
+  // Coding modules live in tlindow/lindowlabs under exercises/<id>.
+  var EXERCISES_REPO = "tlindow/lindowlabs";
   var GITHUB_TREE =
-    "https://github.com/beginner-work/tinker/tree/main/exercises";
-
-  function githubPathUrl(relPath) {
-    var clean = String(relPath || "").replace(/^\/+/, "");
-    if (!clean) return GITHUB_TREE;
-    var parts = clean.split("/").filter(Boolean);
-    var leaf = parts[parts.length - 1] || "";
-    var isFile = /\.[a-z0-9]+$/i.test(leaf);
-    var base = isFile ? GITHUB_BLOB : GITHUB_TREE_ROOT;
-    return (
-      base +
-      "/" +
-      parts
-        .map(function (part) {
-          return encodeURIComponent(part);
-        })
-        .join("/")
-    );
-  }
+    "https://github.com/" + EXERCISES_REPO + "/tree/main/exercises";
 
   function getManifest() {
     if (typeof window !== "undefined" && window.tinkerExercisesManifest) {
@@ -59,7 +41,6 @@
     var id = String(moduleId || "").trim();
     var mod = findModule(id);
     if (mod && mod.externalUrl) return String(mod.externalUrl);
-    if (mod && mod.path) return githubPathUrl(mod.path);
     return GITHUB_TREE + "/" + encodeURIComponent(id);
   }
 
@@ -149,7 +130,7 @@
   }
 
   return {
-    GITHUB_BLOB: GITHUB_BLOB,
+    EXERCISES_REPO: EXERCISES_REPO,
     GITHUB_TREE: GITHUB_TREE,
     findModule: findModule,
     githubModuleUrl: githubModuleUrl,

@@ -116,7 +116,7 @@ test("openInCursor falls back to GitHub off desktop and prefers Cursor on deskto
   assert.equal(web.via, "github");
   assert.match(
     opened[0],
-    /github\.com\/beginner-work\/tinker\/blob\/main\/exercises\/stripe-payment-intent\.js/
+    /github\.com\/tlindow\/lindowlabs\/tree\/main\/exercises\/stripe-payment-intent$/
   );
 
   const folderOpened = [];
@@ -126,7 +126,7 @@ test("openInCursor falls back to GitHub off desktop and prefers Cursor on deskto
   assert.equal(folder.via, "github");
   assert.match(
     folderOpened[0],
-    /github\.com\/beginner-work\/tinker\/tree\/main\/exercises\/api-design/
+    /github\.com\/tlindow\/lindowlabs\/tree\/main\/exercises\/api-design$/
   );
 
   const desktopCalls = [];

@@ -1,8 +1,8 @@
-/* Checked-in list of learning exercise modules in beginner-work/tinker.
+/* Checked-in list of learning exercise modules for Tinker Exercises.
  *
- * Add one object under modules[] to surface a new track (for example
- * api-design). Keep ids identical to the file or folder under exercises/.
- * External-only modules set externalUrl and omit path.
+ * Coding modules open from tlindow/lindowlabs under exercises/<id>.
+ * Keep ids identical to that folder name. External-only modules set
+ * externalUrl and omit path.
  */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
@@ -14,7 +14,7 @@
   "use strict";
 
   return {
-    repo: "beginner-work/tinker",
+    repo: "tlindow/lindowlabs",
     branch: "main",
     exercisesRoot: "exercises",
     modules: [
@@ -34,7 +34,7 @@
           "Read client_secret, amount, currency and livemode from a PaymentIntent create fixture, no network.",
         topic: "Payments",
         status: "Not started",
-        path: "exercises/stripe-payment-intent.js",
+        path: "exercises/stripe-payment-intent",
         tags: ["stripe", "payments", "paymentintent", "fixture"],
       },
       {

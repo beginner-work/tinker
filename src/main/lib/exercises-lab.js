@@ -2,36 +2,25 @@
  *
  * Pure helpers for Node tests. The Electron main process injects fs,
  * spawn, and shell.openPath. The renderer never talks to git directly.
- * Modules live in beginner-work/tinker under exercises/.
+ * Coding modules live in tlindow/lindowlabs under exercises/<id>.
  */
 "use strict";
 
 const path = require("path");
 const { expandHome } = require("./custom-path.js");
 
-const REPO_SLUG = "beginner-work/tinker";
-const REPO_HTTPS = "https://github.com/beginner-work/tinker.git";
-const GITHUB_BLOB = "https://github.com/beginner-work/tinker/blob/main";
-const GITHUB_TREE_ROOT = "https://github.com/beginner-work/tinker/tree/main";
+const EXERCISES_REPO = "tlindow/lindowlabs";
+const REPO_SLUG = EXERCISES_REPO;
+const REPO_HTTPS = "https://github.com/" + EXERCISES_REPO + ".git";
 const GITHUB_TREE =
-  "https://github.com/beginner-work/tinker/tree/main/exercises";
+  "https://github.com/" + EXERCISES_REPO + "/tree/main/exercises";
 
 const MODULE_ID_RE = /^[a-z0-9][a-z0-9_-]*$/i;
 
-function githubPathUrl(relPath) {
-  const clean = String(relPath || "").replace(/^\/+/, "");
-  if (!clean) return GITHUB_TREE;
-  const parts = clean.split("/").filter(Boolean);
-  const leaf = parts[parts.length - 1] || "";
-  const isFile = /\.[a-z0-9]+$/i.test(leaf);
-  const base = isFile ? GITHUB_BLOB : GITHUB_TREE_ROOT;
-  return base + "/" + parts.map(encodeURIComponent).join("/");
-}
-
 function defaultClonePath(homeDir) {
   const home = String(homeDir || "").trim();
-  if (!home) return path.join("tinker");
-  return path.join(home, "tinker");
+  if (!home) return path.join("lindowlabs");
+  return path.join(home, "lindowlabs");
 }
 
 function resolveClonePath(configured, homeDir) {
@@ -56,16 +45,11 @@ function githubModuleUrl(moduleId, moduleOrPath) {
     err.code = "BAD_MODULE";
     throw err;
   }
-  let rel = "";
   let external = "";
   if (moduleOrPath && typeof moduleOrPath === "object") {
-    rel = String(moduleOrPath.path || "").trim();
     external = String(moduleOrPath.externalUrl || "").trim();
-  } else if (typeof moduleOrPath === "string") {
-    rel = String(moduleOrPath || "").trim();
   }
   if (external) return external;
-  if (rel) return githubPathUrl(rel);
   return GITHUB_TREE + "/" + encodeURIComponent(id);
 }
 
@@ -88,7 +72,7 @@ function assertModuleId(moduleId, allowedIds) {
 
 /**
  * Resolve a module path under the clone root.
- * `relPath` is a repo-relative path like exercises/foo.js, or empty to
+ * `relPath` is a repo-relative path like exercises/foo, or empty to
  * fall back to exercises/<id>.
  */
 function moduleAbsPath(cloneRoot, moduleId, allowedIds, relPath) {
@@ -233,16 +217,14 @@ function normalizeSettings(raw, homeDir) {
 }
 
 module.exports = {
+  EXERCISES_REPO,
   REPO_SLUG,
   REPO_HTTPS,
-  GITHUB_BLOB,
-  GITHUB_TREE_ROOT,
   GITHUB_TREE,
   MODULE_ID_RE,
   defaultClonePath,
   resolveClonePath,
   findModule,
-  githubPathUrl,
   githubModuleUrl,
   assertModuleId,
   moduleAbsPath,

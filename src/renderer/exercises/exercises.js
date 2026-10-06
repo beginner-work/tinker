@@ -44,14 +44,8 @@
     if (openApi && typeof openApi.githubModuleUrl === "function") {
       return openApi.githubModuleUrl(mod && mod.id);
     }
-    if (mod && mod.path) {
-      return (
-        "https://github.com/beginner-work/tinker/blob/main/" +
-        String(mod.path).replace(/^\/+/, "")
-      );
-    }
     return (
-      "https://github.com/beginner-work/tinker/tree/main/exercises/" +
+      "https://github.com/tlindow/lindowlabs/tree/main/exercises/" +
       encodeURIComponent(String(mod && mod.id || ""))
     );
   }
