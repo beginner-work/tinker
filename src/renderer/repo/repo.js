@@ -72,7 +72,7 @@
     padAsking: false,
     followupAsked: [],
     followupQuestion: "",
-    grokHandoffVisible: false,
+    keepFinishedWriting: false,
     // Read-view mount for saved essays (toggle always starts off per essay).
     essayReadMount: null,
     essayReadStoryId: null,
@@ -98,12 +98,6 @@
     padActions: document.getElementById("repo-pad-actions"),
     keepCrafting: document.getElementById("repo-keep-crafting"),
     thisIsEverything: document.getElementById("repo-this-is-everything"),
-    grokHandoff: document.getElementById("repo-grok-handoff"),
-    exerciseRec: document.getElementById("repo-exercise-rec"),
-    exerciseRecName: document.getElementById("repo-exercise-rec-name"),
-    exerciseRecDesc: document.getElementById("repo-exercise-rec-desc"),
-    exerciseRecOpen: document.getElementById("repo-exercise-rec-open"),
-    exerciseRecDismiss: document.getElementById("repo-exercise-rec-dismiss"),
     locationBtn: document.getElementById("repo-location-btn"),
     locationPanel: document.getElementById("repo-location-panel"),
     locationInput: document.getElementById("repo-location-input"),
@@ -490,7 +484,7 @@
       }
       return;
     }
-    hideGrokHandoff();
+    state.keepFinishedWriting = false;
     state.selectedId = id || null;
     state.selectedFolderId = null;
     render();
@@ -854,7 +848,6 @@
       }
     }
     resizeAllPadTurns();
-    if (state.grokHandoffVisible) mountGrokHandoffUnderPad();
     if (opts.focusEnd) focusLastPadTurn(true);
   }
 
@@ -943,7 +936,7 @@
       hideEssayReadView();
       return;
     }
-    hideGrokHandoff();
+    state.keepFinishedWriting = false;
     var markdown = story.markdown != null ? String(story.markdown) : String(story.body || "");
     els.essayView.hidden = false;
     if (els.pad) els.pad.hidden = true;
@@ -1205,7 +1198,7 @@
     clearPadIdleTimer();
     setPadActionsVisible(false);
     if (!padBody().trim()) return;
-    if (state.grokHandoffVisible) hideGrokHandoff();
+    if (state.keepFinishedWriting) state.keepFinishedWriting = false;
     var delay = resolveRevealDelayMs();
     var med = medianGapMs();
     state.lastRevealDelayMs = delay;
@@ -1306,7 +1299,7 @@
 
   /**
    * After a successful This is everything: keep the typed conversation on
-   * screen and pin a slim Grok Bot handoff under the last content.
+   * screen (no handoff chrome).
    */
   function finishWritingAfterSave() {
     state.draft = null;
@@ -1318,167 +1311,13 @@
     clearPadError();
     clearPadIdleTimer();
     state.padActionsVisible = false;
-    state.grokHandoffVisible = true;
+    state.keepFinishedWriting = true;
     hideEssayReadView();
     setPadActionsVisible(false);
-    mountGrokHandoffUnderPad();
     render();
   }
 
-  function attachExerciseRecommendation(essay, ctx) {
-    var pick = window.tinkerExercisesPick;
-    var manifest = window.tinkerExercisesManifest;
-    if (!pick || !manifest || !essay) return null;
-    if (essay.exerciseRecommendation && essay.exerciseRecommendation.moduleId) {
-      return essay.exerciseRecommendation;
-    }
-    return pick.ensureRecommendation(essay, {
-      modules: manifest.modules || [],
-      title: ctx && ctx.title,
-      body: ctx && ctx.body,
-      place: ctx && ctx.place,
-      storage: window.localStorage,
-    });
-  }
-
-  function isPhoneViewport() {
-    try {
-      return window.matchMedia && window.matchMedia("(max-width: 767px)").matches;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /** Switchboard agent deep link in the Grok Bot app (do not invent another chat). */
-  var GROK_BOT_SWITCHBOARD_HREF =
-    "grokbot://app/v1/agent?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5";
-
-  function hideGrokHandoff() {
-    state.grokHandoffVisible = false;
-    if (els.pad) els.pad.classList.remove("repo-pad--with-handoff");
-    if (els.grokHandoff) els.grokHandoff.hidden = true;
-  }
-
-  /** Place the slim handoff as the last child of the pad, under the last turn. */
-  function mountGrokHandoffUnderPad() {
-    if (!els.grokHandoff) return;
-    if (els.grokHandoff.getAttribute("href") !== GROK_BOT_SWITCHBOARD_HREF) {
-      els.grokHandoff.setAttribute("href", GROK_BOT_SWITCHBOARD_HREF);
-    }
-    if (els.pad) {
-      els.pad.classList.add("repo-pad--with-handoff");
-      els.pad.appendChild(els.grokHandoff);
-    }
-    els.grokHandoff.hidden = false;
-    state.grokHandoffVisible = true;
-    try {
-      resizeAllPadTurns();
-    } catch (e) { /* ignore */ }
-  }
-
-  function showGrokHandoff() {
-    mountGrokHandoffUnderPad();
-  }
-
-  /**
-   * Open the Switchboard deep link. Prefer the grokbot:// scheme (works when the
-   * Grok Bot app is installed). Mobile Safari/Chrome hand off from an <a> tap;
-   * Electron/mobile shells use openExternal. No https URL opens this specific
-   * Switchboard chat — https://apps.apple.com/us/app/grok-bot/id6794501026 is
-   * install-only if the scheme fails.
-   */
-  function openGrokHandoff(event) {
-    var href = GROK_BOT_SWITCHBOARD_HREF;
-    if (els.grokHandoff && els.grokHandoff.href) href = els.grokHandoff.href;
-    try {
-      if (window.tinker && typeof window.tinker.openExternal === "function") {
-        if (event && event.preventDefault) event.preventDefault();
-        window.tinker.openExternal(href);
-        return true;
-      }
-    } catch (e) { /* fall through to native <a> navigation */ }
-    // Let the browser/OS handle grokbot:// from the user gesture.
-    return false;
-  }
-
-  function hideExerciseRecommendationCard() {
-    if (els.exerciseRec) els.exerciseRec.hidden = true;
-    state.exerciseRecEssayId = null;
-  }
-
-  function showExerciseRecommendationCard(story) {
-    var rec = story && story.exerciseRecommendation;
-    if (!rec || !rec.moduleId || rec.dismissed) {
-      hideExerciseRecommendationCard();
-      return;
-    }
-    // Phone: save on the essay only; sidebar shows the link. No popup card.
-    if (isPhoneViewport()) {
-      hideExerciseRecommendationCard();
-      return;
-    }
-    if (!els.exerciseRec) return;
-    state.exerciseRecEssayId = story.id;
-    if (els.exerciseRecName) els.exerciseRecName.textContent = rec.name || rec.moduleId;
-    if (els.exerciseRecDesc) els.exerciseRecDesc.textContent = rec.description || "";
-    els.exerciseRec.hidden = false;
-  }
-
-  function openRecommendedExercise(rec) {
-    if (!rec || !rec.moduleId) return Promise.resolve(null);
-    var openApi = window.tinkerExercisesOpen;
-    var pick = window.tinkerExercisesPick;
-    if (pick && typeof pick.markOpened === "function") {
-      pick.markOpened(rec.moduleId, window.localStorage);
-    }
-    if (!openApi) return Promise.resolve(null);
-    if (typeof openApi.openInCursor === "function") {
-      return openApi.openInCursor(rec.moduleId);
-    }
-    return openApi.openModule(rec.moduleId);
-  }
-
-  function dismissExerciseRecommendation(essayId) {
-    hideExerciseRecommendationCard();
-    if (!essayId) return;
-    state.stories = state.stories.map(function (s) {
-      if (s.id !== essayId || !s.exerciseRecommendation) return s;
-      return Object.assign({}, s, {
-        exerciseRecommendation: Object.assign({}, s.exerciseRecommendation, { dismissed: true }),
-      });
-    });
-    fetchEssays().then(function (list) {
-      if (!Array.isArray(list)) return null;
-      var next = list.map(function (essay) {
-        if (!essay || essay.id !== essayId || !essay.exerciseRecommendation) return essay;
-        return Object.assign({}, essay, {
-          exerciseRecommendation: Object.assign({}, essay.exerciseRecommendation, {
-            dismissed: true,
-          }),
-        });
-      });
-      return putEssays(next);
-    }).catch(function () { /* ignore */ });
-    if (els.tree) renderTree();
-  }
-
-  function mergeExerciseRecommendationsFromEssays(stories, essays) {
-    if (!Array.isArray(stories) || !Array.isArray(essays)) return stories;
-    var byId = {};
-    essays.forEach(function (essay) {
-      if (essay && essay.id && essay.exerciseRecommendation) {
-        byId[essay.id] = essay.exerciseRecommendation;
-      }
-    });
-    return stories.map(function (story) {
-      if (!story || !story.id) return story;
-      if (story.exerciseRecommendation && story.exerciseRecommendation.moduleId) return story;
-      if (!byId[story.id]) return story;
-      return Object.assign({}, story, { exerciseRecommendation: byId[story.id] });
-    });
-  }
-
-  function storyFromEssay(essay, folderId) {
+    function storyFromEssay(essay, folderId) {
     var title = essay.title || firstLineTitle(essay.body || "");
     var createdAt = essay.createdAt
       ? (typeof essay.createdAt === "number" ? new Date(essay.createdAt).toISOString() : String(essay.createdAt))
@@ -1496,7 +1335,6 @@
       markdown: md.storyMarkdown(title, essay.body || ""),
       isNew: false,
       relPath: core.fileRelPath(state.folders, folderId || null, fileName),
-      exerciseRecommendation: essay.exerciseRecommendation || null,
     };
   }
 
@@ -1558,7 +1396,6 @@
         };
         essays = [essay].concat(essays);
       }
-      attachExerciseRecommendation(essay, { title: title, body: body, place: place });
       return putEssays(essays).then(function (putResult) {
         if (!putResult || !putResult.ok) {
           state.status = "";
@@ -1580,9 +1417,8 @@
         if (!replaced) state.stories = [saved].concat(state.stories);
         state.followupQuestion = "";
         state.status = "";
-        // Keep the conversation on screen; slim Grok Bot handoff under last line.
+        // Keep the conversation on screen after save.
         finishWritingAfterSave();
-        showExerciseRecommendationCard(saved);
         var placePromise = place && !isDraftId(saved.id)
           ? apiPost("set_place", { fileId: saved.id, place: place }).then(function (result) {
               if (result && result.ok && result.json && result.json.tree) applyTree(result.json.tree);
@@ -1599,8 +1435,8 @@
       return null;
     }).finally(function () {
       state.padSaving = false;
-      // Post-save handoff owns the chrome; do not re-reveal pad actions.
-      if (state.grokHandoffVisible) return;
+      // Post-save chrome owns the idle reveal; do not re-show pad actions yet.
+      if (state.keepFinishedWriting) return;
       if (padBody().trim()) bumpPadTypingIdle();
     });
   }
@@ -2056,33 +1892,79 @@
     return String(id || "").indexOf("draft-") === 0;
   }
 
-  function readRecentPlaces() {
+  function readPlacesState() {
     try {
       var raw = window.localStorage.getItem(RECENT_PLACES_KEY);
-      if (!raw) return [];
+      if (!raw) return { recent: [], dismissed: [] };
       var parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      return parsed.map(function (item) { return String(item || "").trim(); }).filter(Boolean).slice(0, 12);
+      if (Array.isArray(parsed)) {
+        return {
+          recent: parsed.map(function (item) { return String(item || "").trim(); }).filter(Boolean).slice(0, 12),
+          dismissed: [],
+        };
+      }
+      if (!parsed || typeof parsed !== "object") return { recent: [], dismissed: [] };
+      var recent = Array.isArray(parsed.recent) ? parsed.recent : [];
+      var dismissed = Array.isArray(parsed.dismissed) ? parsed.dismissed : [];
+      return {
+        recent: recent.map(function (item) { return String(item || "").trim(); }).filter(Boolean).slice(0, 12),
+        dismissed: dismissed.map(function (item) { return String(item || "").trim(); }).filter(Boolean).slice(0, 24),
+      };
     } catch (e) {
-      return [];
+      return { recent: [], dismissed: [] };
     }
   }
 
-  function writeRecentPlaces(list) {
+  function writePlacesState(statePlaces) {
     try {
-      window.localStorage.setItem(RECENT_PLACES_KEY, JSON.stringify((list || []).slice(0, 12)));
+      var recent = ((statePlaces && statePlaces.recent) || []).slice(0, 12);
+      var dismissed = ((statePlaces && statePlaces.dismissed) || []).slice(0, 24);
+      window.localStorage.setItem(RECENT_PLACES_KEY, JSON.stringify({ recent: recent, dismissed: dismissed }));
     } catch (e) { /* ignore */ }
+  }
+
+  function readRecentPlaces() {
+    return readPlacesState().recent;
+  }
+
+  function writeRecentPlaces(list) {
+    var cur = readPlacesState();
+    cur.recent = (list || []).slice(0, 12);
+    writePlacesState(cur);
   }
 
   function pushRecentPlace(label) {
     var place = String(label || "").trim();
     if (!place) return;
+    var cur = readPlacesState();
     var next = [place];
-    readRecentPlaces().forEach(function (item) {
+    cur.recent.forEach(function (item) {
       if (item.toLowerCase() === place.toLowerCase()) return;
       next.push(item);
     });
-    writeRecentPlaces(next.slice(0, 12));
+    cur.recent = next.slice(0, 12);
+    cur.dismissed = cur.dismissed.filter(function (item) {
+      return item.toLowerCase() !== place.toLowerCase();
+    });
+    writePlacesState(cur);
+  }
+
+  function removeSuggestedPlace(label) {
+    var place = String(label || "").trim();
+    if (!place) return;
+    var key = place.toLowerCase();
+    var cur = readPlacesState();
+    cur.recent = cur.recent.filter(function (item) {
+      return item.toLowerCase() !== key;
+    });
+    var already = false;
+    cur.dismissed.forEach(function (item) {
+      if (item.toLowerCase() === key) already = true;
+    });
+    if (!already) cur.dismissed = [place].concat(cur.dismissed).slice(0, 24);
+    writePlacesState(cur);
+    // Only remove from the suggestions list; leave the typed/current place alone.
+    renderPlaceList();
   }
 
   function buildPlaceRows(query) {
@@ -2090,31 +1972,38 @@
     var rows = [];
     var seen = {};
     var current = activePlace();
+    var placesState = readPlacesState();
+    var dismissed = {};
+    placesState.dismissed.forEach(function (item) {
+      dismissed[String(item || "").toLowerCase()] = true;
+    });
 
     function addRow(label, kind) {
       var name = String(label || "").trim();
       if (!name) return;
       var key = name.toLowerCase();
-      if (seen[key]) return;
+      if (seen[key] || dismissed[key]) return;
       if (q && key.indexOf(q) === -1) return;
       seen[key] = true;
       rows.push({
         kind: kind || "place",
         label: name,
         selected: current.toLowerCase() === key,
+        removable: kind === "recent" || kind === "starter",
       });
     }
 
-    readRecentPlaces().forEach(function (item) { addRow(item, "recent"); });
+    placesState.recent.forEach(function (item) { addRow(item, "recent"); });
     PLACE_STARTERS.forEach(function (item) { addRow(item, "starter"); });
 
     var typed = String(query || "").trim();
-    if (typed && !seen[typed.toLowerCase()]) {
+    if (typed && !seen[typed.toLowerCase()] && !dismissed[typed.toLowerCase()]) {
       rows.push({
         kind: "use",
         label: typed,
         display: 'Use "' + typed + '"',
         selected: false,
+        removable: false,
       });
     }
     return rows;
@@ -2195,10 +2084,31 @@
       text(name, row.display || row.label);
       li.appendChild(name);
 
+      if (row.removable) {
+        var removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "repo-location__remove";
+        removeBtn.setAttribute("aria-label", "Remove " + row.label);
+        removeBtn.textContent = "\u00d7";
+        removeBtn.addEventListener("mousedown", function (event) {
+          if (event && event.preventDefault) event.preventDefault();
+          if (event && event.stopPropagation) event.stopPropagation();
+        });
+        removeBtn.addEventListener("click", function (event) {
+          if (event && event.preventDefault) event.preventDefault();
+          if (event && event.stopPropagation) event.stopPropagation();
+          removeSuggestedPlace(row.label);
+        });
+        li.appendChild(removeBtn);
+      }
+
       li.addEventListener("mousedown", function (event) {
         if (event && event.preventDefault) event.preventDefault();
       });
       li.addEventListener("click", function (event) {
+        if (event && event.target && event.target.closest && event.target.closest(".repo-location__remove")) {
+          return;
+        }
         if (event && event.stopPropagation) event.stopPropagation();
         choosePlace(row.label);
       });
@@ -2722,31 +2632,6 @@
 
     li.appendChild(row);
 
-    var rec = story && story.exerciseRecommendation;
-    if (rec && rec.moduleId) {
-      var exBtn = document.createElement("button");
-      exBtn.type = "button";
-      exBtn.className = "repo-tree__exercise";
-      exBtn.setAttribute("data-exercise-module", rec.moduleId);
-      exBtn.setAttribute("aria-label", "Open " + (rec.name || rec.moduleId) + " in Cursor");
-      var logo = document.createElement("img");
-      logo.className = "repo-tree__exercise-logo";
-      logo.src = "/icons/cursor-logo.svg";
-      logo.alt = "";
-      logo.width = 14;
-      logo.height = 14;
-      exBtn.appendChild(logo);
-      var exLabel = document.createElement("span");
-      exLabel.className = "repo-tree__exercise-label";
-      exLabel.textContent = rec.name || rec.moduleId;
-      exBtn.appendChild(exLabel);
-      exBtn.addEventListener("click", function (event) {
-        event.stopPropagation();
-        openRecommendedExercise(rec);
-      });
-      li.appendChild(exBtn);
-    }
-
     list.appendChild(li);
   }
 
@@ -2971,8 +2856,8 @@
     var story = selectedStory();
     if (!story) {
       hideEssayReadView();
-      // Keep the just-finished writing on screen while the Grok handoff shows.
-      if (!state.grokHandoffVisible && !padHasFocus()) setPadMarkdown("");
+      // Keep just-finished writing on screen until the owner types or picks another essay.
+      if (!state.keepFinishedWriting && !padHasFocus()) setPadMarkdown("");
       text(els.filePath, "");
       if (els.fileType) {
         els.fileType.hidden = true;
@@ -3140,9 +3025,6 @@
           var src = rows.find(function (r) { return r && r.id === story.id; });
           if (src && src.folderId) folderId = src.folderId;
           if (src && src.contentType) story.contentType = src.contentType;
-          if (src && src.exerciseRecommendation) {
-            story.exerciseRecommendation = src.exerciseRecommendation;
-          }
         }
         if (folderId) state.placements[story.id] = folderId;
         var fileName = story.fileName;
@@ -3152,8 +3034,7 @@
           relPath: core.fileRelPath(state.folders, folderId, fileName),
         });
       });
-      return fetchEssays().then(function (essays) {
-        state.stories = mergeExerciseRecommendationsFromEssays(state.stories, essays || []);
+      return fetchEssays().then(function () {
         render();
         return syncStoriesToDisk();
       });
@@ -3241,30 +3122,6 @@
         }
       } catch (e) { /* ignore */ }
       savePad();
-    });
-  }
-  if (els.grokHandoff) {
-    els.grokHandoff.addEventListener("click", function (event) {
-      openGrokHandoff(event);
-    });
-  }
-  if (els.exerciseRecOpen) {
-    els.exerciseRecOpen.addEventListener("click", function (event) {
-      if (event && event.preventDefault) event.preventDefault();
-      var story = null;
-      for (var i = 0; i < state.stories.length; i += 1) {
-        if (state.stories[i] && state.stories[i].id === state.exerciseRecEssayId) {
-          story = state.stories[i];
-          break;
-        }
-      }
-      openRecommendedExercise(story && story.exerciseRecommendation);
-    });
-  }
-  if (els.exerciseRecDismiss) {
-    els.exerciseRecDismiss.addEventListener("click", function (event) {
-      if (event && event.preventDefault) event.preventDefault();
-      dismissExerciseRecommendation(state.exerciseRecEssayId);
     });
   }
   if (els.padActions) {

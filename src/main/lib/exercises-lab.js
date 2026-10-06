@@ -12,10 +12,21 @@ const { expandHome } = require("./custom-path.js");
 const REPO_SLUG = "beginner-work/tinker";
 const REPO_HTTPS = "https://github.com/beginner-work/tinker.git";
 const GITHUB_BLOB = "https://github.com/beginner-work/tinker/blob/main";
+const GITHUB_TREE_ROOT = "https://github.com/beginner-work/tinker/tree/main";
 const GITHUB_TREE =
   "https://github.com/beginner-work/tinker/tree/main/exercises";
 
 const MODULE_ID_RE = /^[a-z0-9][a-z0-9_-]*$/i;
+
+function githubPathUrl(relPath) {
+  const clean = String(relPath || "").replace(/^\/+/, "");
+  if (!clean) return GITHUB_TREE;
+  const parts = clean.split("/").filter(Boolean);
+  const leaf = parts[parts.length - 1] || "";
+  const isFile = /\.[a-z0-9]+$/i.test(leaf);
+  const base = isFile ? GITHUB_BLOB : GITHUB_TREE_ROOT;
+  return base + "/" + parts.map(encodeURIComponent).join("/");
+}
 
 function defaultClonePath(homeDir) {
   const home = String(homeDir || "").trim();
@@ -54,10 +65,7 @@ function githubModuleUrl(moduleId, moduleOrPath) {
     rel = String(moduleOrPath || "").trim();
   }
   if (external) return external;
-  if (rel) {
-    const clean = rel.replace(/^\/+/, "");
-    return GITHUB_BLOB + "/" + clean.split("/").map(encodeURIComponent).join("/");
-  }
+  if (rel) return githubPathUrl(rel);
   return GITHUB_TREE + "/" + encodeURIComponent(id);
 }
 
@@ -228,11 +236,13 @@ module.exports = {
   REPO_SLUG,
   REPO_HTTPS,
   GITHUB_BLOB,
+  GITHUB_TREE_ROOT,
   GITHUB_TREE,
   MODULE_ID_RE,
   defaultClonePath,
   resolveClonePath,
   findModule,
+  githubPathUrl,
   githubModuleUrl,
   assertModuleId,
   moduleAbsPath,

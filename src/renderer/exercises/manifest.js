@@ -28,26 +28,6 @@
         tags: ["formation", "system design", "storage", "persistent"],
       },
       {
-        id: "pacific-wall-time",
-        name: "Keep 9:00 AM after daylight saving ends",
-        description:
-          "Keep a saved America/Los_Angeles wall time at 9:00 AM across the Nov 1, 2026 fall-back.",
-        topic: "Scheduling",
-        status: "Not started",
-        path: "exercises/pacific-wall-time.js",
-        tags: ["scheduling", "dst", "timezone", "pacific", "wall time"],
-      },
-      {
-        id: "mark-touch-sent",
-        name: "Sending a touch marks it sent",
-        description:
-          "markTouchSent(touch, sentAt) returns a new touch with status sent. From a real Tinker bug.",
-        topic: "Outreach",
-        status: "Not started",
-        path: "exercises/mark-touch-sent.js",
-        tags: ["outreach", "touch", "sent", "markTouchSent"],
-      },
-      {
         id: "stripe-payment-intent",
         name: "Stripe PaymentIntent (test mode)",
         description:
@@ -57,7 +37,27 @@
         path: "exercises/stripe-payment-intent.js",
         tags: ["stripe", "payments", "paymentintent", "fixture"],
       },
-      // TODO: add api-design when that worksheet lands under exercises/api-design/.
+      {
+        id: "api-design",
+        name: "Fastify payments API (merchant, payment, refund)",
+        description:
+          "Build a small payments REST API in Fastify + TypeScript using DDD Ch 2 ubiquitous language, with validation and status codes.",
+        topic: "Domain-driven design",
+        status: "Not started",
+        path: "exercises/api-design",
+        tags: [
+          "ddd",
+          "domain-driven design",
+          "payments",
+          "merchant",
+          "payment",
+          "refund",
+          "api design",
+          "fastify",
+          "typescript",
+          "rest",
+        ],
+      },
     ],
     // Reading order is fixed.
     readings: [
