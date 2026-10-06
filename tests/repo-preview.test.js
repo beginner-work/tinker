@@ -227,7 +227,6 @@ function bootRepoPage(options) {
     "repo-keep-crafting",
     "repo-keep-crafting-kbd",
     "repo-this-is-everything",
-    "repo-grok-handoff",
     "repo-file-path",
     "repo-file-type",
     "repo-file-place",
@@ -313,13 +312,6 @@ function bootRepoPage(options) {
   byId["repo-this-is-everything"].textContent = "This is everything";
   byId["repo-this-is-everything"].disabled = true;
   byId["repo-this-is-everything"].tabIndex = -1;
-  byId["repo-grok-handoff"].tagName = "A";
-  byId["repo-grok-handoff"].className = "repo-grok-handoff";
-  byId["repo-grok-handoff"].hidden = true;
-  byId["repo-grok-handoff"].href =
-    "grokbot://app/v1/agent?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5";
-  byId["repo-grok-handoff"].textContent = "Grok Bot";
-  byId["repo-surface"].appendChild(byId["repo-grok-handoff"]);
   byId["repo-body"].scrollTop = 0;
   byId["repo-body"].selectionStart = 0;
   byId["repo-body"].selectionEnd = 0;
@@ -765,7 +757,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=35/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=36/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -785,10 +777,10 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-this-is-everything"/);
   assert.match(html, /Keep crafting/);
   assert.match(html, />This is everything</);
-  assert.match(html, /id="repo-grok-handoff"/);
-  assert.match(html, /grokbot:\/\/app\/v1\/agent\?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5/);
-  assert.match(html, /grok-bot-logo\.png/);
-  assert.match(html, />Grok Bot</);
+  assert.doesNotMatch(html, /id="repo-grok-handoff"/);
+  assert.doesNotMatch(html, /id="repo-exercise-rec"/);
+  assert.doesNotMatch(html, />Grok Bot</);
+  assert.doesNotMatch(html, /Try in Cursor/);
   assert.match(html, /aria-keyshortcuts="Meta\+Enter Control\+Enter"/);
   assert.match(html, /id="repo-keep-crafting-kbd"/);
   assert.match(html, /repo-surface__kbd/);
@@ -814,24 +806,24 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=35"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=35"/);
-  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=35"/);
-  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=35"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=35"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=36"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=36"/);
+  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=36"/);
+  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=36"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=36"/);
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
-  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=35"/);
-  assert.match(html, /src="\/exercises\/manifest\.js\?v=35"/);
-  assert.match(html, /src="\/exercises\/exercises-open\.js\?v=35"/);
-  assert.match(html, /src="\/lib\/exercises-pick\.js\?v=35"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=35"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=35"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=35"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=35"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=35"/);
-  assert.match(html, /href="\/styles\.css\?v=35"/);
+  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=36"/);
+  assert.doesNotMatch(html, /src="\/exercises\/manifest\.js/);
+  assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
+  assert.doesNotMatch(html, /src="\/lib\/exercises-pick\.js/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=36"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=36"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=36"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=36"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=36"/);
+  assert.match(html, /href="\/styles\.css\?v=36"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -847,6 +839,9 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(page, /set_place/);
   assert.match(page, /displayTitle/);
   assert.match(css, /\.repo-location__field/);
+  assert.match(css, /\.repo-location__remove/);
+  assert.match(css, /\.repo-tree__piece-row \.repo-tree__piece/);
+  assert.match(page, /removeSuggestedPlace/);
   assert.match(css, /\.repo-location__globe/);
   assert.match(css, /\.repo-location\s*\{[^}]*position:\s*sticky/s);
   assert.match(css, /\.repo-location\s*\{[^}]*align-self:\s*center/s);
@@ -1262,8 +1257,8 @@ test("write page Lindow Labs link is fixed top-right chrome, not under writing",
   const surfaceChunk = (html.match(/id="repo-surface"[\s\S]*?<\/div>\s*<\/main>/) || [""])[0];
   assert.doesNotMatch(surfaceChunk, /id="repo-labs-link"/);
   assert.doesNotMatch(surfaceChunk, /repo-top--labs/);
-  // Grok Bot handoff stays under the writing (unchanged).
-  assert.match(surfaceChunk, /id="repo-grok-handoff"/);
+  assert.doesNotMatch(surfaceChunk, /id="repo-grok-handoff"/);
+  assert.doesNotMatch(surfaceChunk, /id="repo-exercise-rec"/);
   assert.match(css, /\.repo-top--labs\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /\.repo-top--labs\s*\{[^}]*right:\s*0/s);
   assert.match(css, /\.repo-top__labs/);
@@ -1456,7 +1451,8 @@ test("click-select place with no file open fills the field and remembers recent"
   assert.equal(env.window.tinkerRepo.getPlace(), "Home");
   assert.equal(env.byId["repo-location-input"].value, "Home");
   assert.equal(env.byId["repo-location-panel"].hidden, true);
-  const recent = JSON.parse(env.storage.get("tinker.repo.placesRecent.v1") || "[]");
+  const recentStore = JSON.parse(env.storage.get("tinker.repo.placesRecent.v1") || "{}");
+  const recent = Array.isArray(recentStore) ? recentStore : (recentStore.recent || []);
   assert.equal(recent[0], "Home");
   // Session place carries onto the next new file.
   env.click("repo-new-piece");
@@ -1493,6 +1489,52 @@ test("keyboard-select place with no file open fills the field", async () => {
   assert.equal(env.byId["repo-location-panel"].hidden, true);
 });
 
+
+test("suggested place remove control deletes from the list without clearing the field", async () => {
+  const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "write" });
+  await env.flush();
+  env.click("repo-location-btn");
+  assert.equal(env.byId["repo-location-panel"].hidden, false);
+  const home = (env.byId["repo-location-list"].children || []).find((row) =>
+    String(row.textContent || "").includes("Home")
+  );
+  assert.ok(home);
+  home.dispatch("click", {
+    type: "click",
+    target: home,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.getPlace(), "Home");
+  env.click("repo-location-btn");
+  const homeAgain = (env.byId["repo-location-list"].children || []).find((row) =>
+    String(row.textContent || "").includes("Home")
+  );
+  assert.ok(homeAgain);
+  const removeBtn = (homeAgain.children || []).find((child) =>
+    String(child.className || "").includes("repo-location__remove")
+  );
+  assert.ok(removeBtn);
+  assert.equal(removeBtn.getAttribute("aria-label"), "Remove Home");
+  removeBtn.dispatch("click", {
+    type: "click",
+    target: removeBtn,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  // Current typed/selected place stays; suggestion is gone.
+  assert.equal(env.window.tinkerRepo.getPlace(), "Home");
+  assert.equal(env.byId["repo-location-input"].value, "Home");
+  const labels = (env.byId["repo-location-list"].children || []).map((row) => row.textContent);
+  assert.equal(labels.some((label) => String(label).includes("Home")), false);
+  const store = JSON.parse(env.storage.get("tinker.repo.placesRecent.v1") || "{}");
+  assert.ok(Array.isArray(store.dismissed));
+  assert.ok(store.dismissed.some((item) => String(item).toLowerCase() === "home"));
+  assert.equal((store.recent || []).some((item) => String(item).toLowerCase() === "home"), false);
+});
+
 test("custom typed place commits on blur with no file open", async () => {
   const env = bootRepoPage({ token: "jwt-test", desktop: true, mode: "write" });
   await env.flush();
@@ -1509,7 +1551,8 @@ test("custom typed place commits on blur with no file open", async () => {
   await env.flush();
   assert.equal(env.window.tinkerRepo.getPlace(), "Train car");
   assert.equal(env.byId["repo-location-input"].value, "Train car");
-  const recent = JSON.parse(env.storage.get("tinker.repo.placesRecent.v1") || "[]");
+  const recentStore = JSON.parse(env.storage.get("tinker.repo.placesRecent.v1") || "{}");
+  const recent = Array.isArray(recentStore) ? recentStore : (recentStore.recent || []);
   assert.equal(recent[0], "Train car");
 });
 
@@ -1851,7 +1894,7 @@ test("This is everything button click saves, keeps writing visible, and lists th
   assert.equal(puts.length, 1);
   assert.equal(puts[0][0].body, "Finished thought about the work.");
   assert.match(puts[0][0].title, /Finished thought/i);
-  // Writing stays on screen with the slim Grok Bot handoff under it.
+  // Writing stays on screen after save (no Grok Bot / Try in Cursor chrome).
   assert.match(String(env.byId["repo-body"].value || ""), /Finished thought about the work/);
   assert.equal(env.byId["repo-pad-error"].hidden, true);
   assert.doesNotMatch(String(env.byId["repo-pad-error-text"].textContent || ""), /Saved|Saving/);
@@ -1861,16 +1904,11 @@ test("This is everything button click saves, keeps writing visible, and lists th
   assert.equal(stories[0].id, puts[0][0].id);
   const treeText = String(env.byId["repo-tree"].textContent || "");
   assert.match(treeText, /Finished thought about the work/i);
-  assert.equal(env.byId["repo-grok-handoff"].hidden, false);
-  assert.equal(env.byId["repo-grok-handoff"].parentNode, env.byId["repo-pad"]);
-  assert.ok(env.byId["repo-pad"].classList.contains("repo-pad--with-handoff"));
-  assert.match(
-    String(env.byId["repo-grok-handoff"].href || ""),
-    /grokbot:\/\/app\/v1\/agent\?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5/,
-  );
+  assert.equal(env.byId["repo-exercise-rec"], undefined);
+  assert.equal(env.byId["repo-grok-handoff"], undefined);
 });
 
-test("Grok Bot handoff hides when the founder starts typing again", async () => {
+test("finished writing stays until the founder types again", async () => {
   const env = bootRepoPage({
     token: "jwt-test",
     desktop: false,
@@ -1878,7 +1916,7 @@ test("Grok Bot handoff hides when the founder starts typing again", async () => 
   });
   await env.flush();
   env.window.tinkerRepo.setPadIdleMs(15);
-  env.byId["repo-body"].value = "Ship this and open Grok Bot.";
+  env.byId["repo-body"].value = "Ship this without handoff chrome.";
   env.byId["repo-body"].dispatch("input", {
     type: "input",
     target: env.byId["repo-body"],
@@ -1891,13 +1929,13 @@ test("Grok Bot handoff hides when the founder starts typing again", async () => 
     stopPropagation() {},
   });
   await env.flush();
-  assert.equal(env.byId["repo-grok-handoff"].hidden, false);
+  assert.match(String(env.byId["repo-body"].value || ""), /Ship this without handoff chrome/);
   env.byId["repo-body"].value = "Next piece.";
   env.byId["repo-body"].dispatch("input", {
     type: "input",
     target: env.byId["repo-body"],
   });
-  assert.equal(env.byId["repo-grok-handoff"].hidden, true);
+  assert.match(String(env.byId["repo-body"].value || ""), /Next piece/);
 });
 
 test("This is everything failed save keeps the editor text and shows an inline error", async () => {
@@ -1952,7 +1990,6 @@ test("This is everything double click does not create two essays", async () => {
   await env.flush();
   assert.equal(puts.length, 1);
   assert.match(String(env.byId["repo-body"].value || ""), /Only one essay please/);
-  assert.equal(env.byId["repo-grok-handoff"].hidden, false);
 });
 
 test("This is everything signed-out click navigates to sign-in", async () => {

@@ -478,6 +478,32 @@ html.tinker-desktop .repo-top [role="button"] {
   -webkit-tap-highlight-color: transparent;
 }
 
+.repo-location__remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.repo-location__remove:hover,
+.repo-location__remove:focus-visible {
+  background: rgba(28, 25, 23, 0.06);
+  color: var(--color-foreground);
+  outline: none;
+}
+
 .repo-location__check {
   width: 14px;
   flex-shrink: 0;
@@ -949,6 +975,16 @@ body.repo-page--write .repo-center {
   cursor: pointer;
 }
 
+/* Essay title shares the row with Move; do not force 100% width in the flex row. */
+.repo-tree__piece-row .repo-tree__piece {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .repo-reflections__item:hover,
 .repo-tree__piece:hover,
 .repo-history__item:hover {
@@ -968,19 +1004,29 @@ body.repo-page--write .repo-center {
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
-  flex-wrap: wrap;
+  min-width: 0;
+  flex-wrap: nowrap;
 }
 
-.repo-tree__head .repo-sidebar__heading { margin: 0; }
+.repo-tree__head .repo-sidebar__heading {
+  margin: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .repo-tree__actions {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
 }
 
 .repo-tree__new {
+  flex-shrink: 0;
   min-height: 44px;
   height: auto;
   padding: 0 12px;
@@ -992,6 +1038,7 @@ body.repo-page--write .repo-center {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .repo-tree__new:hover,
@@ -1185,7 +1232,12 @@ body.repo-page--write .repo-center {
   display: flex;
   align-items: stretch;
   gap: 2px;
+  min-width: 0;
   min-height: 44px;
+}
+
+.repo-tree__piece-row .repo-tree__icon-btn {
+  flex: 0 0 auto;
 }
 
 .repo-reflections__item,
@@ -1851,12 +1903,6 @@ body.repo-page--write .repo-center {
   min-height: min(62vh, 36rem);
 }
 
-/* After This is everything: shrink the last turn so the handoff sits flush under text. */
-.repo-pad--with-handoff .repo-pad__turn:last-of-type {
-  flex: 0 0 auto;
-  min-height: 0;
-}
-
 .repo-pad__turn:hover,
 .repo-pad__turn:focus,
 .repo-pad__turn:focus-visible {
@@ -2110,10 +2156,6 @@ body.repo-page--write .repo-center {
     min-height: min(55svh, 22rem);
   }
 
-  .repo-pad--with-handoff .repo-pad__turn:last-of-type {
-    min-height: 0;
-  }
-
   .repo-pad__q {
     margin: 8px 8px 4px;
     font-size: 17px;
@@ -2257,182 +2299,3 @@ body.repo-page--write .repo-center {
   }
 }
 
-/* Plain Grok Bot Switchboard button under last typed writing (not a pill/chip). */
-.repo-grok-handoff {
-  pointer-events: auto;
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  gap: 8px;
-  box-sizing: border-box;
-  width: auto;
-  max-width: min(280px, 100%);
-  height: 34px;
-  margin: 4px 12px 12px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-background);
-  box-shadow: none;
-  color: var(--color-foreground);
-  text-decoration: none;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1;
-  white-space: nowrap;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.repo-grok-handoff[hidden] { display: none !important; }
-.repo-grok-handoff:hover {
-  border-color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-background) 92%, var(--color-foreground));
-}
-.repo-grok-handoff:focus-visible {
-  outline: 2px solid var(--color-accent-strong, #4f46e5);
-  outline-offset: 2px;
-}
-.repo-grok-handoff__logo {
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  object-fit: cover;
-}
-.repo-grok-handoff__label {
-  min-width: 0;
-}
-
-@media (max-width: 767px) {
-  .repo-grok-handoff {
-    margin: 4px 12px 16px;
-  }
-}
-
-/* Exercise recommendation after This is everything (desktop). */
-.repo-exercise-rec {
-  position: fixed;
-  z-index: 28;
-  right: calc(var(--repo-essays-rail) + var(--repo-foot-gutter));
-  left: auto;
-  bottom: calc(var(--repo-foot-floor) + 56px);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 12px 14px;
-  max-width: min(26rem, calc(100vw - var(--repo-essays-rail) - 48px));
-  padding: 14px 16px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--color-background) 94%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 8px 28px color-mix(in srgb, var(--color-foreground) 8%, transparent);
-}
-.repo-exercise-rec[hidden] { display: none !important; }
-.repo-exercise-rec__logo {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  margin-top: 2px;
-  border-radius: 6px;
-}
-.repo-exercise-rec__copy { flex: 1 1 12rem; min-width: 0; }
-.repo-exercise-rec__eyebrow {
-  margin: 0 0 2px;
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-.repo-exercise-rec__name {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
-}
-.repo-exercise-rec__desc {
-  margin: 4px 0 0;
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--color-muted);
-}
-.repo-exercise-rec__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-}
-.repo-exercise-rec__open {
-  height: 34px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--color-foreground);
-  color: var(--color-background);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.repo-exercise-rec__dismiss {
-  height: 34px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--color-muted);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-.repo-exercise-rec__dismiss:hover { color: var(--color-foreground); }
-
-.repo-tree__exercise {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  margin: 0 0 4px;
-  padding: 4px 8px 4px 22px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-muted);
-  font: inherit;
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
-.repo-tree__exercise:hover {
-  background: var(--color-hover);
-  color: var(--color-foreground);
-}
-.repo-tree__exercise-logo {
-  flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-}
-.repo-tree__exercise-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@media (max-width: 767px) {
-  .repo-exercise-rec { display: none !important; }
-  .repo-tree__exercise {
-    padding-left: 12px;
-    font-size: 13px;
-  }
-}

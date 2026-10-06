@@ -1,4 +1,4 @@
-/* Exercise recommendation: pick by tags / rotation, save on essay, sidebar + card. */
+/* Exercise recommendation: pick by tags / rotation; write pad no longer shows cards. */
 "use strict";
 
 const { test } = require("node:test");
@@ -86,8 +86,8 @@ test("ensureRecommendation stores once on the essay and skips re-pick", () => {
   const storage = memoryStorage();
   const essay = {
     id: "e_1",
-    title: "Outreach notes",
-    body: "markTouchSent and touch status sent",
+    title: "Refund notes",
+    body: "merchant refund routes using ddd ubiquitous language in Fastify",
   };
   const first = pick.ensureRecommendation(essay, {
     modules: manifest.modules,
@@ -95,8 +95,8 @@ test("ensureRecommendation stores once on the essay and skips re-pick", () => {
     body: essay.body,
     storage,
   });
-  assert.equal(first.moduleId, "mark-touch-sent");
-  assert.equal(essay.exerciseRecommendation.moduleId, "mark-touch-sent");
+  assert.equal(first.moduleId, "api-design");
+  assert.equal(essay.exerciseRecommendation.moduleId, "api-design");
   assert.equal(essay.exerciseRecommendation.dismissed, false);
   const again = pick.ensureRecommendation(essay, {
     modules: manifest.modules,
@@ -104,23 +104,33 @@ test("ensureRecommendation stores once on the essay and skips re-pick", () => {
     body: "paymentintent fixture",
     storage,
   });
-  assert.equal(again.moduleId, "mark-touch-sent");
+  assert.equal(again.moduleId, "api-design");
 });
 
 test("openInCursor falls back to GitHub off desktop and prefers Cursor on desktop", async () => {
   const open = loadOpen();
   const opened = [];
-  const web = await open.openInCursor("pacific-wall-time", {
+  const web = await open.openInCursor("stripe-payment-intent", {
     openExternal(url) { opened.push(url); },
   });
   assert.equal(web.via, "github");
   assert.match(
     opened[0],
-    /github\.com\/beginner-work\/tinker\/blob\/main\/exercises\/pacific-wall-time\.js/
+    /github\.com\/beginner-work\/tinker\/blob\/main\/exercises\/stripe-payment-intent\.js/
+  );
+
+  const folderOpened = [];
+  const folder = await open.openInCursor("api-design", {
+    openExternal(url) { folderOpened.push(url); },
+  });
+  assert.equal(folder.via, "github");
+  assert.match(
+    folderOpened[0],
+    /github\.com\/beginner-work\/tinker\/tree\/main\/exercises\/api-design/
   );
 
   const desktopCalls = [];
-  const desk = await open.openInCursor("pacific-wall-time", {
+  const desk = await open.openInCursor("api-design", {
     isDesktopApp: true,
     openExerciseModule(id, opts) {
       desktopCalls.push({ id, opts });
@@ -128,52 +138,50 @@ test("openInCursor falls back to GitHub off desktop and prefers Cursor on deskto
     },
   });
   assert.equal(desk.via, "command");
-  assert.equal(desktopCalls[0].id, "pacific-wall-time");
+  assert.equal(desktopCalls[0].id, "api-design");
   assert.equal(desktopCalls[0].opts.preferCommand, "cursor");
 });
 
-test("repo page wires recommendation card, sidebar row, and checked-in Cursor logo", () => {
-  assert.match(repoHtml, /id="repo-exercise-rec"/);
-  assert.match(repoHtml, /Open in Cursor/);
-  assert.match(repoHtml, /Try in Cursor/);
-  assert.match(repoHtml, /cursor-logo\.svg/);
-  assert.match(repoHtml, /exercises-pick\.js/);
-  assert.match(repoHtml, /exercises-open\.js/);
-  assert.equal(repoHtml.includes("—"), false);
-  assert.match(repoJs, /attachExerciseRecommendation/);
-  assert.match(repoJs, /showExerciseRecommendationCard/);
-  assert.match(repoJs, /repo-tree__exercise/);
-  assert.match(repoJs, /openInCursor/);
-  assert.match(repoJs, /isPhoneViewport/);
-  assert.match(repoCss, /\.repo-exercise-rec\b/);
-  assert.match(repoCss, /\.repo-tree__exercise\b/);
-  assert.match(repoHtml, /id="repo-grok-handoff"/);
-  assert.match(repoHtml, /grokbot:\/\/app\/v1\/agent\?id=0a50134b-8ed0-4c4b-8f0e-bd0879d79ed5/);
-  assert.match(repoHtml, /grok-bot-logo\.png/);
-  assert.match(repoHtml, />Grok Bot</);
-  assert.match(repoCss, /\.repo-grok-handoff\b/);
-  assert.match(repoCss, /\.repo-pad--with-handoff\b/);
-  // Plain button, not a pill/chip.
-  assert.match(repoCss, /\.repo-grok-handoff\s*\{[\s\S]*?border-radius:\s*8px/);
-  assert.doesNotMatch(
-    (repoCss.match(/\.repo-grok-handoff\s*\{[^}]+\}/) || [""])[0],
-    /border-radius:\s*999px/
-  );
-  assert.match(repoJs, /showGrokHandoff|mountGrokHandoffUnderPad/);
+test("write pad no longer shows Grok Bot or Try in Cursor handoffs", () => {
+  assert.doesNotMatch(repoHtml, /id="repo-exercise-rec"/);
+  assert.doesNotMatch(repoHtml, /Try in Cursor/);
+  assert.doesNotMatch(repoHtml, /id="repo-grok-handoff"/);
+  assert.doesNotMatch(repoHtml, />Grok Bot</);
+  assert.doesNotMatch(repoHtml, /exercises-pick\.js/);
+  assert.doesNotMatch(repoHtml, /exercises-open\.js/);
+  assert.doesNotMatch(repoJs, /attachExerciseRecommendation/);
+  assert.doesNotMatch(repoJs, /showExerciseRecommendationCard/);
+  assert.doesNotMatch(repoJs, /repo-tree__exercise/);
+  assert.doesNotMatch(repoJs, /showGrokHandoff|mountGrokHandoffUnderPad/);
+  assert.doesNotMatch(repoJs, /GROK_BOT_SWITCHBOARD_HREF/);
+  assert.doesNotMatch(repoCss, /\.repo-exercise-rec\b/);
+  assert.doesNotMatch(repoCss, /\.repo-grok-handoff\b/);
+  assert.doesNotMatch(repoCss, /\.repo-pad--with-handoff\b/);
   assert.match(repoJs, /finishWritingAfterSave/);
-  assert.match(repoJs, /GROK_BOT_SWITCHBOARD_HREF/);
+  // Shared helpers remain for /exercises Open in Cursor.
+  assert.equal(
+    fs.existsSync(path.join(root, "src/renderer/exercises/exercises-open.js")),
+    true
+  );
+  assert.equal(
+    fs.existsSync(path.join(root, "src/renderer/lib/exercises-pick.js")),
+    true
+  );
   assert.equal(
     fs.existsSync(path.join(root, "src/renderer/icons/cursor-logo.svg")),
     true
   );
-  assert.equal(
-    fs.existsSync(path.join(root, "src/renderer/icons/grok-bot-logo.png")),
-    true
-  );
-  const logo = fs.readFileSync(
-    path.join(root, "src/renderer/icons/cursor-logo.svg"),
-    "utf8"
-  );
-  assert.match(logo, /<svg/i);
-  assert.ok(logo.length < 50000);
+});
+
+test("curriculum modules exclude daylight-saving and outreach reps", () => {
+  const ids = manifest.modules.map((m) => m.id);
+  assert.deepEqual(ids, [
+    "formation-persistent-storage",
+    "stripe-payment-intent",
+    "api-design",
+  ]);
+  assert.equal(ids.includes("pacific-wall-time"), false);
+  assert.equal(ids.includes("mark-touch-sent"), false);
+  assert.equal(fs.existsSync(path.join(root, "exercises/pacific-wall-time.js")), false);
+  assert.equal(fs.existsSync(path.join(root, "exercises/mark-touch-sent.js")), false);
 });

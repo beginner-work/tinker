@@ -9,8 +9,27 @@
   "use strict";
 
   var GITHUB_BLOB = "https://github.com/beginner-work/tinker/blob/main";
+  var GITHUB_TREE_ROOT = "https://github.com/beginner-work/tinker/tree/main";
   var GITHUB_TREE =
     "https://github.com/beginner-work/tinker/tree/main/exercises";
+
+  function githubPathUrl(relPath) {
+    var clean = String(relPath || "").replace(/^\/+/, "");
+    if (!clean) return GITHUB_TREE;
+    var parts = clean.split("/").filter(Boolean);
+    var leaf = parts[parts.length - 1] || "";
+    var isFile = /\.[a-z0-9]+$/i.test(leaf);
+    var base = isFile ? GITHUB_BLOB : GITHUB_TREE_ROOT;
+    return (
+      base +
+      "/" +
+      parts
+        .map(function (part) {
+          return encodeURIComponent(part);
+        })
+        .join("/")
+    );
+  }
 
   function getManifest() {
     if (typeof window !== "undefined" && window.tinkerExercisesManifest) {
@@ -40,19 +59,7 @@
     var id = String(moduleId || "").trim();
     var mod = findModule(id);
     if (mod && mod.externalUrl) return String(mod.externalUrl);
-    if (mod && mod.path) {
-      var clean = String(mod.path).replace(/^\/+/, "");
-      return (
-        GITHUB_BLOB +
-        "/" +
-        clean
-          .split("/")
-          .map(function (part) {
-            return encodeURIComponent(part);
-          })
-          .join("/")
-      );
-    }
+    if (mod && mod.path) return githubPathUrl(mod.path);
     return GITHUB_TREE + "/" + encodeURIComponent(id);
   }
 
