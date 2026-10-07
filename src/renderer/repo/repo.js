@@ -794,12 +794,62 @@
     }
   }
 
-  /** Align the latest question below the top safe area; fade covers the rest. */
+  /** Align the latest question in view without covering essay text. */
   function scrollQuestionIntoSafeView() {
     if (!els.pad || !writeScroll) return;
     var questions = els.pad.querySelectorAll(".repo-pad__q");
     var q = questions.length ? questions[questions.length - 1] : null;
     if (!q) return;
+    var prev = q.previousElementSibling;
+
+    // Desktop bottom panel: scroll the panel surface (not the window) so the
+    // latest typed paragraph and the question stay visible together. The
+    // question stays in normal flow — never parked over essay text.
+    var panelScroller = typeof writeScroll.findWriteScrollContainer === "function"
+      ? writeScroll.findWriteScrollContainer(q)
+      : null;
+    if (panelScroller && typeof writeScroll.computePanelQuestionScrollTop === "function") {
+      var qTopInPanel = writeScroll.offsetTopWithin
+        ? writeScroll.offsetTopWithin(q, panelScroller)
+        : writeScroll.documentTop(q, panelScroller.scrollTop || 0);
+      var prevBottomInPanel = null;
+      if (prev) {
+        var prevTopInPanel = writeScroll.offsetTopWithin
+          ? writeScroll.offsetTopWithin(prev, panelScroller)
+          : writeScroll.documentTop(prev, panelScroller.scrollTop || 0);
+        prevBottomInPanel = prevTopInPanel + (prev.offsetHeight || 0);
+      }
+      var footReserve = writeScroll.WRITE_SCROLL.PANEL_FOOT_RESERVE_PX || 64;
+      try {
+        var footEl = els.padActions || document.getElementById("repo-pad-actions");
+        if (footEl && footEl.offsetHeight) {
+          footReserve = Math.max(footReserve, footEl.offsetHeight + 16);
+        }
+      } catch (eFoot) { /* ignore */ }
+      var maxScroll = Math.max(0,
+        (panelScroller.scrollHeight || 0) - (panelScroller.clientHeight || 0));
+      var panelTop = writeScroll.computePanelQuestionScrollTop({
+        questionOffsetTop: qTopInPanel,
+        questionHeight: q.offsetHeight || 0,
+        prevOffsetBottom: prevBottomInPanel,
+        containerClientHeight: panelScroller.clientHeight || 0,
+        topPadding: writeScroll.WRITE_SCROLL.PANEL_TOP_PAD_PX || 8,
+        bottomReserved: footReserve,
+        maxScroll: maxScroll,
+      });
+      try {
+        if (typeof panelScroller.scrollTo === "function") {
+          panelScroller.scrollTo({ top: panelTop, behavior: "smooth" });
+        } else {
+          panelScroller.scrollTop = panelTop;
+        }
+      } catch (ePanel) {
+        try { panelScroller.scrollTop = panelTop; } catch (ePanel2) { /* ignore */ }
+      }
+      return;
+    }
+
+    // Full-height / mobile: park the question below the titlebar safe area.
     var scrollY = window.scrollY || 0;
     var safeTop = writeScroll.resolveWriteSafeTopPx({
       isDesktop: isDesktopShell()
@@ -813,7 +863,6 @@
     } catch (e) { /* ignore */ }
     var questionTop = writeScroll.documentTop(q, scrollY);
     var prevBottom = null;
-    var prev = q.previousElementSibling;
     if (prev) {
       try {
         var prevRect = prev.getBoundingClientRect();

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-tinker-desktop>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Harness: essay question no overlap</title>
+  <link rel="stylesheet" href="/styles.css?v=40" />
+  <link rel="stylesheet" href="/repo/repo.css?v=46" />
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #f7f4ee; }
+    .harness-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+    }
+    .harness-editor {
+      flex: 1 1 auto;
+      min-height: 0;
+      background: #ece8e0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #888;
+      font: 14px/1.4 "Instrument Sans", system-ui, sans-serif;
+    }
+    .measure {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      z-index: 9999;
+      background: rgba(0,0,0,.78);
+      color: #fff;
+      font: 11px/1.35 ui-monospace, monospace;
+      padding: 8px 10px;
+      border-radius: 6px;
+      max-width: 460px;
+      white-space: pre-wrap;
+      pointer-events: none;
+    }
+    body.harness-short .repo-layout--write,
+    body.harness-short .repo-panel {
+      --repo-panel-height: 200px;
+    }
+    body.harness-short .repo-panel {
+      height: 200px !important;
+    }
+  </style>
+  <script src="/lib/repo-write-scroll.js?v=46"></script>
+</head>
+<body class="repo-page--write">
+  <div class="measure" id="measure">measuring…</div>
+  <div class="harness-shell repo-layout--write" style="display:flex;flex-direction:column;height:100vh;">
+    <div class="harness-editor">Code editor (empty)</div>
+    <section class="repo-panel" id="repo-panel" aria-label="Essays panel" style="display:flex;flex-direction:column;flex:0 0 auto;height:var(--repo-panel-height,35vh);max-height:70vh;min-height:140px;border-top:1px solid rgba(0,0,0,.12);overflow:hidden;position:relative;background:var(--color-background,#fffdf7);">
+      <header class="repo-panel__head" style="display:flex;align-items:center;height:36px;padding:0 12px;border-bottom:1px solid rgba(0,0,0,.08);font:600 12px/1 system-ui,sans-serif;text-transform:uppercase;letter-spacing:.06em;">Essays</header>
+      <div class="repo-panel__body" style="flex:1 1 auto;min-height:0;display:grid;grid-template-columns:220px 1fr;overflow:hidden;">
+        <aside class="repo-right" style="border-right:1px solid rgba(0,0,0,.08);padding:12px;font:13px/1.4 system-ui,sans-serif;">Essay list</aside>
+        <div class="repo-panel__write" id="repo-panel-write">
+          <div class="repo-surface writing repo-write-safe-top" id="repo-surface">
+            <div class="repo-location" id="repo-location">
+              <div class="repo-location__field">
+                <span class="repo-location__input" style="display:block;padding:6px 10px;">Kitchen table</span>
+              </div>
+            </div>
+            <div class="repo-pad" id="repo-pad">
+              <textarea class="writing-input repo-pad__turn" data-pad-turn="1" spellcheck="false">I'm close
+
+I'm closing up my founder story; the framing of the experience hasn't matured the way I hoped it would by now.
+
+I want to be someone who can name the shift without dressing it up.
+
+And there is a fourth paragraph here so we have 4+ blocks of prose before the follow-up lands.</textarea>
+              <div class="repo-pad__q" data-pad-q="1" contenteditable="false">
+                <span class="repo-pad__q-text">When you say the framing of the experience hasn't matured, what specifically are you now noticing that you couldn't see six months ago?</span>
+              </div>
+              <textarea class="writing-input repo-pad__turn" data-pad-turn="1" spellcheck="false" id="answer-turn"></textarea>
+            </div>
+          </div>
+          <footer class="repo-surface__foot is-visible" id="repo-pad-actions" data-thread-actions="1">
+            <button type="button" class="repo-surface__action repo-surface__action--secondary">Keep crafting</button>
+            <button type="button" class="repo-surface__action repo-surface__action--primary">This is everything</button>
+          </footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+    (function () {
+      var scroll = window.tinkerRepoWriteScroll;
+      function resize(ta) {
+        ta.style.height = "auto";
+        var minPx = parseFloat(getComputedStyle(ta).minHeight) || 0;
+        ta.style.height = Math.max(ta.scrollHeight || 0, minPx || 0, 48) + "px";
+      }
+      document.querySelectorAll("textarea.repo-pad__turn").forEach(resize);
+
+      var q = document.querySelector(".repo-pad__q");
+      var turns = document.querySelectorAll("textarea.repo-pad__turn");
+      var surface = document.getElementById("repo-surface");
+      var foot = document.getElementById("repo-pad-actions");
+      var ans = document.getElementById("answer-turn");
+      var prev = q.previousElementSibling;
+      var panelWrite = document.getElementById("repo-panel-write");
+
+      var params = new URLSearchParams(location.search);
+      if (params.get("short") === "1") {
+        document.body.classList.add("harness-short");
+      }
+
+      var scroller = scroll.findWriteScrollContainer(q);
+      var qTop = scroll.offsetTopWithin(q, scroller);
+      var prevBottom = scroll.offsetTopWithin(prev, scroller) + (prev.offsetHeight || 0);
+      var footReserve = Math.max(scroll.WRITE_SCROLL.PANEL_FOOT_RESERVE_PX, foot.offsetHeight + 16);
+      var top = scroll.computePanelQuestionScrollTop({
+        questionOffsetTop: qTop,
+        questionHeight: q.offsetHeight || 0,
+        prevOffsetBottom: prevBottom,
+        containerClientHeight: scroller.clientHeight || 0,
+        topPadding: scroll.WRITE_SCROLL.PANEL_TOP_PAD_PX,
+        bottomReserved: footReserve,
+        maxScroll: Math.max(0, scroller.scrollHeight - scroller.clientHeight),
+      });
+      scroller.scrollTop = top;
+      ans.focus();
+
+      function report() {
+        var qr = q.getBoundingClientRect();
+        var t0 = turns[0].getBoundingClientRect();
+        var fr = foot.getBoundingClientRect();
+        var sr = surface.getBoundingClientRect();
+        var essayQ = Math.max(0, Math.min(t0.bottom, qr.bottom) - Math.max(t0.top, qr.top));
+        var footQ = Math.max(0, Math.min(fr.bottom, qr.bottom) - Math.max(fr.top, qr.top));
+        var footEssay = Math.max(0, Math.min(fr.bottom, t0.bottom) - Math.max(fr.top, t0.top));
+        var latestVisible = t0.bottom > sr.top + 2 && t0.top < qr.top;
+        var qAboveFoot = footQ < 0.5;
+        var qInFlow = getComputedStyle(q).position === "static" && essayQ < 0.5;
+        var footOutside = !surface.contains(foot) && panelWrite.contains(foot);
+        var pass = qInFlow && footEssay < 0.5 && qAboveFoot && footOutside;
+        document.getElementById("measure").textContent = [
+          "panelH=" + document.getElementById("repo-panel").offsetHeight,
+          "lastMinH=" + getComputedStyle(ans).minHeight,
+          "q.position=" + getComputedStyle(q).position,
+          "foot.position=" + getComputedStyle(foot).position,
+          "footOutsideSurface=" + footOutside,
+          "overlap essay∩q=" + essayQ.toFixed(1),
+          "overlap foot∩q=" + footQ.toFixed(1),
+          "overlap foot∩essay=" + footEssay.toFixed(1),
+          "latestAboveQuestion=" + latestVisible,
+          "qAboveFoot=" + qAboveFoot,
+          "PASS=" + pass,
+        ].join("\n");
+        document.body.setAttribute("data-harness-pass", pass ? "1" : "0");
+      }
+      report();
+      requestAnimationFrame(report);
+    })();
+  </script>
+</body>
+</html>

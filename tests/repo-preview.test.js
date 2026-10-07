@@ -812,7 +812,12 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   const surfaceChunk = (html.match(/id="repo-surface"[\s\S]*?id="repo-panel-write"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*<\/section>/) ||
     html.match(/id="repo-panel-write"[\s\S]*?id="repo-surface"[\s\S]*?<\/div>\s*<\/div>/) ||
     [""])[0];
+  // Foot is a sibling of the scrolling surface (outside it) so it cannot cover text.
   assert.match(html, /id="repo-panel-write"[\s\S]*id="repo-surface"[\s\S]*id="repo-pad-actions"/);
+  assert.match(
+    html,
+    /id="repo-surface"[\s\S]*?<\/div>\s*<!--[^>]*-->\s*<footer[^>]*id="repo-pad-actions"/,
+  );
   assert.match(html, /id="repo-panel-write"[\s\S]*id="repo-keep-crafting"/);
   assert.match(html, /id="repo-panel-write"[\s\S]*id="repo-location"/);
   assert.match(html, /id="repo-panel-write"[\s\S]*id="repo-essay-view"/);
@@ -828,7 +833,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/lib\/stories-md\.js\?v=40"/);
   assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=40"/);
   assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=40"/);
-  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=40"/);
+  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=46"/);
   assert.match(html, /src="\/lib\/storage-path-core\.js\?v=40"/);
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
@@ -837,11 +842,11 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/exercises\/manifest\.js\?v=40"/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
   assert.doesNotMatch(html, /src="\/lib\/exercises-pick\.js/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=45"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=46"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=40"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=40"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=45"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=46"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
   assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
@@ -1045,10 +1050,31 @@ test("UI-contract: desktop Keep crafting pill bottom offset is max(48px, 8vh)", 
   assert.match(css, /\.repo-surface\.writing\s*\{[^}]*overflow:\s*visible/s);
   // Phone keeps the tight #453 floor (not the desktop raise).
   assert.match(css, /@media\s*\(max-width:\s*767px\)\s*\{[\s\S]*--repo-foot-floor:\s*12px/);
-  // Panel-hosted foot may be sticky; the default foot stays fixed.
+  // Panel-hosted foot is absolute beside the scrolling surface; default stays fixed.
   assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
-  assert.match(css, /\.repo-panel__write\s+\.repo-surface__foot\s*\{[^}]*position:\s*sticky/s);
+  assert.match(
+    css,
+    /\.repo-panel__write\s*>\s*\.repo-surface__foot\s*\{[^}]*position:\s*absolute/s,
+  );
   assert.doesNotMatch(css, /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*40px/s);
+  // Panel: question in normal flow; pad sizes to content (no collapse under foot).
+  assert.match(css, /--repo-panel-foot-clearance:\s*64px/);
+  assert.match(
+    css,
+    /\.repo-panel__write\s+\.repo-pad__q\s*\{[^}]*position:\s*static/s,
+  );
+  assert.match(
+    css,
+    /\.repo-panel__write\s+\.repo-pad__turn:last-of-type\s*\{[^}]*min-height:\s*6rem/s,
+  );
+  assert.match(
+    css,
+    /\.repo-panel__write\s+\.repo-pad\s*\{[^}]*flex:\s*0\s+0\s+auto/s,
+  );
+  assert.match(
+    css,
+    /\.repo-panel__write\s+\.repo-surface\.writing\s*\{[^}]*padding:\s*12px\s+20px\s+var\(--repo-panel-foot-clearance\)/s,
+  );
 });
 
 test("UI-contract: desktop action pill clears bottom essays panel (no right rail)", () => {

@@ -14,7 +14,7 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=40" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=45" />
+    <link rel="stylesheet" href="/repo/repo.css?v=46" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
     <!-- Mobile nav only: Learning Lab left + past essays right. Desktop labs live in the tab bar. -->
@@ -154,11 +154,12 @@
                     <button type="button" class="repo-pad-error__signin" id="repo-pad-error-signin" hidden>Sign in</button>
                   </div>
                 </div>
-                <footer class="repo-surface__foot" id="repo-pad-actions" data-thread-actions="1" aria-hidden="true">
-                  <button type="button" class="repo-surface__action repo-surface__action--secondary" id="repo-keep-crafting" tabindex="-1" aria-keyshortcuts="Meta+Enter Control+Enter">Keep crafting<span class="repo-surface__kbd" id="repo-keep-crafting-kbd" aria-hidden="true">⌘↵</span></button>
-                  <button type="button" class="repo-surface__action repo-surface__action--primary" id="repo-this-is-everything" tabindex="-1" disabled>This is everything</button>
-                </footer>
               </div>
+              <!-- Outside the scrolling surface so the bar never covers essay/question text. -->
+              <footer class="repo-surface__foot" id="repo-pad-actions" data-thread-actions="1" aria-hidden="true">
+                <button type="button" class="repo-surface__action repo-surface__action--secondary" id="repo-keep-crafting" tabindex="-1" aria-keyshortcuts="Meta+Enter Control+Enter">Keep crafting<span class="repo-surface__kbd" id="repo-keep-crafting-kbd" aria-hidden="true">⌘↵</span></button>
+                <button type="button" class="repo-surface__action repo-surface__action--primary" id="repo-this-is-everything" tabindex="-1" disabled>This is everything</button>
+              </footer>
             </div>
           </div>
         </section>
@@ -220,7 +221,7 @@
     <script src="/lib/stories-md.js?v=40"></script>
     <script src="/lib/repo-folders-core.js?v=40"></script>
     <script src="/lib/repo-pad-reveal.js?v=40"></script>
-    <script src="/lib/repo-write-scroll.js?v=40"></script>
+    <script src="/lib/repo-write-scroll.js?v=46"></script>
     <script src="/lib/storage-path-core.js?v=40"></script>
     <script src="/lib/fs-access-folder.js?v=40"></script>
     <script src="/lib/storage-adapters.js?v=40"></script>
@@ -228,7 +229,7 @@
     <script src="/lib/exercise-workspace-core.js?v=40"></script>
     <script src="/repo/exercise-workspace-ui.js?v=40"></script>
     <script src="/made-by-lindow-labs.js?v=45"></script>
-    <script src="/repo/repo.js?v=45"></script>
+    <script src="/repo/repo.js?v=46"></script>
     <script src="/repo/storage-section.js?v=40"></script>
   </body>
 </html>

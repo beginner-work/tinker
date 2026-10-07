@@ -111,3 +111,99 @@ test("focusLastPadTurn uses safe-area scroll math instead of crude caret scroll"
     /ta\.getBoundingClientRect\(\)\.bottom - \(window\.innerHeight \* 0\.72\)/,
   );
 });
+
+test("panel question scroll keeps prior text above the question and clears the foot", () => {
+  const clientH = 280;
+  const foot = 64;
+  const prevBottom = 200;
+  const questionOffsetTop = 210;
+  const questionHeight = 72;
+  const maxScroll = 600;
+  const top = scroll.computePanelQuestionScrollTop({
+    questionOffsetTop,
+    questionHeight,
+    prevOffsetBottom: prevBottom,
+    containerClientHeight: clientH,
+    topPadding: 8,
+    bottomReserved: foot,
+    maxScroll,
+  });
+  // Previous turn end sits at/near the top of the scrollport.
+  assert.equal(top, prevBottom - 8);
+  // Question fully above the foot reserve after scroll.
+  assert.ok(questionOffsetTop - top >= 0, "question not above scrollport");
+  assert.ok(
+    questionOffsetTop + questionHeight - top <= clientH - foot + 0.5,
+    "question clears sticky foot",
+  );
+  // Prior text is still in the visible band (not scrolled away under a fake safe-top).
+  assert.ok(prevBottom - top <= 16, "latest typed lines remain near the top");
+});
+
+test("panel scroll never covers essay text by parking at titlebar safe-top", () => {
+  // Short panel + tall prior turn: prefer showing prev bottom + question, not
+  // a 64px window safe-top that would clip mid-paragraph over the card.
+  const top = scroll.computePanelQuestionScrollTop({
+    questionOffsetTop: 400,
+    questionHeight: 80,
+    prevOffsetBottom: 390,
+    containerClientHeight: 278,
+    topPadding: 8,
+    bottomReserved: 64,
+    maxScroll: 900,
+  });
+  assert.equal(top, 382); // 390 - 8
+  assert.ok(400 - top > 8, "question below prior text in flow");
+  assert.ok(top !== 400 - 64, "must not use window titlebar safe-top math");
+});
+
+test("short panel prefers foot clearance when prior text + question cannot both fit", () => {
+  const clientH = 152;
+  const foot = 70;
+  const qTop = 246;
+  const qH = 70;
+  const top = scroll.computePanelQuestionScrollTop({
+    questionOffsetTop: qTop,
+    questionHeight: qH,
+    prevOffsetBottom: 236,
+    containerClientHeight: clientH,
+    topPadding: 8,
+    bottomReserved: foot,
+    maxScroll: 400,
+  });
+  assert.ok(
+    qTop + qH - top <= clientH - foot + 0.5,
+    "question stays above sticky foot in a short panel",
+  );
+  assert.ok(top >= qTop + qH - (clientH - foot) - 0.5);
+});
+
+test("bottom-panel CSS keeps question in flow and reserves foot clearance", () => {
+  assert.match(css, /--repo-panel-foot-clearance:\s*64px/);
+  assert.match(
+    css,
+    /\.repo-panel__write\s+\.repo-pad__turn:last-of-type\s*\{[^}]*min-height:\s*6rem/s,
+  );
+  assert.match(
+    css,
+    /\.repo-panel__write\s+\.repo-pad__q\s*\{[^}]*position:\s*static/s,
+  );
+  assert.match(
+    css,
+    /\.repo-panel__write\s+\.repo-pad\s*\{[^}]*flex:\s*0\s+0\s+auto/s,
+  );
+  assert.match(
+    css,
+    /\.repo-panel__write\s+\.repo-surface\.writing\s*\{[^}]*padding:\s*12px\s+20px\s+var\(--repo-panel-foot-clearance\)/s,
+  );
+  assert.match(
+    css,
+    /\.repo-panel__write\s*>\s*\.repo-surface__foot\s*\{[^}]*position:\s*absolute/s,
+  );
+  assert.match(
+    css,
+    /\.repo-panel__write\s+\.repo-location\s*\{[^}]*position:\s*relative/s,
+  );
+  assert.match(page, /computePanelQuestionScrollTop/);
+  assert.match(page, /findWriteScrollContainer/);
+});
