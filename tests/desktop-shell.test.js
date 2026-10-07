@@ -268,6 +268,10 @@ test("release marker matches package version; workflows publish on marker", () =
   assert.match(releaseYml, /APPLE_TEAM_ID/);
 });
 
+test("release publishing retries failed uploads", () => {
+  assert.match(releaseYml, /max_attempts=3[\s\S]*npx electron-builder --publish "\$publish_mode"[\s\S]*sleep "\$delay"/);
+});
+
 test("README documents Open Anyway and unsigned secrets", () => {
   assert.match(readme, /Open Anyway/);
   assert.match(readme, /unsigned/i);
