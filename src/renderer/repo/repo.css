@@ -1239,13 +1239,14 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-code {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  min-height: 240px;
-  margin: 12px auto 0;
+  min-height: 0;
+  margin: 0 auto;
   width: min(920px, 100%);
-  padding: 0 8px 48px;
+  padding: 8px 8px 48px;
+  box-sizing: border-box;
 }
 
 .repo-code[hidden] {
@@ -2569,6 +2570,12 @@ body.repo-page--write .repo-center {
   min-height: calc(100dvh - 160px);
   margin: 0;
   padding: 8px 4px 0;
+}
+
+/* Same [hidden] vs display:flex trap as .repo-location — without this the
+ * pad keeps eating the center column while an exercise file is open. */
+.repo-pad[hidden] {
+  display: none !important;
 }
 
 .repo-pad__turn {

@@ -93,9 +93,11 @@ test("Electron desktop app still loads the same production /repo web UI", () => 
   assert.doesNotMatch(mainJs, /loadFile\(/);
 });
 
-test("location pill stays hidden while the exercise code editor is open", () => {
+test("location pill and pad stay out of layout while the code editor is open", () => {
   assert.match(css, /\.repo-location\[hidden\]\s*\{[^}]*display:\s*none\s*!important/s);
+  assert.match(css, /\.repo-pad\[hidden\]\s*\{[^}]*display:\s*none\s*!important/s);
   assert.match(ui, /els\.location\)\s*els\.location\.hidden\s*=\s*!show/);
+  assert.match(ui, /els\.pad\)\s*els\.pad\.hidden\s*=\s*!show/);
 });
 
 test("exercise code editor is an invisible writing surface with syntax highlight", () => {
