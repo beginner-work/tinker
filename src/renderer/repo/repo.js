@@ -73,6 +73,8 @@
     followupAsked: [],
     followupQuestion: "",
     keepFinishedWriting: false,
+    // Mobile: full-screen essay list (same .repo-right tree as desktop).
+    mobileEssayList: false,
     // Read-view mount for saved essays (toggle always starts off per essay).
     essayReadMount: null,
     essayReadStoryId: null,
@@ -491,6 +493,7 @@
       return;
     }
     state.keepFinishedWriting = false;
+    setMobileEssayList(false);
     state.selectedId = id || null;
     state.selectedFolderId = null;
     if (els.code) els.code.hidden = true;
@@ -600,6 +603,8 @@
       }
       return;
     }
+    setMobileEssayList(false);
+    state.keepFinishedWriting = false;
     state.pieceCounter += 1;
     var now = new Date();
     var folderId = state.selectedFolderId || null;
@@ -735,6 +740,24 @@
       return !!(window.matchMedia && window.matchMedia("(max-width: 800px)").matches);
     } catch (e) {
       return false;
+    }
+  }
+
+  /** Mobile finish: show the desktop essays rail as a full-screen list. */
+  function setMobileEssayList(open) {
+    state.mobileEssayList = !!open && isWritePage;
+    try {
+      if (document.body) {
+        if (state.mobileEssayList) {
+          document.body.setAttribute("data-repo-essays-list", "1");
+        } else {
+          document.body.removeAttribute("data-repo-essays-list");
+        }
+      }
+    } catch (e) { /* ignore */ }
+    if (els.sidebarNewPiece) {
+      // New essay only when the mobile list is up (desktop pad stays open).
+      els.sidebarNewPiece.hidden = !state.mobileEssayList;
     }
   }
 
@@ -1380,8 +1403,9 @@
   }
 
   /**
-   * After a successful This is everything: keep the typed conversation on
-   * screen (no handoff chrome).
+   * After a successful This is everything:
+   * - Desktop: keep the typed conversation on screen (no handoff chrome).
+   * - Mobile (≤800px): open the essays list (same .repo-right tree).
    */
   function finishWritingAfterSave() {
     state.draft = null;
@@ -1393,9 +1417,16 @@
     clearPadError();
     clearPadIdleTimer();
     state.padActionsVisible = false;
-    state.keepFinishedWriting = true;
     hideEssayReadView();
     setPadActionsVisible(false);
+    if (isPhoneWriteWidth()) {
+      state.keepFinishedWriting = false;
+      if (els.body && !padHasFocus()) setPadMarkdown("");
+      setMobileEssayList(true);
+    } else {
+      state.keepFinishedWriting = true;
+      setMobileEssayList(false);
+    }
     render();
   }
 
@@ -3425,6 +3456,7 @@
       return out;
     },
     arePadActionsVisible: function () { return !!state.padActionsVisible; },
+    isMobileEssayListOpen: function () { return !!state.mobileEssayList; },
     getFollowupQuestion: function () { return state.followupQuestion || ""; },
     showPadError: showPadError,
     showPadNotice: showPadNotice,
