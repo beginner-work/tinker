@@ -301,6 +301,12 @@ html.tinker-desktop .repo-top [role="button"] {
   pointer-events: none;
 }
 
+/* Author display:flex beats the UA [hidden] rule; hide explicitly when
+ * the exercise code editor owns the surface. */
+.repo-location[hidden] {
+  display: none !important;
+}
+
 .repo-location__globe {
   width: 14px;
   height: 14px;
