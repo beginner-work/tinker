@@ -351,8 +351,8 @@ test("repo page wires New folder, Move to sheet, and cache-busted assets", () =>
   assert.match(html, /repo\.js\?v=35/);
   assert.match(html, /repo\.css\?v=35/);
   assert.match(writeHtml, /storage-section\.js\?v=40/);
-  assert.match(writeHtml, /repo\.css\?v=41/);
-  assert.match(writeHtml, /repo\.js\?v=40/);
+  assert.match(writeHtml, /repo\.css\?v=42/);
+  assert.match(writeHtml, /repo\.js\?v=42/);
   assert.doesNotMatch(writeHtml, /id="repo-files-link"/);
   assert.match(css, /min-height:\s*44px/);
   assert.match(css, /\.repo-sheet/);
