@@ -9,8 +9,9 @@
 
   var core = window.tinkerExerciseWorkspaceCore;
   var manifest = window.tinkerExercisesManifest;
-  var highlight = window.tinkerRepoCodeHighlight;
+  var cmApi = window.tinkerCodeMirror;
   if (!core) return;
+  var cmEditor = null;
 
   var TOKEN_KEY = "tinker_jwt";
   var state = {
@@ -65,8 +66,6 @@
       code: $("repo-code"),
       codePath: $("repo-code-path"),
       codeSurface: $("repo-code-surface"),
-      codeHighlight: $("repo-code-highlight"),
-      codeHighlightCode: $("repo-code-highlight-code"),
       codeEditor: $("repo-code-editor"),
       codeSave: $("repo-code-save"),
       codeStatus: $("repo-code-status"),
@@ -170,11 +169,14 @@
     if (els.pad) els.pad.hidden = !show;
     if (els.location) els.location.hidden = !show;
     if (els.code) els.code.hidden = show;
+    if (els.layout) els.layout.classList.toggle("is-code-open", !show);
+    if (document.body) document.body.classList.toggle("repo-code-open", !show);
     if (!show && els.essayView) els.essayView.hidden = true;
     if (!show && els.padActions) {
       els.padActions.classList.remove("is-visible");
       els.padActions.setAttribute("aria-hidden", "true");
     }
+    if (show) destroyCm();
   }
 
   function activeFileName() {
@@ -187,32 +189,49 @@
     return node && node.name ? node.name : "";
   }
 
-  function syncHighlight() {
-    if (!els.codeEditor || !highlight) return;
-    var name = activeFileName();
-    var prose = highlight.isProseFile(name);
-    var language = prose ? null : highlight.languageFor(name);
-    if (els.code) {
-      els.code.classList.toggle("repo-code--prose", !!prose);
-      els.code.classList.toggle("repo-code--code", !prose);
+  function destroyCm() {
+    if (cmEditor && typeof cmEditor.destroy === "function") {
+      try { cmEditor.destroy(); } catch (e) { /* ignore */ }
     }
-    if (els.codeEditor) {
-      els.codeEditor.spellcheck = !!prose;
-    }
-    if (els.codeHighlightCode) {
-      if (prose) {
-        els.codeHighlightCode.textContent = "";
-      } else {
-        highlight.paint(els.codeHighlightCode, els.codeEditor.value, language);
-      }
-    }
-    syncHighlightScroll();
+    cmEditor = null;
+    if (els.codeSurface) clear(els.codeSurface);
   }
 
-  function syncHighlightScroll() {
-    if (!els.codeEditor || !els.codeHighlight) return;
-    els.codeHighlight.scrollTop = els.codeEditor.scrollTop;
-    els.codeHighlight.scrollLeft = els.codeEditor.scrollLeft;
+  function ensureCm(fileName, content) {
+    if (!els.codeSurface || !cmApi || typeof cmApi.create !== "function") return null;
+    if (!cmEditor) {
+      clear(els.codeSurface);
+      cmEditor = cmApi.create(els.codeSurface, {
+        fileName: fileName,
+        doc: content || "",
+        onChange: function () {
+          state.dirty = true;
+          if (els.codeEditor) els.codeEditor.value = cmEditor.getValue();
+          if (els.codeStatus) {
+            els.codeStatus.hidden = false;
+            text(els.codeStatus, "Unsaved changes");
+          }
+        },
+      });
+    } else {
+      cmEditor.setFileName(fileName);
+      // Avoid clobbering in-progress typing when already focused.
+      var focused = cmEditor.view && cmEditor.view.hasFocus;
+      if (!focused) cmEditor.setValue(content || "");
+    }
+    if (els.codeEditor) els.codeEditor.value = content || "";
+    if (els.code) {
+      var md = cmApi.isMarkdownFile ? cmApi.isMarkdownFile(fileName) : /\.md$/i.test(fileName);
+      els.code.classList.toggle("repo-code--prose", !!md);
+      els.code.classList.toggle("repo-code--code", !md);
+    }
+    return cmEditor;
+  }
+
+  function editorContent() {
+    if (cmEditor && typeof cmEditor.getValue === "function") return cmEditor.getValue();
+    if (els.codeEditor) return els.codeEditor.value;
+    return "";
   }
 
   function openFile(exerciseId, nodeId) {
@@ -237,8 +256,8 @@
     state.selected = { exerciseId: exerciseId, nodeId: nodeId };
     state.dirty = false;
     render();
-    if (els.codeEditor && typeof els.codeEditor.focus === "function") {
-      try { els.codeEditor.focus(); } catch (e) { /* ignore */ }
+    if (cmEditor && typeof cmEditor.focus === "function") {
+      try { cmEditor.focus(); } catch (e) { /* ignore */ }
     }
   }
 
@@ -334,10 +353,7 @@
     }
     showWritingChrome(false);
     text(els.codePath, (state.workspace.exercises[tab.exerciseId] || {}).name + " / " + node.name);
-    if (els.codeEditor && document.activeElement !== els.codeEditor) {
-      els.codeEditor.value = node.content || "";
-    }
-    syncHighlight();
+    ensureCm(node.name, node.content || "");
     if (els.codeStatus) {
       if (state.status) {
         els.codeStatus.hidden = false;
@@ -711,8 +727,8 @@
     state.openTabs.forEach(function (t) {
       if (t.id === state.activeTabId) tab = t;
     });
-    if (!tab || !els.codeEditor) return;
-    var content = els.codeEditor.value;
+    if (!tab) return;
+    var content = editorContent();
     persistMutation(
       "write_file",
       { exerciseId: tab.exerciseId, nodeId: tab.nodeId, content: content },
@@ -746,17 +762,6 @@
     if (els.newFile) els.newFile.addEventListener("click", function () { createNode("file"); });
     if (els.newFolder) els.newFolder.addEventListener("click", function () { createNode("folder"); });
     if (els.codeSave) els.codeSave.addEventListener("click", saveActiveFile);
-    if (els.codeEditor) {
-      els.codeEditor.addEventListener("input", function () {
-        state.dirty = true;
-        syncHighlight();
-        if (els.codeStatus) {
-          els.codeStatus.hidden = false;
-          text(els.codeStatus, "Unsaved changes");
-        }
-      });
-      els.codeEditor.addEventListener("scroll", syncHighlightScroll);
-    }
     if (els.confirmDelete) els.confirmDelete.addEventListener("click", confirmDelete);
     if (els.confirmCancel) els.confirmCancel.addEventListener("click", closeConfirm);
     if (els.confirmBackdrop) els.confirmBackdrop.addEventListener("click", closeConfirm);
