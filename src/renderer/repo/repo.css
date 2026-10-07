@@ -3189,9 +3189,13 @@ body.repo-page--write .repo-center {
     max-height: none;
     border: 0;
     box-sizing: border-box;
-    gap: 16px;
-    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px
-      calc(24px + env(safe-area-inset-bottom, 0px));
+    gap: 12px;
+    /* Clear Learning Lab nav (~50px) + Essays head (~56px). */
+    padding:
+      calc(118px + env(safe-area-inset-top, 0px))
+      calc(16px + env(safe-area-inset-right, 0px))
+      calc(24px + env(safe-area-inset-bottom, 0px))
+      calc(16px + env(safe-area-inset-left, 0px));
     background:
       radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
       radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
@@ -3202,6 +3206,7 @@ body.repo-page--write .repo-center {
   /* Keep Learning Lab + past-essays nav above the full-screen list. */
   body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
     z-index: 45;
+    background: var(--color-background);
   }
 
   /* Promote panel-head actions into the mobile essays list, under the nav. */
@@ -3222,10 +3227,6 @@ body.repo-page--write .repo-center {
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-panel__collapse {
     display: none !important;
-  }
-
-  body.repo-page--write[data-repo-essays-list="1"] .repo-right {
-    padding-top: calc(118px + env(safe-area-inset-top, 0px));
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-tree__head--mobile {
@@ -3249,7 +3250,7 @@ body.repo-page--write .repo-center {
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-changes {
-    flex: 0 0 auto;
+    display: none;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-panel__write,
@@ -3262,11 +3263,6 @@ body.repo-page--write .repo-center {
   body.repo-page--write[data-repo-essays-list="1"] .repo-pad-error,
   body.repo-page--write[data-repo-essays-list="1"] .repo-location {
     display: none !important;
-  }
-
-  /* Keep Lindow Labs visible; clear the tree actions so New essay is tappable. */
-  body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
-    z-index: 45;
   }
 
   body.repo-page--write .repo-center {
