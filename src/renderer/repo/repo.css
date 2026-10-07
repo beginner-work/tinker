@@ -74,38 +74,59 @@ body.repo-page--files {
   min-height: 0;
 }
 
-/* Write page: fixed top-right Lindow Labs link (outside the pad / footer). */
+/* Mobile-only top nav (Learning Lab left + past essays). Hidden on desktop. */
 .repo-top--labs {
-  position: fixed;
-  top: 0;
-  right: 0;
-  left: auto;
-  z-index: 40;
-  justify-content: flex-end;
-  gap: 0;
-  margin: 0;
-  padding: calc(10px + env(safe-area-inset-top, 0px))
-    calc(14px + env(safe-area-inset-right, 0px)) 8px 14px;
-  border-bottom: 0;
-  background: transparent;
-  pointer-events: none;
-  min-height: 0;
+  display: none;
+}
+
+/* Past essays is mobile-only; desktop uses the bottom essays panel. */
+.repo-top__past-essays {
+  display: none;
+}
+
+/* Desktop: Learning Lab lives in the tab bar's reserved right slot. */
+.repo-ide-tabbar {
+  display: none;
 }
 
 .repo-top__labs {
   pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--color-muted);
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.01em;
+  line-height: 1.2;
   flex-shrink: 0;
-  padding: 4px 2px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.repo-top__labs-label {
+  line-height: 1.2;
+}
+
+.repo-top__labs-icon {
+  display: block;
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  opacity: 0.85;
 }
 
 .repo-top__labs:hover,
 .repo-top__labs:focus-visible {
   color: var(--color-foreground);
+}
+
+.repo-top__labs:hover .repo-top__labs-icon,
+.repo-top__labs:focus-visible .repo-top__labs-icon {
+  opacity: 1;
 }
 
 .repo-top__labs:focus-visible {
@@ -133,13 +154,6 @@ html[data-tinker-desktop] .repo-top,
 html.tinker-desktop .repo-top {
   padding-left: var(--tinker-desktop-traffic-inset, 78px);
   -webkit-app-region: drag;
-}
-
-/* Labs chrome is fixed top-right — do not inherit traffic-light left inset. */
-html[data-tinker-desktop] .repo-top--labs,
-html.tinker-desktop .repo-top--labs {
-  padding-left: 14px;
-  -webkit-app-region: no-drag;
 }
 
 html[data-tinker-desktop] .repo-top a,
@@ -804,14 +818,15 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-layout--write {
-  /* Desktop IDE: explorer | editor | essays. Mobile collapses via max-width:800px. */
+  /* Desktop IDE: explorer | editor (essays live in the bottom panel). */
   --repo-explorer-rail: 240px;
-  --repo-panel-height: 0px;
+  --repo-panel-height: 35vh;
+  --repo-panel-height: 35dvh;
   --repo-tabs-height: 40px;
+  --repo-essays-rail: 0px;
   grid-template-columns:
     var(--repo-explorer-rail, 240px)
-    minmax(0, 1fr)
-    minmax(260px, var(--repo-essays-rail, 320px));
+    minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   min-height: calc(100vh - 72px);
   min-height: calc(100dvh - 72px);
@@ -824,8 +839,11 @@ html.tinker-desktop .repo-top [role="button"] {
   --repo-explorer-rail: 0px;
   grid-template-columns:
     0
-    minmax(0, 1fr)
-    minmax(260px, var(--repo-essays-rail, 320px));
+    minmax(0, 1fr);
+}
+
+.repo-layout--write.is-panel-collapsed {
+  --repo-panel-height: 0px;
 }
 
 /* IDE center column: tabs + pad + bottom panel. */
@@ -836,6 +854,85 @@ html.tinker-desktop .repo-top [role="button"] {
   flex-direction: column;
   overflow: hidden;
   background: transparent;
+}
+
+/* Desktop tab bar: scrolling tabs + reserved Learning Lab slot (same 40px row). */
+@media (min-width: 801px) {
+  .repo-ide-tabbar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    min-height: var(--repo-tabs-height, 40px);
+    height: var(--repo-tabs-height, 40px);
+    border-bottom: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-background) 88%, var(--color-accent, #a5b4fc) 12%);
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+    position: relative;
+    z-index: 14;
+    overflow: hidden;
+  }
+
+  .repo-ide-tabbar .repo-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    min-height: var(--repo-tabs-height, 40px);
+    height: var(--repo-tabs-height, 40px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 0;
+    background: transparent;
+    /* Do not stack above the labs slot. */
+    position: relative;
+    z-index: 0;
+    isolation: auto;
+    scrollbar-width: thin;
+  }
+
+  .repo-ide-tabbar .repo-tabs[hidden] {
+    display: flex !important;
+    /* Empty strip still reserves the left flex area so labs stay right. */
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .repo-ide-tabbar__labs {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    position: relative;
+    z-index: 2;
+    min-width: 132px;
+    padding: 0 16px 0 14px;
+    margin-left: 0;
+    border-left: 1px solid color-mix(in srgb, var(--color-border) 85%, var(--color-foreground) 15%);
+    /* Opaque so scrolling tabs cannot show through the reserved slot. */
+    background: var(--color-background);
+    box-shadow: -10px 0 14px -10px rgba(45, 42, 38, 0.18);
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .repo-ide-tabbar__labs .repo-top__labs {
+    pointer-events: auto;
+  }
+
+  /* Electron: tab bar sits below the 36px titlebar; clear traffic lights when
+     the explorer is collapsed so the first tab is not under the lights. */
+  html[data-tinker-desktop] .repo-layout--write.is-explorer-collapsed .repo-ide-tabbar,
+  html.tinker-desktop .repo-layout--write.is-explorer-collapsed .repo-ide-tabbar {
+    padding-left: var(--tinker-desktop-traffic-inset, 78px);
+  }
 }
 
 .repo-tabs {
@@ -853,29 +950,13 @@ html.tinker-desktop .repo-top [role="button"] {
   border-bottom: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-background) 88%, var(--color-accent, #a5b4fc) 12%);
   -webkit-app-region: no-drag;
-  /* Sit above the fixed write-safe-top fade so labels/close are not clipped. */
   position: relative;
-  z-index: 14;
-  isolation: isolate;
+  z-index: 1;
   scrollbar-width: thin;
 }
 
 .repo-tabs[hidden] {
   display: none !important;
-}
-
-/* Electron hiddenInset: clear traffic lights for the tab strip.
-   Collapsed explorer: tabs start at the window left edge.
-   Explorer open: still pad so a narrow rail cannot cover the first tab. */
-html[data-tinker-desktop] .repo-layout--write .repo-tabs,
-html.tinker-desktop .repo-layout--write .repo-tabs {
-  padding-left: var(--tinker-desktop-traffic-inset, 78px);
-}
-
-html[data-tinker-desktop] .repo-layout--write:not(.is-explorer-collapsed) .repo-tabs,
-html.tinker-desktop .repo-layout--write:not(.is-explorer-collapsed) .repo-tabs {
-  /* Explorer already clears the lights; keep a small gutter only. */
-  padding-left: 0;
 }
 
 /* Electron: drop the whole IDE below the traffic-light / drag strip so the
@@ -892,13 +973,7 @@ html.tinker-desktop .repo-layout--write .repo-explorer {
   padding-top: 12px;
 }
 
-html[data-tinker-desktop] .repo-layout--write .repo-right,
-html.tinker-desktop .repo-layout--write .repo-right {
-  padding-top: 12px;
-  /* Parent already reserved the titlebar band; don't force 100vh overflow. */
-  height: 100%;
-  max-height: 100%;
-}
+/* Essays list sits inside the bottom panel — no full-height right rail. */
 
 html[data-tinker-desktop] .repo-explorer__expand,
 html.tinker-desktop .repo-explorer__expand {
@@ -1379,28 +1454,33 @@ html.tinker-desktop .repo-explorer__expand {
   display: none !important;
 }
 
-/* When a code file owns the center: fill the column, kill essay pad chrome. */
-body.repo-code-open .repo-surface.writing,
-.repo-layout--write.is-code-open .repo-surface.writing {
+/* Code editor fills the top pane; essay writing stays in the bottom panel. */
+body.repo-code-open #repo-editor-main,
+.repo-layout--write.is-code-open #repo-editor-main {
   flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
-  max-height: 100%;
-  padding: 0;
+  height: auto;
   overflow: hidden;
 }
 
-body.repo-code-open .repo-center.repo-write-safe-top,
-.repo-layout--write.is-code-open .repo-center.repo-write-safe-top {
+body.repo-code-open .repo-code-host,
+.repo-layout--write.is-code-open .repo-code-host {
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+}
+
+body.repo-code-open .repo-editor-empty,
+.repo-layout--write.is-code-open .repo-editor-empty {
+  display: none !important;
 }
 
 /* Fade overlay must not cover tabs or the code editor. */
-body.repo-code-open .repo-center.repo-write-safe-top::before,
-.repo-layout--write.is-code-open .repo-center.repo-write-safe-top::before {
+body.repo-code-open #repo-editor-main.repo-write-safe-top::before,
+.repo-layout--write.is-code-open #repo-editor-main.repo-write-safe-top::before {
   display: none !important;
 }
 
@@ -1423,7 +1503,7 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
     overflow: hidden;
   }
 
-  .repo-layout--write.is-code-open .repo-ide-center > .repo-center {
+  .repo-layout--write.is-code-open .repo-ide-center > #repo-editor-main {
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
@@ -1466,58 +1546,275 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
     max-height: 100%;
   }
 
-  .repo-layout--write .repo-ide-center > .repo-center {
+  .repo-layout--write .repo-ide-center > #repo-editor-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+/* Panel head structure shared by desktop panel + mobile essays sheet. */
+.repo-panel__head-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.repo-panel__head-row--title {
+  flex: 0 1 auto;
+  justify-content: flex-start;
+}
+
+.repo-panel__close {
+  display: none;
+}
+
+/* ===== Desktop bottom essays panel (VS Code-style) ===== */
+.repo-panel {
+  display: none;
+}
+
+@media (min-width: 801px) {
+  .repo-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    height: var(--repo-panel-height, 35vh);
+    max-height: 70vh;
+    max-height: 70dvh;
+    min-height: 140px;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-background);
+    overflow: hidden;
+    position: relative;
+    z-index: 12;
+  }
+
+  .repo-layout--write.is-panel-collapsed .repo-panel {
+    height: 0;
+    min-height: 0;
+    max-height: 0;
+    border-top: 0;
+    overflow: hidden;
+  }
+
+  .repo-layout--write.is-panel-collapsed .repo-panel__expand {
+    display: inline-flex;
+  }
+
+  .repo-panel__resize {
+    flex: 0 0 5px;
+    height: 5px;
+    margin-top: -3px;
+    cursor: ns-resize;
+    touch-action: none;
+    -webkit-app-region: no-drag;
+    position: relative;
+    z-index: 2;
+  }
+
+  .repo-panel__resize::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 1px;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 3px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-border) 80%, var(--color-muted));
+  }
+
+  .repo-panel__resize:hover::after,
+  .repo-panel__resize:focus-visible::after {
+    background: var(--color-accent-strong, #6366f1);
+  }
+
+  .repo-panel__head {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex: 0 0 auto;
+    height: 36px;
+    padding: 0 10px 0 14px;
+    border-bottom: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-background) 90%, var(--color-accent, #a5b4fc) 10%);
+    -webkit-app-region: no-drag;
+  }
+
+  .repo-panel__title {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  .repo-panel__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .repo-panel__collapse {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin-left: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface, var(--color-background));
+    color: var(--color-muted);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .repo-panel__collapse:hover,
+  .repo-panel__collapse:focus-visible {
+    color: var(--color-accent-strong, #4f46e5);
+    border-color: var(--color-accent, #a5b4fc);
+  }
+
+  .repo-panel__expand {
+    display: none;
+    position: absolute;
+    right: 16px;
+    bottom: 10px;
+    z-index: 20;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-background) 94%, transparent);
+    color: var(--color-muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+    box-shadow: 0 4px 14px rgba(45, 42, 38, 0.1);
+  }
+
+  .repo-panel__expand:hover,
+  .repo-panel__expand:focus-visible {
+    color: var(--color-foreground);
+    border-color: var(--color-accent, #a5b4fc);
+  }
+
+  .repo-panel__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .repo-panel .repo-right {
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 10px 12px;
+    border: 0;
+    border-right: 1px solid var(--color-border);
+    background: transparent;
+    position: relative;
+    resize: none;
+  }
+
+  .repo-panel .repo-tree {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .repo-panel .repo-tree__head--mobile {
+    display: none;
+  }
+
+  .repo-panel .repo-tree__body {
     flex: 1 1 auto;
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
   }
-}
 
-.repo-layout--write .repo-right {
-  position: sticky;
-  top: 0;
-  align-self: stretch;
-  height: 100vh;
-  height: 100dvh;
-  max-height: 100vh;
-  max-height: 100dvh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  box-sizing: border-box;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  resize: horizontal;
-}
+  .repo-panel .repo-changes {
+    flex: 0 0 auto;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+  }
 
-.repo-layout--write .repo-right .repo-tree {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
+  .repo-panel__write {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
 
-.repo-layout--write .repo-right .repo-tree__head {
-  flex: 0 0 auto;
-  /* Clear the fixed top-right Lindow Labs link so New folder stays tappable. */
-  padding-right: 108px;
-  box-sizing: border-box;
-}
+  .repo-panel__write .repo-surface.writing {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 12px 20px 72px;
+  }
 
-.repo-layout--write .repo-right .repo-tree__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
+  .repo-panel__write .repo-pad {
+    min-height: 0;
+  }
 
-.repo-layout--write .repo-right .repo-changes {
-  flex: 0 0 auto;
-  flex-shrink: 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-border);
+  .repo-code-host {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
+      radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
+      var(--color-background);
+  }
+
+  .repo-editor-empty {
+    margin: auto;
+    padding: 24px;
+    max-width: 28rem;
+    text-align: center;
+    color: var(--color-muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  #repo-editor-main {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #repo-editor-main .repo-code {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+  }
 }
 
 .repo-layout--files {
@@ -1571,8 +1868,8 @@ body.repo-page--write .repo-center.repo-write-safe-top::before {
   position: fixed;
   top: 0;
   left: 0;
-  /* Writing column only; essays rail stays unmasked on desktop. */
-  width: calc(100vw - var(--repo-essays-rail, 320px));
+  /* Writing / editor column (no right essays rail on desktop). */
+  width: 100vw;
   max-width: 100%;
   height: var(--repo-write-safe-top, 64px);
   /* Below .repo-location (z-index 12) so the place pill stays sharp. */
@@ -2410,10 +2707,12 @@ body.repo-page--write .repo-center {
 :root {
   --repo-foot-floor: max(48px, 8vh);
   --repo-foot-floor: max(48px, 8dvh);
-  --repo-essays-rail: 320px;
+  /* No right essays rail on desktop — essays live in the bottom panel. */
+  --repo-essays-rail: 0px;
   --repo-explorer-rail: 240px;
   --repo-foot-gutter: 24px;
-  --repo-panel-height: 0px;
+  --repo-panel-height: 35vh;
+  --repo-panel-height: 35dvh;
 }
 
 .repo-surface__foot {
@@ -2421,8 +2720,8 @@ body.repo-page--write .repo-center {
   align-self: auto;
   margin: 0;
   margin-left: auto;
-  /* Editor-column right edge: essays rail + inner gutter (#456 parity). */
-  right: calc(var(--repo-essays-rail) + var(--repo-foot-gutter));
+  /* Full-width editor column; sit above the bottom essays panel. */
+  right: var(--repo-foot-gutter);
   left: auto;
   z-index: 30;
   display: flex;
@@ -2445,6 +2744,18 @@ body.repo-page--write .repo-center {
   );
   top: auto;
   transform: translateY(8px);
+}
+
+/* When the panel hosts the writing surface, keep the action island inside it. */
+@media (min-width: 801px) {
+  .repo-panel__write .repo-surface__foot {
+    position: sticky;
+    bottom: 12px;
+    right: auto;
+    align-self: flex-end;
+    margin-top: 12px;
+    z-index: 5;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2734,10 +3045,82 @@ body.repo-page--write .repo-center {
     padding: calc(26px + env(safe-area-inset-top, 0px)) 12px 10px 12px;
   }
 
+  /* Mobile nav: Learning Lab top-left, past-essays icon top-right. */
   .repo-top--labs {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 40;
     flex-wrap: nowrap;
-    padding: calc(10px + env(safe-area-inset-top, 0px))
-      calc(12px + env(safe-area-inset-right, 0px)) 8px 12px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    min-height: calc(44px + env(safe-area-inset-top, 0px));
+    height: auto;
+    max-height: none;
+    padding: calc(6px + env(safe-area-inset-top, 0px))
+      calc(10px + env(safe-area-inset-right, 0px))
+      6px
+      calc(10px + env(safe-area-inset-left, 0px));
+    border-bottom: 0;
+    background: transparent;
+    pointer-events: none;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+
+  .repo-ide-tabbar {
+    display: none !important;
+  }
+
+  .repo-top__labs {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 8px;
+    font-size: 14px;
+  }
+
+  .repo-top__past-essays {
+    display: inline-flex;
+    pointer-events: auto;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--color-muted);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .repo-top__past-essays:hover,
+  .repo-top__past-essays:focus-visible {
+    color: var(--color-foreground);
+    background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
+  }
+
+  .repo-top__past-essays:focus-visible {
+    outline: 2px solid var(--color-accent-strong, #4f46e5);
+    outline-offset: 2px;
+  }
+
+  .repo-top__past-essays-icon {
+    display: block;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-top__past-essays {
+    color: var(--color-accent-strong, #4f46e5);
   }
 
   .repo-top__branch,
@@ -2807,8 +3190,37 @@ body.repo-page--write .repo-center {
     padding: 12px;
   }
 
-  /* Mobile write: keep the structure panel off the pad — use Files.
-     After This is everything, data-repo-essays-list opens it full-screen. */
+  /* Mobile: unwrap the bottom panel so the pad is the only surface. */
+  .repo-panel {
+    display: contents;
+  }
+
+  .repo-panel__resize,
+  .repo-panel__collapse,
+  .repo-panel__expand,
+  .repo-editor-empty,
+  .repo-code-host,
+  #repo-editor-main {
+    display: none !important;
+  }
+
+  .repo-panel__head {
+    display: none;
+  }
+
+  .repo-panel__body,
+  .repo-panel__write {
+    display: contents;
+  }
+
+  .repo-tree__head--mobile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  /* Mobile write: keep the essays list off the pad until This is everything. */
   .repo-layout--write .repo-right,
   body.repo-page--write .repo-right {
     display: none;
@@ -2829,14 +3241,127 @@ body.repo-page--write .repo-center {
     max-height: none;
     border: 0;
     box-sizing: border-box;
-    gap: 16px;
-    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px
-      calc(24px + env(safe-area-inset-bottom, 0px));
+    gap: 12px;
+    /* Clear Learning Lab nav (~50px) + title/close + actions rows. */
+    padding:
+      calc(210px + env(safe-area-inset-top, 0px))
+      calc(16px + env(safe-area-inset-right, 0px))
+      calc(24px + env(safe-area-inset-bottom, 0px))
+      calc(16px + env(safe-area-inset-left, 0px));
     background:
       radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
       radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
       var(--color-background);
     overflow: hidden;
+  }
+
+  /* Keep Learning Lab + past-essays nav above the full-screen list. */
+  body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
+    z-index: 45;
+    background: var(--color-background);
+  }
+
+  /* Mobile essays sheet: title+close row, then New folder/New essay, then list. */
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__head {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    position: fixed;
+    top: calc(50px + env(safe-area-inset-top, 0px));
+    left: 0;
+    right: 0;
+    z-index: 40;
+    height: auto;
+    gap: 20px;
+    padding: 12px 16px 18px;
+    background:
+      radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
+      var(--color-background);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__head-row--title {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 44px;
+    gap: 12px;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 22px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    text-transform: none;
+    color: var(--color-foreground);
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__collapse {
+    display: none !important;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--color-muted);
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__close:hover,
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__close:focus-visible {
+    color: var(--color-foreground);
+    background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-top: 0;
+    margin-left: 0;
+    padding: 0;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__actions .repo-tree__new {
+    min-height: 40px;
+    padding: 0 14px;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-tree__body {
+    padding-top: 8px;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-tree__piece-row {
+    min-height: 52px;
+    align-items: center;
+    padding: 6px 0;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-tree__piece {
+    min-height: 44px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-tree__head--mobile {
+    display: none;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-tree {
@@ -2856,10 +3381,11 @@ body.repo-page--write .repo-center {
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-changes {
-    flex: 0 0 auto;
+    display: none;
   }
 
-  body.repo-page--write[data-repo-essays-list="1"] .repo-center {
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__write,
+  body.repo-page--write[data-repo-essays-list="1"] #repo-surface {
     visibility: hidden;
     pointer-events: none;
   }
@@ -2868,15 +3394,6 @@ body.repo-page--write .repo-center {
   body.repo-page--write[data-repo-essays-list="1"] .repo-pad-error,
   body.repo-page--write[data-repo-essays-list="1"] .repo-location {
     display: none !important;
-  }
-
-  /* Keep Lindow Labs visible; clear the tree actions so New essay is tappable. */
-  body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
-    z-index: 45;
-  }
-
-  body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-tree__head {
-    padding-right: 96px;
   }
 
   body.repo-page--write .repo-center {

@@ -807,13 +807,15 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /repo-pad__mirror/);
   assert.doesNotMatch(html, />Write</);
   assert.match(html, /id="repo-surface"[\s\S]*id="repo-location"/);
-  // Action bar lives inside the writing surface (sticky bottom-right).
+  // Action bar lives inside the bottom-panel writing surface.
   assert.match(html, /id="repo-pad-actions"/);
-  const surfaceChunk = (html.match(/id="repo-surface"[\s\S]*?<\/div>\s*<\/main>/) || [""])[0];
-  assert.match(surfaceChunk, /id="repo-pad-actions"/);
-  assert.match(surfaceChunk, /id="repo-keep-crafting"/);
-  assert.match(surfaceChunk, /id="repo-location"/);
-  assert.match(surfaceChunk, /id="repo-essay-view"/);
+  const surfaceChunk = (html.match(/id="repo-surface"[\s\S]*?id="repo-panel-write"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*<\/section>/) ||
+    html.match(/id="repo-panel-write"[\s\S]*?id="repo-surface"[\s\S]*?<\/div>\s*<\/div>/) ||
+    [""])[0];
+  assert.match(html, /id="repo-panel-write"[\s\S]*id="repo-surface"[\s\S]*id="repo-pad-actions"/);
+  assert.match(html, /id="repo-panel-write"[\s\S]*id="repo-keep-crafting"/);
+  assert.match(html, /id="repo-panel-write"[\s\S]*id="repo-location"/);
+  assert.match(html, /id="repo-panel-write"[\s\S]*id="repo-essay-view"/);
   // Write page has no top-right account / Sign out / Download chrome.
   assert.doesNotMatch(html, /id="repo-account-label"/);
   assert.doesNotMatch(html, />Sign out</);
@@ -831,15 +833,15 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
-  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=40"/);
+  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=45"/);
   assert.match(html, /src="\/exercises\/manifest\.js\?v=40"/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
   assert.doesNotMatch(html, /src="\/lib\/exercises-pick\.js/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=40"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=45"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=40"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=40"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=41"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=45"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
   assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
@@ -847,7 +849,10 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-explorer"/);
   assert.match(html, /id="repo-ex-new-file"/);
   assert.match(html, /id="repo-code"/);
-  assert.doesNotMatch(html, /id="repo-panel"/);
+  assert.match(html, /id="repo-panel"/);
+  assert.match(html, /id="repo-panel-write"/);
+  assert.match(html, /id="repo-past-essays"/);
+  assert.match(html, /aria-label="Past essays"/);
   assert.match(html, /id="repo-tabs"/);
   assert.match(html, /id="repo-ide-center"/);
   assert.doesNotMatch(html, /\u2014/);
@@ -906,11 +911,10 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /-webkit-fill-available/);
   assert.match(css, /env\(safe-area-inset-bottom/);
   assert.match(css, /--repo-keyboard-inset/);
-  assert.match(css, /\.repo-layout--write\s+\.repo-right\s*\{[^}]*position:\s*sticky/s);
-  assert.match(css, /\.repo-layout--write\s+\.repo-right\s*\{[^}]*overflow:\s*hidden/s);
-  assert.match(css, /\.repo-layout--write\s+\.repo-right\s+\.repo-tree__body\s*\{[^}]*overflow-y:\s*auto/s);
-  assert.match(css, /\.repo-layout--write\s+\.repo-right\s+\.repo-changes\s*\{[^}]*flex-shrink:\s*0/s);
-  assert.match(css, /\.repo-layout--write\s+\.repo-right/);
+  assert.match(css, /\.repo-panel\s+\.repo-right\s*\{[^}]*overflow:\s*hidden/s);
+  assert.match(css, /\.repo-panel\s+\.repo-tree__body\s*\{[^}]*overflow-y:\s*auto/s);
+  assert.match(css, /\.repo-panel\s+\.repo-changes\s*\{[^}]*flex:\s*0\s+0\s+auto/s);
+  assert.match(css, /\.repo-panel\s+\.repo-right/);
   assert.match(css, /body\.repo-page--write\s+\.repo-right\s*\{[^}]*display:\s*none/s);
   assert.match(css, /\.repo-saved-in/);
   // Files page still uses auth header; write page has none.
@@ -986,34 +990,26 @@ function repoFootFloorPx(viewportHeight) {
   return Math.max(48, Math.round(0.08 * viewportHeight));
 }
 
-/** Desktop essays rail + foot gutter — mirrors --repo-essays-rail / --repo-foot-gutter. */
+/** Desktop foot gutter — essays are in the bottom panel (no right rail). */
 function repoFootSidebarGeometry(viewportWidth, viewportHeight, footWidthPx = 280) {
-  const sidebarHidden = viewportWidth <= 800;
-  const rail = sidebarHidden ? 0 : 320;
-  const gutter = sidebarHidden ? 12 : 24;
+  const rail = 0;
+  const gutter = viewportWidth <= 800 ? 12 : 24;
   const rightInset = rail + gutter;
   const footRight = viewportWidth - rightInset;
   const footLeft = footRight - footWidthPx;
-  const sidebarLeft = sidebarHidden ? null : viewportWidth - rail;
-  const sidebarRight = sidebarHidden ? null : viewportWidth;
-  const intersects =
-    !sidebarHidden &&
-    footRight > sidebarLeft &&
-    footLeft < sidebarRight;
-  const clearancePx = sidebarHidden ? null : sidebarLeft - footRight;
   return {
     viewportWidth,
     viewportHeight,
-    sidebarVisible: !sidebarHidden,
+    sidebarVisible: false,
     rail,
     gutter,
     rightInset,
     footLeft,
     footRight,
-    sidebarLeft,
-    sidebarRight,
-    clearancePx,
-    intersects,
+    sidebarLeft: null,
+    sidebarRight: null,
+    clearancePx: null,
+    intersects: false,
     floorPx: repoFootFloorPx(viewportHeight),
   };
 }
@@ -1049,25 +1045,28 @@ test("UI-contract: desktop Keep crafting pill bottom offset is max(48px, 8vh)", 
   assert.match(css, /\.repo-surface\.writing\s*\{[^}]*overflow:\s*visible/s);
   // Phone keeps the tight #453 floor (not the desktop raise).
   assert.match(css, /@media\s*\(max-width:\s*767px\)\s*\{[\s\S]*--repo-foot-floor:\s*12px/);
-  assert.doesNotMatch(css, /\.repo-surface__foot\s*\{[^}]*position:\s*sticky/s);
+  // Panel-hosted foot may be sticky; the default foot stays fixed.
+  assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
+  assert.match(css, /\.repo-panel__write\s+\.repo-surface__foot\s*\{[^}]*position:\s*sticky/s);
   assert.doesNotMatch(css, /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*40px/s);
 });
 
-test("UI-contract: desktop action pill never intersects essays sidebar", () => {
-  // Shared rail token: grid track + fixed foot right offset.
-  assert.match(css, /--repo-essays-rail:\s*320px/);
+test("UI-contract: desktop action pill clears bottom essays panel (no right rail)", () => {
+  // Essays live in the bottom panel; right rail stays 0.
+  assert.match(css, /--repo-essays-rail:\s*0px/);
   assert.match(css, /--repo-foot-gutter:\s*24px/);
+  assert.match(css, /--repo-panel-height:\s*35vh/);
   assert.match(
     css,
-    /\.repo-layout--write\s*\{[^}]*minmax\(\s*260px,\s*var\(--repo-essays-rail(?:,\s*320px)?\)/s,
+    /\.repo-layout--write\s*\{[^}]*minmax\(\s*0,\s*1fr\)/s,
   );
   assert.match(
     css,
-    /\.repo-surface__foot\s*\{[^}]*right:\s*calc\(\s*var\(--repo-essays-rail\)\s*\+\s*var\(--repo-foot-gutter\)\s*\)/s,
+    /\.repo-surface__foot\s*\{[^}]*right:\s*var\(--repo-foot-gutter\)/s,
   );
   assert.match(
     css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*--repo-essays-rail:\s*0px/,
+    /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*var\(--repo-foot-floor\)\s*\+\s*var\(--repo-panel-height,\s*0px\)/s,
   );
 
   for (const [w, h] of [
@@ -1076,16 +1075,10 @@ test("UI-contract: desktop action pill never intersects essays sidebar", () => {
     [1024, 600],
   ]) {
     const geo = repoFootSidebarGeometry(w, h);
-    assert.equal(geo.sidebarVisible, true, `${w}x${h} sidebar visible`);
+    assert.equal(geo.sidebarVisible, false, `${w}x${h} no right essays rail`);
     assert.equal(geo.intersects, false, `${w}x${h} no intersection`);
-    assert.ok(
-      geo.clearancePx >= 24,
-      `${w}x${h} clearance ${geo.clearancePx}px >= 24px gutter`,
-    );
-    assert.ok(
-      geo.footRight <= geo.sidebarLeft,
-      `${w}x${h} footRight ${geo.footRight} <= sidebarLeft ${geo.sidebarLeft}`,
-    );
+    assert.equal(geo.rail, 0, `${w}x${h} rail is 0`);
+    assert.ok(geo.footRight < w, `${w}x${h} foot stays in viewport`);
   }
 });
 
@@ -1264,35 +1257,64 @@ test("write page has no top-right account / Sign out / Download chrome", () => {
   assert.match(html, /placeholder="Where are you\?"/);
 });
 
-test("write page Lindow Labs link is fixed top-right chrome, not under writing", () => {
-  const MADE_BY_URL =
-    "https://lindowlabs.dev/?utm_source=tinker&utm_campaign=made-by";
+test("write page Learning Lab sits in tab-bar slot; mobile keeps top nav", () => {
+  const LEARNING_LAB_URL = "https://lindowlabs.dev/learning";
   assert.match(html, /id="repo-labs-link"/);
+  assert.match(html, /id="repo-ide-tabbar"/);
+  assert.match(html, /repo-ide-tabbar__labs/);
   assert.match(html, /repo-top--labs/);
   assert.match(html, /class="repo-top__labs"/);
   assert.ok(
-    html.replace(/&amp;/g, "&").includes(MADE_BY_URL),
-    "Labs link must use the existing lindowlabs.dev made-by URL",
+    html.replace(/&amp;/g, "&").includes(LEARNING_LAB_URL),
+    "Learning Lab link must use the learning dashboard URL",
   );
-  assert.match(html, /data-made-by-lindow-labs/);
+  assert.match(html, /data-learning-lab/);
   assert.match(html, /target="_blank"/);
-  assert.match(html, /rel="noopener"/);
-  assert.match(html, />Lindow Labs</);
-  // Outside the writing surface / pad / grok handoff zone.
+  assert.match(html, /rel="noopener noreferrer"/);
+  assert.match(html, />Learning Lab</);
+  assert.match(html, /id="repo-past-essays"/);
+  assert.match(html, /aria-label="Past essays"/);
+  assert.match(html, /id="repo-panel-close"/);
+  // Desktop labs live in the tab bar, not under the writing pad.
   const beforeSurface = html.slice(0, html.indexOf('id="repo-surface"'));
   assert.match(beforeSurface, /id="repo-labs-link"/);
-  const surfaceChunk = (html.match(/id="repo-surface"[\s\S]*?<\/div>\s*<\/main>/) || [""])[0];
+  assert.match(beforeSurface, /id="repo-ide-tabbar"/);
+  const surfaceChunk = (html.match(/id="repo-panel-write"[\s\S]*?id="repo-surface"[\s\S]*?<\/div>\s*<\/div>/) || [""])[0];
   assert.doesNotMatch(surfaceChunk, /id="repo-labs-link"/);
   assert.doesNotMatch(surfaceChunk, /repo-top--labs/);
   assert.doesNotMatch(surfaceChunk, /id="repo-grok-handoff"/);
   assert.doesNotMatch(surfaceChunk, /id="repo-exercise-rec"/);
-  assert.match(css, /\.repo-top--labs\s*\{[^}]*position:\s*fixed/s);
-  assert.match(css, /\.repo-top--labs\s*\{[^}]*right:\s*0/s);
   assert.match(css, /\.repo-top__labs/);
-  // Desktop essays head clears Labs so New folder is not covered.
+  assert.match(css, /\.repo-top__past-essays/);
+  assert.match(css, /\.repo-ide-tabbar__labs/);
+  // Desktop: past essays hidden; labs reserved in the 40px tab row.
+  assert.match(css, /\.repo-top__past-essays\s*\{[^}]*display:\s*none/s);
   assert.match(
     css,
-    /\.repo-layout--write\s+\.repo-right\s+\.repo-tree__head\s*\{[^}]*padding-right:\s*108px/s,
+    /@media\s*\(min-width:\s*801px\)\s*\{[\s\S]*\.repo-ide-tabbar\s*\{[^}]*display:\s*flex/s,
+  );
+  assert.match(
+    css,
+    /@media\s*\(min-width:\s*801px\)\s*\{[\s\S]*\.repo-ide-tabbar__labs\s*\{[^}]*border-left/s,
+  );
+  // Mobile: Learning Lab left + past essays right; desktop mobile-nav hidden.
+  assert.match(css, /\.repo-top--labs\s*\{[^}]*display:\s*none/s);
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-top--labs\s*\{[^}]*display:\s*flex/s,
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-top__past-essays\s*\{[^}]*display:\s*inline-flex/s,
+  );
+  // Mobile past-essays sheet: title+close, then actions on their own row.
+  assert.match(
+    css,
+    /body\.repo-page--write\[data-repo-essays-list="1"\]\s+\.repo-panel__head\s*\{[^}]*flex-direction:\s*column/s,
+  );
+  assert.match(
+    css,
+    /body\.repo-page--write\[data-repo-essays-list="1"\]\s+\.repo-panel__close\s*\{[^}]*display:\s*inline-flex/s,
   );
 });
 

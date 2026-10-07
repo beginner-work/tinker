@@ -57,16 +57,23 @@ test("made-by opener uses the desktop openExternal bridge", () => {
   assert.match(sw, /made-by-lindow-labs\.js/);
 });
 
-test("write page wires Made by opener for the top-right Labs link", () => {
+test("write page wires Learning Lab opener (not under writing)", () => {
+  const LEARNING_LAB_URL = "https://lindowlabs.dev/learning";
   const html = fs.readFileSync(path.join(RENDERER, "repo", "index.html"), "utf8");
+  const src = fs.readFileSync(path.join(RENDERER, "made-by-lindow-labs.js"), "utf8");
   assert.match(html, /id="repo-labs-link"/);
-  assert.ok(html.includes("Lindow Labs"));
+  assert.ok(html.includes("Learning Lab"));
   assert.ok(
-    decodeAmp(html).includes(MADE_BY_URL),
-    "write page Labs link must use the exact Lindow Labs URL with utm params",
+    decodeAmp(html).includes(LEARNING_LAB_URL),
+    "write page Learning Lab link must use the learning dashboard URL",
   );
-  assert.match(html, /data-made-by-lindow-labs/);
+  assert.match(html, /data-learning-lab/);
   assert.match(html, /made-by-lindow-labs\.js/);
+  assert.match(html, /id="repo-past-essays"/);
+  assert.match(html, /aria-label="Past essays"/);
+  assert.ok(src.includes(LEARNING_LAB_URL));
+  assert.match(src, /LEARNING_LAB_URL/);
+  assert.match(src, /data-learning-lab/);
   // Must not sit under/after the writing surface.
   const beforeSurface = html.slice(0, html.indexOf('id="repo-surface"'));
   assert.match(beforeSurface, /id="repo-labs-link"/);

@@ -1,13 +1,16 @@
-/* made-by-lindow-labs.js — quiet credit link to lindowlabs.dev.
+/* made-by-lindow-labs.js — quiet credit + Learning Lab external links.
  *
- * Wires [data-made-by-lindow-labs] anchors so the Mac app uses
- * window.tinker.openExternal (same bridge as open-beginner / wallet).
- * On the web, the normal target=_blank navigation is left alone.
+ * Wires [data-learning-lab] and [data-made-by-lindow-labs] anchors so the
+ * Mac app uses window.tinker.openExternal (shell.openExternal). On the web,
+ * normal target=_blank navigation is left alone.
  */
 (function () {
   "use strict";
 
-  var URL =
+  /** Stytch login for the Lindow Labs Learning dashboard. Hostname is easy to swap. */
+  var LEARNING_LAB_URL = "https://lindowlabs.dev/learning";
+
+  var MADE_BY_URL =
     "https://lindowlabs.dev/?utm_source=tinker&utm_campaign=made-by";
 
   function openExternal(u) {
@@ -18,12 +21,18 @@
     return false;
   }
 
+  function urlFor(anchor) {
+    if (!anchor) return MADE_BY_URL;
+    if (anchor.hasAttribute("data-learning-lab")) return LEARNING_LAB_URL;
+    return MADE_BY_URL;
+  }
+
   function onClick(event) {
     var a = event.target && event.target.closest
-      ? event.target.closest("[data-made-by-lindow-labs]")
+      ? event.target.closest("[data-learning-lab], [data-made-by-lindow-labs]")
       : null;
     if (!a) return;
-    if (openExternal(URL)) {
+    if (openExternal(urlFor(a))) {
       event.preventDefault();
     }
   }
@@ -40,5 +49,9 @@
     }
   }
 
-  window.tinkerMadeByLindowLabs = { url: URL, openExternal: openExternal };
+  window.tinkerMadeByLindowLabs = {
+    url: MADE_BY_URL,
+    learningLabUrl: LEARNING_LAB_URL,
+    openExternal: openExternal,
+  };
 })();
