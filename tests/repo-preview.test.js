@@ -340,6 +340,9 @@ function bootRepoPage(options) {
   byId["repo-new-folder"].tagName = "BUTTON";
   byId["repo-new-piece"].tagName = "BUTTON";
   byId["repo-sidebar-new-piece"].tagName = "BUTTON";
+  byId["repo-sidebar-new-piece"].textContent = "New essay";
+  byId["repo-sidebar-new-piece"].className = "repo-tree__new repo-tree__new--essay";
+  byId["repo-sidebar-new-piece"].hidden = true;
   byId["repo-move-sheet"].hidden = true;
   byId["repo-confirm-sheet"].hidden = true;
   byId["repo-file-type"].hidden = true;
@@ -423,6 +426,20 @@ function bootRepoPage(options) {
     navigator: opts.navigator || {
       platform: opts.platform || "MacIntel",
       userAgent: opts.userAgent || "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    },
+    matchMedia(query) {
+      const q = String(query || "");
+      const phone = !!opts.phoneWidth;
+      const matches = /\(max-width:\s*800px\)/.test(q) ? phone : false;
+      return {
+        matches,
+        media: q,
+        addListener() {},
+        removeListener() {},
+        addEventListener() {},
+        removeEventListener() {},
+        dispatchEvent() { return false; },
+      };
     },
     localStorage: {
       getItem(key) {
@@ -757,7 +774,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=36/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=37/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -806,24 +823,27 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=36"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=36"/);
-  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=36"/);
-  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=36"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=36"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=37"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=37"/);
+  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=37"/);
+  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=37"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=37"/);
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
-  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=36"/);
+  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=37"/);
   assert.doesNotMatch(html, /src="\/exercises\/manifest\.js/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
   assert.doesNotMatch(html, /src="\/lib\/exercises-pick\.js/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=36"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=36"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=36"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=36"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=36"/);
-  assert.match(html, /href="\/styles\.css\?v=36"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=37"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=37"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=37"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=37"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=37"/);
+  assert.match(html, /href="\/styles\.css\?v=37"/);
+  assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
+  assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
+  assert.match(css, /data-repo-essays-list="1"/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -1899,6 +1919,8 @@ test("This is everything button click saves, keeps writing visible, and lists th
   assert.equal(env.byId["repo-pad-error"].hidden, true);
   assert.doesNotMatch(String(env.byId["repo-pad-error-text"].textContent || ""), /Saved|Saving/);
   assert.equal(env.window.tinkerRepo.arePadActionsVisible(), false);
+  assert.equal(env.window.tinkerRepo.isMobileEssayListOpen(), false);
+  assert.equal(env.document.body.getAttribute("data-repo-essays-list"), null);
   const stories = env.window.tinkerRepo.getStories();
   assert.ok(stories.length >= 1);
   assert.equal(stories[0].id, puts[0][0].id);
@@ -1936,6 +1958,124 @@ test("finished writing stays until the founder types again", async () => {
     target: env.byId["repo-body"],
   });
   assert.match(String(env.byId["repo-body"].value || ""), /Next piece/);
+});
+
+test("mobile This is everything opens the full-screen essay list", async () => {
+  const puts = [];
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: false,
+    phoneWidth: true,
+    mode: "write",
+    onPutEssays(list) { puts.push(list); },
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.byId["repo-body"].value = "Phone finish lands on essays.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  env.byId["repo-this-is-everything"].dispatch("click", {
+    type: "click",
+    target: env.byId["repo-this-is-everything"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(puts.length, 1);
+  assert.equal(env.window.tinkerRepo.isMobileEssayListOpen(), true);
+  assert.equal(env.document.body.getAttribute("data-repo-essays-list"), "1");
+  assert.equal(env.byId["repo-sidebar-new-piece"].hidden, false);
+  assert.match(String(env.byId["repo-sidebar-new-piece"].textContent || ""), /New essay/);
+  const treeText = String(env.byId["repo-tree"].textContent || "");
+  assert.match(treeText, /Phone finish lands on essays/i);
+  assert.doesNotMatch(treeText, /\u2014/);
+});
+
+test("mobile essay list opens a tapped essay", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: false,
+    phoneWidth: true,
+    mode: "write",
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.byId["repo-body"].value = "Open me from the list.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  env.byId["repo-this-is-everything"].dispatch("click", {
+    type: "click",
+    target: env.byId["repo-this-is-everything"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.isMobileEssayListOpen(), true);
+  const stories = env.window.tinkerRepo.getStories();
+  assert.ok(stories.length >= 1);
+  const saved = stories.find((s) => /Open me from the list/i.test(String(s.title || s.body || "")));
+  assert.ok(saved, "saved essay should be in the list");
+  const pieces = env.byId["repo-tree"].querySelectorAll(".repo-tree__piece");
+  const piece = pieces.find((el) => {
+    const id = el.getAttribute && el.getAttribute("data-story-id");
+    return id === saved.id || /Open me from the list/i.test(String(el.textContent || ""));
+  });
+  assert.ok(piece, "tree should include the finished essay");
+  piece.dispatch("click", {
+    type: "click",
+    target: piece,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.isMobileEssayListOpen(), false);
+  assert.equal(env.document.body.getAttribute("data-repo-essays-list"), null);
+  assert.equal(env.byId["repo-sidebar-new-piece"].hidden, true);
+  assert.match(String(env.byId["repo-file-path"].textContent || ""), /Open me from the list/i);
+});
+
+test("mobile essay list New essay starts a blank draft", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: false,
+    phoneWidth: true,
+    mode: "write",
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.byId["repo-body"].value = "Then start a new essay.";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  env.byId["repo-this-is-everything"].dispatch("click", {
+    type: "click",
+    target: env.byId["repo-this-is-everything"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.isMobileEssayListOpen(), true);
+  assert.equal(env.byId["repo-sidebar-new-piece"].hidden, false);
+  env.byId["repo-sidebar-new-piece"].dispatch("click", {
+    type: "click",
+    target: env.byId["repo-sidebar-new-piece"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.isMobileEssayListOpen(), false);
+  assert.equal(env.document.body.getAttribute("data-repo-essays-list"), null);
+  assert.equal(env.byId["repo-sidebar-new-piece"].hidden, true);
+  // New draft selected; pad is writable again.
+  assert.equal(env.byId["repo-essay-view"].hidden, true);
 });
 
 test("This is everything failed save keeps the editor text and shows an inline error", async () => {
