@@ -131,7 +131,10 @@ test("exercise editor uses CodeMirror with a full-column invisible surface", () 
 });
 
 test("open-file tabs stay fully visible above the write-safe fade", () => {
-  assert.match(css, /\.repo-ide-tabbar\s*\{[^}]*z-index:\s*14/s);
+  assert.match(
+    css,
+    /@media\s*\(min-width:\s*801px\)\s*\{[\s\S]*\.repo-ide-tabbar\s*\{[^}]*z-index:\s*14/s,
+  );
   assert.match(css, /--repo-tabs-height:\s*40px/);
   assert.match(css, /\.repo-tabs\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(css, /body\.repo-code-open[\s\S]*\.repo-center\.repo-write-safe-top::before[\s\S]*display:\s*none\s*!important/);
