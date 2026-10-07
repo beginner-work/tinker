@@ -873,7 +873,7 @@ html.tinker-desktop .repo-top [role="button"] {
     app-region: no-drag;
     position: relative;
     z-index: 14;
-    isolation: isolate;
+    overflow: hidden;
   }
 
   .repo-ide-tabbar .repo-tabs {
@@ -883,12 +883,17 @@ html.tinker-desktop .repo-top [role="button"] {
     gap: 0;
     flex: 1 1 auto;
     min-width: 0;
+    max-width: 100%;
     min-height: var(--repo-tabs-height, 40px);
     height: var(--repo-tabs-height, 40px);
     overflow-x: auto;
     overflow-y: hidden;
     border-bottom: 0;
     background: transparent;
+    /* Do not stack above the labs slot. */
+    position: relative;
+    z-index: 0;
+    isolation: auto;
     scrollbar-width: thin;
   }
 
@@ -905,9 +910,13 @@ html.tinker-desktop .repo-top [role="button"] {
     align-items: center;
     justify-content: center;
     align-self: stretch;
-    padding: 0 12px 0 10px;
+    position: relative;
+    z-index: 2;
+    padding: 0 14px 0 12px;
     border-left: 1px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-background) 92%, var(--color-accent, #a5b4fc) 8%);
+    /* Opaque so scrolling tabs cannot show through the reserved slot. */
+    background: var(--color-background);
+    box-shadow: -8px 0 12px -8px rgba(45, 42, 38, 0.12);
     -webkit-app-region: no-drag;
     app-region: no-drag;
   }
@@ -940,8 +949,7 @@ html.tinker-desktop .repo-top [role="button"] {
   background: color-mix(in srgb, var(--color-background) 88%, var(--color-accent, #a5b4fc) 12%);
   -webkit-app-region: no-drag;
   position: relative;
-  z-index: 14;
-  isolation: isolate;
+  z-index: 1;
   scrollbar-width: thin;
 }
 
@@ -1543,6 +1551,23 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
   }
 }
 
+/* Panel head structure shared by desktop panel + mobile essays sheet. */
+.repo-panel__head-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.repo-panel__head-row--title {
+  flex: 0 1 auto;
+  justify-content: flex-start;
+}
+
+.repo-panel__close {
+  display: none;
+}
+
 /* ===== Desktop bottom essays panel (VS Code-style) ===== */
 .repo-panel {
   display: none;
@@ -1618,18 +1643,6 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
     -webkit-app-region: no-drag;
   }
 
-  .repo-panel__head-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-  }
-
-  .repo-panel__head-row--title {
-    flex: 0 1 auto;
-    justify-content: flex-start;
-  }
-
   .repo-panel__title {
     margin: 0;
     font-size: 11px;
@@ -1645,10 +1658,6 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
     gap: 6px;
     flex: 0 0 auto;
     margin-left: auto;
-  }
-
-  .repo-panel__close {
-    display: none;
   }
 
   .repo-panel__collapse {
@@ -3270,13 +3279,17 @@ body.repo-page--write .repo-center {
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-panel__head-row--title {
+    display: flex;
     width: 100%;
     justify-content: space-between;
     align-items: center;
     min-height: 44px;
+    gap: 12px;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-panel__title {
+    flex: 1 1 auto;
+    min-width: 0;
     font-size: 22px;
     font-weight: 650;
     letter-spacing: -0.02em;
