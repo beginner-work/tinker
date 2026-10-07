@@ -1277,21 +1277,176 @@ html.tinker-desktop .repo-top [role="button"] {
   cursor: pointer;
 }
 
-.repo-code__editor {
+/* Invisible code surface: same chrome-free look as essay .writing-input /
+   .repo-pad__turn. Highlighted tokens live in a synced <pre> under the
+   transparent textarea so the caret and selection stay native. */
+.repo-code__surface {
+  position: relative;
   flex: 1;
   min-height: 320px;
   width: 100%;
+}
+
+.repo-code__highlight,
+.repo-code__editor {
   box-sizing: border-box;
+  width: 100%;
+  min-height: 320px;
   margin: 0;
-  padding: 14px 16px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-background);
+  padding: 4px 12px 48px;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: 0;
+  white-space: pre;
+  word-wrap: normal;
+  overflow-wrap: normal;
+  tab-size: 2;
+  overflow: auto;
+}
+
+.repo-code__highlight {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: transparent;
   color: var(--color-foreground);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  resize: vertical;
+  scrollbar-width: none;
+}
+
+.repo-code__highlight::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.repo-code__highlight code {
+  display: block;
+  font: inherit;
+  color: inherit;
+  white-space: inherit;
+  tab-size: inherit;
+}
+
+.repo-code__editor {
+  position: relative;
+  z-index: 1;
+  display: block;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--color-foreground);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.repo-code__editor:hover,
+.repo-code__editor:focus,
+.repo-code__editor:focus-visible,
+.repo-code__editor:active {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.repo-code__editor::selection {
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 35%, transparent);
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.repo-code__editor::-moz-selection {
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 35%, transparent);
+  color: transparent;
+}
+
+/* Markdown / plain text: essay-like prose, no highlight overlay. */
+.repo-code--prose .repo-code__highlight {
+  display: none;
+}
+
+.repo-code--prose .repo-code__editor {
+  color: var(--color-foreground);
+  -webkit-text-fill-color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.repo-code--prose .repo-code__editor:hover,
+.repo-code--prose .repo-code__editor:focus,
+.repo-code--prose .repo-code__editor:focus-visible,
+.repo-code--prose .repo-code__editor:active {
+  color: var(--color-foreground);
+  -webkit-text-fill-color: var(--color-foreground);
+}
+
+/* Subtle Prism tokens on Tinker's light page — not a dark IDE panel. */
+.repo-code__highlight .token.comment,
+.repo-code__highlight .token.prolog,
+.repo-code__highlight .token.doctype,
+.repo-code__highlight .token.cdata {
+  color: #8a8178;
+  font-style: italic;
+}
+
+.repo-code__highlight .token.punctuation {
+  color: #6b6560;
+}
+
+.repo-code__highlight .token.property,
+.repo-code__highlight .token.tag,
+.repo-code__highlight .token.boolean,
+.repo-code__highlight .token.number,
+.repo-code__highlight .token.constant,
+.repo-code__highlight .token.symbol,
+.repo-code__highlight .token.deleted,
+.repo-code__highlight .token.atrule,
+.repo-code__highlight .token.keyword,
+.repo-code__highlight .token.important {
+  color: #2f6f4e;
+}
+
+.repo-code__highlight .token.selector,
+.repo-code__highlight .token.attr-name,
+.repo-code__highlight .token.string,
+.repo-code__highlight .token.char,
+.repo-code__highlight .token.builtin,
+.repo-code__highlight .token.inserted,
+.repo-code__highlight .token.atrule .token.rule {
+  color: #9a5b2e;
+}
+
+.repo-code__highlight .token.operator,
+.repo-code__highlight .token.entity,
+.repo-code__highlight .token.url,
+.repo-code__highlight .token.variable {
+  color: #3d5a80;
+}
+
+.repo-code__highlight .token.function,
+.repo-code__highlight .token.class-name {
+  color: #3b6ea5;
+}
+
+.repo-code__highlight .token.regex,
+.repo-code__highlight .token.important {
+  color: #a15c38;
+}
+
+.repo-code__highlight .token.key {
+  color: #2f6f4e;
 }
 
 .repo-code__status {

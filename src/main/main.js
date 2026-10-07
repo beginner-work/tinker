@@ -467,12 +467,9 @@ app.whenReady().then(() => {
 
   installDesktopCachePolicy(ses);
 
-  const icon = appIconPath();
-  if (process.platform === "darwin" && app.dock && fs.existsSync(icon)) {
-    const img = nativeImage.createFromPath(icon);
-    if (!img.isEmpty()) app.dock.setIcon(img);
-  }
-
+  // On macOS, leave the Dock icon alone so the bundled .icns keeps the
+  // system squircle mask. Runtime setIcon with a square/rounded PNG is what
+  // made the active Dock tile look like a raw square.
   buildAppMenu();
   createWindow();
 
@@ -502,15 +499,17 @@ ipcMain.handle("app:openExternal", (_event, url) => {
   return true;
 });
 
-// Renderer (or production icon-init) may hand a PNG data URL for the dock.
+// Renderer (or production icon-init) may hand a PNG data URL for the
+// window / taskbar icon. On macOS we never override the Dock — the
+// packaged .icns already has the correct mask.
 ipcMain.handle("app:setIcon", (_event, dataUrl) => {
   if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/png")) {
     return false;
   }
   const img = nativeImage.createFromDataURL(dataUrl);
   if (img.isEmpty()) return false;
-  if (process.platform === "darwin" && app.dock) {
-    app.dock.setIcon(img);
+  if (process.platform === "darwin") {
+    return true;
   }
   for (const w of BrowserWindow.getAllWindows()) {
     w.setIcon(img);

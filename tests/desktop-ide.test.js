@@ -92,3 +92,27 @@ test("Electron desktop app still loads the same production /repo web UI", () => 
   assert.match(mainJs, /loadURL\(/);
   assert.doesNotMatch(mainJs, /loadFile\(/);
 });
+
+test("exercise code editor is an invisible writing surface with syntax highlight", () => {
+  assert.match(html, /id="repo-code-editor"/);
+  assert.match(html, /class="writing-input repo-code__editor"/);
+  assert.match(html, /id="repo-code-highlight"/);
+  assert.match(html, /\/lib\/repo-code-highlight\.js/);
+  assert.match(html, /prism-languages\.min\.js/);
+  assert.match(css, /\.repo-code__editor\s*\{[^}]*border:\s*0/s);
+  assert.match(css, /\.repo-code__editor\s*\{[^}]*background:\s*transparent/s);
+  assert.match(css, /\.repo-code__editor\s*\{[^}]*color:\s*transparent/s);
+  assert.match(css, /\.repo-code--prose/);
+  assert.match(css, /\.repo-code__highlight \.token\.keyword/);
+  assert.match(ui, /syncHighlight|tinkerRepoCodeHighlight/);
+  assert.match(ui, /isProseFile/);
+  assert.doesNotMatch(css, /\.repo-code__editor\s*\{[^}]*border:\s*1px solid/s);
+});
+
+test("macOS Dock keeps the bundled icon mask (no runtime square override)", () => {
+  const iconInit = fs.readFileSync(path.join(root, "src/renderer/icon-init.js"), "utf8");
+  assert.match(iconInit, /platform === ["']darwin["']/);
+  assert.match(iconInit, /return;/);
+  assert.doesNotMatch(mainJs, /app\.dock\.setIcon/);
+  assert.match(mainJs, /process\.platform === ["']darwin["'][\s\S]*return true/);
+});
