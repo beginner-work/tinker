@@ -368,6 +368,58 @@ a.sidebar__secondary-link { display: inline; }
   background: var(--color-accent-dim, #eef2ff);
   border-color: var(--color-accent, #a5b4fc);
 }
+/* You-row profile coin: initials on the front; empty dotted circle on the
+ * reverse. Same 36×36 footprint as .messages-rail__avatar so the flip lands
+ * on a reserved placeholder slot (no second avatar, no filled content). */
+.messages-rail__coin {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  perspective: 320px;
+  -webkit-perspective: 320px;
+}
+.messages-rail__coin-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transition: transform 0.45s ease;
+}
+.messages-rail__coin:hover .messages-rail__coin-inner,
+.messages-rail__coin:focus-within .messages-rail__coin-inner,
+.messages-rail__coin--flipped .messages-rail__coin-inner {
+  transform: rotateY(180deg);
+}
+.messages-rail__coin-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.messages-rail__coin .messages-rail__avatar.messages-rail__coin-face--front {
+  position: absolute;
+  inset: 0;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+}
+.messages-rail__coin-slot,
+.messages-rail__coin-face--back {
+  display: block;
+  box-sizing: border-box;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px dotted var(--color-muted, #6f6a65);
+  background: transparent;
+  transform: rotateY(180deg);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .messages-rail__coin-inner { transition: none; }
+}
 .messages-rail__row--reading {
   border: 1px solid transparent;
 }

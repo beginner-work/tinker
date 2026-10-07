@@ -54,6 +54,26 @@ test("You row and header use the owner profile name, not the brand label", () =>
   assert.equal(/GTM approach/i.test(demo), false);
 });
 
+test("You-row profile coin reverse face is an empty dotted-circle placeholder slot", () => {
+  assert.match(shell, /messages-rail__coin/);
+  assert.match(shell, /messages-rail__coin-inner/);
+  assert.match(shell, /messages-rail__coin-slot/);
+  assert.match(shell, /data-messages-coin-slot/);
+  assert.match(shell, /messages-rail__coin-face--back/);
+  // Front still paints owner initials; reverse has no filled content.
+  assert.match(shell, /fillOwnerMark\(avatar\)/);
+  const slotBlock = shell.match(/messages-rail__coin-slot[\s\S]{0,400}/);
+  assert.ok(slotBlock, "expected coin-slot markup in renderYouRow");
+  assert.equal(/fillOwnerMark|fillInitials|textContent/.test(slotBlock[0]), false);
+  assert.match(css, /\.messages-rail__coin\s*\{/);
+  assert.match(css, /\.messages-rail__coin-slot/);
+  assert.match(css, /border:\s*2px dotted/);
+  assert.match(css, /rotateY\(180deg\)/);
+  assert.match(css, /\.messages-rail__coin--flipped/);
+  // Flip is hover/focus-within only — selectYou click wiring unchanged.
+  assert.match(shell, /btn\.addEventListener\(\s*["']click["']\s*,\s*function\s*\(\)\s*\{\s*selectYou\(\)/);
+});
+
 test("You selection hosts writing notepad inside messages pane", () => {
   assert.match(you, /tinkerMessagesYou/);
   assert.match(you, /writing--in-messages/);

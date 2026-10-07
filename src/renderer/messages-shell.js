@@ -899,8 +899,20 @@
       "data-conv-id": YOU_ID,
       "aria-current": state.selectedId === YOU_ID ? "true" : "false",
     });
-    var avatar = el("span", "messages-rail__avatar", { "aria-hidden": "true" });
+    // Profile coin: front = owner initials; reverse = empty dotted slot.
+    // Flip is visual only (hover / focus-within on the coin); row click
+    // still opens You — no new navigation on the reverse face.
+    var coin = el("span", "messages-rail__coin", { "aria-hidden": "true" });
+    var coinInner = el("span", "messages-rail__coin-inner");
+    var avatar = el("span", "messages-rail__avatar messages-rail__coin-face messages-rail__coin-face--front");
     fillOwnerMark(avatar);
+    var reverse = el("span", "messages-rail__coin-slot messages-rail__coin-face messages-rail__coin-face--back", {
+      "data-messages-coin-slot": "",
+      title: "Empty slot",
+    });
+    coinInner.appendChild(avatar);
+    coinInner.appendChild(reverse);
+    coin.appendChild(coinInner);
     var main = el("span", "messages-rail__main");
     var top = el("span", "messages-rail__top");
     var title = el("span", "messages-rail__name");
@@ -912,7 +924,7 @@
       preview.textContent = state.ownerTitle;
       main.appendChild(preview);
     }
-    btn.appendChild(avatar);
+    btn.appendChild(coin);
     btn.appendChild(main);
     btn.addEventListener("click", function () { selectYou(); });
     slot.appendChild(btn);
