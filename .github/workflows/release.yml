@@ -87,7 +87,25 @@ jobs:
           for v in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
             if [ -z "${!v}" ]; then unset "$v"; fi
           done
-          npx electron-builder --publish ${{ (startsWith(github.ref, 'refs/tags/') || inputs.publish == true) && 'always' || 'never' }}
+          publish_mode="${{ (startsWith(github.ref, 'refs/tags/') || inputs.publish == true) && 'always' || 'never' }}"
+          if [ "$publish_mode" = "never" ]; then
+            npx electron-builder --publish never
+            exit $?
+          fi
+
+          max_attempts=3
+          for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+            if npx electron-builder --publish "$publish_mode"; then
+              exit 0
+            fi
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "::error::Release build/publish failed after $max_attempts attempts."
+              exit 1
+            fi
+            delay=$((attempt * 30))
+            echo "Release build/publish attempt $attempt failed; retrying in ${delay}s."
+            sleep "$delay"
+          done
         env:
           # GitHub Releases upload.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
