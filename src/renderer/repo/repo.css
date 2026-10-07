@@ -807,6 +807,7 @@ html.tinker-desktop .repo-top [role="button"] {
   /* Desktop IDE: explorer | editor | essays. Mobile collapses via max-width:800px. */
   --repo-explorer-rail: 240px;
   --repo-panel-height: 0px;
+  --repo-tabs-height: 40px;
   grid-template-columns:
     var(--repo-explorer-rail, 240px)
     minmax(0, 1fr)
@@ -842,26 +843,80 @@ html.tinker-desktop .repo-top [role="button"] {
   flex-wrap: nowrap;
   align-items: stretch;
   gap: 0;
+  flex: 0 0 auto;
   flex-shrink: 0;
-  min-height: 36px;
+  box-sizing: border-box;
+  min-height: var(--repo-tabs-height);
+  height: var(--repo-tabs-height);
   overflow-x: auto;
   overflow-y: hidden;
   border-bottom: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-background) 88%, var(--color-accent, #a5b4fc) 12%);
   -webkit-app-region: no-drag;
+  /* Sit above the fixed write-safe-top fade so labels/close are not clipped. */
+  position: relative;
+  z-index: 14;
+  isolation: isolate;
+  scrollbar-width: thin;
 }
 
 .repo-tabs[hidden] {
   display: none !important;
 }
 
+/* Electron hiddenInset: clear traffic lights for the tab strip.
+   Collapsed explorer: tabs start at the window left edge.
+   Explorer open: still pad so a narrow rail cannot cover the first tab. */
+html[data-tinker-desktop] .repo-layout--write .repo-tabs,
+html.tinker-desktop .repo-layout--write .repo-tabs {
+  padding-left: var(--tinker-desktop-traffic-inset, 78px);
+}
+
+html[data-tinker-desktop] .repo-layout--write:not(.is-explorer-collapsed) .repo-tabs,
+html.tinker-desktop .repo-layout--write:not(.is-explorer-collapsed) .repo-tabs {
+  /* Explorer already clears the lights; keep a small gutter only. */
+  padding-left: 0;
+}
+
+/* Electron: drop the whole IDE below the traffic-light / drag strip so the
+   open-file tab row is never vertically clipped by the titlebar. */
+html[data-tinker-desktop] .repo-layout--write,
+html.tinker-desktop .repo-layout--write {
+  padding-top: 36px;
+  box-sizing: border-box;
+}
+
+html[data-tinker-desktop] .repo-layout--write .repo-explorer,
+html.tinker-desktop .repo-layout--write .repo-explorer {
+  /* Layout already reserved the titlebar band. */
+  padding-top: 12px;
+}
+
+html[data-tinker-desktop] .repo-layout--write .repo-right,
+html.tinker-desktop .repo-layout--write .repo-right {
+  padding-top: 12px;
+  /* Parent already reserved the titlebar band; don't force 100vh overflow. */
+  height: 100%;
+  max-height: 100%;
+}
+
+html[data-tinker-desktop] .repo-explorer__expand,
+html.tinker-desktop .repo-explorer__expand {
+  top: calc(48px + 36px + env(safe-area-inset-top, 0px));
+}
+
+
 .repo-tabs__tab {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  max-width: 220px;
-  min-height: 36px;
-  padding: 0 6px 0 0;
+  flex: 0 1 auto;
+  max-width: 240px;
+  min-width: 120px;
+  min-height: var(--repo-tabs-height, 40px);
+  height: var(--repo-tabs-height, 40px);
+  box-sizing: border-box;
+  padding: 0 8px 0 0;
   border-right: 1px solid var(--color-border);
   background: transparent;
   color: var(--color-muted);
@@ -882,8 +937,10 @@ html.tinker-desktop .repo-top [role="button"] {
 .repo-tabs__label-btn {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
-  max-width: 180px;
+  min-height: var(--repo-tabs-height, 40px);
+  max-width: 200px;
+  min-width: 0;
+  flex: 1 1 auto;
   padding: 0 10px;
   border: 0;
   background: transparent;
@@ -891,6 +948,7 @@ html.tinker-desktop .repo-top [role="button"] {
   font: inherit;
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.2;
   letter-spacing: -0.01em;
   cursor: pointer;
 }
@@ -901,17 +959,22 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-tabs__label {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .repo-tabs__close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin: 0;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 0 2px 0 0;
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -1243,9 +1306,10 @@ html.tinker-desktop .repo-top [role="button"] {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  margin: 0 auto;
-  width: min(920px, 100%);
-  padding: 8px 8px 48px;
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  padding: 0;
   box-sizing: border-box;
 }
 
@@ -1258,7 +1322,10 @@ html.tinker-desktop .repo-top [role="button"] {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
 }
 
 .repo-code__path {
@@ -1284,176 +1351,83 @@ html.tinker-desktop .repo-top [role="button"] {
   cursor: pointer;
 }
 
-/* Invisible code surface: same chrome-free look as essay .writing-input /
-   .repo-pad__turn. Highlighted tokens live in a synced <pre> under the
-   transparent textarea so the caret and selection stay native. */
+/* Full-column CodeMirror surface — no bordered textarea chrome. */
 .repo-code__surface {
   position: relative;
-  flex: 1;
-  min-height: 320px;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
 }
 
-.repo-code__highlight,
-.repo-code__editor {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 320px;
-  margin: 0;
-  padding: 4px 12px 48px;
-  border: 0;
-  border-radius: 0;
+.repo-code__surface .cm-editor {
+  height: 100%;
+  max-height: 100%;
+  background: transparent;
   outline: none;
-  box-shadow: none;
-  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 14px;
-  line-height: 1.55;
-  letter-spacing: 0;
-  white-space: pre;
-  word-wrap: normal;
-  overflow-wrap: normal;
-  tab-size: 2;
-  overflow: auto;
-}
-
-.repo-code__highlight {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: transparent;
-  color: var(--color-foreground);
-  scrollbar-width: none;
-}
-
-.repo-code__highlight::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-
-.repo-code__highlight code {
-  display: block;
-  font: inherit;
-  color: inherit;
-  white-space: inherit;
-  tab-size: inherit;
-}
-
-.repo-code__editor {
-  position: relative;
-  z-index: 1;
-  display: block;
-  resize: none;
-  background: transparent;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  caret-color: var(--color-foreground);
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.repo-code__editor:hover,
-.repo-code__editor:focus,
-.repo-code__editor:focus-visible,
-.repo-code__editor:active {
   border: 0;
-  outline: none;
   box-shadow: none;
-  background: transparent;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
 }
 
-.repo-code__editor::selection {
-  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 35%, transparent);
-  color: transparent;
-  -webkit-text-fill-color: transparent;
+.repo-code__surface .cm-editor.cm-focused {
+  outline: none;
 }
 
-.repo-code__editor::-moz-selection {
-  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 35%, transparent);
-  color: transparent;
+.repo-code__editor[hidden] {
+  display: none !important;
 }
 
-/* Markdown / plain text: essay-like prose, no highlight overlay. */
-.repo-code--prose .repo-code__highlight {
-  display: none;
+/* When a code file owns the center: fill the column, kill essay pad chrome. */
+body.repo-code-open .repo-surface.writing,
+.repo-layout--write.is-code-open .repo-surface.writing {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  padding: 0;
+  overflow: hidden;
 }
 
-.repo-code--prose .repo-code__editor {
-  color: var(--color-foreground);
-  -webkit-text-fill-color: var(--color-foreground);
-  font-family: var(--font-sans);
-  font-size: 17px;
-  line-height: 1.65;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
+body.repo-code-open .repo-center.repo-write-safe-top,
+.repo-layout--write.is-code-open .repo-center.repo-write-safe-top {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
-.repo-code--prose .repo-code__editor:hover,
-.repo-code--prose .repo-code__editor:focus,
-.repo-code--prose .repo-code__editor:focus-visible,
-.repo-code--prose .repo-code__editor:active {
-  color: var(--color-foreground);
-  -webkit-text-fill-color: var(--color-foreground);
+/* Fade overlay must not cover tabs or the code editor. */
+body.repo-code-open .repo-center.repo-write-safe-top::before,
+.repo-layout--write.is-code-open .repo-center.repo-write-safe-top::before {
+  display: none !important;
 }
 
-/* Subtle Prism tokens on Tinker's light page — not a dark IDE panel. */
-.repo-code__highlight .token.comment,
-.repo-code__highlight .token.prolog,
-.repo-code__highlight .token.doctype,
-.repo-code__highlight .token.cdata {
-  color: #8a8178;
-  font-style: italic;
+/* When the open-file strip is showing (essay or code tabs), keep the fixed
+   write-safe fade below it so labels / close are never masked. */
+body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-center.repo-write-safe-top::before {
+  top: var(--repo-tabs-height, 40px);
 }
 
-.repo-code__highlight .token.punctuation {
-  color: #6b6560;
+html[data-tinker-desktop] body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-center.repo-write-safe-top::before,
+html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-center.repo-write-safe-top::before {
+  /* Layout padding-top (36px) + tab strip height. */
+  top: calc(36px + var(--repo-tabs-height, 40px));
 }
 
-.repo-code__highlight .token.property,
-.repo-code__highlight .token.tag,
-.repo-code__highlight .token.boolean,
-.repo-code__highlight .token.number,
-.repo-code__highlight .token.constant,
-.repo-code__highlight .token.symbol,
-.repo-code__highlight .token.deleted,
-.repo-code__highlight .token.atrule,
-.repo-code__highlight .token.keyword,
-.repo-code__highlight .token.important {
-  color: #2f6f4e;
-}
+@media (min-width: 801px) {
+  .repo-layout--write.is-code-open .repo-ide-center {
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
 
-.repo-code__highlight .token.selector,
-.repo-code__highlight .token.attr-name,
-.repo-code__highlight .token.string,
-.repo-code__highlight .token.char,
-.repo-code__highlight .token.builtin,
-.repo-code__highlight .token.inserted,
-.repo-code__highlight .token.atrule .token.rule {
-  color: #9a5b2e;
-}
-
-.repo-code__highlight .token.operator,
-.repo-code__highlight .token.entity,
-.repo-code__highlight .token.url,
-.repo-code__highlight .token.variable {
-  color: #3d5a80;
-}
-
-.repo-code__highlight .token.function,
-.repo-code__highlight .token.class-name {
-  color: #3b6ea5;
-}
-
-.repo-code__highlight .token.regex,
-.repo-code__highlight .token.important {
-  color: #a15c38;
-}
-
-.repo-code__highlight .token.key {
-  color: #2f6f4e;
+  .repo-layout--write.is-code-open .repo-ide-center > .repo-center {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
 }
 
 .repo-code__status {

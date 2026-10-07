@@ -12,9 +12,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="/styles.css?v=39" />
+    <link rel="stylesheet" href="/styles.css?v=40" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=39" />
+    <link rel="stylesheet" href="/repo/repo.css?v=41" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
     <!-- Persistent top-right brand link (not under the writing pad). -->
@@ -48,7 +48,7 @@
           <div class="repo-surface writing repo-write-safe-top" id="repo-surface">
             <div class="repo-location" id="repo-location">
               <div class="repo-location__field">
-                <img class="repo-location__globe" src="/icons/tinker-mark.svg?v=39" alt="" width="14" height="14" aria-hidden="true" />
+                <img class="repo-location__globe" src="/icons/tinker-mark.svg?v=40" alt="" width="14" height="14" aria-hidden="true" />
                 <span class="visually-hidden" id="repo-location-caption">Location</span>
                 <input type="text" class="repo-location__input writing-input" id="repo-location-input" placeholder="Where are you?" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" aria-autocomplete="list" aria-controls="repo-location-panel" aria-expanded="false" aria-labelledby="repo-location-caption" maxlength="120" />
                 <button type="button" class="repo-location__btn" id="repo-location-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="repo-location-panel" aria-label="Suggested places">
@@ -67,10 +67,9 @@
                 <p class="repo-code__path" id="repo-code-path"></p>
                 <button type="button" class="repo-code__save" id="repo-code-save">Save</button>
               </div>
-              <div class="repo-code__surface" id="repo-code-surface">
-                <pre class="repo-code__highlight" id="repo-code-highlight" aria-hidden="true"><code id="repo-code-highlight-code"></code></pre>
-                <textarea class="writing-input repo-code__editor" id="repo-code-editor" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" aria-label="File contents"></textarea>
-              </div>
+              <div class="repo-code__surface" id="repo-code-surface" role="textbox" aria-label="File contents"></div>
+              <!-- Legacy textarea kept hidden for harness/id stability; CM owns editing. -->
+              <textarea class="repo-code__editor writing-input" id="repo-code-editor" hidden spellcheck="false" aria-hidden="true" tabindex="-1"></textarea>
               <p class="repo-code__status" id="repo-code-status" hidden></p>
             </div>
             <textarea class="repo-pad__mirror" id="repo-body" spellcheck="true" aria-label="Writing" tabindex="-1"></textarea>
@@ -156,25 +155,24 @@
     <p id="repo-name" hidden>tinker</p>
     <button type="button" id="repo-new-piece" hidden>New file</button>
 
-    <script src="/platform-mobile.js?v=39"></script>
-    <script src="/interview-prompt.js?v=39"></script>
+    <script src="/platform-mobile.js?v=40"></script>
+    <script src="/interview-prompt.js?v=40"></script>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/vendor/purify.min.js"></script>
-    <script src="/vendor/prism-languages.min.js"></script>
+    <script src="/vendor/codemirror-repo-editor.min.js"></script>
     <script src="/lib/essay-read.js?v=1"></script>
-    <script src="/lib/stories-md.js?v=39"></script>
-    <script src="/lib/repo-folders-core.js?v=39"></script>
-    <script src="/lib/repo-pad-reveal.js?v=39"></script>
-    <script src="/lib/repo-write-scroll.js?v=39"></script>
-    <script src="/lib/storage-path-core.js?v=39"></script>
-    <script src="/lib/fs-access-folder.js?v=39"></script>
-    <script src="/lib/storage-adapters.js?v=39"></script>
-    <script src="/lib/repo-code-highlight.js?v=39"></script>
-    <script src="/exercises/manifest.js?v=39"></script>
-    <script src="/lib/exercise-workspace-core.js?v=39"></script>
-    <script src="/repo/exercise-workspace-ui.js?v=39"></script>
-    <script src="/made-by-lindow-labs.js?v=39"></script>
-    <script src="/repo/repo.js?v=39"></script>
-    <script src="/repo/storage-section.js?v=39"></script>
+    <script src="/lib/stories-md.js?v=40"></script>
+    <script src="/lib/repo-folders-core.js?v=40"></script>
+    <script src="/lib/repo-pad-reveal.js?v=40"></script>
+    <script src="/lib/repo-write-scroll.js?v=40"></script>
+    <script src="/lib/storage-path-core.js?v=40"></script>
+    <script src="/lib/fs-access-folder.js?v=40"></script>
+    <script src="/lib/storage-adapters.js?v=40"></script>
+    <script src="/exercises/manifest.js?v=40"></script>
+    <script src="/lib/exercise-workspace-core.js?v=40"></script>
+    <script src="/repo/exercise-workspace-ui.js?v=40"></script>
+    <script src="/made-by-lindow-labs.js?v=40"></script>
+    <script src="/repo/repo.js?v=40"></script>
+    <script src="/repo/storage-section.js?v=40"></script>
   </body>
 </html>

@@ -17,6 +17,10 @@ const css = fs.readFileSync(path.join(root, "src/renderer/repo/repo.css"), "utf8
 const page = fs.readFileSync(path.join(root, "src/renderer/repo/repo.js"), "utf8");
 const ui = fs.readFileSync(path.join(root, "src/renderer/repo/exercise-workspace-ui.js"), "utf8");
 const mainJs = fs.readFileSync(path.join(root, "src/main/main.js"), "utf8");
+const cmSrc = fs.readFileSync(
+  path.join(root, "src/renderer/lib/repo-cm-editor-src.mjs"),
+  "utf8",
+);
 
 test("desktop IDE shell markup is present on /repo write page", () => {
   assert.match(html, /id="repo-explorer"/);
@@ -100,20 +104,32 @@ test("location pill and pad stay out of layout while the code editor is open", (
   assert.match(ui, /els\.pad\)\s*els\.pad\.hidden\s*=\s*!show/);
 });
 
-test("exercise code editor is an invisible writing surface with syntax highlight", () => {
-  assert.match(html, /id="repo-code-editor"/);
-  assert.match(html, /class="writing-input repo-code__editor"/);
-  assert.match(html, /id="repo-code-highlight"/);
-  assert.match(html, /\/lib\/repo-code-highlight\.js/);
-  assert.match(html, /prism-languages\.min\.js/);
-  assert.match(css, /\.repo-code__editor\s*\{[^}]*border:\s*0/s);
-  assert.match(css, /\.repo-code__editor\s*\{[^}]*background:\s*transparent/s);
-  assert.match(css, /\.repo-code__editor\s*\{[^}]*color:\s*transparent/s);
-  assert.match(css, /\.repo-code--prose/);
-  assert.match(css, /\.repo-code__highlight \.token\.keyword/);
-  assert.match(ui, /syncHighlight|tinkerRepoCodeHighlight/);
-  assert.match(ui, /isProseFile/);
-  assert.doesNotMatch(css, /\.repo-code__editor\s*\{[^}]*border:\s*1px solid/s);
+test("exercise editor uses CodeMirror with a full-column invisible surface", () => {
+  assert.match(html, /id="repo-code-surface"/);
+  assert.match(html, /codemirror-repo-editor\.min\.js/);
+  assert.match(html, /id="repo-code-editor"[^>]*hidden/);
+  assert.doesNotMatch(html, /prism-languages/);
+  assert.doesNotMatch(html, /repo-code-highlight\.js/);
+  assert.match(ui, /tinkerCodeMirror/);
+  assert.match(ui, /ensureCm/);
+  assert.match(cmSrc, /tinkerLightHighlight|HighlightStyle\.define/);
+  assert.match(cmSrc, /markdownLivePreview/);
+  assert.match(cmSrc, /lang-yaml|@codemirror\/lang-yaml/);
+  assert.match(css, /\.repo-code\s*\{[^}]*width:\s*100%/s);
+  assert.match(css, /\.repo-code__surface\s*\{[^}]*flex:\s*1/s);
+  assert.match(css, /body\.repo-code-open[\s\S]*display:\s*none\s*!important/);
+  assert.match(css, /\.repo-code__surface \.cm-editor/);
+});
+
+test("open-file tabs stay fully visible above the write-safe fade", () => {
+  assert.match(css, /\.repo-tabs\s*\{[^}]*z-index:\s*14/s);
+  assert.match(css, /--repo-tabs-height:\s*40px/);
+  assert.match(css, /\.repo-tabs\s*\{[^}]*overflow-x:\s*auto/s);
+  assert.match(css, /body\.repo-code-open[\s\S]*\.repo-center\.repo-write-safe-top::before[\s\S]*display:\s*none\s*!important/);
+  assert.match(css, /\.repo-tabs:not\(\[hidden\]\)[\s\S]*\.repo-center\.repo-write-safe-top::before[\s\S]*top:\s*var\(--repo-tabs-height/);
+  assert.match(css, /html\[data-tinker-desktop\][\s\S]*\.repo-layout--write[\s\S]*padding-top:\s*36px/);
+  assert.match(css, /html\[data-tinker-desktop\][\s\S]*\.repo-tabs[\s\S]*traffic-inset/);
+  assert.match(css, /\.repo-tabs__close\s*\{[^}]*flex-shrink:\s*0/s);
 });
 
 test("macOS Dock keeps the bundled icon mask (no runtime square override)", () => {
