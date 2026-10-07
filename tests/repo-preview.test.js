@@ -1289,6 +1289,11 @@ test("write page Lindow Labs link is fixed top-right chrome, not under writing",
   assert.match(css, /\.repo-top--labs\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /\.repo-top--labs\s*\{[^}]*right:\s*0/s);
   assert.match(css, /\.repo-top__labs/);
+  // Desktop essays head clears Labs so New folder is not covered.
+  assert.match(
+    css,
+    /\.repo-layout--write\s+\.repo-right\s+\.repo-tree__head\s*\{[^}]*padding-right:\s*108px/s,
+  );
 });
 
 test("blank pad is the new essay without download chrome", async () => {

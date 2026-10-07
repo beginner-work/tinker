@@ -9,6 +9,7 @@
 
   var core = window.tinkerExerciseWorkspaceCore;
   var manifest = window.tinkerExercisesManifest;
+  var highlight = window.tinkerRepoCodeHighlight;
   if (!core) return;
 
   var TOKEN_KEY = "tinker_jwt";
@@ -63,6 +64,9 @@
       tabs: $("repo-tabs"),
       code: $("repo-code"),
       codePath: $("repo-code-path"),
+      codeSurface: $("repo-code-surface"),
+      codeHighlight: $("repo-code-highlight"),
+      codeHighlightCode: $("repo-code-highlight-code"),
       codeEditor: $("repo-code-editor"),
       codeSave: $("repo-code-save"),
       codeStatus: $("repo-code-status"),
@@ -173,6 +177,44 @@
     }
   }
 
+  function activeFileName() {
+    var tab = null;
+    state.openTabs.forEach(function (t) {
+      if (t.id === state.activeTabId) tab = t;
+    });
+    if (!tab) return "";
+    var node = findNode(tab.exerciseId, tab.nodeId);
+    return node && node.name ? node.name : "";
+  }
+
+  function syncHighlight() {
+    if (!els.codeEditor || !highlight) return;
+    var name = activeFileName();
+    var prose = highlight.isProseFile(name);
+    var language = prose ? null : highlight.languageFor(name);
+    if (els.code) {
+      els.code.classList.toggle("repo-code--prose", !!prose);
+      els.code.classList.toggle("repo-code--code", !prose);
+    }
+    if (els.codeEditor) {
+      els.codeEditor.spellcheck = !!prose;
+    }
+    if (els.codeHighlightCode) {
+      if (prose) {
+        els.codeHighlightCode.textContent = "";
+      } else {
+        highlight.paint(els.codeHighlightCode, els.codeEditor.value, language);
+      }
+    }
+    syncHighlightScroll();
+  }
+
+  function syncHighlightScroll() {
+    if (!els.codeEditor || !els.codeHighlight) return;
+    els.codeHighlight.scrollTop = els.codeEditor.scrollTop;
+    els.codeHighlight.scrollLeft = els.codeEditor.scrollLeft;
+  }
+
   function openFile(exerciseId, nodeId) {
     var node = findNode(exerciseId, nodeId);
     if (!node || node.type !== "file") return;
@@ -195,6 +237,9 @@
     state.selected = { exerciseId: exerciseId, nodeId: nodeId };
     state.dirty = false;
     render();
+    if (els.codeEditor && typeof els.codeEditor.focus === "function") {
+      try { els.codeEditor.focus(); } catch (e) { /* ignore */ }
+    }
   }
 
   function activateTab(id) {
@@ -292,6 +337,7 @@
     if (els.codeEditor && document.activeElement !== els.codeEditor) {
       els.codeEditor.value = node.content || "";
     }
+    syncHighlight();
     if (els.codeStatus) {
       if (state.status) {
         els.codeStatus.hidden = false;
@@ -703,11 +749,13 @@
     if (els.codeEditor) {
       els.codeEditor.addEventListener("input", function () {
         state.dirty = true;
+        syncHighlight();
         if (els.codeStatus) {
           els.codeStatus.hidden = false;
           text(els.codeStatus, "Unsaved changes");
         }
       });
+      els.codeEditor.addEventListener("scroll", syncHighlightScroll);
     }
     if (els.confirmDelete) els.confirmDelete.addEventListener("click", confirmDelete);
     if (els.confirmCancel) els.confirmCancel.addEventListener("click", closeConfirm);

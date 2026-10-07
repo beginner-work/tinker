@@ -67,7 +67,10 @@
                 <p class="repo-code__path" id="repo-code-path"></p>
                 <button type="button" class="repo-code__save" id="repo-code-save">Save</button>
               </div>
-              <textarea class="repo-code__editor" id="repo-code-editor" spellcheck="false" aria-label="File contents"></textarea>
+              <div class="repo-code__surface" id="repo-code-surface">
+                <pre class="repo-code__highlight" id="repo-code-highlight" aria-hidden="true"><code id="repo-code-highlight-code"></code></pre>
+                <textarea class="writing-input repo-code__editor" id="repo-code-editor" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" aria-label="File contents"></textarea>
+              </div>
               <p class="repo-code__status" id="repo-code-status" hidden></p>
             </div>
             <textarea class="repo-pad__mirror" id="repo-body" spellcheck="true" aria-label="Writing" tabindex="-1"></textarea>
@@ -157,6 +160,7 @@
     <script src="/interview-prompt.js?v=39"></script>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/vendor/purify.min.js"></script>
+    <script src="/vendor/prism-languages.min.js"></script>
     <script src="/lib/essay-read.js?v=1"></script>
     <script src="/lib/stories-md.js?v=39"></script>
     <script src="/lib/repo-folders-core.js?v=39"></script>
@@ -165,6 +169,7 @@
     <script src="/lib/storage-path-core.js?v=39"></script>
     <script src="/lib/fs-access-folder.js?v=39"></script>
     <script src="/lib/storage-adapters.js?v=39"></script>
+    <script src="/lib/repo-code-highlight.js?v=39"></script>
     <script src="/exercises/manifest.js?v=39"></script>
     <script src="/lib/exercise-workspace-core.js?v=39"></script>
     <script src="/repo/exercise-workspace-ui.js?v=39"></script>
