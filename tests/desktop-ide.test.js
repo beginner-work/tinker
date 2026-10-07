@@ -131,14 +131,15 @@ test("exercise editor uses CodeMirror with a full-column invisible surface", () 
 });
 
 test("open-file tabs stay fully visible above the write-safe fade", () => {
-  assert.match(css, /\.repo-tabs\s*\{[^}]*z-index:\s*14/s);
+  assert.match(css, /\.repo-ide-tabbar\s*\{[^}]*z-index:\s*14/s);
   assert.match(css, /--repo-tabs-height:\s*40px/);
   assert.match(css, /\.repo-tabs\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(css, /body\.repo-code-open[\s\S]*\.repo-center\.repo-write-safe-top::before[\s\S]*display:\s*none\s*!important/);
   assert.match(css, /\.repo-tabs:not\(\[hidden\]\)[\s\S]*\.repo-center\.repo-write-safe-top::before[\s\S]*top:\s*var\(--repo-tabs-height/);
   assert.match(css, /html\[data-tinker-desktop\][\s\S]*\.repo-layout--write[\s\S]*padding-top:\s*36px/);
-  assert.match(css, /html\[data-tinker-desktop\][\s\S]*\.repo-tabs[\s\S]*traffic-inset/);
+  assert.match(css, /html\[data-tinker-desktop\][\s\S]*\.repo-ide-tabbar[\s\S]*traffic-inset/);
   assert.match(css, /\.repo-tabs__close\s*\{[^}]*flex-shrink:\s*0/s);
+  assert.match(css, /\.repo-ide-tabbar__labs\s*\{[^}]*border-left/s);
 });
 
 test("macOS Dock keeps the bundled icon mask (no runtime square override)", () => {
