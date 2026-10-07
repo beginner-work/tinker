@@ -76,31 +76,17 @@
     // Read-view mount for saved essays (toggle always starts off per essay).
     essayReadMount: null,
     essayReadStoryId: null,
-    // Desktop IDE: open editor tabs + explorer/panel chrome.
+    // Desktop IDE essay tabs (exercise file tabs live in exercise-workspace-ui).
     openTabs: [],
     activeTabId: null,
-    explorerCollapsed: false,
-    explorerCollapsedPlaces: {},
-    panelOpen: false,
-    activeExerciseId: null,
   };
 
   var els = {
     name: document.getElementById("repo-name"),
     branch: document.getElementById("repo-branch"),
     layout: document.getElementById("repo-layout"),
-    explorer: document.getElementById("repo-explorer"),
-    explorerBody: document.getElementById("repo-explorer-body"),
-    explorerEmpty: document.getElementById("repo-explorer-empty"),
-    explorerCollapse: document.getElementById("repo-explorer-collapse"),
-    explorerExpand: document.getElementById("repo-explorer-expand"),
     tabs: document.getElementById("repo-tabs"),
-    panel: document.getElementById("repo-panel"),
-    panelToggle: document.getElementById("repo-panel-toggle"),
-    panelBody: document.getElementById("repo-panel-body"),
-    panelEmpty: document.getElementById("repo-panel-empty"),
-    panelOutput: document.getElementById("repo-panel-output"),
-    exerciseView: document.getElementById("repo-exercise-view"),
+    code: document.getElementById("repo-code"),
     tree: document.getElementById("repo-tree"),
     empty: document.getElementById("repo-stories-empty"),
     newPiece: document.getElementById("repo-new-piece"),
@@ -507,20 +493,15 @@
     state.keepFinishedWriting = false;
     state.selectedId = id || null;
     state.selectedFolderId = null;
-    state.activeExerciseId = null;
+    if (els.code) els.code.hidden = true;
+    if (els.pad) els.pad.hidden = false;
     if (id) openEssayTab(id);
-    else {
-      state.activeTabId = null;
-    }
+    else state.activeTabId = null;
     render();
   }
 
   function tabIdForEssay(storyId) {
     return "essay:" + String(storyId || "");
-  }
-
-  function tabIdForExercise(exerciseId) {
-    return "exercise:" + String(exerciseId || "");
   }
 
   function findTab(tabId) {
@@ -553,62 +534,16 @@
     state.activeTabId = id;
   }
 
-  function exerciseModules() {
-    var manifest = window.tinkerExercisesManifest;
-    if (!manifest || !manifest.modules || !manifest.modules.length) return [];
-    return manifest.modules.slice();
-  }
-
-  function findExercise(exerciseId) {
-    var modules = exerciseModules();
-    for (var i = 0; i < modules.length; i += 1) {
-      if (modules[i].id === exerciseId) return modules[i];
-    }
-    return null;
-  }
-
-  function openExerciseTab(exerciseId) {
-    if (!isWritePage || !exerciseId) return;
-    var mod = findExercise(exerciseId);
-    if (!mod) return;
-    var id = tabIdForExercise(exerciseId);
-    var existing = findTab(id);
-    if (existing) {
-      existing.title = mod.name || exerciseId;
-    } else {
-      state.openTabs.push({
-        id: id,
-        kind: "exercise",
-        refId: exerciseId,
-        title: mod.name || exerciseId,
-      });
-    }
-    state.activeTabId = id;
-    state.activeExerciseId = exerciseId;
-    state.selectedId = null;
-    state.selectedFolderId = null;
-    state.keepFinishedWriting = false;
-    render();
-  }
-
   function activateTab(tabId) {
     var tab = findTab(tabId);
     if (!tab) return;
     state.activeTabId = tab.id;
-    if (tab.kind === "essay") {
-      state.activeExerciseId = null;
-      state.keepFinishedWriting = false;
-      state.selectedId = tab.refId;
-      state.selectedFolderId = null;
-      render();
-      return;
-    }
-    if (tab.kind === "exercise") {
-      state.activeExerciseId = tab.refId;
-      state.selectedId = null;
-      state.selectedFolderId = null;
-      render();
-    }
+    state.keepFinishedWriting = false;
+    state.selectedId = tab.refId;
+    state.selectedFolderId = null;
+    if (els.code) els.code.hidden = true;
+    if (els.pad) els.pad.hidden = false;
+    render();
   }
 
   function closeTab(tabId) {
@@ -632,7 +567,6 @@
       return;
     }
     state.activeTabId = null;
-    state.activeExerciseId = null;
     state.selectedId = null;
     render();
   }
@@ -694,7 +628,6 @@
     state.draft = draft;
     state.selectedId = draft.id;
     state.selectedFolderId = folderId;
-    state.activeExerciseId = null;
     openEssayTab(draft.id);
     // Carry the session place onto the new file so it shows and survives first save.
     if (state.currentPlace) {
@@ -2114,7 +2047,6 @@
     writePlacesState(cur);
     // Only remove from the suggestions list; leave the typed/current place alone.
     renderPlaceList();
-    renderExplorer();
   }
 
   function buildPlaceRows(query) {
@@ -3044,257 +2976,12 @@
     });
   }
 
-  function storiesForPlace(placeLabel) {
-    var key = String(placeLabel || "").trim().toLowerCase();
-    var out = [];
-    allFiles().forEach(function (story) {
-      var place = state.places[story.id] ? String(state.places[story.id]) : "";
-      if (!key) {
-        if (!place) out.push(story);
-        return;
-      }
-      if (place.toLowerCase() === key) out.push(story);
-    });
-    return out;
-  }
-
-  function renderExplorer() {
-    if (!els.explorerBody || !isWritePage) return;
-    clear(els.explorerBody);
-    var rows = buildPlaceRows("");
-    var placeRows = rows.filter(function (row) {
-      return row.kind === "recent" || row.kind === "starter";
-    });
-    var unplaced = storiesForPlace("");
-    if (els.explorerEmpty) {
-      els.explorerEmpty.hidden = placeRows.length > 0 || unplaced.length > 0 || exerciseModules().length > 0;
-    }
-
-    placeRows.forEach(function (row) {
-      var group = document.createElement("div");
-      group.className = "repo-explorer__group";
-      group.setAttribute("role", "treeitem");
-      group.setAttribute("aria-expanded", state.explorerCollapsedPlaces[row.label] ? "false" : "true");
-
-      var head = document.createElement("div");
-      head.className = "repo-explorer__group-row";
-
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "repo-explorer__group-btn" + (activePlace().toLowerCase() === row.label.toLowerCase() ? " is-selected" : "");
-      var chevron = document.createElement("span");
-      chevron.className = "repo-explorer__chevron";
-      chevron.setAttribute("aria-hidden", "true");
-      text(chevron, state.explorerCollapsedPlaces[row.label] ? "\u25b8" : "\u25be");
-      btn.appendChild(chevron);
-      var name = document.createElement("span");
-      name.className = "repo-explorer__name";
-      text(name, row.label);
-      btn.appendChild(name);
-      btn.addEventListener("click", function () {
-        state.explorerCollapsedPlaces[row.label] = !state.explorerCollapsedPlaces[row.label];
-        renderExplorer();
-      });
-      btn.addEventListener("dblclick", function () {
-        choosePlace(row.label);
-      });
-      head.appendChild(btn);
-
-      if (row.removable) {
-        var removeBtn = document.createElement("button");
-        removeBtn.type = "button";
-        removeBtn.className = "repo-explorer__remove";
-        removeBtn.setAttribute("aria-label", "Remove " + row.label);
-        removeBtn.textContent = "\u00d7";
-        removeBtn.addEventListener("click", function (event) {
-          if (event && event.preventDefault) event.preventDefault();
-          if (event && event.stopPropagation) event.stopPropagation();
-          removeSuggestedPlace(row.label);
-        });
-        head.appendChild(removeBtn);
-      }
-      group.appendChild(head);
-
-      if (!state.explorerCollapsedPlaces[row.label]) {
-        var files = storiesForPlace(row.label);
-        var list = document.createElement("ul");
-        list.className = "repo-explorer__files";
-        list.setAttribute("role", "group");
-        files.forEach(function (story) {
-          var li = document.createElement("li");
-          var fileBtn = document.createElement("button");
-          fileBtn.type = "button";
-          fileBtn.className = "repo-explorer__file" + (state.selectedId === story.id ? " is-selected" : "");
-          text(fileBtn, md.displayTitle(story));
-          fileBtn.addEventListener("click", function () {
-            selectStory(story.id);
-          });
-          li.appendChild(fileBtn);
-          list.appendChild(li);
-        });
-        if (!files.length) {
-          var emptyLi = document.createElement("li");
-          var emptyHint = document.createElement("span");
-          emptyHint.className = "repo-explorer__file";
-          emptyHint.style.cursor = "default";
-          text(emptyHint, "No essays yet");
-          emptyLi.appendChild(emptyHint);
-          list.appendChild(emptyLi);
-        }
-        group.appendChild(list);
-      }
-      els.explorerBody.appendChild(group);
-    });
-
-    if (unplaced.length) {
-      var otherLabel = document.createElement("p");
-      otherLabel.className = "repo-explorer__section-label";
-      text(otherLabel, "Unplaced");
-      els.explorerBody.appendChild(otherLabel);
-      var otherList = document.createElement("ul");
-      otherList.className = "repo-explorer__files";
-      unplaced.forEach(function (story) {
-        var li = document.createElement("li");
-        var fileBtn = document.createElement("button");
-        fileBtn.type = "button";
-        fileBtn.className = "repo-explorer__file" + (state.selectedId === story.id ? " is-selected" : "");
-        text(fileBtn, md.displayTitle(story));
-        fileBtn.addEventListener("click", function () {
-          selectStory(story.id);
-        });
-        li.appendChild(fileBtn);
-        otherList.appendChild(li);
-      });
-      els.explorerBody.appendChild(otherList);
-    }
-
-    var modules = exerciseModules();
-    if (modules.length) {
-      var exLabel = document.createElement("p");
-      exLabel.className = "repo-explorer__section-label";
-      text(exLabel, "Exercises");
-      els.explorerBody.appendChild(exLabel);
-      var exList = document.createElement("ul");
-      exList.className = "repo-explorer__files";
-      modules.forEach(function (mod) {
-        var li = document.createElement("li");
-        var fileBtn = document.createElement("button");
-        fileBtn.type = "button";
-        fileBtn.className = "repo-explorer__file" + (state.activeExerciseId === mod.id ? " is-selected" : "");
-        text(fileBtn, mod.name || mod.id);
-        fileBtn.addEventListener("click", function () {
-          openExerciseTab(mod.id);
-        });
-        li.appendChild(fileBtn);
-        exList.appendChild(li);
-      });
-      els.explorerBody.appendChild(exList);
-    }
-
-    if (els.layout) {
-      els.layout.classList.toggle("is-explorer-collapsed", !!state.explorerCollapsed);
-    }
-    if (els.explorerExpand) els.explorerExpand.hidden = !state.explorerCollapsed;
-  }
-
-  function renderExerciseView() {
-    if (!els.exerciseView) return;
-    var mod = state.activeExerciseId ? findExercise(state.activeExerciseId) : null;
-    if (!mod) {
-      els.exerciseView.hidden = true;
-      clear(els.exerciseView);
-      return;
-    }
-    hideEssayReadView();
-    if (els.pad) els.pad.hidden = true;
-    els.exerciseView.hidden = false;
-    clear(els.exerciseView);
-
-    var title = document.createElement("h3");
-    title.className = "repo-exercise-view__title";
-    text(title, mod.name || mod.id);
-    els.exerciseView.appendChild(title);
-
-    var meta = document.createElement("p");
-    meta.className = "repo-exercise-view__meta";
-    text(meta, [mod.topic, mod.status].filter(Boolean).join(" · "));
-    els.exerciseView.appendChild(meta);
-
-    if (mod.description) {
-      var desc = document.createElement("p");
-      desc.className = "repo-exercise-view__desc";
-      text(desc, mod.description);
-      els.exerciseView.appendChild(desc);
-    }
-
-    var actions = document.createElement("div");
-    actions.className = "repo-exercise-view__actions";
-    var link = document.createElement("a");
-    link.className = "repo-exercise-view__link";
-    link.href = "/exercises";
-    text(link, "Open in Exercises");
-    actions.appendChild(link);
-    if (mod.externalUrl) {
-      var ext = document.createElement("a");
-      ext.className = "repo-exercise-view__link";
-      ext.href = mod.externalUrl;
-      ext.target = "_blank";
-      ext.rel = "noopener";
-      text(ext, "Open link");
-      actions.appendChild(ext);
-    }
-    els.exerciseView.appendChild(actions);
-
-    if (els.panelEmpty) {
-      text(
-        els.panelEmpty,
-        "No in-app runner for this exercise. Use Open in Exercises to run or check it in an IDE."
-      );
-    }
-    text(els.filePath, mod.name || mod.id);
-    if (els.fileType) {
-      els.fileType.hidden = false;
-      text(els.fileType, "Type: Coding exercise");
-    }
-  }
-
-  function renderPanelChrome() {
-    if (!els.panel || !isWritePage) return;
-    els.panel.setAttribute("data-collapsed", state.panelOpen ? "false" : "true");
-    if (els.panelBody) els.panelBody.hidden = !state.panelOpen;
-    if (els.panelToggle) {
-      els.panelToggle.setAttribute("aria-expanded", state.panelOpen ? "true" : "false");
-      text(els.panelToggle, state.panelOpen ? "Hide panel" : "Show panel");
-    }
-    try {
-      document.documentElement.style.setProperty(
-        "--repo-panel-height",
-        state.panelOpen ? "180px" : "0px"
-      );
-    } catch (e) { /* ignore */ }
-  }
-
   function renderCenter() {
     if (!els.body && !els.pad && !els.essayView) return;
+    // Exercise file editor owns the surface when a code tab is active.
+    if (els.code && !els.code.hidden) return;
     if (els.body) els.body.disabled = false;
-
-    if (state.activeExerciseId) {
-      if (els.pad) els.pad.hidden = true;
-      renderExerciseView();
-      return;
-    }
-
-    if (els.exerciseView) {
-      els.exerciseView.hidden = true;
-      clear(els.exerciseView);
-    }
     if (els.pad) els.pad.hidden = false;
-    if (els.panelEmpty) {
-      text(
-        els.panelEmpty,
-        "No in-app runner yet. Open a coding exercise from the explorer, then use Open in IDE from Exercises."
-      );
-    }
 
     var story = selectedStory();
     if (!story) {
@@ -3348,13 +3035,12 @@
       // Structure sidebar on desktop write — same tree as /repo/files.
       if (els.tree) renderTree();
       renderCenter();
-      renderTabs();
-      renderExplorer();
-      renderPanelChrome();
+      // Essay tabs only when the exercise file editor is not active.
+      if (!els.code || els.code.hidden) renderTabs();
       renderPlace();
       renderFollowup();
       renderSyncHint();
-      if (isEssayReadMode() || state.activeExerciseId) setPadActionsVisible(false);
+      if (isEssayReadMode() || (els.code && !els.code.hidden)) setPadActionsVisible(false);
       else setPadActionsVisible(state.padActionsVisible && !!padBody().trim());
     }
   }
@@ -3657,24 +3343,6 @@
       }
     });
   }
-  if (els.explorerCollapse) {
-    els.explorerCollapse.addEventListener("click", function () {
-      state.explorerCollapsed = true;
-      renderExplorer();
-    });
-  }
-  if (els.explorerExpand) {
-    els.explorerExpand.addEventListener("click", function () {
-      state.explorerCollapsed = false;
-      renderExplorer();
-    });
-  }
-  if (els.panelToggle) {
-    els.panelToggle.addEventListener("click", function () {
-      state.panelOpen = !state.panelOpen;
-      renderPanelChrome();
-    });
-  }
   if (els.moveCancel) els.moveCancel.addEventListener("click", closeMoveSheet);
   if (els.moveBackdrop) els.moveBackdrop.addEventListener("click", closeMoveSheet);
   if (els.confirmCancel) els.confirmCancel.addEventListener("click", closeConfirmSheet);
@@ -3730,7 +3398,6 @@
     getFolders: function () { return state.folders.slice(); },
     getPlacements: function () { return Object.assign({}, state.placements); },
     getOpenTabs: function () { return state.openTabs.slice(); },
-    openExerciseTab: openExerciseTab,
     syncStoriesToDisk: syncStoriesToDisk,
     registerLocationSection: registerLocationSection,
     refreshLocation: refreshLocation,
@@ -3776,8 +3443,20 @@
   };
 
   render();
-  window.tinkerRepo.ready = loadStories().then(function () {
-    applyWriteQuery();
-    restorePadDraftAfterAuth();
-  });
+  var exUi = window.tinkerExerciseWorkspaceUi;
+  var exReady = (exUi && typeof exUi.init === "function")
+    ? exUi.init({
+      onReleaseEditor: function () {
+        renderTabs();
+        renderCenter();
+      },
+    })
+    : Promise.resolve();
+  window.tinkerRepo.ready = Promise.all([
+    loadStories().then(function () {
+      applyWriteQuery();
+      restorePadDraftAfterAuth();
+    }),
+    exReady,
+  ]);
 })();
