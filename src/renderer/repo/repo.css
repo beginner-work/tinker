@@ -3242,7 +3242,7 @@ body.repo-page--write .repo-center {
     gap: 12px;
     /* Clear Learning Lab nav (~50px) + title/close + actions rows. */
     padding:
-      calc(178px + env(safe-area-inset-top, 0px))
+      calc(210px + env(safe-area-inset-top, 0px))
       calc(16px + env(safe-area-inset-right, 0px))
       calc(24px + env(safe-area-inset-bottom, 0px))
       calc(16px + env(safe-area-inset-left, 0px));
@@ -3270,8 +3270,8 @@ body.repo-page--write .repo-center {
     right: 0;
     z-index: 40;
     height: auto;
-    gap: 0;
-    padding: 12px 16px 14px;
+    gap: 16px;
+    padding: 10px 16px 16px;
     background:
       radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
       var(--color-background);
@@ -3332,7 +3332,7 @@ body.repo-page--write .repo-center {
     align-items: center;
     gap: 10px;
     width: 100%;
-    margin-top: 14px;
+    margin-top: 0;
     margin-left: 0;
     padding: 0;
   }
@@ -3342,16 +3342,20 @@ body.repo-page--write .repo-center {
     padding: 0 14px;
   }
 
+  body.repo-page--write[data-repo-essays-list="1"] .repo-tree__body {
+    padding-top: 8px;
+  }
+
   body.repo-page--write[data-repo-essays-list="1"] .repo-tree__piece-row {
-    min-height: 48px;
+    min-height: 52px;
     align-items: center;
-    padding: 4px 0;
+    padding: 6px 0;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-tree__piece {
     min-height: 44px;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding-top: 12px;
+    padding-bottom: 12px;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-tree__head--mobile {
