@@ -3190,9 +3190,9 @@ body.repo-page--write .repo-center {
     border: 0;
     box-sizing: border-box;
     gap: 12px;
-    /* Clear Learning Lab nav (~50px) + Essays head (~56px). */
+    /* Clear Learning Lab nav (~50px) + Essays head (~60px) + gap. */
     padding:
-      calc(118px + env(safe-area-inset-top, 0px))
+      calc(128px + env(safe-area-inset-top, 0px))
       calc(16px + env(safe-area-inset-right, 0px))
       calc(24px + env(safe-area-inset-bottom, 0px))
       calc(16px + env(safe-area-inset-left, 0px));
