@@ -12,9 +12,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="/styles.css?v=37" />
+    <link rel="stylesheet" href="/styles.css?v=39" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=37" />
+    <link rel="stylesheet" href="/repo/repo.css?v=39" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
     <!-- Persistent top-right brand link (not under the writing pad). -->
@@ -25,39 +25,66 @@
          data-made-by-lindow-labs>Lindow Labs</a>
     </header>
 
-    <div class="repo-layout repo-layout--write">
-      <main class="repo-center repo-write-safe-top" aria-label="Pad">
-        <div class="repo-surface writing repo-write-safe-top" id="repo-surface">
-          <div class="repo-location" id="repo-location">
-            <div class="repo-location__field">
-              <img class="repo-location__globe" src="/icons/tinker-mark.svg?v=37" alt="" width="14" height="14" aria-hidden="true" />
-              <span class="visually-hidden" id="repo-location-caption">Location</span>
-              <input type="text" class="repo-location__input writing-input" id="repo-location-input" placeholder="Where are you?" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" aria-autocomplete="list" aria-controls="repo-location-panel" aria-expanded="false" aria-labelledby="repo-location-caption" maxlength="120" />
-              <button type="button" class="repo-location__btn" id="repo-location-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="repo-location-panel" aria-label="Suggested places">
-                <svg class="repo-location__chevron" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-            </div>
-            <div class="repo-location__panel" id="repo-location-panel" hidden>
-              <ul class="repo-location__list" id="repo-location-list" role="listbox" tabindex="-1" aria-labelledby="repo-location-caption"></ul>
-            </div>
-          </div>
-          <p class="repo-followup" id="repo-followup" hidden></p>
-          <div class="repo-essay-view" id="repo-essay-view" hidden aria-label="Essay"></div>
-          <div class="repo-pad" id="repo-pad"></div>
-          <textarea class="repo-pad__mirror" id="repo-body" spellcheck="true" aria-label="Writing" tabindex="-1"></textarea>
-          <div class="repo-pad-error" id="repo-pad-error" hidden role="alert">
-            <p class="repo-pad-error__text" id="repo-pad-error-text"></p>
-            <div class="repo-pad-error__actions">
-              <button type="button" class="repo-pad-error__retry" id="repo-pad-error-retry" hidden>Retry</button>
-              <button type="button" class="repo-pad-error__signin" id="repo-pad-error-signin" hidden>Sign in</button>
-            </div>
-          </div>
-          <footer class="repo-surface__foot" id="repo-pad-actions" data-thread-actions="1" aria-hidden="true">
-            <button type="button" class="repo-surface__action repo-surface__action--secondary" id="repo-keep-crafting" tabindex="-1" aria-keyshortcuts="Meta+Enter Control+Enter">Keep crafting<span class="repo-surface__kbd" id="repo-keep-crafting-kbd" aria-hidden="true">⌘↵</span></button>
-            <button type="button" class="repo-surface__action repo-surface__action--primary" id="repo-this-is-everything" tabindex="-1" disabled>This is everything</button>
-          </footer>
+    <div class="repo-layout repo-layout--write" id="repo-layout">
+      <!-- Desktop IDE explorer: exercise file trees. Hidden on mobile. -->
+      <aside class="repo-explorer" id="repo-explorer" aria-label="Explorer">
+        <div class="repo-explorer__head">
+          <h2 class="repo-sidebar__heading" id="repo-explorer-heading">Exercises</h2>
+          <button type="button" class="repo-explorer__collapse" id="repo-explorer-collapse" aria-label="Collapse explorer" title="Collapse explorer">‹</button>
         </div>
-      </main>
+        <div class="repo-explorer__toolbar" id="repo-explorer-toolbar">
+          <button type="button" class="repo-explorer__tool" id="repo-ex-new-file" title="New file">New file</button>
+          <button type="button" class="repo-explorer__tool" id="repo-ex-new-folder" title="New folder">New folder</button>
+        </div>
+        <div class="repo-explorer__body" id="repo-explorer-body" role="tree" aria-labelledby="repo-explorer-heading"></div>
+        <p class="repo-changes__empty" id="repo-explorer-empty" hidden>No exercises yet.</p>
+        <p class="repo-explorer__hint" id="repo-explorer-hint">Seeded from lindowlabs. Edits save in Tinker, not GitHub.</p>
+      </aside>
+      <button type="button" class="repo-explorer__expand" id="repo-explorer-expand" hidden aria-label="Show explorer" title="Show explorer">›</button>
+
+      <div class="repo-ide-center" id="repo-ide-center">
+        <div class="repo-tabs" id="repo-tabs" role="tablist" aria-label="Open editors" hidden></div>
+        <main class="repo-center repo-write-safe-top" aria-label="Pad">
+          <div class="repo-surface writing repo-write-safe-top" id="repo-surface">
+            <div class="repo-location" id="repo-location">
+              <div class="repo-location__field">
+                <img class="repo-location__globe" src="/icons/tinker-mark.svg?v=39" alt="" width="14" height="14" aria-hidden="true" />
+                <span class="visually-hidden" id="repo-location-caption">Location</span>
+                <input type="text" class="repo-location__input writing-input" id="repo-location-input" placeholder="Where are you?" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" aria-autocomplete="list" aria-controls="repo-location-panel" aria-expanded="false" aria-labelledby="repo-location-caption" maxlength="120" />
+                <button type="button" class="repo-location__btn" id="repo-location-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="repo-location-panel" aria-label="Suggested places">
+                  <svg class="repo-location__chevron" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+              <div class="repo-location__panel" id="repo-location-panel" hidden>
+                <ul class="repo-location__list" id="repo-location-list" role="listbox" tabindex="-1" aria-labelledby="repo-location-caption"></ul>
+              </div>
+            </div>
+            <p class="repo-followup" id="repo-followup" hidden></p>
+            <div class="repo-essay-view" id="repo-essay-view" hidden aria-label="Essay"></div>
+            <div class="repo-pad" id="repo-pad"></div>
+            <div class="repo-code" id="repo-code" hidden aria-label="Exercise file">
+              <div class="repo-code__bar">
+                <p class="repo-code__path" id="repo-code-path"></p>
+                <button type="button" class="repo-code__save" id="repo-code-save">Save</button>
+              </div>
+              <textarea class="repo-code__editor" id="repo-code-editor" spellcheck="false" aria-label="File contents"></textarea>
+              <p class="repo-code__status" id="repo-code-status" hidden></p>
+            </div>
+            <textarea class="repo-pad__mirror" id="repo-body" spellcheck="true" aria-label="Writing" tabindex="-1"></textarea>
+            <div class="repo-pad-error" id="repo-pad-error" hidden role="alert">
+              <p class="repo-pad-error__text" id="repo-pad-error-text"></p>
+              <div class="repo-pad-error__actions">
+                <button type="button" class="repo-pad-error__retry" id="repo-pad-error-retry" hidden>Retry</button>
+                <button type="button" class="repo-pad-error__signin" id="repo-pad-error-signin" hidden>Sign in</button>
+              </div>
+            </div>
+            <footer class="repo-surface__foot" id="repo-pad-actions" data-thread-actions="1" aria-hidden="true">
+              <button type="button" class="repo-surface__action repo-surface__action--secondary" id="repo-keep-crafting" tabindex="-1" aria-keyshortcuts="Meta+Enter Control+Enter">Keep crafting<span class="repo-surface__kbd" id="repo-keep-crafting-kbd" aria-hidden="true">⌘↵</span></button>
+              <button type="button" class="repo-surface__action repo-surface__action--primary" id="repo-this-is-everything" tabindex="-1" disabled>This is everything</button>
+            </footer>
+          </div>
+        </main>
+      </div>
 
       <aside class="repo-right" aria-label="Repository">
         <section class="repo-tree" aria-labelledby="repo-stories-heading">
@@ -104,6 +131,18 @@
       </div>
     </div>
 
+    <div class="repo-sheet" id="repo-ex-confirm-sheet" hidden>
+      <div class="repo-sheet__backdrop" id="repo-ex-confirm-backdrop"></div>
+      <div class="repo-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="repo-ex-confirm-title">
+        <h2 class="repo-sheet__title" id="repo-ex-confirm-title">Delete?</h2>
+        <p class="repo-sheet__hint" id="repo-ex-confirm-hint"></p>
+        <div class="repo-sheet__actions">
+          <button type="button" class="repo-sheet__danger" id="repo-ex-confirm-delete">Delete</button>
+          <button type="button" class="repo-sheet__cancel" id="repo-ex-confirm-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Legacy ids kept hidden for test/id stability; storage UI lives on Files. -->
     <button type="button" class="repo-location__choose" id="repo-location-choose" hidden>Mac folder…</button>
     <div id="repo-location-custom" hidden></div>
@@ -114,20 +153,23 @@
     <p id="repo-name" hidden>tinker</p>
     <button type="button" id="repo-new-piece" hidden>New file</button>
 
-    <script src="/platform-mobile.js?v=37"></script>
-    <script src="/interview-prompt.js?v=37"></script>
+    <script src="/platform-mobile.js?v=39"></script>
+    <script src="/interview-prompt.js?v=39"></script>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/vendor/purify.min.js"></script>
     <script src="/lib/essay-read.js?v=1"></script>
-    <script src="/lib/stories-md.js?v=37"></script>
-    <script src="/lib/repo-folders-core.js?v=37"></script>
-    <script src="/lib/repo-pad-reveal.js?v=37"></script>
-    <script src="/lib/repo-write-scroll.js?v=37"></script>
-    <script src="/lib/storage-path-core.js?v=37"></script>
-    <script src="/lib/fs-access-folder.js?v=37"></script>
-    <script src="/lib/storage-adapters.js?v=37"></script>
-    <script src="/made-by-lindow-labs.js?v=37"></script>
-    <script src="/repo/repo.js?v=37"></script>
-    <script src="/repo/storage-section.js?v=37"></script>
+    <script src="/lib/stories-md.js?v=39"></script>
+    <script src="/lib/repo-folders-core.js?v=39"></script>
+    <script src="/lib/repo-pad-reveal.js?v=39"></script>
+    <script src="/lib/repo-write-scroll.js?v=39"></script>
+    <script src="/lib/storage-path-core.js?v=39"></script>
+    <script src="/lib/fs-access-folder.js?v=39"></script>
+    <script src="/lib/storage-adapters.js?v=39"></script>
+    <script src="/exercises/manifest.js?v=39"></script>
+    <script src="/lib/exercise-workspace-core.js?v=39"></script>
+    <script src="/repo/exercise-workspace-ui.js?v=39"></script>
+    <script src="/made-by-lindow-labs.js?v=39"></script>
+    <script src="/repo/repo.js?v=39"></script>
+    <script src="/repo/storage-section.js?v=39"></script>
   </body>
 </html>

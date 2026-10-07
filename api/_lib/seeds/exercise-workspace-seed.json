@@ -1,0 +1,376 @@
+{
+  "repo": "tlindow/lindowlabs",
+  "branch": "main",
+  "exercises": {
+    "stripe-payment-intent": {
+      "id": "stripe-payment-intent",
+      "nodes": [
+        {
+          "path": ".gitignore",
+          "type": "file",
+          "content": "node_modules/\n"
+        },
+        {
+          "path": "README.md",
+          "type": "file",
+          "content": "# Learn from docs: Stripe PaymentIntent (test mode)\n\nStripe's payments quickstart (test mode) creates a PaymentIntent and\nhands the browser a client_secret so Elements can confirm the payment.\n\nIn Practice we never call Stripe. A sample create-response JSON is\nchecked into the repo as a fixture. Your job is to read the fields\nthe quickstart cares about.\n\nWrite from scratch (pseudocode first is fine):\n\n```\nreadPaymentIntentClient(fixture)\n  Input: fixture - the PaymentIntent create-response object\n  Output: an object with:\n    - clientSecret  \u2190 fixture.client_secret\n    - amountCents  \u2190 fixture.amount   (integer cents)\n    - currency     \u2190 fixture.currency\n    - livemode     \u2190 fixture.livemode (false for this test fixture)\n```\n\nExport it so the tests can call it:\n\n```js\nmodule.exports = { readPaymentIntentClient };\n```\n\nDo not call fetch. Do not invent secrets. Use only the fixture object.\n\n## Start here\n\n1. Open `readPaymentIntentClient.js` (starter stub) and implement the function.\n2. The original Practice rep (spec + embedded test names) is in `stripe-payment-intent.js`.\n3. Fixture: `fixtures/stripe-payment-intent-create.json`.\n\n```bash\ncd exercises/stripe-payment-intent\nnpm install\nnpm test\n```\n\nTests start red until `readPaymentIntentClient` is implemented.\n"
+        },
+        {
+          "path": "fixtures",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "package.json",
+          "type": "file",
+          "content": "{\n  \"name\": \"tinker-exercise-stripe-payment-intent\",\n  \"version\": \"0.1.0\",\n  \"private\": true,\n  \"description\": \"Practice: read Stripe PaymentIntent create fixture fields (no network)\",\n  \"type\": \"commonjs\",\n  \"scripts\": {\n    \"test\": \"node --test test/**/*.test.js\"\n  },\n  \"engines\": {\n    \"node\": \">=20\"\n  }\n}\n"
+        },
+        {
+          "path": "readPaymentIntentClient.js",
+          "type": "file",
+          "content": "// write readPaymentIntentClient(fixture)\n\nfunction readPaymentIntentClient(fixture) {\n  throw new Error(\"TODO: implement readPaymentIntentClient\");\n}\n\nmodule.exports = { readPaymentIntentClient };\n"
+        },
+        {
+          "path": "stripe-payment-intent.js",
+          "type": "file",
+          "content": "/* Practice rep: Learn from docs - Stripe payments quickstart (test mode).\n * Spec + empty editor seed + hints only. Tests use a checked-in fixture (no network).\n */\n(function (root) {\n  \"use strict\";\n\n  var rep = {\n    id: \"stripe-payment-intent\",\n    title: \"Learn from docs: Stripe PaymentIntent (test mode)\",\n    summary: \"Turn the Stripe payments quickstart into a small helper that reads a PaymentIntent create response - using a saved fixture, never a live API key.\",\n    tags: [\"learn-from-docs\", \"stripe\"],\n    sourceNote: \"Docs-to-rep demo from the Stripe payments quickstart (test mode). Fixture: practice/fixtures/stripe-payment-intent-create.json.\",\n    learnFromDocs: true,\n    docsSource: \"https://github.com/stripe/stripe-dotnet / Stripe API reference - PaymentIntents (prefer GitHub-published docs over scraping).\",\n    spec: [\n      \"Stripe's payments quickstart (test mode) creates a PaymentIntent and\",\n      \"hands the browser a client_secret so Elements can confirm the payment.\",\n      \"\",\n      \"In Practice we never call Stripe. A sample create-response JSON is\",\n      \"checked into the repo as a fixture. Your job is to read the fields\",\n      \"the quickstart cares about.\",\n      \"\",\n      \"Write from scratch (pseudocode first is fine):\",\n      \"\",\n      \"  readPaymentIntentClient(fixture)\",\n      \"    Input: fixture - the PaymentIntent create-response object\",\n      \"    Output: an object with:\",\n      \"      - clientSecret  \u2190 fixture.client_secret\",\n      \"      - amountCents  \u2190 fixture.amount   (integer cents)\",\n      \"      - currency     \u2190 fixture.currency\",\n      \"      - livemode     \u2190 fixture.livemode (false for this test fixture)\",\n      \"\",\n      \"Export it so the tests can call it:\",\n      \"  module.exports = { readPaymentIntentClient };\",\n      \"\",\n      \"Do not call fetch. Do not invent secrets. Use only the fixture object.\",\n    ].join(\"\\n\"),\n    emptyPrompt: \"// write readPaymentIntentClient(fixture)\\n\",\n    hints: [\n      \"Stripe's PaymentIntent JSON uses snake_case: client_secret, not secret.\",\n      \"amount is already integer cents (1099 means $10.99). There is no amount_dollars field on the create response.\",\n      \"currency is a lowercase string like \\\"usd\\\". livemode is a boolean; the practice fixture is test mode (false).\",\n    ],\n    tests: [\n      {\n        name: \"reads client_secret from the fixture\",\n        body: [\n          \"var out = api.readPaymentIntentClient(fixtures.paymentIntent);\",\n          \"assert.equal(out.clientSecret, fixtures.paymentIntent.client_secret);\",\n        ].join(\"\\n\"),\n      },\n      {\n        name: \"reads amount as integer cents\",\n        body: [\n          \"var out = api.readPaymentIntentClient(fixtures.paymentIntent);\",\n          \"assert.equal(out.amountCents, 1099);\",\n        ].join(\"\\n\"),\n      },\n      {\n        name: \"reads currency and test-mode livemode\",\n        body: [\n          \"var out = api.readPaymentIntentClient(fixtures.paymentIntent);\",\n          \"assert.equal(out.currency, \\\"usd\\\");\",\n          \"assert.equal(out.livemode, false);\",\n        ].join(\"\\n\"),\n      },\n      {\n        name: \"fixture stays offline (no network fields required)\",\n        body: [\n          \"assert.equal(fixtures.paymentIntent.object, \\\"payment_intent\\\");\",\n          \"assert.equal(fixtures.paymentIntent.livemode, false);\",\n          \"assert.ok(String(fixtures.paymentIntent.id).indexOf(\\\"pi_\\\") === 0);\",\n        ].join(\"\\n\"),\n      },\n    ],\n    fixtureUrl: \"/practice/fixtures/stripe-payment-intent-create.json\",\n    fixtures: null,\n  };\n\n  root.TINKER_PRACTICE_REPS = root.TINKER_PRACTICE_REPS || [];\n  root.TINKER_PRACTICE_REPS.push(rep);\n})(typeof window !== \"undefined\" ? window : globalThis);\n"
+        },
+        {
+          "path": "test",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "fixtures/stripe-payment-intent-create.json",
+          "type": "file",
+          "content": "{\n  \"id\": \"pi_3PracticeDemo00000000000001\",\n  \"object\": \"payment_intent\",\n  \"amount\": 1099,\n  \"amount_received\": 0,\n  \"capture_method\": \"automatic\",\n  \"client_secret\": \"pi_3PracticeDemo00000000000001_secret_practiceOnlyNotReal\",\n  \"confirmation_method\": \"automatic\",\n  \"created\": 1769900000,\n  \"currency\": \"usd\",\n  \"livemode\": false,\n  \"metadata\": {\n    \"source\": \"tinker-practice-fixture\"\n  },\n  \"payment_method_types\": [\"card\"],\n  \"status\": \"requires_payment_method\",\n  \"description\": \"Sample PaymentIntent from the Stripe payments quickstart (test mode). Checked into the repo so Practice tests never call the network.\"\n}\n"
+        },
+        {
+          "path": "test/read-payment-intent.test.js",
+          "type": "file",
+          "content": "\"use strict\";\n\nconst assert = require(\"node:assert/strict\");\nconst { test } = require(\"node:test\");\nconst path = require(\"node:path\");\nconst fs = require(\"node:fs\");\n\nconst api = require(\"../readPaymentIntentClient\");\nconst fixtures = {\n  paymentIntent: JSON.parse(\n    fs.readFileSync(\n      path.join(__dirname, \"../fixtures/stripe-payment-intent-create.json\"),\n      \"utf8\"\n    )\n  ),\n};\n\ntest(\"reads client_secret from the fixture\", () => {\n  var out = api.readPaymentIntentClient(fixtures.paymentIntent);\n  assert.equal(out.clientSecret, fixtures.paymentIntent.client_secret);\n});\n\ntest(\"reads amount as integer cents\", () => {\n  var out = api.readPaymentIntentClient(fixtures.paymentIntent);\n  assert.equal(out.amountCents, 1099);\n});\n\ntest(\"reads currency and test-mode livemode\", () => {\n  var out = api.readPaymentIntentClient(fixtures.paymentIntent);\n  assert.equal(out.currency, \"usd\");\n  assert.equal(out.livemode, false);\n});\n\ntest(\"fixture stays offline (no network fields required)\", () => {\n  assert.equal(fixtures.paymentIntent.object, \"payment_intent\");\n  assert.equal(fixtures.paymentIntent.livemode, false);\n  assert.ok(String(fixtures.paymentIntent.id).indexOf(\"pi_\") === 0);\n});\n"
+        }
+      ]
+    },
+    "api-design": {
+      "id": "api-design",
+      "nodes": [
+        {
+          "path": ".gitignore",
+          "type": "file",
+          "content": "node_modules/\ndist/\n*.tsbuildinfo\n"
+        },
+        {
+          "path": "00-in-plain-english",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "01-smallest-valid-spec",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "02-name-the-thing",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "03-create",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "04-failure",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "05-lists",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "06-auth",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "07-from-scratch",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "README.md",
+          "type": "file",
+          "content": "# OpenAPI by hand\n\nStart in plain English, then turn that understanding into OpenAPI YAML one\nmilestone at a time. Practice files start blank on purpose.\n\n1. Step **00**: write [`00-in-plain-english/api.md`](./00-in-plain-english/api.md).\n2. Steps **01** through **06**: copy your `openapi.yaml` forward; each milestone\n   translates a slice of that `api.md` for the **rides** domain.\n3. Step **07**: leave rides behind and write the payments contract from\n   [WORKSHEET.md](./WORKSHEET.md) by hand.\n\nMachine-readable step list: [`steps.json`](./steps.json) (for Tinker to split or\nmerge steps later; boundaries stay coarse here).\n\n## Steps\n\n| Step | Folder | What you add | From `api.md` |\n| :--- | :--- | :--- | :--- |\n| 00 | [`00-in-plain-english/`](./00-in-plain-english/) | Plain English answers | ask, send, return, wrong |\n| 01 | [`01-smallest-valid-spec/`](./01-smallest-valid-spec/) | Version, info, one `GET` | ask, return |\n| 02 | [`02-name-the-thing/`](./02-name-the-thing/) | Named schema + `$ref` | return |\n| 03 | [`03-create/`](./03-create/) | `POST` with a request body | send |\n| 04 | [`04-failure/`](./04-failure/) | Shared `Error`, 400, 404 | wrong |\n| 05 | [`05-lists/`](./05-lists/) | Query params and pagination | ask |\n| 06 | [`06-auth/`](./06-auth/) | A security scheme | send |\n| 07 | [`07-from-scratch/`](./07-from-scratch/) | Whole payments spec by hand | all four (payments) |\n\n## How to check\n\nStep 00 has no lint. For YAML milestones:\n\n```bash\ncd exercises/api-design\nnpm install\nnpm run check:step -- 01\n```\n\nReplace `01` with the step you are on. The check lints your YAML and asserts the\nshapes that step requires. Reference answers live under [`solutions/`](./solutions/)\n(peek only after you have typed your own).\n\n## Later: Fastify implementation\n\nAfter the OpenAPI track, build the payments API in TypeScript under\n[`extras/`](./extras/).\n"
+        },
+        {
+          "path": "WORKSHEET.md",
+          "type": "file",
+          "content": "# Worksheet: Payments REST API\n\nUse this domain only for **step 07**. Steps 01 through 06 stay on rides.\n\nBuild the public HTTP contract with the words a payments team says out loud:\n**merchant**, **payment**, **refund**, **amountCents**, **currency**.\n\n## Resources\n\n### Payment\n\n| Field | Type | Rules |\n| --- | --- | --- |\n| `paymentId` | string | Server-generated; present on responses |\n| `merchantId` | string | Required on create; non-empty |\n| `amountCents` | number | Required on create; integer > 0 |\n| `currency` | string | Required on create; lowercase ISO code, e.g. `usd` |\n| `status` | string | Server-set: `pending` on create; `refunded` after a full refund |\n| `createdAt` | string | ISO-8601; set by server |\n\n### Refund\n\n| Field | Type | Rules |\n| --- | --- | --- |\n| `refundId` | string | Server-generated |\n| `paymentId` | string | The payment being refunded |\n| `amountCents` | number | Required; integer > 0; must not exceed the payment's `amountCents` |\n| `createdAt` | string | ISO-8601; set by server |\n\n## Routes\n\n| Method | Path | Success | Notes |\n| --- | --- | --- | --- |\n| `POST` | `/payments` | `201` | Body: `{ merchantId, amountCents, currency }`. Return the created payment. |\n| `GET` | `/payments` | `200` | Optional `?merchantId=` filter. Return `{ payments: Payment[] }`. |\n| `GET` | `/payments/{paymentId}` | `200` | Return one payment. |\n| `POST` | `/payments/{paymentId}/refunds` | `201` | Body: `{ amountCents }`. Return the created refund. Mark the payment `refunded` when refunded in full. |\n| `GET` | `/refunds/{refundId}` | `200` | Return one refund. |\n\n## Validation and status codes\n\n- Missing or empty required fields, non-integer or non-positive `amountCents`, or unknown `currency` shape: `400` with `{ error: string }`.\n- Refund `amountCents` greater than the payment's `amountCents`: `400` with `{ error: string }`.\n- Unknown `paymentId` or `refundId`: `404` with `{ error: string }`.\n- Content-Type for JSON requests and responses: `application/json`.\n\n## Language\n\nBefore you name a path or schema, ask: would a payments teammate say this word\nin standup? Keep code names aligned with spoken domain language.\n"
+        },
+        {
+          "path": "extras",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "package.json",
+          "type": "file",
+          "content": "{\n  \"name\": \"tinker-exercise-api-design\",\n  \"version\": \"0.2.0\",\n  \"private\": true,\n  \"description\": \"Practice: write OpenAPI YAML by hand, one step at a time\",\n  \"type\": \"module\",\n  \"scripts\": {\n    \"lint\": \"node scripts/check-step.mjs --all-solutions\",\n    \"check:step\": \"node scripts/check-step.mjs\",\n    \"check:solutions\": \"node scripts/check-step.mjs --all-solutions\",\n    \"check\": \"npm run check:solutions\"\n  },\n  \"engines\": {\n    \"node\": \">=20\"\n  },\n  \"devDependencies\": {\n    \"@redocly/cli\": \"^1.34.3\",\n    \"yaml\": \"^2.7.1\"\n  }\n}\n"
+        },
+        {
+          "path": "redocly.yaml",
+          "type": "file",
+          "content": "# Beginner-friendly lint: structural OpenAPI validity without forcing\n# servers, licenses, operationIds, or auth on every early step.\nextends:\n  - recommended\nrules:\n  no-empty-servers: off\n  security-defined: off\n  info-license: off\n  operation-operationId: off\n  operation-4xx-response: off\n  operation-summary: warn\n"
+        },
+        {
+          "path": "scripts",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "solutions",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "steps.json",
+          "type": "file",
+          "content": "{\n  \"version\": 1,\n  \"domain\": \"rides\",\n  \"apiMdSections\": {\n    \"ask\": \"What someone can ask for\",\n    \"send\": \"What they send\",\n    \"return\": \"What comes back\",\n    \"wrong\": \"What can go wrong\"\n  },\n  \"steps\": [\n    {\n      \"id\": \"00\",\n      \"folder\": \"00-in-plain-english\",\n      \"title\": \"In plain English\",\n      \"goal\": \"Write what a rides caller needs to know in plain English before any YAML.\",\n      \"check\": null,\n      \"apiMd\": [\"ask\", \"send\", \"return\", \"wrong\"]\n    },\n    {\n      \"id\": \"01\",\n      \"folder\": \"01-smallest-valid-spec\",\n      \"title\": \"Smallest valid spec\",\n      \"goal\": \"Turn one ask into openapi info plus GET /rides/{id} returning 200.\",\n      \"check\": \"npm run check:step -- 01\",\n      \"apiMd\": [\"ask\", \"return\"]\n    },\n    {\n      \"id\": \"02\",\n      \"folder\": \"02-name-the-thing\",\n      \"title\": \"Name the thing\",\n      \"goal\": \"Move the return shape into components/schemas and $ref it.\",\n      \"check\": \"npm run check:step -- 02\",\n      \"apiMd\": [\"return\"]\n    },\n    {\n      \"id\": \"03\",\n      \"folder\": \"03-create\",\n      \"title\": \"Create\",\n      \"goal\": \"Translate send into POST /rides with a required request body.\",\n      \"check\": \"npm run check:step -- 03\",\n      \"apiMd\": [\"send\"]\n    },\n    {\n      \"id\": \"04\",\n      \"folder\": \"04-failure\",\n      \"title\": \"Failure\",\n      \"goal\": \"Translate wrong into a shared Error schema plus 400 and 404.\",\n      \"check\": \"npm run check:step -- 04\",\n      \"apiMd\": [\"wrong\"]\n    },\n    {\n      \"id\": \"05\",\n      \"folder\": \"05-lists\",\n      \"title\": \"Lists\",\n      \"goal\": \"Expand ask with GET /rides query filters and pagination.\",\n      \"check\": \"npm run check:step -- 05\",\n      \"apiMd\": [\"ask\"]\n    },\n    {\n      \"id\": \"06\",\n      \"folder\": \"06-auth\",\n      \"title\": \"Auth\",\n      \"goal\": \"Translate credential notes under send into a security scheme.\",\n      \"check\": \"npm run check:step -- 06\",\n      \"apiMd\": [\"send\"]\n    },\n    {\n      \"id\": \"07\",\n      \"folder\": \"07-from-scratch\",\n      \"title\": \"From scratch\",\n      \"goal\": \"Apply ask/send/return/wrong to the payments worksheet and write the full YAML by hand.\",\n      \"check\": \"npm run check:step -- 07\",\n      \"apiMd\": [\"ask\", \"send\", \"return\", \"wrong\"],\n      \"worksheet\": \"WORKSHEET.md\"\n    }\n  ]\n}\n"
+        },
+        {
+          "path": "00-in-plain-english/README.md",
+          "type": "file",
+          "content": "# 00: In plain English\n\nBefore any YAML, open `api.md` and write what someone calling the **rides**\nservice needs to know. Use plain sentences or English pseudocode.\n\nAnswer each of these:\n\n1. **ask** - What can they ask for?\n2. **send** - What do they send?\n3. **return** - What comes back?\n4. **wrong** - What can go wrong?\n\nThis is the problem OpenAPI was designed to solve: turn that shared\nunderstanding into a machine-readable contract. Later steps translate slices of\nyour `api.md` into YAML.\n\nDone when each of the four has an answer. No lint check for this step.\n"
+        },
+        {
+          "path": "00-in-plain-english/api.md",
+          "type": "file",
+          "content": "<!-- Write in plain English what a caller of the rides service needs to know. -->\n"
+        },
+        {
+          "path": "01-smallest-valid-spec/README.md",
+          "type": "file",
+          "content": "# 01: Smallest valid spec\n\nFrom [`../00-in-plain-english/api.md`](../00-in-plain-english/api.md), translate\n**ask** and **return** for one read: OpenAPI version, `info` title and version,\nand `GET /rides/{id}` returning `200`. About ten lines total.\n\nA document needs identity (`info`) and at least one path before tools will lint it.\n\n```bash\nnpm run check:step -- 01\n```\n\nTiny shape (not the rides answer):\n\n```yaml\nopenapi: \"3.0.3\"\ninfo:\n  title: Example\n  version: \"1.0.0\"\npaths: {}\n```\n"
+        },
+        {
+          "path": "01-smallest-valid-spec/openapi.yaml",
+          "type": "file",
+          "content": "# Write your OpenAPI document here.\n"
+        },
+        {
+          "path": "02-name-the-thing/README.md",
+          "type": "file",
+          "content": "# 02: Name the thing\n\nFrom [`../00-in-plain-english/api.md`](../00-in-plain-english/api.md), translate\n**return**: copy your step 01 file here, move the `200` response shape into\n`components/schemas`, and point at it with `$ref`.\n\nNamed schemas keep response shapes reusable instead of repeating inline objects.\n\n```bash\nnpm run check:step -- 02\n```\n\nTiny shape:\n\n```yaml\ncomponents:\n  schemas:\n    Thing:\n      type: object\nschema:\n  $ref: \"#/components/schemas/Thing\"\n```\n"
+        },
+        {
+          "path": "02-name-the-thing/openapi.yaml",
+          "type": "file",
+          "content": "# Copy your step 01 openapi.yaml here, then name the response schema.\n"
+        },
+        {
+          "path": "03-create/README.md",
+          "type": "file",
+          "content": "# 03: Create\n\nFrom [`../00-in-plain-english/api.md`](../00-in-plain-english/api.md), translate\n**send**: copy your step 02 file here, add `POST /rides` with a JSON request\nbody and `required` fields on the create schema.\n\nCreates need an explicit body contract so clients know what they must send.\n\n```bash\nnpm run check:step -- 03\n```\n\nTiny shape:\n\n```yaml\nrequestBody:\n  required: true\n  content:\n    application/json:\n      schema:\n        $ref: \"#/components/schemas/CreateThing\"\n```\n"
+        },
+        {
+          "path": "03-create/openapi.yaml",
+          "type": "file",
+          "content": "# Copy your step 02 openapi.yaml here, then add POST /rides.\n"
+        },
+        {
+          "path": "04-failure/README.md",
+          "type": "file",
+          "content": "# 04: Failure\n\nFrom [`../00-in-plain-english/api.md`](../00-in-plain-english/api.md), translate\n**wrong**: copy your step 03 file here, add a shared `Error` schema, then\ndocument `400` and `404` responses on the ride operations.\n\nHappy paths alone hide how clients should handle bad input and missing resources.\n\n```bash\nnpm run check:step -- 04\n```\n\nTiny shape:\n\n```yaml\n\"400\":\n  description: Bad request\n  content:\n    application/json:\n      schema:\n        $ref: \"#/components/schemas/Error\"\n```\n"
+        },
+        {
+          "path": "04-failure/openapi.yaml",
+          "type": "file",
+          "content": "# Copy your step 03 openapi.yaml here, then add Error, 400, and 404.\n"
+        },
+        {
+          "path": "05-lists/README.md",
+          "type": "file",
+          "content": "# 05: Lists\n\nFrom [`../00-in-plain-english/api.md`](../00-in-plain-english/api.md), expand\n**ask**: copy your step 04 file here, add `GET /rides` with query parameters for\nfiltering and pagination (for example `limit` and `offset`).\n\nLists need filters and page controls in the query string, not the path.\n\n```bash\nnpm run check:step -- 05\n```\n\nTiny shape:\n\n```yaml\nparameters:\n  - name: limit\n    in: query\n    schema:\n      type: integer\n```\n"
+        },
+        {
+          "path": "05-lists/openapi.yaml",
+          "type": "file",
+          "content": "# Copy your step 04 openapi.yaml here, then add GET /rides with query params.\n"
+        },
+        {
+          "path": "06-auth/README.md",
+          "type": "file",
+          "content": "# 06: Auth\n\nFrom [`../00-in-plain-english/api.md`](../00-in-plain-english/api.md), translate\ncredential notes under **send**: copy your step 05 file here, declare a\n`securitySchemes` entry, and apply it with `security`.\n\nAuth belongs in the contract so generated clients and docs show how to call in.\n\n```bash\nnpm run check:step -- 06\n```\n\nTiny shape:\n\n```yaml\ncomponents:\n  securitySchemes:\n    bearerAuth:\n      type: http\n      scheme: bearer\nsecurity:\n  - bearerAuth: []\n```\n"
+        },
+        {
+          "path": "06-auth/openapi.yaml",
+          "type": "file",
+          "content": "# Copy your step 05 openapi.yaml here, then add a security scheme.\n"
+        },
+        {
+          "path": "07-from-scratch/README.md",
+          "type": "file",
+          "content": "# 07: From scratch\n\nDo not copy the rides YAML. Apply the same four `api.md` questions (**ask**,\n**send**, **return**, **wrong**) to the payments domain in\n[WORKSHEET.md](../WORKSHEET.md), then write the full OpenAPI document in this\nempty `openapi.yaml` by hand.\n\nPutting the pieces together without a prior draft is the real check that the\nshapes stuck.\n\n```bash\nnpm run check:step -- 07\n```\n"
+        },
+        {
+          "path": "07-from-scratch/openapi.yaml",
+          "type": "file",
+          "content": "# Write the full payments OpenAPI document from WORKSHEET.md here.\n"
+        },
+        {
+          "path": "extras/.gitignore",
+          "type": "file",
+          "content": "node_modules/\ndist/\n*.tsbuildinfo\n"
+        },
+        {
+          "path": "extras/README.md",
+          "type": "file",
+          "content": "# Extras: Fastify payments API\n\nOptional follow-up after the OpenAPI track. Build a small **Fastify + TypeScript**\nREST API for the payments domain in [SPEC.md](./SPEC.md).\n\n## Start here\n\n1. Read [SPEC.md](./SPEC.md).\n2. `npm install`\n3. `npm test` (expect failures until you implement handlers).\n4. Edit `src/payments.ts`. Handler bodies are stubs on purpose.\n5. Re-run `npm test` until green.\n\nOptional: `npm run dev` starts the server on port `3030` for manual curls.\n"
+        },
+        {
+          "path": "extras/SPEC.md",
+          "type": "file",
+          "content": "# Spec: Payments REST API (Fastify + TypeScript)\n\nBuild a small payments-domain API using the words a payments team says out loud:\n**merchant**, **payment**, **refund**, **amountCents**, **currency**.\n\nTies to Eric Evans, *Domain-Driven Design*, Chapter 2 (Communication and the Use of Language).\nComplements the API design practice track. Prefer fintech ubiquitous language over\nmetaphors from other domains.\n\n## Resources\n\n### Payment\n\n| Field | Type | Rules |\n| --- | --- | --- |\n| `paymentId` | string | Server-generated; present on responses |\n| `merchantId` | string | Required on create; non-empty |\n| `amountCents` | number | Required on create; integer > 0 |\n| `currency` | string | Required on create; lowercase ISO code, e.g. `usd` |\n| `status` | string | Server-set: `pending` on create; `refunded` after a full refund |\n| `createdAt` | string | ISO-8601; set by server |\n\n### Refund\n\n| Field | Type | Rules |\n| --- | --- | --- |\n| `refundId` | string | Server-generated |\n| `paymentId` | string | The payment being refunded |\n| `amountCents` | number | Required; integer > 0; must not exceed the payment's `amountCents` |\n| `createdAt` | string | ISO-8601; set by server |\n\nIn-memory store is fine. No database. No Stripe network calls.\n\n## Routes\n\n| Method | Path | Success | Notes |\n| --- | --- | --- | --- |\n| `POST` | `/payments` | `201` | Body: `{ merchantId, amountCents, currency }`. Return the created payment. |\n| `GET` | `/payments` | `200` | Optional `?merchantId=` filter. Return `{ payments: Payment[] }`. |\n| `GET` | `/payments/:paymentId` | `200` | Return one payment. |\n| `POST` | `/payments/:paymentId/refunds` | `201` | Body: `{ amountCents }`. Return the created refund. Mark the payment `refunded` when refunded in full. |\n| `GET` | `/refunds/:refundId` | `200` | Return one refund. |\n\n## Validation and status codes\n\n- Missing/empty required fields, non-integer or non-positive `amountCents`, or unknown `currency` shape \u2192 `400` with `{ error: string }`.\n- Refund `amountCents` greater than the payment's `amountCents` \u2192 `400` with `{ error: string }`.\n- Unknown `paymentId` or `refundId` \u2192 `404` with `{ error: string }`.\n- Content-Type for JSON requests/responses: `application/json`.\n\n## What you implement\n\nOpen `src/payments.ts` and fill in the handlers. Route wiring and the Fastify app factory are already set up in `src/app.ts` / `src/server.ts`. Leave the store in memory.\n\n## Language drift (DDD Ch 2)\n\nBefore you name a route or type, ask: would a payments teammate say this word in standup?\nIf spoken language says **refund** but the code says `credit`, `reversal`, or `chargeback`, that is drift. Keep the code names aligned with the spoken domain.\n\n## How to run\n\n```bash\ncd exercises/api-design/extras\nnpm install\nnpm test\n```\n\nTests start red. Implement until both the happy-path and the 400 validation test pass (plus any others you add).\n"
+        },
+        {
+          "path": "extras/package.json",
+          "type": "file",
+          "content": "{\n  \"name\": \"tinker-exercise-api-design-extras\",\n  \"version\": \"0.1.0\",\n  \"private\": true,\n  \"description\": \"Optional Fastify payments REST API after the OpenAPI track\",\n  \"type\": \"commonjs\",\n  \"scripts\": {\n    \"build\": \"tsc -p tsconfig.json\",\n    \"test\": \"node --import tsx --test test/**/*.test.ts\",\n    \"dev\": \"tsx watch src/server.ts\",\n    \"start\": \"node dist/server.js\"\n  },\n  \"engines\": {\n    \"node\": \">=20\"\n  },\n  \"dependencies\": {\n    \"fastify\": \"^5.2.1\"\n  },\n  \"devDependencies\": {\n    \"@types/node\": \"^22.13.10\",\n    \"tsx\": \"^4.19.3\",\n    \"typescript\": \"^5.8.2\"\n  }\n}\n"
+        },
+        {
+          "path": "extras/src",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "extras/test",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "extras/tsconfig.json",
+          "type": "file",
+          "content": "{\n  \"compilerOptions\": {\n    \"target\": \"ES2022\",\n    \"module\": \"CommonJS\",\n    \"moduleResolution\": \"node\",\n    \"outDir\": \"dist\",\n    \"rootDir\": \"src\",\n    \"strict\": true,\n    \"esModuleInterop\": true,\n    \"skipLibCheck\": true,\n    \"forceConsistentCasingInFileNames\": true,\n    \"resolveJsonModule\": true,\n    \"types\": [\"node\"]\n  },\n  \"include\": [\"src/**/*.ts\"],\n  \"exclude\": [\"node_modules\", \"dist\", \"test\"]\n}\n"
+        },
+        {
+          "path": "scripts/check-step.mjs",
+          "type": "file",
+          "content": "#!/usr/bin/env node\n/**\n * Lint and assert required OpenAPI shapes for one step.\n *\n * Usage:\n *   node scripts/check-step.mjs 03\n *   node scripts/check-step.mjs 03 --solutions\n *   node scripts/check-step.mjs --all-solutions\n */\nimport { spawnSync } from \"node:child_process\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport YAML from \"yaml\";\n\nconst __dirname = path.dirname(fileURLToPath(import.meta.url));\nconst ROOT = path.resolve(__dirname, \"..\");\n\nconst STEPS = {\n  \"01\": \"01-smallest-valid-spec\",\n  \"02\": \"02-name-the-thing\",\n  \"03\": \"03-create\",\n  \"04\": \"04-failure\",\n  \"05\": \"05-lists\",\n  \"06\": \"06-auth\",\n  \"07\": \"07-from-scratch\",\n};\n\n/** Step 00 is plain English only; no machine check. */\nconst NO_CHECK_STEPS = new Set([\"00\"]);\n\nfunction fail(message) {\n  console.error(`check:step: ${message}`);\n  process.exit(1);\n}\n\nfunction loadSpec(filePath) {\n  if (!fs.existsSync(filePath)) {\n    fail(`missing file ${filePath}`);\n  }\n  const raw = fs.readFileSync(filePath, \"utf8\");\n  const stripped = raw\n    .split(\"\\n\")\n    .filter((line) => !/^\\s*#/.test(line))\n    .join(\"\\n\")\n    .trim();\n  if (!stripped) {\n    fail(`${filePath} is empty (comment-only files do not pass)`);\n  }\n  try {\n    return YAML.parse(raw);\n  } catch (err) {\n    fail(`YAML parse failed for ${filePath}: ${err.message}`);\n  }\n}\n\nfunction get(obj, dotted) {\n  return dotted.split(\".\").reduce((acc, key) => (acc == null ? acc : acc[key]), obj);\n}\n\nfunction assert(condition, message) {\n  if (!condition) fail(message);\n}\n\nfunction hasQueryParam(operation, name) {\n  const params = operation?.parameters ?? [];\n  return params.some((p) => p && p.name === name && p.in === \"query\");\n}\n\nfunction responseUsesRef(operation, status, refSuffix) {\n  const content = operation?.responses?.[status]?.content?.[\"application/json\"];\n  const ref = content?.schema?.$ref;\n  return typeof ref === \"string\" && ref.endsWith(refSuffix);\n}\n\nfunction lintFile(filePath) {\n  const result = spawnSync(\n    \"npx\",\n    [\"--no-install\", \"@redocly/cli\", \"lint\", filePath, \"--config\", \"redocly.yaml\"],\n    { cwd: ROOT, encoding: \"utf8\", stdio: [\"ignore\", \"pipe\", \"pipe\"] }\n  );\n  if (result.status !== 0) {\n    process.stdout.write(result.stdout || \"\");\n    process.stderr.write(result.stderr || \"\");\n    fail(`@redocly/cli lint failed for ${filePath}`);\n  }\n}\n\nfunction checkStep01(spec) {\n  assert(typeof spec.openapi === \"string\" && spec.openapi.startsWith(\"3.\"), \"openapi version 3.x required\");\n  assert(typeof spec.info?.title === \"string\" && spec.info.title.length > 0, \"info.title required\");\n  assert(typeof spec.info?.version === \"string\" && spec.info.version.length > 0, \"info.version required\");\n  const getRide = get(spec, \"paths./rides/{id}.get\");\n  assert(getRide, \"GET /rides/{id} required\");\n  assert(getRide.responses?.[\"200\"], \"GET /rides/{id} must declare 200\");\n}\n\nfunction checkStep02(spec) {\n  checkStep01(spec);\n  const ride = get(spec, \"components.schemas.Ride\");\n  assert(ride && ride.type === \"object\", \"components.schemas.Ride required\");\n  assert(\n    responseUsesRef(get(spec, \"paths./rides/{id}.get\"), \"200\", \"/Ride\"),\n    \"GET /rides/{id} 200 must $ref Ride\"\n  );\n}\n\nfunction checkStep03(spec) {\n  checkStep02(spec);\n  const post = get(spec, \"paths./rides.post\");\n  assert(post, \"POST /rides required\");\n  assert(post.requestBody, \"POST /rides requestBody required\");\n  const create = get(spec, \"components.schemas.CreateRide\")\n    ?? Object.values(spec.components?.schemas ?? {}).find(\n      (s) => Array.isArray(s?.required) && s.required.length > 0 && s !== get(spec, \"components.schemas.Ride\")\n    );\n  assert(create, \"a create schema with required fields is required\");\n  assert(Array.isArray(create.required) && create.required.length > 0, \"create schema must list required fields\");\n  const bodySchema = post.requestBody?.content?.[\"application/json\"]?.schema;\n  assert(bodySchema, \"POST /rides must accept application/json\");\n}\n\nfunction checkStep04(spec) {\n  checkStep03(spec);\n  const error = get(spec, \"components.schemas.Error\");\n  assert(error && error.type === \"object\", \"components.schemas.Error required\");\n  const getRide = get(spec, \"paths./rides/{id}.get\");\n  const post = get(spec, \"paths./rides.post\");\n  assert(getRide.responses?.[\"404\"] || post.responses?.[\"404\"], \"a 404 response is required\");\n  assert(getRide.responses?.[\"400\"] || post.responses?.[\"400\"], \"a 400 response is required\");\n  const usesError =\n    responseUsesRef(getRide, \"404\", \"/Error\") ||\n    responseUsesRef(getRide, \"400\", \"/Error\") ||\n    responseUsesRef(post, \"404\", \"/Error\") ||\n    responseUsesRef(post, \"400\", \"/Error\");\n  assert(usesError, \"400 or 404 must $ref Error\");\n}\n\nfunction checkStep05(spec) {\n  checkStep04(spec);\n  const list = get(spec, \"paths./rides.get\");\n  assert(list, \"GET /rides required\");\n  assert(list.responses?.[\"200\"], \"GET /rides must declare 200\");\n  const hasLimit = hasQueryParam(list, \"limit\");\n  const hasOffset = hasQueryParam(list, \"offset\");\n  const hasPage = hasQueryParam(list, \"page\");\n  const hasCursor = hasQueryParam(list, \"cursor\");\n  assert(\n    (hasLimit && hasOffset) || hasPage || hasCursor || hasLimit,\n    \"GET /rides needs pagination query params (limit/offset, page, or cursor)\"\n  );\n}\n\nfunction checkStep06(spec) {\n  checkStep05(spec);\n  const schemes = spec.components?.securitySchemes;\n  assert(schemes && Object.keys(schemes).length > 0, \"components.securitySchemes required\");\n  const rootSecurity = Array.isArray(spec.security) && spec.security.length > 0;\n  const opSecurity = [\"paths./rides.get\", \"paths./rides.post\", \"paths./rides/{id}.get\"].some((p) => {\n    const op = get(spec, p);\n    return Array.isArray(op?.security) && op.security.length > 0;\n  });\n  assert(rootSecurity || opSecurity, \"security must be applied at root or on an operation\");\n}\n\nfunction checkStep07(spec) {\n  assert(typeof spec.openapi === \"string\" && spec.openapi.startsWith(\"3.\"), \"openapi version 3.x required\");\n  assert(typeof spec.info?.title === \"string\" && spec.info.title.length > 0, \"info.title required\");\n  assert(typeof spec.info?.version === \"string\" && spec.info.version.length > 0, \"info.version required\");\n\n  assert(get(spec, \"paths./payments.post\"), \"POST /payments required\");\n  assert(get(spec, \"paths./payments.get\"), \"GET /payments required\");\n  assert(get(spec, \"paths./payments/{paymentId}.get\"), \"GET /payments/{paymentId} required\");\n  assert(get(spec, \"paths./payments/{paymentId}/refunds.post\"), \"POST /payments/{paymentId}/refunds required\");\n  assert(get(spec, \"paths./refunds/{refundId}.get\"), \"GET /refunds/{refundId} required\");\n\n  for (const name of [\"Payment\", \"Refund\", \"Error\"]) {\n    assert(get(spec, `components.schemas.${name}`), `components.schemas.${name} required`);\n  }\n\n  const createPayment = get(spec, \"paths./payments.post\");\n  assert(createPayment.requestBody, \"POST /payments requestBody required\");\n  assert(createPayment.responses?.[\"201\"] || createPayment.responses?.[\"200\"], \"POST /payments success response required\");\n  assert(createPayment.responses?.[\"400\"], \"POST /payments 400 required\");\n  assert(get(spec, \"paths./payments/{paymentId}.get\").responses?.[\"404\"], \"GET payment 404 required\");\n}\n\nconst CHECKERS = {\n  \"01\": checkStep01,\n  \"02\": checkStep02,\n  \"03\": checkStep03,\n  \"04\": checkStep04,\n  \"05\": checkStep05,\n  \"06\": checkStep06,\n  \"07\": checkStep07,\n};\n\nfunction resolveStepId(raw) {\n  const cleaned = String(raw).replace(/^0+/, \"\") || \"0\";\n  const padded = cleaned.padStart(2, \"0\");\n  if (!STEPS[padded] && !NO_CHECK_STEPS.has(padded)) {\n    fail(`unknown step \"${raw}\". Use 00..07`);\n  }\n  return padded;\n}\n\nfunction checkOne(stepId, useSolutions) {\n  const folder = STEPS[stepId];\n  const filePath = useSolutions\n    ? path.join(ROOT, \"solutions\", folder, \"openapi.yaml\")\n    : path.join(ROOT, folder, \"openapi.yaml\");\n  console.log(`check:step ${stepId} -> ${path.relative(ROOT, filePath)}`);\n  const spec = loadSpec(filePath);\n  lintFile(filePath);\n  CHECKERS[stepId](spec);\n  console.log(`ok: step ${stepId}`);\n}\n\nfunction main() {\n  const args = process.argv.slice(2).filter((a) => a !== \"--\");\n  const useSolutions = args.includes(\"--solutions\");\n  const allSolutions = args.includes(\"--all-solutions\");\n  const positional = args.filter((a) => !a.startsWith(\"--\"));\n\n  if (allSolutions) {\n    for (const stepId of Object.keys(STEPS)) {\n      checkOne(stepId, true);\n    }\n    console.log(\"ok: all solutions\");\n    return;\n  }\n\n  if (positional.length !== 1) {\n    fail(\"usage: npm run check:step -- <01-07> [--solutions]\");\n  }\n\n  checkOne(resolveStepId(positional[0]), useSolutions);\n}\n\nmain();\n"
+        },
+        {
+          "path": "solutions/00-in-plain-english",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "solutions/01-smallest-valid-spec",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "solutions/02-name-the-thing",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "solutions/03-create",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "solutions/04-failure",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "solutions/05-lists",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "solutions/06-auth",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "solutions/07-from-scratch",
+          "type": "folder",
+          "content": null
+        },
+        {
+          "path": "solutions/README.md",
+          "type": "file",
+          "content": "# Reference solutions\n\nPeek only after you have typed your own practice file for a step. Each folder\nmirrors a practice step. Step 00 holds a sample `api.md`; later steps hold a\ncomplete `openapi.yaml`.\n"
+        },
+        {
+          "path": "extras/src/app.ts",
+          "type": "file",
+          "content": "import Fastify, { type FastifyInstance } from \"fastify\";\nimport { paymentsRoutes } from \"./payments\";\n\nexport async function buildApp(): Promise<FastifyInstance> {\n  const app = Fastify({ logger: false });\n  await app.register(paymentsRoutes);\n  return app;\n}\n"
+        },
+        {
+          "path": "extras/src/payments.ts",
+          "type": "file",
+          "content": "import type { FastifyInstance, FastifyReply, FastifyRequest } from \"fastify\";\nimport type { CreatePaymentBody, CreateRefundBody, Payment, Refund } from \"./types\";\n\n/**\n * In-memory payments and refunds for this exercise. Implement createPayment,\n * listPayments, getPayment, createRefund, and getRefund, then wire the handlers\n * below. Do not leave the TODO throws in place.\n *\n * Keep the spoken payments language in the code: merchant, payment, refund,\n * amountCents, currency. If a name drifts from what the team says out loud,\n * rename it before you ship the handler.\n */\nconst payments: Payment[] = [];\nconst refunds: Refund[] = [];\n\nfunction notImplemented(_request: FastifyRequest, _reply: FastifyReply): Promise<void> {\n  throw new Error(\"TODO: implement this handler in src/payments.ts\");\n}\n\nexport async function paymentsRoutes(app: FastifyInstance): Promise<void> {\n  app.post<{ Body: CreatePaymentBody }>(\"/payments\", notImplemented);\n\n  app.get<{ Querystring: { merchantId?: string } }>(\"/payments\", notImplemented);\n\n  app.get<{ Params: { paymentId: string } }>(\"/payments/:paymentId\", notImplemented);\n\n  app.post<{ Params: { paymentId: string }; Body: CreateRefundBody }>(\n    \"/payments/:paymentId/refunds\",\n    notImplemented\n  );\n\n  app.get<{ Params: { refundId: string } }>(\"/refunds/:refundId\", notImplemented);\n}\n\n/** Test helper: wipe the in-memory store between cases. */\nexport function resetPaymentsStore(): void {\n  payments.length = 0;\n  refunds.length = 0;\n}\n"
+        },
+        {
+          "path": "extras/src/server.ts",
+          "type": "file",
+          "content": "import { buildApp } from \"./app\";\n\nconst port = Number(process.env.PORT || 3030);\n\nasync function main(): Promise<void> {\n  const app = await buildApp();\n  await app.listen({ port, host: \"127.0.0.1\" });\n}\n\nmain().catch((err) => {\n  console.error(err);\n  process.exit(1);\n});\n"
+        },
+        {
+          "path": "extras/src/types.ts",
+          "type": "file",
+          "content": "export type PaymentStatus = \"pending\" | \"refunded\";\n\nexport type Payment = {\n  paymentId: string;\n  merchantId: string;\n  amountCents: number;\n  currency: string;\n  status: PaymentStatus;\n  createdAt: string;\n};\n\nexport type Refund = {\n  refundId: string;\n  paymentId: string;\n  amountCents: number;\n  createdAt: string;\n};\n\nexport type CreatePaymentBody = {\n  merchantId?: string;\n  amountCents?: number;\n  currency?: string;\n};\n\nexport type CreateRefundBody = {\n  amountCents?: number;\n};\n"
+        },
+        {
+          "path": "extras/test/payments.test.ts",
+          "type": "file",
+          "content": "import assert from \"node:assert/strict\";\nimport { afterEach, test } from \"node:test\";\nimport { buildApp } from \"../src/app\";\nimport { resetPaymentsStore } from \"../src/payments\";\n\nafterEach(() => {\n  resetPaymentsStore();\n});\n\ntest(\"POST /payments creates a payment (happy path)\", async () => {\n  const app = await buildApp();\n  const res = await app.inject({\n    method: \"POST\",\n    url: \"/payments\",\n    headers: { \"content-type\": \"application/json\" },\n    payload: {\n      merchantId: \"merch_123\",\n      amountCents: 2500,\n      currency: \"usd\",\n    },\n  });\n\n  assert.equal(res.statusCode, 201);\n  const payment = res.json();\n  assert.equal(payment.merchantId, \"merch_123\");\n  assert.equal(payment.amountCents, 2500);\n  assert.equal(payment.currency, \"usd\");\n  assert.equal(payment.status, \"pending\");\n  assert.equal(typeof payment.paymentId, \"string\");\n  assert.ok(payment.paymentId.length > 0);\n  assert.equal(typeof payment.createdAt, \"string\");\n  assert.ok(payment.createdAt.length > 0);\n\n  await app.close();\n});\n\ntest(\"POST /payments rejects a non-positive amountCents with 400\", async () => {\n  const app = await buildApp();\n  const res = await app.inject({\n    method: \"POST\",\n    url: \"/payments\",\n    headers: { \"content-type\": \"application/json\" },\n    payload: {\n      merchantId: \"merch_123\",\n      amountCents: 0,\n      currency: \"usd\",\n    },\n  });\n\n  assert.equal(res.statusCode, 400);\n  const json = res.json();\n  assert.equal(typeof json.error, \"string\");\n  assert.ok(json.error.length > 0);\n\n  await app.close();\n});\n"
+        },
+        {
+          "path": "solutions/00-in-plain-english/api.md",
+          "type": "file",
+          "content": "# Rides service (plain English)\n\n## ask\n\n- Get one ride by id.\n- List rides, optionally filtered by status, with a page size and starting offset.\n\n## send\n\n- To create a ride: pickup place and dropoff place (both required).\n- To read or list: an id in the path, or query filters for the list.\n- Callers prove who they are with a bearer token.\n\n## return\n\n- One ride: id and status.\n- A list: the rides on this page, plus the limit and offset used.\n- A create: the new ride (id and status).\n\n## wrong\n\n- Bad create payload (missing pickup or dropoff): say what went wrong.\n- Unknown ride id: say it was not found.\n"
+        },
+        {
+          "path": "solutions/01-smallest-valid-spec/openapi.yaml",
+          "type": "file",
+          "content": "openapi: \"3.0.3\"\ninfo:\n  title: Rides API\n  version: \"1.0.0\"\npaths:\n  /rides/{id}:\n    get:\n      summary: Get a ride by id\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        \"200\":\n          description: A ride\n          content:\n            application/json:\n              schema:\n                type: object\n                properties:\n                  id:\n                    type: string\n                  status:\n                    type: string\n"
+        },
+        {
+          "path": "solutions/02-name-the-thing/openapi.yaml",
+          "type": "file",
+          "content": "openapi: \"3.0.3\"\ninfo:\n  title: Rides API\n  version: \"1.0.0\"\npaths:\n  /rides/{id}:\n    get:\n      summary: Get a ride by id\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        \"200\":\n          description: A ride\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Ride\"\ncomponents:\n  schemas:\n    Ride:\n      type: object\n      properties:\n        id:\n          type: string\n        status:\n          type: string\n"
+        },
+        {
+          "path": "solutions/03-create/openapi.yaml",
+          "type": "file",
+          "content": "openapi: \"3.0.3\"\ninfo:\n  title: Rides API\n  version: \"1.0.0\"\npaths:\n  /rides/{id}:\n    get:\n      summary: Get a ride by id\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        \"200\":\n          description: A ride\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Ride\"\n  /rides:\n    post:\n      summary: Create a ride\n      requestBody:\n        required: true\n        content:\n          application/json:\n            schema:\n              $ref: \"#/components/schemas/CreateRide\"\n      responses:\n        \"201\":\n          description: Ride created\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Ride\"\ncomponents:\n  schemas:\n    Ride:\n      type: object\n      properties:\n        id:\n          type: string\n        status:\n          type: string\n    CreateRide:\n      type: object\n      required:\n        - pickup\n        - dropoff\n      properties:\n        pickup:\n          type: string\n        dropoff:\n          type: string\n"
+        },
+        {
+          "path": "solutions/04-failure/openapi.yaml",
+          "type": "file",
+          "content": "openapi: \"3.0.3\"\ninfo:\n  title: Rides API\n  version: \"1.0.0\"\npaths:\n  /rides/{id}:\n    get:\n      summary: Get a ride by id\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        \"200\":\n          description: A ride\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Ride\"\n        \"404\":\n          description: Ride not found\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Error\"\n  /rides:\n    post:\n      summary: Create a ride\n      requestBody:\n        required: true\n        content:\n          application/json:\n            schema:\n              $ref: \"#/components/schemas/CreateRide\"\n      responses:\n        \"201\":\n          description: Ride created\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Ride\"\n        \"400\":\n          description: Invalid create payload\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Error\"\ncomponents:\n  schemas:\n    Ride:\n      type: object\n      properties:\n        id:\n          type: string\n        status:\n          type: string\n    CreateRide:\n      type: object\n      required:\n        - pickup\n        - dropoff\n      properties:\n        pickup:\n          type: string\n        dropoff:\n          type: string\n    Error:\n      type: object\n      required:\n        - error\n      properties:\n        error:\n          type: string\n"
+        },
+        {
+          "path": "solutions/05-lists/openapi.yaml",
+          "type": "file",
+          "content": "openapi: \"3.0.3\"\ninfo:\n  title: Rides API\n  version: \"1.0.0\"\npaths:\n  /rides/{id}:\n    get:\n      summary: Get a ride by id\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        \"200\":\n          description: A ride\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Ride\"\n        \"404\":\n          description: Ride not found\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Error\"\n  /rides:\n    get:\n      summary: List rides\n      parameters:\n        - name: status\n          in: query\n          schema:\n            type: string\n        - name: limit\n          in: query\n          schema:\n            type: integer\n            minimum: 1\n        - name: offset\n          in: query\n          schema:\n            type: integer\n            minimum: 0\n      responses:\n        \"200\":\n          description: A page of rides\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/RideList\"\n    post:\n      summary: Create a ride\n      requestBody:\n        required: true\n        content:\n          application/json:\n            schema:\n              $ref: \"#/components/schemas/CreateRide\"\n      responses:\n        \"201\":\n          description: Ride created\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Ride\"\n        \"400\":\n          description: Invalid create payload\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Error\"\ncomponents:\n  schemas:\n    Ride:\n      type: object\n      properties:\n        id:\n          type: string\n        status:\n          type: string\n    CreateRide:\n      type: object\n      required:\n        - pickup\n        - dropoff\n      properties:\n        pickup:\n          type: string\n        dropoff:\n          type: string\n    RideList:\n      type: object\n      properties:\n        rides:\n          type: array\n          items:\n            $ref: \"#/components/schemas/Ride\"\n        limit:\n          type: integer\n        offset:\n          type: integer\n    Error:\n      type: object\n      required:\n        - error\n      properties:\n        error:\n          type: string\n"
+        },
+        {
+          "path": "solutions/06-auth/openapi.yaml",
+          "type": "file",
+          "content": "openapi: \"3.0.3\"\ninfo:\n  title: Rides API\n  version: \"1.0.0\"\nsecurity:\n  - bearerAuth: []\npaths:\n  /rides/{id}:\n    get:\n      summary: Get a ride by id\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        \"200\":\n          description: A ride\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Ride\"\n        \"404\":\n          description: Ride not found\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Error\"\n  /rides:\n    get:\n      summary: List rides\n      parameters:\n        - name: status\n          in: query\n          schema:\n            type: string\n        - name: limit\n          in: query\n          schema:\n            type: integer\n            minimum: 1\n        - name: offset\n          in: query\n          schema:\n            type: integer\n            minimum: 0\n      responses:\n        \"200\":\n          description: A page of rides\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/RideList\"\n    post:\n      summary: Create a ride\n      requestBody:\n        required: true\n        content:\n          application/json:\n            schema:\n              $ref: \"#/components/schemas/CreateRide\"\n      responses:\n        \"201\":\n          description: Ride created\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Ride\"\n        \"400\":\n          description: Invalid create payload\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Error\"\ncomponents:\n  securitySchemes:\n    bearerAuth:\n      type: http\n      scheme: bearer\n  schemas:\n    Ride:\n      type: object\n      properties:\n        id:\n          type: string\n        status:\n          type: string\n    CreateRide:\n      type: object\n      required:\n        - pickup\n        - dropoff\n      properties:\n        pickup:\n          type: string\n        dropoff:\n          type: string\n    RideList:\n      type: object\n      properties:\n        rides:\n          type: array\n          items:\n            $ref: \"#/components/schemas/Ride\"\n        limit:\n          type: integer\n        offset:\n          type: integer\n    Error:\n      type: object\n      required:\n        - error\n      properties:\n        error:\n          type: string\n"
+        },
+        {
+          "path": "solutions/07-from-scratch/openapi.yaml",
+          "type": "file",
+          "content": "openapi: \"3.0.3\"\ninfo:\n  title: Payments API\n  version: \"1.0.0\"\npaths:\n  /payments:\n    post:\n      summary: Create a payment\n      requestBody:\n        required: true\n        content:\n          application/json:\n            schema:\n              $ref: \"#/components/schemas/CreatePayment\"\n      responses:\n        \"201\":\n          description: Payment created\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Payment\"\n        \"400\":\n          description: Invalid create payload\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Error\"\n    get:\n      summary: List payments\n      parameters:\n        - name: merchantId\n          in: query\n          schema:\n            type: string\n      responses:\n        \"200\":\n          description: Payment list\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/PaymentList\"\n  /payments/{paymentId}:\n    get:\n      summary: Get a payment by id\n      parameters:\n        - name: paymentId\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        \"200\":\n          description: A payment\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Payment\"\n        \"404\":\n          description: Payment not found\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Error\"\n  /payments/{paymentId}/refunds:\n    post:\n      summary: Create a refund for a payment\n      parameters:\n        - name: paymentId\n          in: path\n          required: true\n          schema:\n            type: string\n      requestBody:\n        required: true\n        content:\n          application/json:\n            schema:\n              $ref: \"#/components/schemas/CreateRefund\"\n      responses:\n        \"201\":\n          description: Refund created\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Refund\"\n        \"400\":\n          description: Invalid refund payload\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Error\"\n        \"404\":\n          description: Payment not found\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Error\"\n  /refunds/{refundId}:\n    get:\n      summary: Get a refund by id\n      parameters:\n        - name: refundId\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        \"200\":\n          description: A refund\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Refund\"\n        \"404\":\n          description: Refund not found\n          content:\n            application/json:\n              schema:\n                $ref: \"#/components/schemas/Error\"\ncomponents:\n  schemas:\n    Payment:\n      type: object\n      required:\n        - paymentId\n        - merchantId\n        - amountCents\n        - currency\n        - status\n        - createdAt\n      properties:\n        paymentId:\n          type: string\n        merchantId:\n          type: string\n        amountCents:\n          type: integer\n        currency:\n          type: string\n        status:\n          type: string\n          enum:\n            - pending\n            - refunded\n        createdAt:\n          type: string\n          format: date-time\n    CreatePayment:\n      type: object\n      required:\n        - merchantId\n        - amountCents\n        - currency\n      properties:\n        merchantId:\n          type: string\n        amountCents:\n          type: integer\n          minimum: 1\n        currency:\n          type: string\n    PaymentList:\n      type: object\n      required:\n        - payments\n      properties:\n        payments:\n          type: array\n          items:\n            $ref: \"#/components/schemas/Payment\"\n    Refund:\n      type: object\n      required:\n        - refundId\n        - paymentId\n        - amountCents\n        - createdAt\n      properties:\n        refundId:\n          type: string\n        paymentId:\n          type: string\n        amountCents:\n          type: integer\n        createdAt:\n          type: string\n          format: date-time\n    CreateRefund:\n      type: object\n      required:\n        - amountCents\n      properties:\n        amountCents:\n          type: integer\n          minimum: 1\n    Error:\n      type: object\n      required:\n        - error\n      properties:\n        error:\n          type: string\n"
+        }
+      ]
+    }
+  }
+}

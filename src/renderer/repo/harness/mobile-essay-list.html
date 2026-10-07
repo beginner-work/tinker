@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>tinker — viewport harness</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css?v=39" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/repo/repo.css?v=39" />
+  </head>
+  <body class="repo-page repo-page--write" data-repo-mode="write">
+    <header class="repo-top repo-top--labs" aria-label="Lindow Labs">
+      <a class="repo-top__labs" href="https://lindowlabs.dev/" target="_blank" rel="noopener">Lindow Labs</a>
+    </header>
+
+    <div class="repo-layout repo-layout--write" id="repo-layout">
+      <aside class="repo-explorer" id="repo-explorer" aria-label="Explorer">
+        <div class="repo-explorer__head">
+          <h2 class="repo-sidebar__heading" id="repo-explorer-heading">Exercises</h2>
+          <button type="button" class="repo-explorer__collapse" aria-label="Collapse explorer">‹</button>
+        </div>
+        <div class="repo-explorer__toolbar">
+          <button type="button" class="repo-explorer__tool">New file</button>
+          <button type="button" class="repo-explorer__tool">New folder</button>
+        </div>
+        <div class="repo-explorer__body" role="tree">
+          <div class="repo-explorer__group" data-open="true">
+            <div class="repo-explorer__group-row">
+              <button type="button" class="repo-explorer__group-btn is-selected">
+                <span class="repo-explorer__chevron">▾</span>
+                <span class="repo-explorer__name">Reading DDD</span>
+              </button>
+            </div>
+            <ul class="repo-explorer__files">
+              <li><button type="button" class="repo-explorer__file is-selected">README.md</button></li>
+              <li><button type="button" class="repo-explorer__file">notes.md</button></li>
+            </ul>
+          </div>
+        </div>
+        <p class="repo-explorer__hint">Seeded from lindowlabs. Edits save in Tinker, not GitHub.</p>
+      </aside>
+
+      <div class="repo-ide-center" id="repo-ide-center">
+        <div class="repo-tabs" id="repo-tabs" role="tablist" aria-label="Open editors">
+          <button type="button" class="repo-tabs__tab is-active" role="tab">README.md</button>
+          <button type="button" class="repo-tabs__tab" role="tab">notes.md</button>
+        </div>
+        <main class="repo-center repo-write-safe-top" aria-label="Pad">
+          <div class="repo-surface writing repo-write-safe-top" id="repo-surface">
+            <div class="repo-location" id="repo-location">
+              <div class="repo-location__field">
+                <img class="repo-location__globe" src="/icons/tinker-mark.svg?v=39" alt="" width="14" height="14" aria-hidden="true" />
+                <input type="text" class="repo-location__input writing-input" value="Coffee shop" readonly />
+              </div>
+            </div>
+            <div class="repo-pad" id="repo-pad">
+              <textarea class="repo-pad__turn" readonly>I finished this essay on my phone and want the list next.</textarea>
+            </div>
+            <footer class="repo-surface__foot is-visible" id="repo-pad-actions" aria-hidden="false">
+              <button type="button" class="repo-surface__action repo-surface__action--secondary">Keep crafting</button>
+              <button type="button" class="repo-surface__action repo-surface__action--primary" id="repo-this-is-everything">This is everything</button>
+            </footer>
+          </div>
+        </main>
+      </div>
+
+      <aside class="repo-right" aria-label="Repository">
+        <section class="repo-tree" aria-labelledby="repo-stories-heading">
+          <div class="repo-tree__head">
+            <h2 class="repo-sidebar__heading" id="repo-stories-heading">Essays</h2>
+            <div class="repo-tree__actions">
+              <button type="button" class="repo-tree__new" id="repo-new-folder">New folder</button>
+              <button type="button" class="repo-tree__new repo-tree__new--essay" id="repo-sidebar-new-piece">New essay</button>
+            </div>
+          </div>
+          <div class="repo-tree__body" id="repo-tree" role="tree">
+            <ul class="repo-tree__pieces" style="padding-left:0">
+              <li>
+                <div class="repo-tree__piece-row">
+                  <button type="button" class="repo-tree__piece is-selected" role="treeitem">I finished this essay on my phone and want the list next.</button>
+                  <button type="button" class="repo-tree__icon-btn">Move</button>
+                </div>
+              </li>
+              <li>
+                <div class="repo-tree__piece-row">
+                  <button type="button" class="repo-tree__piece" role="treeitem">Merchant portal reliability</button>
+                  <button type="button" class="repo-tree__icon-btn">Move</button>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </section>
+        <section class="repo-changes" aria-labelledby="repo-file-heading">
+          <h2 class="repo-sidebar__heading" id="repo-file-heading">Essay</h2>
+          <p class="repo-file__path">I finished this essay on my phone and want the list next.</p>
+        </section>
+      </aside>
+    </div>
+
+    <script>
+      (function () {
+        var params = new URLSearchParams(location.search);
+        var mode = params.get("mode") || "finish";
+        var btn = document.getElementById("repo-this-is-everything");
+        var newEssay = document.getElementById("repo-sidebar-new-piece");
+        function showFinish() {
+          document.body.removeAttribute("data-repo-essays-list");
+          if (newEssay) newEssay.hidden = true;
+        }
+        function showList() {
+          document.body.setAttribute("data-repo-essays-list", "1");
+          if (newEssay) newEssay.hidden = false;
+        }
+        if (btn) btn.addEventListener("click", showList);
+        if (mode === "list") showList();
+        else showFinish();
+      })();
+    </script>
+  </body>
+</html>

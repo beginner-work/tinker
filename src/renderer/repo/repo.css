@@ -798,21 +798,550 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-layout--write {
-  /* Essays rail width is --repo-essays-rail (shared with the fixed action island). */
-  grid-template-columns: 1fr minmax(260px, var(--repo-essays-rail, 320px));
+  /* Desktop IDE: explorer | editor | essays. Mobile collapses via max-width:800px. */
+  --repo-explorer-rail: 240px;
+  --repo-panel-height: 0px;
+  grid-template-columns:
+    var(--repo-explorer-rail, 240px)
+    minmax(0, 1fr)
+    minmax(260px, var(--repo-essays-rail, 320px));
+  grid-template-rows: minmax(0, 1fr);
   min-height: calc(100vh - 72px);
   min-height: calc(100dvh - 72px);
   height: auto;
   overflow: visible;
-  align-items: start;
+  align-items: stretch;
 }
 
-/* Desktop write page: sidebar pinned to the viewport while the pad scrolls.
+.repo-layout--write.is-explorer-collapsed {
+  --repo-explorer-rail: 0px;
+  grid-template-columns:
+    0
+    minmax(0, 1fr)
+    minmax(260px, var(--repo-essays-rail, 320px));
+}
+
+/* IDE center column: tabs + pad + bottom panel. */
+.repo-ide-center {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: transparent;
+}
+
+.repo-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0;
+  flex-shrink: 0;
+  min-height: 36px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-background) 88%, var(--color-accent, #a5b4fc) 12%);
+  -webkit-app-region: no-drag;
+}
+
+.repo-tabs[hidden] {
+  display: none !important;
+}
+
+.repo-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  min-height: 36px;
+  padding: 0 6px 0 0;
+  border-right: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.repo-tabs__tab:hover {
+  color: var(--color-foreground);
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 18%, transparent);
+}
+
+.repo-tabs__tab.is-active {
+  color: var(--color-foreground);
+  background: var(--color-background);
+  box-shadow: inset 0 -2px 0 var(--color-accent-strong, #6366f1);
+}
+
+.repo-tabs__label-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  max-width: 180px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+}
+
+.repo-tabs__label-btn:focus-visible {
+  outline: 2px solid var(--color-accent-strong, #4f46e5);
+  outline-offset: -2px;
+}
+
+.repo-tabs__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.repo-tabs__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.repo-tabs__close:hover,
+.repo-tabs__close:focus-visible {
+  color: var(--color-foreground);
+  background: color-mix(in srgb, var(--color-accent-strong, #6366f1) 16%, transparent);
+}
+
+.repo-explorer {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 10px 24px;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-background);
+  resize: horizontal;
+  max-width: 360px;
+}
+
+.repo-layout--write.is-explorer-collapsed .repo-explorer {
+  display: none;
+}
+
+.repo-explorer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+
+.repo-explorer__head .repo-sidebar__heading {
+  margin: 0;
+}
+
+.repo-explorer__collapse,
+.repo-explorer__expand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface, var(--color-background));
+  color: var(--color-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.repo-explorer__collapse:hover,
+.repo-explorer__expand:hover,
+.repo-explorer__collapse:focus-visible,
+.repo-explorer__expand:focus-visible {
+  color: var(--color-accent-strong, #4f46e5);
+  border-color: var(--color-accent, #a5b4fc);
+}
+
+.repo-explorer__expand {
+  position: fixed;
+  top: calc(48px + env(safe-area-inset-top, 0px));
+  left: 8px;
+  z-index: 35;
+}
+
+.repo-explorer__expand[hidden] {
+  display: none !important;
+}
+
+.repo-explorer__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.repo-explorer__group {
+  margin: 0 0 12px;
+}
+
+.repo-explorer__group-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 4px;
+}
+
+.repo-explorer__group-btn {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.repo-explorer__group-btn:hover,
+.repo-explorer__group-btn:focus-visible {
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 16%, transparent);
+}
+
+.repo-explorer__group-btn.is-selected {
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 22%, transparent);
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+.repo-explorer__chevron {
+  flex: 0 0 auto;
+  width: 12px;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.repo-explorer__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repo-explorer__remove {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.repo-explorer__remove:hover,
+.repo-explorer__remove:focus-visible {
+  color: #b42318;
+  background: rgba(180, 35, 24, 0.08);
+}
+
+.repo-explorer__files {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 18px;
+}
+
+.repo-explorer__file {
+  display: block;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repo-explorer__file:hover,
+.repo-explorer__file:focus-visible {
+  color: var(--color-foreground);
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
+}
+
+.repo-explorer__file.is-selected {
+  color: var(--color-accent-strong, #4f46e5);
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 20%, transparent);
+  font-weight: 600;
+}
+
+.repo-explorer__section-label {
+  margin: 14px 4px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.repo-explorer__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 4px 8px;
+}
+
+.repo-explorer__tool {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface, var(--color-background));
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.repo-explorer__tool:hover,
+.repo-explorer__tool:focus-visible {
+  color: var(--color-accent-strong, #4f46e5);
+  border-color: var(--color-accent, #a5b4fc);
+}
+
+.repo-explorer__hint {
+  margin: 0;
+  padding: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.repo-ex-tree {
+  margin: 0 0 10px;
+}
+
+.repo-ex-tree__empty {
+  margin: 0;
+  padding: 4px 8px 8px 26px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.repo-ex-node {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 28px;
+}
+
+.repo-ex-node.is-dragging {
+  opacity: 0.55;
+}
+
+.repo-ex-node.is-drop,
+.repo-explorer__group.is-drop {
+  outline: 1px dashed var(--color-accent-strong, #6366f1);
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
+}
+
+.repo-ex-node__btn {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.repo-ex-node__btn--file {
+  padding-left: 18px;
+}
+
+.repo-ex-node__btn:hover,
+.repo-ex-node__btn:focus-visible,
+.repo-ex-node__btn.is-selected {
+  color: var(--color-accent-strong, #4f46e5);
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 16%, transparent);
+}
+
+.repo-ex-node__icon {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.repo-ex-node__icon:hover,
+.repo-ex-node__icon:focus-visible {
+  color: var(--color-foreground);
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
+}
+
+.repo-ex-node__icon--danger:hover,
+.repo-ex-node__icon--danger:focus-visible {
+  color: #b42318;
+  background: rgba(180, 35, 24, 0.08);
+}
+
+.repo-code {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 240px;
+  margin: 12px auto 0;
+  width: min(920px, 100%);
+  padding: 0 8px 48px;
+}
+
+.repo-code[hidden] {
+  display: none !important;
+}
+
+.repo-code__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.repo-code__path {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repo-code__save {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-accent-strong, #6366f1);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 22%, transparent);
+  color: var(--color-accent-strong, #4f46e5);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.repo-code__editor {
+  flex: 1;
+  min-height: 320px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.repo-code__status {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+/* Desktop write page: explorer + essays rails fill the IDE shell.
    Tree scrolls on its own; Essay preview stays below the list (never overlaps). */
+@media (min-width: 801px) {
+  html:has(body.repo-page--write),
+  body.repo-page--write {
+    height: 100%;
+    max-height: 100vh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .repo-layout--write {
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    align-items: stretch;
+  }
+
+  .repo-layout--write .repo-explorer {
+    height: 100%;
+    max-height: 100%;
+  }
+
+  .repo-layout--write .repo-ide-center {
+    height: 100%;
+    max-height: 100%;
+  }
+
+  .repo-layout--write .repo-ide-center > .repo-center {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+}
+
 .repo-layout--write .repo-right {
   position: sticky;
   top: 0;
-  align-self: start;
+  align-self: stretch;
   height: 100vh;
   height: 100dvh;
   max-height: 100vh;
@@ -823,6 +1352,7 @@ html.tinker-desktop .repo-top [role="button"] {
   gap: 18px;
   box-sizing: border-box;
   padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  resize: horizontal;
 }
 
 .repo-layout--write .repo-right .repo-tree {
@@ -1742,7 +2272,9 @@ body.repo-page--write .repo-center {
   --repo-foot-floor: max(48px, 8vh);
   --repo-foot-floor: max(48px, 8dvh);
   --repo-essays-rail: 320px;
+  --repo-explorer-rail: 240px;
   --repo-foot-gutter: 24px;
+  --repo-panel-height: 0px;
 }
 
 .repo-surface__foot {
@@ -1769,7 +2301,9 @@ body.repo-page--write .repo-center {
   pointer-events: none;
   transition: opacity 200ms ease, transform 200ms ease;
   -webkit-app-region: no-drag;
-  bottom: calc(var(--repo-foot-floor) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(
+    var(--repo-foot-floor) + var(--repo-panel-height, 0px) + env(safe-area-inset-bottom, 0px)
+  );
   top: auto;
   transform: translateY(8px);
 }
@@ -2046,6 +2580,7 @@ body.repo-page--write .repo-center {
   :root {
     /* Essays rail hidden — action island uses the narrow right gutter. */
     --repo-essays-rail: 0px;
+    --repo-explorer-rail: 0px;
   }
 
   .repo-top {
@@ -2099,6 +2634,18 @@ body.repo-page--write .repo-center {
     overflow: visible;
     min-height: 0;
     height: auto;
+  }
+
+  /* Mobile: unwrap IDE chrome so the pad is the only surface (unchanged). */
+  .repo-explorer,
+  .repo-explorer__expand,
+  .repo-tabs,
+  .repo-code {
+    display: none !important;
+  }
+
+  .repo-ide-center {
+    display: contents;
   }
 
   .repo-layout--write .repo-center,
