@@ -1762,6 +1762,10 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
   }
 
   .repo-panel__write {
+    /* Action bar height + gap — surface padding reserves this so essay /
+       question text never sit under Keep crafting / This is everything. */
+    --repo-panel-foot-clearance: 64px;
+    position: relative;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
@@ -1775,11 +1779,39 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
     height: 100%;
     overflow-x: hidden;
     overflow-y: auto;
-    padding: 12px 20px 72px;
+    /* Bottom padding matches the overlay foot clearance. */
+    padding: 12px 20px var(--repo-panel-foot-clearance);
   }
 
+  /* Don't stick the place pill over question/essay text in the short panel. */
+  .repo-panel__write .repo-location {
+    position: relative;
+    top: auto;
+  }
+
+  /* Size to content so turns/questions stay in normal flow. min-height:0 alone
+     (with flex-shrink) let the pad collapse shorter than its textareas. */
   .repo-panel__write .repo-pad {
-    min-height: 0;
+    flex: 0 0 auto;
+    min-height: 0; /* cancel full-page 100dvh floor; height follows content */
+    height: auto;
+    padding-bottom: 0;
+  }
+
+  /* Short panel: a 62vh last turn (full-page pad) parks the question over
+     clipped essay text. Keep the answer turn modest so flow stays natural. */
+  .repo-panel__write .repo-pad__turn:last-of-type {
+    flex: 0 0 auto;
+    min-height: 6rem;
+  }
+
+  /* Question stays in normal document flow inside the panel — never sticky /
+     absolute / overlaid on essay paragraphs. */
+  .repo-panel__write .repo-pad__q {
+    position: static;
+    flex: 0 0 auto;
+    scroll-margin-top: 8px;
+    scroll-margin-bottom: var(--repo-panel-foot-clearance);
   }
 
   .repo-code-host {
@@ -2443,7 +2475,8 @@ body.repo-page--write .repo-center {
   display: none !important;
 }
 
-.repo-surface--reading .repo-surface__foot {
+.repo-surface--reading .repo-surface__foot,
+.repo-panel__write:has(.repo-surface--reading) > .repo-surface__foot {
   display: none !important;
 }
 
@@ -2746,15 +2779,19 @@ body.repo-page--write .repo-center {
   transform: translateY(8px);
 }
 
-/* When the panel hosts the writing surface, keep the action island inside it. */
+/* Desktop panel: foot is a sibling of the scrolling surface (not inside it),
+   so it cannot cover essay/question text. Pad/surface padding reserves height. */
 @media (min-width: 801px) {
-  .repo-panel__write .repo-surface__foot {
-    position: sticky;
+  .repo-panel__write > .repo-surface__foot {
+    position: absolute;
     bottom: 12px;
-    right: auto;
-    align-self: flex-end;
-    margin-top: 12px;
+    right: 12px;
+    left: auto;
+    top: auto;
+    align-self: auto;
+    margin: 0;
     z-index: 5;
+    transform: none;
   }
 }
 
