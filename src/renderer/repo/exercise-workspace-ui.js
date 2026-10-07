@@ -165,18 +165,37 @@
     return core.nodeById(ex.nodes, nodeId);
   }
 
+  function isWideDesktop() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(min-width: 801px)").matches);
+    } catch (e) {
+      return false;
+    }
+  }
+
   function showWritingChrome(show) {
-    if (els.pad) els.pad.hidden = !show;
-    if (els.location) els.location.hidden = !show;
+    // Desktop bottom essays panel keeps the writing surface visible while code
+    // is open (VS Code-style). Mobile still toggles pad vs code exclusively.
+    var desktopPanel = isWideDesktop();
+    if (els.pad) els.pad.hidden = desktopPanel ? false : !show;
+    if (els.location) els.location.hidden = desktopPanel ? false : !show;
     if (els.code) els.code.hidden = show;
     if (els.layout) els.layout.classList.toggle("is-code-open", !show);
     if (document.body) document.body.classList.toggle("repo-code-open", !show);
-    if (!show && els.essayView) els.essayView.hidden = true;
-    if (!show && els.padActions) {
+    if (!show && els.essayView && !desktopPanel) els.essayView.hidden = true;
+    if (show && !desktopPanel && els.padActions) {
+      /* keep mobile behavior: actions managed by pad reveal */
+    }
+    if (!show && !desktopPanel && els.padActions) {
       els.padActions.classList.remove("is-visible");
       els.padActions.setAttribute("aria-hidden", "true");
     }
     if (show) destroyCm();
+    try {
+      if (typeof window.dispatchEvent === "function") {
+        window.dispatchEvent(new CustomEvent("tinker-repo-code-chrome", { detail: { show: !!show } }));
+      }
+    } catch (e) { /* ignore */ }
   }
 
   function activeFileName() {
@@ -782,6 +801,14 @@
     });
   }
 
+  function requestEditorMeasure() {
+    try {
+      if (cmEditor && cmEditor.view && typeof cmEditor.view.requestMeasure === "function") {
+        cmEditor.view.requestMeasure();
+      }
+    } catch (e) { /* ignore */ }
+  }
+
   window.tinkerExerciseWorkspaceUi = {
     init: init,
     render: render,
@@ -790,6 +817,7 @@
     openFile: openFile,
     moveNode: moveNode,
     createNode: createNode,
+    requestEditorMeasure: requestEditorMeasure,
     // test helpers
     _setWorkspace: function (ws) {
       applyWorkspace(ws);

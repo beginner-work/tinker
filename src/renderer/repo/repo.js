@@ -93,6 +93,7 @@
     empty: document.getElementById("repo-stories-empty"),
     newPiece: document.getElementById("repo-new-piece"),
     sidebarNewPiece: document.getElementById("repo-sidebar-new-piece"),
+    pastEssays: document.getElementById("repo-past-essays"),
     newFolder: document.getElementById("repo-new-folder"),
     body: document.getElementById("repo-body"),
     pad: document.getElementById("repo-pad"),
@@ -743,7 +744,7 @@
     }
   }
 
-  /** Mobile finish: show the desktop essays rail as a full-screen list. */
+  /** Mobile finish: show the essays list full-screen. Desktop keeps New essay visible. */
   function setMobileEssayList(open) {
     state.mobileEssayList = !!open && isWritePage;
     try {
@@ -755,9 +756,16 @@
         }
       }
     } catch (e) { /* ignore */ }
+    if (els.pastEssays) {
+      els.pastEssays.setAttribute("aria-expanded", state.mobileEssayList ? "true" : "false");
+    }
     if (els.sidebarNewPiece) {
-      // New essay only when the mobile list is up (desktop pad stays open).
-      els.sidebarNewPiece.hidden = !state.mobileEssayList;
+      // Desktop bottom panel always offers New essay; mobile only in the list.
+      var wide = false;
+      try {
+        wide = !!(window.matchMedia && window.matchMedia("(min-width: 801px)").matches);
+      } catch (e2) { /* ignore */ }
+      els.sidebarNewPiece.hidden = wide ? false : !state.mobileEssayList;
     }
   }
 
@@ -3211,6 +3219,17 @@
   if (els.newPiece) els.newPiece.addEventListener("click", addNewFile);
   if (els.sidebarNewPiece) els.sidebarNewPiece.addEventListener("click", addNewFile);
   if (els.newFolder) els.newFolder.addEventListener("click", startCreateFolder);
+  if (els.pastEssays) {
+    els.pastEssays.addEventListener("click", function (event) {
+      event.preventDefault();
+      if (!isWritePage) return;
+      // Desktop uses the bottom essays panel; this control is mobile-only.
+      try {
+        if (window.matchMedia && window.matchMedia("(min-width: 801px)").matches) return;
+      } catch (e) { /* ignore */ }
+      setMobileEssayList(!state.mobileEssayList);
+    });
+  }
   if (els.signin) {
     els.signin.addEventListener("click", function (event) {
       if (event && event.preventDefault) event.preventDefault();
@@ -3410,6 +3429,177 @@
   });
 
   state.location = readStoredLocation();
+
+  /* Desktop bottom essays panel: resize + collapse, persisted in localStorage. */
+  (function initEssaysPanel() {
+    if (!isWritePage) return;
+    var PANEL_HEIGHT_KEY = "tinker.repo.panelHeight.v1";
+    var PANEL_COLLAPSED_KEY = "tinker.repo.panelCollapsed.v1";
+    var panel = document.getElementById("repo-panel");
+    var layout = els.layout || document.getElementById("repo-layout");
+    var resizeEl = document.getElementById("repo-panel-resize");
+    var collapseBtn = document.getElementById("repo-panel-collapse");
+    var expandBtn = document.getElementById("repo-panel-expand");
+    if (!panel || !layout) return;
+
+    function wideDesktop() {
+      try {
+        return !!(window.matchMedia && window.matchMedia("(min-width: 801px)").matches);
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function clampHeight(px) {
+      var vh = window.innerHeight || 800;
+      var minPx = 140;
+      var maxPx = Math.round(vh * 0.7);
+      var n = Number(px);
+      if (!Number.isFinite(n)) n = Math.round(vh * 0.35);
+      return Math.max(minPx, Math.min(maxPx, Math.round(n)));
+    }
+
+    function readStoredHeight() {
+      try {
+        var raw = window.localStorage.getItem(PANEL_HEIGHT_KEY);
+        if (raw == null || raw === "") return null;
+        var n = parseFloat(raw);
+        return Number.isFinite(n) ? n : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function readStoredCollapsed() {
+      try {
+        return window.localStorage.getItem(PANEL_COLLAPSED_KEY) === "1";
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function persistHeight(px) {
+      try { window.localStorage.setItem(PANEL_HEIGHT_KEY, String(px)); } catch (e) { /* ignore */ }
+    }
+
+    function persistCollapsed(on) {
+      try {
+        window.localStorage.setItem(PANEL_COLLAPSED_KEY, on ? "1" : "0");
+      } catch (e) { /* ignore */ }
+    }
+
+    function applyHeight(px) {
+      var h = clampHeight(px);
+      layout.style.setProperty("--repo-panel-height", h + "px");
+      document.documentElement.style.setProperty("--repo-panel-height", h + "px");
+      return h;
+    }
+
+    function notifyCmResize() {
+      try {
+        var ui = window.tinkerExerciseWorkspaceUi;
+        if (ui && typeof ui.requestEditorMeasure === "function") ui.requestEditorMeasure();
+      } catch (e) { /* ignore */ }
+      try {
+        window.dispatchEvent(new Event("resize"));
+      } catch (e2) { /* ignore */ }
+    }
+
+    function setCollapsed(on) {
+      layout.classList.toggle("is-panel-collapsed", !!on);
+      if (expandBtn) expandBtn.hidden = !on;
+      if (collapseBtn) collapseBtn.setAttribute("aria-expanded", on ? "false" : "true");
+      persistCollapsed(!!on);
+      if (on) {
+        layout.style.setProperty("--repo-panel-height", "0px");
+        document.documentElement.style.setProperty("--repo-panel-height", "0px");
+      } else {
+        applyHeight(readStoredHeight() || Math.round((window.innerHeight || 800) * 0.35));
+      }
+      notifyCmResize();
+    }
+
+    // Restore persisted state (desktop only; mobile unwraps the panel).
+    if (wideDesktop()) {
+      var storedH = readStoredHeight();
+      applyHeight(storedH != null ? storedH : Math.round((window.innerHeight || 800) * 0.35));
+      setCollapsed(readStoredCollapsed());
+    }
+
+    if (collapseBtn) {
+      collapseBtn.addEventListener("click", function (event) {
+        if (event && event.preventDefault) event.preventDefault();
+        setCollapsed(true);
+      });
+    }
+    if (expandBtn) {
+      expandBtn.addEventListener("click", function (event) {
+        if (event && event.preventDefault) event.preventDefault();
+        setCollapsed(false);
+      });
+    }
+
+    if (resizeEl) {
+      var drag = null;
+      function onMove(event) {
+        if (!drag) return;
+        var clientY = event.touches && event.touches[0] ? event.touches[0].clientY : event.clientY;
+        var next = drag.startHeight + (drag.startY - clientY);
+        var applied = applyHeight(next);
+        drag.current = applied;
+        notifyCmResize();
+      }
+      function onUp() {
+        if (!drag) return;
+        persistHeight(drag.current || clampHeight(readStoredHeight()));
+        drag = null;
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("touchmove", onMove);
+        document.removeEventListener("touchend", onUp);
+        notifyCmResize();
+      }
+      function onDown(event) {
+        if (!wideDesktop() || layout.classList.contains("is-panel-collapsed")) return;
+        if (event && event.preventDefault) event.preventDefault();
+        var startY = event.touches && event.touches[0] ? event.touches[0].clientY : event.clientY;
+        var rect = panel.getBoundingClientRect();
+        drag = { startY: startY, startHeight: rect.height, current: rect.height };
+        document.addEventListener("pointermove", onMove);
+        document.addEventListener("pointerup", onUp);
+        document.addEventListener("touchmove", onMove, { passive: false });
+        document.addEventListener("touchend", onUp);
+      }
+      resizeEl.addEventListener("pointerdown", onDown);
+      resizeEl.addEventListener("touchstart", onDown, { passive: false });
+      resizeEl.addEventListener("keydown", function (event) {
+        if (!wideDesktop()) return;
+        var step = event.shiftKey ? 48 : 16;
+        var cur = panel.getBoundingClientRect().height;
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          persistHeight(applyHeight(cur + step));
+          notifyCmResize();
+        } else if (event.key === "ArrowDown") {
+          event.preventDefault();
+          persistHeight(applyHeight(cur - step));
+          notifyCmResize();
+        }
+      });
+    }
+
+    if (typeof window.addEventListener === "function") {
+      window.addEventListener("resize", function () {
+        if (!wideDesktop()) return;
+        if (layout.classList.contains("is-panel-collapsed")) return;
+        applyHeight(readStoredHeight() || panel.getBoundingClientRect().height);
+        notifyCmResize();
+      });
+    }
+
+    // Ensure New essay is visible on desktop after boot.
+    setMobileEssayList(false);
+  })();
 
   if (typeof window.addEventListener === "function") {
     window.addEventListener(STORAGE_EVENT, function (event) {

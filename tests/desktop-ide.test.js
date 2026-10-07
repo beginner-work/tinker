@@ -33,8 +33,11 @@ test("desktop IDE shell markup is present on /repo write page", () => {
   assert.match(html, /id="repo-ide-center"/);
   assert.match(html, /class="repo-right"/);
   assert.match(html, /id="repo-labs-link"/);
+  assert.match(html, /Learning Lab/);
+  assert.match(html, /id="repo-past-essays"/);
+  assert.match(html, /id="repo-panel"/);
+  assert.match(html, /id="repo-panel-write"/);
   assert.match(html, /Exercises/);
-  assert.doesNotMatch(html, /id="repo-panel"/);
   assert.doesNotMatch(html, /\u2014|\u2013/);
   assert.match(html, /src="\/exercises\/manifest\.js/);
   assert.match(html, /exercise-workspace-ui\.js/);
@@ -49,8 +52,10 @@ test("desktop IDE CSS is gated; mobile hides IDE chrome", () => {
   );
   assert.match(
     css,
-    /\.repo-layout--write\s*\{[^}]*minmax\(\s*260px,\s*var\(--repo-essays-rail(?:,\s*320px)?\)/s,
+    /\.repo-layout--write\s*\{[^}]*minmax\(\s*0,\s*1fr\)/s,
   );
+  assert.match(css, /--repo-panel-height:\s*35vh/);
+  assert.match(css, /\.repo-panel\s*\{/);
   assert.match(css, /\.repo-tabs\s*\{/);
   assert.match(css, /\.repo-explorer\s*\{/);
   assert.match(css, /\.repo-code\s*\{/);
@@ -97,11 +102,12 @@ test("Electron desktop app still loads the same production /repo web UI", () => 
   assert.doesNotMatch(mainJs, /loadFile\(/);
 });
 
-test("location pill and pad stay out of layout while the code editor is open", () => {
+test("desktop bottom panel keeps writing chrome while code is open; mobile toggles", () => {
   assert.match(css, /\.repo-location\[hidden\]\s*\{[^}]*display:\s*none\s*!important/s);
   assert.match(css, /\.repo-pad\[hidden\]\s*\{[^}]*display:\s*none\s*!important/s);
-  assert.match(ui, /els\.location\)\s*els\.location\.hidden\s*=\s*!show/);
-  assert.match(ui, /els\.pad\)\s*els\.pad\.hidden\s*=\s*!show/);
+  assert.match(ui, /function showWritingChrome/);
+  assert.match(ui, /desktopPanel \? false : !show/);
+  assert.match(ui, /isWideDesktop/);
 });
 
 test("exercise editor uses CodeMirror with a full-column invisible surface", () => {

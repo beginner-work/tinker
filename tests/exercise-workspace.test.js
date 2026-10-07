@@ -178,7 +178,7 @@ test("repo IDE explorer wires exercise trees and drops the Output panel", () => 
   assert.match(html, /id="repo-code"/);
   assert.match(html, /exercise-workspace-ui\.js/);
   assert.match(html, /exercise-workspace-core\.js/);
-  assert.doesNotMatch(html, /id="repo-panel"/);
+  assert.match(html, /id="repo-panel"/);
   assert.doesNotMatch(html, /No in-app runner/);
   assert.doesNotMatch(html, /\u2014/);
   assert.match(uiSrc, /move_node/);
