@@ -757,7 +757,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Home</);
   assert.match(html, /id="repo-name"[^>]*hidden[^>]*>tinker</);
   assert.match(html, /repo-location__globe/);
-  assert.match(html, /icons\/tinker-mark\.svg\?v=36/);
+  assert.match(html, /icons\/tinker-mark\.svg\?v=38/);
   assert.match(html, /id="repo-location-caption"[^>]*>Location</);
   assert.match(html, /placeholder="Where are you\?"/);
   assert.match(html, /aria-haspopup="listbox"/);
@@ -806,24 +806,31 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right"/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=36"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=36"/);
-  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=36"/);
-  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=36"/);
-  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=36"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=38"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=38"/);
+  assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=38"/);
+  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=38"/);
+  assert.match(html, /src="\/lib\/storage-path-core\.js\?v=38"/);
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
-  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=36"/);
-  assert.doesNotMatch(html, /src="\/exercises\/manifest\.js/);
+  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=38"/);
+  assert.match(html, /src="\/exercises\/manifest\.js\?v=38"/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
   assert.doesNotMatch(html, /src="\/lib\/exercises-pick\.js/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=36"/);
-  assert.match(html, /src="\/repo\/storage-section\.js\?v=36"/);
-  assert.match(html, /src="\/platform-mobile\.js\?v=36"/);
-  assert.match(html, /src="\/interview-prompt\.js\?v=36"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=36"/);
-  assert.match(html, /href="\/styles\.css\?v=36"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=38"/);
+  assert.match(html, /src="\/repo\/storage-section\.js\?v=38"/);
+  assert.match(html, /src="\/platform-mobile\.js\?v=38"/);
+  assert.match(html, /src="\/interview-prompt\.js\?v=38"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=38"/);
+  assert.match(html, /href="\/styles\.css\?v=38"/);
+  assert.match(html, /id="repo-explorer"/);
+  assert.match(html, /id="repo-ex-new-file"/);
+  assert.match(html, /id="repo-code"/);
+  assert.doesNotMatch(html, /id="repo-panel"/);
+  assert.match(html, /id="repo-tabs"/);
+    assert.match(html, /id="repo-ide-center"/);
+    assert.doesNotMatch(html, /\u2014/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
   assert.doesNotMatch(html, /Tyler|tlindow|nanoengineering/i);
   assert.doesNotMatch(page, /Tyler|tlindow|nanoengineering/i);
@@ -857,7 +864,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /--repo-foot-floor:\s*max\(\s*48px,\s*8dvh\s*\)/);
   assert.match(
     css,
-    /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*var\(--repo-foot-floor\)\s*\+\s*env\(safe-area-inset-bottom/s,
+    /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*var\(--repo-foot-floor\)\s*\+\s*var\(--repo-panel-height,\s*0px\)\s*\+\s*env\(safe-area-inset-bottom/s,
   );
   assert.match(css, /\.repo-surface\.writing\s+\.repo-pad\s*\{[^}]*--repo-foot-floor/s);
   assert.match(
@@ -1005,7 +1012,7 @@ test("UI-contract: desktop Keep crafting pill bottom offset is max(48px, 8vh)", 
   assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
   assert.match(
     css,
-    /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*var\(--repo-foot-floor\)\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\s*\)/s,
+    /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*var\(--repo-foot-floor\)\s*\+\s*var\(--repo-panel-height,\s*0px\)\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\s*\)/s,
   );
   // Editor scroll area clears the fixed pill (floor + pill height).
   assert.match(

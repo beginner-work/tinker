@@ -76,11 +76,17 @@
     // Read-view mount for saved essays (toggle always starts off per essay).
     essayReadMount: null,
     essayReadStoryId: null,
+    // Desktop IDE essay tabs (exercise file tabs live in exercise-workspace-ui).
+    openTabs: [],
+    activeTabId: null,
   };
 
   var els = {
     name: document.getElementById("repo-name"),
     branch: document.getElementById("repo-branch"),
+    layout: document.getElementById("repo-layout"),
+    tabs: document.getElementById("repo-tabs"),
+    code: document.getElementById("repo-code"),
     tree: document.getElementById("repo-tree"),
     empty: document.getElementById("repo-stories-empty"),
     newPiece: document.getElementById("repo-new-piece"),
@@ -487,6 +493,81 @@
     state.keepFinishedWriting = false;
     state.selectedId = id || null;
     state.selectedFolderId = null;
+    if (els.code) els.code.hidden = true;
+    if (els.pad) els.pad.hidden = false;
+    if (id) openEssayTab(id);
+    else state.activeTabId = null;
+    render();
+  }
+
+  function tabIdForEssay(storyId) {
+    return "essay:" + String(storyId || "");
+  }
+
+  function findTab(tabId) {
+    for (var i = 0; i < state.openTabs.length; i += 1) {
+      if (state.openTabs[i].id === tabId) return state.openTabs[i];
+    }
+    return null;
+  }
+
+  function openEssayTab(storyId) {
+    if (!isWritePage || !storyId) return;
+    var id = tabIdForEssay(storyId);
+    var story = null;
+    if (state.draft && state.draft.id === storyId) story = state.draft;
+    else {
+      for (var i = 0; i < state.stories.length; i += 1) {
+        if (state.stories[i].id === storyId) {
+          story = state.stories[i];
+          break;
+        }
+      }
+    }
+    var title = story ? md.displayTitle(story) : "Essay";
+    var existing = findTab(id);
+    if (existing) {
+      existing.title = title;
+    } else {
+      state.openTabs.push({ id: id, kind: "essay", refId: storyId, title: title });
+    }
+    state.activeTabId = id;
+  }
+
+  function activateTab(tabId) {
+    var tab = findTab(tabId);
+    if (!tab) return;
+    state.activeTabId = tab.id;
+    state.keepFinishedWriting = false;
+    state.selectedId = tab.refId;
+    state.selectedFolderId = null;
+    if (els.code) els.code.hidden = true;
+    if (els.pad) els.pad.hidden = false;
+    render();
+  }
+
+  function closeTab(tabId) {
+    var next = [];
+    var closedIndex = -1;
+    for (var i = 0; i < state.openTabs.length; i += 1) {
+      if (state.openTabs[i].id === tabId) {
+        closedIndex = i;
+        continue;
+      }
+      next.push(state.openTabs[i]);
+    }
+    state.openTabs = next;
+    if (state.activeTabId !== tabId) {
+      renderTabs();
+      return;
+    }
+    var fallback = next[closedIndex] || next[closedIndex - 1] || next[0] || null;
+    if (fallback) {
+      activateTab(fallback.id);
+      return;
+    }
+    state.activeTabId = null;
+    state.selectedId = null;
     render();
   }
 
@@ -547,6 +628,7 @@
     state.draft = draft;
     state.selectedId = draft.id;
     state.selectedFolderId = folderId;
+    openEssayTab(draft.id);
     // Carry the session place onto the new file so it shows and survives first save.
     if (state.currentPlace) {
       state.places[draft.id] = state.currentPlace.slice(0, 120);
@@ -2850,9 +2932,57 @@
     renderTree();
   });
 
+  function renderTabs() {
+    if (!els.tabs || !isWritePage) return;
+    clear(els.tabs);
+    if (!state.openTabs.length) {
+      els.tabs.hidden = true;
+      return;
+    }
+    els.tabs.hidden = false;
+    state.openTabs.forEach(function (tab) {
+      var tabEl = document.createElement("div");
+      tabEl.className = "repo-tabs__tab" + (tab.id === state.activeTabId ? " is-active" : "");
+      tabEl.setAttribute("role", "tab");
+      tabEl.setAttribute("tabindex", tab.id === state.activeTabId ? "0" : "-1");
+      tabEl.setAttribute("aria-selected", tab.id === state.activeTabId ? "true" : "false");
+      tabEl.setAttribute("data-tab-id", tab.id);
+      tabEl.title = tab.title || "Untitled";
+
+      var labelBtn = document.createElement("button");
+      labelBtn.type = "button";
+      labelBtn.className = "repo-tabs__label-btn";
+      var label = document.createElement("span");
+      label.className = "repo-tabs__label";
+      text(label, tab.title || "Untitled");
+      labelBtn.appendChild(label);
+      labelBtn.addEventListener("click", function () {
+        activateTab(tab.id);
+      });
+      tabEl.appendChild(labelBtn);
+
+      var close = document.createElement("button");
+      close.type = "button";
+      close.className = "repo-tabs__close";
+      close.setAttribute("aria-label", "Close " + (tab.title || "tab"));
+      close.textContent = "\u00d7";
+      close.addEventListener("click", function (event) {
+        if (event && event.preventDefault) event.preventDefault();
+        if (event && event.stopPropagation) event.stopPropagation();
+        closeTab(tab.id);
+      });
+      tabEl.appendChild(close);
+      els.tabs.appendChild(tabEl);
+    });
+  }
+
   function renderCenter() {
     if (!els.body && !els.pad && !els.essayView) return;
+    // Exercise file editor owns the surface when a code tab is active.
+    if (els.code && !els.code.hidden) return;
     if (els.body) els.body.disabled = false;
+    if (els.pad) els.pad.hidden = false;
+
     var story = selectedStory();
     if (!story) {
       hideEssayReadView();
@@ -2878,6 +3008,7 @@
       els.fileType.hidden = false;
       text(els.fileType, "Type: " + core.contentTypeLabel(story.contentType || core.DEFAULT_CONTENT_TYPE));
     }
+    if (story.id) openEssayTab(story.id);
   }
 
   function renderSyncHint() {
@@ -2904,10 +3035,12 @@
       // Structure sidebar on desktop write — same tree as /repo/files.
       if (els.tree) renderTree();
       renderCenter();
+      // Essay tabs only when the exercise file editor is not active.
+      if (!els.code || els.code.hidden) renderTabs();
       renderPlace();
       renderFollowup();
       renderSyncHint();
-      if (isEssayReadMode()) setPadActionsVisible(false);
+      if (isEssayReadMode() || (els.code && !els.code.hidden)) setPadActionsVisible(false);
       else setPadActionsVisible(state.padActionsVisible && !!padBody().trim());
     }
   }
@@ -3264,6 +3397,7 @@
     getStories: function () { return state.stories.slice(); },
     getFolders: function () { return state.folders.slice(); },
     getPlacements: function () { return Object.assign({}, state.placements); },
+    getOpenTabs: function () { return state.openTabs.slice(); },
     syncStoriesToDisk: syncStoriesToDisk,
     registerLocationSection: registerLocationSection,
     refreshLocation: refreshLocation,
@@ -3309,8 +3443,20 @@
   };
 
   render();
-  window.tinkerRepo.ready = loadStories().then(function () {
-    applyWriteQuery();
-    restorePadDraftAfterAuth();
-  });
+  var exUi = window.tinkerExerciseWorkspaceUi;
+  var exReady = (exUi && typeof exUi.init === "function")
+    ? exUi.init({
+      onReleaseEditor: function () {
+        renderTabs();
+        renderCenter();
+      },
+    })
+    : Promise.resolve();
+  window.tinkerRepo.ready = Promise.all([
+    loadStories().then(function () {
+      applyWriteQuery();
+      restorePadDraftAfterAuth();
+    }),
+    exReady,
+  ]);
 })();
