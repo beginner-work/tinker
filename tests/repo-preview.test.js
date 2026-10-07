@@ -833,7 +833,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/lib\/stories-md\.js\?v=40"/);
   assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=40"/);
   assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=40"/);
-  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=46"/);
+  assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=47"/);
   assert.match(html, /src="\/lib\/storage-path-core\.js\?v=40"/);
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);

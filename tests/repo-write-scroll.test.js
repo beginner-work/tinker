@@ -128,20 +128,19 @@ test("panel question scroll keeps prior text above the question and clears the f
     bottomReserved: foot,
     maxScroll,
   });
-  // Previous turn end sits at/near the top of the scrollport.
-  assert.equal(top, prevBottom - 8);
-  // Question fully above the foot reserve after scroll.
+  // ~112px of previous turn stays in view above the question.
+  assert.equal(top, prevBottom - scroll.WRITE_SCROLL.PANEL_PREV_CONTEXT_PX);
   assert.ok(questionOffsetTop - top >= 0, "question not above scrollport");
   assert.ok(
     questionOffsetTop + questionHeight - top <= clientH - foot + 0.5,
     "question clears sticky foot",
   );
-  // Prior text is still in the visible band (not scrolled away under a fake safe-top).
-  assert.ok(prevBottom - top <= 16, "latest typed lines remain near the top");
+  assert.ok(prevBottom - top >= 80, "latest typed lines remain visible above question");
+  assert.ok(prevBottom - top <= 120, "prior context band is modest");
 });
 
 test("panel scroll never covers essay text by parking at titlebar safe-top", () => {
-  // Short panel + tall prior turn: prefer showing prev bottom + question, not
+  // Short panel + tall prior turn: prefer showing prior context + question, not
   // a 64px window safe-top that would clip mid-paragraph over the card.
   const top = scroll.computePanelQuestionScrollTop({
     questionOffsetTop: 400,
@@ -152,7 +151,7 @@ test("panel scroll never covers essay text by parking at titlebar safe-top", () 
     bottomReserved: 64,
     maxScroll: 900,
   });
-  assert.equal(top, 382); // 390 - 8
+  assert.equal(top, 390 - scroll.WRITE_SCROLL.PANEL_PREV_CONTEXT_PX);
   assert.ok(400 - top > 8, "question below prior text in flow");
   assert.ok(top !== 400 - 64, "must not use window titlebar safe-top math");
 });

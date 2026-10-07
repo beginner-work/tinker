@@ -40,6 +40,8 @@
     // Bottom essays panel: keep question + prior text clear of sticky foot.
     PANEL_TOP_PAD_PX: 8,
     PANEL_FOOT_RESERVE_PX: 64,
+    // Keep a readable slice of the previous turn above the question card.
+    PANEL_PREV_CONTEXT_PX: 112,
   };
 
   function clampNonNeg(n) {
@@ -122,9 +124,12 @@
       : WRITE_SCROLL.PANEL_FOOT_RESERVE_PX;
     var maxScroll = clampNonNeg(opts.maxScroll);
 
-    // Prefer: keep the end of the previous turn at the top of the scrollport
-    // so the latest typed lines stay readable above the question card.
-    var preferred = Math.max(0, prevBottom - topPad);
+    // Prefer: keep a slice of the previous turn above the question so the
+    // latest typed lines stay readable (not only the turn's bottom edge).
+    var prevContext = opts.prevContextPx != null
+      ? clampNonNeg(opts.prevContextPx)
+      : WRITE_SCROLL.PANEL_PREV_CONTEXT_PX;
+    var preferred = Math.max(0, prevBottom - Math.max(topPad, prevContext));
 
     var visibleBottom = Math.max(topPad + 1, clientH - bottomReserved);
     var qBottom = qTop + qH;
