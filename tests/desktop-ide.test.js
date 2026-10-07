@@ -33,10 +33,13 @@ test("desktop IDE shell markup is present on /repo write page", () => {
   assert.match(html, /id="repo-ide-center"/);
   assert.match(html, /class="repo-right"/);
   assert.match(html, /id="repo-labs-link"/);
+  assert.match(html, /id="repo-ide-tabbar"/);
+  assert.match(html, /repo-ide-tabbar__labs/);
   assert.match(html, /Learning Lab/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /id="repo-panel"/);
   assert.match(html, /id="repo-panel-write"/);
+  assert.match(html, /id="repo-panel-close"/);
   assert.match(html, /Exercises/);
   assert.doesNotMatch(html, /\u2014|\u2013/);
   assert.match(html, /src="\/exercises\/manifest\.js/);

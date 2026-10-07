@@ -14,12 +14,12 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=40" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=42" />
+    <link rel="stylesheet" href="/repo/repo.css?v=43" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
-    <!-- Desktop: Learning Lab top-right. Mobile: Learning Lab left + past essays right. -->
+    <!-- Mobile nav only: Learning Lab left + past essays right. Desktop labs live in the tab bar. -->
     <header class="repo-top repo-top--labs" aria-label="Learning Lab">
-      <a id="repo-labs-link" class="repo-top__labs"
+      <a class="repo-top__labs"
          href="https://lindowlabs.dev/learning"
          target="_blank" rel="noopener noreferrer"
          aria-label="Learning Lab (opens in your browser)"
@@ -59,7 +59,23 @@
       <button type="button" class="repo-explorer__expand" id="repo-explorer-expand" hidden aria-label="Show explorer" title="Show explorer">›</button>
 
       <div class="repo-ide-center" id="repo-ide-center">
-        <div class="repo-tabs" id="repo-tabs" role="tablist" aria-label="Open editors" hidden></div>
+        <!-- Desktop: tabs scroll left; Learning Lab reserved right slot (same 40px row). -->
+        <div class="repo-ide-tabbar" id="repo-ide-tabbar">
+          <div class="repo-tabs" id="repo-tabs" role="tablist" aria-label="Open editors" hidden></div>
+          <div class="repo-ide-tabbar__labs">
+            <a id="repo-labs-link" class="repo-top__labs"
+               href="https://lindowlabs.dev/learning"
+               target="_blank" rel="noopener noreferrer"
+               aria-label="Learning Lab (opens in your browser)"
+               data-learning-lab>
+              <span class="repo-top__labs-label">Learning Lab</span>
+              <svg class="repo-top__labs-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
+                <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                      d="M6.5 3.5H3.75A1.25 1.25 0 0 0 2.5 4.75v7.5A1.25 1.25 0 0 0 3.75 13.5h7.5a1.25 1.25 0 0 0 1.25-1.25V9.5M9.5 2.5h4v4M13.5 2.5 7 9"/>
+              </svg>
+            </a>
+          </div>
+        </div>
 
         <!-- Top: code editor (desktop). Writing lives in the bottom essays panel. -->
         <main class="repo-center repo-write-safe-top" id="repo-editor-main" aria-label="Editor">
@@ -82,12 +98,17 @@
         <section class="repo-panel" id="repo-panel" aria-label="Essays panel">
           <div class="repo-panel__resize" id="repo-panel-resize" role="separator" aria-orientation="horizontal" aria-label="Resize essays panel" tabindex="0"></div>
           <header class="repo-panel__head" id="repo-panel-head">
-            <h2 class="repo-panel__title" id="repo-stories-heading">Essays</h2>
+            <div class="repo-panel__head-row repo-panel__head-row--title">
+              <h2 class="repo-panel__title" id="repo-stories-heading">Essays</h2>
+              <button type="button" class="repo-panel__close" id="repo-panel-close"
+                      aria-label="Close essays" title="Close essays" hidden>×</button>
+            </div>
             <div class="repo-panel__actions">
               <button type="button" class="repo-tree__new" id="repo-new-folder">New folder</button>
               <button type="button" class="repo-tree__new repo-tree__new--essay" id="repo-sidebar-new-piece">New essay</button>
-              <button type="button" class="repo-panel__collapse" id="repo-panel-collapse" aria-label="Collapse essays panel" title="Collapse essays panel">⌄</button>
             </div>
+            <button type="button" class="repo-panel__collapse" id="repo-panel-collapse"
+                    aria-label="Collapse essays panel" title="Collapse essays panel">⌄</button>
           </header>
           <div class="repo-panel__body" id="repo-panel-body">
             <!-- .repo-right kept for mobile fullscreen essays-list CSS / JS hooks. -->
@@ -206,8 +227,8 @@
     <script src="/exercises/manifest.js?v=40"></script>
     <script src="/lib/exercise-workspace-core.js?v=40"></script>
     <script src="/repo/exercise-workspace-ui.js?v=40"></script>
-    <script src="/made-by-lindow-labs.js?v=42"></script>
-    <script src="/repo/repo.js?v=42"></script>
+    <script src="/made-by-lindow-labs.js?v=43"></script>
+    <script src="/repo/repo.js?v=43"></script>
     <script src="/repo/storage-section.js?v=40"></script>
   </body>
 </html>

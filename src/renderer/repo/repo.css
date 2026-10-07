@@ -74,32 +74,18 @@ body.repo-page--files {
   min-height: 0;
 }
 
-/* Write page: fixed Learning Lab chrome (desktop top-right; mobile full nav). */
+/* Mobile-only top nav (Learning Lab left + past essays). Hidden on desktop. */
 .repo-top--labs {
-  position: fixed;
-  top: 0;
-  right: 0;
-  left: auto;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  margin: 0;
-  /* Browser: quiet top inset. Electron overrides to the 36px titlebar band. */
-  height: auto;
-  min-height: 36px;
-  padding: calc(8px + env(safe-area-inset-top, 0px))
-    calc(14px + env(safe-area-inset-right, 0px)) 8px 14px;
-  border-bottom: 0;
-  background: transparent;
-  pointer-events: none;
-  box-sizing: border-box;
-  overflow: visible;
+  display: none;
 }
 
 /* Past essays is mobile-only; desktop uses the bottom essays panel. */
 .repo-top__past-essays {
+  display: none;
+}
+
+/* Desktop: Learning Lab lives in the tab bar's reserved right slot. */
+.repo-ide-tabbar {
   display: none;
 }
 
@@ -149,28 +135,6 @@ body.repo-page--files {
   border-radius: 4px;
 }
 
-/* Electron hiddenInset: sit fully inside the 36px titlebar band — vertically
-   centered, never clipped by the drag region. */
-html[data-tinker-desktop] .repo-top--labs,
-html.tinker-desktop .repo-top--labs {
-  top: 0;
-  height: 36px;
-  min-height: 36px;
-  max-height: 36px;
-  padding: 0 calc(14px + env(safe-area-inset-right, 0px)) 0 14px;
-  align-items: center;
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
-  overflow: visible;
-}
-
-html[data-tinker-desktop] .repo-top__labs,
-html.tinker-desktop .repo-top__labs {
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
-  padding: 0 2px;
-}
-
 .repo-top--auth .repo-top__back {
   margin-right: auto;
 }
@@ -190,13 +154,6 @@ html[data-tinker-desktop] .repo-top,
 html.tinker-desktop .repo-top {
   padding-left: var(--tinker-desktop-traffic-inset, 78px);
   -webkit-app-region: drag;
-}
-
-/* Labs chrome is fixed top-right — do not inherit traffic-light left inset
-   (height / vertical centering set with the Learning Lab rules above). */
-html[data-tinker-desktop] .repo-top--labs,
-html.tinker-desktop .repo-top--labs {
-  padding-left: 14px;
 }
 
 html[data-tinker-desktop] .repo-top a,
@@ -899,6 +856,74 @@ html.tinker-desktop .repo-top [role="button"] {
   background: transparent;
 }
 
+/* Desktop tab bar: scrolling tabs + reserved Learning Lab slot (same 40px row). */
+@media (min-width: 801px) {
+  .repo-ide-tabbar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    min-height: var(--repo-tabs-height, 40px);
+    height: var(--repo-tabs-height, 40px);
+    border-bottom: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-background) 88%, var(--color-accent, #a5b4fc) 12%);
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+    position: relative;
+    z-index: 14;
+    isolation: isolate;
+  }
+
+  .repo-ide-tabbar .repo-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: var(--repo-tabs-height, 40px);
+    height: var(--repo-tabs-height, 40px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 0;
+    background: transparent;
+    scrollbar-width: thin;
+  }
+
+  .repo-ide-tabbar .repo-tabs[hidden] {
+    display: flex !important;
+    /* Empty strip still reserves the left flex area so labs stay right. */
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .repo-ide-tabbar__labs {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    padding: 0 12px 0 10px;
+    border-left: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-background) 92%, var(--color-accent, #a5b4fc) 8%);
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .repo-ide-tabbar__labs .repo-top__labs {
+    pointer-events: auto;
+  }
+
+  /* Electron: tab bar sits below the 36px titlebar; clear traffic lights when
+     the explorer is collapsed so the first tab is not under the lights. */
+  html[data-tinker-desktop] .repo-layout--write.is-explorer-collapsed .repo-ide-tabbar,
+  html.tinker-desktop .repo-layout--write.is-explorer-collapsed .repo-ide-tabbar {
+    padding-left: var(--tinker-desktop-traffic-inset, 78px);
+  }
+}
+
 .repo-tabs {
   display: flex;
   flex-wrap: nowrap;
@@ -914,7 +939,6 @@ html.tinker-desktop .repo-top [role="button"] {
   border-bottom: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-background) 88%, var(--color-accent, #a5b4fc) 12%);
   -webkit-app-region: no-drag;
-  /* Sit above the fixed write-safe-top fade so labels/close are not clipped. */
   position: relative;
   z-index: 14;
   isolation: isolate;
@@ -923,20 +947,6 @@ html.tinker-desktop .repo-top [role="button"] {
 
 .repo-tabs[hidden] {
   display: none !important;
-}
-
-/* Electron hiddenInset: clear traffic lights for the tab strip.
-   Collapsed explorer: tabs start at the window left edge.
-   Explorer open: still pad so a narrow rail cannot cover the first tab. */
-html[data-tinker-desktop] .repo-layout--write .repo-tabs,
-html.tinker-desktop .repo-layout--write .repo-tabs {
-  padding-left: var(--tinker-desktop-traffic-inset, 78px);
-}
-
-html[data-tinker-desktop] .repo-layout--write:not(.is-explorer-collapsed) .repo-tabs,
-html.tinker-desktop .repo-layout--write:not(.is-explorer-collapsed) .repo-tabs {
-  /* Explorer already clears the lights; keep a small gutter only. */
-  padding-left: 0;
 }
 
 /* Electron: drop the whole IDE below the traffic-light / drag strip so the
@@ -1596,6 +1606,7 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
 
   .repo-panel__head {
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
@@ -1605,6 +1616,18 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
     border-bottom: 1px solid var(--color-border);
     background: color-mix(in srgb, var(--color-background) 90%, var(--color-accent, #a5b4fc) 10%);
     -webkit-app-region: no-drag;
+  }
+
+  .repo-panel__head-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .repo-panel__head-row--title {
+    flex: 0 1 auto;
+    justify-content: flex-start;
   }
 
   .repo-panel__title {
@@ -1620,8 +1643,12 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
     display: flex;
     align-items: center;
     gap: 6px;
-    /* Clear fixed Lindow Labs link. */
-    padding-right: 100px;
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .repo-panel__close {
+    display: none;
   }
 
   .repo-panel__collapse {
@@ -1630,6 +1657,7 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
     justify-content: center;
     width: 28px;
     height: 28px;
+    margin-left: 0;
     border: 1px solid var(--color-border);
     border-radius: 6px;
     background: var(--color-surface, var(--color-background));
@@ -3008,13 +3036,18 @@ body.repo-page--write .repo-center {
 
   /* Mobile nav: Learning Lab top-left, past-essays icon top-right. */
   .repo-top--labs {
+    display: flex;
+    position: fixed;
+    top: 0;
     left: 0;
     right: 0;
     width: 100%;
+    z-index: 40;
     flex-wrap: nowrap;
     justify-content: space-between;
     align-items: center;
     gap: 8px;
+    margin: 0;
     min-height: calc(44px + env(safe-area-inset-top, 0px));
     height: auto;
     max-height: none;
@@ -3022,7 +3055,15 @@ body.repo-page--write .repo-center {
       calc(10px + env(safe-area-inset-right, 0px))
       6px
       calc(10px + env(safe-area-inset-left, 0px));
+    border-bottom: 0;
+    background: transparent;
     pointer-events: none;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+
+  .repo-ide-tabbar {
+    display: none !important;
   }
 
   .repo-top__labs {
@@ -3190,9 +3231,9 @@ body.repo-page--write .repo-center {
     border: 0;
     box-sizing: border-box;
     gap: 12px;
-    /* Clear Learning Lab nav (~50px) + Essays head (~60px) + gap. */
+    /* Clear Learning Lab nav (~50px) + title/close + actions rows. */
     padding:
-      calc(128px + env(safe-area-inset-top, 0px))
+      calc(178px + env(safe-area-inset-top, 0px))
       calc(16px + env(safe-area-inset-right, 0px))
       calc(24px + env(safe-area-inset-bottom, 0px))
       calc(16px + env(safe-area-inset-left, 0px));
@@ -3209,24 +3250,95 @@ body.repo-page--write .repo-center {
     background: var(--color-background);
   }
 
-  /* Promote panel-head actions into the mobile essays list, under the nav. */
+  /* Mobile essays sheet: title+close row, then New folder/New essay, then list. */
   body.repo-page--write[data-repo-essays-list="1"] .repo-panel__head {
     display: flex;
+    flex-direction: column;
+    align-items: stretch;
     position: fixed;
     top: calc(50px + env(safe-area-inset-top, 0px));
     left: 0;
     right: 0;
     z-index: 40;
     height: auto;
-    padding: 12px 16px;
+    gap: 0;
+    padding: 12px 16px 14px;
     background:
       radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
       var(--color-background);
     border-bottom: 1px solid var(--color-border);
   }
 
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__head-row--title {
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__title {
+    font-size: 22px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    text-transform: none;
+    color: var(--color-foreground);
+  }
+
   body.repo-page--write[data-repo-essays-list="1"] .repo-panel__collapse {
     display: none !important;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--color-muted);
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__close:hover,
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__close:focus-visible {
+    color: var(--color-foreground);
+    background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-top: 14px;
+    margin-left: 0;
+    padding: 0;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__actions .repo-tree__new {
+    min-height: 40px;
+    padding: 0 14px;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-tree__piece-row {
+    min-height: 48px;
+    align-items: center;
+    padding: 4px 0;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-tree__piece {
+    min-height: 44px;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-tree__head--mobile {

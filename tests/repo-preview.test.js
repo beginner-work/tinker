@@ -833,15 +833,15 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
-  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=42"/);
+  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=43"/);
   assert.match(html, /src="\/exercises\/manifest\.js\?v=40"/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
   assert.doesNotMatch(html, /src="\/lib\/exercises-pick\.js/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=42"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=43"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=40"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=40"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=42"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=43"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
   assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
@@ -1257,9 +1257,11 @@ test("write page has no top-right account / Sign out / Download chrome", () => {
   assert.match(html, /placeholder="Where are you\?"/);
 });
 
-test("write page Learning Lab link is fixed chrome, not under writing", () => {
+test("write page Learning Lab sits in tab-bar slot; mobile keeps top nav", () => {
   const LEARNING_LAB_URL = "https://lindowlabs.dev/learning";
   assert.match(html, /id="repo-labs-link"/);
+  assert.match(html, /id="repo-ide-tabbar"/);
+  assert.match(html, /repo-ide-tabbar__labs/);
   assert.match(html, /repo-top--labs/);
   assert.match(html, /class="repo-top__labs"/);
   assert.ok(
@@ -1272,33 +1274,47 @@ test("write page Learning Lab link is fixed chrome, not under writing", () => {
   assert.match(html, />Learning Lab</);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Past essays"/);
-  // Outside the writing surface / pad / grok handoff zone.
+  assert.match(html, /id="repo-panel-close"/);
+  // Desktop labs live in the tab bar, not under the writing pad.
   const beforeSurface = html.slice(0, html.indexOf('id="repo-surface"'));
   assert.match(beforeSurface, /id="repo-labs-link"/);
+  assert.match(beforeSurface, /id="repo-ide-tabbar"/);
   const surfaceChunk = (html.match(/id="repo-panel-write"[\s\S]*?id="repo-surface"[\s\S]*?<\/div>\s*<\/div>/) || [""])[0];
   assert.doesNotMatch(surfaceChunk, /id="repo-labs-link"/);
   assert.doesNotMatch(surfaceChunk, /repo-top--labs/);
   assert.doesNotMatch(surfaceChunk, /id="repo-grok-handoff"/);
   assert.doesNotMatch(surfaceChunk, /id="repo-exercise-rec"/);
-  assert.match(css, /\.repo-top--labs\s*\{[^}]*position:\s*fixed/s);
-  assert.match(css, /\.repo-top--labs\s*\{[^}]*right:\s*0/s);
   assert.match(css, /\.repo-top__labs/);
   assert.match(css, /\.repo-top__past-essays/);
-  // Desktop: past essays control hidden; Learning Lab stays top-right.
+  assert.match(css, /\.repo-ide-tabbar__labs/);
+  // Desktop: past essays hidden; labs reserved in the 40px tab row.
   assert.match(css, /\.repo-top__past-essays\s*\{[^}]*display:\s*none/s);
-  // Mobile: Learning Lab left + past essays right.
   assert.match(
     css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-top--labs\s*\{[^}]*left:\s*0/s,
+    /@media\s*\(min-width:\s*801px\)\s*\{[\s\S]*\.repo-ide-tabbar\s*\{[^}]*display:\s*flex/s,
+  );
+  assert.match(
+    css,
+    /@media\s*\(min-width:\s*801px\)\s*\{[\s\S]*\.repo-ide-tabbar__labs\s*\{[^}]*border-left/s,
+  );
+  // Mobile: Learning Lab left + past essays right; desktop mobile-nav hidden.
+  assert.match(css, /\.repo-top--labs\s*\{[^}]*display:\s*none/s);
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-top--labs\s*\{[^}]*display:\s*flex/s,
   );
   assert.match(
     css,
     /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-top__past-essays\s*\{[^}]*display:\s*inline-flex/s,
   );
-  // Electron titlebar: vertically centered in the 36px band.
+  // Mobile past-essays sheet: title+close, then actions on their own row.
   assert.match(
     css,
-    /html\[data-tinker-desktop\]\s+\.repo-top--labs[\s\S]*height:\s*36px/,
+    /body\.repo-page--write\[data-repo-essays-list="1"\]\s+\.repo-panel__head\s*\{[^}]*flex-direction:\s*column/s,
+  );
+  assert.match(
+    css,
+    /body\.repo-page--write\[data-repo-essays-list="1"\]\s+\.repo-panel__close\s*\{[^}]*display:\s*inline-flex/s,
   );
 });
 

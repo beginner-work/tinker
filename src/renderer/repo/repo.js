@@ -94,6 +94,7 @@
     newPiece: document.getElementById("repo-new-piece"),
     sidebarNewPiece: document.getElementById("repo-sidebar-new-piece"),
     pastEssays: document.getElementById("repo-past-essays"),
+    panelClose: document.getElementById("repo-panel-close"),
     newFolder: document.getElementById("repo-new-folder"),
     body: document.getElementById("repo-body"),
     pad: document.getElementById("repo-pad"),
@@ -758,6 +759,10 @@
     } catch (e) { /* ignore */ }
     if (els.pastEssays) {
       els.pastEssays.setAttribute("aria-expanded", state.mobileEssayList ? "true" : "false");
+    }
+    if (els.panelClose) {
+      // Mobile sheet close; desktop keeps the collapse chevron instead.
+      els.panelClose.hidden = !state.mobileEssayList;
     }
     if (els.sidebarNewPiece) {
       // Desktop bottom panel always offers New essay; mobile only in the list.
@@ -3228,6 +3233,12 @@
         if (window.matchMedia && window.matchMedia("(min-width: 801px)").matches) return;
       } catch (e) { /* ignore */ }
       setMobileEssayList(!state.mobileEssayList);
+    });
+  }
+  if (els.panelClose) {
+    els.panelClose.addEventListener("click", function (event) {
+      event.preventDefault();
+      setMobileEssayList(false);
     });
   }
   if (els.signin) {
