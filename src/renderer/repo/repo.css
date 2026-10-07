@@ -2178,8 +2178,13 @@ body.repo-page--write .repo-center {
     display: none !important;
   }
 
+  /* Keep Lindow Labs visible; clear the tree actions so New essay is tappable. */
   body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
     z-index: 45;
+  }
+
+  body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-tree__head {
+    padding-right: 96px;
   }
 
   body.repo-page--write .repo-center {
