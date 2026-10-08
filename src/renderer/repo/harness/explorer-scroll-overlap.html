@@ -12,6 +12,12 @@
     <link rel="stylesheet" href="/repo/repo.css?v=50" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
+    <!--
+      Static mirror of the real /repo explorer DOM from exercise-workspace-ui.js:
+      each exercise is a .repo-explorer__group title row, then sibling
+      .repo-ex-write-about, .repo-ex-steps, and .repo-ex-tree under #repo-explorer-body.
+      Do not wrap those siblings in .repo-ex-node (that class is display:flex row for files).
+    -->
     <header class="repo-top repo-top--labs" aria-label="Tools">
       <a class="repo-top__labs" id="repo-labs-link" href="#"
          aria-label="Exercises" title="Exercises" data-learning-lab data-exercises-nav>
@@ -40,9 +46,7 @@
           <h2 class="repo-sidebar__heading" id="repo-explorer-heading">Exercises</h2>
           <button type="button" class="repo-explorer__collapse" id="repo-explorer-collapse" aria-label="Collapse explorer">‹</button>
         </div>
-        <div class="repo-explorer-signin" id="repo-explorer-signin" hidden>
-          <p class="repo-explorer-signin__copy">Sign in to open exercises.</p>
-        </div>
+        <div class="repo-explorer-signin" id="repo-explorer-signin" hidden></div>
         <div class="repo-ex-steps-banner" id="repo-ex-steps-banner" hidden></div>
         <div class="repo-explorer__gated" id="repo-explorer-gated">
           <div class="repo-explorer__toolbar" id="repo-explorer-toolbar">
@@ -50,54 +54,88 @@
             <button type="button" class="repo-explorer__tool">New folder</button>
           </div>
           <div class="repo-explorer__body" id="repo-explorer-body" role="tree" aria-labelledby="repo-explorer-heading">
-            <!-- Tall expanded exercise list (mirrors Tyler's screenshot). -->
-            <div class="repo-ex-node" data-ex="formation">
-              <button type="button" class="repo-ex-node__btn">Formation: Persistent Storage</button>
-              <button type="button" class="repo-ex-write-about">Write about this exercise</button>
-              <p class="repo-ex-node__empty">No files yet</p>
-            </div>
-            <div class="repo-ex-node" data-ex="stripe">
-              <button type="button" class="repo-ex-node__btn">Stripe PaymentIntent (test mode)</button>
-              <button type="button" class="repo-ex-write-about">Write about this exercise</button>
-              <div class="repo-ex-steps">
-                <p class="repo-ex-steps__label">STEPS</p>
-                <ol class="repo-ex-steps__list">
-                  <li>Create a PaymentIntent in test mode</li>
-                  <li>Confirm with a test card</li>
-                  <li>Read the status back from the API</li>
-                </ol>
+            <div class="repo-explorer__group" data-exercise-id="formation-persistent-storage">
+              <div class="repo-explorer__group-row">
+                <button type="button" class="repo-explorer__group-btn">
+                  <span class="repo-explorer__chevron" aria-hidden="true">▾</span>
+                  <span class="repo-explorer__name">Formation: Persistent Storage</span>
+                </button>
               </div>
-              <ul class="repo-explorer__files">
-                <li><button type="button" class="repo-explorer__file">.gitignore</button></li>
-                <li><button type="button" class="repo-explorer__file">README.md</button></li>
-                <li><button type="button" class="repo-explorer__file">fixtures/</button></li>
-                <li><button type="button" class="repo-explorer__file">package.json</button></li>
-                <li><button type="button" class="repo-explorer__file">readPaymentIntentClient.js</button></li>
-                <li><button type="button" class="repo-explorer__file">createPaymentIntent.js</button></li>
-                <li><button type="button" class="repo-explorer__file">confirmPaymentIntent.js</button></li>
-              </ul>
             </div>
-            <div class="repo-ex-node" data-ex="fastify" id="fastify-ex">
-              <button type="button" class="repo-ex-node__btn">Fastify payments API (merchant, payment, refund)</button>
-              <button type="button" class="repo-ex-write-about">Write about this exercise</button>
-              <div class="repo-ex-steps" id="fastify-steps">
-                <p class="repo-ex-steps__label">STEPS</p>
-                <ol class="repo-ex-steps__list">
-                  <li>Steps 01 through 06: copy your openapi.yaml forward</li>
-                  <li>Add merchant, payment, and refund routes</li>
-                  <li>Wire Stripe test keys from the prior exercise</li>
-                  <li>Write a happy-path integration test</li>
-                  <li>Add idempotency keys on create</li>
-                  <li>Document the refund flow in README</li>
-                  <li>LAST STEP: you should be able to scroll here</li>
-                </ol>
+            <button type="button" class="repo-ex-write-about" data-exercise-id="formation-persistent-storage">Write about this exercise</button>
+            <div class="repo-ex-tree" data-exercise-id="formation-persistent-storage">
+              <p class="repo-ex-tree__empty">No files yet</p>
+            </div>
+
+            <div class="repo-explorer__group" data-exercise-id="stripe-payment-intent">
+              <div class="repo-explorer__group-row">
+                <button type="button" class="repo-explorer__group-btn is-selected">
+                  <span class="repo-explorer__chevron" aria-hidden="true">▾</span>
+                  <span class="repo-explorer__name">Stripe PaymentIntent (test mode)</span>
+                </button>
               </div>
-              <ul class="repo-explorer__files">
-                <li><button type="button" class="repo-explorer__file">openapi.yaml</button></li>
-                <li><button type="button" class="repo-explorer__file">src/server.js</button></li>
-                <li><button type="button" class="repo-explorer__file">src/routes/payments.js</button></li>
-                <li><button type="button" class="repo-explorer__file">test/payments.test.js</button></li>
-              </ul>
+            </div>
+            <button type="button" class="repo-ex-write-about" data-exercise-id="stripe-payment-intent">Write about this exercise</button>
+            <div class="repo-ex-steps" data-exercise-id="stripe-payment-intent">
+              <p class="repo-ex-steps__label">Steps</p>
+              <ol class="repo-ex-steps__list">
+                <li>Create a PaymentIntent in test mode</li>
+                <li>Confirm with a test card</li>
+                <li>Read the status back from the API</li>
+              </ol>
+            </div>
+            <div class="repo-ex-tree" data-exercise-id="stripe-payment-intent">
+              <div class="repo-ex-node">
+                <button type="button" class="repo-ex-node__btn repo-ex-node__btn--file">.gitignore</button>
+              </div>
+              <div class="repo-ex-node">
+                <button type="button" class="repo-ex-node__btn repo-ex-node__btn--file">README.md</button>
+              </div>
+              <div class="repo-ex-node">
+                <button type="button" class="repo-ex-node__btn">fixtures/</button>
+              </div>
+              <div class="repo-ex-node">
+                <button type="button" class="repo-ex-node__btn repo-ex-node__btn--file">package.json</button>
+              </div>
+              <div class="repo-ex-node">
+                <button type="button" class="repo-ex-node__btn repo-ex-node__btn--file">readPaymentIntentClient.js</button>
+              </div>
+            </div>
+
+            <div class="repo-explorer__group" data-exercise-id="api-design">
+              <div class="repo-explorer__group-row">
+                <button type="button" class="repo-explorer__group-btn">
+                  <span class="repo-explorer__chevron" aria-hidden="true">▾</span>
+                  <span class="repo-explorer__name">Fastify payments API (merchant, payment, refund)</span>
+                </button>
+              </div>
+            </div>
+            <button type="button" class="repo-ex-write-about" data-exercise-id="api-design">Write about this exercise</button>
+            <div class="repo-ex-steps" data-exercise-id="api-design" id="fastify-steps">
+              <p class="repo-ex-steps__label">Steps</p>
+              <ol class="repo-ex-steps__list">
+                <li>Steps 01 through 06: copy your openapi.yaml forward</li>
+                <li>Add merchant, payment, and refund routes</li>
+                <li>Wire Stripe test keys from the prior exercise</li>
+                <li>Write a happy-path integration test</li>
+                <li>Add idempotency keys on create</li>
+                <li>Document the refund flow in README</li>
+                <li>LAST STEP: you should be able to scroll here</li>
+              </ol>
+            </div>
+            <div class="repo-ex-tree" data-exercise-id="api-design">
+              <div class="repo-ex-node">
+                <button type="button" class="repo-ex-node__btn repo-ex-node__btn--file">openapi.yaml</button>
+              </div>
+              <div class="repo-ex-node">
+                <button type="button" class="repo-ex-node__btn repo-ex-node__btn--file">src/server.js</button>
+              </div>
+              <div class="repo-ex-node">
+                <button type="button" class="repo-ex-node__btn repo-ex-node__btn--file">src/routes/payments.js</button>
+              </div>
+              <div class="repo-ex-node">
+                <button type="button" class="repo-ex-node__btn repo-ex-node__btn--file">test/payments.test.js</button>
+              </div>
             </div>
           </div>
           <p class="repo-explorer__hint" id="repo-explorer-hint">Seeded from lindowlabs. Edits save in Tinker, not GitHub.</p>
@@ -108,13 +146,14 @@
       <div class="repo-ide-center" id="repo-ide-center">
         <div class="repo-ide-tabbar" id="repo-ide-tabbar">
           <div class="repo-tabs" id="repo-tabs" role="tablist" aria-label="Open editors">
-            <div class="repo-tabs__tab is-active"><button type="button" class="repo-tabs__label-btn"><span class="repo-tabs__label">About Fastify payments API...</span></button></div>
-            <div class="repo-tabs__tab"><button type="button" class="repo-tabs__label-btn"><span class="repo-tabs__label">About Fastify payments API...</span></button></div>
+            <div class="repo-tabs__tab is-active">
+              <button type="button" class="repo-tabs__label-btn">
+                <span class="repo-tabs__label">About Fastify payments API...</span>
+              </button>
+            </div>
           </div>
         </div>
-
         <main class="repo-center repo-write-safe-top" id="repo-editor-main" aria-label="Editor" hidden></main>
-
         <section class="repo-panel repo-panel--write" id="repo-panel" aria-label="Writing">
           <div class="repo-panel__body repo-panel__body--write" id="repo-panel-body">
             <div class="repo-panel__write" id="repo-panel-write">
@@ -138,7 +177,6 @@ What should change in the steps?
           </div>
         </section>
       </div>
-
       <aside class="repo-right repo-essays-sidebar" id="repo-right" aria-label="Essays" hidden></aside>
     </div>
   </body>
