@@ -79,5 +79,9 @@ win:
   target:
     - nsis
     - portable
+  nsis:
+    artifactName: ${productName}-${version}-setup-${arch}.${ext}
+  portable:
+    artifactName: ${productName}-${version}-portable-${arch}.${ext}
   icon: src/renderer/icons/tinker-icon-512.png
   artifactName: ${productName}-${version}-${arch}.${ext}
