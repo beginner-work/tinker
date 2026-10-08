@@ -85,6 +85,7 @@
     els = {
       layout: $("repo-layout"),
       explorer: $("repo-explorer"),
+      scrim: $("repo-explorer-scrim"),
       body: $("repo-explorer-body"),
       empty: $("repo-explorer-empty"),
       hint: $("repo-explorer-hint"),
@@ -143,10 +144,36 @@
       els.layout.classList.remove("is-explorer-collapsed");
       els.layout.classList.add("is-explorer-open");
       if (els.expand) els.expand.hidden = true;
+      // Scrim is CSS-shown only under max-width 800px; keep markup in sync.
+      if (els.scrim) els.scrim.hidden = !!isWideDesktop();
     } else {
       els.layout.classList.add("is-explorer-collapsed");
       els.layout.classList.remove("is-explorer-open");
       if (els.expand) els.expand.hidden = false;
+      if (els.scrim) els.scrim.hidden = true;
+    }
+  }
+
+  /** Collapse empty (no-file) exercises by default so they don't paint an
+   *  orphan "Write about" / "No files yet" block above titled trees. Expand
+   *  the first exercise that has files when nothing is explicitly open yet. */
+  function applyDefaultCollapsed() {
+    var order = state.workspace.exerciseOrder || [];
+    var firstWithFiles = null;
+    order.forEach(function (exerciseId) {
+      var key = "ex:" + exerciseId;
+      var ex = state.workspace.exercises[exerciseId];
+      var hasFiles = !!(ex && Array.isArray(ex.nodes) && ex.nodes.length);
+      if (hasFiles && !firstWithFiles) firstWithFiles = exerciseId;
+      if (Object.prototype.hasOwnProperty.call(state.collapsed, key)) return;
+      // Empty / external-only modules start collapsed.
+      if (!hasFiles) state.collapsed[key] = true;
+    });
+    if (firstWithFiles) {
+      var openKey = "ex:" + firstWithFiles;
+      if (!Object.prototype.hasOwnProperty.call(state.collapsed, openKey)) {
+        state.collapsed[openKey] = false;
+      }
     }
   }
 
@@ -782,7 +809,9 @@
         } catch (e) { /* ignore */ }
       });
 
-      els.body.appendChild(group);
+      // Write-about / steps / tree live under the exercise title group so they
+      // never paint as an orphan block above the next titled exercise. Still
+      // siblings of the title row (not inside .repo-ex-node flex rows).
       if (!collapsed) {
         var writeAbout = document.createElement("button");
         writeAbout.type = "button";
@@ -793,9 +822,9 @@
           if (event && event.stopPropagation) event.stopPropagation();
           startWriteAboutExercise(exerciseId);
         });
-        els.body.appendChild(writeAbout);
+        group.appendChild(writeAbout);
 
-        renderStepsPanel(els.body, exerciseId);
+        renderStepsPanel(group, exerciseId);
 
         var list = document.createElement("div");
         list.className = "repo-ex-tree";
@@ -807,8 +836,9 @@
           text(empty, "No files yet");
           list.appendChild(empty);
         }
-        els.body.appendChild(list);
+        group.appendChild(list);
       }
+      els.body.appendChild(group);
     });
   }
 
@@ -1034,6 +1064,11 @@
         setExplorerOpen(false);
       });
     }
+    if (els.scrim) {
+      els.scrim.addEventListener("click", function () {
+        setExplorerOpen(false);
+      });
+    }
     if (els.expand) {
       els.expand.addEventListener("click", function () {
         if (!isLearningSignedIn()) {
@@ -1069,8 +1104,7 @@
       learningAuth.onLearningAuthChange(function (signedIn) {
         if (signedIn) {
           loadWorkspace().then(function () {
-            var first = (state.workspace.exerciseOrder || [])[0];
-            if (first) state.collapsed["ex:" + first] = false;
+            applyDefaultCollapsed();
             render();
           });
         } else {
@@ -1098,9 +1132,7 @@
       return Promise.resolve(state.workspace);
     }
     return loadWorkspace().then(function () {
-      // Expand first exercise with files by default.
-      var first = (state.workspace.exerciseOrder || [])[0];
-      if (first) state.collapsed["ex:" + first] = false;
+      applyDefaultCollapsed();
       render();
       return state.workspace;
     });
