@@ -30,6 +30,10 @@ test("sign-in gate markup: no exercise files until signed in", () => {
   assert.match(ui, /state\.openTabs = \[\]/);
   assert.match(css, /\.repo-explorer-signin/);
   assert.match(css, /\.repo-explorer__gated\[hidden\]/);
+  assert.match(
+    css,
+    /\.repo-explorer__gated\s*\{[^}]*min-height:\s*0/s,
+  );
   assert.doesNotMatch(html, /\u2014|\u2013/);
 });
 

@@ -923,12 +923,16 @@ html.tinker-desktop .repo-top [role="button"] {
 
 /* IDE center column: tabs + pad + bottom panel. */
 .repo-ide-center {
+  grid-column: 2;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: transparent;
+  /* Opaque so pad text cannot show through under the explorer rail. */
+  background: var(--color-background);
+  position: relative;
+  z-index: 1;
 }
 
 /* Desktop tab bar: scrolling tabs + reserved beaker labs slot (same 40px row). */
@@ -1126,8 +1130,10 @@ html.tinker-desktop .repo-top--labs {
 }
 
 .repo-explorer {
+  grid-column: 1;
   min-width: 0;
   min-height: 0;
+  /* Clip chrome; the gated body is the scrollport (see .repo-explorer__gated). */
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1137,6 +1143,10 @@ html.tinker-desktop .repo-top--labs {
   background: var(--color-background);
   resize: horizontal;
   max-width: 360px;
+  /* Above .repo-panel (z-index 12) so writing never paints over the rail. */
+  position: relative;
+  z-index: 20;
+  isolation: isolate;
 }
 
 .repo-layout--write.is-explorer-collapsed .repo-explorer {
@@ -1197,6 +1207,9 @@ html.tinker-desktop .repo-top--labs {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .repo-explorer__group {
@@ -1320,6 +1333,7 @@ html.tinker-desktop .repo-top--labs {
 }
 
 .repo-explorer__toolbar {
+  flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -1346,6 +1360,7 @@ html.tinker-desktop .repo-top--labs {
 }
 
 .repo-explorer__hint {
+  flex: 0 0 auto;
   margin: 0;
   padding: 4px;
   font-size: 11px;
@@ -1634,11 +1649,17 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
-  background: transparent;
+  /* Keep the wash inside the center column only (never over the explorer). */
+  background:
+    radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
+    radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
+    var(--color-background);
   overflow: hidden;
   position: relative;
-  z-index: 12;
+  /* Below .repo-explorer (20) and .repo-essays-sidebar (30). */
+  z-index: 1;
   border: 0;
 }
 
@@ -1668,7 +1689,18 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
 }
 
 .repo-panel__write .repo-surface.writing {
+  /* Beat global .writing { position:absolute; inset:0 } from styles.css so
+     the essay pad stays in the center grid column and cannot cover the rail. */
+  position: relative;
+  inset: auto;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  width: 100%;
+  max-width: 100%;
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
   height: 100%;
   overflow-x: hidden;
@@ -1710,6 +1742,7 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
 /* Right essays sidebar (hamburger). Closed by default. */
 .repo-essays-sidebar,
 .repo-right.repo-essays-sidebar {
+  grid-column: 3;
   display: none;
   flex-direction: column;
   min-width: 0;
@@ -1719,6 +1752,7 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
   border-left: 1px solid var(--color-border);
   background: var(--color-background);
   padding: 0;
+  position: relative;
   z-index: 30;
 }
 
@@ -1847,8 +1881,23 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-right.repo-essays-sidebar
   color: var(--color-accent-strong, #4f46e5);
 }
 
+/* Flex child between explorer chrome and the file tree. Without min-height:0
+   the tree grows past the viewport and .repo-explorer (overflow:hidden) clips
+   it with no scrollport. */
+.repo-explorer__gated {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .repo-explorer__gated[hidden] {
   display: none !important;
+}
+
+.repo-explorer__gated > .repo-changes__empty {
+  flex: 0 0 auto;
 }
 
 .repo-ex-write-about {
@@ -2555,9 +2604,17 @@ body.repo-page--write .repo-center {
 }
 
 .repo-surface.writing {
+  /* Override global .writing { position:absolute; inset:0 } (styles.css). */
   position: relative;
   inset: auto;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  width: 100%;
+  max-width: 100%;
   flex: 1;
+  min-width: 0;
   min-height: calc(100vh - 56px);
   min-height: calc(100dvh - 56px);
   height: auto;
@@ -3320,6 +3377,7 @@ body.repo-page--write .repo-center {
   /* Mobile exercises overlay (beaker): starts below sticky top bar. */
   .repo-explorer {
     display: none;
+    grid-column: auto;
     position: fixed;
     top: var(--repo-top-bar, calc(56px + env(safe-area-inset-top, 0px)));
     left: 0;
@@ -3328,12 +3386,23 @@ body.repo-page--write .repo-center {
     z-index: 36;
     border-right: 1px solid var(--color-border);
     background: var(--color-background);
-    overflow: auto;
+    /* Prefer the gated body scrollport; keep overflow hidden so wheel/touch
+       hit the flex child with overflow-y:auto (same as desktop). */
+    overflow: hidden;
   }
 
   .repo-layout--write.is-explorer-open .repo-explorer {
     display: flex;
     flex-direction: column;
+  }
+
+  .repo-layout--write.is-explorer-open .repo-explorer__gated {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .repo-layout--write .repo-ide-center {
+    grid-column: auto;
   }
 
   .repo-layout--write.is-explorer-open .repo-explorer__head {

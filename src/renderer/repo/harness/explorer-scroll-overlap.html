@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>tinker — explorer scroll/overlap harness</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css?v=40" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/repo/repo.css?v=50" />
+  </head>
+  <body class="repo-page repo-page--write" data-repo-mode="write">
+    <header class="repo-top repo-top--labs" aria-label="Tools">
+      <a class="repo-top__labs" id="repo-labs-link" href="#"
+         aria-label="Exercises" title="Exercises" data-learning-lab data-exercises-nav>
+        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M8.5 2h7"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M7 16h10"/>
+        </svg>
+      </a>
+      <button type="button" class="repo-top__past-essays" id="repo-past-essays"
+              aria-label="Past essays" title="Past essays" aria-expanded="false"
+              aria-controls="repo-right">
+        <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M4 5h16M4 12h16M4 19h16"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="repo-layout repo-layout--write is-explorer-open" id="repo-layout">
+      <aside class="repo-explorer" id="repo-explorer" aria-label="Exercises">
+        <div class="repo-explorer__head">
+          <h2 class="repo-sidebar__heading" id="repo-explorer-heading">Exercises</h2>
+          <button type="button" class="repo-explorer__collapse" id="repo-explorer-collapse" aria-label="Collapse explorer">‹</button>
+        </div>
+        <div class="repo-explorer-signin" id="repo-explorer-signin" hidden>
+          <p class="repo-explorer-signin__copy">Sign in to open exercises.</p>
+        </div>
+        <div class="repo-ex-steps-banner" id="repo-ex-steps-banner" hidden></div>
+        <div class="repo-explorer__gated" id="repo-explorer-gated">
+          <div class="repo-explorer__toolbar" id="repo-explorer-toolbar">
+            <button type="button" class="repo-explorer__tool">New file</button>
+            <button type="button" class="repo-explorer__tool">New folder</button>
+          </div>
+          <div class="repo-explorer__body" id="repo-explorer-body" role="tree" aria-labelledby="repo-explorer-heading">
+            <!-- Tall expanded exercise list (mirrors Tyler's screenshot). -->
+            <div class="repo-ex-node" data-ex="formation">
+              <button type="button" class="repo-ex-node__btn">Formation: Persistent Storage</button>
+              <button type="button" class="repo-ex-write-about">Write about this exercise</button>
+              <p class="repo-ex-node__empty">No files yet</p>
+            </div>
+            <div class="repo-ex-node" data-ex="stripe">
+              <button type="button" class="repo-ex-node__btn">Stripe PaymentIntent (test mode)</button>
+              <button type="button" class="repo-ex-write-about">Write about this exercise</button>
+              <div class="repo-ex-steps">
+                <p class="repo-ex-steps__label">STEPS</p>
+                <ol class="repo-ex-steps__list">
+                  <li>Create a PaymentIntent in test mode</li>
+                  <li>Confirm with a test card</li>
+                  <li>Read the status back from the API</li>
+                </ol>
+              </div>
+              <ul class="repo-explorer__files">
+                <li><button type="button" class="repo-explorer__file">.gitignore</button></li>
+                <li><button type="button" class="repo-explorer__file">README.md</button></li>
+                <li><button type="button" class="repo-explorer__file">fixtures/</button></li>
+                <li><button type="button" class="repo-explorer__file">package.json</button></li>
+                <li><button type="button" class="repo-explorer__file">readPaymentIntentClient.js</button></li>
+                <li><button type="button" class="repo-explorer__file">createPaymentIntent.js</button></li>
+                <li><button type="button" class="repo-explorer__file">confirmPaymentIntent.js</button></li>
+              </ul>
+            </div>
+            <div class="repo-ex-node" data-ex="fastify" id="fastify-ex">
+              <button type="button" class="repo-ex-node__btn">Fastify payments API (merchant, payment, refund)</button>
+              <button type="button" class="repo-ex-write-about">Write about this exercise</button>
+              <div class="repo-ex-steps" id="fastify-steps">
+                <p class="repo-ex-steps__label">STEPS</p>
+                <ol class="repo-ex-steps__list">
+                  <li>Steps 01 through 06: copy your openapi.yaml forward</li>
+                  <li>Add merchant, payment, and refund routes</li>
+                  <li>Wire Stripe test keys from the prior exercise</li>
+                  <li>Write a happy-path integration test</li>
+                  <li>Add idempotency keys on create</li>
+                  <li>Document the refund flow in README</li>
+                  <li>LAST STEP: you should be able to scroll here</li>
+                </ol>
+              </div>
+              <ul class="repo-explorer__files">
+                <li><button type="button" class="repo-explorer__file">openapi.yaml</button></li>
+                <li><button type="button" class="repo-explorer__file">src/server.js</button></li>
+                <li><button type="button" class="repo-explorer__file">src/routes/payments.js</button></li>
+                <li><button type="button" class="repo-explorer__file">test/payments.test.js</button></li>
+              </ul>
+            </div>
+          </div>
+          <p class="repo-explorer__hint" id="repo-explorer-hint">Seeded from lindowlabs. Edits save in Tinker, not GitHub.</p>
+        </div>
+      </aside>
+      <button type="button" class="repo-explorer__expand" id="repo-explorer-expand" hidden aria-label="Show explorer">›</button>
+
+      <div class="repo-ide-center" id="repo-ide-center">
+        <div class="repo-ide-tabbar" id="repo-ide-tabbar">
+          <div class="repo-tabs" id="repo-tabs" role="tablist" aria-label="Open editors">
+            <div class="repo-tabs__tab is-active"><button type="button" class="repo-tabs__label-btn"><span class="repo-tabs__label">About Fastify payments API...</span></button></div>
+            <div class="repo-tabs__tab"><button type="button" class="repo-tabs__label-btn"><span class="repo-tabs__label">About Fastify payments API...</span></button></div>
+          </div>
+        </div>
+
+        <main class="repo-center repo-write-safe-top" id="repo-editor-main" aria-label="Editor" hidden></main>
+
+        <section class="repo-panel repo-panel--write" id="repo-panel" aria-label="Writing">
+          <div class="repo-panel__body repo-panel__body--write" id="repo-panel-body">
+            <div class="repo-panel__write" id="repo-panel-write">
+              <div class="repo-surface writing repo-write-safe-top" id="repo-surface">
+                <div class="repo-location" id="repo-location">
+                  <div class="repo-location__field">
+                    <img class="repo-location__globe" src="/icons/tinker-mark.svg?v=40" alt="" width="14" height="14" aria-hidden="true" />
+                    <input type="text" class="repo-location__input writing-input" id="repo-location-input" value="Where are you?" readonly />
+                  </div>
+                </div>
+                <div class="repo-pad" id="repo-pad">
+                  <textarea class="writing-input repo-pad__turn" id="pad-turn" readonly>Write about this exercise: Fastify payments API (merchant, payment, refund)
+
+What should change in the steps?
+
+1. </textarea>
+                </div>
+              </div>
+              <footer class="repo-surface__foot" id="repo-pad-actions" aria-hidden="true"></footer>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="repo-right repo-essays-sidebar" id="repo-right" aria-label="Essays" hidden></aside>
+    </div>
+  </body>
+</html>

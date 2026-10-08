@@ -89,6 +89,40 @@ test("layout CSS: explorer | center | essays rail; mobile hides code editing", (
   assert.match(css, /\.repo-explorer-signin/);
 });
 
+test("exercises explorer scrolls and stays above the writing panel", () => {
+  // Bug 1: gated wrapper is a flex child with min-height:0 so __body can scroll.
+  assert.match(
+    css,
+    /\.repo-explorer__gated\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s,
+  );
+  assert.match(
+    css,
+    /\.repo-explorer__body\s*\{[^}]*overflow-y:\s*auto/s,
+  );
+  assert.match(
+    css,
+    /\.repo-explorer__body\s*\{[^}]*-webkit-overflow-scrolling:\s*touch/s,
+  );
+  // Bug 2: explorer stacks above the writing panel; pad stays in-flow in the center column.
+  assert.match(
+    css,
+    /\.repo-explorer\s*\{[^}]*z-index:\s*20/s,
+  );
+  assert.match(
+    css,
+    /\.repo-panel\s*\{[^}]*z-index:\s*1/s,
+  );
+  assert.match(
+    css,
+    /\.repo-ide-center\s*\{[^}]*grid-column:\s*2/s,
+  );
+  assert.match(
+    css,
+    /\.repo-panel__write \.repo-surface\.writing\s*\{[^}]*position:\s*relative[^}]*left:\s*auto/s,
+  );
+  assert.match(html, /repo\.css\?v=50/);
+});
+
 test("desktop IDE JS boots exercise workspace UI + essays sidebar", () => {
   assert.match(page, /tinkerExerciseWorkspaceUi/);
   assert.match(page, /openEssayTab/);
