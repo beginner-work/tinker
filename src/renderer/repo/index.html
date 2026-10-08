@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#fffdf7" />
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
+          content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self'; frame-src https://lindowlabs.dev;" />
     <title>tinker</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,29 +14,33 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=40" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=46" />
+    <link rel="stylesheet" href="/repo/repo.css?v=47" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
-    <!-- Mobile nav only: Learning Lab left + past essays right. Desktop labs live in the tab bar. -->
-    <header class="repo-top repo-top--labs" aria-label="Learning Lab">
+    <!-- Mobile nav only: beaker labs trigger left + past essays right. Desktop labs live in the tab bar. -->
+    <header class="repo-top repo-top--labs" aria-label="Tools">
       <a class="repo-top__labs"
          href="https://lindowlabs.dev/learning"
          target="_blank" rel="noopener noreferrer"
-         aria-label="Learning Lab (opens in your browser)"
+         aria-label="Open lab"
          data-learning-lab>
-        <span class="repo-top__labs-label">Learning Lab</span>
-        <svg class="repo-top__labs-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
-          <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
-                d="M6.5 3.5H3.75A1.25 1.25 0 0 0 2.5 4.75v7.5A1.25 1.25 0 0 0 3.75 13.5h7.5a1.25 1.25 0 0 0 1.25-1.25V9.5M9.5 2.5h4v4M13.5 2.5 7 9"/>
+        <!-- Lucide FlaskConical / beaker; same 12px box + stroke weight as the old link-out icon. -->
+        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                d="M8.5 2h7"/>
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                d="M7 16h10"/>
         </svg>
       </a>
       <button type="button" class="repo-top__past-essays" id="repo-past-essays"
               aria-label="Past essays" title="Past essays" aria-expanded="false"
               aria-controls="repo-right">
+        <!-- Lucide Menu (hamburger); same 20px box + stroke weight as the old document icon. -->
         <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
           <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
-                d="M7 3.5h7.5L19 8v12.5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"/>
-          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M14.5 3.5V8H19M9 12h6M9 15.5h6"/>
+                d="M4 5h16M4 12h16M4 19h16"/>
         </svg>
       </button>
     </header>
@@ -59,19 +63,22 @@
       <button type="button" class="repo-explorer__expand" id="repo-explorer-expand" hidden aria-label="Show explorer" title="Show explorer">›</button>
 
       <div class="repo-ide-center" id="repo-ide-center">
-        <!-- Desktop: tabs scroll left; Learning Lab reserved right slot (same 40px row). -->
+        <!-- Desktop: tabs scroll left; beaker labs trigger reserved right slot (same 40px row). -->
         <div class="repo-ide-tabbar" id="repo-ide-tabbar">
           <div class="repo-tabs" id="repo-tabs" role="tablist" aria-label="Open editors" hidden></div>
           <div class="repo-ide-tabbar__labs">
             <a id="repo-labs-link" class="repo-top__labs"
                href="https://lindowlabs.dev/learning"
                target="_blank" rel="noopener noreferrer"
-               aria-label="Learning Lab (opens in your browser)"
+               aria-label="Open lab"
                data-learning-lab>
-              <span class="repo-top__labs-label">Learning Lab</span>
-              <svg class="repo-top__labs-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
-                <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
-                      d="M6.5 3.5H3.75A1.25 1.25 0 0 0 2.5 4.75v7.5A1.25 1.25 0 0 0 3.75 13.5h7.5a1.25 1.25 0 0 0 1.25-1.25V9.5M9.5 2.5h4v4M13.5 2.5 7 9"/>
+              <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">
+                <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                      d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
+                <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                      d="M8.5 2h7"/>
+                <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                      d="M7 16h10"/>
               </svg>
             </a>
           </div>
@@ -228,7 +235,7 @@
     <script src="/exercises/manifest.js?v=40"></script>
     <script src="/lib/exercise-workspace-core.js?v=40"></script>
     <script src="/repo/exercise-workspace-ui.js?v=40"></script>
-    <script src="/made-by-lindow-labs.js?v=45"></script>
+    <script src="/made-by-lindow-labs.js?v=46"></script>
     <script src="/repo/repo.js?v=46"></script>
     <script src="/repo/storage-section.js?v=40"></script>
   </body>
