@@ -73,8 +73,11 @@
     followupAsked: [],
     followupQuestion: "",
     keepFinishedWriting: false,
-    // Mobile: full-screen essay list (same .repo-right tree as desktop).
+    // Right essays sidebar (hamburger) on desktop + mobile.
     mobileEssayList: false,
+    // Essay tagged to an exercise (Write about this exercise).
+    exerciseEssayId: null,
+    exerciseEssayName: "",
     // Read-view mount for saved essays (toggle always starts off per essay).
     essayReadMount: null,
     essayReadStoryId: null,
@@ -745,7 +748,7 @@
     }
   }
 
-  /** Mobile finish: show the essays list full-screen. Desktop keeps New essay visible. */
+  /** Hamburger: open/close the right essays sidebar (desktop + mobile). */
   function setMobileEssayList(open) {
     state.mobileEssayList = !!open && isWritePage;
     try {
@@ -757,21 +760,71 @@
         }
       }
     } catch (e) { /* ignore */ }
+    if (els.layout) {
+      els.layout.classList.toggle("is-essays-open", state.mobileEssayList);
+    }
+    var right = document.getElementById("repo-right");
+    if (right) {
+      if (state.mobileEssayList) right.removeAttribute("hidden");
+      else right.setAttribute("hidden", "");
+    }
     if (els.pastEssays) {
       els.pastEssays.setAttribute("aria-expanded", state.mobileEssayList ? "true" : "false");
     }
     if (els.panelClose) {
-      // Mobile sheet close; desktop keeps the collapse chevron instead.
       els.panelClose.hidden = !state.mobileEssayList;
     }
     if (els.sidebarNewPiece) {
-      // Desktop bottom panel always offers New essay; mobile only in the list.
-      var wide = false;
-      try {
-        wide = !!(window.matchMedia && window.matchMedia("(min-width: 801px)").matches);
-      } catch (e2) { /* ignore */ }
-      els.sidebarNewPiece.hidden = wide ? false : !state.mobileEssayList;
+      // Sidebar actions are visible whenever the essays rail is open.
+      els.sidebarNewPiece.hidden = !state.mobileEssayList;
     }
+    if (els.newFolder) {
+      els.newFolder.hidden = !state.mobileEssayList;
+    }
+  }
+
+  function setEssaysSidebar(open) {
+    setMobileEssayList(open);
+  }
+
+  function startExerciseEssay(opts) {
+    opts = opts || {};
+    var exerciseId = String(opts.exerciseId || "").trim();
+    if (!exerciseId) return;
+    setMobileEssayList(false);
+    state.exerciseEssayId = exerciseId;
+    state.exerciseEssayName = String(opts.exerciseName || exerciseId);
+    addNewFile();
+    if (state.draft) {
+      state.draft.exerciseId = exerciseId;
+      state.draft.title = "About " + state.exerciseEssayName;
+      var starter = "Write about this exercise: " + state.exerciseEssayName + "\n\n";
+      starter += "What should change in the steps?\n\n";
+      starter += "1. \n";
+      setPadMarkdown(starter);
+      state.draft.body = starter;
+      state.draft.markdown = starter;
+    }
+    render();
+    if (els.body) {
+      try { els.body.focus(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function applyExerciseRevisionFromEssay(body) {
+    var exerciseId = state.exerciseEssayId
+      || (state.draft && state.draft.exerciseId)
+      || null;
+    if (!exerciseId) return Promise.resolve(null);
+    var ui = window.tinkerExerciseWorkspaceUi;
+    if (!ui || typeof ui.applyEssayRevision !== "function") return Promise.resolve(null);
+    return ui.applyEssayRevision(exerciseId, body).then(function (result) {
+      state.exerciseEssayId = null;
+      state.exerciseEssayName = "";
+      return result;
+    }).catch(function () {
+      return null;
+    });
   }
 
   function readSafeAreaInsetTop() {
@@ -1466,10 +1519,14 @@
 
   /**
    * After a successful This is everything:
-   * - Desktop: keep the typed conversation on screen (no handoff chrome).
-   * - Mobile (≤800px): open the essays list (same .repo-right tree).
+   * open the right essays sidebar (desktop + mobile parity).
+   * If the essay was tagged to an exercise, revise that exercise's steps.
    */
   function finishWritingAfterSave() {
+    var finishedBody = padBody();
+    var pendingExerciseId = state.exerciseEssayId
+      || (state.draft && state.draft.exerciseId)
+      || null;
     state.draft = null;
     state.selectedId = null;
     state.selectedFolderId = null;
@@ -1481,15 +1538,16 @@
     state.padActionsVisible = false;
     hideEssayReadView();
     setPadActionsVisible(false);
-    if (isPhoneWriteWidth()) {
-      state.keepFinishedWriting = false;
-      if (els.body && !padHasFocus()) setPadMarkdown("");
-      setMobileEssayList(true);
-    } else {
-      state.keepFinishedWriting = true;
-      setMobileEssayList(false);
-    }
+    state.keepFinishedWriting = !isPhoneWriteWidth();
+    if (isPhoneWriteWidth() && els.body && !padHasFocus()) setPadMarkdown("");
+    setMobileEssayList(true);
     render();
+    if (pendingExerciseId) {
+      state.exerciseEssayId = pendingExerciseId;
+      applyExerciseRevisionFromEssay(finishedBody).then(function () {
+        render();
+      });
+    }
   }
 
     function storyFromEssay(essay, folderId) {
@@ -3277,10 +3335,7 @@
     els.pastEssays.addEventListener("click", function (event) {
       event.preventDefault();
       if (!isWritePage) return;
-      // Desktop uses the bottom essays panel; this control is mobile-only.
-      try {
-        if (window.matchMedia && window.matchMedia("(min-width: 801px)").matches) return;
-      } catch (e) { /* ignore */ }
+      // Desktop + mobile: hamburger toggles the right essays sidebar.
       setMobileEssayList(!state.mobileEssayList);
     });
   }
@@ -3490,174 +3545,9 @@
 
   state.location = readStoredLocation();
 
-  /* Desktop bottom essays panel: resize + collapse, persisted in localStorage. */
-  (function initEssaysPanel() {
+  /* Right essays sidebar starts closed; hamburger opens it on desktop + mobile. */
+  (function initEssaysSidebar() {
     if (!isWritePage) return;
-    var PANEL_HEIGHT_KEY = "tinker.repo.panelHeight.v1";
-    var PANEL_COLLAPSED_KEY = "tinker.repo.panelCollapsed.v1";
-    var panel = document.getElementById("repo-panel");
-    var layout = els.layout || document.getElementById("repo-layout");
-    var resizeEl = document.getElementById("repo-panel-resize");
-    var collapseBtn = document.getElementById("repo-panel-collapse");
-    var expandBtn = document.getElementById("repo-panel-expand");
-    if (!panel || !layout) return;
-
-    function wideDesktop() {
-      try {
-        return !!(window.matchMedia && window.matchMedia("(min-width: 801px)").matches);
-      } catch (e) {
-        return false;
-      }
-    }
-
-    function clampHeight(px) {
-      var vh = window.innerHeight || 800;
-      var minPx = 140;
-      var maxPx = Math.round(vh * 0.7);
-      var n = Number(px);
-      if (!Number.isFinite(n)) n = Math.round(vh * 0.35);
-      return Math.max(minPx, Math.min(maxPx, Math.round(n)));
-    }
-
-    function readStoredHeight() {
-      try {
-        var raw = window.localStorage.getItem(PANEL_HEIGHT_KEY);
-        if (raw == null || raw === "") return null;
-        var n = parseFloat(raw);
-        return Number.isFinite(n) ? n : null;
-      } catch (e) {
-        return null;
-      }
-    }
-
-    function readStoredCollapsed() {
-      try {
-        return window.localStorage.getItem(PANEL_COLLAPSED_KEY) === "1";
-      } catch (e) {
-        return false;
-      }
-    }
-
-    function persistHeight(px) {
-      try { window.localStorage.setItem(PANEL_HEIGHT_KEY, String(px)); } catch (e) { /* ignore */ }
-    }
-
-    function persistCollapsed(on) {
-      try {
-        window.localStorage.setItem(PANEL_COLLAPSED_KEY, on ? "1" : "0");
-      } catch (e) { /* ignore */ }
-    }
-
-    function applyHeight(px) {
-      var h = clampHeight(px);
-      layout.style.setProperty("--repo-panel-height", h + "px");
-      document.documentElement.style.setProperty("--repo-panel-height", h + "px");
-      return h;
-    }
-
-    function notifyCmResize() {
-      try {
-        var ui = window.tinkerExerciseWorkspaceUi;
-        if (ui && typeof ui.requestEditorMeasure === "function") ui.requestEditorMeasure();
-      } catch (e) { /* ignore */ }
-      try {
-        window.dispatchEvent(new Event("resize"));
-      } catch (e2) { /* ignore */ }
-    }
-
-    function setCollapsed(on) {
-      layout.classList.toggle("is-panel-collapsed", !!on);
-      if (expandBtn) expandBtn.hidden = !on;
-      if (collapseBtn) collapseBtn.setAttribute("aria-expanded", on ? "false" : "true");
-      persistCollapsed(!!on);
-      if (on) {
-        layout.style.setProperty("--repo-panel-height", "0px");
-        document.documentElement.style.setProperty("--repo-panel-height", "0px");
-      } else {
-        applyHeight(readStoredHeight() || Math.round((window.innerHeight || 800) * 0.35));
-      }
-      notifyCmResize();
-    }
-
-    // Restore persisted state (desktop only; mobile unwraps the panel).
-    if (wideDesktop()) {
-      var storedH = readStoredHeight();
-      applyHeight(storedH != null ? storedH : Math.round((window.innerHeight || 800) * 0.35));
-      setCollapsed(readStoredCollapsed());
-    }
-
-    if (collapseBtn) {
-      collapseBtn.addEventListener("click", function (event) {
-        if (event && event.preventDefault) event.preventDefault();
-        setCollapsed(true);
-      });
-    }
-    if (expandBtn) {
-      expandBtn.addEventListener("click", function (event) {
-        if (event && event.preventDefault) event.preventDefault();
-        setCollapsed(false);
-      });
-    }
-
-    if (resizeEl) {
-      var drag = null;
-      function onMove(event) {
-        if (!drag) return;
-        var clientY = event.touches && event.touches[0] ? event.touches[0].clientY : event.clientY;
-        var next = drag.startHeight + (drag.startY - clientY);
-        var applied = applyHeight(next);
-        drag.current = applied;
-        notifyCmResize();
-      }
-      function onUp() {
-        if (!drag) return;
-        persistHeight(drag.current || clampHeight(readStoredHeight()));
-        drag = null;
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup", onUp);
-        document.removeEventListener("touchmove", onMove);
-        document.removeEventListener("touchend", onUp);
-        notifyCmResize();
-      }
-      function onDown(event) {
-        if (!wideDesktop() || layout.classList.contains("is-panel-collapsed")) return;
-        if (event && event.preventDefault) event.preventDefault();
-        var startY = event.touches && event.touches[0] ? event.touches[0].clientY : event.clientY;
-        var rect = panel.getBoundingClientRect();
-        drag = { startY: startY, startHeight: rect.height, current: rect.height };
-        document.addEventListener("pointermove", onMove);
-        document.addEventListener("pointerup", onUp);
-        document.addEventListener("touchmove", onMove, { passive: false });
-        document.addEventListener("touchend", onUp);
-      }
-      resizeEl.addEventListener("pointerdown", onDown);
-      resizeEl.addEventListener("touchstart", onDown, { passive: false });
-      resizeEl.addEventListener("keydown", function (event) {
-        if (!wideDesktop()) return;
-        var step = event.shiftKey ? 48 : 16;
-        var cur = panel.getBoundingClientRect().height;
-        if (event.key === "ArrowUp") {
-          event.preventDefault();
-          persistHeight(applyHeight(cur + step));
-          notifyCmResize();
-        } else if (event.key === "ArrowDown") {
-          event.preventDefault();
-          persistHeight(applyHeight(cur - step));
-          notifyCmResize();
-        }
-      });
-    }
-
-    if (typeof window.addEventListener === "function") {
-      window.addEventListener("resize", function () {
-        if (!wideDesktop()) return;
-        if (layout.classList.contains("is-panel-collapsed")) return;
-        applyHeight(readStoredHeight() || panel.getBoundingClientRect().height);
-        notifyCmResize();
-      });
-    }
-
-    // Ensure New essay is visible on desktop after boot.
     setMobileEssayList(false);
   })();
 
@@ -3707,6 +3597,9 @@
     },
     arePadActionsVisible: function () { return !!state.padActionsVisible; },
     isMobileEssayListOpen: function () { return !!state.mobileEssayList; },
+    setEssaysSidebar: setEssaysSidebar,
+    startExerciseEssay: startExerciseEssay,
+    getExerciseEssayId: function () { return state.exerciseEssayId; },
     getFollowupQuestion: function () { return state.followupQuestion || ""; },
     showPadError: showPadError,
     showPadNotice: showPadNotice,

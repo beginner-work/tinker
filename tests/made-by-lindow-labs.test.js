@@ -82,7 +82,8 @@ test("write page wires beaker labs drawer opener (not under writing)", () => {
     "write page labs link must use the learning dashboard URL",
   );
   assert.match(html, /data-learning-lab/);
-  assert.match(html, /aria-label="Open lab"/);
+  assert.match(html, /aria-label="Exercises"/);
+  assert.match(html, /data-exercises-nav/);
   assert.match(html, /made-by-lindow-labs\.js/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Past essays"/);
@@ -92,18 +93,21 @@ test("write page wires beaker labs drawer opener (not under writing)", () => {
   assert.match(src, /openDrawer/);
   assert.match(src, /labs-drawer/);
   assert.match(src, /framingLooksBlocked/);
+  assert.match(src, /toggleExercisesNav|data-exercises-nav/);
   assert.match(css, /\.labs-drawer/);
   assert.match(css, /\.labs-drawer__panel/);
   assert.match(html, /frame-src https:\/\/lindowlabs\.dev/);
   // Beaker paths (FlaskConical), not the old link-out icon.
   assert.match(html, /M10 2v7\.527/);
   assert.doesNotMatch(html, /M6\.5 3\.5H3\.75/);
-  // No visible Learning Lab copy on the trigger / drawer chrome.
-  const phrases = visibleLearningPhrases(html);
-  assert.equal(phrases.learningLab, false, "no visible Learning Lab text");
-  assert.equal(phrases.learningLabs, false, "no visible Learning Labs text");
-  assert.equal(phrases.lindowLabsLearning, false, "no visible Lindow Labs Learning text");
+  // No visible Learning Lab label on the beaker trigger itself.
   assert.doesNotMatch(html, /repo-top__labs-label/);
+  const phrases = visibleLearningPhrases(html);
+  assert.equal(phrases.learningLab, false, "no visible Learning Lab text on trigger");
+  assert.equal(phrases.learningLabs, false, "no visible Learning Labs text");
+  // Sign-in gate copy may name Lindow Labs Learning; the beaker stays icon-only.
+  const beakerChunk = (html.match(/id="repo-labs-link"[\s\S]*?<\/a>/) || [""])[0];
+  assert.doesNotMatch(beakerChunk, /Lindow Labs Learning/);
   // Must not sit under/after the writing surface.
   const beforeSurface = html.slice(0, html.indexOf('id="repo-surface"'));
   assert.match(beforeSurface, /id="repo-labs-link"/);

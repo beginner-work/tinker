@@ -74,36 +74,109 @@ body.repo-page--files {
   min-height: 0;
 }
 
-/* Mobile-only top nav (beaker labs trigger left + past essays). Hidden on desktop. */
+/* Shared top nav (desktop + mobile): beaker/exercises left, past-essays hamburger right. */
 .repo-top--labs {
-  display: none;
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 40;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-height: calc(44px + env(safe-area-inset-top, 0px));
+  height: auto;
+  max-height: none;
+  padding: calc(6px + env(safe-area-inset-top, 0px))
+    calc(10px + env(safe-area-inset-right, 0px))
+    6px
+    calc(10px + env(safe-area-inset-left, 0px));
+  border-bottom: 0;
+  background: transparent;
+  pointer-events: none;
+  box-sizing: border-box;
+  overflow: visible;
 }
 
-/* Past essays is mobile-only; desktop uses the bottom essays panel. */
 .repo-top__past-essays {
-  display: none;
+  display: inline-flex;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
-/* Desktop: beaker labs trigger lives in the tab bar's reserved right slot. */
+.repo-top__past-essays:hover,
+.repo-top__past-essays:focus-visible {
+  color: var(--color-foreground);
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
+}
+
+.repo-top__past-essays:focus-visible {
+  outline: 2px solid var(--color-accent-strong, #4f46e5);
+  outline-offset: 2px;
+}
+
+.repo-top__past-essays-icon {
+  display: block;
+}
+
+body.repo-page--write[data-repo-essays-list="1"] .repo-top__past-essays {
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
+  z-index: 45;
+  background: var(--color-background);
+}
+
+/* Tab bar: open-file tabs only (beaker lives in the shared top bar). */
 .repo-ide-tabbar {
   display: none;
 }
 
+/* Beaker matches hamburger: 44px hit target, 20px icon, same weight. */
+.repo-top--labs .repo-top__labs,
 .repo-top__labs {
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
   gap: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
   color: var(--color-muted);
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  line-height: 1.2;
-  flex-shrink: 0;
-  padding: 2px 4px;
-  border-radius: 4px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   -webkit-app-region: no-drag;
   app-region: no-drag;
 }
@@ -111,25 +184,25 @@ body.repo-page--files {
 .repo-top__labs-icon {
   display: block;
   flex: 0 0 auto;
-  width: 12px;
-  height: 12px;
-  opacity: 0.85;
+  width: 20px;
+  height: 20px;
+  opacity: 1;
 }
 
 .repo-top__labs:hover,
 .repo-top__labs:focus-visible {
   color: var(--color-foreground);
-}
-
-.repo-top__labs:hover .repo-top__labs-icon,
-.repo-top__labs:focus-visible .repo-top__labs-icon {
-  opacity: 1;
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
 }
 
 .repo-top__labs:focus-visible {
   outline: 2px solid var(--color-accent-strong, #4f46e5);
   outline-offset: 2px;
-  border-radius: 4px;
+}
+
+.repo-layout--write.is-explorer-open .repo-top__labs,
+.repo-layout--write:not(.is-explorer-collapsed) .repo-top__labs {
+  color: var(--color-accent-strong, #4f46e5);
 }
 
 .repo-top--auth .repo-top__back {
@@ -815,28 +888,32 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-layout--write {
-  /* Desktop IDE: explorer | editor (essays live in the bottom panel). */
+  /* Shared structure: explorer | writing/code | essays sidebar. */
   --repo-explorer-rail: 240px;
-  --repo-panel-height: 35vh;
-  --repo-panel-height: 35dvh;
+  --repo-panel-height: 0px;
   --repo-tabs-height: 40px;
   --repo-essays-rail: 0px;
+  --repo-top-bar: calc(44px + env(safe-area-inset-top, 0px));
   grid-template-columns:
     var(--repo-explorer-rail, 240px)
-    minmax(0, 1fr);
+    minmax(0, 1fr)
+    var(--repo-essays-rail, 0px);
   grid-template-rows: minmax(0, 1fr);
-  min-height: calc(100vh - 72px);
-  min-height: calc(100dvh - 72px);
+  min-height: calc(100vh - var(--repo-top-bar));
+  min-height: calc(100dvh - var(--repo-top-bar));
   height: auto;
   overflow: visible;
   align-items: stretch;
+  padding-top: var(--repo-top-bar);
+  box-sizing: border-box;
 }
 
 .repo-layout--write.is-explorer-collapsed {
   --repo-explorer-rail: 0px;
-  grid-template-columns:
-    0
-    minmax(0, 1fr);
+}
+
+.repo-layout--write.is-essays-open {
+  --repo-essays-rail: minmax(240px, 300px);
 }
 
 .repo-layout--write.is-panel-collapsed {
@@ -896,32 +973,13 @@ html.tinker-desktop .repo-top [role="button"] {
 
   .repo-ide-tabbar .repo-tabs[hidden] {
     display: flex !important;
-    /* Empty strip still reserves the left flex area so labs stay right. */
     visibility: hidden;
     pointer-events: none;
   }
 
+  /* Beaker moved to the shared top bar; keep the class inert if present. */
   .repo-ide-tabbar__labs {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    align-self: stretch;
-    position: relative;
-    z-index: 2;
-    min-width: 44px;
-    padding: 0 12px;
-    margin-left: 0;
-    border-left: 1px solid color-mix(in srgb, var(--color-border) 85%, var(--color-foreground) 15%);
-    /* Opaque so scrolling tabs cannot show through the reserved slot. */
-    background: var(--color-background);
-    box-shadow: -10px 0 14px -10px rgba(45, 42, 38, 0.18);
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
-  }
-
-  .repo-ide-tabbar__labs .repo-top__labs {
-    pointer-events: auto;
+    display: none !important;
   }
 
   /* Electron: tab bar sits below the 36px titlebar; clear traffic lights when
@@ -956,11 +1014,9 @@ html.tinker-desktop .repo-top [role="button"] {
   display: none !important;
 }
 
-/* Electron: drop the whole IDE below the traffic-light / drag strip so the
-   open-file tab row is never vertically clipped by the titlebar. */
+/* Electron: shared top bar already clears traffic lights; keep layout box model. */
 html[data-tinker-desktop] .repo-layout--write,
 html.tinker-desktop .repo-layout--write {
-  padding-top: 36px;
   box-sizing: border-box;
 }
 
@@ -970,11 +1026,16 @@ html.tinker-desktop .repo-layout--write .repo-explorer {
   padding-top: 12px;
 }
 
-/* Essays list sits inside the bottom panel — no full-height right rail. */
+/* Essays list sits in the right sidebar (hamburger). */
 
 html[data-tinker-desktop] .repo-explorer__expand,
 html.tinker-desktop .repo-explorer__expand {
   top: calc(48px + 36px + env(safe-area-inset-top, 0px));
+}
+
+html[data-tinker-desktop] .repo-top--labs,
+html.tinker-desktop .repo-top--labs {
+  padding-left: calc(10px + var(--tinker-desktop-traffic-inset, 78px));
 }
 
 
@@ -1567,250 +1628,304 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
   display: none;
 }
 
-/* ===== Desktop bottom essays panel (VS Code-style) ===== */
+/* ===== Writing pane (center) + right essays sidebar ===== */
 .repo-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: transparent;
+  overflow: hidden;
+  position: relative;
+  z-index: 12;
+  border: 0;
+}
+
+.repo-panel__resize,
+.repo-panel__collapse,
+.repo-panel__expand {
+  display: none !important;
+}
+
+.repo-panel__body--write {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.repo-panel__write {
+  --repo-panel-foot-clearance: 64px;
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.repo-panel__write .repo-surface.writing {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 12px 20px var(--repo-panel-foot-clearance);
+}
+
+.repo-panel__write .repo-location {
+  position: relative;
+  top: auto;
+}
+
+.repo-panel__write .repo-pad {
+  flex: 0 0 auto;
+  min-height: 0;
+  height: auto;
+  padding-bottom: 0;
+}
+
+.repo-panel__write .repo-pad__turn:last-of-type {
+  flex: 0 0 auto;
+  min-height: 6rem;
+}
+
+.repo-panel__write .repo-pad__q {
+  position: static;
+  flex: 0 0 auto;
+  scroll-margin-top: 8px;
+  scroll-margin-bottom: var(--repo-panel-foot-clearance);
+}
+
+.repo-panel__write > .repo-surface__foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Right essays sidebar (hamburger). Closed by default. */
+.repo-essays-sidebar,
+.repo-right.repo-essays-sidebar {
+  display: none;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-background);
+  padding: 0;
+  z-index: 30;
+}
+
+.repo-layout--write.is-essays-open .repo-essays-sidebar,
+.repo-layout--write.is-essays-open .repo-right.repo-essays-sidebar,
+body.repo-page--write[data-repo-essays-list="1"] .repo-essays-sidebar,
+body.repo-page--write[data-repo-essays-list="1"] .repo-right.repo-essays-sidebar {
+  display: flex;
+}
+
+.repo-essays-sidebar .repo-panel__head {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-background) 90%, var(--color-accent, #a5b4fc) 10%);
+  -webkit-app-region: no-drag;
+}
+
+.repo-essays-sidebar .repo-panel__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--color-foreground);
+}
+
+.repo-essays-sidebar .repo-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: 0;
+}
+
+.repo-essays-sidebar .repo-panel__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.repo-essays-sidebar .repo-panel__close:hover,
+.repo-essays-sidebar .repo-panel__close:focus-visible {
+  color: var(--color-foreground);
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
+}
+
+.repo-essays-sidebar .repo-tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 0;
+}
+
+.repo-essays-sidebar .repo-tree__head--mobile {
   display: none;
 }
 
+.repo-essays-sidebar .repo-tree__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.repo-essays-sidebar .repo-changes {
+  flex: 0 0 auto;
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Learning sign-in gate inside the exercises explorer. */
+.repo-explorer-signin {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 14px;
+}
+
+.repo-explorer-signin[hidden] {
+  display: none !important;
+}
+
+.repo-explorer-signin__copy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.repo-explorer-signin__btn {
+  appearance: none;
+  border: 1px solid var(--color-foreground);
+  border-radius: 8px;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.repo-explorer-signin__btn:hover,
+.repo-explorer-signin__btn:focus-visible {
+  border-color: var(--color-accent);
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+.repo-explorer__gated[hidden] {
+  display: none !important;
+}
+
+.repo-ex-write-about {
+  display: block;
+  width: calc(100% - 16px);
+  margin: 6px 8px 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface, var(--color-background));
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.repo-ex-write-about:hover,
+.repo-ex-write-about:focus-visible {
+  border-color: var(--color-accent, #a5b4fc);
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+.repo-ex-steps {
+  margin: 0 8px 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-background) 92%, var(--color-accent, #a5b4fc) 8%);
+}
+
+.repo-ex-steps.is-updated {
+  border-color: var(--color-accent-strong, #4f46e5);
+  box-shadow: inset 3px 0 0 var(--color-accent-strong, #4f46e5);
+}
+
+.repo-ex-steps__label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.repo-ex-steps.is-updated .repo-ex-steps__label {
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+.repo-ex-steps__list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-foreground);
+}
+
+.repo-ex-steps__list li {
+  margin: 0 0 4px;
+}
+
+.repo-ex-steps-banner {
+  margin: 0 12px 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-accent, #a5b4fc);
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 16%, transparent);
+  color: var(--color-foreground);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.repo-ex-steps-banner[hidden] {
+  display: none !important;
+}
+
 @media (min-width: 801px) {
-  .repo-panel {
-    display: flex;
-    flex-direction: column;
-    flex: 0 0 auto;
-    height: var(--repo-panel-height, 35vh);
-    max-height: 70vh;
-    max-height: 70dvh;
-    min-height: 140px;
-    border-top: 1px solid var(--color-border);
-    background: var(--color-background);
-    overflow: hidden;
-    position: relative;
-    z-index: 12;
-  }
-
-  .repo-layout--write.is-panel-collapsed .repo-panel {
-    height: 0;
-    min-height: 0;
-    max-height: 0;
-    border-top: 0;
-    overflow: hidden;
-  }
-
-  .repo-layout--write.is-panel-collapsed .repo-panel__expand {
-    display: inline-flex;
-  }
-
-  .repo-panel__resize {
-    flex: 0 0 5px;
-    height: 5px;
-    margin-top: -3px;
-    cursor: ns-resize;
-    touch-action: none;
-    -webkit-app-region: no-drag;
-    position: relative;
-    z-index: 2;
-  }
-
-  .repo-panel__resize::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 1px;
-    transform: translateX(-50%);
-    width: 36px;
-    height: 3px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--color-border) 80%, var(--color-muted));
-  }
-
-  .repo-panel__resize:hover::after,
-  .repo-panel__resize:focus-visible::after {
-    background: var(--color-accent-strong, #6366f1);
-  }
-
-  .repo-panel__head {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    flex: 0 0 auto;
-    height: 36px;
-    padding: 0 10px 0 14px;
-    border-bottom: 1px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-background) 90%, var(--color-accent, #a5b4fc) 10%);
-    -webkit-app-region: no-drag;
-  }
-
-  .repo-panel__title {
-    margin: 0;
-    font-size: 11px;
-    font-weight: 650;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--color-muted);
-  }
-
-  .repo-panel__actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex: 0 0 auto;
-    margin-left: auto;
-  }
-
-  .repo-panel__collapse {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    margin-left: 0;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    background: var(--color-surface, var(--color-background));
-    color: var(--color-muted);
-    font-size: 14px;
-    line-height: 1;
-    cursor: pointer;
-  }
-
-  .repo-panel__collapse:hover,
-  .repo-panel__collapse:focus-visible {
-    color: var(--color-accent-strong, #4f46e5);
-    border-color: var(--color-accent, #a5b4fc);
-  }
-
-  .repo-panel__expand {
-    display: none;
-    position: absolute;
-    right: 16px;
-    bottom: 10px;
-    z-index: 20;
-    align-items: center;
-    gap: 6px;
-    height: 30px;
-    padding: 0 12px;
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--color-background) 94%, transparent);
-    color: var(--color-muted);
-    font: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    -webkit-app-region: no-drag;
-    box-shadow: 0 4px 14px rgba(45, 42, 38, 0.1);
-  }
-
-  .repo-panel__expand:hover,
-  .repo-panel__expand:focus-visible {
-    color: var(--color-foreground);
-    border-color: var(--color-accent, #a5b4fc);
-  }
-
-  .repo-panel__body {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: grid;
-    grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
-    overflow: hidden;
-  }
-
-  .repo-panel .repo-right {
-    min-height: 0;
-    height: 100%;
-    max-height: none;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 10px 10px 12px;
-    border: 0;
-    border-right: 1px solid var(--color-border);
-    background: transparent;
-    position: relative;
-    resize: none;
-  }
-
-  .repo-panel .repo-tree {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .repo-panel .repo-tree__head--mobile {
-    display: none;
-  }
-
-  .repo-panel .repo-tree__body {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  .repo-panel .repo-changes {
-    flex: 0 0 auto;
-    padding-top: 8px;
-    border-top: 1px solid var(--color-border);
-  }
-
-  .repo-panel__write {
-    /* Action bar height + gap — surface padding reserves this so essay /
-       question text never sit under Keep crafting / This is everything. */
-    --repo-panel-foot-clearance: 64px;
-    position: relative;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .repo-panel__write .repo-surface.writing {
-    flex: 1 1 auto;
-    min-height: 0;
-    height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
-    /* Bottom padding matches the overlay foot clearance. */
-    padding: 12px 20px var(--repo-panel-foot-clearance);
-  }
-
-  /* Don't stick the place pill over question/essay text in the short panel. */
-  .repo-panel__write .repo-location {
-    position: relative;
-    top: auto;
-  }
-
-  /* Size to content so turns/questions stay in normal flow. min-height:0 alone
-     (with flex-shrink) let the pad collapse shorter than its textareas. */
-  .repo-panel__write .repo-pad {
-    flex: 0 0 auto;
-    min-height: 0; /* cancel full-page 100dvh floor; height follows content */
-    height: auto;
-    padding-bottom: 0;
-  }
-
-  /* Short panel: a 62vh last turn (full-page pad) parks the question over
-     clipped essay text. Keep the answer turn modest so flow stays natural. */
-  .repo-panel__write .repo-pad__turn:last-of-type {
-    flex: 0 0 auto;
-    min-height: 6rem;
-  }
-
-  /* Question stays in normal document flow inside the panel — never sticky /
-     absolute / overlaid on essay paragraphs. */
-  .repo-panel__write .repo-pad__q {
-    position: static;
-    flex: 0 0 auto;
-    scroll-margin-top: 8px;
-    scroll-margin-bottom: var(--repo-panel-foot-clearance);
-  }
-
   .repo-code-host {
     flex: 1 1 auto;
     min-height: 0;
@@ -1822,6 +1937,17 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
       radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
       radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
       var(--color-background);
+  }
+
+  .repo-layout--write:not(.is-code-open) .repo-code-host,
+  .repo-layout--write:not(.is-code-open) #repo-editor-main {
+    display: none;
+  }
+
+  .repo-layout--write.is-code-open .repo-panel--write {
+    flex: 0 0 42%;
+    max-height: 48%;
+    border-top: 1px solid var(--color-border);
   }
 
   .repo-editor-empty {
@@ -3079,82 +3205,8 @@ body.repo-page--write .repo-center {
     padding: calc(26px + env(safe-area-inset-top, 0px)) 12px 10px 12px;
   }
 
-  /* Mobile nav: beaker labs trigger top-left, past-essays icon top-right. */
-  .repo-top--labs {
-    display: flex;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    z-index: 40;
-    flex-wrap: nowrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    margin: 0;
-    min-height: calc(44px + env(safe-area-inset-top, 0px));
-    height: auto;
-    max-height: none;
-    padding: calc(6px + env(safe-area-inset-top, 0px))
-      calc(10px + env(safe-area-inset-right, 0px))
-      6px
-      calc(10px + env(safe-area-inset-left, 0px));
-    border-bottom: 0;
-    background: transparent;
-    pointer-events: none;
-    box-sizing: border-box;
-    overflow: visible;
-  }
-
   .repo-ide-tabbar {
     display: none !important;
-  }
-
-  .repo-top__labs {
-    min-height: 44px;
-    min-width: 44px;
-    padding: 0 8px;
-    font-size: 14px;
-  }
-
-  .repo-top__past-essays {
-    display: inline-flex;
-    pointer-events: auto;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 10px;
-    background: transparent;
-    color: var(--color-muted);
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
-  }
-
-  .repo-top__past-essays:hover,
-  .repo-top__past-essays:focus-visible {
-    color: var(--color-foreground);
-    background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
-  }
-
-  .repo-top__past-essays:focus-visible {
-    outline: 2px solid var(--color-accent-strong, #4f46e5);
-    outline-offset: 2px;
-  }
-
-  .repo-top__past-essays-icon {
-    display: block;
-  }
-
-  body.repo-page--write[data-repo-essays-list="1"] .repo-top__past-essays {
-    color: var(--color-accent-strong, #4f46e5);
   }
 
   .repo-top__branch,
@@ -3198,16 +3250,38 @@ body.repo-page--write .repo-center {
     height: auto;
   }
 
-  /* Mobile: unwrap IDE chrome so the pad is the only surface (unchanged). */
-  .repo-explorer,
-  .repo-explorer__expand,
+  /* Mobile: writing is primary; code is not editable (hidden). Explorer
+     opens as an overlay when the beaker is used while signed in. */
   .repo-tabs,
-  .repo-code {
+  .repo-code,
+  .repo-code-host,
+  #repo-editor-main,
+  .repo-editor-empty,
+  .repo-explorer__expand,
+  .repo-code__save,
+  #repo-code-save,
+  .repo-ide-tabbar,
+  .repo-layout--write.is-code-open #repo-editor-main,
+  .repo-layout--write.is-code-open .repo-code-host,
+  body.repo-code-open #repo-editor-main,
+  body.repo-code-open .repo-code {
     display: none !important;
   }
 
+  .repo-layout--write {
+    display: flex;
+    flex-direction: column;
+    --repo-explorer-rail: 0px;
+    --repo-essays-rail: 0px;
+    padding-top: var(--repo-top-bar, calc(44px + env(safe-area-inset-top, 0px)));
+  }
+
   .repo-ide-center {
-    display: contents;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
   }
 
   .repo-layout--write .repo-center,
@@ -3224,44 +3298,52 @@ body.repo-page--write .repo-center {
     padding: 12px;
   }
 
-  /* Mobile: unwrap the bottom panel so the pad is the only surface. */
   .repo-panel {
-    display: contents;
-  }
-
-  .repo-panel__resize,
-  .repo-panel__collapse,
-  .repo-panel__expand,
-  .repo-editor-empty,
-  .repo-code-host,
-  #repo-editor-main {
-    display: none !important;
-  }
-
-  .repo-panel__head {
-    display: none;
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   .repo-panel__body,
   .repo-panel__write {
-    display: contents;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   .repo-tree__head--mobile {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    display: none;
   }
 
-  /* Mobile write: keep the essays list off the pad until This is everything. */
+  /* Mobile exercises overlay (beaker), when signed in. */
+  .repo-explorer {
+    display: none;
+    position: fixed;
+    top: var(--repo-top-bar, calc(44px + env(safe-area-inset-top, 0px)));
+    left: 0;
+    bottom: 0;
+    width: min(320px, 92vw);
+    z-index: 36;
+    border-right: 1px solid var(--color-border);
+    background: var(--color-background);
+    overflow: auto;
+  }
+
+  .repo-layout--write.is-explorer-open .repo-explorer {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Mobile essays sidebar: full-screen sheet via hamburger. */
   .repo-layout--write .repo-right,
   body.repo-page--write .repo-right {
     display: none;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-layout--write .repo-right,
-  body.repo-page--write[data-repo-essays-list="1"] .repo-right {
+  body.repo-page--write[data-repo-essays-list="1"] .repo-right,
+  .repo-layout--write.is-essays-open .repo-right {
     display: flex;
     flex-direction: column;
     position: fixed;
@@ -3276,7 +3358,6 @@ body.repo-page--write .repo-center {
     border: 0;
     box-sizing: border-box;
     gap: 12px;
-    /* Clear beaker labs nav (~50px) + title/close + actions rows. */
     padding:
       calc(210px + env(safe-area-inset-top, 0px))
       calc(16px + env(safe-area-inset-right, 0px))
@@ -3289,14 +3370,8 @@ body.repo-page--write .repo-center {
     overflow: hidden;
   }
 
-  /* Keep beaker labs + past-essays nav above the full-screen list. */
-  body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
-    z-index: 45;
-    background: var(--color-background);
-  }
-
-  /* Mobile essays sheet: title+close row, then New folder/New essay, then list. */
-  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__head {
+  body.repo-page--write[data-repo-essays-list="1"] .repo-essays-sidebar .repo-panel__head,
+  .repo-layout--write.is-essays-open .repo-essays-sidebar .repo-panel__head {
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -3333,33 +3408,10 @@ body.repo-page--write .repo-center {
     color: var(--color-foreground);
   }
 
-  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__collapse {
-    display: none !important;
-  }
-
   body.repo-page--write[data-repo-essays-list="1"] .repo-panel__close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
     width: 44px;
     height: 44px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 10px;
-    background: transparent;
-    color: var(--color-muted);
     font-size: 28px;
-    line-height: 1;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__close:hover,
-  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__close:focus-visible {
-    color: var(--color-foreground);
-    background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-panel__actions {
@@ -3368,34 +3420,11 @@ body.repo-page--write .repo-center {
     align-items: center;
     gap: 10px;
     width: 100%;
-    margin-top: 0;
-    margin-left: 0;
-    padding: 0;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-panel__actions .repo-tree__new {
     min-height: 40px;
     padding: 0 14px;
-  }
-
-  body.repo-page--write[data-repo-essays-list="1"] .repo-tree__body {
-    padding-top: 8px;
-  }
-
-  body.repo-page--write[data-repo-essays-list="1"] .repo-tree__piece-row {
-    min-height: 52px;
-    align-items: center;
-    padding: 6px 0;
-  }
-
-  body.repo-page--write[data-repo-essays-list="1"] .repo-tree__piece {
-    min-height: 44px;
-    padding-top: 12px;
-    padding-bottom: 12px;
-  }
-
-  body.repo-page--write[data-repo-essays-list="1"] .repo-tree__head--mobile {
-    display: none;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-tree {

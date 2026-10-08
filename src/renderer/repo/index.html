@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#fffdf7" />
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self'; frame-src https://lindowlabs.dev;" />
+          content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://lindowlabs.dev; script-src 'self'; frame-src https://lindowlabs.dev;" />
     <title>tinker</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,30 +14,33 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=40" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=47" />
+    <link rel="stylesheet" href="/repo/repo.css?v=49" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
-    <!-- Mobile nav only: beaker labs trigger left + past essays right. Desktop labs live in the tab bar. -->
+    <!-- Shared top bar (desktop + mobile): beaker/exercises left, past-essays hamburger right. -->
     <header class="repo-top repo-top--labs" aria-label="Tools">
       <a class="repo-top__labs"
+         id="repo-labs-link"
          href="https://lindowlabs.dev/learning"
          target="_blank" rel="noopener noreferrer"
-         aria-label="Open lab"
-         data-learning-lab>
-        <!-- Lucide FlaskConical / beaker; same 12px box + stroke weight as the old link-out icon. -->
-        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">
-          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+         aria-label="Exercises"
+         title="Exercises"
+         data-learning-lab
+         data-exercises-nav>
+        <!-- Lucide FlaskConical / beaker; same 20px box + stroke weight as the hamburger. -->
+        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
                 d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
-          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
                 d="M8.5 2h7"/>
-          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
                 d="M7 16h10"/>
         </svg>
       </a>
       <button type="button" class="repo-top__past-essays" id="repo-past-essays"
               aria-label="Past essays" title="Past essays" aria-expanded="false"
               aria-controls="repo-right">
-        <!-- Lucide Menu (hamburger); same 20px box + stroke weight as the old document icon. -->
+        <!-- Lucide Menu (hamburger); same 20px box + stroke weight as before. -->
         <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
           <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
                 d="M4 5h16M4 12h16M4 19h16"/>
@@ -46,45 +49,40 @@
     </header>
 
     <div class="repo-layout repo-layout--write" id="repo-layout">
-      <!-- Desktop IDE explorer: exercise file trees. Hidden on mobile. -->
-      <aside class="repo-explorer" id="repo-explorer" aria-label="Explorer">
+      <!-- Exercises nav (beaker). Gated by Lindow Labs Learning sign-in. -->
+      <aside class="repo-explorer" id="repo-explorer" aria-label="Exercises">
         <div class="repo-explorer__head">
           <h2 class="repo-sidebar__heading" id="repo-explorer-heading">Exercises</h2>
           <button type="button" class="repo-explorer__collapse" id="repo-explorer-collapse" aria-label="Collapse explorer" title="Collapse explorer">‹</button>
         </div>
-        <div class="repo-explorer__toolbar" id="repo-explorer-toolbar">
-          <button type="button" class="repo-explorer__tool" id="repo-ex-new-file" title="New file">New file</button>
-          <button type="button" class="repo-explorer__tool" id="repo-ex-new-folder" title="New folder">New folder</button>
+        <div class="repo-explorer-signin" id="repo-explorer-signin" hidden>
+          <p class="repo-explorer-signin__copy" id="repo-explorer-signin-copy">
+            Sign in to Tinker or Lindow Labs Learning to open exercises.
+          </p>
+          <button type="button" class="repo-explorer-signin__btn" id="repo-explorer-signin-btn">
+            Sign in
+          </button>
         </div>
-        <div class="repo-explorer__body" id="repo-explorer-body" role="tree" aria-labelledby="repo-explorer-heading"></div>
-        <p class="repo-changes__empty" id="repo-explorer-empty" hidden>No exercises yet.</p>
-        <p class="repo-explorer__hint" id="repo-explorer-hint">Seeded from lindowlabs. Edits save in Tinker, not GitHub.</p>
+        <div class="repo-ex-steps-banner" id="repo-ex-steps-banner" hidden role="status"></div>
+        <div class="repo-explorer__gated" id="repo-explorer-gated">
+          <div class="repo-explorer__toolbar" id="repo-explorer-toolbar">
+            <button type="button" class="repo-explorer__tool" id="repo-ex-new-file" title="New file">New file</button>
+            <button type="button" class="repo-explorer__tool" id="repo-ex-new-folder" title="New folder">New folder</button>
+          </div>
+          <div class="repo-explorer__body" id="repo-explorer-body" role="tree" aria-labelledby="repo-explorer-heading"></div>
+          <p class="repo-changes__empty" id="repo-explorer-empty" hidden>No exercises yet.</p>
+          <p class="repo-explorer__hint" id="repo-explorer-hint">Seeded from lindowlabs. Edits save in Tinker, not GitHub.</p>
+        </div>
       </aside>
       <button type="button" class="repo-explorer__expand" id="repo-explorer-expand" hidden aria-label="Show explorer" title="Show explorer">›</button>
 
       <div class="repo-ide-center" id="repo-ide-center">
-        <!-- Desktop: tabs scroll left; beaker labs trigger reserved right slot (same 40px row). -->
+        <!-- File tabs (desktop). Beaker lives in the shared top bar, not here. -->
         <div class="repo-ide-tabbar" id="repo-ide-tabbar">
           <div class="repo-tabs" id="repo-tabs" role="tablist" aria-label="Open editors" hidden></div>
-          <div class="repo-ide-tabbar__labs">
-            <a id="repo-labs-link" class="repo-top__labs"
-               href="https://lindowlabs.dev/learning"
-               target="_blank" rel="noopener noreferrer"
-               aria-label="Open lab"
-               data-learning-lab>
-              <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">
-                <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
-                <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M8.5 2h7"/>
-                <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M7 16h10"/>
-              </svg>
-            </a>
-          </div>
         </div>
 
-        <!-- Top: code editor (desktop). Writing lives in the bottom essays panel. -->
+        <!-- Code editor: editable on desktop; read-only / hidden on mobile. -->
         <main class="repo-center repo-write-safe-top" id="repo-editor-main" aria-label="Editor">
           <div class="repo-code-host" id="repo-code-host">
             <div class="repo-code" id="repo-code" hidden aria-label="Exercise file">
@@ -97,44 +95,13 @@
               <textarea class="repo-code__editor writing-input" id="repo-code-editor" hidden spellcheck="false" aria-hidden="true" tabindex="-1"></textarea>
               <p class="repo-code__status" id="repo-code-status" hidden></p>
             </div>
-            <p class="repo-editor-empty" id="repo-editor-empty">Open an exercise file to edit code here. Essays stay in the panel below.</p>
+            <p class="repo-editor-empty" id="repo-editor-empty" hidden>Open an exercise file to edit code here.</p>
           </div>
         </main>
 
-        <!-- Desktop: VS Code-style bottom essays panel. Mobile: unwraps to the pad. -->
-        <section class="repo-panel" id="repo-panel" aria-label="Essays panel">
-          <div class="repo-panel__resize" id="repo-panel-resize" role="separator" aria-orientation="horizontal" aria-label="Resize essays panel" tabindex="0"></div>
-          <header class="repo-panel__head" id="repo-panel-head">
-            <div class="repo-panel__head-row repo-panel__head-row--title">
-              <h2 class="repo-panel__title" id="repo-stories-heading">Essays</h2>
-              <button type="button" class="repo-panel__close" id="repo-panel-close"
-                      aria-label="Close essays" title="Close essays" hidden>×</button>
-            </div>
-            <div class="repo-panel__actions">
-              <button type="button" class="repo-tree__new" id="repo-new-folder">New folder</button>
-              <button type="button" class="repo-tree__new repo-tree__new--essay" id="repo-sidebar-new-piece">New essay</button>
-            </div>
-            <button type="button" class="repo-panel__collapse" id="repo-panel-collapse"
-                    aria-label="Collapse essays panel" title="Collapse essays panel">⌄</button>
-          </header>
-          <div class="repo-panel__body" id="repo-panel-body">
-            <!-- .repo-right kept for mobile fullscreen essays-list CSS / JS hooks. -->
-            <aside class="repo-right" id="repo-right" aria-label="Essays">
-              <section class="repo-tree" aria-labelledby="repo-stories-heading">
-                <div class="repo-tree__head repo-tree__head--mobile">
-                  <h2 class="repo-sidebar__heading">Essays</h2>
-                </div>
-                <div class="repo-tree__body" id="repo-tree" role="tree"></div>
-                <p class="repo-changes__empty" id="repo-stories-empty" hidden>No essays yet.</p>
-              </section>
-              <section class="repo-changes" aria-labelledby="repo-file-heading">
-                <h2 class="repo-sidebar__heading" id="repo-file-heading">Essay</h2>
-                <p class="repo-file__path" id="repo-file-path"></p>
-                <p class="repo-file__type" id="repo-file-type" hidden></p>
-                <p class="repo-file__place" id="repo-file-place" hidden></p>
-                <p class="repo-changes__hint" id="repo-sync-hint" hidden></p>
-              </section>
-            </aside>
+        <!-- Writing surface (shared). Was nested in the bottom essays panel. -->
+        <section class="repo-panel repo-panel--write" id="repo-panel" aria-label="Writing">
+          <div class="repo-panel__body repo-panel__body--write" id="repo-panel-body">
             <div class="repo-panel__write" id="repo-panel-write">
               <div class="repo-surface writing repo-write-safe-top" id="repo-surface">
                 <div class="repo-location" id="repo-location">
@@ -170,8 +137,36 @@
             </div>
           </div>
         </section>
-        <button type="button" class="repo-panel__expand" id="repo-panel-expand" hidden aria-label="Show essays panel" title="Show essays panel">Essays ˄</button>
       </div>
+
+      <!-- Right essays sidebar (desktop + mobile). Toggled by the hamburger. -->
+      <aside class="repo-right repo-essays-sidebar" id="repo-right" aria-label="Essays" hidden>
+        <header class="repo-panel__head" id="repo-panel-head">
+          <div class="repo-panel__head-row repo-panel__head-row--title">
+            <h2 class="repo-panel__title" id="repo-stories-heading">Essays</h2>
+            <button type="button" class="repo-panel__close" id="repo-panel-close"
+                    aria-label="Close essays" title="Close essays">×</button>
+          </div>
+          <div class="repo-panel__actions">
+            <button type="button" class="repo-tree__new" id="repo-new-folder">New folder</button>
+            <button type="button" class="repo-tree__new repo-tree__new--essay" id="repo-sidebar-new-piece">New essay</button>
+          </div>
+        </header>
+        <section class="repo-tree" aria-labelledby="repo-stories-heading">
+          <div class="repo-tree__head repo-tree__head--mobile">
+            <h2 class="repo-sidebar__heading">Essays</h2>
+          </div>
+          <div class="repo-tree__body" id="repo-tree" role="tree"></div>
+          <p class="repo-changes__empty" id="repo-stories-empty" hidden>No essays yet.</p>
+        </section>
+        <section class="repo-changes" aria-labelledby="repo-file-heading">
+          <h2 class="repo-sidebar__heading" id="repo-file-heading">Essay</h2>
+          <p class="repo-file__path" id="repo-file-path"></p>
+          <p class="repo-file__type" id="repo-file-type" hidden></p>
+          <p class="repo-file__place" id="repo-file-place" hidden></p>
+          <p class="repo-changes__hint" id="repo-sync-hint" hidden></p>
+        </section>
+      </aside>
     </div>
 
     <div class="repo-sheet" id="repo-move-sheet" hidden>
@@ -218,6 +213,10 @@
     <!-- Hidden ids retained for test harness / deep-link helpers. -->
     <p id="repo-name" hidden>tinker</p>
     <button type="button" id="repo-new-piece" hidden>New file</button>
+    <!-- Legacy bottom-panel chrome removed from layout; ids retained hidden. -->
+    <button type="button" class="repo-panel__collapse" id="repo-panel-collapse" hidden aria-hidden="true">⌄</button>
+    <button type="button" class="repo-panel__expand" id="repo-panel-expand" hidden aria-hidden="true">Essays ˄</button>
+    <div class="repo-panel__resize" id="repo-panel-resize" hidden aria-hidden="true"></div>
 
     <script src="/platform-mobile.js?v=40"></script>
     <script src="/interview-prompt.js?v=40"></script>
@@ -228,15 +227,17 @@
     <script src="/lib/stories-md.js?v=40"></script>
     <script src="/lib/repo-folders-core.js?v=40"></script>
     <script src="/lib/repo-pad-reveal.js?v=40"></script>
-    <script src="/lib/repo-write-scroll.js?v=47"></script>
+    <script src="/lib/repo-write-scroll.js?v=49"></script>
     <script src="/lib/storage-path-core.js?v=40"></script>
     <script src="/lib/fs-access-folder.js?v=40"></script>
     <script src="/lib/storage-adapters.js?v=40"></script>
+    <script src="/lib/learning-auth.js?v=49"></script>
+    <script src="/lib/exercise-revision.js?v=49"></script>
     <script src="/exercises/manifest.js?v=40"></script>
     <script src="/lib/exercise-workspace-core.js?v=40"></script>
-    <script src="/repo/exercise-workspace-ui.js?v=40"></script>
-    <script src="/made-by-lindow-labs.js?v=46"></script>
-    <script src="/repo/repo.js?v=46"></script>
+    <script src="/repo/exercise-workspace-ui.js?v=49"></script>
+    <script src="/made-by-lindow-labs.js?v=49"></script>
+    <script src="/repo/repo.js?v=49"></script>
     <script src="/repo/storage-section.js?v=40"></script>
   </body>
 </html>
