@@ -71,7 +71,7 @@ function memFs(tree) {
 test("version bump is 0.1.14 in package.json and .release-version", () => {
   assert.equal(packageJson.version, "0.1.14");
   assert.equal(releaseVersion, "0.1.14");
-}});
+});
 
 test("main and preload expose storage cloud root and custom path IPC", () => {
   assert.match(mainJs, /storage:cloudRoots/);

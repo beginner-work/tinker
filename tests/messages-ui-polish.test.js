@@ -162,4 +162,4 @@ test("pane header avatar is a readable circular initials mark, not a clipped L",
 test("release marker is 0.1.14", () => {
   assert.equal(marker, "0.1.14");
   assert.equal(pkg.version, "0.1.14");
-}});
+});
