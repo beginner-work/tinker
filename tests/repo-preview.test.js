@@ -838,7 +838,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
-  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=45"/);
+  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=46"/);
   assert.match(html, /src="\/exercises\/manifest\.js\?v=40"/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
   assert.doesNotMatch(html, /src="\/lib\/exercises-pick\.js/);
@@ -846,7 +846,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=40"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=40"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=46"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=47"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
   assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
@@ -1283,7 +1283,7 @@ test("write page has no top-right account / Sign out / Download chrome", () => {
   assert.match(html, /placeholder="Where are you\?"/);
 });
 
-test("write page Learning Lab sits in tab-bar slot; mobile keeps top nav", () => {
+test("write page labs beaker sits in tab-bar slot; mobile keeps top nav", () => {
   const LEARNING_LAB_URL = "https://lindowlabs.dev/learning";
   assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /id="repo-ide-tabbar"/);
@@ -1292,15 +1292,23 @@ test("write page Learning Lab sits in tab-bar slot; mobile keeps top nav", () =>
   assert.match(html, /class="repo-top__labs"/);
   assert.ok(
     html.replace(/&amp;/g, "&").includes(LEARNING_LAB_URL),
-    "Learning Lab link must use the learning dashboard URL",
+    "labs link must use the learning dashboard URL",
   );
   assert.match(html, /data-learning-lab/);
   assert.match(html, /target="_blank"/);
   assert.match(html, /rel="noopener noreferrer"/);
-  assert.match(html, />Learning Lab</);
+  assert.match(html, /aria-label="Open lab"/);
+  assert.doesNotMatch(html, />\s*Learning Lab\s*</);
+  assert.doesNotMatch(html, /repo-top__labs-label/);
+  assert.match(html, /M10 2v7\.527/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Past essays"/);
+  // Hamburger (lucide Menu), not the old document icon.
+  assert.match(html, /M4 5h16M4 12h16M4 19h16/);
+  assert.doesNotMatch(html, /M7 3\.5h7\.5/);
   assert.match(html, /id="repo-panel-close"/);
+  assert.match(html, /frame-src https:\/\/lindowlabs\.dev/);
+  assert.match(css, /\.labs-drawer/);
   // Desktop labs live in the tab bar, not under the writing pad.
   const beforeSurface = html.slice(0, html.indexOf('id="repo-surface"'));
   assert.match(beforeSurface, /id="repo-labs-link"/);
@@ -1323,7 +1331,7 @@ test("write page Learning Lab sits in tab-bar slot; mobile keeps top nav", () =>
     css,
     /@media\s*\(min-width:\s*801px\)\s*\{[\s\S]*\.repo-ide-tabbar__labs\s*\{[^}]*border-left/s,
   );
-  // Mobile: Learning Lab left + past essays right; desktop mobile-nav hidden.
+  // Mobile: beaker labs trigger left + past essays right; desktop mobile-nav hidden.
   assert.match(css, /\.repo-top--labs\s*\{[^}]*display:\s*none/s);
   assert.match(
     css,

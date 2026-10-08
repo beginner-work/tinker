@@ -74,7 +74,7 @@ body.repo-page--files {
   min-height: 0;
 }
 
-/* Mobile-only top nav (Learning Lab left + past essays). Hidden on desktop. */
+/* Mobile-only top nav (beaker labs trigger left + past essays). Hidden on desktop. */
 .repo-top--labs {
   display: none;
 }
@@ -84,7 +84,7 @@ body.repo-page--files {
   display: none;
 }
 
-/* Desktop: Learning Lab lives in the tab bar's reserved right slot. */
+/* Desktop: beaker labs trigger lives in the tab bar's reserved right slot. */
 .repo-ide-tabbar {
   display: none;
 }
@@ -93,7 +93,8 @@ body.repo-page--files {
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 0;
   color: var(--color-muted);
   text-decoration: none;
   font-size: 13px;
@@ -105,10 +106,6 @@ body.repo-page--files {
   border-radius: 4px;
   -webkit-app-region: no-drag;
   app-region: no-drag;
-}
-
-.repo-top__labs-label {
-  line-height: 1.2;
 }
 
 .repo-top__labs-icon {
@@ -856,7 +853,7 @@ html.tinker-desktop .repo-top [role="button"] {
   background: transparent;
 }
 
-/* Desktop tab bar: scrolling tabs + reserved Learning Lab slot (same 40px row). */
+/* Desktop tab bar: scrolling tabs + reserved beaker labs slot (same 40px row). */
 @media (min-width: 801px) {
   .repo-ide-tabbar {
     display: flex;
@@ -912,8 +909,8 @@ html.tinker-desktop .repo-top [role="button"] {
     align-self: stretch;
     position: relative;
     z-index: 2;
-    min-width: 132px;
-    padding: 0 16px 0 14px;
+    min-width: 44px;
+    padding: 0 12px;
     margin-left: 0;
     border-left: 1px solid color-mix(in srgb, var(--color-border) 85%, var(--color-foreground) 15%);
     /* Opaque so scrolling tabs cannot show through the reserved slot. */
@@ -3082,7 +3079,7 @@ body.repo-page--write .repo-center {
     padding: calc(26px + env(safe-area-inset-top, 0px)) 12px 10px 12px;
   }
 
-  /* Mobile nav: Learning Lab top-left, past-essays icon top-right. */
+  /* Mobile nav: beaker labs trigger top-left, past-essays icon top-right. */
   .repo-top--labs {
     display: flex;
     position: fixed;
@@ -3279,7 +3276,7 @@ body.repo-page--write .repo-center {
     border: 0;
     box-sizing: border-box;
     gap: 12px;
-    /* Clear Learning Lab nav (~50px) + title/close + actions rows. */
+    /* Clear beaker labs nav (~50px) + title/close + actions rows. */
     padding:
       calc(210px + env(safe-area-inset-top, 0px))
       calc(16px + env(safe-area-inset-right, 0px))
@@ -3292,7 +3289,7 @@ body.repo-page--write .repo-center {
     overflow: hidden;
   }
 
-  /* Keep Learning Lab + past-essays nav above the full-screen list. */
+  /* Keep beaker labs + past-essays nav above the full-screen list. */
   body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
     z-index: 45;
     background: var(--color-background);
@@ -3609,5 +3606,109 @@ body.repo-page--write .repo-center {
     padding: 0 12px;
     font-size: 12px;
   }
+}
+
+/* ── Labs drawer (beaker → left iframe panel) ─────────────────────────── */
+.labs-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  pointer-events: none;
+}
+
+.labs-drawer__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(31, 29, 26, 0.45);
+  pointer-events: auto;
+  opacity: 0;
+  animation: labs-drawer-scrim-in 180ms ease forwards;
+}
+
+.labs-drawer__panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(420px, 100%);
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-background, #fffdf7);
+  box-shadow: 8px 0 28px rgba(31, 29, 26, 0.18);
+  pointer-events: auto;
+  transform: translateX(-100%);
+  animation: labs-drawer-slide-in 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  box-sizing: border-box;
+}
+
+.labs-drawer__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border, rgba(31, 29, 26, 0.12));
+}
+
+.labs-drawer__close {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-foreground, #1f1d1a);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.labs-drawer__close:hover,
+.labs-drawer__close:focus-visible {
+  background: color-mix(in srgb, var(--color-foreground, #1f1d1a) 8%, transparent);
+}
+
+.labs-drawer__close:focus-visible {
+  outline: 2px solid var(--color-accent-strong, #4f46e5);
+  outline-offset: 2px;
+}
+
+.labs-drawer__frame {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  display: block;
+  background: var(--color-background, #fffdf7);
+}
+
+@keyframes labs-drawer-slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes labs-drawer-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 800px) {
+  .labs-drawer__panel {
+    width: 100%;
+  }
+}
+
+html.labs-drawer-open,
+html.labs-drawer-open body {
+  overflow: hidden;
 }
 
