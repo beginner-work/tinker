@@ -258,6 +258,11 @@ test("packaging targets universal Mac dmg named tinker-mac", () => {
   assert.match(builderYml, /src\/main\/\*\*\/\*/);
 });
 
+test("Windows installer targets have unique artifact names", () => {
+  assert.match(builderYml, /nsis:\s*\n\s+artifactName:\s*\$\{productName\}-\$\{version\}-\$\{arch\}-setup\.\$\{ext\}/);
+  assert.match(builderYml, /portable:\s*\n\s+artifactName:\s*\$\{productName\}-\$\{version\}-\$\{arch\}-portable\.\$\{ext\}/);
+});
+
 test("release marker matches package version; workflows publish on marker", () => {
   assert.equal(marker, pkg.version);
   assert.equal(pkg.version, "0.1.14");
