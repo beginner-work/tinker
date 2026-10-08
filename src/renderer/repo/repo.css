@@ -893,7 +893,8 @@ html.tinker-desktop .repo-top [role="button"] {
   --repo-panel-height: 0px;
   --repo-tabs-height: 40px;
   --repo-essays-rail: 0px;
-  --repo-top-bar: calc(44px + env(safe-area-inset-top, 0px));
+  /* Sticky labs top bar: 6px + 44px icons + 6px (+ safe-area in padding-top). */
+  --repo-top-bar: calc(56px + env(safe-area-inset-top, 0px));
   grid-template-columns:
     var(--repo-explorer-rail, 240px)
     minmax(0, 1fr)
@@ -3273,7 +3274,7 @@ body.repo-page--write .repo-center {
     flex-direction: column;
     --repo-explorer-rail: 0px;
     --repo-essays-rail: 0px;
-    padding-top: var(--repo-top-bar, calc(44px + env(safe-area-inset-top, 0px)));
+    padding-top: var(--repo-top-bar, calc(56px + env(safe-area-inset-top, 0px)));
   }
 
   .repo-ide-center {
@@ -3316,11 +3317,11 @@ body.repo-page--write .repo-center {
     display: none;
   }
 
-  /* Mobile exercises overlay (beaker), when signed in. */
+  /* Mobile exercises overlay (beaker): starts below sticky top bar. */
   .repo-explorer {
     display: none;
     position: fixed;
-    top: var(--repo-top-bar, calc(44px + env(safe-area-inset-top, 0px)));
+    top: var(--repo-top-bar, calc(56px + env(safe-area-inset-top, 0px)));
     left: 0;
     bottom: 0;
     width: min(320px, 92vw);
@@ -3335,7 +3336,16 @@ body.repo-page--write .repo-center {
     flex-direction: column;
   }
 
-  /* Mobile essays sidebar: full-screen sheet via hamburger. */
+  .repo-layout--write.is-explorer-open .repo-explorer__head {
+    flex: 0 0 auto;
+    position: relative;
+    z-index: auto;
+    min-height: 44px;
+    padding-top: 10px;
+    padding-bottom: 8px;
+  }
+
+  /* Mobile essays sidebar: sheet below the sticky top bar (hamburger). */
   .repo-layout--write .repo-right,
   body.repo-page--write .repo-right {
     display: none;
@@ -3347,19 +3357,20 @@ body.repo-page--write .repo-center {
     display: flex;
     flex-direction: column;
     position: fixed;
-    inset: 0;
+    top: var(--repo-top-bar, calc(56px + env(safe-area-inset-top, 0px)));
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 35;
     width: 100%;
     max-width: none;
-    height: 100%;
-    height: 100svh;
-    height: 100dvh;
+    height: auto;
     max-height: none;
     border: 0;
     box-sizing: border-box;
-    gap: 12px;
+    gap: 0;
     padding:
-      calc(210px + env(safe-area-inset-top, 0px))
+      0
       calc(16px + env(safe-area-inset-right, 0px))
       calc(24px + env(safe-area-inset-bottom, 0px))
       calc(16px + env(safe-area-inset-left, 0px));
@@ -3370,26 +3381,30 @@ body.repo-page--write .repo-center {
     overflow: hidden;
   }
 
+  /* Drawer's own header row: in-flow under the top bar (not fixed under it). */
   body.repo-page--write[data-repo-essays-list="1"] .repo-essays-sidebar .repo-panel__head,
   .repo-layout--write.is-essays-open .repo-essays-sidebar .repo-panel__head {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    position: fixed;
-    top: calc(50px + env(safe-area-inset-top, 0px));
-    left: 0;
-    right: 0;
-    z-index: 40;
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    z-index: auto;
+    flex: 0 0 auto;
     height: auto;
-    gap: 20px;
-    padding: 12px 16px 18px;
+    gap: 12px;
+    margin: 0 -16px;
+    padding: 12px 16px 14px;
     background:
       radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
       var(--color-background);
     border-bottom: 1px solid var(--color-border);
   }
 
-  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__head-row--title {
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__head-row--title,
+  .repo-layout--write.is-essays-open .repo-panel__head-row--title {
     display: flex;
     width: 100%;
     justify-content: space-between;
@@ -3398,7 +3413,8 @@ body.repo-page--write .repo-center {
     gap: 12px;
   }
 
-  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__title {
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__title,
+  .repo-layout--write.is-essays-open .repo-panel__title {
     flex: 1 1 auto;
     min-width: 0;
     font-size: 22px;
@@ -3408,13 +3424,15 @@ body.repo-page--write .repo-center {
     color: var(--color-foreground);
   }
 
-  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__close {
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__close,
+  .repo-layout--write.is-essays-open .repo-panel__close {
     width: 44px;
     height: 44px;
     font-size: 28px;
   }
 
-  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__actions {
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__actions,
+  .repo-layout--write.is-essays-open .repo-panel__actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -3422,12 +3440,14 @@ body.repo-page--write .repo-center {
     width: 100%;
   }
 
-  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__actions .repo-tree__new {
+  body.repo-page--write[data-repo-essays-list="1"] .repo-panel__actions .repo-tree__new,
+  .repo-layout--write.is-essays-open .repo-panel__actions .repo-tree__new {
     min-height: 40px;
     padding: 0 14px;
   }
 
-  body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-tree {
+  body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-tree,
+  .repo-layout--write.is-essays-open .repo-right .repo-tree {
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
@@ -3435,7 +3455,8 @@ body.repo-page--write .repo-center {
     flex-direction: column;
   }
 
-  body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-tree__body {
+  body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-tree__body,
+  .repo-layout--write.is-essays-open .repo-right .repo-tree__body {
     flex: 1 1 auto;
     min-height: 0;
     overflow-x: hidden;
@@ -3443,19 +3464,25 @@ body.repo-page--write .repo-center {
     -webkit-overflow-scrolling: touch;
   }
 
-  body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-changes {
+  body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-changes,
+  .repo-layout--write.is-essays-open .repo-right .repo-changes {
     display: none;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-panel__write,
-  body.repo-page--write[data-repo-essays-list="1"] #repo-surface {
+  body.repo-page--write[data-repo-essays-list="1"] #repo-surface,
+  .repo-layout--write.is-essays-open .repo-panel__write,
+  .repo-layout--write.is-essays-open #repo-surface {
     visibility: hidden;
     pointer-events: none;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-surface__foot,
   body.repo-page--write[data-repo-essays-list="1"] .repo-pad-error,
-  body.repo-page--write[data-repo-essays-list="1"] .repo-location {
+  body.repo-page--write[data-repo-essays-list="1"] .repo-location,
+  .repo-layout--write.is-essays-open .repo-surface__foot,
+  .repo-layout--write.is-essays-open .repo-pad-error,
+  .repo-layout--write.is-essays-open .repo-location {
     display: none !important;
   }
 

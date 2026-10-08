@@ -110,6 +110,34 @@ test("hamburger opens the right essays sidebar on desktop and mobile", () => {
   assert.match(html, /M4 5h16M4 12h16M4 19h16/);
 });
 
+test("mobile essays and exercises drawers clear the sticky top bar", () => {
+  // Sticky labs bar clearance accounts for 44px icons + vertical padding.
+  assert.match(css, /--repo-top-bar:\s*calc\(56px \+ env\(safe-area-inset-top/);
+  // Essays drawer starts below the top bar (not inset:0 under it).
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.is-essays-open \.repo-right\s*\{[^}]*top:\s*var\(--repo-top-bar/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.is-essays-open \.repo-right\s*\{[^}]*inset:\s*0/s,
+  );
+  // Essays header is in-flow under the top bar, not fixed at a low top offset.
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-essays-sidebar \.repo-panel__head\s*\{[^}]*position:\s*relative/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-essays-sidebar \.repo-panel__head\s*\{[^}]*position:\s*fixed/s,
+  );
+  // Exercises drawer also clears the sticky top bar.
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-explorer\s*\{[^}]*top:\s*var\(--repo-top-bar/s,
+  );
+});
+
 test("beaker matches hamburger size and is labeled Exercises", () => {
   assert.match(html, /aria-label="Exercises"/);
   assert.match(html, /repo-top__labs-icon"[^>]*width="20"/);
