@@ -888,15 +888,17 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-layout--write {
-  /* Shared structure: explorer | writing/code | essays sidebar. */
-  --repo-explorer-rail: 240px;
+  /* Shared structure: explorer | writing/code | essays sidebar.
+     Explorer track is `auto` so CSS resize updates the column and pushes
+     the editor (a fixed px track left resized chrome overlapping the pad). */
+  --repo-explorer-rail: 280px;
   --repo-panel-height: 0px;
   --repo-tabs-height: 40px;
   --repo-essays-rail: 0px;
   /* Sticky labs top bar: 6px + 44px icons + 6px (+ safe-area in padding-top). */
   --repo-top-bar: calc(56px + env(safe-area-inset-top, 0px));
   grid-template-columns:
-    var(--repo-explorer-rail, 240px)
+    auto
     minmax(0, 1fr)
     var(--repo-essays-rail, 0px);
   grid-template-rows: minmax(0, 1fr);
@@ -1131,9 +1133,14 @@ html.tinker-desktop .repo-top--labs {
 
 .repo-explorer {
   grid-column: 1;
-  min-width: 0;
+  box-sizing: border-box;
+  width: var(--repo-explorer-rail, 280px);
+  /* Keep steps / titles / file names readable; match expanded-drawer comfort. */
+  min-width: 280px;
+  max-width: 360px;
   min-height: 0;
-  /* Clip chrome; the gated body is the scrollport (see .repo-explorer__gated). */
+  /* Clip chrome; the gated body is the scrollport (see .repo-explorer__gated).
+     Non-visible overflow is required for CSS resize to activate. */
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1142,7 +1149,6 @@ html.tinker-desktop .repo-top--labs {
   border-right: 1px solid var(--color-border);
   background: var(--color-background);
   resize: horizontal;
-  max-width: 360px;
   /* Above .repo-panel (z-index 12) so writing never paints over the rail. */
   position: relative;
   z-index: 20;
@@ -1150,6 +1156,23 @@ html.tinker-desktop .repo-top--labs {
 }
 
 .repo-layout--write.is-explorer-collapsed .repo-explorer {
+  display: none;
+}
+
+/* Desktop: explorer never overlays the editor — auto track + width push. */
+@media (min-width: 801px) {
+  .repo-layout--write.is-explorer-open .repo-explorer,
+  .repo-layout--write:not(.is-explorer-collapsed) .repo-explorer {
+    position: relative;
+    top: auto;
+    left: auto;
+    bottom: auto;
+    inset: auto;
+  }
+}
+
+/* Mobile/phone overlay scrim (beaker drawer). Hidden on desktop. */
+.repo-explorer-scrim {
   display: none;
 }
 
@@ -2923,7 +2946,7 @@ body.repo-page--write .repo-center {
   --repo-foot-floor: max(48px, 8dvh);
   /* No right essays rail on desktop — essays live in the bottom panel. */
   --repo-essays-rail: 0px;
-  --repo-explorer-rail: 240px;
+  --repo-explorer-rail: 280px;
   --repo-foot-gutter: 24px;
   --repo-panel-height: 35vh;
   --repo-panel-height: 35dvh;
@@ -3374,7 +3397,8 @@ body.repo-page--write .repo-center {
     display: none;
   }
 
-  /* Mobile exercises overlay (beaker): starts below sticky top bar. */
+  /* Mobile exercises overlay (beaker): starts below sticky top bar.
+     Overlay is OK under ~800px only — with scrim + tap-outside-to-close. */
   .repo-explorer {
     display: none;
     grid-column: auto;
@@ -3383,12 +3407,35 @@ body.repo-page--write .repo-center {
     left: 0;
     bottom: 0;
     width: min(320px, 92vw);
+    min-width: 0;
+    max-width: min(320px, 92vw);
     z-index: 36;
     border-right: 1px solid var(--color-border);
     background: var(--color-background);
     /* Prefer the gated body scrollport; keep overflow hidden so wheel/touch
        hit the flex child with overflow-y:auto (same as desktop). */
     overflow: hidden;
+    resize: none;
+  }
+
+  .repo-explorer-scrim {
+    display: none;
+    position: fixed;
+    top: var(--repo-top-bar, calc(56px + env(safe-area-inset-top, 0px)));
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 35;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: rgba(31, 29, 26, 0.45);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .repo-layout--write.is-explorer-open .repo-explorer-scrim {
+    display: block;
   }
 
   .repo-layout--write.is-explorer-open .repo-explorer {

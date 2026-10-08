@@ -54,15 +54,23 @@ test("shared shell markup: top bar, explorer gate, writing, right essays", () =>
 });
 
 test("layout CSS: explorer | center | essays rail; mobile hides code editing", () => {
-  assert.match(css, /--repo-explorer-rail:\s*240px/);
+  assert.match(css, /--repo-explorer-rail:\s*280px/);
   assert.match(css, /--repo-essays-rail/);
   assert.match(
     css,
-    /\.repo-layout--write\s*\{[^}]*var\(--repo-explorer-rail/s,
+    /\.repo-layout--write\s*\{[^}]*grid-template-columns:\s*auto/s,
   );
   assert.match(
     css,
     /\.repo-layout--write\s*\{[^}]*var\(--repo-essays-rail/s,
+  );
+  assert.match(
+    css,
+    /\.repo-explorer\s*\{[^}]*min-width:\s*280px/s,
+  );
+  assert.match(
+    css,
+    /\.repo-explorer\s*\{[^}]*width:\s*var\(--repo-explorer-rail/s,
   );
   assert.match(css, /\.repo-layout--write\.is-essays-open/);
   assert.match(css, /\.repo-essays-sidebar/);
@@ -120,12 +128,21 @@ test("exercises explorer scrolls and stays above the writing panel", () => {
     css,
     /\.repo-panel__write \.repo-surface\.writing\s*\{[\s\S]*?position:\s*relative[\s\S]*?left:\s*auto[\s\S]*?\}/,
   );
-  assert.match(html, /repo\.css\?v=50/);
-  // Vertical exercise stack: write-about / steps / tree are siblings under
-  // #repo-explorer-body, not children of .repo-ex-node (flex row for files).
-  assert.match(ui, /els\.body\.appendChild\(writeAbout\)/);
-  assert.match(ui, /renderStepsPanel\(els\.body,\s*exerciseId\)/);
-  assert.match(ui, /els\.body\.appendChild\(list\)/);
+  assert.match(html, /repo\.css\?v=51/);
+  assert.match(html, /id="repo-explorer-scrim"/);
+  assert.match(css, /\.repo-explorer-scrim/);
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-layout--write\.is-explorer-open \.repo-explorer-scrim\s*\{[^}]*display:\s*block/s,
+  );
+  // Vertical exercise stack: write-about / steps / tree sit under the titled
+  // .repo-explorer__group (not orphans above the next exercise, and not inside
+  // .repo-ex-node flex rows used for files).
+  assert.match(ui, /group\.appendChild\(writeAbout\)/);
+  assert.match(ui, /renderStepsPanel\(group,\s*exerciseId\)/);
+  assert.match(ui, /group\.appendChild\(list\)/);
+  assert.match(ui, /els\.body\.appendChild\(group\)/);
+  assert.match(ui, /applyDefaultCollapsed/);
   assert.doesNotMatch(ui, /repo-ex-node[\s\S]{0,80}repo-ex-write-about/);
 });
 

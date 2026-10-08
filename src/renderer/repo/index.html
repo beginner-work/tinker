@@ -14,7 +14,7 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=40" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=50" />
+    <link rel="stylesheet" href="/repo/repo.css?v=51" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
     <!-- Shared top bar (desktop + mobile): beaker/exercises left, past-essays hamburger right. -->
@@ -49,6 +49,9 @@
     </header>
 
     <div class="repo-layout repo-layout--write" id="repo-layout">
+      <!-- Mobile-only scrim: tap outside closes the Exercises overlay drawer. -->
+      <button type="button" class="repo-explorer-scrim" id="repo-explorer-scrim"
+              aria-label="Close exercises" tabindex="-1" hidden></button>
       <!-- Exercises nav (beaker). Gated by Lindow Labs Learning sign-in. -->
       <aside class="repo-explorer" id="repo-explorer" aria-label="Exercises">
         <div class="repo-explorer__head">
