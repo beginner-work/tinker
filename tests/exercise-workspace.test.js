@@ -185,6 +185,6 @@ test("repo IDE explorer wires exercise trees and drops the Output panel", () => 
   assert.match(uiSrc, /create_node/);
   assert.match(uiSrc, /delete_node/);
   assert.match(uiSrc, /draggable/);
-  assert.match(uiSrc, /Sign in to save/);
+  assert.match(uiSrc, /Sign in to (save|Tinker|Learning)/);
   assert.doesNotMatch(uiSrc, /\u2014/);
 });

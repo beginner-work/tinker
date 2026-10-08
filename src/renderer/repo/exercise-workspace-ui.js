@@ -1,8 +1,10 @@
-/* Desktop IDE explorer for per-owner exercise file trees.
+/* Exercise explorer for per-owner exercise file trees.
  *
- * Seeds from /lib/exercise-workspace-seed.json + manifest. Signed-in
- * owners sync through /api/exercise-workspace. GitHub is never written.
- * Mobile hides this chrome via CSS.
+ * Seeds from /lib/exercise-workspace-seed.json + manifest. Tinker owners
+ * sync through /api/exercise-workspace. GitHub is never written.
+ *
+ * Lindow Labs Learning sign-in gates listing and reading exercise files.
+ * Mobile keeps code read-only / hidden; desktop keeps editing.
  */
 (function () {
   "use strict";
@@ -10,6 +12,8 @@
   var core = window.tinkerExerciseWorkspaceCore;
   var manifest = window.tinkerExercisesManifest;
   var cmApi = window.tinkerCodeMirror;
+  var learningAuth = window.tinkerLearningAuth || null;
+  var revision = window.tinkerExerciseRevision || null;
   if (!core) return;
   var cmEditor = null;
 
@@ -47,6 +51,30 @@
     catch (e) { return ""; }
   }
 
+  function isLearningSignedIn() {
+    try {
+      if (learningAuth && typeof learningAuth.isLearningSignedIn === "function") {
+        return !!learningAuth.isLearningSignedIn();
+      }
+    } catch (e) { /* ignore */ }
+    return false;
+  }
+
+  function requestLearningSignIn() {
+    try {
+      if (learningAuth && typeof learningAuth.requestLearningSignIn === "function") {
+        return learningAuth.requestLearningSignIn();
+      }
+    } catch (e) { /* ignore */ }
+    try {
+      if (window.tinkerMadeByLindowLabs && typeof window.tinkerMadeByLindowLabs.openDrawer === "function") {
+        window.tinkerMadeByLindowLabs.openDrawer(window.tinkerMadeByLindowLabs.learningLabUrl);
+        return true;
+      }
+    } catch (e2) { /* ignore */ }
+    return false;
+  }
+
   function tabId(exerciseId, nodeId) {
     return "exfile:" + exerciseId + ":" + nodeId;
   }
@@ -62,6 +90,9 @@
       expand: $("repo-explorer-expand"),
       newFile: $("repo-ex-new-file"),
       newFolder: $("repo-ex-new-folder"),
+      gated: $("repo-explorer-gated"),
+      signin: $("repo-explorer-signin"),
+      signinBtn: $("repo-explorer-signin-btn"),
       tabs: $("repo-tabs"),
       code: $("repo-code"),
       codePath: $("repo-code-path"),
@@ -79,6 +110,57 @@
       confirmCancel: $("repo-ex-confirm-cancel"),
       confirmBackdrop: $("repo-ex-confirm-backdrop"),
     };
+  }
+
+  function applyAuthGate() {
+    var signedIn = isLearningSignedIn();
+    if (els.signin) els.signin.hidden = !!signedIn;
+    if (els.gated) els.gated.hidden = !signedIn;
+    if (!signedIn) {
+      // Never list or open exercise files while signed out.
+      state.openTabs = [];
+      state.activeTabId = null;
+      state.selected = { exerciseId: null, nodeId: null };
+      showWritingChrome(true);
+      destroyCm();
+      if (els.body) clear(els.body);
+      if (els.empty) els.empty.hidden = true;
+      if (els.tabs) {
+        clear(els.tabs);
+        els.tabs.hidden = true;
+      }
+      if (els.code) els.code.hidden = true;
+    }
+    return signedIn;
+  }
+
+  function setExplorerOpen(open) {
+    if (!els.layout) return;
+    if (open) {
+      els.layout.classList.remove("is-explorer-collapsed");
+      els.layout.classList.add("is-explorer-open");
+      if (els.expand) els.expand.hidden = true;
+    } else {
+      els.layout.classList.add("is-explorer-collapsed");
+      els.layout.classList.remove("is-explorer-open");
+      if (els.expand) els.expand.hidden = false;
+    }
+  }
+
+  function toggleExplorer() {
+    if (!isLearningSignedIn()) {
+      requestLearningSignIn();
+      setExplorerOpen(true);
+      applyAuthGate();
+      return;
+    }
+    // If currently collapsed, open; if open, collapse.
+    var currentlyOpen = els.layout
+      && !els.layout.classList.contains("is-explorer-collapsed")
+      && (isWideDesktop() || els.layout.classList.contains("is-explorer-open"));
+    setExplorerOpen(!currentlyOpen);
+    applyAuthGate();
+    render();
   }
 
   function api(method, action, body) {
@@ -174,22 +256,14 @@
   }
 
   function showWritingChrome(show) {
-    // Desktop bottom essays panel keeps the writing surface visible while code
-    // is open (VS Code-style). Mobile still toggles pad vs code exclusively.
-    var desktopPanel = isWideDesktop();
-    if (els.pad) els.pad.hidden = desktopPanel ? false : !show;
-    if (els.location) els.location.hidden = desktopPanel ? false : !show;
-    if (els.code) els.code.hidden = show;
-    if (els.layout) els.layout.classList.toggle("is-code-open", !show);
-    if (document.body) document.body.classList.toggle("repo-code-open", !show);
-    if (!show && els.essayView && !desktopPanel) els.essayView.hidden = true;
-    if (show && !desktopPanel && els.padActions) {
-      /* keep mobile behavior: actions managed by pad reveal */
-    }
-    if (!show && !desktopPanel && els.padActions) {
-      els.padActions.classList.remove("is-visible");
-      els.padActions.setAttribute("aria-hidden", "true");
-    }
+    // Desktop: writing stays visible; code opens above/beside it when a file
+    // is selected. Mobile: code is not editable (hidden); writing stays.
+    var desktop = isWideDesktop();
+    if (els.pad) els.pad.hidden = false;
+    if (els.location) els.location.hidden = false;
+    if (els.code) els.code.hidden = show || !desktop;
+    if (els.layout) els.layout.classList.toggle("is-code-open", desktop && !show);
+    if (document.body) document.body.classList.toggle("repo-code-open", desktop && !show);
     if (show) destroyCm();
     try {
       if (typeof window.dispatchEvent === "function") {
@@ -254,6 +328,17 @@
   }
 
   function openFile(exerciseId, nodeId) {
+    if (!isLearningSignedIn()) {
+      requestLearningSignIn();
+      applyAuthGate();
+      return;
+    }
+    // Mobile: exercise files are not editable; keep the writing surface.
+    if (!isWideDesktop()) {
+      state.selected = { exerciseId: exerciseId, nodeId: nodeId };
+      renderExplorer();
+      return;
+    }
     var node = findNode(exerciseId, nodeId);
     if (!node || node.type !== "file") return;
     var id = tabId(exerciseId, nodeId);
@@ -499,16 +584,36 @@
     });
   }
 
+  function startWriteAboutExercise(exerciseId) {
+    if (!isLearningSignedIn()) {
+      requestLearningSignIn();
+      return;
+    }
+    var ex = state.workspace.exercises[exerciseId];
+    var name = (ex && ex.name) || exerciseId;
+    try {
+      if (window.tinkerRepo && typeof window.tinkerRepo.startExerciseEssay === "function") {
+        window.tinkerRepo.startExerciseEssay({
+          exerciseId: exerciseId,
+          exerciseName: name,
+        });
+        return;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
   function renderExplorer() {
     if (!els.body) return;
     clear(els.body);
+    if (!applyAuthGate()) return;
+
     var order = state.workspace.exerciseOrder || [];
     if (els.empty) els.empty.hidden = order.length > 0;
     if (els.hint) {
       text(
         els.hint,
         state.localOnly
-          ? "Browsing seed trees. Sign in to save restructuring in Tinker."
+          ? "Browsing seed trees. Sign in to Tinker to save restructuring."
           : "Seeded from lindowlabs. Edits save in Tinker, not GitHub."
       );
     }
@@ -539,6 +644,10 @@
       text(name, ex.name || exerciseId);
       btn.appendChild(name);
       btn.addEventListener("click", function () {
+        if (!isLearningSignedIn()) {
+          requestLearningSignIn();
+          return;
+        }
         state.collapsed[rootKey] = !collapsed;
         state.selected = { exerciseId: exerciseId, nodeId: null };
         renderExplorer();
@@ -598,6 +707,17 @@
 
       els.body.appendChild(group);
       if (!collapsed) {
+        var writeAbout = document.createElement("button");
+        writeAbout.type = "button";
+        writeAbout.className = "repo-ex-write-about";
+        writeAbout.setAttribute("data-exercise-id", exerciseId);
+        text(writeAbout, "Write about this exercise");
+        writeAbout.addEventListener("click", function (event) {
+          if (event && event.stopPropagation) event.stopPropagation();
+          startWriteAboutExercise(exerciseId);
+        });
+        els.body.appendChild(writeAbout);
+
         var list = document.createElement("div");
         list.className = "repo-ex-tree";
         list.setAttribute("data-exercise-id", exerciseId);
@@ -614,9 +734,58 @@
   }
 
   function render() {
-    renderExplorer();
-    renderTabs();
-    renderCode();
+    applyAuthGate();
+    if (isLearningSignedIn()) {
+      renderExplorer();
+      renderTabs();
+      renderCode();
+    } else {
+      if (els.tabs) {
+        clear(els.tabs);
+        els.tabs.hidden = true;
+      }
+      if (els.code) els.code.hidden = true;
+    }
+  }
+
+  function applyEssayRevision(exerciseId, essayBody) {
+    if (!revision || typeof revision.applyEssayRevision !== "function") {
+      return Promise.reject(new Error("Exercise revision helper missing."));
+    }
+    if (!isLearningSignedIn()) {
+      return Promise.reject(new Error("Sign in to Learning to revise exercises."));
+    }
+    var result = revision.applyEssayRevision(state.workspace, {
+      core: core,
+      exerciseId: exerciseId,
+      essayBody: essayBody,
+    });
+    if (!result || !result.changed || !result.readmeNodeId) {
+      if (result && result.workspace) applyWorkspace(result.workspace);
+      render();
+      return Promise.resolve(result || { changed: false });
+    }
+    applyWorkspace(result.workspace);
+    var node = core.nodeById(
+      (state.workspace.exercises[exerciseId] || {}).nodes || [],
+      result.readmeNodeId
+    );
+    var content = node && node.content != null ? String(node.content) : "";
+    return persistMutation(
+      "write_file",
+      {
+        exerciseId: exerciseId,
+        nodeId: result.readmeNodeId,
+        content: content,
+      },
+      function () {
+        return { workspace: result.workspace, node: node };
+      }
+    ).then(function () {
+      state.status = "Exercise steps updated from your essay.";
+      render();
+      return result;
+    });
   }
 
   function selectedParentId() {
@@ -768,30 +937,72 @@
   function wire() {
     if (els.collapse) {
       els.collapse.addEventListener("click", function () {
-        if (els.layout) els.layout.classList.add("is-explorer-collapsed");
-        if (els.expand) els.expand.hidden = false;
+        setExplorerOpen(false);
       });
     }
     if (els.expand) {
       els.expand.addEventListener("click", function () {
-        if (els.layout) els.layout.classList.remove("is-explorer-collapsed");
-        els.expand.hidden = true;
+        if (!isLearningSignedIn()) {
+          requestLearningSignIn();
+        }
+        setExplorerOpen(true);
+        render();
       });
     }
-    if (els.newFile) els.newFile.addEventListener("click", function () { createNode("file"); });
-    if (els.newFolder) els.newFolder.addEventListener("click", function () { createNode("folder"); });
+    if (els.signinBtn) {
+      els.signinBtn.addEventListener("click", function (event) {
+        if (event && event.preventDefault) event.preventDefault();
+        requestLearningSignIn();
+      });
+    }
+    if (els.newFile) {
+      els.newFile.addEventListener("click", function () {
+        if (!isLearningSignedIn()) { requestLearningSignIn(); return; }
+        createNode("file");
+      });
+    }
+    if (els.newFolder) {
+      els.newFolder.addEventListener("click", function () {
+        if (!isLearningSignedIn()) { requestLearningSignIn(); return; }
+        createNode("folder");
+      });
+    }
     if (els.codeSave) els.codeSave.addEventListener("click", saveActiveFile);
     if (els.confirmDelete) els.confirmDelete.addEventListener("click", confirmDelete);
     if (els.confirmCancel) els.confirmCancel.addEventListener("click", closeConfirm);
     if (els.confirmBackdrop) els.confirmBackdrop.addEventListener("click", closeConfirm);
+    if (learningAuth && typeof learningAuth.onLearningAuthChange === "function") {
+      learningAuth.onLearningAuthChange(function (signedIn) {
+        if (signedIn) {
+          loadWorkspace().then(function () {
+            var first = (state.workspace.exerciseOrder || [])[0];
+            if (first) state.collapsed["ex:" + first] = false;
+            render();
+          });
+        } else {
+          render();
+        }
+      });
+    }
   }
 
   function init(opts) {
     opts = opts || {};
     state.onReleaseEditor = typeof opts.onReleaseEditor === "function" ? opts.onReleaseEditor : null;
     bindEls();
-    if (!els.body) return Promise.resolve();
+    if (!els.body && !els.signin) return Promise.resolve();
     wire();
+    applyAuthGate();
+    // Desktop starts with explorer visible (unless collapsed); mobile closed.
+    if (isWideDesktop()) {
+      setExplorerOpen(true);
+    } else {
+      setExplorerOpen(false);
+    }
+    if (!isLearningSignedIn()) {
+      render();
+      return Promise.resolve(state.workspace);
+    }
     return loadWorkspace().then(function () {
       // Expand first exercise with files by default.
       var first = (state.workspace.exerciseOrder || [])[0];
@@ -818,6 +1029,12 @@
     moveNode: moveNode,
     createNode: createNode,
     requestEditorMeasure: requestEditorMeasure,
+    toggleExplorer: toggleExplorer,
+    setExplorerOpen: setExplorerOpen,
+    applyEssayRevision: applyEssayRevision,
+    startWriteAboutExercise: startWriteAboutExercise,
+    isLearningSignedIn: isLearningSignedIn,
+    applyAuthGate: applyAuthGate,
     // test helpers
     _setWorkspace: function (ws) {
       applyWorkspace(ws);

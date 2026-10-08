@@ -160,6 +160,33 @@
     return MADE_BY_URL;
   }
 
+  function isLearningSignedIn() {
+    try {
+      var auth = window.tinkerLearningAuth;
+      if (auth && typeof auth.isLearningSignedIn === "function") {
+        return !!auth.isLearningSignedIn();
+      }
+    } catch (e) { /* ignore */ }
+    return false;
+  }
+
+  function toggleExercisesNav() {
+    try {
+      var ui = window.tinkerExerciseWorkspaceUi;
+      if (ui && typeof ui.toggleExplorer === "function") {
+        ui.toggleExplorer();
+        return true;
+      }
+    } catch (e) { /* ignore */ }
+    var layout = document.getElementById("repo-layout");
+    if (layout) {
+      layout.classList.toggle("is-explorer-collapsed");
+      layout.classList.toggle("is-explorer-open");
+      return true;
+    }
+    return false;
+  }
+
   function onClick(event) {
     var a = event.target && event.target.closest
       ? event.target.closest("[data-learning-lab], [data-made-by-lindow-labs]")
@@ -168,6 +195,12 @@
 
     if (a.hasAttribute("data-learning-lab")) {
       event.preventDefault();
+      // Beaker belongs with exercises nav: signed-in toggles the explorer;
+      // signed-out opens the Learning sign-in drawer (iframe + new-tab fallback).
+      if (a.hasAttribute("data-exercises-nav") && isLearningSignedIn()) {
+        toggleExercisesNav();
+        return;
+      }
       openDrawer(LEARNING_LAB_URL);
       return;
     }
@@ -197,5 +230,7 @@
     closeDrawer: closeDrawer,
     framingLooksBlocked: framingLooksBlocked,
     FRAME_FAIL_MS: FRAME_FAIL_MS,
+    isLearningSignedIn: isLearningSignedIn,
+    toggleExercisesNav: toggleExercisesNav,
   };
 })();

@@ -1,8 +1,8 @@
-/* Desktop IDE workspace contract for /repo write layout.
+/* Desktop / mobile parity for /repo write layout.
  *
- * Wide viewports get an exercise file explorer + tabs + essays rail.
- * Mobile (≤800px) keeps the prior single-column pad (no IDE chrome).
- * Electron loads the same production web UI, so /repo changes apply there.
+ * Shared structure: top bar (beaker + hamburger), writing surface,
+ * right essays sidebar. Exercises gated by Learning sign-in.
+ * Mobile hides editable code; desktop keeps CodeMirror editing.
  */
 "use strict";
 
@@ -22,21 +22,21 @@ const cmSrc = fs.readFileSync(
   "utf8",
 );
 
-test("desktop IDE shell markup is present on /repo write page", () => {
+test("shared shell markup: top bar, explorer gate, writing, right essays", () => {
   assert.match(html, /id="repo-explorer"/);
   assert.match(html, /id="repo-explorer-body"/);
-  assert.match(html, /id="repo-explorer-collapse"/);
-  assert.match(html, /id="repo-explorer-expand"/);
+  assert.match(html, /id="repo-explorer-signin"/);
+  assert.match(html, /id="repo-explorer-gated"/);
   assert.match(html, /id="repo-tabs"/);
   assert.match(html, /role="tablist"/);
   assert.match(html, /id="repo-code"/);
   assert.match(html, /id="repo-ide-center"/);
-  assert.match(html, /class="repo-right"/);
+  assert.match(html, /class="repo-right[^"]*repo-essays-sidebar|repo-essays-sidebar[^"]*repo-right/);
   assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /id="repo-ide-tabbar"/);
-  assert.match(html, /repo-ide-tabbar__labs/);
   assert.match(html, /data-learning-lab/);
-  assert.match(html, /aria-label="Open lab"/);
+  assert.match(html, /data-exercises-nav/);
+  assert.match(html, /aria-label="Open exercises"/);
   assert.doesNotMatch(html, />\s*Learning Lab\s*</);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /id="repo-panel"/);
@@ -46,20 +46,28 @@ test("desktop IDE shell markup is present on /repo write page", () => {
   assert.doesNotMatch(html, /\u2014|\u2013/);
   assert.match(html, /src="\/exercises\/manifest\.js/);
   assert.match(html, /exercise-workspace-ui\.js/);
+  assert.match(html, /learning-auth\.js/);
+  assert.match(html, /exercise-revision\.js/);
+  assert.match(ui, /Write about this exercise/);
+  assert.match(css, /\.repo-ex-write-about/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
 });
 
-test("desktop IDE CSS is gated; mobile hides IDE chrome", () => {
+test("layout CSS: explorer | center | essays rail; mobile hides code editing", () => {
   assert.match(css, /--repo-explorer-rail:\s*240px/);
+  assert.match(css, /--repo-essays-rail/);
   assert.match(
     css,
     /\.repo-layout--write\s*\{[^}]*var\(--repo-explorer-rail/s,
   );
   assert.match(
     css,
-    /\.repo-layout--write\s*\{[^}]*minmax\(\s*0,\s*1fr\)/s,
+    /\.repo-layout--write\s*\{[^}]*var\(--repo-essays-rail/s,
   );
-  assert.match(css, /--repo-panel-height:\s*35vh/);
+  assert.match(css, /\.repo-layout--write\.is-essays-open/);
+  assert.match(css, /\.repo-essays-sidebar/);
+  assert.match(css, /\.repo-top--labs\s*\{[^}]*display:\s*flex/s);
+  assert.match(css, /\.repo-top__past-essays\s*\{[^}]*display:\s*inline-flex/s);
   assert.match(css, /\.repo-panel\s*\{/);
   assert.match(css, /\.repo-tabs\s*\{/);
   assert.match(css, /\.repo-explorer\s*\{/);
@@ -68,7 +76,7 @@ test("desktop IDE CSS is gated; mobile hides IDE chrome", () => {
   assert.match(css, /box-shadow:\s*inset 0 -2px 0 var\(--color-accent-strong/);
   assert.match(
     css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-explorer[\s\S]*display:\s*none\s*!important/,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-code[\s\S]*display:\s*none\s*!important/,
   );
   assert.match(
     css,
@@ -76,26 +84,24 @@ test("desktop IDE CSS is gated; mobile hides IDE chrome", () => {
   );
   assert.match(
     css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-code[\s\S]*display:\s*none\s*!important/,
-  );
-  assert.match(
-    css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-ide-center\s*\{[^}]*display:\s*contents/,
-  );
-  assert.match(
-    css,
     /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*body\.repo-page--write\s+\.repo-right\s*\{[^}]*display:\s*none/s,
   );
+  assert.match(css, /\.repo-explorer-signin/);
 });
 
-test("desktop IDE JS boots exercise workspace UI", () => {
+test("desktop IDE JS boots exercise workspace UI + essays sidebar", () => {
   assert.match(page, /tinkerExerciseWorkspaceUi/);
   assert.match(page, /openEssayTab/);
+  assert.match(page, /setEssaysSidebar|setMobileEssayList/);
+  assert.match(page, /startExerciseEssay/);
   assert.match(ui, /openFile/);
   assert.match(ui, /moveNode|move_node/);
   assert.match(ui, /createNode|create_node/);
   assert.match(ui, /delete_node/);
   assert.match(ui, /draggable/);
+  assert.match(ui, /isLearningSignedIn/);
+  assert.match(ui, /applyAuthGate/);
+  assert.match(ui, /Write about this exercise/);
   assert.doesNotMatch(page, /renderPanelChrome/);
   assert.doesNotMatch(html, /No in-app runner/);
 });
@@ -107,12 +113,12 @@ test("Electron desktop app still loads the same production /repo web UI", () => 
   assert.doesNotMatch(mainJs, /loadFile\(/);
 });
 
-test("desktop bottom panel keeps writing chrome while code is open; mobile toggles", () => {
+test("writing chrome stays visible; mobile code stays hidden", () => {
   assert.match(css, /\.repo-location\[hidden\]\s*\{[^}]*display:\s*none\s*!important/s);
   assert.match(css, /\.repo-pad\[hidden\]\s*\{[^}]*display:\s*none\s*!important/s);
   assert.match(ui, /function showWritingChrome/);
-  assert.match(ui, /desktopPanel \? false : !show/);
   assert.match(ui, /isWideDesktop/);
+  assert.match(ui, /els\.pad\.hidden = false/);
 });
 
 test("exercise editor uses CodeMirror with a full-column invisible surface", () => {
@@ -141,10 +147,8 @@ test("open-file tabs stay fully visible above the write-safe fade", () => {
   assert.match(css, /\.repo-tabs\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(css, /body\.repo-code-open[\s\S]*\.repo-center\.repo-write-safe-top::before[\s\S]*display:\s*none\s*!important/);
   assert.match(css, /\.repo-tabs:not\(\[hidden\]\)[\s\S]*\.repo-center\.repo-write-safe-top::before[\s\S]*top:\s*var\(--repo-tabs-height/);
-  assert.match(css, /html\[data-tinker-desktop\][\s\S]*\.repo-layout--write[\s\S]*padding-top:\s*36px/);
-  assert.match(css, /html\[data-tinker-desktop\][\s\S]*\.repo-ide-tabbar[\s\S]*traffic-inset/);
+  assert.match(css, /html\[data-tinker-desktop\][\s\S]*\.repo-top--labs[\s\S]*traffic-inset/);
   assert.match(css, /\.repo-tabs__close\s*\{[^}]*flex-shrink:\s*0/s);
-  assert.match(css, /\.repo-ide-tabbar__labs\s*\{[^}]*border-left/s);
 });
 
 test("macOS Dock keeps the bundled icon mask (no runtime square override)", () => {
