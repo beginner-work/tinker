@@ -82,7 +82,7 @@ test("write page wires beaker labs drawer opener (not under writing)", () => {
     "write page labs link must use the learning dashboard URL",
   );
   assert.match(html, /data-learning-lab/);
-  assert.match(html, /aria-label="Open exercises"/);
+  assert.match(html, /aria-label="Exercises"/);
   assert.match(html, /data-exercises-nav/);
   assert.match(html, /made-by-lindow-labs\.js/);
   assert.match(html, /id="repo-past-essays"/);

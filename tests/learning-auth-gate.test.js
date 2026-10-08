@@ -18,10 +18,10 @@ const revSrc = fs.readFileSync(path.join(root, "src/renderer/lib/exercise-revisi
 const core = require("../src/renderer/lib/exercise-workspace-core.js");
 const revision = require("../src/renderer/lib/exercise-revision.js");
 
-test("sign-in gate markup: no exercise files until Learning signed in", () => {
+test("sign-in gate markup: no exercise files until signed in", () => {
   assert.match(html, /id="repo-explorer-signin"/);
   assert.match(html, /id="repo-explorer-gated"/);
-  assert.match(html, /Sign in to Lindow Labs Learning to open exercises/);
+  assert.match(html, /Sign in to Tinker or Lindow Labs Learning to open exercises/);
   assert.match(html, /id="repo-explorer-signin-btn"/);
   assert.match(ui, /function applyAuthGate/);
   assert.match(ui, /isLearningSignedIn/);
@@ -33,12 +33,12 @@ test("sign-in gate markup: no exercise files until Learning signed in", () => {
   assert.doesNotMatch(html, /\u2014|\u2013/);
 });
 
-test("isLearningSignedIn seam: cache + postMessage + session endpoint", () => {
-  assert.match(authSrc, /function isLearningSignedIn|isLearningSignedIn:/);
+test("isLearningSignedIn accepts Learning session OR Tinker JWT", () => {
+  assert.match(authSrc, /hasTinkerSession/);
+  assert.match(authSrc, /isLearningSessionSignedIn/);
+  assert.match(authSrc, /tinker_jwt/);
   assert.match(authSrc, /lindowlabs:session/);
   assert.match(authSrc, /\/api\/session/);
-  assert.match(authSrc, /credentials:\s*["']include["']/);
-  assert.match(authSrc, /tinker\.learning\.signedIn\.v1/);
   assert.doesNotMatch(authSrc, /beginner\.work/);
 
   const store = {};
@@ -60,13 +60,37 @@ test("isLearningSignedIn seam: cache + postMessage + session endpoint", () => {
   const api = sandbox.window.tinkerLearningAuth;
   assert.equal(typeof api.isLearningSignedIn, "function");
   api._reset();
+
+  // Signed out of both → locked out.
   assert.equal(api.isLearningSignedIn(), false);
-  api.setLearningSignedIn(true);
+  assert.equal(api.isLearningSessionSignedIn(), false);
+  assert.equal(api.hasTinkerSession(), false);
+
+  // Tinker session alone unlocks exercises.
+  store.tinker_jwt = "session-token";
+  assert.equal(api.hasTinkerSession(), true);
   assert.equal(api.isLearningSignedIn(), true);
+
+  // Clear Tinker; Learning seam alone also unlocks.
+  delete store.tinker_jwt;
+  api.setLearningSignedIn(true);
+  assert.equal(api.isLearningSessionSignedIn(), true);
+  assert.equal(api.isLearningSignedIn(), true);
+
+  // Both cleared → locked out again.
   api.setLearningSignedIn(false);
   assert.equal(api.isLearningSignedIn(), false);
   assert.equal(api.learningOrigin(), "https://lindowlabs.dev");
   assert.equal(api.sessionEndpoint(), "https://lindowlabs.dev/api/session");
+});
+
+test("signed-out gate clears explorer file names from the DOM", () => {
+  // Contract: when applyAuthGate sees signed-out, it clears #repo-explorer-body
+  // so no exercise file names remain visible.
+  assert.match(ui, /if \(els\.body\) clear\(els\.body\)/);
+  assert.match(ui, /els\.gated\) els\.gated\.hidden = !signedIn/);
+  assert.match(html, /id="repo-explorer-body"/);
+  assert.match(html, /id="repo-explorer-gated"/);
 });
 
 test("hamburger opens the right essays sidebar on desktop and mobile", () => {
@@ -76,7 +100,6 @@ test("hamburger opens the right essays sidebar on desktop and mobile", () => {
   assert.match(page, /setMobileEssayList\(!state\.mobileEssayList\)/);
   assert.match(page, /is-essays-open/);
   assert.match(page, /data-repo-essays-list/);
-  // No desktop early-return that ignored the hamburger.
   assert.doesNotMatch(
     page,
     /min-width:\s*801px\)\.matches\) return;\s*[\s\S]{0,80}setMobileEssayList/,
@@ -84,14 +107,34 @@ test("hamburger opens the right essays sidebar on desktop and mobile", () => {
   assert.match(css, /\.repo-top__past-essays\s*\{[^}]*display:\s*inline-flex/s);
   assert.match(css, /\.repo-layout--write\.is-essays-open/);
   assert.match(css, /body\.repo-page--write\[data-repo-essays-list="1"\]/);
-  // Hamburger lucide Menu paths.
   assert.match(html, /M4 5h16M4 12h16M4 19h16/);
+});
+
+test("beaker matches hamburger size and is labeled Exercises", () => {
+  assert.match(html, /aria-label="Exercises"/);
+  assert.match(html, /repo-top__labs-icon"[^>]*width="20"/);
+  assert.match(css, /\.repo-top__labs\s*\{[^}]*width:\s*44px/s);
+  assert.match(css, /\.repo-top__labs-icon\s*\{[^}]*width:\s*20px/s);
+  assert.match(css, /\.repo-top__past-essays\s*\{[^}]*width:\s*44px/s);
+});
+
+test("mobile hides code editor and Save button", () => {
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*#repo-code-save[\s\S]*display:\s*none\s*!important/,
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-code[\s\S]*display:\s*none\s*!important/,
+  );
+  assert.match(ui, /Mobile: exercise files are not editable|!isWideDesktop\(\)/);
+  assert.match(ui, /els\.codeSave\) els\.codeSave\.hidden = true/);
 });
 
 test("exercise revision from essay updates README steps, not practice files", () => {
   assert.match(revSrc, /applyEssayRevision/);
-  assert.match(revSrc, /extractStepsFromEssay/);
-  assert.match(ui, /applyEssayRevision/);
+  assert.match(revSrc, /Updated from your essay/);
+  assert.match(ui, /repo-ex-steps|Updated steps/);
   assert.match(page, /applyExerciseRevisionFromEssay|startExerciseEssay/);
 
   const ws = core.emptyWorkspace();
@@ -120,9 +163,9 @@ test("exercise revision from essay updates README steps, not practice files", ()
   const essay = [
     "Split the first step finer.",
     "",
-    "1. Read the fixture",
-    "2. Extract client_secret only",
-    "3. Return the mapped object",
+    "1. Read the fixture carefully",
+    "2. Split the first step finer",
+    "3. Merge the last two steps",
   ].join("\n");
 
   const result = revision.applyEssayRevision(ws, {
@@ -131,13 +174,16 @@ test("exercise revision from essay updates README steps, not practice files", ()
     essayBody: essay,
   });
   assert.equal(result.changed, true);
-  assert.ok(result.steps.includes("Read the fixture"));
-  assert.ok(result.steps.includes("Extract client_secret only"));
-  assert.ok(result.steps.includes("Return the mapped object"));
+  assert.ok(result.steps.includes("Read the fixture carefully"));
+  assert.ok(result.steps.includes("Split the first step finer"));
+  assert.ok(result.steps.includes("Merge the last two steps"));
   const readme = core.nodeById(result.workspace.exercises.demo.nodes, "readme_1");
   assert.match(readme.content, /## Start here/);
-  assert.match(readme.content, /Read the fixture/);
+  assert.match(readme.content, /Updated from your essay/);
+  assert.match(readme.content, /Read the fixture carefully/);
+  assert.match(readme.content, /Split the first step finer/);
   assert.doesNotMatch(readme.content, /Old step one/);
   const practice = core.nodeById(result.workspace.exercises.demo.nodes, "practice_1");
   assert.equal(practice.content, "// write solution\n");
+  assert.equal(revision.isPracticeFile(practice), true);
 });

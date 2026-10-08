@@ -1,10 +1,13 @@
-/* learning-auth.js — signed-in seam for Lindow Labs Learning.
+/* learning-auth.js — signed-in seam for Lindow Labs Learning + Tinker.
  *
- * Exercises in /repo require a Learning Lab session (lindowlabs.dev/learning).
- * Tinker cannot read cross-origin cookies directly. This module is the single
- * client check: isLearningSignedIn().
+ * Exercises in /repo open when EITHER:
+ *   - the Learning Lab session reports signed in, OR
+ *   - the user has a Tinker account session (tinker_jwt)
  *
- * Signal sources (first match wins as "known"):
+ * Signed out of both → only the sign-in prompt; no exercise file names
+ * or contents are listed or fetchable.
+ *
+ * Learning-specific signal sources:
  * 1. postMessage from the Learning origin:
  *    { type: "lindowlabs:session", signedIn: true|false }
  * 2. Optional GET {learningOrigin}/api/session (credentials: include) when
@@ -12,13 +15,14 @@
  *    { signedIn: true|false } or { authenticated: true|false }
  * 3. Cached localStorage flag written after (1) or (2)
  *
- * Backend (lindowlabs) must provide at least (1) or (2) for a reliable signal.
- * Until then the UI stays signed-out and shows the sign-in prompt.
+ * Backend (lindowlabs) must still provide (1) or (2) for a reliable
+ * Learning-only signal. Until then, a Tinker session alone unlocks exercises.
  */
 (function (root) {
   "use strict";
 
   var STORAGE_KEY = "tinker.learning.signedIn.v1";
+  var TINKER_TOKEN_KEY = "tinker_jwt";
   var SESSION_PATH = "/api/session";
   var MSG_TYPE = "lindowlabs:session";
 
@@ -60,6 +64,33 @@
     } catch (e) { /* ignore */ }
   }
 
+  function hasTinkerSession() {
+    try {
+      var t = root.localStorage && root.localStorage.getItem(TINKER_TOKEN_KEY);
+      return !!(t && String(t).trim());
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /** Learning-origin signal only (ignores Tinker JWT). */
+  function isLearningSessionSignedIn() {
+    if (lastKnown != null) return !!lastKnown;
+    var cached = readCache();
+    if (cached != null) {
+      lastKnown = cached;
+      return cached;
+    }
+    return false;
+  }
+
+  /**
+   * Gate for opening exercises: Learning session OR Tinker account session.
+   */
+  function isLearningSignedIn() {
+    return isLearningSessionSignedIn() || hasTinkerSession();
+  }
+
   function notify() {
     var value = isLearningSignedIn();
     for (var i = 0; i < listeners.length; i += 1) {
@@ -68,7 +99,11 @@
     try {
       if (typeof root.dispatchEvent === "function") {
         root.dispatchEvent(new CustomEvent("tinker-learning-auth", {
-          detail: { signedIn: value },
+          detail: {
+            signedIn: value,
+            learningSession: isLearningSessionSignedIn(),
+            tinkerSession: hasTinkerSession(),
+          },
         }));
       }
     } catch (e2) { /* ignore */ }
@@ -78,17 +113,7 @@
     lastKnown = !!signedIn;
     writeCache(lastKnown);
     notify();
-    return lastKnown;
-  }
-
-  function isLearningSignedIn() {
-    if (lastKnown != null) return !!lastKnown;
-    var cached = readCache();
-    if (cached != null) {
-      lastKnown = cached;
-      return cached;
-    }
-    return false;
+    return isLearningSignedIn();
   }
 
   function onLearningAuthChange(fn) {
@@ -140,7 +165,8 @@
           json.signedIn === true ||
           json.authenticated === true ||
           json.session === true;
-        return setLearningSignedIn(!!on);
+        setLearningSignedIn(!!on);
+        return isLearningSignedIn();
       }
       return isLearningSignedIn();
     }).catch(function () {
@@ -171,7 +197,6 @@
     if (typeof root.addEventListener === "function") {
       root.addEventListener("message", onWindowMessage, false);
     }
-    // Warm cache from storage; optionally probe when the page is ready.
     var cached = readCache();
     if (cached != null) lastKnown = cached;
     try {
@@ -191,11 +216,14 @@
 
   root.tinkerLearningAuth = {
     STORAGE_KEY: STORAGE_KEY,
+    TINKER_TOKEN_KEY: TINKER_TOKEN_KEY,
     MSG_TYPE: MSG_TYPE,
     SESSION_PATH: SESSION_PATH,
     learningLabUrl: learningLabUrl,
     learningOrigin: learningOrigin,
     sessionEndpoint: sessionEndpoint,
+    hasTinkerSession: hasTinkerSession,
+    isLearningSessionSignedIn: isLearningSessionSignedIn,
     isLearningSignedIn: isLearningSignedIn,
     setLearningSignedIn: setLearningSignedIn,
     onLearningAuthChange: onLearningAuthChange,
@@ -206,7 +234,10 @@
       lastKnown = null;
       probePromise = null;
       try {
-        if (root.localStorage) root.localStorage.removeItem(STORAGE_KEY);
+        if (root.localStorage) {
+          root.localStorage.removeItem(STORAGE_KEY);
+          root.localStorage.removeItem(TINKER_TOKEN_KEY);
+        }
       } catch (e) { /* ignore */ }
     },
   };

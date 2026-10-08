@@ -62,12 +62,19 @@
   }
 
   function formatStepsSection(steps) {
-    var lines = ["## Start here", ""];
+    var lines = ["## Start here", "", "> Updated from your essay.", ""];
     (steps || []).forEach(function (step, idx) {
       lines.push((idx + 1) + ". " + step);
     });
     lines.push("");
     return lines.join("\n");
+  }
+
+  function extractStepsFromReadme(content) {
+    var src = String(content == null ? "" : content);
+    var section = src.match(/##\s*Start here\s*\n([\s\S]*?)(?=\n##\s|\n#\s|$)/i);
+    var block = section ? section[1] : src;
+    return extractStepsFromEssay(block);
   }
 
   function reviseReadmeContent(existing, steps) {
@@ -88,7 +95,7 @@
     if (/\n1\.\s+/.test(src)) {
       var withList = src.replace(
         /\n1\.\s+[\s\S]*$/m,
-        "\n" + section.replace(/^## Start here\n\n/, "")
+        "\n" + section
       );
       if (withList !== src) return withList;
     }
@@ -181,6 +188,7 @@
 
   return {
     extractStepsFromEssay: extractStepsFromEssay,
+    extractStepsFromReadme: extractStepsFromReadme,
     findReadmeNode: findReadmeNode,
     reviseReadmeContent: reviseReadmeContent,
     formatStepsSection: formatStepsSection,

@@ -14,7 +14,7 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=40" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=48" />
+    <link rel="stylesheet" href="/repo/repo.css?v=49" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
     <!-- Shared top bar (desktop + mobile): beaker/exercises left, past-essays hamburger right. -->
@@ -23,16 +23,17 @@
          id="repo-labs-link"
          href="https://lindowlabs.dev/learning"
          target="_blank" rel="noopener noreferrer"
-         aria-label="Open exercises"
+         aria-label="Exercises"
+         title="Exercises"
          data-learning-lab
          data-exercises-nav>
-        <!-- Lucide FlaskConical / beaker; same 12px box + stroke weight as before. -->
-        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">
-          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+        <!-- Lucide FlaskConical / beaker; same 20px box + stroke weight as the hamburger. -->
+        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
                 d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
-          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
                 d="M8.5 2h7"/>
-          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
                 d="M7 16h10"/>
         </svg>
       </a>
@@ -56,12 +57,13 @@
         </div>
         <div class="repo-explorer-signin" id="repo-explorer-signin" hidden>
           <p class="repo-explorer-signin__copy" id="repo-explorer-signin-copy">
-            Sign in to Lindow Labs Learning to open exercises.
+            Sign in to Tinker or Lindow Labs Learning to open exercises.
           </p>
           <button type="button" class="repo-explorer-signin__btn" id="repo-explorer-signin-btn">
             Sign in
           </button>
         </div>
+        <div class="repo-ex-steps-banner" id="repo-ex-steps-banner" hidden role="status"></div>
         <div class="repo-explorer__gated" id="repo-explorer-gated">
           <div class="repo-explorer__toolbar" id="repo-explorer-toolbar">
             <button type="button" class="repo-explorer__tool" id="repo-ex-new-file" title="New file">New file</button>
@@ -225,17 +227,17 @@
     <script src="/lib/stories-md.js?v=40"></script>
     <script src="/lib/repo-folders-core.js?v=40"></script>
     <script src="/lib/repo-pad-reveal.js?v=40"></script>
-    <script src="/lib/repo-write-scroll.js?v=48"></script>
+    <script src="/lib/repo-write-scroll.js?v=49"></script>
     <script src="/lib/storage-path-core.js?v=40"></script>
     <script src="/lib/fs-access-folder.js?v=40"></script>
     <script src="/lib/storage-adapters.js?v=40"></script>
-    <script src="/lib/learning-auth.js?v=48"></script>
-    <script src="/lib/exercise-revision.js?v=48"></script>
+    <script src="/lib/learning-auth.js?v=49"></script>
+    <script src="/lib/exercise-revision.js?v=49"></script>
     <script src="/exercises/manifest.js?v=40"></script>
     <script src="/lib/exercise-workspace-core.js?v=40"></script>
-    <script src="/repo/exercise-workspace-ui.js?v=48"></script>
-    <script src="/made-by-lindow-labs.js?v=48"></script>
-    <script src="/repo/repo.js?v=48"></script>
+    <script src="/repo/exercise-workspace-ui.js?v=49"></script>
+    <script src="/made-by-lindow-labs.js?v=49"></script>
+    <script src="/repo/repo.js?v=49"></script>
     <script src="/repo/storage-section.js?v=40"></script>
   </body>
 </html>

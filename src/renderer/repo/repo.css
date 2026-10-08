@@ -151,28 +151,32 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
   display: none;
 }
 
-.repo-top--labs .repo-top__labs {
-  pointer-events: auto;
-  min-height: 44px;
-  min-width: 44px;
-  padding: 0 8px;
-}
-
+/* Beaker matches hamburger: 44px hit target, 20px icon, same weight. */
+.repo-top--labs .repo-top__labs,
 .repo-top__labs {
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
   gap: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
   color: var(--color-muted);
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  line-height: 1.2;
-  flex-shrink: 0;
-  padding: 2px 4px;
-  border-radius: 4px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   -webkit-app-region: no-drag;
   app-region: no-drag;
 }
@@ -180,25 +184,25 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
 .repo-top__labs-icon {
   display: block;
   flex: 0 0 auto;
-  width: 12px;
-  height: 12px;
-  opacity: 0.85;
+  width: 20px;
+  height: 20px;
+  opacity: 1;
 }
 
 .repo-top__labs:hover,
 .repo-top__labs:focus-visible {
   color: var(--color-foreground);
-}
-
-.repo-top__labs:hover .repo-top__labs-icon,
-.repo-top__labs:focus-visible .repo-top__labs-icon {
-  opacity: 1;
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
 }
 
 .repo-top__labs:focus-visible {
   outline: 2px solid var(--color-accent-strong, #4f46e5);
   outline-offset: 2px;
-  border-radius: 4px;
+}
+
+.repo-layout--write.is-explorer-open .repo-top__labs,
+.repo-layout--write:not(.is-explorer-collapsed) .repo-top__labs {
+  color: var(--color-accent-strong, #4f46e5);
 }
 
 .repo-top--auth .repo-top__back {
@@ -1868,6 +1872,59 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-right.repo-essays-sidebar
   color: var(--color-accent-strong, #4f46e5);
 }
 
+.repo-ex-steps {
+  margin: 0 8px 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-background) 92%, var(--color-accent, #a5b4fc) 8%);
+}
+
+.repo-ex-steps.is-updated {
+  border-color: var(--color-accent-strong, #4f46e5);
+  box-shadow: inset 3px 0 0 var(--color-accent-strong, #4f46e5);
+}
+
+.repo-ex-steps__label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.repo-ex-steps.is-updated .repo-ex-steps__label {
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+.repo-ex-steps__list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-foreground);
+}
+
+.repo-ex-steps__list li {
+  margin: 0 0 4px;
+}
+
+.repo-ex-steps-banner {
+  margin: 0 12px 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-accent, #a5b4fc);
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 16%, transparent);
+  color: var(--color-foreground);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.repo-ex-steps-banner[hidden] {
+  display: none !important;
+}
+
 @media (min-width: 801px) {
   .repo-code-host {
     flex: 1 1 auto;
@@ -3200,7 +3257,14 @@ body.repo-page--write .repo-center {
   .repo-code-host,
   #repo-editor-main,
   .repo-editor-empty,
-  .repo-explorer__expand {
+  .repo-explorer__expand,
+  .repo-code__save,
+  #repo-code-save,
+  .repo-ide-tabbar,
+  .repo-layout--write.is-code-open #repo-editor-main,
+  .repo-layout--write.is-code-open .repo-code-host,
+  body.repo-code-open #repo-editor-main,
+  body.repo-code-open .repo-code {
     display: none !important;
   }
 

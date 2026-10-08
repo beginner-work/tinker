@@ -36,7 +36,7 @@ test("shared shell markup: top bar, explorer gate, writing, right essays", () =>
   assert.match(html, /id="repo-ide-tabbar"/);
   assert.match(html, /data-learning-lab/);
   assert.match(html, /data-exercises-nav/);
-  assert.match(html, /aria-label="Open exercises"/);
+  assert.match(html, /aria-label="Exercises"/);
   assert.doesNotMatch(html, />\s*Learning Lab\s*</);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /id="repo-panel"/);
