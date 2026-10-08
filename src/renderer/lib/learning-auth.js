@@ -1,4 +1,4 @@
-/* learning-auth.js — signed-in seam for Lindow Labs Learning + Tinker.
+/* learning-auth.js - signed-in seam for Lindow Labs Learning + Tinker.
  *
  * Exercises in /repo open when EITHER:
  *   - the Learning Lab session reports signed in, OR
@@ -11,7 +11,7 @@
  * 1. postMessage from the Learning origin:
  *    { type: "lindowlabs:session", signedIn: true|false }
  * 2. Optional GET {learningOrigin}/api/session (credentials: include) when
- *    the Learning backend enables CORS — expected JSON:
+ *    the Learning backend enables CORS - expected JSON:
  *    { signedIn: true|false } or { authenticated: true|false }
  * 3. Cached localStorage flag written after (1) or (2)
  *

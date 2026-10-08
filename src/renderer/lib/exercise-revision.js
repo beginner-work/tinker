@@ -1,4 +1,4 @@
-/* exercise-revision.js — revise exercise README / step lists from an essay.
+/* exercise-revision.js - revise exercise README / step lists from an essay.
  *
  * When the owner finishes an essay tagged to an exercise ("This is everything"),
  * we rewrite the exercise's README "Start here" (or equivalent) step list to
