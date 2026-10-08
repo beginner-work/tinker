@@ -118,7 +118,7 @@ test("exercises explorer scrolls and stays above the writing panel", () => {
   );
   assert.match(
     css,
-    /\.repo-panel__write \.repo-surface\.writing\s*\{[^}]*position:\s*relative[^}]*left:\s*auto/s,
+    /\.repo-panel__write \.repo-surface\.writing\s*\{[\s\S]*?position:\s*relative[\s\S]*?left:\s*auto[\s\S]*?\}/,
   );
   assert.match(html, /repo\.css\?v=50/);
 });

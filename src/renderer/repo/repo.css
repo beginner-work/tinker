@@ -1689,8 +1689,8 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
 }
 
 .repo-panel__write .repo-surface.writing {
-  /* Beat global .writing { position:absolute; inset:0 } from styles.css so
-     the essay pad stays in the center grid column and cannot cover the rail. */
+  /* Beat global .writing absolute inset from styles.css so the essay pad
+     stays in the center grid column and cannot cover the rail. */
   position: relative;
   inset: auto;
   top: auto;
@@ -2604,7 +2604,7 @@ body.repo-page--write .repo-center {
 }
 
 .repo-surface.writing {
-  /* Override global .writing { position:absolute; inset:0 } (styles.css). */
+  /* Override global .writing absolute inset from styles.css. */
   position: relative;
   inset: auto;
   top: auto;

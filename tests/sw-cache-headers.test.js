@@ -63,7 +63,7 @@ test("long-cache asset rule excludes sw.js; sw.js no-cache is last", () => {
 test("service worker registers a versioned URL matching CACHE_VERSION", () => {
   const ver = sw.match(/CACHE_VERSION\s*=\s*["']tinker-shell-v(\d+)["']/);
   assert.ok(ver, "CACHE_VERSION missing");
-  assert.equal(ver[1], "72");
+  assert.equal(ver[1], "73");
   assert.match(offline, new RegExp(`register\\(\\s*SW_URL|register\\(\\s*["']/sw\\.js\\?v=${ver[1]}["']`));
   assert.match(offline, new RegExp(`/sw\\.js\\?v=${ver[1]}`));
   assert.match(offline, /skipWaiting|SKIP_WAITING/);
