@@ -361,8 +361,9 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 /* Location = floating island over the writing surface (globe + place field).
- * Shrink-wrapped and centered in the editor column (not the full page /
- * sidebar). Safe-area top clears the iPhone notch without an auth header. */
+ * Shrink-wrapped with auto margins. On phone it stays centered in the editor
+ * column; on desktop (≥801px) a clamped translate recenters it on the full
+ * viewport (see media query below). Safe-area top clears the iPhone notch. */
 .repo-location {
   position: sticky;
   top: calc(12px + env(safe-area-inset-top, 0px));
@@ -2588,10 +2589,34 @@ body.repo-page--write .repo-center {
 }
 
 @media (min-width: 801px) {
-  /* Desktop: give the centered location picker breathing room under the top edge. */
-  .repo-location {
+  /* Desktop: give the centered location picker breathing room under the top edge.
+   * Horizontally: the pill is margin-centered in the editor column, then nudged
+   * left by half the explorer rail so it sits on the viewport midline whether
+   * Exercises is open or collapsed. Clamp the nudge so the pill never crosses
+   * under an open sidebar at narrow desktop widths (fall back toward column
+   * center). Phone rules under max-width 800px are untouched. */
+  .repo-location,
+  .repo-panel__write .repo-location {
+    --repo-location-half: 140px;
+    --repo-location-gutter: 16px;
+    /* Ideal nudge = half the rail (column center → viewport center). */
+    --repo-location-ideal-shift: calc(var(--repo-explorer-rail, 0px) / 2);
+    /* Max leftward nudge before the pill's left edge hits the rail + gutter. */
+    --repo-location-max-shift: max(
+      0px,
+      calc(
+        (100vw - var(--repo-explorer-rail, 0px)) / 2
+        - var(--repo-location-half)
+        - var(--repo-location-gutter)
+      )
+    );
+    --repo-location-shift: min(
+      var(--repo-location-ideal-shift),
+      var(--repo-location-max-shift)
+    );
     top: calc(56px + env(safe-area-inset-top, 0px));
     margin-top: 44px;
+    transform: translateX(calc(-1 * var(--repo-location-shift)));
   }
 
   .repo-sheet {

@@ -848,7 +848,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=40"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=40"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=51"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=52"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
   assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
@@ -926,7 +926,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   // Files page still uses auth header; write page has none.
   assert.match(filesHtml, /repo-top--auth/);
   assert.match(html, /viewport-fit=cover/);
-  // Location picker centered in the editor column with safe-area top.
+  // Location picker: column-centered via margins; desktop nudges to viewport center.
   assert.match(css, /\.repo-location\s*\{[^}]*align-self:\s*center/s);
   assert.match(css, /\.repo-location\s*\{[^}]*margin-left:\s*auto/s);
   assert.match(css, /\.repo-location\s*\{[^}]*margin-right:\s*auto/s);
@@ -937,11 +937,19 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-location\s*\{[^}]*top:\s*calc\(\s*12px \+ env\(safe-area-inset-top/s);
   assert.match(
     css,
-    /@media\s*\(min-width:\s*801px\)[\s\S]*\.repo-location\s*\{[^}]*top:\s*calc\(\s*56px \+ env\(safe-area-inset-top/s,
+    /@media\s*\(min-width:\s*801px\)[\s\S]*\.repo-location[\s\S]*--repo-location-shift/s,
   );
   assert.match(
     css,
-    /@media\s*\(min-width:\s*801px\)[\s\S]*\.repo-location\s*\{[^}]*margin-top:\s*44px/s,
+    /@media\s*\(min-width:\s*801px\)[\s\S]*\.repo-location[\s\S]*transform:\s*translateX\(\s*calc\(\s*-1 \* var\(--repo-location-shift\)\s*\)\s*\)/s,
+  );
+  assert.match(
+    css,
+    /@media\s*\(min-width:\s*801px\)[\s\S]*\.repo-location[\s\S]*top:\s*calc\(\s*56px \+ env\(safe-area-inset-top/s,
+  );
+  assert.match(
+    css,
+    /@media\s*\(min-width:\s*801px\)[\s\S]*\.repo-location[\s\S]*margin-top:\s*44px/s,
   );
   assert.match(css, /\.repo-surface\.writing\s*\{[^}]*safe-area-inset-top/s);
   // Phones: clear breathing room under the notch (safe-area + ~40–56px).
@@ -991,6 +999,23 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /tinker-desktop-traffic-inset/);
 });
 
+/**
+ * Desktop (≥801px) location pill: margin-centered in the editor column, then
+ * nudged left by min(rail/2, max shift that keeps left edge ≥ rail + gutter).
+ * Matches --repo-location-shift in repo.css.
+ */
+function repoLocationViewportShift(viewportWidth, railPx, halfPillPx = 140, gutterPx = 16) {
+  const ideal = railPx / 2;
+  const maxShift = Math.max(0, (viewportWidth - railPx) / 2 - halfPillPx - gutterPx);
+  return Math.min(ideal, maxShift);
+}
+
+function repoLocationPillLeft(viewportWidth, railPx, halfPillPx = 140, gutterPx = 16) {
+  // Natural left when margin-centered in the editor column.
+  const naturalLeft = (viewportWidth + railPx) / 2 - halfPillPx;
+  return naturalLeft - repoLocationViewportShift(viewportWidth, railPx, halfPillPx, gutterPx);
+}
+
 /** Desktop foot floor: max(48px, 8vh). Used by UI-contract + screenshot gates. */
 function repoFootFloorPx(viewportHeight) {
   return Math.max(48, Math.round(0.08 * viewportHeight));
@@ -1019,6 +1044,24 @@ function repoFootSidebarGeometry(viewportWidth, viewportHeight, footWidthPx = 28
     floorPx: repoFootFloorPx(viewportHeight),
   };
 }
+
+test("UI-contract: desktop Where are you? centers on the viewport, clears sidebar", () => {
+  // 1280 with Exercises open (280): full half-rail nudge → viewport center.
+  assert.equal(repoLocationViewportShift(1280, 280), 140);
+  assert.equal(repoLocationPillLeft(1280, 280), 500); // center at 640
+  // Collapsed rail: no nudge; still viewport-centered in the full-width column.
+  assert.equal(repoLocationViewportShift(1280, 0), 0);
+  assert.equal(repoLocationPillLeft(1280, 0), 500);
+  // Narrow desktop + open rail: clamp so left edge stays at rail + gutter.
+  assert.equal(repoLocationViewportShift(801, 280), 104.5);
+  assert.equal(repoLocationPillLeft(801, 280), 296); // 280 + 16
+  assert.ok(repoLocationPillLeft(801, 280) >= 280 + 16);
+  // Shift vars live only in the desktop (≥801px) location rule.
+  assert.match(
+    css,
+    /@media\s*\(min-width:\s*801px\)[\s\S]*--repo-location-shift[\s\S]*transform:\s*translateX/,
+  );
+});
 
 test("UI-contract: desktop Keep crafting pill bottom offset is max(48px, 8vh)", () => {
   // Computed floor at the viewports Tyler reported (and Electron content area).
@@ -1272,10 +1315,12 @@ test("write page has no top-right account / Sign out / Download chrome", () => {
   assert.doesNotMatch(html, />Sign out</);
   assert.doesNotMatch(html, /repo-top--auth/);
   assert.doesNotMatch(page, /downloadOne|downloadAll|renderDownloads|triggerDownload/);
-  // Location stays centered in the editor column.
+  // Location stays margin-centered; desktop recenters on the viewport.
   assert.match(css, /\.repo-location\s*\{[^}]*align-self:\s*center/s);
   assert.match(css, /\.repo-location\s*\{[^}]*margin-left:\s*auto/s);
   assert.match(css, /\.repo-location\s*\{[^}]*margin-right:\s*auto/s);
+  assert.match(css, /--repo-location-shift/);
+  assert.match(css, /translateX\(\s*calc\(\s*-1 \* var\(--repo-location-shift\)\s*\)\s*\)/);
   assert.match(
     css,
     /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-layout--write[\s\S]*align-items:\s*stretch/,
