@@ -1,10 +1,12 @@
 /* GET/POST /api/exercise-workspace
  *
  * Per-owner exercise file trees seeded from tlindow/lindowlabs.
- * Mutations persist in TinkerUserData; GitHub is never written.
+ * Mutations persist in TinkerUserData; GitHub is never written (no commit
+ * path — desktop only clones/pulls for Open in IDE).
  *
  * GET  ?action=list|sync
- * POST ?action=create_node|rename_node|move_node|delete_node|write_file|reorder_exercises
+ * POST ?action=create_node|rename_node|move_node|delete_node|write_file|
+ *              reorder_exercises|revise_from_essay
  */
 
 "use strict";
@@ -139,6 +141,16 @@ async function dispatch(method, action, auth, body) {
       body: await store.reorderExercises({
         userId,
         order: body.order,
+      }),
+    };
+  }
+  if (method === "POST" && action === "revise_from_essay") {
+    return {
+      status: 200,
+      body: await store.reviseFromEssay({
+        userId,
+        exerciseId: body.exerciseId,
+        essayBody: body.essayBody != null ? body.essayBody : body.body,
       }),
     };
   }

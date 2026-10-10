@@ -163,11 +163,13 @@ test("API/store wiring persists via TinkerUserData and never mentions GitHub wri
   assert.match(storeSrc, /exercise_workspace/);
   assert.match(storeSrc, /mergeSeedIntoSaved/);
   assert.match(storeSrc, /tinkerUserData/);
+  assert.match(storeSrc, /reviseFromEssay/);
   assert.doesNotMatch(storeSrc, /git push|octokit|createOrUpdateFileContents/i);
   assert.match(apiSrc, /create_node/);
   assert.match(apiSrc, /move_node/);
   assert.match(apiSrc, /delete_node/);
   assert.match(apiSrc, /reorder_exercises/);
+  assert.match(apiSrc, /revise_from_essay/);
   assert.match(vercel, /\/api\/exercise-workspace/);
 });
 

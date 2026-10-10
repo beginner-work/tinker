@@ -75,9 +75,12 @@
     keepFinishedWriting: false,
     // Right essays sidebar (hamburger) on desktop + mobile.
     mobileEssayList: false,
-    // Essay tagged to an exercise (Write about this exercise).
+    // Essay tagged to an exercise (Write about this exercise / chip).
     exerciseEssayId: null,
     exerciseEssayName: "",
+    // Last essay body held for transform retry after This is everything.
+    exerciseEssayBody: "",
+    exerciseTransformStatus: "",
     // Read-view mount for saved essays (toggle always starts off per essay).
     essayReadMount: null,
     essayReadStoryId: null,
@@ -111,6 +114,11 @@
     padActions: document.getElementById("repo-pad-actions"),
     keepCrafting: document.getElementById("repo-keep-crafting"),
     thisIsEverything: document.getElementById("repo-this-is-everything"),
+    exerciseChip: document.getElementById("repo-exercise-chip"),
+    exerciseChipLabel: document.getElementById("repo-exercise-chip-label"),
+    exerciseChipSpinner: document.getElementById("repo-exercise-chip-spinner"),
+    exerciseChipRetry: document.getElementById("repo-exercise-chip-retry"),
+    exerciseChipClear: document.getElementById("repo-exercise-chip-clear"),
     locationBtn: document.getElementById("repo-location-btn"),
     locationPanel: document.getElementById("repo-location-panel"),
     locationInput: document.getElementById("repo-location-input"),
@@ -787,6 +795,55 @@
     setMobileEssayList(open);
   }
 
+  function clearExerciseAttachment() {
+    state.exerciseEssayId = null;
+    state.exerciseEssayName = "";
+    state.exerciseEssayBody = "";
+    state.exerciseTransformStatus = "";
+    if (state.draft) {
+      try { delete state.draft.exerciseId; } catch (e) { /* ignore */ }
+    }
+    renderExerciseChip();
+  }
+
+  function renderExerciseChip() {
+    if (!els.exerciseChip) return;
+    var id = state.exerciseEssayId
+      || (state.draft && state.draft.exerciseId)
+      || null;
+    if (!id) {
+      els.exerciseChip.hidden = true;
+      els.exerciseChip.classList.remove("is-pending", "is-error");
+      if (els.exerciseChipSpinner) els.exerciseChipSpinner.hidden = true;
+      if (els.exerciseChipRetry) els.exerciseChipRetry.hidden = true;
+      return;
+    }
+    var name = state.exerciseEssayName || id;
+    var status = state.exerciseTransformStatus || "";
+    try {
+      var ui = window.tinkerExerciseWorkspaceUi;
+      if (ui && typeof ui.transformStatus === "function") {
+        status = ui.transformStatus(id) || status;
+        state.exerciseTransformStatus = status;
+      }
+    } catch (e) { /* ignore */ }
+    els.exerciseChip.hidden = false;
+    els.exerciseChip.classList.toggle("is-pending", status === "pending");
+    els.exerciseChip.classList.toggle("is-error", status === "error");
+    if (els.exerciseChipLabel) {
+      text(
+        els.exerciseChipLabel,
+        status === "pending"
+          ? ("Updating " + name + "…")
+          : status === "error"
+            ? ("Could not update " + name)
+            : name
+      );
+    }
+    if (els.exerciseChipSpinner) els.exerciseChipSpinner.hidden = status !== "pending";
+    if (els.exerciseChipRetry) els.exerciseChipRetry.hidden = status !== "error";
+  }
+
   function startExerciseEssay(opts) {
     opts = opts || {};
     var exerciseId = String(opts.exerciseId || "").trim();
@@ -794,6 +851,8 @@
     setMobileEssayList(false);
     state.exerciseEssayId = exerciseId;
     state.exerciseEssayName = String(opts.exerciseName || exerciseId);
+    state.exerciseEssayBody = "";
+    state.exerciseTransformStatus = "";
     addNewFile();
     if (state.draft) {
       state.draft.exerciseId = exerciseId;
@@ -806,6 +865,7 @@
       state.draft.markdown = starter;
     }
     render();
+    renderExerciseChip();
     if (els.body) {
       try { els.body.focus(); } catch (e) { /* ignore */ }
     }
@@ -816,13 +876,45 @@
       || (state.draft && state.draft.exerciseId)
       || null;
     if (!exerciseId) return Promise.resolve(null);
+    state.exerciseEssayBody = String(body == null ? "" : body);
+    state.exerciseTransformStatus = "pending";
+    renderExerciseChip();
     var ui = window.tinkerExerciseWorkspaceUi;
-    if (!ui || typeof ui.applyEssayRevision !== "function") return Promise.resolve(null);
-    return ui.applyEssayRevision(exerciseId, body).then(function (result) {
-      state.exerciseEssayId = null;
-      state.exerciseEssayName = "";
+    if (!ui || typeof ui.applyEssayRevision !== "function") {
+      state.exerciseTransformStatus = "error";
+      renderExerciseChip();
+      return Promise.resolve(null);
+    }
+    return ui.applyEssayRevision(exerciseId, state.exerciseEssayBody).then(function (result) {
+      state.exerciseTransformStatus = "";
+      // Keep the chip label briefly with the exercise name, then clear attachment.
+      state.exerciseEssayBody = "";
+      renderExerciseChip();
+      clearExerciseAttachment();
       return result;
     }).catch(function () {
+      state.exerciseTransformStatus = "error";
+      renderExerciseChip();
+      return null;
+    });
+  }
+
+  function retryExerciseTransform() {
+    var ui = window.tinkerExerciseWorkspaceUi;
+    var exerciseId = state.exerciseEssayId;
+    if (!exerciseId || !ui) return Promise.resolve(null);
+    state.exerciseTransformStatus = "pending";
+    renderExerciseChip();
+    var run = typeof ui.retryTransform === "function"
+      ? ui.retryTransform(exerciseId)
+      : ui.applyEssayRevision(exerciseId, state.exerciseEssayBody);
+    return run.then(function (result) {
+      state.exerciseTransformStatus = "";
+      clearExerciseAttachment();
+      return result;
+    }).catch(function () {
+      state.exerciseTransformStatus = "error";
+      renderExerciseChip();
       return null;
     });
   }
@@ -1520,13 +1612,15 @@
   /**
    * After a successful This is everything:
    * open the right essays sidebar (desktop + mobile parity).
-   * If the essay was tagged to an exercise, revise that exercise's steps.
+   * If the essay was tagged to an exercise, send it + the essay to Claude
+   * to revise README / steps / starter stubs (spinner on chip + tree).
    */
   function finishWritingAfterSave() {
     var finishedBody = padBody();
     var pendingExerciseId = state.exerciseEssayId
       || (state.draft && state.draft.exerciseId)
       || null;
+    var pendingExerciseName = state.exerciseEssayName || pendingExerciseId || "";
     state.draft = null;
     state.selectedId = null;
     state.selectedFolderId = null;
@@ -1544,9 +1638,14 @@
     render();
     if (pendingExerciseId) {
       state.exerciseEssayId = pendingExerciseId;
+      state.exerciseEssayName = pendingExerciseName;
+      state.exerciseEssayBody = finishedBody;
       applyExerciseRevisionFromEssay(finishedBody).then(function () {
         render();
+        renderExerciseChip();
       });
+    } else {
+      renderExerciseChip();
     }
   }
 
@@ -3191,6 +3290,7 @@
       renderPlace();
       renderFollowup();
       renderSyncHint();
+      renderExerciseChip();
       if (isEssayReadMode() || (els.code && !els.code.hidden)) setPadActionsVisible(false);
       else setPadActionsVisible(state.padActionsVisible && !!padBody().trim());
     }
@@ -3441,6 +3541,31 @@
       sendHomeForAuth();
     });
   }
+  if (els.exerciseChipRetry) {
+    els.exerciseChipRetry.addEventListener("click", function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      if (event && event.stopPropagation) event.stopPropagation();
+      retryExerciseTransform();
+    });
+  }
+  if (els.exerciseChipClear) {
+    els.exerciseChipClear.addEventListener("click", function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      if (event && event.stopPropagation) event.stopPropagation();
+      clearExerciseAttachment();
+    });
+  }
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("tinker-exercise-transform", function (event) {
+      var detail = event && event.detail;
+      var map = detail && detail.transform;
+      var id = state.exerciseEssayId;
+      if (!id || !map) return;
+      var row = map[id];
+      state.exerciseTransformStatus = row && row.status ? row.status : "";
+      renderExerciseChip();
+    });
+  }
   if (els.locationBtn) {
     els.locationBtn.addEventListener("click", function (event) {
       event.stopPropagation();
@@ -3599,6 +3724,15 @@
     isMobileEssayListOpen: function () { return !!state.mobileEssayList; },
     setEssaysSidebar: setEssaysSidebar,
     startExerciseEssay: startExerciseEssay,
+    clearExerciseAttachment: clearExerciseAttachment,
+    retryExerciseTransform: retryExerciseTransform,
+    onExerciseTransform: function (map) {
+      var id = state.exerciseEssayId;
+      if (!id || !map) return;
+      var row = map[id];
+      state.exerciseTransformStatus = row && row.status ? row.status : "";
+      renderExerciseChip();
+    },
     getExerciseEssayId: function () { return state.exerciseEssayId; },
     getFollowupQuestion: function () { return state.followupQuestion || ""; },
     showPadError: showPadError,

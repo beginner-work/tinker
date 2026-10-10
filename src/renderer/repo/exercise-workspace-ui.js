@@ -1,7 +1,11 @@
 /* Exercise explorer for per-owner exercise file trees.
  *
  * Seeds from /lib/exercise-workspace-seed.json + manifest. Tinker owners
- * sync through /api/exercise-workspace. GitHub is never written.
+ * sync through /api/exercise-workspace. GitHub is never written (per-user
+ * TinkerUserData only; desktop clones/pulls lindowlabs for Open in IDE).
+ *
+ * Essay → Claude revise_from_essay updates README / steps / starter stubs.
+ * Transform status (pending / error) shows a spinner or retry on the tree.
  *
  * Lindow Labs Learning sign-in gates listing and reading exercise files.
  * Mobile keeps code read-only / hidden; desktop keeps editing.
@@ -31,6 +35,8 @@
     localOnly: true,
     // exerciseId → { steps, at } after an essay revision
     revised: {},
+    // exerciseId → { status: 'pending'|'error'|'done', essayBody, error }
+    transform: {},
   };
 
   var els = {};
@@ -706,6 +712,44 @@
     } catch (e) { /* ignore */ }
   }
 
+  function transformStatus(exerciseId) {
+    var row = state.transform[exerciseId];
+    return row && row.status ? row.status : "";
+  }
+
+  function emitTransform() {
+    try {
+      if (typeof window.dispatchEvent === "function") {
+        window.dispatchEvent(new CustomEvent("tinker-exercise-transform", {
+          detail: { transform: Object.assign({}, state.transform) },
+        }));
+      }
+    } catch (e) { /* ignore */ }
+    try {
+      if (window.tinkerRepo && typeof window.tinkerRepo.onExerciseTransform === "function") {
+        window.tinkerRepo.onExerciseTransform(state.transform);
+      }
+    } catch (e2) { /* ignore */ }
+  }
+
+  function setTransform(exerciseId, patch) {
+    var id = String(exerciseId || "").trim();
+    if (!id) return;
+    var prev = state.transform[id] || {};
+    if (!patch || patch.status === "done" || patch.status === "") {
+      delete state.transform[id];
+    } else {
+      state.transform[id] = Object.assign({}, prev, patch, { exerciseId: id });
+    }
+    emitTransform();
+  }
+
+  function retryTransform(exerciseId) {
+    var row = state.transform[exerciseId];
+    if (!row || !row.essayBody) return Promise.reject(new Error("Nothing to retry."));
+    return applyEssayRevision(exerciseId, row.essayBody);
+  }
+
   function renderExplorer() {
     if (!els.body) return;
     clear(els.body);
@@ -747,6 +791,15 @@
       name.className = "repo-explorer__name";
       text(name, ex.name || exerciseId);
       btn.appendChild(name);
+      var tStatus = transformStatus(exerciseId);
+      if (tStatus === "pending") {
+        var spin = document.createElement("span");
+        spin.className = "repo-ex-transform-spinner";
+        spin.setAttribute("aria-label", "Updating exercise");
+        spin.title = "Updating from essay…";
+        btn.appendChild(spin);
+        group.classList.add("is-transforming");
+      }
       btn.addEventListener("click", function () {
         if (!isLearningSignedIn()) {
           requestLearningSignIn();
@@ -757,6 +810,19 @@
         renderExplorer();
       });
       head.appendChild(btn);
+      if (tStatus === "error") {
+        var retryBtn = document.createElement("button");
+        retryBtn.type = "button";
+        retryBtn.className = "repo-ex-transform-retry";
+        retryBtn.title = "Retry exercise update";
+        text(retryBtn, "Retry");
+        retryBtn.addEventListener("click", function (event) {
+          if (event && event.stopPropagation) event.stopPropagation();
+          retryTransform(exerciseId).catch(function () { /* status */ });
+        });
+        head.appendChild(retryBtn);
+        group.classList.add("is-transform-error");
+      }
 
       if (index > 0) {
         var up = document.createElement("button");
@@ -857,59 +923,93 @@
     }
   }
 
+  function finishLocalRevision(exerciseId, result) {
+    if (result && result.workspace) applyWorkspace(result.workspace);
+    state.revised[exerciseId] = {
+      steps: ((result && result.steps) || []).slice(),
+      at: Date.now(),
+    };
+    state.collapsed["ex:" + exerciseId] = false;
+    setTransform(exerciseId, { status: "done" });
+    var n = ((result && result.steps) || []).length;
+    var filesN = ((result && result.filesUpdated) || []).length;
+    state.status = filesN
+      ? ("Exercise updated (" + filesN + " file" + (filesN === 1 ? "" : "s") + ").")
+      : ("Steps updated (" + n + ").");
+    if (n) {
+      setStepsBanner(
+        "Updated from your essay: " +
+          (result.steps || []).map(function (s, i) { return (i + 1) + ". " + s; }).join(" · ")
+      );
+    }
+    if (isWideDesktop() && result && result.readmeNodeId) {
+      openFile(exerciseId, result.readmeNodeId, { keepContent: true });
+    } else {
+      render();
+    }
+    return result || { changed: false };
+  }
+
   function applyEssayRevision(exerciseId, essayBody) {
-    if (!revision || typeof revision.applyEssayRevision !== "function") {
+    if (!revision) {
       return Promise.reject(new Error("Exercise revision helper missing."));
     }
     if (!isLearningSignedIn()) {
       return Promise.reject(new Error("Sign in to revise exercises."));
     }
-    var result = revision.applyEssayRevision(state.workspace, {
-      core: core,
-      exerciseId: exerciseId,
-      essayBody: essayBody,
-    });
-    if (!result || !result.changed || !result.readmeNodeId) {
-      if (result && result.workspace) applyWorkspace(result.workspace);
-      render();
-      return Promise.resolve(result || { changed: false });
+    var id = String(exerciseId || "").trim();
+    var body = String(essayBody == null ? "" : essayBody);
+    setTransform(id, { status: "pending", essayBody: body, error: "" });
+    renderExplorer();
+
+    // Signed-in + server: Claude revises README / steps / starter stubs.
+    if (!state.localOnly && token()) {
+      return api("POST", "revise_from_essay", {
+        exerciseId: id,
+        essayBody: body,
+      }).then(function (json) {
+        var result = {
+          workspace: json.workspace,
+          steps: json.steps || [],
+          filesUpdated: json.filesUpdated || [],
+          readmeNodeId: json.readmeNodeId || null,
+          changed: !!json.changed,
+        };
+        return finishLocalRevision(id, result);
+      }).catch(function (err) {
+        setTransform(id, {
+          status: "error",
+          essayBody: body,
+          error: (err && err.message) || "Could not update exercise.",
+        });
+        state.status = (err && err.message) || "Could not update exercise.";
+        renderExplorer();
+        throw err;
+      });
     }
-    applyWorkspace(result.workspace);
-    var node = core.nodeById(
-      (state.workspace.exercises[exerciseId] || {}).nodes || [],
-      result.readmeNodeId
-    );
-    var content = node && node.content != null ? String(node.content) : "";
-    state.revised[exerciseId] = {
-      steps: (result.steps || []).slice(),
-      at: Date.now(),
-    };
-    state.collapsed["ex:" + exerciseId] = false;
-    return persistMutation(
-      "write_file",
-      {
-        exerciseId: exerciseId,
-        nodeId: result.readmeNodeId,
-        content: content,
-      },
-      function () {
-        return { workspace: result.workspace, node: node };
-      }
-    ).then(function () {
-      var n = (result.steps || []).length;
-      state.status = "Steps updated (" + n + ").";
-      setStepsBanner(
-        "Steps updated from your essay: " +
-          (result.steps || []).map(function (s, i) { return (i + 1) + ". " + s; }).join(" · ")
-      );
-      // Show the revised README on desktop so the new steps are visible.
-      if (isWideDesktop() && result.readmeNodeId) {
-        openFile(exerciseId, result.readmeNodeId, { keepContent: true });
-      } else {
-        render();
-      }
-      return result;
-    });
+
+    // Offline / seed browse: local step rewrite only (no Claude).
+    if (typeof revision.applyEssayRevision !== "function") {
+      setTransform(id, { status: "error", essayBody: body, error: "Revision helper missing." });
+      renderExplorer();
+      return Promise.reject(new Error("Exercise revision helper missing."));
+    }
+    try {
+      var result = revision.applyEssayRevision(state.workspace, {
+        core: core,
+        exerciseId: id,
+        essayBody: body,
+      });
+      return Promise.resolve(finishLocalRevision(id, result));
+    } catch (err) {
+      setTransform(id, {
+        status: "error",
+        essayBody: body,
+        error: (err && err.message) || "Could not update exercise.",
+      });
+      renderExplorer();
+      return Promise.reject(err);
+    }
   }
 
   function selectedParentId() {
@@ -1158,6 +1258,9 @@
     toggleExplorer: toggleExplorer,
     setExplorerOpen: setExplorerOpen,
     applyEssayRevision: applyEssayRevision,
+    retryTransform: retryTransform,
+    transformStatus: transformStatus,
+    getTransform: function () { return Object.assign({}, state.transform); },
     startWriteAboutExercise: startWriteAboutExercise,
     isLearningSignedIn: isLearningSignedIn,
     applyAuthGate: applyAuthGate,

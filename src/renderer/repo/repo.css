@@ -1923,6 +1923,104 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-right.repo-essays-sidebar
   flex: 0 0 auto;
 }
 
+/* Attached exercise context chip in the essay terminal. */
+.repo-exercise-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 4px 8px 4px 10px;
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-background) 90%, var(--color-accent, #a5b4fc) 10%);
+  color: var(--color-foreground);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.repo-exercise-chip[hidden] {
+  display: none !important;
+}
+
+.repo-exercise-chip.is-pending {
+  border-color: var(--color-accent, #a5b4fc);
+}
+
+.repo-exercise-chip.is-error {
+  border-color: var(--color-danger, #b91c1c);
+}
+
+.repo-exercise-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.repo-exercise-chip__spinner,
+.repo-ex-transform-spinner {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  border: 1.5px solid color-mix(in srgb, var(--color-muted) 55%, transparent);
+  border-top-color: var(--color-accent-strong, #4f46e5);
+  border-radius: 50%;
+  animation: tinker-spin 0.8s linear infinite;
+}
+
+.repo-exercise-chip__spinner[hidden] {
+  display: none !important;
+}
+
+.repo-exercise-chip__retry,
+.repo-ex-transform-retry {
+  margin: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface, var(--color-background));
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.repo-exercise-chip__retry:hover,
+.repo-exercise-chip__retry:focus-visible,
+.repo-ex-transform-retry:hover,
+.repo-ex-transform-retry:focus-visible {
+  border-color: var(--color-accent-strong, #4f46e5);
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+.repo-exercise-chip__retry[hidden] {
+  display: none !important;
+}
+
+.repo-exercise-chip__clear {
+  margin: 0;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.repo-exercise-chip__clear:hover,
+.repo-exercise-chip__clear:focus-visible {
+  color: var(--color-foreground);
+}
+
+.repo-explorer__group.is-transforming .repo-explorer__name,
+.repo-explorer__group.is-transform-error .repo-explorer__name {
+  font-weight: 650;
+}
+
 .repo-ex-write-about {
   display: block;
   width: calc(100% - 16px);

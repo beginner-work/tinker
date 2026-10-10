@@ -2,6 +2,9 @@
  *
  * Seed/template comes from checked-in lindowlabs snapshots. Owner trees
  * persist here and are never overwritten by seed merge.
+ *
+ * Essay revisions also land here. Tinker has no GitHub commit/push path for
+ * tlindow/lindowlabs (desktop only clones/pulls for Open in IDE).
  */
 
 "use strict";
@@ -9,6 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 const core = require("../../src/renderer/lib/exercise-workspace-core.js");
+const revise = require("./exercise-revise.js");
 
 const KIND = "exercise_workspace";
 const UNAVAILABLE = "Exercise workspace is unavailable right now.";
@@ -181,6 +185,37 @@ async function reorderExercises(args) {
   }
 }
 
+async function reviseFromEssay(args) {
+  try {
+    const uid = requireUserId(args.userId);
+    const current = await getOrCreateMerged(uid);
+    const state = core.normalizeWorkspace(current.workspace);
+    const result = await revise.reviseExerciseWithClaude({
+      workspace: state,
+      exerciseId: args.exerciseId,
+      essayBody: args.essayBody,
+      core: core,
+      callAnthropic: args.callAnthropic,
+      model: args.model,
+      maxTokens: args.maxTokens,
+    });
+    const next = core.normalizeWorkspace(result.workspace);
+    const savedAt = await writeBlob(uid, next);
+    return {
+      workspace: core.presentWorkspace(next),
+      updatedAt: savedAt,
+      steps: result.steps || [],
+      filesUpdated: result.filesUpdated || [],
+      changed: !!result.changed,
+      readmeNodeId: result.readmeNodeId || null,
+      usage: result.usage || null,
+    };
+  } catch (err) {
+    if (err && err.status) throw err;
+    throw storeDown(err);
+  }
+}
+
 module.exports = {
   KIND,
   seedWorkspace,
@@ -192,6 +227,7 @@ module.exports = {
   deleteNode,
   writeFile,
   reorderExercises,
+  reviseFromEssay,
   // test hooks
   _resetCaches() {
     cachedSeed = null;
