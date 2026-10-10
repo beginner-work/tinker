@@ -163,11 +163,12 @@ test("mobile hides code editor and Save button", () => {
   assert.match(ui, /els\.codeSave\) els\.codeSave\.hidden = true/);
 });
 
-test("exercise revision from essay updates README steps, not practice files", () => {
+test("local essay revision updates README steps; Claude path can update starter stubs", () => {
   assert.match(revSrc, /applyEssayRevision/);
+  assert.match(revSrc, /applyClaudeRevision/);
   assert.match(revSrc, /Updated from your essay/);
-  assert.match(ui, /repo-ex-steps|Updated steps/);
-  assert.match(page, /applyExerciseRevisionFromEssay|startExerciseEssay/);
+  assert.match(ui, /revise_from_essay|repo-ex-transform-spinner/);
+  assert.match(page, /applyExerciseRevisionFromEssay|startExerciseEssay|repo-exercise-chip/);
 
   const ws = core.emptyWorkspace();
   ws.exerciseOrder = ["demo"];
@@ -200,6 +201,7 @@ test("exercise revision from essay updates README steps, not practice files", ()
     "3. Merge the last two steps",
   ].join("\n");
 
+  // Local fallback (no Claude): README steps only.
   const result = revision.applyEssayRevision(ws, {
     core: core,
     exerciseId: "demo",
@@ -218,4 +220,26 @@ test("exercise revision from essay updates README steps, not practice files", ()
   const practice = core.nodeById(result.workspace.exercises.demo.nodes, "practice_1");
   assert.equal(practice.content, "// write solution\n");
   assert.equal(revision.isPracticeFile(practice), true);
+
+  // Claude-shaped patches may rewrite starter stubs too.
+  const claude = revision.applyClaudeRevision(ws, {
+    core: core,
+    exerciseId: "demo",
+    essayBody: essay,
+    steps: ["Read the fixture carefully", "Implement the stub"],
+    files: [
+      {
+        path: "README.md",
+        content: "# Demo\n\n## Start here\n\n1. Read the fixture carefully\n2. Implement the stub\n",
+      },
+      {
+        path: "practice.js",
+        content: "// write solution\nfunction solve() { throw new Error(\"TODO\"); }\nmodule.exports = { solve };\n",
+      },
+    ],
+  });
+  assert.equal(claude.changed, true);
+  const starter = core.nodeById(claude.workspace.exercises.demo.nodes, "practice_1");
+  assert.match(starter.content, /TODO/);
+  assert.notEqual(starter.content, "// write solution\n");
 });

@@ -14,7 +14,7 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=40" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=51" />
+    <link rel="stylesheet" href="/repo/repo.css?v=52" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
     <!-- Shared top bar (desktop + mobile): beaker/exercises left, past-essays hamburger right. -->
@@ -119,6 +119,12 @@
                   <div class="repo-location__panel" id="repo-location-panel" hidden>
                     <ul class="repo-location__list" id="repo-location-list" role="listbox" tabindex="-1" aria-labelledby="repo-location-caption"></ul>
                   </div>
+                </div>
+                <div class="repo-exercise-chip" id="repo-exercise-chip" hidden>
+                  <span class="repo-exercise-chip__spinner" id="repo-exercise-chip-spinner" hidden aria-hidden="true"></span>
+                  <span class="repo-exercise-chip__label" id="repo-exercise-chip-label"></span>
+                  <button type="button" class="repo-exercise-chip__retry" id="repo-exercise-chip-retry" hidden>Retry</button>
+                  <button type="button" class="repo-exercise-chip__clear" id="repo-exercise-chip-clear" aria-label="Detach exercise">×</button>
                 </div>
                 <p class="repo-followup" id="repo-followup" hidden></p>
                 <div class="repo-essay-view" id="repo-essay-view" hidden aria-label="Essay"></div>
@@ -235,12 +241,12 @@
     <script src="/lib/fs-access-folder.js?v=40"></script>
     <script src="/lib/storage-adapters.js?v=40"></script>
     <script src="/lib/learning-auth.js?v=49"></script>
-    <script src="/lib/exercise-revision.js?v=49"></script>
+    <script src="/lib/exercise-revision.js?v=50"></script>
     <script src="/exercises/manifest.js?v=40"></script>
     <script src="/lib/exercise-workspace-core.js?v=40"></script>
-    <script src="/repo/exercise-workspace-ui.js?v=49"></script>
+    <script src="/repo/exercise-workspace-ui.js?v=50"></script>
     <script src="/made-by-lindow-labs.js?v=49"></script>
-    <script src="/repo/repo.js?v=49"></script>
+    <script src="/repo/repo.js?v=50"></script>
     <script src="/repo/storage-section.js?v=40"></script>
   </body>
 </html>

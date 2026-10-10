@@ -227,6 +227,11 @@ function bootRepoPage(options) {
     "repo-keep-crafting",
     "repo-keep-crafting-kbd",
     "repo-this-is-everything",
+    "repo-exercise-chip",
+    "repo-exercise-chip-label",
+    "repo-exercise-chip-spinner",
+    "repo-exercise-chip-retry",
+    "repo-exercise-chip-clear",
     "repo-file-path",
     "repo-file-type",
     "repo-file-place",
@@ -312,6 +317,22 @@ function bootRepoPage(options) {
   byId["repo-this-is-everything"].textContent = "This is everything";
   byId["repo-this-is-everything"].disabled = true;
   byId["repo-this-is-everything"].tabIndex = -1;
+  byId["repo-exercise-chip"].tagName = "DIV";
+  byId["repo-exercise-chip"].className = "repo-exercise-chip";
+  byId["repo-exercise-chip"].hidden = true;
+  byId["repo-exercise-chip-label"].tagName = "SPAN";
+  byId["repo-exercise-chip-spinner"].tagName = "SPAN";
+  byId["repo-exercise-chip-spinner"].hidden = true;
+  byId["repo-exercise-chip-retry"].tagName = "BUTTON";
+  byId["repo-exercise-chip-retry"].textContent = "Retry";
+  byId["repo-exercise-chip-retry"].hidden = true;
+  byId["repo-exercise-chip-clear"].tagName = "BUTTON";
+  byId["repo-exercise-chip-clear"].textContent = "×";
+  byId["repo-exercise-chip"].appendChild(byId["repo-exercise-chip-spinner"]);
+  byId["repo-exercise-chip"].appendChild(byId["repo-exercise-chip-label"]);
+  byId["repo-exercise-chip"].appendChild(byId["repo-exercise-chip-retry"]);
+  byId["repo-exercise-chip"].appendChild(byId["repo-exercise-chip-clear"]);
+  byId["repo-surface"].appendChild(byId["repo-exercise-chip"]);
   byId["repo-body"].scrollTop = 0;
   byId["repo-body"].selectionStart = 0;
   byId["repo-body"].selectionEnd = 0;
@@ -837,18 +858,18 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/lib\/storage-path-core\.js\?v=40"/);
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
   assert.match(html, /src="\/lib\/learning-auth\.js\?v=49"/);
-  assert.match(html, /src="\/lib\/exercise-revision\.js\?v=49"/);
+  assert.match(html, /src="\/lib\/exercise-revision\.js\?v=50"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
   assert.match(html, /src="\/made-by-lindow-labs\.js\?v=49"/);
   assert.match(html, /src="\/exercises\/manifest\.js\?v=40"/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
   assert.doesNotMatch(html, /src="\/lib\/exercises-pick\.js/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=49"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=50"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=40"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=40"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=51"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=52"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
   assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
