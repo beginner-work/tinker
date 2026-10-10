@@ -101,4 +101,12 @@ contextBridge.exposeInMainWorld("tinker", {
   pickExerciseLabPath: () => ipcRenderer.invoke("exercises:pickClonePath"),
   openExerciseModule: (moduleId, opts) =>
     ipcRenderer.invoke("exercises:openModule", moduleId, opts || {}),
+  // Fullscreen for the lock-in moment (hotspot → next exercise).
+  setFullScreen: (on) => ipcRenderer.invoke("app:setFullScreen", !!on),
+  // Hotspot Wi-Fi trigger settings (desktop only).
+  getHotspotSettings: () => ipcRenderer.invoke("hotspot:getSettings"),
+  setHotspotSettings: (patch) => ipcRenderer.invoke("hotspot:setSettings", patch),
+  snoozeHotspot: (ms) => ipcRenderer.invoke("hotspot:snooze", ms),
+  clearHotspotSnooze: () => ipcRenderer.invoke("hotspot:clearSnooze"),
+  getCurrentWifiSsid: () => ipcRenderer.invoke("hotspot:getCurrentSsid"),
 });

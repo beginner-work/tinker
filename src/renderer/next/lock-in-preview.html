@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Lock-in preview</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+  </head>
+  <body style="margin:0;min-height:100vh;background:#fffdf7">
+    <script src="/lib/lock-in.js"></script>
+    <script src="/lib/lock-in-ui.js"></script>
+    <script>
+      window.tinkerLockInUi.startLockIn({
+        name: "Stripe PaymentIntent (test mode)",
+        resumeLabel: "You left off at README.md",
+        seconds: 3,
+        lockIn: window.tinkerLockIn,
+        onComplete: function () {
+          document.body.insertAdjacentHTML(
+            "beforeend",
+            '<p style="padding:24px;font:15px Instrument Sans,sans-serif;color:#8a8478">Editor would open here with the progress line moving.</p>'
+          );
+        },
+        onLeave: function () {
+          document.body.insertAdjacentHTML(
+            "beforeend",
+            '<p style="padding:24px;font:15px Instrument Sans,sans-serif;color:#8a8478">Left early — deliberate click.</p>'
+          );
+        },
+      });
+    </script>
+  </body>
+</html>

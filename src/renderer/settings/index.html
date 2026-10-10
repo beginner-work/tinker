@@ -199,6 +199,7 @@
         <ul class="settings__nav">
           <li><a href="/metrics">Metrics</a></li>
           <li><a href="/exercises">Exercises</a></li>
+          <li><a href="/next">Next exercise</a></li>
           <li><a href="/leads">Leads</a></li>
           <li><a href="/career">Career</a></li>
           <li><a href="/autonomy">Autonomy</a></li>
@@ -229,6 +230,28 @@
           </span>
           <p class="settings__status" data-exercises-lab-status hidden></p>
         </label>
+      </section>
+
+      <section class="settings__section" id="settings-hotspot" aria-labelledby="settings-hotspot-heading" hidden>
+        <h2 class="settings__section-title" id="settings-hotspot-heading">Hotspot start</h2>
+        <p class="settings__hint">Desktop only. When you join this Wi-Fi network, Tinker opens your next unfinished exercise with a short lock-in moment. Fires once per connection during work hours (Tue–Thu 9am–8pm, Fri 9am–3pm America/Los_Angeles by default). Calendar-block awareness is a follow-up.</p>
+        <label class="settings__field">
+          <span class="settings__label">Start my next exercise when I join Wi-Fi</span>
+          <span class="settings__row">
+            <input type="text" class="settings__input" data-hotspot-ssid placeholder="iPhone hotspot name" autocomplete="off" spellcheck="false" maxlength="64" />
+          </span>
+          <p class="settings__hint" data-hotspot-current-ssid></p>
+        </label>
+        <label class="settings__field" style="flex-direction:row;align-items:center;gap:10px">
+          <input type="checkbox" data-hotspot-enabled />
+          <span class="settings__label" style="margin:0">Enable hotspot trigger</span>
+        </label>
+        <span class="settings__row">
+          <button type="button" class="settings__save" data-hotspot-save>Save</button>
+          <button type="button" class="settings__save" data-hotspot-snooze style="background:transparent;color:var(--color-foreground);border:1px solid var(--color-border)">Snooze 1 hour</button>
+        </span>
+        <p class="settings__status" data-hotspot-status hidden></p>
+        <p class="settings__hint" style="margin-top:12px">Or open <a href="/next">/next</a> anytime for the same unfinished exercise (add <code>?lockin=1</code> for the countdown).</p>
       </section>
 
       <section class="settings__section" id="settings-outreach" aria-labelledby="settings-outreach-heading">

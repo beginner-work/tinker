@@ -147,7 +147,8 @@ test("write pad no longer shows Grok Bot or Try in Cursor handoffs", () => {
   assert.doesNotMatch(repoHtml, /Try in Cursor/);
   assert.doesNotMatch(repoHtml, /id="repo-grok-handoff"/);
   assert.doesNotMatch(repoHtml, />Grok Bot</);
-  assert.doesNotMatch(repoHtml, /exercises-pick\.js/);
+  assert.match(repoHtml, /exercises-pick\.js/);
+  assert.match(repoHtml, /exercises-next\.js/);
   assert.doesNotMatch(repoHtml, /exercises-open\.js/);
   assert.doesNotMatch(repoJs, /attachExerciseRecommendation/);
   assert.doesNotMatch(repoJs, /showExerciseRecommendationCard/);

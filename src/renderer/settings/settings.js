@@ -214,6 +214,83 @@
     });
   }
 
+  function hotspotBridge() {
+    var tinker = window.tinker;
+    if (!tinker || typeof tinker.getHotspotSettings !== "function") return null;
+    return tinker;
+  }
+
+  function fillHotspot(settings) {
+    var ssidInput = document.querySelector("[data-hotspot-ssid]");
+    var enabled = document.querySelector("[data-hotspot-enabled]");
+    if (ssidInput) ssidInput.value = settings && settings.ssid ? String(settings.ssid) : "";
+    if (enabled) enabled.checked = !!(settings && settings.enabled);
+  }
+
+  function loadHotspot() {
+    var section = document.getElementById("settings-hotspot");
+    var bridge = hotspotBridge();
+    if (!section) return Promise.resolve();
+    if (!bridge) {
+      section.hidden = true;
+      return Promise.resolve();
+    }
+    section.hidden = false;
+    var currentHint = document.querySelector("[data-hotspot-current-ssid]");
+    var ssidPromise = typeof bridge.getCurrentWifiSsid === "function"
+      ? bridge.getCurrentWifiSsid().catch(function () { return ""; })
+      : Promise.resolve("");
+    return Promise.all([
+      bridge.getHotspotSettings(),
+      ssidPromise,
+    ]).then(function (pair) {
+      fillHotspot(pair[0] || {});
+      if (currentHint) {
+        currentHint.textContent = pair[1]
+          ? ("Currently on: " + pair[1])
+          : "Currently not on Wi-Fi (or SSID unavailable).";
+      }
+    }).catch(function () {
+      setStatus("[data-hotspot-status]", "Could not load hotspot settings.", true);
+    });
+  }
+
+  function saveHotspot() {
+    var bridge = hotspotBridge();
+    if (!bridge || typeof bridge.setHotspotSettings !== "function") {
+      setStatus("[data-hotspot-status]", "Hotspot settings need the desktop app.", true);
+      return;
+    }
+    var ssidInput = document.querySelector("[data-hotspot-ssid]");
+    var enabled = document.querySelector("[data-hotspot-enabled]");
+    var btn = document.querySelector("[data-hotspot-save]");
+    if (btn) btn.disabled = true;
+    setStatus("[data-hotspot-status]", "Saving…");
+    bridge.setHotspotSettings({
+      ssid: ssidInput ? String(ssidInput.value || "").trim() : "",
+      enabled: !!(enabled && enabled.checked),
+    }).then(function (settings) {
+      fillHotspot(settings || {});
+      setStatus("[data-hotspot-status]", "Saved.");
+    }).catch(function () {
+      setStatus("[data-hotspot-status]", "Could not save right now.", true);
+    }).finally(function () { if (btn) btn.disabled = false; });
+  }
+
+  function snoozeHotspot() {
+    var bridge = hotspotBridge();
+    if (!bridge || typeof bridge.snoozeHotspot !== "function") {
+      setStatus("[data-hotspot-status]", "Snooze needs the desktop app.", true);
+      return;
+    }
+    setStatus("[data-hotspot-status]", "Snoozing…");
+    bridge.snoozeHotspot(60 * 60 * 1000).then(function () {
+      setStatus("[data-hotspot-status]", "Snoozed for 1 hour.");
+    }).catch(function () {
+      setStatus("[data-hotspot-status]", "Could not snooze right now.", true);
+    });
+  }
+
   function boot() {
     var saveBtn = document.querySelector("[data-owner-profile-save]");
     if (saveBtn) saveBtn.addEventListener("click", save);
@@ -225,9 +302,14 @@
     var exPick = document.querySelector("[data-exercises-clone-pick]");
     if (exSave) exSave.addEventListener("click", saveExercisesLab);
     if (exPick) exPick.addEventListener("click", pickExercisesLabPath);
+    var hotspotSave = document.querySelector("[data-hotspot-save]");
+    var hotspotSnooze = document.querySelector("[data-hotspot-snooze]");
+    if (hotspotSave) hotspotSave.addEventListener("click", saveHotspot);
+    if (hotspotSnooze) hotspotSnooze.addEventListener("click", snoozeHotspot);
     load();
     loadWebhook();
     loadExercisesLab();
+    loadHotspot();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

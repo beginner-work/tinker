@@ -420,6 +420,54 @@
     return "";
   }
 
+  function rememberResume(exerciseId, nodeId) {
+    var nextApi = window.tinkerExercisesNext;
+    if (!nextApi || typeof nextApi.setResume !== "function") return;
+    var node = findNode(exerciseId, nodeId);
+    nextApi.setResume(exerciseId, {
+      nodeId: nodeId,
+      fileName: node ? String(node.name || "") : "",
+      updatedAt: new Date().toISOString(),
+    }, window.localStorage);
+  }
+
+  function firstFileNode(exerciseId) {
+    var ex = state.workspace.exercises[exerciseId];
+    if (!ex || !Array.isArray(ex.nodes)) return null;
+    var readme = null;
+    var first = null;
+    ex.nodes.forEach(function (node) {
+      if (!node || node.type !== "file") return;
+      if (!first) first = node;
+      if (String(node.name || "").toLowerCase() === "readme.md") readme = node;
+    });
+    return readme || first;
+  }
+
+  function openExercise(exerciseId, opts) {
+    var options = opts || {};
+    var id = String(exerciseId || "").trim();
+    if (!id || !state.workspace.exercises[id]) return false;
+    if (!isLearningSignedIn()) {
+      requestLearningSignIn();
+      return false;
+    }
+    setExplorerOpen(true);
+    var nodeId = options.nodeId == null ? "" : String(options.nodeId);
+    var node = nodeId ? findNode(id, nodeId) : null;
+    if (!node || node.type !== "file") {
+      var fallback = firstFileNode(id);
+      if (!fallback) {
+        state.selected = { exerciseId: id, nodeId: null };
+        render();
+        return true;
+      }
+      nodeId = fallback.id;
+    }
+    openFile(id, nodeId, { focus: options.focus !== false });
+    return true;
+  }
+
   function openFile(exerciseId, nodeId, opts) {
     opts = opts || {};
     if (!isLearningSignedIn()) {
@@ -461,6 +509,7 @@
     state.activeTabId = id;
     state.selected = { exerciseId: exerciseId, nodeId: nodeId };
     state.dirty = false;
+    rememberResume(exerciseId, nodeId);
     render();
     if (cmEditor && typeof cmEditor.focus === "function") {
       try { cmEditor.focus(); } catch (e) { /* ignore */ }
@@ -1252,6 +1301,7 @@
     getWorkspace: function () { return core.presentWorkspace(state.workspace); },
     getOpenTabs: function () { return state.openTabs.slice(); },
     openFile: openFile,
+    openExercise: openExercise,
     moveNode: moveNode,
     createNode: createNode,
     requestEditorMeasure: requestEditorMeasure,
