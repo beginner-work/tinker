@@ -18,6 +18,8 @@ const { useCustomPath } = require("./lib/custom-path.js");
 const { spawn } = require("child_process");
 const exercisesLab = require("./lib/exercises-lab.js");
 const exercisesManifest = require("../renderer/exercises/manifest.js");
+const hotspotTrigger = require("./lib/hotspot-trigger.js");
+const wifiSsid = require("./lib/wifi-ssid.js");
 
 // Production Tinker. The desktop shell is a hardened BrowserWindow around
 // this origin — web product changes ship without a new dmg; only shell
@@ -472,6 +474,7 @@ app.whenReady().then(() => {
   // made the active Dock tile look like a raw square.
   buildAppMenu();
   createWindow();
+  startHotspotWatcher();
 
   nativeTheme.on("updated", syncNativeChromeColor);
 
@@ -492,6 +495,12 @@ ipcMain.handle("app:platform", () => process.platform);
 ipcMain.handle("app:close", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
   if (win) win.close();
+});
+ipcMain.handle("app:setFullScreen", (event, on) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+  if (!win || win.isDestroyed()) return false;
+  win.setFullScreen(!!on);
+  return !!win.isFullScreen();
 });
 ipcMain.handle("app:openExternal", (_event, url) => {
   if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return false;
@@ -813,5 +822,123 @@ ipcMain.handle("exercises:openModule", async (_event, moduleId, opts) => {
       ok: false,
       error: (err && err.message) || "Could not open that module.",
     };
+  }
+});
+
+// ── Hotspot trigger: join configured Wi-Fi → /next?lockin=1 once ───────
+// Calendar-block awareness is a follow-up; work hours + snooze ship here.
+const HOTSPOT_SETTINGS_PATH = () =>
+  path.join(app.getPath("userData"), "hotspot-trigger.json");
+
+const HOTSPOT_POLL_MS = 15000;
+let hotspotTimer = null;
+let hotspotPollInFlight = false;
+
+function readHotspotSettings() {
+  let raw = {};
+  try {
+    raw = JSON.parse(fs.readFileSync(HOTSPOT_SETTINGS_PATH(), "utf8"));
+  } catch {
+    raw = {};
+  }
+  return hotspotTrigger.normalizeSettings(raw);
+}
+
+function writeHotspotSettings(next) {
+  const normalized = hotspotTrigger.normalizeSettings(next);
+  fs.writeFileSync(
+    HOTSPOT_SETTINGS_PATH(),
+    JSON.stringify({
+      enabled: normalized.enabled,
+      ssid: normalized.ssid,
+      timezone: normalized.timezone,
+      windows: normalized.windows,
+      snoozeUntil: normalized.snoozeUntil,
+      lastSeenSsid: normalized.lastSeenSsid,
+      firedForSsid: normalized.firedForSsid,
+    }, null, 2),
+    "utf8"
+  );
+  return normalized;
+}
+
+function focusMainWindow() {
+  const wins = BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed());
+  let win = wins[0];
+  if (!win) win = createWindow();
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+  return win;
+}
+
+function openNextExerciseLockIn() {
+  const win = focusMainWindow();
+  // Prefer production /next; when TINKER_DESKTOP_URL points at a preview
+  // host, strip to origin so /next resolves there.
+  let origin = APP_ORIGIN;
+  try {
+    origin = new URL(APP_URL).origin;
+  } catch {
+    origin = APP_ORIGIN;
+  }
+  win.loadURL(origin + "/next?lockin=1");
+}
+
+async function pollHotspotOnce() {
+  if (hotspotPollInFlight) return;
+  hotspotPollInFlight = true;
+  try {
+    const current = readHotspotSettings();
+    if (!current.enabled || !current.ssid) return;
+    const ssid = await wifiSsid.getCurrentSsid();
+    const result = hotspotTrigger.evaluateWifiSample(current, ssid, new Date());
+    writeHotspotSettings(result.settings);
+    if (result.fire) openNextExerciseLockIn();
+  } catch {
+    // Wi-Fi probe failures are quiet — try again next tick.
+  } finally {
+    hotspotPollInFlight = false;
+  }
+}
+
+function startHotspotWatcher() {
+  if (hotspotTimer) return;
+  // First sample after a short delay so window creation settles.
+  setTimeout(() => { pollHotspotOnce(); }, 2500);
+  hotspotTimer = setInterval(() => { pollHotspotOnce(); }, HOTSPOT_POLL_MS);
+  if (typeof hotspotTimer.unref === "function") hotspotTimer.unref();
+}
+
+ipcMain.handle("hotspot:getSettings", async () => {
+  return readHotspotSettings();
+});
+
+ipcMain.handle("hotspot:setSettings", async (_event, patch) => {
+  const current = readHotspotSettings();
+  const next = Object.assign({}, current, patch && typeof patch === "object" ? patch : {});
+  return writeHotspotSettings(next);
+});
+
+ipcMain.handle("hotspot:snooze", async (_event, ms) => {
+  const current = readHotspotSettings();
+  const duration = Number(ms);
+  const next = hotspotTrigger.snoozeForMs(
+    current,
+    Number.isFinite(duration) && duration > 0 ? duration : 60 * 60 * 1000,
+    new Date()
+  );
+  return writeHotspotSettings(next);
+});
+
+ipcMain.handle("hotspot:clearSnooze", async () => {
+  return writeHotspotSettings(hotspotTrigger.clearSnooze(readHotspotSettings()));
+});
+
+ipcMain.handle("hotspot:getCurrentSsid", async () => {
+  try {
+    return await wifiSsid.getCurrentSsid();
+  } catch {
+    return "";
   }
 });

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
+    <title>Next exercise</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <style>
+      html, body.next-page {
+        height: auto;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow: auto;
+        display: block;
+        background: var(--color-background, #fffdf7);
+      }
+      .next-page__status {
+        max-width: 28rem;
+        margin: 48px auto;
+        padding: 0 20px;
+        color: var(--color-muted);
+        font-size: 15px;
+      }
+    </style>
+  </head>
+  <body class="next-page">
+    <p class="next-page__status" id="next-status">Finding your next exercise…</p>
+    <script src="/exercises/manifest.js"></script>
+    <script src="/lib/exercises-pick.js"></script>
+    <script src="/lib/exercises-next.js"></script>
+    <script src="/next/next.js"></script>
+  </body>
+</html>

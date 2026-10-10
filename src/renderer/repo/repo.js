@@ -3761,11 +3761,86 @@
       },
     })
     : Promise.resolve();
+  function stripLockInQuery() {
+    try {
+      var url = new URL(window.location.href);
+      if (!url.searchParams.has("lockin") && !url.searchParams.has("from")) return;
+      url.searchParams.delete("lockin");
+      url.searchParams.delete("from");
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    } catch (e) { /* ignore */ }
+  }
+
+  function desktopFullscreen(on) {
+    var tinker = window.tinker;
+    if (tinker && typeof tinker.setFullScreen === "function") {
+      try { tinker.setFullScreen(!!on); } catch (e) { /* ignore */ }
+      return;
+    }
+    try {
+      if (on && document.documentElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen();
+      } else if (!on && document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    } catch (e2) { /* ignore */ }
+  }
+
+  function applyExerciseDeepLink() {
+    var exerciseId = String(readQueryParam("exercise") || "").trim();
+    if (!exerciseId) return;
+    var nodeId = String(readQueryParam("node") || "").trim();
+    var wantLockIn = readQueryParam("lockin") === "1";
+    var ui = window.tinkerExerciseWorkspaceUi;
+    var nextApi = window.tinkerExercisesNext;
+    var manifest = window.tinkerExercisesManifest;
+    var mod = null;
+    if (manifest && Array.isArray(manifest.modules)) {
+      manifest.modules.forEach(function (m) {
+        if (m && String(m.id) === exerciseId) mod = m;
+      });
+    }
+    var resume = nextApi && typeof nextApi.getResume === "function"
+      ? nextApi.getResume(exerciseId, window.localStorage)
+      : null;
+    var resumeLabel = resume && resume.fileName
+      ? ("You left off at " + resume.fileName)
+      : "Pick up where you left off";
+    var name = mod && mod.name ? String(mod.name) : exerciseId;
+
+    function openTarget() {
+      if (ui && typeof ui.openExercise === "function") {
+        ui.openExercise(exerciseId, { nodeId: nodeId || (resume && resume.nodeId) || "" });
+      }
+    }
+
+    if (wantLockIn && window.tinkerLockInUi && typeof window.tinkerLockInUi.startLockIn === "function") {
+      window.tinkerLockInUi.startLockIn({
+        name: name,
+        resumeLabel: resumeLabel,
+        lockIn: window.tinkerLockIn,
+        onEnterFullscreen: function () { desktopFullscreen(true); },
+        onExitFullscreen: function () { desktopFullscreen(false); },
+        onComplete: function () {
+          openTarget();
+          stripLockInQuery();
+        },
+        onLeave: function () {
+          stripLockInQuery();
+        },
+      });
+      return;
+    }
+    openTarget();
+  }
+
   window.tinkerRepo.ready = Promise.all([
     loadStories().then(function () {
       applyWriteQuery();
       restorePadDraftAfterAuth();
     }),
     exReady,
-  ]);
+  ]).then(function () {
+    applyExerciseDeepLink();
+  });
 })();

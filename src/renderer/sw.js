@@ -161,6 +161,7 @@ self.addEventListener("fetch", (event) => {
   if (sameOrigin && (url.pathname === "/feed" || url.pathname.startsWith("/feed/"))) return;
   if (sameOrigin && (url.pathname === "/metrics" || url.pathname.startsWith("/metrics/"))) return;
   if (sameOrigin && (url.pathname === "/exercises" || url.pathname.startsWith("/exercises/"))) return;
+  if (sameOrigin && (url.pathname === "/next" || url.pathname.startsWith("/next/"))) return;
   if (sameOrigin && (url.pathname === "/repo" || url.pathname.startsWith("/repo/"))) return;
   // Cross-origin (fonts, vercel.live preview comments): pass through.
   if (!sameOrigin) return;

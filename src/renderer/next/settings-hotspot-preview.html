@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hotspot settings preview</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <style>
+      body { margin: 0; background: #fffdf7; font-family: "Instrument Sans", system-ui, sans-serif; }
+      .settings { max-width: 28rem; margin: 0 auto; padding: 48px 20px 80px; }
+      .settings__title { margin: 0; font-family: Fraunces, Georgia, serif; font-size: 32px; font-weight: 650; letter-spacing: -0.02em; }
+      .settings__section-title { margin: 28px 0 12px; font-size: 13px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: #8a8478; }
+      .settings__hint { margin: 0 0 12px; font-size: 12px; color: #8a8478; line-height: 1.4; }
+      .settings__field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+      .settings__label { font-size: 13px; font-weight: 600; }
+      .settings__input { height: 40px; padding: 0 12px; border: 1px solid #e5e0d4; border-radius: 8px; background: transparent; font: inherit; font-size: 14px; }
+      .settings__row { display: flex; gap: 8px; align-items: center; }
+      .settings__save { height: 40px; padding: 0 14px; border: 0; border-radius: 8px; background: #2d2a26; color: #fffdf7; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main class="settings">
+      <h1 class="settings__title">Settings</h1>
+      <section aria-labelledby="settings-hotspot-heading">
+        <h2 class="settings__section-title" id="settings-hotspot-heading">Hotspot start</h2>
+        <p class="settings__hint">Desktop only. When you join this Wi-Fi network, Tinker opens your next unfinished exercise with a short lock-in moment. Fires once per connection during work hours (Tue–Thu 9am–8pm, Fri 9am–3pm America/Los_Angeles by default). Calendar-block awareness is a follow-up.</p>
+        <label class="settings__field">
+          <span class="settings__label">Start my next exercise when I join Wi-Fi</span>
+          <span class="settings__row">
+            <input type="text" class="settings__input" value="Tyler’s iPhone" readonly />
+          </span>
+          <p class="settings__hint">Currently on: Tyler’s iPhone</p>
+        </label>
+        <label class="settings__field" style="flex-direction:row;align-items:center;gap:10px">
+          <input type="checkbox" checked />
+          <span class="settings__label" style="margin:0">Enable hotspot trigger</span>
+        </label>
+        <span class="settings__row">
+          <button type="button" class="settings__save">Save</button>
+          <button type="button" class="settings__save" style="background:transparent;color:#2d2a26;border:1px solid #e5e0d4">Snooze 1 hour</button>
+        </span>
+      </section>
+    </main>
+  </body>
+</html>
