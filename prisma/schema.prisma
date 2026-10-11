@@ -366,3 +366,22 @@ model AnalyticsSurfaceEvent {
   @@index([surfaceId])
 }
 
+// Cookieless page views for lindowlabs.dev (Visitors page). Stores only
+// path, referrer hostname, two utm fields, a mapped source label, and an
+// ISO week — never IP, UA, cookies, or full referrer URLs.
+model SitePageView {
+  id          String   @id @default(cuid())
+  path        String
+  ref         String   @default("")
+  utmSource   String   @default("")
+  utmCampaign String   @default("")
+  source      String   @default("Direct")
+  week        String
+  createdAt   DateTime @default(now())
+
+  @@index([week])
+  @@index([path])
+  @@index([source])
+  @@index([createdAt])
+}
+
