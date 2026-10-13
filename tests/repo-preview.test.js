@@ -2553,7 +2553,7 @@ test("tap blank writing space focuses the editor at the end", async () => {
     mode: "write",
   });
   await env.flush();
-  env.byId["repo-body"].value = "I’m afraid to complete formation modules";
+  env.byId["repo-body"].value = "I’m afraid to complete these practice modules";
   env.byId["repo-body"].dispatch("input", {
     type: "input",
     target: env.byId["repo-body"],

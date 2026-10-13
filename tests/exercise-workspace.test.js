@@ -37,21 +37,23 @@ function seeded() {
   return core.buildSeedWorkspace(seed, manifest.modules);
 }
 
-test("seed builds stripe and api-design trees from lindowlabs snapshot", () => {
+test("seed builds api-design tree from lindowlabs snapshot", () => {
   const ws = seeded();
-  assert.ok(ws.exercises["stripe-payment-intent"]);
+  assert.deepEqual(Object.keys(ws.exercises).sort(), ["api-design"]);
   assert.ok(ws.exercises["api-design"]);
-  assert.ok(ws.exercises["formation-persistent-storage"]);
-  assert.ok(ws.exercises["stripe-payment-intent"].nodes.length > 0);
   assert.ok(ws.exercises["api-design"].nodes.length > 0);
-  // External-only Formation has an empty tree root.
-  assert.equal(ws.exercises["formation-persistent-storage"].nodes.length, 0);
-  assert.ok(ws.exerciseOrder.includes("stripe-payment-intent"));
+  assert.ok(ws.exerciseOrder.includes("api-design"));
+  assert.equal(ws.exercises["stripe-payment-intent"], undefined);
+  assert.equal(ws.exercises["formation-persistent-storage"], undefined);
+  const names = ws.exercises["api-design"].nodes.map((n) => n.name);
+  assert.ok(names.includes("README.md"));
+  assert.ok(names.includes("steps.json"));
+  assert.equal(names.includes("extras"), false);
 });
 
 test("create, rename, move, and delete nodes", () => {
   const ws = seeded();
-  const exId = "stripe-payment-intent";
+  const exId = "api-design";
   const created = core.createNode(ws, {
     exerciseId: exId,
     type: "folder",
