@@ -161,9 +161,146 @@ test("reorder_exercises changes order without touching trees", () => {
   assert.equal(JSON.stringify(ws.exercises["api-design"].nodes), snapshot);
 });
 
+test("pruneRetiredCurriculum drops Formation, stripe, deleted labs, and api-design extras", () => {
+  const ws = seeded();
+  const ownerReadme = ws.exercises["api-design"].nodes.find((n) => n.name === "README.md");
+  assert.ok(ownerReadme);
+  core.renameNode(ws, {
+    exerciseId: "api-design",
+    nodeId: ownerReadme.id,
+    name: "owner-readme.md",
+  });
+  const ownerNotes = core.createNode(ws, {
+    exerciseId: "api-design",
+    type: "file",
+    name: "my-notes.md",
+    parentId: null,
+    content: "keep me\n",
+  });
+
+  const extras = core.createNode(ws, {
+    exerciseId: "api-design",
+    type: "folder",
+    name: "extras",
+    parentId: null,
+  });
+  core.createNode(ws, {
+    exerciseId: "api-design",
+    type: "file",
+    name: "server.ts",
+    parentId: extras.node.id,
+    content: "// Fastify leftover\n",
+  });
+
+  ws.exercises["formation-persistent-storage"] = {
+    id: "formation-persistent-storage",
+    name: "Formation: Persistent Storage",
+    nodes: [],
+  };
+  ws.exercises["stripe-payment-intent"] = {
+    id: "stripe-payment-intent",
+    name: "Stripe PaymentIntent (test mode)",
+    nodes: [
+      { id: "file_spi", name: "README.md", type: "file", parentId: null, content: "# gone\n" },
+    ],
+  };
+  ws.exercises["bounded-contexts"] = {
+    id: "bounded-contexts",
+    name: "Bounded contexts",
+    nodes: [],
+  };
+  ws.exerciseOrder = [
+    "formation-persistent-storage",
+    "stripe-payment-intent",
+    "api-design",
+    "bounded-contexts",
+  ];
+
+  const beforeApiNodes = ws.exercises["api-design"].nodes.length;
+  const first = core.pruneRetiredCurriculum(ws, {
+    keepIds: ["api-design"],
+  });
+  assert.equal(first.changed, true);
+  assert.deepEqual(first.removedExerciseIds.sort(), [
+    "bounded-contexts",
+    "formation-persistent-storage",
+    "stripe-payment-intent",
+  ]);
+  assert.deepEqual(first.removedRootFolders, ["api-design/extras"]);
+  assert.deepEqual(Object.keys(first.workspace.exercises), ["api-design"]);
+  assert.deepEqual(first.workspace.exerciseOrder, ["api-design"]);
+
+  const kept = first.workspace.exercises["api-design"].nodes;
+  assert.ok(kept.some((n) => n.id === ownerReadme.id && n.name === "owner-readme.md"));
+  assert.ok(kept.some((n) => n.id === ownerNotes.node.id && n.content === "keep me\n"));
+  assert.equal(kept.some((n) => n.name === "extras"), false);
+  assert.equal(kept.some((n) => n.name === "server.ts"), false);
+  assert.ok(kept.length < beforeApiNodes);
+
+  const again = core.pruneRetiredCurriculum(first.workspace, {
+    keepIds: ["api-design"],
+  });
+  assert.equal(again.changed, false);
+  assert.deepEqual(again.removedExerciseIds, []);
+  assert.deepEqual(again.removedRootFolders, []);
+  assert.equal(
+    JSON.stringify(again.workspace.exercises["api-design"].nodes),
+    JSON.stringify(first.workspace.exercises["api-design"].nodes)
+  );
+});
+
+test("merge then prune matches list/sync cleanup for legacy sidebars", () => {
+  const legacy = {
+    exerciseOrder: ["formation-persistent-storage", "stripe-payment-intent", "api-design"],
+    exercises: {
+      "formation-persistent-storage": {
+        id: "formation-persistent-storage",
+        name: "Formation: Persistent Storage",
+        nodes: [],
+      },
+      "stripe-payment-intent": {
+        id: "stripe-payment-intent",
+        name: "Stripe PaymentIntent (test mode)",
+        nodes: [
+          { id: "spi_1", name: "README.md", type: "file", parentId: null, content: "x\n" },
+        ],
+      },
+      "api-design": {
+        id: "api-design",
+        name: "Old Fastify name",
+        nodes: [
+          { id: "readme_1", name: "README.md", type: "file", parentId: null, content: "# mine\n" },
+          { id: "dir_ex", name: "extras", type: "folder", parentId: null },
+          { id: "file_ex", name: "app.ts", type: "file", parentId: "dir_ex", content: "export {}\n" },
+        ],
+      },
+    },
+  };
+  const seedWs = seeded();
+  const merged = core.mergeSeedIntoSaved(legacy, seedWs);
+  assert.ok(merged.exercises["formation-persistent-storage"]);
+  const pruned = core.pruneRetiredCurriculum(merged, {
+    keepIds: seedWs.exerciseOrder.slice(),
+  });
+  assert.equal(pruned.changed, true);
+  assert.deepEqual(Object.keys(pruned.workspace.exercises), ["api-design"]);
+  assert.equal(pruned.workspace.exercises["api-design"].name, seedWs.exercises["api-design"].name);
+  assert.ok(
+    pruned.workspace.exercises["api-design"].nodes.some(
+      (n) => n.id === "readme_1" && n.content === "# mine\n"
+    )
+  );
+  assert.equal(
+    pruned.workspace.exercises["api-design"].nodes.some((n) => n.name === "extras"),
+    false
+  );
+});
+
 test("API/store wiring persists via TinkerUserData and never mentions GitHub write", () => {
   assert.match(storeSrc, /exercise_workspace/);
   assert.match(storeSrc, /mergeSeedIntoSaved/);
+  assert.match(storeSrc, /pruneRetiredCurriculum/);
+  assert.match(storeSrc, /keepIds/);
   assert.match(storeSrc, /tinkerUserData/);
   assert.match(storeSrc, /reviseFromEssay/);
   assert.doesNotMatch(storeSrc, /git push|octokit|createOrUpdateFileContents/i);
@@ -188,6 +325,7 @@ test("repo IDE explorer wires exercise trees and drops the Output panel", () => 
   assert.match(uiSrc, /move_node/);
   assert.match(uiSrc, /create_node/);
   assert.match(uiSrc, /delete_node/);
+  assert.match(uiSrc, /pruneRetiredCurriculum/);
   assert.match(uiSrc, /draggable/);
   assert.match(uiSrc, /Sign in to (save|Tinker|Learning)/);
   assert.doesNotMatch(uiSrc, /\u2014/);

@@ -3,6 +3,9 @@
  * Shared by the API store and the /repo explorer. Seed comes from
  * checked-in tlindow/lindowlabs snapshots. Saved owner trees are never
  * overwritten by seed/sync; new upstream exercises are appended.
+ * Retired curriculum (Formation, deleted lindowlabs labs, api-design
+ * extras/Fastify) is pruned on load; owner essays and other blobs are
+ * never touched here.
  */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
@@ -18,6 +21,29 @@
   var MAX_CONTENT_CHARS = 120000;
   var MAX_EXERCISES = 40;
   var NAME_RE = /^[^\\/:*?"<>|\0]+$/;
+
+  // Curriculum removed from Tinker / deleted upstream. Keep in sync with
+  // tests/exercises.test.js ban list. keepIds from current seed also drops
+  // anything else no longer in the catalog.
+  var RETIRED_EXERCISE_IDS = [
+    "formation-persistent-storage",
+    "bounded-contexts",
+    "card-payment-lifecycle",
+    "consensus-under-partition",
+    "idempotent-refund",
+    "merchant-portal-slos",
+    "nextjs-learning",
+    "proto-learning",
+    "realtime-deal-room",
+    "rest-api-trading",
+    "settlement-binary-search",
+    "stripe-payment-intent",
+  ];
+
+  // Root-level folders to strip from kept exercises (Fastify extras track).
+  var RETIRED_ROOT_FOLDERS_BY_EXERCISE = {
+    "api-design": ["extras"],
+  };
 
   function fail(status, message, extra) {
     var err = new Error(message);
@@ -197,6 +223,106 @@
     });
 
     return normalizeWorkspace(next);
+  }
+
+  function removeNodeSubtree(nodes, rootId) {
+    var remove = Object.create(null);
+    remove[String(rootId)] = true;
+    collectDescendantIds(nodes, rootId).forEach(function (id) {
+      remove[id] = true;
+    });
+    return nodes.filter(function (n) { return !remove[n.id]; });
+  }
+
+  /**
+   * Drop retired curriculum from a saved owner workspace.
+   * Idempotent. Does not touch essays or non-exercise blobs.
+   *
+   * @param {object} raw
+   * @param {object} [options]
+   * @param {string[]} [options.retiredIds]
+   * @param {string[]} [options.keepIds] when set, remove any exercise not listed
+   * @param {Object<string,string[]>} [options.retiredRootFolders]
+   * @returns {{ workspace: object, changed: boolean, removedExerciseIds: string[], removedRootFolders: string[] }}
+   */
+  function pruneRetiredCurriculum(raw, options) {
+    var opts = options || {};
+    var state = normalizeWorkspace(raw);
+    var retired = Object.create(null);
+    (Array.isArray(opts.retiredIds) ? opts.retiredIds : RETIRED_EXERCISE_IDS).forEach(function (id) {
+      retired[String(id)] = true;
+    });
+    var keep = null;
+    if (Array.isArray(opts.keepIds)) {
+      keep = Object.create(null);
+      opts.keepIds.forEach(function (id) { keep[String(id)] = true; });
+    }
+    var rootFolders = opts.retiredRootFolders || RETIRED_ROOT_FOLDERS_BY_EXERCISE;
+    var removedExerciseIds = [];
+    var removedRootFolders = [];
+    var nextOrder = [];
+    var nextExercises = {};
+
+    state.exerciseOrder.forEach(function (id) {
+      var ex = state.exercises[id];
+      if (!ex) return;
+      if (retired[id] || (keep && !keep[id])) {
+        removedExerciseIds.push(id);
+        return;
+      }
+      nextOrder.push(id);
+      nextExercises[id] = {
+        id: ex.id,
+        name: ex.name,
+        nodes: Array.isArray(ex.nodes) ? ex.nodes.map(presentNode) : [],
+      };
+    });
+
+    Object.keys(state.exercises).forEach(function (id) {
+      if (nextExercises[id] || removedExerciseIds.indexOf(id) !== -1) return;
+      if (retired[id] || (keep && !keep[id])) {
+        removedExerciseIds.push(id);
+        return;
+      }
+      nextOrder.push(id);
+      var ex = state.exercises[id];
+      nextExercises[id] = {
+        id: ex.id,
+        name: ex.name,
+        nodes: Array.isArray(ex.nodes) ? ex.nodes.map(presentNode) : [],
+      };
+    });
+
+    Object.keys(rootFolders || {}).forEach(function (exerciseId) {
+      var ex = nextExercises[exerciseId];
+      if (!ex) return;
+      var folderNames = rootFolders[exerciseId] || [];
+      folderNames.forEach(function (folderName) {
+        var want = String(folderName || "").toLowerCase();
+        if (!want) return;
+        var roots = childNodes(ex.nodes, null).filter(function (n) {
+          return n.type === "folder" && String(n.name).toLowerCase() === want;
+        });
+        roots.forEach(function (rootNode) {
+          ex.nodes = removeNodeSubtree(ex.nodes, rootNode.id);
+          removedRootFolders.push(exerciseId + "/" + rootNode.name);
+        });
+      });
+    });
+
+    var workspace = normalizeWorkspace({
+      exerciseOrder: nextOrder,
+      exercises: nextExercises,
+    });
+    var changed =
+      removedExerciseIds.length > 0 ||
+      removedRootFolders.length > 0;
+    return {
+      workspace: workspace,
+      changed: changed,
+      removedExerciseIds: removedExerciseIds,
+      removedRootFolders: removedRootFolders,
+    };
   }
 
   function getExercise(state, exerciseId) {
@@ -402,6 +528,8 @@
   return {
     MAX_NODES_PER_EXERCISE: MAX_NODES_PER_EXERCISE,
     MAX_CONTENT_CHARS: MAX_CONTENT_CHARS,
+    RETIRED_EXERCISE_IDS: RETIRED_EXERCISE_IDS.slice(),
+    RETIRED_ROOT_FOLDERS_BY_EXERCISE: RETIRED_ROOT_FOLDERS_BY_EXERCISE,
     fail: fail,
     emptyWorkspace: emptyWorkspace,
     presentWorkspace: presentWorkspace,
@@ -409,6 +537,7 @@
     nodesFromSeedPaths: nodesFromSeedPaths,
     buildSeedWorkspace: buildSeedWorkspace,
     mergeSeedIntoSaved: mergeSeedIntoSaved,
+    pruneRetiredCurriculum: pruneRetiredCurriculum,
     createNode: createNode,
     renameNode: renameNode,
     moveNode: moveNode,

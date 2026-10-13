@@ -1,7 +1,9 @@
 /* Per-owner exercise workspace blob (TinkerUserData kind "exercise_workspace").
  *
  * Seed/template comes from checked-in lindowlabs snapshots. Owner trees
- * persist here and are never overwritten by seed merge.
+ * persist here and are never overwritten by seed merge. On list/sync we
+ * prune retired curriculum (Formation, deleted labs, api-design extras)
+ * from the saved blob; essays and other TinkerUserData kinds are untouched.
  *
  * Essay revisions also land here. Tinker has no GitHub commit/push path for
  * tlindow/lindowlabs (desktop only clones/pulls for Open in IDE).
@@ -77,6 +79,25 @@ async function writeBlob(userId, state) {
   return saved.updatedAt;
 }
 
+function workspaceFingerprint(state) {
+  const normalized = core.normalizeWorkspace(state);
+  const ids = Object.keys(normalized.exercises).sort();
+  const parts = [
+    normalized.exerciseOrder.join(","),
+    ids.join(","),
+  ];
+  ids.forEach((id) => {
+    const ex = normalized.exercises[id];
+    parts.push(id + "=" + String(ex.name || ""));
+    const nodeSig = (ex.nodes || [])
+      .map((n) => [n.id, n.name, n.type, n.parentId || ""].join(":"))
+      .sort()
+      .join("|");
+    parts.push(nodeSig);
+  });
+  return parts.join("\n");
+}
+
 async function getOrCreateMerged(userId) {
   const { state, updatedAt } = await readBlob(userId);
   const seed = seedWorkspace();
@@ -86,28 +107,31 @@ async function getOrCreateMerged(userId) {
     return { workspace: core.presentWorkspace(created), updatedAt: savedAt, seeded: true };
   }
   const merged = core.mergeSeedIntoSaved(state, seed);
-  // Persist merge only when new exercises were added.
-  const beforeIds = Object.keys(state.exercises).sort().join(",");
-  const afterIds = Object.keys(merged.exercises).sort().join(",");
-  if (beforeIds !== afterIds || state.exerciseOrder.join(",") !== merged.exerciseOrder.join(",")) {
-    // Only persist if structure keys changed (new exercises). Name-only
-    // refreshes also persist so labels stay current.
-    const savedAt = await writeBlob(userId, merged);
-    return { workspace: core.presentWorkspace(merged), updatedAt: savedAt, seeded: false };
-  }
-  // Name refresh in memory without forcing write when order+ids identical
-  // but names differ — still write if names changed.
-  let namesChanged = false;
-  Object.keys(merged.exercises).forEach((id) => {
-    if ((state.exercises[id] && state.exercises[id].name) !== merged.exercises[id].name) {
-      namesChanged = true;
-    }
+  const pruned = core.pruneRetiredCurriculum(merged, {
+    keepIds: seed.exerciseOrder.slice(),
   });
-  if (namesChanged) {
-    const savedAt = await writeBlob(userId, merged);
-    return { workspace: core.presentWorkspace(merged), updatedAt: savedAt, seeded: false };
+  const next = pruned.workspace;
+  // Persist when seed merge, name refresh, or retired-curriculum prune changed
+  // the saved blob. Idempotent: a second list with a clean blob is a no-op write.
+  if (workspaceFingerprint(state) !== workspaceFingerprint(next)) {
+    const savedAt = await writeBlob(userId, next);
+    return {
+      workspace: core.presentWorkspace(next),
+      updatedAt: savedAt,
+      seeded: false,
+      pruned: !!pruned.changed,
+      removedExerciseIds: pruned.removedExerciseIds,
+      removedRootFolders: pruned.removedRootFolders,
+    };
   }
-  return { workspace: core.presentWorkspace(merged), updatedAt, seeded: false };
+  return {
+    workspace: core.presentWorkspace(next),
+    updatedAt,
+    seeded: false,
+    pruned: false,
+    removedExerciseIds: [],
+    removedRootFolders: [],
+  };
 }
 
 async function mutate(userId, mutator) {

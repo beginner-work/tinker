@@ -228,7 +228,29 @@
   }
 
   function applyWorkspace(ws) {
-    state.workspace = core.normalizeWorkspace(ws);
+    var keepIds = null;
+    if (manifest && Array.isArray(manifest.modules)) {
+      keepIds = manifest.modules.map(function (m) { return m && m.id; }).filter(Boolean);
+    }
+    var pruned = core.pruneRetiredCurriculum(ws, keepIds ? { keepIds: keepIds } : {});
+    state.workspace = pruned.workspace;
+    if (
+      state.selected &&
+      state.selected.exerciseId &&
+      !state.workspace.exercises[state.selected.exerciseId]
+    ) {
+      state.selected = { exerciseId: null, nodeId: null };
+    } else if (
+      state.selected &&
+      state.selected.exerciseId &&
+      state.selected.nodeId &&
+      !core.nodeById(
+        state.workspace.exercises[state.selected.exerciseId].nodes,
+        state.selected.nodeId
+      )
+    ) {
+      state.selected = { exerciseId: state.selected.exerciseId, nodeId: null };
+    }
   }
 
   function loadSeedLocal() {
