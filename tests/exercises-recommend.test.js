@@ -53,28 +53,32 @@ test("pickExercise matches manifest tags in the session text", () => {
   const storage = memoryStorage();
   const picked = pick.pickExercise({
     modules: manifest.modules,
-    title: "Notes on Stripe PaymentIntent fixtures",
-    body: "I want to practice payments without a live key.",
+    title: "Notes on OpenAPI payments contracts",
+    body: "I want to practice merchant order refund YAML.",
     place: "Home",
     storage,
     advanceRotate: false,
   });
-  assert.equal(picked.id, "stripe-payment-intent");
+  assert.equal(picked.id, "api-design");
 });
 
 test("pickExercise rotates through unopened modules when tags miss", () => {
   const storage = memoryStorage();
+  const modules = [
+    { id: "a", name: "A", tags: ["alpha"], description: "a" },
+    { id: "b", name: "B", tags: ["beta"], description: "b" },
+  ];
   const first = pick.pickExercise({
-    modules: manifest.modules,
-    title: "Quiet morning",
+    modules,
+    title: "Morning notes",
     body: "Nothing technical here.",
     storage,
   });
   assert.ok(first && first.id);
   pick.markOpened(first.id, storage);
   const second = pick.pickExercise({
-    modules: manifest.modules,
-    title: "Another quiet note",
+    modules,
+    title: "Another note",
     body: "Still no tags.",
     storage,
   });
@@ -87,7 +91,7 @@ test("ensureRecommendation stores once on the essay and skips re-pick", () => {
   const essay = {
     id: "e_1",
     title: "Refund notes",
-    body: "merchant refund routes using ddd ubiquitous language in Fastify",
+    body: "merchant order refund openapi yaml payments contract",
   };
   const first = pick.ensureRecommendation(essay, {
     modules: manifest.modules,
@@ -100,8 +104,8 @@ test("ensureRecommendation stores once on the essay and skips re-pick", () => {
   assert.equal(essay.exerciseRecommendation.dismissed, false);
   const again = pick.ensureRecommendation(essay, {
     modules: manifest.modules,
-    title: "stripe now",
-    body: "paymentintent fixture",
+    title: "other topic",
+    body: "unrelated wording",
     storage,
   });
   assert.equal(again.moduleId, "api-design");
@@ -109,16 +113,6 @@ test("ensureRecommendation stores once on the essay and skips re-pick", () => {
 
 test("openInCursor falls back to GitHub off desktop and prefers Cursor on desktop", async () => {
   const open = loadOpen();
-  const opened = [];
-  const web = await open.openInCursor("stripe-payment-intent", {
-    openExternal(url) { opened.push(url); },
-  });
-  assert.equal(web.via, "github");
-  assert.match(
-    opened[0],
-    /github\.com\/tlindow\/lindowlabs\/tree\/main\/exercises\/stripe-payment-intent$/
-  );
-
   const folderOpened = [];
   const folder = await open.openInCursor("api-design", {
     openExternal(url) { folderOpened.push(url); },
@@ -176,11 +170,7 @@ test("write pad no longer shows Grok Bot or Try in Cursor handoffs", () => {
 
 test("curriculum modules exclude daylight-saving and outreach reps", () => {
   const ids = manifest.modules.map((m) => m.id);
-  assert.deepEqual(ids, [
-    "formation-persistent-storage",
-    "stripe-payment-intent",
-    "api-design",
-  ]);
+  assert.deepEqual(ids, ["api-design"]);
   assert.equal(ids.includes("pacific-wall-time"), false);
   assert.equal(ids.includes("mark-touch-sent"), false);
   assert.equal(fs.existsSync(path.join(root, "exercises/pacific-wall-time.js")), false);

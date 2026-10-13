@@ -140,7 +140,7 @@
       gh.href = moduleUrl(mod);
       gh.target = "_blank";
       gh.rel = "noopener noreferrer";
-      gh.textContent = mod.externalUrl ? "Open Formation" : "View on GitHub";
+      gh.textContent = mod.externalUrl ? "Open link" : "View on GitHub";
       actions.appendChild(gh);
 
       row.appendChild(actions);

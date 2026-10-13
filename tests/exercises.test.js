@@ -60,21 +60,16 @@ test("manifest lists Tinker modules and readings, easy to extend", () => {
   assert.equal(manifest.repo, "tlindow/lindowlabs");
   assert.equal(manifest.exercisesRoot, "exercises");
   assert.ok(Array.isArray(manifest.modules));
-  assert.equal(manifest.modules.length, 3);
+  assert.equal(manifest.modules.length, 1);
   const ids = manifest.modules.map((m) => m.id);
-  assert.deepEqual(ids, [
-    "formation-persistent-storage",
-    "stripe-payment-intent",
-    "api-design",
-  ]);
-  assert.equal(manifest.modules[0].externalUrl, "https://formation.dev");
-  assert.equal(manifest.modules[0].path, undefined);
-  assert.equal(manifest.modules[1].path, "exercises/stripe-payment-intent");
-  assert.equal(manifest.modules[2].path, "exercises/api-design");
-  assert.match(manifest.modules[2].topic, /Domain-driven design/i);
-  assert.match(manifest.modules[2].description, /payments/i);
-  assert.ok(manifest.modules[2].tags.includes("ddd") || manifest.modules[2].tags.includes("domain-driven design"));
-  assert.ok(manifest.modules[2].tags.includes("payments"));
+  assert.deepEqual(ids, ["api-design"]);
+  assert.equal(manifest.modules[0].path, "exercises/api-design");
+  assert.equal(manifest.modules[0].externalUrl, undefined);
+  assert.match(manifest.modules[0].topic, /API design/i);
+  assert.match(manifest.modules[0].description, /OpenAPI/i);
+  assert.match(manifest.modules[0].description, /payments/i);
+  assert.ok(manifest.modules[0].tags.includes("openapi"));
+  assert.ok(manifest.modules[0].tags.includes("payments"));
   for (const mod of manifest.modules) {
     assert.match(mod.id, lab.MODULE_ID_RE);
     assert.equal(typeof mod.name, "string");
@@ -119,7 +114,7 @@ test("manifest lists Tinker modules and readings, easy to extend", () => {
   );
   assert.equal(manifest.readings[2].topic, "Tools for thought");
   assert.equal(manifest.readings[2].status, undefined);
-  assert.equal(manifest.readings[2].note, "Free essay.");
+  assert.equal(manifest.readings[2].note, "Essay.");
   assert.equal(manifest.readings[2].link, "https://numinous.productions/ttft/");
   assert.equal(manifest.readings[3].author, "Official docs");
   assert.equal(manifest.readings[3].topic, "Web");
@@ -154,21 +149,14 @@ test("manifest lists Tinker modules and readings, easy to extend", () => {
   assert.match(src, /Reading order is fixed/);
   assert.equal(src.includes("—"), false);
   // Module statuses stay; reading entries must not carry status.
-  assert.match(src, /status: "In progress"/);
+  assert.match(src, /status: "Not started"/);
   assert.equal(/readings:[\s\S]*?status:/.test(src), false);
 });
 
 test("coding modules are not checked into this repo", () => {
   assert.equal(fs.existsSync(path.join(root, "exercises/pacific-wall-time.js")), false);
   assert.equal(fs.existsSync(path.join(root, "exercises/mark-touch-sent.js")), false);
-  assert.equal(fs.existsSync(path.join(root, "exercises/stripe-payment-intent.js")), false);
   assert.equal(fs.existsSync(path.join(root, "exercises/api-design")), false);
-  assert.equal(
-    fs.existsSync(
-      path.join(root, "src/renderer/practice/fixtures/stripe-payment-intent-create.json")
-    ),
-    false
-  );
 });
 
 test("exercises page copy is Tinker-home, with logo and reading section", () => {
@@ -181,13 +169,14 @@ test("exercises page copy is Tinker-home, with logo and reading section", () => 
   assert.match(html, /never stores non-owners' writing/);
   assert.equal(/lindowlabs/i.test(html), false);
   assert.equal(html.includes("beginner.work"), false);
-  assert.match(html, /src="\/exercises\/manifest\.js\?v=36"/);
-  assert.match(html, /src="\/exercises\/exercises-open\.js\?v=36"/);
-  assert.match(html, /src="\/exercises\/exercises\.js\?v=36"/);
+  assert.match(html, /src="\/exercises\/manifest\.js\?v=37"/);
+  assert.match(html, /src="\/exercises\/exercises-open\.js\?v=37"/);
+  assert.match(html, /src="\/exercises\/exercises\.js\?v=37"/);
   assert.match(pageJs, /Open in IDE/);
   assert.match(pageJs, /View on GitHub/);
   assert.match(pageJs, /Open link/);
-  assert.match(pageJs, /Open Formation/);
+  assert.equal(pageJs.includes("Open Formation"), false);
+  assert.equal(/formation/i.test(pageJs), false);
   assert.equal(html.includes("cursor://"), false);
   assert.equal(pageJs.includes("cursor://"), false);
   assert.equal(html.includes("innerHTML"), false);
@@ -286,8 +275,8 @@ test("page render lists each manifest module and reading", () => {
     const gh = actions.children.find((c) => c.className === "exercises__github");
     if (mod.externalUrl) {
       assert.equal(openBtn.textContent, "Open link");
-      assert.equal(gh.textContent, "Open Formation");
-      assert.equal(gh.href, "https://formation.dev");
+      assert.equal(gh.textContent, "Open link");
+      assert.equal(gh.href, mod.externalUrl);
     } else {
       assert.equal(openBtn.textContent, "Open in IDE");
       assert.equal(gh.textContent, "View on GitHub");
@@ -387,20 +376,20 @@ test("chooseOpenAction uses external URL, GitHub fallback, or IDE", () => {
   assert.deepEqual(
     lab.chooseOpenAction({
       isDesktop: true,
-      externalUrl: "https://formation.dev",
+      externalUrl: "https://example.com/docs",
       moduleAbsPath: "",
       githubUrl: "",
     }),
-    { kind: "external", url: "https://formation.dev" }
+    { kind: "external", url: "https://example.com/docs" }
   );
-  const url = lab.githubModuleUrl("stripe-payment-intent", {
-    path: "exercises/stripe-payment-intent",
+  const url = lab.githubModuleUrl("api-design", {
+    path: "exercises/api-design",
   });
   assert.deepEqual(
     lab.chooseOpenAction({
       isDesktop: false,
       ideCommand: "code",
-      moduleAbsPath: "/tmp/lindowlabs/exercises/stripe-payment-intent",
+      moduleAbsPath: "/tmp/lindowlabs/exercises/api-design",
       githubUrl: url,
     }),
     { kind: "github", url }
@@ -408,14 +397,14 @@ test("chooseOpenAction uses external URL, GitHub fallback, or IDE", () => {
 });
 
 test("chooseOpenAction prefers IDE command then OS default on desktop", () => {
-  const folder = "/tmp/lindowlabs/exercises/stripe-payment-intent";
+  const folder = "/tmp/lindowlabs/exercises/api-design";
   assert.deepEqual(
     lab.chooseOpenAction({
       isDesktop: true,
       ideCommand: "",
       moduleAbsPath: folder,
-      githubUrl: lab.githubModuleUrl("stripe-payment-intent", {
-        path: "exercises/stripe-payment-intent",
+      githubUrl: lab.githubModuleUrl("api-design", {
+        path: "exercises/api-design",
       }),
     }),
     { kind: "openPath", path: folder }
@@ -425,8 +414,8 @@ test("chooseOpenAction prefers IDE command then OS default on desktop", () => {
       isDesktop: true,
       ideCommand: "code",
       moduleAbsPath: folder,
-      githubUrl: lab.githubModuleUrl("stripe-payment-intent", {
-        path: "exercises/stripe-payment-intent",
+      githubUrl: lab.githubModuleUrl("api-design", {
+        path: "exercises/api-design",
       }),
     }),
     { kind: "command", command: "code", args: [folder] }
@@ -436,8 +425,8 @@ test("chooseOpenAction prefers IDE command then OS default on desktop", () => {
       isDesktop: true,
       ideCommand: "cursor --folder-uri",
       moduleAbsPath: folder,
-      githubUrl: lab.githubModuleUrl("stripe-payment-intent", {
-        path: "exercises/stripe-payment-intent",
+      githubUrl: lab.githubModuleUrl("api-design", {
+        path: "exercises/api-design",
       }),
     }),
     {
@@ -454,11 +443,11 @@ test("renderer openModule falls back to GitHub when desktop bridge is missing", 
   const api = {
     openExternal(url) { opened.push(url); },
   };
-  const result = await open.openModule("stripe-payment-intent", api);
+  const result = await open.openModule("api-design", api);
   assert.equal(result.ok, true);
   assert.equal(result.via, "github");
   assert.deepEqual(opened, [
-    "https://github.com/tlindow/lindowlabs/tree/main/exercises/stripe-payment-intent",
+    "https://github.com/tlindow/lindowlabs/tree/main/exercises/api-design",
   ]);
   assert.equal(open.isDesktopShell(api), false);
   assert.equal(
@@ -467,20 +456,9 @@ test("renderer openModule falls back to GitHub when desktop bridge is missing", 
   );
 });
 
-test("renderer openModule opens Formation externally", async () => {
-  const open = loadOpen();
-  const opened = [];
-  const result = await open.openModule("formation-persistent-storage", {
-    openExternal(url) { opened.push(url); },
-  });
-  assert.equal(result.ok, true);
-  assert.equal(result.via, "external");
-  assert.deepEqual(opened, ["https://formation.dev"]);
-});
-
 test("renderer openModule uses the desktop bridge when present", async () => {
   const open = loadOpen();
-  const result = await open.openModule("stripe-payment-intent", {
+  const result = await open.openModule("api-design", {
     isDesktopApp: true,
     openExerciseModule(id) {
       return Promise.resolve({ ok: true, via: "desktop", id });
@@ -488,7 +466,7 @@ test("renderer openModule uses the desktop bridge when present", async () => {
   });
   assert.equal(result.ok, true);
   assert.equal(result.via, "desktop");
-  assert.equal(result.id, "stripe-payment-intent");
+  assert.equal(result.id, "api-design");
 });
 
 test("ensureLabRepo clones when missing and pulls when present", async () => {
@@ -537,18 +515,18 @@ test("moduleAbsPath rejects unknown ids and path escape", () => {
   assert.equal(
     lab.moduleAbsPath(
       rootDir,
-      "stripe-payment-intent",
-      ["stripe-payment-intent"],
-      "exercises/stripe-payment-intent"
+      "api-design",
+      ["api-design"],
+      "exercises/api-design"
     ),
-    path.join(rootDir, "exercises", "stripe-payment-intent")
+    path.join(rootDir, "exercises", "api-design")
   );
   assert.throws(
-    () => lab.moduleAbsPath(rootDir, "../secret", ["stripe-payment-intent"]),
+    () => lab.moduleAbsPath(rootDir, "../secret", ["api-design"]),
     /Unknown exercise module/
   );
   assert.throws(
-    () => lab.moduleAbsPath(rootDir, "nope", ["stripe-payment-intent"]),
+    () => lab.moduleAbsPath(rootDir, "nope", ["api-design"]),
     /Unknown exercise module/
   );
 });
@@ -586,7 +564,7 @@ test("exercise Open in Cursor and GitHub links point at tlindow/lindowlabs", () 
   assert.equal(lab.EXERCISES_REPO, "tlindow/lindowlabs");
   assert.equal(lab.REPO_SLUG, "tlindow/lindowlabs");
 
-  for (const id of ["api-design", "stripe-payment-intent"]) {
+  for (const id of ["api-design"]) {
     const tree =
       "https://github.com/tlindow/lindowlabs/tree/main/exercises/" + id;
     assert.equal(open.githubModuleUrl(id), tree);
@@ -611,3 +589,77 @@ test("exercise Open in Cursor and GitHub links point at tlindow/lindowlabs", () 
   );
   assert.equal(/github\.com\/beginner-work\/tinker\/.*exercises/.test(sources), false);
 });
+
+test("exercise catalog never includes Formation curriculum or deleted lindowlabs labs", () => {
+  const deletedIds = [
+    "formation-persistent-storage",
+    "bounded-contexts",
+    "card-payment-lifecycle",
+    "consensus-under-partition",
+    "idempotent-refund",
+    "merchant-portal-slos",
+    "nextjs-learning",
+    "proto-learning",
+    "realtime-deal-room",
+    "rest-api-trading",
+    "settlement-binary-search",
+    "stripe-payment-intent",
+  ];
+  const ids = manifest.modules.map((m) => m.id);
+  assert.deepEqual(ids, ["api-design"]);
+  for (const id of deletedIds) {
+    assert.equal(ids.includes(id), false, "manifest still lists " + id);
+  }
+
+  for (const mod of manifest.modules) {
+    const blob = [
+      mod.id,
+      mod.name,
+      mod.description,
+      mod.topic,
+      mod.status,
+      mod.path,
+      mod.externalUrl,
+      ...(Array.isArray(mod.tags) ? mod.tags : []),
+    ].map((v) => String(v == null ? "" : v)).join("\n");
+    assert.equal(/formation/i.test(blob), false, "module mentions Formation: " + mod.id);
+    assert.equal(/formation\.dev/i.test(blob), false);
+    assert.equal(Boolean(mod.externalUrl), false);
+  }
+
+  const seedPaths = [
+    path.join(root, "api/_lib/seeds/exercise-workspace-seed.json"),
+    path.join(root, "src/renderer/lib/exercise-workspace-seed.json"),
+  ];
+  for (const seedPath of seedPaths) {
+    const seed = JSON.parse(fs.readFileSync(seedPath, "utf8"));
+    const exerciseIds = Object.keys(seed.exercises || {});
+    assert.deepEqual(exerciseIds, ["api-design"]);
+    for (const id of deletedIds) {
+      assert.equal(exerciseIds.includes(id), false, path.basename(seedPath) + " still has " + id);
+    }
+    const seedText = JSON.stringify(seed);
+    assert.equal(/formation/i.test(seedText), false);
+    assert.equal(/api-design-extras/i.test(seedText), false);
+    assert.equal(/Fastify/i.test(seedText), false);
+    const nodes = seed.exercises["api-design"].nodes || [];
+    assert.equal(nodes.some((n) => String(n.path || "").startsWith("extras")), false);
+  }
+
+  const pageAndManifest = [
+    fs.readFileSync(path.join(root, "src/renderer/exercises/manifest.js"), "utf8"),
+    fs.readFileSync(path.join(root, "src/renderer/exercises/exercises.js"), "utf8"),
+    fs.readFileSync(path.join(root, "src/renderer/exercises/index.html"), "utf8"),
+  ].join("\n");
+  assert.equal(/formation/i.test(pageAndManifest), false);
+  assert.equal(/Open Formation/.test(pageAndManifest), false);
+
+  const harnessDir = path.join(root, "src/renderer/repo/harness");
+  for (const name of fs.readdirSync(harnessDir)) {
+    if (!name.endsWith(".html")) continue;
+    const html = fs.readFileSync(path.join(harnessDir, name), "utf8");
+    assert.equal(/formation/i.test(html), false, name + " mentions Formation");
+    assert.equal(/stripe-payment-intent/.test(html), false, name + " still references stripe-payment-intent");
+  }
+});
+

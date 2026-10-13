@@ -46,15 +46,19 @@ function memoryStorage(seed) {
 }
 
 test("prefers in-progress module as next unfinished", () => {
+  const modules = [
+    { id: "fresh", name: "Fresh", status: "Not started", description: "a" },
+    { id: "active", name: "Active", status: "In progress", description: "b" },
+  ];
   const storage = memoryStorage();
   const picked = next.pickNextExercise({
-    modules: manifest.modules,
+    modules,
     storage,
     pickApi: pick,
   });
   assert.ok(picked);
-  assert.equal(picked.moduleId, "formation-persistent-storage");
-  assert.match(picked.name, /Formation/i);
+  assert.equal(picked.moduleId, "active");
+  assert.match(picked.name, /Active/i);
 });
 
 test("skips done modules and uses resume bookmark in URL", () => {
@@ -132,6 +136,6 @@ test("next page redirects signed-in owners without inventing modules", () => {
   sandbox.window.document = sandbox.document;
   vm.runInNewContext(nextJs, vm.createContext(sandbox));
   assert.match(sandbox.replaced, /\/repo\?/);
-  assert.match(sandbox.replaced, /exercise=formation-persistent-storage/);
+  assert.match(sandbox.replaced, /exercise=api-design/);
   assert.match(sandbox.replaced, /lockin=1/);
 });
