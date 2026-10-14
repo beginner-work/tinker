@@ -6,7 +6,7 @@
  *
  * GET  ?action=list|sync
  * POST ?action=create_node|rename_node|move_node|delete_node|write_file|
- *              reorder_exercises|revise_from_essay
+ *              reorder_exercises|revise_from_essay|prepare_revision|apply_revision
  */
 
 "use strict";
@@ -144,6 +144,18 @@ async function dispatch(method, action, auth, body) {
       }),
     };
   }
+  if (method === "POST" && (action === "prepare_revision" || action === "apply_revision")) {
+    const allowed = action === "prepare_revision"
+      ? ["exerciseId", "essayBody"] : ["exerciseId", "essayBody", "baseFingerprint", "revision"];
+    if (Object.keys(body).some(key => !allowed.includes(key))) {
+      throw Object.assign(new Error("Unexpected revision request field."), { status: 400 });
+    }
+    const operation = action === "prepare_revision" ? store.prepareRevision : store.applyRevision;
+    return { status: 200, body: await operation({
+      userId, exerciseId: body.exerciseId, essayBody: body.essayBody,
+      baseFingerprint: body.baseFingerprint, revision: body.revision,
+    }) };
+  }
   if (method === "POST" && action === "revise_from_essay") {
     return {
       status: 200,
@@ -189,3 +201,4 @@ module.exports = withResponseLogging(async function handler(req, res) {
     send(res, status, payload);
   }
 });
+

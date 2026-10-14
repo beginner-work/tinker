@@ -4,7 +4,8 @@
  * sync through /api/exercise-workspace. GitHub is never written (per-user
  * TinkerUserData only; desktop clones/pulls lindowlabs for Open in IDE).
  *
- * Essay → Claude revise_from_essay updates README / steps / starter stubs.
+ * Essay feedback updates README / steps / starter stubs using desktop Codex
+ * or the existing server Claude path in browsers and older desktop shells.
  * Transform status (pending / error) shows a spinner or retry on the tree.
  *
  * Lindow Labs Learning sign-in gates listing and reading exercise files.
@@ -199,7 +200,7 @@
     render();
   }
 
-  function api(method, action, body) {
+  function api(method, action, body, requestOptions) {
     var t = token();
     if (!t) return Promise.reject(Object.assign(new Error("Sign in to edit exercises."), { status: 401 }));
     var opts = {
@@ -209,6 +210,7 @@
         Accept: "application/json",
       },
     };
+    if (requestOptions && requestOptions.signal) opts.signal = requestOptions.signal;
     if (method === "POST") {
       opts.headers["Content-Type"] = "application/json";
       opts.body = JSON.stringify(body || {});
@@ -881,6 +883,22 @@
         renderExplorer();
       });
       head.appendChild(btn);
+      if (tStatus === "pending" && desktopCodex()) {
+        var cancelBtn = document.createElement("button");
+        cancelBtn.type = "button";
+        cancelBtn.className = "repo-ex-transform-retry";
+        text(cancelBtn, "Cancel");
+        cancelBtn.addEventListener("click", cancelCodexRevision);
+        head.appendChild(cancelBtn);
+      }
+      if (tStatus === "error" && desktopCodex()) {
+        var setupBtn = document.createElement("button");
+        setupBtn.type = "button";
+        setupBtn.className = "repo-ex-transform-retry";
+        text(setupBtn, "Codex setup");
+        setupBtn.addEventListener("click", showCodexSetup);
+        head.appendChild(setupBtn);
+      }
       if (tStatus === "error") {
         var retryBtn = document.createElement("button");
         retryBtn.type = "button";
@@ -1021,6 +1039,27 @@
     return result || { changed: false };
   }
 
+  var codexClient = null;
+  var activeRevision = null;
+  function desktopCodex() {
+    var bridge = window.tinkerApi || window.tinker;
+    return bridge && bridge.isDesktopApp && typeof bridge.reviseExerciseWithCodex === "function" ? bridge : null;
+  }
+
+  function cancelCodexRevision() {
+    if (codexClient && !codexClient.cancel()) {
+      state.status = "The revision is already saving. Wait for the result.";
+    }
+  }
+
+  function showCodexSetup() {
+    var bridge = desktopCodex();
+    if (!bridge || !bridge.showCodexExerciseSetup) return;
+    bridge.showCodexExerciseSetup().catch(function (err) {
+      window.alert(err.message || "Could not check Codex setup.");
+    });
+  }
+
   function applyEssayRevision(exerciseId, essayBody) {
     if (!revision) {
       return Promise.reject(new Error("Exercise revision helper missing."));
@@ -1028,17 +1067,29 @@
     if (!isLearningSignedIn()) {
       return Promise.reject(new Error("Sign in to revise exercises."));
     }
+    if (activeRevision) return Promise.reject(new Error("An exercise revision is already running."));
     var id = String(exerciseId || "").trim();
     var body = String(essayBody == null ? "" : essayBody);
     setTransform(id, { status: "pending", essayBody: body, error: "" });
     renderExplorer();
 
-    // Signed-in + server: Claude revises README / steps / starter stubs.
+    // Desktop uses signed-in local Codex; browsers and older shells keep Claude.
+    // Never fall back to Claude after a Codex failure or cancellation.
     if (!state.localOnly && token()) {
-      return api("POST", "revise_from_essay", {
-        exerciseId: id,
-        essayBody: body,
-      }).then(function (json) {
+      var bridge = desktopCodex();
+      var request;
+      if (bridge) {
+        if (!window.tinkerExerciseCodexClient) {
+          request = Promise.reject(new Error("Codex revision helper missing. Reload Tinker."));
+        } else {
+          if (!codexClient) codexClient = window.tinkerExerciseCodexClient.createClient({ api: api, bridge: bridge, session: token });
+          request = codexClient.revise(id, body);
+        }
+      } else {
+        request = api("POST", "revise_from_essay", { exerciseId: id, essayBody: body });
+      }
+      activeRevision = request;
+      return request.then(function (json) {
         var result = {
           workspace: json.workspace,
           steps: json.steps || [],
@@ -1056,7 +1107,7 @@
         state.status = (err && err.message) || "Could not update exercise.";
         renderExplorer();
         throw err;
-      });
+      }).finally(function () { activeRevision = null; });
     }
 
     // Offline / seed browse: local step rewrite only (no Claude).
@@ -1279,10 +1330,12 @@
             render();
           });
         } else {
+          if (codexClient) codexClient.cancel();
           render();
         }
       });
     }
+    window.addEventListener("pagehide", function () { if (codexClient) codexClient.cancel(); });
   }
 
   function init(opts) {
@@ -1345,3 +1398,4 @@
     _state: state,
   };
 })();
+

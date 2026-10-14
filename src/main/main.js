@@ -6,6 +6,7 @@ const {
   ipcMain,
   shell,
   dialog,
+  clipboard,
   nativeImage,
   nativeTheme,
   net,
@@ -19,6 +20,8 @@ const { spawn } = require("child_process");
 const exercisesLab = require("./lib/exercises-lab.js");
 const exercisesManifest = require("../renderer/exercises/manifest.js");
 const hotspotTrigger = require("./lib/hotspot-trigger.js");
+const { createCodexExerciseRevisionService } = require("./lib/codex-exercise-revision.js");
+const { registerCodexExerciseIpc } = require("./lib/codex-exercise-ipc.js");
 const wifiSsid = require("./lib/wifi-ssid.js");
 
 // Production Tinker. The desktop shell is a hardened BrowserWindow around
@@ -490,6 +493,19 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
+// Dedicated Codex home avoids inheriting personal CLI plugins, MCP servers,
+// hooks, or API-key configuration. Login is completed by the user in Terminal.
+registerCodexExerciseIpc({
+  ipcMain,
+  dialog,
+  clipboard,
+  BrowserWindow,
+  isTinkerUrl,
+  service: createCodexExerciseRevisionService({
+    codexHome: path.join(app.getPath("userData"), "codex-exercise-home"),
+  }),
+});
+
 ipcMain.handle("app:version", () => app.getVersion());
 ipcMain.handle("app:platform", () => process.platform);
 ipcMain.handle("app:close", (event) => {
@@ -942,3 +958,4 @@ ipcMain.handle("hotspot:getCurrentSsid", async () => {
     return "";
   }
 });
+
