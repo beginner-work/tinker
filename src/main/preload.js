@@ -101,6 +101,11 @@ contextBridge.exposeInMainWorld("tinker", {
   pickExerciseLabPath: () => ipcRenderer.invoke("exercises:pickClonePath"),
   openExerciseModule: (moduleId, opts) =>
     ipcRenderer.invoke("exercises:openModule", moduleId, opts || {}),
+  // Plan-backed Codex stays in main; these methods never expose credentials.
+  showCodexExerciseSetup: () => ipcRenderer.invoke("exercises:codexSetup"),
+  getCodexExerciseStatus: () => ipcRenderer.invoke("exercises:codexStatus"),
+  reviseExerciseWithCodex: (input) => ipcRenderer.invoke("exercises:codexRevise", input),
+  cancelCodexExerciseRevision: () => ipcRenderer.invoke("exercises:codexCancel"),
   // Fullscreen for the lock-in moment (hotspot → next exercise).
   setFullScreen: (on) => ipcRenderer.invoke("app:setFullScreen", !!on),
   // Hotspot Wi-Fi trigger settings (desktop only).
@@ -110,3 +115,4 @@ contextBridge.exposeInMainWorld("tinker", {
   clearHotspotSnooze: () => ipcRenderer.invoke("hotspot:clearSnooze"),
   getCurrentWifiSsid: () => ipcRenderer.invoke("hotspot:getCurrentSsid"),
 });
+
