@@ -22,6 +22,7 @@
   var cmEditor = null;
 
   var TOKEN_KEY = "tinker_jwt";
+  var seedWorkspaceCache = null;
   var state = {
     workspace: core.emptyWorkspace(),
     collapsed: {},
@@ -256,13 +257,35 @@
     });
   }
 
+  function cacheSeedWorkspace(seedJson) {
+    seedWorkspaceCache = core.buildSeedWorkspace(
+      seedJson,
+      (manifest && manifest.modules) || []
+    );
+    return seedWorkspaceCache;
+  }
+
+  function ensureSeedWorkspace() {
+    if (seedWorkspaceCache) return Promise.resolve(seedWorkspaceCache);
+    return fetch("/lib/exercise-workspace-seed.json").then(function (res) {
+      if (!res.ok) throw new Error("Could not load exercise templates.");
+      return res.json();
+    }).then(cacheSeedWorkspace);
+  }
+
   function applyWorkspace(ws) {
     var keepIds = null;
     if (manifest && Array.isArray(manifest.modules)) {
       keepIds = manifest.modules.map(function (m) { return m && m.id; }).filter(Boolean);
     }
     var pruned = core.pruneRetiredCurriculum(ws, keepIds ? { keepIds: keepIds } : {});
-    state.workspace = pruned.workspace;
+    var nextWs = pruned.workspace;
+    // Belt-and-suspenders with the API store: scrub rides trees using the
+    // payments seed bundled into this desktop/web build.
+    if (seedWorkspaceCache && typeof core.refreshStaleCurriculum === "function") {
+      nextWs = core.refreshStaleCurriculum(nextWs, seedWorkspaceCache).workspace;
+    }
+    state.workspace = nextWs;
     if (
       state.selected &&
       state.selected.exerciseId &&
@@ -289,29 +312,32 @@
     state.loading = true;
     state.loadError = "";
     render();
+    // Signed-in: hit the API first. Server refreshStaleCurriculum already
+    // rewrites rides trees. After the list returns on desktop, load the
+    // bundled seed and re-apply so a stale blob can be scrubbed client-side.
     var request = ownerToken
       ? api("GET", isWideDesktop() ? "list" : "read")
-      : fetch("/lib/exercise-workspace-seed.json").then(function (res) {
-        if (!res.ok) throw new Error("Could not load exercise templates.");
-        return res.json();
-      }).then(function (seed) {
-        return { workspace: core.buildSeedWorkspace(seed, (manifest && manifest.modules) || []) };
+      : ensureSeedWorkspace().then(function (seedWs) {
+        return { workspace: seedWs };
       });
     return request.then(function (json) {
-      // A late response must never restore a previous owner's files.
+      // A late response must never restore a previous owner's learning modules.
       if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;
       applyWorkspace(json.workspace || json);
       state.localOnly = !ownerToken;
+      if (!ownerToken || !isWideDesktop() || seedWorkspaceCache) return;
+      return ensureSeedWorkspace().then(function () {
+        if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;
+        applyWorkspace(state.workspace);
+        render();
+      }).catch(function () { /* seed scrub is optional; API already refreshed */ });
     }).catch(function (err) {
       if (version !== state.loadVersion || token() !== ownerToken) return;
       // Preserve desktop's existing offline template fallback.
       if (isWideDesktop()) {
-        return fetch("/lib/exercise-workspace-seed.json").then(function (res) {
-          if (!res.ok) throw err;
-          return res.json();
-        }).then(function (seed) {
+        return ensureSeedWorkspace().then(function (seedWs) {
           if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;
-          applyWorkspace(core.buildSeedWorkspace(seed, (manifest && manifest.modules) || []));
+          applyWorkspace(seedWs);
           state.localOnly = true;
         }).catch(function () { state.loadError = "Could not load exercises. Try again."; });
       }
@@ -389,7 +415,7 @@
     }
     text(els.readerPath, ex.name + " / " + path.join(" / "));
     // Plain text never executes HTML/scripts and preserves actual saved starter code.
-    text(els.readerContent, node.content || "This file is empty.");
+    text(els.readerContent, node.content || "This learning module is empty.");
     if (els.readerContent) els.readerContent.classList.toggle("is-markdown", /\.md$/i.test(node.name));
   }
 
@@ -757,7 +783,7 @@
         text(els.codeStatus, state.status);
       } else if (tab.blank) {
         els.codeStatus.hidden = false;
-        text(els.codeStatus, "Practice file opens blank. Write from scratch.");
+        text(els.codeStatus, "Practice learning module opens blank. Write from scratch.");
       } else if (state.dirty) {
         els.codeStatus.hidden = false;
         text(els.codeStatus, "Unsaved changes");
@@ -954,7 +980,7 @@
       text(
         els.hint,
         !isWideDesktop()
-          ? (state.localOnly ? "Read only · Exercise templates. Sign in to Tinker for your saved files." : "Read only · Your saved exercises. Edit on desktop.")
+          ? (state.localOnly ? "Read only · Exercise templates. Sign in to Tinker for your saved learning modules." : "Read only · Your saved exercises. Edit on desktop.")
           : state.localOnly
           ? "Browsing seed trees. Sign in to Tinker to save restructuring."
           : "Seeded from lindowlabs. Edits save in Tinker, not GitHub."
@@ -1094,7 +1120,7 @@
         if (!ex.nodes.length) {
           var empty = document.createElement("p");
           empty.className = "repo-ex-tree__empty";
-          text(empty, "No files yet");
+          text(empty, "No learning modules yet");
           list.appendChild(empty);
         }
         group.appendChild(list);
@@ -1130,7 +1156,7 @@
     var n = ((result && result.steps) || []).length;
     var filesN = ((result && result.filesUpdated) || []).length;
     state.status = filesN
-      ? ("Exercise updated (" + filesN + " file" + (filesN === 1 ? "" : "s") + ").")
+      ? ("Exercise updated (" + filesN + " learning module" + (filesN === 1 ? "" : "s") + ").")
       : ("Steps updated (" + n + ").");
     if (n) {
       setStepsBanner(
@@ -1221,8 +1247,8 @@
     if (!isWideDesktop() || !isLearningSignedIn()) return;
     var exerciseId = state.selected.exerciseId || (state.workspace.exerciseOrder || [])[0];
     if (!exerciseId) return;
-    var label = type === "folder" ? "Folder name" : "File name";
-    var name = window.prompt(label, type === "folder" ? "new-folder" : "untitled.ts");
+    var label = type === "folder" ? "Learning modules name" : "Learning module name";
+    var name = window.prompt(label, type === "folder" ? "new-learning-modules" : "untitled.ts");
     if (name == null) return;
     var parentId = selectedParentId();
     persistMutation(
@@ -1281,8 +1307,8 @@
       text(
         els.confirmHint,
         node.type === "folder"
-          ? ("Delete folder \"" + node.name + "\" and everything inside it?")
-          : ("Delete file \"" + node.name + "\"?")
+          ? ("Delete learning modules \"" + node.name + "\" and everything inside it?")
+          : ("Delete learning module \"" + node.name + "\"?")
       );
     }
     if (els.confirm) els.confirm.hidden = false;

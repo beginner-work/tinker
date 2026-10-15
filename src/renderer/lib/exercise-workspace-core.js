@@ -4,8 +4,9 @@
  * checked-in tlindow/lindowlabs snapshots. Saved owner trees are never
  * overwritten by seed/sync; new upstream exercises are appended.
  * Retired curriculum (Formation, deleted lindowlabs labs, api-design
- * extras/Fastify) is pruned on load; owner essays and other blobs are
- * never touched here.
+ * extras/Fastify) is pruned on load. Saved rides-domain api-design trees
+ * are replaced with the current payments seed. Owner essays and other
+ * blobs are never touched here.
  */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
@@ -223,6 +224,53 @@
     });
 
     return normalizeWorkspace(next);
+  }
+
+  /** True when a saved exercise tree still carries the retired rides OpenAPI track. */
+  function exerciseLooksLikeRidesDomain(exercise) {
+    var nodes = exercise && Array.isArray(exercise.nodes) ? exercise.nodes : [];
+    var blob = "";
+    for (var i = 0; i < nodes.length; i += 1) {
+      var n = nodes[i];
+      blob += "\n" + String(n.name || "") + "\n" + String(n.content || "");
+    }
+    if (/\b\/rides\b/i.test(blob)) return true;
+    if (/"domain"\s*:\s*"rides"/i.test(blob)) return true;
+    if (/\bRides API\b/i.test(blob)) return true;
+    if (/\brides\s+(service|domain|caller)\b/i.test(blob)) return true;
+    if (/\bCreateRide\b/.test(blob)) return true;
+    if (/\bcomponents\.schemas\.Ride\b/.test(blob)) return true;
+    if (/\bGET \/rides\b/i.test(blob)) return true;
+    return false;
+  }
+
+  /**
+   * Replace saved exercise trees that still contain the rides OpenAPI
+   * curriculum with the current seed (payments api-design). Owner edits on
+   * a rides tree are dropped on purpose so desktop always opens payments.
+   * Idempotent once the tree is payments-shaped.
+   */
+  function refreshStaleCurriculum(savedRaw, seedWorkspace) {
+    var saved = normalizeWorkspace(savedRaw);
+    var seed = normalizeWorkspace(seedWorkspace);
+    var replacedExerciseIds = [];
+    var next = {
+      exerciseOrder: saved.exerciseOrder.slice(),
+      exercises: Object.assign({}, saved.exercises),
+    };
+
+    seed.exerciseOrder.forEach(function (id) {
+      if (!next.exercises[id] || !seed.exercises[id]) return;
+      if (!exerciseLooksLikeRidesDomain(next.exercises[id])) return;
+      next.exercises[id] = presentExercise(seed.exercises[id]);
+      replacedExerciseIds.push(id);
+    });
+
+    return {
+      workspace: normalizeWorkspace(next),
+      changed: replacedExerciseIds.length > 0,
+      replacedExerciseIds: replacedExerciseIds,
+    };
   }
 
   function removeNodeSubtree(nodes, rootId) {
@@ -537,6 +585,8 @@
     nodesFromSeedPaths: nodesFromSeedPaths,
     buildSeedWorkspace: buildSeedWorkspace,
     mergeSeedIntoSaved: mergeSeedIntoSaved,
+    exerciseLooksLikeRidesDomain: exerciseLooksLikeRidesDomain,
+    refreshStaleCurriculum: refreshStaleCurriculum,
     pruneRetiredCurriculum: pruneRetiredCurriculum,
     createNode: createNode,
     renameNode: renameNode,

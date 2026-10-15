@@ -3,7 +3,8 @@
  * Seed/template comes from checked-in lindowlabs snapshots. Owner trees
  * persist here and are never overwritten by seed merge. On list/sync we
  * prune retired curriculum (Formation, deleted labs, api-design extras)
- * from the saved blob; essays and other TinkerUserData kinds are untouched.
+ * from the saved blob and replace rides-domain api-design trees with the
+ * current payments seed; essays and other TinkerUserData kinds are untouched.
  *
  * Essay revisions also land here. Tinker has no GitHub commit/push path for
  * tlindow/lindowlabs (desktop only clones/pulls for Open in IDE).
@@ -89,8 +90,14 @@ function workspaceFingerprint(state) {
   ids.forEach((id) => {
     const ex = normalized.exercises[id];
     parts.push(id + "=" + String(ex.name || ""));
+    // Include a short content digest so rides→payments replacements persist
+    // even when node names/structure look similar.
     const nodeSig = (ex.nodes || [])
-      .map((n) => [n.id, n.name, n.type, n.parentId || ""].join(":"))
+      .map((n) => {
+        const content = n.type === "file" ? String(n.content || "") : "";
+        const digest = content.length + ":" + content.slice(0, 48);
+        return [n.id, n.name, n.type, n.parentId || "", digest].join(":");
+      })
       .sort()
       .join("|");
     parts.push(nodeSig);
@@ -110,9 +117,11 @@ async function getOrCreateMerged(userId, readOnly = false) {
   const pruned = core.pruneRetiredCurriculum(merged, {
     keepIds: seed.exerciseOrder.slice(),
   });
-  const next = pruned.workspace;
-  // Persist when seed merge, name refresh, or retired-curriculum prune changed
-  // the saved blob. Idempotent: a second list with a clean blob is a no-op write.
+  const refreshed = core.refreshStaleCurriculum(pruned.workspace, seed);
+  const next = refreshed.workspace;
+  // Persist when seed merge, name refresh, retired-curriculum prune, or
+  // rides→payments refresh changed the saved blob. Idempotent: a second
+  // list with a clean blob is a no-op write.
   if (!readOnly && workspaceFingerprint(state) !== workspaceFingerprint(next)) {
     const savedAt = await writeBlob(userId, next);
     return {
@@ -120,8 +129,10 @@ async function getOrCreateMerged(userId, readOnly = false) {
       updatedAt: savedAt,
       seeded: false,
       pruned: !!pruned.changed,
+      refreshed: !!refreshed.changed,
       removedExerciseIds: pruned.removedExerciseIds,
       removedRootFolders: pruned.removedRootFolders,
+      replacedExerciseIds: refreshed.replacedExerciseIds,
     };
   }
   return {
@@ -129,8 +140,10 @@ async function getOrCreateMerged(userId, readOnly = false) {
     updatedAt,
     seeded: false,
     pruned: false,
+    refreshed: false,
     removedExerciseIds: [],
     removedRootFolders: [],
+    replacedExerciseIds: [],
   };
 }
 

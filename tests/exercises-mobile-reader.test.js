@@ -115,7 +115,7 @@ test("loading, request error and retry are visible; no misleading template fallb
 });
 test("empty workspace and empty files have readable states", async t => {
   const e = setup(t); await e.ui.init(); e.ui.openFile("api-design", "empty");
-  assert.equal(e.el("repo-ex-reader-content").textContent, "This file is empty.");
+  assert.equal(e.el("repo-ex-reader-content").textContent, "This learning module is empty.");
   e.ui._setWorkspace(core.emptyWorkspace());
   assert.equal(e.el("repo-explorer-empty").hidden, false);
   assert.equal(e.el("repo-ex-reader").hidden, true);

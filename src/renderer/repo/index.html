@@ -70,15 +70,15 @@
         <div class="repo-ex-steps-banner" id="repo-ex-steps-banner" hidden role="status"></div>
         <div class="repo-explorer__gated" id="repo-explorer-gated">
           <div class="repo-explorer__toolbar" id="repo-explorer-toolbar">
-            <button type="button" class="repo-explorer__tool" id="repo-ex-new-file" title="New file">New file</button>
-            <button type="button" class="repo-explorer__tool" id="repo-ex-new-folder" title="New folder">New folder</button>
+            <button type="button" class="repo-explorer__tool" id="repo-ex-new-file" title="New learning module">New learning module</button>
+            <button type="button" class="repo-explorer__tool" id="repo-ex-new-folder" title="New learning modules">New learning modules</button>
           </div>
           <p id="repo-ex-load-status" class="repo-explorer__hint" role="status" hidden></p>
           <button type="button" id="repo-ex-load-retry" class="repo-explorer__tool" hidden>Try again</button>
-          <section id="repo-ex-reader" class="repo-ex-reader" aria-label="Read-only exercise file" hidden>
-            <button type="button" id="repo-ex-reader-back" class="repo-ex-reader__back">‹ All exercise files</button>
+          <section id="repo-ex-reader" class="repo-ex-reader" aria-label="Read-only learning module" hidden>
+            <button type="button" id="repo-ex-reader-back" class="repo-ex-reader__back">‹ All learning modules</button>
             <h3 id="repo-ex-reader-path" class="repo-ex-reader__path"></h3>
-            <pre id="repo-ex-reader-content" class="repo-ex-reader__content" tabindex="0" aria-label="File contents, read only"></pre>
+            <pre id="repo-ex-reader-content" class="repo-ex-reader__content" tabindex="0" aria-label="Learning module contents, read only"></pre>
           </section>
           <div class="repo-explorer__body" id="repo-explorer-body" role="tree" aria-labelledby="repo-explorer-heading"></div>
           <p class="repo-changes__empty" id="repo-explorer-empty" hidden>No exercises yet.</p>
@@ -96,7 +96,7 @@
         <!-- Code editor: editable on desktop; read-only / hidden on mobile. -->
         <main class="repo-center repo-write-safe-top" id="repo-editor-main" aria-label="Editor">
           <div class="repo-code-host" id="repo-code-host">
-            <div class="repo-code" id="repo-code" hidden aria-label="Exercise file">
+            <div class="repo-code" id="repo-code" hidden aria-label="Learning module">
               <div class="repo-code__bar">
                 <p class="repo-code__path" id="repo-code-path"></p>
                 <button type="button" class="repo-code__save" id="repo-code-save">Save</button>
