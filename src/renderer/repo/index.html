@@ -14,7 +14,7 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=40" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=56" />
+    <link rel="stylesheet" href="/repo/repo.css?v=57" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
     <!-- Shared top bar (desktop + mobile): beaker/exercises left, past-essays hamburger right. -->
@@ -143,6 +143,9 @@
                   </div>
                 </div>
               </div>
+              <!-- Lesson steps: read-only rendered markdown (desktop). Answers stay in the editor. -->
+              <div class="repo-code__preview" id="repo-code-preview" hidden tabindex="0"
+                   aria-label="Learning module step, read only"></div>
               <div class="repo-code__surface" id="repo-code-surface" role="textbox" aria-label="File contents"></div>
               <!-- Legacy textarea kept hidden for harness/id stability; CM owns editing. -->
               <textarea class="repo-code__editor writing-input" id="repo-code-editor" hidden spellcheck="false" aria-hidden="true" tabindex="-1"></textarea>

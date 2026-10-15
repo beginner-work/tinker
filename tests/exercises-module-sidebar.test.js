@@ -11,6 +11,7 @@ const root = path.join(__dirname, "..");
 const core = require("../src/renderer/lib/exercise-workspace-core.js");
 const revision = require("../src/renderer/lib/exercise-revision.js");
 const evaluate = require("../src/renderer/lib/exercise-evaluate.js");
+const essayRead = require("../src/renderer/lib/essay-read.js");
 const manifest = require("../src/renderer/exercises/manifest.js");
 const seed = JSON.parse(
   fs.readFileSync(
@@ -53,6 +54,7 @@ function setup(t, options = {}) {
   w.tinkerExerciseWorkspaceCore = core;
   w.tinkerExerciseRevision = revision;
   w.tinkerExerciseEvaluate = evaluate;
+  w.tinkerEssayRead = essayRead;
   w.tinkerExercisesManifest = manifest;
   w.tinkerLearningAuth = {
     isLearningSignedIn: () => signedIn,
@@ -61,14 +63,18 @@ function setup(t, options = {}) {
     },
     requestLearningSignIn() {},
   };
+  const editorDocs = [];
   w.tinkerCodeMirror = {
-    create: () => ({
-      getValue: () => "",
-      destroy() {},
-      focus() {},
-      setFileName() {},
-      setValue() {},
-    }),
+    create: (_host, opts) => {
+      editorDocs.push((opts && opts.doc) || "");
+      return {
+        getValue: () => "",
+        destroy() {},
+        focus() {},
+        setFileName() {},
+        setValue() {},
+      };
+    },
   };
   w.fetch = async () => ({
     ok: true,
@@ -78,6 +84,7 @@ function setup(t, options = {}) {
   return {
     w,
     ui: w.tinkerExerciseWorkspaceUi,
+    editorDocs,
     el: (id) => w.document.getElementById(id),
     resize: (n) => {
       width = n;
@@ -127,4 +134,59 @@ test("opening a step shows content labels without file extensions", async (t) =>
   answerBtn.click();
   assert.match(e.el("repo-code-path").textContent, /Your answer/);
   assert.doesNotMatch(e.el("repo-code-path").textContent, /\.md|\.yaml/);
+});
+
+test("desktop opens lesson steps as rendered markdown preview, answers stay editable", async (t) => {
+  const e = setup(t, { width: 1280 });
+  await e.ui.init();
+  const stepBtn = e.el("repo-explorer-body").querySelector(".repo-ex-step__btn");
+  assert.ok(stepBtn);
+  stepBtn.click();
+
+  const preview = e.el("repo-code-preview");
+  const surface = e.el("repo-code-surface");
+  assert.ok(preview);
+  assert.equal(preview.hidden, false);
+  assert.equal(preview.classList.contains("is-markdown"), true);
+  assert.match(e.el("repo-code-path").textContent, /00 In plain English|In plain English/);
+  assert.doesNotMatch(e.el("repo-code-path").textContent, /README\.md/);
+  assert.ok(preview.querySelector("h1"));
+  assert.match(preview.querySelector("h1").textContent, /In plain English/);
+  assert.ok(preview.querySelector("strong"));
+  assert.equal(preview.textContent.includes("**"), false);
+  assert.equal(preview.textContent.includes("# 00"), false);
+  assert.equal(surface.hidden, true);
+  assert.equal(e.el("repo-code-save").hidden, true);
+  assert.equal(e.el("repo-code-thats-everything").hidden, true);
+  assert.equal(e.el("repo-code-refactor").hidden, true);
+  assert.equal(e.editorDocs.length, 0);
+
+  const answerBtn = e.el("repo-explorer-body").querySelector(".repo-ex-step__answer-btn");
+  assert.ok(answerBtn);
+  answerBtn.click();
+  assert.equal(e.el("repo-code-preview").hidden, true);
+  assert.equal(e.el("repo-code-surface").hidden, false);
+  assert.match(e.el("repo-code-path").textContent, /Your answer/);
+  assert.equal(e.el("repo-code-save").hidden, false);
+  assert.equal(e.el("repo-code-thats-everything").hidden, false);
+  assert.equal(e.el("repo-code-refactor").hidden, false);
+  assert.ok(e.editorDocs.length >= 1);
+});
+
+test("desktop step preview markup and harness exist", () => {
+  assert.match(html, /id="repo-code-preview"/);
+  assert.match(html, /Learning module step, read only/);
+  assert.match(source, /showDesktopStepPreview/);
+  assert.match(source, /isDesktopStepPreview/);
+  assert.match(source, /kind === "step"/);
+  assert.match(source, /renderMarkdownHtml|fillMarkdownElement/);
+  const css = fs.readFileSync(path.join(root, "src/renderer/repo/repo.css"), "utf8");
+  assert.match(css, /\.repo-code__preview\.is-markdown/);
+  const harness = fs.readFileSync(
+    path.join(root, "src/renderer/repo/harness/desktop-step-md-preview.html"),
+    "utf8"
+  );
+  assert.match(harness, /repo-code__preview/);
+  assert.match(harness, /tinkerEssayRead\.renderMarkdown/);
+  assert.doesNotMatch(harness, /\u2014|\u2013/);
 });
