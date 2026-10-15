@@ -18,8 +18,13 @@
   var cmApi = window.tinkerCodeMirror;
   var learningAuth = window.tinkerLearningAuth || null;
   var revision = window.tinkerExerciseRevision || null;
+  var refactorApi = window.tinkerExerciseRefactor || null;
+  var models = window.tinkerClaudeModels || null;
   if (!core) return;
   var cmEditor = null;
+  var refactorProposal = null;
+  var refactorBusy = false;
+  var selectionSyncTimer = null;
 
   var TOKEN_KEY = "tinker_jwt";
   var seedWorkspaceCache = null;
@@ -124,6 +129,18 @@
       codeSurface: $("repo-code-surface"),
       codeEditor: $("repo-code-editor"),
       codeSave: $("repo-code-save"),
+      codeRefactor: $("repo-code-refactor"),
+      codeRefactorPanel: $("repo-code-refactor-panel"),
+      codeRefactorInput: $("repo-code-refactor-input"),
+      codeRefactorAsk: $("repo-code-refactor-ask"),
+      codeRefactorCancel: $("repo-code-refactor-cancel"),
+      codeRefactorStatus: $("repo-code-refactor-status"),
+      codeRefactorDiff: $("repo-code-refactor-diff"),
+      codeRefactorSummary: $("repo-code-refactor-summary"),
+      codeRefactorBefore: $("repo-code-refactor-before"),
+      codeRefactorAfter: $("repo-code-refactor-after"),
+      codeRefactorAccept: $("repo-code-refactor-accept"),
+      codeRefactorReject: $("repo-code-refactor-reject"),
       codeStatus: $("repo-code-status"),
       pad: $("repo-pad"),
       essayView: $("repo-essay-view"),
@@ -451,16 +468,23 @@
     if (!desktop) {
       if (els.code) els.code.hidden = true;
       if (els.codeSave) els.codeSave.hidden = true;
+      if (els.codeRefactor) els.codeRefactor.hidden = true;
+      if (els.codeRefactorPanel) els.codeRefactorPanel.hidden = true;
       if (els.layout) els.layout.classList.remove("is-code-open");
       if (document.body) document.body.classList.remove("repo-code-open");
+      clearRefactorUi();
       destroyCm();
       return;
     }
     if (els.code) els.code.hidden = show;
     if (els.codeSave) els.codeSave.hidden = !!show;
+    if (els.codeRefactor) els.codeRefactor.hidden = !!show;
+    if (show) {
+      clearRefactorUi();
+      destroyCm();
+    }
     if (els.layout) els.layout.classList.toggle("is-code-open", !show);
     if (document.body) document.body.classList.toggle("repo-code-open", !show);
-    if (show) destroyCm();
     try {
       if (typeof window.dispatchEvent === "function") {
         window.dispatchEvent(new CustomEvent("tinker-repo-code-chrome", { detail: { show: !!show } }));
@@ -534,6 +558,196 @@
     if (els.codeSurface) clear(els.codeSurface);
   }
 
+  function resolveClaudeApi() {
+    if (window.tinker && typeof window.tinker.callClaude === "function") return window.tinker;
+    if (window.tinkerApi && typeof window.tinkerApi.callClaude === "function") return window.tinkerApi;
+    return null;
+  }
+
+  function clearRefactorUi() {
+    refactorProposal = null;
+    refactorBusy = false;
+    if (els.codeRefactorPanel) els.codeRefactorPanel.hidden = true;
+    if (els.codeRefactorDiff) els.codeRefactorDiff.hidden = true;
+    if (els.codeRefactorStatus) {
+      els.codeRefactorStatus.hidden = true;
+      text(els.codeRefactorStatus, "");
+    }
+    if (els.codeRefactorInput) els.codeRefactorInput.value = "";
+    if (els.codeRefactorBefore) text(els.codeRefactorBefore, "");
+    if (els.codeRefactorAfter) text(els.codeRefactorAfter, "");
+    if (els.codeRefactorSummary) text(els.codeRefactorSummary, "");
+  }
+
+  function setRefactorStatus(message) {
+    if (!els.codeRefactorStatus) return;
+    if (!message) {
+      els.codeRefactorStatus.hidden = true;
+      text(els.codeRefactorStatus, "");
+      return;
+    }
+    els.codeRefactorStatus.hidden = false;
+    text(els.codeRefactorStatus, message);
+  }
+
+  function selectionForRefactor() {
+    var view = cmEditor && cmEditor.view;
+    if (!view || !view.state) return null;
+    var main = view.state.selection.main;
+    var from = main.from;
+    var to = main.to;
+    if (from !== to) {
+      return {
+        from: from,
+        to: to,
+        empty: false,
+        text: view.state.doc.sliceString(from, to),
+      };
+    }
+    // No highlight: use the current line so a step under the cursor still works.
+    var line = view.state.doc.lineAt(from);
+    var lineText = String(line.text || "");
+    if (!lineText.trim()) return null;
+    return {
+      from: line.from,
+      to: line.to,
+      empty: false,
+      text: lineText,
+    };
+  }
+
+  function replaceEditorRange(from, to, text) {
+    if (cmEditor && typeof cmEditor.replaceRange === "function") {
+      cmEditor.replaceRange(from, to, text);
+      return true;
+    }
+    var view = cmEditor && cmEditor.view;
+    if (!view) return false;
+    var docLen = view.state.doc.length;
+    var start = Math.max(0, Math.min(Number(from) || 0, docLen));
+    var end = Math.max(start, Math.min(Number(to) || 0, docLen));
+    var insert = text == null ? "" : String(text);
+    view.dispatch({
+      changes: { from: start, to: end, insert: insert },
+      selection: { anchor: start, head: start + insert.length },
+    });
+    return true;
+  }
+
+  function openRefactorPanel() {
+    if (!isWideDesktop() || !isLearningSignedIn()) return;
+    var sel = selectionForRefactor();
+    if (!sel || !sel.text) {
+      setRefactorStatus("Select text or a step in the open file first.");
+      if (els.codeRefactorPanel) els.codeRefactorPanel.hidden = false;
+      return;
+    }
+    if (els.codeRefactorPanel) els.codeRefactorPanel.hidden = false;
+    if (els.codeRefactorDiff) els.codeRefactorDiff.hidden = true;
+    setRefactorStatus("Selected " + sel.text.length + " characters. Say what to change.");
+    if (els.codeRefactorInput) {
+      els.codeRefactorInput.focus();
+      try { els.codeRefactorInput.select(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function askRefactor() {
+    if (refactorBusy) return;
+    if (!refactorApi || typeof refactorApi.buildRefactorUserMessage !== "function") {
+      setRefactorStatus("Refactor helper missing.");
+      return;
+    }
+    var api = resolveClaudeApi();
+    if (!api) {
+      setRefactorStatus("Sign in to refactor with Claude.");
+      return;
+    }
+    var sel = selectionForRefactor();
+    if (!sel || !sel.text) {
+      setRefactorStatus("Select text or a step in the open file first.");
+      return;
+    }
+    var instruction = els.codeRefactorInput ? String(els.codeRefactorInput.value || "").trim() : "";
+    if (!instruction) {
+      setRefactorStatus("Say what should change.");
+      return;
+    }
+    var full = editorContent();
+    var beforeContext = full.slice(Math.max(0, sel.from - 1200), sel.from);
+    var afterContext = full.slice(sel.to, Math.min(full.length, sel.to + 1200));
+    var fileName = activeFileName();
+    var userMessage;
+    try {
+      userMessage = refactorApi.buildRefactorUserMessage({
+        fileName: fileName,
+        instruction: instruction,
+        selectedText: sel.text,
+        beforeContext: beforeContext,
+        afterContext: afterContext,
+      });
+    } catch (err) {
+      setRefactorStatus((err && err.message) || "Could not build refactor request.");
+      return;
+    }
+    var model =
+      (refactorApi && refactorApi.MODEL) ||
+      (models && models.EXERCISE_REFACTOR) ||
+      "claude-opus-5-5";
+    refactorBusy = true;
+    refactorProposal = null;
+    if (els.codeRefactorDiff) els.codeRefactorDiff.hidden = true;
+    setRefactorStatus("Asking Claude…");
+    if (els.codeRefactorAsk) els.codeRefactorAsk.disabled = true;
+    api.callClaude({
+      system: refactorApi.SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userMessage }],
+      model: model,
+      maxTokens: 8192,
+    }).then(function (result) {
+      var parsed = refactorApi.parseRefactorReply(result && result.text);
+      refactorProposal = {
+        from: sel.from,
+        to: sel.to,
+        before: sel.text,
+        after: parsed.replacement,
+        summary: parsed.summary,
+      };
+      text(els.codeRefactorSummary, parsed.summary || "Proposed refactor");
+      text(els.codeRefactorBefore, sel.text);
+      text(els.codeRefactorAfter, parsed.replacement);
+      if (els.codeRefactorDiff) els.codeRefactorDiff.hidden = false;
+      setRefactorStatus("Review the inline diff, then Accept or Reject.");
+    }).catch(function (err) {
+      setRefactorStatus((err && err.message) || "Refactor failed.");
+    }).then(function () {
+      refactorBusy = false;
+      if (els.codeRefactorAsk) els.codeRefactorAsk.disabled = false;
+    });
+  }
+
+  function acceptRefactor() {
+    if (!refactorProposal || !cmEditor) return;
+    if (!replaceEditorRange(
+      refactorProposal.from,
+      refactorProposal.to,
+      refactorProposal.after
+    )) return;
+    state.dirty = true;
+    if (els.codeEditor) els.codeEditor.value = cmEditor.getValue();
+    if (els.codeStatus) {
+      els.codeStatus.hidden = false;
+      text(els.codeStatus, "Unsaved changes");
+    }
+    clearRefactorUi();
+    if (els.codeRefactorPanel) els.codeRefactorPanel.hidden = true;
+  }
+
+  function rejectRefactor() {
+    clearRefactorUi();
+    if (els.codeRefactorPanel) els.codeRefactorPanel.hidden = true;
+    setRefactorStatus("");
+  }
+
   function ensureCm(fileName, content) {
     if (!els.codeSurface || !cmApi || typeof cmApi.create !== "function") return null;
     if (!cmEditor) {
@@ -554,7 +768,7 @@
       cmEditor.setFileName(fileName);
       // Avoid clobbering in-progress typing when already focused.
       var focused = cmEditor.view && cmEditor.view.hasFocus;
-      if (!focused) cmEditor.setValue(content || "");
+      if (!focused && !refactorProposal) cmEditor.setValue(content || "");
     }
     if (els.codeEditor) els.codeEditor.value = content || "";
     if (els.code) {
@@ -1450,6 +1664,24 @@
       });
     }
     if (els.codeSave) els.codeSave.addEventListener("click", saveActiveFile);
+    if (els.codeRefactor) els.codeRefactor.addEventListener("click", openRefactorPanel);
+    if (els.codeRefactorAsk) els.codeRefactorAsk.addEventListener("click", askRefactor);
+    if (els.codeRefactorCancel) {
+      els.codeRefactorCancel.addEventListener("click", function () {
+        clearRefactorUi();
+        if (els.codeRefactorPanel) els.codeRefactorPanel.hidden = true;
+      });
+    }
+    if (els.codeRefactorAccept) els.codeRefactorAccept.addEventListener("click", acceptRefactor);
+    if (els.codeRefactorReject) els.codeRefactorReject.addEventListener("click", rejectRefactor);
+    if (els.codeRefactorInput) {
+      els.codeRefactorInput.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          if (event.preventDefault) event.preventDefault();
+          askRefactor();
+        }
+      });
+    }
     if (els.confirmDelete) els.confirmDelete.addEventListener("click", confirmDelete);
     if (els.confirmCancel) els.confirmCancel.addEventListener("click", closeConfirm);
     if (els.confirmBackdrop) els.confirmBackdrop.addEventListener("click", closeConfirm);

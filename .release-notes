@@ -1,7 +1,6 @@
-Download needed
+No download needed, updates on next launch
 
-In-app desktop update button: on launch the shell checks the latest
-beginner-work/tinker GitHub release. When the notes' first line is exactly
-"Download needed" and the release is newer than the installed app, a toolbar
-button opens the OS installer download in the system browser. Shell change —
-install the new desktop build.
+Writing UI uses Claude Haiku 4.5; open exercise files get an inline Refactor
+flow (select text or a step, ask, Accept or Reject) on Claude Opus 5.5.
+Model ids live in one config. Hosted web and API only; the Electron shell
+is unchanged.

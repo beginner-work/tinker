@@ -11,7 +11,9 @@
 const anthropic = require("./anthropic.js");
 const interview = require("../../src/renderer/interview-prompt.js");
 
-const MODEL = interview.KEEP_CRAFTING_MODEL || "claude-opus-4-8";
+const models = require("./../../src/renderer/lib/claude-models.js");
+const MODEL =
+  interview.KEEP_CRAFTING_MODEL || models.WRITING || "claude-haiku-4-5-20251001";
 
 const SYSTEM = [
   "You help a founder prepare to read one section of a book.",

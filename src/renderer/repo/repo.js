@@ -1822,7 +1822,10 @@
     return api.callClaude({
       system: built.system,
       messages: [{ role: "user", content: built.user }],
-      model: interview.KEEP_CRAFTING_MODEL || "claude-opus-4-8",
+      model:
+        interview.KEEP_CRAFTING_MODEL ||
+        (window.tinkerClaudeModels && window.tinkerClaudeModels.WRITING) ||
+        "claude-haiku-4-5-20251001",
       maxTokens: 2048,
     }).then(function (result) {
       var parsed = typeof interview.parseFreeformResponse === "function"

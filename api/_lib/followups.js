@@ -16,7 +16,9 @@ const anthropic = require("./anthropic.js");
 const interview = require("../../src/renderer/interview-prompt.js");
 
 // Same model the writing UI / person Keep crafting path pass to converse.
-const INTERVIEW_MODEL = interview.KEEP_CRAFTING_MODEL || "claude-opus-4-8";
+const models = require("../../src/renderer/lib/claude-models.js");
+const INTERVIEW_MODEL =
+  interview.KEEP_CRAFTING_MODEL || models.WRITING || "claude-haiku-4-5-20251001";
 const KEEP_CRAFTING_MAX_ATTEMPTS = 3; // initial + up to 2 tighter retries
 
 function shapeInterview(parsed) {

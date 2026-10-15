@@ -508,6 +508,33 @@ function create(parent, opts = {}) {
     getValue() {
       return view.state.doc.toString();
     },
+    getSelection() {
+      const sel = view.state.selection.main;
+      const from = sel.from;
+      const to = sel.to;
+      return {
+        from,
+        to,
+        empty: from === to,
+        text: view.state.doc.sliceString(from, to),
+      };
+    },
+    replaceRange(from, to, text) {
+      const docLen = view.state.doc.length;
+      const start = Math.max(0, Math.min(Number(from) || 0, docLen));
+      const end = Math.max(start, Math.min(Number(to) || 0, docLen));
+      const insert = text == null ? "" : String(text);
+      view.dispatch({
+        changes: { from: start, to: end, insert },
+        selection: { anchor: start, head: start + insert.length },
+      });
+    },
+    setSelection(from, to) {
+      const docLen = view.state.doc.length;
+      const start = Math.max(0, Math.min(Number(from) || 0, docLen));
+      const end = Math.max(start, Math.min(Number(to) || start, docLen));
+      view.dispatch({ selection: { anchor: start, head: end } });
+    },
     setValue(text, keepHistory) {
       const next = text == null ? "" : String(text);
       if (next === view.state.doc.toString()) return;

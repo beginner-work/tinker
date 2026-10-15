@@ -14,7 +14,8 @@
 const { callAnthropic } = require("./anthropic.js");
 
 // Same model the writing UI and ask_followups use.
-const MODEL = "claude-opus-4-8";
+const models = require("../../src/renderer/lib/claude-models.js");
+const MODEL = models.DRAFTING || "claude-opus-4-8";
 
 const MAX_NOTES = 8000;
 const MAX_DRAFT = 8000;

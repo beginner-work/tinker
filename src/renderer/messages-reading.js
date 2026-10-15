@@ -60,7 +60,11 @@
   }
   function keepCraftingModel() {
     var api = interviewApi();
-    return (api && api.KEEP_CRAFTING_MODEL) || "claude-opus-4-8";
+    return (
+      (api && api.KEEP_CRAFTING_MODEL) ||
+      (window.tinkerClaudeModels && window.tinkerClaudeModels.WRITING) ||
+      "claude-haiku-4-5-20251001"
+    );
   }
   function parseNotes(text, thread) {
     var raw = String(text || "").replace(/\r\n/g, "\n");

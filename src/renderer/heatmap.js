@@ -201,7 +201,9 @@
       const result = await window.tinker.callClaude({
         system,
         messages: [{ role: "user", content: userMessage }],
-        model: "claude-haiku-4-5-20251001",
+        model:
+          (window.tinkerClaudeModels && window.tinkerClaudeModels.FAST) ||
+          "claude-haiku-4-5-20251001",
         maxTokens: 600,
       });
 

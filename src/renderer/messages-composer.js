@@ -268,7 +268,11 @@
   }
   function keepCraftingModel() {
     var api = interviewApi();
-    return (api && api.KEEP_CRAFTING_MODEL) || "claude-opus-4-8";
+    return (
+      (api && api.KEEP_CRAFTING_MODEL) ||
+      (window.tinkerClaudeModels && window.tinkerClaudeModels.WRITING) ||
+      "claude-haiku-4-5-20251001"
+    );
   }
   function snapshotTranscript(turns) {
     return (Array.isArray(turns) ? turns : []).map(function (t) {
