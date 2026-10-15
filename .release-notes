@@ -1,0 +1,7 @@
+Download needed
+
+In-app desktop update button: on launch the shell checks the latest
+beginner-work/tinker GitHub release. When the notes' first line is exactly
+"Download needed" and the release is newer than the installed app, a toolbar
+button opens the OS installer download in the system browser. Shell change —
+install the new desktop build.

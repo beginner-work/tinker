@@ -20,6 +20,7 @@ const exercisesLab = require("./lib/exercises-lab.js");
 const exercisesManifest = require("../renderer/exercises/manifest.js");
 const hotspotTrigger = require("./lib/hotspot-trigger.js");
 const wifiSsid = require("./lib/wifi-ssid.js");
+const desktopUpdate = require("./lib/desktop-update.js");
 
 // Production Tinker. The desktop shell is a hardened BrowserWindow around
 // this origin — web product changes ship without a new dmg; only shell
@@ -329,7 +330,49 @@ html {
 .messages-pane__top [role="button"] {
   -webkit-app-region: no-drag;
 }
+.repo-top {
+  -webkit-app-region: drag;
+}
+.repo-top a,
+.repo-top button,
+.repo-top input,
+.repo-top [role="button"] {
+  -webkit-app-region: no-drag;
+}
+.tinker-desktop-update {
+  -webkit-app-region: no-drag;
+  margin-left: auto;
+  margin-right: 8px;
+  align-self: center;
+  flex: 0 0 auto;
+  max-width: min(280px, 42vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid rgba(45, 42, 38, 0.18);
+  background: #fffdf7;
+  color: #2d2a26;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font: 500 12px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+.tinker-desktop-update:hover {
+  border-color: rgba(45, 42, 38, 0.35);
+  background: #f7f3ea;
+}
+.tinker-desktop-update--floating {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  right: 12px;
+  z-index: 2147483000;
+  margin: 0;
+}
 `;
+
+/** Cached result of the launch-time GitHub release check (or null). */
+let cachedDesktopUpdate = null;
+let desktopUpdateCheckPromise = null;
 
 function markDesktopInPage(wc) {
   if (!wc || wc.isDestroyed()) return;
@@ -342,6 +385,74 @@ function markDesktopInPage(wc) {
 function insertDesktopCss(wc) {
   if (!wc || wc.isDestroyed()) return;
   wc.insertCSS(DESKTOP_CHROME_CSS).catch(() => {});
+}
+
+function ensureDesktopUpdateCheck() {
+  if (desktopUpdateCheckPromise) return desktopUpdateCheckPromise;
+  desktopUpdateCheckPromise = desktopUpdate
+    .checkDesktopUpdate({
+      currentVersion: app.getVersion(),
+      platform: process.platform,
+      fetchImpl: (...args) => net.fetch(...args),
+    })
+    .then((result) => {
+      cachedDesktopUpdate = result || null;
+      return cachedDesktopUpdate;
+    })
+    .catch(() => {
+      cachedDesktopUpdate = null;
+      return null;
+    });
+  return desktopUpdateCheckPromise;
+}
+
+function injectDesktopUpdateButton(wc, update) {
+  if (!wc || wc.isDestroyed() || !update) return;
+  const version = String(update.version || "");
+  const downloadUrl = String(update.downloadUrl || "");
+  if (!version || !downloadUrl) return;
+  const payload = JSON.stringify({ version, downloadUrl });
+  wc.executeJavaScript(
+    `(function(){
+  var info = ${payload};
+  var existing = document.getElementById("tinker-desktop-update");
+  if (existing) {
+    existing.textContent = "Update available: download v" + info.version;
+    existing.dataset.downloadUrl = info.downloadUrl;
+    return;
+  }
+  var btn = document.createElement("button");
+  btn.id = "tinker-desktop-update";
+  btn.type = "button";
+  btn.className = "tinker-desktop-update";
+  btn.textContent = "Update available: download v" + info.version;
+  btn.title = "Download tinker v" + info.version;
+  btn.dataset.downloadUrl = info.downloadUrl;
+  btn.addEventListener("click", function () {
+    var url = btn.dataset.downloadUrl || info.downloadUrl;
+    if (window.tinker && typeof window.tinker.openExternal === "function") {
+      window.tinker.openExternal(url);
+    }
+  });
+  var toolbar =
+    document.querySelector(".repo-top") ||
+    document.querySelector(".sidebar__top") ||
+    document.querySelector(".messages-pane__top");
+  if (toolbar) {
+    toolbar.appendChild(btn);
+  } else if (document.body) {
+    btn.classList.add("tinker-desktop-update--floating");
+    document.body.appendChild(btn);
+  }
+})();`,
+    true
+  ).catch(() => {});
+}
+
+async function surfaceDesktopUpdate(wc) {
+  const update = await ensureDesktopUpdateCheck();
+  if (!update || !wc || wc.isDestroyed()) return;
+  injectDesktopUpdateButton(wc, update);
 }
 
 function createWindow() {
@@ -409,6 +520,7 @@ function createWindow() {
   });
   win.webContents.on("did-finish-load", () => {
     markDesktopInPage(win.webContents);
+    surfaceDesktopUpdate(win.webContents).catch(() => {});
   });
 
   win.on("focus", () => {
@@ -475,6 +587,13 @@ app.whenReady().then(() => {
   buildAppMenu();
   createWindow();
   startHotspotWatcher();
+  // Launch-time shell update check (GitHub latest release notes first line).
+  ensureDesktopUpdateCheck().then((update) => {
+    if (!update) return;
+    for (const w of BrowserWindow.getAllWindows()) {
+      if (!w.isDestroyed()) surfaceDesktopUpdate(w.webContents).catch(() => {});
+    }
+  });
 
   nativeTheme.on("updated", syncNativeChromeColor);
 
@@ -492,6 +611,9 @@ app.on("window-all-closed", () => {
 
 ipcMain.handle("app:version", () => app.getVersion());
 ipcMain.handle("app:platform", () => process.platform);
+ipcMain.handle("app:checkDesktopUpdate", async () => {
+  return ensureDesktopUpdateCheck();
+});
 ipcMain.handle("app:close", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
   if (win) win.close();

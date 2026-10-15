@@ -70,6 +70,8 @@ armDesktopMark();
 contextBridge.exposeInMainWorld("tinker", {
   version: () => ipcRenderer.invoke("app:version"),
   platform: () => ipcRenderer.invoke("app:platform"),
+  // Latest GitHub release when notes start with "Download needed" and newer.
+  checkDesktopUpdate: () => ipcRenderer.invoke("app:checkDesktopUpdate"),
   setIcon: (dataUrl) => ipcRenderer.invoke("app:setIcon", dataUrl),
   // Closes the focused window — backs the post-publish "Close app" button.
   close: () => ipcRenderer.invoke("app:close"),

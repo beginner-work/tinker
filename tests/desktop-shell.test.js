@@ -276,12 +276,14 @@ test("windows nsis and portable use distinct artifact names", () => {
 
 test("release marker matches package version; workflows publish on marker", () => {
   assert.equal(marker, pkg.version);
-  assert.equal(pkg.version, "0.1.18");
+  assert.equal(pkg.version, "0.1.19");
   assert.match(markerYml, /\.release-version/);
   assert.match(markerYml, /publish:\s*true/);
   assert.match(releaseYml, /macos-latest/);
   assert.match(releaseYml, /MAC_CSC_LINK/);
   assert.match(releaseYml, /APPLE_TEAM_ID/);
+  assert.match(releaseYml, /\.release-notes/);
+  assert.match(releaseYml, /Download needed/);
 });
 
 test("README documents Open Anyway and unsigned secrets", () => {
