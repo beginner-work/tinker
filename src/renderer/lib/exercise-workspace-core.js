@@ -4,9 +4,9 @@
  * checked-in tlindow/lindowlabs snapshots. Saved owner trees are never
  * overwritten by seed/sync; new upstream exercises are appended.
  * Retired curriculum (Formation, deleted lindowlabs labs, api-design
- * extras/Fastify) is pruned on load. Saved rides-domain api-design trees
- * are replaced with the current payments seed. Owner essays and other
- * blobs are never touched here.
+ * extras/Fastify) is pruned on load. Saved rides or Merchant/Order
+ * api-design trees are replaced with the current PaymentIntent seed.
+ * Owner essays and other blobs are never touched here.
  */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
@@ -226,14 +226,19 @@
     return normalizeWorkspace(next);
   }
 
-  /** True when a saved exercise tree still carries the retired rides OpenAPI track. */
-  function exerciseLooksLikeRidesDomain(exercise) {
+  function exerciseContentBlob(exercise) {
     var nodes = exercise && Array.isArray(exercise.nodes) ? exercise.nodes : [];
     var blob = "";
     for (var i = 0; i < nodes.length; i += 1) {
       var n = nodes[i];
       blob += "\n" + String(n.name || "") + "\n" + String(n.content || "");
     }
+    return blob;
+  }
+
+  /** True when a saved exercise tree still carries the retired rides OpenAPI track. */
+  function exerciseLooksLikeRidesDomain(exercise) {
+    var blob = exerciseContentBlob(exercise);
     if (/\b\/rides\b/i.test(blob)) return true;
     if (/"domain"\s*:\s*"rides"/i.test(blob)) return true;
     if (/\bRides API\b/i.test(blob)) return true;
@@ -245,10 +250,40 @@
   }
 
   /**
-   * Replace saved exercise trees that still contain the rides OpenAPI
-   * curriculum with the current seed (payments api-design). Owner edits on
-   * a rides tree are dropped on purpose so desktop always opens payments.
-   * Idempotent once the tree is payments-shaped.
+   * True when a saved tree is the pre-PaymentIntent payments curriculum
+   * (Merchant / Order / Refund on /orders) rather than PaymentIntent /
+   * Capture / Refund / WebhookEvent on /payment_intents.
+   */
+  function exerciseLooksLikeMerchantOrderDomain(exercise) {
+    var blob = exerciseContentBlob(exercise);
+    if (/\bPaymentIntent\b/.test(blob) || /\b\/payment_intents\b/.test(blob)) {
+      return false;
+    }
+    if (/\bCreateOrder\b/.test(blob)) return true;
+    if (/\bcomponents\.schemas\.Order\b/.test(blob)) return true;
+    if (/\bGET \/orders\b/i.test(blob)) return true;
+    if (/\b\/orders\/\{id\}\b/.test(blob)) return true;
+    if (/\bMerchant\b/.test(blob) && /\b\/orders\b/.test(blob)) return true;
+    if (/\bMerchant\b/.test(blob) && /\bOrder\b/.test(blob) && /\bRefund\b/.test(blob)) {
+      return true;
+    }
+    return false;
+  }
+
+  /** Rides or Merchant/Order trees that must be replaced by the current seed. */
+  function exerciseLooksLikeStaleCurriculum(exercise) {
+    return (
+      exerciseLooksLikeRidesDomain(exercise) ||
+      exerciseLooksLikeMerchantOrderDomain(exercise)
+    );
+  }
+
+  /**
+   * Replace saved exercise trees that still contain retired OpenAPI
+   * curriculum (rides, or Merchant/Order payments) with the current seed
+   * (PaymentIntent / Capture / Refund / WebhookEvent). Owner edits on a
+   * stale tree are dropped on purpose so desktop always opens the current
+   * payments track. Idempotent once the tree is PaymentIntent-shaped.
    */
   function refreshStaleCurriculum(savedRaw, seedWorkspace) {
     var saved = normalizeWorkspace(savedRaw);
@@ -261,7 +296,7 @@
 
     seed.exerciseOrder.forEach(function (id) {
       if (!next.exercises[id] || !seed.exercises[id]) return;
-      if (!exerciseLooksLikeRidesDomain(next.exercises[id])) return;
+      if (!exerciseLooksLikeStaleCurriculum(next.exercises[id])) return;
       next.exercises[id] = presentExercise(seed.exercises[id]);
       replacedExerciseIds.push(id);
     });
@@ -586,6 +621,8 @@
     buildSeedWorkspace: buildSeedWorkspace,
     mergeSeedIntoSaved: mergeSeedIntoSaved,
     exerciseLooksLikeRidesDomain: exerciseLooksLikeRidesDomain,
+    exerciseLooksLikeMerchantOrderDomain: exerciseLooksLikeMerchantOrderDomain,
+    exerciseLooksLikeStaleCurriculum: exerciseLooksLikeStaleCurriculum,
     refreshStaleCurriculum: refreshStaleCurriculum,
     pruneRetiredCurriculum: pruneRetiredCurriculum,
     createNode: createNode,

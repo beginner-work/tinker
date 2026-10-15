@@ -3,8 +3,9 @@
  * Seed/template comes from checked-in lindowlabs snapshots. Owner trees
  * persist here and are never overwritten by seed merge. On list/sync we
  * prune retired curriculum (Formation, deleted labs, api-design extras)
- * from the saved blob and replace rides-domain api-design trees with the
- * current payments seed; essays and other TinkerUserData kinds are untouched.
+ * from the saved blob and replace rides or Merchant/Order api-design trees
+ * with the current PaymentIntent seed; essays and other TinkerUserData
+ * kinds are untouched.
  *
  * Essay revisions also land here. Tinker has no GitHub commit/push path for
  * tlindow/lindowlabs (desktop only clones/pulls for Open in IDE).
