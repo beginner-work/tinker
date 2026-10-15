@@ -203,3 +203,7 @@ test("That's everything grades practice answer even when lesson README is open",
   assert.match(ui, /32000/);
   assert.match(ui, /effort:\s*["']low["']/);
 });
+
+test("exercise workspace UI contains no em or en dashes", () => {
+  assert.doesNotMatch(ui, /[\u2013\u2014]/);
+});
