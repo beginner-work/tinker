@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Mobile md reader harness</title>
+    <link rel="stylesheet" href="/styles.css?v=40" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/repo/repo.css?v=54" />
+    <style>
+      /* Force phone layout for screenshot harness. */
+      html, body { margin: 0; min-height: 100%; background: var(--color-background); }
+      body.repo-page { min-height: 100vh; }
+      .repo-ex-reader { display: flex !important; }
+      .repo-explorer {
+        display: flex !important;
+        flex-direction: column;
+        position: fixed;
+        top: calc(56px + env(safe-area-inset-top, 0px));
+        left: 0; right: 0; bottom: 0;
+        width: 100%; max-width: 100%;
+        background: var(--color-background);
+        z-index: 36;
+        overflow: hidden;
+      }
+      .repo-explorer__gated { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+      .repo-explorer__body { display: none !important; }
+      .repo-ex-reader__hint {
+        flex: 0 0 auto;
+        margin: 0;
+        padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+        font-size: 12px;
+        color: var(--color-muted);
+      }
+    </style>
+  </head>
+  <body class="repo-page repo-page--write">
+    <header class="repo-top repo-top--labs" aria-label="Tools">
+      <a class="repo-top__labs" href="#" aria-label="Exercises" title="Exercises">
+        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M8.5 2h7"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M7 16h10"/>
+        </svg>
+        <span class="repo-top__labs-label">Exercises</span>
+      </a>
+      <button type="button" class="repo-top__past-essays" aria-label="Past essays" title="Past essays">
+        <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M4 5h16M4 12h16M4 19h16"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="repo-layout repo-layout--write is-explorer-open" id="repo-layout">
+      <aside class="repo-explorer" id="repo-explorer" aria-label="Exercises">
+        <div class="repo-explorer__head">
+          <h2 class="repo-sidebar__heading" id="repo-explorer-heading">Exercises</h2>
+          <button type="button" class="repo-explorer__collapse" aria-label="Collapse explorer">‹</button>
+        </div>
+        <div class="repo-explorer__gated" id="repo-explorer-gated">
+          <section id="repo-ex-reader" class="repo-ex-reader" aria-label="Read-only learning module">
+            <button type="button" id="repo-ex-reader-back" class="repo-ex-reader__back">‹ All learning modules</button>
+            <h3 id="repo-ex-reader-path" class="repo-ex-reader__path">OpenAPI by hand (payments) / 00-in-plain-english / README.md</h3>
+            <div id="repo-ex-reader-content" class="repo-ex-reader__content is-markdown" tabindex="0"></div>
+          </section>
+          <p class="repo-ex-reader__hint">Read only · Your saved exercises. Edit on desktop.</p>
+        </div>
+      </aside>
+    </div>
+
+    <script src="/vendor/markdown-it.min.js"></script>
+    <script src="/vendor/purify.min.js"></script>
+    <script src="/lib/essay-read.js?v=1"></script>
+    <script>
+      (function () {
+        var md = [
+          "# 00: In plain English",
+          "",
+          "## What you are building (and why)",
+          "",
+          "You are building a **small payments API** by hand.",
+          "",
+          "**Write every line by feel.** No framework magic.",
+          "",
+          "## Resources",
+          "",
+          "- [OpenAPI guide](https://example.com/openapi)",
+          "- Lists, **bold**, and `inline code`",
+          "",
+          "```js",
+          "const charge = { amount: 500, currency: \"usd\" };",
+          "```",
+          "",
+          "> Keep the contract readable.",
+        ].join("\n");
+        var el = document.getElementById("repo-ex-reader-content");
+        el.innerHTML = window.tinkerEssayRead.renderMarkdown(md);
+      })();
+    </script>
+  </body>
+</html>

@@ -8,6 +8,7 @@ const path = require("node:path");
 const { JSDOM } = require("jsdom");
 const core = require("../src/renderer/lib/exercise-workspace-core.js");
 const revision = require("../src/renderer/lib/exercise-revision.js");
+const essayRead = require("../src/renderer/lib/essay-read.js");
 const root = path.join(__dirname, "../src/renderer");
 const html = fs.readFileSync(path.join(root, "repo/index.html"), "utf8");
 const source = fs.readFileSync(path.join(root, "repo/exercise-workspace-ui.js"), "utf8");
@@ -16,7 +17,7 @@ function workspace() {
   const ws = core.emptyWorkspace();
   ws.exerciseOrder = ["api-design"];
   ws.exercises["api-design"] = { id: "api-design", name: "API Design", nodes: [
-    { id: "readme", name: "README.md", type: "file", parentId: null, content: "# Instructions\n\n1. Read the code\n2. Try it on desktop" },
+    { id: "readme", name: "README.md", type: "file", parentId: null, content: "# Instructions\n\n**Read** the code\n\n1. Read the code\n2. Try it on desktop\n\n```js\nconst x = 1;\n```\n\n[docs](https://example.com)" },
     { id: "folder", name: "src", type: "folder", parentId: null },
     { id: "code", name: "practice.js", type: "file", parentId: "folder", content: '<script>window.executed = true</script>\nconst saved = 42;\n' + "x".repeat(600) },
     { id: "empty", name: "empty.js", type: "file", parentId: null, content: "" },
@@ -33,6 +34,7 @@ function setup(t, options = {}) {
   w.matchMedia = () => ({ matches: width >= 801, addEventListener: (_, fn) => { resize = fn; } });
   w.tinkerExerciseWorkspaceCore = core;
   w.tinkerExerciseRevision = revision;
+  w.tinkerEssayRead = essayRead;
   w.tinkerExercisesManifest = { modules: [{ id: "api-design" }] };
   w.tinkerLearningAuth = { isLearningSignedIn: () => signedIn, onLearningAuthChange: fn => { authChange = fn; }, requestLearningSignIn() {} };
   w.tinkerCodeMirror = { create: (_, opts) => {
@@ -57,9 +59,18 @@ for (const width of [320, 390, 430, 800]) {
   test(`mobile ${width}px opens real saved files without editor or mutations`, async t => {
     const e = setup(t, { width }); await e.ui.init();
     assert.equal(e.calls[0].url, "/api/exercise-workspace?action=read");
+    assert.equal(e.el("repo-layout").classList.contains("is-explorer-open"), true);
     e.ui.openExercise("api-design");
-    assert.match(e.el("repo-ex-reader-content").textContent, /# Instructions/);
+    const md = e.el("repo-ex-reader-content");
+    assert.equal(md.classList.contains("is-markdown"), true);
+    assert.equal(md.querySelector("h1").textContent, "Instructions");
+    assert.equal(md.querySelector("strong").textContent, "Read");
+    assert.ok(md.querySelector("ol"));
+    assert.ok(md.querySelector("pre code"));
+    assert.equal(md.querySelector("a").getAttribute("href"), "https://example.com");
+    assert.equal(md.querySelector("script"), null);
     e.ui.openFile("api-design", "code");
+    assert.equal(e.el("repo-ex-reader-content").classList.contains("is-markdown"), false);
     assert.match(e.el("repo-ex-reader-content").textContent, /const saved = 42/);
     assert.equal(e.el("repo-ex-reader-content").querySelector("script"), null);
     assert.equal(e.w.executed, undefined);
@@ -155,9 +166,14 @@ test("desktop editor keeps blank practice and save behavior, resize makes it rea
 test("mobile reader scrollports constrain long lines and include safe area/touch targets", () => {
   assert.match(css, /\.repo-ex-reader__content\s*\{[^}]*overflow:\s*auto/s);
   assert.match(css, /\.repo-ex-reader__content\s*\{[^}]*white-space:\s*pre/s);
-  assert.match(css, /\.repo-ex-reader__content\.is-markdown\s*\{[^}]*pre-wrap/s);
+  assert.match(css, /\.repo-ex-reader__content\.is-markdown\s*\{[^}]*white-space:\s*normal/s);
+  assert.match(css, /\.repo-ex-reader__content\.is-markdown\s*\{[^}]*font-family:\s*var\(--font-display/s);
   assert.match(css, /\.repo-ex-reader__back\s*\{[^}]*min-height:\s*44px/s);
   assert.match(css, /padding-bottom:\s*env\(safe-area-inset-bottom/);
+  assert.match(css, /\.repo-top\.repo-top--labs\s*\{[^}]*safe-area-inset-left/s);
+  assert.match(css, /\.repo-write-empty/);
+  assert.match(html, /id="repo-write-empty"/);
+  assert.match(html, /id="repo-ex-reader-content"[^>]*><\/div>/);
 });
 
 test("reopening during asynchronous Back waits for history and keeps the new file open", async t => {
@@ -170,4 +186,25 @@ test("reopening during asynchronous Back waits for history and keeps the new fil
   assert.equal(e.ui._state.mobileFile.nodeId, "code");
   assert.equal(e.el("repo-ex-reader").hidden, false);
   assert.equal(e.w.history.state.tinkerExerciseReader.nodeId, "code");
+});
+
+test("markdown reader sanitizes raw HTML and script tags in .md files", async t => {
+  const e = setup(t); await e.ui.init();
+  const ws = workspace();
+  ws.exercises["api-design"].nodes.push({
+    id: "evil",
+    name: "evil.md",
+    type: "file",
+    parentId: null,
+    content: "# Hi\n\n<script>window.pwned=1</script>\n\n<img src=x onerror=\"window.pwned=1\">\n\n**ok**",
+  });
+  e.ui._setWorkspace(ws);
+  e.ui.openFile("api-design", "evil");
+  const content = e.el("repo-ex-reader-content");
+  assert.equal(content.classList.contains("is-markdown"), true);
+  assert.equal(content.querySelector("script"), null);
+  assert.equal(content.querySelector("img"), null);
+  assert.equal(e.w.pwned, undefined);
+  assert.equal(content.querySelector("strong").textContent, "ok");
+  assert.equal(content.querySelector("h1").textContent, "Hi");
 });

@@ -2307,9 +2307,11 @@ body.repo-page--write .repo-center.repo-write-safe-top::before {
   position: fixed;
   top: 0;
   left: 0;
-  /* Writing / editor column (no right essays rail on desktop). */
-  width: 100vw;
-  max-width: 100%;
+  right: 0;
+  /* Prefer % over 100vw so a scrollbar gutter cannot widen the page and
+   * clip the fixed top bar (beaker / Exercises) past the left edge. */
+  width: auto;
+  max-width: none;
   height: var(--repo-write-safe-top, 64px);
   /* Below .repo-location (z-index 12) so the place pill stays sharp. */
   z-index: 8;
@@ -2322,12 +2324,6 @@ body.repo-page--write .repo-center.repo-write-safe-top::before {
     var(--color-background) 72%,
     transparent 100%
   );
-}
-
-@media (max-width: 800px) {
-  body.repo-page--write .repo-center.repo-write-safe-top::before {
-    width: 100vw;
-  }
 }
 
 body.repo-page--write .repo-center {
@@ -3497,6 +3493,30 @@ body.repo-page--write .repo-center {
     padding: calc(26px + env(safe-area-inset-top, 0px)) 12px 10px 12px;
   }
 
+  /* Beat the generic .repo-top mobile padding above (same specificity,
+   * later source order). Keep the beaker + label inside the safe area
+   * and clear of the left screen edge at 375–430px. */
+  .repo-top.repo-top--labs {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding:
+      calc(6px + env(safe-area-inset-top, 0px))
+      max(12px, calc(10px + env(safe-area-inset-right, 0px)))
+      6px
+      max(12px, calc(10px + env(safe-area-inset-left, 0px)));
+    overflow: visible;
+  }
+
+  .repo-top--labs .repo-top__labs {
+    width: auto;
+    max-width: calc(100% - 52px);
+    min-width: 44px;
+    gap: 8px;
+    padding: 0 10px;
+    justify-content: flex-start;
+    box-sizing: border-box;
+  }
+
   .repo-ide-tabbar {
     display: none !important;
   }
@@ -4097,12 +4117,43 @@ html.labs-drawer-open body {
 }
 
 
-/* A separate text reader keeps the desktop editor out of mobile browsing. */
+/* A separate text reader keeps the desktop editor out of mobile browsing.
+ * Label stays hidden on desktop; phone media query below reveals it. */
 .repo-top__labs-label,
 .repo-ex-reader { display: none; }
+
+/* Phone write empty state: visible when the pad has nothing yet. */
+.repo-write-empty {
+  display: none;
+  margin: 28px 12px 0;
+  padding: 0 4px;
+  max-width: 28rem;
+  align-self: center;
+  text-align: center;
+  color: var(--color-muted);
+  font-family: var(--font-sans, "Instrument Sans", sans-serif);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.repo-write-empty[hidden] { display: none !important; }
+.repo-write-empty__title {
+  margin: 0 0 6px;
+  color: var(--color-foreground);
+  font-family: var(--font-display, Fraunces, Georgia, serif);
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.repo-write-empty__copy { margin: 0; }
+
 @media (max-width: 800px) {
-  .repo-top__labs { width: auto; gap: 8px; padding: 0 10px; }
-  .repo-top__labs-label { display: inline; font-size: 14px; }
+  .repo-top__labs-label {
+    display: inline;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .repo-layout--write.is-explorer-open .repo-explorer {
     width: 100%; max-width: 100%;
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -4131,6 +4182,71 @@ html.labs-drawer-open body {
     white-space: pre; font: 14px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace;
     tab-size: 2; user-select: text; -webkit-user-select: text;
   }
-  .repo-ex-reader__content.is-markdown { white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* Formatted .md in the mobile reader — match essay-read prose, not monospace. */
+  .repo-ex-reader__content.is-markdown {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-family: var(--font-display, Fraunces, Georgia, serif);
+    font-size: 17px;
+    line-height: 1.7;
+    color: var(--color-foreground, #1a1a1a);
+  }
+  .repo-ex-reader__content.is-markdown > :first-child { margin-top: 0; }
+  .repo-ex-reader__content.is-markdown h1,
+  .repo-ex-reader__content.is-markdown h2,
+  .repo-ex-reader__content.is-markdown h3,
+  .repo-ex-reader__content.is-markdown h4 {
+    font-family: var(--font-display, Fraunces, Georgia, serif);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    margin: 1.25em 0 0.5em;
+  }
+  .repo-ex-reader__content.is-markdown h1 { font-size: 1.7em; }
+  .repo-ex-reader__content.is-markdown h2 { font-size: 1.35em; }
+  .repo-ex-reader__content.is-markdown h3 { font-size: 1.15em; }
+  .repo-ex-reader__content.is-markdown p { margin: 0 0 1em; }
+  .repo-ex-reader__content.is-markdown ul,
+  .repo-ex-reader__content.is-markdown ol {
+    margin: 0 0 1em;
+    padding-left: 1.35em;
+  }
+  .repo-ex-reader__content.is-markdown li { margin: 0.25em 0; }
+  .repo-ex-reader__content.is-markdown blockquote {
+    margin: 0.75em 0 1em;
+    padding: 0.15em 0 0.15em 1em;
+    border-left: 3px solid var(--color-border, rgba(45, 90, 61, 0.28));
+    color: color-mix(in srgb, var(--color-foreground) 82%, var(--color-muted, #6b6b6b));
+  }
+  .repo-ex-reader__content.is-markdown code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.92em;
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--color-accent-dim, rgba(45, 90, 61, 0.1)) 55%, transparent);
+  }
+  .repo-ex-reader__content.is-markdown pre {
+    margin: 0 0 1em;
+    padding: 12px 14px;
+    overflow: auto;
+    border-radius: 10px;
+    white-space: pre;
+    background: color-mix(in srgb, var(--color-accent-dim, rgba(45, 90, 61, 0.1)) 70%, transparent);
+  }
+  .repo-ex-reader__content.is-markdown pre code {
+    padding: 0;
+    background: transparent;
+  }
+  .repo-ex-reader__content.is-markdown a {
+    color: var(--color-accent-strong, #2d5a3d);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
+  .repo-ex-reader__content.is-markdown strong { font-weight: 700; }
+  .repo-ex-reader__content.is-markdown em { font-style: italic; }
   .repo-ex-node__btn, .repo-explorer__group-btn { min-height: 44px; }
+
+  .repo-write-empty:not([hidden]) {
+    display: block;
+  }
 }
