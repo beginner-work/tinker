@@ -74,7 +74,9 @@ body.repo-page--files {
   min-height: 0;
 }
 
-/* Shared top nav (desktop + mobile): beaker/exercises left, past-essays hamburger right. */
+/* Shared top nav (desktop + mobile): beaker/exercises left, past-essays hamburger right.
+ * Opaque background + high z-index so the write-safe top fade never washes
+ * the beaker / Exercises label (esp. iPhone PWA standalone + notch). */
 .repo-top--labs {
   display: flex;
   position: fixed;
@@ -82,7 +84,8 @@ body.repo-page--files {
   left: 0;
   right: 0;
   width: 100%;
-  z-index: 40;
+  z-index: 50;
+  isolation: isolate;
   flex-wrap: nowrap;
   justify-content: space-between;
   align-items: center;
@@ -91,12 +94,12 @@ body.repo-page--files {
   min-height: calc(44px + env(safe-area-inset-top, 0px));
   height: auto;
   max-height: none;
-  padding: calc(6px + env(safe-area-inset-top, 0px))
+  padding: calc(10px + env(safe-area-inset-top, 0px))
     calc(10px + env(safe-area-inset-right, 0px))
-    6px
+    8px
     calc(10px + env(safe-area-inset-left, 0px));
   border-bottom: 0;
-  background: transparent;
+  background: var(--color-background);
   pointer-events: none;
   box-sizing: border-box;
   overflow: visible;
@@ -142,7 +145,7 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-top__past-essays {
 }
 
 body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
-  z-index: 45;
+  z-index: 55;
   background: var(--color-background);
 }
 
@@ -2596,15 +2599,17 @@ body.repo-page--write .repo-center.repo-write-safe-top {
 body.repo-page--write .repo-center.repo-write-safe-top::before {
   content: "";
   position: fixed;
-  top: 0;
+  /* Start under the fixed labs header so the dissolve never covers
+   * the beaker / Exercises label (header paints above at z-index 50). */
+  top: calc(52px + env(safe-area-inset-top, 0px));
   left: 0;
   right: 0;
   /* Prefer % over 100vw so a scrollbar gutter cannot widen the page and
    * clip the fixed top bar (beaker / Exercises) past the left edge. */
   width: auto;
   max-width: none;
-  height: var(--repo-write-safe-top, 64px);
-  /* Below .repo-location (z-index 12) so the place pill stays sharp. */
+  height: var(--repo-write-fade, 48px);
+  /* Below .repo-location (z-index 12) and well below .repo-top--labs (50). */
   z-index: 8;
   pointer-events: none;
   /* Solid through most of the band so a mid-line peek cannot read through;
@@ -3786,16 +3791,19 @@ body.repo-page--write .repo-center {
 
   /* Beat the generic .repo-top mobile padding above (same specificity,
    * later source order). Keep the beaker + label inside the safe area
-   * and clear of the left screen edge at 375–430px. */
+   * and clear of the left screen edge at 375–430px. Opaque bar so the
+   * write-safe fade cannot wash muted icons. */
   .repo-top.repo-top--labs {
     flex-wrap: nowrap;
     gap: 8px;
     padding:
-      calc(6px + env(safe-area-inset-top, 0px))
+      calc(10px + env(safe-area-inset-top, 0px))
       max(12px, calc(10px + env(safe-area-inset-right, 0px)))
-      6px
+      8px
       max(12px, calc(10px + env(safe-area-inset-left, 0px)));
     overflow: visible;
+    background: var(--color-background);
+    z-index: 50;
   }
 
   .repo-top--labs .repo-top__labs {
@@ -3806,6 +3814,11 @@ body.repo-page--write .repo-center {
     padding: 0 10px;
     justify-content: flex-start;
     box-sizing: border-box;
+    color: var(--color-foreground);
+  }
+
+  .repo-top--labs .repo-top__past-essays {
+    color: var(--color-foreground);
   }
 
   .repo-ide-tabbar {
@@ -3817,9 +3830,9 @@ body.repo-page--write .repo-center {
     display: none;
   }
 
-  /* Breathing room under the status bar / notch (~40–56px past safe-area). */
+  /* Breathing room under the opaque labs header + notch. */
   .repo-location {
-    top: calc(48px + env(safe-area-inset-top, 0px));
+    top: calc(56px + env(safe-area-inset-top, 0px));
     left: auto;
     right: auto;
     align-self: center;
@@ -4133,7 +4146,7 @@ body.repo-page--write .repo-center {
 
   .repo-surface.writing {
     /* Match location sticky top so the pad text starts below the pill. */
-    padding: calc(48px + env(safe-area-inset-top, 0px)) 12px 88px;
+    padding: calc(56px + env(safe-area-inset-top, 0px)) 12px 88px;
     /* Room for fixed action island + home indicator + open keyboard. */
     padding-bottom: calc(
       96px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
@@ -4244,7 +4257,7 @@ body.repo-page--write .repo-center {
 /* Narrow phone (e.g. 390px): keep the island centered and clear of pad text. */
 @media (max-width: 430px) {
   .repo-location {
-    top: calc(48px + env(safe-area-inset-top, 0px));
+    top: calc(56px + env(safe-area-inset-top, 0px));
     left: auto;
     right: auto;
     align-self: center;
@@ -4266,7 +4279,7 @@ body.repo-page--write .repo-center {
   }
 
   .repo-surface.writing {
-    padding: calc(48px + env(safe-area-inset-top, 0px)) 10px 84px;
+    padding: calc(56px + env(safe-area-inset-top, 0px)) 10px 84px;
     padding-bottom: calc(
       96px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
     );
@@ -4437,13 +4450,38 @@ html.labs-drawer-open body {
 }
 .repo-write-empty__copy { margin: 0; }
 
+/* Installed iPhone PWA: keep labs chrome fully below the notch and
+ * readable against any page glow. display-mode standalone covers Add to
+ * Home Screen; -webkit-fill-available alone is not enough. */
+@media (display-mode: standalone) {
+  .repo-top.repo-top--labs {
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-bottom: 10px;
+    background: var(--color-background);
+    z-index: 50;
+  }
+
+  .repo-top--labs .repo-top__labs,
+  .repo-top--labs .repo-top__past-essays,
+  .repo-top--labs .repo-top__labs-label {
+    color: var(--color-foreground);
+    opacity: 1;
+  }
+
+  body.repo-page--write .repo-center.repo-write-safe-top::before {
+    top: calc(56px + env(safe-area-inset-top, 0px));
+  }
+}
+
 @media (max-width: 800px) {
   .repo-top__labs-label {
     display: inline;
     font-size: 14px;
+    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: inherit;
   }
   .repo-layout--write.is-explorer-open .repo-explorer {
     width: 100%; max-width: 100%;

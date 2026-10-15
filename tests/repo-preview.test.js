@@ -878,7 +878,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=55"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=56"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
   assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
@@ -974,23 +974,31 @@ test("repo write page is writing surface + Location place + structure sidebar", 
     /@media\s*\(min-width:\s*801px\)[\s\S]*\.repo-location\s*\{[^}]*margin-top:\s*44px/s,
   );
   assert.match(css, /\.repo-surface\.writing\s*\{[^}]*safe-area-inset-top/s);
-  // Phones: clear breathing room under the notch (safe-area + ~40–56px).
+  // Phones: clear breathing room under the opaque labs header + notch.
   assert.match(
     css,
-    /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-location\s*\{[^}]*top:\s*calc\(\s*48px \+ env\(safe-area-inset-top/s,
+    /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-location\s*\{[^}]*top:\s*calc\(\s*56px \+ env\(safe-area-inset-top/s,
   );
   assert.match(
     css,
-    /@media\s*\(max-width:\s*430px\)[\s\S]*\.repo-location\s*\{[^}]*top:\s*calc\(\s*48px \+ env\(safe-area-inset-top/s,
+    /@media\s*\(max-width:\s*430px\)[\s\S]*\.repo-location\s*\{[^}]*top:\s*calc\(\s*56px \+ env\(safe-area-inset-top/s,
   );
   assert.match(
     css,
-    /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-surface\.writing\s*\{[^}]*padding:\s*calc\(\s*48px \+ env\(safe-area-inset-top/s,
+    /@media\s*\(max-width:\s*800px\)[\s\S]*\.repo-surface\.writing\s*\{[^}]*padding:\s*calc\(\s*56px \+ env\(safe-area-inset-top/s,
   );
   assert.match(
     css,
-    /@media\s*\(max-width:\s*430px\)[\s\S]*\.repo-surface\.writing\s*\{[^}]*padding:\s*calc\(\s*48px \+ env\(safe-area-inset-top/s,
+    /@media\s*\(max-width:\s*430px\)[\s\S]*\.repo-surface\.writing\s*\{[^}]*padding:\s*calc\(\s*56px \+ env\(safe-area-inset-top/s,
   );
+  // Labs header stays opaque above the write-safe fade; fade starts below it.
+  assert.match(css, /\.repo-top--labs\s*\{[^}]*background:\s*var\(--color-background\)/s);
+  assert.match(css, /\.repo-top--labs\s*\{[^}]*z-index:\s*50/s);
+  assert.match(
+    css,
+    /\.repo-center\.repo-write-safe-top::before\s*\{[^}]*top:\s*calc\(\s*52px \+ env\(safe-area-inset-top/s,
+  );
+  assert.match(css, /@media\s*\(display-mode:\s*standalone\)/);
   assert.match(page, /visualViewport/);
   assert.match(page, /--repo-keyboard-inset/);
   assert.match(page, /onBlankPadActivate|focusLastPadTurn/);

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en" class="on-web">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Standalone labs header</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/repo/repo.css?v=56" />
+    <style>
+      /* Simulated iPhone 14 PWA: notch + opaque labs bar above write fade. */
+      :root { --safe-sim: 47px; }
+      html, body {
+        margin: 0;
+        width: 390px;
+        height: 844px;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
+          radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
+          var(--color-background, #fffdf7);
+        color: var(--color-foreground, #2d2a26);
+        font-family: var(--font-sans, "Instrument Sans", system-ui, sans-serif);
+      }
+      .status {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: var(--safe-sim);
+        z-index: 80;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        padding: 0 28px 10px;
+        color: #111;
+        font: 600 15px/1 "Instrument Sans", system-ui, sans-serif;
+        pointer-events: none;
+      }
+      /* Override env(safe-area) which is 0 in headless Chrome. */
+      .repo-top.repo-top--labs {
+        padding:
+          calc(12px + var(--safe-sim))
+          12px
+          10px
+          12px !important;
+        background: var(--color-background, #fffdf7) !important;
+        z-index: 50 !important;
+      }
+      .repo-top--labs .repo-top__labs,
+      .repo-top--labs .repo-top__past-essays,
+      .repo-top--labs .repo-top__labs-label {
+        color: var(--color-foreground, #2d2a26) !important;
+        opacity: 1 !important;
+      }
+      .repo-top__labs-label {
+        display: inline !important;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .repo-center.repo-write-safe-top::before {
+        top: calc(56px + var(--safe-sim)) !important;
+        z-index: 8 !important;
+      }
+      .repo-location {
+        position: fixed;
+        top: calc(72px + var(--safe-sim));
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 12;
+        width: min(240px, calc(100% - 24px));
+      }
+      .repo-location__field {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 34px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: #fff;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+        font-size: 13px;
+        color: var(--color-muted, #6f6a65);
+      }
+      .repo-write-empty {
+        display: block;
+        margin: calc(140px + var(--safe-sim)) 16px 0;
+        text-align: center;
+      }
+      .repo-write-empty__title {
+        margin: 0 0 8px;
+        font-family: var(--font-display, Fraunces, Georgia, serif);
+        font-size: 1.2rem;
+        font-weight: 650;
+      }
+      .repo-write-empty__copy {
+        margin: 0;
+        color: var(--color-muted, #6f6a65);
+        font-size: 15px;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body class="repo-page repo-page--write" data-repo-mode="write">
+    <div class="status" aria-hidden="true"><span>9:41</span><span>●●●</span></div>
+    <header class="repo-top repo-top--labs" aria-label="Tools">
+      <a class="repo-top__labs" href="#" aria-label="Exercises" data-exercises-nav>
+        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M8.5 2h7"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M7 16h10"/>
+        </svg>
+        <span class="repo-top__labs-label">Exercises</span>
+      </a>
+      <button type="button" class="repo-top__past-essays" aria-label="Past essays">
+        <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M4 5h16M4 12h16M4 19h16"/>
+        </svg>
+      </button>
+    </header>
+    <main class="repo-center repo-write-safe-top" id="repo-editor-main">
+      <div class="repo-location" id="repo-location">
+        <div class="repo-location__field">
+          <span>Where are you?</span>
+        </div>
+      </div>
+      <div class="repo-write-empty">
+        <p class="repo-write-empty__title">Pick a place to begin</p>
+        <p class="repo-write-empty__copy">Choose where you are above, then write - or open Exercises from the beaker.</p>
+      </div>
+    </main>
+  
+<script>
+requestAnimationFrame(() => {
+  const h = document.querySelector('.repo-top--labs');
+  const s = getComputedStyle(h);
+  const a = document.querySelector('.repo-top__labs');
+  const as = getComputedStyle(a);
+  document.title = JSON.stringify({
+    padTop: s.paddingTop,
+    bg: s.backgroundColor,
+    z: s.zIndex,
+    color: as.color,
+    top: s.top,
+    h: h.getBoundingClientRect().toJSON(),
+    labs: a.getBoundingClientRect().toJSON(),
+  });
+});
+</script>
+</body>
+</html>
