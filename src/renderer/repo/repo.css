@@ -2304,6 +2304,172 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-right.repo-essays-sidebar
   display: none !important;
 }
 
+/* Learning module card — ordered steps, not a file/folder tree. */
+.repo-ex-module {
+  margin: 0 0 10px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+
+.repo-ex-module__head {
+  margin: 0;
+}
+
+.repo-ex-module__btn {
+  font-weight: 650;
+}
+
+.repo-ex-module__title {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.repo-ex-module__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 8px 8px;
+  padding: 0;
+}
+
+.repo-ex-module__empty {
+  margin: 8px 12px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.repo-ex-step {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.repo-ex-step__btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.repo-ex-step__btn:hover,
+.repo-ex-step__btn:focus-visible {
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 12%, transparent);
+}
+
+.repo-ex-step__btn.is-selected,
+.repo-ex-step.is-current .repo-ex-step__btn {
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 18%, transparent);
+  color: var(--color-accent-strong, #4f46e5);
+  font-weight: 600;
+}
+
+.repo-ex-step.is-done .repo-ex-step__btn {
+  color: var(--color-muted);
+}
+
+.repo-ex-step.is-next .repo-ex-step__btn {
+  color: color-mix(in srgb, var(--color-foreground) 72%, var(--color-muted));
+}
+
+.repo-ex-step__mark {
+  flex: 0 0 auto;
+  min-width: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--color-muted);
+}
+
+.repo-ex-step.is-done .repo-ex-step__mark {
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+.repo-ex-step.is-current .repo-ex-step__mark {
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+.repo-ex-step__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repo-ex-step__state {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.repo-ex-step.is-current .repo-ex-step__state {
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+.repo-ex-step__answer {
+  margin: 0 0 4px 28px;
+}
+
+.repo-ex-step__answer-btn {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px dashed color-mix(in srgb, var(--color-border) 80%, var(--color-accent, #a5b4fc));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-background) 94%, var(--color-accent, #a5b4fc) 6%);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.repo-ex-step__answer-btn:hover,
+.repo-ex-step__answer-btn:focus-visible,
+.repo-ex-step__answer-btn.is-selected {
+  border-style: solid;
+  border-color: var(--color-accent, #a5b4fc);
+  color: var(--color-accent-strong, #4f46e5);
+}
+
+.repo-ex-module-placeholder {
+  margin: 8px 10px 12px;
+  padding: 12px 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-background) 96%, var(--color-muted) 4%);
+  color: var(--color-muted);
+}
+
+.repo-ex-module-placeholder__title {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 650;
+  color: color-mix(in srgb, var(--color-foreground) 55%, var(--color-muted));
+}
+
+.repo-ex-module-placeholder__copy {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 @media (min-width: 801px) {
   .repo-code-host {
     flex: 1 1 auto;

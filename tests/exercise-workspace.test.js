@@ -445,3 +445,31 @@ test("repo IDE explorer wires exercise trees and drops the Output panel", () => 
   assert.doesNotMatch(html, /id="repo-ex-new-folder"[^>]*>New folder</);
   assert.doesNotMatch(uiSrc, /\u2014/);
 });
+
+test("Exercises sidebar presents one learning module with step progression, not a file tree", () => {
+  const css = fs.readFileSync(path.join(root, "src/renderer/repo/repo.css"), "utf8");
+  assert.match(uiSrc, /renderModuleProgress/);
+  assert.match(uiSrc, /Your answer/);
+  assert.match(uiSrc, /Generated after you finish this one/);
+  assert.match(uiSrc, /repo-ex-module-placeholder/);
+  assert.match(uiSrc, /openStepContent/);
+  assert.match(uiSrc, /presentationForNode/);
+  assert.match(uiSrc, /stepProgressLabel/);
+  assert.doesNotMatch(uiSrc, /renderNodeList\(list, exerciseId, null, 0\)/);
+  assert.match(html, /role="navigation"/);
+  assert.match(css, /\.repo-ex-module__progress/);
+  assert.match(css, /\.repo-ex-step__answer-btn/);
+  assert.match(css, /\.repo-ex-module-placeholder/);
+  const harness = fs.readFileSync(
+    path.join(root, "src/renderer/repo/harness/exercises-module-sidebar.html"),
+    "utf8"
+  );
+  assert.match(harness, /OpenAPI by hand \(payments\)/);
+  assert.match(harness, /Your answer/);
+  assert.match(harness, /Next module/);
+  assert.match(harness, /Generated after you finish this one/);
+  assert.doesNotMatch(harness, /README\.md/);
+  assert.doesNotMatch(harness, /steps\.json/);
+  assert.doesNotMatch(harness, /00-in-plain-english\//);
+  assert.doesNotMatch(harness, /formation/i);
+});

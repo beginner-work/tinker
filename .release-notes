@@ -1,3 +1,6 @@
 No download needed, updates on next launch
 
-That's everything and inline Refactor now request guaranteed structured JSON from Claude Opus (Anthropic json_schema output_format when the model supports it, otherwise a forced tool call). Invalid model JSON retries once, then shows a friendly error. Hosted web/API only; Electron shell unchanged.
+Exercises sidebar (desktop and mobile web drawer) presents the current
+exercise as one learning module with ordered steps and Your answer, instead
+of a file/folder tree. Upcoming modules show as locked placeholders.
+Hosted web only; Electron shell unchanged.

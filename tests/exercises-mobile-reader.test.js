@@ -74,7 +74,7 @@ for (const width of [320, 390, 430, 800]) {
     assert.match(e.el("repo-ex-reader-content").textContent, /const saved = 42/);
     assert.equal(e.el("repo-ex-reader-content").querySelector("script"), null);
     assert.equal(e.w.executed, undefined);
-    assert.match(e.el("repo-ex-reader-path").textContent, /src \/ practice.js/);
+    assert.match(e.el("repo-ex-reader-path").textContent, /API Design \/ practice\.js/);
     assert.equal(e.el("repo-ex-reader").hidden, false);
     assert.equal(e.el("repo-explorer-body").hidden, true);
     assert.equal(e.el("repo-explorer-toolbar").hidden, true);
@@ -99,7 +99,7 @@ test("back, repeated opens, browser back/forward, close, and focus", async t => 
   e.w.dispatchEvent(new e.w.PopStateEvent("popstate", { state: null }));
   assert.equal(e.el("repo-ex-reader").hidden, true);
   assert.equal(e.el("repo-explorer-body").hidden, false);
-  assert.equal(e.w.document.activeElement.textContent, "practice.js");
+  assert.equal(e.w.document.activeElement.textContent, "API Design");
   e.w.dispatchEvent(new e.w.PopStateEvent("popstate", { state: entry }));
   assert.equal(e.el("repo-ex-reader").hidden, false);
   e.el("repo-ex-reader-back").click();

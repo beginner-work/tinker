@@ -442,18 +442,8 @@
       if (els.readerContent) els.readerContent.classList.remove("is-markdown");
       return;
     }
-    var ex = state.workspace.exercises[selection.exerciseId];
-    var path = [node.name];
-    var parent = node.parentId;
-    var seen = {};
-    while (parent && !seen[parent]) {
-      seen[parent] = true;
-      var folder = findNode(selection.exerciseId, parent);
-      if (!folder) break;
-      path.unshift(folder.name);
-      parent = folder.parentId;
-    }
-    text(els.readerPath, ex.name + " / " + path.join(" / "));
+    var pres = presentationForNode(selection.exerciseId, selection.nodeId);
+    text(els.readerPath, pres.pathLabel);
     var raw = node.content || "This learning module is empty.";
     var asMarkdown = isMarkdownFileName(node.name);
     if (els.readerContent) els.readerContent.classList.toggle("is-markdown", asMarkdown);
@@ -480,12 +470,31 @@
 
   function focusSelectedFile() {
     if (!els.body) return;
+    var answerBtn = els.body.querySelector(".repo-ex-step__answer-btn.is-selected");
+    if (answerBtn) {
+      answerBtn.focus();
+      return;
+    }
+    var stepBtn = els.body.querySelector(".repo-ex-step__btn.is-selected");
+    if (stepBtn) {
+      stepBtn.focus();
+      return;
+    }
     var rows = els.body.querySelectorAll(".repo-ex-node");
     for (var i = 0; i < rows.length; i += 1) {
       if (rows[i].getAttribute("data-exercise-id") === state.selected.exerciseId &&
           rows[i].getAttribute("data-node-id") === state.selected.nodeId) {
         var button = rows[i].querySelector("button");
         if (button) button.focus();
+        return;
+      }
+    }
+    if (state.selected.exerciseId) {
+      var moduleBtn = els.body.querySelector(
+        '.repo-ex-module[data-exercise-id="' + state.selected.exerciseId + '"] .repo-ex-module__btn'
+      );
+      if (moduleBtn) {
+        moduleBtn.focus();
         return;
       }
     }
@@ -687,6 +696,306 @@
     if (!ex || !revision || typeof revision.findNodeByPath !== "function") return "";
     var node = revision.findNodeByPath(ex.nodes, relPath);
     return node && node.content != null ? String(node.content) : "";
+  }
+
+  function deriveStepsFromFolders(exerciseId) {
+    var ex = state.workspace.exercises[exerciseId];
+    if (!ex || !core || typeof core.childNodes !== "function") return [];
+    return core.childNodes(ex.nodes, null)
+      .filter(function (node) {
+        if (!node || node.type !== "folder") return false;
+        var name = String(node.name || "");
+        if (!/^\d{2}/.test(name)) return false;
+        if (/^(solutions|scripts|extras)$/i.test(name)) return false;
+        return true;
+      })
+      .map(function (folder) {
+        var name = String(folder.name || "");
+        var idMatch = name.match(/^(\d{2})/);
+        return {
+          id: idMatch ? idMatch[1] : "",
+          folder: name,
+          title: name.replace(/^\d{2}-?/, "").replace(/-/g, " "),
+          goal: "",
+          check: null,
+        };
+      });
+  }
+
+  /** Curriculum steps from steps.json (presentation; storage paths unchanged). */
+  function curriculumSteps(exerciseId) {
+    if (evaluateApi && typeof evaluateApi.listSteps === "function") {
+      var listed = evaluateApi.listSteps(stepsJsonForExercise(exerciseId));
+      if (listed && listed.length) return listed;
+    }
+    return deriveStepsFromFolders(exerciseId);
+  }
+
+  function stepProgressLabel(step) {
+    if (!step) return "Step";
+    var id = String(step.id || "").trim();
+    var title = String(step.title || "").trim();
+    if (!title && step.folder) {
+      title = String(step.folder)
+        .replace(/^\d{2}-/, "")
+        .replace(/-/g, " ");
+    }
+    // "00 In plain English" - id + title, no folder slug / extension.
+    if (id && title) {
+      var titleStartsWithId = title === id || title.indexOf(id + " ") === 0 || title.indexOf(id + ":") === 0;
+      return titleStartsWithId ? title.replace(/^(\d+)\s*:\s*/, "$1 ") : (id + " " + title);
+    }
+    return title || id || "Step";
+  }
+
+  function answerNodeForStep(exerciseId, step) {
+    var ex = state.workspace.exercises[exerciseId];
+    if (!ex || !step || !step.folder || !revision || typeof revision.findNodeByPath !== "function") {
+      return null;
+    }
+    var folder = String(step.folder).replace(/^\/+|\/+$/g, "");
+    var candidates = [
+      folder + "/api.md",
+      folder + "/openapi.yaml",
+      folder + "/openapi.yml",
+      folder + "/practice.js",
+      folder + "/practice.ts",
+      folder + "/practice.md",
+    ];
+    var i;
+    for (i = 0; i < candidates.length; i += 1) {
+      var hit = revision.findNodeByPath(ex.nodes, candidates[i]);
+      if (hit) return hit;
+    }
+    // First non-README file whose path sits in this step folder.
+    for (i = 0; i < ex.nodes.length; i += 1) {
+      var node = ex.nodes[i];
+      if (!node || node.type !== "file") continue;
+      if (/^readme\.md$/i.test(node.name)) continue;
+      var rel = typeof revision.nodeRelPath === "function"
+        ? revision.nodeRelPath(ex.nodes, node.id)
+        : "";
+      if (!rel) continue;
+      if (rel === folder || rel.indexOf(folder + "/") === 0) {
+        if (rel.indexOf("/solutions/") !== -1 || rel.indexOf("solutions/") === 0) continue;
+        return node;
+      }
+    }
+    return null;
+  }
+
+  function readmeNodeForStep(exerciseId, step) {
+    var ex = state.workspace.exercises[exerciseId];
+    if (!ex || !step || !step.folder || !revision || typeof revision.findNodeByPath !== "function") {
+      return null;
+    }
+    var path = evaluateApi && typeof evaluateApi.readmePathForStep === "function"
+      ? evaluateApi.readmePathForStep(step)
+      : (String(step.folder).replace(/^\/+|\/+$/g, "") + "/README.md");
+    return path ? revision.findNodeByPath(ex.nodes, path) : null;
+  }
+
+  function findStepForPath(steps, filePath) {
+    if (evaluateApi && typeof evaluateApi.findCurrentStep === "function") {
+      return evaluateApi.findCurrentStep(steps, filePath);
+    }
+    var path = String(filePath || "")
+      .replace(/^\/+|\/+$/g, "")
+      .replace(/\\/g, "/");
+    if (!path) return { index: -1, step: null };
+    var best = { index: -1, step: null, len: -1 };
+    var list = Array.isArray(steps) ? steps : [];
+    for (var i = 0; i < list.length; i += 1) {
+      var folder = list[i] && list[i].folder;
+      if (!folder) continue;
+      if (path === folder || path.indexOf(folder + "/") === 0) {
+        if (folder.length > best.len) {
+          best = { index: i, step: list[i], len: folder.length };
+        }
+      }
+    }
+    return { index: best.index, step: best.step };
+  }
+
+  function currentCurriculumIndex(exerciseId) {
+    var steps = curriculumSteps(exerciseId);
+    if (!steps.length) return -1;
+    var path = "";
+    if (state.selected.exerciseId === exerciseId && state.selected.nodeId && revision &&
+        typeof revision.nodeRelPath === "function") {
+      var ex = state.workspace.exercises[exerciseId];
+      if (ex) path = revision.nodeRelPath(ex.nodes, state.selected.nodeId) || "";
+    }
+    if (path) {
+      var found = findStepForPath(steps, path);
+      if (found && found.index >= 0) return found.index;
+    }
+    return 0;
+  }
+
+  function stepStateAt(index, currentIndex) {
+    if (currentIndex < 0) return "next";
+    if (index < currentIndex) return "done";
+    if (index === currentIndex) return "current";
+    return "next";
+  }
+
+  function presentationForNode(exerciseId, nodeId) {
+    var ex = state.workspace.exercises[exerciseId];
+    var node = findNode(exerciseId, nodeId);
+    var fallback = node && node.name ? String(node.name) : "Untitled";
+    if (!ex || !node || !revision || typeof revision.nodeRelPath !== "function") {
+      return { title: fallback, pathLabel: fallback, kind: "file" };
+    }
+    var rel = revision.nodeRelPath(ex.nodes, nodeId) || fallback;
+    var steps = curriculumSteps(exerciseId);
+    if (!steps.length) {
+      return { title: fallback, pathLabel: (ex.name || exerciseId) + " / " + fallback, kind: "file" };
+    }
+    var found = findStepForPath(steps, rel);
+    if (!found || !found.step) {
+      if (/^readme\.md$/i.test(fallback) || /^worksheet\.md$/i.test(fallback) || /^steps\.json$/i.test(fallback)) {
+        return {
+          title: ex.name || exerciseId,
+          pathLabel: ex.name || exerciseId,
+          kind: "meta",
+        };
+      }
+      return { title: fallback, pathLabel: (ex.name || exerciseId) + " / " + fallback, kind: "file" };
+    }
+    var label = stepProgressLabel(found.step);
+    var answer = answerNodeForStep(exerciseId, found.step);
+    if (answer && answer.id === nodeId) {
+      return {
+        title: "Your answer",
+        pathLabel: (ex.name || exerciseId) + " / " + label + " / Your answer",
+        kind: "answer",
+        step: found.step,
+      };
+    }
+    return {
+      title: label,
+      pathLabel: (ex.name || exerciseId) + " / " + label,
+      kind: "step",
+      step: found.step,
+    };
+  }
+
+  function openStepContent(exerciseId, step) {
+    var readme = readmeNodeForStep(exerciseId, step);
+    if (readme) {
+      openFile(exerciseId, readme.id);
+      return;
+    }
+    var answer = answerNodeForStep(exerciseId, step);
+    if (answer) openFile(exerciseId, answer.id);
+  }
+
+  function openStepAnswer(exerciseId, step) {
+    var answer = answerNodeForStep(exerciseId, step);
+    if (answer) openFile(exerciseId, answer.id);
+  }
+
+  function renderModuleProgress(container, exerciseId) {
+    var steps = curriculumSteps(exerciseId);
+    var currentIndex = currentCurriculumIndex(exerciseId);
+    var progress = document.createElement("div");
+    progress.className = "repo-ex-module__progress";
+    progress.setAttribute("data-exercise-id", exerciseId);
+
+    if (!steps.length) {
+      // Custom / empty modules: no fake file tree and no "steps" chrome.
+      return;
+    }
+
+    steps.forEach(function (step, index) {
+      var stateName = stepStateAt(index, currentIndex);
+      var row = document.createElement("div");
+      row.className = "repo-ex-step is-" + stateName;
+      row.setAttribute("data-step-id", step.id || String(index));
+      row.setAttribute("data-step-folder", step.folder || "");
+
+      var stepBtn = document.createElement("button");
+      stepBtn.type = "button";
+      stepBtn.className = "repo-ex-step__btn" + (stateName === "current" ? " is-selected" : "");
+      var mark = document.createElement("span");
+      mark.className = "repo-ex-step__mark";
+      mark.setAttribute("aria-hidden", "true");
+      if (stateName === "done") {
+        text(mark, "\u2713");
+      } else {
+        var idText = String(step.id != null && step.id !== "" ? step.id : index);
+        if (/^\d+$/.test(idText) && idText.length < 2) {
+          idText = ("0" + idText).slice(-2);
+        }
+        text(mark, idText);
+      }
+      stepBtn.appendChild(mark);
+      var label = document.createElement("span");
+      label.className = "repo-ex-step__label";
+      // Title only in the main label when mark already shows the id.
+      var titleOnly = String(step.title || "").trim();
+      if (!titleOnly && step.folder) {
+        titleOnly = String(step.folder).replace(/^\d{2}-/, "").replace(/-/g, " ");
+      }
+      text(label, titleOnly || stepProgressLabel(step));
+      stepBtn.appendChild(label);
+      var stateHint = document.createElement("span");
+      stateHint.className = "repo-ex-step__state";
+      text(stateHint, stateName === "done" ? "Done" : stateName === "current" ? "Current" : "Next");
+      stepBtn.appendChild(stateHint);
+      stepBtn.addEventListener("click", function () {
+        if (!isLearningSignedIn()) {
+          requestLearningSignIn();
+          return;
+        }
+        openStepContent(exerciseId, step);
+      });
+      row.appendChild(stepBtn);
+
+      if (stateName === "current") {
+        var answer = answerNodeForStep(exerciseId, step);
+        if (answer) {
+          var answerRow = document.createElement("div");
+          answerRow.className = "repo-ex-step__answer";
+          var answerBtn = document.createElement("button");
+          answerBtn.type = "button";
+          answerBtn.className = "repo-ex-step__answer-btn" +
+            (state.selected.exerciseId === exerciseId && state.selected.nodeId === answer.id
+              ? " is-selected"
+              : "");
+          text(answerBtn, "Your answer");
+          answerBtn.addEventListener("click", function (event) {
+            if (event && event.stopPropagation) event.stopPropagation();
+            if (!isLearningSignedIn()) {
+              requestLearningSignIn();
+              return;
+            }
+            openStepAnswer(exerciseId, step);
+          });
+          answerRow.appendChild(answerBtn);
+          row.appendChild(answerRow);
+        }
+      }
+
+      progress.appendChild(row);
+    });
+    container.appendChild(progress);
+  }
+
+  function renderUpcomingModulePlaceholders(container) {
+    var placeholder = document.createElement("div");
+    placeholder.className = "repo-ex-module-placeholder";
+    placeholder.setAttribute("aria-disabled", "true");
+    var title = document.createElement("p");
+    title.className = "repo-ex-module-placeholder__title";
+    text(title, "Next module");
+    placeholder.appendChild(title);
+    var copy = document.createElement("p");
+    copy.className = "repo-ex-module-placeholder__copy";
+    text(copy, "Generated after you finish this one");
+    placeholder.appendChild(copy);
+    container.appendChild(placeholder);
   }
 
   function setRefactorStatus(message) {
@@ -1178,6 +1487,14 @@
   function firstFileNode(exerciseId) {
     var ex = state.workspace.exercises[exerciseId];
     if (!ex || !Array.isArray(ex.nodes)) return null;
+    // Prefer the first curriculum step's content (README), not root meta files.
+    var steps = curriculumSteps(exerciseId);
+    if (steps.length) {
+      var stepReadme = readmeNodeForStep(exerciseId, steps[0]);
+      if (stepReadme) return stepReadme;
+      var stepAnswer = answerNodeForStep(exerciseId, steps[0]);
+      if (stepAnswer) return stepAnswer;
+    }
     var readme = null;
     var first = null;
     ex.nodes.forEach(function (node) {
@@ -1250,15 +1567,17 @@
       && revision
       && typeof revision.isPracticeFile === "function"
       && revision.isPracticeFile(node);
+    var pres = presentationForNode(exerciseId, nodeId);
+    var tabTitle = pres.title || node.name;
     if (existing) {
-      existing.title = node.name;
+      existing.title = tabTitle;
       existing.blank = !!blankPractice;
     } else {
       state.openTabs.push({
         id: id,
         exerciseId: exerciseId,
         nodeId: nodeId,
-        title: node.name,
+        title: tabTitle,
         blank: !!blankPractice,
       });
     }
@@ -1367,7 +1686,8 @@
       return;
     }
     showWritingChrome(false);
-    text(els.codePath, (state.workspace.exercises[tab.exerciseId] || {}).name + " / " + node.name);
+    var codePres = presentationForNode(tab.exerciseId, tab.nodeId);
+    text(els.codePath, codePres.pathLabel);
     var content = tab.blank ? "" : (node.content || "");
     ensureCm(node.name, content);
     if (els.codeStatus) {
@@ -1575,8 +1895,8 @@
         !isWideDesktop()
           ? (state.localOnly ? "Read only · Exercise templates. Sign in to Tinker for your saved learning modules." : "Read only · Your saved exercises. Edit on desktop.")
           : state.localOnly
-          ? "Browsing seed trees. Sign in to Tinker to save restructuring."
-          : "Seeded from lindowlabs. Edits save in Tinker, not GitHub."
+          ? "Browsing learning modules. Sign in to Tinker to save changes."
+          : "Learning modules. Edits save in Tinker, not GitHub."
       );
     }
 
@@ -1586,23 +1906,18 @@
       var rootKey = "ex:" + exerciseId;
       var collapsed = !!state.collapsed[rootKey];
       var group = document.createElement("div");
-      group.className = "repo-explorer__group";
+      group.className = "repo-explorer__group repo-ex-module";
       group.setAttribute("data-exercise-id", exerciseId);
       group.draggable = isWideDesktop();
 
       var head = document.createElement("div");
-      head.className = "repo-explorer__group-row";
+      head.className = "repo-explorer__group-row repo-ex-module__head";
       var btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "repo-explorer__group-btn" +
+      btn.className = "repo-explorer__group-btn repo-ex-module__btn" +
         (state.selected.exerciseId === exerciseId && !state.selected.nodeId ? " is-selected" : "");
-      var chev = document.createElement("span");
-      chev.className = "repo-explorer__chevron";
-      chev.setAttribute("aria-hidden", "true");
-      text(chev, collapsed ? "\u25b8" : "\u25be");
-      btn.appendChild(chev);
       var name = document.createElement("span");
-      name.className = "repo-explorer__name";
+      name.className = "repo-explorer__name repo-ex-module__title";
       text(name, ex.name || exerciseId);
       btn.appendChild(name);
       var tStatus = transformStatus(exerciseId);
@@ -1689,9 +2004,8 @@
         } catch (e) { /* ignore */ }
       });
 
-      // Write-about / steps / tree live under the exercise title group so they
-      // never paint as an orphan block above the next titled exercise. Still
-      // siblings of the title row (not inside .repo-ex-node flex rows).
+      // Module card: write-about + ordered step progression (no file/folder tree).
+      // Storage paths stay unchanged; this is presentation only.
       if (!collapsed) {
         var writeAbout = document.createElement("button");
         writeAbout.type = "button";
@@ -1704,22 +2018,21 @@
         });
         if (isWideDesktop()) group.appendChild(writeAbout);
 
-        renderStepsPanel(group, exerciseId);
-
-        var list = document.createElement("div");
-        list.className = "repo-ex-tree";
-        list.setAttribute("data-exercise-id", exerciseId);
-        renderNodeList(list, exerciseId, null, 0);
-        if (!ex.nodes.length) {
+        if (ex.nodes && ex.nodes.length) {
+          renderModuleProgress(group, exerciseId);
+        } else {
           var empty = document.createElement("p");
-          empty.className = "repo-ex-tree__empty";
+          empty.className = "repo-ex-module__empty";
           text(empty, "No learning modules yet");
-          list.appendChild(empty);
+          group.appendChild(empty);
         }
-        group.appendChild(list);
       }
       els.body.appendChild(group);
     });
+
+    if (order.length) {
+      renderUpcomingModulePlaceholders(els.body);
+    }
   }
 
   function render() {
