@@ -642,8 +642,18 @@ test("exercise catalog never includes Formation curriculum or deleted lindowlabs
     assert.equal(/formation/i.test(seedText), false);
     assert.equal(/api-design-extras/i.test(seedText), false);
     assert.equal(/Fastify/i.test(seedText), false);
+    assert.equal(/\b\/rides\b/i.test(seedText), false, path.basename(seedPath) + " still has /rides");
+    assert.equal(/"domain"\s*:\s*"rides"/i.test(seedText), false);
+    assert.equal(/\bRides API\b/i.test(seedText), false);
+    assert.equal(/\bCreateRide\b/.test(seedText), false);
+    assert.match(seedText, /Merchant/);
+    assert.match(seedText, /payments platform API/);
     const nodes = seed.exercises["api-design"].nodes || [];
     assert.equal(nodes.some((n) => String(n.path || "").startsWith("extras")), false);
+    const stepsNode = nodes.find((n) => String(n.path || "") === "steps.json");
+    assert.ok(stepsNode, "steps.json missing from seed");
+    const steps = JSON.parse(String(stepsNode.content || "{}"));
+    assert.equal(steps.domain, "payments");
   }
 
   const pageAndManifest = [
