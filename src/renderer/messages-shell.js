@@ -151,11 +151,19 @@
     return true;
   }
   function goRepoHome() {
+    var mobile = false;
     try {
-      window.location.assign("/repo");
+      mobile = window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
+    } catch (e0) {
+      mobile = false;
+    }
+    var dest = mobile ? "/inflight" : "/repo";
+    try {
+      window.location.assign(dest);
       return true;
     } catch (e) {
-      return false;
+      try { window.location.href = dest; return true; }
+      catch (e2) { return false; }
     }
   }
   function contactSeq(lead, touch) {

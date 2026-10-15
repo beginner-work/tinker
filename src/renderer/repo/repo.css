@@ -151,6 +151,36 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
   display: none;
 }
 
+/* Desktop-only optional entry to the in-flight agents view. */
+.repo-top__inflight {
+  pointer-events: auto;
+  display: none;
+  align-items: center;
+  height: 44px;
+  margin: 0 4px 0 0;
+  padding: 0 10px;
+  border-radius: 10px;
+  color: var(--color-muted);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.repo-top__inflight:hover,
+.repo-top__inflight:focus-visible {
+  color: var(--color-foreground);
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
+}
+
+@media (min-width: 721px) {
+  .repo-top__inflight {
+    display: inline-flex;
+  }
+}
+
 /* Beaker matches hamburger: 44px hit target, 20px icon, same weight. */
 .repo-top--labs .repo-top__labs,
 .repo-top__labs {

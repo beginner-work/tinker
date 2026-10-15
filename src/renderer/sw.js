@@ -32,7 +32,7 @@
  * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v74";
+const CACHE_VERSION = "tinker-shell-v75";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -162,6 +162,7 @@ self.addEventListener("fetch", (event) => {
   if (sameOrigin && (url.pathname === "/metrics" || url.pathname.startsWith("/metrics/"))) return;
   if (sameOrigin && (url.pathname === "/exercises" || url.pathname.startsWith("/exercises/"))) return;
   if (sameOrigin && (url.pathname === "/next" || url.pathname.startsWith("/next/"))) return;
+  if (sameOrigin && (url.pathname === "/inflight" || url.pathname.startsWith("/inflight/"))) return;
   if (sameOrigin && (url.pathname === "/repo" || url.pathname.startsWith("/repo/"))) return;
   // Cross-origin (fonts, vercel.live preview comments): pass through.
   if (!sameOrigin) return;
