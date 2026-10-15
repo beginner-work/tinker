@@ -93,6 +93,7 @@ test("back, repeated opens, browser back/forward, close, and focus", async t => 
   assert.equal(e.el("repo-ex-reader").hidden, false);
   e.el("repo-ex-reader-back").click();
   assert.equal(e.el("repo-ex-reader").hidden, true);
+  e.w.dispatchEvent(new e.w.PopStateEvent("popstate", { state: null }));
   e.ui.openFile("api-design", "readme");
   e.el("repo-explorer-collapse").click();
   assert.equal(e.el("repo-layout").classList.contains("is-explorer-open"), false);
@@ -157,4 +158,16 @@ test("mobile reader scrollports constrain long lines and include safe area/touch
   assert.match(css, /\.repo-ex-reader__content\.is-markdown\s*\{[^}]*pre-wrap/s);
   assert.match(css, /\.repo-ex-reader__back\s*\{[^}]*min-height:\s*44px/s);
   assert.match(css, /padding-bottom:\s*env\(safe-area-inset-bottom/);
+});
+
+test("reopening during asynchronous Back waits for history and keeps the new file open", async t => {
+  const e = setup(t); await e.ui.init();
+  e.ui.openFile("api-design", "readme");
+  e.el("repo-ex-reader-back").click();
+  e.ui.openFile("api-design", "code");
+  assert.equal(e.ui._state.queuedMobileFile.nodeId, "code");
+  await new Promise(r => e.w.addEventListener("popstate", r, { once: true }));
+  assert.equal(e.ui._state.mobileFile.nodeId, "code");
+  assert.equal(e.el("repo-ex-reader").hidden, false);
+  assert.equal(e.w.history.state.tinkerExerciseReader.nodeId, "code");
 });

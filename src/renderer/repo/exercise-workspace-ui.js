@@ -34,6 +34,8 @@
     status: "",
     localOnly: true,
     mobileFile: null,
+    readerBackPending: false,
+    queuedMobileFile: null,
     loading: false,
     loadError: "",
     loadVersion: 0,
@@ -141,6 +143,7 @@
     if (!signedIn) {
       // Never list or open exercise files while signed out.
       state.mobileFile = null;
+      state.queuedMobileFile = null;
       state.workspace = core.emptyWorkspace();
       state.loadVersion += 1;
       state.readerSession = Math.random().toString(36);
@@ -176,6 +179,7 @@
       // Scrim is CSS-shown only under max-width 800px; keep markup in sync.
       if (els.scrim) els.scrim.hidden = !!isWideDesktop();
     } else {
+      state.queuedMobileFile = null;
       els.layout.classList.add("is-explorer-collapsed");
       els.layout.classList.remove("is-explorer-open");
       if (els.expand) els.expand.hidden = false;
@@ -407,6 +411,7 @@
     render();
     focusSelectedFile();
     if (window.history && window.history.state && window.history.state.tinkerExerciseReader) {
+      state.readerBackPending = true;
       window.history.back();
     }
   }
@@ -598,6 +603,10 @@
     var node = findNode(exerciseId, nodeId);
     if (!node || node.type !== "file") return;
     if (!isWideDesktop()) {
+      if (state.readerBackPending) {
+        state.queuedMobileFile = { exerciseId: exerciseId, nodeId: nodeId };
+        return;
+      }
       state.selected = { exerciseId: exerciseId, nodeId: nodeId };
       state.mobileFile = { exerciseId: exerciseId, nodeId: nodeId, session: state.readerSession };
       if (window.history) {
@@ -1361,11 +1370,15 @@
     if (els.readerBack) els.readerBack.addEventListener("click", backToExerciseFiles);
     if (els.loadRetry) els.loadRetry.addEventListener("click", function () { loadWorkspace(); });
     window.addEventListener("popstate", function (event) {
+      state.readerBackPending = false;
+      var queued = state.queuedMobileFile;
+      state.queuedMobileFile = null;
       var entry = event.state && event.state.tinkerExerciseReader;
       state.mobileFile = entry && entry.session === state.readerSession ? entry : null;
       if (state.mobileFile && !isWideDesktop() && isLearningSignedIn()) setExplorerOpen(true);
       render();
       if (!state.mobileFile) focusSelectedFile();
+      if (queued && !isWideDesktop() && isLearningSignedIn()) openFile(queued.exerciseId, queued.nodeId);
     });
     var media = window.matchMedia && window.matchMedia("(min-width: 801px)");
     if (media && media.addEventListener) media.addEventListener("change", function () {
