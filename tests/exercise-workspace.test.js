@@ -249,7 +249,7 @@ test("pruneRetiredCurriculum drops Formation, stripe, deleted labs, and api-desi
   );
 });
 
-test("refreshStaleCurriculum replaces rides api-design with payments seed", () => {
+test("refreshStaleCurriculum replaces rides and Merchant/Order trees with PaymentIntent seed", () => {
   const seedWs = seeded();
   const ridesBlob = {
     exerciseOrder: ["api-design"],
@@ -285,24 +285,75 @@ test("refreshStaleCurriculum replaces rides api-design with payments seed", () =
       },
     },
   };
+  const merchantOrderBlob = {
+    exerciseOrder: ["api-design"],
+    exercises: {
+      "api-design": {
+        id: "api-design",
+        name: "OpenAPI by hand (payments)",
+        nodes: [
+          {
+            id: "readme_mo",
+            name: "README.md",
+            type: "file",
+            parentId: null,
+            content:
+              "# OpenAPI by hand\n\nMerchant, Order, and Refund on /orders.\n",
+          },
+          {
+            id: "steps_mo",
+            name: "steps.json",
+            type: "file",
+            parentId: null,
+            content:
+              '{\n  "version": 1,\n  "domain": "payments",\n  "goal": "GET /orders/{id}"\n}\n',
+          },
+          {
+            id: "check_mo",
+            name: "check-step.mjs",
+            type: "file",
+            parentId: null,
+            content:
+              'assert(get(spec, "paths./orders/{id}.get"), "GET /orders/{id} required");\n' +
+              'assert(get(spec, "components.schemas.Order"));\n' +
+              'assert(get(spec, "components.schemas.Merchant"));\n',
+          },
+        ],
+      },
+    },
+  };
 
   assert.equal(core.exerciseLooksLikeRidesDomain(ridesBlob.exercises["api-design"]), true);
-  assert.equal(core.exerciseLooksLikeRidesDomain(seedWs.exercises["api-design"]), false);
+  assert.equal(
+    core.exerciseLooksLikeMerchantOrderDomain(merchantOrderBlob.exercises["api-design"]),
+    true
+  );
+  assert.equal(core.exerciseLooksLikeStaleCurriculum(seedWs.exercises["api-design"]), false);
+  assert.equal(core.exerciseLooksLikeMerchantOrderDomain(seedWs.exercises["api-design"]), false);
 
-  const refreshed = core.refreshStaleCurriculum(ridesBlob, seedWs);
-  assert.equal(refreshed.changed, true);
-  assert.deepEqual(refreshed.replacedExerciseIds, ["api-design"]);
-  const next = refreshed.workspace.exercises["api-design"];
-  assert.equal(core.exerciseLooksLikeRidesDomain(next), false);
-  const text = next.nodes.map((n) => String(n.content || "")).join("\n");
-  assert.match(text, /payments/i);
-  assert.match(text, /Merchant/i);
-  assert.doesNotMatch(text, /\b\/rides\b/);
-  assert.doesNotMatch(text, /"domain"\s*:\s*"rides"/);
+  for (const stale of [ridesBlob, merchantOrderBlob]) {
+    const refreshed = core.refreshStaleCurriculum(stale, seedWs);
+    assert.equal(refreshed.changed, true);
+    assert.deepEqual(refreshed.replacedExerciseIds, ["api-design"]);
+    const next = refreshed.workspace.exercises["api-design"];
+    assert.equal(core.exerciseLooksLikeStaleCurriculum(next), false);
+    const text = next.nodes.map((n) => String(n.content || "")).join("\n");
+    assert.match(text, /PaymentIntent/);
+    assert.match(text, /\/payment_intents/);
+    assert.match(text, /WebhookEvent/);
+    assert.doesNotMatch(text, /\b\/rides\b/);
+    assert.doesNotMatch(text, /\bCreateOrder\b/);
+    const apiMd = next.nodes.find((n) => n.name === "api.md");
+    assert.ok(apiMd);
+    assert.match(String(apiMd.content || ""), /^## ask\s*$/m);
+    assert.match(String(apiMd.content || ""), /^## send\s*$/m);
+    assert.match(String(apiMd.content || ""), /^## return\s*$/m);
+    assert.match(String(apiMd.content || ""), /^## wrong\s*$/m);
 
-  const again = core.refreshStaleCurriculum(refreshed.workspace, seedWs);
-  assert.equal(again.changed, false);
-  assert.deepEqual(again.replacedExerciseIds, []);
+    const again = core.refreshStaleCurriculum(refreshed.workspace, seedWs);
+    assert.equal(again.changed, false);
+    assert.deepEqual(again.replacedExerciseIds, []);
+  }
 });
 
 test("merge then prune matches list/sync cleanup for legacy sidebars", () => {

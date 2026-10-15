@@ -646,14 +646,23 @@ test("exercise catalog never includes Formation curriculum or deleted lindowlabs
     assert.equal(/"domain"\s*:\s*"rides"/i.test(seedText), false);
     assert.equal(/\bRides API\b/i.test(seedText), false);
     assert.equal(/\bCreateRide\b/.test(seedText), false);
-    assert.match(seedText, /Merchant/);
-    assert.match(seedText, /payments platform API/);
+    assert.equal(/\bCreateOrder\b/.test(seedText), false);
+    assert.equal(/\b\/orders\/\{id\}\b/.test(seedText), false);
+    assert.match(seedText, /PaymentIntent/);
+    assert.match(seedText, /\/payment_intents/);
+    assert.match(seedText, /WebhookEvent/);
     const nodes = seed.exercises["api-design"].nodes || [];
     assert.equal(nodes.some((n) => String(n.path || "").startsWith("extras")), false);
     const stepsNode = nodes.find((n) => String(n.path || "") === "steps.json");
     assert.ok(stepsNode, "steps.json missing from seed");
     const steps = JSON.parse(String(stepsNode.content || "{}"));
     assert.equal(steps.domain, "payments");
+    const apiMd = nodes.find((n) => String(n.path || "") === "00-in-plain-english/api.md");
+    assert.ok(apiMd, "starter api.md missing");
+    assert.match(String(apiMd.content || ""), /^## ask\s*$/m);
+    assert.match(String(apiMd.content || ""), /^## send\s*$/m);
+    assert.match(String(apiMd.content || ""), /^## return\s*$/m);
+    assert.match(String(apiMd.content || ""), /^## wrong\s*$/m);
   }
 
   const pageAndManifest = [
