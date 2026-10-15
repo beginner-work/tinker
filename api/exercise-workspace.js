@@ -4,7 +4,7 @@
  * Mutations persist in TinkerUserData; GitHub is never written (no commit
  * path — desktop only clones/pulls for Open in IDE).
  *
- * GET  ?action=list|sync
+ * GET  ?action=list|sync|read
  * POST ?action=create_node|rename_node|move_node|delete_node|write_file|
  *              reorder_exercises|revise_from_essay
  */
@@ -74,6 +74,10 @@ async function resolve(req) {
 
 async function dispatch(method, action, auth, body) {
   const { userId } = auth;
+  if (method === "GET" && action === "read") {
+    // Same authenticated owner scope, with no seed/merge persistence on reads.
+    return { status: 200, body: await store.listWorkspace({ userId, readOnly: true }) };
+  }
   if (method === "GET" && (action === "list" || action === "sync" || action === "")) {
     return { status: 200, body: await store.listWorkspace({ userId }) };
   }
@@ -189,3 +193,4 @@ module.exports = withResponseLogging(async function handler(req, res) {
     send(res, status, payload);
   }
 });
+

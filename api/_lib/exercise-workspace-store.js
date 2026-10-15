@@ -98,12 +98,12 @@ function workspaceFingerprint(state) {
   return parts.join("\n");
 }
 
-async function getOrCreateMerged(userId) {
+async function getOrCreateMerged(userId, readOnly = false) {
   const { state, updatedAt } = await readBlob(userId);
   const seed = seedWorkspace();
   if (!state) {
     const created = core.normalizeWorkspace(seed);
-    const savedAt = await writeBlob(userId, created);
+    const savedAt = readOnly ? updatedAt : await writeBlob(userId, created);
     return { workspace: core.presentWorkspace(created), updatedAt: savedAt, seeded: true };
   }
   const merged = core.mergeSeedIntoSaved(state, seed);
@@ -113,7 +113,7 @@ async function getOrCreateMerged(userId) {
   const next = pruned.workspace;
   // Persist when seed merge, name refresh, or retired-curriculum prune changed
   // the saved blob. Idempotent: a second list with a clean blob is a no-op write.
-  if (workspaceFingerprint(state) !== workspaceFingerprint(next)) {
+  if (!readOnly && workspaceFingerprint(state) !== workspaceFingerprint(next)) {
     const savedAt = await writeBlob(userId, next);
     return {
       workspace: core.presentWorkspace(next),
@@ -147,10 +147,10 @@ async function mutate(userId, mutator) {
   return body;
 }
 
-async function listWorkspace({ userId } = {}) {
+async function listWorkspace({ userId, readOnly = false } = {}) {
   try {
     const uid = requireUserId(userId);
-    return await getOrCreateMerged(uid);
+    return await getOrCreateMerged(uid, readOnly);
   } catch (err) {
     throw storeDown(err);
   }
@@ -258,3 +258,4 @@ module.exports = {
     cachedManifest = null;
   },
 };
+

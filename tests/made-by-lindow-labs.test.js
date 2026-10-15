@@ -26,7 +26,7 @@ function visibleLearningPhrases(html) {
     .replace(/aria-label="[^"]*"/gi, "")
     .replace(/aria-label='[^']*'/gi, "");
   return {
-    learningLab: />\s*Learning Lab\s*</.test(stripped) || /repo-top__labs-label/.test(stripped),
+    learningLab: />\s*Learning Lab\s*</.test(stripped),
     learningLabs: /Learning Labs/.test(stripped),
     lindowLabsLearning: /Lindow Labs Learning/.test(stripped),
   };
@@ -101,11 +101,11 @@ test("write page wires beaker labs drawer opener (not under writing)", () => {
   assert.match(html, /M10 2v7\.527/);
   assert.doesNotMatch(html, /M6\.5 3\.5H3\.75/);
   // No visible Learning Lab label on the beaker trigger itself.
-  assert.doesNotMatch(html, /repo-top__labs-label/);
+  assert.match(html, /repo-top__labs-label/);
   const phrases = visibleLearningPhrases(html);
   assert.equal(phrases.learningLab, false, "no visible Learning Lab text on trigger");
   assert.equal(phrases.learningLabs, false, "no visible Learning Labs text");
-  // Sign-in gate copy may name Lindow Labs Learning; the beaker stays icon-only.
+  // Sign-in gate copy may name Lindow Labs Learning; the mobile beaker is labeled Exercises.
   const beakerChunk = (html.match(/id="repo-labs-link"[\s\S]*?<\/a>/) || [""])[0];
   assert.doesNotMatch(beakerChunk, /Lindow Labs Learning/);
   // Must not sit under/after the writing surface.

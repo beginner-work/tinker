@@ -3983,3 +3983,41 @@ html.labs-drawer-open body {
   overflow: hidden;
 }
 
+
+/* A separate text reader keeps the desktop editor out of mobile browsing. */
+.repo-top__labs-label,
+.repo-ex-reader { display: none; }
+@media (max-width: 800px) {
+  .repo-top__labs { width: auto; gap: 8px; padding: 0 10px; }
+  .repo-top__labs-label { display: inline; font-size: 14px; }
+  .repo-layout--write.is-explorer-open .repo-explorer {
+    width: 100%; max-width: 100%;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .repo-explorer__toolbar,
+  .repo-ex-node__icon,
+  .repo-ex-write-about,
+  .repo-ex-transform-retry { display: none !important; }
+  .repo-ex-reader:not([hidden]) {
+    display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
+    overflow: hidden;
+  }
+  .repo-explorer__body[hidden] { display: none; }
+  .repo-ex-reader__back {
+    flex: 0 0 auto; align-self: flex-start; min-height: 44px;
+    padding: 8px 14px; border: 0; background: none; color: var(--color-text);
+    font: inherit; cursor: pointer;
+  }
+  .repo-ex-reader__path {
+    flex: 0 0 auto; margin: 0; padding: 8px 14px;
+    font-size: 14px; overflow-wrap: anywhere;
+  }
+  .repo-ex-reader__content {
+    flex: 1 1 auto; min-height: 0; max-width: 100%; margin: 0; padding: 16px;
+    overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+    white-space: pre; font: 14px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace;
+    tab-size: 2; user-select: text; -webkit-user-select: text;
+  }
+  .repo-ex-reader__content.is-markdown { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .repo-ex-node__btn, .repo-explorer__group-btn { min-height: 44px; }
+}
