@@ -1,8 +1,9 @@
 /* POST /api/claude/converse
  *
  * Authorization: Bearer <stytch session_token>
- * Body: { system, messages, model, maxTokens }
- * Reply: { text, usage }
+ * Body: { system, messages, model, maxTokens, tools?, tool_choice?,
+ *         output_config?, output_format? }
+ * Reply: { text, usage, toolUse?, structured? }
  *
  * Stytch-gated proxy for the writing-flow turns in src/renderer/writing.js
  * and the seed-vector classifier in src/renderer/heatmap.js. Mirrors
@@ -97,6 +98,10 @@ module.exports = withResponseLogging(async function handler(req, res) {
       messages,
       model: body.model,
       maxTokens,
+      tools: body.tools,
+      tool_choice: body.tool_choice,
+      output_config: body.output_config,
+      output_format: body.output_format,
     });
     res.status(200).json(result);
   } catch (err) {

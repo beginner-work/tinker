@@ -164,6 +164,9 @@ test("reviseExerciseWithClaude calls Anthropic and applies the patch", async () 
   assert.equal(calls.length, 1);
   assert.match(calls[0].system, /coding exercise/i);
   assert.match(calls[0].messages[0].content, /Essay/);
+  // Structured outputs for EXERCISE_REVISE (claude-opus-4-8): json_schema.
+  assert.equal(calls[0].output_format.type, "json_schema");
+  assert.equal(result.mechanism, "json_schema");
   assert.equal(result.changed, true);
   assert.ok(result.steps.includes("Split auth into its own step"));
   const starter = core.nodeById(result.workspace.exercises["api-design"].nodes, "starter_1");

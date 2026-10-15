@@ -152,26 +152,30 @@
     return "keep";
   }
 
-  function parseEvaluateReply(text) {
-    const raw = String(text || "").trim();
-    if (!raw) {
-      throw Object.assign(new Error("Empty model reply."), { status: 502 });
-    }
-    let candidate = raw;
-    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    if (fenced) candidate = fenced[1].trim();
-    const start = candidate.indexOf("{");
-    const end = candidate.lastIndexOf("}");
-    if (start === -1 || end === -1 || end <= start) {
-      throw Object.assign(new Error("Model reply was not JSON."), { status: 502 });
-    }
+  function parseEvaluateReply(textOrObj) {
     let parsed;
-    try {
-      parsed = JSON.parse(candidate.slice(start, end + 1));
-    } catch {
-      throw Object.assign(new Error("Model reply was not valid JSON."), {
-        status: 502,
-      });
+    if (textOrObj && typeof textOrObj === "object" && !Array.isArray(textOrObj)) {
+      parsed = textOrObj;
+    } else {
+      const raw = String(textOrObj || "").trim();
+      if (!raw) {
+        throw Object.assign(new Error("Empty model reply."), { status: 502 });
+      }
+      let candidate = raw;
+      const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      if (fenced) candidate = fenced[1].trim();
+      const start = candidate.indexOf("{");
+      const end = candidate.lastIndexOf("}");
+      if (start === -1 || end === -1 || end <= start) {
+        throw Object.assign(new Error("Model reply was not JSON."), { status: 502 });
+      }
+      try {
+        parsed = JSON.parse(candidate.slice(start, end + 1));
+      } catch {
+        throw Object.assign(new Error("Model reply was not valid JSON."), {
+          status: 502,
+        });
+      }
     }
     if (!parsed || typeof parsed.feedback !== "string" || !parsed.feedback.trim()) {
       throw Object.assign(new Error("Model reply missing feedback."), {
@@ -351,10 +355,41 @@
     };
   }
 
+  // JSON schema for Anthropic structured outputs / forced tool call.
+  // Kept here so evaluate + claude-structured share one shape.
+  const REPLY_SCHEMA = {
+    type: "object",
+    properties: {
+      feedback: { type: "string" },
+      summary: { type: "string" },
+      nextStepPath: { type: "string" },
+      nextStepContent: { type: "string" },
+      aggressiveness: {
+        type: "object",
+        properties: {
+          struggle: { type: "string", enum: ["hard", "ok", "easy"] },
+          action: { type: "string", enum: ["finer", "keep", "skip_ahead"] },
+        },
+        required: ["struggle", "action"],
+        additionalProperties: false,
+      },
+    },
+    required: [
+      "feedback",
+      "summary",
+      "nextStepPath",
+      "nextStepContent",
+      "aggressiveness",
+    ],
+    additionalProperties: false,
+  };
+
   return {
     MODEL: MODEL,
     SYSTEM_PROMPT: SYSTEM_PROMPT,
     MAX_ANSWER: MAX_ANSWER,
+    REPLY_SCHEMA: REPLY_SCHEMA,
+    TOOL_NAME: "submit_exercise_evaluation",
     parseStepsJson: parseStepsJson,
     listSteps: listSteps,
     findCurrentStep: findCurrentStep,

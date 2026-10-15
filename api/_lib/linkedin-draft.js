@@ -15,7 +15,17 @@ const { callAnthropic } = require("./anthropic.js");
 
 // Same model the writing UI and ask_followups use.
 const models = require("../../src/renderer/lib/claude-models.js");
+const structured = require("../../src/renderer/lib/claude-structured.js");
 const MODEL = models.DRAFTING || "claude-opus-4-8";
+
+const REPLY_SCHEMA = {
+  type: "object",
+  properties: {
+    post: { type: "string" },
+  },
+  required: ["post"],
+  additionalProperties: false,
+};
 
 const MAX_NOTES = 8000;
 const MAX_DRAFT = 8000;
@@ -212,25 +222,63 @@ async function draftLinkedInPost(args) {
   if (built.error) {
     throw Object.assign(new Error(built.error), { toolError: true });
   }
-  const result = await callAnthropic({
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: built.user }],
-    model: MODEL,
-    maxTokens: 1500,
-  });
-  const post = stripEmDashes(parsePost(result.text));
-  if (!post) {
-    throw Object.assign(new Error("The model did not return a LinkedIn draft."), {
-      toolError: true,
-      status: 502,
+  const call =
+    args && typeof args.callAnthropic === "function"
+      ? args.callAnthropic
+      : callAnthropic;
+  const run =
+    args && typeof args.runStructuredJsonCall === "function"
+      ? args.runStructuredJsonCall
+      : structured.runStructuredJsonCall.bind(structured);
+  let structuredOut;
+  try {
+    structuredOut = await run({
+      callFn: call,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: built.user }],
+      model: MODEL,
+      maxTokens: 1500,
+      schema: REPLY_SCHEMA,
+      toolName: "submit_linkedin_draft",
+      validate: function (payload) {
+        const post = stripEmDashes(
+          parsePost(
+            payload && typeof payload === "object"
+              ? JSON.stringify(payload)
+              : payload
+          )
+        );
+        if (!post) {
+          throw Object.assign(
+            new Error("The model did not return a LinkedIn draft."),
+            { toolError: true, status: 502 }
+          );
+        }
+        return post;
+      },
+      friendlyError: "Claude's reply came back in a shape we couldn't use. Try again.",
     });
+  } catch (err) {
+    if (err && err.toolError) throw err;
+    throw Object.assign(
+      new Error(
+        (err && err.message) || "The model did not return a LinkedIn draft."
+      ),
+      { toolError: true, status: (err && err.status) || 502 }
+    );
   }
-  return { post, revised: built.revised, kind: built.kind };
+  return {
+    post: structuredOut.value,
+    revised: built.revised,
+    kind: built.kind,
+    mechanism: structuredOut.mechanism || null,
+  };
 }
 
 module.exports = {
   MODEL,
   SYSTEM_PROMPT,
+  REPLY_SCHEMA,
   buildLinkedInRequest,
   notesAskForDm,
   parsePost,
