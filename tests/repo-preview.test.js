@@ -858,7 +858,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/lib\/storage-path-core\.js\?v=40"/);
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
   assert.match(html, /src="\/lib\/learning-auth\.js\?v=49"/);
-  assert.match(html, /src="\/lib\/exercise-revision\.js\?v=50"/);
+  assert.match(html, /src="\/lib\/exercise-revision\.js\?v=51"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
   assert.match(html, /src="\/made-by-lindow-labs\.js\?v=49"/);
@@ -873,6 +873,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/repo\/exercise-workspace-ui\.js\?v=54"/);
   assert.match(html, /src="\/lib\/claude-models\.js\?v=1"/);
   assert.match(html, /src="\/lib\/exercise-refactor\.js\?v=1"/);
+  assert.match(html, /src="\/lib\/exercise-evaluate\.js\?v=1"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=40"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);

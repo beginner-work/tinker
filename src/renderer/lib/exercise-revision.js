@@ -394,6 +394,7 @@
     isPracticeFile: isPracticeFile,
     nodeRelPath: nodeRelPath,
     findNodeByPath: findNodeByPath,
+    writePathContent: writePathContent,
     listExerciseFiles: listExerciseFiles,
     applyClaudeRevision: applyClaudeRevision,
     applyEssayRevision: applyEssayRevision,

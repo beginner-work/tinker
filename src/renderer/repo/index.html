@@ -100,8 +100,23 @@
               <div class="repo-code__bar">
                 <p class="repo-code__path" id="repo-code-path"></p>
                 <div class="repo-code__actions">
+                  <button type="button" class="repo-code__thats-everything repo-surface__action repo-surface__action--primary" id="repo-code-thats-everything" hidden>That's everything</button>
                   <button type="button" class="repo-code__refactor" id="repo-code-refactor" hidden>Refactor</button>
                   <button type="button" class="repo-code__save" id="repo-code-save">Save</button>
+                </div>
+              </div>
+              <div class="repo-code__evaluate-panel" id="repo-code-evaluate-panel" hidden>
+                <p class="repo-code__evaluate-feedback" id="repo-code-evaluate-feedback" role="status"></p>
+                <p class="repo-code__evaluate-status" id="repo-code-evaluate-status" hidden role="status"></p>
+                <div class="repo-code__evaluate-diff" id="repo-code-evaluate-diff" hidden>
+                  <p class="repo-code__evaluate-summary" id="repo-code-evaluate-summary"></p>
+                  <p class="repo-code__evaluate-path" id="repo-code-evaluate-path"></p>
+                  <pre class="repo-code__evaluate-before" id="repo-code-evaluate-before" aria-label="Current next-step README"></pre>
+                  <pre class="repo-code__evaluate-after" id="repo-code-evaluate-after" aria-label="Proposed next-step README"></pre>
+                  <div class="repo-code__evaluate-decide">
+                    <button type="button" class="repo-code__evaluate-accept" id="repo-code-evaluate-accept">Accept</button>
+                    <button type="button" class="repo-code__evaluate-reject" id="repo-code-evaluate-reject">Reject</button>
+                  </div>
                 </div>
               </div>
               <div class="repo-code__refactor-panel" id="repo-code-refactor-panel" hidden>
@@ -276,8 +291,9 @@
     <script src="/lib/fs-access-folder.js?v=40"></script>
     <script src="/lib/storage-adapters.js?v=40"></script>
     <script src="/lib/learning-auth.js?v=49"></script>
-    <script src="/lib/exercise-revision.js?v=50"></script>
+    <script src="/lib/exercise-revision.js?v=51"></script>
     <script src="/lib/exercise-refactor.js?v=1"></script>
+    <script src="/lib/exercise-evaluate.js?v=1"></script>
     <script src="/exercises/manifest.js?v=40"></script>
     <script src="/lib/exercises-pick.js?v=40"></script>
     <script src="/lib/exercises-next.js?v=1"></script>

@@ -9,6 +9,7 @@ const path = require("node:path");
 const root = path.join(__dirname, "..");
 const models = require("../src/renderer/lib/claude-models.js");
 const refactor = require("../src/renderer/lib/exercise-refactor.js");
+const evaluate = require("../src/renderer/lib/exercise-evaluate.js");
 const interview = require("../src/renderer/interview-prompt.js");
 const cmSrc = fs.readFileSync(
   path.join(root, "src/renderer/lib/repo-cm-editor-src.mjs"),
@@ -37,12 +38,14 @@ test("claude-models pins writing Haiku 4.5 and exercise refactor Opus 5.5", () =
   assert.equal(models.EXERCISE_REFACTOR, "claude-opus-5-5");
   assert.equal(interview.KEEP_CRAFTING_MODEL, models.WRITING);
   assert.equal(refactor.MODEL, models.EXERCISE_REFACTOR);
+  assert.equal(evaluate.MODEL, models.EXERCISE_REFACTOR);
 });
 
 test("writing UI and interview load the shared models config", () => {
   assert.match(indexHtml, /claude-models\.js/);
   assert.match(html, /claude-models\.js/);
   assert.match(html, /exercise-refactor\.js/);
+  assert.match(html, /exercise-evaluate\.js/);
   assert.match(writing, /tinkerClaudeModels|KEEP_CRAFTING_MODEL/);
   assert.doesNotMatch(writing, /model:\s*["']claude-opus-4-8["']/);
 });
