@@ -76,8 +76,14 @@ mac:
   identity: null
 
 win:
+  # nsis + portable must not share one artifactName: electron-builder
+  # uploads the first .exe, then the second overwrite hits GitHub upload
+  # timeouts (408) and leaves a stuck starter asset (see v0.1.16/0.1.17).
   target:
     - nsis
     - portable
   icon: src/renderer/icons/tinker-icon-512.png
+nsis:
   artifactName: ${productName}-${version}-${arch}.${ext}
+portable:
+  artifactName: ${productName}-${version}-${arch}-portable.${ext}
