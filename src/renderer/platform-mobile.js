@@ -65,7 +65,16 @@
   // hung fetch (common on iOS PWA). Abort and surface a real error.
   const CLAUDE_TIMEOUT_MS = 60000;
 
-  async function callClaude({ system, messages, model, maxTokens } = {}) {
+  async function callClaude({
+    system,
+    messages,
+    model,
+    maxTokens,
+    tools,
+    tool_choice,
+    output_config,
+    output_format,
+  } = {}) {
     const token = get("tinker_jwt");
     if (!token) {
       const e = new Error("Sign in to write.");
@@ -81,6 +90,10 @@
       body.maxTokens = maxTokens;
       body.max_tokens = maxTokens;
     }
+    if (Array.isArray(tools) && tools.length) body.tools = tools;
+    if (tool_choice && typeof tool_choice === "object") body.tool_choice = tool_choice;
+    if (output_config && typeof output_config === "object") body.output_config = output_config;
+    if (output_format && typeof output_format === "object") body.output_format = output_format;
 
     const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
     const timer = controller
@@ -131,7 +144,14 @@
       e.status = res.status;
       throw e;
     }
-    return { text: data.text || "", usage: data.usage, model: data.model };
+    return {
+      text: data.text || "",
+      usage: data.usage,
+      model: data.model,
+      toolUse: data.toolUse || null,
+      structured: data.structured || null,
+      content: data.content || null,
+    };
   }
 
   async function openExternal(url) {

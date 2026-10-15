@@ -3,6 +3,9 @@
  * Returns updated workspace nodes (README, steps, starter code). Persists
  * through the exercise workspace store (TinkerUserData). There is no GitHub
  * write path in Tinker for tlindow/lindowlabs.
+ *
+ * Uses Anthropic structured outputs (json_schema) when the model supports
+ * it, otherwise a forced tool call — same helper as That's everything.
  */
 
 "use strict";
@@ -10,6 +13,7 @@
 const { callAnthropic } = require("./anthropic.js");
 const revision = require("../../src/renderer/lib/exercise-revision.js");
 const models = require("../../src/renderer/lib/claude-models.js");
+const structured = require("../../src/renderer/lib/claude-structured.js");
 
 const MODEL = models.EXERCISE_REVISE || "claude-opus-4-8";
 const MAX_ESSAY = 12000;
@@ -22,11 +26,9 @@ const SYSTEM_PROMPT = [
   "Keep fixtures and tests unchanged unless the essay explicitly asks to change them.",
   "Starter files should stay stubs the learner fills in (TODO throws or empty bodies are fine).",
   "Never use an em dash. Never invent secrets or live API keys.",
-  "Return a single JSON object and nothing else:",
-  '{ "steps": string[], "files": [ { "path": string, "content": string } ] }',
+  "Return a single JSON object matching the schema (steps + files).",
   "paths are relative to the exercise root (e.g. README.md, readPaymentIntentClient.js).",
   "Include every file you change. Prefer rewriting README.md Start here steps and starter stubs.",
-  "Never wrap the JSON in code fences.",
 ].join("\n");
 
 function readEssay(raw) {
@@ -43,22 +45,11 @@ function readEssay(raw) {
   return text;
 }
 
-function parseModelJson(text) {
-  const raw = String(text || "").trim();
-  if (!raw) throw Object.assign(new Error("Empty model reply."), { status: 502 });
-  let candidate = raw;
-  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced) candidate = fenced[1].trim();
-  const start = candidate.indexOf("{");
-  const end = candidate.lastIndexOf("}");
-  if (start === -1 || end === -1 || end <= start) {
-    throw Object.assign(new Error("Model reply was not JSON."), { status: 502 });
+function parseModelJson(textOrObj) {
+  if (textOrObj && typeof textOrObj === "object" && !Array.isArray(textOrObj)) {
+    return textOrObj;
   }
-  try {
-    return JSON.parse(candidate.slice(start, end + 1));
-  } catch {
-    throw Object.assign(new Error("Model reply was not valid JSON."), { status: 502 });
-  }
+  return structured.parseJsonText(textOrObj);
 }
 
 function buildUserPrompt({ exerciseId, exerciseName, essayBody, files }) {
@@ -77,6 +68,17 @@ function buildUserPrompt({ exerciseId, exerciseName, essayBody, files }) {
     lines.push(file.content);
   });
   return lines.join("\n");
+}
+
+function validateRevisePayload(payload) {
+  const parsed = parseModelJson(payload);
+  if (!parsed || typeof parsed !== "object") {
+    throw Object.assign(new Error("Model reply was not JSON."), { status: 502 });
+  }
+  return {
+    steps: Array.isArray(parsed.steps) ? parsed.steps : [],
+    files: Array.isArray(parsed.files) ? parsed.files : [],
+  };
 }
 
 async function reviseExerciseWithClaude(opts) {
@@ -100,7 +102,14 @@ async function reviseExerciseWithClaude(opts) {
   });
 
   const call = typeof options.callAnthropic === "function" ? options.callAnthropic : callAnthropic;
-  const result = await call({
+  const model = options.model || MODEL;
+  const run =
+    typeof options.runStructuredJsonCall === "function"
+      ? options.runStructuredJsonCall
+      : structured.runStructuredJsonCall.bind(structured);
+
+  const structuredOut = await run({
+    callFn: call,
     system: SYSTEM_PROMPT,
     messages: [
       {
@@ -113,22 +122,27 @@ async function reviseExerciseWithClaude(opts) {
         }),
       },
     ],
-    model: options.model || MODEL,
+    model: model,
     maxTokens: options.maxTokens != null ? options.maxTokens : 8192,
+    schema: structured.REVISE_SCHEMA,
+    toolName: "submit_exercise_revision",
+    validate: validateRevisePayload,
+    friendlyError: structured.FRIENDLY_ERROR,
   });
 
-  const parsed = parseModelJson(result && result.text);
+  const parsed = structuredOut.value;
   const applied = revision.applyClaudeRevision(workspace, {
     core: core,
     exerciseId: exerciseId,
     essayBody: essayBody,
-    steps: Array.isArray(parsed.steps) ? parsed.steps : null,
-    files: Array.isArray(parsed.files) ? parsed.files : [],
+    steps: parsed.steps,
+    files: parsed.files,
   });
 
   return Object.assign({}, applied, {
-    usage: result && result.usage ? result.usage : null,
-    model: options.model || MODEL,
+    usage: structuredOut.usage || null,
+    model: model,
+    mechanism: structuredOut.mechanism || null,
   });
 }
 
@@ -138,5 +152,6 @@ module.exports = {
   readEssay,
   parseModelJson,
   buildUserPrompt,
+  validateRevisePayload,
   reviseExerciseWithClaude,
 };

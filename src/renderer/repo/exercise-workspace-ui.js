@@ -24,6 +24,7 @@
   var refactorApi = window.tinkerExerciseRefactor || null;
   var evaluateApi = window.tinkerExerciseEvaluate || null;
   var models = window.tinkerClaudeModels || null;
+  var structuredApi = window.tinkerClaudeStructured || null;
   if (!core) return;
   var cmEditor = null;
   var refactorProposal = null;
@@ -807,31 +808,64 @@
     if (els.codeRefactorDiff) els.codeRefactorDiff.hidden = true;
     setRefactorStatus("Asking Claude…");
     if (els.codeRefactorAsk) els.codeRefactorAsk.disabled = true;
-    api.callClaude({
-      system: refactorApi.SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
-      model: model,
-      maxTokens: 8192,
-    }).then(function (result) {
-      var parsed = refactorApi.parseRefactorReply(result && result.text);
-      refactorProposal = {
-        from: sel.from,
-        to: sel.to,
-        before: sel.text,
-        after: parsed.replacement,
-        summary: parsed.summary,
-      };
-      text(els.codeRefactorSummary, parsed.summary || "Proposed refactor");
-      text(els.codeRefactorBefore, sel.text);
-      text(els.codeRefactorAfter, parsed.replacement);
-      if (els.codeRefactorDiff) els.codeRefactorDiff.hidden = false;
-      setRefactorStatus("Review the inline diff, then Accept or Reject.");
-    }).catch(function (err) {
-      setRefactorStatus((err && err.message) || "Refactor failed.");
-    }).then(function () {
-      refactorBusy = false;
-      if (els.codeRefactorAsk) els.codeRefactorAsk.disabled = false;
-    });
+    var schema =
+      (refactorApi && refactorApi.REPLY_SCHEMA) ||
+      (structuredApi && structuredApi.REFACTOR_SCHEMA);
+    var runCall =
+      structuredApi && typeof structuredApi.runStructuredJsonCall === "function"
+        ? structuredApi.runStructuredJsonCall({
+            callFn: function (payload) {
+              return api.callClaude(payload);
+            },
+            system: refactorApi.SYSTEM_PROMPT,
+            messages: [{ role: "user", content: userMessage }],
+            model: model,
+            maxTokens: 8192,
+            schema: schema,
+            toolName:
+              (refactorApi && refactorApi.TOOL_NAME) || "submit_exercise_refactor",
+            validate: function (payload) {
+              return refactorApi.parseRefactorReply(payload);
+            },
+            friendlyError:
+              (structuredApi && structuredApi.FRIENDLY_ERROR) ||
+              "Claude's reply came back in a shape we couldn't use. Try again.",
+          })
+        : api
+            .callClaude({
+              system: refactorApi.SYSTEM_PROMPT,
+              messages: [{ role: "user", content: userMessage }],
+              model: model,
+              maxTokens: 8192,
+            })
+            .then(function (result) {
+              return {
+                value: refactorApi.parseRefactorReply(result && result.text),
+              };
+            });
+    runCall
+      .then(function (out) {
+        var parsed = out && out.value ? out.value : out;
+        refactorProposal = {
+          from: sel.from,
+          to: sel.to,
+          before: sel.text,
+          after: parsed.replacement,
+          summary: parsed.summary,
+        };
+        text(els.codeRefactorSummary, parsed.summary || "Proposed refactor");
+        text(els.codeRefactorBefore, sel.text);
+        text(els.codeRefactorAfter, parsed.replacement);
+        if (els.codeRefactorDiff) els.codeRefactorDiff.hidden = false;
+        setRefactorStatus("Review the inline diff, then Accept or Reject.");
+      })
+      .catch(function (err) {
+        setRefactorStatus((err && err.message) || "Refactor failed.");
+      })
+      .then(function () {
+        refactorBusy = false;
+        if (els.codeRefactorAsk) els.codeRefactorAsk.disabled = false;
+      });
   }
 
   function acceptRefactor() {
@@ -950,53 +984,94 @@
       // Still evaluate the in-editor answer if save fails.
     });
 
-    savePromise.then(function () {
-      setEvaluateStatus("Asking Claude…");
-      return api.callClaude({
-        system: evaluateApi.SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userMessage }],
-        model: model,
-        maxTokens: 8192,
+    savePromise
+      .then(function () {
+        setEvaluateStatus("Asking Claude…");
+        var schema =
+          (evaluateApi && evaluateApi.REPLY_SCHEMA) ||
+          (structuredApi && structuredApi.EVALUATE_SCHEMA);
+        if (
+          structuredApi &&
+          typeof structuredApi.runStructuredJsonCall === "function" &&
+          schema
+        ) {
+          return structuredApi.runStructuredJsonCall({
+            callFn: function (payload) {
+              return api.callClaude(payload);
+            },
+            system: evaluateApi.SYSTEM_PROMPT,
+            messages: [{ role: "user", content: userMessage }],
+            model: model,
+            maxTokens: 8192,
+            schema: schema,
+            toolName:
+              (evaluateApi && evaluateApi.TOOL_NAME) ||
+              "submit_exercise_evaluation",
+            validate: function (payload) {
+              return evaluateApi.parseEvaluateReply(payload);
+            },
+            friendlyError:
+              (structuredApi && structuredApi.FRIENDLY_ERROR) ||
+              "Claude's reply came back in a shape we couldn't use. Try again.",
+          });
+        }
+        return api
+          .callClaude({
+            system: evaluateApi.SYSTEM_PROMPT,
+            messages: [{ role: "user", content: userMessage }],
+            model: model,
+            maxTokens: 8192,
+          })
+          .then(function (result) {
+            return {
+              value: evaluateApi.parseEvaluateReply(result && result.text),
+            };
+          });
+      })
+      .then(function (out) {
+        var parsed = out && out.value ? out.value : out;
+        var before = nextReadmePath
+          ? readmeContentForPath(tab.exerciseId, nextReadmePath)
+          : "";
+        var proposedPath = parsed.nextStepPath || nextReadmePath || "";
+        var hasDiff = !!(
+          proposedPath &&
+          typeof parsed.nextStepContent === "string" &&
+          parsed.nextStepContent.length
+        );
+        evaluateProposal = {
+          exerciseId: tab.exerciseId,
+          feedback: parsed.feedback,
+          summary: parsed.summary,
+          nextStepPath: proposedPath,
+          before: before,
+          after: parsed.nextStepContent || "",
+          aggressiveness: parsed.aggressiveness,
+          hasDiff: hasDiff,
+        };
+        text(els.codeEvaluateFeedback, parsed.feedback || "");
+        if (hasDiff) {
+          text(
+            els.codeEvaluateSummary,
+            parsed.summary || "Proposed next-step update"
+          );
+          text(els.codeEvaluatePath, proposedPath);
+          text(els.codeEvaluateBefore, before || "(empty)");
+          text(els.codeEvaluateAfter, parsed.nextStepContent);
+          if (els.codeEvaluateDiff) els.codeEvaluateDiff.hidden = false;
+          setEvaluateStatus("Review the next-step diff, then Accept or Reject.");
+        } else {
+          if (els.codeEvaluateDiff) els.codeEvaluateDiff.hidden = true;
+          setEvaluateStatus("Feedback ready. No next-step change proposed.");
+        }
+      })
+      .catch(function (err) {
+        setEvaluateStatus((err && err.message) || "Evaluation failed.");
+      })
+      .then(function () {
+        evaluateBusy = false;
+        if (els.codeThatsEverything) els.codeThatsEverything.disabled = false;
       });
-    }).then(function (result) {
-      var parsed = evaluateApi.parseEvaluateReply(result && result.text);
-      var before = nextReadmePath
-        ? readmeContentForPath(tab.exerciseId, nextReadmePath)
-        : "";
-      var proposedPath = parsed.nextStepPath || nextReadmePath || "";
-      var hasDiff = !!(
-        proposedPath &&
-        typeof parsed.nextStepContent === "string" &&
-        parsed.nextStepContent.length
-      );
-      evaluateProposal = {
-        exerciseId: tab.exerciseId,
-        feedback: parsed.feedback,
-        summary: parsed.summary,
-        nextStepPath: proposedPath,
-        before: before,
-        after: parsed.nextStepContent || "",
-        aggressiveness: parsed.aggressiveness,
-        hasDiff: hasDiff,
-      };
-      text(els.codeEvaluateFeedback, parsed.feedback || "");
-      if (hasDiff) {
-        text(els.codeEvaluateSummary, parsed.summary || "Proposed next-step update");
-        text(els.codeEvaluatePath, proposedPath);
-        text(els.codeEvaluateBefore, before || "(empty)");
-        text(els.codeEvaluateAfter, parsed.nextStepContent);
-        if (els.codeEvaluateDiff) els.codeEvaluateDiff.hidden = false;
-        setEvaluateStatus("Review the next-step diff, then Accept or Reject.");
-      } else {
-        if (els.codeEvaluateDiff) els.codeEvaluateDiff.hidden = true;
-        setEvaluateStatus("Feedback ready. No next-step change proposed.");
-      }
-    }).catch(function (err) {
-      setEvaluateStatus((err && err.message) || "Evaluation failed.");
-    }).then(function () {
-      evaluateBusy = false;
-      if (els.codeThatsEverything) els.codeThatsEverything.disabled = false;
-    });
   }
 
   function acceptEvaluate() {
