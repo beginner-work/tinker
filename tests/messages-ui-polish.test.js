@@ -159,7 +159,6 @@ test("pane header avatar is a readable circular initials mark, not a clipped L",
   assert.match(demo, /messages-rail__initials">TL</);
 });
 
-test("release marker is 0.1.20", () => {
-  assert.equal(marker, "0.1.20");
-  assert.equal(pkg.version, "0.1.20");
+test("release marker matches package version", () => {
+  assert.equal(marker, pkg.version);
 });
