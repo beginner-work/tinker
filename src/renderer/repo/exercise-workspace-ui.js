@@ -133,6 +133,7 @@
       tabs: $("repo-tabs"),
       code: $("repo-code"),
       codePath: $("repo-code-path"),
+      codePreview: $("repo-code-preview"),
       codeSurface: $("repo-code-surface"),
       codeEditor: $("repo-code-editor"),
       codeSave: $("repo-code-save"),
@@ -430,6 +431,72 @@
     return /\.md$/i.test(String(name || ""));
   }
 
+  /** Sanitize + render markdown (markdown-it + DOMPurify via essay-read). */
+  function renderMarkdownHtml(raw) {
+    var essayRead = window.tinkerEssayRead;
+    if (essayRead && typeof essayRead.renderMarkdown === "function") {
+      return essayRead.renderMarkdown(raw);
+    }
+    if (essayRead && typeof essayRead.sanitize === "function" && window.markdownit) {
+      return essayRead.sanitize(window.markdownit({ html: false, linkify: true }).render(raw));
+    }
+    return "";
+  }
+
+  function fillMarkdownElement(el, raw) {
+    if (!el) return;
+    var html = renderMarkdownHtml(raw);
+    if (html) {
+      el.innerHTML = html;
+    } else {
+      // Fallback: never execute markup; show source as plain text.
+      text(el, raw);
+    }
+  }
+
+  /** Lesson step README on desktop: rendered preview, not CodeMirror. */
+  function isDesktopStepPreview(exerciseId, nodeId) {
+    if (!isWideDesktop()) return false;
+    var node = findNode(exerciseId, nodeId);
+    if (!node || node.type !== "file" || !isMarkdownFileName(node.name)) return false;
+    var pres = presentationForNode(exerciseId, nodeId);
+    return !!(pres && pres.kind === "step");
+  }
+
+  function clearDesktopStepPreview() {
+    if (els.codePreview) {
+      els.codePreview.hidden = true;
+      els.codePreview.classList.remove("is-markdown");
+      els.codePreview.innerHTML = "";
+    }
+    if (els.codeSurface) els.codeSurface.hidden = false;
+    if (els.code) els.code.classList.remove("repo-code--preview");
+  }
+
+  function showDesktopStepPreview(raw) {
+    destroyCm();
+    if (els.codeSurface) els.codeSurface.hidden = true;
+    if (els.codePreview) {
+      els.codePreview.hidden = false;
+      els.codePreview.classList.add("is-markdown");
+      fillMarkdownElement(els.codePreview, raw || "This learning module is empty.");
+      try { els.codePreview.scrollTop = 0; } catch (e) { /* ignore */ }
+    }
+    if (els.codeSave) els.codeSave.hidden = true;
+    if (els.codeThatsEverything) els.codeThatsEverything.hidden = true;
+    if (els.codeRefactor) els.codeRefactor.hidden = true;
+    clearEvaluateUi();
+    clearRefactorUi();
+    if (els.code) {
+      els.code.classList.add("repo-code--preview");
+      els.code.classList.remove("repo-code--prose", "repo-code--code");
+    }
+    if (els.codeStatus) {
+      els.codeStatus.hidden = true;
+      text(els.codeStatus, "");
+    }
+  }
+
   function renderMobileReader() {
     var selection = state.mobileFile;
     var node = selection && findNode(selection.exerciseId, selection.nodeId);
@@ -448,20 +515,7 @@
     var asMarkdown = isMarkdownFileName(node.name);
     if (els.readerContent) els.readerContent.classList.toggle("is-markdown", asMarkdown);
     if (asMarkdown) {
-      // Render .md as sanitized HTML (same markdown-it + DOMPurify path as essay read).
-      var essayRead = window.tinkerEssayRead;
-      var html = "";
-      if (essayRead && typeof essayRead.renderMarkdown === "function") {
-        html = essayRead.renderMarkdown(raw);
-      } else if (essayRead && typeof essayRead.sanitize === "function" && window.markdownit) {
-        html = essayRead.sanitize(window.markdownit({ html: false, linkify: true }).render(raw));
-      }
-      if (html) {
-        els.readerContent.innerHTML = html;
-      } else {
-        // Fallback: never execute markup; show source as plain text.
-        text(els.readerContent, raw);
-      }
+      fillMarkdownElement(els.readerContent, raw);
     } else {
       // Non-md stays monospace plain text (no HTML execution).
       text(els.readerContent, raw);
@@ -527,6 +581,7 @@
       if (document.body) document.body.classList.remove("repo-code-open");
       clearEvaluateUi();
       clearRefactorUi();
+      clearDesktopStepPreview();
       destroyCm();
       return;
     }
@@ -537,6 +592,7 @@
     if (show) {
       clearEvaluateUi();
       clearRefactorUi();
+      clearDesktopStepPreview();
       destroyCm();
     }
     if (els.layout) els.layout.classList.toggle("is-code-open", !show);
@@ -1615,7 +1671,8 @@
     state.dirty = false;
     rememberResume(exerciseId, nodeId);
     render();
-    if (cmEditor && typeof cmEditor.focus === "function") {
+    if (!isDesktopStepPreview(exerciseId, nodeId) &&
+        cmEditor && typeof cmEditor.focus === "function") {
       try { cmEditor.focus(); } catch (e) { /* ignore */ }
     }
   }
@@ -1718,7 +1775,16 @@
     var codePres = presentationForNode(tab.exerciseId, tab.nodeId);
     text(els.codePath, codePres.pathLabel);
     var content = tab.blank ? "" : (node.content || "");
+    // Lesson steps: read-only rendered markdown. Your answer stays editable.
+    if (codePres.kind === "step" && isMarkdownFileName(node.name)) {
+      showDesktopStepPreview(content);
+      return;
+    }
+    clearDesktopStepPreview();
     ensureCm(node.name, content);
+    if (els.codeSave) els.codeSave.hidden = false;
+    if (els.codeThatsEverything) els.codeThatsEverything.hidden = false;
+    if (els.codeRefactor) els.codeRefactor.hidden = false;
     if (els.codeStatus) {
       if (state.status) {
         els.codeStatus.hidden = false;
@@ -1925,7 +1991,7 @@
           ? (state.localOnly ? "Read only · Exercise templates. Sign in to Tinker for your saved learning modules." : "Read only · Your saved exercises. Edit on desktop.")
           : state.localOnly
           ? "Browsing learning modules. Sign in to Tinker to save changes."
-          : "Learning modules. Edits save in Tinker, not GitHub."
+          : "Learning modules. Edits save in Tinker; Blob holds the shared copy when configured."
       );
     }
 

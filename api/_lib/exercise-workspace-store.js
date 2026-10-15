@@ -1,14 +1,17 @@
 /* Per-owner exercise workspace blob (TinkerUserData kind "exercise_workspace").
  *
- * Seed/template comes from checked-in lindowlabs snapshots. Owner trees
- * persist here and are never overwritten by seed merge. On list/sync we
- * prune retired curriculum (Formation, deleted labs, api-design extras)
- * from the saved blob and replace rides or Merchant/Order api-design trees
- * with the current PaymentIntent seed; essays and other TinkerUserData
- * kinds are untouched.
+ * Seed/template prefers Vercel Blob (Tinker source of truth) when
+ * BLOB_READ_WRITE_TOKEN is set; otherwise falls back to the checked-in
+ * lindowlabs snapshot JSON. Owner trees persist in TinkerUserData and are
+ * never overwritten by seed merge. On list/sync we prune retired curriculum
+ * (Formation, deleted labs, api-design extras) from the saved blob and
+ * replace rides or Merchant/Order api-design trees with the current
+ * PaymentIntent seed; essays and other TinkerUserData kinds are untouched.
  *
- * Essay revisions also land here. Tinker has no GitHub commit/push path for
- * tlindow/lindowlabs (desktop only clones/pulls for Open in IDE).
+ * Essay revisions ("This is everything") and file writes also sync the
+ * affected exercise into Blob when configured. Tinker has no GitHub
+ * commit/push path for tlindow/lindowlabs (desktop only clones/pulls for
+ * Open in IDE).
  */
 
 "use strict";
@@ -17,12 +20,14 @@ const fs = require("fs");
 const path = require("path");
 const core = require("../../src/renderer/lib/exercise-workspace-core.js");
 const revise = require("./exercise-revise.js");
+const exerciseBlob = require("./exercise-blob.js");
 
 const KIND = "exercise_workspace";
 const UNAVAILABLE = "Exercise workspace is unavailable right now.";
 
 let cachedSeed = null;
 let cachedManifest = null;
+let cachedSeedSource = null;
 
 function db() {
   return require("./db.js");
@@ -40,10 +45,28 @@ function storeDown(err) {
   return Object.assign(new Error(UNAVAILABLE), { status: 503, cause: err });
 }
 
-function loadSeedJson() {
-  if (cachedSeed) return cachedSeed;
+function loadLocalSeedJson() {
   const file = path.join(__dirname, "seeds", "exercise-workspace-seed.json");
-  cachedSeed = JSON.parse(fs.readFileSync(file, "utf8"));
+  return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+async function loadSeedJson() {
+  if (cachedSeed) return cachedSeed;
+  if (exerciseBlob.blobConfigured()) {
+    try {
+      const fromBlob = await exerciseBlob.readSeedWorkspace();
+      if (fromBlob && fromBlob.exercises && Object.keys(fromBlob.exercises).length) {
+        cachedSeed = fromBlob;
+        cachedSeedSource = "blob";
+        return cachedSeed;
+      }
+    } catch (err) {
+      // Fall through to checked-in seed when Blob is unreachable.
+      cachedSeedSource = "local_fallback";
+    }
+  }
+  cachedSeed = exerciseBlob.sanitizeSeed(loadLocalSeedJson());
+  if (!cachedSeedSource) cachedSeedSource = "local";
   return cachedSeed;
 }
 
@@ -55,8 +78,22 @@ function loadManifestModules() {
   return cachedManifest;
 }
 
-function seedWorkspace() {
-  return core.buildSeedWorkspace(loadSeedJson(), loadManifestModules());
+async function seedWorkspace() {
+  return core.buildSeedWorkspace(await loadSeedJson(), loadManifestModules());
+}
+
+async function syncExerciseToBlob(state, exerciseId) {
+  if (!exerciseBlob.blobConfigured()) return;
+  const id = String(exerciseId || "").trim();
+  if (!id || !state || !state.exercises || !state.exercises[id]) return;
+  if (exerciseBlob.isRetiredExerciseId(id)) return;
+  try {
+    await exerciseBlob.upsertExerciseInSeed(id, state.exercises[id]);
+    cachedSeed = null;
+    cachedSeedSource = null;
+  } catch (err) {
+    // Blob sync must not fail the owner write path.
+  }
 }
 
 async function readBlob(userId) {
@@ -108,11 +145,16 @@ function workspaceFingerprint(state) {
 
 async function getOrCreateMerged(userId, readOnly = false) {
   const { state, updatedAt } = await readBlob(userId);
-  const seed = seedWorkspace();
+  const seed = await seedWorkspace();
   if (!state) {
     const created = core.normalizeWorkspace(seed);
     const savedAt = readOnly ? updatedAt : await writeBlob(userId, created);
-    return { workspace: core.presentWorkspace(created), updatedAt: savedAt, seeded: true };
+    return {
+      workspace: core.presentWorkspace(created),
+      updatedAt: savedAt,
+      seeded: true,
+      seedSource: cachedSeedSource || "local",
+    };
   }
   const merged = core.mergeSeedIntoSaved(state, seed);
   const pruned = core.pruneRetiredCurriculum(merged, {
@@ -134,6 +176,7 @@ async function getOrCreateMerged(userId, readOnly = false) {
       removedExerciseIds: pruned.removedExerciseIds,
       removedRootFolders: pruned.removedRootFolders,
       replacedExerciseIds: refreshed.replacedExerciseIds,
+      seedSource: cachedSeedSource || "local",
     };
   }
   return {
@@ -145,6 +188,7 @@ async function getOrCreateMerged(userId, readOnly = false) {
     removedExerciseIds: [],
     removedRootFolders: [],
     replacedExerciseIds: [],
+    seedSource: cachedSeedSource || "local",
   };
 }
 
@@ -209,7 +253,9 @@ async function deleteNode(args) {
 
 async function writeFile(args) {
   try {
-    return await mutate(args.userId, (state) => core.writeFile(state, args));
+    const body = await mutate(args.userId, (state) => core.writeFile(state, args));
+    await syncExerciseToBlob(core.normalizeWorkspace(body.workspace), args.exerciseId);
+    return body;
   } catch (err) {
     throw storeDown(err);
   }
@@ -239,6 +285,10 @@ async function reviseFromEssay(args) {
     });
     const next = core.normalizeWorkspace(result.workspace);
     const savedAt = await writeBlob(uid, next);
+    // This is everything rewrites next steps into Blob when configured.
+    if (result.changed) {
+      await syncExerciseToBlob(next, args.exerciseId);
+    }
     return {
       workspace: core.presentWorkspace(next),
       updatedAt: savedAt,
@@ -270,6 +320,10 @@ module.exports = {
   _resetCaches() {
     cachedSeed = null;
     cachedManifest = null;
+    cachedSeedSource = null;
+  },
+  _seedSource() {
+    return cachedSeedSource;
   },
 };
 

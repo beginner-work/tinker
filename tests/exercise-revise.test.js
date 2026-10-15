@@ -76,9 +76,10 @@ test("transform pending shows spinner; error exposes retry on tree and chip", ()
   assert.match(css, /\.repo-ex-transform-retry/);
 });
 
-test("persistence stays on TinkerUserData; no GitHub commit path", () => {
+test("persistence stays on TinkerUserData; Blob sync; no GitHub commit path", () => {
   assert.match(storeSrc, /reviseFromEssay/);
   assert.match(storeSrc, /TinkerUserData|tinkerUserData|no GitHub commit/i);
+  assert.match(storeSrc, /syncExerciseToBlob|exercise-blob/);
   assert.match(apiSrc, /revise_from_essay/);
   assert.doesNotMatch(storeSrc, /git push|octokit|createOrUpdateFileContents/i);
   assert.doesNotMatch(apiSrc, /git push|octokit|createOrUpdateFileContents/i);

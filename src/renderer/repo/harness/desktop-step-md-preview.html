@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Desktop step markdown preview harness</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css?v=40" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/repo/repo.css?v=57" />
+    <style>
+      html, body { margin: 0; min-height: 100%; background: var(--color-background); }
+      body.repo-page { min-height: 100vh; }
+      /* Force desktop layout for screenshot harness. */
+      .repo-layout--write {
+        display: grid !important;
+        grid-template-columns: 280px minmax(0, 1fr) !important;
+        min-height: calc(100vh - 52px);
+      }
+      .repo-explorer {
+        display: flex !important;
+        flex-direction: column;
+        position: relative;
+        width: 280px;
+        min-width: 280px;
+      }
+      body.repo-code-open #repo-editor-main,
+      .repo-layout--write.is-code-open #repo-editor-main {
+        display: flex !important;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .repo-code-host, .repo-code {
+        display: flex !important;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      .repo-panel { display: none !important; }
+    </style>
+  </head>
+  <body class="repo-page repo-page--write repo-code-open" data-repo-mode="write">
+    <header class="repo-top repo-top--labs" aria-label="Tools">
+      <a class="repo-top__labs" href="#" aria-label="Exercises" title="Exercises" data-learning-lab data-exercises-nav>
+        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M8.5 2h7"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M7 16h10"/>
+        </svg>
+        <span class="repo-top__labs-label">Exercises</span>
+      </a>
+      <button type="button" class="repo-top__past-essays" aria-label="Past essays" title="Past essays">
+        <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M4 5h16M4 12h16M4 19h16"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="repo-layout repo-layout--write is-explorer-open is-code-open" id="repo-layout">
+      <aside class="repo-explorer" id="repo-explorer" aria-label="Exercises">
+        <div class="repo-explorer__head">
+          <h2 class="repo-sidebar__heading">Exercises</h2>
+          <button type="button" class="repo-explorer__collapse" aria-label="Collapse explorer">‹</button>
+        </div>
+        <div class="repo-explorer__gated">
+          <div class="repo-explorer__toolbar">
+            <button type="button" class="repo-explorer__tool">New learning module</button>
+          </div>
+          <div class="repo-explorer__body" id="repo-explorer-body">
+            <article class="repo-ex-module">
+              <header class="repo-ex-module__head">
+                <h3 class="repo-ex-module__title">OpenAPI by hand (payments)</h3>
+                <button type="button" class="repo-ex-write-about">Write about this exercise</button>
+              </header>
+              <div class="repo-ex-module__progress">
+                <div class="repo-ex-step is-current">
+                  <button type="button" class="repo-ex-step__btn is-selected">
+                    <span class="repo-ex-step__mark" aria-hidden="true">00</span>
+                    <span class="repo-ex-step__label">In plain English</span>
+                    <span class="repo-ex-step__state">Current</span>
+                  </button>
+                  <div class="repo-ex-step__answer">
+                    <button type="button" class="repo-ex-step__answer-btn">Your answer</button>
+                  </div>
+                </div>
+                <div class="repo-ex-step is-next">
+                  <button type="button" class="repo-ex-step__btn">
+                    <span class="repo-ex-step__mark" aria-hidden="true">01</span>
+                    <span class="repo-ex-step__label">Smallest valid spec</span>
+                    <span class="repo-ex-step__state">Next</span>
+                  </button>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </aside>
+
+      <div class="repo-ide-center" id="repo-ide-center">
+        <div class="repo-ide-tabbar" id="repo-ide-tabbar">
+          <div class="repo-tabs" id="repo-tabs" role="tablist" aria-label="Open editors">
+            <div class="repo-tabs__tab is-active">
+              <button type="button" class="repo-tabs__label-btn">
+                <span class="repo-tabs__label">00 In plain English</span>
+              </button>
+              <button type="button" class="repo-tabs__close" aria-label="Close">×</button>
+            </div>
+          </div>
+        </div>
+        <main class="repo-center repo-write-safe-top" id="repo-editor-main" aria-label="Editor">
+          <div class="repo-code-host" id="repo-code-host">
+            <div class="repo-code repo-code--preview" id="repo-code" aria-label="Learning module">
+              <div class="repo-code__bar">
+                <p class="repo-code__path" id="repo-code-path">OpenAPI by hand (payments) / 00 In plain English</p>
+                <div class="repo-code__actions">
+                  <button type="button" class="repo-code__thats-everything repo-surface__action repo-surface__action--primary" hidden>That's everything</button>
+                  <button type="button" class="repo-code__refactor" hidden>Refactor</button>
+                  <button type="button" class="repo-code__save" hidden>Save</button>
+                </div>
+              </div>
+              <div class="repo-code__preview is-markdown" id="repo-code-preview" tabindex="0"
+                   aria-label="Learning module step, read only"></div>
+              <div class="repo-code__surface" id="repo-code-surface" hidden role="textbox" aria-label="File contents"></div>
+            </div>
+          </div>
+        </main>
+        <section class="repo-panel repo-panel--write" id="repo-panel" aria-label="Writing"></section>
+      </div>
+    </div>
+
+    <script src="/vendor/markdown-it.min.js"></script>
+    <script src="/vendor/purify.min.js"></script>
+    <script src="/lib/essay-read.js?v=1"></script>
+    <script>
+      (function () {
+        var md = [
+          "# 00: In plain English",
+          "",
+          "## What you are building (and why)",
+          "",
+          "You are designing the HTTP contract for a **small payments API**: enough for a",
+          "merchant backend to collect card money, capture holds, refund, and learn about",
+          "lifecycle changes through webhook events.",
+          "",
+          "**Write every line by feel.** Type the OpenAPI YAML yourself from what you know",
+          "and from these notes. Never copy-paste from solutions.",
+          "",
+          "## Resources",
+          "",
+          "- A **PaymentIntent** is the ask to collect money.",
+          "- A **Capture** collects some or all of a PaymentIntent that was authorized.",
+          "",
+          "```yaml",
+          "openapi: \"3.0.3\"",
+          "info:",
+          "  title: Payments",
+          "```",
+        ].join("\n");
+        var el = document.getElementById("repo-code-preview");
+        el.innerHTML = window.tinkerEssayRead.renderMarkdown(md);
+      })();
+    </script>
+  </body>
+</html>

@@ -1,11 +1,12 @@
 /* Revise an exercise from a finished essay via Claude.
  *
  * Returns updated workspace nodes (README, steps, starter code). Persists
- * through the exercise workspace store (TinkerUserData). There is no GitHub
- * write path in Tinker for tlindow/lindowlabs.
+ * through the exercise workspace store (TinkerUserData) and syncs into
+ * Vercel Blob when BLOB_READ_WRITE_TOKEN is set. There is no GitHub write
+ * path in Tinker for tlindow/lindowlabs.
  *
  * Uses Anthropic structured outputs (json_schema) when the model supports
- * it, otherwise a forced tool call — same helper as That's everything.
+ * it, otherwise a forced tool call, same helper as This is everything.
  */
 
 "use strict";

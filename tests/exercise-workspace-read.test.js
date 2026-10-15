@@ -44,7 +44,7 @@ test("read-only first visit returns seeded exercises without creating owner data
 
 test("read-only seed merge and pruning never persist or overwrite saved contents", async () => {
   const f = storeFixture(null);
-  const saved = core.normalizeWorkspace(f.store.seedWorkspace());
+  const saved = core.normalizeWorkspace(await f.store.seedWorkspace());
   const id = saved.exerciseOrder[0];
   const node = saved.exercises[id].nodes.find(n => n.type === "file");
   node.content = "Owner's saved exercise text";
