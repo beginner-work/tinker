@@ -312,15 +312,25 @@
     state.loading = true;
     state.loadError = "";
     render();
-    var request = ensureSeedWorkspace().then(function (seedWs) {
-      if (ownerToken) return api("GET", isWideDesktop() ? "list" : "read");
-      return { workspace: seedWs };
-    });
+    // Signed-in: hit the API first. Server refreshStaleCurriculum already
+    // rewrites rides trees. After the list returns on desktop, load the
+    // bundled seed and re-apply so a stale blob can be scrubbed client-side.
+    var request = ownerToken
+      ? api("GET", isWideDesktop() ? "list" : "read")
+      : ensureSeedWorkspace().then(function (seedWs) {
+        return { workspace: seedWs };
+      });
     return request.then(function (json) {
       // A late response must never restore a previous owner's learning modules.
       if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;
       applyWorkspace(json.workspace || json);
       state.localOnly = !ownerToken;
+      if (!ownerToken || !isWideDesktop() || seedWorkspaceCache) return;
+      return ensureSeedWorkspace().then(function () {
+        if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;
+        applyWorkspace(state.workspace);
+        render();
+      }).catch(function () { /* seed scrub is optional; API already refreshed */ });
     }).catch(function (err) {
       if (version !== state.loadVersion || token() !== ownerToken) return;
       // Preserve desktop's existing offline template fallback.
