@@ -870,7 +870,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
   assert.match(html, /src="\/repo\/repo\.js\?v=51"/);
   assert.match(html, /src="\/lib\/exercise-workspace-core\.js\?v=41"/);
-  assert.match(html, /src="\/repo\/exercise-workspace-ui\.js\?v=56"/);
+  assert.match(html, /src="\/repo\/exercise-workspace-ui\.js\?v=57"/);
   assert.match(html, /src="\/lib\/claude-models\.js\?v=2"/);
   assert.match(html, /src="\/lib\/claude-structured\.js\?v=2"/);
   assert.match(html, /src="\/lib\/exercise-refactor\.js\?v=2"/);

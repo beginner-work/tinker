@@ -3,17 +3,11 @@ No download needed, updates on next launch
 Exercises use Vercel Blob as Tinker's source of truth when
 BLOB_READ_WRITE_TOKEN is set (checked-in seed is the fallback). Mobile
 PWA opens an in-flight agents view first when Cursor cloud agents titled
-<<<<<<< HEAD
 Tinker:, Learning:, or Site: are active (CURSOR_API_KEY). Exercises
 sidebar still presents one learning module with ordered steps. Desktop
-lesson steps open as a read-only rendered markdown preview. That's
-everything no longer fails with "shape we couldn't use" on Opus 5.5
-(adaptive thinking token budget) and grades Your answer even when the
-lesson step README is open. Hosted web and API only; Electron shell
-unchanged.
-=======
-Tinker:, Learning:, or Site: are active (CURSOR_API_KEY). iPhone PWA
+lesson steps open as a read-only rendered markdown preview. iPhone PWA
 labs header stays below the notch with an opaque bar so the write fade
-cannot wash the Exercises label. Hosted web and API only; Electron
-shell unchanged.
->>>>>>> fc91fba (Fix iPhone PWA labs header safe-area washout)
+cannot wash the Exercises label. That's everything no longer fails with
+"shape we couldn't use" on Opus 5.5 (adaptive thinking token budget)
+and grades Your answer even when the lesson step README is open.
+Hosted web and API only; Electron shell unchanged.
