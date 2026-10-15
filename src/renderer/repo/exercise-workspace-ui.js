@@ -1129,7 +1129,8 @@
             system: refactorApi.SYSTEM_PROMPT,
             messages: [{ role: "user", content: userMessage }],
             model: model,
-            maxTokens: 8192,
+            maxTokens: 16000,
+            effort: "low",
             schema: schema,
             toolName:
               (refactorApi && refactorApi.TOOL_NAME) || "submit_exercise_refactor",
@@ -1145,7 +1146,7 @@
               system: refactorApi.SYSTEM_PROMPT,
               messages: [{ role: "user", content: userMessage }],
               model: model,
-              maxTokens: 8192,
+              maxTokens: 16000,
             })
             .then(function (result) {
               return {
@@ -1223,18 +1224,39 @@
       if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
       return;
     }
-    var answer = editorContent();
-    if (!String(answer || "").trim()) {
-      setEvaluateStatus("Write an answer before That's everything.");
-      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
-      return;
-    }
     var filePath = activeFilePath();
     var stepsDoc = stepsJsonForExercise(tab.exerciseId);
     var steps = evaluateApi.listSteps(stepsDoc);
     var found = evaluateApi.findCurrentStep(steps, filePath);
     if (!found.step) {
       setEvaluateStatus("Open a practice file inside a curriculum step folder.");
+      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+      return;
+    }
+    // Module sidebar opens the lesson README on step click. That's everything
+    // must grade the practice answer (api.md / openapi.yaml), not the lesson.
+    var answerNode = answerNodeForStep(tab.exerciseId, found.step);
+    var answerNodeId = tab.nodeId;
+    var answerPath = filePath;
+    var answer = editorContent();
+    var openIsLesson =
+      /^readme\.md$/i.test(String(activeFileName() || "")) ||
+      (answerNode && answerNode.id && answerNode.id !== tab.nodeId);
+    if (openIsLesson && answerNode) {
+      answerNodeId = answerNode.id;
+      answer =
+        answerNode.content != null ? String(answerNode.content) : "";
+      if (revision && typeof revision.nodeRelPath === "function") {
+        var exForPath = state.workspace.exercises[tab.exerciseId];
+        if (exForPath) {
+          answerPath =
+            revision.nodeRelPath(exForPath.nodes, answerNode.id) || answerPath;
+        }
+      }
+      filePath = answerPath;
+    }
+    if (!String(answer || "").trim()) {
+      setEvaluateStatus("Write an answer before That's everything.");
       if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
       return;
     }
@@ -1277,13 +1299,14 @@
     if (els.codeThatsEverything) els.codeThatsEverything.disabled = true;
 
     // Persist the answer through the existing exercise_workspace write_file path.
+    // When the lesson README is open, still write the practice answer node.
     var savePromise = persistMutation(
       "write_file",
-      { exerciseId: tab.exerciseId, nodeId: tab.nodeId, content: answer },
+      { exerciseId: tab.exerciseId, nodeId: answerNodeId, content: answer },
       function (ws) {
         return core.writeFile(ws, {
           exerciseId: tab.exerciseId,
-          nodeId: tab.nodeId,
+          nodeId: answerNodeId,
           content: answer,
         });
       }
@@ -1292,6 +1315,11 @@
     }).catch(function () {
       // Still evaluate the in-editor answer if save fails.
     });
+
+    // Opus 5.5 adaptive thinking shares max_tokens with the JSON body.
+    // Evaluate rewrites a full next-step README — leave room (effort:low
+    // is set by the structured helper).
+    var evaluateMaxTokens = 32000;
 
     savePromise
       .then(function () {
@@ -1311,7 +1339,8 @@
             system: evaluateApi.SYSTEM_PROMPT,
             messages: [{ role: "user", content: userMessage }],
             model: model,
-            maxTokens: 8192,
+            maxTokens: evaluateMaxTokens,
+            effort: "low",
             schema: schema,
             toolName:
               (evaluateApi && evaluateApi.TOOL_NAME) ||
@@ -1329,7 +1358,7 @@
             system: evaluateApi.SYSTEM_PROMPT,
             messages: [{ role: "user", content: userMessage }],
             model: model,
-            maxTokens: 8192,
+            maxTokens: evaluateMaxTokens,
           })
           .then(function (result) {
             return {

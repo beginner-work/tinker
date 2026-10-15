@@ -3,7 +3,7 @@
  * Authorization: Bearer <stytch session_token>
  * Body: { system, messages, model, maxTokens, tools?, tool_choice?,
  *         output_config?, output_format? }
- * Reply: { text, usage, toolUse?, structured? }
+ * Reply: { text, usage, toolUse?, structured?, stop_reason? }
  *
  * Stytch-gated proxy for the writing-flow turns in src/renderer/writing.js
  * and the seed-vector classifier in src/renderer/heatmap.js. Mirrors

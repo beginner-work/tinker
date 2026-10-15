@@ -131,18 +131,26 @@
     if (supportsJsonSchemaOutput(model)) {
       // GA field is output_config.format. Keep output_format on the helper
       // result so callers/tests can assert the json_schema shape the user asked for.
+      // Opus 5.5 always thinks; effort "low" leaves room in max_tokens for the
+      // JSON body (That's everything rewrites a full next-step README).
       const format = {
         type: "json_schema",
         schema: cloneSchema(schema),
       };
+      const effort =
+        options.effort != null && String(options.effort).trim()
+          ? String(options.effort).trim()
+          : "low";
       return {
         mechanism: "json_schema",
         output_format: format,
-        output_config: { format: format },
+        output_config: { format: format, effort: effort },
         tools: null,
         tool_choice: null,
       };
     }
+    // Note: Claude Opus 5.5 rejects tool_choice type "tool"/"any". Those
+    // models must stay on the json_schema path above.
     return {
       mechanism: "tool",
       output_format: null,
@@ -209,9 +217,30 @@
     if (err.status === 401 || err.status === 403) return false;
     if (err.code === "SESSION_EXPIRED" || err.code === "MISSING_TOKEN") return false;
     if (err.code === "TIMEOUT") return false;
+    // Truncation: retrying the same max_tokens will not help.
+    if (err.code === "MAX_TOKENS") return false;
     // Client validation before the model call (empty answer, etc.).
     if (err.status === 400) return false;
     return true;
+  }
+
+  function assertCompleteStructuredResult(result) {
+    if (!result || typeof result !== "object") return;
+    const reason = String(result.stop_reason || "");
+    if (reason === "max_tokens") {
+      throw Object.assign(
+        new Error(
+          "Claude's reply was cut off before the JSON finished. Try again."
+        ),
+        { status: 502, code: "MAX_TOKENS" }
+      );
+    }
+    if (reason === "refusal") {
+      throw Object.assign(
+        new Error("Claude declined to answer that request."),
+        { status: 502, code: "REFUSAL" }
+      );
+    }
   }
 
   function toClaudeCallArgs(base, structuredReq) {
@@ -252,6 +281,7 @@
       schema: options.schema,
       toolName: options.toolName,
       toolDescription: options.toolDescription,
+      effort: options.effort,
     });
     const base = {
       system: options.system,
@@ -265,12 +295,14 @@
     for (let i = 0; i < attempts; i += 1) {
       try {
         const result = await callFn(toClaudeCallArgs(base, structuredReq));
+        assertCompleteStructuredResult(result);
         const payload = extractStructuredPayload(result);
         const value = options.validate(payload);
         return {
           value: value,
           mechanism: structuredReq.mechanism,
           usage: result && result.usage ? result.usage : null,
+          stop_reason: result && result.stop_reason ? result.stop_reason : null,
           attempt: i + 1,
         };
       } catch (err) {
@@ -300,6 +332,7 @@
     parseJsonText: parseJsonText,
     extractStructuredPayload: extractStructuredPayload,
     isRetryableStructuredError: isRetryableStructuredError,
+    assertCompleteStructuredResult: assertCompleteStructuredResult,
     toClaudeCallArgs: toClaudeCallArgs,
     runStructuredJsonCall: runStructuredJsonCall,
   };

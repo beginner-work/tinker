@@ -54,6 +54,8 @@ test("claude-opus-5-5 uses json_schema structured outputs (output_format)", () =
   assert.equal(req.output_format.type, "json_schema");
   assert.ok(req.output_format.schema);
   assert.equal(req.output_config.format.type, "json_schema");
+  // Opus 5.5 always thinks; low effort leaves room for the JSON body.
+  assert.equal(req.output_config.effort, "low");
   assert.equal(req.tools, null);
   assert.doesNotMatch(
     JSON.stringify(req),
@@ -201,4 +203,114 @@ test("evaluate and refactor schemas match shared helper", () => {
   );
   assert.equal(evaluate.TOOL_NAME, "submit_exercise_evaluation");
   assert.equal(refactor.TOOL_NAME, "submit_exercise_refactor");
+});
+
+const opusFixtures = JSON.parse(
+  fs.readFileSync(
+    path.join(root, "tests/fixtures/opus-structured-replies.json"),
+    "utf8"
+  )
+);
+
+test("recorded Opus json_schema reply (thinking + text) parses for evaluate", async () => {
+  const raw = opusFixtures.json_schema_evaluate;
+  const extracted = extractContent(raw);
+  assert.equal(extracted.content[0].type, "thinking");
+  assert.equal(extracted.content[1].type, "text");
+  assert.match(extracted.text, /"feedback"/);
+  assert.equal(extracted.structured.aggressiveness.action, "finer");
+
+  const out = await structured.runStructuredJsonCall({
+    callFn: async (payload) => {
+      assert.equal(payload.output_config.format.type, "json_schema");
+      assert.equal(payload.output_config.effort, "low");
+      return {
+        text: extracted.text,
+        structured: extracted.structured,
+        toolUse: extracted.toolUse,
+        content: extracted.content,
+        stop_reason: raw.stop_reason,
+        usage: raw.usage,
+      };
+    },
+    model: "claude-opus-5-5",
+    schema: evaluate.REPLY_SCHEMA,
+    toolName: evaluate.TOOL_NAME,
+    system: "sys",
+    messages: [{ role: "user", content: "hi" }],
+    maxTokens: 32000,
+    validate: (payload) => evaluate.parseEvaluateReply(payload),
+  });
+  assert.equal(out.mechanism, "json_schema");
+  assert.match(out.value.feedback, /PaymentIntent/);
+  assert.equal(out.value.aggressiveness.struggle, "hard");
+  assert.equal(out.stop_reason, "end_turn");
+});
+
+test("recorded Opus max_tokens truncation fails with MAX_TOKENS (not silent bad JSON)", async () => {
+  const raw = opusFixtures.json_schema_evaluate_max_tokens;
+  const extracted = extractContent(raw);
+  await assert.rejects(
+    () =>
+      structured.runStructuredJsonCall({
+        callFn: async () => ({
+          text: extracted.text,
+          structured: extracted.structured,
+          content: extracted.content,
+          stop_reason: raw.stop_reason,
+          usage: raw.usage,
+        }),
+        model: "claude-opus-5-5",
+        schema: evaluate.REPLY_SCHEMA,
+        toolName: evaluate.TOOL_NAME,
+        system: "sys",
+        messages: [{ role: "user", content: "hi" }],
+        validate: (payload) => evaluate.parseEvaluateReply(payload),
+      }),
+    (err) => err && err.code === "MAX_TOKENS"
+  );
+});
+
+test("recorded Opus tool_use reply parses for evaluate fallback path", async () => {
+  const raw = opusFixtures.tool_use_evaluate;
+  const extracted = extractContent(raw);
+  assert.equal(extracted.toolUse.name, "submit_exercise_evaluation");
+  assert.equal(extracted.structured.aggressiveness.action, "keep");
+  assert.match(extracted.text, /"feedback"/);
+
+  const out = await structured.runStructuredJsonCall({
+    callFn: async (payload) => {
+      assert.equal(payload.tool_choice.type, "tool");
+      assert.equal(payload.tools[0].name, "submit_exercise_evaluation");
+      return {
+        text: extracted.text,
+        toolUse: extracted.toolUse,
+        structured: extracted.structured,
+        content: extracted.content,
+        stop_reason: raw.stop_reason,
+        usage: raw.usage,
+      };
+    },
+    // Use a model that does not support json_schema so we exercise tool path.
+    model: "claude-instant-1.2",
+    schema: evaluate.REPLY_SCHEMA,
+    toolName: evaluate.TOOL_NAME,
+    system: "sys",
+    messages: [{ role: "user", content: "hi" }],
+    validate: (payload) => evaluate.parseEvaluateReply(payload),
+  });
+  assert.equal(out.mechanism, "tool");
+  assert.match(out.value.feedback, /create body/i);
+  assert.equal(out.value.aggressiveness.action, "keep");
+});
+
+test("anthropic helper raises output ceiling and logs reply shape safely", () => {
+  assert.match(anthropicSrc, /MAX_OUTPUT_TOKENS/);
+  assert.match(anthropicSrc, /claude_reply_shape/);
+  assert.match(anthropicSrc, /stop_reason/);
+  assert.match(anthropicSrc, /block_types/);
+  assert.match(anthropicSrc, /text_len/);
+  // Shape log must not dump reply bodies — only lengths / types.
+  assert.doesNotMatch(anthropicSrc, /console\.log\([^\n]*extracted\.text/);
+  assert.doesNotMatch(anthropicSrc, /console\.log\([^\n]*messages/);
 });

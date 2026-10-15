@@ -63,7 +63,10 @@
    * browser bundle never sees an Anthropic key. */
   // Owner-thread stitch and Keep crafting must never spin forever on a
   // hung fetch (common on iOS PWA). Abort and surface a real error.
+  // Structured evaluate/refactor on Opus 5.5 (thinking + long JSON) needs
+  // more than the writing-turn default.
   const CLAUDE_TIMEOUT_MS = 60000;
+  const CLAUDE_STRUCTURED_TIMEOUT_MS = 180000;
 
   async function callClaude({
     system,
@@ -95,9 +98,18 @@
     if (output_config && typeof output_config === "object") body.output_config = output_config;
     if (output_format && typeof output_format === "object") body.output_format = output_format;
 
+    const structuredCall =
+      !!(output_config && output_config.format) ||
+      !!(output_format && output_format.type) ||
+      (Array.isArray(tools) && tools.length > 0) ||
+      (Number(maxTokens) || 0) >= 8000;
+    const timeoutMs = structuredCall
+      ? CLAUDE_STRUCTURED_TIMEOUT_MS
+      : CLAUDE_TIMEOUT_MS;
+
     const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
     const timer = controller
-      ? setTimeout(function () { try { controller.abort(); } catch (e) { /* ignore */ } }, CLAUDE_TIMEOUT_MS)
+      ? setTimeout(function () { try { controller.abort(); } catch (e) { /* ignore */ } }, timeoutMs)
       : null;
     let res;
     try {
@@ -151,6 +163,7 @@
       toolUse: data.toolUse || null,
       structured: data.structured || null,
       content: data.content || null,
+      stop_reason: data.stop_reason || null,
     };
   }
 

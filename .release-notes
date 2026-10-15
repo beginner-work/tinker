@@ -1,6 +1,6 @@
 No download needed, updates on next launch
 
-Exercises sidebar (desktop and mobile web drawer) presents the current
-exercise as one learning module with ordered steps and Your answer, instead
-of a file/folder tree. Upcoming modules show as locked placeholders.
+That's everything no longer fails with "shape we couldn't use" on Opus 5.5:
+adaptive thinking was eating the token budget and truncating the JSON reply.
+Also grades Your answer (api.md) even when the lesson step README is open.
 Hosted web only; Electron shell unchanged.
