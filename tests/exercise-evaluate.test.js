@@ -192,3 +192,14 @@ test("aggressiveness helpers map struggle to action defaults", () => {
   assert.equal(evaluate.normalizeAction("", "easy"), "skip_ahead");
   assert.equal(evaluate.normalizeAction("keep", "hard"), "keep");
 });
+
+test("That's everything grades practice answer even when lesson README is open", () => {
+  // Module sidebar opens README on step click; evaluate must not send that
+  // lesson text as Tyler's answer.
+  assert.match(ui, /openIsLesson/);
+  assert.match(ui, /answerNodeForStep/);
+  assert.match(ui, /answerNodeId/);
+  assert.match(ui, /evaluateMaxTokens/);
+  assert.match(ui, /32000/);
+  assert.match(ui, /effort:\s*["']low["']/);
+});

@@ -1,0 +1,65 @@
+{
+  "json_schema_evaluate": {
+    "comment": "Recorded-shaped Claude Opus 5.5 Messages reply for That's everything (json_schema path). Thinking block first (adaptive, display omitted), then text JSON.",
+    "id": "msg_fixture_evaluate_json_schema",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-opus-5-5",
+    "stop_reason": "end_turn",
+    "usage": { "input_tokens": 4200, "output_tokens": 1800 },
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "signature": "fixture_sig"
+      },
+      {
+        "type": "text",
+        "text": "{\"feedback\":\"You named PaymentIntent under ask. Capture and refund are still thin under send and wrong.\",\"summary\":\"Finer next step for capture under the gap on hold-then-settle.\",\"nextStepPath\":\"01-smallest-valid-spec/README.md\",\"nextStepContent\":\"# 01: Smallest valid spec\\n\\n**The gap:** Your api.md says a caller can ask for one payment intent.\\n\\nDo only GET /payment_intents/{id} with a 200.\\n\",\"aggressiveness\":{\"struggle\":\"hard\",\"action\":\"finer\"}}"
+      }
+    ]
+  },
+  "json_schema_evaluate_max_tokens": {
+    "comment": "Same shape but truncated mid-JSON (stop_reason max_tokens) — the production failure mode when thinking ate the 8192 budget.",
+    "id": "msg_fixture_evaluate_truncated",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-opus-5-5",
+    "stop_reason": "max_tokens",
+    "usage": { "input_tokens": 4200, "output_tokens": 8192 },
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "signature": "fixture_sig"
+      },
+      {
+        "type": "text",
+        "text": "{\"feedback\":\"You named PaymentIntent.\",\"summary\":\"Finer next step\",\"nextStepPath\":\"01-smallest-valid-spec/README.md\",\"nextStepContent\":\"# 01\\n\\nDo only GET /payment_intents/{id}\\n\\n## Keep going\\n"
+      }
+    ]
+  },
+  "tool_use_evaluate": {
+    "comment": "Forced-tool fallback shape (models that reject json_schema). tool_use.input is the structured payload; text may be empty.",
+    "id": "msg_fixture_evaluate_tool",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-opus-4-8",
+    "stop_reason": "tool_use",
+    "usage": { "input_tokens": 3100, "output_tokens": 900 },
+    "content": [
+      {
+        "type": "tool_use",
+        "id": "toolu_fixture_1",
+        "name": "submit_exercise_evaluation",
+        "input": {
+          "feedback": "You covered ask and return. Send still needs the create body fields in plain English.",
+          "summary": "Keep the next step; light targeting of send.",
+          "nextStepPath": "01-smallest-valid-spec/README.md",
+          "nextStepContent": "# 01: Smallest valid spec\n\nTurn one ask into GET /payment_intents/{id}.\n",
+          "aggressiveness": { "struggle": "ok", "action": "keep" }
+        }
+      }
+    ]
+  }
+}
