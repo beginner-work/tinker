@@ -870,11 +870,11 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
   assert.match(html, /src="\/repo\/repo\.js\?v=50"/);
   assert.match(html, /src="\/lib\/exercise-workspace-core\.js\?v=41"/);
-  assert.match(html, /src="\/repo\/exercise-workspace-ui\.js\?v=51"/);
+  assert.match(html, /src="\/repo\/exercise-workspace-ui\.js\?v=52"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=40"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=40"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=52"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=53"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
   assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
@@ -1326,7 +1326,7 @@ test("write page shared top bar: beaker + hamburger on desktop and mobile", () =
   assert.match(html, /rel="noopener noreferrer"/);
   assert.match(html, /aria-label="Exercises"/);
   assert.doesNotMatch(html, />\s*Learning Lab\s*</);
-  assert.doesNotMatch(html, /repo-top__labs-label/);
+  assert.match(html, /repo-top__labs-label/);
   assert.match(html, /M10 2v7\.527/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Past essays"/);
@@ -2719,3 +2719,4 @@ test("Cmd/Ctrl+Enter does not fire Keep crafting while a request is in flight", 
   await first;
   await env.flush();
 });
+

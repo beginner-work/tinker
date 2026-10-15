@@ -8,7 +8,7 @@
  * Transform status (pending / error) shows a spinner or retry on the tree.
  *
  * Lindow Labs Learning sign-in gates listing and reading exercise files.
- * Mobile keeps code read-only / hidden; desktop keeps editing.
+ * Mobile browses saved files in a read-only reader; desktop keeps editing.
  */
 (function () {
   "use strict";
@@ -33,6 +33,11 @@
     dirty: false,
     status: "",
     localOnly: true,
+    mobileFile: null,
+    loading: false,
+    loadError: "",
+    loadVersion: 0,
+    readerSession: Math.random().toString(36),
     // exerciseId → { steps, at } after an essay revision
     revised: {},
     // exerciseId → { status: 'pending'|'error'|'done', essayBody, error }
@@ -90,6 +95,13 @@
   function bindEls() {
     els = {
       layout: $("repo-layout"),
+      reader: $("repo-ex-reader"),
+      readerBack: $("repo-ex-reader-back"),
+      readerPath: $("repo-ex-reader-path"),
+      readerContent: $("repo-ex-reader-content"),
+      loadStatus: $("repo-ex-load-status"),
+      loadRetry: $("repo-ex-load-retry"),
+      toolbar: $("repo-explorer-toolbar"),
       explorer: $("repo-explorer"),
       scrim: $("repo-explorer-scrim"),
       body: $("repo-explorer-body"),
@@ -128,6 +140,14 @@
     if (els.gated) els.gated.hidden = !signedIn;
     if (!signedIn) {
       // Never list or open exercise files while signed out.
+      state.mobileFile = null;
+      state.workspace = core.emptyWorkspace();
+      state.loadVersion += 1;
+      state.readerSession = Math.random().toString(36);
+      state.loading = false;
+      if (els.reader) els.reader.hidden = true;
+      text(els.readerContent, "");
+      text(els.readerPath, "");
       state.openTabs = [];
       state.activeTabId = null;
       state.selected = { exerciseId: null, nodeId: null };
@@ -147,6 +167,9 @@
   function setExplorerOpen(open) {
     if (!els.layout) return;
     if (open) {
+      if (!isWideDesktop() && window.tinkerRepo && typeof window.tinkerRepo.setEssaysSidebar === "function") {
+        window.tinkerRepo.setEssaysSidebar(false);
+      }
       els.layout.classList.remove("is-explorer-collapsed");
       els.layout.classList.add("is-explorer-open");
       if (els.expand) els.expand.hidden = true;
@@ -157,6 +180,7 @@
       els.layout.classList.remove("is-explorer-open");
       if (els.expand) els.expand.hidden = false;
       if (els.scrim) els.scrim.hidden = true;
+      if (state.mobileFile) backToExerciseFiles();
     }
   }
 
@@ -200,6 +224,7 @@
   }
 
   function api(method, action, body) {
+    if (method !== "GET" && !isWideDesktop()) return Promise.reject(new Error("Exercises are read-only on mobile."));
     var t = token();
     if (!t) return Promise.reject(Object.assign(new Error("Sign in to edit exercises."), { status: 401 }));
     var opts = {
@@ -253,32 +278,55 @@
     }
   }
 
-  function loadSeedLocal() {
-    return fetch("/lib/exercise-workspace-seed.json", { headers: { Accept: "application/json" } })
-      .then(function (res) {
-        if (!res.ok) throw new Error("seed missing");
-        return res.json();
-      })
-      .then(function (seed) {
-        var modules = (manifest && manifest.modules) || [];
-        applyWorkspace(core.buildSeedWorkspace(seed, modules));
-        state.localOnly = true;
-        return state.workspace;
-      });
-  }
-
   function loadWorkspace() {
-    if (!token()) return loadSeedLocal();
-    return api("GET", "list").then(function (json) {
+    var version = ++state.loadVersion;
+    var ownerToken = token();
+    state.readerSession = Math.random().toString(36);
+    state.loading = true;
+    state.loadError = "";
+    render();
+    var request = ownerToken
+      ? api("GET", isWideDesktop() ? "list" : "read")
+      : fetch("/lib/exercise-workspace-seed.json").then(function (res) {
+        if (!res.ok) throw new Error("Could not load exercise templates.");
+        return res.json();
+      }).then(function (seed) {
+        return { workspace: core.buildSeedWorkspace(seed, (manifest && manifest.modules) || []) };
+      });
+    return request.then(function (json) {
+      // A late response must never restore a previous owner's files.
+      if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;
       applyWorkspace(json.workspace || json);
-      state.localOnly = false;
+      state.localOnly = !ownerToken;
+    }).catch(function (err) {
+      if (version !== state.loadVersion || token() !== ownerToken) return;
+      // Preserve desktop's existing offline template fallback.
+      if (isWideDesktop()) {
+        return fetch("/lib/exercise-workspace-seed.json").then(function (res) {
+          if (!res.ok) throw err;
+          return res.json();
+        }).then(function (seed) {
+          if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;
+          applyWorkspace(core.buildSeedWorkspace(seed, (manifest && manifest.modules) || []));
+          state.localOnly = true;
+        }).catch(function () { state.loadError = "Could not load exercises. Try again."; });
+      }
+      state.workspace = core.emptyWorkspace();
+      state.mobileFile = null;
+      state.loadError = err.status === 401 || err.status === 403
+        ? "Session expired. Sign in again to read exercises."
+        : "Could not load exercises. Check your connection and try again.";
+    }).then(function () {
+      if (version !== state.loadVersion) return;
+      state.loading = false;
+      applyDefaultCollapsed();
+      render();
       return state.workspace;
-    }).catch(function () {
-      return loadSeedLocal();
     });
   }
 
   function persistMutation(action, body, localMutator) {
+    if (!isWideDesktop() || !isLearningSignedIn()) return Promise.reject(new Error("Exercises are read-only on mobile."));
     if (state.localOnly || !token()) {
       // Demo / signed-out: mutate in memory only (seed browse).
       var result = localMutator(state.workspace);
@@ -310,6 +358,56 @@
       return !!(window.matchMedia && window.matchMedia("(min-width: 801px)").matches);
     } catch (e) {
       return false;
+    }
+  }
+
+  function renderMobileReader() {
+    var selection = state.mobileFile;
+    var node = selection && findNode(selection.exerciseId, selection.nodeId);
+    var visible = !isWideDesktop() && isLearningSignedIn() && node && node.type === "file";
+    if (els.reader) els.reader.hidden = !visible;
+    if (els.body) els.body.hidden = !!visible;
+    if (!visible) {
+      text(els.readerContent, "");
+      text(els.readerPath, "");
+      return;
+    }
+    var ex = state.workspace.exercises[selection.exerciseId];
+    var path = [node.name];
+    var parent = node.parentId;
+    var seen = {};
+    while (parent && !seen[parent]) {
+      seen[parent] = true;
+      var folder = findNode(selection.exerciseId, parent);
+      if (!folder) break;
+      path.unshift(folder.name);
+      parent = folder.parentId;
+    }
+    text(els.readerPath, ex.name + " / " + path.join(" / "));
+    // Plain text never executes HTML/scripts and preserves actual saved starter code.
+    text(els.readerContent, node.content || "This file is empty.");
+    if (els.readerContent) els.readerContent.classList.toggle("is-markdown", /\.md$/i.test(node.name));
+  }
+
+  function focusSelectedFile() {
+    if (!els.body) return;
+    var rows = els.body.querySelectorAll(".repo-ex-node");
+    for (var i = 0; i < rows.length; i += 1) {
+      if (rows[i].getAttribute("data-exercise-id") === state.selected.exerciseId &&
+          rows[i].getAttribute("data-node-id") === state.selected.nodeId) {
+        var button = rows[i].querySelector("button");
+        if (button) button.focus();
+        return;
+      }
+    }
+  }
+
+  function backToExerciseFiles() {
+    state.mobileFile = null;
+    render();
+    focusSelectedFile();
+    if (window.history && window.history.state && window.history.state.tinkerExerciseReader) {
+      window.history.back();
     }
   }
 
@@ -497,15 +595,23 @@
       applyAuthGate();
       return;
     }
-    // Mobile: exercise files are not editable; keep the writing surface.
-    if (!isWideDesktop()) {
-      state.selected = { exerciseId: exerciseId, nodeId: nodeId };
-      showWritingChrome(true);
-      renderExplorer();
-      return;
-    }
     var node = findNode(exerciseId, nodeId);
     if (!node || node.type !== "file") return;
+    if (!isWideDesktop()) {
+      state.selected = { exerciseId: exerciseId, nodeId: nodeId };
+      state.mobileFile = { exerciseId: exerciseId, nodeId: nodeId, session: state.readerSession };
+      if (window.history) {
+        var historyState = Object.assign({}, window.history.state || {}, { tinkerExerciseReader: state.mobileFile });
+        // One history entry for the reader, even on repeated opens.
+        if (window.history.state && window.history.state.tinkerExerciseReader) window.history.replaceState(historyState, "");
+        else window.history.pushState(historyState, "");
+      }
+      setExplorerOpen(true);
+      render();
+      if (els.readerContent) { els.readerContent.scrollTop = 0; els.readerContent.scrollLeft = 0; }
+      if (els.readerBack) els.readerBack.focus();
+      return;
+    }
     var id = tabId(exerciseId, nodeId);
     var existing = null;
     state.openTabs.forEach(function (tab) {
@@ -664,7 +770,7 @@
       row.setAttribute("data-exercise-id", exerciseId);
       row.setAttribute("data-node-id", node.id);
       row.setAttribute("data-node-type", node.type);
-      row.draggable = true;
+      row.draggable = isWideDesktop();
 
       if (node.type === "folder") {
         var key = exerciseId + ":" + node.id;
@@ -714,7 +820,7 @@
         if (next == null) return;
         renameNode(exerciseId, node.id, next);
       });
-      row.appendChild(renameBtn);
+      if (isWideDesktop()) row.appendChild(renameBtn);
 
       var delBtn = document.createElement("button");
       delBtn.type = "button";
@@ -725,7 +831,7 @@
         if (event.stopPropagation) event.stopPropagation();
         requestDelete(exerciseId, node);
       });
-      row.appendChild(delBtn);
+      if (isWideDesktop()) row.appendChild(delBtn);
 
       row.addEventListener("dragstart", function (event) {
         state.drag = { exerciseId: exerciseId, nodeId: node.id, type: node.type };
@@ -766,6 +872,7 @@
   }
 
   function startWriteAboutExercise(exerciseId) {
+    if (!isWideDesktop() || !isLearningSignedIn()) return;
     if (!isLearningSignedIn()) {
       requestLearningSignIn();
       return;
@@ -827,11 +934,19 @@
     if (!applyAuthGate()) return;
 
     var order = state.workspace.exerciseOrder || [];
-    if (els.empty) els.empty.hidden = order.length > 0;
+    if (els.toolbar) els.toolbar.hidden = !isWideDesktop();
+    if (els.loadStatus) {
+      els.loadStatus.hidden = !state.loading && !state.loadError;
+      text(els.loadStatus, state.loading ? "Loading exercises…" : state.loadError);
+    }
+    if (els.loadRetry) els.loadRetry.hidden = !state.loadError || state.loading;
+    if (els.empty) els.empty.hidden = order.length > 0 || state.loading || !!state.loadError;
     if (els.hint) {
       text(
         els.hint,
-        state.localOnly
+        !isWideDesktop()
+          ? (state.localOnly ? "Read only · Exercise templates. Sign in to Tinker for your saved files." : "Read only · Your saved exercises. Edit on desktop.")
+          : state.localOnly
           ? "Browsing seed trees. Sign in to Tinker to save restructuring."
           : "Seeded from lindowlabs. Edits save in Tinker, not GitHub."
       );
@@ -845,7 +960,7 @@
       var group = document.createElement("div");
       group.className = "repo-explorer__group";
       group.setAttribute("data-exercise-id", exerciseId);
-      group.draggable = true;
+      group.draggable = isWideDesktop();
 
       var head = document.createElement("div");
       head.className = "repo-explorer__group-row";
@@ -881,7 +996,7 @@
         renderExplorer();
       });
       head.appendChild(btn);
-      if (tStatus === "error") {
+      if (tStatus === "error" && isWideDesktop()) {
         var retryBtn = document.createElement("button");
         retryBtn.type = "button";
         retryBtn.className = "repo-ex-transform-retry";
@@ -895,7 +1010,7 @@
         group.classList.add("is-transform-error");
       }
 
-      if (index > 0) {
+      if (index > 0 && isWideDesktop()) {
         var up = document.createElement("button");
         up.type = "button";
         up.className = "repo-ex-node__icon";
@@ -907,7 +1022,7 @@
         });
         head.appendChild(up);
       }
-      if (index < order.length - 1) {
+      if (index < order.length - 1 && isWideDesktop()) {
         var down = document.createElement("button");
         down.type = "button";
         down.className = "repo-ex-node__icon";
@@ -959,7 +1074,7 @@
           if (event && event.stopPropagation) event.stopPropagation();
           startWriteAboutExercise(exerciseId);
         });
-        group.appendChild(writeAbout);
+        if (isWideDesktop()) group.appendChild(writeAbout);
 
         renderStepsPanel(group, exerciseId);
 
@@ -981,6 +1096,7 @@
 
   function render() {
     applyAuthGate();
+    renderMobileReader();
     if (isLearningSignedIn()) {
       renderExplorer();
       renderTabs();
@@ -1022,6 +1138,7 @@
   }
 
   function applyEssayRevision(exerciseId, essayBody) {
+    if (!isWideDesktop()) return Promise.reject(new Error("Exercises are read-only on mobile."));
     if (!revision) {
       return Promise.reject(new Error("Exercise revision helper missing."));
     }
@@ -1092,6 +1209,7 @@
   }
 
   function createNode(type) {
+    if (!isWideDesktop() || !isLearningSignedIn()) return;
     var exerciseId = state.selected.exerciseId || (state.workspace.exerciseOrder || [])[0];
     if (!exerciseId) return;
     var label = type === "folder" ? "Folder name" : "File name";
@@ -1121,6 +1239,7 @@
   }
 
   function renameNode(exerciseId, nodeId, name) {
+    if (!isWideDesktop() || !isLearningSignedIn()) return;
     persistMutation(
       "rename_node",
       { exerciseId: exerciseId, nodeId: nodeId, name: name },
@@ -1135,6 +1254,7 @@
   }
 
   function moveNode(exerciseId, nodeId, parentId) {
+    if (!isWideDesktop() || !isLearningSignedIn()) return;
     if (nodeId === parentId) return;
     persistMutation(
       "move_node",
@@ -1146,6 +1266,7 @@
   }
 
   function requestDelete(exerciseId, node) {
+    if (!isWideDesktop() || !isLearningSignedIn()) return;
     state.pendingDelete = { exerciseId: exerciseId, node: node };
     if (els.confirmHint) {
       text(
@@ -1164,6 +1285,7 @@
   }
 
   function confirmDelete() {
+    if (!isWideDesktop() || !isLearningSignedIn()) return;
     var pending = state.pendingDelete;
     if (!pending) return;
     closeConfirm();
@@ -1188,6 +1310,7 @@
   }
 
   function reorderExercise(exerciseId, delta) {
+    if (!isWideDesktop() || !isLearningSignedIn()) return;
     var order = (state.workspace.exerciseOrder || []).slice();
     var idx = order.indexOf(exerciseId);
     if (idx < 0) return;
@@ -1206,6 +1329,7 @@
   }
 
   function saveActiveFile() {
+    if (!isWideDesktop() || !isLearningSignedIn()) return;
     var tab = null;
     state.openTabs.forEach(function (t) {
       if (t.id === state.activeTabId) tab = t;
@@ -1230,6 +1354,25 @@
   }
 
   function wire() {
+    var essaysButton = $("repo-past-essays");
+    if (essaysButton) essaysButton.addEventListener("click", function () {
+      if (!isWideDesktop()) setExplorerOpen(false);
+    });
+    if (els.readerBack) els.readerBack.addEventListener("click", backToExerciseFiles);
+    if (els.loadRetry) els.loadRetry.addEventListener("click", function () { loadWorkspace(); });
+    window.addEventListener("popstate", function (event) {
+      var entry = event.state && event.state.tinkerExerciseReader;
+      state.mobileFile = entry && entry.session === state.readerSession ? entry : null;
+      if (state.mobileFile && !isWideDesktop() && isLearningSignedIn()) setExplorerOpen(true);
+      render();
+      if (!state.mobileFile) focusSelectedFile();
+    });
+    var media = window.matchMedia && window.matchMedia("(min-width: 801px)");
+    if (media && media.addEventListener) media.addEventListener("change", function () {
+      state.drag = null;
+      closeConfirm();
+      render();
+    });
     if (els.collapse) {
       els.collapse.addEventListener("click", function () {
         setExplorerOpen(false);
@@ -1345,3 +1488,4 @@
     _state: state,
   };
 })();
+
