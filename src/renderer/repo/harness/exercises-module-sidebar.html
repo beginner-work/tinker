@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>tinker — exercises module sidebar harness</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css?v=40" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/repo/repo.css?v=55" />
+  </head>
+  <body class="repo-page repo-page--write" data-repo-mode="write">
+    <!--
+      Static mirror of the /repo Exercises sidebar after the learning-module
+      presentation pass: one module card, ordered steps with current/done/next,
+      Your answer under the current step, and a locked next-module placeholder.
+      No file extensions, folder icons, or nested directory rows.
+    -->
+    <header class="repo-top repo-top--labs" aria-label="Tools">
+      <a class="repo-top__labs" id="repo-labs-link" href="#"
+         aria-label="Exercises" title="Exercises" data-learning-lab data-exercises-nav>
+        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M8.5 2h7"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M7 16h10"/>
+        </svg>
+      </a>
+      <button type="button" class="repo-top__past-essays" id="repo-past-essays"
+              aria-label="Past essays" title="Past essays" aria-expanded="false"
+              aria-controls="repo-right">
+        <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M4 5h16M4 12h16M4 19h16"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="repo-layout repo-layout--write is-explorer-open" id="repo-layout">
+      <button type="button" class="repo-explorer-scrim" id="repo-explorer-scrim"
+              aria-label="Close exercises" tabindex="-1" hidden></button>
+      <aside class="repo-explorer" id="repo-explorer" aria-label="Exercises">
+        <div class="repo-explorer__head">
+          <h2 class="repo-sidebar__heading" id="repo-explorer-heading">Exercises</h2>
+          <button type="button" class="repo-explorer__collapse" id="repo-explorer-collapse" aria-label="Collapse explorer">‹</button>
+        </div>
+        <div class="repo-explorer-signin" id="repo-explorer-signin" hidden></div>
+        <div class="repo-ex-steps-banner" id="repo-ex-steps-banner" hidden></div>
+        <div class="repo-explorer__gated" id="repo-explorer-gated">
+          <div class="repo-explorer__toolbar" id="repo-explorer-toolbar">
+            <button type="button" class="repo-explorer__tool">New learning module</button>
+          </div>
+          <div class="repo-explorer__body" id="repo-explorer-body" role="navigation" aria-labelledby="repo-explorer-heading">
+            <div class="repo-explorer__group repo-ex-module" data-exercise-id="api-design">
+              <div class="repo-explorer__group-row repo-ex-module__head">
+                <button type="button" class="repo-explorer__group-btn repo-ex-module__btn is-selected">
+                  <span class="repo-explorer__name repo-ex-module__title">OpenAPI by hand (payments)</span>
+                </button>
+              </div>
+              <button type="button" class="repo-ex-write-about" data-exercise-id="api-design">Write about this exercise</button>
+              <div class="repo-ex-module__progress" data-exercise-id="api-design">
+                <div class="repo-ex-step is-current">
+                  <button type="button" class="repo-ex-step__btn is-selected">
+                    <span class="repo-ex-step__mark" aria-hidden="true">00</span>
+                    <span class="repo-ex-step__label">In plain English</span>
+                    <span class="repo-ex-step__state">Current</span>
+                  </button>
+                  <div class="repo-ex-step__answer">
+                    <button type="button" class="repo-ex-step__answer-btn">Your answer</button>
+                  </div>
+                </div>
+                <div class="repo-ex-step is-next">
+                  <button type="button" class="repo-ex-step__btn">
+                    <span class="repo-ex-step__mark" aria-hidden="true">01</span>
+                    <span class="repo-ex-step__label">Smallest valid spec</span>
+                    <span class="repo-ex-step__state">Next</span>
+                  </button>
+                </div>
+                <div class="repo-ex-step is-next">
+                  <button type="button" class="repo-ex-step__btn">
+                    <span class="repo-ex-step__mark" aria-hidden="true">02</span>
+                    <span class="repo-ex-step__label">Name the thing</span>
+                    <span class="repo-ex-step__state">Next</span>
+                  </button>
+                </div>
+                <div class="repo-ex-step is-next">
+                  <button type="button" class="repo-ex-step__btn">
+                    <span class="repo-ex-step__mark" aria-hidden="true">03</span>
+                    <span class="repo-ex-step__label">Create</span>
+                    <span class="repo-ex-step__state">Next</span>
+                  </button>
+                </div>
+                <div class="repo-ex-step is-next">
+                  <button type="button" class="repo-ex-step__btn">
+                    <span class="repo-ex-step__mark" aria-hidden="true">04</span>
+                    <span class="repo-ex-step__label">Failure</span>
+                    <span class="repo-ex-step__state">Next</span>
+                  </button>
+                </div>
+                <div class="repo-ex-step is-next">
+                  <button type="button" class="repo-ex-step__btn">
+                    <span class="repo-ex-step__mark" aria-hidden="true">05</span>
+                    <span class="repo-ex-step__label">Lists</span>
+                    <span class="repo-ex-step__state">Next</span>
+                  </button>
+                </div>
+                <div class="repo-ex-step is-next">
+                  <button type="button" class="repo-ex-step__btn">
+                    <span class="repo-ex-step__mark" aria-hidden="true">06</span>
+                    <span class="repo-ex-step__label">Auth</span>
+                    <span class="repo-ex-step__state">Next</span>
+                  </button>
+                </div>
+                <div class="repo-ex-step is-next">
+                  <button type="button" class="repo-ex-step__btn">
+                    <span class="repo-ex-step__mark" aria-hidden="true">07</span>
+                    <span class="repo-ex-step__label">From scratch</span>
+                    <span class="repo-ex-step__state">Next</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="repo-ex-module-placeholder" aria-disabled="true">
+              <p class="repo-ex-module-placeholder__title">Next module</p>
+              <p class="repo-ex-module-placeholder__copy">Generated after you finish this one</p>
+            </div>
+          </div>
+          <p class="repo-explorer__hint" id="repo-explorer-hint">Learning modules. Edits save in Tinker, not GitHub.</p>
+        </div>
+      </aside>
+      <button type="button" class="repo-explorer__expand" id="repo-explorer-expand" hidden aria-label="Show explorer">›</button>
+
+      <div class="repo-ide-center" id="repo-ide-center">
+        <div class="repo-ide-tabbar" id="repo-ide-tabbar">
+          <div class="repo-tabs" id="repo-tabs" role="tablist" aria-label="Open editors">
+            <div class="repo-tabs__tab is-active">
+              <button type="button" class="repo-tabs__label-btn">
+                <span class="repo-tabs__label">00 In plain English</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <main class="repo-center repo-write-safe-top" id="repo-editor-main" aria-label="Editor" hidden></main>
+        <section class="repo-panel repo-panel--write" id="repo-panel" aria-label="Writing">
+          <div class="repo-panel__body repo-panel__body--write" id="repo-panel-body">
+            <div class="repo-panel__write" id="repo-panel-write">
+              <div class="repo-surface writing repo-write-safe-top" id="repo-surface">
+                <p class="repo-surface__lede">Learning module steps open as content, not filenames.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>
