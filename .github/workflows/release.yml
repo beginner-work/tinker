@@ -54,9 +54,30 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version=$(node -p "require('./package.json').version")
-          gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+          # Machine-checkable first line for the desktop update button:
+          #   Download needed
+          #   No download needed, updates on next launch
+          if [ -f .release-notes ]; then
+            notes_file=.release-notes
+          else
+            notes_file=$(mktemp)
+            printf '%s\n\ntinker desktop v%s\n' \
+              "No download needed, updates on next launch" "$version" > "$notes_file"
+          fi
+          first_line=$(head -n 1 "$notes_file" | tr -d '\r')
+          case "$first_line" in
+            "Download needed"|"No download needed, updates on next launch") ;;
+            *)
+              echo "::error file=.release-notes::Release notes first line must be exactly 'Download needed' or 'No download needed, updates on next launch' (got: $first_line)"
+              exit 1
+              ;;
+          esac
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "v$version" --repo "$GITHUB_REPOSITORY" --notes-file "$notes_file"
+          else
             gh release create "v$version" --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" --title "$version" --notes "tinker desktop v$version"
+              --target "$GITHUB_SHA" --title "$version" --notes-file "$notes_file"
+          fi
 
   release:
     name: Build & publish (${{ matrix.os }})
