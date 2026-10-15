@@ -1,6 +1,7 @@
 No download needed, updates on next launch
 
-Writing UI uses Claude Haiku 4.5; open exercise files get an inline Refactor
-flow (select text or a step, ask, Accept or Reject) on Claude Opus 5.5.
-Model ids live in one config. Hosted web and API only; the Electron shell
-is unchanged.
+Exercise files gain a That's everything button (same primary pill style as
+This is everything). Claude Opus 5.5 grades the open answer against the
+current step goals with short plain-English feedback, then proposes a
+next-step README rewrite as an Accept/Reject diff. Hosted web/API only;
+Electron shell unchanged.

@@ -1520,7 +1520,8 @@ html.tinker-desktop .repo-top--labs {
 .repo-code__save,
 .repo-code__refactor,
 .repo-code__refactor-ask,
-.repo-code__refactor-accept {
+.repo-code__refactor-accept,
+.repo-code__evaluate-accept {
   min-height: 32px;
   padding: 0 12px;
   border: 1px solid var(--color-accent-strong, #6366f1);
@@ -1533,11 +1534,105 @@ html.tinker-desktop .repo-top--labs {
   cursor: pointer;
 }
 
+/* Match writing-surface "This is everything" primary pill on the code bar. */
+.repo-code__thats-everything.repo-surface__action {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.repo-code__thats-everything[hidden],
+.repo-code__evaluate-panel[hidden],
+.repo-code__evaluate-status[hidden],
+.repo-code__evaluate-diff[hidden],
 .repo-code__refactor[hidden],
 .repo-code__refactor-panel[hidden],
 .repo-code__refactor-status[hidden],
 .repo-code__refactor-diff[hidden] {
   display: none !important;
+}
+
+.repo-code__evaluate-panel {
+  flex: 0 0 auto;
+  padding: 10px 14px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  background: color-mix(in srgb, var(--color-background) 92%, var(--color-accent, #a5b4fc) 8%);
+}
+
+.repo-code__evaluate-feedback {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-ink, #2d2a26);
+  white-space: pre-wrap;
+}
+
+.repo-code__evaluate-status {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.repo-code__evaluate-diff {
+  margin-top: 10px;
+}
+
+.repo-code__evaluate-summary,
+.repo-code__evaluate-path {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink, #2d2a26);
+}
+
+.repo-code__evaluate-path {
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+.repo-code__evaluate-before,
+.repo-code__evaluate-after {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  max-height: 140px;
+  overflow: auto;
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.repo-code__evaluate-before {
+  background: color-mix(in srgb, #b91c1c 10%, var(--color-background));
+  border: 1px solid color-mix(in srgb, #b91c1c 28%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, #b91c1c 55%, transparent);
+}
+
+.repo-code__evaluate-after {
+  background: color-mix(in srgb, #15803d 10%, var(--color-background));
+  border: 1px solid color-mix(in srgb, #15803d 28%, transparent);
+}
+
+.repo-code__evaluate-decide {
+  display: flex;
+  gap: 8px;
+}
+
+.repo-code__evaluate-reject {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .repo-code__refactor-panel {

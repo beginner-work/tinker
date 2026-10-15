@@ -7,6 +7,9 @@
  * Essay → Claude revise_from_essay updates README / steps / starter stubs.
  * Transform status (pending / error) shows a spinner or retry on the tree.
  *
+ * That's everything evaluates the open practice answer with Claude Opus,
+ * shows short feedback, and proposes a next-step README accept/reject diff.
+ *
  * Lindow Labs Learning sign-in gates listing and reading exercise files.
  * Mobile browses saved files in a read-only reader; desktop keeps editing.
  */
@@ -19,11 +22,14 @@
   var learningAuth = window.tinkerLearningAuth || null;
   var revision = window.tinkerExerciseRevision || null;
   var refactorApi = window.tinkerExerciseRefactor || null;
+  var evaluateApi = window.tinkerExerciseEvaluate || null;
   var models = window.tinkerClaudeModels || null;
   if (!core) return;
   var cmEditor = null;
   var refactorProposal = null;
   var refactorBusy = false;
+  var evaluateProposal = null;
+  var evaluateBusy = false;
   var selectionSyncTimer = null;
 
   var TOKEN_KEY = "tinker_jwt";
@@ -129,6 +135,17 @@
       codeSurface: $("repo-code-surface"),
       codeEditor: $("repo-code-editor"),
       codeSave: $("repo-code-save"),
+      codeThatsEverything: $("repo-code-thats-everything"),
+      codeEvaluatePanel: $("repo-code-evaluate-panel"),
+      codeEvaluateFeedback: $("repo-code-evaluate-feedback"),
+      codeEvaluateStatus: $("repo-code-evaluate-status"),
+      codeEvaluateDiff: $("repo-code-evaluate-diff"),
+      codeEvaluateSummary: $("repo-code-evaluate-summary"),
+      codeEvaluatePath: $("repo-code-evaluate-path"),
+      codeEvaluateBefore: $("repo-code-evaluate-before"),
+      codeEvaluateAfter: $("repo-code-evaluate-after"),
+      codeEvaluateAccept: $("repo-code-evaluate-accept"),
+      codeEvaluateReject: $("repo-code-evaluate-reject"),
       codeRefactor: $("repo-code-refactor"),
       codeRefactorPanel: $("repo-code-refactor-panel"),
       codeRefactorInput: $("repo-code-refactor-input"),
@@ -492,18 +509,23 @@
     if (!desktop) {
       if (els.code) els.code.hidden = true;
       if (els.codeSave) els.codeSave.hidden = true;
+      if (els.codeThatsEverything) els.codeThatsEverything.hidden = true;
+      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = true;
       if (els.codeRefactor) els.codeRefactor.hidden = true;
       if (els.codeRefactorPanel) els.codeRefactorPanel.hidden = true;
       if (els.layout) els.layout.classList.remove("is-code-open");
       if (document.body) document.body.classList.remove("repo-code-open");
+      clearEvaluateUi();
       clearRefactorUi();
       destroyCm();
       return;
     }
     if (els.code) els.code.hidden = show;
     if (els.codeSave) els.codeSave.hidden = !!show;
+    if (els.codeThatsEverything) els.codeThatsEverything.hidden = !!show;
     if (els.codeRefactor) els.codeRefactor.hidden = !!show;
     if (show) {
+      clearEvaluateUi();
       clearRefactorUi();
       destroyCm();
     }
@@ -601,6 +623,69 @@
     if (els.codeRefactorBefore) text(els.codeRefactorBefore, "");
     if (els.codeRefactorAfter) text(els.codeRefactorAfter, "");
     if (els.codeRefactorSummary) text(els.codeRefactorSummary, "");
+  }
+
+  function clearEvaluateUi() {
+    evaluateProposal = null;
+    evaluateBusy = false;
+    if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = true;
+    if (els.codeEvaluateDiff) els.codeEvaluateDiff.hidden = true;
+    if (els.codeEvaluateStatus) {
+      els.codeEvaluateStatus.hidden = true;
+      text(els.codeEvaluateStatus, "");
+    }
+    if (els.codeEvaluateFeedback) text(els.codeEvaluateFeedback, "");
+    if (els.codeEvaluateBefore) text(els.codeEvaluateBefore, "");
+    if (els.codeEvaluateAfter) text(els.codeEvaluateAfter, "");
+    if (els.codeEvaluateSummary) text(els.codeEvaluateSummary, "");
+    if (els.codeEvaluatePath) text(els.codeEvaluatePath, "");
+    if (els.codeThatsEverything) els.codeThatsEverything.disabled = false;
+  }
+
+  function setEvaluateStatus(message) {
+    if (!els.codeEvaluateStatus) return;
+    if (!message) {
+      els.codeEvaluateStatus.hidden = true;
+      text(els.codeEvaluateStatus, "");
+      return;
+    }
+    els.codeEvaluateStatus.hidden = false;
+    text(els.codeEvaluateStatus, message);
+  }
+
+  function activeTab() {
+    var tab = null;
+    state.openTabs.forEach(function (t) {
+      if (t.id === state.activeTabId) tab = t;
+    });
+    return tab;
+  }
+
+  function activeFilePath() {
+    var tab = activeTab();
+    if (!tab || !revision || typeof revision.nodeRelPath !== "function") {
+      return activeFileName();
+    }
+    var ex = state.workspace.exercises[tab.exerciseId];
+    if (!ex) return activeFileName();
+    return revision.nodeRelPath(ex.nodes, tab.nodeId) || activeFileName();
+  }
+
+  function stepsJsonForExercise(exerciseId) {
+    var ex = state.workspace.exercises[exerciseId];
+    if (!ex || !revision || typeof revision.findNodeByPath !== "function") return null;
+    var node = revision.findNodeByPath(ex.nodes, "steps.json");
+    if (!node) return null;
+    return evaluateApi && typeof evaluateApi.parseStepsJson === "function"
+      ? evaluateApi.parseStepsJson(node.content || "")
+      : null;
+  }
+
+  function readmeContentForPath(exerciseId, relPath) {
+    var ex = state.workspace.exercises[exerciseId];
+    if (!ex || !revision || typeof revision.findNodeByPath !== "function") return "";
+    var node = revision.findNodeByPath(ex.nodes, relPath);
+    return node && node.content != null ? String(node.content) : "";
   }
 
   function setRefactorStatus(message) {
@@ -772,6 +857,201 @@
     setRefactorStatus("");
   }
 
+  function runThatsEverything() {
+    if (evaluateBusy) return;
+    if (!isWideDesktop() || !isLearningSignedIn()) {
+      requestLearningSignIn();
+      return;
+    }
+    if (!evaluateApi || typeof evaluateApi.buildEvaluateUserMessage !== "function") {
+      setEvaluateStatus("Evaluate helper missing.");
+      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+      return;
+    }
+    var api = resolveClaudeApi();
+    if (!api) {
+      setEvaluateStatus("Sign in to evaluate with Claude.");
+      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+      return;
+    }
+    var tab = activeTab();
+    if (!tab) {
+      setEvaluateStatus("Open an exercise answer file first.");
+      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+      return;
+    }
+    var answer = editorContent();
+    if (!String(answer || "").trim()) {
+      setEvaluateStatus("Write an answer before That's everything.");
+      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+      return;
+    }
+    var filePath = activeFilePath();
+    var stepsDoc = stepsJsonForExercise(tab.exerciseId);
+    var steps = evaluateApi.listSteps(stepsDoc);
+    var found = evaluateApi.findCurrentStep(steps, filePath);
+    if (!found.step) {
+      setEvaluateStatus("Open a practice file inside a curriculum step folder.");
+      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+      return;
+    }
+    var next = evaluateApi.nextStepAfter(steps, found.index);
+    var currentReadmePath = evaluateApi.readmePathForStep(found.step);
+    var nextReadmePath = next ? evaluateApi.readmePathForStep(next) : "";
+    var ex = state.workspace.exercises[tab.exerciseId];
+    var userMessage;
+    try {
+      userMessage = evaluateApi.buildEvaluateUserMessage({
+        exerciseId: tab.exerciseId,
+        exerciseName: ex && ex.name,
+        filePath: filePath,
+        answerText: answer,
+        currentStep: found.step,
+        currentReadme: readmeContentForPath(tab.exerciseId, currentReadmePath),
+        nextStep: next,
+        nextReadme: nextReadmePath
+          ? readmeContentForPath(tab.exerciseId, nextReadmePath)
+          : "",
+      });
+    } catch (err) {
+      setEvaluateStatus((err && err.message) || "Could not build evaluate request.");
+      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+      return;
+    }
+
+    var model =
+      (evaluateApi && evaluateApi.MODEL) ||
+      (models && models.EXERCISE_REFACTOR) ||
+      "claude-opus-5-5";
+
+    evaluateBusy = true;
+    evaluateProposal = null;
+    clearRefactorUi();
+    if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+    if (els.codeEvaluateDiff) els.codeEvaluateDiff.hidden = true;
+    if (els.codeEvaluateFeedback) text(els.codeEvaluateFeedback, "");
+    setEvaluateStatus("Saving, then asking Claude…");
+    if (els.codeThatsEverything) els.codeThatsEverything.disabled = true;
+
+    // Persist the answer through the existing exercise_workspace write_file path.
+    var savePromise = persistMutation(
+      "write_file",
+      { exerciseId: tab.exerciseId, nodeId: tab.nodeId, content: answer },
+      function (ws) {
+        return core.writeFile(ws, {
+          exerciseId: tab.exerciseId,
+          nodeId: tab.nodeId,
+          content: answer,
+        });
+      }
+    ).then(function () {
+      state.dirty = false;
+    }).catch(function () {
+      // Still evaluate the in-editor answer if save fails.
+    });
+
+    savePromise.then(function () {
+      setEvaluateStatus("Asking Claude…");
+      return api.callClaude({
+        system: evaluateApi.SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userMessage }],
+        model: model,
+        maxTokens: 8192,
+      });
+    }).then(function (result) {
+      var parsed = evaluateApi.parseEvaluateReply(result && result.text);
+      var before = nextReadmePath
+        ? readmeContentForPath(tab.exerciseId, nextReadmePath)
+        : "";
+      var proposedPath = parsed.nextStepPath || nextReadmePath || "";
+      var hasDiff = !!(
+        proposedPath &&
+        typeof parsed.nextStepContent === "string" &&
+        parsed.nextStepContent.length
+      );
+      evaluateProposal = {
+        exerciseId: tab.exerciseId,
+        feedback: parsed.feedback,
+        summary: parsed.summary,
+        nextStepPath: proposedPath,
+        before: before,
+        after: parsed.nextStepContent || "",
+        aggressiveness: parsed.aggressiveness,
+        hasDiff: hasDiff,
+      };
+      text(els.codeEvaluateFeedback, parsed.feedback || "");
+      if (hasDiff) {
+        text(els.codeEvaluateSummary, parsed.summary || "Proposed next-step update");
+        text(els.codeEvaluatePath, proposedPath);
+        text(els.codeEvaluateBefore, before || "(empty)");
+        text(els.codeEvaluateAfter, parsed.nextStepContent);
+        if (els.codeEvaluateDiff) els.codeEvaluateDiff.hidden = false;
+        setEvaluateStatus("Review the next-step diff, then Accept or Reject.");
+      } else {
+        if (els.codeEvaluateDiff) els.codeEvaluateDiff.hidden = true;
+        setEvaluateStatus("Feedback ready. No next-step change proposed.");
+      }
+    }).catch(function (err) {
+      setEvaluateStatus((err && err.message) || "Evaluation failed.");
+    }).then(function () {
+      evaluateBusy = false;
+      if (els.codeThatsEverything) els.codeThatsEverything.disabled = false;
+    });
+  }
+
+  function acceptEvaluate() {
+    if (!evaluateProposal || !evaluateProposal.hasDiff) {
+      clearEvaluateUi();
+      return;
+    }
+    var proposal = evaluateProposal;
+    var applied;
+    try {
+      applied = evaluateApi.applyNextStepReadme(state.workspace, {
+        core: core,
+        revision: revision,
+        exerciseId: proposal.exerciseId,
+        nextStepPath: proposal.nextStepPath,
+        nextStepContent: proposal.after,
+        workspace: state.workspace,
+      });
+    } catch (err) {
+      setEvaluateStatus((err && err.message) || "Could not apply next-step update.");
+      return;
+    }
+    var nodeId = applied && applied.nodeId;
+    persistMutation(
+      "write_file",
+      {
+        exerciseId: proposal.exerciseId,
+        nodeId: nodeId,
+        content: proposal.after,
+      },
+      function (ws) {
+        return core.writeFile(ws, {
+          exerciseId: proposal.exerciseId,
+          nodeId: nodeId,
+          content: proposal.after,
+        });
+      }
+    ).then(function () {
+      state.status = "Next step updated in Tinker.";
+      clearEvaluateUi();
+      render();
+    }).catch(function () {
+      // Local apply already on workspace via writeFile in apply; re-apply.
+      applyWorkspace(applied.workspace || state.workspace);
+      state.status = "Next step updated locally.";
+      clearEvaluateUi();
+      render();
+    });
+  }
+
+  function rejectEvaluate() {
+    clearEvaluateUi();
+    setEvaluateStatus("");
+  }
+
   function ensureCm(fileName, content) {
     if (!els.codeSurface || !cmApi || typeof cmApi.create !== "function") return null;
     if (!cmEditor) {
@@ -792,7 +1072,7 @@
       cmEditor.setFileName(fileName);
       // Avoid clobbering in-progress typing when already focused.
       var focused = cmEditor.view && cmEditor.view.hasFocus;
-      if (!focused && !refactorProposal) cmEditor.setValue(content || "");
+      if (!focused && !refactorProposal && !evaluateProposal) cmEditor.setValue(content || "");
     }
     if (els.codeEditor) els.codeEditor.value = content || "";
     if (els.code) {
@@ -1688,6 +1968,13 @@
       });
     }
     if (els.codeSave) els.codeSave.addEventListener("click", saveActiveFile);
+    if (els.codeThatsEverything) {
+      els.codeThatsEverything.addEventListener("click", function () {
+        runThatsEverything();
+      });
+    }
+    if (els.codeEvaluateAccept) els.codeEvaluateAccept.addEventListener("click", acceptEvaluate);
+    if (els.codeEvaluateReject) els.codeEvaluateReject.addEventListener("click", rejectEvaluate);
     if (els.codeRefactor) els.codeRefactor.addEventListener("click", openRefactorPanel);
     if (els.codeRefactorAsk) els.codeRefactorAsk.addEventListener("click", askRefactor);
     if (els.codeRefactorCancel) {
