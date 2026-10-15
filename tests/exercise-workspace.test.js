@@ -249,6 +249,62 @@ test("pruneRetiredCurriculum drops Formation, stripe, deleted labs, and api-desi
   );
 });
 
+test("refreshStaleCurriculum replaces rides api-design with payments seed", () => {
+  const seedWs = seeded();
+  const ridesBlob = {
+    exerciseOrder: ["api-design"],
+    exercises: {
+      "api-design": {
+        id: "api-design",
+        name: "OpenAPI by hand",
+        nodes: [
+          {
+            id: "readme_rides",
+            name: "README.md",
+            type: "file",
+            parentId: null,
+            content:
+              "# OpenAPI by hand\n\nSteps 01 through 06 stay on the rides domain.\n",
+          },
+          {
+            id: "steps_rides",
+            name: "steps.json",
+            type: "file",
+            parentId: null,
+            content: '{\n  "version": 1,\n  "domain": "rides"\n}\n',
+          },
+          {
+            id: "check_rides",
+            name: "check-step.mjs",
+            type: "file",
+            parentId: null,
+            content:
+              'assert(get(spec, "paths./rides/{id}.get"), "GET /rides/{id} required");\n',
+          },
+        ],
+      },
+    },
+  };
+
+  assert.equal(core.exerciseLooksLikeRidesDomain(ridesBlob.exercises["api-design"]), true);
+  assert.equal(core.exerciseLooksLikeRidesDomain(seedWs.exercises["api-design"]), false);
+
+  const refreshed = core.refreshStaleCurriculum(ridesBlob, seedWs);
+  assert.equal(refreshed.changed, true);
+  assert.deepEqual(refreshed.replacedExerciseIds, ["api-design"]);
+  const next = refreshed.workspace.exercises["api-design"];
+  assert.equal(core.exerciseLooksLikeRidesDomain(next), false);
+  const text = next.nodes.map((n) => String(n.content || "")).join("\n");
+  assert.match(text, /payments/i);
+  assert.match(text, /Merchant/i);
+  assert.doesNotMatch(text, /\b\/rides\b/);
+  assert.doesNotMatch(text, /"domain"\s*:\s*"rides"/);
+
+  const again = core.refreshStaleCurriculum(refreshed.workspace, seedWs);
+  assert.equal(again.changed, false);
+  assert.deepEqual(again.replacedExerciseIds, []);
+});
+
 test("merge then prune matches list/sync cleanup for legacy sidebars", () => {
   const legacy = {
     exerciseOrder: ["formation-persistent-storage", "stripe-payment-intent", "api-design"],
@@ -300,6 +356,7 @@ test("API/store wiring persists via TinkerUserData and never mentions GitHub wri
   assert.match(storeSrc, /exercise_workspace/);
   assert.match(storeSrc, /mergeSeedIntoSaved/);
   assert.match(storeSrc, /pruneRetiredCurriculum/);
+  assert.match(storeSrc, /refreshStaleCurriculum/);
   assert.match(storeSrc, /keepIds/);
   assert.match(storeSrc, /tinkerUserData/);
   assert.match(storeSrc, /reviseFromEssay/);
@@ -326,7 +383,14 @@ test("repo IDE explorer wires exercise trees and drops the Output panel", () => 
   assert.match(uiSrc, /create_node/);
   assert.match(uiSrc, /delete_node/);
   assert.match(uiSrc, /pruneRetiredCurriculum/);
+  assert.match(uiSrc, /refreshStaleCurriculum/);
   assert.match(uiSrc, /draggable/);
   assert.match(uiSrc, /Sign in to (save|Tinker|Learning)/);
+  assert.match(html, /id="repo-ex-new-file"[^>]*>New learning module</);
+  assert.match(html, /id="repo-ex-new-folder"[^>]*>New learning modules</);
+  assert.match(html, /All learning modules/);
+  assert.match(uiSrc, /No learning modules yet/);
+  assert.doesNotMatch(html, /id="repo-ex-new-file"[^>]*>New file</);
+  assert.doesNotMatch(html, /id="repo-ex-new-folder"[^>]*>New folder</);
   assert.doesNotMatch(uiSrc, /\u2014/);
 });
