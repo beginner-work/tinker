@@ -81,7 +81,7 @@ test("model success returns specific question, not the template", async () => {
   const specific =
     "Where in Tinker do you and the code already use different words for the same thing, before you open Crunching Knowledge?";
   anthropicImpl = async ({ system, messages, model }) => {
-    assert.equal(model, "claude-opus-4-8");
+    assert.equal(model, "claude-haiku-4-5-20251001");
     assert.match(system, /Do NOT use a generic template/i);
     assert.match(messages[0].content, /Crunching Knowledge/);
     assert.match(messages[0].content, /lead and person/);

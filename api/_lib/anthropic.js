@@ -8,6 +8,8 @@
 
 "use strict";
 
+const models = require("../../src/renderer/lib/claude-models.js");
+
 async function callAnthropic({ system, messages, model, maxTokens }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
@@ -16,8 +18,9 @@ async function callAnthropic({ system, messages, model, maxTokens }) {
     });
   }
   const body = {
-    model: model || "claude-opus-4-7",
-    max_tokens: Math.min(Math.max(Number(maxTokens) || 2048, 1), 8192),
+    model: model || models.DEFAULT || "claude-opus-4-7",
+    // Opus 5.5 adaptive thinking shares the output budget; allow headroom.
+    max_tokens: Math.min(Math.max(Number(maxTokens) || 2048, 1), 16000),
     messages,
   };
   if (system) {
@@ -41,8 +44,11 @@ async function callAnthropic({ system, messages, model, maxTokens }) {
       (data && (data.error?.message || data.error)) || `Anthropic ${res.status}`;
     throw Object.assign(new Error(message), { status: 502 });
   }
-  const textBlock = (data.content || []).find((b) => b.type === "text");
-  return { text: textBlock ? textBlock.text : "", usage: data.usage };
+  const text = (data.content || [])
+    .filter((b) => b && b.type === "text" && typeof b.text === "string")
+    .map((b) => b.text)
+    .join("");
+  return { text: text, usage: data.usage };
 }
 
 module.exports = { callAnthropic };

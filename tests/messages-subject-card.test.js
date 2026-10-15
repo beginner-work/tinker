@@ -16,10 +16,11 @@ const store = fs.readFileSync(path.join(root, "api/_lib/leads-store.js"), "utf8"
 const mcp = fs.readFileSync(path.join(root, "api/mcp.js"), "utf8");
 
 test("Keep crafting model lives behind one shared constant", () => {
-  assert.match(interview, /KEEP_CRAFTING_MODEL\s*=\s*["']claude-opus-4-8["']/);
-  assert.match(interview, /KEEP_CRAFTING_MODEL,/);
+  assert.match(interview, /KEEP_CRAFTING_MODEL/);
+  assert.match(interview, /claude-models\.js|resolveKeepCraftingModel/);
   assert.match(composer, /keepCraftingModel\(\)|KEEP_CRAFTING_MODEL/);
   assert.match(followups, /interview\.KEEP_CRAFTING_MODEL/);
+  assert.match(interview, /claude-haiku-4-5-20251001/);
 });
 
 test("subject helpers retry + deterministic fallback", () => {

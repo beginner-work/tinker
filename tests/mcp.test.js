@@ -428,7 +428,7 @@ test("ask_followups transcript uses the interview prompt and returns questions J
 
   assert.equal(anthropicCalls().length, 1);
   const sent = anthropicCalls()[0].anthropicBody;
-  assert.equal(sent.model, "claude-opus-4-8");
+  assert.equal(sent.model, "claude-haiku-4-5-20251001");
   assert.equal(sent.system[0].cache_control.type, "ephemeral");
   const system = sent.system[0].text;
   assert.ok(system.startsWith(interview.SYSTEM_PROMPT));

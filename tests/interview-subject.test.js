@@ -5,7 +5,9 @@ const assert = require("node:assert/strict");
 const interview = require("../src/renderer/interview-prompt.js");
 
 test("KEEP_CRAFTING_MODEL is a single switchable constant", () => {
-  assert.equal(interview.KEEP_CRAFTING_MODEL, "claude-opus-4-8");
+  const models = require("../src/renderer/lib/claude-models.js");
+  assert.equal(interview.KEEP_CRAFTING_MODEL, models.WRITING);
+  assert.equal(interview.KEEP_CRAFTING_MODEL, "claude-haiku-4-5-20251001");
 });
 
 test("fallbackOutreachSubject uses typed answers only (no person/company filler)", () => {

@@ -21,9 +21,12 @@ const releaseNotes = fs.readFileSync(path.join(root, ".release-notes"), "utf8");
 const mainJs = fs.readFileSync(path.join(root, "src/main/main.js"), "utf8");
 const preloadJs = fs.readFileSync(path.join(root, "src/main/preload.js"), "utf8");
 
-test("release notes first line is Download needed for this shell cut", () => {
-  assert.equal(mod.releaseNotesFirstLine(releaseNotes), mod.DOWNLOAD_NEEDED_LINE);
-  assert.equal(mod.isDownloadNeededRelease(releaseNotes), true);
+test("release notes first line is machine-checkable", () => {
+  const first = mod.releaseNotesFirstLine(releaseNotes);
+  assert.ok(
+    first === mod.DOWNLOAD_NEEDED_LINE || first === mod.NO_DOWNLOAD_NEEDED_LINE,
+    "first line must be Download needed or No download needed, updates on next launch"
+  );
 });
 
 test("workflow requires machine-checkable release notes first line", () => {

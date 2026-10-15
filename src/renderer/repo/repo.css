@@ -1510,7 +1510,17 @@ html.tinker-desktop .repo-top--labs {
   white-space: nowrap;
 }
 
-.repo-code__save {
+.repo-code__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.repo-code__save,
+.repo-code__refactor,
+.repo-code__refactor-ask,
+.repo-code__refactor-accept {
   min-height: 32px;
   padding: 0 12px;
   border: 1px solid var(--color-accent-strong, #6366f1);
@@ -1521,6 +1531,109 @@ html.tinker-desktop .repo-top--labs {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.repo-code__refactor[hidden],
+.repo-code__refactor-panel[hidden],
+.repo-code__refactor-status[hidden],
+.repo-code__refactor-diff[hidden] {
+  display: none !important;
+}
+
+.repo-code__refactor-panel {
+  flex: 0 0 auto;
+  padding: 10px 14px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  background: color-mix(in srgb, var(--color-background) 92%, var(--color-accent, #a5b4fc) 8%);
+}
+
+.repo-code__refactor-label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.repo-code__refactor-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.repo-code__refactor-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  color: var(--color-ink, #2d2a26);
+  font: inherit;
+  font-size: 13px;
+}
+
+.repo-code__refactor-cancel,
+.repo-code__refactor-reject {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.repo-code__refactor-status {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.repo-code__refactor-diff {
+  margin-top: 10px;
+}
+
+.repo-code__refactor-summary {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink, #2d2a26);
+}
+
+.repo-code__refactor-before,
+.repo-code__refactor-after {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  max-height: 140px;
+  overflow: auto;
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.repo-code__refactor-before {
+  background: color-mix(in srgb, #b91c1c 10%, var(--color-background));
+  border: 1px solid color-mix(in srgb, #b91c1c 28%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, #b91c1c 55%, transparent);
+}
+
+.repo-code__refactor-after {
+  background: color-mix(in srgb, #15803d 10%, var(--color-background));
+  border: 1px solid color-mix(in srgb, #15803d 28%, transparent);
+}
+
+.repo-code__refactor-decide {
+  display: flex;
+  gap: 8px;
 }
 
 /* Full-column CodeMirror surface — no bordered textarea chrome. */

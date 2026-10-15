@@ -21,9 +21,20 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  // Single switch for Keep crafting question + subject generation.
-  // Flip back to claude-opus-4-8 (or another id) without hunting call sites.
-  const KEEP_CRAFTING_MODEL = "claude-opus-4-8";
+  // Writing model id lives in lib/claude-models.js (WRITING / KEEP_CRAFTING).
+  function resolveKeepCraftingModel() {
+    try {
+      if (typeof require === "function") {
+        const models = require("./lib/claude-models.js");
+        if (models && models.KEEP_CRAFTING) return models.KEEP_CRAFTING;
+      }
+    } catch (e) { /* browser classic script */ }
+    if (typeof window !== "undefined" && window.tinkerClaudeModels) {
+      return window.tinkerClaudeModels.KEEP_CRAFTING || window.tinkerClaudeModels.WRITING;
+    }
+    return "claude-haiku-4-5-20251001";
+  }
+  const KEEP_CRAFTING_MODEL = resolveKeepCraftingModel();
 
   const SYSTEM_PROMPT = [
     "You are an interviewer for tinker, a writing tool for founders.",

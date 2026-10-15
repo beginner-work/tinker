@@ -9,8 +9,9 @@
 
 const { callAnthropic } = require("./anthropic.js");
 const revision = require("../../src/renderer/lib/exercise-revision.js");
+const models = require("../../src/renderer/lib/claude-models.js");
 
-const MODEL = "claude-opus-4-8";
+const MODEL = models.EXERCISE_REVISE || "claude-opus-4-8";
 const MAX_ESSAY = 12000;
 const MAX_FILE_CHARS = 14000;
 const MAX_FILES_IN_PROMPT = 24;

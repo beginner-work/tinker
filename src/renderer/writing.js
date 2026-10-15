@@ -187,10 +187,14 @@
       ctxLines.push("Recent transactions:");
       ctxLines.push(...txLines);
     }
+    const writingModel =
+      (window.tinkerInterview && window.tinkerInterview.KEEP_CRAFTING_MODEL) ||
+      (window.tinkerClaudeModels && window.tinkerClaudeModels.WRITING) ||
+      "claude-haiku-4-5-20251001";
     const result = await window.tinker.callClaude({
       system: systemWithVoice,
       messages: [{ role: "user", content: ctxLines.join("\n") }],
-      model: "claude-opus-4-8",
+      model: writingModel,
       maxTokens: 80,
     });
     let text = (result.text || "").trim();
@@ -807,7 +811,10 @@
         result = await window.tinker.callClaude({
           system,
           messages: [{ role: "user", content: userMessage }],
-          model: (api && api.KEEP_CRAFTING_MODEL) || "claude-opus-4-8",
+          model:
+            (api && api.KEEP_CRAFTING_MODEL) ||
+            (window.tinkerClaudeModels && window.tinkerClaudeModels.WRITING) ||
+            "claude-haiku-4-5-20251001",
           maxTokens: 2048,
         });
       } catch (err) {
