@@ -128,6 +128,7 @@
     locationList: document.getElementById("repo-location-list"),
     locationCustom: document.getElementById("repo-location-custom"),
     locationError: document.getElementById("repo-location-error"),
+    writeEmpty: document.getElementById("repo-write-empty"),
     filePath: document.getElementById("repo-file-path"),
     fileType: document.getElementById("repo-file-type"),
     filePlace: document.getElementById("repo-file-place"),
@@ -1217,6 +1218,17 @@
 
   function setPadMarkdown(md, opts) {
     renderPadFromMarkdown(md == null ? "" : String(md), opts || {});
+    syncWriteEmptyHint();
+  }
+
+  /** Phone write surface: show a short empty state under the location pill
+   * when there is no draft yet (avoids a blank void below "Where are you?"). */
+  function syncWriteEmptyHint() {
+    if (!els.writeEmpty) return;
+    var reading = !!(els.surface && els.surface.classList.contains("repo-surface--reading"));
+    var hasDraft = !!String(padBody() || "").trim();
+    var show = isWritePage && !reading && !hasDraft;
+    els.writeEmpty.hidden = !show;
   }
 
   function isEssayReadMode() {
@@ -1241,6 +1253,7 @@
     state.essayReadMount = null;
     state.essayReadStoryId = null;
     if (els.surface) els.surface.classList.remove("repo-surface--reading");
+    syncWriteEmptyHint();
   }
 
   function showEssayReadView(story) {
@@ -1255,6 +1268,7 @@
     if (els.body) els.body.hidden = true;
     setPadActionsVisible(false);
     if (els.surface) els.surface.classList.add("repo-surface--reading");
+    syncWriteEmptyHint();
 
     // Fresh essay open: toggle always off (do not persist across essays).
     if (!state.essayReadMount || state.essayReadStoryId !== story.id) {
@@ -2386,6 +2400,7 @@
       }
     }
     renderPlaceList();
+    syncWriteEmptyHint();
   }
 
   function renderPlaceList() {
@@ -3845,5 +3860,6 @@
     exReady,
   ]).then(function () {
     applyExerciseDeepLink();
+    syncWriteEmptyHint();
   });
 })();

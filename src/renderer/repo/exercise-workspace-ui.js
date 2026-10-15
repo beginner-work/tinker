@@ -408,6 +408,10 @@
     }
   }
 
+  function isMarkdownFileName(name) {
+    return /\.md$/i.test(String(name || ""));
+  }
+
   function renderMobileReader() {
     var selection = state.mobileFile;
     var node = selection && findNode(selection.exerciseId, selection.nodeId);
@@ -417,6 +421,7 @@
     if (!visible) {
       text(els.readerContent, "");
       text(els.readerPath, "");
+      if (els.readerContent) els.readerContent.classList.remove("is-markdown");
       return;
     }
     var ex = state.workspace.exercises[selection.exerciseId];
@@ -431,9 +436,28 @@
       parent = folder.parentId;
     }
     text(els.readerPath, ex.name + " / " + path.join(" / "));
-    // Plain text never executes HTML/scripts and preserves actual saved starter code.
-    text(els.readerContent, node.content || "This learning module is empty.");
-    if (els.readerContent) els.readerContent.classList.toggle("is-markdown", /\.md$/i.test(node.name));
+    var raw = node.content || "This learning module is empty.";
+    var asMarkdown = isMarkdownFileName(node.name);
+    if (els.readerContent) els.readerContent.classList.toggle("is-markdown", asMarkdown);
+    if (asMarkdown) {
+      // Render .md as sanitized HTML (same markdown-it + DOMPurify path as essay read).
+      var essayRead = window.tinkerEssayRead;
+      var html = "";
+      if (essayRead && typeof essayRead.renderMarkdown === "function") {
+        html = essayRead.renderMarkdown(raw);
+      } else if (essayRead && typeof essayRead.sanitize === "function" && window.markdownit) {
+        html = essayRead.sanitize(window.markdownit({ html: false, linkify: true }).render(raw));
+      }
+      if (html) {
+        els.readerContent.innerHTML = html;
+      } else {
+        // Fallback: never execute markup; show source as plain text.
+        text(els.readerContent, raw);
+      }
+    } else {
+      // Non-md stays monospace plain text (no HTML execution).
+      text(els.readerContent, raw);
+    }
   }
 
   function focusSelectedFile() {
@@ -1706,8 +1730,9 @@
     if (!els.body && !els.signin) return Promise.resolve();
     wire();
     applyAuthGate();
-    // Desktop starts with explorer visible (unless collapsed); mobile closed.
-    if (isWideDesktop()) {
+    // Desktop + signed-in mobile: show exercises by default so the write
+    // surface is not a blank void under the location picker on phones.
+    if (isWideDesktop() || isLearningSignedIn()) {
       setExplorerOpen(true);
     } else {
       setExplorerOpen(false);
@@ -1718,6 +1743,7 @@
     }
     return loadWorkspace().then(function () {
       applyDefaultCollapsed();
+      if (!isWideDesktop()) setExplorerOpen(true);
       render();
       return state.workspace;
     });

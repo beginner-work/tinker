@@ -14,7 +14,7 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=40" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=53" />
+    <link rel="stylesheet" href="/repo/repo.css?v=54" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
     <!-- Shared top bar (desktop + mobile): beaker/exercises left, past-essays hamburger right. -->
@@ -78,7 +78,7 @@
           <section id="repo-ex-reader" class="repo-ex-reader" aria-label="Read-only learning module" hidden>
             <button type="button" id="repo-ex-reader-back" class="repo-ex-reader__back">‹ All learning modules</button>
             <h3 id="repo-ex-reader-path" class="repo-ex-reader__path"></h3>
-            <pre id="repo-ex-reader-content" class="repo-ex-reader__content" tabindex="0" aria-label="Learning module contents, read only"></pre>
+            <div id="repo-ex-reader-content" class="repo-ex-reader__content" tabindex="0" aria-label="Learning module contents, read only"></div>
           </section>
           <div class="repo-explorer__body" id="repo-explorer-body" role="tree" aria-labelledby="repo-explorer-heading"></div>
           <p class="repo-changes__empty" id="repo-explorer-empty" hidden>No exercises yet.</p>
@@ -149,6 +149,10 @@
                   <div class="repo-location__panel" id="repo-location-panel" hidden>
                     <ul class="repo-location__list" id="repo-location-list" role="listbox" tabindex="-1" aria-labelledby="repo-location-caption"></ul>
                   </div>
+                </div>
+                <div class="repo-write-empty" id="repo-write-empty" hidden>
+                  <p class="repo-write-empty__title">Pick a place to begin</p>
+                  <p class="repo-write-empty__copy">Choose where you are above, then write - or open Exercises from the beaker.</p>
                 </div>
                 <div class="repo-exercise-chip" id="repo-exercise-chip" hidden>
                   <span class="repo-exercise-chip__spinner" id="repo-exercise-chip-spinner" hidden aria-hidden="true"></span>
@@ -280,9 +284,9 @@
     <script src="/lib/lock-in.js?v=1"></script>
     <script src="/lib/lock-in-ui.js?v=1"></script>
     <script src="/lib/exercise-workspace-core.js?v=41"></script>
-    <script src="/repo/exercise-workspace-ui.js?v=53"></script>
+    <script src="/repo/exercise-workspace-ui.js?v=54"></script>
     <script src="/made-by-lindow-labs.js?v=49"></script>
-    <script src="/repo/repo.js?v=50"></script>
+    <script src="/repo/repo.js?v=51"></script>
     <script src="/repo/storage-section.js?v=40"></script>
   </body>
 </html>
