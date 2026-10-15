@@ -128,19 +128,18 @@ test("exercises explorer scrolls and stays above the writing panel", () => {
     css,
     /\.repo-panel__write \.repo-surface\.writing\s*\{[\s\S]*?position:\s*relative[\s\S]*?left:\s*auto[\s\S]*?\}/,
   );
-  assert.match(html, /repo\.css\?v=54/);
+  assert.match(html, /repo\.css\?v=55/);
   assert.match(html, /id="repo-explorer-scrim"/);
   assert.match(css, /\.repo-explorer-scrim/);
   assert.match(
     css,
     /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-layout--write\.is-explorer-open \.repo-explorer-scrim\s*\{[^}]*display:\s*block/s,
   );
-  // Vertical exercise stack: write-about / steps / tree sit under the titled
-  // .repo-explorer__group (not orphans above the next exercise, and not inside
-  // .repo-ex-node flex rows used for files).
+  // Vertical module stack: write-about + step progression under the titled
+  // .repo-ex-module (not a file/folder tree, and not inside .repo-ex-node rows).
   assert.match(ui, /group\.appendChild\(writeAbout\)/);
-  assert.match(ui, /renderStepsPanel\(group,\s*exerciseId\)/);
-  assert.match(ui, /group\.appendChild\(list\)/);
+  assert.match(ui, /renderModuleProgress\(group,\s*exerciseId\)/);
+  assert.match(ui, /renderUpcomingModulePlaceholders\(els\.body\)/);
   assert.match(ui, /els\.body\.appendChild\(group\)/);
   assert.match(ui, /applyDefaultCollapsed/);
   assert.doesNotMatch(ui, /repo-ex-node[\s\S]{0,80}repo-ex-write-about/);
