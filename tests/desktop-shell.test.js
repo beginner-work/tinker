@@ -258,9 +258,25 @@ test("packaging targets universal Mac dmg named tinker-mac", () => {
   assert.match(builderYml, /src\/main\/\*\*\/\*/);
 });
 
+
+test("windows nsis and portable use distinct artifact names", () => {
+  // Shared win.artifactName made both targets upload the same .exe and hit
+  // GitHub 408 timeouts (stuck starter assets on v0.1.16 / v0.1.17).
+  assert.match(builderYml, /^nsis:\s*$/m);
+  assert.match(builderYml, /^portable:\s*$/m);
+  assert.match(
+    builderYml,
+    /^nsis:\n  artifactName: \$\{productName\}-\$\{version\}-\$\{arch\}\.\$\{ext\}$/m
+  );
+  assert.match(
+    builderYml,
+    /^portable:\n  artifactName: \$\{productName\}-\$\{version\}-\$\{arch\}-portable\.\$\{ext\}$/m
+  );
+});
+
 test("release marker matches package version; workflows publish on marker", () => {
   assert.equal(marker, pkg.version);
-  assert.equal(pkg.version, "0.1.17");
+  assert.equal(pkg.version, "0.1.18");
   assert.match(markerYml, /\.release-version/);
   assert.match(markerYml, /publish:\s*true/);
   assert.match(releaseYml, /macos-latest/);
