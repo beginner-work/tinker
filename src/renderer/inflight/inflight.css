@@ -95,8 +95,13 @@ html, body.inflight-page {
 
 .inflight__row {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title state"
+    "meta  state"
+    "bar   bar";
+  column-gap: 12px;
+  row-gap: 6px;
   padding: 14px 0;
   border-bottom: 1px solid var(--color-border, #ede8e0);
   animation: inflight-row-in 280ms ease-out both;
@@ -107,12 +112,16 @@ html, body.inflight-page {
 .inflight__row:nth-child(4) { animation-delay: 120ms; }
 
 @keyframes inflight-row-in {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0.001; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .inflight__row { animation: none; }
+}
+
 .inflight__title {
-  grid-column: 1 / -1;
+  grid-area: title;
   margin: 0;
   font-size: 16px;
   font-weight: 600;
@@ -121,6 +130,7 @@ html, body.inflight-page {
 }
 
 .inflight__meta {
+  grid-area: meta;
   display: flex;
   flex-wrap: wrap;
   gap: 6px 10px;
@@ -141,6 +151,7 @@ html, body.inflight-page {
 }
 
 .inflight__state {
+  grid-area: state;
   justify-self: end;
   align-self: start;
   font-size: 12px;
@@ -150,7 +161,7 @@ html, body.inflight-page {
 }
 
 .inflight__bar {
-  grid-column: 1 / -1;
+  grid-area: bar;
   height: 4px;
   margin-top: 4px;
   border-radius: 999px;
