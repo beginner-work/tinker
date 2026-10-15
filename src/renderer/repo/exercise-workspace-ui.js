@@ -1317,7 +1317,7 @@
     });
 
     // Opus 5.5 adaptive thinking shares max_tokens with the JSON body.
-    // Evaluate rewrites a full next-step README — leave room (effort:low
+    // Evaluate rewrites a full next-step README; leave room (effort:low
     // is set by the structured helper).
     var evaluateMaxTokens = 32000;
 
