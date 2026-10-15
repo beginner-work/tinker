@@ -21,7 +21,8 @@
     "eval:product-spec": "node .claude/skills/product-spec/evals/run-evals.mjs",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "build:editor": "node scripts/build-repo-cm-editor.mjs"
+    "build:editor": "node scripts/build-repo-cm-editor.mjs",
+    "seed:exercises-blob": "node scripts/seed-exercises-to-blob.js"
   },
   "keywords": [
     "electron",
@@ -34,6 +35,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/blob": "^2.8.2",
     "dompurify": "^3.4.16",
     "isomorphic-dompurify": "^2.36.0",
     "markdown-it": "^14.3.2"

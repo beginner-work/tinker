@@ -1925,7 +1925,7 @@
           ? (state.localOnly ? "Read only · Exercise templates. Sign in to Tinker for your saved learning modules." : "Read only · Your saved exercises. Edit on desktop.")
           : state.localOnly
           ? "Browsing learning modules. Sign in to Tinker to save changes."
-          : "Learning modules. Edits save in Tinker, not GitHub."
+          : "Learning modules. Edits save in Tinker; Blob holds the shared copy when configured."
       );
     }
 

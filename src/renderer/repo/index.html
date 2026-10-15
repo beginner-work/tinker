@@ -19,6 +19,11 @@
   <body class="repo-page repo-page--write" data-repo-mode="write">
     <!-- Shared top bar (desktop + mobile): beaker/exercises left, past-essays hamburger right. -->
     <header class="repo-top repo-top--labs" aria-label="Tools">
+      <a class="repo-top__inflight"
+         id="repo-inflight-link"
+         href="/inflight?stay=1"
+         aria-label="In flight"
+         title="In flight">In flight</a>
       <a class="repo-top__labs"
          id="repo-labs-link"
          href="https://lindowlabs.dev/learning"
@@ -82,7 +87,7 @@
           </section>
           <div class="repo-explorer__body" id="repo-explorer-body" role="navigation" aria-labelledby="repo-explorer-heading"></div>
           <p class="repo-changes__empty" id="repo-explorer-empty" hidden>No exercises yet.</p>
-          <p class="repo-explorer__hint" id="repo-explorer-hint">Seeded from lindowlabs. Edits save in Tinker, not GitHub.</p>
+          <p class="repo-explorer__hint" id="repo-explorer-hint">Learning modules. Edits save in Tinker; Blob holds the shared copy when configured.</p>
         </div>
       </aside>
       <button type="button" class="repo-explorer__expand" id="repo-explorer-expand" hidden aria-label="Show explorer" title="Show explorer">›</button>
