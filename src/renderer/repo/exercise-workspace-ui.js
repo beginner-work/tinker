@@ -1,17 +1,16 @@
-/* Exercise explorer for per-owner exercise file trees.
+/* Learning-loop editor for one practice file + ZPD-calibrated prompts.
  *
  * Seeds from /lib/exercise-workspace-seed.json + manifest. Tinker owners
- * sync through /api/exercise-workspace. GitHub is never written (per-user
- * TinkerUserData only; desktop clones/pulls lindowlabs for Open in IDE).
+ * sync through /api/exercise-workspace. Progress (level, prompt, ZPD) lives
+ * in /api/user-data/learning-progress. GitHub is never written.
  *
- * Essay → Claude revise_from_essay updates README / steps / starter stubs.
- * Transform status (pending / error) shows a spinner or retry on the tree.
+ * That's everything: Claude Opus evaluates the attempt, applies revisedContent
+ * into the open file automatically (subtle highlight + Undo), updates ZPD
+ * and the next prompt, and persists learning_progress. No Accept/Reject,
+ * no Exercises sidebar, no multi-file tabs as the main UX.
  *
- * That's everything evaluates the open practice answer with Claude Opus,
- * shows short feedback, and proposes a next-step README accept/reject diff.
- *
- * Lindow Labs Learning sign-in gates listing and reading exercise files.
- * Mobile browses saved files in a read-only reader; desktop keeps editing.
+ * Lindow Labs Learning sign-in gates the practice file. Explorer chrome is
+ * kept in the DOM for id stability but never shown (repo-layout--learning).
  */
 (function () {
   "use strict";
@@ -23,6 +22,7 @@
   var revision = window.tinkerExerciseRevision || null;
   var refactorApi = window.tinkerExerciseRefactor || null;
   var evaluateApi = window.tinkerExerciseEvaluate || null;
+  var progressApi = window.tinkerLearningProgress || null;
   var models = window.tinkerClaudeModels || null;
   var structuredApi = window.tinkerClaudeStructured || null;
   if (!core) return;
@@ -32,6 +32,8 @@
   var evaluateProposal = null;
   var evaluateBusy = false;
   var selectionSyncTimer = null;
+  var undoSnapshot = null;
+  var appliedHighlightTimer = null;
 
   var TOKEN_KEY = "tinker_jwt";
   var seedWorkspaceCache = null;
@@ -57,6 +59,7 @@
     revised: {},
     // exerciseId → { status: 'pending'|'error'|'done', essayBody, error }
     transform: {},
+    learningProgress: null,
   };
 
   var els = {};
@@ -154,6 +157,7 @@
       codeSurface: $("repo-code-surface"),
       codeEditor: $("repo-code-editor"),
       codeSave: $("repo-code-save"),
+      codeUndo: $("repo-code-undo"),
       codeThatsEverything: $("repo-code-thats-everything"),
       codeEvaluatePanel: $("repo-code-evaluate-panel"),
       codeEvaluateFeedback: $("repo-code-evaluate-feedback"),
@@ -178,6 +182,16 @@
       codeRefactorAccept: $("repo-code-refactor-accept"),
       codeRefactorReject: $("repo-code-refactor-reject"),
       codeStatus: $("repo-code-status"),
+      learning: $("repo-learning"),
+      learningGoal: $("repo-learning-goal"),
+      learningPrompt: $("repo-learning-prompt"),
+      learningPromptText: $("repo-learning-prompt-text"),
+      learningZpd: $("repo-learning-zpd"),
+      learningZpdUnaided: $("repo-learning-zpd-unaided"),
+      learningZpdBeyond: $("repo-learning-zpd-beyond"),
+      learningDone: $("repo-learning-done"),
+      learningDoneCopy: $("repo-learning-done-copy"),
+      learningNextGoal: $("repo-learning-next-goal"),
       pad: $("repo-pad"),
       essayView: $("repo-essay-view"),
       location: $("repo-location"),
@@ -188,6 +202,238 @@
       confirmCancel: $("repo-ex-confirm-cancel"),
       confirmBackdrop: $("repo-ex-confirm-backdrop"),
     };
+  }
+
+  function isLearningLoop() {
+    return !!(els.layout && els.layout.classList.contains("repo-layout--learning"));
+  }
+
+  function defaultLearningProgress() {
+    if (progressApi && typeof progressApi.defaultProgress === "function") {
+      return progressApi.defaultProgress();
+    }
+    return {
+      goalId: "openapi-from-scratch",
+      goalTitle: "Write an OpenAPI spec from scratch by feel, no copy-paste",
+      exerciseId: "api-design",
+      practicePath: "00-in-plain-english/api.md",
+      fileName: "api.md",
+      level: 0,
+      status: "active",
+      currentPrompt:
+        "In plain English, describe what a caller can ask for, send, get back, and what can go wrong for a PaymentIntent. Pseudocode is fine.",
+      zpd: { unaided: "", justBeyond: "" },
+      updatedAt: null,
+    };
+  }
+
+  function normalizeLearningProgress(raw) {
+    if (progressApi && typeof progressApi.normalizeProgress === "function") {
+      return progressApi.normalizeProgress(raw);
+    }
+    return Object.assign(defaultLearningProgress(), raw || {});
+  }
+
+  function authHeadersJson() {
+    var t = token();
+    var headers = { Accept: "application/json" };
+    if (t) headers.Authorization = "Bearer " + t;
+    return headers;
+  }
+
+  function fetchLearningProgress() {
+    var t = token();
+    if (!t) {
+      state.learningProgress = normalizeLearningProgress(null);
+      return Promise.resolve(state.learningProgress);
+    }
+    return fetch("/api/user-data/learning-progress", {
+      method: "GET",
+      headers: authHeadersJson(),
+    })
+      .then(function (res) {
+        if (!res.ok) return null;
+        return res.json().catch(function () {
+          return null;
+        });
+      })
+      .then(function (json) {
+        var data = json && Object.prototype.hasOwnProperty.call(json, "data")
+          ? json.data
+          : null;
+        state.learningProgress = normalizeLearningProgress(data);
+        return state.learningProgress;
+      })
+      .catch(function () {
+        state.learningProgress = normalizeLearningProgress(null);
+        return state.learningProgress;
+      });
+  }
+
+  function persistLearningProgress(progress) {
+    var next = normalizeLearningProgress(progress);
+    state.learningProgress = next;
+    var t = token();
+    if (!t) return Promise.resolve(next);
+    return fetch("/api/user-data/learning-progress", {
+      method: "PUT",
+      headers: Object.assign(authHeadersJson(), {
+        "Content-Type": "application/json",
+      }),
+      body: JSON.stringify({ data: next }),
+    })
+      .then(function () {
+        return next;
+      })
+      .catch(function () {
+        return next;
+      });
+  }
+
+  function renderLearningChrome() {
+    var progress = normalizeLearningProgress(state.learningProgress);
+    state.learningProgress = progress;
+    if (els.learningGoal) text(els.learningGoal, progress.goalTitle || "");
+    if (els.learningPromptText) {
+      text(els.learningPromptText, progress.currentPrompt || "");
+    }
+    if (els.learningPrompt) {
+      els.learningPrompt.hidden = progress.status === "done";
+    }
+    var hasZpd = !!(
+      (progress.zpd && progress.zpd.unaided) ||
+      (progress.zpd && progress.zpd.justBeyond)
+    );
+    if (els.learningZpd) els.learningZpd.hidden = !hasZpd;
+    if (els.learningZpdUnaided) {
+      text(els.learningZpdUnaided, (progress.zpd && progress.zpd.unaided) || "");
+    }
+    if (els.learningZpdBeyond) {
+      text(els.learningZpdBeyond, (progress.zpd && progress.zpd.justBeyond) || "");
+    }
+    if (els.learningDone) els.learningDone.hidden = progress.status !== "done";
+    if (els.learningDoneCopy && progress.status === "done") {
+      text(els.learningDoneCopy, "You can write this by feel.");
+    }
+    if (els.codeUndo) els.codeUndo.hidden = !undoSnapshot;
+  }
+
+  function clearAppliedHighlight() {
+    if (appliedHighlightTimer) {
+      try { clearTimeout(appliedHighlightTimer); } catch (e) { /* ignore */ }
+      appliedHighlightTimer = null;
+    }
+    if (els.codeSurface) els.codeSurface.classList.remove("is-just-applied");
+    if (els.code) els.code.classList.remove("is-just-applied");
+  }
+
+  function flashAppliedHighlight() {
+    clearAppliedHighlight();
+    if (els.codeSurface) els.codeSurface.classList.add("is-just-applied");
+    if (els.code) els.code.classList.add("is-just-applied");
+    appliedHighlightTimer = setTimeout(function () {
+      clearAppliedHighlight();
+    }, 2400);
+  }
+
+  function setUndoSnapshot(content) {
+    undoSnapshot = content == null ? null : String(content);
+    if (els.codeUndo) els.codeUndo.hidden = !undoSnapshot;
+  }
+
+  function undoAppliedContent() {
+    if (undoSnapshot == null) return;
+    var previous = undoSnapshot;
+    setUndoSnapshot(null);
+    clearAppliedHighlight();
+    if (cmEditor && typeof cmEditor.setValue === "function") {
+      cmEditor.setValue(previous, true);
+    } else if (els.codeEditor) {
+      els.codeEditor.value = previous;
+    }
+    state.dirty = true;
+    if (els.codeStatus) {
+      els.codeStatus.hidden = false;
+      text(els.codeStatus, "Undid the last apply.");
+    }
+    var tab = activeTab();
+    if (!tab) return;
+    persistMutation(
+      "write_file",
+      { exerciseId: tab.exerciseId, nodeId: tab.nodeId, content: previous },
+      function (ws) {
+        return core.writeFile(ws, {
+          exerciseId: tab.exerciseId,
+          nodeId: tab.nodeId,
+          content: previous,
+        });
+      }
+    ).then(function () {
+      state.dirty = false;
+    }).catch(function () { /* keep editor undo even if save fails */ });
+  }
+
+  function openPracticeFromProgress() {
+    var progress = normalizeLearningProgress(state.learningProgress);
+    state.learningProgress = progress;
+    var exerciseId = progress.exerciseId || "api-design";
+    if (!state.workspace.exercises[exerciseId]) {
+      var order = state.workspace.exerciseOrder || [];
+      exerciseId = order[0] || exerciseId;
+    }
+    var ex = state.workspace.exercises[exerciseId];
+    if (!ex || !revision || typeof revision.findNodeByPath !== "function") {
+      renderLearningChrome();
+      return false;
+    }
+    var practicePath = String(progress.practicePath || "")
+      .replace(/^\/+|\/+$/g, "")
+      .replace(/\\/g, "/");
+    var node = practicePath
+      ? revision.findNodeByPath(ex.nodes, practicePath)
+      : null;
+    if (!node) {
+      var answer = answerNodeForStep(exerciseId, {
+        folder: practicePath.split("/")[0] || "00-in-plain-english",
+      });
+      node = answer || firstFileNode(exerciseId);
+    }
+    if (!node || node.type !== "file") {
+      renderLearningChrome();
+      return false;
+    }
+    openFile(exerciseId, node.id, { keepContent: true, focus: true });
+    renderLearningChrome();
+    return true;
+  }
+
+  function startNextLearningGoal() {
+    var prev = normalizeLearningProgress(state.learningProgress);
+    var next =
+      progressApi && typeof progressApi.startNextGoal === "function"
+        ? progressApi.startNextGoal(prev)
+        : normalizeLearningProgress(
+            Object.assign(defaultLearningProgress(), {
+              goalId: "next-goal",
+              goalTitle: "Set your next coding goal",
+              currentPrompt:
+                "Name the next skill you want to write by feel, then attempt the smallest first slice here.",
+              level: 0,
+              status: "active",
+              zpd: { unaided: "", justBeyond: "" },
+            })
+          );
+    setUndoSnapshot(null);
+    clearAppliedHighlight();
+    return persistLearningProgress(next).then(function () {
+      renderLearningChrome();
+      openPracticeFromProgress();
+      if (els.codeStatus) {
+        els.codeStatus.hidden = false;
+        text(els.codeStatus, "Next goal ready.");
+      }
+      return next;
+    });
   }
 
   function applyAuthGate() {
@@ -223,6 +469,16 @@
 
   function setExplorerOpen(open) {
     if (!els.layout) return;
+    // Learning loop: explorer is permanently collapsed / hidden.
+    if (isLearningLoop()) {
+      state.queuedMobileFile = null;
+      els.layout.classList.add("is-explorer-collapsed");
+      els.layout.classList.remove("is-explorer-open");
+      if (els.expand) els.expand.hidden = true;
+      if (els.scrim) els.scrim.hidden = true;
+      if (els.explorer) els.explorer.hidden = true;
+      return;
+    }
     if (open) {
       if (!isWideDesktop() && window.tinkerRepo && typeof window.tinkerRepo.setEssaysSidebar === "function") {
         window.tinkerRepo.setEssaysSidebar(false);
@@ -266,23 +522,19 @@
   }
 
   function toggleExplorer() {
+    // Learning loop never shows the Exercises explorer. Signed-out still
+    // offers Learning sign-in; signed-in is a no-op keep-collapsed stub.
     if (!isLearningSignedIn()) {
       requestLearningSignIn();
-      setExplorerOpen(true);
       applyAuthGate();
-      return;
     }
-    // If currently collapsed, open; if open, collapse.
-    var currentlyOpen = els.layout
-      && !els.layout.classList.contains("is-explorer-collapsed")
-      && (isWideDesktop() || els.layout.classList.contains("is-explorer-open"));
-    setExplorerOpen(!currentlyOpen);
-    applyAuthGate();
-    render();
+    setExplorerOpen(false);
   }
 
   function api(method, action, body) {
-    if (method !== "GET" && !isWideDesktop()) return Promise.reject(new Error("Exercises are read-only on mobile."));
+    if (method !== "GET" && !isWideDesktop() && !isLearningLoop()) {
+      return Promise.reject(new Error("Exercises are read-only on mobile."));
+    }
     var t = token();
     if (!t) return Promise.reject(Object.assign(new Error("Sign in to edit exercises."), { status: 401 }));
     var opts = {
@@ -409,7 +661,9 @@
   }
 
   function persistMutation(action, body, localMutator) {
-    if (!isWideDesktop() || !isLearningSignedIn()) return Promise.reject(new Error("Exercises are read-only on mobile."));
+    if ((!isWideDesktop() && !isLearningLoop()) || !isLearningSignedIn()) {
+      return Promise.reject(new Error("Exercises are read-only on mobile."));
+    }
     if (state.localOnly || !token()) {
       // Demo / signed-out: mutate in memory only (seed browse).
       var result = localMutator(state.workspace);
@@ -582,14 +836,16 @@
   }
 
   function showWritingChrome(show) {
-    // Desktop: writing stays visible; code opens above/beside it when a file
-    // is selected. Mobile: code is never shown or editable.
+    // Learning loop: one practice editor stays the main surface (desktop +
+    // narrow). Writing pad stays available; Save/Refactor chrome stays hidden.
     var desktop = isWideDesktop();
+    var learning = isLearningLoop();
     if (els.pad) els.pad.hidden = false;
     if (els.location) els.location.hidden = false;
-    if (!desktop) {
+    if (!desktop && !learning) {
       if (els.code) els.code.hidden = true;
       if (els.codeSave) els.codeSave.hidden = true;
+      if (els.codeUndo) els.codeUndo.hidden = true;
       if (els.codeThatsEverything) els.codeThatsEverything.hidden = true;
       if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = true;
       if (els.codeRefactor) els.codeRefactor.hidden = true;
@@ -603,9 +859,13 @@
       return;
     }
     if (els.code) els.code.hidden = show;
-    if (els.codeSave) els.codeSave.hidden = !!show;
-    if (els.codeThatsEverything) els.codeThatsEverything.hidden = !!show;
-    if (els.codeRefactor) els.codeRefactor.hidden = !!show;
+    if (els.codeSave) els.codeSave.hidden = true;
+    if (els.codeRefactor) els.codeRefactor.hidden = true;
+    if (els.codeThatsEverything) {
+      els.codeThatsEverything.hidden = !!show ||
+        !!(state.learningProgress && state.learningProgress.status === "done");
+    }
+    if (els.codeUndo) els.codeUndo.hidden = !!show || !undoSnapshot;
     if (show) {
       clearEvaluateUi();
       clearRefactorUi();
@@ -1276,39 +1536,54 @@
 
   function runThatsEverything() {
     if (evaluateBusy) return;
-    if (!isWideDesktop() || !isLearningSignedIn()) {
+    if (!isLearningSignedIn()) {
+      requestLearningSignIn();
+      return;
+    }
+    if (!isWideDesktop() && !isLearningLoop()) {
       requestLearningSignIn();
       return;
     }
     if (!evaluateApi || typeof evaluateApi.buildEvaluateUserMessage !== "function") {
-      setEvaluateStatus("Evaluate helper missing.");
-      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+      if (els.codeStatus) {
+        els.codeStatus.hidden = false;
+        text(els.codeStatus, "Evaluate helper missing.");
+      }
       return;
     }
     var api = resolveClaudeApi();
     if (!api) {
-      setEvaluateStatus("Sign in to evaluate with Claude.");
-      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+      if (els.codeStatus) {
+        els.codeStatus.hidden = false;
+        text(els.codeStatus, "Sign in to evaluate with Claude.");
+      }
       return;
     }
     var tab = activeTab();
     if (!tab) {
-      setEvaluateStatus("Open an exercise answer file first.");
-      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+      if (els.codeStatus) {
+        els.codeStatus.hidden = false;
+        text(els.codeStatus, "Open your practice file first.");
+      }
       return;
     }
+    var progress = normalizeLearningProgress(state.learningProgress);
+    state.learningProgress = progress;
     var filePath = activeFilePath();
     var stepsDoc = stepsJsonForExercise(tab.exerciseId);
-    var steps = evaluateApi.listSteps(stepsDoc);
-    var found = evaluateApi.findCurrentStep(steps, filePath);
-    if (!found.step) {
-      setEvaluateStatus("Open a practice file inside a curriculum step folder.");
-      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
-      return;
-    }
-    // Module sidebar opens the lesson README on step click. That's everything
-    // must grade the practice answer (api.md / openapi.yaml), not the lesson.
-    var answerNode = answerNodeForStep(tab.exerciseId, found.step);
+    var steps =
+      evaluateApi && typeof evaluateApi.listSteps === "function"
+        ? evaluateApi.listSteps(stepsDoc)
+        : [];
+    var found =
+      evaluateApi && typeof evaluateApi.findCurrentStep === "function"
+        ? evaluateApi.findCurrentStep(steps, filePath)
+        : { index: -1, step: null };
+    // Learning loop grades the open practice file. Lesson README fallback
+    // still redirects to the step answer when a curriculum step is open.
+    var answerNode = found.step
+      ? answerNodeForStep(tab.exerciseId, found.step)
+      : null;
     var answerNodeId = tab.nodeId;
     var answerPath = filePath;
     var answer = editorContent();
@@ -1329,13 +1604,16 @@
       filePath = answerPath;
     }
     if (!String(answer || "").trim()) {
-      setEvaluateStatus("Write an answer before That's everything.");
-      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+      if (els.codeStatus) {
+        els.codeStatus.hidden = false;
+        text(els.codeStatus, "Write an answer before That's everything.");
+      }
       return;
     }
-    var next = evaluateApi.nextStepAfter(steps, found.index);
-    var currentReadmePath = evaluateApi.readmePathForStep(found.step);
-    var nextReadmePath = next ? evaluateApi.readmePathForStep(next) : "";
+    var currentReadmePath =
+      found.step && evaluateApi.readmePathForStep
+        ? evaluateApi.readmePathForStep(found.step)
+        : "";
     var ex = state.workspace.exercises[tab.exerciseId];
     var userMessage;
     try {
@@ -1344,16 +1622,29 @@
         exerciseName: ex && ex.name,
         filePath: filePath,
         answerText: answer,
-        currentStep: found.step,
-        currentReadme: readmeContentForPath(tab.exerciseId, currentReadmePath),
-        nextStep: next,
-        nextReadme: nextReadmePath
-          ? readmeContentForPath(tab.exerciseId, nextReadmePath)
+        currentStep: found.step || {
+          id: "",
+          folder: "",
+          title: progress.goalTitle,
+          goal: progress.goalTitle,
+        },
+        currentReadme: currentReadmePath
+          ? readmeContentForPath(tab.exerciseId, currentReadmePath)
           : "",
+        progress: progress,
+        goalId: progress.goalId,
+        goalTitle: progress.goalTitle,
+        currentPrompt: progress.currentPrompt,
+        level: progress.level,
       });
     } catch (err) {
-      setEvaluateStatus((err && err.message) || "Could not build evaluate request.");
-      if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+      if (els.codeStatus) {
+        els.codeStatus.hidden = false;
+        text(
+          els.codeStatus,
+          (err && err.message) || "Could not build evaluate request."
+        );
+      }
       return;
     }
 
@@ -1365,14 +1656,14 @@
     evaluateBusy = true;
     evaluateProposal = null;
     clearRefactorUi();
-    if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = false;
+    if (els.codeEvaluatePanel) els.codeEvaluatePanel.hidden = true;
     if (els.codeEvaluateDiff) els.codeEvaluateDiff.hidden = true;
-    if (els.codeEvaluateFeedback) text(els.codeEvaluateFeedback, "");
-    setEvaluateStatus("Saving, then asking Claude…");
+    if (els.codeStatus) {
+      els.codeStatus.hidden = false;
+      text(els.codeStatus, "Saving, then asking Claude…");
+    }
     if (els.codeThatsEverything) els.codeThatsEverything.disabled = true;
 
-    // Persist the answer through the existing exercise_workspace write_file path.
-    // When the lesson README is open, still write the practice answer node.
     var savePromise = persistMutation(
       "write_file",
       { exerciseId: tab.exerciseId, nodeId: answerNodeId, content: answer },
@@ -1390,13 +1681,15 @@
     });
 
     // Opus 5.5 adaptive thinking shares max_tokens with the JSON body.
-    // Evaluate rewrites a full next-step README; leave room (effort:low
-    // is set by the structured helper).
+    // Leave room for revisedContent (effort:low via structured helper).
     var evaluateMaxTokens = 32000;
 
     savePromise
       .then(function () {
-        setEvaluateStatus("Asking Claude…");
+        if (els.codeStatus) {
+          els.codeStatus.hidden = false;
+          text(els.codeStatus, "Asking Claude…");
+        }
         var schema =
           (evaluateApi && evaluateApi.REPLY_SCHEMA) ||
           (structuredApi && structuredApi.EVALUATE_SCHEMA);
@@ -1441,43 +1734,120 @@
       })
       .then(function (out) {
         var parsed = out && out.value ? out.value : out;
-        var before = nextReadmePath
-          ? readmeContentForPath(tab.exerciseId, nextReadmePath)
-          : "";
-        var proposedPath = parsed.nextStepPath || nextReadmePath || "";
-        var hasDiff = !!(
-          proposedPath &&
-          typeof parsed.nextStepContent === "string" &&
-          parsed.nextStepContent.length
-        );
+        var practicePath =
+          (parsed.practicePath && String(parsed.practicePath).trim()) ||
+          (parsed.nextStepPath && String(parsed.nextStepPath).trim()) ||
+          progress.practicePath ||
+          filePath;
+        var revised =
+          typeof parsed.revisedContent === "string"
+            ? parsed.revisedContent
+            : typeof parsed.nextStepContent === "string"
+              ? parsed.nextStepContent
+              : "";
         evaluateProposal = {
           exerciseId: tab.exerciseId,
           feedback: parsed.feedback,
           summary: parsed.summary,
-          nextStepPath: proposedPath,
-          before: before,
-          after: parsed.nextStepContent || "",
+          practicePath: practicePath,
+          revisedContent: revised,
+          nextPrompt: parsed.nextPrompt || "",
+          zpd: parsed.zpd || { unaided: "", justBeyond: "" },
+          level: parsed.level,
+          goalAchieved: !!parsed.goalAchieved,
           aggressiveness: parsed.aggressiveness,
-          hasDiff: hasDiff,
         };
-        text(els.codeEvaluateFeedback, parsed.feedback || "");
-        if (hasDiff) {
-          text(
-            els.codeEvaluateSummary,
-            parsed.summary || "Proposed next-step update"
-          );
-          text(els.codeEvaluatePath, proposedPath);
-          text(els.codeEvaluateBefore, before || "(empty)");
-          text(els.codeEvaluateAfter, parsed.nextStepContent);
-          if (els.codeEvaluateDiff) els.codeEvaluateDiff.hidden = false;
-          setEvaluateStatus("Review the next-step diff, then Accept or Reject.");
-        } else {
-          if (els.codeEvaluateDiff) els.codeEvaluateDiff.hidden = true;
-          setEvaluateStatus("Feedback ready. No next-step change proposed.");
+
+        // Auto-apply revisedContent into the practice file (no Accept/Reject).
+        if (revised) {
+          setUndoSnapshot(answer);
+          var applied;
+          try {
+            applied = (
+              evaluateApi.applyRevisedContent ||
+              evaluateApi.applyNextStepReadme
+            )(state.workspace, {
+              core: core,
+              revision: revision,
+              exerciseId: tab.exerciseId,
+              practicePath: practicePath,
+              nextStepPath: practicePath,
+              revisedContent: revised,
+              nextStepContent: revised,
+              workspace: state.workspace,
+            });
+          } catch (err) {
+            if (els.codeStatus) {
+              els.codeStatus.hidden = false;
+              text(
+                els.codeStatus,
+                (err && err.message) || "Could not apply the revision."
+              );
+            }
+            return;
+          }
+          applyWorkspace(applied.workspace || state.workspace);
+          var nodeId = (applied && applied.nodeId) || answerNodeId;
+          if (cmEditor && typeof cmEditor.setValue === "function") {
+            cmEditor.setValue(revised, true);
+          } else if (els.codeEditor) {
+            els.codeEditor.value = revised;
+          }
+          flashAppliedHighlight();
+          persistMutation(
+            "write_file",
+            {
+              exerciseId: tab.exerciseId,
+              nodeId: nodeId,
+              content: revised,
+            },
+            function (ws) {
+              return core.writeFile(ws, {
+                exerciseId: tab.exerciseId,
+                nodeId: nodeId,
+                content: revised,
+              });
+            }
+          ).catch(function () { /* local apply already on workspace */ });
         }
+
+        var calibrated =
+          progressApi && typeof progressApi.applyCalibration === "function"
+            ? progressApi.applyCalibration(progress, {
+                nextPrompt: parsed.nextPrompt,
+                level: parsed.level,
+                goalAchieved: parsed.goalAchieved,
+                practicePath: practicePath,
+                zpd: parsed.zpd,
+              })
+            : normalizeLearningProgress(
+                Object.assign({}, progress, {
+                  currentPrompt: parsed.nextPrompt || progress.currentPrompt,
+                  level: parsed.level != null ? parsed.level : progress.level,
+                  status: parsed.goalAchieved ? "done" : progress.status,
+                  practicePath: practicePath,
+                  zpd: parsed.zpd || progress.zpd,
+                })
+              );
+        return persistLearningProgress(calibrated).then(function () {
+          renderLearningChrome();
+          if (els.codeStatus) {
+            els.codeStatus.hidden = false;
+            text(
+              els.codeStatus,
+              parsed.summary || parsed.feedback || "Next prompt ready."
+            );
+          }
+          if (calibrated.status === "done" && els.codeThatsEverything) {
+            els.codeThatsEverything.hidden = true;
+          }
+        });
       })
       .catch(function (err) {
-        setEvaluateStatus((err && err.message) || "Evaluation failed.");
+        if (els.codeStatus) {
+          els.codeStatus.hidden = false;
+          text(els.codeStatus, (err && err.message) || "Evaluation failed.");
+        }
       })
       .then(function () {
         evaluateBusy = false;
@@ -1485,52 +1855,9 @@
       });
   }
 
+  // Legacy Accept/Reject kept as no-ops; learning loop auto-applies.
   function acceptEvaluate() {
-    if (!evaluateProposal || !evaluateProposal.hasDiff) {
-      clearEvaluateUi();
-      return;
-    }
-    var proposal = evaluateProposal;
-    var applied;
-    try {
-      applied = evaluateApi.applyNextStepReadme(state.workspace, {
-        core: core,
-        revision: revision,
-        exerciseId: proposal.exerciseId,
-        nextStepPath: proposal.nextStepPath,
-        nextStepContent: proposal.after,
-        workspace: state.workspace,
-      });
-    } catch (err) {
-      setEvaluateStatus((err && err.message) || "Could not apply next-step update.");
-      return;
-    }
-    var nodeId = applied && applied.nodeId;
-    persistMutation(
-      "write_file",
-      {
-        exerciseId: proposal.exerciseId,
-        nodeId: nodeId,
-        content: proposal.after,
-      },
-      function (ws) {
-        return core.writeFile(ws, {
-          exerciseId: proposal.exerciseId,
-          nodeId: nodeId,
-          content: proposal.after,
-        });
-      }
-    ).then(function () {
-      state.status = "Next step updated in Tinker.";
-      clearEvaluateUi();
-      render();
-    }).catch(function () {
-      // Local apply already on workspace via writeFile in apply; re-apply.
-      applyWorkspace(applied.workspace || state.workspace);
-      state.status = "Next step updated locally.";
-      clearEvaluateUi();
-      render();
-    });
+    clearEvaluateUi();
   }
 
   function rejectEvaluate() {
@@ -1615,7 +1942,7 @@
       requestLearningSignIn();
       return false;
     }
-    setExplorerOpen(true);
+    setExplorerOpen(false);
     var nodeId = options.nodeId == null ? "" : String(options.nodeId);
     var node = nodeId ? findNode(id, nodeId) : null;
     if (!node || node.type !== "file") {
@@ -1640,7 +1967,8 @@
     }
     var node = findNode(exerciseId, nodeId);
     if (!node || node.type !== "file") return;
-    if (!isWideDesktop()) {
+    // Learning loop uses the editor on every width; skip the mobile reader.
+    if (!isWideDesktop() && !isLearningLoop()) {
       if (state.readerBackPending) {
         state.queuedMobileFile = { exerciseId: exerciseId, nodeId: nodeId };
         return;
@@ -1664,8 +1992,9 @@
     state.openTabs.forEach(function (tab) {
       if (tab.id === id) existing = tab;
     });
-    // Practice / starter files always open blank (never pre-filled code).
+    // Practice / starter files open blank unless keepContent or learning loop.
     var blankPractice = !opts.keepContent
+      && !isLearningLoop()
       && revision
       && typeof revision.isPracticeFile === "function"
       && revision.isPracticeFile(node);
@@ -1736,6 +2065,14 @@
 
   function renderTabs() {
     if (!els.tabs) return;
+    // Learning loop: one file, no multi-file tab strip.
+    if (isLearningLoop()) {
+      clear(els.tabs);
+      els.tabs.hidden = true;
+      var tabbar = $("repo-ide-tabbar");
+      if (tabbar) tabbar.hidden = true;
+      return;
+    }
     if (!state.openTabs.length) {
       // Essay tabs (repo.js) may own the strip when no exercise files are open.
       return;
@@ -1771,7 +2108,7 @@
   }
 
   function renderCode() {
-    if (!isWideDesktop()) {
+    if (!isWideDesktop() && !isLearningLoop()) {
       showWritingChrome(true);
       return;
     }
@@ -1781,38 +2118,57 @@
     });
     if (!tab) {
       showWritingChrome(true);
+      renderLearningChrome();
       return;
     }
     var node = findNode(tab.exerciseId, tab.nodeId);
     if (!node || node.type !== "file") {
       showWritingChrome(true);
+      renderLearningChrome();
       return;
     }
     showWritingChrome(false);
     var codePres = presentationForNode(tab.exerciseId, tab.nodeId);
-    text(els.codePath, codePres.pathLabel);
-    var content = tab.blank ? "" : (node.content || "");
-    // Lesson steps: read-only rendered markdown. Your answer stays editable.
-    if (codePres.kind === "step" && isMarkdownFileName(node.name)) {
+    text(
+      els.codePath,
+      isLearningLoop()
+        ? (state.learningProgress && state.learningProgress.fileName) ||
+            node.name ||
+            "Practice"
+        : codePres.pathLabel
+    );
+    var content = tab.blank && !isLearningLoop() ? "" : (node.content || "");
+    // Learning loop always edits the practice file (never lesson preview).
+    if (
+      !isLearningLoop() &&
+      codePres.kind === "step" &&
+      isMarkdownFileName(node.name)
+    ) {
       showDesktopStepPreview(content);
       return;
     }
     clearDesktopStepPreview();
     ensureCm(node.name, content);
-    if (els.codeSave) els.codeSave.hidden = false;
-    if (els.codeThatsEverything) els.codeThatsEverything.hidden = false;
-    if (els.codeRefactor) els.codeRefactor.hidden = false;
+    if (els.codeSave) els.codeSave.hidden = true;
+    if (els.codeRefactor) els.codeRefactor.hidden = true;
+    if (els.codeThatsEverything) {
+      els.codeThatsEverything.hidden = !!(
+        state.learningProgress && state.learningProgress.status === "done"
+      );
+    }
+    if (els.codeUndo) els.codeUndo.hidden = !undoSnapshot;
+    renderLearningChrome();
     if (els.codeStatus) {
       if (state.status) {
         els.codeStatus.hidden = false;
         text(els.codeStatus, state.status);
-      } else if (tab.blank) {
+      } else if (tab.blank && !isLearningLoop()) {
         els.codeStatus.hidden = false;
-        text(els.codeStatus, "Practice learning module opens blank. Write from scratch.");
+        text(els.codeStatus, "Practice file opens blank. Write from scratch.");
       } else if (state.dirty) {
         els.codeStatus.hidden = false;
         text(els.codeStatus, "Unsaved changes");
-      } else {
+      } else if (!els.codeStatus.textContent) {
         els.codeStatus.hidden = true;
         text(els.codeStatus, "");
       }
@@ -1989,6 +2345,16 @@
   }
 
   function renderExplorer() {
+    // Learning loop: never paint the Exercises explorer.
+    if (isLearningLoop()) {
+      setExplorerOpen(false);
+      if (els.body) clear(els.body);
+      if (els.expand) els.expand.hidden = true;
+      if (els.scrim) els.scrim.hidden = true;
+      if (els.explorer) els.explorer.hidden = true;
+      applyAuthGate();
+      return;
+    }
     if (!els.body) return;
     clear(els.body);
     if (!applyAuthGate()) return;
@@ -2455,6 +2821,12 @@
       });
     }
     if (els.codeSave) els.codeSave.addEventListener("click", saveActiveFile);
+    if (els.codeUndo) els.codeUndo.addEventListener("click", undoAppliedContent);
+    if (els.learningNextGoal) {
+      els.learningNextGoal.addEventListener("click", function () {
+        startNextLearningGoal();
+      });
+    }
     if (els.codeThatsEverything) {
       els.codeThatsEverything.addEventListener("click", function () {
         runThatsEverything();
@@ -2486,11 +2858,15 @@
     if (learningAuth && typeof learningAuth.onLearningAuthChange === "function") {
       learningAuth.onLearningAuthChange(function (signedIn) {
         if (signedIn) {
-          loadWorkspace().then(function () {
+          Promise.all([loadWorkspace(), fetchLearningProgress()]).then(function () {
             applyDefaultCollapsed();
+            setExplorerOpen(false);
+            openPracticeFromProgress();
             render();
           });
         } else {
+          state.learningProgress = normalizeLearningProgress(null);
+          setUndoSnapshot(null);
           render();
         }
       });
@@ -2501,23 +2877,22 @@
     opts = opts || {};
     state.onReleaseEditor = typeof opts.onReleaseEditor === "function" ? opts.onReleaseEditor : null;
     bindEls();
-    if (!els.body && !els.signin) return Promise.resolve();
+    if (!els.body && !els.signin && !els.code) return Promise.resolve();
     wire();
     applyAuthGate();
-    // Desktop + signed-in mobile: show exercises by default so the write
-    // surface is not a blank void under the location picker on phones.
-    if (isWideDesktop() || isLearningSignedIn()) {
-      setExplorerOpen(true);
-    } else {
-      setExplorerOpen(false);
-    }
+    // Learning loop: explorer stays collapsed. Prompt + one file is the surface.
+    setExplorerOpen(false);
+    if (els.layout) els.layout.classList.add("repo-layout--learning");
     if (!isLearningSignedIn()) {
+      state.learningProgress = normalizeLearningProgress(null);
+      renderLearningChrome();
       render();
       return Promise.resolve(state.workspace);
     }
-    return loadWorkspace().then(function () {
+    return Promise.all([loadWorkspace(), fetchLearningProgress()]).then(function () {
       applyDefaultCollapsed();
-      if (!isWideDesktop()) setExplorerOpen(true);
+      setExplorerOpen(false);
+      openPracticeFromProgress();
       render();
       return state.workspace;
     });
@@ -2550,6 +2925,16 @@
     startWriteAboutExercise: startWriteAboutExercise,
     isLearningSignedIn: isLearningSignedIn,
     applyAuthGate: applyAuthGate,
+    runThatsEverything: runThatsEverything,
+    undoAppliedContent: undoAppliedContent,
+    startNextLearningGoal: startNextLearningGoal,
+    openPracticeFromProgress: openPracticeFromProgress,
+    fetchLearningProgress: fetchLearningProgress,
+    persistLearningProgress: persistLearningProgress,
+    getLearningProgress: function () {
+      return normalizeLearningProgress(state.learningProgress);
+    },
+    renderLearningChrome: renderLearningChrome,
     // test helpers
     _setWorkspace: function (ws) {
       applyWorkspace(ws);

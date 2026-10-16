@@ -444,32 +444,34 @@ test("repo IDE explorer wires exercise trees and drops the Output panel", () => 
   assert.doesNotMatch(uiSrc, /\u2014/);
 });
 
-test("Exercises sidebar presents one learning module with step progression, not a file tree", () => {
+test("Learning loop surface: prompt card, one file, no Exercises sidebar UX", () => {
   const css = fs.readFileSync(path.join(root, "src/renderer/repo/repo.css"), "utf8");
-  assert.match(uiSrc, /renderModuleProgress/);
-  assert.match(uiSrc, /Your answer/);
-  assert.match(uiSrc, /Generated after you finish this one/);
-  assert.match(uiSrc, /repo-ex-module-placeholder/);
-  assert.match(uiSrc, /openStepContent/);
-  assert.match(uiSrc, /presentationForNode/);
-  assert.match(uiSrc, /stepProgressLabel/);
-  assert.doesNotMatch(uiSrc, /renderNodeList\(list, exerciseId, null, 0\)/);
-  assert.match(html, /role="navigation"/);
-  assert.match(css, /\.repo-ex-module__progress/);
-  assert.match(css, /\.repo-ex-step__answer-btn/);
-  assert.match(css, /\.repo-ex-module-placeholder/);
+  assert.match(html, /repo-layout--learning/);
+  assert.match(html, /id="repo-learning-prompt"/);
+  assert.match(html, /id="repo-code-thats-everything"/);
+  assert.match(html, /id="repo-code-undo"/);
+  assert.doesNotMatch(html, /id="repo-labs-link"/);
+  assert.doesNotMatch(html, /New learning module/);
+  assert.match(uiSrc, /openPracticeFromProgress/);
+  assert.match(uiSrc, /persistLearningProgress/);
+  assert.match(uiSrc, /flashAppliedHighlight|is-just-applied/);
+  assert.match(uiSrc, /repo-layout--learning/);
+  assert.match(css, /\.repo-layout--learning/);
+  assert.match(css, /\.repo-learning__prompt/);
+  assert.match(css, /\.repo-code__undo/);
   const harness = fs.readFileSync(
-    path.join(root, "src/renderer/repo/harness/exercises-module-sidebar.html"),
+    path.join(root, "src/renderer/repo/harness/learning-loop-after.html"),
     "utf8"
   );
-  assert.match(harness, /OpenAPI by hand \(payments\)/);
-  assert.match(harness, /Your answer/);
-  assert.match(harness, /Next module/);
-  assert.match(harness, /Generated after you finish this one/);
+  assert.match(harness, /repo-learning__prompt/);
+  assert.match(harness, /That's everything/);
+  assert.match(harness, /id="repo-code-undo"/);
+  assert.match(harness, /Just beyond/);
+  assert.doesNotMatch(harness, /id="repo-labs-link"/);
   assert.doesNotMatch(harness, /New learning module/);
-  assert.doesNotMatch(harness, /repo-explorer__toolbar/);
-  assert.doesNotMatch(harness, /README\.md/);
-  assert.doesNotMatch(harness, /steps\.json/);
-  assert.doesNotMatch(harness, /00-in-plain-english\//);
+  assert.doesNotMatch(harness, /id="repo-code-evaluate-accept"/);
+  assert.doesNotMatch(harness, /id="repo-code-refactor"/);
+  assert.doesNotMatch(harness, /id="repo-code-save"/);
   assert.doesNotMatch(harness, /formation/i);
+  assert.doesNotMatch(harness, /\u2014/);
 });

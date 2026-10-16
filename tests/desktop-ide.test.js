@@ -1,8 +1,8 @@
 /* Desktop / mobile parity for /repo write layout.
  *
- * Shared structure: top bar (beaker + hamburger), writing surface,
- * right essays sidebar. Exercises gated by Learning sign-in.
- * Mobile hides editable code; desktop keeps CodeMirror editing.
+ * Shared structure: top bar (hamburger), ZPD learning loop editor,
+ * right essays sidebar. Learning gated by Learning sign-in.
+ * Mobile keeps the learning loop editor; desktop uses CodeMirror.
  */
 "use strict";
 
@@ -22,7 +22,7 @@ const cmSrc = fs.readFileSync(
   "utf8",
 );
 
-test("shared shell markup: top bar, explorer gate, writing, right essays", () => {
+test("shared shell markup: top bar, learning loop, writing, right essays", () => {
   assert.match(html, /id="repo-explorer"/);
   assert.match(html, /id="repo-explorer-body"/);
   assert.match(html, /id="repo-explorer-signin"/);
@@ -32,24 +32,27 @@ test("shared shell markup: top bar, explorer gate, writing, right essays", () =>
   assert.match(html, /id="repo-code"/);
   assert.match(html, /id="repo-ide-center"/);
   assert.match(html, /class="repo-right[^"]*repo-essays-sidebar|repo-essays-sidebar[^"]*repo-right/);
-  assert.match(html, /id="repo-labs-link"/);
+  assert.doesNotMatch(html, /id="repo-labs-link"/);
   assert.match(html, /id="repo-ide-tabbar"/);
-  assert.match(html, /data-learning-lab/);
-  assert.match(html, /data-exercises-nav/);
-  assert.match(html, /aria-label="Exercises"/);
+  assert.match(html, /repo-layout--learning/);
+  assert.match(html, /id="repo-learning-prompt"/);
+  assert.match(html, /id="repo-code-thats-everything"/);
+  assert.match(html, /id="repo-code-undo"/);
+  assert.doesNotMatch(html, /data-exercises-nav/);
+  assert.doesNotMatch(html, /aria-label="Exercises"/);
   assert.doesNotMatch(html, />\s*Learning Lab\s*</);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /id="repo-panel"/);
   assert.match(html, /id="repo-panel-write"/);
   assert.match(html, /id="repo-panel-close"/);
-  assert.match(html, /Exercises/);
   assert.doesNotMatch(html, /\u2014|\u2013/);
   assert.match(html, /src="\/exercises\/manifest\.js/);
   assert.match(html, /exercise-workspace-ui\.js/);
   assert.match(html, /learning-auth\.js/);
+  assert.match(html, /learning-progress\.js/);
   assert.match(html, /exercise-revision\.js/);
-  assert.match(ui, /Write about this exercise/);
-  assert.match(css, /\.repo-ex-write-about/);
+  assert.match(ui, /runThatsEverything|applyRevisedContent|applyCalibration/);
+  assert.match(css, /\.repo-learning__prompt/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
 });
 
@@ -84,11 +87,12 @@ test("layout CSS: explorer | center | essays rail; mobile hides code editing", (
   assert.match(css, /box-shadow:\s*inset 0 -2px 0 var\(--color-accent-strong/);
   assert.match(
     css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-code[\s\S]*display:\s*none\s*!important/,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-tabs[\s\S]*display:\s*none\s*!important/,
   );
+  // Learning loop keeps the practice editor visible on phone.
   assert.match(
     css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-tabs[\s\S]*display:\s*none\s*!important/,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-layout--learning \.repo-code:not\(\[hidden\]\)[\s\S]*display:\s*flex\s*!important/s,
   );
   assert.match(
     css,
@@ -97,52 +101,24 @@ test("layout CSS: explorer | center | essays rail; mobile hides code editing", (
   assert.match(css, /\.repo-explorer-signin/);
 });
 
-test("exercises explorer scrolls and stays above the writing panel", () => {
-  // Bug 1: gated wrapper is a flex child with min-height:0 so __body can scroll.
+test("learning loop hides explorer and keeps prompt + editor chrome", () => {
+  assert.match(html, /repo\.css\?v=61/);
+  assert.match(html, /repo-layout--learning/);
+  assert.match(css, /\.repo-layout--learning/);
   assert.match(
     css,
-    /\.repo-explorer__gated\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0[^}]*flex-direction:\s*column[^}]*overflow:\s*hidden/s,
+    /\.repo-layout--learning \.repo-explorer[\s\S]{0,120}display:\s*none/s,
   );
-  assert.match(
-    css,
-    /\.repo-explorer__body\s*\{[^}]*overflow-y:\s*auto/s,
-  );
-  assert.match(
-    css,
-    /\.repo-explorer__body\s*\{[^}]*-webkit-overflow-scrolling:\s*touch/s,
-  );
-  // Bug 2: explorer stacks above the writing panel; pad stays in-flow in the center column.
-  assert.match(
-    css,
-    /\.repo-explorer\s*\{[^}]*z-index:\s*20/s,
-  );
-  assert.match(
-    css,
-    /\.repo-panel\s*\{[^}]*z-index:\s*1/s,
-  );
-  assert.match(
-    css,
-    /\.repo-ide-center\s*\{[^}]*grid-column:\s*2/s,
-  );
-  assert.match(
-    css,
-    /\.repo-panel__write \.repo-surface\.writing\s*\{[\s\S]*?position:\s*relative[\s\S]*?left:\s*auto[\s\S]*?\}/,
-  );
-  assert.match(html, /repo\.css\?v=60/);
-  assert.match(html, /id="repo-explorer-scrim"/);
-  assert.match(css, /\.repo-explorer-scrim/);
-  assert.match(
-    css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-layout--write\.is-explorer-open \.repo-explorer-scrim\s*\{[^}]*display:\s*block/s,
-  );
-  // Vertical module stack: write-about + step progression under the titled
-  // .repo-ex-module (not a file/folder tree, and not inside .repo-ex-node rows).
-  assert.match(ui, /group\.appendChild\(writeAbout\)/);
-  assert.match(ui, /renderModuleProgress\(group,\s*exerciseId\)/);
-  assert.match(ui, /renderUpcomingModulePlaceholders\(els\.body\)/);
-  assert.match(ui, /els\.body\.appendChild\(group\)/);
-  assert.match(ui, /applyDefaultCollapsed/);
-  assert.doesNotMatch(ui, /repo-ex-node[\s\S]{0,80}repo-ex-write-about/);
+  assert.match(css, /\.repo-learning__prompt/);
+  assert.match(css, /\.repo-code\.is-just-applied|\.is-just-applied \.repo-code__surface/);
+  assert.match(ui, /runThatsEverything/);
+  assert.match(ui, /flashAppliedHighlight|is-just-applied/);
+  assert.match(ui, /setUndoSnapshot|undoAppliedContent/);
+  assert.match(ui, /persistLearningProgress|loadLearningProgress/);
+  assert.match(ui, /applyCalibration|startNextGoal/);
+  assert.match(html, /id="repo-learning-zpd"/);
+  assert.match(html, /id="repo-learning-next-goal"/);
+  assert.doesNotMatch(html, /Review the next-step diff/);
 });
 
 test("desktop IDE JS boots exercise workspace UI + essays sidebar", () => {

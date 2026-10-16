@@ -1,11 +1,12 @@
-/* That's everything: evaluate an exercise answer and adapt the next step.
+/* That's everything: evaluate an attempt, revise the practice file, and
+ * size the next prompt to Tyler's ZPD (zone of proximal development).
  *
- * After Tyler finishes writing in an exercise practice file, Claude Opus
- * (EXERCISE_REFACTOR / claude-opus-5-5) grades against the current step
- * goals, returns short plain-English feedback (never a full solution), and
- * proposes a rewrite of the NEXT step's README. Hidden aggressiveness dial:
- * struggle → finer steps; easy → merge/skip ahead. Formation curriculum is
- * never referenced or restored.
+ * Claude Opus (EXERCISE_REFACTOR / claude-opus-5-5) returns:
+ *   (a) revisedContent: applied into the open practice file automatically
+ *   (b) zpd: what he did unaided vs what is just beyond
+ *   (c) nextPrompt: one or two sentences for the next attempt
+ * Hidden aggressiveness dial: struggle -> smaller prompt; easy -> bigger.
+ * Formation curriculum is never referenced or restored. Claude only.
  */
 (function (root, factory) {
   const api = factory(
@@ -32,40 +33,60 @@
   const MAX_README = 16000;
   const MAX_FEEDBACK = 900;
   const MAX_SUMMARY = 200;
+  const MAX_PROMPT = 600;
+  const MAX_ZPD = 400;
+  const MAX_REVISED = 24000;
 
   const SYSTEM_PROMPT = [
-    "You evaluate Tyler's answer in a coding exercise practice file.",
-    "Compare his answer to the current step's goals only.",
-    "Write short plain-English feedback: what is right, what is missing.",
-    "Never give a full solution, never paste YAML or code he should type,",
-    "never tell him exact lines to copy. He writes every line by feel.",
-    "Never mention Formation, Formation.dev, or any retired curriculum.",
-    "Never use an em dash.",
+    "You evaluate Tyler's coding attempt toward a single learning goal.",
+    "Default goal: write an OpenAPI spec from scratch by feel, no copy-paste.",
+    "Plain-English pseudocode is a valid first attempt.",
+    "Compare his attempt to the current prompt and goal only.",
+    "",
+    "Return three calibrated pieces:",
+    "(a) revisedContent: a lightly improved version of HIS file content,",
+    "    applied into the editor. Keep his voice and structure. Fix clear",
+    "    gaps that sit inside his zone. Never dump a full finished solution.",
+    "    Never paste YAML or code he should still invent on the next turn.",
+    "(b) zpd: short plain English: unaided (what he did on his own) and",
+    "    justBeyond (the next reachable stretch).",
+    "(c) nextPrompt: one or two sentences naming exactly what to attempt next.",
     "",
     "Hidden aggressiveness dial (do not mention the dial, scores, or labels",
-    "in feedback or summary — they are internal only):",
-    "- If he struggled (gaps, confusion, thin answer): rewrite the NEXT",
-    "  step README with finer, smaller guided sub-steps and more scaffolding.",
-    "- If he did fine: keep the next step close to its current shape,",
-    "  with light targeting of remaining gaps.",
-    "- If it was easy (solid, complete): merge or skip ahead — shorten the",
-    "  next step, drop redundant scaffolding, or point further ahead.",
+    "in any user-facing field; they are internal only):",
+    "- If he struggled (gaps, confusion, thin answer): action finer;",
+    "  smaller nextPrompt with more scaffolding; nudge level down or hold.",
+    "- If he did fine: action keep; nextPrompt targets remaining gaps.",
+    "- If it was easy (solid, complete): action skip_ahead; bigger next",
+    "  prompt, raise level, drop redundant scaffolding.",
     "",
-    "Rewrite only the next step's README/instructions (full file content).",
-    "Keep the same step folder path. Do not invent new exercise ids.",
+    "When the goal is achieved (he can write the OpenAPI contract from",
+    "scratch by feel), set goalAchieved true and level to 100.",
+    "Never mention Formation, Formation.dev, or any retired curriculum.",
+    "Never use an em dash.",
+    "Never ask where he should start; you already know the path.",
+    "",
     "Return a single JSON object and nothing else:",
-    '{ "feedback": string, "summary": string, "nextStepPath": string,',
-    '  "nextStepContent": string, "aggressiveness": {',
-    '    "struggle": "hard"|"ok"|"easy", "action": "finer"|"keep"|"skip_ahead"',
-    "  } }",
-    "feedback is 2 to 5 short sentences. summary is one short sentence about",
-    "how the next step changed. nextStepContent is the full next README.",
+    '{ "feedback": string, "summary": string, "revisedContent": string,',
+    '  "nextPrompt": string, "zpd": { "unaided": string, "justBeyond": string },',
+    '  "level": number, "goalAchieved": boolean, "practicePath": string,',
+    '  "aggressiveness": { "struggle": "hard"|"ok"|"easy",',
+    '  "action": "finer"|"keep"|"skip_ahead" } }',
+    "feedback is 2 to 5 short sentences. summary is one short sentence.",
+    "nextPrompt is one or two sentences. level is 0 to 100.",
+    "practicePath may be empty to keep the current file path.",
   ].join("\n");
 
   function clamp(text, max) {
     const s = text == null ? "" : String(text);
     if (s.length <= max) return s;
     return s.slice(0, max);
+  }
+
+  function clampLevel(n) {
+    const x = Number(n);
+    if (!Number.isFinite(x)) return 0;
+    return Math.max(0, Math.min(100, Math.round(x)));
   }
 
   function parseStepsJson(raw) {
@@ -152,6 +173,14 @@
     return "keep";
   }
 
+  function banFormation(text, label) {
+    if (/formation/i.test(String(text || ""))) {
+      throw Object.assign(new Error(label + " must not mention Formation."), {
+        status: 502,
+      });
+    }
+  }
+
   function parseEvaluateReply(textOrObj) {
     let parsed;
     if (textOrObj && typeof textOrObj === "object" && !Array.isArray(textOrObj)) {
@@ -183,35 +212,71 @@
       });
     }
     const feedback = clamp(parsed.feedback.trim(), MAX_FEEDBACK);
-    if (/formation/i.test(feedback)) {
-      throw Object.assign(new Error("Feedback must not mention Formation."), {
-        status: 502,
-      });
-    }
-    const nextStepPath =
-      typeof parsed.nextStepPath === "string"
-        ? parsed.nextStepPath.replace(/^\/+|\/+$/g, "").replace(/\\/g, "/")
-        : "";
-    const nextStepContent =
-      typeof parsed.nextStepContent === "string" ? parsed.nextStepContent : "";
-    if (nextStepPath && /formation/i.test(nextStepPath + "\n" + nextStepContent)) {
-      throw Object.assign(new Error("Next step must not mention Formation."), {
-        status: 502,
-      });
-    }
-    const agg = parsed.aggressiveness && typeof parsed.aggressiveness === "object"
-      ? parsed.aggressiveness
-      : {};
+    banFormation(feedback, "Feedback");
+
+    const revisedContent =
+      typeof parsed.revisedContent === "string"
+        ? clamp(parsed.revisedContent, MAX_REVISED)
+        : typeof parsed.nextStepContent === "string"
+          ? clamp(parsed.nextStepContent, MAX_REVISED)
+          : "";
+    banFormation(revisedContent, "Revised content");
+
+    const nextPromptRaw =
+      typeof parsed.nextPrompt === "string" && parsed.nextPrompt.trim()
+        ? parsed.nextPrompt.trim()
+        : typeof parsed.summary === "string" && parsed.summary.trim()
+          ? parsed.summary.trim()
+          : "";
+    const nextPrompt = clamp(nextPromptRaw, MAX_PROMPT);
+    banFormation(nextPrompt, "Next prompt");
+
+    const zpdIn = parsed.zpd && typeof parsed.zpd === "object" ? parsed.zpd : {};
+    const zpd = {
+      unaided: clamp(
+        typeof zpdIn.unaided === "string" ? zpdIn.unaided.trim() : "",
+        MAX_ZPD
+      ),
+      justBeyond: clamp(
+        typeof zpdIn.justBeyond === "string" ? zpdIn.justBeyond.trim() : "",
+        MAX_ZPD
+      ),
+    };
+    banFormation(zpd.unaided + "\n" + zpd.justBeyond, "ZPD");
+
+    const practicePath =
+      typeof parsed.practicePath === "string"
+        ? parsed.practicePath.replace(/^\/+|\/+$/g, "").replace(/\\/g, "/")
+        : typeof parsed.nextStepPath === "string"
+          ? parsed.nextStepPath.replace(/^\/+|\/+$/g, "").replace(/\\/g, "/")
+          : "";
+    banFormation(practicePath, "Practice path");
+
+    const agg =
+      parsed.aggressiveness && typeof parsed.aggressiveness === "object"
+        ? parsed.aggressiveness
+        : {};
     const struggle = normalizeStruggle(agg.struggle);
     const action = normalizeAction(agg.action, struggle);
+    const goalAchieved = !!parsed.goalAchieved;
+    let level = clampLevel(parsed.level);
+    if (goalAchieved) level = 100;
+
     return {
       feedback: feedback,
       summary:
         typeof parsed.summary === "string" && parsed.summary.trim()
           ? clamp(parsed.summary.trim(), MAX_SUMMARY)
-          : "Proposed next-step update",
-      nextStepPath: nextStepPath,
-      nextStepContent: nextStepContent,
+          : "Calibrated the next attempt",
+      revisedContent: revisedContent,
+      nextPrompt: nextPrompt,
+      zpd: zpd,
+      level: level,
+      goalAchieved: goalAchieved,
+      practicePath: practicePath,
+      // Legacy aliases so older callers/tests keep a stable shape.
+      nextStepPath: practicePath,
+      nextStepContent: revisedContent,
       aggressiveness: { struggle: struggle, action: action },
     };
   }
@@ -225,83 +290,79 @@
       });
     }
     const current = options.currentStep || {};
-    const next = options.nextStep || null;
-    if (!current || !current.folder) {
-      throw Object.assign(new Error("Open a file inside a curriculum step first."), {
-        status: 400,
-      });
-    }
+    const progress = options.progress || {};
     const lines = [
+      "Goal id: " + String(options.goalId || progress.goalId || "openapi-from-scratch"),
+      "Goal title: " +
+        String(
+          options.goalTitle ||
+            progress.goalTitle ||
+            "Write an OpenAPI spec from scratch by feel"
+        ),
       "Exercise id: " + String(options.exerciseId || ""),
       "Exercise name: " + String(options.exerciseName || options.exerciseId || ""),
       "Answer file: " + String(options.filePath || "file"),
+      "Current level (0-100): " +
+        String(
+          progress.level != null
+            ? progress.level
+            : options.level != null
+              ? options.level
+              : 0
+        ),
+      "Current prompt (what he was asked to attempt):",
+      "<<<CURRENT_PROMPT",
+      clamp(
+        options.currentPrompt || progress.currentPrompt || "",
+        MAX_PROMPT
+      ),
+      "CURRENT_PROMPT>>>",
       "",
-      "Current step:",
+      "Current step context (optional curriculum metadata):",
       "id: " + String(current.id || ""),
       "folder: " + String(current.folder || ""),
       "title: " + String(current.title || ""),
       "goal: " + String(current.goal || ""),
       "",
-      "Current step README (goals / instructions):",
+      "Current step README (goals / instructions, may be empty):",
       "<<<CURRENT_README",
       clamp(options.currentReadme || "", MAX_README),
       "CURRENT_README>>>",
       "",
-      "Tyler's answer (evaluate this):",
+      "Tyler's attempt (evaluate and lightly revise this file):",
       "<<<ANSWER",
       answer,
       "ANSWER>>>",
-    ];
-    if (next && next.folder) {
-      lines.push(
-        "",
-        "Next step to rewrite (only this README):",
-        "id: " + String(next.id || ""),
-        "folder: " + String(next.folder || ""),
-        "title: " + String(next.title || ""),
-        "goal: " + String(next.goal || ""),
-        "path: " + readmePathForStep(next),
-        "",
-        "Current next-step README:",
-        "<<<NEXT_README",
-        clamp(options.nextReadme || "", MAX_README),
-        "NEXT_README>>>"
-      );
-    } else {
-      lines.push(
-        "",
-        "There is no next step. Return feedback only; leave nextStepPath and",
-        "nextStepContent empty strings."
-      );
-    }
-    lines.push(
       "",
-      "Remember the hidden aggressiveness dial. Never mention Formation."
-    );
+      "Essay signal (optional; intuit starting point; never ask where to start):",
+      "<<<ESSAYS",
+      clamp(options.essaySignal || "", 4000),
+      "ESSAYS>>>",
+      "",
+      "Remember the hidden aggressiveness dial. Never mention Formation.",
+      "Return revisedContent for the same practice file, a ZPD pair, and",
+      "a nextPrompt sized to his zone.",
+    ];
     return lines.join("\n");
   }
 
-  function applyNextStepReadme(workspace, opts) {
+  function applyRevisedContent(workspace, opts) {
     const options = opts || {};
     const core = options.core;
     const revision = options.revision;
     if (!core) throw new Error("exercise core required");
-    if (!revision || typeof revision.writePathContent !== "function") {
-      // Fallback: write via findNodeByPath + core.writeFile when writePathContent
-      // is unavailable (older revision helpers still expose find + write).
-      if (!revision || typeof revision.findNodeByPath !== "function") {
-        throw new Error("exercise revision helper required");
-      }
+    if (!revision || typeof revision.findNodeByPath !== "function") {
+      throw new Error("exercise revision helper required");
     }
     const exerciseId = String(options.exerciseId || "").trim();
     if (!exerciseId) {
       throw Object.assign(new Error("exerciseId is required."), { status: 400 });
     }
-    const path = String(options.nextStepPath || "")
+    const path = String(options.practicePath || options.nextStepPath || "")
       .replace(/^\/+|\/+$/g, "")
       .replace(/\\/g, "/");
-    if (!path || !/\.md$/i.test(path)) {
-      throw Object.assign(new Error("Next step README path is required."), {
+    if (!path) {
+      throw Object.assign(new Error("Practice file path is required."), {
         status: 400,
       });
     }
@@ -310,7 +371,12 @@
         status: 400,
       });
     }
-    const content = options.nextStepContent == null ? "" : String(options.nextStepContent);
+    const content =
+      options.revisedContent != null
+        ? String(options.revisedContent)
+        : options.nextStepContent == null
+          ? ""
+          : String(options.nextStepContent);
     if (/formation/i.test(content)) {
       throw Object.assign(new Error("Formation curriculum must never appear."), {
         status: 400,
@@ -338,7 +404,7 @@
     const ex = state.exercises[exerciseId];
     const existing = revision.findNodeByPath(ex.nodes, path);
     if (!existing) {
-      throw Object.assign(new Error("Next step README not found."), {
+      throw Object.assign(new Error("Practice file not found."), {
         status: 404,
       });
     }
@@ -355,15 +421,30 @@
     };
   }
 
-  // JSON schema for Anthropic structured outputs / forced tool call.
-  // Kept here so evaluate + claude-structured share one shape.
+  // Back-compat name used by older tests/callers.
+  function applyNextStepReadme(workspace, opts) {
+    return applyRevisedContent(workspace, opts);
+  }
+
   const REPLY_SCHEMA = {
     type: "object",
     properties: {
       feedback: { type: "string" },
       summary: { type: "string" },
-      nextStepPath: { type: "string" },
-      nextStepContent: { type: "string" },
+      revisedContent: { type: "string" },
+      nextPrompt: { type: "string" },
+      zpd: {
+        type: "object",
+        properties: {
+          unaided: { type: "string" },
+          justBeyond: { type: "string" },
+        },
+        required: ["unaided", "justBeyond"],
+        additionalProperties: false,
+      },
+      level: { type: "number" },
+      goalAchieved: { type: "boolean" },
+      practicePath: { type: "string" },
       aggressiveness: {
         type: "object",
         properties: {
@@ -377,8 +458,12 @@
     required: [
       "feedback",
       "summary",
-      "nextStepPath",
-      "nextStepContent",
+      "revisedContent",
+      "nextPrompt",
+      "zpd",
+      "level",
+      "goalAchieved",
+      "practicePath",
       "aggressiveness",
     ],
     additionalProperties: false,
@@ -397,6 +482,7 @@
     readmePathForStep: readmePathForStep,
     parseEvaluateReply: parseEvaluateReply,
     buildEvaluateUserMessage: buildEvaluateUserMessage,
+    applyRevisedContent: applyRevisedContent,
     applyNextStepReadme: applyNextStepReadme,
     normalizeStruggle: normalizeStruggle,
     normalizeAction: normalizeAction,
