@@ -1376,14 +1376,6 @@ html.tinker-desktop .repo-top--labs {
   color: var(--color-muted);
 }
 
-.repo-explorer__toolbar {
-  flex: 0 0 auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 0 4px 8px;
-}
-
 .repo-explorer__tool {
   min-height: 32px;
   padding: 0 10px;
@@ -4644,7 +4636,6 @@ html.labs-drawer-open body {
     width: 100%; max-width: 100%;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  .repo-explorer__toolbar,
   .repo-ex-node__icon,
   .repo-ex-write-about,
   .repo-ex-transform-retry { display: none !important; }

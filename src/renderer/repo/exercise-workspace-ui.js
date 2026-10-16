@@ -136,7 +136,6 @@
       readerContent: $("repo-ex-reader-content"),
       loadStatus: $("repo-ex-load-status"),
       loadRetry: $("repo-ex-load-retry"),
-      toolbar: $("repo-explorer-toolbar"),
       explorer: $("repo-explorer"),
       scrim: $("repo-explorer-scrim"),
       body: $("repo-explorer-body"),
@@ -144,8 +143,6 @@
       hint: $("repo-explorer-hint"),
       collapse: $("repo-explorer-collapse"),
       expand: $("repo-explorer-expand"),
-      newFile: $("repo-ex-new-file"),
-      newFolder: $("repo-ex-new-folder"),
       gated: $("repo-explorer-gated"),
       signin: $("repo-explorer-signin"),
       signinBtn: $("repo-explorer-signin-btn"),
@@ -1997,7 +1994,6 @@
     if (!applyAuthGate()) return;
 
     var order = state.workspace.exerciseOrder || [];
-    if (els.toolbar) els.toolbar.hidden = !isWideDesktop();
     if (els.loadStatus) {
       els.loadStatus.hidden = !state.loading && !state.loadError;
       text(els.loadStatus, state.loading ? "Loading exercises…" : state.loadError);
@@ -2456,18 +2452,6 @@
       els.signinBtn.addEventListener("click", function (event) {
         if (event && event.preventDefault) event.preventDefault();
         requestLearningSignIn();
-      });
-    }
-    if (els.newFile) {
-      els.newFile.addEventListener("click", function () {
-        if (!isLearningSignedIn()) { requestLearningSignIn(); return; }
-        createNode("file");
-      });
-    }
-    if (els.newFolder) {
-      els.newFolder.addEventListener("click", function () {
-        if (!isLearningSignedIn()) { requestLearningSignIn(); return; }
-        createNode("folder");
       });
     }
     if (els.codeSave) els.codeSave.addEventListener("click", saveActiveFile);

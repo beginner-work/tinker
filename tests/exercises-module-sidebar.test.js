@@ -111,8 +111,9 @@ test("desktop sidebar shows module steps and Your answer, not README.md tree row
   assert.equal(body.querySelectorAll(".repo-ex-tree .repo-ex-node").length, 0);
   assert.ok(body.querySelector(".repo-ex-module__progress"));
   assert.ok(body.querySelector(".repo-ex-module-placeholder"));
-  assert.ok(e.el("repo-ex-new-file"));
-  assert.match(e.el("repo-ex-new-file").textContent, /New learning module/);
+  assert.equal(e.el("repo-ex-new-file"), null);
+  assert.equal(e.el("repo-explorer-toolbar"), null);
+  assert.equal(e.w.document.body.textContent.includes("New learning module"), false);
 });
 
 test("mobile drawer uses the same module progression chrome", async (t) => {

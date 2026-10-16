@@ -77,14 +77,13 @@ for (const width of [320, 390, 430, 800]) {
     assert.match(e.el("repo-ex-reader-path").textContent, /API Design \/ practice\.js/);
     assert.equal(e.el("repo-ex-reader").hidden, false);
     assert.equal(e.el("repo-explorer-body").hidden, true);
-    assert.equal(e.el("repo-explorer-toolbar").hidden, true);
     assert.equal(e.el("repo-code").hidden, true);
     assert.equal(e.editorDocs.length, 0);
     assert.equal(e.w.document.querySelectorAll("#repo-explorer-body .repo-ex-node__icon, #repo-explorer-body .repo-ex-write-about").length, 0);
     assert.equal(e.w.document.querySelectorAll('#repo-explorer-body [draggable="true"]').length, 0);
     e.ui.createNode("file"); e.ui.moveNode("api-design", "code", null);
     e.ui.startWriteAboutExercise("api-design");
-    e.el("repo-code-save").click(); e.el("repo-ex-new-folder").click();
+    e.el("repo-code-save").click();
     await assert.rejects(e.ui.applyEssayRevision("api-design", "Change this"), /read-only/);
     assert.equal(e.calls.some(c => c.method !== "GET"), false);
   });
@@ -161,7 +160,7 @@ test("desktop editor keeps blank practice and save behavior, resize makes it rea
   assert.equal(e.el("repo-code").hidden, true);
   e.ui.openFile("api-design", "code"); assert.equal(e.el("repo-ex-reader").hidden, false);
   e.resize(1200); assert.equal(e.el("repo-ex-reader").hidden, true);
-  assert.equal(e.el("repo-explorer-toolbar").hidden, false);
+  assert.equal(e.el("repo-ex-new-file"), null);
 });
 test("mobile reader scrollports constrain long lines and include safe area/touch targets", () => {
   assert.match(css, /\.repo-ex-reader__content\s*\{[^}]*overflow:\s*auto/s);
