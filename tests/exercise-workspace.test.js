@@ -466,6 +466,8 @@ test("Exercises sidebar presents one learning module with step progression, not 
   assert.match(harness, /Your answer/);
   assert.match(harness, /Next module/);
   assert.match(harness, /Generated after you finish this one/);
+  assert.doesNotMatch(harness, /New learning module/);
+  assert.doesNotMatch(harness, /repo-explorer__toolbar/);
   assert.doesNotMatch(harness, /README\.md/);
   assert.doesNotMatch(harness, /steps\.json/);
   assert.doesNotMatch(harness, /00-in-plain-english\//);
