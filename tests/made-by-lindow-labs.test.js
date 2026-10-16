@@ -97,17 +97,19 @@ test("write page wires beaker labs drawer opener (not under writing)", () => {
   assert.match(css, /\.labs-drawer/);
   assert.match(css, /\.labs-drawer__panel/);
   assert.match(html, /frame-src https:\/\/lindowlabs\.dev/);
-  // Beaker paths (FlaskConical), not the old link-out icon.
-  assert.match(html, /M10 2v7\.527/);
+  // Dumbbell paths (Lucide), not the old beaker or link-out icon.
+  assert.match(html, /M14\.4 14\.4 9\.6 9\.6/);
+  assert.match(html, /M18\.657 21\.485/);
+  assert.doesNotMatch(html, /M10 2v7\.527/);
   assert.doesNotMatch(html, /M6\.5 3\.5H3\.75/);
-  // No visible Learning Lab label on the beaker trigger itself.
+  // No visible Learning Lab label on the Exercises trigger itself.
   assert.match(html, /repo-top__labs-label/);
   const phrases = visibleLearningPhrases(html);
   assert.equal(phrases.learningLab, false, "no visible Learning Lab text on trigger");
   assert.equal(phrases.learningLabs, false, "no visible Learning Labs text");
-  // Sign-in gate copy may name Lindow Labs Learning; the mobile beaker is labeled Exercises.
-  const beakerChunk = (html.match(/id="repo-labs-link"[\s\S]*?<\/a>/) || [""])[0];
-  assert.doesNotMatch(beakerChunk, /Lindow Labs Learning/);
+  // Sign-in gate copy may name Lindow Labs Learning; the mobile control is labeled Exercises.
+  const labsChunk = (html.match(/id="repo-labs-link"[\s\S]*?<\/a>/) || [""])[0];
+  assert.doesNotMatch(labsChunk, /Lindow Labs Learning/);
   // Must not sit under/after the writing surface.
   const beforeSurface = html.slice(0, html.indexOf('id="repo-surface"'));
   assert.match(beforeSurface, /id="repo-labs-link"/);

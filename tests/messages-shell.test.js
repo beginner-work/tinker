@@ -54,9 +54,10 @@ test("inbox boots from one batched endpoint and paints a cached snapshot first",
   assert.match(js, /tinker\.inboxSnapshot/);
 });
 
-test("signed-in boot sends home to /repo or /inflight; write mode opens You", () => {
+test("signed-in boot sends home to /repo; write mode opens You", () => {
   assert.match(js, /goRepoHome/);
-  assert.match(js, /\/inflight/);
+  assert.match(js, /location\.assign\("\/repo"\)/);
+  assert.doesNotMatch(js, /\/inflight/);
   assert.match(js, /wantsWriteSurface/);
   assert.match(js, /openDesktopYouHome/);
   assert.match(js, /function boot[\s\S]*goRepoHome/);

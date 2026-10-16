@@ -1,9 +1,9 @@
-/* Signed-in landing: mobile PWA goes to /inflight (which bounces to /repo
- * when nothing is in flight); desktop goes to /repo. Runs early (sync, no
- * defer) so a stale cached messages-shell.js cannot leave the old inbox /
- * Hunt chrome up. Writing stays at /?write=1. Sign-in recovery stays at
- * /?signin=1 so a stale tinker_jwt cannot bounce the owner past the phone
- * gate. Mac app still opens / until a new dmg ships.
+/* Signed-in landing: desktop and mobile PWA both go to /repo (writing
+ * surface). Runs early (sync, no defer) so a stale cached messages-shell.js
+ * cannot leave the old inbox / Hunt chrome up. Writing stays at /?write=1.
+ * Sign-in recovery stays at /?signin=1 so a stale tinker_jwt cannot bounce
+ * the owner past the phone gate. Mac app still opens / until a new dmg
+ * ships. In-flight agent tracking lives in Notion, not Tinker.
  */
 (function () {
   "use strict";
@@ -12,13 +12,7 @@
     var q = window.location.search || "";
     if (/(?:^|[?&])write=1(?:&|$)/.test(q)) return;
     if (/(?:^|[?&])signin=1(?:&|$)/.test(q)) return;
-    var mobile = false;
-    try {
-      mobile = window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
-    } catch (e2) {
-      mobile = false;
-    }
-    window.location.replace(mobile ? "/inflight" : "/repo");
+    window.location.replace("/repo");
   } catch (e) {
     /* private mode / blocked storage */
   }

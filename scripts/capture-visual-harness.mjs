@@ -19,8 +19,6 @@ const SCREENS = [
   { name: "repo-exercises-sidebar", path: "/repo/harness/exercises-module-sidebar.html" },
   { name: "repo-step-preview", path: "/repo/harness/desktop-step-md-preview.html" },
   { name: "repo-mobile-essay", path: "/repo/harness/mobile-essay-list.html" },
-  { name: "inflight-empty", path: "/inflight/screenshot-empty.html" },
-  { name: "inflight-list", path: "/inflight/screenshot-inflight.html" },
 ];
 
 const VIEWPORTS = [

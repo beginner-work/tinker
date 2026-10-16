@@ -74,9 +74,9 @@ body.repo-page--files {
   min-height: 0;
 }
 
-/* Shared top nav (desktop + mobile): beaker/exercises left, past-essays hamburger right.
+/* Shared top nav (desktop + mobile): exercises left, past-essays hamburger right.
  * Opaque background + high z-index so the write-safe top fade never washes
- * the beaker / Exercises label (esp. iPhone PWA standalone + notch). */
+ * the Exercises control (esp. iPhone PWA standalone + notch). */
 .repo-top--labs {
   display: flex;
   position: fixed;
@@ -149,42 +149,12 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
   background: var(--color-background);
 }
 
-/* Tab bar: open-file tabs only (beaker lives in the shared top bar). */
+/* Tab bar: open-file tabs only (Exercises control lives in the shared top bar). */
 .repo-ide-tabbar {
   display: none;
 }
 
-/* Desktop-only optional entry to the in-flight agents view. */
-.repo-top__inflight {
-  pointer-events: auto;
-  display: none;
-  align-items: center;
-  height: 44px;
-  margin: 0 4px 0 0;
-  padding: 0 10px;
-  border-radius: 10px;
-  color: var(--color-muted);
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1;
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
-}
-
-.repo-top__inflight:hover,
-.repo-top__inflight:focus-visible {
-  color: var(--color-foreground);
-  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
-}
-
-@media (min-width: 721px) {
-  .repo-top__inflight {
-    display: inline-flex;
-  }
-}
-
-/* Beaker matches hamburger: 44px hit target, 20px icon, same weight. */
+/* Exercises (dumbbell) matches hamburger: 44px hit target, 20px icon, same weight. */
 .repo-top--labs .repo-top__labs,
 .repo-top__labs {
   pointer-events: auto;
@@ -971,7 +941,7 @@ html.tinker-desktop .repo-top [role="button"] {
   z-index: 1;
 }
 
-/* Desktop tab bar: scrolling tabs + reserved beaker labs slot (same 40px row). */
+/* Desktop tab bar: scrolling tabs + reserved Exercises labs slot (same 40px row). */
 @media (min-width: 801px) {
   .repo-ide-tabbar {
     display: flex;
@@ -1215,7 +1185,7 @@ html.tinker-desktop .repo-top--labs {
   }
 }
 
-/* Mobile/phone overlay scrim (beaker drawer). Hidden on desktop. */
+/* Mobile/phone overlay scrim (Exercises drawer). Hidden on desktop. */
 .repo-explorer-scrim {
   display: none;
 }
@@ -2789,12 +2759,12 @@ body.repo-page--write .repo-center.repo-write-safe-top::before {
   content: "";
   position: fixed;
   /* Start under the fixed labs header so the dissolve never covers
-   * the beaker / Exercises label (header paints above at z-index 50). */
+   * the Exercises control (header paints above at z-index 50). */
   top: calc(52px + env(safe-area-inset-top, 0px));
   left: 0;
   right: 0;
   /* Prefer % over 100vw so a scrollbar gutter cannot widen the page and
-   * clip the fixed top bar (beaker / Exercises) past the left edge. */
+   * clip the fixed top bar (Exercises) past the left edge. */
   width: auto;
   max-width: none;
   height: var(--repo-write-fade, 48px);
@@ -3987,7 +3957,7 @@ body.repo-page--write .repo-center {
   }
 
   /* Beat the generic .repo-top mobile padding above (same specificity,
-   * later source order). Keep the beaker + label inside the safe area
+   * later source order). Keep the Exercises control inside the safe area
    * and clear of the left screen edge at 375–430px. Opaque bar so the
    * write-safe fade cannot wash muted icons. */
   .repo-top.repo-top--labs {
@@ -4064,7 +4034,7 @@ body.repo-page--write .repo-center {
   }
 
   /* Mobile: writing is primary; code is not editable (hidden). Explorer
-     opens as an overlay when the beaker is used while signed in. */
+     opens as an overlay when Exercises is used while signed in. */
   .repo-tabs,
   .repo-code,
   .repo-code-host,
@@ -4129,7 +4099,7 @@ body.repo-page--write .repo-center {
     display: none;
   }
 
-  /* Mobile exercises overlay (beaker): starts below sticky top bar.
+  /* Mobile exercises overlay (Exercises): starts below sticky top bar.
      Overlay is OK under ~800px only — with scrim + tap-outside-to-close. */
   .repo-explorer {
     display: none;
@@ -4513,7 +4483,7 @@ body.repo-page--write .repo-center {
   }
 }
 
-/* ── Labs drawer (beaker → left iframe panel) ─────────────────────────── */
+/* ── Labs drawer (Exercises → left iframe panel) ─────────────────────────── */
 .labs-drawer {
   position: fixed;
   inset: 0;

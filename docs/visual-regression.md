@@ -11,7 +11,6 @@ Screens covered (static harnesses, no live Claude/API):
 - Exercises sidebar + IDE tree (`exercises-module-sidebar.html`)
 - Lesson step markdown preview (`desktop-step-md-preview.html`)
 - Mobile essay / That's everything foot (`mobile-essay-list.html`)
-- `/inflight` empty + list (`screenshot-empty.html`, `screenshot-inflight.html`)
 
 Fixtures freeze time to `2026-10-15T12:00:00.000Z`, disable animations/transitions, and stub `/api/**`.
 

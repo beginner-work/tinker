@@ -46,8 +46,6 @@
     { "source": "/exercises/", "destination": "/exercises/index.html" },
     { "source": "/next", "destination": "/next/index.html" },
     { "source": "/next/", "destination": "/next/index.html" },
-    { "source": "/inflight", "destination": "/inflight/index.html" },
-    { "source": "/inflight/", "destination": "/inflight/index.html" },
     { "source": "/repo", "destination": "/repo/index.html" },
     { "source": "/repo/", "destination": "/repo/index.html" },
     { "source": "/repo/files", "destination": "/repo/files/index.html" },

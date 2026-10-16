@@ -63,7 +63,7 @@ test("long-cache asset rule excludes sw.js; sw.js no-cache is last", () => {
 test("service worker registers a versioned URL matching CACHE_VERSION", () => {
   const ver = sw.match(/CACHE_VERSION\s*=\s*["']tinker-shell-v(\d+)["']/);
   assert.ok(ver, "CACHE_VERSION missing");
-  assert.equal(ver[1], "76");
+  assert.equal(ver[1], "77");
   assert.match(offline, new RegExp(`register\\(\\s*SW_URL|register\\(\\s*["']/sw\\.js\\?v=${ver[1]}["']`));
   assert.match(offline, new RegExp(`/sw\\.js\\?v=${ver[1]}`));
   assert.match(offline, /skipWaiting|SKIP_WAITING/);
@@ -71,7 +71,7 @@ test("service worker registers a versioned URL matching CACHE_VERSION", () => {
   assert.match(offline, /location\.reload/);
   assert.match(sw, /skipWaiting/);
   assert.match(sw, /clients\.claim/);
-  assert.match(html, /pwa-offline\.js\?v=76/);
+  assert.match(html, /pwa-offline\.js\?v=77/);
 
   const swRule = (vercel.headers || []).find((row) => row.source === "/sw.js");
   const keys = (swRule.headers || []).map((h) => h.key);
@@ -79,16 +79,15 @@ test("service worker registers a versioned URL matching CACHE_VERSION", () => {
   assert.ok(keys.includes("Cloudflare-CDN-Cache-Control"));
 });
 
-test("signed-in / redirects to /repo (desktop) or /inflight (mobile)", () => {
-  assert.match(html, /repo-redirect\.js\?v=42/);
+test("signed-in / redirects to /repo on desktop and mobile", () => {
+  assert.match(html, /repo-redirect\.js\?v=43/);
   assert.match(redirect, /tinker_jwt/);
   assert.match(redirect, /write=1/);
   assert.match(redirect, /signin=1/);
-  assert.match(redirect, /\/inflight/);
-  assert.match(redirect, /\/repo/);
-  assert.match(redirect, /max-width:\s*720px/);
+  assert.match(redirect, /location\.replace\("\/repo"\)/);
+  assert.doesNotMatch(redirect, /\/inflight/);
   assert.match(shell, /goRepoHome|\/repo/);
-  assert.match(shell, /\/inflight/);
+  assert.doesNotMatch(shell, /\/inflight/);
   assert.match(shell, /wantsWriteSurface|write=1/);
   // Hunt / inbox chrome must not be the live landing UI.
   assert.doesNotMatch(html, /sidebar--inbox/);

@@ -151,18 +151,11 @@
     return true;
   }
   function goRepoHome() {
-    var mobile = false;
     try {
-      mobile = window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
-    } catch (e0) {
-      mobile = false;
-    }
-    var dest = mobile ? "/inflight" : "/repo";
-    try {
-      window.location.assign(dest);
+      window.location.assign("/repo");
       return true;
     } catch (e) {
-      try { window.location.href = dest; return true; }
+      try { window.location.href = "/repo"; return true; }
       catch (e2) { return false; }
     }
   }
