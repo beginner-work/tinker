@@ -861,16 +861,16 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/lib\/exercise-revision\.js\?v=51"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
-  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=49"/);
+  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=50"/);
   assert.match(html, /src="\/exercises\/manifest\.js\?v=40"/);
   assert.match(html, /src="\/lib\/exercises-pick\.js\?v=40"/);
   assert.match(html, /src="\/lib\/exercises-next\.js\?v=1"/);
   assert.match(html, /src="\/lib\/lock-in\.js\?v=1"/);
   assert.match(html, /src="\/lib\/lock-in-ui\.js\?v=1"/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=51"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=52"/);
   assert.match(html, /src="\/lib\/exercise-workspace-core\.js\?v=41"/);
-  assert.match(html, /src="\/repo\/exercise-workspace-ui\.js\?v=57"/);
+  assert.match(html, /src="\/repo\/exercise-workspace-ui\.js\?v=58"/);
   assert.match(html, /src="\/lib\/claude-models\.js\?v=2"/);
   assert.match(html, /src="\/lib\/claude-structured\.js\?v=2"/);
   assert.match(html, /src="\/lib\/exercise-refactor\.js\?v=2"/);
@@ -878,7 +878,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=57"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=58"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
   assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
@@ -941,8 +941,9 @@ test("repo write page is writing surface + Location place + structure sidebar", 
     css,
     /@media\s*\(\s*hover:\s*hover\s*\)\s*and\s*\(\s*pointer:\s*fine\s*\)\s*\{[\s\S]*\.repo-surface__kbd\s*\{[^}]*display:\s*inline/s,
   );
-  assert.match(css, /transition:\s*opacity\s*200ms/);
-  assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  // Product layer: writing foot appears instantly (no opacity transition).
+  assert.doesNotMatch(css, /\.repo-surface__foot\s*\{[^}]*transition:\s*opacity/s);
+  assert.match(css, /\.repo-surface__foot\.is-visible\s*\{[^}]*opacity:\s*1/s);
   assert.match(css, /100dvh/);
   assert.match(css, /100svh/);
   assert.match(css, /-webkit-fill-available/);

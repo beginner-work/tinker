@@ -113,7 +113,24 @@
     close.type = "button";
     close.className = "labs-drawer__close";
     close.setAttribute("aria-label", "Close");
-    close.textContent = "\u00d7";
+    (function appendCloseIcon(btn) {
+      var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("class", "repo-icon repo-icon--close");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("width", "16");
+      svg.setAttribute("height", "16");
+      svg.setAttribute("aria-hidden", "true");
+      svg.setAttribute("focusable", "false");
+      svg.setAttribute("fill", "none");
+      svg.setAttribute("stroke", "currentColor");
+      svg.setAttribute("stroke-width", "1.75");
+      svg.setAttribute("stroke-linecap", "round");
+      svg.setAttribute("stroke-linejoin", "round");
+      var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", "M6 6l12 12M18 6 6 18");
+      svg.appendChild(path);
+      btn.appendChild(svg);
+    })(close);
     close.addEventListener("click", closeDrawer);
     head.appendChild(close);
     panel.appendChild(head);

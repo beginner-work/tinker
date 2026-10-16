@@ -69,6 +69,26 @@
     if (node) node.textContent = value == null ? "" : String(value);
   }
 
+  /** Design-system close icon (DOM only). */
+  function createCloseIcon(size) {
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "repo-icon repo-icon--close");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", String(size || 14));
+    svg.setAttribute("height", String(size || 14));
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "1.75");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M6 6l12 12M18 6 6 18");
+    svg.appendChild(path);
+    return svg;
+  }
+
   function clear(node) {
     if (!node) return;
     while (node.firstChild) node.removeChild(node.firstChild);
@@ -1743,7 +1763,7 @@
       close.type = "button";
       close.className = "repo-tabs__close";
       close.setAttribute("aria-label", "Close " + (tab.title || "tab"));
-      close.textContent = "\u00d7";
+      close.appendChild(createCloseIcon(14));
       close.addEventListener("click", function (event) {
         if (event && event.stopPropagation) event.stopPropagation();
         closeTab(tab.id);

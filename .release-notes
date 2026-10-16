@@ -1,13 +1,9 @@
 No download needed, updates on next launch
 
-Exercises use Vercel Blob as Tinker's source of truth when
-BLOB_READ_WRITE_TOKEN is set (checked-in seed is the fallback). Mobile
-PWA opens an in-flight agents view first when Cursor cloud agents titled
-Tinker:, Learning:, or Site: are active (CURSOR_API_KEY). Exercises
-sidebar still presents one learning module with ordered steps. Desktop
-lesson steps open as a read-only rendered markdown preview. iPhone PWA
-labs header stays below the notch with an opaque bar so the write fade
-cannot wash the Exercises label. That's everything no longer fails with
-"shape we couldn't use" on Opus 5.5 (adaptive thinking token budget)
-and grades Your answer even when the lesson step README is open.
+Polished /repo and /inflight to design-system controls: SVG close and
+chevron back affordances, secondary buttons use --radius-button and
+--shadow-button, focus states use --focus-ring, panels stay flat (no
+elevation shadow), and product-layer motion is removed from the writing
+foot, labs drawer, and in-flight rows. Playwright visual regression
+locks desktop 1440x900 and iPhone 390x844 harness screens in CI.
 Hosted web and API only; Electron shell unchanged.
