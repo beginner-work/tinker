@@ -204,8 +204,19 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
 }
 
 .repo-layout--write.is-explorer-open .repo-top__labs,
-.repo-layout--write:not(.is-explorer-collapsed) .repo-top__labs {
+.repo-layout--write:not(.is-explorer-collapsed) .repo-top__labs,
+.repo-layout--write.is-code-open .repo-top__labs,
+body.repo-code-open .repo-top__labs {
   color: var(--color-accent-strong, #4f46e5);
+}
+
+/* Desktop learning loop lands on prompt+file; keep Exercises chrome out of
+ * the first viewport so desktop matches the post-#533 surface. Mobile keeps
+ * the dumbbell to open/close the loop from essay writing. */
+@media (min-width: 801px) {
+  .repo-layout--learning .repo-top__labs {
+    display: none !important;
+  }
 }
 
 .repo-top--auth .repo-top__back {
@@ -4743,7 +4754,7 @@ html.labs-drawer-open body {
     display: block;
   }
 
-  /* Learning loop on narrow widths: prompt + editor + That's everything. */
+  /* Learning loop chrome (explorer/tabs) stays off on narrow widths. */
   .repo-layout--learning .repo-tabs,
   .repo-layout--learning .repo-ide-tabbar,
   .repo-layout--learning .repo-explorer,
@@ -4752,13 +4763,18 @@ html.labs-drawer-open body {
     display: none !important;
   }
 
-  .repo-layout--learning #repo-editor-main,
+  /* Prompt + practice file only after Exercises opens the loop (is-code-open).
+   * Without that gate, mobile first paint stays essay writing. */
+  .repo-layout--learning.is-code-open .repo-panel--write,
+  body.repo-code-open .repo-layout--learning .repo-panel--write {
+    display: none !important;
+  }
+
   .repo-layout--learning.is-code-open #repo-editor-main,
   body.repo-code-open .repo-layout--learning #repo-editor-main,
-  .repo-layout--learning .repo-code-host,
   .repo-layout--learning.is-code-open .repo-code-host,
   body.repo-code-open .repo-layout--learning .repo-code-host,
-  .repo-layout--learning .repo-code:not([hidden]),
+  .repo-layout--learning.is-code-open .repo-code:not([hidden]),
   body.repo-code-open .repo-layout--learning .repo-code:not([hidden]) {
     display: flex !important;
     flex-direction: column;
@@ -4767,26 +4783,32 @@ html.labs-drawer-open body {
     width: 100%;
   }
 
-  .repo-layout--learning .repo-learning {
+  .repo-layout--learning.is-code-open .repo-learning,
+  body.repo-code-open .repo-layout--learning .repo-learning {
     padding: 12px 14px 10px;
   }
 
-  .repo-layout--learning .repo-learning__prompt {
+  .repo-layout--learning.is-code-open .repo-learning__prompt,
+  body.repo-code-open .repo-layout--learning .repo-learning__prompt {
     padding: 14px 14px;
   }
 
-  .repo-layout--learning .repo-code__bar {
+  .repo-layout--learning.is-code-open .repo-code__bar,
+  body.repo-code-open .repo-layout--learning .repo-code__bar {
     flex-wrap: wrap;
     gap: 8px;
   }
 
-  .repo-layout--learning .repo-code__actions {
+  .repo-layout--learning.is-code-open .repo-code__actions,
+  body.repo-code-open .repo-layout--learning .repo-code__actions {
     width: 100%;
     justify-content: flex-end;
   }
 }
 
-/* ===== Learning loop (ZPD): one prompt + one file ===== */
+/* ===== Learning loop (ZPD): one prompt + one file =====
+ * Desktop: first screen. Mobile: opened via Exercises nav; essay writing
+ * remains the default first paint until is-code-open / repo-code-open. */
 .repo-layout--learning {
   --repo-explorer-rail: 0px;
   grid-template-columns:

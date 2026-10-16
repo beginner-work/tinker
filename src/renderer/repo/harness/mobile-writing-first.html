@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>tinker — mobile first screen (essay writing)</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css?v=40" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/repo/repo.css?v=62" />
+  </head>
+  <!-- Static mirror of mobile /repo first paint: essay writing + Exercises nav.
+       Learning loop (prompt + file) is not shown until Exercises is opened. -->
+  <body class="repo-page repo-page--write" data-repo-mode="write">
+    <header class="repo-top repo-top--labs" aria-label="Tools">
+      <a class="repo-top__labs"
+         id="repo-labs-link"
+         href="https://lindowlabs.dev/learning"
+         target="_blank" rel="noopener noreferrer"
+         aria-label="Exercises"
+         title="Exercises"
+         data-learning-lab
+         data-exercises-nav>
+        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M14.4 14.4 9.6 9.6"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="m21.5 21.5-1.4-1.4"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M3.9 3.9 2.5 2.5"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z"/>
+        </svg>
+        <span class="repo-top__labs-label">Exercises</span>
+      </a>
+      <button type="button" class="repo-top__past-essays" id="repo-past-essays"
+              aria-label="Past essays" title="Past essays" aria-expanded="false"
+              aria-controls="repo-right">
+        <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M4 5h16M4 12h16M4 19h16"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="repo-layout repo-layout--write repo-layout--learning is-explorer-collapsed" id="repo-layout">
+      <div class="repo-ide-center" id="repo-ide-center">
+        <main class="repo-center repo-write-safe-top" id="repo-editor-main" aria-label="Editor" hidden></main>
+        <section class="repo-panel repo-panel--write" id="repo-panel" aria-label="Writing">
+          <div class="repo-panel__body repo-panel__body--write" id="repo-panel-body">
+            <div class="repo-panel__write" id="repo-panel-write">
+              <div class="repo-surface writing repo-write-safe-top" id="repo-surface">
+                <div class="repo-location" id="repo-location">
+                  <div class="repo-location__field">
+                    <img class="repo-location__globe" src="/icons/tinker-mark.svg?v=40" alt="" width="14" height="14" aria-hidden="true" />
+                    <input type="text" class="repo-location__input writing-input" value="Kitchen table" readonly />
+                  </div>
+                </div>
+                <div class="repo-pad" id="repo-pad">
+                  <textarea class="writing-input repo-pad__turn" data-pad-turn="1" spellcheck="false" readonly>I'm learning what holds when I write without dressing it up.
+
+The framing keeps shifting, but the sentence I can stand behind stays short.</textarea>
+                  <div class="repo-pad__q" data-pad-q="1" contenteditable="false">
+                    <span class="repo-pad__q-text">What are you noticing in how the framing shifts?</span>
+                  </div>
+                  <textarea class="writing-input repo-pad__turn" data-pad-turn="1" spellcheck="false" readonly></textarea>
+                </div>
+              </div>
+              <footer class="repo-surface__foot is-visible" id="repo-pad-actions" data-thread-actions="1" aria-hidden="false">
+                <button type="button" class="repo-surface__action repo-surface__action--secondary" id="repo-keep-crafting">Keep crafting</button>
+                <button type="button" class="repo-surface__action repo-surface__action--primary" id="repo-this-is-everything">This is everything</button>
+              </footer>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>

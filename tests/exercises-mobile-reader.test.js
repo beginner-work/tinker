@@ -1,4 +1,4 @@
-/* Learning-loop mobile behavior; network and auth are mocked. */
+/* Mobile: essay writing is first screen; Exercises nav opens learning loop. */
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -131,35 +131,59 @@ function setup(t, options = {}) {
 }
 
 for (const width of [320, 390, 430, 800]) {
-  test(`mobile ${width}px learning loop: prompt + editor, no explorer`, async (t) => {
+  test(`mobile ${width}px first screen is essay writing, not learning loop`, async (t) => {
     const e = setup(t, { width });
     await e.ui.init();
     assert.ok(e.el("repo-layout").classList.contains("repo-layout--learning"));
     assert.equal(e.el("repo-explorer").hidden, true);
-    assert.equal(e.el("repo-layout").classList.contains("is-explorer-open"), false);
+    assert.equal(e.el("repo-code").hidden, true);
+    assert.equal(e.el("repo-layout").classList.contains("is-code-open"), false);
+    assert.equal(e.w.document.body.classList.contains("repo-code-open"), false);
+    assert.equal(e.ui.isLearningSurfaceOpen(), false);
+    assert.equal(e.editorDocs.length, 0);
+  });
+
+  test(`mobile ${width}px Exercises nav opens learning loop`, async (t) => {
+    const e = setup(t, { width });
+    await e.ui.init();
+    e.ui.toggleExplorer();
+    assert.equal(e.ui.isLearningSurfaceOpen(), true);
     assert.equal(e.el("repo-code").hidden, false);
     assert.equal(e.el("repo-code-thats-everything").hidden, false);
     assert.equal(e.el("repo-code-save").hidden, true);
     assert.match(e.el("repo-learning-prompt-text").textContent, /./);
     assert.ok(e.editorDocs.length >= 1);
+    e.ui.toggleExplorer();
+    assert.equal(e.ui.isLearningSurfaceOpen(), false);
+    assert.equal(e.el("repo-code").hidden, true);
   });
 }
 
-test("learning loop CSS keeps prompt + editor usable at 390px", () => {
+test("mobile learning CSS only forces editor when is-code-open", () => {
   assert.match(css, /\.repo-layout--learning/);
   assert.match(css, /\.repo-learning__prompt/);
   assert.match(
     css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-layout--learning[\s\S]*\.repo-code:not\(\[hidden\]\)[\s\S]*display:\s*flex\s*!important/,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-layout--learning\.is-code-open[\s\S]*\.repo-code:not\(\[hidden\]\)[\s\S]*display:\s*flex\s*!important/,
   );
+  assert.match(css, /mobile first paint stays essay writing/);
+});
+
+test("Exercises dumbbell is present for mobile learning access", () => {
+  assert.match(html, /id="repo-labs-link"/);
+  assert.match(html, /data-exercises-nav/);
+  assert.match(css, /\.repo-layout--learning \.repo-top__labs/);
 });
 
 test("signout clears practice chrome", async (t) => {
   const e = setup(t);
   await e.ui.init();
+  e.ui.toggleExplorer();
   assert.equal(e.el("repo-code").hidden, false);
   e.signOut();
   assert.equal(e.el("repo-explorer-body").textContent, "");
+  assert.equal(e.el("repo-code").hidden, true);
+  assert.equal(e.ui.isLearningSurfaceOpen(), false);
 });
 
 test("signout while loading discards late authenticated responses", async (t) => {
@@ -181,7 +205,7 @@ test("signout while loading discards late authenticated responses", async (t) =>
   assert.equal(Object.keys(e.ui.getWorkspace().exercises).length, 0);
 });
 
-test("desktop still lists workspace; Save chrome stays hidden in learning loop", async (t) => {
+test("desktop still opens learning loop on init; Save chrome stays hidden", async (t) => {
   const e = setup(t, { width: 1200 });
   await e.ui.init();
   assert.ok(
@@ -190,6 +214,7 @@ test("desktop still lists workspace; Save chrome stays hidden in learning loop",
   assert.equal(e.el("repo-code").hidden, false);
   assert.equal(e.el("repo-code-save").hidden, true);
   assert.equal(e.el("repo-code-thats-everything").hidden, false);
+  assert.equal(e.ui.isLearningSurfaceOpen(), true);
   assert.equal(e.el("repo-ex-new-file"), null);
 });
 
@@ -200,6 +225,7 @@ test("sign-in gate markup: no practice until signed in", () => {
   assert.match(source, /isLearningSignedIn/);
   assert.match(source, /requestLearningSignIn/);
   assert.match(source, /openPracticeFromProgress/);
+  assert.match(source, /learningSurfaceOpen/);
 });
 
 test("markdown helpers still sanitize when reader markup is used", () => {

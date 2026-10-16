@@ -1,7 +1,5 @@
 No download needed, updates on next launch
 
-/repo is now a ZPD learning loop: one practice file, one prompt card, and
-That's everything. Claude evaluates the attempt, applies a light revision
-into the editor with Undo, shows unaided vs just-beyond, and updates the
-next prompt. The Exercises sidebar, dumbbell toggle, multi-file tabs,
-Refactor/Save, and Accept/Reject diffs are gone.
+Web-only: mobile /repo first screen is essay writing again (as before the
+ZPD learning loop). Open Exercises (top left) for the prompt card + practice
+file. Desktop learning loop unchanged. Claude only; no Formation.
