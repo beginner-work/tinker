@@ -88,6 +88,8 @@ function logReplyShape(meta) {
   }
 }
 
+const MCP_CLIENT_BETA = "mcp-client-2025-11-20";
+
 async function callAnthropic({
   system,
   messages,
@@ -97,6 +99,7 @@ async function callAnthropic({
   tool_choice,
   output_config,
   output_format,
+  mcp_servers,
 } = {}) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
@@ -124,6 +127,9 @@ async function callAnthropic({
   if (tool_choice && typeof tool_choice === "object") {
     body.tool_choice = tool_choice;
   }
+  if (Array.isArray(mcp_servers) && mcp_servers.length) {
+    body.mcp_servers = mcp_servers;
+  }
   // Prefer GA output_config.format. Accept legacy output_format and map it.
   // Merge carefully so effort + format can coexist (Opus 5.5).
   if (output_config && typeof output_config === "object") {
@@ -139,13 +145,18 @@ async function callAnthropic({
     body.output_config = { format: output_format };
   }
 
+  const headers = {
+    "x-api-key": key,
+    "anthropic-version": "2023-06-01",
+    "Content-Type": "application/json",
+  };
+  if (Array.isArray(body.mcp_servers) && body.mcp_servers.length) {
+    headers["anthropic-beta"] = MCP_CLIENT_BETA;
+  }
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: {
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify(body),
   });
 
@@ -196,5 +207,6 @@ module.exports = {
   callAnthropic,
   extractContent,
   MAX_OUTPUT_TOKENS,
+  MCP_CLIENT_BETA,
   logReplyShape,
 };

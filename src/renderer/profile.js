@@ -195,7 +195,16 @@
           }
         });
       }
-      // MCP access lists and revokes connector credentials.
+      // Connections: outbound MCP clients (Notion, …). Separate from MCP access.
+      var connections = document.getElementById("profile-connections");
+      if (connections) {
+        connections.addEventListener("click", function () {
+          pop.setAttribute("hidden", "");
+          btn.setAttribute("aria-expanded", "false");
+          window.location.assign("/connections");
+        });
+      }
+      // MCP access lists and revokes connector credentials (bots → Tinker).
       var mcp = document.getElementById("profile-mcp-access");
       if (mcp) {
         mcp.addEventListener("click", function () {

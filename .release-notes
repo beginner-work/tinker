@@ -1,5 +1,6 @@
 No download needed, updates on next launch
 
+<<<<<<< HEAD
 Polished /repo and /inflight to design-system controls: SVG close and
 chevron back affordances, secondary buttons use --radius-button and
 --shadow-button, focus states use --focus-ring, panels stay flat (no
@@ -7,3 +8,9 @@ elevation shadow), and product-layer motion is removed from the writing
 foot, labs drawer, and in-flight rows. Playwright visual regression
 locks desktop 1440x900 and iPhone 390x844 harness screens in CI.
 Hosted web and API only; Electron shell unchanged.
+=======
+Connections lets you link Notion (and later other MCP servers) so Claude
+can search and fetch while you write. Tokens stay encrypted server-side;
+write tools need an explicit confirm in the UI. Hosted web and API only;
+Electron shell unchanged. Separate from MCP access (bots calling Tinker).
+>>>>>>> bde142a (Add Connections: Tinker as Notion MCP client)

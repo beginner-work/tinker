@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; script-src 'self';" />
+    <title>Connections</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/connections/connections.css" />
+  </head>
+  <body class="connections-page">
+    <main class="connections">
+      <a class="connections__back" href="/settings">← Settings</a>
+      <h1 class="connections__title">Connections</h1>
+      <p class="connections__lede">Link outside tools so Claude can use them while you write. Your tokens stay on the server, encrypted.</p>
+      <p class="connections__hint">This is separate from <a href="/mcp/access">MCP access</a>, which lets bots call Tinker.</p>
+
+      <p class="connections__status" data-connections-status hidden></p>
+      <ul class="connections__list" data-connections-list aria-live="polite"></ul>
+
+      <dialog class="connections__dialog" data-write-dialog>
+        <form method="dialog" class="connections__dialog-form" data-write-form>
+          <h2 class="connections__dialog-title">Allow write tools?</h2>
+          <p class="connections__dialog-body" data-write-dialog-body>
+            Write tools can create and change content in this workspace. Read tools stay available either way.
+          </p>
+          <div class="connections__dialog-actions">
+            <button type="submit" value="cancel" class="connections__btn connections__btn--ghost">Cancel</button>
+            <button type="submit" value="confirm" class="connections__btn" data-write-confirm>Allow writes</button>
+          </div>
+        </form>
+      </dialog>
+    </main>
+    <script src="/auth.js" defer></script>
+    <script src="/connections/connections.js" defer></script>
+  </body>
+</html>
