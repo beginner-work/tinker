@@ -117,6 +117,26 @@ async function readSeedWorkspace() {
   }
 }
 
+function seedFileMap(seed) {
+  const map = Object.create(null);
+  const exercises = seed && seed.exercises && typeof seed.exercises === "object"
+    ? seed.exercises
+    : {};
+  Object.keys(exercises).forEach((id) => {
+    const ex = exercises[id];
+    const nodes = Array.isArray(ex && ex.nodes) ? ex.nodes : [];
+    nodes.forEach((node) => {
+      if (!node || node.type !== "file" || !node.path) return;
+      map[filePathname(id, node.path)] = node.content == null ? "" : String(node.content);
+    });
+  });
+  return map;
+}
+
+function stableSeedJson(seed) {
+  return JSON.stringify(seed == null ? null : seed);
+}
+
 async function writeSeedWorkspace(rawSeed) {
   if (!blobConfigured()) return { ok: false, skipped: true, reason: "missing_token" };
   const seed = sanitizeSeed(rawSeed);
@@ -126,21 +146,47 @@ async function writeSeedWorkspace(rawSeed) {
       status: 400,
     });
   }
-  await putJson(SEED_PATHNAME, seed);
 
-  // Also mirror file contents for inspectability / per-file reads.
-  const uploaded = [];
-  for (const id of ids) {
-    const ex = seed.exercises[id];
-    const nodes = Array.isArray(ex && ex.nodes) ? ex.nodes : [];
-    for (const node of nodes) {
-      if (!node || node.type !== "file" || !node.path) continue;
-      const pathname = filePathname(id, node.path);
-      await putText(pathname, node.content == null ? "" : node.content);
-      uploaded.push(pathname);
-    }
+  let existing = null;
+  try {
+    existing = await readSeedWorkspace();
+  } catch {
+    existing = null;
   }
-  return { ok: true, pathname: SEED_PATHNAME, files: uploaded.length, exerciseIds: ids };
+
+  const nextJson = stableSeedJson(seed);
+  const prevJson = existing ? stableSeedJson(sanitizeSeed(existing)) : null;
+  let seedUploaded = false;
+  if (nextJson !== prevJson) {
+    await putJson(SEED_PATHNAME, seed);
+    seedUploaded = true;
+  }
+
+  // Mirror file contents for inspectability / per-file reads.
+  // Only upload missing or changed files (compare against prior seed).
+  const nextFiles = seedFileMap(seed);
+  const prevFiles = existing ? seedFileMap(sanitizeSeed(existing)) : Object.create(null);
+  const uploaded = [];
+  const skipped = [];
+  for (const pathname of Object.keys(nextFiles)) {
+    if (Object.prototype.hasOwnProperty.call(prevFiles, pathname)
+        && prevFiles[pathname] === nextFiles[pathname]) {
+      skipped.push(pathname);
+      continue;
+    }
+    await putText(pathname, nextFiles[pathname]);
+    uploaded.push(pathname);
+  }
+
+  return {
+    ok: true,
+    pathname: SEED_PATHNAME,
+    seedUploaded,
+    files: uploaded.length,
+    filesSkipped: skipped.length,
+    uploadedPathnames: uploaded,
+    exerciseIds: ids,
+  };
 }
 
 /** Merge one exercise tree into the Blob seed (after That's everything / write_file). */
@@ -228,6 +274,7 @@ module.exports = {
   isRetiredExerciseId,
   sanitizeSeed,
   filePathname,
+  seedFileMap,
   readSeedWorkspace,
   writeSeedWorkspace,
   upsertExerciseInSeed,
