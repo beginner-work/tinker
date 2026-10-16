@@ -10,8 +10,12 @@ const SCREENS = [
     path: "/repo/harness/essay-question-overlap.html",
   },
   {
-    name: "repo-exercises-sidebar",
-    path: "/repo/harness/exercises-module-sidebar.html",
+    name: "repo-learning-loop",
+    path: "/repo/harness/learning-loop-after.html",
+  },
+  {
+    name: "repo-learning-loop-attempt",
+    path: "/repo/harness/learning-loop-attempt.html",
   },
   {
     name: "repo-step-preview",

@@ -72,47 +72,31 @@ test("made-by opener uses the desktop openExternal bridge", () => {
   assert.match(sw, /made-by-lindow-labs\.js/);
 });
 
-test("write page wires beaker labs drawer opener (not under writing)", () => {
+test("write page keeps past-essays hamburger; Exercises dumbbell is gone", () => {
   const html = fs.readFileSync(path.join(RENDERER, "repo", "index.html"), "utf8");
   const src = fs.readFileSync(path.join(RENDERER, "made-by-lindow-labs.js"), "utf8");
   const css = fs.readFileSync(path.join(RENDERER, "repo", "repo.css"), "utf8");
-  assert.match(html, /id="repo-labs-link"/);
-  assert.ok(
-    decodeAmp(html).includes(LEARNING_LAB_URL),
-    "write page labs link must use the learning dashboard URL",
-  );
-  assert.match(html, /data-learning-lab/);
-  assert.match(html, /aria-label="Exercises"/);
-  assert.match(html, /data-exercises-nav/);
+  assert.doesNotMatch(html, /id="repo-labs-link"/);
+  assert.doesNotMatch(html, /data-exercises-nav/);
+  assert.doesNotMatch(html, /aria-label="Exercises"/);
+  assert.doesNotMatch(html, /M14\.4 14\.4 9\.6 9\.6/);
+  assert.doesNotMatch(html, /M18\.657 21\.485/);
   assert.match(html, /made-by-lindow-labs\.js/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Past essays"/);
+  assert.match(html, /repo-layout--learning/);
   assert.ok(src.includes(LEARNING_LAB_URL));
   assert.match(src, /LEARNING_LAB_URL/);
   assert.match(src, /data-learning-lab/);
   assert.match(src, /openDrawer/);
   assert.match(src, /labs-drawer/);
   assert.match(src, /framingLooksBlocked/);
-  assert.match(src, /toggleExercisesNav|data-exercises-nav/);
   assert.match(css, /\.labs-drawer/);
   assert.match(css, /\.labs-drawer__panel/);
   assert.match(html, /frame-src https:\/\/lindowlabs\.dev/);
-  // Dumbbell paths (Lucide), not the old beaker or link-out icon.
-  assert.match(html, /M14\.4 14\.4 9\.6 9\.6/);
-  assert.match(html, /M18\.657 21\.485/);
-  assert.doesNotMatch(html, /M10 2v7\.527/);
-  assert.doesNotMatch(html, /M6\.5 3\.5H3\.75/);
-  // No visible Learning Lab label on the Exercises trigger itself.
-  assert.match(html, /repo-top__labs-label/);
   const phrases = visibleLearningPhrases(html);
   assert.equal(phrases.learningLab, false, "no visible Learning Lab text on trigger");
   assert.equal(phrases.learningLabs, false, "no visible Learning Labs text");
-  // Sign-in gate copy may name Lindow Labs Learning; the mobile control is labeled Exercises.
-  const labsChunk = (html.match(/id="repo-labs-link"[\s\S]*?<\/a>/) || [""])[0];
-  assert.doesNotMatch(labsChunk, /Lindow Labs Learning/);
-  // Must not sit under/after the writing surface.
-  const beforeSurface = html.slice(0, html.indexOf('id="repo-surface"'));
-  assert.match(beforeSurface, /id="repo-labs-link"/);
 });
 
 test("framingLooksBlocked: about:blank is blocked, cross-origin is ok", () => {

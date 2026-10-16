@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>tinker learning loop after apply</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css?v=40" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/repo/repo.css?v=61" />
+    <style>
+      html, body { margin: 0; min-height: 100%; background: var(--color-background); }
+      body.repo-page { min-height: 100vh; }
+      .repo-layout--learning {
+        display: grid !important;
+        grid-template-columns: 0 minmax(0, 1fr) 0 !important;
+        min-height: calc(100vh - 56px);
+      }
+      .repo-panel { display: none !important; }
+      body.repo-code-open #repo-editor-main,
+      .repo-layout--learning.is-code-open #repo-editor-main,
+      .repo-layout--learning .repo-code-host,
+      .repo-layout--learning .repo-code {
+        display: flex !important;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      /* Freeze applied tint for deterministic screenshots. */
+      .repo-code.is-just-applied .repo-code__surface {
+        animation: none !important;
+        box-shadow: inset 0 0 0 9999px color-mix(in srgb, #b7d8c2 16%, transparent) !important;
+      }
+    </style>
+  </head>
+  <body class="repo-page repo-page--write repo-code-open" data-repo-mode="write">
+    <!--
+      AFTER That's everything: one prompt card, one editor with subtle apply
+      tint, Undo + That's everything, ZPD strip. No sidebar, dumbbell, tabs,
+      or stacked before/after diffs.
+    -->
+    <header class="repo-top repo-top--labs" aria-label="Tools">
+      <button type="button" class="repo-top__past-essays" id="repo-past-essays"
+              aria-label="Past essays" title="Past essays" aria-expanded="false">
+        <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M4 5h16M4 12h16M4 19h16"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="repo-layout repo-layout--write repo-layout--learning is-explorer-collapsed is-code-open" id="repo-layout">
+      <div class="repo-ide-center" id="repo-ide-center">
+        <main class="repo-center repo-write-safe-top" id="repo-editor-main" aria-label="Editor">
+          <div class="repo-code-host" id="repo-code-host">
+            <div class="repo-code is-just-applied" id="repo-code" aria-label="Practice file">
+              <div class="repo-learning" id="repo-learning">
+                <p class="repo-learning__goal" id="repo-learning-goal">Write an OpenAPI spec from scratch by feel, no copy-paste</p>
+                <div class="repo-learning__prompt" id="repo-learning-prompt">
+                  <p class="repo-learning__prompt-text" id="repo-learning-prompt-text">
+                    Add the create path and name the request fields a caller must send. Keep the rest in plain English if you need to.
+                  </p>
+                </div>
+                <div class="repo-learning__zpd" id="repo-learning-zpd">
+                  <p class="repo-learning__zpd-row">
+                    <span class="repo-learning__zpd-label">Unaided</span>
+                    <span class="repo-learning__zpd-text" id="repo-learning-zpd-unaided">Named PaymentIntent and listed ask, send, get back, and failure.</span>
+                  </p>
+                  <p class="repo-learning__zpd-row">
+                    <span class="repo-learning__zpd-label">Just beyond</span>
+                    <span class="repo-learning__zpd-text" id="repo-learning-zpd-beyond">Turning that into a create path with required fields.</span>
+                  </p>
+                </div>
+              </div>
+              <div class="repo-code__bar">
+                <p class="repo-code__path" id="repo-code-path">api.md</p>
+                <div class="repo-code__actions">
+                  <button type="button" class="repo-code__undo" id="repo-code-undo">Undo</button>
+                  <button type="button" class="repo-code__thats-everything repo-surface__action repo-surface__action--primary" id="repo-code-thats-everything">That's everything</button>
+                </div>
+              </div>
+              <div class="repo-code__surface is-just-applied" id="repo-code-surface" role="textbox" aria-label="File contents">
+<pre style="margin:0;padding:14px 16px;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;color:var(--color-foreground);"># PaymentIntent (plain English)
+
+A caller can ask to create a PaymentIntent.
+They send amount and currency.
+They get back an id and a status.
+It can go wrong when the card is declined.
+
+## Create
+POST /v1/payment_intents
+required: amount, currency</pre>
+              </div>
+              <p class="repo-code__status" id="repo-code-status">Calibrated the next attempt</p>
+            </div>
+          </div>
+        </main>
+        <section class="repo-panel repo-panel--write" id="repo-panel" aria-label="Writing" hidden></section>
+      </div>
+    </div>
+  </body>
+</html>

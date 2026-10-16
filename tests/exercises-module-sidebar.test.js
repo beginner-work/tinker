@@ -1,4 +1,4 @@
-/* Exercises sidebar: learning-module presentation (no file/folder tree). */
+/* Learning loop chrome: prompt card + one practice file (no Exercises sidebar). */
 "use strict";
 
 const { test } = require("node:test");
@@ -11,6 +11,7 @@ const root = path.join(__dirname, "..");
 const core = require("../src/renderer/lib/exercise-workspace-core.js");
 const revision = require("../src/renderer/lib/exercise-revision.js");
 const evaluate = require("../src/renderer/lib/exercise-evaluate.js");
+const progress = require("../src/renderer/lib/learning-progress.js");
 const essayRead = require("../src/renderer/lib/essay-read.js");
 const manifest = require("../src/renderer/exercises/manifest.js");
 const seed = JSON.parse(
@@ -54,6 +55,7 @@ function setup(t, options = {}) {
   w.tinkerExerciseWorkspaceCore = core;
   w.tinkerExerciseRevision = revision;
   w.tinkerExerciseEvaluate = evaluate;
+  w.tinkerLearningProgress = progress;
   w.tinkerEssayRead = essayRead;
   w.tinkerExercisesManifest = manifest;
   w.tinkerLearningAuth = {
@@ -68,18 +70,28 @@ function setup(t, options = {}) {
     create: (_host, opts) => {
       editorDocs.push((opts && opts.doc) || "");
       return {
-        getValue: () => "",
+        getValue: () => (editorDocs[editorDocs.length - 1] || ""),
         destroy() {},
         focus() {},
         setFileName() {},
-        setValue() {},
+        setValue(doc) {
+          editorDocs.push(doc == null ? "" : String(doc));
+        },
       };
     },
   };
-  w.fetch = async () => ({
-    ok: true,
-    json: async () => ({ workspace: seededWorkspace() }),
-  });
+  w.fetch = async (url) => {
+    if (String(url).indexOf("learning-progress") !== -1) {
+      return {
+        ok: true,
+        json: async () => ({ data: null }),
+      };
+    }
+    return {
+      ok: true,
+      json: async () => ({ workspace: seededWorkspace() }),
+    };
+  };
   w.eval(source);
   return {
     w,
@@ -94,84 +106,29 @@ function setup(t, options = {}) {
   };
 }
 
-test("desktop sidebar shows module steps and Your answer, not README.md tree rows", async (t) => {
+test("learning loop hides explorer and opens the practice file with prompt", async (t) => {
   const e = setup(t, { width: 1280 });
   await e.ui.init();
-  const body = e.el("repo-explorer-body");
-  assert.ok(body);
-  assert.match(body.textContent, /OpenAPI by hand \(payments\)/);
-  assert.match(body.textContent, /In plain English/);
-  assert.match(body.textContent, /Your answer/);
-  assert.match(body.textContent, /Next module/);
-  assert.match(body.textContent, /Generated after you finish this one/);
-  assert.equal(body.textContent.includes("README.md"), false);
-  assert.equal(body.textContent.includes("steps.json"), false);
-  assert.equal(body.textContent.includes("00-in-plain-english"), false);
-  assert.equal(body.textContent.includes("openapi.yaml"), false);
-  assert.equal(body.querySelectorAll(".repo-ex-tree .repo-ex-node").length, 0);
-  assert.ok(body.querySelector(".repo-ex-module__progress"));
-  assert.ok(body.querySelector(".repo-ex-module-placeholder"));
-  assert.equal(e.el("repo-ex-new-file"), null);
-  assert.equal(e.el("repo-explorer-toolbar"), null);
-  assert.equal(e.w.document.body.textContent.includes("New learning module"), false);
+  assert.ok(e.el("repo-layout").classList.contains("repo-layout--learning"));
+  assert.equal(e.el("repo-explorer").hidden, true);
+  assert.equal(e.el("repo-labs-link"), null);
+  assert.match(e.el("repo-learning-prompt-text").textContent, /plain English|PaymentIntent/i);
+  assert.match(e.el("repo-learning-goal").textContent, /OpenAPI/);
+  assert.equal(e.el("repo-code").hidden, false);
+  assert.equal(e.el("repo-code-thats-everything").hidden, false);
+  assert.equal(e.el("repo-code-save").hidden, true);
+  assert.equal(e.el("repo-code-refactor").hidden, true);
+  assert.equal(e.el("repo-tabs").hidden, true);
+  assert.ok(e.editorDocs.length >= 1);
 });
 
-test("mobile drawer uses the same module progression chrome", async (t) => {
+test("narrow width still shows prompt and That's everything", async (t) => {
   const e = setup(t, { width: 390 });
   await e.ui.init();
-  const body = e.el("repo-explorer-body");
-  assert.match(body.textContent, /OpenAPI by hand \(payments\)/);
-  assert.match(body.textContent, /Your answer/);
-  assert.match(body.textContent, /Next module/);
-  assert.equal(body.textContent.includes("README.md"), false);
-  assert.equal(body.querySelectorAll(".repo-ex-write-about").length, 0);
-});
-
-test("opening a step shows content labels without file extensions", async (t) => {
-  const e = setup(t, { width: 1280 });
-  await e.ui.init();
-  const answerBtn = e.el("repo-explorer-body").querySelector(".repo-ex-step__answer-btn");
-  assert.ok(answerBtn);
-  answerBtn.click();
-  assert.match(e.el("repo-code-path").textContent, /Your answer/);
-  assert.doesNotMatch(e.el("repo-code-path").textContent, /\.md|\.yaml/);
-});
-
-test("desktop opens lesson steps as rendered markdown preview, answers stay editable", async (t) => {
-  const e = setup(t, { width: 1280 });
-  await e.ui.init();
-  const stepBtn = e.el("repo-explorer-body").querySelector(".repo-ex-step__btn");
-  assert.ok(stepBtn);
-  stepBtn.click();
-
-  const preview = e.el("repo-code-preview");
-  const surface = e.el("repo-code-surface");
-  assert.ok(preview);
-  assert.equal(preview.hidden, false);
-  assert.equal(preview.classList.contains("is-markdown"), true);
-  assert.match(e.el("repo-code-path").textContent, /00 In plain English|In plain English/);
-  assert.doesNotMatch(e.el("repo-code-path").textContent, /README\.md/);
-  assert.ok(preview.querySelector("h1"));
-  assert.match(preview.querySelector("h1").textContent, /In plain English/);
-  assert.ok(preview.querySelector("strong"));
-  assert.equal(preview.textContent.includes("**"), false);
-  assert.equal(preview.textContent.includes("# 00"), false);
-  assert.equal(surface.hidden, true);
-  assert.equal(e.el("repo-code-save").hidden, true);
-  assert.equal(e.el("repo-code-thats-everything").hidden, true);
-  assert.equal(e.el("repo-code-refactor").hidden, true);
-  assert.equal(e.editorDocs.length, 0);
-
-  const answerBtn = e.el("repo-explorer-body").querySelector(".repo-ex-step__answer-btn");
-  assert.ok(answerBtn);
-  answerBtn.click();
-  assert.equal(e.el("repo-code-preview").hidden, true);
-  assert.equal(e.el("repo-code-surface").hidden, false);
-  assert.match(e.el("repo-code-path").textContent, /Your answer/);
-  assert.equal(e.el("repo-code-save").hidden, false);
+  assert.ok(e.el("repo-layout").classList.contains("repo-layout--learning"));
+  assert.equal(e.el("repo-code").hidden, false);
   assert.equal(e.el("repo-code-thats-everything").hidden, false);
-  assert.equal(e.el("repo-code-refactor").hidden, false);
-  assert.ok(e.editorDocs.length >= 1);
+  assert.match(e.el("repo-learning-prompt-text").textContent, /./);
 });
 
 test("desktop step preview markup and harness exist", () => {
@@ -190,4 +147,25 @@ test("desktop step preview markup and harness exist", () => {
   assert.match(harness, /repo-code__preview/);
   assert.match(harness, /tinkerEssayRead\.renderMarkdown/);
   assert.doesNotMatch(harness, /\u2014|\u2013/);
+});
+
+test("learning loop harnesses cover attempt and after-apply states", () => {
+  const after = fs.readFileSync(
+    path.join(root, "src/renderer/repo/harness/learning-loop-after.html"),
+    "utf8"
+  );
+  const attempt = fs.readFileSync(
+    path.join(root, "src/renderer/repo/harness/learning-loop-attempt.html"),
+    "utf8"
+  );
+  assert.match(after, /repo-learning__prompt/);
+  assert.match(after, /id="repo-code-undo"/);
+  assert.match(after, /is-just-applied/);
+  assert.match(after, /Just beyond/);
+  assert.doesNotMatch(after, /id="repo-labs-link"/);
+  assert.match(attempt, /That's everything/);
+  assert.match(attempt, /repo-learning__prompt/);
+  assert.match(attempt, /hidden>Undo|id="repo-code-undo" hidden/);
+  assert.doesNotMatch(attempt, /is-just-applied/);
+  assert.doesNotMatch(html, /New learning module/);
 });

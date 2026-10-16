@@ -1,5 +1,7 @@
 No download needed, updates on next launch
 
-Removed the New learning module button from the Exercises sidebar on
-desktop and mobile. Learning modules stay curriculum-driven; the empty
-create entry point and its toolbar handlers are gone.
+/repo is now a ZPD learning loop: one practice file, one prompt card, and
+That's everything. Claude evaluates the attempt, applies a light revision
+into the editor with Undo, shows unaided vs just-beyond, and updates the
+next prompt. The Exercises sidebar, dumbbell toggle, multi-file tabs,
+Refactor/Save, and Accept/Reject diffs are gone.

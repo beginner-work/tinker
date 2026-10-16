@@ -21,7 +21,7 @@ const revision = require("../src/renderer/lib/exercise-revision.js");
 test("sign-in gate markup: no exercise files until signed in", () => {
   assert.match(html, /id="repo-explorer-signin"/);
   assert.match(html, /id="repo-explorer-gated"/);
-  assert.match(html, /Sign in to Tinker or Lindow Labs Learning to open exercises/);
+  assert.match(html, /Sign in to Tinker or Lindow Labs Learning to open your practice file/);
   assert.match(html, /id="repo-explorer-signin-btn"/);
   assert.match(ui, /function applyAuthGate/);
   assert.match(ui, /isLearningSignedIn/);
@@ -142,24 +142,21 @@ test("mobile essays and exercises drawers clear the sticky top bar", () => {
   );
 });
 
-test("beaker matches hamburger size and is labeled Exercises", () => {
-  assert.match(html, /aria-label="Exercises"/);
-  assert.match(html, /repo-top__labs-icon"[^>]*width="20"/);
-  assert.match(css, /\.repo-top__labs\s*\{[^}]*width:\s*44px/s);
-  assert.match(css, /\.repo-top__labs-icon\s*\{[^}]*width:\s*20px/s);
+test("past-essays hamburger is 44px; Exercises dumbbell is gone", () => {
+  assert.doesNotMatch(html, /id="repo-labs-link"/);
+  assert.doesNotMatch(html, /aria-label="Exercises"/);
+  assert.match(html, /id="repo-past-essays"/);
+  assert.match(html, /aria-label="Past essays"/);
   assert.match(css, /\.repo-top__past-essays\s*\{[^}]*width:\s*44px/s);
+  assert.match(html, /repo-layout--learning/);
 });
 
-test("mobile hides code editor and Save button", () => {
-  assert.match(
-    css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*#repo-code-save[\s\S]*display:\s*none\s*!important/,
-  );
-  assert.match(
-    css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-code[\s\S]*display:\s*none\s*!important/,
-  );
-  assert.match(ui, /Mobile: exercise files are not editable|!isWideDesktop\(\)/);
+test("learning loop keeps code editor usable; Save stays hidden", () => {
+  assert.match(css, /\.repo-layout--learning/);
+  assert.match(css, /\.repo-learning__prompt/);
+  assert.match(html, /id="repo-code-thats-everything"/);
+  assert.match(html, /id="repo-code-save"[^>]*hidden/);
+  assert.match(ui, /repo-layout--learning|isLearningLoop/);
   assert.match(ui, /els\.codeSave\) els\.codeSave\.hidden = true/);
 });
 

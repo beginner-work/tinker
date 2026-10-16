@@ -38,18 +38,25 @@ test("That's everything uses the exercise Opus model id", () => {
   assert.doesNotMatch(evaluateSrc, /openai|codex|gpt-/i);
   assert.match(html, /exercise-evaluate\.js/);
   assert.match(ui, /tinkerExerciseEvaluate|evaluateApi/);
-  assert.match(ui, /runThatsEverything|acceptEvaluate|rejectEvaluate/);
+  assert.match(ui, /runThatsEverything/);
+  assert.match(ui, /applyRevisedContent|applyNextStepReadme/);
+  assert.match(ui, /persistLearningProgress|learning-progress/);
 });
 
-test("exercise editor exposes That's everything chrome and accept/reject diff", () => {
+test("exercise editor exposes That's everything chrome with prompt card and Undo", () => {
   assert.match(html, /id="repo-code-thats-everything"/);
   assert.match(html, /That's everything/);
-  assert.match(html, /id="repo-code-evaluate-accept"/);
-  assert.match(html, /id="repo-code-evaluate-reject"/);
-  assert.match(html, /id="repo-code-evaluate-diff"/);
+  assert.match(html, /id="repo-learning-prompt"/);
+  assert.match(html, /id="repo-learning-prompt-text"/);
+  assert.match(html, /id="repo-code-undo"/);
+  assert.match(html, /id="repo-learning-zpd"/);
+  assert.match(html, /learning-progress\.js/);
+  assert.doesNotMatch(html, /Review the next-step diff/);
   assert.match(css, /repo-code__thats-everything/);
+  assert.match(css, /repo-learning__prompt/);
   assert.match(css, /repo-surface__action--primary/);
   assert.match(ui, /persistMutation\([\s\S]*write_file/);
+  assert.match(ui, /flashAppliedHighlight|is-just-applied/);
 });
 
 test("listSteps and findCurrentStep resolve api-design curriculum folders", () => {
@@ -178,11 +185,11 @@ test("applyNextStepReadme persists through workspace write path without Formatio
 });
 
 test("prompt never offers a full solution and bans Formation", () => {
-  assert.match(evaluate.SYSTEM_PROMPT, /Never give a full solution/i);
+  assert.match(evaluate.SYSTEM_PROMPT, /Never dump a full finished solution|Never give a full solution/i);
   assert.match(evaluate.SYSTEM_PROMPT, /Never mention Formation/i);
   assert.match(evaluate.SYSTEM_PROMPT, /aggressiveness dial/i);
   assert.match(evaluate.SYSTEM_PROMPT, /finer/);
-  assert.match(evaluate.SYSTEM_PROMPT, /skip ahead|merge/i);
+  assert.match(evaluate.SYSTEM_PROMPT, /skip_ahead|skip ahead|merge/i);
   assert.doesNotMatch(evaluateSrc, /formation-persistent-storage/i);
 });
 

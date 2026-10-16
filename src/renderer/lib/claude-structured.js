@@ -45,8 +45,20 @@
     properties: {
       feedback: { type: "string" },
       summary: { type: "string" },
-      nextStepPath: { type: "string" },
-      nextStepContent: { type: "string" },
+      revisedContent: { type: "string" },
+      nextPrompt: { type: "string" },
+      zpd: {
+        type: "object",
+        properties: {
+          unaided: { type: "string" },
+          justBeyond: { type: "string" },
+        },
+        required: ["unaided", "justBeyond"],
+        additionalProperties: false,
+      },
+      level: { type: "number" },
+      goalAchieved: { type: "boolean" },
+      practicePath: { type: "string" },
       aggressiveness: {
         type: "object",
         properties: {
@@ -60,8 +72,12 @@
     required: [
       "feedback",
       "summary",
-      "nextStepPath",
-      "nextStepContent",
+      "revisedContent",
+      "nextPrompt",
+      "zpd",
+      "level",
+      "goalAchieved",
+      "practicePath",
       "aggressiveness",
     ],
     additionalProperties: false,

@@ -16,7 +16,8 @@ fs.mkdirSync(outdir, { recursive: true });
 
 const SCREENS = [
   { name: "repo-writing", path: "/repo/harness/essay-question-overlap.html" },
-  { name: "repo-exercises-sidebar", path: "/repo/harness/exercises-module-sidebar.html" },
+  { name: "repo-learning-loop", path: "/repo/harness/learning-loop-after.html" },
+  { name: "repo-learning-loop-attempt", path: "/repo/harness/learning-loop-attempt.html" },
   { name: "repo-step-preview", path: "/repo/harness/desktop-step-md-preview.html" },
   { name: "repo-mobile-essay", path: "/repo/harness/mobile-essay-list.html" },
 ];
