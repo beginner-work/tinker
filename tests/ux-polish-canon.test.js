@@ -69,6 +69,9 @@ test("inflight Write is a secondary button link; no entrance animation", () => {
   assert.match(inflightHtml, /class="inflight__write"/);
   assert.match(inflightCss, /\.inflight__write\s*\{[^}]*border-radius:\s*var\(--radius-button/s);
   assert.match(inflightCss, /\.inflight__write:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
+  assert.match(inflightHtml, /id="inflight-retry"/);
+  assert.match(inflightCss, /\.inflight__retry\s*\{[^}]*border-radius:\s*var\(--radius-button/s);
+  assert.match(inflightCss, /\.inflight__retry:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
   assert.doesNotMatch(inflightCss, /@keyframes\s+inflight-row-in/);
   assert.doesNotMatch(inflightCss, /animation:\s*inflight-row-in/);
   assert.doesNotMatch(inflightCss, /transition:\s*width/);

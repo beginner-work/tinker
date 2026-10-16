@@ -1,5 +1,6 @@
 No download needed, updates on next launch
 
-Exercise Blob put/get use access public by default so seeding works with
-the public tinker-exercises store. Optional BLOB_ACCESS=private for a
-private store. Hosted web and API only; Electron shell unchanged.
+In-flight on the phone no longer hangs on Loading. Requests time out
+in about eight seconds with a Retry button, and an empty list opens
+the writing surface as designed. Agents titled Tinker, Learning, or
+Site still show with progress.

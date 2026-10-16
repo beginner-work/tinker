@@ -3,6 +3,10 @@
  * Filters to titles starting with "Tinker:", "Learning:", or "Site:".
  * Hides archived agents. Derives a progress percent from status + PR link.
  * Never exposes CURSOR_API_KEY to callers beyond the server.
+ *
+ * Auth: Cursor Cloud Agents API accepts Basic (API key as username, empty
+ * password) or Bearer; this module uses Basic per the v0 docs.
+ * Upstream fetches abort after FETCH_TIMEOUT_MS so /api/inflight cannot hang.
  */
 
 "use strict";
@@ -10,6 +14,9 @@
 const CURSOR_API_BASE = "https://api.cursor.com";
 const TITLE_PREFIX_RE = /^(Tinker|Learning|Site):\s*/i;
 const POLL_HINT_MS = 30000;
+/** Cap Cursor list calls so the PWA never waits forever on /inflight. */
+const FETCH_TIMEOUT_MS = 8000;
+const MAX_PAGES = 3;
 
 function cursorApiKey() {
   return String(process.env.CURSOR_API_KEY || "").trim();
@@ -117,7 +124,46 @@ function filterInflight(agents) {
     });
 }
 
-async function fetchAgentsPage({ limit = 100, cursor = "", fetchImpl } = {}) {
+function timeoutError(message) {
+  const err = new Error(message || "Cursor agents request timed out.");
+  err.status = 504;
+  err.code = "timeout";
+  return err;
+}
+
+function isAbortError(err) {
+  if (!err) return false;
+  if (err.name === "AbortError") return true;
+  if (err.code === "ABORT_ERR") return true;
+  return /aborted|AbortError/i.test(String(err.message || ""));
+}
+
+async function fetchWithTimeout(fetchFn, url, init, timeoutMs) {
+  const ms = Math.max(1, Number(timeoutMs) || FETCH_TIMEOUT_MS);
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    try { controller.abort(); } catch { /* ignore */ }
+  }, ms);
+  try {
+    const opts = Object.assign({}, init || {}, { signal: controller.signal });
+    return await fetchFn(url, opts);
+  } catch (err) {
+    if (isAbortError(err) || (controller.signal && controller.signal.aborted)) {
+      throw timeoutError();
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchAgentsPage({
+  limit = 100,
+  cursor = "",
+  fetchImpl,
+  timeoutMs = FETCH_TIMEOUT_MS,
+  signal,
+} = {}) {
   const key = cursorApiKey();
   if (!key) return { agents: [], nextCursor: null, configured: false };
 
@@ -127,19 +173,29 @@ async function fetchAgentsPage({ limit = 100, cursor = "", fetchImpl } = {}) {
   if (cursor) params.set("cursor", String(cursor));
 
   const url = CURSOR_API_BASE + "/v0/agents?" + params.toString();
+  // Basic auth: API key as username, empty password (Cursor v0 Cloud Agents).
   const auth = Buffer.from(key + ":").toString("base64");
-  const res = await fetchFn(url, {
-    method: "GET",
-    headers: {
-      Authorization: "Basic " + auth,
-      Accept: "application/json",
-    },
-  });
+  const headers = {
+    Authorization: "Basic " + auth,
+    Accept: "application/json",
+  };
+
+  let res;
+  if (signal) {
+    try {
+      res = await fetchFn(url, { method: "GET", headers, signal });
+    } catch (err) {
+      if (isAbortError(err) || signal.aborted) throw timeoutError();
+      throw err;
+    }
+  } else {
+    res = await fetchWithTimeout(fetchFn, url, { method: "GET", headers }, timeoutMs);
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     const err = new Error("Cursor agents request failed.");
-    err.status = res.status >= 500 ? 502 : 502;
+    err.status = 502;
     err.upstreamStatus = res.status;
     err.detail = text.slice(0, 200);
     throw err;
@@ -149,9 +205,10 @@ async function fetchAgentsPage({ limit = 100, cursor = "", fetchImpl } = {}) {
   const agents = Array.isArray(body.agents)
     ? body.agents
     : (Array.isArray(body.items) ? body.items : []);
+  const nextCursor = body.nextCursor || body.next_cursor || null;
   return {
     agents,
-    nextCursor: body.nextCursor || null,
+    nextCursor: nextCursor ? String(nextCursor) : null,
     configured: true,
   };
 }
@@ -166,15 +223,32 @@ async function listInflightAgents(opts) {
     };
   }
 
+  const budgetMs = Math.max(1, Number(options.timeoutMs) || FETCH_TIMEOUT_MS);
+  const started = Date.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    try { controller.abort(); } catch { /* ignore */ }
+  }, budgetMs);
+
   try {
     // Pull up to a few pages so title-filtered rows are not truncated.
+    // Stop early when the shared deadline is nearly spent.
     let cursor = "";
     let all = [];
-    for (let page = 0; page < 3; page += 1) {
+    const seenCursors = new Set();
+    for (let page = 0; page < MAX_PAGES; page += 1) {
+      const remaining = budgetMs - (Date.now() - started);
+      if (remaining <= 50) throw timeoutError();
+      if (cursor) {
+        if (seenCursors.has(cursor)) break;
+        seenCursors.add(cursor);
+      }
       const batch = await fetchAgentsPage({
         limit: 100,
         cursor,
         fetchImpl: options.fetchImpl,
+        signal: controller.signal,
+        timeoutMs: remaining,
       });
       all = all.concat(batch.agents || []);
       if (!batch.nextCursor) break;
@@ -186,13 +260,22 @@ async function listInflightAgents(opts) {
       pollMs: POLL_HINT_MS,
     };
   } catch (err) {
-    // Missing/invalid key or upstream hiccup: empty state, not a hard error page.
-    return {
-      configured: true,
-      agents: [],
-      pollMs: POLL_HINT_MS,
-      warning: err && err.message ? String(err.message) : "Could not load agents.",
-    };
+    if (isAbortError(err) || (controller.signal && controller.signal.aborted)) {
+      throw timeoutError();
+    }
+    // Propagate timeout / upstream failures so the client can show Retry
+    // instead of hanging or bouncing to an empty writing surface.
+    if (err && (err.code === "timeout" || err.status === 504 || err.status === 502)) {
+      throw err;
+    }
+    const wrapped = new Error(
+      err && err.message ? String(err.message) : "Could not load agents."
+    );
+    wrapped.status = 502;
+    wrapped.cause = err;
+    throw wrapped;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -200,6 +283,8 @@ module.exports = {
   CURSOR_API_BASE,
   TITLE_PREFIX_RE,
   POLL_HINT_MS,
+  FETCH_TIMEOUT_MS,
+  MAX_PAGES,
   cursorConfigured,
   titleMatches,
   isArchived,
@@ -208,4 +293,6 @@ module.exports = {
   filterInflight,
   fetchAgentsPage,
   listInflightAgents,
+  timeoutError,
+  isAbortError,
 };

@@ -2,13 +2,16 @@
  *
  * Mobile: first screen when anything is in flight; otherwise bounce to /repo.
  * Desktop: optional entry; stays on this page even when empty (shows empty state).
+ * Fetches abort after ~8s so the PWA never stays on Loading forever.
  */
 (function () {
   "use strict";
 
   var POLL_DEFAULT_MS = 30000;
+  var FETCH_TIMEOUT_MS = 8000;
   var TOKEN_KEY = "tinker_jwt";
   var timer = null;
+  var activeAbort = null;
   var els = {};
 
   function token() {
@@ -64,8 +67,38 @@
     else el.removeAttribute("hidden");
   }
 
-  function renderEmpty(configured) {
+  function clearError() {
+    setHidden(els.error, true);
+    setHidden(els.retry, true);
+    if (els.error) els.error.textContent = "";
+  }
+
+  function renderError(message) {
     setHidden(els.list, true);
+    setHidden(els.empty, true);
+    setHidden(els.status, true);
+    if (els.error) {
+      els.error.textContent = message
+        || "Could not load in-flight work. Check your connection and try again.";
+      setHidden(els.error, false);
+    }
+    setHidden(els.retry, false);
+  }
+
+  function renderLoading() {
+    clearError();
+    setHidden(els.list, true);
+    setHidden(els.empty, true);
+    if (els.status) {
+      els.status.textContent = "Loading in-flight work…";
+      setHidden(els.status, false);
+    }
+  }
+
+  function renderEmpty(configured) {
+    clearError();
+    setHidden(els.list, true);
+    setHidden(els.status, true);
     setHidden(els.empty, false);
     if (!configured) {
       els.empty.textContent =
@@ -76,7 +109,9 @@
   }
 
   function renderRows(agents) {
+    clearError();
     setHidden(els.empty, true);
+    setHidden(els.status, true);
     setHidden(els.list, false);
     els.list.innerHTML = "";
     agents.forEach(function (agent) {
@@ -139,6 +174,7 @@
     var configured = !!(payload && payload.configured);
     var agents = payload && Array.isArray(payload.agents) ? payload.agents : [];
     setHidden(els.status, true);
+    clearError();
 
     if (!agents.length) {
       if (isMobileFront() && configured && !wantsForceList()) {
@@ -151,12 +187,31 @@
     renderRows(agents);
   }
 
+  function isAbortError(err) {
+    return !!(err && (err.name === "AbortError" || err.code === "ABORT_ERR"));
+  }
+
   function fetchInflight() {
     var t = token();
     if (!t) {
       goSignIn();
       return Promise.resolve(null);
     }
+
+    if (activeAbort) {
+      try { activeAbort.abort(); } catch (e) { /* ignore */ }
+    }
+    var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    activeAbort = controller;
+    var timeoutId = null;
+    if (controller) {
+      timeoutId = setTimeout(function () {
+        try { controller.abort(); } catch (e) { /* ignore */ }
+      }, FETCH_TIMEOUT_MS);
+    }
+
+    renderLoading();
+
     return fetch("/api/inflight", {
       method: "GET",
       headers: {
@@ -164,24 +219,39 @@
         Authorization: "Bearer " + t,
       },
       cache: "no-store",
+      signal: controller ? controller.signal : undefined,
     }).then(function (res) {
       if (res.status === 401) {
         goSignIn();
         return null;
       }
       if (!res.ok) {
-        // Soft empty state: never block the writing surface with a hard error.
-        applyPayload({ configured: true, agents: [] });
-        return null;
+        return res.json().catch(function () { return {}; }).then(function (body) {
+          var msg = body && body.error
+            ? String(body.error)
+            : "Could not load in-flight work. Try again.";
+          if (res.status === 504 || (body && body.code === "timeout")) {
+            msg = "Timed out loading in-flight work. Try again.";
+          }
+          renderError(msg);
+          return null;
+        });
       }
       return res.json();
     }).then(function (body) {
       if (!body) return null;
       applyPayload(body);
       return body;
-    }).catch(function () {
-      applyPayload({ configured: true, agents: [] });
+    }).catch(function (err) {
+      if (isAbortError(err)) {
+        renderError("Timed out loading in-flight work. Try again.");
+        return null;
+      }
+      renderError("Could not load in-flight work. Check your connection and try again.");
       return null;
+    }).finally(function () {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (activeAbort === controller) activeAbort = null;
     });
   }
 
@@ -198,6 +268,8 @@
     els.list = document.getElementById("inflight-list");
     els.empty = document.getElementById("inflight-empty");
     els.status = document.getElementById("inflight-status");
+    els.error = document.getElementById("inflight-error");
+    els.retry = document.getElementById("inflight-retry");
     els.write = document.getElementById("inflight-write");
 
     if (els.write) {
@@ -207,15 +279,21 @@
       });
     }
 
+    if (els.retry) {
+      els.retry.addEventListener("click", function (event) {
+        event.preventDefault();
+        fetchInflight().then(function (body) {
+          if (body) schedulePoll(body.pollMs ? body.pollMs : POLL_DEFAULT_MS);
+        });
+      });
+    }
+
     if (!token()) {
       goSignIn();
       return;
     }
 
-    if (els.status) {
-      els.status.textContent = "Loading in-flight work…";
-      setHidden(els.status, false);
-    }
+    renderLoading();
 
     fetchInflight().then(function (body) {
       schedulePoll(body && body.pollMs ? body.pollMs : POLL_DEFAULT_MS);
