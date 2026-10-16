@@ -1,8 +1,5 @@
 No download needed, updates on next launch
 
-Production builds seed exercise files into Vercel Blob when
-BLOB_READ_WRITE_TOKEN is set (VERCEL_ENV=production). Uploads are
-idempotent: only missing or changed files are written. Formation and
-retired curriculum stay refused. If Blob is unreachable the build
-continues with a warning and exercises keep the local seed fallback.
-Hosted web and API only; Electron shell unchanged.
+Exercise Blob put/get use access public by default so seeding works with
+the public tinker-exercises store. Optional BLOB_ACCESS=private for a
+private store. Hosted web and API only; Electron shell unchanged.

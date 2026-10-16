@@ -4,9 +4,11 @@
  *   tinker/exercises/workspace-seed.json  — full seed workspace JSON
  *   tinker/exercises/files/<id>/<path>    — per-file copies for inspection
  *
- * When BLOB_READ_WRITE_TOKEN is missing, every helper no-ops or returns
- * null so callers can fall back to the checked-in seed JSON. Formation
- * and other retired curriculum ids are never written.
+ * Access defaults to public (matches the tinker-exercises store; curriculum
+ * is already public in GitHub). Set BLOB_ACCESS=private only when the store
+ * itself is private. When BLOB_READ_WRITE_TOKEN is missing, every helper
+ * no-ops or returns null so callers can fall back to the checked-in seed
+ * JSON. Formation and other retired curriculum ids are never written.
  */
 
 "use strict";
@@ -15,7 +17,6 @@ const core = require("../../src/renderer/lib/exercise-workspace-core.js");
 
 const SEED_PATHNAME = "tinker/exercises/workspace-seed.json";
 const FILES_PREFIX = "tinker/exercises/files/";
-const ACCESS = "private";
 
 function blobToken() {
   const token = String(process.env.BLOB_READ_WRITE_TOKEN || "").trim();
@@ -24,6 +25,12 @@ function blobToken() {
 
 function blobConfigured() {
   return !!blobToken();
+}
+
+/** Default public for the public tinker-exercises store. */
+function blobAccess() {
+  const raw = String(process.env.BLOB_ACCESS || "public").trim().toLowerCase();
+  return raw === "private" ? "private" : "public";
 }
 
 function isRetiredExerciseId(id) {
@@ -65,7 +72,7 @@ async function putJson(pathname, value) {
   const { put } = blobSdk();
   const body = typeof value === "string" ? value : JSON.stringify(value, null, 2);
   return put(pathname, body, {
-    access: ACCESS,
+    access: blobAccess(),
     token,
     addRandomSuffix: false,
     allowOverwrite: true,
@@ -78,7 +85,7 @@ async function putText(pathname, text, contentType) {
   if (!token) return null;
   const { put } = blobSdk();
   return put(pathname, String(text == null ? "" : text), {
-    access: ACCESS,
+    access: blobAccess(),
     token,
     addRandomSuffix: false,
     allowOverwrite: true,
@@ -90,7 +97,7 @@ async function readJson(pathname) {
   const token = blobToken();
   if (!token) return null;
   const { get } = blobSdk();
-  const result = await get(pathname, { access: ACCESS, token });
+  const result = await get(pathname, { access: blobAccess(), token });
   if (!result || !result.stream) return null;
   const chunks = [];
   for await (const chunk of result.stream) {
@@ -271,6 +278,7 @@ module.exports = {
   FILES_PREFIX,
   blobConfigured,
   blobToken,
+  blobAccess,
   isRetiredExerciseId,
   sanitizeSeed,
   filePathname,
