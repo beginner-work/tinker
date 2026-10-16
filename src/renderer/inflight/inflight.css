@@ -44,20 +44,30 @@ html, body.inflight-page {
 
 .inflight__write {
   flex-shrink: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-muted, #6f6a65);
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border, #ede8e0);
+  border-radius: var(--radius-button, 10px);
+  background: var(--color-card, #fff9f0);
+  color: var(--color-foreground, #2d2a26);
   font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 8px 4px;
-  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
   text-decoration: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-button);
 }
 
-.inflight__write:hover,
+.inflight__write:hover {
+  border-color: var(--color-accent, #a5b4fc);
+  box-shadow: var(--shadow-button-hover);
+}
+
 .inflight__write:focus-visible {
-  color: var(--color-foreground, #2d2a26);
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .inflight__sub {
@@ -104,20 +114,7 @@ html, body.inflight-page {
   row-gap: 6px;
   padding: 14px 0;
   border-bottom: 1px solid var(--color-border, #ede8e0);
-  animation: inflight-row-in 280ms ease-out both;
-}
-
-.inflight__row:nth-child(2) { animation-delay: 40ms; }
-.inflight__row:nth-child(3) { animation-delay: 80ms; }
-.inflight__row:nth-child(4) { animation-delay: 120ms; }
-
-@keyframes inflight-row-in {
-  from { opacity: 0.001; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .inflight__row { animation: none; }
+  /* Instant paint — no product-layer entrance motion. */
 }
 
 .inflight__title {
@@ -147,7 +144,13 @@ html, body.inflight-page {
 }
 
 .inflight__pr:hover {
-  opacity: 0.8;
+  color: var(--color-accent-strong, #6366f1);
+}
+
+.inflight__pr:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 2px;
 }
 
 .inflight__state {
@@ -164,7 +167,7 @@ html, body.inflight-page {
   grid-area: bar;
   height: 4px;
   margin-top: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill, 999px);
   background: rgba(45, 42, 38, 0.08);
   overflow: hidden;
 }
@@ -174,8 +177,8 @@ html, body.inflight-page {
   height: 100%;
   width: 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, #7bc47a, #7dd3fc);
-  transition: width 420ms ease;
+  background: linear-gradient(90deg, var(--logo-leaf, #7bc47a), var(--logo-sky, #7dd3fc));
+  /* Instant width updates — no transition. */
 }
 
 .inflight__bar[data-state="error"] > span {
@@ -184,7 +187,7 @@ html, body.inflight-page {
 
 .inflight__bar[data-state="merged"] > span,
 .inflight__bar[data-state="pr_open"] > span {
-  background: linear-gradient(90deg, #6ee7b7, #7bc47a);
+  background: linear-gradient(90deg, var(--logo-mint, #6ee7b7), var(--logo-leaf, #7bc47a));
 }
 
 @media (min-width: 721px) {
