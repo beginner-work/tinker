@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connections — connected</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/connections/connections.css" />
+  </head>
+  <body class="connections-page">
+    <main class="connections">
+      <a class="connections__back" href="/settings">← Settings</a>
+      <h1 class="connections__title">Connections</h1>
+      <p class="connections__lede">Link outside tools so Claude can use them while you write. Your tokens stay on the server, encrypted.</p>
+      <p class="connections__hint">This is separate from <a href="/mcp/access">MCP access</a>, which lets bots call Tinker.</p>
+      <ul class="connections__list">
+        <li class="connections__card" data-connector-id="notion">
+          <div class="connections__card-head">
+            <div>
+              <h2 class="connections__name">Notion</h2>
+              <p class="connections__desc">Search and fetch pages from your Notion workspace.</p>
+            </div>
+            <span class="connections__badge connections__badge--on">Connected</span>
+          </div>
+          <p class="connections__meta">Connected Oct 15, 2026 · Read-only (search and fetch)</p>
+          <div class="connections__actions">
+            <button type="button" class="connections__btn connections__btn--ghost">Disconnect</button>
+            <button type="button" class="connections__btn">Allow writes</button>
+          </div>
+        </li>
+      </ul>
+    </main>
+  </body>
+</html>

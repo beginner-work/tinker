@@ -28,9 +28,13 @@
 "use strict";
 
 const { authenticateSession } = require("../_lib/stytch.js");
+const { userIdFromSession } = require("../_lib/mcp-keys.js");
 const { withResponseLogging } = require("../_lib/log.js");
 const { callAnthropic } = require("../_lib/anthropic.js");
 const { draftLinkedInPost } = require("../_lib/linkedin-draft.js");
+const {
+  buildAnthropicMcpAttachment,
+} = require("../_lib/mcp-connection-store.js");
 
 function parseBody(req) {
   if (req.body && typeof req.body === "object") return req.body;
@@ -55,12 +59,14 @@ module.exports = withResponseLogging(async function handler(req, res) {
   }
 
   const token = extractBearer(req.headers && req.headers.authorization);
+  let session;
   try {
-    await authenticateSession(token);
+    session = await authenticateSession(token);
   } catch (err) {
     res.status(err.status || 401).json({ error: err.message || "Unauthorized" });
     return;
   }
+  const userId = userIdFromSession(session);
 
   const body = parseBody(req);
   if (!body) {
@@ -93,15 +99,36 @@ module.exports = withResponseLogging(async function handler(req, res) {
   try {
     // Client shim historically sent max_tokens; older docs said maxTokens.
     const maxTokens = body.maxTokens != null ? body.maxTokens : body.max_tokens;
+    let tools = Array.isArray(body.tools) ? body.tools.slice() : [];
+    let mcpServers = Array.isArray(body.mcp_servers) ? body.mcp_servers.slice() : [];
+
+    // Attach outbound MCP connectors (e.g. Notion) when the user has
+    // connected them. Read-only tools by default; write tools only after
+    // an explicit Connections UI confirm. Skip when the client already
+    // sent mcp_servers (tests / advanced callers), or when mcpAttach is
+    // explicitly false.
+    if (userId && body.mcpAttach !== false && mcpServers.length === 0) {
+      try {
+        const attached = await buildAnthropicMcpAttachment({ userId });
+        if (attached.mcp_servers && attached.mcp_servers.length) {
+          mcpServers = attached.mcp_servers;
+          tools = tools.concat(attached.tools || []);
+        }
+      } catch {
+        /* Connections are optional; never fail the writing turn. */
+      }
+    }
+
     const result = await callAnthropic({
       system: body.system,
       messages,
       model: body.model,
       maxTokens,
-      tools: body.tools,
+      tools: tools.length ? tools : body.tools,
       tool_choice: body.tool_choice,
       output_config: body.output_config,
       output_format: body.output_format,
+      mcp_servers: mcpServers.length ? mcpServers : undefined,
     });
     res.status(200).json(result);
   } catch (err) {

@@ -401,6 +401,21 @@ there is no local Anthropic key and no address-bar search engine in the
 app. Server routes such as `api/search.js` still exist for product
 features that need them; they use `ANTHROPIC_API_KEY` on Vercel.
 
+## Connections (outbound MCP client)
+
+Open **Connections** from Settings or the profile menu (`/connections`).
+Tinker acts as an MCP client: Notion is first
+(`https://mcp.notion.com/mcp`, OAuth 2.1 + dynamic client registration +
+PKCE). Access and refresh tokens are stored per user in Postgres
+(`TinkerUserData`), encrypted with `TINKER_SECRETS_KEY` (falls back to
+`STYTCH_SECRET`). Connected read tools (`notion-search`, `notion-fetch`)
+attach automatically on `/api/claude/converse`. Write tools stay off
+until you confirm **Allow writes** in the UI (one hour).
+
+This is separate from **MCP access** below (bots calling Tinker’s own
+MCP server). Add more servers later in
+`api/_lib/mcp-connectors-registry.js`.
+
 ## MCP
 
 Add this URL in the connector:

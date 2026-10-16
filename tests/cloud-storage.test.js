@@ -68,9 +68,9 @@ function memFs(tree) {
   };
 }
 
-test("version bump is 0.1.26 in package.json and .release-version", () => {
-  assert.equal(packageJson.version, "0.1.26");
-  assert.equal(releaseVersion, "0.1.26");
+test("version bump is 0.1.27 in package.json and .release-version", () => {
+  assert.equal(packageJson.version, "0.1.27");
+  assert.equal(releaseVersion, "0.1.27");
 });
 
 test("main and preload expose storage cloud root and custom path IPC", () => {

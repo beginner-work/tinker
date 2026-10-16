@@ -34,6 +34,8 @@
     { "source": "/leads/", "destination": "/leads/index.html" },
     { "source": "/settings", "destination": "/settings/index.html" },
     { "source": "/settings/", "destination": "/settings/index.html" },
+    { "source": "/connections", "destination": "/connections/index.html" },
+    { "source": "/connections/", "destination": "/connections/index.html" },
     { "source": "/feed", "destination": "/feed/index.html" },
     { "source": "/feed/", "destination": "/feed/index.html" },
     { "source": "/metrics", "destination": "/metrics/index.html" },

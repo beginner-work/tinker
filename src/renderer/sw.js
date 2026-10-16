@@ -32,7 +32,7 @@
  * logic changes so activate evicts the old cache on every client.
  */
 
-const CACHE_VERSION = "tinker-shell-v75";
+const CACHE_VERSION = "tinker-shell-v76";
 
 // The shell, mirroring the <link>/<script> tags in index.html plus the
 // icons/tokens the first paint needs. Keep in sync when assets are added
@@ -149,15 +149,17 @@ self.addEventListener("fetch", (event) => {
   // Leave the API on the network — freewrite.js gates it page-side, and
   // it's per-user/authenticated, so it must never be cached.
   if (sameOrigin && url.pathname.startsWith("/api/")) return;
-  // /autonomy, /career, /leads, /settings, /feed, /metrics, /exercises, and /repo
-  // are their own pages. Leave them on the network so a visit does not get
-  // stored as the offline shell for "/". (networkFirstDoc used to cache any
-  // navigate response under "/" / index.html, which made Settings overwrite
-  // the People inbox shell in the iPhone PWA.)
+  // /autonomy, /career, /leads, /settings, /connections, /feed, /metrics,
+  // /exercises, and /repo are their own pages. Leave them on the network so
+  // a visit does not get stored as the offline shell for "/".
+  // (networkFirstDoc used to cache any navigate response under "/" /
+  // index.html, which made Settings overwrite the People inbox shell in
+  // the iPhone PWA.)
   if (sameOrigin && (url.pathname === "/autonomy" || url.pathname.startsWith("/autonomy/"))) return;
   if (sameOrigin && (url.pathname === "/career" || url.pathname.startsWith("/career/"))) return;
   if (sameOrigin && (url.pathname === "/leads" || url.pathname.startsWith("/leads/"))) return;
   if (sameOrigin && (url.pathname === "/settings" || url.pathname.startsWith("/settings/"))) return;
+  if (sameOrigin && (url.pathname === "/connections" || url.pathname.startsWith("/connections/"))) return;
   if (sameOrigin && (url.pathname === "/feed" || url.pathname.startsWith("/feed/"))) return;
   if (sameOrigin && (url.pathname === "/metrics" || url.pathname.startsWith("/metrics/"))) return;
   if (sameOrigin && (url.pathname === "/exercises" || url.pathname.startsWith("/exercises/"))) return;
