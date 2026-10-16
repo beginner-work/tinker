@@ -1,6 +1,5 @@
 No download needed, updates on next launch
 
-In-flight on the phone no longer hangs on Loading. Requests time out
-in about eight seconds with a Retry button, and an empty list opens
-the writing surface as designed. Agents titled Tinker, Learning, or
-Site still show with progress.
+In-flight tracking left Tinker for Notion. The top-left In flight entry,
+/inflight route, and /api/inflight are gone. Mobile PWA opens the writing
+surface again. Exercises moved back to the top left with a dumbbell icon.

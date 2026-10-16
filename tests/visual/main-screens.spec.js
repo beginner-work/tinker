@@ -21,14 +21,6 @@ const SCREENS = [
     name: "repo-mobile-essay",
     path: "/repo/harness/mobile-essay-list.html",
   },
-  {
-    name: "inflight-empty",
-    path: "/inflight/screenshot-empty.html",
-  },
-  {
-    name: "inflight-list",
-    path: "/inflight/screenshot-inflight.html",
-  },
 ];
 
 test.beforeEach(async ({ page }) => {

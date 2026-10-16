@@ -1,4 +1,4 @@
-/* UI-contract: /repo + /inflight use design-system close/back/focus patterns. */
+/* UI-contract: /repo uses design-system close/back/focus patterns. */
 "use strict";
 
 const { test } = require("node:test");
@@ -9,14 +9,6 @@ const path = require("node:path");
 const root = path.join(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "src/renderer/repo/index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "src/renderer/repo/repo.css"), "utf8");
-const inflightCss = fs.readFileSync(
-  path.join(root, "src/renderer/inflight/inflight.css"),
-  "utf8"
-);
-const inflightHtml = fs.readFileSync(
-  path.join(root, "src/renderer/inflight/index.html"),
-  "utf8"
-);
 const repoJs = fs.readFileSync(path.join(root, "src/renderer/repo/repo.js"), "utf8");
 const exUi = fs.readFileSync(
   path.join(root, "src/renderer/repo/exercise-workspace-ui.js"),
@@ -63,18 +55,6 @@ test("panels stay flat; focus uses --focus-ring; foot has no product motion", ()
     /\.repo-surface__foot\s*\{[^}]*transition:\s*opacity/s
   );
   assert.doesNotMatch(css, /@keyframes\s+labs-drawer-slide-in/);
-});
-
-test("inflight Write is a secondary button link; no entrance animation", () => {
-  assert.match(inflightHtml, /class="inflight__write"/);
-  assert.match(inflightCss, /\.inflight__write\s*\{[^}]*border-radius:\s*var\(--radius-button/s);
-  assert.match(inflightCss, /\.inflight__write:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
-  assert.match(inflightHtml, /id="inflight-retry"/);
-  assert.match(inflightCss, /\.inflight__retry\s*\{[^}]*border-radius:\s*var\(--radius-button/s);
-  assert.match(inflightCss, /\.inflight__retry:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
-  assert.doesNotMatch(inflightCss, /@keyframes\s+inflight-row-in/);
-  assert.doesNotMatch(inflightCss, /animation:\s*inflight-row-in/);
-  assert.doesNotMatch(inflightCss, /transition:\s*width/);
 });
 
 test("UI copy avoids free/real/quietly and em dashes on /repo shell", () => {

@@ -878,7 +878,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=58"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=59"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
   assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
@@ -1340,7 +1340,9 @@ test("write page shared top bar: beaker + hamburger on desktop and mobile", () =
   assert.match(html, /aria-label="Exercises"/);
   assert.doesNotMatch(html, />\s*Learning Lab\s*</);
   assert.match(html, /repo-top__labs-label/);
-  assert.match(html, /M10 2v7\.527/);
+  assert.match(html, /M14\.4 14\.4 9\.6 9\.6/);
+  assert.match(html, /M18\.657 21\.485/);
+  assert.doesNotMatch(html, /M10 2v7\.527/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Past essays"/);
   // Hamburger (lucide Menu), not the old document icon.
