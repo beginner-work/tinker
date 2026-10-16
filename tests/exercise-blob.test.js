@@ -26,18 +26,39 @@ const envExample = fs.readFileSync(path.join(root, ".env.example"), "utf8");
 const pkg = require("../package.json");
 
 const prevToken = process.env.BLOB_READ_WRITE_TOKEN;
+const prevAccess = process.env.BLOB_ACCESS;
 
 beforeEach(() => {
   delete process.env.BLOB_READ_WRITE_TOKEN;
+  delete process.env.BLOB_ACCESS;
 });
 
 afterEach(() => {
   if (prevToken == null) delete process.env.BLOB_READ_WRITE_TOKEN;
   else process.env.BLOB_READ_WRITE_TOKEN = prevToken;
+  if (prevAccess == null) delete process.env.BLOB_ACCESS;
+  else process.env.BLOB_ACCESS = prevAccess;
 });
 
 test("blob helpers report unconfigured without token", () => {
   assert.equal(blob.blobConfigured(), false);
+});
+
+test("blobAccess defaults to public; BLOB_ACCESS=private opts in", () => {
+  assert.equal(blob.blobAccess(), "public");
+  process.env.BLOB_ACCESS = "private";
+  assert.equal(blob.blobAccess(), "private");
+  process.env.BLOB_ACCESS = "PUBLIC";
+  assert.equal(blob.blobAccess(), "public");
+  process.env.BLOB_ACCESS = "weird";
+  assert.equal(blob.blobAccess(), "public");
+  const blobSrc = fs.readFileSync(
+    path.join(root, "api/_lib/exercise-blob.js"),
+    "utf8"
+  );
+  assert.match(blobSrc, /access:\s*blobAccess\(\)/);
+  assert.equal(blobSrc.includes('access: "private"'), false);
+  assert.equal(blobSrc.includes("access: 'private'"), false);
 });
 
 test("sanitizeSeed strips Formation and retired ids", () => {
@@ -157,8 +178,9 @@ test("package.json exposes seed:exercises-blob script", () => {
   assert.match(pkg.scripts["seed:exercises-blob"], /seed-exercises-to-blob/);
 });
 
-test("env example documents BLOB_READ_WRITE_TOKEN and CURSOR_API_KEY", () => {
+test("env example documents BLOB_READ_WRITE_TOKEN, BLOB_ACCESS, and CURSOR_API_KEY", () => {
   assert.match(envExample, /BLOB_READ_WRITE_TOKEN/);
+  assert.match(envExample, /BLOB_ACCESS/);
   assert.match(envExample, /CURSOR_API_KEY/);
 });
 
