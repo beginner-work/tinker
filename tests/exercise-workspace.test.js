@@ -422,8 +422,10 @@ test("API/store wiring persists via TinkerUserData and never mentions GitHub wri
 
 test("repo IDE explorer wires exercise trees and drops the Output panel", () => {
   assert.match(html, /id="repo-explorer"/);
-  assert.match(html, /id="repo-ex-new-file"/);
-  assert.match(html, /id="repo-ex-new-folder"/);
+  assert.doesNotMatch(html, /id="repo-ex-new-file"/);
+  assert.doesNotMatch(html, /id="repo-ex-new-folder"/);
+  assert.doesNotMatch(html, /New learning module/);
+  assert.doesNotMatch(html, /id="repo-explorer-toolbar"/);
   assert.match(html, /id="repo-code"/);
   assert.match(html, /exercise-workspace-ui\.js/);
   assert.match(html, /exercise-workspace-core\.js/);
@@ -437,12 +439,8 @@ test("repo IDE explorer wires exercise trees and drops the Output panel", () => 
   assert.match(uiSrc, /refreshStaleCurriculum/);
   assert.match(uiSrc, /draggable/);
   assert.match(uiSrc, /Sign in to (save|Tinker|Learning)/);
-  assert.match(html, /id="repo-ex-new-file"[^>]*>New learning module</);
-  assert.match(html, /id="repo-ex-new-folder"[^>]*>New learning modules</);
   assert.match(html, /All learning modules/);
   assert.match(uiSrc, /No learning modules yet/);
-  assert.doesNotMatch(html, /id="repo-ex-new-file"[^>]*>New file</);
-  assert.doesNotMatch(html, /id="repo-ex-new-folder"[^>]*>New folder</);
   assert.doesNotMatch(uiSrc, /\u2014/);
 });
 
@@ -468,6 +466,8 @@ test("Exercises sidebar presents one learning module with step progression, not 
   assert.match(harness, /Your answer/);
   assert.match(harness, /Next module/);
   assert.match(harness, /Generated after you finish this one/);
+  assert.doesNotMatch(harness, /New learning module/);
+  assert.doesNotMatch(harness, /repo-explorer__toolbar/);
   assert.doesNotMatch(harness, /README\.md/);
   assert.doesNotMatch(harness, /steps\.json/);
   assert.doesNotMatch(harness, /00-in-plain-english\//);

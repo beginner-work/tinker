@@ -878,13 +878,14 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=59"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=60"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
   assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
   assert.match(css, /data-repo-essays-list="1"/);
   assert.match(html, /id="repo-explorer"/);
-  assert.match(html, /id="repo-ex-new-file"/);
+  assert.doesNotMatch(html, /id="repo-ex-new-file"/);
+  assert.doesNotMatch(html, /New learning module/);
   assert.match(html, /id="repo-code"/);
   assert.match(html, /id="repo-panel"/);
   assert.match(html, /id="repo-panel-write"/);

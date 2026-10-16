@@ -1,5 +1,5 @@
 No download needed, updates on next launch
 
-In-flight tracking left Tinker for Notion. The top-left In flight entry,
-/inflight route, and /api/inflight are gone. Mobile PWA opens the writing
-surface again. Exercises moved back to the top left with a dumbbell icon.
+Removed the New learning module button from the Exercises sidebar on
+desktop and mobile. Learning modules stay curriculum-driven; the empty
+create entry point and its toolbar handlers are gone.
