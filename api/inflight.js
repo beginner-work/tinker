@@ -3,7 +3,8 @@
  * Lists in-flight Cursor cloud agents for the signed-in owner.
  * Uses CURSOR_API_KEY server-side only (never returned to the client).
  * When the key is missing, returns an empty configured:false payload
- * (clear empty state, not an error).
+ * (clear empty state, not an error). Upstream timeouts / failures return
+ * 504/502 so the PWA can show Retry instead of hanging on Loading.
  */
 
 "use strict";
@@ -59,6 +60,16 @@ module.exports = withResponseLogging(async function handler(req, res) {
     return;
   }
 
-  const payload = await inflight.listInflightAgents();
-  send(res, 200, payload);
+  try {
+    const payload = await inflight.listInflightAgents();
+    send(res, 200, payload);
+  } catch (err) {
+    const status = err && err.status
+      ? err.status
+      : (err && err.code === "timeout" ? 504 : 502);
+    send(res, status >= 400 && status < 600 ? status : 502, {
+      error: err && err.message ? String(err.message) : "Could not load in-flight agents.",
+      code: err && err.code ? String(err.code) : undefined,
+    });
+  }
 });

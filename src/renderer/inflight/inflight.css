@@ -86,7 +86,9 @@ html, body.inflight-page {
 
 .inflight__empty[hidden],
 .inflight__list[hidden],
-.inflight__status[hidden] {
+.inflight__status[hidden],
+.inflight__error[hidden],
+.inflight__retry[hidden] {
   display: none !important;
 }
 
@@ -94,6 +96,40 @@ html, body.inflight-page {
   margin: 12px 0 0;
   color: var(--color-muted, #6f6a65);
   font-size: 13px;
+}
+
+.inflight__error {
+  margin: 12px 0 0;
+  color: var(--color-danger, #b42318);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.inflight__retry {
+  margin: 12px 0 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border, #ede8e0);
+  border-radius: var(--radius-button, 10px);
+  background: var(--color-card, #fff9f0);
+  color: var(--color-foreground, #2d2a26);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-button);
+}
+
+.inflight__retry:hover {
+  border-color: var(--color-accent, #a5b4fc);
+  box-shadow: var(--shadow-button-hover);
+}
+
+.inflight__retry:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .inflight__list {

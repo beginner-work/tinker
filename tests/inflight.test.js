@@ -47,6 +47,7 @@ test("archived and expired agents are hidden", () => {
 test("progress derives from status and PR link", () => {
   assert.equal(inflight.progressFor({ status: "CREATING" }).percent, 15);
   assert.equal(inflight.progressFor({ status: "RUNNING" }).state, "running");
+  assert.equal(inflight.progressFor({ status: "ACTIVE" }).state, "running");
   assert.equal(inflight.progressFor({ status: "FINISHED" }).state, "finished");
   assert.equal(
     inflight.progressFor({
@@ -115,21 +116,31 @@ test("missing CURSOR_API_KEY returns empty configured:false (not an error)", asy
   assert.equal(payload.pollMs, 30000);
 });
 
-test("API route never returns the Cursor key and soft-fails empty", () => {
+test("API route never returns the Cursor key; surfaces upstream errors", () => {
   assert.match(apiSrc, /CURSOR_API_KEY|listInflightAgents/);
   assert.match(apiSrc, /authenticateSession/);
   assert.doesNotMatch(apiSrc, /process\.env\.CURSOR_API_KEY/);
-  assert.match(apiSrc, /configured:false|listInflightAgents/);
+  assert.match(apiSrc, /listInflightAgents/);
+  assert.match(apiSrc, /504|502/);
+  assert.match(apiSrc, /catch \(err\)/);
 });
 
-test("inflight page has Write escape hatch, progress bar, and poll", () => {
+test("inflight page has Write escape hatch, progress bar, poll, timeout, and retry", () => {
   assert.match(pageHtml, /id="inflight-write"/);
   assert.match(pageHtml, />Write</);
   assert.match(pageHtml, /In flight/);
+  assert.match(pageHtml, /id="inflight-error"/);
+  assert.match(pageHtml, /id="inflight-retry"/);
   assert.match(pageJs, /30000|pollMs/);
+  assert.match(pageJs, /FETCH_TIMEOUT_MS\s*=\s*8000/);
+  assert.match(pageJs, /AbortController/);
+  assert.match(pageJs, /Timed out loading in-flight work/);
+  assert.match(pageJs, /renderError|inflight-retry/);
   assert.match(pageJs, /goWriting|\/repo/);
   assert.match(pageJs, /progressbar|inflight__bar/);
   assert.match(pageCss, /\.inflight__bar/);
+  assert.match(pageCss, /\.inflight__retry/);
+  assert.match(pageCss, /\.inflight__error/);
   assert.doesNotMatch(pageHtml + pageJs, /\u2014/); // em dash
   assert.doesNotMatch(pageHtml + pageJs, /\b(free|real|quietly)\b/i);
 });
@@ -152,12 +163,35 @@ test("release notes first line is no-download web update", () => {
   assert.equal(first, "No download needed, updates on next launch");
 });
 
+test("Cursor auth uses Basic with API key as username on v0/agents", async () => {
+  process.env.CURSOR_API_KEY = "test-key";
+  let sawAuth = "";
+  let sawUrl = "";
+  await inflight.fetchAgentsPage({
+    fetchImpl: async (url, opts) => {
+      sawUrl = String(url);
+      sawAuth = opts.headers.Authorization;
+      return {
+        ok: true,
+        async json() {
+          return { agents: [] };
+        },
+      };
+    },
+  });
+  assert.match(sawUrl, /api\.cursor\.com\/v0\/agents/);
+  assert.match(sawAuth, /^Basic /);
+  const decoded = Buffer.from(sawAuth.replace(/^Basic\s+/i, ""), "base64").toString("utf8");
+  assert.equal(decoded, "test-key:");
+});
+
 test("listInflightAgents uses mocked Cursor v0 agents list", async () => {
   process.env.CURSOR_API_KEY = "test-key";
   const payload = await inflight.listInflightAgents({
     fetchImpl: async (url, opts) => {
       assert.match(String(url), /api\.cursor\.com\/v0\/agents/);
       assert.match(opts.headers.Authorization, /^Basic /);
+      assert.ok(opts.signal, "shared abort signal required");
       return {
         ok: true,
         async json() {
@@ -179,6 +213,14 @@ test("listInflightAgents uses mocked Cursor v0 agents list", async () => {
                 source: { repository: "https://github.com/beginner-work/tinker" },
                 target: {},
               },
+              {
+                id: "bc_3",
+                name: "Site: landing",
+                status: "CREATING",
+                createdAt: "2026-01-02T00:00:00Z",
+                source: { repository: "https://github.com/beginner-work/site" },
+                target: {},
+              },
             ],
           };
         },
@@ -186,7 +228,117 @@ test("listInflightAgents uses mocked Cursor v0 agents list", async () => {
     },
   });
   assert.equal(payload.configured, true);
-  assert.equal(payload.agents.length, 1);
-  assert.equal(payload.agents[0].title, "Tinker: demo");
-  assert.equal(payload.agents[0].state, "running");
+  assert.equal(payload.agents.length, 2);
+  assert.equal(payload.agents[0].title, "Site: landing");
+  assert.equal(payload.agents[0].state, "creating");
+  assert.equal(payload.agents[1].title, "Tinker: demo");
+  assert.equal(payload.agents[1].state, "running");
+});
+
+test("hung Cursor list aborts within FETCH_TIMEOUT_MS budget", async () => {
+  process.env.CURSOR_API_KEY = "test-key";
+  const started = Date.now();
+  await assert.rejects(
+    () => inflight.listInflightAgents({
+      timeoutMs: 80,
+      fetchImpl: (_url, opts) => new Promise((_resolve, reject) => {
+        const signal = opts && opts.signal;
+        if (!signal) return;
+        if (signal.aborted) {
+          reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+          return;
+        }
+        signal.addEventListener("abort", () => {
+          reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+        });
+      }),
+    }),
+    (err) => {
+      assert.equal(err.code, "timeout");
+      assert.equal(err.status, 504);
+      return true;
+    }
+  );
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed < 2000, "timeout should not hang (elapsed=" + elapsed + "ms)");
+});
+
+test("upstream Cursor failure propagates as 502 (not silent empty)", async () => {
+  process.env.CURSOR_API_KEY = "test-key";
+  await assert.rejects(
+    () => inflight.listInflightAgents({
+      fetchImpl: async () => ({
+        ok: false,
+        status: 401,
+        async text() { return "unauthorized"; },
+      }),
+    }),
+    (err) => {
+      assert.equal(err.status, 502);
+      assert.equal(err.upstreamStatus, 401);
+      return true;
+    }
+  );
+});
+
+test("pagination follows nextCursor and stops without repeat loops", async () => {
+  process.env.CURSOR_API_KEY = "test-key";
+  const calls = [];
+  const payload = await inflight.listInflightAgents({
+    fetchImpl: async (url) => {
+      const u = new URL(String(url));
+      calls.push(u.searchParams.get("cursor") || "");
+      if (calls.length === 1) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agents: [{
+                id: "a",
+                name: "Tinker: page1",
+                status: "RUNNING",
+                createdAt: "2026-01-01T00:00:00Z",
+                source: { repository: "https://github.com/beginner-work/tinker" },
+                target: {},
+              }],
+              nextCursor: "cur_2",
+            };
+          },
+        };
+      }
+      return {
+        ok: true,
+        async json() {
+          return {
+            agents: [{
+              id: "b",
+              name: "Learning: page2",
+              status: "RUNNING",
+              createdAt: "2026-01-02T00:00:00Z",
+              source: { repository: "https://github.com/beginner-work/tinker" },
+              target: {},
+            }],
+            nextCursor: "cur_2", // repeat would loop; code must stop
+          };
+        },
+      };
+    },
+  });
+  assert.deepEqual(calls, ["", "cur_2"]);
+  assert.equal(payload.agents.length, 2);
+});
+
+test("FETCH_TIMEOUT_MS is eight seconds", () => {
+  assert.equal(inflight.FETCH_TIMEOUT_MS, 8000);
+});
+
+test("client empty mobile path still routes to /repo; errors do not", () => {
+  assert.match(pageJs, /isMobileFront\(\)\s*&&\s*configured/);
+  assert.match(pageJs, /goWriting/);
+  // Errors must call renderError, not applyPayload with empty agents.
+  assert.match(pageJs, /renderError\(/);
+  assert.doesNotMatch(
+    pageJs,
+    /if\s*\(!res\.ok\)\s*\{[^}]*applyPayload\(\{\s*configured:\s*true,\s*agents:\s*\[\s*\]\s*\}\)/s
+  );
 });
