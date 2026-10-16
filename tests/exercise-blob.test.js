@@ -97,6 +97,61 @@ test("seed script refuses Formation and documents token", () => {
   assert.match(seedScript, /sanitizeSeed/);
 });
 
+test("seed script soft-fails during production build when Blob is unreachable", () => {
+  assert.match(seedScript, /--during-build/);
+  assert.match(seedScript, /VERCEL_ENV/);
+  assert.match(seedScript, /production/);
+  assert.match(seedScript, /warning: Blob unreachable/);
+  assert.match(seedScript, /continuing build/);
+  // Soft-fail path must not exit 1 for Blob errors during build.
+  assert.match(seedScript, /duringBuild[\s\S]*process\.exit\(0\)|exit\(0\)/);
+});
+
+test("vercel production buildCommand seeds exercises into Blob", () => {
+  const vercel = JSON.parse(
+    fs.readFileSync(path.join(root, "vercel.json"), "utf8")
+  );
+  assert.match(
+    String(vercel.buildCommand || ""),
+    /seed-exercises-to-blob\.js\s+--during-build/
+  );
+  assert.match(String(vercel.buildCommand || ""), /prisma generate/);
+});
+
+test("seedFileMap keys file pathnames for idempotent uploads", () => {
+  const map = blob.seedFileMap({
+    exercises: {
+      "api-design": {
+        id: "api-design",
+        nodes: [
+          { path: "README.md", type: "file", content: "# hi" },
+          { path: "src", type: "folder", content: null },
+          { path: "src/main.js", type: "file", content: "ok" },
+        ],
+      },
+    },
+  });
+  assert.equal(map["tinker/exercises/files/api-design/README.md"], "# hi");
+  assert.equal(map["tinker/exercises/files/api-design/src/main.js"], "ok");
+  assert.equal(Object.prototype.hasOwnProperty.call(map, "tinker/exercises/files/api-design/src"), false);
+});
+
+test("writeSeedWorkspace skips unchanged files when prior seed matches", async () => {
+  // Without a token the helper still returns skipped; with a token we cannot
+  // hit real Blob here. Assert the idempotent return fields exist in source
+  // and the missing-token path stays safe.
+  const result = await blob.writeSeedWorkspace(seed);
+  assert.equal(result.ok, false);
+  assert.equal(result.skipped, true);
+  const blobSrc = fs.readFileSync(
+    path.join(root, "api/_lib/exercise-blob.js"),
+    "utf8"
+  );
+  assert.match(blobSrc, /seedUploaded/);
+  assert.match(blobSrc, /filesSkipped/);
+  assert.match(blobSrc, /prevFiles\[pathname\] === nextFiles\[pathname\]/);
+});
+
 test("package.json exposes seed:exercises-blob script", () => {
   assert.equal(typeof pkg.scripts["seed:exercises-blob"], "string");
   assert.match(pkg.scripts["seed:exercises-blob"], /seed-exercises-to-blob/);

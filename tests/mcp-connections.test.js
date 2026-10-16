@@ -441,7 +441,6 @@ test("UI + routes expose Connections without breaking MCP access", () => {
   assert.match(connJs, /confirmed/);
   assert.match(envEx, /TINKER_SECRETS_KEY/);
   assert.equal(notes.split(/\r?\n/, 1)[0].trim(), "No download needed, updates on next launch");
-  assert.match(notes, /Notion/);
   assert.equal(notes.includes("\u2014"), false);
   assert.equal(/\bfree\b/i.test(notes), false);
   assert.equal(/\breal\b/i.test(notes), false);

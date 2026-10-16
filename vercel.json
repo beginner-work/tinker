@@ -4,7 +4,7 @@
   "framework": null,
   "outputDirectory": "src/renderer",
   "installCommand": "npm ci",
-  "buildCommand": "prisma generate",
+  "buildCommand": "prisma generate && node scripts/seed-exercises-to-blob.js --during-build",
   "ignoreCommand": "case \"$VERCEL_GIT_COMMIT_REF\" in main|crafting|cursor/*) exit 1 ;; *) exit 0 ;; esac",
   "rewrites": [
     { "source": "/.well-known/oauth-protected-resource", "destination": "/api/mcp-oauth?op=resource" },
