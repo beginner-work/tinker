@@ -32,14 +32,15 @@ test("shared shell markup: top bar, learning loop, writing, right essays", () =>
   assert.match(html, /id="repo-code"/);
   assert.match(html, /id="repo-ide-center"/);
   assert.match(html, /class="repo-right[^"]*repo-essays-sidebar|repo-essays-sidebar[^"]*repo-right/);
-  assert.doesNotMatch(html, /id="repo-labs-link"/);
+  // Exercises dumbbell is in the markup for mobile loop access; desktop CSS hides it.
+  assert.match(html, /id="repo-labs-link"/);
+  assert.match(html, /data-exercises-nav/);
+  assert.match(html, /aria-label="Exercises"/);
   assert.match(html, /id="repo-ide-tabbar"/);
   assert.match(html, /repo-layout--learning/);
   assert.match(html, /id="repo-learning-prompt"/);
   assert.match(html, /id="repo-code-thats-everything"/);
   assert.match(html, /id="repo-code-undo"/);
-  assert.doesNotMatch(html, /data-exercises-nav/);
-  assert.doesNotMatch(html, /aria-label="Exercises"/);
   assert.doesNotMatch(html, />\s*Learning Lab\s*</);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /id="repo-panel"/);
@@ -102,7 +103,7 @@ test("layout CSS: explorer | center | essays rail; mobile hides code editing", (
 });
 
 test("learning loop hides explorer and keeps prompt + editor chrome", () => {
-  assert.match(html, /repo\.css\?v=61/);
+  assert.match(html, /repo\.css\?v=62/);
   assert.match(html, /repo-layout--learning/);
   assert.match(css, /\.repo-layout--learning/);
   assert.match(

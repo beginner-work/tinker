@@ -8,6 +8,7 @@ Playwright `toHaveScreenshot` locks the main hosted surfaces at two viewports:
 Screens covered (static harnesses, no live Claude/API):
 
 - `/repo` writing surface (`essay-question-overlap.html`)
+- Mobile `/repo` first screen — essay writing (`mobile-writing-first.html`)
 - Learning loop after apply (`learning-loop-after.html`)
 - Learning loop attempt (`learning-loop-attempt.html`)
 - Lesson step markdown preview (`desktop-step-md-preview.html`)

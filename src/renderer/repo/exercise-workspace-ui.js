@@ -7,10 +7,12 @@
  * That's everything: Claude Opus evaluates the attempt, applies revisedContent
  * into the open file automatically (subtle highlight + Undo), updates ZPD
  * and the next prompt, and persists learning_progress. No Accept/Reject,
- * no Exercises sidebar, no multi-file tabs as the main UX.
+ * no Exercises sidebar tree, no multi-file tabs as the main UX.
  *
- * Lindow Labs Learning sign-in gates the practice file. Explorer chrome is
- * kept in the DOM for id stability but never shown (repo-layout--learning).
+ * Desktop: learning loop is the first screen. Mobile: essay writing is first;
+ * Exercises (dumbbell) opens/closes the prompt + practice file. Claude only
+ * (no Formation). Explorer chrome stays in the DOM for id stability but is
+ * never shown (repo-layout--learning).
  */
 (function () {
   "use strict";
@@ -60,6 +62,9 @@
     // exerciseId → { status: 'pending'|'error'|'done', essayBody, error }
     transform: {},
     learningProgress: null,
+    // Mobile: learning loop is opt-in via Exercises nav; first paint is essay writing.
+    // Desktop: learning surface opens on init (unchanged from the ZPD loop).
+    learningSurfaceOpen: false,
   };
 
   var els = {};
@@ -373,9 +378,23 @@
     }).catch(function () { /* keep editor undo even if save fails */ });
   }
 
+  function closeLearningSurface() {
+    state.learningSurfaceOpen = false;
+    state.openTabs = [];
+    state.activeTabId = null;
+    state.selected = { exerciseId: null, nodeId: null };
+    setUndoSnapshot(null);
+    clearAppliedHighlight();
+    showWritingChrome(true);
+    renderLearningChrome();
+    render();
+    if (typeof state.onReleaseEditor === "function") state.onReleaseEditor();
+  }
+
   function openPracticeFromProgress() {
     var progress = normalizeLearningProgress(state.learningProgress);
     state.learningProgress = progress;
+    state.learningSurfaceOpen = true;
     var exerciseId = progress.exerciseId || "api-design";
     if (!state.workspace.exercises[exerciseId]) {
       var order = state.workspace.exerciseOrder || [];
@@ -384,6 +403,7 @@
     var ex = state.workspace.exercises[exerciseId];
     if (!ex || !revision || typeof revision.findNodeByPath !== "function") {
       renderLearningChrome();
+      showWritingChrome(false);
       return false;
     }
     var practicePath = String(progress.practicePath || "")
@@ -400,6 +420,7 @@
     }
     if (!node || node.type !== "file") {
       renderLearningChrome();
+      showWritingChrome(false);
       return false;
     }
     openFile(exerciseId, node.id, { keepContent: true, focus: true });
@@ -444,6 +465,7 @@
       // Never list or open exercise files while signed out.
       state.mobileFile = null;
       state.queuedMobileFile = null;
+      state.learningSurfaceOpen = false;
       state.workspace = core.emptyWorkspace();
       state.loadVersion += 1;
       state.readerSession = Math.random().toString(36);
@@ -522,11 +544,19 @@
   }
 
   function toggleExplorer() {
-    // Learning loop never shows the Exercises explorer. Signed-out still
-    // offers Learning sign-in; signed-in is a no-op keep-collapsed stub.
+    // Learning loop never shows the Exercises explorer tree. On mobile the
+    // dumbbell toggles the prompt+file learning surface vs essay writing.
+    // Desktop already lands on the learning surface; keep explorer collapsed.
     if (!isLearningSignedIn()) {
       requestLearningSignIn();
       applyAuthGate();
+      setExplorerOpen(false);
+      return;
+    }
+    if (isLearningLoop() && !isWideDesktop()) {
+      if (state.learningSurfaceOpen) closeLearningSurface();
+      else openPracticeFromProgress();
+      return;
     }
     setExplorerOpen(false);
   }
@@ -836,13 +866,15 @@
   }
 
   function showWritingChrome(show) {
-    // Learning loop: one practice editor stays the main surface (desktop +
-    // narrow). Writing pad stays available; Save/Refactor chrome stays hidden.
+    // Desktop learning loop: practice editor is the main surface.
+    // Mobile: essay writing is the first screen; learning chrome only when
+    // Exercises nav opened the loop (learningSurfaceOpen).
     var desktop = isWideDesktop();
     var learning = isLearningLoop();
+    var mobileLearning = !desktop && learning && state.learningSurfaceOpen;
     if (els.pad) els.pad.hidden = false;
     if (els.location) els.location.hidden = false;
-    if (!desktop && !learning) {
+    if (!desktop && !mobileLearning) {
       if (els.code) els.code.hidden = true;
       if (els.codeSave) els.codeSave.hidden = true;
       if (els.codeUndo) els.codeUndo.hidden = true;
@@ -1967,7 +1999,8 @@
     }
     var node = findNode(exerciseId, nodeId);
     if (!node || node.type !== "file") return;
-    // Learning loop uses the editor on every width; skip the mobile reader.
+    // Learning loop uses the editor on every width once opened; skip the mobile reader.
+    if (isLearningLoop()) state.learningSurfaceOpen = true;
     if (!isWideDesktop() && !isLearningLoop()) {
       if (state.readerBackPending) {
         state.queuedMobileFile = { exerciseId: exerciseId, nodeId: nodeId };
@@ -2108,7 +2141,8 @@
   }
 
   function renderCode() {
-    if (!isWideDesktop() && !isLearningLoop()) {
+    // Mobile first screen is essay writing unless Exercises opened the loop.
+    if (!isWideDesktop() && !(isLearningLoop() && state.learningSurfaceOpen)) {
       showWritingChrome(true);
       return;
     }
@@ -2861,12 +2895,20 @@
           Promise.all([loadWorkspace(), fetchLearningProgress()]).then(function () {
             applyDefaultCollapsed();
             setExplorerOpen(false);
-            openPracticeFromProgress();
+            // Desktop: reopen learning loop. Mobile: stay on essay writing.
+            if (isWideDesktop()) openPracticeFromProgress();
+            else {
+              state.learningSurfaceOpen = false;
+              showWritingChrome(true);
+              renderLearningChrome();
+            }
             render();
           });
         } else {
           state.learningProgress = normalizeLearningProgress(null);
+          state.learningSurfaceOpen = false;
           setUndoSnapshot(null);
+          showWritingChrome(true);
           render();
         }
       });
@@ -2880,19 +2922,28 @@
     if (!els.body && !els.signin && !els.code) return Promise.resolve();
     wire();
     applyAuthGate();
-    // Learning loop: explorer stays collapsed. Prompt + one file is the surface.
+    // Learning loop: explorer stays collapsed. Desktop opens prompt + file;
+    // mobile first paint is essay writing (Exercises nav opens the loop).
     setExplorerOpen(false);
     if (els.layout) els.layout.classList.add("repo-layout--learning");
     if (!isLearningSignedIn()) {
       state.learningProgress = normalizeLearningProgress(null);
+      state.learningSurfaceOpen = false;
       renderLearningChrome();
+      showWritingChrome(true);
       render();
       return Promise.resolve(state.workspace);
     }
     return Promise.all([loadWorkspace(), fetchLearningProgress()]).then(function () {
       applyDefaultCollapsed();
       setExplorerOpen(false);
-      openPracticeFromProgress();
+      if (isWideDesktop()) {
+        openPracticeFromProgress();
+      } else {
+        state.learningSurfaceOpen = false;
+        showWritingChrome(true);
+        renderLearningChrome();
+      }
       render();
       return state.workspace;
     });
@@ -2929,12 +2980,14 @@
     undoAppliedContent: undoAppliedContent,
     startNextLearningGoal: startNextLearningGoal,
     openPracticeFromProgress: openPracticeFromProgress,
+    closeLearningSurface: closeLearningSurface,
     fetchLearningProgress: fetchLearningProgress,
     persistLearningProgress: persistLearningProgress,
     getLearningProgress: function () {
       return normalizeLearningProgress(state.learningProgress);
     },
     renderLearningChrome: renderLearningChrome,
+    isLearningSurfaceOpen: function () { return !!state.learningSurfaceOpen; },
     // test helpers
     _setWorkspace: function (ws) {
       applyWorkspace(ws);

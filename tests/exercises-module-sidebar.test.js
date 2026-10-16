@@ -111,7 +111,7 @@ test("learning loop hides explorer and opens the practice file with prompt", asy
   await e.ui.init();
   assert.ok(e.el("repo-layout").classList.contains("repo-layout--learning"));
   assert.equal(e.el("repo-explorer").hidden, true);
-  assert.equal(e.el("repo-labs-link"), null);
+  assert.ok(e.el("repo-labs-link"));
   assert.match(e.el("repo-learning-prompt-text").textContent, /plain English|PaymentIntent/i);
   assert.match(e.el("repo-learning-goal").textContent, /OpenAPI/);
   assert.equal(e.el("repo-code").hidden, false);
@@ -122,10 +122,13 @@ test("learning loop hides explorer and opens the practice file with prompt", asy
   assert.ok(e.editorDocs.length >= 1);
 });
 
-test("narrow width still shows prompt and That's everything", async (t) => {
+test("narrow width first screen hides learning code until Exercises opens it", async (t) => {
   const e = setup(t, { width: 390 });
   await e.ui.init();
   assert.ok(e.el("repo-layout").classList.contains("repo-layout--learning"));
+  assert.equal(e.el("repo-code").hidden, true);
+  assert.ok(e.el("repo-labs-link"));
+  e.ui.toggleExplorer();
   assert.equal(e.el("repo-code").hidden, false);
   assert.equal(e.el("repo-code-thats-everything").hidden, false);
   assert.match(e.el("repo-learning-prompt-text").textContent, /./);

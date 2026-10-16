@@ -450,9 +450,13 @@ test("Learning loop surface: prompt card, one file, no Exercises sidebar UX", ()
   assert.match(html, /id="repo-learning-prompt"/);
   assert.match(html, /id="repo-code-thats-everything"/);
   assert.match(html, /id="repo-code-undo"/);
-  assert.doesNotMatch(html, /id="repo-labs-link"/);
+  // Mobile opens the loop via Exercises nav; desktop hides the dumbbell in CSS.
+  assert.match(html, /id="repo-labs-link"/);
+  assert.match(html, /data-exercises-nav/);
+  assert.match(css, /\.repo-layout--learning \.repo-top__labs/);
   assert.doesNotMatch(html, /New learning module/);
   assert.match(uiSrc, /openPracticeFromProgress/);
+  assert.match(uiSrc, /learningSurfaceOpen/);
   assert.match(uiSrc, /persistLearningProgress/);
   assert.match(uiSrc, /flashAppliedHighlight|is-just-applied/);
   assert.match(uiSrc, /repo-layout--learning/);
@@ -467,6 +471,7 @@ test("Learning loop surface: prompt card, one file, no Exercises sidebar UX", ()
   assert.match(harness, /That's everything/);
   assert.match(harness, /id="repo-code-undo"/);
   assert.match(harness, /Just beyond/);
+  // Learning harnesses stay loop-only (no top-bar chrome).
   assert.doesNotMatch(harness, /id="repo-labs-link"/);
   assert.doesNotMatch(harness, /New learning module/);
   assert.doesNotMatch(harness, /id="repo-code-evaluate-accept"/);

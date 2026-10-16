@@ -10,6 +10,11 @@ const SCREENS = [
     path: "/repo/harness/essay-question-overlap.html",
   },
   {
+    // Mobile /repo first paint: essay writing (not the learning loop).
+    name: "repo-mobile-writing-first",
+    path: "/repo/harness/mobile-writing-first.html",
+  },
+  {
     name: "repo-learning-loop",
     path: "/repo/harness/learning-loop-after.html",
   },
