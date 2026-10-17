@@ -1006,8 +1006,9 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-top--labs\s*\{[^}]*z-index:\s*50/s);
   assert.match(
     css,
-    /\.repo-center\.repo-write-safe-top::before\s*\{[^}]*top:\s*calc\(\s*52px \+ env\(safe-area-inset-top/s,
+    /\.repo-center\.repo-write-safe-top::before[\s\S]*?\{\s*[^}]*top:\s*calc\(\s*52px \+ env\(safe-area-inset-top/s,
   );
+  assert.match(css, /\.repo-surface\.repo-write-safe-top::before/);
   assert.match(css, /@media\s*\(display-mode:\s*standalone\)/);
   assert.match(page, /visualViewport/);
   assert.match(page, /--repo-keyboard-inset/);
