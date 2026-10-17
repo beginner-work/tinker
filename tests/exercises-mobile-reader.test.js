@@ -169,10 +169,11 @@ test("mobile learning CSS only forces editor when is-code-open", () => {
   assert.match(css, /mobile first paint stays essay writing/);
 });
 
-test("Exercises dumbbell is present for mobile learning access", () => {
+test("tinker mark is present for left-drawer access", () => {
   assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /data-exercises-nav/);
-  assert.match(css, /\.repo-layout--learning \.repo-top__labs/);
+  assert.match(css, /\.repo-top__labs/);
+  assert.match(html, /tinker-mark\.svg/);
 });
 
 test("signout clears practice chrome", async (t) => {

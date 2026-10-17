@@ -15,6 +15,16 @@ const SCREENS = [
     path: "/repo/harness/mobile-writing-first.html",
   },
   {
+    // Empty pad, no place — "Pick a place to begin" visible.
+    name: "repo-writing-place-empty",
+    path: "/repo/harness/writing-place-empty.html",
+  },
+  {
+    // Place picked (Home), blank pad — empty-state copy hidden.
+    name: "repo-writing-place-picked",
+    path: "/repo/harness/writing-place-picked.html",
+  },
+  {
     name: "repo-learning-loop",
     path: "/repo/harness/learning-loop-after.html",
   },
@@ -29,6 +39,11 @@ const SCREENS = [
   {
     name: "repo-mobile-essay",
     path: "/repo/harness/mobile-essay-list.html",
+  },
+  {
+    // Simplified Essays sidebar: titles only, no New/close/Move chrome.
+    name: "repo-essays-sidebar-simple",
+    path: "/repo/harness/essays-sidebar-simple.html",
   },
 ];
 

@@ -14,35 +14,21 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=40" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=62" />
+    <link rel="stylesheet" href="/repo/repo.css?v=63" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
-    <!-- Shared top bar: mobile Exercises opens the learning loop; desktop first
-         screen is already the loop (dumbbell hidden there). Past-essays hamburger. -->
+    <!-- Shared top bar: Tinker mark (left drawer) + past-essays hamburger.
+         Continuous with the writing surface - no distinct nav chrome. -->
     <header class="repo-top repo-top--labs" aria-label="Tools">
-      <a class="repo-top__labs"
+      <button type="button"
+         class="repo-top__labs"
          id="repo-labs-link"
-         href="https://lindowlabs.dev/learning"
-         target="_blank" rel="noopener noreferrer"
-         aria-label="Exercises"
-         title="Exercises"
-         data-learning-lab
+         aria-label="Open sidebar"
+         title="Open sidebar"
          data-exercises-nav>
-        <!-- Lucide Dumbbell; same 20px box + stroke weight as the hamburger. -->
-        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
-                d="M14.4 14.4 9.6 9.6"/>
-          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
-                d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z"/>
-          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
-                d="m21.5 21.5-1.4-1.4"/>
-          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
-                d="M3.9 3.9 2.5 2.5"/>
-          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
-                d="M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z"/>
-        </svg>
-        <span class="repo-top__labs-label">Exercises</span>
-      </a>
+        <!-- Canonical tinker mark; same 20px box as the hamburger. -->
+        <img class="repo-top__labs-icon" src="/icons/tinker-mark.svg?v=40" alt="" width="20" height="20" aria-hidden="true" />
+      </button>
       <button type="button" class="repo-top__past-essays" id="repo-past-essays"
               aria-label="Past essays" title="Past essays" aria-expanded="false"
               aria-controls="repo-right">
@@ -193,7 +179,7 @@
                 </div>
                 <div class="repo-write-empty" id="repo-write-empty" hidden>
                   <p class="repo-write-empty__title">Pick a place to begin</p>
-                  <p class="repo-write-empty__copy">Choose where you are above, then write - or open Exercises from the top left.</p>
+                  <p class="repo-write-empty__copy">Choose where you are above, then write.</p>
                 </div>
                 <div class="repo-exercise-chip" id="repo-exercise-chip" hidden>
                   <span class="repo-exercise-chip__spinner" id="repo-exercise-chip-spinner" hidden aria-hidden="true"></span>
@@ -228,12 +214,6 @@
         <header class="repo-panel__head" id="repo-panel-head">
           <div class="repo-panel__head-row repo-panel__head-row--title">
             <h2 class="repo-panel__title" id="repo-stories-heading">Essays</h2>
-            <button type="button" class="repo-panel__close" id="repo-panel-close"
-                    aria-label="Close essays" title="Close essays"><svg class="repo-icon repo-icon--close" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-          </div>
-          <div class="repo-panel__actions">
-            <button type="button" class="repo-tree__new" id="repo-new-folder">New folder</button>
-            <button type="button" class="repo-tree__new repo-tree__new--essay" id="repo-sidebar-new-piece">New essay</button>
           </div>
         </header>
         <section class="repo-tree" aria-labelledby="repo-stories-heading">
@@ -329,8 +309,8 @@
     <script src="/lib/lock-in-ui.js?v=1"></script>
     <script src="/lib/exercise-workspace-core.js?v=41"></script>
     <script src="/repo/exercise-workspace-ui.js?v=60"></script>
-    <script src="/made-by-lindow-labs.js?v=50"></script>
-    <script src="/repo/repo.js?v=52"></script>
+    <script src="/made-by-lindow-labs.js?v=51"></script>
+    <script src="/repo/repo.js?v=53"></script>
     <script src="/repo/storage-section.js?v=40"></script>
   </body>
 </html>

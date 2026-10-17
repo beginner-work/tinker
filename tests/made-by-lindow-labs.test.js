@@ -72,15 +72,15 @@ test("made-by opener uses the desktop openExternal bridge", () => {
   assert.match(sw, /made-by-lindow-labs\.js/);
 });
 
-test("write page keeps Exercises dumbbell (mobile loop) + past-essays hamburger", () => {
+test("write page keeps tinker mark + past-essays hamburger", () => {
   const html = fs.readFileSync(path.join(RENDERER, "repo", "index.html"), "utf8");
   const src = fs.readFileSync(path.join(RENDERER, "made-by-lindow-labs.js"), "utf8");
   const css = fs.readFileSync(path.join(RENDERER, "repo", "repo.css"), "utf8");
   assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /data-exercises-nav/);
-  assert.match(html, /aria-label="Exercises"/);
-  assert.match(html, /M14\.4 14\.4 9\.6 9\.6/);
-  assert.match(html, /M18\.657 21\.485/);
+  assert.match(html, /aria-label="Open sidebar"/);
+  assert.match(html, /tinker-mark\.svg/);
+  assert.doesNotMatch(html, /M14\.4 14\.4 9\.6 9\.6/);
   assert.match(html, /made-by-lindow-labs\.js/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Past essays"/);
@@ -95,7 +95,8 @@ test("write page keeps Exercises dumbbell (mobile loop) + past-essays hamburger"
   assert.match(src, /framingLooksBlocked/);
   assert.match(css, /\.labs-drawer/);
   assert.match(css, /\.labs-drawer__panel/);
-  assert.match(css, /\.repo-layout--learning \.repo-top__labs/);
+  assert.match(css, /\.repo-top__labs/);
+  assert.match(html, /tinker-mark\.svg/);
   assert.match(html, /frame-src https:\/\/lindowlabs\.dev/);
   const phrases = visibleLearningPhrases(html);
   assert.equal(phrases.learningLab, false, "no visible Learning Lab text on trigger");
