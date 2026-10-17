@@ -107,39 +107,112 @@ body.repo-page--files {
   overflow: visible;
 }
 
-.repo-top__new-essay {
+/* Shared compose dock: FAB and writing-status island share one bottom-right anchor
+ * so the circle can stretch into the pill (and reverse) without jumping. */
+body.repo-page--write {
+  /* Legacy bottom essays panel is gone on write; do not inherit :root 35vh. */
+  --repo-panel-height: 0px;
+  --repo-compose-dock-right: calc(16px + env(safe-area-inset-right, 0px));
+  --repo-compose-dock-bottom: calc(
+    var(--repo-foot-floor, max(48px, 8vh)) + env(safe-area-inset-bottom, 0px)
+  );
+  --repo-compose-morph-ms: 300ms;
+  --repo-compose-morph-ease: ease-out;
+}
+
+@media (min-width: 801px) {
+  body.repo-page--write:has(.repo-layout--write.is-essays-open) {
+    --repo-compose-dock-right: calc(16px + 280px + env(safe-area-inset-right, 0px));
+  }
+}
+
+/* New essay FAB: circular, bottom-right, desktop + mobile/PWA.
+ * Same action as the old centered top-nav pencil. Morphs into .repo-surface__foot. */
+.repo-fab-new {
+  position: fixed;
+  z-index: 40;
+  right: var(--repo-compose-dock-right, calc(16px + env(safe-area-inset-right, 0px)));
+  bottom: var(--repo-compose-dock-bottom, calc(20px + env(safe-area-inset-bottom, 0px)));
   display: inline-flex;
-  pointer-events: auto;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
-  margin: 0 auto;
+  width: 56px;
+  height: 56px;
+  min-width: 48px;
+  min-height: 48px;
+  margin: 0;
   padding: 0;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface, #fff);
+  color: var(--color-foreground);
   cursor: pointer;
+  box-shadow:
+    0 6px 20px rgba(28, 25, 23, 0.10),
+    0 1px 3px rgba(28, 25, 23, 0.06);
   -webkit-tap-highlight-color: transparent;
   -webkit-app-region: no-drag;
   app-region: no-drag;
+  pointer-events: auto;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--repo-compose-morph-ms, 300ms) var(--repo-compose-morph-ease, ease-out),
+    transform var(--repo-compose-morph-ms, 300ms) var(--repo-compose-morph-ease, ease-out);
 }
 
-.repo-top__new-essay:hover,
-.repo-top__new-essay:focus-visible {
+.repo-fab-new:hover,
+.repo-fab-new:focus-visible {
   color: var(--color-foreground);
-  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
+  background: color-mix(in srgb, var(--color-surface, #fff) 88%, var(--color-accent, #a5b4fc) 12%);
 }
 
-.repo-top__new-essay:focus-visible {
+.repo-fab-new:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring);
+  box-shadow:
+    var(--focus-ring),
+    0 6px 20px rgba(28, 25, 23, 0.10),
+    0 1px 3px rgba(28, 25, 23, 0.06);
 }
 
-.repo-top__new-essay-icon {
+.repo-fab-new__icon {
   display: block;
+}
+
+/* Hidden once the island owns the dock (or while code editor is open). */
+.repo-fab-new.is-docked-away,
+body.repo-code-open .repo-fab-new,
+.repo-layout--write.is-code-open ~ .repo-fab-new,
+body.repo-page--write:has(.repo-layout--write.is-code-open) .repo-fab-new {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.92);
+}
+
+body.repo-code-open .repo-fab-new,
+.repo-layout--write.is-code-open ~ .repo-fab-new,
+body.repo-page--write:has(.repo-layout--write.is-code-open) .repo-fab-new {
+  display: none;
+}
+
+/* Over mobile essay drawers: restore the FAB even if compose docked to island
+ * (the island itself is hidden with the writing surface). */
+body.repo-page--write[data-repo-essays-list="1"] .repo-fab-new,
+body.repo-page--write[data-repo-tech-essays-list="1"] .repo-fab-new {
+  z-index: 60;
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.repo-page--write {
+    --repo-compose-morph-ms: 0ms;
+  }
+  .repo-fab-new {
+    transition: opacity 160ms ease;
+    transform: none;
+  }
 }
 
 .repo-top__past-essays {
@@ -2883,12 +2956,23 @@ body.repo-page--write .repo-surface.repo-write-safe-top::before {
   /* Below .repo-location (z-index 12) and well below .repo-top--labs (50). */
   z-index: 8;
   pointer-events: none;
-  /* Solid through most of the band so a mid-line peek cannot read through;
-     soft dissolve only in the last stretch into the pad. */
-  background: linear-gradient(
+  /* Same wash as html/body (fixed so radials align). Mask soft-dissolves
+     scrolled text; flat cream no longer seams nav and the location pill. */
+  background:
+    radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
+    radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
+    var(--color-background);
+  background-attachment: fixed;
+  -webkit-mask-image: linear-gradient(
     to bottom,
-    var(--color-background) 0%,
-    var(--color-background) 72%,
+    #000 0%,
+    #000 72%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 72%,
     transparent 100%
   );
 }
@@ -3481,9 +3565,9 @@ body.repo-page--write .repo-center {
   background: transparent;
   /* No auth header - clear the notch / status bar; location sits in this pad. */
   padding: calc(12px + env(safe-area-inset-top, 0px)) 24px 96px;
-  /* Room for fixed action island: floor gap + pill (~52px) + breathing room. */
+  /* Room for fixed action island + New essay FAB (~56px) so text never sits under them. */
   padding-bottom: calc(
-    var(--repo-foot-floor, max(48px, 8vh)) + 72px + env(safe-area-inset-bottom, 0px)
+    var(--repo-foot-floor, max(48px, 8vh)) + 72px + 64px + env(safe-area-inset-bottom, 0px)
   );
 }
 
@@ -3802,51 +3886,126 @@ body.repo-page--write .repo-center {
   align-self: auto;
   margin: 0;
   margin-left: auto;
-  /* Full-width editor column; sit above the bottom essays panel. */
-  right: var(--repo-foot-gutter);
+  /* Same dock as .repo-fab-new so the circle can stretch into this pill. */
+  right: var(--repo-compose-dock-right, var(--repo-foot-gutter));
   left: auto;
-  z-index: 30;
+  z-index: 41;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  padding: 6px;
+  box-sizing: border-box;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 0;
+  overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill, 999px);
-  background: color-mix(in srgb, var(--color-background) 92%, transparent);
+  border-radius: 50%;
+  background: var(--color-surface, #fff);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   /* Mode-nav style chrome chip: rest shadow only, no product-layer motion. */
-  box-shadow: var(--shadow-button);
+  box-shadow:
+    0 6px 20px rgba(28, 25, 23, 0.10),
+    0 1px 3px rgba(28, 25, 23, 0.06);
   opacity: 0;
   pointer-events: none;
   -webkit-app-region: no-drag;
-  bottom: calc(
-    var(--repo-foot-floor) + var(--repo-panel-height, 0px) + env(safe-area-inset-bottom, 0px)
+  bottom: var(
+    --repo-compose-dock-bottom,
+    calc(var(--repo-foot-floor) + var(--repo-panel-height, 0px) + env(safe-area-inset-bottom, 0px))
   );
   top: auto;
   transform: none;
+  transition:
+    width var(--repo-compose-morph-ms, 300ms) var(--repo-compose-morph-ease, ease-out),
+    min-width var(--repo-compose-morph-ms, 300ms) var(--repo-compose-morph-ease, ease-out),
+    height var(--repo-compose-morph-ms, 300ms) var(--repo-compose-morph-ease, ease-out),
+    min-height var(--repo-compose-morph-ms, 300ms) var(--repo-compose-morph-ease, ease-out),
+    border-radius var(--repo-compose-morph-ms, 300ms) var(--repo-compose-morph-ease, ease-out),
+    padding var(--repo-compose-morph-ms, 300ms) var(--repo-compose-morph-ease, ease-out),
+    opacity 160ms var(--repo-compose-morph-ease, ease-out),
+    background var(--repo-compose-morph-ms, 300ms) var(--repo-compose-morph-ease, ease-out),
+    box-shadow var(--repo-compose-morph-ms, 300ms) var(--repo-compose-morph-ease, ease-out);
 }
 
-/* Desktop panel: foot is a sibling of the scrolling surface (not inside it),
-   so it cannot cover essay/question text. Pad/surface padding reserves height. */
+/* Desktop panel: keep the island on the shared fixed dock (with the FAB) so
+ * morphing does not jump between absolute panel coords and the viewport FAB. */
 @media (min-width: 801px) {
   .repo-panel__write > .repo-surface__foot {
-    position: absolute;
-    bottom: 12px;
-    right: 12px;
+    position: fixed;
+    bottom: var(--repo-compose-dock-bottom, 12px);
+    right: var(--repo-compose-dock-right, 12px);
     left: auto;
     top: auto;
     align-self: auto;
     margin: 0;
-    z-index: 5;
+    z-index: 41;
     transform: none;
   }
 }
 
+/* Expanded island: stretch to pill; contents fade in after width settles. */
 .repo-surface__foot.is-visible {
   opacity: 1;
   pointer-events: auto;
+  width: max-content;
+  min-width: max-content;
+  height: auto;
+  min-height: 52px;
+  padding: 6px;
+  border-radius: var(--radius-pill, 999px);
+  background: color-mix(in srgb, var(--color-background) 92%, transparent);
+  box-shadow: var(--shadow-button);
+}
+
+.repo-surface__foot .repo-surface__action {
+  opacity: 0;
+  transform: translateY(2px);
+  transition:
+    opacity 160ms var(--repo-compose-morph-ease, ease-out),
+    transform 160ms var(--repo-compose-morph-ease, ease-out);
+  transition-delay: 0ms;
+}
+
+.repo-surface__foot.is-visible.is-content-ready .repo-surface__action {
+  opacity: 1;
+  transform: none;
+  transition-delay: 40ms;
+}
+
+.repo-surface__foot.is-visible.is-morphing-to-fab {
+  width: 56px;
+  min-width: 56px;
+  height: 56px;
+  min-height: 56px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--color-surface, #fff);
+  box-shadow:
+    0 6px 20px rgba(28, 25, 23, 0.10),
+    0 1px 3px rgba(28, 25, 23, 0.06);
+}
+
+.repo-surface__foot.is-morphing-to-fab .repo-surface__action {
+  opacity: 0;
+  transition-delay: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .repo-surface__foot {
+    transition: opacity 160ms ease;
+  }
+  .repo-surface__foot .repo-surface__action {
+    transform: none;
+    transition: opacity 160ms ease;
+  }
+  .repo-surface__foot.is-visible .repo-surface__action {
+    opacity: 1;
+  }
 }
 
 .repo-surface__action {
@@ -4564,6 +4723,8 @@ body.repo-page--write .repo-center {
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    /* Clear the New essay FAB so the last rows stay tappable. */
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-right .repo-changes,
@@ -4597,9 +4758,9 @@ body.repo-page--write .repo-center {
   .repo-surface.writing {
     /* Match location sticky top so the pad text starts below the pill. */
     padding: calc(56px + env(safe-area-inset-top, 0px)) 12px 88px;
-    /* Room for fixed action island + home indicator + open keyboard. */
+    /* Room for action island + New essay FAB + home indicator + keyboard. */
     padding-bottom: calc(
-      96px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
+      96px + 64px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
     );
     min-height: calc(100vh - 56px);
     min-height: calc(100svh - 56px);

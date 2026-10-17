@@ -1,3 +1,3 @@
 No download needed, updates on next launch
 
-Web-only: polished coding-exercise goals can save to a private tinker-exercises GitHub repo when Allow writes is on; attempts stay in Tinker. Scaffolds stripped from practice files. Founder Source / Development labels, one mobile drawer, New pen. Claude only.
+Home write view: remove the cream strip between the top nav and the location dropdown so nav, dropdown, and page read as one continuous wash. Move New essay from the top-nav pencil to a bottom-right floating button that morphs into the Keep crafting / This is everything island (and back), with a reduced-motion crossfade. Dropdown pill and nav icons unchanged.

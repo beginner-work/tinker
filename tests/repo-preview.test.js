@@ -888,12 +888,17 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /exercise-workspace-ui\.js/);
   assert.match(html, /learning-auth\.js/);
   assert.match(html, /src="\/lib\/exercise-reconstruct\.js\?v=2"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=59"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=60"/);
   assert.match(html, /src="\/lib\/essay-classify\.js\?v=2"/);
   assert.match(html, /src="\/lib\/mcp-context\.js\?v=1"/);
   assert.match(html, /id="repo-new-essay"/);
   assert.match(html, /aria-label="New essay"/);
-  assert.match(css, /\.repo-top__new-essay/);
+  assert.match(html, /class="repo-fab-new"/);
+  assert.match(css, /\.repo-fab-new/);
+  assert.match(css, /--repo-compose-dock-right/);
+  assert.match(css, /--repo-compose-morph-ms/);
+  assert.doesNotMatch(html, /repo-top__new-essay/);
+  assert.doesNotMatch(css, /\.repo-top__new-essay\s*\{/);
   assert.match(page, /closePeerSurfaces/);
   assert.match(page, /closePeerSurfaces\(null\)/);
   assert.match(page, /closePeerSurfaces\("essays"\)/);
@@ -911,7 +916,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=69"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=70"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.doesNotMatch(html, /Close essays/);
   assert.match(css, /data-repo-essays-list="1"/);
@@ -968,9 +973,10 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /--repo-foot-floor:\s*max\(\s*48px,\s*8vh\s*\)/);
   assert.match(css, /--repo-foot-floor:\s*max\(\s*48px,\s*8dvh\s*\)/);
+  assert.match(css, /--repo-compose-dock-bottom:/);
   assert.match(
     css,
-    /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*var\(--repo-foot-floor\)\s*\+\s*var\(--repo-panel-height,\s*0px\)\s*\+\s*env\(safe-area-inset-bottom/s,
+    /\.repo-surface__foot\s*\{[^}]*bottom:\s*var\(\s*--repo-compose-dock-bottom/s,
   );
   assert.match(css, /\.repo-surface\.writing\s+\.repo-pad\s*\{[^}]*--repo-foot-floor/s);
   assert.match(
@@ -986,7 +992,9 @@ test("repo write page is writing surface + Location place + structure sidebar", 
     /@media\s*\(\s*hover:\s*hover\s*\)\s*and\s*\(\s*pointer:\s*fine\s*\)\s*\{[\s\S]*\.repo-surface__kbd\s*\{[^}]*display:\s*inline/s,
   );
   // Product layer: writing foot appears instantly (no opacity transition).
-  assert.doesNotMatch(css, /\.repo-surface__foot\s*\{[^}]*transition:\s*opacity/s);
+  // Morph: width/radius/opacity transitions (reduced-motion falls back to opacity only).
+  assert.match(css, /\.repo-surface__foot\s*\{[^}]*transition:[\s\S]*?width/s);
+  assert.match(css, /prefers-reduced-motion:\s*reduce[\s\S]*?\.repo-surface__foot\s*\{[^}]*transition:\s*opacity/s);
   assert.match(css, /\.repo-surface__foot\.is-visible\s*\{[^}]*opacity:\s*1/s);
   assert.match(css, /100dvh/);
   assert.match(css, /100svh/);
@@ -1117,11 +1125,13 @@ test("UI-contract: desktop Keep crafting pill bottom offset is max(48px, 8vh)", 
   assert.match(css, /--repo-foot-floor:\s*max\(\s*48px,\s*8vh\s*\)/);
   assert.match(css, /--repo-foot-floor:\s*max\(\s*48px,\s*8dvh\s*\)/);
   assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
+  // Foot shares the compose dock with the New essay FAB (floor + panel + safe-area).
+  assert.match(css, /--repo-compose-dock-bottom:/);
   assert.match(
     css,
-    /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*var\(--repo-foot-floor\)\s*\+\s*var\(--repo-panel-height,\s*0px\)\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\s*\)/s,
+    /\.repo-surface__foot\s*\{[^}]*bottom:\s*var\(\s*--repo-compose-dock-bottom/s,
   );
-  // Editor scroll area clears the fixed pill (floor + pill height).
+  // Editor scroll area clears the fixed pill (floor + pill height + FAB).
   assert.match(
     css,
     /\.repo-surface\.writing\s+\.repo-pad\s*\{[^}]*padding-bottom:\s*calc\(\s*var\(--repo-foot-floor(?:,\s*max\(\s*48px,\s*8vh\s*\))?\s*\)\s*\+\s*56px\s*\)/s,
@@ -1136,11 +1146,11 @@ test("UI-contract: desktop Keep crafting pill bottom offset is max(48px, 8vh)", 
   assert.match(css, /\.repo-surface\.writing\s*\{[^}]*overflow:\s*visible/s);
   // Phone keeps the tight #453 floor (not the desktop raise).
   assert.match(css, /@media\s*\(max-width:\s*767px\)\s*\{[\s\S]*--repo-foot-floor:\s*12px/);
-  // Panel-hosted foot is absolute beside the scrolling surface; default stays fixed.
+  // Foot stays fixed on the shared compose dock (with the FAB) for morphing.
   assert.match(css, /\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s);
   assert.match(
     css,
-    /\.repo-panel__write\s*>\s*\.repo-surface__foot\s*\{[^}]*position:\s*absolute/s,
+    /\.repo-panel__write\s*>\s*\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s,
   );
   assert.doesNotMatch(css, /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*40px/s);
   // Panel: question in normal flow; pad sizes to content (no collapse under foot).
@@ -1174,12 +1184,13 @@ test("UI-contract: desktop action pill clears closed essays rail", () => {
   );
   assert.match(
     css,
-    /\.repo-surface__foot\s*\{[^}]*right:\s*var\(--repo-foot-gutter\)/s,
+    /\.repo-surface__foot\s*\{[^}]*right:\s*var\(\s*--repo-compose-dock-right(?:,\s*var\(--repo-foot-gutter\))?\s*\)/s,
   );
   assert.match(
     css,
-    /\.repo-surface__foot\s*\{[^}]*bottom:\s*calc\(\s*var\(--repo-foot-floor\)\s*\+\s*var\(--repo-panel-height,\s*0px\)/s,
+    /\.repo-surface__foot\s*\{[^}]*bottom:\s*var\(\s*--repo-compose-dock-bottom/s,
   );
+  assert.match(css, /--repo-compose-dock-bottom:[\s\S]*--repo-foot-floor/);
 
   for (const [w, h] of [
     [1440, 900],
