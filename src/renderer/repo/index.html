@@ -17,8 +17,9 @@
     <link rel="stylesheet" href="/repo/repo.css?v=64" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
-    <!-- Shared top bar: Tinker mark (Technical essays) + past-essays hamburger.
-         Continuous with the writing surface - no distinct nav chrome. -->
+    <!-- Shared top bar: Tinker mark (Technical) + hamburger (Business).
+         Continuous with the writing surface - no distinct nav chrome.
+         One writing flow; Haiku classifies into left/right lists. -->
     <header class="repo-top repo-top--labs" aria-label="Tools">
       <button type="button"
          class="repo-top__labs"
@@ -32,7 +33,7 @@
         <img class="repo-top__labs-icon" src="/icons/tinker-mark.svg?v=40" alt="" width="20" height="20" aria-hidden="true" />
       </button>
       <button type="button" class="repo-top__past-essays" id="repo-past-essays"
-              aria-label="Past essays" title="Past essays" aria-expanded="false"
+              aria-label="Business essays" title="Business essays" aria-expanded="false"
               aria-controls="repo-right">
         <!-- Lucide Menu (hamburger); same 20px box + stroke weight as before. -->
         <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
@@ -108,19 +109,19 @@
         </section>
       </div>
 
-      <!-- Right essays sidebar (desktop + mobile). Toggled by the hamburger. -->
-      <aside class="repo-right repo-essays-sidebar" id="repo-right" aria-label="Essays" hidden>
+      <!-- Right Business essays sidebar (desktop + mobile). Toggled by the hamburger. -->
+      <aside class="repo-right repo-essays-sidebar" id="repo-right" aria-label="Business essays" hidden>
         <header class="repo-panel__head" id="repo-panel-head">
           <div class="repo-panel__head-row repo-panel__head-row--title">
-            <h2 class="repo-panel__title" id="repo-stories-heading">Essays</h2>
+            <h2 class="repo-panel__title" id="repo-stories-heading">Business</h2>
           </div>
         </header>
         <section class="repo-tree" aria-labelledby="repo-stories-heading">
           <div class="repo-tree__head repo-tree__head--mobile">
-            <h2 class="repo-sidebar__heading">Essays</h2>
+            <h2 class="repo-sidebar__heading">Business</h2>
           </div>
           <div class="repo-tree__body" id="repo-tree" role="tree"></div>
-          <p class="repo-changes__empty" id="repo-stories-empty" hidden>No essays yet.</p>
+          <p class="repo-changes__empty" id="repo-stories-empty" hidden>No business essays yet.</p>
         </section>
         <section class="repo-changes" aria-labelledby="repo-file-heading">
           <h2 class="repo-sidebar__heading" id="repo-file-heading">Essay</h2>
@@ -166,18 +167,19 @@
     <button type="button" id="repo-new-piece" hidden>New file</button>
     <!-- Legacy bottom-panel chrome removed from layout; ids retained hidden. -->
     <button type="button" class="repo-panel__collapse" id="repo-panel-collapse" hidden aria-hidden="true">⌄</button>
-    <button type="button" class="repo-panel__expand" id="repo-panel-expand" hidden aria-hidden="true">Essays ˄</button>
+    <button type="button" class="repo-panel__expand" id="repo-panel-expand" hidden aria-hidden="true">Business ˄</button>
     <div class="repo-panel__resize" id="repo-panel-resize" hidden aria-hidden="true"></div>
 
     <script src="/platform-mobile.js?v=42"></script>
-    <script src="/lib/claude-models.js?v=2"></script>
+    <script src="/lib/claude-models.js?v=3"></script>
     <script src="/lib/claude-structured.js?v=2"></script>
+    <script src="/lib/essay-classify.js?v=1"></script>
     <script src="/interview-prompt.js?v=41"></script>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/vendor/purify.min.js"></script>
     <script src="/lib/essay-read.js?v=1"></script>
     <script src="/lib/stories-md.js?v=40"></script>
-    <script src="/lib/repo-folders-core.js?v=41"></script>
+    <script src="/lib/repo-folders-core.js?v=42"></script>
     <script src="/lib/repo-pad-reveal.js?v=40"></script>
     <script src="/lib/repo-write-scroll.js?v=49"></script>
     <script src="/lib/storage-path-core.js?v=40"></script>
@@ -186,7 +188,7 @@
     <script src="/lib/lock-in.js?v=1"></script>
     <script src="/lib/lock-in-ui.js?v=1"></script>
     <script src="/made-by-lindow-labs.js?v=52"></script>
-    <script src="/repo/repo.js?v=54"></script>
+    <script src="/repo/repo.js?v=55"></script>
     <script src="/repo/storage-section.js?v=40"></script>
   </body>
 </html>

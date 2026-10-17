@@ -25,6 +25,7 @@
   var padReveal = window.tinkerRepoPadReveal || null;
   var essayRead = window.tinkerEssayRead || null;
   var writeScroll = window.tinkerRepoWriteScroll || null;
+  var essayClassify = window.tinkerEssayClassify || null;
   if (!md || !core) return;
 
   var pageMode = (document.body && document.body.getAttribute("data-repo-mode")) || "write";
@@ -78,8 +79,11 @@
     mobileEssayList: false,
     // Left Technical essays sidebar (tinker mark) on desktop + mobile.
     mobileTechEssayList: false,
-    // Which list last owned the blank pad: essays | technical.
+    // Which list was last opened (UI only). Classification is Haiku, not this.
     activeListKind: "essays",
+    // Debounced technical/business classifier handle.
+    essayKindClassifier: null,
+    essayClassifySeq: 0,
     // Read-view mount for saved essays (toggle always starts off per essay).
     essayReadMount: null,
     essayReadStoryId: null,
@@ -638,11 +642,167 @@
   }
 
   function isTechnicalType(value) {
+    if (essayClassify && typeof essayClassify.isTechnicalKind === "function") {
+      return essayClassify.isTechnicalKind(value);
+    }
     return core.normalizeContentType(value) === "technical";
   }
 
+  /** New drafts default to business until Haiku classifies. User never picks a side. */
   function draftContentType() {
-    return state.activeListKind === "technical" ? "technical" : core.DEFAULT_CONTENT_TYPE;
+    if (essayClassify && essayClassify.KIND_BUSINESS) return essayClassify.KIND_BUSINESS;
+    return "business";
+  }
+
+  function essayKindFor(value) {
+    if (essayClassify && typeof essayClassify.normalizeKind === "function") {
+      return essayClassify.normalizeKind(value, draftContentType());
+    }
+    return isTechnicalType(value) ? "technical" : draftContentType();
+  }
+
+  function persistEssayKind(story) {
+    if (!story || !story.id || story.isNew) return Promise.resolve(null);
+    return fetchEssays().then(function (list) {
+      var essays = Array.isArray(list) ? list.slice() : [];
+      var found = false;
+      for (var i = 0; i < essays.length; i += 1) {
+        if (essays[i] && essays[i].id === story.id) {
+          essays[i] = Object.assign({}, essays[i], {
+            contentType: story.contentType,
+            contentTypeClassifiedAt: story.contentTypeClassifiedAt || null,
+          });
+          found = true;
+          break;
+        }
+      }
+      if (!found) return null;
+      return putEssays(essays);
+    });
+  }
+
+  function applyEssayKind(target, kind, opts) {
+    if (!target) return false;
+    var next = essayKindFor(kind);
+    var prev = essayKindFor(target.contentType);
+    target.contentType = next;
+    target.contentTypeClassifiedAt =
+      (opts && opts.at) || new Date().toISOString();
+    if (opts && opts.persist && !target.isNew) {
+      persistEssayKind(target);
+    }
+    if (els.fileType && selectedStory() && selectedStory().id === target.id) {
+      els.fileType.hidden = false;
+      text(els.fileType, "Type: " + core.contentTypeLabel(next));
+    }
+    if (prev !== next || (opts && opts.forceRender)) {
+      renderTree();
+    }
+    return prev !== next;
+  }
+
+  function mergeEssayMeta(list) {
+    var byId = {};
+    (Array.isArray(list) ? list : []).forEach(function (row) {
+      if (row && row.id) byId[row.id] = row;
+    });
+    state.stories = state.stories.map(function (story) {
+      var e = byId[story.id];
+      if (!e) return story;
+      var next = Object.assign({}, story);
+      if (e.contentType) {
+        next.contentType = core.normalizeContentType(e.contentType, next.contentType);
+      }
+      if (e.contentTypeClassifiedAt) {
+        next.contentTypeClassifiedAt = e.contentTypeClassifiedAt;
+      }
+      return next;
+    });
+  }
+
+  function runEssayClassify(payload) {
+    if (!payload || !essayClassify || typeof essayClassify.classifyEssay !== "function") {
+      return Promise.resolve(null);
+    }
+    if (!hasSessionToken() || !ensureClaudeClient()) return Promise.resolve(null);
+    var api = resolveTinkerApi();
+    if (!api || typeof api.callClaude !== "function") return Promise.resolve(null);
+    state.essayClassifySeq += 1;
+    var my = state.essayClassifySeq;
+    var storyId = payload.storyId;
+    return essayClassify
+      .classifyEssay({
+        text: payload.text,
+        callFn: function (args) { return api.callClaude(args); },
+      })
+      .then(function (result) {
+        if (my !== state.essayClassifySeq) return null;
+        var current = selectedStory() || state.draft;
+        if (!current) return null;
+        if (storyId && current.id !== storyId) return null;
+        if (!result || result.skipped) return null;
+        applyEssayKind(current, result.kind, {
+          persist: !current.isNew,
+          forceRender: true,
+        });
+        return result;
+      })
+      .catch(function () { return null; });
+  }
+
+  function scheduleEssayClassify() {
+    if (!isWritePage || !essayClassify) return;
+    var textValue = padBody();
+    if (typeof essayClassify.enoughText === "function" && !essayClassify.enoughText(textValue)) {
+      return;
+    }
+    var story = selectedStory() || state.draft;
+    if (!story) return;
+    if (!state.essayKindClassifier &&
+        typeof essayClassify.createDebouncedClassifier === "function") {
+      state.essayKindClassifier = essayClassify.createDebouncedClassifier(function (arg) {
+        runEssayClassify(arg);
+      });
+    }
+    if (!state.essayKindClassifier) return;
+    state.essayKindClassifier.schedule({
+      storyId: story.id,
+      text: textValue,
+    });
+  }
+
+  function backfillEssayKinds() {
+    if (!isWritePage || !essayClassify || typeof essayClassify.needsBackfill !== "function") {
+      return;
+    }
+    if (!hasSessionToken() || !ensureClaudeClient()) return;
+    var api = resolveTinkerApi();
+    if (!api || typeof api.callClaude !== "function") return;
+    var pending = state.stories.filter(function (story) {
+      return essayClassify.needsBackfill(story);
+    }).slice(0, 25);
+    pending.forEach(function (story) {
+      essayClassify
+        .classifyEssay({
+          text: story.body || story.markdown || "",
+          callFn: function (args) { return api.callClaude(args); },
+        })
+        .then(function (result) {
+          if (!result) return;
+          if (result.skipped) {
+            applyEssayKind(story, draftContentType(), {
+              persist: true,
+              forceRender: true,
+            });
+            return;
+          }
+          applyEssayKind(story, result.kind, {
+            persist: true,
+            forceRender: true,
+          });
+        })
+        .catch(function () { /* ignore */ });
+    });
   }
 
   function filesForList(kind) {
@@ -1548,6 +1708,7 @@
       if (!story.isNew) story.dirty = true;
       if (els.filePath) text(els.filePath, md.displayTitle(story));
     }
+    scheduleEssayClassify();
     bumpPadTypingIdle();
   }
 
@@ -1593,7 +1754,7 @@
 
   /**
    * After a successful This is everything:
-   * open the matching essays list (Essays or Technical essays).
+   * open the matching list (Business or Technical) from classified type.
    */
   function finishWritingAfterSave() {
     var finishedType = state.draft && state.draft.contentType
@@ -1641,6 +1802,7 @@
       fileName: fileName,
       folderId: folderId || null,
       contentType: type,
+      contentTypeClassifiedAt: essay.contentTypeClassifiedAt || null,
       markdown: md.storyMarkdown(title, essay.body || ""),
       isNew: false,
       relPath: core.fileRelPath(state.folders, folderId || null, fileName),
@@ -1685,7 +1847,11 @@
             title: title,
             body: body,
             updatedAt: Date.now(),
-            contentType: draft.contentType || essay.contentType || draftContentType(),
+            contentType: draft.contentType || essays[idx].contentType || draftContentType(),
+            contentTypeClassifiedAt:
+              draft.contentTypeClassifiedAt ||
+              essays[idx].contentTypeClassifiedAt ||
+              null,
           });
           essays[idx] = essay;
         }
@@ -1704,6 +1870,7 @@
           seed: place || null,
           pendingPitch: true,
           contentType: draft.contentType || draftContentType(),
+          contentTypeClassifiedAt: draft.contentTypeClassifiedAt || null,
         };
         essays = [essay].concat(essays);
       }
@@ -3422,8 +3589,10 @@
           relPath: core.fileRelPath(state.folders, folderId, fileName),
         });
       });
-      return fetchEssays().then(function () {
+      return fetchEssays().then(function (list) {
+        mergeEssayMeta(list);
         render();
+        backfillEssayKinds();
         return syncStoriesToDisk();
       });
     }).catch(function () {
@@ -3433,14 +3602,14 @@
   }
 
   if (els.newPiece) els.newPiece.addEventListener("click", addNewFile);
-  // Essays sidebar: New folder stays on Files page only. Write-page Essays
-  // list is title-only (hamburger toggles; no New essay / close chrome).
+  // Business sidebar: New folder stays on Files page only. Write-page lists
+  // are title-only (hamburger toggles Business; no New essay / close chrome).
   if (els.newFolder && isFilesPage) els.newFolder.addEventListener("click", startCreateFolder);
   if (els.pastEssays) {
     els.pastEssays.addEventListener("click", function (event) {
       event.preventDefault();
       if (!isWritePage) return;
-      // Desktop + mobile: hamburger toggles the right essays sidebar.
+      // Desktop + mobile: hamburger toggles the right Business essays sidebar.
       setMobileEssayList(!state.mobileEssayList);
     });
   }
@@ -3646,7 +3815,7 @@
   state.currentPlace = readStoredPlace();
   if (state.currentPlace) pushRecentPlace(state.currentPlace);
 
-  /* Sidebars start closed; mark opens Technical essays, hamburger opens Essays. */
+  /* Sidebars start closed; mark opens Technical, hamburger opens Business. */
   (function initEssaySidebars() {
     if (!isWritePage) return;
     setMobileEssayList(false);
@@ -3704,6 +3873,10 @@
     setTechnicalEssayList: function (open) { setTechnicalEssayList(!!open); },
     toggleTechnicalEssays: toggleTechnicalEssays,
     getActiveListKind: function () { return state.activeListKind; },
+    scheduleEssayClassify: scheduleEssayClassify,
+    backfillEssayKinds: backfillEssayKinds,
+    applyEssayKind: applyEssayKind,
+    essayKindFor: essayKindFor,
     startExerciseEssay: startExerciseEssay,
     clearExerciseAttachment: clearExerciseAttachment,
     retryExerciseTransform: retryExerciseTransform,

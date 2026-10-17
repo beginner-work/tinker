@@ -83,7 +83,7 @@ test("write page keeps tinker mark + past-essays hamburger", () => {
   assert.doesNotMatch(html, /M14\.4 14\.4 9\.6 9\.6/);
   assert.match(html, /made-by-lindow-labs\.js/);
   assert.match(html, /id="repo-past-essays"/);
-  assert.match(html, /aria-label="Past essays"/);
+  assert.match(html, /aria-label="Business essays"/);
   assert.doesNotMatch(html, /repo-layout--learning/);
   assert.match(src, /data-technical-essays-nav/);
   assert.match(src, /toggleTechnicalEssaysNav|toggleExercisesNav/);

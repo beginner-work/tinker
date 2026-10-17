@@ -1,7 +1,7 @@
 /* Desktop / mobile parity for /repo write layout.
  *
- * Shared structure: top bar (Technical essays mark + Essays hamburger),
- * writing surface, left Technical essays list, right Essays list.
+ * Shared structure: top bar (Technical essays mark + Business hamburger),
+ * writing surface, left Technical essays list, right Business list.
  * Mobile first screen stays essay writing.
  */
 "use strict";
@@ -40,7 +40,7 @@ test("shared shell markup: mark, writing, dual essay lists", () => {
   assert.doesNotMatch(html, /src="\/exercises\/manifest\.js/);
 });
 
-test("layout CSS: technical essays | center | essays rail", () => {
+test("layout CSS: technical essays | center | business rail", () => {
   assert.match(css, /--repo-tech-essays-rail/);
   assert.match(css, /--repo-essays-rail/);
   assert.match(

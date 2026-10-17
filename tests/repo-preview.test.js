@@ -865,7 +865,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /class="repo-right[^"]*repo-essays-sidebar|class="[^"]*repo-essays-sidebar[^"]*repo-right/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
   assert.match(html, /src="\/lib\/stories-md\.js\?v=40"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=41"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=42"/);
   assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=40"/);
   assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=49"/);
   assert.match(html, /src="\/lib\/storage-path-core\.js\?v=40"/);
@@ -879,8 +879,9 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, /src="\/exercises\/manifest\.js/);
   assert.doesNotMatch(html, /exercise-workspace-ui\.js/);
   assert.doesNotMatch(html, /learning-auth\.js/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=54"/);
-  assert.match(html, /src="\/lib\/claude-models\.js\?v=2"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=55"/);
+  assert.match(html, /src="\/lib\/essay-classify\.js\?v=1"/);
+  assert.match(html, /src="\/lib\/claude-models\.js\?v=3"/);
   assert.match(html, /src="\/lib\/claude-structured\.js\?v=2"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
@@ -898,7 +899,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-panel"/);
   assert.match(html, /id="repo-panel-write"/);
   assert.match(html, /id="repo-past-essays"/);
-  assert.match(html, /aria-label="Past essays"/);
+  assert.match(html, /aria-label="Business essays"/);
   assert.match(html, /id="repo-ide-center"/);
   assert.doesNotMatch(html, /\u2014/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
@@ -1341,7 +1342,7 @@ test("write page shared top bar: tinker mark + past-essays hamburger", () => {
   assert.match(html, /repo-top--labs/);
   assert.doesNotMatch(html, /repo-layout--learning/);
   assert.match(html, /id="repo-past-essays"/);
-  assert.match(html, /aria-label="Past essays"/);
+  assert.match(html, /aria-label="Business essays"/);
   // Hamburger (lucide Menu) + tinker mark (Technical essays).
   assert.match(html, /M4 5h16M4 12h16M4 19h16/);
   assert.doesNotMatch(html, /M7 3\.5h7\.5/);
