@@ -281,6 +281,99 @@ test("list is disconnected by default; connect flow stores encrypted tokens", as
   assert.equal(decrypt(row.data.accessTokenEnc), "access-secret-abc");
 });
 
+test("GitHub marketplace card uses the same mocked OAuth + encrypted store", async () => {
+  rows.length = 0;
+  const fetchImpl = async (url, opts) => {
+    const u = String(url);
+    if (u.includes("oauth-protected-resource")) {
+      return {
+        ok: true,
+        async json() {
+          return {
+            resource: "https://api.githubcopilot.com/mcp",
+            authorization_servers: ["https://github.com/login/oauth"],
+          };
+        },
+      };
+    }
+    if (u.includes("oauth-authorization-server") || u.includes("/.well-known/openid-configuration")) {
+      return {
+        ok: true,
+        async json() {
+          return {
+            authorization_endpoint: "https://github.com/login/oauth/authorize",
+            token_endpoint: "https://github.com/login/oauth/access_token",
+            registration_endpoint: "https://github.com/login/oauth/register",
+            scopes_supported: ["read"],
+            code_challenge_methods_supported: ["S256"],
+          };
+        },
+      };
+    }
+    if (u.includes("/register")) {
+      return {
+        ok: true,
+        async json() {
+          return { client_id: "github-client-test" };
+        },
+      };
+    }
+    if (u.includes("/access_token") || u.includes("/token")) {
+      const body = String((opts && opts.body) || "");
+      assert.match(body, /grant_type=authorization_code/);
+      assert.match(body, /code_verifier=/);
+      return {
+        ok: true,
+        async json() {
+          return {
+            access_token: "gh-access-secret",
+            refresh_token: "gh-refresh-secret",
+            expires_in: 3600,
+            token_type: "Bearer",
+          };
+        },
+      };
+    }
+    throw new Error("unexpected fetch " + url);
+  };
+
+  const started = await store.beginConnect({
+    userId: "user-a",
+    connectorId: "github",
+    redirectUri: "https://tinker.test/api/connections?action=callback",
+    fetchImpl,
+  });
+  assert.match(started.authorizeUrl, /authorize/);
+  assert.match(started.authorizeUrl, /code_challenge=/);
+  assert.match(started.authorizeUrl, /client_id=github-client-test/);
+
+  const state = new URL(started.authorizeUrl).searchParams.get("state");
+  assert.ok(state);
+  const done = await store.completeConnect({
+    code: "gh-auth-code",
+    state,
+    fetchImpl,
+  });
+  assert.equal(done.connectorId, "github");
+
+  const after = await store.listConnections({ userId: "user-a" });
+  const gh = after.connectors.find((c) => c.id === "github");
+  assert.ok(gh);
+  assert.equal(gh.connected, true);
+  assert.equal(gh.writeAccess, false);
+
+  const live = await store.getValidAccessToken({
+    userId: "user-a",
+    connectorId: "github",
+  });
+  assert.equal(live.accessToken, "gh-access-secret");
+
+  const row = rows.find((r) => r.userId === "user-a" && r.kind === "mcp_out_conn:github");
+  assert.ok(row);
+  assert.notEqual(row.data.accessTokenEnc, "gh-access-secret");
+  assert.equal(decrypt(row.data.accessTokenEnc), "gh-access-secret");
+});
+
 test("write access requires confirmed flag; expires attachment shape", async () => {
   rows.length = 0;
   // Seed a connected row directly.
@@ -440,10 +533,27 @@ test("UI + routes expose Connections without breaking MCP access", () => {
   assert.match(vercel, /"\/connections"/);
   assert.match(sw, /\/connections/);
   assert.match(connHtml, /Connections/);
+  assert.match(connHtml, /plugin marketplace/i);
+  assert.match(connHtml, /Notion or GitHub/);
+  assert.doesNotMatch(connHtml, /Linear/);
   assert.match(connHtml, /data-connections-list/);
+  assert.match(connHtml, /Allow writes/);
   assert.match(connJs, /action=connect/);
   assert.match(connJs, /Allow writes/);
   assert.match(connJs, /confirmed/);
+  assert.match(connJs, /Disconnect/);
+  const harnessDisc = fs.readFileSync(
+    path.join(root, "src/renderer/connections/harness-disconnected.html"),
+    "utf8"
+  );
+  const harnessConn = fs.readFileSync(
+    path.join(root, "src/renderer/connections/harness-connected.html"),
+    "utf8"
+  );
+  assert.match(harnessDisc, /data-connector-id="notion"/);
+  assert.match(harnessDisc, /data-connector-id="github"/);
+  assert.match(harnessConn, /connections__badge--on/);
+  assert.match(harnessConn, /Allow writes|Turn off writes/);
   assert.match(envEx, /TINKER_SECRETS_KEY/);
   assert.equal(notes.split(/\r?\n/, 1)[0].trim(), "No download needed, updates on next launch");
   assert.equal(notes.includes("\u2014"), false);
