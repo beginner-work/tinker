@@ -26,6 +26,7 @@
   var essayRead = window.tinkerEssayRead || null;
   var writeScroll = window.tinkerRepoWriteScroll || null;
   var essayClassify = window.tinkerEssayClassify || null;
+  var essayGrowthEdge = window.tinkerEssayGrowthEdge || null;
   if (!md || !core) return;
 
   var pageMode = (document.body && document.body.getAttribute("data-repo-mode")) || "write";
@@ -84,6 +85,11 @@
     // Debounced technical/business classifier handle.
     essayKindClassifier: null,
     essayClassifySeq: 0,
+    // Background growth-edge concept tagging (never blocks launch).
+    growthEdgeTagSeq: 0,
+    // Concept label for the auto-opened growth-edge starting essay.
+    growthEdgeConcept: "",
+    growthEdgeEssayId: null,
     // Read-view mount for saved essays (toggle always starts off per essay).
     essayReadMount: null,
     essayReadStoryId: null,
@@ -113,6 +119,7 @@
     body: document.getElementById("repo-body"),
     pad: document.getElementById("repo-pad"),
     essayView: document.getElementById("repo-essay-view"),
+    growthEdge: document.getElementById("repo-growth-edge"),
     surface: document.getElementById("repo-surface"),
     followup: document.getElementById("repo-followup"),
     padError: document.getElementById("repo-pad-error"),
@@ -526,6 +533,29 @@
     return null;
   }
 
+  function clearGrowthEdgeStart() {
+    state.growthEdgeConcept = "";
+    state.growthEdgeEssayId = null;
+    syncGrowthEdgeLabel();
+  }
+
+  function syncGrowthEdgeLabel() {
+    if (!els.growthEdge) return;
+    var label = String(state.growthEdgeConcept || "").trim();
+    var show =
+      !!label &&
+      !!state.growthEdgeEssayId &&
+      state.selectedId === state.growthEdgeEssayId &&
+      isEssayReadMode();
+    if (show) {
+      text(els.growthEdge, label);
+      els.growthEdge.hidden = false;
+    } else {
+      text(els.growthEdge, "");
+      els.growthEdge.hidden = true;
+    }
+  }
+
   function selectStory(id) {
     if (isFilesPage && id) {
       try {
@@ -539,6 +569,12 @@
     closePeerSurfaces(null);
     state.selectedId = id || null;
     state.selectedFolderId = null;
+    if (
+      state.growthEdgeEssayId &&
+      (!id || id !== state.growthEdgeEssayId)
+    ) {
+      clearGrowthEdgeStart();
+    }
     if (id) {
       var picked = null;
       for (var si = 0; si < state.stories.length; si += 1) {
@@ -672,6 +708,17 @@
           essays[i] = Object.assign({}, essays[i], {
             contentType: story.contentType,
             contentTypeClassifiedAt: story.contentTypeClassifiedAt || null,
+            growthConcepts: Array.isArray(story.growthConcepts)
+              ? story.growthConcepts.slice()
+              : essays[i].growthConcepts || [],
+            growthConceptsTaggedAt:
+              story.growthConceptsTaggedAt ||
+              essays[i].growthConceptsTaggedAt ||
+              null,
+            growthConceptsBodyHash:
+              story.growthConceptsBodyHash ||
+              essays[i].growthConceptsBodyHash ||
+              null,
           });
           found = true;
           break;
@@ -680,6 +727,52 @@
       if (!found) return null;
       return putEssays(essays);
     });
+  }
+
+  function persistEssayGrowthConcepts(story) {
+    if (!story || !story.id || story.isNew) return Promise.resolve(null);
+    return fetchEssays().then(function (list) {
+      var essays = Array.isArray(list) ? list.slice() : [];
+      var found = false;
+      for (var i = 0; i < essays.length; i += 1) {
+        if (essays[i] && essays[i].id === story.id) {
+          essays[i] = Object.assign({}, essays[i], {
+            growthConcepts: Array.isArray(story.growthConcepts)
+              ? story.growthConcepts.slice()
+              : [],
+            growthConceptsTaggedAt: story.growthConceptsTaggedAt || null,
+            growthConceptsBodyHash: story.growthConceptsBodyHash || null,
+          });
+          found = true;
+          break;
+        }
+      }
+      if (!found) return null;
+      return putEssays(essays);
+    });
+  }
+
+  function applyEssayGrowthConcepts(target, concepts, opts) {
+    if (!target) return false;
+    var next =
+      essayGrowthEdge && typeof essayGrowthEdge.normalizeConcepts === "function"
+        ? essayGrowthEdge.normalizeConcepts(concepts)
+        : Array.isArray(concepts)
+          ? concepts.slice()
+          : [];
+    var hash =
+      (opts && opts.bodyHash) ||
+      (essayGrowthEdge && typeof essayGrowthEdge.bodyHash === "function"
+        ? essayGrowthEdge.bodyHash(target.body || target.markdown || "")
+        : null);
+    target.growthConcepts = next;
+    target.growthConceptsTaggedAt =
+      (opts && opts.at) || new Date().toISOString();
+    target.growthConceptsBodyHash = hash;
+    if (opts && opts.persist && !target.isNew) {
+      persistEssayGrowthConcepts(target);
+    }
+    return true;
   }
 
   function applyEssayKind(target, kind, opts) {
@@ -716,6 +809,18 @@
       }
       if (e.contentTypeClassifiedAt) {
         next.contentTypeClassifiedAt = e.contentTypeClassifiedAt;
+      }
+      if (Array.isArray(e.growthConcepts)) {
+        next.growthConcepts =
+          essayGrowthEdge && typeof essayGrowthEdge.normalizeConcepts === "function"
+            ? essayGrowthEdge.normalizeConcepts(e.growthConcepts)
+            : e.growthConcepts.slice();
+      }
+      if (e.growthConceptsTaggedAt) {
+        next.growthConceptsTaggedAt = e.growthConceptsTaggedAt;
+      }
+      if (e.growthConceptsBodyHash) {
+        next.growthConceptsBodyHash = e.growthConceptsBodyHash;
       }
       return next;
     });
@@ -818,6 +923,63 @@
     });
   }
 
+  /** Fire-and-forget Haiku concept tags. Never blocks launch or write. */
+  function backfillGrowthEdgeConcepts() {
+    if (
+      !isWritePage ||
+      !essayGrowthEdge ||
+      typeof essayGrowthEdge.needsConceptTag !== "function" ||
+      typeof essayGrowthEdge.tagEssayConcepts !== "function"
+    ) {
+      return;
+    }
+    if (!hasSessionToken() || !ensureClaudeClient()) return;
+    var api = resolveTinkerApi();
+    if (!api || typeof api.callClaude !== "function") return;
+    state.growthEdgeTagSeq += 1;
+    var my = state.growthEdgeTagSeq;
+    var pending = state.stories.filter(function (story) {
+      return essayGrowthEdge.needsConceptTag(story);
+    }).slice(0, 25);
+    pending.forEach(function (story) {
+      essayGrowthEdge
+        .tagEssayConcepts({
+          text: story.body || story.markdown || "",
+          callFn: function (args) { return api.callClaude(args); },
+        })
+        .then(function (result) {
+          if (my !== state.growthEdgeTagSeq) return;
+          if (!result) return;
+          applyEssayGrowthConcepts(story, result.concepts || [], {
+            persist: true,
+            bodyHash: result.bodyHash,
+          });
+        })
+        .catch(function () { /* ignore */ });
+    });
+  }
+
+  /**
+   * Open the growth-edge essay as the starting screen when tags are ready.
+   * Falls back to today's blank writing surface when missing.
+   */
+  function maybeOpenGrowthEdgeStart() {
+    if (!isWritePage) return false;
+    if (readQueryParam("new") === "1") return false;
+    if (readQueryParam("file")) return false;
+    if (state.selectedId) return false;
+    if (!essayGrowthEdge || typeof essayGrowthEdge.selectGrowthEdge !== "function") {
+      return false;
+    }
+    var pick = essayGrowthEdge.selectGrowthEdge(state.stories);
+    if (!pick || !pick.essayId || !pick.concept) return false;
+    state.growthEdgeConcept = pick.concept;
+    state.growthEdgeEssayId = pick.essayId;
+    selectStory(pick.essayId);
+    syncGrowthEdgeLabel();
+    return true;
+  }
+
   function filesForList(kind) {
     return allFiles().filter(function (story) {
       var tech = isTechnicalType(story.contentType);
@@ -845,6 +1007,7 @@
       return;
     }
     // One drawer at a time; New essay returns to the fresh writing surface.
+    clearGrowthEdgeStart();
     closePeerSurfaces(null);
     hideEssayReadView();
     state.followupQuestion = "";
@@ -1426,6 +1589,7 @@
     state.essayReadStoryId = null;
     if (els.surface) els.surface.classList.remove("repo-surface--reading");
     syncWriteEmptyHint();
+    syncGrowthEdgeLabel();
   }
 
   function showEssayReadView(story) {
@@ -1462,6 +1626,7 @@
 
     // Keep the mirror in sync so save/export paths still see the bytes.
     if (els.body && els.body.value !== markdown) els.body.value = markdown;
+    syncGrowthEdgeLabel();
   }
 
   function firstLineTitle(text) {
@@ -1847,6 +2012,11 @@
       folderId: folderId || null,
       contentType: type,
       contentTypeClassifiedAt: essay.contentTypeClassifiedAt || null,
+      growthConcepts: Array.isArray(essay.growthConcepts)
+        ? essay.growthConcepts.slice()
+        : [],
+      growthConceptsTaggedAt: essay.growthConceptsTaggedAt || null,
+      growthConceptsBodyHash: essay.growthConceptsBodyHash || null,
       markdown: md.storyMarkdown(title, essay.body || ""),
       isNew: false,
       relPath: core.fileRelPath(state.folders, folderId || null, fileName),
@@ -1896,6 +2066,19 @@
               draft.contentTypeClassifiedAt ||
               essays[idx].contentTypeClassifiedAt ||
               null,
+            growthConcepts: Array.isArray(draft.growthConcepts)
+              ? draft.growthConcepts.slice()
+              : Array.isArray(essays[idx].growthConcepts)
+                ? essays[idx].growthConcepts.slice()
+                : [],
+            growthConceptsTaggedAt:
+              draft.growthConceptsTaggedAt ||
+              essays[idx].growthConceptsTaggedAt ||
+              null,
+            growthConceptsBodyHash:
+              draft.growthConceptsBodyHash ||
+              essays[idx].growthConceptsBodyHash ||
+              null,
           });
           essays[idx] = essay;
         }
@@ -1915,6 +2098,11 @@
           pendingPitch: true,
           contentType: draft.contentType || draftContentType(),
           contentTypeClassifiedAt: draft.contentTypeClassifiedAt || null,
+          growthConcepts: Array.isArray(draft.growthConcepts)
+            ? draft.growthConcepts.slice()
+            : [],
+          growthConceptsTaggedAt: draft.growthConceptsTaggedAt || null,
+          growthConceptsBodyHash: draft.growthConceptsBodyHash || null,
         };
         essays = [essay].concat(essays);
       }
@@ -1948,6 +2136,8 @@
           : Promise.resolve();
         return placePromise.then(function () { return syncStoriesToDisk(); }).then(function () {
           scheduleLearningReconstruct(essay, saved);
+          // Tag concepts in the background for the next launch's starting screen.
+          backfillGrowthEdgeConcepts();
           return saved;
         });
       });
@@ -3704,7 +3894,12 @@
       return;
     }
     var fileId = readQueryParam("file");
-    if (fileId) selectStory(fileId);
+    if (fileId) {
+      selectStory(fileId);
+      return;
+    }
+    // Cached growth-edge tags only; never wait on Haiku for first paint.
+    maybeOpenGrowthEdgeStart();
   }
 
   function syncStoriesToDisk() {
@@ -3813,6 +4008,8 @@
         mergeEssayMeta(list);
         render();
         backfillEssayKinds();
+        // Concept tags run in the background; next launch uses the cache.
+        backfillGrowthEdgeConcepts();
         return syncStoriesToDisk();
       });
     }).catch(function () {
@@ -4105,8 +4302,13 @@
     getActiveListKind: function () { return state.activeListKind; },
     scheduleEssayClassify: scheduleEssayClassify,
     backfillEssayKinds: backfillEssayKinds,
+    backfillGrowthEdgeConcepts: backfillGrowthEdgeConcepts,
+    maybeOpenGrowthEdgeStart: maybeOpenGrowthEdgeStart,
     applyEssayKind: applyEssayKind,
+    applyEssayGrowthConcepts: applyEssayGrowthConcepts,
     essayKindFor: essayKindFor,
+    getGrowthEdgeConcept: function () { return state.growthEdgeConcept || ""; },
+    getGrowthEdgeEssayId: function () { return state.growthEdgeEssayId || null; },
     scheduleLearningReconstruct: scheduleLearningReconstruct,
     startExerciseEssay: startExerciseEssay,
     clearExerciseAttachment: clearExerciseAttachment,

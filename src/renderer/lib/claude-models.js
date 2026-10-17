@@ -32,6 +32,8 @@
   const FAST = "claude-haiku-4-5-20251001";
   // Alias for essay side classification (same Haiku 4.5 pin).
   const ESSAY_CLASSIFY = FAST;
+  // Alias for growth-edge concept tagging (same Haiku 4.5 pin).
+  const ESSAY_GROWTH_EDGE = FAST;
 
   // Server fallback when a caller omits model.
   const DEFAULT = "claude-opus-4-7";
@@ -43,6 +45,7 @@
     DRAFTING: DRAFTING,
     FAST: FAST,
     ESSAY_CLASSIFY: ESSAY_CLASSIFY,
+    ESSAY_GROWTH_EDGE: ESSAY_GROWTH_EDGE,
     DEFAULT: DEFAULT,
     // Alias used by interview-prompt Keep crafting.
     KEEP_CRAFTING: WRITING,

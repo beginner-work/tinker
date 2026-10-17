@@ -38,6 +38,11 @@ const SCREENS = [
     name: "repo-technical-essays-sidebar",
     path: "/repo/harness/technical-essays-sidebar.html",
   },
+  {
+    // Launch starting screen: growth-edge essay in read view + quiet label.
+    name: "repo-growth-edge-start",
+    path: "/repo/harness/growth-edge-start.html",
+  },
 ];
 
 test.beforeEach(async ({ page }) => {
