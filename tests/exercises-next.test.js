@@ -101,13 +101,11 @@ test("/next route, auth return, and SW bypass are wired", () => {
   assert.match(nextJs, /tinker_mcp_return/);
 });
 
-test("repo deep link opens exercise and can start lock-in", () => {
-  assert.match(repoHtml, /exercises-next\.js/);
+test("repo write page keeps lock-in helpers; exercise deep link removed", () => {
+  assert.doesNotMatch(repoHtml, /exercises-next\.js/);
   assert.match(repoHtml, /lock-in\.js/);
   assert.match(repoHtml, /lock-in-ui\.js/);
-  assert.match(repoJs, /applyExerciseDeepLink/);
-  assert.match(repoJs, /startLockIn/);
-  assert.match(repoJs, /openExercise/);
+  assert.doesNotMatch(repoJs, /applyExerciseDeepLink/);
   assert.match(uiJs, /rememberResume/);
   assert.match(uiJs, /openExercise:\s*openExercise/);
 });

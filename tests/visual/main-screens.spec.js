@@ -25,18 +25,6 @@ const SCREENS = [
     path: "/repo/harness/writing-place-picked.html",
   },
   {
-    name: "repo-learning-loop",
-    path: "/repo/harness/learning-loop-after.html",
-  },
-  {
-    name: "repo-learning-loop-attempt",
-    path: "/repo/harness/learning-loop-attempt.html",
-  },
-  {
-    name: "repo-step-preview",
-    path: "/repo/harness/desktop-step-md-preview.html",
-  },
-  {
     name: "repo-mobile-essay",
     path: "/repo/harness/mobile-essay-list.html",
   },
@@ -44,6 +32,11 @@ const SCREENS = [
     // Simplified Essays sidebar: titles only, no New/close/Move chrome.
     name: "repo-essays-sidebar-simple",
     path: "/repo/harness/essays-sidebar-simple.html",
+  },
+  {
+    // Technical essays sidebar (left): same plain title list as Essays.
+    name: "repo-technical-essays-sidebar",
+    path: "/repo/harness/technical-essays-sidebar.html",
   },
 ];
 

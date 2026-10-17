@@ -1,4 +1,4 @@
-/* Mobile: essay writing is first screen; Exercises nav opens learning loop. */
+/* Mobile: essay writing is first screen; Technical essays replaces Exercises. */
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -131,31 +131,14 @@ function setup(t, options = {}) {
 }
 
 for (const width of [320, 390, 430, 800]) {
-  test(`mobile ${width}px first screen is essay writing, not learning loop`, async (t) => {
+  test(`mobile ${width}px write page has no learning loop markup`, async (t) => {
     const e = setup(t, { width });
-    await e.ui.init();
-    assert.ok(e.el("repo-layout").classList.contains("repo-layout--learning"));
-    assert.equal(e.el("repo-explorer").hidden, true);
-    assert.equal(e.el("repo-code").hidden, true);
-    assert.equal(e.el("repo-layout").classList.contains("is-code-open"), false);
-    assert.equal(e.w.document.body.classList.contains("repo-code-open"), false);
-    assert.equal(e.ui.isLearningSurfaceOpen(), false);
-    assert.equal(e.editorDocs.length, 0);
-  });
-
-  test(`mobile ${width}px Exercises nav opens learning loop`, async (t) => {
-    const e = setup(t, { width });
-    await e.ui.init();
-    e.ui.toggleExplorer();
-    assert.equal(e.ui.isLearningSurfaceOpen(), true);
-    assert.equal(e.el("repo-code").hidden, false);
-    assert.equal(e.el("repo-code-thats-everything").hidden, false);
-    assert.equal(e.el("repo-code-save").hidden, true);
-    assert.match(e.el("repo-learning-prompt-text").textContent, /./);
-    assert.ok(e.editorDocs.length >= 1);
-    e.ui.toggleExplorer();
-    assert.equal(e.ui.isLearningSurfaceOpen(), false);
-    assert.equal(e.el("repo-code").hidden, true);
+    assert.equal(e.el("repo-layout").classList.contains("repo-layout--learning"), false);
+    assert.equal(e.el("repo-explorer"), null);
+    assert.equal(e.el("repo-code"), null);
+    assert.ok(e.el("repo-labs-link"));
+    assert.ok(e.el("repo-tech-tree"));
+    assert.ok(e.el("repo-panel-write"));
   });
 }
 
@@ -169,59 +152,22 @@ test("mobile learning CSS only forces editor when is-code-open", () => {
   assert.match(css, /mobile first paint stays essay writing/);
 });
 
-test("tinker mark is present for left-drawer access", () => {
+test("tinker mark is present for Technical essays access", () => {
   assert.match(html, /id="repo-labs-link"/);
-  assert.match(html, /data-exercises-nav/);
+  assert.match(html, /data-technical-essays-nav/);
   assert.match(css, /\.repo-top__labs/);
   assert.match(html, /tinker-mark\.svg/);
 });
 
-test("signout clears practice chrome", async (t) => {
-  const e = setup(t);
-  await e.ui.init();
-  e.ui.toggleExplorer();
-  assert.equal(e.el("repo-code").hidden, false);
-  e.signOut();
-  assert.equal(e.el("repo-explorer-body").textContent, "");
-  assert.equal(e.el("repo-code").hidden, true);
-  assert.equal(e.ui.isLearningSurfaceOpen(), false);
+test("exercise-workspace UI module still exposes auth + surface helpers", () => {
+  assert.match(source, /applyAuthGate/);
+  assert.match(source, /toggleExplorer/);
+  assert.match(source, /isLearningSurfaceOpen|learningSurfaceOpen/);
+  assert.match(source, /openPracticeFromProgress/);
 });
 
-test("signout while loading discards late authenticated responses", async (t) => {
-  let resolveWorkspace;
-  const e = setup(t, {
-    fetch: (url) => {
-      if (String(url).indexOf("learning-progress") !== -1) {
-        return Promise.resolve({ ok: true, json: async () => ({ data: null }) });
-      }
-      return new Promise((r) => {
-        resolveWorkspace = r;
-      });
-    },
-  });
-  const pending = e.ui.init();
-  e.signOut();
-  resolveWorkspace({ ok: true, json: async () => ({ workspace: workspace() }) });
-  await pending;
-  assert.equal(Object.keys(e.ui.getWorkspace().exercises).length, 0);
-});
-
-test("desktop still opens learning loop on init; Save chrome stays hidden", async (t) => {
-  const e = setup(t, { width: 1200 });
-  await e.ui.init();
-  assert.ok(
-    e.calls.some((c) => String(c.url).indexOf("exercise-workspace") !== -1)
-  );
-  assert.equal(e.el("repo-code").hidden, false);
-  assert.equal(e.el("repo-code-save").hidden, true);
-  assert.equal(e.el("repo-code-thats-everything").hidden, false);
-  assert.equal(e.ui.isLearningSurfaceOpen(), true);
-  assert.equal(e.el("repo-ex-new-file"), null);
-});
-
-test("sign-in gate markup: no practice until signed in", () => {
-  assert.match(html, /id="repo-explorer-signin"/);
-  assert.match(html, /Sign in to Tinker or Lindow Labs Learning/);
+test("sign-in gate lives in exercise-workspace UI module", () => {
+  assert.doesNotMatch(html, /id="repo-explorer-signin"/);
   assert.match(source, /applyAuthGate/);
   assert.match(source, /isLearningSignedIn/);
   assert.match(source, /requestLearningSignIn/);

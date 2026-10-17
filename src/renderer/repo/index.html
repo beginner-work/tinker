@@ -14,18 +14,20 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=40" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=63" />
+    <link rel="stylesheet" href="/repo/repo.css?v=64" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
-    <!-- Shared top bar: Tinker mark (left drawer) + past-essays hamburger.
+    <!-- Shared top bar: Tinker mark (Technical essays) + past-essays hamburger.
          Continuous with the writing surface - no distinct nav chrome. -->
     <header class="repo-top repo-top--labs" aria-label="Tools">
       <button type="button"
          class="repo-top__labs"
          id="repo-labs-link"
-         aria-label="Open sidebar"
-         title="Open sidebar"
-         data-exercises-nav>
+         aria-label="Technical essays"
+         title="Technical essays"
+         aria-expanded="false"
+         aria-controls="repo-left"
+         data-technical-essays-nav>
         <!-- Canonical tinker mark; same 20px box as the hamburger. -->
         <img class="repo-top__labs-icon" src="/icons/tinker-mark.svg?v=40" alt="" width="20" height="20" aria-hidden="true" />
       </button>
@@ -40,126 +42,29 @@
       </button>
     </header>
 
-    <div class="repo-layout repo-layout--write repo-layout--learning" id="repo-layout">
-      <!-- Legacy explorer markup kept hidden for id/test stability; learning loop never shows it. -->
-      <button type="button" class="repo-explorer-scrim" id="repo-explorer-scrim"
-              aria-label="Close exercises" tabindex="-1" hidden></button>
-      <aside class="repo-explorer" id="repo-explorer" aria-label="Practice files" hidden>
-        <div class="repo-explorer__head">
-          <h2 class="repo-sidebar__heading" id="repo-explorer-heading">Exercises</h2>
-          <button type="button" class="repo-explorer__collapse" id="repo-explorer-collapse" aria-label="Collapse explorer" title="Collapse explorer"><svg class="repo-icon repo-icon--chevron" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
-        </div>
-        <div class="repo-explorer-signin" id="repo-explorer-signin" hidden>
-          <p class="repo-explorer-signin__copy" id="repo-explorer-signin-copy">
-            Sign in to Tinker or Lindow Labs Learning to open your practice file.
-          </p>
-          <button type="button" class="repo-explorer-signin__btn" id="repo-explorer-signin-btn">
-            Sign in
-          </button>
-        </div>
-        <div class="repo-ex-steps-banner" id="repo-ex-steps-banner" hidden role="status"></div>
-        <div class="repo-explorer__gated" id="repo-explorer-gated">
-          <p id="repo-ex-load-status" class="repo-explorer__hint" role="status" hidden></p>
-          <button type="button" id="repo-ex-load-retry" class="repo-explorer__tool" hidden>Try again</button>
-          <section id="repo-ex-reader" class="repo-ex-reader" aria-label="Read-only learning module" hidden>
-            <button type="button" id="repo-ex-reader-back" class="repo-ex-reader__back"><svg class="repo-icon repo-icon--chevron" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg> All learning modules</button>
-            <h3 id="repo-ex-reader-path" class="repo-ex-reader__path"></h3>
-            <div id="repo-ex-reader-content" class="repo-ex-reader__content" tabindex="0" aria-label="Learning module contents, read only"></div>
-          </section>
-          <div class="repo-explorer__body" id="repo-explorer-body" role="navigation" aria-labelledby="repo-explorer-heading"></div>
-          <p class="repo-changes__empty" id="repo-explorer-empty" hidden>No practice file yet.</p>
-          <p class="repo-explorer__hint" id="repo-explorer-hint">Edits save in Tinker; Blob holds the shared copy when configured.</p>
-        </div>
+    <div class="repo-layout repo-layout--write" id="repo-layout">
+      <!-- Left Technical essays sidebar. Toggled by the tinker mark. -->
+      <aside class="repo-left repo-tech-essays-sidebar" id="repo-left" aria-label="Technical essays" hidden>
+        <header class="repo-panel__head" id="repo-tech-panel-head">
+          <div class="repo-panel__head-row repo-panel__head-row--title">
+            <h2 class="repo-panel__title" id="repo-tech-heading">Technical essays</h2>
+          </div>
+        </header>
+        <section class="repo-tree" aria-labelledby="repo-tech-heading">
+          <div class="repo-tree__head repo-tree__head--mobile">
+            <h2 class="repo-sidebar__heading">Technical essays</h2>
+          </div>
+          <div class="repo-tree__body" id="repo-tech-tree" role="tree"></div>
+          <p class="repo-changes__empty" id="repo-tech-empty" hidden>No technical essays yet.</p>
+        </section>
+        <section class="repo-changes" aria-labelledby="repo-tech-file-heading">
+          <h2 class="repo-sidebar__heading" id="repo-tech-file-heading">Essay</h2>
+          <p class="repo-file__path" id="repo-tech-file-path"></p>
+        </section>
       </aside>
-      <button type="button" class="repo-explorer__expand" id="repo-explorer-expand" hidden aria-label="Show explorer" title="Show explorer"><svg class="repo-icon repo-icon--chevron" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
 
       <div class="repo-ide-center" id="repo-ide-center">
-        <!-- Tabs unused in learning loop; id kept for harness/test stability. -->
-        <div class="repo-ide-tabbar" id="repo-ide-tabbar" hidden>
-          <div class="repo-tabs" id="repo-tabs" role="tablist" aria-label="Open editors" hidden></div>
-        </div>
-
-        <!-- Code editor: one practice file + prompt card. -->
-        <main class="repo-center repo-write-safe-top" id="repo-editor-main" aria-label="Editor">
-          <div class="repo-code-host" id="repo-code-host">
-            <div class="repo-code" id="repo-code" hidden aria-label="Practice file">
-              <div class="repo-learning" id="repo-learning">
-                <p class="repo-learning__goal" id="repo-learning-goal"></p>
-                <div class="repo-learning__prompt" id="repo-learning-prompt">
-                  <p class="repo-learning__prompt-text" id="repo-learning-prompt-text"></p>
-                </div>
-                <div class="repo-learning__zpd" id="repo-learning-zpd" hidden>
-                  <p class="repo-learning__zpd-row">
-                    <span class="repo-learning__zpd-label">Unaided</span>
-                    <span class="repo-learning__zpd-text" id="repo-learning-zpd-unaided"></span>
-                  </p>
-                  <p class="repo-learning__zpd-row">
-                    <span class="repo-learning__zpd-label">Just beyond</span>
-                    <span class="repo-learning__zpd-text" id="repo-learning-zpd-beyond"></span>
-                  </p>
-                </div>
-                <div class="repo-learning__done" id="repo-learning-done" hidden>
-                  <p class="repo-learning__done-copy" id="repo-learning-done-copy">You can write this by feel.</p>
-                  <button type="button" class="repo-learning__next-goal" id="repo-learning-next-goal">Next goal</button>
-                </div>
-              </div>
-              <div class="repo-code__bar">
-                <p class="repo-code__path" id="repo-code-path"></p>
-                <div class="repo-code__actions">
-                  <button type="button" class="repo-code__undo" id="repo-code-undo" hidden>Undo</button>
-                  <button type="button" class="repo-code__thats-everything repo-surface__action repo-surface__action--primary" id="repo-code-thats-everything" hidden>That's everything</button>
-                  <!-- Legacy ids kept hidden for test/symbol stability. -->
-                  <button type="button" class="repo-code__refactor" id="repo-code-refactor" hidden>Refactor</button>
-                  <button type="button" class="repo-code__save" id="repo-code-save" hidden>Save</button>
-                </div>
-              </div>
-              <!-- Legacy evaluate/refactor panels retained hidden for id stability; learning loop auto-applies. -->
-              <div class="repo-code__evaluate-panel" id="repo-code-evaluate-panel" hidden>
-                <p class="repo-code__evaluate-feedback" id="repo-code-evaluate-feedback" role="status"></p>
-                <p class="repo-code__evaluate-status" id="repo-code-evaluate-status" hidden role="status"></p>
-                <div class="repo-code__evaluate-diff" id="repo-code-evaluate-diff" hidden>
-                  <p class="repo-code__evaluate-summary" id="repo-code-evaluate-summary"></p>
-                  <p class="repo-code__evaluate-path" id="repo-code-evaluate-path"></p>
-                  <pre class="repo-code__evaluate-before" id="repo-code-evaluate-before" aria-hidden="true"></pre>
-                  <pre class="repo-code__evaluate-after" id="repo-code-evaluate-after" aria-hidden="true"></pre>
-                  <div class="repo-code__evaluate-decide">
-                    <button type="button" class="repo-code__evaluate-accept" id="repo-code-evaluate-accept" hidden>Accept</button>
-                    <button type="button" class="repo-code__evaluate-reject" id="repo-code-evaluate-reject" hidden>Reject</button>
-                  </div>
-                </div>
-              </div>
-              <div class="repo-code__refactor-panel" id="repo-code-refactor-panel" hidden>
-                <label class="repo-code__refactor-label" for="repo-code-refactor-input">What should change?</label>
-                <div class="repo-code__refactor-row">
-                  <input type="text" class="repo-code__refactor-input" id="repo-code-refactor-input"
-                         placeholder="e.g. rename this step to match PaymentIntent" maxlength="2000" />
-                  <button type="button" class="repo-code__refactor-ask" id="repo-code-refactor-ask">Ask</button>
-                  <button type="button" class="repo-code__refactor-cancel" id="repo-code-refactor-cancel">Cancel</button>
-                </div>
-                <p class="repo-code__refactor-status" id="repo-code-refactor-status" hidden role="status"></p>
-                <div class="repo-code__refactor-diff" id="repo-code-refactor-diff" hidden>
-                  <p class="repo-code__refactor-summary" id="repo-code-refactor-summary"></p>
-                  <pre class="repo-code__refactor-before" id="repo-code-refactor-before" aria-label="Current selection"></pre>
-                  <pre class="repo-code__refactor-after" id="repo-code-refactor-after" aria-label="Proposed replacement"></pre>
-                  <div class="repo-code__refactor-decide">
-                    <button type="button" class="repo-code__refactor-accept" id="repo-code-refactor-accept">Accept</button>
-                    <button type="button" class="repo-code__refactor-reject" id="repo-code-refactor-reject">Reject</button>
-                  </div>
-                </div>
-              </div>
-              <!-- Lesson steps: read-only rendered markdown (desktop). Answers stay in the editor. -->
-              <div class="repo-code__preview" id="repo-code-preview" hidden tabindex="0"
-                   aria-label="Learning module step, read only"></div>
-              <div class="repo-code__surface" id="repo-code-surface" role="textbox" aria-label="File contents"></div>
-              <!-- Legacy textarea kept hidden for harness/id stability; CM owns editing. -->
-              <textarea class="repo-code__editor writing-input" id="repo-code-editor" hidden spellcheck="false" aria-hidden="true" tabindex="-1"></textarea>
-              <p class="repo-code__status" id="repo-code-status" hidden></p>
-            </div>
-            <p class="repo-editor-empty" id="repo-editor-empty" hidden>Sign in to open your practice file.</p>
-          </div>
-        </main>
-
-        <!-- Writing surface (shared). Was nested in the bottom essays panel. -->
+        <!-- Writing surface. Mobile first screen stays here. -->
         <section class="repo-panel repo-panel--write" id="repo-panel" aria-label="Writing">
           <div class="repo-panel__body repo-panel__body--write" id="repo-panel-body">
             <div class="repo-panel__write" id="repo-panel-write">
@@ -180,12 +85,6 @@
                 <div class="repo-write-empty" id="repo-write-empty" hidden>
                   <p class="repo-write-empty__title">Pick a place to begin</p>
                   <p class="repo-write-empty__copy">Choose where you are above, then write.</p>
-                </div>
-                <div class="repo-exercise-chip" id="repo-exercise-chip" hidden>
-                  <span class="repo-exercise-chip__spinner" id="repo-exercise-chip-spinner" hidden aria-hidden="true"></span>
-                  <span class="repo-exercise-chip__label" id="repo-exercise-chip-label"></span>
-                  <button type="button" class="repo-exercise-chip__retry" id="repo-exercise-chip-retry" hidden>Retry</button>
-                  <button type="button" class="repo-exercise-chip__clear" id="repo-exercise-chip-clear" aria-label="Detach exercise"><svg class="repo-icon repo-icon--close" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
                 </div>
                 <p class="repo-followup" id="repo-followup" hidden></p>
                 <div class="repo-essay-view" id="repo-essay-view" hidden aria-label="Essay"></div>
@@ -256,18 +155,6 @@
       </div>
     </div>
 
-    <div class="repo-sheet" id="repo-ex-confirm-sheet" hidden>
-      <div class="repo-sheet__backdrop" id="repo-ex-confirm-backdrop"></div>
-      <div class="repo-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="repo-ex-confirm-title">
-        <h2 class="repo-sheet__title" id="repo-ex-confirm-title">Delete?</h2>
-        <p class="repo-sheet__hint" id="repo-ex-confirm-hint"></p>
-        <div class="repo-sheet__actions">
-          <button type="button" class="repo-sheet__danger" id="repo-ex-confirm-delete">Delete</button>
-          <button type="button" class="repo-sheet__cancel" id="repo-ex-confirm-cancel">Cancel</button>
-        </div>
-      </div>
-    </div>
-
     <!-- Legacy ids kept hidden for test/id stability; storage UI lives on Files. -->
     <button type="button" class="repo-location__choose" id="repo-location-choose" hidden>Mac folder…</button>
     <div id="repo-location-custom" hidden></div>
@@ -288,29 +175,18 @@
     <script src="/interview-prompt.js?v=41"></script>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/vendor/purify.min.js"></script>
-    <script src="/vendor/codemirror-repo-editor.min.js?v=1"></script>
     <script src="/lib/essay-read.js?v=1"></script>
     <script src="/lib/stories-md.js?v=40"></script>
-    <script src="/lib/repo-folders-core.js?v=40"></script>
+    <script src="/lib/repo-folders-core.js?v=41"></script>
     <script src="/lib/repo-pad-reveal.js?v=40"></script>
     <script src="/lib/repo-write-scroll.js?v=49"></script>
     <script src="/lib/storage-path-core.js?v=40"></script>
     <script src="/lib/fs-access-folder.js?v=40"></script>
     <script src="/lib/storage-adapters.js?v=40"></script>
-    <script src="/lib/learning-auth.js?v=49"></script>
-    <script src="/lib/exercise-revision.js?v=51"></script>
-    <script src="/lib/exercise-refactor.js?v=2"></script>
-    <script src="/lib/learning-progress.js?v=1"></script>
-    <script src="/lib/exercise-evaluate.js?v=4"></script>
-    <script src="/exercises/manifest.js?v=40"></script>
-    <script src="/lib/exercises-pick.js?v=40"></script>
-    <script src="/lib/exercises-next.js?v=1"></script>
     <script src="/lib/lock-in.js?v=1"></script>
     <script src="/lib/lock-in-ui.js?v=1"></script>
-    <script src="/lib/exercise-workspace-core.js?v=41"></script>
-    <script src="/repo/exercise-workspace-ui.js?v=60"></script>
-    <script src="/made-by-lindow-labs.js?v=51"></script>
-    <script src="/repo/repo.js?v=53"></script>
+    <script src="/made-by-lindow-labs.js?v=52"></script>
+    <script src="/repo/repo.js?v=54"></script>
     <script src="/repo/storage-section.js?v=40"></script>
   </body>
 </html>

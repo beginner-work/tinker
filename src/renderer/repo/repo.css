@@ -208,11 +208,16 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
   box-shadow: var(--focus-ring);
 }
 
-.repo-layout--write.is-explorer-open .repo-top__labs,
-.repo-layout--write:not(.is-explorer-collapsed) .repo-top__labs,
-.repo-layout--write.is-code-open .repo-top__labs,
-body.repo-code-open .repo-top__labs {
+.repo-layout--write.is-tech-essays-open .repo-top__labs,
+body.repo-page--write[data-repo-tech-essays-list="1"] .repo-top__labs {
   color: var(--color-accent-strong, #4f46e5);
+}
+
+body.repo-page--write[data-repo-tech-essays-list="1"] .repo-top--labs {
+  z-index: 55;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
 }
 
 /* Tinker mark stays visible on desktop + mobile (left drawer toggle). */
@@ -901,17 +906,15 @@ html.tinker-desktop .repo-top [role="button"] {
 }
 
 .repo-layout--write {
-  /* Shared structure: explorer | writing/code | essays sidebar.
-     Explorer track is `auto` so CSS resize updates the column and pushes
-     the editor (a fixed px track left resized chrome overlapping the pad). */
-  --repo-explorer-rail: 280px;
+  /* Shared structure: technical essays | writing | essays sidebar. */
+  --repo-tech-essays-rail: 0px;
   --repo-panel-height: 0px;
   --repo-tabs-height: 40px;
   --repo-essays-rail: 0px;
   /* Sticky labs top bar: 6px + 44px icons + 6px (+ safe-area in padding-top). */
   --repo-top-bar: calc(56px + env(safe-area-inset-top, 0px));
   grid-template-columns:
-    auto
+    var(--repo-tech-essays-rail, 0px)
     minmax(0, 1fr)
     var(--repo-essays-rail, 0px);
   grid-template-rows: minmax(0, 1fr);
@@ -924,8 +927,8 @@ html.tinker-desktop .repo-top [role="button"] {
   box-sizing: border-box;
 }
 
-.repo-layout--write.is-explorer-collapsed {
-  --repo-explorer-rail: 0px;
+.repo-layout--write.is-tech-essays-open {
+  --repo-tech-essays-rail: minmax(240px, 300px);
 }
 
 .repo-layout--write.is-essays-open {
@@ -2236,6 +2239,77 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-right.repo-essays-sidebar
   border-top: 1px solid var(--color-border);
 }
 
+/* Left Technical essays sidebar (tinker mark). Closed by default. */
+.repo-tech-essays-sidebar,
+.repo-left.repo-tech-essays-sidebar {
+  grid-column: 1;
+  display: none;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-background);
+  padding: 0;
+  position: relative;
+  z-index: 30;
+}
+
+.repo-layout--write.is-tech-essays-open .repo-tech-essays-sidebar,
+.repo-layout--write.is-tech-essays-open .repo-left.repo-tech-essays-sidebar,
+body.repo-page--write[data-repo-tech-essays-list="1"] .repo-tech-essays-sidebar,
+body.repo-page--write[data-repo-tech-essays-list="1"] .repo-left.repo-tech-essays-sidebar {
+  display: flex;
+}
+
+.repo-tech-essays-sidebar .repo-panel__head {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-background) 90%, var(--color-accent, #a5b4fc) 10%);
+  -webkit-app-region: no-drag;
+}
+
+.repo-tech-essays-sidebar .repo-panel__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--color-foreground);
+}
+
+.repo-tech-essays-sidebar .repo-tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 0;
+}
+
+.repo-tech-essays-sidebar .repo-tree__head--mobile {
+  display: none;
+}
+
+.repo-tech-essays-sidebar .repo-tree__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.repo-tech-essays-sidebar .repo-changes {
+  flex: 0 0 auto;
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--color-border);
+}
+
 /* Learning sign-in gate inside the exercises explorer. */
 .repo-explorer-signin {
   display: flex;
@@ -2751,21 +2825,23 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-right.repo-essays-sidebar
 /* Soft top fade on the writing column. Fixed (not sticky): .repo-center uses
    overflow:hidden, which would clip sticky descendants. Covers the titlebar /
    traffic-light band so earlier text dissolves instead of hard-slicing. */
-body.repo-page--write .repo-center.repo-write-safe-top {
+body.repo-page--write .repo-center.repo-write-safe-top,
+body.repo-page--write .repo-surface.repo-write-safe-top {
   position: relative;
   overflow: visible;
 }
 
-body.repo-page--write .repo-center.repo-write-safe-top::before {
+body.repo-page--write .repo-center.repo-write-safe-top::before,
+body.repo-page--write .repo-surface.repo-write-safe-top::before {
   content: "";
   position: fixed;
   /* Start under the fixed labs header so the dissolve never covers
-   * the Exercises control (header paints above at z-index 50). */
+   * the Technical essays mark (header paints above at z-index 50). */
   top: calc(52px + env(safe-area-inset-top, 0px));
   left: 0;
   right: 0;
   /* Prefer % over 100vw so a scrollbar gutter cannot widen the page and
-   * clip the fixed top bar (Exercises) past the left edge. */
+   * clip the fixed top bar past the left edge. */
   width: auto;
   max-width: none;
   height: var(--repo-write-fade, 48px);
@@ -4199,6 +4275,104 @@ body.repo-page--write .repo-center {
       radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
       var(--color-background);
     overflow: hidden;
+  }
+
+  /* Mobile technical essays sidebar: same sheet as Essays (mark toggle). */
+  .repo-layout--write .repo-left,
+  body.repo-page--write .repo-left {
+    display: none;
+  }
+
+  body.repo-page--write[data-repo-tech-essays-list="1"] .repo-layout--write .repo-left,
+  body.repo-page--write[data-repo-tech-essays-list="1"] .repo-left,
+  .repo-layout--write.is-tech-essays-open .repo-left {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: var(--repo-top-bar, calc(56px + env(safe-area-inset-top, 0px)));
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 35;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    max-height: none;
+    border: 0;
+    box-sizing: border-box;
+    gap: 0;
+    padding:
+      0
+      calc(16px + env(safe-area-inset-right, 0px))
+      calc(24px + env(safe-area-inset-bottom, 0px))
+      calc(16px + env(safe-area-inset-left, 0px));
+    background:
+      radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
+      radial-gradient(circle at 88% 4%, rgba(165, 180, 252, 0.10), transparent 38%),
+      var(--color-background);
+    overflow: hidden;
+  }
+
+  body.repo-page--write[data-repo-tech-essays-list="1"] .repo-tech-essays-sidebar .repo-panel__head,
+  .repo-layout--write.is-tech-essays-open .repo-tech-essays-sidebar .repo-panel__head {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    z-index: auto;
+    flex: 0 0 auto;
+    height: auto;
+    gap: 12px;
+    margin: 0 -16px;
+    padding: 14px 16px 14px;
+    overflow: visible;
+    background:
+      radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
+      var(--color-background);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  body.repo-page--write[data-repo-tech-essays-list="1"] .repo-left .repo-tree,
+  .repo-layout--write.is-tech-essays-open .repo-left .repo-tree {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.repo-page--write[data-repo-tech-essays-list="1"] .repo-left .repo-tree__body,
+  .repo-layout--write.is-tech-essays-open .repo-left .repo-tree__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.repo-page--write[data-repo-tech-essays-list="1"] .repo-left .repo-changes,
+  .repo-layout--write.is-tech-essays-open .repo-left .repo-changes {
+    display: none;
+  }
+
+  body.repo-page--write[data-repo-tech-essays-list="1"] .repo-panel__write,
+  body.repo-page--write[data-repo-tech-essays-list="1"] #repo-surface,
+  .repo-layout--write.is-tech-essays-open .repo-panel__write,
+  .repo-layout--write.is-tech-essays-open #repo-surface {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  body.repo-page--write[data-repo-tech-essays-list="1"] .repo-surface__foot,
+  body.repo-page--write[data-repo-tech-essays-list="1"] .repo-pad-error,
+  body.repo-page--write[data-repo-tech-essays-list="1"] .repo-location,
+  .repo-layout--write.is-tech-essays-open .repo-surface__foot,
+  .repo-layout--write.is-tech-essays-open .repo-pad-error,
+  .repo-layout--write.is-tech-essays-open .repo-location {
+    display: none !important;
   }
 
   /* Drawer's own header row: in-flow under the top bar (not fixed under it). */

@@ -1,3 +1,3 @@
 No download needed, updates on next launch
 
-Web-only: hide "Pick a place to begin" once a place is selected; simplify Essays (no New essay / New folder / close / Move); top-left is the tinker mark (icon only) toggling the left drawer; nav blends into the writing surface. Claude only; no Formation.
+Web-only: replace the Exercises / learning-loop surface with a Technical essays list that mirrors simplified Essays (plain titles, tap to open, same writing surface and That's everything flow). Left tinker mark opens Technical essays; hamburger still opens Essays. Claude only; no Formation.

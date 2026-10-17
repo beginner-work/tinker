@@ -123,7 +123,7 @@ async function call(method, action, token, body) {
 
 test("content types list and default", () => {
   assert.deepEqual(core.CONTENT_TYPES, [
-    "reflections", "stories", "exercises", "readings", "drafts",
+    "reflections", "stories", "exercises", "readings", "drafts", "technical",
   ]);
   assert.equal(core.DEFAULT_CONTENT_TYPE, "stories");
   assert.equal(core.normalizeContentType("drafts"), "drafts");
@@ -351,8 +351,10 @@ test("repo page wires New folder, Move to sheet, and cache-busted assets", () =>
   assert.match(html, /repo\.js\?v=35/);
   assert.match(html, /repo\.css\?v=35/);
   assert.match(writeHtml, /storage-section\.js\?v=40/);
-  assert.match(writeHtml, /repo\.css\?v=63/);
-  assert.match(writeHtml, /repo\.js\?v=53/);
+  assert.match(writeHtml, /repo\.css\?v=64/);
+  assert.match(writeHtml, /repo\.js\?v=54/);
+  assert.match(writeHtml, /repo-folders-core\.js\?v=41/);
+  assert.match(writeHtml, /id="repo-tech-tree"/);
   assert.doesNotMatch(writeHtml, /id="repo-files-link"/);
   assert.match(css, /min-height:\s*44px/);
   assert.match(css, /\.repo-sheet/);

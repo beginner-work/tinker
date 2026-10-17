@@ -820,7 +820,9 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /repo-top--labs/);
   assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /id="repo-past-essays"/);
-  assert.match(html, /id="repo-learning-prompt"/);
+  assert.match(html, /id="repo-tech-tree"/);
+  assert.match(html, /data-technical-essays-nav/);
+  assert.doesNotMatch(html, /id="repo-learning-prompt"/);
   assert.match(html, /id="repo-keep-crafting"/);
   assert.match(html, /id="repo-this-is-everything"/);
   assert.match(html, /Keep crafting/);
@@ -863,47 +865,40 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /class="repo-right[^"]*repo-essays-sidebar|class="[^"]*repo-essays-sidebar[^"]*repo-right/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
   assert.match(html, /src="\/lib\/stories-md\.js\?v=40"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=40"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=41"/);
   assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=40"/);
   assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=49"/);
   assert.match(html, /src="\/lib\/storage-path-core\.js\?v=40"/);
   assert.match(html, /src="\/lib\/essay-read\.js\?v=1"/);
-  assert.match(html, /src="\/lib\/learning-auth\.js\?v=49"/);
-  assert.match(html, /src="\/lib\/exercise-revision\.js\?v=51"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
-  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=51"/);
-  assert.match(html, /src="\/exercises\/manifest\.js\?v=40"/);
-  assert.match(html, /src="\/lib\/exercises-pick\.js\?v=40"/);
-  assert.match(html, /src="\/lib\/exercises-next\.js\?v=1"/);
+  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=52"/);
   assert.match(html, /src="\/lib\/lock-in\.js\?v=1"/);
   assert.match(html, /src="\/lib\/lock-in-ui\.js\?v=1"/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=53"/);
-  assert.match(html, /src="\/lib\/exercise-workspace-core\.js\?v=41"/);
-  assert.match(html, /src="\/repo\/exercise-workspace-ui\.js\?v=60"/);
+  assert.doesNotMatch(html, /src="\/exercises\/manifest\.js/);
+  assert.doesNotMatch(html, /exercise-workspace-ui\.js/);
+  assert.doesNotMatch(html, /learning-auth\.js/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=54"/);
   assert.match(html, /src="\/lib\/claude-models\.js\?v=2"/);
   assert.match(html, /src="\/lib\/claude-structured\.js\?v=2"/);
-  assert.match(html, /src="\/lib\/exercise-refactor\.js\?v=2"/);
-  assert.match(html, /src="\/lib\/learning-progress\.js\?v=1"/);
-  assert.match(html, /src="\/lib\/exercise-evaluate\.js\?v=4"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=63"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=64"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.doesNotMatch(html, />New essay</);
   assert.doesNotMatch(html, /Close essays/);
   assert.match(css, /data-repo-essays-list="1"/);
-  assert.match(html, /id="repo-explorer"/);
-  assert.doesNotMatch(html, /id="repo-ex-new-file"/);
-  assert.doesNotMatch(html, /New learning module/);
-  assert.match(html, /id="repo-code"/);
+  assert.match(css, /data-repo-tech-essays-list="1"/);
+  assert.doesNotMatch(html, /id="repo-explorer"/);
+  assert.doesNotMatch(html, /id="repo-code"/);
+  assert.match(html, /id="repo-left"/);
+  assert.match(html, /id="repo-tech-tree"/);
   assert.match(html, /id="repo-panel"/);
   assert.match(html, /id="repo-panel-write"/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Past essays"/);
-  assert.match(html, /id="repo-tabs"/);
   assert.match(html, /id="repo-ide-center"/);
   assert.doesNotMatch(html, /\u2014/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
@@ -1011,8 +1006,9 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-top--labs\s*\{[^}]*z-index:\s*50/s);
   assert.match(
     css,
-    /\.repo-center\.repo-write-safe-top::before\s*\{[^}]*top:\s*calc\(\s*52px \+ env\(safe-area-inset-top/s,
+    /\.repo-center\.repo-write-safe-top::before[\s\S]*?\{\s*[^}]*top:\s*calc\(\s*52px \+ env\(safe-area-inset-top/s,
   );
+  assert.match(css, /\.repo-surface\.repo-write-safe-top::before/);
   assert.match(css, /@media\s*\(display-mode:\s*standalone\)/);
   assert.match(page, /visualViewport/);
   assert.match(page, /--repo-keyboard-inset/);
@@ -1339,15 +1335,14 @@ test("write page has no top-right account / Sign out / Download chrome", () => {
 
 test("write page shared top bar: tinker mark + past-essays hamburger", () => {
   assert.match(html, /id="repo-labs-link"/);
-  assert.match(html, /data-exercises-nav/);
-  assert.match(html, /aria-label="Open sidebar"/);
+  assert.match(html, /data-technical-essays-nav/);
+  assert.match(html, /aria-label="Technical essays"/);
   assert.match(html, /repo-top__labs/);
-  assert.match(html, /id="repo-ide-tabbar"/);
   assert.match(html, /repo-top--labs/);
-  assert.match(html, /repo-layout--learning/);
+  assert.doesNotMatch(html, /repo-layout--learning/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Past essays"/);
-  // Hamburger (lucide Menu) + tinker mark (left drawer).
+  // Hamburger (lucide Menu) + tinker mark (Technical essays).
   assert.match(html, /M4 5h16M4 12h16M4 19h16/);
   assert.doesNotMatch(html, /M7 3\.5h7\.5/);
   assert.match(html, /tinker-mark\.svg/);
@@ -1365,10 +1360,9 @@ test("write page shared top bar: tinker mark + past-essays hamburger", () => {
   assert.doesNotMatch(surfaceChunk, /id="repo-grok-handoff"/);
   assert.doesNotMatch(surfaceChunk, /id="repo-exercise-rec"/);
   assert.match(css, /\.repo-top__past-essays/);
-  assert.match(css, /\.repo-layout--learning/);
-  // Tinker mark stays on desktop + mobile (left drawer).
+  assert.match(css, /\.repo-tech-essays-sidebar/);
+  // Tinker mark stays on desktop + mobile (Technical essays).
   assert.match(css, /\.repo-top__labs/);
-  assert.doesNotMatch(css, /\.repo-layout--learning \.repo-top__labs\s*\{[^}]*display:\s*none/s);
   assert.match(css, /\.repo-top--labs\s*\{[^}]*display:\s*flex/s);
   assert.match(css, /\.repo-top__past-essays\s*\{[^}]*display:\s*inline-flex/s);
   // Essays sidebar sheet when hamburger opens it.
@@ -1376,9 +1370,14 @@ test("write page shared top bar: tinker mark + past-essays hamburger", () => {
     css,
     /body\.repo-page--write\[data-repo-essays-list="1"\][\s\S]*\.repo-panel__head\s*\{[^}]*flex-direction:\s*column/s,
   );
+  assert.match(
+    css,
+    /body\.repo-page--write\[data-repo-tech-essays-list="1"\][\s\S]*\.repo-tech-essays-sidebar/s,
+  );
   assert.doesNotMatch(html, /repo-panel__close/);
   assert.match(page, /activePlace\(\)/);
   assert.match(page, /CURRENT_PLACE_KEY|currentPlace\.v1/);
+  assert.match(page, /toggleTechnicalEssays/);
 });
 
 test("blank pad is the new essay without download chrome", async () => {

@@ -79,7 +79,7 @@ test("startNextGoal resets level and keeps exercise home", () => {
 test("API and UI wire learning_progress through existing Prisma store", () => {
   assert.match(apiSrc, /makeHandler\("learning_progress"\)/);
   assert.equal(progress.KIND, "learning_progress");
-  assert.match(html, /learning-progress\.js/);
+  assert.doesNotMatch(html, /learning-progress\.js/);
   assert.match(ui, /\/api\/user-data\/learning-progress/);
   assert.match(ui, /persistLearningProgress|loadLearningProgress/);
   assert.doesNotMatch(ui, /openai|codex|gpt-/i);
