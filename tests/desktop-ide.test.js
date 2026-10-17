@@ -1,7 +1,7 @@
 /* Desktop / mobile parity for /repo write layout.
  *
- * Shared structure: top bar (Technical essays mark + Business hamburger),
- * writing surface, left Technical essays list, right Business list.
+ * Shared structure: top bar (Development mark + Founder Source hamburger),
+ * writing surface, left Development list, right Founder Source list.
  * Mobile first screen stays essay writing.
  */
 "use strict";
@@ -69,8 +69,8 @@ test("layout CSS: technical essays | center | business rail", () => {
   );
 });
 
-test("write page loads Technical essays + desktop learning loop without Exercises nav", () => {
-  assert.match(html, /repo\.css\?v=68/);
+test("write page loads Development + desktop learning loop without Exercises nav", () => {
+  assert.match(html, /repo\.css\?v=69/);
   assert.match(html, /Development/);
   assert.match(html, /repo-layout--learning/);
   assert.match(html, /id="repo-code"/);

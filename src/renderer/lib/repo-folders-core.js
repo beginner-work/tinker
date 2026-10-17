@@ -30,6 +30,9 @@
 
   function contentTypeLabel(type) {
     var t = normalizeContentType(type, DEFAULT_CONTENT_TYPE);
+    // User-facing section names; keep internal ids business / technical.
+    if (t === "business") return "Founder Source";
+    if (t === "technical") return "Development";
     return t.charAt(0).toUpperCase() + t.slice(1);
   }
 

@@ -536,8 +536,7 @@
       return;
     }
     state.keepFinishedWriting = false;
-    setMobileEssayList(false);
-    setTechnicalEssayList(false, true);
+    closePeerSurfaces(null);
     state.selectedId = id || null;
     state.selectedFolderId = null;
     if (id) {
@@ -846,8 +845,7 @@
       return;
     }
     // One drawer at a time; New essay returns to the fresh writing surface.
-    setMobileEssayList(false);
-    setTechnicalEssayList(false, true);
+    closePeerSurfaces(null);
     hideEssayReadView();
     state.followupQuestion = "";
     state.followupAsked = [];
@@ -993,13 +991,38 @@
     }
   }
 
-  /** Hamburger: open/close the right essays sidebar (desktop + mobile). */
-  function setMobileEssayList(open) {
-    state.mobileEssayList = !!open && isWritePage;
-    if (state.mobileEssayList) {
-      state.activeListKind = "essays";
+  /**
+   * Mobile: only one section/drawer at a time. Opening Founder Source,
+   * Development, explorer, or the place menu closes the others.
+   * `except` is "essays" | "technical" | "explorer" | "place" | null.
+   */
+  function closePeerSurfaces(except) {
+    if (except !== "essays" && state.mobileEssayList) {
+      setMobileEssayList(false, true);
+    }
+    if (except !== "technical" && state.mobileTechEssayList) {
       setTechnicalEssayList(false, true);
     }
+    if (except !== "place" && state.locationOpen) {
+      closePlacePanel(false);
+    }
+    if (except !== "explorer") {
+      try {
+        var exUi = window.tinkerExerciseWorkspaceUi;
+        if (exUi && typeof exUi.setExplorerOpen === "function" && els.layout &&
+            els.layout.classList.contains("is-explorer-open")) {
+          exUi.setExplorerOpen(false);
+        }
+      } catch (e) { /* ignore */ }
+    }
+  }
+
+  /** Hamburger: open/close the right essays sidebar (desktop + mobile). */
+  function setMobileEssayList(open, skipPeerClose) {
+    var next = !!open && isWritePage;
+    if (next && !skipPeerClose) closePeerSurfaces("essays");
+    state.mobileEssayList = next;
+    if (state.mobileEssayList) state.activeListKind = "essays";
     try {
       if (document.body) {
         if (state.mobileEssayList) {
@@ -1024,11 +1047,10 @@
 
   /** Tinker mark: open/close the left Technical essays sidebar. */
   function setTechnicalEssayList(open, skipPeerClose) {
-    state.mobileTechEssayList = !!open && isWritePage;
-    if (state.mobileTechEssayList) {
-      state.activeListKind = "technical";
-      if (!skipPeerClose) setMobileEssayList(false);
-    }
+    var next = !!open && isWritePage;
+    if (next && !skipPeerClose) closePeerSurfaces("technical");
+    state.mobileTechEssayList = next;
+    if (state.mobileTechEssayList) state.activeListKind = "technical";
     try {
       if (document.body) {
         if (state.mobileTechEssayList) {
@@ -1776,7 +1798,7 @@
 
   /**
    * After a successful This is everything:
-   * open the matching list (Business or Technical) from classified type.
+   * open the matching list (Founder Source or Development) from classified type.
    */
   function finishWritingAfterSave() {
     var finishedType = state.draft && state.draft.contentType
@@ -2760,6 +2782,7 @@
 
   function togglePlacePanel(force) {
     var open = typeof force === "boolean" ? force : !state.locationOpen;
+    if (open) closePeerSurfaces("place");
     state.locationOpen = open;
     if (open) {
       // Chevron open shows the full list; typing filters separately.
@@ -3930,12 +3953,16 @@
   if (els.locationInput) {
     els.locationInput.addEventListener("focus", function () {
       if (state.locationOpen) return;
+      closePeerSurfaces("place");
       state.locationOpen = true;
       state.placeActive = 0;
       renderPlace();
     });
     els.locationInput.addEventListener("input", function () {
-      if (!state.locationOpen) state.locationOpen = true;
+      if (!state.locationOpen) {
+        closePeerSurfaces("place");
+        state.locationOpen = true;
+      }
       state.placeActive = 0;
       renderPlaceList();
       if (els.locationPanel) els.locationPanel.hidden = false;
@@ -4017,7 +4044,7 @@
   state.currentPlace = readStoredPlace();
   if (state.currentPlace) pushRecentPlace(state.currentPlace);
 
-  /* Sidebars start closed; mark opens Technical, hamburger opens Business. */
+  /* Sidebars start closed; mark opens Development, hamburger opens Founder Source. */
   (function initEssaySidebars() {
     if (!isWritePage) return;
     setMobileEssayList(false);
@@ -4073,6 +4100,7 @@
     isTechnicalEssayListOpen: function () { return !!state.mobileTechEssayList; },
     setEssaysSidebar: setEssaysSidebar,
     setTechnicalEssayList: function (open) { setTechnicalEssayList(!!open); },
+    closePeerSurfaces: closePeerSurfaces,
     toggleTechnicalEssays: toggleTechnicalEssays,
     getActiveListKind: function () { return state.activeListKind; },
     scheduleEssayClassify: scheduleEssayClassify,

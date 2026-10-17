@@ -2943,17 +2943,25 @@ body.repo-page--write .repo-center {
   cursor: pointer;
 }
 
-/* Essay rows: title + muted preview; generous padding and soft separation. */
+/* Essay rows: title + muted preview; soft card separation (not a dense stack). */
+.repo-tree__pieces > li {
+  margin: 0;
+  padding: 0;
+}
+
+.repo-tree__pieces > li + li {
+  margin-top: 8px;
+}
+
 .repo-tree__piece-row {
   display: flex;
   align-items: stretch;
+  gap: 2px;
   width: 100%;
+  min-width: 0;
+  min-height: 44px;
   margin: 0;
-  padding: 2px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
-}
-
-.repo-tree__piece-row:last-child {
+  padding: 0;
   border-bottom: 0;
 }
 
@@ -2965,10 +2973,12 @@ body.repo-page--write .repo-center {
   flex: 1 1 auto;
   width: auto;
   min-width: 0;
-  padding: 14px 12px;
-  border-radius: 10px;
+  padding: 14px 14px;
+  border-radius: 12px;
   overflow: hidden;
   white-space: normal;
+  background: color-mix(in srgb, var(--color-foreground) 3.5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 92%, var(--color-foreground) 8%);
 }
 
 .repo-tree__piece-title {
@@ -2996,16 +3006,29 @@ body.repo-page--write .repo-center {
 }
 
 .repo-reflections__item:hover,
-.repo-tree__piece:hover,
 .repo-history__item:hover {
   background: rgba(45, 90, 61, 0.05);
 }
 
+.repo-tree__piece:hover {
+  background: color-mix(in srgb, var(--color-foreground) 5.5%, transparent);
+}
+
 .repo-reflections__item.is-selected,
-.repo-tree__piece.is-selected,
 .repo-history__item.is-selected {
   background: var(--color-accent-dim);
   color: var(--color-accent-strong);
+}
+
+/* Selected essay row: intentional tint + edge, not a flat blue slab. */
+.repo-tree__piece.is-selected {
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 16%, var(--color-background));
+  color: var(--color-accent-strong);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-accent-strong) 28%, transparent);
+}
+
+.repo-tree__piece.is-selected .repo-tree__piece-sub {
+  color: color-mix(in srgb, var(--color-accent-strong) 55%, var(--color-muted));
 }
 
 .repo-tree__head {
@@ -3238,24 +3261,19 @@ body.repo-page--write .repo-center {
   display: none;
 }
 
-.repo-tree__piece-row {
-  display: flex;
-  align-items: stretch;
-  gap: 2px;
-  min-width: 0;
-  min-height: 44px;
-}
-
 .repo-tree__piece-row .repo-tree__icon-btn {
   flex: 0 0 auto;
 }
 
 .repo-reflections__item,
-.repo-tree__piece,
 .repo-history__item,
 .repo-changes__item {
   min-height: 44px;
   padding: 10px 10px;
+}
+
+.repo-tree__piece {
+  min-height: 44px;
 }
 
 .repo-tree__inline {
@@ -4324,13 +4342,15 @@ body.repo-page--write .repo-center {
     display: none;
   }
 
+  /* Sheet starts at viewport top so the wash continues under the transparent
+   * top nav — no tint seam / hard rule between nav and "Founder Source". */
   body.repo-page--write[data-repo-essays-list="1"] .repo-layout--write .repo-right,
   body.repo-page--write[data-repo-essays-list="1"] .repo-right,
   .repo-layout--write.is-essays-open .repo-right {
     display: flex;
     flex-direction: column;
     position: fixed;
-    top: var(--repo-top-bar, calc(56px + env(safe-area-inset-top, 0px)));
+    top: 0;
     left: 0;
     right: 0;
     bottom: 0;
@@ -4343,7 +4363,7 @@ body.repo-page--write .repo-center {
     box-sizing: border-box;
     gap: 0;
     padding:
-      0
+      var(--repo-top-bar, calc(56px + env(safe-area-inset-top, 0px)))
       calc(16px + env(safe-area-inset-right, 0px))
       calc(24px + env(safe-area-inset-bottom, 0px))
       calc(16px + env(safe-area-inset-left, 0px));
@@ -4366,7 +4386,7 @@ body.repo-page--write .repo-center {
     display: flex;
     flex-direction: column;
     position: fixed;
-    top: var(--repo-top-bar, calc(56px + env(safe-area-inset-top, 0px)));
+    top: 0;
     left: 0;
     right: 0;
     bottom: 0;
@@ -4379,7 +4399,7 @@ body.repo-page--write .repo-center {
     box-sizing: border-box;
     gap: 0;
     padding:
-      0
+      var(--repo-top-bar, calc(56px + env(safe-area-inset-top, 0px)))
       calc(16px + env(safe-area-inset-right, 0px))
       calc(24px + env(safe-area-inset-bottom, 0px))
       calc(16px + env(safe-area-inset-left, 0px));
@@ -4402,12 +4422,23 @@ body.repo-page--write .repo-center {
     z-index: auto;
     flex: 0 0 auto;
     height: auto;
-    gap: 8px;
+    gap: 4px;
     margin: 0 -16px;
-    padding: 8px 16px 10px;
+    padding: 4px 16px 14px;
     overflow: visible;
     background: transparent;
     border-bottom: 0;
+    box-shadow: none;
+  }
+
+  body.repo-page--write[data-repo-tech-essays-list="1"] .repo-panel__title,
+  .repo-layout--write.is-tech-essays-open .repo-panel__title {
+    font-family: var(--font-display, "Fraunces", Georgia, serif);
+    font-size: 26px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    text-transform: none;
   }
 
   body.repo-page--write[data-repo-tech-essays-list="1"] .repo-left .repo-tree,
@@ -4450,7 +4481,7 @@ body.repo-page--write .repo-center {
     display: none !important;
   }
 
-  /* Drawer's own header: same surface as top nav (no hard rule / gray band). */
+  /* Section header sits on the same wash — spacing + type, no rule / gray band. */
   body.repo-page--write[data-repo-essays-list="1"] .repo-essays-sidebar .repo-panel__head,
   .repo-layout--write.is-essays-open .repo-essays-sidebar .repo-panel__head {
     display: flex;
@@ -4463,12 +4494,13 @@ body.repo-page--write .repo-center {
     z-index: auto;
     flex: 0 0 auto;
     height: auto;
-    gap: 8px;
+    gap: 4px;
     margin: 0 -16px;
-    padding: 8px 16px 10px;
+    padding: 4px 16px 14px;
     overflow: visible;
     background: transparent;
     border-bottom: 0;
+    box-shadow: none;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-panel__head-row--title,
@@ -4477,7 +4509,7 @@ body.repo-page--write .repo-center {
     width: 100%;
     justify-content: space-between;
     align-items: center;
-    min-height: 44px;
+    min-height: 36px;
     gap: 12px;
   }
 
@@ -4485,9 +4517,11 @@ body.repo-page--write .repo-center {
   .repo-layout--write.is-essays-open .repo-panel__title {
     flex: 1 1 auto;
     min-width: 0;
-    font-size: 22px;
+    font-family: var(--font-display, "Fraunces", Georgia, serif);
+    font-size: 26px;
     font-weight: 650;
     letter-spacing: -0.02em;
+    line-height: 1.15;
     text-transform: none;
     color: var(--color-foreground);
   }

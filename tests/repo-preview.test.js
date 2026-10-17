@@ -873,7 +873,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /class="repo-right[^"]*repo-essays-sidebar|class="[^"]*repo-essays-sidebar[^"]*repo-right/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
   assert.match(html, /src="\/lib\/stories-md\.js\?v=41"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=42"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=44"/);
   assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=40"/);
   assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=49"/);
   assert.match(html, /src="\/lib\/storage-path-core\.js\?v=40"/);
@@ -888,16 +888,30 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /exercise-workspace-ui\.js/);
   assert.match(html, /learning-auth\.js/);
   assert.match(html, /src="\/lib\/exercise-reconstruct\.js\?v=2"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=58"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=59"/);
   assert.match(html, /src="\/lib\/essay-classify\.js\?v=2"/);
   assert.match(html, /src="\/lib\/mcp-context\.js\?v=1"/);
   assert.match(html, /id="repo-new-essay"/);
+  assert.match(html, /aria-label="New essay"/);
+  assert.match(css, /\.repo-top__new-essay/);
+  assert.match(page, /closePeerSurfaces/);
+  assert.match(page, /closePeerSurfaces\(null\)/);
+  assert.match(page, /closePeerSurfaces\("essays"\)/);
+  assert.match(page, /closePeerSurfaces\("technical"\)/);
+  assert.match(page, /closePeerSurfaces\("place"\)/);
+  assert.match(
+    fs.readFileSync(
+      path.join(root, "src/renderer/repo/exercise-workspace-ui.js"),
+      "utf8"
+    ),
+    /setTechnicalEssayList\(false\)/
+  );
   assert.match(html, /src="\/lib\/claude-models\.js\?v=3"/);
   assert.match(html, /src="\/lib\/claude-structured\.js\?v=2"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=68"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=69"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.doesNotMatch(html, /Close essays/);
   assert.match(css, /data-repo-essays-list="1"/);
@@ -929,6 +943,17 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-location__field/);
   assert.match(css, /\.repo-location__remove/);
   assert.match(css, /\.repo-tree__piece-row \.repo-tree__piece/);
+  assert.match(css, /\.repo-tree__piece-title/);
+  assert.match(css, /\.repo-tree__piece-sub/);
+  assert.match(css, /\.repo-tree__pieces > li \+ li/);
+  assert.match(css, /top:\s*0/);
+  assert.match(
+    fs.readFileSync(
+      path.join(root, "src/renderer/repo/harness/essays-sidebar-simple.html"),
+      "utf8"
+    ),
+    /repo-tree__piece-title/
+  );
   assert.match(page, /removeSuggestedPlace/);
   assert.match(css, /\.repo-location__globe/);
   assert.match(css, /\.repo-location\s*\{[^}]*position:\s*sticky/s);
@@ -1353,7 +1378,7 @@ test("write page shared top bar: tinker mark + past-essays hamburger", () => {
   assert.match(html, /repo-layout--learning/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Founder Source"/);
-  // Hamburger (lucide Menu) + tinker mark (Technical essays).
+  // Hamburger (lucide Menu) + tinker mark (Development).
   assert.match(html, /M4 5h16M4 12h16M4 19h16/);
   assert.doesNotMatch(html, /M7 3\.5h7\.5/);
   assert.match(html, /tinker-mark\.svg/);
@@ -1372,7 +1397,7 @@ test("write page shared top bar: tinker mark + past-essays hamburger", () => {
   assert.doesNotMatch(surfaceChunk, /id="repo-exercise-rec"/);
   assert.match(css, /\.repo-top__past-essays/);
   assert.match(css, /\.repo-tech-essays-sidebar/);
-  // Tinker mark stays on desktop + mobile (Technical essays).
+  // Tinker mark stays on desktop + mobile (Development).
   assert.match(css, /\.repo-top__labs/);
   assert.match(css, /\.repo-top--labs\s*\{[^}]*display:\s*flex/s);
   assert.match(css, /\.repo-top__past-essays\s*\{[^}]*display:\s*inline-flex/s);

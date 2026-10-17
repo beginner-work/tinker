@@ -659,10 +659,10 @@ test("exercise catalog never includes Formation curriculum or deleted lindowlabs
     assert.equal(steps.domain, "payments");
     const apiMd = nodes.find((n) => String(n.path || "") === "00-in-plain-english/api.md");
     assert.ok(apiMd, "starter api.md missing");
-    assert.match(String(apiMd.content || ""), /^## ask\s*$/m);
-    assert.match(String(apiMd.content || ""), /^## send\s*$/m);
-    assert.match(String(apiMd.content || ""), /^## return\s*$/m);
-    assert.match(String(apiMd.content || ""), /^## wrong\s*$/m);
+    // Practice files stay empty of instructional scaffolds; prompt card carries copy.
+    assert.equal(String(apiMd.content || "").trim(), "");
+    assert.doesNotMatch(String(apiMd.content || ""), /<!--/);
+    assert.doesNotMatch(seedText, /Type your OpenAPI document here by feel/);
   }
 
   const pageAndManifest = [

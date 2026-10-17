@@ -31,7 +31,7 @@
     folders: [
       {
         id: "folder-essays",
-        name: "Essays",
+        name: "Founder Source",
         pieces: [
           {
             id: "piece-1",

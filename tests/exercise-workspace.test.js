@@ -343,12 +343,11 @@ test("refreshStaleCurriculum replaces rides and Merchant/Order trees with Paymen
     assert.match(text, /WebhookEvent/);
     assert.doesNotMatch(text, /\b\/rides\b/);
     assert.doesNotMatch(text, /\bCreateOrder\b/);
-    const apiMd = next.nodes.find((n) => n.name === "api.md");
+    const apiMd = next.nodes.find((n) => n.name === "api.md" || /api\.md$/.test(String(n.path || "")));
     assert.ok(apiMd);
-    assert.match(String(apiMd.content || ""), /^## ask\s*$/m);
-    assert.match(String(apiMd.content || ""), /^## send\s*$/m);
-    assert.match(String(apiMd.content || ""), /^## return\s*$/m);
-    assert.match(String(apiMd.content || ""), /^## wrong\s*$/m);
+    // Starters are blank of instructional scaffolds (prompt card carries copy).
+    assert.equal(String(apiMd.content || "").trim(), "");
+    assert.doesNotMatch(String(apiMd.content || ""), /<!--|Type your OpenAPI/i);
 
     const again = core.refreshStaleCurriculum(refreshed.workspace, seedWs);
     assert.equal(again.changed, false);
