@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>tinker - Technical essays sidebar</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css?v=40" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/repo/repo.css?v=64" />
+  </head>
+  <!-- Static: Technical essays list open - title only, no New / folder / close / Move. -->
+  <body class="repo-page repo-page--write" data-repo-mode="write" data-repo-tech-essays-list="1">
+    <header class="repo-top repo-top--labs" aria-label="Tools">
+      <button type="button"
+         class="repo-top__labs"
+         id="repo-labs-link"
+         aria-label="Technical essays"
+         title="Technical essays"
+         aria-expanded="true"
+         aria-controls="repo-left"
+         data-technical-essays-nav>
+        <img class="repo-top__labs-icon" src="/icons/tinker-mark.svg?v=40" alt="" width="20" height="20" aria-hidden="true" />
+      </button>
+      <button type="button" class="repo-top__past-essays" id="repo-past-essays"
+              aria-label="Past essays" title="Past essays" aria-expanded="false" aria-controls="repo-right">
+        <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                d="M4 5h16M4 12h16M4 19h16"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="repo-layout repo-layout--write is-tech-essays-open" id="repo-layout">
+      <aside class="repo-left repo-tech-essays-sidebar" id="repo-left" aria-label="Technical essays">
+        <header class="repo-panel__head" id="repo-tech-panel-head">
+          <div class="repo-panel__head-row repo-panel__head-row--title">
+            <h2 class="repo-panel__title" id="repo-tech-heading">Technical essays</h2>
+          </div>
+        </header>
+        <section class="repo-tree" aria-labelledby="repo-tech-heading">
+          <div class="repo-tree__head repo-tree__head--mobile">
+            <h2 class="repo-sidebar__heading">Technical essays</h2>
+          </div>
+          <div class="repo-tree__body" id="repo-tech-tree" role="tree">
+            <ul class="repo-tree__pieces" style="padding-left:0">
+              <li>
+                <div class="repo-tree__piece-row">
+                  <button type="button" class="repo-tree__piece is-selected" role="treeitem">How the retry queue settles</button>
+                </div>
+              </li>
+              <li>
+                <div class="repo-tree__piece-row">
+                  <button type="button" class="repo-tree__piece" role="treeitem">Webhook signature checks</button>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </section>
+        <section class="repo-changes" aria-labelledby="repo-tech-file-heading">
+          <h2 class="repo-sidebar__heading" id="repo-tech-file-heading">Essay</h2>
+          <p class="repo-file__path">How the retry queue settles</p>
+        </section>
+      </aside>
+
+      <div class="repo-ide-center" id="repo-ide-center">
+        <main class="repo-center repo-write-safe-top" aria-label="Pad">
+          <div class="repo-surface writing repo-write-safe-top" id="repo-surface">
+            <div class="repo-location" id="repo-location">
+              <div class="repo-location__field">
+                <img class="repo-location__globe" src="/icons/tinker-mark.svg?v=40" alt="" width="14" height="14" aria-hidden="true" />
+                <input type="text" class="repo-location__input writing-input" value="Home" readonly />
+              </div>
+            </div>
+            <div class="repo-pad" id="repo-pad">
+              <textarea class="repo-pad__turn" readonly>How the retry queue settles after a failed webhook.</textarea>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

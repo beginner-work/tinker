@@ -44,16 +44,15 @@ test("claude-models pins writing Haiku 4.5 and exercise refactor Opus 5.5", () =
 test("writing UI and interview load the shared models config", () => {
   assert.match(indexHtml, /claude-models\.js/);
   assert.match(html, /claude-models\.js/);
-  assert.match(html, /exercise-refactor\.js/);
-  assert.match(html, /exercise-evaluate\.js/);
+  // Write page no longer mounts exercise refactor/evaluate scripts.
+  assert.doesNotMatch(html, /exercise-refactor\.js/);
+  assert.doesNotMatch(html, /exercise-evaluate\.js/);
   assert.match(writing, /tinkerClaudeModels|KEEP_CRAFTING_MODEL/);
   assert.doesNotMatch(writing, /model:\s*["']claude-opus-4-8["']/);
 });
 
 test("exercise editor exposes refactor chrome and selection helpers", () => {
-  assert.match(html, /id="repo-code-refactor"/);
-  assert.match(html, /id="repo-code-refactor-accept"/);
-  assert.match(html, /id="repo-code-refactor-reject"/);
+  assert.doesNotMatch(html, /id="repo-code-refactor"/);
   assert.match(ui, /askRefactor|acceptRefactor|rejectRefactor/);
   assert.match(ui, /EXERCISE_REFACTOR|refactorApi\.MODEL/);
   assert.match(ui, /selectionForRefactor|replaceEditorRange/);

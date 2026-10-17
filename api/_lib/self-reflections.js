@@ -60,16 +60,20 @@ function parseSince(since) {
   return ms;
 }
 
-function presentReflection({ id, title, body, createdAt, updatedAt }) {
+function presentReflection({ id, title, body, createdAt, updatedAt, contentType }) {
   const created = toIso(createdAt) || new Date(0).toISOString();
   const updated = toIso(updatedAt) || created;
-  return {
+  const out = {
     id: String(id || ""),
     title: String(title == null ? "" : title),
     body: String(body == null ? "" : body),
     createdAt: created,
     updatedAt: updated,
   };
+  if (contentType != null && String(contentType).trim() !== "") {
+    out.contentType = String(contentType).trim().toLowerCase();
+  }
+  return out;
 }
 
 function draftBody(draft) {
@@ -128,6 +132,7 @@ function fromEssays(data) {
       body: essay.body,
       createdAt: essay.createdAt,
       updatedAt: essay.updatedAt || essay.createdAt,
+      contentType: essay.contentType,
     }));
 }
 

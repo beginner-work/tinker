@@ -18,11 +18,9 @@ const revSrc = fs.readFileSync(path.join(root, "src/renderer/lib/exercise-revisi
 const core = require("../src/renderer/lib/exercise-workspace-core.js");
 const revision = require("../src/renderer/lib/exercise-revision.js");
 
-test("sign-in gate markup: no exercise files until signed in", () => {
-  assert.match(html, /id="repo-explorer-signin"/);
-  assert.match(html, /id="repo-explorer-gated"/);
-  assert.match(html, /Sign in to Tinker or Lindow Labs Learning to open your practice file/);
-  assert.match(html, /id="repo-explorer-signin-btn"/);
+test("exercise workspace UI still gates practice files behind sign-in", () => {
+  // Write page no longer mounts the explorer; the module keeps the gate.
+  assert.doesNotMatch(html, /id="repo-explorer-signin"/);
   assert.match(ui, /function applyAuthGate/);
   assert.match(ui, /isLearningSignedIn/);
   assert.match(ui, /els\.gated\) els\.gated\.hidden = !signedIn/);
@@ -30,10 +28,6 @@ test("sign-in gate markup: no exercise files until signed in", () => {
   assert.match(ui, /state\.openTabs = \[\]/);
   assert.match(css, /\.repo-explorer-signin/);
   assert.match(css, /\.repo-explorer__gated\[hidden\]/);
-  assert.match(
-    css,
-    /\.repo-explorer__gated\s*\{[^}]*min-height:\s*0/s,
-  );
   assert.doesNotMatch(html, /\u2014|\u2013/);
 });
 
@@ -93,8 +87,7 @@ test("signed-out gate clears explorer file names from the DOM", () => {
   // so no exercise file names remain visible.
   assert.match(ui, /if \(els\.body\) clear\(els\.body\)/);
   assert.match(ui, /els\.gated\) els\.gated\.hidden = !signedIn/);
-  assert.match(html, /id="repo-explorer-body"/);
-  assert.match(html, /id="repo-explorer-gated"/);
+  assert.doesNotMatch(html, /id="repo-explorer-body"/);
 });
 
 test("hamburger opens the right essays sidebar on desktop and mobile", () => {
@@ -135,38 +128,38 @@ test("mobile essays and exercises drawers clear the sticky top bar", () => {
     css,
     /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-essays-sidebar \.repo-panel__head\s*\{[^}]*position:\s*fixed/s,
   );
-  // Exercises drawer also clears the sticky top bar.
+  // Technical essays drawer also clears the sticky top bar.
   assert.match(
     css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-explorer\s*\{[^}]*top:\s*var\(--repo-top-bar/s,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.is-tech-essays-open \.repo-left\s*\{[^}]*top:\s*var\(--repo-top-bar/s,
   );
 });
 
 test("past-essays hamburger and tinker mark are 44px", () => {
   assert.match(html, /id="repo-labs-link"/);
-  assert.match(html, /aria-label="Open sidebar"/);
+  assert.match(html, /aria-label="Technical essays"/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Past essays"/);
   assert.match(css, /\.repo-top__past-essays\s*\{[^}]*width:\s*44px/s);
   assert.match(css, /\.repo-top__labs\s*\{[^}]*width:\s*44px|\.repo-top--labs \.repo-top__labs\s*\{[^}]*width:\s*44px/s);
-  assert.match(html, /repo-layout--learning/);
+  assert.doesNotMatch(html, /repo-layout--learning/);
 });
 
-test("learning loop keeps code editor usable; Save stays hidden", () => {
-  assert.match(css, /\.repo-layout--learning/);
-  assert.match(css, /\.repo-learning__prompt/);
-  assert.match(html, /id="repo-code-thats-everything"/);
-  assert.match(html, /id="repo-code-save"[^>]*hidden/);
-  assert.match(ui, /repo-layout--learning|isLearningLoop/);
-  assert.match(ui, /els\.codeSave\) els\.codeSave\.hidden = true/);
+test("write page uses Technical essays instead of learning loop", () => {
+  assert.match(html, /data-technical-essays-nav/);
+  assert.match(html, /id="repo-tech-tree"/);
+  assert.doesNotMatch(html, /id="repo-code-thats-everything"/);
+  assert.doesNotMatch(html, /repo-layout--learning/);
+  assert.match(css, /\.repo-tech-essays-sidebar/);
 });
+
 
 test("local essay revision updates README steps; Claude path can update starter stubs", () => {
   assert.match(revSrc, /applyEssayRevision/);
   assert.match(revSrc, /applyClaudeRevision/);
   assert.match(revSrc, /Updated from your essay/);
   assert.match(ui, /revise_from_essay|repo-ex-transform-spinner/);
-  assert.match(page, /applyExerciseRevisionFromEssay|startExerciseEssay|repo-exercise-chip/);
+  assert.match(page, /toggleTechnicalEssays|activeListKind/);
 
   const ws = core.emptyWorkspace();
   ws.exerciseOrder = ["demo"];

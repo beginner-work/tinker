@@ -187,33 +187,39 @@
     return false;
   }
 
-  function toggleExercisesNav() {
+  function toggleTechnicalEssaysNav() {
     try {
-      var ui = window.tinkerExerciseWorkspaceUi;
-      if (ui && typeof ui.toggleExplorer === "function") {
-        ui.toggleExplorer();
+      var repo = window.tinkerRepo;
+      if (repo && typeof repo.toggleTechnicalEssays === "function") {
+        repo.toggleTechnicalEssays();
         return true;
       }
     } catch (e) { /* ignore */ }
     var layout = document.getElementById("repo-layout");
     if (layout) {
-      layout.classList.toggle("is-explorer-collapsed");
-      layout.classList.toggle("is-explorer-open");
+      layout.classList.toggle("is-tech-essays-open");
       return true;
     }
     return false;
   }
 
+  // Legacy alias: older harnesses may still call toggleExercisesNav.
+  function toggleExercisesNav() {
+    return toggleTechnicalEssaysNav();
+  }
+
   function onClick(event) {
     var a = event.target && event.target.closest
-      ? event.target.closest("[data-exercises-nav], [data-learning-lab], [data-made-by-lindow-labs]")
+      ? event.target.closest(
+        "[data-technical-essays-nav], [data-exercises-nav], [data-learning-lab], [data-made-by-lindow-labs]"
+      )
       : null;
     if (!a) return;
 
-    // Top-left mark: toggle the left drawer (explorer / learning surface).
-    if (a.hasAttribute("data-exercises-nav")) {
+    // Top-left mark: toggle the Technical essays sidebar.
+    if (a.hasAttribute("data-technical-essays-nav") || a.hasAttribute("data-exercises-nav")) {
       event.preventDefault();
-      toggleExercisesNav();
+      toggleTechnicalEssaysNav();
       return;
     }
 
@@ -249,6 +255,7 @@
     framingLooksBlocked: framingLooksBlocked,
     FRAME_FAIL_MS: FRAME_FAIL_MS,
     isLearningSignedIn: isLearningSignedIn,
+    toggleTechnicalEssaysNav: toggleTechnicalEssaysNav,
     toggleExercisesNav: toggleExercisesNav,
   };
 })();

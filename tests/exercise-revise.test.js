@@ -51,13 +51,9 @@ function demoWorkspace() {
   return ws;
 }
 
-test("essay terminal shows an attachable exercise chip", () => {
-  assert.match(html, /id="repo-exercise-chip"/);
-  assert.match(html, /id="repo-exercise-chip-spinner"/);
-  assert.match(html, /id="repo-exercise-chip-retry"/);
-  assert.match(html, /id="repo-exercise-chip-label"/);
+test("exercise chip removed from write page; revise UI helpers remain", () => {
+  assert.doesNotMatch(html, /id="repo-exercise-chip"/);
   assert.match(css, /\.repo-exercise-chip\b/);
-  assert.match(css, /\.repo-exercise-chip__spinner|\.repo-ex-transform-spinner/);
   assert.match(page, /renderExerciseChip/);
   assert.match(page, /startExerciseEssay/);
   assert.match(page, /clearExerciseAttachment/);
@@ -72,7 +68,6 @@ test("transform pending shows spinner; error exposes retry on tree and chip", ()
   assert.match(ui, /status:\s*["']error["']/);
   assert.match(ui, /retryTransform|revise_from_essay/);
   assert.match(page, /retryExerciseTransform/);
-  assert.match(page, /exerciseTransformStatus/);
   assert.match(css, /\.repo-ex-transform-retry/);
 });
 
@@ -174,10 +169,9 @@ test("reviseExerciseWithClaude calls Anthropic and applies the patch", async () 
   assert.match(starter.content, /TODO/);
 });
 
-test("This is everything wires Claude revise with chip spinner state", () => {
+test("This is everything opens the matching essay list after save", () => {
   assert.match(page, /finishWritingAfterSave/);
-  assert.match(page, /applyExerciseRevisionFromEssay/);
-  assert.match(page, /exerciseTransformStatus\s*=\s*["']pending["']/);
+  assert.match(page, /setTechnicalEssayList|setMobileEssayList/);
+  assert.match(page, /activeListKind/);
   assert.match(ui, /revise_from_essay/);
-  assert.match(ui, /Updating from essay|Updating exercise/);
 });

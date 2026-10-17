@@ -106,69 +106,24 @@ function setup(t, options = {}) {
   };
 }
 
-test("learning loop hides explorer and opens the practice file with prompt", async (t) => {
-  const e = setup(t, { width: 1280 });
-  await e.ui.init();
-  assert.ok(e.el("repo-layout").classList.contains("repo-layout--learning"));
-  assert.equal(e.el("repo-explorer").hidden, true);
-  assert.ok(e.el("repo-labs-link"));
-  assert.match(e.el("repo-learning-prompt-text").textContent, /plain English|PaymentIntent/i);
-  assert.match(e.el("repo-learning-goal").textContent, /OpenAPI/);
-  assert.equal(e.el("repo-code").hidden, false);
-  assert.equal(e.el("repo-code-thats-everything").hidden, false);
-  assert.equal(e.el("repo-code-save").hidden, true);
-  assert.equal(e.el("repo-code-refactor").hidden, true);
-  assert.equal(e.el("repo-tabs").hidden, true);
-  assert.ok(e.editorDocs.length >= 1);
-});
-
-test("narrow width first screen hides learning code until Exercises opens it", async (t) => {
-  const e = setup(t, { width: 390 });
-  await e.ui.init();
-  assert.ok(e.el("repo-layout").classList.contains("repo-layout--learning"));
-  assert.equal(e.el("repo-code").hidden, true);
-  assert.ok(e.el("repo-labs-link"));
-  e.ui.toggleExplorer();
-  assert.equal(e.el("repo-code").hidden, false);
-  assert.equal(e.el("repo-code-thats-everything").hidden, false);
-  assert.match(e.el("repo-learning-prompt-text").textContent, /./);
-});
-
-test("desktop step preview markup and harness exist", () => {
-  assert.match(html, /id="repo-code-preview"/);
-  assert.match(html, /Learning module step, read only/);
+test("write page no longer mounts learning loop; Technical essays chrome remains", () => {
+  assert.doesNotMatch(html, /repo-layout--learning/);
+  assert.doesNotMatch(html, /id="repo-explorer"/);
+  assert.doesNotMatch(html, /id="repo-learning-prompt"/);
+  assert.match(html, /data-technical-essays-nav/);
+  assert.match(html, /id="repo-tech-tree"/);
+  assert.match(html, /id="repo-labs-link"/);
   assert.match(source, /showDesktopStepPreview/);
   assert.match(source, /isDesktopStepPreview/);
-  assert.match(source, /kind === "step"/);
   assert.match(source, /renderMarkdownHtml|fillMarkdownElement/);
   const css = fs.readFileSync(path.join(root, "src/renderer/repo/repo.css"), "utf8");
-  assert.match(css, /\.repo-code__preview\.is-markdown/);
+  assert.match(css, /\.repo-tech-essays-sidebar/);
   const harness = fs.readFileSync(
-    path.join(root, "src/renderer/repo/harness/desktop-step-md-preview.html"),
+    path.join(root, "src/renderer/repo/harness/technical-essays-sidebar.html"),
     "utf8"
   );
-  assert.match(harness, /repo-code__preview/);
-  assert.match(harness, /tinkerEssayRead\.renderMarkdown/);
-  assert.doesNotMatch(harness, /\u2014|\u2013/);
-});
-
-test("learning loop harnesses cover attempt and after-apply states", () => {
-  const after = fs.readFileSync(
-    path.join(root, "src/renderer/repo/harness/learning-loop-after.html"),
-    "utf8"
-  );
-  const attempt = fs.readFileSync(
-    path.join(root, "src/renderer/repo/harness/learning-loop-attempt.html"),
-    "utf8"
-  );
-  assert.match(after, /repo-learning__prompt/);
-  assert.match(after, /id="repo-code-undo"/);
-  assert.match(after, /is-just-applied/);
-  assert.match(after, /Just beyond/);
-  assert.doesNotMatch(after, /id="repo-labs-link"/);
-  assert.match(attempt, /That's everything/);
-  assert.match(attempt, /repo-learning__prompt/);
-  assert.match(attempt, /hidden>Undo|id="repo-code-undo" hidden/);
-  assert.doesNotMatch(attempt, /is-just-applied/);
+  assert.match(harness, /Technical essays/);
+  assert.match(harness, /id="repo-tech-tree"/);
+  assert.doesNotMatch(harness, /repo-learning__prompt/);
   assert.doesNotMatch(html, /New learning module/);
 });

@@ -20,8 +20,7 @@ const madeBy = fs.readFileSync(
 );
 
 test("close/back controls use design-system SVG icons, not × or ‹› glyphs", () => {
-  assert.match(html, /repo-icon--close/);
-  assert.match(html, /repo-icon--chevron/);
+  // Write page no longer ships explorer/chip close chrome; icons stay in JS helpers.
   assert.doesNotMatch(html, /repo-panel__close[^>]*>\s*×\s*</);
   assert.doesNotMatch(html, /repo-exercise-chip__clear[^>]*>\s*×\s*</);
   assert.doesNotMatch(html, /repo-explorer__collapse[^>]*>\s*‹\s*</);

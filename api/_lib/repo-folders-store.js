@@ -338,9 +338,15 @@ function attachTypes(reflections, tree) {
   return (Array.isArray(reflections) ? reflections : []).map((row) => {
     const id = row && row.id != null ? String(row.id) : "";
     const folderId = placements[id] || null;
+    const fromFolder = core.effectiveContentType(folders, placements, id);
+    const explicit = row && row.contentType
+      ? core.normalizeContentType(row.contentType, fromFolder)
+      : null;
     return Object.assign({}, row, {
       folderId,
-      contentType: core.effectiveContentType(folders, placements, id),
+      // Folder placement wins when present; otherwise keep essay-level type
+      // (e.g. technical essays written without a folder).
+      contentType: folderId ? fromFolder : (explicit || fromFolder),
     });
   });
 }

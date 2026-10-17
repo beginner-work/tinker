@@ -16,6 +16,7 @@
     "exercises",
     "readings",
     "drafts",
+    "technical",
   ];
   var DEFAULT_CONTENT_TYPE = "stories";
 

@@ -87,9 +87,9 @@ test("full previous paragraphs keep question aligned to safe top", () => {
 });
 
 test("write page applies the safe-area class and fade overlay", () => {
-  assert.match(html, /repo-center[^>]*repo-write-safe-top/);
+  assert.match(html, /repo-surface[^>]*repo-write-safe-top|repo-write-safe-top[^>]*repo-surface/);
   assert.match(html, /repo-write-scroll\.js/);
-  assert.match(css, /\.repo-center\.repo-write-safe-top::before/);
+  assert.match(css, /repo-write-safe-top::before|\.repo-center\.repo-write-safe-top::before/);
   assert.match(css, /position:\s*fixed/);
   assert.match(css, /--repo-write-safe-top/);
   assert.match(css, /--repo-write-fade/);

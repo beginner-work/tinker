@@ -420,63 +420,38 @@ test("API/store wiring persists via TinkerUserData and never mentions GitHub wri
   assert.match(vercel, /\/api\/exercise-workspace/);
 });
 
-test("repo IDE explorer wires exercise trees and drops the Output panel", () => {
-  assert.match(html, /id="repo-explorer"/);
-  assert.doesNotMatch(html, /id="repo-ex-new-file"/);
-  assert.doesNotMatch(html, /id="repo-ex-new-folder"/);
-  assert.doesNotMatch(html, /New learning module/);
-  assert.doesNotMatch(html, /id="repo-explorer-toolbar"/);
-  assert.match(html, /id="repo-code"/);
-  assert.match(html, /exercise-workspace-ui\.js/);
-  assert.match(html, /exercise-workspace-core\.js/);
+test("write page no longer mounts exercise explorer or learning loop", () => {
+  assert.doesNotMatch(html, /id="repo-explorer"/);
+  assert.doesNotMatch(html, /id="repo-code"/);
+  assert.doesNotMatch(html, /exercise-workspace-ui\.js/);
+  assert.doesNotMatch(html, /id="repo-learning-prompt"/);
+  assert.doesNotMatch(html, /repo-layout--learning/);
+  assert.match(html, /id="repo-left"/);
+  assert.match(html, /data-technical-essays-nav/);
   assert.match(html, /id="repo-panel"/);
-  assert.doesNotMatch(html, /No in-app runner/);
   assert.doesNotMatch(html, /\u2014/);
+  // Module still exists for API/tests; write page just does not load it.
   assert.match(uiSrc, /move_node/);
   assert.match(uiSrc, /create_node/);
-  assert.match(uiSrc, /delete_node/);
   assert.match(uiSrc, /pruneRetiredCurriculum/);
-  assert.match(uiSrc, /refreshStaleCurriculum/);
-  assert.match(uiSrc, /draggable/);
-  assert.match(uiSrc, /Sign in to (save|Tinker|Learning)/);
-  assert.match(html, /All learning modules/);
-  assert.match(uiSrc, /No learning modules yet/);
   assert.doesNotMatch(uiSrc, /\u2014/);
 });
 
-test("Learning loop surface: prompt card, one file, no Exercises sidebar UX", () => {
+test("Technical essays harness replaces learning-loop screens", () => {
   const css = fs.readFileSync(path.join(root, "src/renderer/repo/repo.css"), "utf8");
-  assert.match(html, /repo-layout--learning/);
-  assert.match(html, /id="repo-learning-prompt"/);
-  assert.match(html, /id="repo-code-thats-everything"/);
-  assert.match(html, /id="repo-code-undo"/);
-  // Top-left mark toggles the left drawer / learning surface.
   assert.match(html, /id="repo-labs-link"/);
-  assert.match(html, /data-exercises-nav/);
+  assert.match(html, /data-technical-essays-nav/);
   assert.match(css, /\.repo-top__labs/);
-  assert.doesNotMatch(html, /New learning module/);
-  assert.match(uiSrc, /openPracticeFromProgress/);
-  assert.match(uiSrc, /learningSurfaceOpen/);
-  assert.match(uiSrc, /persistLearningProgress/);
-  assert.match(uiSrc, /flashAppliedHighlight|is-just-applied/);
-  assert.match(uiSrc, /repo-layout--learning/);
-  assert.match(css, /\.repo-layout--learning/);
-  assert.match(css, /\.repo-learning__prompt/);
-  assert.match(css, /\.repo-code__undo/);
+  assert.match(css, /\.repo-tech-essays-sidebar/);
   const harness = fs.readFileSync(
-    path.join(root, "src/renderer/repo/harness/learning-loop-after.html"),
+    path.join(root, "src/renderer/repo/harness/technical-essays-sidebar.html"),
     "utf8"
   );
-  assert.match(harness, /repo-learning__prompt/);
-  assert.match(harness, /That's everything/);
-  assert.match(harness, /id="repo-code-undo"/);
-  assert.match(harness, /Just beyond/);
-  // Learning harnesses stay loop-only (no top-bar chrome).
-  assert.doesNotMatch(harness, /id="repo-labs-link"/);
+  assert.match(harness, /Technical essays/);
+  assert.match(harness, /id="repo-tech-tree"/);
+  assert.match(harness, /data-technical-essays-nav/);
+  assert.doesNotMatch(harness, /repo-learning__prompt/);
   assert.doesNotMatch(harness, /New learning module/);
-  assert.doesNotMatch(harness, /id="repo-code-evaluate-accept"/);
-  assert.doesNotMatch(harness, /id="repo-code-refactor"/);
-  assert.doesNotMatch(harness, /id="repo-code-save"/);
   assert.doesNotMatch(harness, /formation/i);
   assert.doesNotMatch(harness, /\u2014/);
 });

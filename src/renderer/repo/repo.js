@@ -76,16 +76,14 @@
     keepFinishedWriting: false,
     // Right essays sidebar (hamburger) on desktop + mobile.
     mobileEssayList: false,
-    // Essay tagged to an exercise (Write about this exercise / chip).
-    exerciseEssayId: null,
-    exerciseEssayName: "",
-    // Last essay body held for transform retry after This is everything.
-    exerciseEssayBody: "",
-    exerciseTransformStatus: "",
+    // Left Technical essays sidebar (tinker mark) on desktop + mobile.
+    mobileTechEssayList: false,
+    // Which list last owned the blank pad: essays | technical.
+    activeListKind: "essays",
     // Read-view mount for saved essays (toggle always starts off per essay).
     essayReadMount: null,
     essayReadStoryId: null,
-    // Desktop IDE essay tabs (exercise file tabs live in exercise-workspace-ui).
+    // Desktop IDE essay tabs.
     openTabs: [],
     activeTabId: null,
   };
@@ -98,6 +96,10 @@
     code: document.getElementById("repo-code"),
     tree: document.getElementById("repo-tree"),
     empty: document.getElementById("repo-stories-empty"),
+    techTree: document.getElementById("repo-tech-tree"),
+    techEmpty: document.getElementById("repo-tech-empty"),
+    techFilePath: document.getElementById("repo-tech-file-path"),
+    labsLink: document.getElementById("repo-labs-link"),
     newPiece: document.getElementById("repo-new-piece"),
     sidebarNewPiece: document.getElementById("repo-sidebar-new-piece"),
     pastEssays: document.getElementById("repo-past-essays"),
@@ -115,11 +117,6 @@
     padActions: document.getElementById("repo-pad-actions"),
     keepCrafting: document.getElementById("repo-keep-crafting"),
     thisIsEverything: document.getElementById("repo-this-is-everything"),
-    exerciseChip: document.getElementById("repo-exercise-chip"),
-    exerciseChipLabel: document.getElementById("repo-exercise-chip-label"),
-    exerciseChipSpinner: document.getElementById("repo-exercise-chip-spinner"),
-    exerciseChipRetry: document.getElementById("repo-exercise-chip-retry"),
-    exerciseChipClear: document.getElementById("repo-exercise-chip-clear"),
     locationBtn: document.getElementById("repo-location-btn"),
     locationPanel: document.getElementById("repo-location-panel"),
     locationInput: document.getElementById("repo-location-input"),
@@ -493,9 +490,13 @@
     state.stories = state.stories.map(function (story) {
       var folderId = state.placements[story.id] || null;
       var fileName = story.fileName || (story.relPath && story.relPath.split("/").pop()) || "untitled.md";
+      var fromFolder = core.effectiveContentType(state.folders, state.placements, story.id);
+      var contentType = folderId
+        ? fromFolder
+        : core.normalizeContentType(story.contentType, fromFolder);
       return Object.assign({}, story, {
         folderId: folderId,
-        contentType: core.effectiveContentType(state.folders, state.placements, story.id),
+        contentType: contentType,
         fileName: fileName,
         relPath: core.fileRelPath(state.folders, folderId, fileName),
       });
@@ -505,7 +506,7 @@
       state.draft = Object.assign({}, state.draft, {
         contentType: dFolder
           ? core.normalizeContentType((core.folderById(state.folders, dFolder) || {}).contentType)
-          : core.DEFAULT_CONTENT_TYPE,
+          : core.normalizeContentType(state.draft.contentType, draftContentType()),
         relPath: core.fileRelPath(state.folders, dFolder, state.draft.fileName),
       });
     }
@@ -530,8 +531,17 @@
     }
     state.keepFinishedWriting = false;
     setMobileEssayList(false);
+    setTechnicalEssayList(false, true);
     state.selectedId = id || null;
     state.selectedFolderId = null;
+    if (id) {
+      var picked = null;
+      for (var si = 0; si < state.stories.length; si += 1) {
+        if (state.stories[si].id === id) { picked = state.stories[si]; break; }
+      }
+      if (picked && isTechnicalType(picked.contentType)) state.activeListKind = "technical";
+      else if (picked) state.activeListKind = "essays";
+    }
     if (els.code) els.code.hidden = true;
     if (els.pad) els.pad.hidden = false;
     if (id) openEssayTab(id);
@@ -627,6 +637,28 @@
     return files;
   }
 
+  function isTechnicalType(value) {
+    return core.normalizeContentType(value) === "technical";
+  }
+
+  function draftContentType() {
+    return state.activeListKind === "technical" ? "technical" : core.DEFAULT_CONTENT_TYPE;
+  }
+
+  function filesForList(kind) {
+    return allFiles().filter(function (story) {
+      var tech = isTechnicalType(story.contentType);
+      return kind === "technical" ? tech : !tech;
+    });
+  }
+
+  function foldersForList(kind) {
+    return state.folders.filter(function (folder) {
+      var tech = isTechnicalType(folder.contentType);
+      return kind === "technical" ? tech : !tech;
+    });
+  }
+
   function addNewFile() {
     if (isFilesPage) {
       var folderQ = state.selectedFolderId
@@ -654,7 +686,7 @@
       folderId: folderId,
       contentType: folderId
         ? core.normalizeContentType((core.folderById(state.folders, folderId) || {}).contentType)
-        : core.DEFAULT_CONTENT_TYPE,
+        : draftContentType(),
       markdown: "",
       isNew: true,
     };
@@ -782,6 +814,10 @@
   /** Hamburger: open/close the right essays sidebar (desktop + mobile). */
   function setMobileEssayList(open) {
     state.mobileEssayList = !!open && isWritePage;
+    if (state.mobileEssayList) {
+      state.activeListKind = "essays";
+      setTechnicalEssayList(false, true);
+    }
     try {
       if (document.body) {
         if (state.mobileEssayList) {
@@ -804,133 +840,50 @@
     }
   }
 
+  /** Tinker mark: open/close the left Technical essays sidebar. */
+  function setTechnicalEssayList(open, skipPeerClose) {
+    state.mobileTechEssayList = !!open && isWritePage;
+    if (state.mobileTechEssayList) {
+      state.activeListKind = "technical";
+      if (!skipPeerClose) setMobileEssayList(false);
+    }
+    try {
+      if (document.body) {
+        if (state.mobileTechEssayList) {
+          document.body.setAttribute("data-repo-tech-essays-list", "1");
+        } else {
+          document.body.removeAttribute("data-repo-tech-essays-list");
+        }
+      }
+    } catch (e) { /* ignore */ }
+    if (els.layout) {
+      els.layout.classList.toggle("is-tech-essays-open", state.mobileTechEssayList);
+    }
+    var left = document.getElementById("repo-left");
+    if (left) {
+      if (state.mobileTechEssayList) left.removeAttribute("hidden");
+      else left.setAttribute("hidden", "");
+    }
+    if (els.labsLink) {
+      els.labsLink.setAttribute("aria-expanded", state.mobileTechEssayList ? "true" : "false");
+    }
+  }
+
+  function toggleTechnicalEssays() {
+    if (!isWritePage) return false;
+    setTechnicalEssayList(!state.mobileTechEssayList);
+    return true;
+  }
+
   function setEssaysSidebar(open) {
     setMobileEssayList(open);
   }
 
-  function clearExerciseAttachment() {
-    state.exerciseEssayId = null;
-    state.exerciseEssayName = "";
-    state.exerciseEssayBody = "";
-    state.exerciseTransformStatus = "";
-    if (state.draft) {
-      try { delete state.draft.exerciseId; } catch (e) { /* ignore */ }
-    }
-    renderExerciseChip();
-  }
-
-  function renderExerciseChip() {
-    if (!els.exerciseChip) return;
-    var id = state.exerciseEssayId
-      || (state.draft && state.draft.exerciseId)
-      || null;
-    if (!id) {
-      els.exerciseChip.hidden = true;
-      els.exerciseChip.classList.remove("is-pending", "is-error");
-      if (els.exerciseChipSpinner) els.exerciseChipSpinner.hidden = true;
-      if (els.exerciseChipRetry) els.exerciseChipRetry.hidden = true;
-      return;
-    }
-    var name = state.exerciseEssayName || id;
-    var status = state.exerciseTransformStatus || "";
-    try {
-      var ui = window.tinkerExerciseWorkspaceUi;
-      if (ui && typeof ui.transformStatus === "function") {
-        status = ui.transformStatus(id) || status;
-        state.exerciseTransformStatus = status;
-      }
-    } catch (e) { /* ignore */ }
-    els.exerciseChip.hidden = false;
-    els.exerciseChip.classList.toggle("is-pending", status === "pending");
-    els.exerciseChip.classList.toggle("is-error", status === "error");
-    if (els.exerciseChipLabel) {
-      text(
-        els.exerciseChipLabel,
-        status === "pending"
-          ? ("Updating " + name + "…")
-          : status === "error"
-            ? ("Could not update " + name)
-            : name
-      );
-    }
-    if (els.exerciseChipSpinner) els.exerciseChipSpinner.hidden = status !== "pending";
-    if (els.exerciseChipRetry) els.exerciseChipRetry.hidden = status !== "error";
-  }
-
-  function startExerciseEssay(opts) {
-    opts = opts || {};
-    var exerciseId = String(opts.exerciseId || "").trim();
-    if (!exerciseId) return;
-    setMobileEssayList(false);
-    state.exerciseEssayId = exerciseId;
-    state.exerciseEssayName = String(opts.exerciseName || exerciseId);
-    state.exerciseEssayBody = "";
-    state.exerciseTransformStatus = "";
-    addNewFile();
-    if (state.draft) {
-      state.draft.exerciseId = exerciseId;
-      state.draft.title = "About " + state.exerciseEssayName;
-      var starter = "Write about this exercise: " + state.exerciseEssayName + "\n\n";
-      starter += "What should change in the steps?\n\n";
-      starter += "1. \n";
-      setPadMarkdown(starter);
-      state.draft.body = starter;
-      state.draft.markdown = starter;
-    }
-    render();
-    renderExerciseChip();
-    if (els.body) {
-      try { els.body.focus(); } catch (e) { /* ignore */ }
-    }
-  }
-
-  function applyExerciseRevisionFromEssay(body) {
-    var exerciseId = state.exerciseEssayId
-      || (state.draft && state.draft.exerciseId)
-      || null;
-    if (!exerciseId) return Promise.resolve(null);
-    state.exerciseEssayBody = String(body == null ? "" : body);
-    state.exerciseTransformStatus = "pending";
-    renderExerciseChip();
-    var ui = window.tinkerExerciseWorkspaceUi;
-    if (!ui || typeof ui.applyEssayRevision !== "function") {
-      state.exerciseTransformStatus = "error";
-      renderExerciseChip();
-      return Promise.resolve(null);
-    }
-    return ui.applyEssayRevision(exerciseId, state.exerciseEssayBody).then(function (result) {
-      state.exerciseTransformStatus = "";
-      // Keep the chip label briefly with the exercise name, then clear attachment.
-      state.exerciseEssayBody = "";
-      renderExerciseChip();
-      clearExerciseAttachment();
-      return result;
-    }).catch(function () {
-      state.exerciseTransformStatus = "error";
-      renderExerciseChip();
-      return null;
-    });
-  }
-
-  function retryExerciseTransform() {
-    var ui = window.tinkerExerciseWorkspaceUi;
-    var exerciseId = state.exerciseEssayId;
-    if (!exerciseId || !ui) return Promise.resolve(null);
-    state.exerciseTransformStatus = "pending";
-    renderExerciseChip();
-    var run = typeof ui.retryTransform === "function"
-      ? ui.retryTransform(exerciseId)
-      : ui.applyEssayRevision(exerciseId, state.exerciseEssayBody);
-    return run.then(function (result) {
-      state.exerciseTransformStatus = "";
-      clearExerciseAttachment();
-      return result;
-    }).catch(function () {
-      state.exerciseTransformStatus = "error";
-      renderExerciseChip();
-      return null;
-    });
-  }
+  function clearExerciseAttachment() { /* exercises removed */ }
+  function renderExerciseChip() { /* exercises removed */ }
+  function startExerciseEssay() { /* exercises removed */ }
+  function applyExerciseRevisionFromEssay() { return Promise.resolve(null); }
+  function retryExerciseTransform() { return Promise.resolve(null); }
 
   function readSafeAreaInsetTop() {
     try {
@@ -1334,7 +1287,7 @@
       folderId: folderId,
       contentType: folderId
         ? core.normalizeContentType((core.folderById(state.folders, folderId) || {}).contentType)
-        : core.DEFAULT_CONTENT_TYPE,
+        : draftContentType(),
       markdown: body,
       isNew: true,
     };
@@ -1640,16 +1593,12 @@
 
   /**
    * After a successful This is everything:
-   * open the right essays sidebar (desktop + mobile parity).
-   * If the essay was tagged to an exercise, send it + the essay to Claude
-   * to revise README / steps / starter stubs (spinner on chip + tree).
+   * open the matching essays list (Essays or Technical essays).
    */
   function finishWritingAfterSave() {
-    var finishedBody = padBody();
-    var pendingExerciseId = state.exerciseEssayId
-      || (state.draft && state.draft.exerciseId)
-      || null;
-    var pendingExerciseName = state.exerciseEssayName || pendingExerciseId || "";
+    var finishedType = state.draft && state.draft.contentType
+      ? core.normalizeContentType(state.draft.contentType)
+      : draftContentType();
     state.draft = null;
     state.selectedId = null;
     state.selectedFolderId = null;
@@ -1663,27 +1612,26 @@
     setPadActionsVisible(false);
     state.keepFinishedWriting = !isPhoneWriteWidth();
     if (isPhoneWriteWidth() && els.body && !padHasFocus()) setPadMarkdown("");
-    setMobileEssayList(true);
-    render();
-    if (pendingExerciseId) {
-      state.exerciseEssayId = pendingExerciseId;
-      state.exerciseEssayName = pendingExerciseName;
-      state.exerciseEssayBody = finishedBody;
-      applyExerciseRevisionFromEssay(finishedBody).then(function () {
-        render();
-        renderExerciseChip();
-      });
+    if (isTechnicalType(finishedType)) {
+      state.activeListKind = "technical";
+      setTechnicalEssayList(true);
     } else {
-      renderExerciseChip();
+      state.activeListKind = "essays";
+      setMobileEssayList(true);
     }
+    render();
   }
 
-    function storyFromEssay(essay, folderId) {
+    function storyFromEssay(essay, folderId, contentType) {
     var title = essay.title || firstLineTitle(essay.body || "");
     var createdAt = essay.createdAt
       ? (typeof essay.createdAt === "number" ? new Date(essay.createdAt).toISOString() : String(essay.createdAt))
       : new Date().toISOString();
     var fileName = md.storyFileName({ title: title, createdAt: createdAt, updatedAt: createdAt });
+    var type = core.normalizeContentType(
+      contentType || essay.contentType,
+      draftContentType()
+    );
     return {
       id: essay.id,
       title: title,
@@ -1692,7 +1640,7 @@
       updatedAt: createdAt,
       fileName: fileName,
       folderId: folderId || null,
-      contentType: core.DEFAULT_CONTENT_TYPE,
+      contentType: type,
       markdown: md.storyMarkdown(title, essay.body || ""),
       isNew: false,
       relPath: core.fileRelPath(state.folders, folderId || null, fileName),
@@ -1737,6 +1685,7 @@
             title: title,
             body: body,
             updatedAt: Date.now(),
+            contentType: draft.contentType || essay.contentType || draftContentType(),
           });
           essays[idx] = essay;
         }
@@ -1754,6 +1703,7 @@
           kind: "essay",
           seed: place || null,
           pendingPitch: true,
+          contentType: draft.contentType || draftContentType(),
         };
         essays = [essay].concat(essays);
       }
@@ -1764,7 +1714,7 @@
           showPadError("Could not save this piece. Try again.", { retry: false });
           return null;
         }
-        var saved = storyFromEssay(essay, folderId);
+        var saved = storyFromEssay(essay, folderId, draft.contentType || essay.contentType);
         if (place) state.places[saved.id] = place.slice(0, 120);
         if (draft.isNew && state.draft && state.draft.id === draft.id) state.draft = null;
         var replaced = false;
@@ -3007,7 +2957,7 @@
     list.appendChild(li);
   }
 
-  function renderFolderNode(container, folder, depth) {
+  function renderFolderNode(container, folder, depth, listKind) {
     var open = !state.collapsed[folder.id];
     var wrap = document.createElement("div");
     wrap.className = "repo-tree__folder";
@@ -3151,13 +3101,15 @@
       list.appendChild(createLi);
     }
 
-    core.sortByName(core.childFolders(state.folders, folder.id)).forEach(function (child) {
+    var childFolderSource = listKind ? foldersForList(listKind) : state.folders;
+    core.sortByName(core.childFolders(childFolderSource, folder.id)).forEach(function (child) {
       var childLi = document.createElement("li");
-      renderFolderNode(childLi, child, depth + 1);
+      renderFolderNode(childLi, child, depth + 1, listKind || null);
       list.appendChild(childLi);
     });
 
-    core.filesInFolder(allFiles(), state.placements, folder.id).forEach(function (story) {
+    var fileSource = listKind ? filesForList(listKind) : allFiles();
+    core.filesInFolder(fileSource, state.placements, folder.id).forEach(function (story) {
       renderFileRow(list, story);
     });
 
@@ -3165,21 +3117,23 @@
     container.appendChild(wrap);
   }
 
-  function renderTree() {
-    clear(els.tree);
-    var files = allFiles();
-    var hasFolders = state.folders.length > 0;
-    if (els.empty) {
-      els.empty.hidden = files.length > 0 || hasFolders || state.creatingFolder;
-    }
-    if (!els.tree) return;
-
-    if (state.creatingFolder && !state.createParentId) {
-      appendCreateForm(els.tree, null);
+  function renderTreeInto(container, emptyEl, kind) {
+    if (!container) return;
+    clear(container);
+    var writeFilter = isWritePage && kind;
+    var files = writeFilter ? filesForList(kind) : allFiles();
+    var folders = writeFilter ? foldersForList(kind) : state.folders;
+    var hasFolders = folders.length > 0;
+    if (emptyEl) {
+      emptyEl.hidden = files.length > 0 || hasFolders || (state.creatingFolder && !writeFilter);
     }
 
-    core.sortByName(core.childFolders(state.folders, null)).forEach(function (folder) {
-      renderFolderNode(els.tree, folder, 0);
+    if (!writeFilter && state.creatingFolder && !state.createParentId) {
+      appendCreateForm(container, null);
+    }
+
+    core.sortByName(core.childFolders(folders, null)).forEach(function (folder) {
+      renderFolderNode(container, folder, 0, writeFilter ? kind : null);
     });
 
     var rootFiles = core.filesInFolder(files, state.placements, null);
@@ -3190,8 +3144,17 @@
       rootFiles.forEach(function (story) {
         renderFileRow(list, story);
       });
-      els.tree.appendChild(list);
+      container.appendChild(list);
     }
+  }
+
+  function renderTree() {
+    if (isWritePage) {
+      renderTreeInto(els.tree, els.empty, "essays");
+      renderTreeInto(els.techTree, els.techEmpty, "technical");
+      return;
+    }
+    renderTreeInto(els.tree, els.empty, null);
   }
 
   if (els.tree) {
@@ -3322,17 +3285,18 @@
       renderSavedIn();
     }
     if (isWritePage) {
-      // Structure sidebar on desktop write - same tree as /repo/files.
-      if (els.tree) renderTree();
+      renderTree();
       renderCenter();
-      // Essay tabs only when the exercise file editor is not active.
       if (!els.code || els.code.hidden) renderTabs();
       renderPlace();
       renderFollowup();
       renderSyncHint();
-      renderExerciseChip();
       if (isEssayReadMode() || (els.code && !els.code.hidden)) setPadActionsVisible(false);
       else setPadActionsVisible(state.padActionsVisible && !!padBody().trim());
+      if (els.techFilePath) {
+        var sel = selectedStory();
+        text(els.techFilePath, sel && isTechnicalType(sel.contentType) ? md.displayTitle(sel) : "");
+      }
     }
   }
 
@@ -3576,31 +3540,6 @@
       sendHomeForAuth();
     });
   }
-  if (els.exerciseChipRetry) {
-    els.exerciseChipRetry.addEventListener("click", function (event) {
-      if (event && event.preventDefault) event.preventDefault();
-      if (event && event.stopPropagation) event.stopPropagation();
-      retryExerciseTransform();
-    });
-  }
-  if (els.exerciseChipClear) {
-    els.exerciseChipClear.addEventListener("click", function (event) {
-      if (event && event.preventDefault) event.preventDefault();
-      if (event && event.stopPropagation) event.stopPropagation();
-      clearExerciseAttachment();
-    });
-  }
-  if (typeof window.addEventListener === "function") {
-    window.addEventListener("tinker-exercise-transform", function (event) {
-      var detail = event && event.detail;
-      var map = detail && detail.transform;
-      var id = state.exerciseEssayId;
-      if (!id || !map) return;
-      var row = map[id];
-      state.exerciseTransformStatus = row && row.status ? row.status : "";
-      renderExerciseChip();
-    });
-  }
   if (els.locationBtn) {
     els.locationBtn.addEventListener("click", function (event) {
       event.stopPropagation();
@@ -3707,10 +3646,11 @@
   state.currentPlace = readStoredPlace();
   if (state.currentPlace) pushRecentPlace(state.currentPlace);
 
-  /* Right essays sidebar starts closed; hamburger opens it on desktop + mobile. */
-  (function initEssaysSidebar() {
+  /* Sidebars start closed; mark opens Technical essays, hamburger opens Essays. */
+  (function initEssaySidebars() {
     if (!isWritePage) return;
     setMobileEssayList(false);
+    setTechnicalEssayList(false, true);
   })();
 
   if (typeof window.addEventListener === "function") {
@@ -3759,18 +3699,16 @@
     },
     arePadActionsVisible: function () { return !!state.padActionsVisible; },
     isMobileEssayListOpen: function () { return !!state.mobileEssayList; },
+    isTechnicalEssayListOpen: function () { return !!state.mobileTechEssayList; },
     setEssaysSidebar: setEssaysSidebar,
+    setTechnicalEssayList: function (open) { setTechnicalEssayList(!!open); },
+    toggleTechnicalEssays: toggleTechnicalEssays,
+    getActiveListKind: function () { return state.activeListKind; },
     startExerciseEssay: startExerciseEssay,
     clearExerciseAttachment: clearExerciseAttachment,
     retryExerciseTransform: retryExerciseTransform,
-    onExerciseTransform: function (map) {
-      var id = state.exerciseEssayId;
-      if (!id || !map) return;
-      var row = map[id];
-      state.exerciseTransformStatus = row && row.status ? row.status : "";
-      renderExerciseChip();
-    },
-    getExerciseEssayId: function () { return state.exerciseEssayId; },
+    onExerciseTransform: function () { /* exercises removed */ },
+    getExerciseEssayId: function () { return null; },
     getFollowupQuestion: function () { return state.followupQuestion || ""; },
     showPadError: showPadError,
     showPadNotice: showPadNotice,
@@ -3789,96 +3727,10 @@
   };
 
   render();
-  var exUi = window.tinkerExerciseWorkspaceUi;
-  var exReady = (exUi && typeof exUi.init === "function")
-    ? exUi.init({
-      onReleaseEditor: function () {
-        renderTabs();
-        renderCenter();
-      },
-    })
-    : Promise.resolve();
-  function stripLockInQuery() {
-    try {
-      var url = new URL(window.location.href);
-      if (!url.searchParams.has("lockin") && !url.searchParams.has("from")) return;
-      url.searchParams.delete("lockin");
-      url.searchParams.delete("from");
-      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-    } catch (e) { /* ignore */ }
-  }
 
-  function desktopFullscreen(on) {
-    var tinker = window.tinker;
-    if (tinker && typeof tinker.setFullScreen === "function") {
-      try { tinker.setFullScreen(!!on); } catch (e) { /* ignore */ }
-      return;
-    }
-    try {
-      if (on && document.documentElement && document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen();
-      } else if (!on && document.fullscreenElement && document.exitFullscreen) {
-        document.exitFullscreen();
-      }
-    } catch (e2) { /* ignore */ }
-  }
-
-  function applyExerciseDeepLink() {
-    var exerciseId = String(readQueryParam("exercise") || "").trim();
-    if (!exerciseId) return;
-    var nodeId = String(readQueryParam("node") || "").trim();
-    var wantLockIn = readQueryParam("lockin") === "1";
-    var ui = window.tinkerExerciseWorkspaceUi;
-    var nextApi = window.tinkerExercisesNext;
-    var manifest = window.tinkerExercisesManifest;
-    var mod = null;
-    if (manifest && Array.isArray(manifest.modules)) {
-      manifest.modules.forEach(function (m) {
-        if (m && String(m.id) === exerciseId) mod = m;
-      });
-    }
-    var resume = nextApi && typeof nextApi.getResume === "function"
-      ? nextApi.getResume(exerciseId, window.localStorage)
-      : null;
-    var resumeLabel = resume && resume.fileName
-      ? ("You left off at " + resume.fileName)
-      : "Pick up where you left off";
-    var name = mod && mod.name ? String(mod.name) : exerciseId;
-
-    function openTarget() {
-      if (ui && typeof ui.openExercise === "function") {
-        ui.openExercise(exerciseId, { nodeId: nodeId || (resume && resume.nodeId) || "" });
-      }
-    }
-
-    if (wantLockIn && window.tinkerLockInUi && typeof window.tinkerLockInUi.startLockIn === "function") {
-      window.tinkerLockInUi.startLockIn({
-        name: name,
-        resumeLabel: resumeLabel,
-        lockIn: window.tinkerLockIn,
-        onEnterFullscreen: function () { desktopFullscreen(true); },
-        onExitFullscreen: function () { desktopFullscreen(false); },
-        onComplete: function () {
-          openTarget();
-          stripLockInQuery();
-        },
-        onLeave: function () {
-          stripLockInQuery();
-        },
-      });
-      return;
-    }
-    openTarget();
-  }
-
-  window.tinkerRepo.ready = Promise.all([
-    loadStories().then(function () {
-      applyWriteQuery();
-      restorePadDraftAfterAuth();
-    }),
-    exReady,
-  ]).then(function () {
-    applyExerciseDeepLink();
+  window.tinkerRepo.ready = loadStories().then(function () {
+    applyWriteQuery();
+    restorePadDraftAfterAuth();
     syncWriteEmptyHint();
   });
 })();
