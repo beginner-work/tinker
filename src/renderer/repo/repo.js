@@ -1903,6 +1903,7 @@
             }).catch(function () { /* ignore */ })
           : Promise.resolve();
         return placePromise.then(function () { return syncStoriesToDisk(); }).then(function () {
+          scheduleLearningReconstruct(essay, saved);
           return saved;
         });
       });
@@ -1917,6 +1918,32 @@
       if (state.keepFinishedWriting) return;
       if (padBody().trim()) bumpPadTypingIdle();
     });
+  }
+
+  /** Fire-and-forget: technical essays reconstruct the desktop ZPD exercise. */
+  function scheduleLearningReconstruct(essay, savedStory) {
+    if (!essay || !essay.id) return;
+    var kind = essayKindFor(
+      (savedStory && savedStory.contentType) || essay.contentType
+    );
+    if (kind !== "technical") return;
+    if (!hasSessionToken()) return;
+    var body = String(essay.body || "").trim();
+    if (!body) return;
+    var headers = authHeaders();
+    // Non-blocking: do not await; save UX already finished.
+    try {
+      fetch("/api/learning-reconstruct", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify({
+          essayId: essay.id,
+          essayBody: body,
+          essayUpdatedAt: essay.updatedAt || essay.createdAt || null,
+        }),
+        keepalive: true,
+      }).catch(function () { /* ignore */ });
+    } catch (e) { /* ignore */ }
   }
 
   function keepCraftingPad() {
@@ -3877,6 +3904,7 @@
     backfillEssayKinds: backfillEssayKinds,
     applyEssayKind: applyEssayKind,
     essayKindFor: essayKindFor,
+    scheduleLearningReconstruct: scheduleLearningReconstruct,
     startExerciseEssay: startExerciseEssay,
     clearExerciseAttachment: clearExerciseAttachment,
     retryExerciseTransform: retryExerciseTransform,
@@ -3901,7 +3929,16 @@
 
   render();
 
-  window.tinkerRepo.ready = loadStories().then(function () {
+  var exUi = window.tinkerExerciseWorkspaceUi;
+  var exReady = (exUi && typeof exUi.init === "function")
+    ? exUi.init({
+      onReleaseEditor: function () {
+        /* essay rails own tabs when present */
+      },
+    })
+    : Promise.resolve();
+
+  window.tinkerRepo.ready = Promise.all([loadStories(), exReady]).then(function () {
     applyWriteQuery();
     restorePadDraftAfterAuth();
     syncWriteEmptyHint();

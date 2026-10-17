@@ -420,17 +420,18 @@ test("API/store wiring persists via TinkerUserData and never mentions GitHub wri
   assert.match(vercel, /\/api\/exercise-workspace/);
 });
 
-test("write page no longer mounts exercise explorer or learning loop", () => {
-  assert.doesNotMatch(html, /id="repo-explorer"/);
-  assert.doesNotMatch(html, /id="repo-code"/);
-  assert.doesNotMatch(html, /exercise-workspace-ui\.js/);
-  assert.doesNotMatch(html, /id="repo-learning-prompt"/);
-  assert.doesNotMatch(html, /repo-layout--learning/);
+test("write page mounts learning loop without Exercises nav entry", () => {
+  assert.match(html, /id="repo-explorer"/);
+  assert.match(html, /id="repo-explorer"[^>]*hidden/);
+  assert.match(html, /id="repo-code"/);
+  assert.match(html, /exercise-workspace-ui\.js/);
+  assert.match(html, /id="repo-learning-prompt"/);
+  assert.match(html, /repo-layout--learning/);
   assert.match(html, /id="repo-left"/);
   assert.match(html, /data-technical-essays-nav/);
+  assert.doesNotMatch(html, /data-exercises-nav/);
   assert.match(html, /id="repo-panel"/);
   assert.doesNotMatch(html, /\u2014/);
-  // Module still exists for API/tests; write page just does not load it.
   assert.match(uiSrc, /move_node/);
   assert.match(uiSrc, /create_node/);
   assert.match(uiSrc, /pruneRetiredCurriculum/);

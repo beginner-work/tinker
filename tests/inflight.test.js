@@ -45,7 +45,7 @@ test("top bar has no In flight entry; tinker mark opens left drawer", () => {
   assert.doesNotMatch(repoHtml, /M18\.657 21\.485/);
   assert.doesNotMatch(repoHtml, /FlaskConical|beaker/i);
   assert.match(repoHtml, /id="repo-past-essays"/);
-  assert.doesNotMatch(repoHtml, /repo-layout--learning/);
+  assert.match(repoHtml, /repo-layout--learning/);
   assert.match(repoHtml, /data-technical-essays-nav/);
   assert.match(repoCss, /\.repo-top__labs/);
   assert.match(repoHtml, /tinker-mark\.svg/);

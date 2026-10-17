@@ -4971,12 +4971,13 @@ html.labs-drawer-open body {
 }
 
 /* ===== Learning loop (ZPD): one prompt + one file =====
- * Desktop: first screen. Mobile: opened via Exercises nav; essay writing
- * remains the default first paint until is-code-open / repo-code-open. */
+ * Desktop: practice surface opens when signed in. Mobile: essay writing first;
+ * no Exercises nav — reconstruct from technical essays updates progress. */
 .repo-layout--learning {
+  /* Keep Technical (left) + Business (right) rails; no Exercises explorer rail. */
   --repo-explorer-rail: 0px;
   grid-template-columns:
-    0
+    var(--repo-tech-essays-rail, 0px)
     minmax(0, 1fr)
     var(--repo-essays-rail, 0px);
 }

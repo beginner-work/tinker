@@ -1,3 +1,3 @@
 No download needed, updates on next launch
 
-Web-only: one writing flow for all essays. Technical list on the left, Business on the right (mobile drawers). Haiku 4.5 classifies as you write (debounced, persisted, backfill on load); no category picker. Plain title lists only. Claude only; no Formation.
+Web-only: one writing flow (Technical left / Business right, Haiku classify). Desktop ZPD learning loop stays (prompt + practice file + level); no Exercises nav. Finishing a technical essay reconstructs the desktop exercise via Opus 5.5 (goal stays; next prompt, starting file, level) in the background. Claude only.

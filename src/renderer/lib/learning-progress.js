@@ -66,7 +66,7 @@
     const status =
       String(raw.status || "").toLowerCase() === "done" ? "done" : "active";
     const zpdIn = raw.zpd && typeof raw.zpd === "object" ? raw.zpd : {};
-    return {
+    const out = {
       goalId: clamp(raw.goalId || base.goalId, 80) || base.goalId,
       goalTitle: clamp(raw.goalTitle || base.goalTitle, MAX_TITLE) || base.goalTitle,
       exerciseId:
@@ -89,6 +89,17 @@
           ? raw.updatedAt
           : null,
     };
+    // Idempotency marker for technical-essay → exercise reconstruct jobs.
+    if (typeof raw.essayReconstructKey === "string" && raw.essayReconstructKey) {
+      out.essayReconstructKey = clamp(raw.essayReconstructKey, 120);
+    }
+    if (typeof raw.essayReconstructEssayId === "string" && raw.essayReconstructEssayId) {
+      out.essayReconstructEssayId = clamp(raw.essayReconstructEssayId, 80);
+    }
+    if (typeof raw.essayReconstructAt === "string" && raw.essayReconstructAt) {
+      out.essayReconstructAt = raw.essayReconstructAt;
+    }
+    return out;
   }
 
   function applyCalibration(progress, calibration) {
@@ -120,6 +131,9 @@
             ? cal.zpd.justBeyond
             : prev.zpd.justBeyond,
       },
+      essayReconstructKey: prev.essayReconstructKey,
+      essayReconstructEssayId: prev.essayReconstructEssayId,
+      essayReconstructAt: prev.essayReconstructAt,
       updatedAt: new Date().toISOString(),
     });
     if (cal.goalAchieved) next.status = "done";

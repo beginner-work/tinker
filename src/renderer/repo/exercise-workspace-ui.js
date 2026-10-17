@@ -9,10 +9,10 @@
  * and the next prompt, and persists learning_progress. No Accept/Reject,
  * no Exercises sidebar tree, no multi-file tabs as the main UX.
  *
- * Desktop: learning loop is the first screen. Mobile: essay writing is first;
- * Exercises (dumbbell) opens/closes the prompt + practice file. Claude only
- * (no Formation). Explorer chrome stays in the DOM for id stability but is
- * never shown (repo-layout--learning).
+ * Desktop: practice surface opens when signed in. Mobile: essay writing first.
+ * No Exercises nav - technical essays reconstruct progress in the background.
+ * Claude only (no Formation). Explorer chrome stays in the DOM for id stability
+ * but is never shown (repo-layout--learning).
  */
 (function () {
   "use strict";

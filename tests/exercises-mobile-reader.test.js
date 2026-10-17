@@ -131,11 +131,14 @@ function setup(t, options = {}) {
 }
 
 for (const width of [320, 390, 430, 800]) {
-  test(`mobile ${width}px write page has no learning loop markup`, async (t) => {
+  test(`mobile ${width}px write page keeps essay first; learning markup hidden`, async (t) => {
     const e = setup(t, { width });
-    assert.equal(e.el("repo-layout").classList.contains("repo-layout--learning"), false);
-    assert.equal(e.el("repo-explorer"), null);
-    assert.equal(e.el("repo-code"), null);
+    // Learning loop DOM is present for desktop reconstruct, but practice file starts hidden.
+    assert.equal(e.el("repo-layout").classList.contains("repo-layout--learning"), true);
+    assert.ok(e.el("repo-explorer"));
+    assert.equal(e.el("repo-explorer").hasAttribute("hidden"), true);
+    assert.ok(e.el("repo-code"));
+    assert.equal(e.el("repo-code").hasAttribute("hidden"), true);
     assert.ok(e.el("repo-labs-link"));
     assert.ok(e.el("repo-tech-tree"));
     assert.ok(e.el("repo-panel-write"));
@@ -149,7 +152,7 @@ test("mobile learning CSS only forces editor when is-code-open", () => {
     css,
     /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-layout--learning\.is-code-open[\s\S]*\.repo-code:not\(\[hidden\]\)[\s\S]*display:\s*flex\s*!important/,
   );
-  assert.match(css, /mobile first paint stays essay writing/);
+  assert.match(css, /essay writing first|mobile first paint stays essay writing/);
 });
 
 test("tinker mark is present for Technical essays access", () => {
@@ -167,7 +170,7 @@ test("exercise-workspace UI module still exposes auth + surface helpers", () => 
 });
 
 test("sign-in gate lives in exercise-workspace UI module", () => {
-  assert.doesNotMatch(html, /id="repo-explorer-signin"/);
+  assert.match(html, /id="repo-explorer-signin"/);
   assert.match(source, /applyAuthGate/);
   assert.match(source, /isLearningSignedIn/);
   assert.match(source, /requestLearningSignIn/);
