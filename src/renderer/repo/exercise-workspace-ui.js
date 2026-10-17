@@ -305,6 +305,71 @@
       });
   }
 
+  /**
+   * Desktop: prefer polished goal from private tinker-exercises when confirmed.
+   * Attempts stay in Tinker; if GitHub is missing/unconfirmed, keep Tinker file.
+   */
+  function hydratePracticeFromGithub(progress) {
+    var t = token();
+    var prog = normalizeLearningProgress(progress || state.learningProgress);
+    if (!t || !isWideDesktop() || isAwaitingEssay(prog)) {
+      return Promise.resolve(null);
+    }
+    if (!String(prog.goalId || "").trim()) return Promise.resolve(null);
+    return fetch("/api/github-exercises", {
+      method: "POST",
+      headers: Object.assign(authHeadersJson(), {
+        "Content-Type": "application/json",
+      }),
+      body: JSON.stringify({
+        action: "load",
+        progress: {
+          goalId: prog.goalId,
+          goalTitle: prog.goalTitle,
+          practicePath: prog.practicePath,
+          currentPrompt: prog.currentPrompt,
+          sourceEssayTitle: prog.sourceEssayTitle,
+        },
+      }),
+    })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok || !json || !json.ok || json.content == null) return null;
+          return json;
+        });
+      })
+      .then(function (json) {
+        if (!json || json.content == null) return null;
+        var exerciseId = prog.exerciseId || "from-essays";
+        var practicePath = String(prog.practicePath || "")
+          .replace(/^\/+|\/+$/g, "")
+          .replace(/\\/g, "/");
+        if (!practicePath) return null;
+        var ex = state.workspace && state.workspace.exercises
+          ? state.workspace.exercises[exerciseId]
+          : null;
+        var existing = "";
+        if (ex && revision && typeof revision.findNodeByPath === "function") {
+          var node = revision.findNodeByPath(ex.nodes, practicePath);
+          if (node && node.type === "file") {
+            existing = String(node.content || "");
+          }
+        }
+        // Server hydrates empty Tinker files; never clobber local attempts.
+        if (existing.trim()) return null;
+        if (json.workspace) {
+          applyWorkspace(json.workspace);
+          return json;
+        }
+        // Reload workspace if server hydrated without returning the tree.
+        if (json.hydrated) return loadWorkspace().then(function () { return json; });
+        return json;
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
   function renderLearningChrome() {
     var progress = normalizeLearningProgress(state.learningProgress);
     state.learningProgress = progress;
@@ -550,8 +615,14 @@
       return;
     }
     if (open) {
-      if (!isWideDesktop() && window.tinkerRepo && typeof window.tinkerRepo.setEssaysSidebar === "function") {
-        window.tinkerRepo.setEssaysSidebar(false);
+      // One mobile drawer at a time: close Founder Source + Development.
+      if (!isWideDesktop() && window.tinkerRepo) {
+        if (typeof window.tinkerRepo.setEssaysSidebar === "function") {
+          window.tinkerRepo.setEssaysSidebar(false);
+        }
+        if (typeof window.tinkerRepo.setTechnicalEssayList === "function") {
+          window.tinkerRepo.setTechnicalEssayList(false);
+        }
       }
       els.layout.classList.remove("is-explorer-collapsed");
       els.layout.classList.add("is-explorer-open");
@@ -2241,6 +2312,16 @@
         : codePres.pathLabel
     );
     var content = tab.blank && !isLearningLoop() ? "" : (node.content || "");
+    // Never show instructional HTML/comment scaffolds in the editor.
+    if (
+      content &&
+      revision &&
+      typeof revision.stripInstructionalScaffold === "function" &&
+      (isLearningLoop() ||
+        (typeof revision.isPracticeFile === "function" && revision.isPracticeFile(node)))
+    ) {
+      content = revision.stripInstructionalScaffold(content);
+    }
     // Learning loop always edits the practice file (never lesson preview).
     if (
       !isLearningLoop() &&
@@ -3003,19 +3084,23 @@
       render();
       return Promise.resolve(state.workspace);
     }
-    return Promise.all([loadWorkspace(), fetchLearningProgress()]).then(function () {
-      applyDefaultCollapsed();
-      setExplorerOpen(false);
-      if (isWideDesktop()) {
-        openPracticeFromProgress();
-      } else {
-        state.learningSurfaceOpen = false;
-        showWritingChrome(true);
-        renderLearningChrome();
-      }
-      render();
-      return state.workspace;
-    });
+    return Promise.all([loadWorkspace(), fetchLearningProgress()])
+      .then(function () {
+        return hydratePracticeFromGithub(state.learningProgress);
+      })
+      .then(function () {
+        applyDefaultCollapsed();
+        setExplorerOpen(false);
+        if (isWideDesktop()) {
+          openPracticeFromProgress();
+        } else {
+          state.learningSurfaceOpen = false;
+          showWritingChrome(true);
+          renderLearningChrome();
+        }
+        render();
+        return state.workspace;
+      });
   }
 
   function requestEditorMeasure() {

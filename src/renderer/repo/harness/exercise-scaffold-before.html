@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Exercise editor - before (scaffold)</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/repo/repo.css?v=69" />
+  </head>
+  <body class="repo-page">
+    <div class="repo-layout repo-layout--learning" id="repo-layout">
+      <header class="repo-top" id="repo-top">
+        <button type="button" class="repo-top__menu" aria-label="Founder Source" title="Founder Source">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </header>
+      <main class="repo-main" id="repo-main">
+        <section class="repo-learning" id="repo-learning">
+          <h2 class="repo-learning__goal" id="repo-learning-goal">Write an OpenAPI spec from scratch by feel, no copy-paste</h2>
+          <p class="repo-learning__prompt-text" id="repo-learning-prompt-text">In plain English, describe what a caller can ask for, send, get back, and what can go wrong for a PaymentIntent. Pseudocode is fine.</p>
+          <div class="repo-learning__filebar">
+            <span class="repo-learning__file" id="repo-tech-file-path">api.md</span>
+            <button type="button" class="repo-learning__done-btn" id="repo-code-thats-everything">That's everything</button>
+          </div>
+          <pre class="repo-code-editor repo-code-editor--harness" id="repo-code-editor" aria-label="Practice file">&lt;!-- Document the payments API contract from a caller's perspective. The headings below map to: ask = what they can request, send = request body, return = success shape, wrong = errors. --&gt;
+
+## ask
+
+## send
+
+## return
+
+## wrong
+</pre>
+        </section>
+      </main>
+    </div>
+    <style>
+      .repo-code-editor--harness {
+        display: block;
+        margin: 0;
+        padding: 12px 14px 48px;
+        min-height: 42vh;
+        white-space: pre-wrap;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--color-foreground);
+        background: transparent;
+        border: 0;
+      }
+      .repo-learning__filebar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 0;
+        border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+      }
+      .repo-learning__file {
+        font-family: "Instrument Sans", system-ui, sans-serif;
+        font-size: 13px;
+        color: var(--color-muted);
+      }
+      .repo-learning__done-btn {
+        font-family: "Instrument Sans", system-ui, sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 0;
+        background: color-mix(in srgb, var(--color-accent, #5b4b8a) 88%, #000);
+        color: #fff;
+      }
+      .repo-learning__goal {
+        margin: 12px 16px 8px;
+        font-family: "Fraunces", Georgia, serif;
+        font-size: 22px;
+        font-weight: 560;
+        letter-spacing: -0.02em;
+        line-height: 1.25;
+      }
+      .repo-learning__prompt-text {
+        margin: 0 16px 12px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--color-background) 88%, #e8dfc8);
+        font-family: "Instrument Sans", system-ui, sans-serif;
+        font-size: 14px;
+        line-height: 1.45;
+      }
+      #repo-code-editor { margin: 0 4px; }
+      .repo-top { justify-content: flex-end; }
+    </style>
+  </body>
+</html>

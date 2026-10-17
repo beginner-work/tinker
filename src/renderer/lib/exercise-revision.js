@@ -118,6 +118,49 @@
     return false;
   }
 
+  /**
+   * Strip instructional HTML/comment scaffolds from practice files.
+   * Prompt cards carry instructions; the editor shows polished goal code only
+   * (or empty). Returns empty string when the file is scaffold-only.
+   */
+  function stripInstructionalScaffold(raw) {
+    var text = raw == null ? "" : String(raw);
+    if (!text) return "";
+    var withoutHtml = text.replace(/<!--[\s\S]*?-->/g, "");
+    var lines = withoutHtml.split("\n");
+    var kept = [];
+    for (var i = 0; i < lines.length; i += 1) {
+      var line = lines[i];
+      if (
+        /^\s*\/\/\s*(TODO|Write your|Implement|Your task|Document the)\b/i.test(line) ||
+        /^\s*#\s*(TODO|Type your|Re-type your|Do not paste|Write every|Never copy|Document the)\b/i.test(
+          line
+        )
+      ) {
+        continue;
+      }
+      kept.push(line);
+    }
+    var out = kept.join("\n").replace(/^\s+/, "").replace(/\s+$/, "");
+    // Bare ask/send/return/wrong section templates with no real content.
+    if (/^(##\s*(ask|send|return|wrong)\s*)+$/i.test(out.replace(/\n+/g, "\n"))) {
+      return "";
+    }
+    return out ? out + "\n" : "";
+  }
+
+  function looksLikeInstructionalScaffold(raw) {
+    var text = raw == null ? "" : String(raw);
+    if (!text.trim()) return false;
+    if (/<!--\s*(Document|TODO|Write|Type your|ask\s*=|send\s*=|return\s*=)/i.test(text)) {
+      return true;
+    }
+    if (/^\/\/\s*(TODO|Write your|Implement|Your task)/im.test(text)) return true;
+    if (/^#\s*(TODO|Type your|Re-type your|Do not paste)\b/im.test(text)) return true;
+    var stripped = stripInstructionalScaffold(text);
+    return !stripped.trim() && !!text.trim();
+  }
+
   function nodeRelPath(nodes, nodeId) {
     var list = Array.isArray(nodes) ? nodes : [];
     var byId = Object.create(null);
@@ -392,6 +435,8 @@
     reviseReadmeContent: reviseReadmeContent,
     formatStepsSection: formatStepsSection,
     isPracticeFile: isPracticeFile,
+    stripInstructionalScaffold: stripInstructionalScaffold,
+    looksLikeInstructionalScaffold: looksLikeInstructionalScaffold,
     nodeRelPath: nodeRelPath,
     findNodeByPath: findNodeByPath,
     writePathContent: writePathContent,

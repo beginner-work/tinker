@@ -128,6 +128,10 @@ test("content types list and default", () => {
   assert.equal(core.DEFAULT_CONTENT_TYPE, "stories");
   assert.equal(core.normalizeContentType("drafts"), "drafts");
   assert.equal(core.normalizeContentType("nope"), "stories");
+  // Display-only section names; internal ids stay business / technical.
+  assert.equal(core.contentTypeLabel("business"), "Founder Source");
+  assert.equal(core.contentTypeLabel("technical"), "Development");
+  assert.equal(core.contentTypeLabel("stories"), "Stories");
 });
 
 test("create folder, nest, rename, move file, type inheritance", async () => {
@@ -345,15 +349,19 @@ test("repo page wires New folder, Move to sheet, and cache-busted assets", () =>
   const vercel = fs.readFileSync(path.join(__dirname, "../vercel.json"), "utf8");
   assert.match(html, /id="repo-new-folder"/);
   assert.match(html, />New folder</);
+  assert.match(html, /aria-label="Founder Source"/);
+  assert.match(html, />Founder Source</);
+  assert.match(html, /No Founder Source essays yet/);
+  assert.doesNotMatch(html, /aria-label="Essays"|id="repo-stories-heading">Essays</);
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /Move to/);
-  assert.match(html, /repo-folders-core\.js\?v=35/);
+  assert.match(html, /repo-folders-core\.js\?v=37/);
   assert.match(html, /repo\.js\?v=35/);
   assert.match(html, /repo\.css\?v=35/);
   assert.match(writeHtml, /storage-section\.js\?v=40/);
-  assert.match(writeHtml, /repo\.css\?v=68/);
-  assert.match(writeHtml, /repo\.js\?v=58/);
-  assert.match(writeHtml, /repo-folders-core\.js\?v=42/);
+  assert.match(writeHtml, /repo\.css\?v=69/);
+  assert.match(writeHtml, /repo\.js\?v=59/);
+  assert.match(writeHtml, /repo-folders-core\.js\?v=44/);
   assert.match(writeHtml, /id="repo-tech-tree"/);
   assert.doesNotMatch(writeHtml, /id="repo-files-link"/);
   assert.match(css, /min-height:\s*44px/);

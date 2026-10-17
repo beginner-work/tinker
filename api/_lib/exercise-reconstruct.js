@@ -15,6 +15,7 @@ const progressApi = require("../../src/renderer/lib/learning-progress.js");
 const reconstructApi = require("../../src/renderer/lib/exercise-reconstruct.js");
 const store = require("./exercise-workspace-store.js");
 const mcpContextPages = require("./mcp-context-pages.js");
+const githubExercises = require("./github-exercise-repo.js");
 
 const KIND = progressApi.KIND || "learning_progress";
 
@@ -142,19 +143,35 @@ async function reconstructLearningFromEssay(args) {
   next.exerciseId = next.exerciseId || progressApi.DEFAULT_EXERCISE_ID;
 
   await writeProgress(userId, next);
+  const polished =
+    calibration.startingPracticeFile || calibration.revisedContent || "";
   let fileWrite = null;
   try {
-    fileWrite = await writePracticeFile(
-      userId,
-      next,
-      calibration.startingPracticeFile || calibration.revisedContent || ""
-    );
+    fileWrite = await writePracticeFile(userId, next, polished);
   } catch (err) {
     if (err && err.status && err.status < 500) {
       fileWrite = { error: err.message || "file_write_failed" };
     } else {
       throw err;
     }
+  }
+
+  // Optional: publish polished goal only to GitHub (attempts stay in Tinker).
+  let githubPublish = null;
+  try {
+    githubPublish = await githubExercises.publishPolishedGoal({
+      userId,
+      progress: next,
+      polishedContent: polished,
+      fetchImpl: args && args.fetchImpl,
+    });
+  } catch (err) {
+    githubPublish = {
+      ok: false,
+      skipped: true,
+      reason: (err && err.code) || "github_publish_failed",
+      error: err && err.message,
+    };
   }
 
   return {
@@ -164,6 +181,7 @@ async function reconstructLearningFromEssay(args) {
     progress: next,
     calibration: calibration,
     fileWrite: fileWrite,
+    githubPublish: githubPublish,
     mechanism: out.mechanism || null,
   };
 }

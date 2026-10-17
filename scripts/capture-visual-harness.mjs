@@ -21,6 +21,8 @@ const SCREENS = [
   { name: "repo-writing-place-picked", path: "/repo/harness/writing-place-picked.html" },
   { name: "repo-learning-loop", path: "/repo/harness/learning-loop-after.html" },
   { name: "repo-learning-loop-attempt", path: "/repo/harness/learning-loop-attempt.html" },
+  { name: "repo-exercise-scaffold-before", path: "/repo/harness/exercise-scaffold-before.html" },
+  { name: "repo-exercise-scaffold-after", path: "/repo/harness/exercise-scaffold-after.html" },
   { name: "repo-step-preview", path: "/repo/harness/desktop-step-md-preview.html" },
   { name: "repo-mobile-essay", path: "/repo/harness/mobile-essay-list.html" },
   { name: "repo-essays-sidebar-simple", path: "/repo/harness/essays-sidebar-simple.html" },

@@ -110,10 +110,11 @@ test("hamburger opens the right essays sidebar on desktop and mobile", () => {
 test("mobile essays and exercises drawers clear the sticky top bar", () => {
   // Sticky labs bar clearance accounts for 44px icons + vertical padding.
   assert.match(css, /--repo-top-bar:\s*calc\(56px \+ env\(safe-area-inset-top/);
-  // Essays drawer starts below the top bar (not inset:0 under it).
+  // Sheet starts at viewport top (continuous wash under transparent nav) with
+  // padding-top equal to the top bar — not a separate tinted band.
   assert.match(
     css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.is-essays-open \.repo-right\s*\{[^}]*top:\s*var\(--repo-top-bar/s,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.is-essays-open \.repo-right\s*\{[^}]*top:\s*0[^}]*padding:[\s\S]*var\(--repo-top-bar/s,
   );
   assert.doesNotMatch(
     css,
@@ -128,10 +129,10 @@ test("mobile essays and exercises drawers clear the sticky top bar", () => {
     css,
     /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.repo-essays-sidebar \.repo-panel__head\s*\{[^}]*position:\s*fixed/s,
   );
-  // Technical essays drawer also clears the sticky top bar.
+  // Development drawer uses the same continuous-wash pattern.
   assert.match(
     css,
-    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.is-tech-essays-open \.repo-left\s*\{[^}]*top:\s*var\(--repo-top-bar/s,
+    /@media\s*\(max-width:\s*800px\)\s*\{[\s\S]*\.is-tech-essays-open \.repo-left\s*\{[^}]*top:\s*0[^}]*padding:[\s\S]*var\(--repo-top-bar/s,
   );
 });
 
@@ -145,7 +146,7 @@ test("past-essays hamburger and tinker mark are 44px", () => {
   assert.match(html, /repo-layout--learning/);
 });
 
-test("write page uses Technical essays and keeps learning loop chrome", () => {
+test("write page uses Development and keeps learning loop chrome", () => {
   assert.match(html, /data-technical-essays-nav/);
   assert.match(html, /id="repo-tech-tree"/);
   assert.match(html, /id="repo-code-thats-everything"/);

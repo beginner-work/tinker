@@ -253,9 +253,10 @@
     }
     // Reject obvious instructional scaffolds in the practice file.
     if (
-      /<!--\s*(Document|TODO|ask\s*=|send\s*=|return\s*=)/i.test(starting) ||
+      /<!--\s*(Document|TODO|Write|Type your|ask\s*=|send\s*=|return\s*=)/i.test(starting) ||
       /^\/\/\s*(TODO|Write your|Implement|Your task)/im.test(starting) ||
-      /^#\s*TODO\b/im.test(starting)
+      /^#\s*(TODO|Type your|Re-type your|Do not paste)\b/im.test(starting) ||
+      /headings below map/i.test(starting)
     ) {
       throw Object.assign(
         new Error("startingPracticeFile must not include instructional scaffolds."),

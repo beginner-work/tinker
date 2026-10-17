@@ -130,24 +130,29 @@ test("createDebouncedClassifier fires once after wait", async () => {
   debounced.cancel();
 });
 
-test("write page loads classifier and Business / Technical chrome", () => {
+test("write page loads classifier and Founder Source / Development chrome", () => {
   assert.match(html, /essay-classify\.js/);
   assert.match(html, /aria-label="Development"/);
   assert.match(html, /aria-label="Founder Source"/);
   assert.match(html, />Founder Source</);
   assert.match(html, /No Founder Source essays yet/);
   assert.doesNotMatch(html, /aria-label="Past essays"/);
+  assert.doesNotMatch(html, /aria-label="Essays"/);
+  assert.doesNotMatch(html, />Essays</);
+  assert.doesNotMatch(html, /aria-label="Technical essays"/);
+  assert.doesNotMatch(html, />Technical essays</);
   assert.match(page, /scheduleEssayClassify|backfillEssayKinds/);
   assert.match(page, /contentTypeClassifiedAt/);
   assert.match(page, /tinkerEssayClassify/);
   assert.match(page, /draftContentType\(\)[\s\S]*KIND_BUSINESS|return "business"/);
 });
 
-test("visual harnesses show plain Technical and Business lists", () => {
+test("visual harnesses show plain Development and Founder Source lists", () => {
   assert.match(harnessTech, /Development/);
   assert.match(harnessTech, /How the retry queue settles/);
   assert.doesNotMatch(harnessTech, /id="repo-new-folder"|id="repo-sidebar-new-piece"|id="repo-panel-close"/);
   assert.match(harnessBiz, /Founder Source/);
   assert.match(harnessBiz, /aria-label="Founder Source"/);
+  assert.doesNotMatch(harnessBiz, /Business essays|aria-label="Essays"|>Essays</);
   assert.doesNotMatch(harnessBiz, /id="repo-new-folder"|id="repo-sidebar-new-piece"|id="repo-panel-close"/);
 });

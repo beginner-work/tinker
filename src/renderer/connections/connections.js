@@ -111,11 +111,51 @@
           revokeBtn.setAttribute("data-id", c.id);
           actions.appendChild(revokeBtn);
         }
+        if (c.id === "github" && c.writeAccess) {
+          var repoBtn = document.createElement("button");
+          repoBtn.type = "button";
+          repoBtn.className = "connections__btn";
+          repoBtn.textContent = "Use private tinker-exercises repo";
+          repoBtn.setAttribute("data-action", "github-exercises-confirm");
+          repoBtn.setAttribute("data-id", c.id);
+          actions.appendChild(repoBtn);
+        }
       }
 
       li.appendChild(actions);
       list.appendChild(li);
     });
+  }
+
+  function confirmGithubExercises(btn) {
+    if (!token()) { setStatus("Sign in to confirm.", true); return; }
+    if (btn) btn.disabled = true;
+    setStatus("Creating private tinker-exercises…");
+    fetch("/api/github-exercises", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
+      body: JSON.stringify({ action: "confirm", confirmed: true }),
+    })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok) throw new Error((json && json.error) || "Could not create repo.");
+          return json;
+        });
+      })
+      .then(function (json) {
+        var url = json && json.meta && json.meta.htmlUrl;
+        setStatus(
+          url
+            ? "Private tinker-exercises ready. Polished goals save there; attempts stay in Tinker."
+            : "Private tinker-exercises ready. Attempts stay in Tinker."
+        );
+      })
+      .catch(function (err) {
+        setStatus((err && err.message) || "Could not create repo.", true);
+      })
+      .finally(function () {
+        if (btn) btn.disabled = false;
+      });
   }
 
   function load() {
@@ -402,6 +442,7 @@
     if (!id) return;
     if (action === "connect") connect(id, btn);
     else if (action === "disconnect") disconnect(id, btn);
+    else if (action === "github-exercises-confirm") confirmGithubExercises(btn);
     else if (action === "allow-writes") openWriteDialog(id, btn.getAttribute("data-name"));
     else if (action === "revoke-writes") {
       btn.disabled = true;
