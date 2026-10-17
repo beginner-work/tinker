@@ -9,25 +9,18 @@
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css?v=39" />
     <link rel="stylesheet" href="/design-tokens.css" />
-    <link rel="stylesheet" href="/repo/repo.css?v=40" />
+    <link rel="stylesheet" href="/repo/repo.css?v=63" />
   </head>
   <body class="repo-page repo-page--write" data-repo-mode="write">
     <header class="repo-top repo-top--labs" aria-label="Tools">
-      <a class="repo-top__labs" href="https://lindowlabs.dev/learning" target="_blank" rel="noopener noreferrer"
-         aria-label="Open lab" data-learning-lab>
-        <svg class="repo-top__labs-icon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">
-          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                d="M14.4 14.4 9.6 9.6"/>
-          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z"/>
-          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                d="m21.5 21.5-1.4-1.4"/>
-          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                d="M3.9 3.9 2.5 2.5"/>
-          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                d="M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z"/>
-        </svg>
-      </a>
+            <button type="button"
+         class="repo-top__labs"
+         id="repo-labs-link"
+         aria-label="Open sidebar"
+         title="Open sidebar"
+         data-exercises-nav>
+        <img class="repo-top__labs-icon" src="/icons/tinker-mark.svg?v=40" alt="" width="20" height="20" aria-hidden="true" />
+      </button>
       <button type="button" class="repo-top__past-essays" id="repo-past-essays"
               aria-label="Past essays" title="Past essays" aria-expanded="false" aria-controls="repo-right">
         <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
@@ -88,24 +81,18 @@
         <section class="repo-tree" aria-labelledby="repo-stories-heading">
           <div class="repo-tree__head">
             <h2 class="repo-sidebar__heading" id="repo-stories-heading">Essays</h2>
-            <div class="repo-tree__actions">
-              <button type="button" class="repo-tree__new" id="repo-new-folder">New folder</button>
-              <button type="button" class="repo-tree__new repo-tree__new--essay" id="repo-sidebar-new-piece">New essay</button>
             </div>
-          </div>
           <div class="repo-tree__body" id="repo-tree" role="tree">
             <ul class="repo-tree__pieces" style="padding-left:0">
               <li>
                 <div class="repo-tree__piece-row">
                   <button type="button" class="repo-tree__piece is-selected" role="treeitem">I finished this essay on my phone and want the list next.</button>
-                  <button type="button" class="repo-tree__icon-btn">Move</button>
-                </div>
+                                  </div>
               </li>
               <li>
                 <div class="repo-tree__piece-row">
                   <button type="button" class="repo-tree__piece" role="treeitem">Merchant portal reliability</button>
-                  <button type="button" class="repo-tree__icon-btn">Move</button>
-                </div>
+                                  </div>
               </li>
             </ul>
           </div>
@@ -122,14 +109,11 @@
         var params = new URLSearchParams(location.search);
         var mode = params.get("mode") || "finish";
         var btn = document.getElementById("repo-this-is-everything");
-        var newEssay = document.getElementById("repo-sidebar-new-piece");
         function showFinish() {
           document.body.removeAttribute("data-repo-essays-list");
-          if (newEssay) newEssay.hidden = true;
         }
         function showList() {
           document.body.setAttribute("data-repo-essays-list", "1");
-          if (newEssay) newEssay.hidden = false;
         }
         if (btn) btn.addEventListener("click", showList);
         if (mode === "list") showList();

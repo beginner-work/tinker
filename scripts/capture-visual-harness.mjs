@@ -17,10 +17,13 @@ fs.mkdirSync(outdir, { recursive: true });
 const SCREENS = [
   { name: "repo-writing", path: "/repo/harness/essay-question-overlap.html" },
   { name: "repo-mobile-writing-first", path: "/repo/harness/mobile-writing-first.html" },
+  { name: "repo-writing-place-empty", path: "/repo/harness/writing-place-empty.html" },
+  { name: "repo-writing-place-picked", path: "/repo/harness/writing-place-picked.html" },
   { name: "repo-learning-loop", path: "/repo/harness/learning-loop-after.html" },
   { name: "repo-learning-loop-attempt", path: "/repo/harness/learning-loop-attempt.html" },
   { name: "repo-step-preview", path: "/repo/harness/desktop-step-md-preview.html" },
   { name: "repo-mobile-essay", path: "/repo/harness/mobile-essay-list.html" },
+  { name: "repo-essays-sidebar-simple", path: "/repo/harness/essays-sidebar-simple.html" },
 ];
 
 const VIEWPORTS = [

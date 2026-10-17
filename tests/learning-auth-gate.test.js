@@ -142,9 +142,9 @@ test("mobile essays and exercises drawers clear the sticky top bar", () => {
   );
 });
 
-test("past-essays hamburger and Exercises dumbbell are 44px", () => {
+test("past-essays hamburger and tinker mark are 44px", () => {
   assert.match(html, /id="repo-labs-link"/);
-  assert.match(html, /aria-label="Exercises"/);
+  assert.match(html, /aria-label="Open sidebar"/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Past essays"/);
   assert.match(css, /\.repo-top__past-essays\s*\{[^}]*width:\s*44px/s);

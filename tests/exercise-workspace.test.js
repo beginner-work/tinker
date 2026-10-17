@@ -450,10 +450,10 @@ test("Learning loop surface: prompt card, one file, no Exercises sidebar UX", ()
   assert.match(html, /id="repo-learning-prompt"/);
   assert.match(html, /id="repo-code-thats-everything"/);
   assert.match(html, /id="repo-code-undo"/);
-  // Mobile opens the loop via Exercises nav; desktop hides the dumbbell in CSS.
+  // Top-left mark toggles the left drawer / learning surface.
   assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /data-exercises-nav/);
-  assert.match(css, /\.repo-layout--learning \.repo-top__labs/);
+  assert.match(css, /\.repo-top__labs/);
   assert.doesNotMatch(html, /New learning module/);
   assert.match(uiSrc, /openPracticeFromProgress/);
   assert.match(uiSrc, /learningSurfaceOpen/);

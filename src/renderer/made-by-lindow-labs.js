@@ -206,18 +206,19 @@
 
   function onClick(event) {
     var a = event.target && event.target.closest
-      ? event.target.closest("[data-learning-lab], [data-made-by-lindow-labs]")
+      ? event.target.closest("[data-exercises-nav], [data-learning-lab], [data-made-by-lindow-labs]")
       : null;
     if (!a) return;
 
+    // Top-left mark: toggle the left drawer (explorer / learning surface).
+    if (a.hasAttribute("data-exercises-nav")) {
+      event.preventDefault();
+      toggleExercisesNav();
+      return;
+    }
+
     if (a.hasAttribute("data-learning-lab")) {
       event.preventDefault();
-      // Beaker belongs with exercises nav: signed-in toggles the explorer;
-      // signed-out opens the Learning sign-in drawer (iframe + new-tab fallback).
-      if (a.hasAttribute("data-exercises-nav") && isLearningSignedIn()) {
-        toggleExercisesNav();
-        return;
-      }
       openDrawer(LEARNING_LAB_URL);
       return;
     }

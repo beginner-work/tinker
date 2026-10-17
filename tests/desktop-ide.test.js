@@ -32,10 +32,10 @@ test("shared shell markup: top bar, learning loop, writing, right essays", () =>
   assert.match(html, /id="repo-code"/);
   assert.match(html, /id="repo-ide-center"/);
   assert.match(html, /class="repo-right[^"]*repo-essays-sidebar|repo-essays-sidebar[^"]*repo-right/);
-  // Exercises dumbbell is in the markup for mobile loop access; desktop CSS hides it.
+  // Tinker mark toggles the left drawer on desktop + mobile.
   assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /data-exercises-nav/);
-  assert.match(html, /aria-label="Exercises"/);
+  assert.match(html, /aria-label="Open sidebar"/);
   assert.match(html, /id="repo-ide-tabbar"/);
   assert.match(html, /repo-layout--learning/);
   assert.match(html, /id="repo-learning-prompt"/);
@@ -45,7 +45,7 @@ test("shared shell markup: top bar, learning loop, writing, right essays", () =>
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /id="repo-panel"/);
   assert.match(html, /id="repo-panel-write"/);
-  assert.match(html, /id="repo-panel-close"/);
+  assert.doesNotMatch(html, /id="repo-panel-close"/);
   assert.doesNotMatch(html, /\u2014|\u2013/);
   assert.match(html, /src="\/exercises\/manifest\.js/);
   assert.match(html, /exercise-workspace-ui\.js/);
@@ -103,7 +103,7 @@ test("layout CSS: explorer | center | essays rail; mobile hides code editing", (
 });
 
 test("learning loop hides explorer and keeps prompt + editor chrome", () => {
-  assert.match(html, /repo\.css\?v=62/);
+  assert.match(html, /repo\.css\?v=63/);
   assert.match(html, /repo-layout--learning/);
   assert.match(css, /\.repo-layout--learning/);
   assert.match(

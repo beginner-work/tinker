@@ -35,18 +35,19 @@ test("signed-in landing is /repo on desktop and mobile", () => {
   assert.doesNotMatch(shell, /\/inflight/);
 });
 
-test("top bar has no In flight entry; Exercises dumbbell opens learning on mobile", () => {
+test("top bar has no In flight entry; tinker mark opens left drawer", () => {
   assert.doesNotMatch(repoHtml, /repo-inflight-link|repo-top__inflight/);
   assert.doesNotMatch(repoHtml, /In flight/);
   assert.doesNotMatch(repoCss, /\.repo-top__inflight/);
   assert.match(repoHtml, /id="repo-labs-link"/);
-  assert.match(repoHtml, /aria-label="Exercises"/);
-  assert.match(repoHtml, /M14\.4 14\.4 9\.6 9\.6/);
-  assert.match(repoHtml, /M18\.657 21\.485/);
+  assert.match(repoHtml, /aria-label="Open sidebar"/);
+  assert.match(repoHtml, /tinker-mark\.svg/);
+  assert.doesNotMatch(repoHtml, /M18\.657 21\.485/);
   assert.doesNotMatch(repoHtml, /FlaskConical|beaker/i);
   assert.match(repoHtml, /id="repo-past-essays"/);
   assert.match(repoHtml, /repo-layout--learning/);
-  assert.match(repoCss, /\.repo-layout--learning \.repo-top__labs/);
+  assert.match(repoCss, /\.repo-top__labs/);
+  assert.match(repoHtml, /tinker-mark\.svg/);
 });
 
 test("CURSOR_API_KEY remains documented as unused and harmless", () => {

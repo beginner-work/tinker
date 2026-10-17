@@ -9,10 +9,13 @@ Screens covered (static harnesses, no live Claude/API):
 
 - `/repo` writing surface (`essay-question-overlap.html`)
 - Mobile `/repo` first screen — essay writing (`mobile-writing-first.html`)
+- Writing empty state, no place (`writing-place-empty.html`)
+- Writing empty state, place picked (`writing-place-picked.html`)
 - Learning loop after apply (`learning-loop-after.html`)
 - Learning loop attempt (`learning-loop-attempt.html`)
 - Lesson step markdown preview (`desktop-step-md-preview.html`)
 - Mobile essay / That's everything foot (`mobile-essay-list.html`)
+- Simplified Essays sidebar (`essays-sidebar-simple.html`)
 
 Fixtures freeze time to `2026-10-15T12:00:00.000Z`, disable animations/transitions, and stub `/api/**`.
 

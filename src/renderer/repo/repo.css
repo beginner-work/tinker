@@ -1,4 +1,4 @@
-/* /repo — UI-only repository preview skeleton.
+/* /repo - UI-only repository preview skeleton.
  * Reuses Tinker writing chrome (.writing, .writing-input) and Lindow Labs
  * tokens from styles.css / design-tokens.css.
  */
@@ -64,7 +64,7 @@ body.repo-page--files {
   background: var(--color-background);
 }
 
-/* Write page: auth-only strip — Sign in / account on the right, no wordmark. */
+/* Write page: auth-only strip - Sign in / account on the right, no wordmark. */
 .repo-top--auth {
   justify-content: flex-end;
   gap: 10px;
@@ -74,9 +74,9 @@ body.repo-page--files {
   min-height: 0;
 }
 
-/* Shared top nav (desktop + mobile): exercises left, past-essays hamburger right.
- * Opaque background + high z-index so the write-safe top fade never washes
- * the Exercises control (esp. iPhone PWA standalone + notch). */
+/* Shared top nav (desktop + mobile): tinker mark left, past-essays hamburger right.
+ * Transparent so nav + writing surface read as one continuous page wash
+ * (including iOS safe-area / status bar). Icons stay pointer-events: auto. */
 .repo-top--labs {
   display: flex;
   position: fixed;
@@ -98,8 +98,10 @@ body.repo-page--files {
     calc(10px + env(safe-area-inset-right, 0px))
     8px
     calc(10px + env(safe-area-inset-left, 0px));
+  border: 0;
   border-bottom: 0;
-  background: var(--color-background);
+  background: transparent;
+  box-shadow: none;
   pointer-events: none;
   box-sizing: border-box;
   overflow: visible;
@@ -146,15 +148,17 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-top__past-essays {
 
 body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
   z-index: 55;
-  background: var(--color-background);
+  background: transparent;
+  box-shadow: none;
+  border: 0;
 }
 
-/* Tab bar: open-file tabs only (Exercises control lives in the shared top bar). */
+/* Tab bar: open-file tabs only (mark control lives in the shared top bar). */
 .repo-ide-tabbar {
   display: none;
 }
 
-/* Exercises (dumbbell) matches hamburger: 44px hit target, 20px icon, same weight. */
+/* Tinker mark matches hamburger: 44px hit target, 20px icon, same spacing. */
 .repo-top--labs .repo-top__labs,
 .repo-top__labs {
   pointer-events: auto;
@@ -190,6 +194,7 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-top--labs {
   width: 20px;
   height: 20px;
   opacity: 1;
+  object-fit: contain;
 }
 
 .repo-top__labs:hover,
@@ -210,14 +215,7 @@ body.repo-code-open .repo-top__labs {
   color: var(--color-accent-strong, #4f46e5);
 }
 
-/* Desktop learning loop lands on prompt+file; keep Exercises chrome out of
- * the first viewport so desktop matches the post-#533 surface. Mobile keeps
- * the dumbbell to open/close the loop from essay writing. */
-@media (min-width: 801px) {
-  .repo-layout--learning .repo-top__labs {
-    display: none !important;
-  }
-}
+/* Tinker mark stays visible on desktop + mobile (left drawer toggle). */
 
 .repo-top--auth .repo-top__back {
   margin-right: auto;
@@ -1184,7 +1182,7 @@ html.tinker-desktop .repo-top--labs {
   display: none;
 }
 
-/* Desktop: explorer never overlays the editor — auto track + width push. */
+/* Desktop: explorer never overlays the editor - auto track + width push. */
 @media (min-width: 801px) {
   .repo-layout--write.is-explorer-open .repo-explorer,
   .repo-layout--write:not(.is-explorer-collapsed) .repo-explorer {
@@ -1886,7 +1884,7 @@ html.tinker-desktop .repo-top--labs {
 .repo-code__preview.is-markdown strong { font-weight: 700; }
 .repo-code__preview.is-markdown em { font-style: italic; }
 
-/* Full-column CodeMirror surface — no bordered textarea chrome. */
+/* Full-column CodeMirror surface - no bordered textarea chrome. */
 .repo-code__surface {
   position: relative;
   flex: 1 1 auto;
@@ -2499,7 +2497,7 @@ body.repo-page--write[data-repo-essays-list="1"] .repo-right.repo-essays-sidebar
   display: none !important;
 }
 
-/* Learning module card — ordered steps, not a file/folder tree. */
+/* Learning module card - ordered steps, not a file/folder tree. */
 .repo-ex-module {
   margin: 0 0 10px;
   padding: 0 0 8px;
@@ -2788,7 +2786,7 @@ body.repo-page--write .repo-center {
   min-height: calc(100dvh - 72px);
   height: auto;
   overflow: visible;
-  /* Same wash as the page — no seam where a short tinted box used to end. */
+  /* Same wash as the page - no seam where a short tinted box used to end. */
   background: transparent;
 }
 
@@ -2834,7 +2832,7 @@ body.repo-page--write .repo-center {
   cursor: pointer;
 }
 
-/* Essay title shares the row with Move; do not force 100% width in the flex row. */
+/* Essay rows are title-only (tap to open); full width in the row. */
 .repo-tree__piece-row .repo-tree__piece {
   flex: 1 1 auto;
   width: auto;
@@ -3310,7 +3308,7 @@ body.repo-page--write .repo-center {
   flex-direction: column;
   overflow: visible;
   background: transparent;
-  /* No auth header — clear the notch / status bar; location sits in this pad. */
+  /* No auth header - clear the notch / status bar; location sits in this pad. */
   padding: calc(12px + env(safe-area-inset-top, 0px)) 24px 96px;
   /* Room for fixed action island: floor gap + pill (~52px) + breathing room. */
   padding-bottom: calc(
@@ -3542,7 +3540,7 @@ body.repo-page--write .repo-center {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card, 12px);
   background: var(--color-card, #fff9f0);
-  /* House rule: no shadow on panels — hairline border only. */
+  /* House rule: no shadow on panels - hairline border only. */
   box-shadow: none;
   pointer-events: auto;
 }
@@ -3609,10 +3607,10 @@ body.repo-page--write .repo-center {
 }
 
 /* Keep crafting / This is everything.
-   Desktop (≥768px): fixed to the visual viewport with a real floor —
+   Desktop (≥768px): fixed to the visual viewport with a real floor -
    bottom of the pill sits at least max(48px, 8vh) above the window
    bottom (works in browser and Electron; uses dvh when available).
-   Horizontally: anchored to the editor column — right edge clears the
+   Horizontally: anchored to the editor column - right edge clears the
    essays rail by --repo-foot-gutter (same as #456 sticky + pad padding),
    never overlapping .repo-right. When the rail is hidden (≤800px),
    --repo-essays-rail collapses to 0.
@@ -3620,7 +3618,7 @@ body.repo-page--write .repo-center {
 :root {
   --repo-foot-floor: max(48px, 8vh);
   --repo-foot-floor: max(48px, 8dvh);
-  /* No right essays rail on desktop — essays live in the bottom panel. */
+  /* No right essays rail on desktop - essays live in the bottom panel. */
   --repo-essays-rail: 0px;
   --repo-explorer-rail: 280px;
   --repo-foot-gutter: 24px;
@@ -3774,7 +3772,7 @@ body.repo-page--write .repo-center {
   padding: 8px 4px 0;
 }
 
-/* Same [hidden] vs display:flex trap as .repo-location — without this the
+/* Same [hidden] vs display:flex trap as .repo-location - without this the
  * pad keeps eating the center column while an exercise file is open. */
 .repo-pad[hidden] {
   display: none !important;
@@ -3816,7 +3814,7 @@ body.repo-page--write .repo-center {
   background: transparent;
 }
 
-/* Styled question line — Markdown stores "> …"; the editor never shows the marker. */
+/* Styled question line - Markdown stores "> …"; the editor never shows the marker. */
 .repo-pad__q {
   margin: 10px 12px 4px;
   padding: 10px 14px 10px 16px;
@@ -3948,7 +3946,7 @@ body.repo-page--write .repo-center {
 
 @media (max-width: 800px) {
   :root {
-    /* Essays rail hidden — action island uses the narrow right gutter. */
+    /* Essays rail hidden - action island uses the narrow right gutter. */
     --repo-essays-rail: 0px;
     --repo-explorer-rail: 0px;
   }
@@ -3960,9 +3958,8 @@ body.repo-page--write .repo-center {
   }
 
   /* Beat the generic .repo-top mobile padding above (same specificity,
-   * later source order). Keep the Exercises control inside the safe area
-   * and clear of the left screen edge at 375–430px. Opaque bar so the
-   * write-safe fade cannot wash muted icons. */
+   * later source order). Keep the mark inside the safe area and clear of
+   * the left screen edge at 375–430px. Transparent - same wash as the pad. */
   .repo-top.repo-top--labs {
     flex-wrap: nowrap;
     gap: 8px;
@@ -3972,17 +3969,19 @@ body.repo-page--write .repo-center {
       8px
       max(12px, calc(10px + env(safe-area-inset-left, 0px)));
     overflow: visible;
-    background: var(--color-background);
+    background: transparent;
+    border: 0;
+    box-shadow: none;
     z-index: 50;
   }
 
   .repo-top--labs .repo-top__labs {
-    width: auto;
-    max-width: calc(100% - 52px);
+    width: 44px;
+    max-width: 44px;
     min-width: 44px;
-    gap: 8px;
-    padding: 0 10px;
-    justify-content: flex-start;
+    gap: 0;
+    padding: 0;
+    justify-content: center;
     box-sizing: border-box;
     color: var(--color-foreground);
   }
@@ -4103,7 +4102,7 @@ body.repo-page--write .repo-center {
   }
 
   /* Mobile exercises overlay (Exercises): starts below sticky top bar.
-     Overlay is OK under ~800px only — with scrim + tap-outside-to-close. */
+     Overlay is OK under ~800px only - with scrim + tap-outside-to-close. */
   .repo-explorer {
     display: none;
     grid-column: auto;
@@ -4400,7 +4399,7 @@ body.repo-page--write .repo-center {
   }
 }
 
-/* Phone: #453 — above the home bar with safe-area + keyboard inset. */
+/* Phone: #453 - above the home bar with safe-area + keyboard inset. */
 @media (max-width: 767px) {
   :root {
     --repo-foot-floor: 12px;
@@ -4583,12 +4582,12 @@ html.labs-drawer-open body {
 
 /* A separate text reader keeps the desktop editor out of mobile browsing.
  * Label stays hidden on desktop; phone media query below reveals it. */
-.repo-top__labs-label,
+.repo-top__labs-label { display: none !important; }
 .repo-ex-reader { display: none; }
 
-/* Phone write empty state: visible when the pad has nothing yet. */
+/* Write empty state: visible when no place is selected and the pad is blank. */
 .repo-write-empty {
-  display: none;
+  display: block;
   margin: 28px 12px 0;
   padding: 0 4px;
   max-width: 28rem;
@@ -4617,13 +4616,14 @@ html.labs-drawer-open body {
   .repo-top.repo-top--labs {
     padding-top: calc(12px + env(safe-area-inset-top, 0px));
     padding-bottom: 10px;
-    background: var(--color-background);
+    background: transparent;
+    border: 0;
+    box-shadow: none;
     z-index: 50;
   }
 
   .repo-top--labs .repo-top__labs,
-  .repo-top--labs .repo-top__past-essays,
-  .repo-top--labs .repo-top__labs-label {
+  .repo-top--labs .repo-top__past-essays {
     color: var(--color-foreground);
     opacity: 1;
   }
@@ -4635,13 +4635,7 @@ html.labs-drawer-open body {
 
 @media (max-width: 800px) {
   .repo-top__labs-label {
-    display: inline;
-    font-size: 14px;
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: inherit;
+    display: none;
   }
   .repo-layout--write.is-explorer-open .repo-explorer {
     width: 100%; max-width: 100%;
@@ -4686,7 +4680,7 @@ html.labs-drawer-open body {
     white-space: pre; font: 14px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace;
     tab-size: 2; user-select: text; -webkit-user-select: text;
   }
-  /* Formatted .md in the mobile reader — match essay-read prose, not monospace. */
+  /* Formatted .md in the mobile reader - match essay-read prose, not monospace. */
   .repo-ex-reader__content.is-markdown {
     white-space: normal;
     overflow-wrap: anywhere;
@@ -4749,10 +4743,6 @@ html.labs-drawer-open body {
   .repo-ex-reader__content.is-markdown strong { font-weight: 700; }
   .repo-ex-reader__content.is-markdown em { font-style: italic; }
   .repo-ex-node__btn, .repo-explorer__group-btn { min-height: 44px; }
-
-  .repo-write-empty:not([hidden]) {
-    display: block;
-  }
 
   /* Learning loop chrome (explorer/tabs) stays off on narrow widths. */
   .repo-layout--learning .repo-tabs,

@@ -218,6 +218,7 @@ function bootRepoPage(options) {
     "repo-location-custom",
     "repo-location-error",
     "repo-location-caption",
+    "repo-write-empty",
     "repo-followup",
     "repo-pad-error",
     "repo-pad-error-text",
@@ -275,6 +276,9 @@ function bootRepoPage(options) {
   byId["repo-essay-view"].hidden = true;
   byId["repo-essay-view"].nodeType = 1;
   byId["repo-surface"].appendChild(byId["repo-location"]);
+  byId["repo-write-empty"].hidden = true;
+  byId["repo-write-empty"].className = "repo-write-empty";
+  byId["repo-surface"].appendChild(byId["repo-write-empty"]);
   byId["repo-surface"].appendChild(byId["repo-essay-view"]);
   byId["repo-surface"].appendChild(byId["repo-pad"]);
   byId["repo-surface"].appendChild(byId["repo-pad-actions"]);
@@ -386,6 +390,12 @@ function bootRepoPage(options) {
   const storage = new Map();
   const session = new Map();
   if (opts.storedLocation) storage.set("tinker.repo.location.v1", opts.storedLocation);
+  if (opts.storedPlace) storage.set("tinker.repo.currentPlace.v1", opts.storedPlace);
+  if (opts.storageSeed && typeof opts.storageSeed === "object") {
+    Object.keys(opts.storageSeed).forEach((key) => {
+      storage.set(key, String(opts.storageSeed[key]));
+    });
+  }
   if (opts.token) storage.set("tinker_jwt", opts.token);
   if (opts.phone) storage.set("tinker_phone", opts.phone);
   if (opts.sessionDraft) session.set("tinker.repo.padDraft.v1", opts.sessionDraft);
@@ -762,11 +772,9 @@ function bootRepoPage(options) {
     findStoryButton(label) {
       function walk(node) {
         if (!node) return null;
-        if (
-          node.className &&
-          String(node.className).includes("repo-tree__piece") &&
-          node.textContent === label
-        ) {
+        const classes = String(node.className || "").split(/\s+/).filter(Boolean);
+        // Exact token match so repo-tree__piece-row does not steal the hit.
+        if (classes.includes("repo-tree__piece") && node.textContent === label) {
           return node;
         }
         for (const child of node.children || []) {
@@ -849,7 +857,8 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.doesNotMatch(html, />Sign out</);
   // Desktop structure sidebar; Saved in stays on Files. Mobile: desktop-only.
   assert.match(html, /id="repo-tree"/);
-  assert.match(html, /id="repo-new-folder"/);
+  assert.doesNotMatch(html, /id="repo-new-folder"/);
+  assert.doesNotMatch(html, /id="repo-sidebar-new-piece"/);
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right[^"]*repo-essays-sidebar|class="[^"]*repo-essays-sidebar[^"]*repo-right/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
@@ -863,14 +872,14 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/lib\/exercise-revision\.js\?v=51"/);
   assert.match(html, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(html, /src="\/vendor\/purify\.min\.js"/);
-  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=50"/);
+  assert.match(html, /src="\/made-by-lindow-labs\.js\?v=51"/);
   assert.match(html, /src="\/exercises\/manifest\.js\?v=40"/);
   assert.match(html, /src="\/lib\/exercises-pick\.js\?v=40"/);
   assert.match(html, /src="\/lib\/exercises-next\.js\?v=1"/);
   assert.match(html, /src="\/lib\/lock-in\.js\?v=1"/);
   assert.match(html, /src="\/lib\/lock-in-ui\.js\?v=1"/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=52"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=53"/);
   assert.match(html, /src="\/lib\/exercise-workspace-core\.js\?v=41"/);
   assert.match(html, /src="\/repo\/exercise-workspace-ui\.js\?v=60"/);
   assert.match(html, /src="\/lib\/claude-models\.js\?v=2"/);
@@ -881,10 +890,10 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=62"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=63"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
-  assert.match(html, /id="repo-sidebar-new-piece"[^>]*>New essay</);
-  assert.match(html, /class="repo-tree__new repo-tree__new--essay"/);
+  assert.doesNotMatch(html, />New essay</);
+  assert.doesNotMatch(html, /Close essays/);
   assert.match(css, /data-repo-essays-list="1"/);
   assert.match(html, /id="repo-explorer"/);
   assert.doesNotMatch(html, /id="repo-ex-new-file"/);
@@ -997,7 +1006,8 @@ test("repo write page is writing surface + Location place + structure sidebar", 
     /@media\s*\(max-width:\s*430px\)[\s\S]*\.repo-surface\.writing\s*\{[^}]*padding:\s*calc\(\s*56px \+ env\(safe-area-inset-top/s,
   );
   // Labs header stays opaque above the write-safe fade; fade starts below it.
-  assert.match(css, /\.repo-top--labs\s*\{[^}]*background:\s*var\(--color-background\)/s);
+  assert.match(css, /\.repo-top--labs\s*\{[^}]*background:\s*transparent/s);
+  assert.match(css, /\.repo-top--labs\s*\{[^}]*box-shadow:\s*none/s);
   assert.match(css, /\.repo-top--labs\s*\{[^}]*z-index:\s*50/s);
   assert.match(
     css,
@@ -1327,21 +1337,21 @@ test("write page has no top-right account / Sign out / Download chrome", () => {
   assert.match(html, /placeholder="Where are you\?"/);
 });
 
-test("write page shared top bar: Exercises (mobile loop) + past-essays hamburger", () => {
+test("write page shared top bar: tinker mark + past-essays hamburger", () => {
   assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /data-exercises-nav/);
-  assert.match(html, /aria-label="Exercises"/);
+  assert.match(html, /aria-label="Open sidebar"/);
   assert.match(html, /repo-top__labs/);
   assert.match(html, /id="repo-ide-tabbar"/);
   assert.match(html, /repo-top--labs/);
   assert.match(html, /repo-layout--learning/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /aria-label="Past essays"/);
-  // Hamburger (lucide Menu) + dumbbell for Exercises.
+  // Hamburger (lucide Menu) + tinker mark (left drawer).
   assert.match(html, /M4 5h16M4 12h16M4 19h16/);
   assert.doesNotMatch(html, /M7 3\.5h7\.5/);
-  assert.match(html, /M14\.4 14\.4 9\.6 9\.6/);
-  assert.match(html, /id="repo-panel-close"/);
+  assert.match(html, /tinker-mark\.svg/);
+  assert.doesNotMatch(html, /id="repo-panel-close"/);
   assert.match(html, /frame-src https:\/\/lindowlabs\.dev/);
   assert.match(css, /\.labs-drawer/);
   // Shared top bar sits above the writing pad.
@@ -1356,8 +1366,9 @@ test("write page shared top bar: Exercises (mobile loop) + past-essays hamburger
   assert.doesNotMatch(surfaceChunk, /id="repo-exercise-rec"/);
   assert.match(css, /\.repo-top__past-essays/);
   assert.match(css, /\.repo-layout--learning/);
-  // Desktop hides Exercises; mobile keeps it for learning-loop access.
-  assert.match(css, /\.repo-layout--learning \.repo-top__labs/);
+  // Tinker mark stays on desktop + mobile (left drawer).
+  assert.match(css, /\.repo-top__labs/);
+  assert.doesNotMatch(css, /\.repo-layout--learning \.repo-top__labs\s*\{[^}]*display:\s*none/s);
   assert.match(css, /\.repo-top--labs\s*\{[^}]*display:\s*flex/s);
   assert.match(css, /\.repo-top__past-essays\s*\{[^}]*display:\s*inline-flex/s);
   // Essays sidebar sheet when hamburger opens it.
@@ -1365,7 +1376,9 @@ test("write page shared top bar: Exercises (mobile loop) + past-essays hamburger
     css,
     /body\.repo-page--write\[data-repo-essays-list="1"\][\s\S]*\.repo-panel__head\s*\{[^}]*flex-direction:\s*column/s,
   );
-  assert.match(css, /\.repo-essays-sidebar\s+\.repo-panel__close\s*\{[^}]*display:\s*inline-flex/s);
+  assert.doesNotMatch(html, /repo-panel__close/);
+  assert.match(page, /activePlace\(\)/);
+  assert.match(page, /CURRENT_PLACE_KEY|currentPlace\.v1/);
 });
 
 test("blank pad is the new essay without download chrome", async () => {
@@ -2072,11 +2085,10 @@ test("mobile This is everything opens the full-screen essay list", async () => {
   assert.equal(puts.length, 1);
   assert.equal(env.window.tinkerRepo.isMobileEssayListOpen(), true);
   assert.equal(env.document.body.getAttribute("data-repo-essays-list"), "1");
-  assert.equal(env.byId["repo-sidebar-new-piece"].hidden, false);
-  assert.match(String(env.byId["repo-sidebar-new-piece"].textContent || ""), /New essay/);
   const treeText = String(env.byId["repo-tree"].textContent || "");
   assert.match(treeText, /Phone finish lands on essays/i);
   assert.doesNotMatch(treeText, /\u2014/);
+  assert.doesNotMatch(treeText, /\bMove\b/);
 });
 
 test("mobile essay list opens a tapped essay", async () => {
@@ -2121,11 +2133,10 @@ test("mobile essay list opens a tapped essay", async () => {
   await env.flush();
   assert.equal(env.window.tinkerRepo.isMobileEssayListOpen(), false);
   assert.equal(env.document.body.getAttribute("data-repo-essays-list"), null);
-  assert.equal(env.byId["repo-sidebar-new-piece"].hidden, true);
   assert.match(String(env.byId["repo-file-path"].textContent || ""), /Open me from the list/i);
 });
 
-test("mobile essay list New essay starts a blank draft", async () => {
+test("essay rows are title-only without Move chrome", async () => {
   const env = bootRepoPage({
     token: "jwt-test",
     desktop: false,
@@ -2134,7 +2145,7 @@ test("mobile essay list New essay starts a blank draft", async () => {
   });
   await env.flush();
   env.window.tinkerRepo.setPadIdleMs(15);
-  env.byId["repo-body"].value = "Then start a new essay.";
+  env.byId["repo-body"].value = "Title only row.";
   env.byId["repo-body"].dispatch("input", {
     type: "input",
     target: env.byId["repo-body"],
@@ -2147,20 +2158,43 @@ test("mobile essay list New essay starts a blank draft", async () => {
     stopPropagation() {},
   });
   await env.flush();
-  assert.equal(env.window.tinkerRepo.isMobileEssayListOpen(), true);
-  assert.equal(env.byId["repo-sidebar-new-piece"].hidden, false);
-  env.byId["repo-sidebar-new-piece"].dispatch("click", {
+  const treeHtml = String(env.byId["repo-tree"].innerHTML || env.byId["repo-tree"]._html || "");
+  const treeText = String(env.byId["repo-tree"].textContent || "");
+  assert.match(treeText, /Title only row/i);
+  assert.doesNotMatch(treeText, /\bMove\b/);
+  assert.equal(env.byId["repo-tree"].querySelectorAll(".repo-tree__icon-btn").length, 0);
+});
+
+test("write empty hint hides once a place is picked", async () => {
+  const env = bootRepoPage({ token: "jwt-test", desktop: false, phoneWidth: true, mode: "write" });
+  await env.flush();
+  assert.equal(env.byId["repo-write-empty"].hidden, false);
+  env.click("repo-location-btn");
+  const home = (env.byId["repo-location-list"].children || []).find((row) =>
+    String(row.textContent || "").includes("Home")
+  );
+  assert.ok(home);
+  home.dispatch("click", {
     type: "click",
-    target: env.byId["repo-sidebar-new-piece"],
+    target: home,
     preventDefault() {},
     stopPropagation() {},
   });
   await env.flush();
-  assert.equal(env.window.tinkerRepo.isMobileEssayListOpen(), false);
-  assert.equal(env.document.body.getAttribute("data-repo-essays-list"), null);
-  assert.equal(env.byId["repo-sidebar-new-piece"].hidden, true);
-  // New draft selected; pad is writable again.
-  assert.equal(env.byId["repo-essay-view"].hidden, true);
+  assert.equal(env.window.tinkerRepo.getPlace(), "Home");
+  assert.equal(env.byId["repo-write-empty"].hidden, true);
+});
+
+test("persisted place on load keeps write empty hint hidden", async () => {
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    storageSeed: { "tinker.repo.currentPlace.v1": "Home" },
+  });
+  await env.flush();
+  assert.equal(env.window.tinkerRepo.getPlace(), "Home");
+  assert.equal(env.byId["repo-write-empty"].hidden, true);
 });
 
 test("This is everything failed save keeps the editor text and shows an inline error", async () => {
@@ -2401,7 +2435,7 @@ test("non-auth Keep crafting failure with Sign in wording still shows Retry", as
   assert.equal(env.assigned.length, 0);
 });
 
-test("/repo write page header chrome is Exercises + past-essays (no account / Files / Home)", () => {
+test("/repo write page header chrome is tinker mark + past-essays (no account / Files / Home)", () => {
   assert.match(html, /<header class="repo-top repo-top--labs"/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /id="repo-labs-link"/);

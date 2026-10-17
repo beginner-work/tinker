@@ -1,4 +1,4 @@
-/* /repo — stories as Markdown files + blank writing surface + folders.
+/* /repo - stories as Markdown files + blank writing surface + folders.
  *
  * Write page: blank Markdown editor + Location as writing place
  * (where the writer is). Files page: nested folders and Saved in
@@ -12,6 +12,7 @@
 
   var LOCATION_KEY = "tinker.repo.location.v1";
   var RECENT_PLACES_KEY = "tinker.repo.placesRecent.v1";
+  var CURRENT_PLACE_KEY = "tinker.repo.currentPlace.v1";
   var ESSAYS_KEY = "tinker.essays.v1";
   var PAD_DRAFT_KEY = "tinker.repo.padDraft.v1";
   var PLACE_STARTERS = ["Home", "Coffee shop", "San Diego"];
@@ -270,6 +271,7 @@
     setPadMarkdown(parsed.body, { focusEnd: true });
     if (parsed.place) {
       state.currentPlace = String(parsed.place).slice(0, 120);
+      writeStoredPlace(state.currentPlace);
       pushRecentPlace(state.currentPlace);
     }
     ensureDraftFromPad();
@@ -800,16 +802,6 @@
     if (els.pastEssays) {
       els.pastEssays.setAttribute("aria-expanded", state.mobileEssayList ? "true" : "false");
     }
-    if (els.panelClose) {
-      els.panelClose.hidden = !state.mobileEssayList;
-    }
-    if (els.sidebarNewPiece) {
-      // Sidebar actions are visible whenever the essays rail is open.
-      els.sidebarNewPiece.hidden = !state.mobileEssayList;
-    }
-    if (els.newFolder) {
-      els.newFolder.hidden = !state.mobileEssayList;
-    }
   }
 
   function setEssaysSidebar(open) {
@@ -970,7 +962,7 @@
 
     // Desktop bottom panel: scroll the panel surface (not the window) so the
     // latest typed paragraph and the question stay visible together. The
-    // question stays in normal flow — never parked over essay text.
+    // question stays in normal flow - never parked over essay text.
     var panelScroller = typeof writeScroll.findWriteScrollContainer === "function"
       ? writeScroll.findWriteScrollContainer(q)
       : null;
@@ -1201,7 +1193,7 @@
       var nav = window.navigator || {};
       var p = String(nav.platform || "");
       var ua = String(nav.userAgent || "");
-      // Mac desktop / laptop only — not iPhone/iPad (hint is CSS-hidden there).
+      // Mac desktop / laptop only - not iPhone/iPad (hint is CSS-hidden there).
       if (/iPhone|iPad|iPod/i.test(p) || /iPhone|iPad|iPod/i.test(ua)) return false;
       if (/Mac/i.test(p) || /Mac OS X|Macintosh/i.test(ua)) return true;
     } catch (e) { /* ignore */ }
@@ -1241,13 +1233,16 @@
     syncWriteEmptyHint();
   }
 
-  /** Phone write surface: show a short empty state under the location pill
-   * when there is no draft yet (avoids a blank void below "Where are you?"). */
+  /** Write surface empty state under the location pill: only while no place
+   * is selected and the pad is still blank (avoids a void below "Where are you?").
+   * Once a place is picked - including a persisted place restored on load -
+   * hide so the clean writing surface remains. */
   function syncWriteEmptyHint() {
     if (!els.writeEmpty) return;
     var reading = !!(els.surface && els.surface.classList.contains("repo-surface--reading"));
     var hasDraft = !!String(padBody() || "").trim();
-    var show = isWritePage && !reading && !hasDraft;
+    var hasPlace = !!String(activePlace() || "").trim();
+    var show = isWritePage && !reading && !hasDraft && !hasPlace;
     els.writeEmpty.hidden = !show;
   }
 
@@ -1710,7 +1705,7 @@
     if (!body) return Promise.resolve(null);
     clearPadError();
     if (!hasSessionToken()) {
-      // Don't silently toast — send the owner to the phone gate with draft stashed.
+      // Don't silently toast - send the owner to the phone gate with draft stashed.
       sendHomeForAuth();
       return Promise.resolve(null);
     }
@@ -1818,7 +1813,7 @@
       return Promise.resolve(null);
     }
     if (!ensureClaudeClient()) {
-      // Token is present but the Claude client never mounted — not an auth
+      // Token is present but the Claude client never mounted - not an auth
       // failure. Asking to "Sign in" here caused the stale-token bounce loop.
       showPadError(
         "Follow-ups unavailable: Claude client (callClaude) did not load.",
@@ -2068,7 +2063,7 @@
         "“" + folder.name + "” has " +
           files.length + " file" + (files.length === 1 ? "" : "s") +
           (children.length ? " and nested folders" : "") +
-          ". Your writing is never deleted — choose how to clear the folder."
+          ". Your writing is never deleted - choose how to clear the folder."
       );
     }
     if (els.confirmSheet) els.confirmSheet.hidden = false;
@@ -2092,7 +2087,7 @@
       closeConfirmSheet();
       if (!result.ok) {
         if (result.status === 409) {
-          state.status = "Folder is not empty — confirm to continue.";
+          state.status = "Folder is not empty - confirm to continue.";
         } else {
           state.status = (result.json && result.json.error) || "Could not delete folder.";
         }
@@ -2555,11 +2550,29 @@
     }
   }
 
+  function readStoredPlace() {
+    try {
+      var raw = window.localStorage.getItem(CURRENT_PLACE_KEY);
+      return raw ? String(raw).trim().slice(0, 120) : "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function writeStoredPlace(value) {
+    try {
+      var place = String(value || "").trim().slice(0, 120);
+      if (place) window.localStorage.setItem(CURRENT_PLACE_KEY, place);
+      else window.localStorage.removeItem(CURRENT_PLACE_KEY);
+    } catch (e) { /* ignore */ }
+  }
+
   function choosePlace(label) {
     var place = String(label || "").trim().slice(0, 120);
     // Always hold as the session place so the field stays filled with no file open
-    // and the next new file / first save inherits it.
+    // and the next new file / first save inherits it. Persist so reload restores it.
     state.currentPlace = place;
+    writeStoredPlace(place);
     if (place) pushRecentPlace(place);
 
     var story = selectedStory();
@@ -2989,17 +3002,6 @@
     });
     row.appendChild(btn);
 
-    var moveBtn = document.createElement("button");
-    moveBtn.type = "button";
-    moveBtn.className = "repo-tree__icon-btn";
-    moveBtn.setAttribute("aria-label", "Move to folder");
-    moveBtn.textContent = "Move";
-    moveBtn.addEventListener("click", function (event) {
-      event.stopPropagation();
-      openMoveSheet(story.id);
-    });
-    row.appendChild(moveBtn);
-
     li.appendChild(row);
 
     list.appendChild(li);
@@ -3320,7 +3322,7 @@
       renderSavedIn();
     }
     if (isWritePage) {
-      // Structure sidebar on desktop write — same tree as /repo/files.
+      // Structure sidebar on desktop write - same tree as /repo/files.
       if (els.tree) renderTree();
       renderCenter();
       // Essay tabs only when the exercise file editor is not active.
@@ -3467,20 +3469,15 @@
   }
 
   if (els.newPiece) els.newPiece.addEventListener("click", addNewFile);
-  if (els.sidebarNewPiece) els.sidebarNewPiece.addEventListener("click", addNewFile);
-  if (els.newFolder) els.newFolder.addEventListener("click", startCreateFolder);
+  // Essays sidebar: New folder stays on Files page only. Write-page Essays
+  // list is title-only (hamburger toggles; no New essay / close chrome).
+  if (els.newFolder && isFilesPage) els.newFolder.addEventListener("click", startCreateFolder);
   if (els.pastEssays) {
     els.pastEssays.addEventListener("click", function (event) {
       event.preventDefault();
       if (!isWritePage) return;
       // Desktop + mobile: hamburger toggles the right essays sidebar.
       setMobileEssayList(!state.mobileEssayList);
-    });
-  }
-  if (els.panelClose) {
-    els.panelClose.addEventListener("click", function (event) {
-      event.preventDefault();
-      setMobileEssayList(false);
     });
   }
   if (els.signin) {
@@ -3505,7 +3502,7 @@
     // re-render the visual pad so questions never show the raw marker.
     els.body.addEventListener("input", function (event) {
       // Mirror edits (tests / restore) always win. While a visual turn has
-      // focus, skip so we don't clobber live typing — unless this event
+      // focus, skip so we don't clobber live typing - unless this event
       // itself came from the mirror.
       var fromMirror = !event || event.target === els.body;
       if (fromMirror || !padHasFocus()) {
@@ -3707,6 +3704,8 @@
   });
 
   state.location = readStoredLocation();
+  state.currentPlace = readStoredPlace();
+  if (state.currentPlace) pushRecentPlace(state.currentPlace);
 
   /* Right essays sidebar starts closed; hamburger opens it on desktop + mobile. */
   (function initEssaysSidebar() {
