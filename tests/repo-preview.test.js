@@ -888,8 +888,9 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /exercise-workspace-ui\.js/);
   assert.match(html, /learning-auth\.js/);
   assert.match(html, /src="\/lib\/exercise-reconstruct\.js\?v=2"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=60"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=61"/);
   assert.match(html, /src="\/lib\/essay-classify\.js\?v=2"/);
+  assert.match(html, /src="\/lib\/essay-growth-edge\.js\?v=1"/);
   assert.match(html, /src="\/lib\/mcp-context\.js\?v=1"/);
   assert.match(html, /id="repo-new-essay"/);
   assert.match(html, /aria-label="New essay"/);
@@ -916,7 +917,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=70"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=71"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.doesNotMatch(html, /Close essays/);
   assert.match(css, /data-repo-essays-list="1"/);
