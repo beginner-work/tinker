@@ -15,7 +15,8 @@
  * (get_career_record, check_text), site content (list_content,
  * read_content, create_content_draft), outreach schedule (get_outreach_schedule,
  * set_busy_times), post_to_self_thread (assistant posts into the
- * owner's You inbox thread), and reading workbook tools
+ * owner's You inbox thread), Founder Source / Development essays
+ * (list_essays, read_essay), and reading workbook tools
  * (create_reading_thread, get_reading_thread, list_reading_threads,
  * advance_reading_section, pause_reading_thread, resume_reading_thread,
  * reorder_reading_sections).
@@ -49,6 +50,7 @@ const { checkText } = require("./_lib/career-check.js");
 const contentStore = require("./_lib/content-store.js");
 const selfThread = require("./_lib/self-thread-store.js");
 const selfReflections = require("./_lib/self-reflections.js");
+const essaysMcp = require("./_lib/essays-mcp.js");
 const reflectionWebhook = require("./_lib/reflection-webhook-store.js");
 const readingThreads = require("./_lib/reading-thread-store.js");
 const jobApplications = require("./_lib/job-application-store.js");
@@ -126,6 +128,10 @@ const INSTRUCTIONS = [
   "The owner sees it as an incoming assistant bubble. It does not send email or LinkedIn messages.",
   "Call list_self_reflections to read this connector user's You-thread posts and owner-typed reflections (essays and in-progress drafts).",
   "Newest first. Optional since (ISO) and limit. Returns id, title, full body, createdAt, updatedAt. Read-only; scoped to the connector owner.",
+  "Call list_essays to list this connector user's Founder Source and Development essays (synced writing essays, not site content).",
+  "Each item has id, title (display Title Case), storedTitle, side (Founder Source or Development), createdAt, updatedAt, wordCount.",
+  "Optional side filter: business (Founder Source) or technical (Development). Optional limit (default 50, max 200). Newest first.",
+  "Call read_essay with an id to read one essay's full body. Someone else's id returns an error. Both tools are read-only and owner-scoped.",
   "Call set_reflection_webhook (url + authorization header) or clear_reflection_webhook for the owner's private reflection_saved ping. Secrets return masked only.",
   "Call create_reading_thread to start a generic reading workbook (any book): title, optional author, ordered sections (string titles).",
   "It generates one pre-read question for the first section via KEEP_CRAFTING_MODEL and shows the thread in the inbox like a lead.",
@@ -597,6 +603,55 @@ const LIST_SELF_REFLECTIONS_TOOL = {
       since: { type: "string", description: "Optional ISO timestamp; keep items with updatedAt >= since." },
       limit: { type: "integer", description: "Max items to return (default 50, max 200)." },
     },
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const LIST_ESSAYS_TOOL = {
+  name: "list_essays",
+  title: "List essays",
+  description: [
+    "List this connector user's Founder Source and Development essays from the writing app, newest first.",
+    "These are synced essays (kind essays), not list_content site items and not You-thread reflections.",
+    "Each item has id, title (display Title Case), storedTitle (as saved), side (Founder Source or Development),",
+    "createdAt, updatedAt, and wordCount. Does not include full body text; use read_essay for that.",
+    "Optional side filter: business (Founder Source) or technical (Development). Optional limit (default 50, max 200).",
+    "Read-only. Scoped to the connector owner; a user id in args is ignored.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      side: {
+        type: "string",
+        enum: ["business", "technical"],
+        description: "Optional. business = Founder Source; technical = Development.",
+      },
+      limit: { type: "integer", description: "Max items to return (default 50, max 200)." },
+    },
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+};
+
+const READ_ESSAY_TOOL = {
+  name: "read_essay",
+  title: "Read one essay",
+  description: [
+    "Read one Founder Source or Development essay that belongs to this connector user.",
+    "Pass id from list_essays. Returns id, title (display Title Case), storedTitle, side, createdAt, updatedAt, wordCount, and full body.",
+    "Someone else's id returns an error and no essay. A user id in args is ignored.",
+    "Read-only. Does not edit or publish.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      id: {
+        type: "string",
+        description: "Essay id from list_essays.",
+      },
+    },
+    required: ["id"],
   },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 };
@@ -1500,6 +1555,8 @@ const TOOLS = [
   SET_BUSY_TIMES_TOOL,
   POST_TO_SELF_THREAD_TOOL,
   LIST_SELF_REFLECTIONS_TOOL,
+  LIST_ESSAYS_TOOL,
+  READ_ESSAY_TOOL,
   SET_REFLECTION_WEBHOOK_TOOL,
   CLEAR_REFLECTION_WEBHOOK_TOOL,
   UPDATE_OWNER_PROFILE_TOOL,
@@ -1890,6 +1947,49 @@ async function listSelfReflectionsCall(msg, user, args) {
       status: 200,
       headers: NO_STORE,
       body: rpcOk(msg.id, toolError(message || selfReflections.UNAVAILABLE)),
+    };
+  }
+}
+
+async function listEssaysCall(msg, user, args) {
+  try {
+    const userId = storyUserId(user);
+    const essays = await essaysMcp.listEssays({
+      userId,
+      side: args && args.side,
+      limit: args && args.limit,
+    });
+    return contentToolOk(msg, { essays });
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500
+      ? err.message
+      : essaysMcp.UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || essaysMcp.UNAVAILABLE)),
+    };
+  }
+}
+
+async function readEssayCall(msg, user, args) {
+  try {
+    const userId = storyUserId(user);
+    const essay = await essaysMcp.readEssay({
+      userId,
+      id: args && args.id,
+    });
+    return contentToolOk(msg, { essay });
+  } catch (err) {
+    const status = err && err.status;
+    const message = status && status >= 400 && status < 500
+      ? err.message
+      : essaysMcp.UNAVAILABLE;
+    return {
+      status: 200,
+      headers: NO_STORE,
+      body: rpcOk(msg.id, toolError(message || essaysMcp.UNAVAILABLE)),
     };
   }
 }
@@ -2834,6 +2934,8 @@ async function handleRpc(msg, user) {
       && name !== "set_busy_times"
       && name !== "post_to_self_thread"
       && name !== "list_self_reflections"
+      && name !== "list_essays"
+      && name !== "read_essay"
       && name !== "set_reflection_webhook"
       && name !== "clear_reflection_webhook"
       && name !== "update_owner_profile"
@@ -2902,6 +3004,12 @@ async function handleRpc(msg, user) {
     }
     if (name === "list_self_reflections") {
       return listSelfReflectionsCall(msg, user, args);
+    }
+    if (name === "list_essays") {
+      return listEssaysCall(msg, user, args);
+    }
+    if (name === "read_essay") {
+      return readEssayCall(msg, user, args);
     }
     if (name === "set_reflection_webhook") {
       return setReflectionWebhookCall(msg, user, args);
