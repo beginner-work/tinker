@@ -888,7 +888,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /exercise-workspace-ui\.js/);
   assert.match(html, /learning-auth\.js/);
   assert.match(html, /src="\/lib\/exercise-reconstruct\.js\?v=2"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=57"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=58"/);
   assert.match(html, /src="\/lib\/essay-classify\.js\?v=2"/);
   assert.match(html, /src="\/lib\/mcp-context\.js\?v=1"/);
   assert.match(html, /id="repo-new-essay"/);

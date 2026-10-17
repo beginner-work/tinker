@@ -3602,6 +3602,31 @@
     }
   }
 
+  /** Pull Notion context pages from the server into localStorage + indicator. */
+  function syncMcpContextFromServer() {
+    if (!isWritePage || !hasSessionToken()) return Promise.resolve(null);
+    var headers = authHeaders();
+    return fetch("/api/mcp-context?action=list", { headers: headers })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok) return null;
+          return json;
+        });
+      })
+      .then(function (json) {
+        if (!json || !json.context) return null;
+        var api = window.tinkerMcpContext;
+        if (api && typeof api.writeLocal === "function") {
+          api.writeLocal(json.context);
+        }
+        renderMcpContextIndicator();
+        return json.context;
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
   function renderSyncHint() {
     if (!els.syncHint) return;
     if (state.status) {
@@ -4088,9 +4113,14 @@
     })
     : Promise.resolve();
 
-  window.tinkerRepo.ready = Promise.all([loadStories(), exReady]).then(function () {
+  window.tinkerRepo.ready = Promise.all([
+    loadStories(),
+    exReady,
+    syncMcpContextFromServer(),
+  ]).then(function () {
     applyWriteQuery();
     restorePadDraftAfterAuth();
     syncWriteEmptyHint();
+    renderMcpContextIndicator();
   });
 })();

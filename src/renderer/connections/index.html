@@ -27,7 +27,7 @@
 
       <section class="connections__context" data-connections-context hidden>
         <h2 class="connections__context-title">Context pages</h2>
-        <p class="connections__context-lede">Pick Notion pages as business context and technical goals. Read-only tools fetch them for essay questions, classification, and coding exercises.</p>
+        <p class="connections__context-lede">Search Notion (read-only) and pick pages as business context or technical goals. They feed essay questions, classification, and coding exercises.</p>
         <p class="connections__context-active" data-context-active hidden></p>
         <form class="connections__context-form" data-context-form>
           <label class="connections__context-label">
@@ -38,15 +38,12 @@
             </select>
           </label>
           <label class="connections__context-label">
-            Page title
-            <input type="text" name="title" data-context-title maxlength="160" required placeholder="e.g. ICP notes" />
+            Search Notion
+            <input type="search" name="query" data-context-query maxlength="200" required placeholder="e.g. ICP notes" autocomplete="off" />
           </label>
-          <label class="connections__context-label">
-            Snippet
-            <textarea name="snippet" data-context-snippet rows="3" maxlength="4000" placeholder="Paste a short read-only excerpt"></textarea>
-          </label>
-          <button type="submit" class="connections__btn">Use page</button>
+          <button type="submit" class="connections__btn" data-context-search>Search</button>
         </form>
+        <ul class="connections__context-results" data-context-results hidden aria-live="polite"></ul>
       </section>
 
       <dialog class="connections__dialog" data-write-dialog>

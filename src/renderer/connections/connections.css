@@ -224,6 +224,40 @@ html, body.connections-page {
   background: var(--color-background);
   color: var(--color-foreground);
 }
+.connections__context-results {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.connections__context-results[hidden] { display: none !important; }
+.connections__context-hit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-background) 96%, var(--color-accent-dim, #dfe8e2) 4%);
+}
+.connections__context-hit-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--color-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.connections__context-hit .connections__btn {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-size: 13px;
+}
 
 @media (max-width: 540px) {
   .connections { padding: 32px 16px 64px; }

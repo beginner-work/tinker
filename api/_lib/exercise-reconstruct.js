@@ -14,6 +14,7 @@ const prisma = require("./db.js");
 const progressApi = require("../../src/renderer/lib/learning-progress.js");
 const reconstructApi = require("../../src/renderer/lib/exercise-reconstruct.js");
 const store = require("./exercise-workspace-store.js");
+const mcpContextPages = require("./mcp-context-pages.js");
 
 const KIND = progressApi.KIND || "learning_progress";
 
@@ -118,10 +119,19 @@ async function reconstructLearningFromEssay(args) {
 
   const call =
     typeof args.callAnthropic === "function" ? args.callAnthropic : callAnthropic;
+  let technicalGoalsContext = args && args.technicalGoalsContext;
+  if (!technicalGoalsContext) {
+    try {
+      const prompts = await mcpContextPages.contextForPrompts(userId);
+      technicalGoalsContext = prompts.technicalGoalsContext || "";
+    } catch {
+      technicalGoalsContext = "";
+    }
+  }
   const out = await reconstructApi.reconstructFromTechnicalEssays({
     essays: essays,
     progress: current,
-    technicalGoalsContext: args && args.technicalGoalsContext,
+    technicalGoalsContext: technicalGoalsContext,
     callFn: call,
   });
   const calibration = out.calibration;
