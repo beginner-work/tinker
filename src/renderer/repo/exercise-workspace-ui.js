@@ -1,18 +1,17 @@
 /* Learning-loop editor for one practice file + ZPD-calibrated prompts.
  *
- * Seeds from /lib/exercise-workspace-seed.json + manifest. Tinker owners
- * sync through /api/exercise-workspace. Progress (level, prompt, ZPD) lives
- * in /api/user-data/learning-progress. GitHub is never written.
+ * Exercises are derived from technical essays (Opus reconstruct), not a
+ * fixed Blob/seed curriculum. Progress (goal, level, prompt, ZPD, source
+ * essay) lives in /api/user-data/learning-progress. Practice file content
+ * is polished goal code; the prompt card carries instructions.
  *
- * That's everything: Claude Opus evaluates the attempt, applies revisedContent
- * into the open file automatically (subtle highlight + Undo), updates ZPD
- * and the next prompt, and persists learning_progress. No Accept/Reject,
- * no Exercises sidebar tree, no multi-file tabs as the main UX.
+ * That's everything on the practice file: Claude Opus evaluates the attempt,
+ * applies revisedContent, updates ZPD/prompt, persists learning_progress.
+ * Empty state until a technical essay has been reconstructed.
  *
- * Desktop: learning loop is the first screen. Mobile: essay writing is first;
- * Exercises (dumbbell) opens/closes the prompt + practice file. Claude only
- * (no Formation). Explorer chrome stays in the DOM for id stability but is
- * never shown (repo-layout--learning).
+ * Desktop: practice surface opens when signed in. Mobile: essay writing first.
+ * No Exercises nav. Claude only (no Formation). Explorer chrome stays in the
+ * DOM for id stability but is never shown (repo-layout--learning).
  */
 (function () {
   "use strict";
@@ -188,7 +187,9 @@
       codeRefactorReject: $("repo-code-refactor-reject"),
       codeStatus: $("repo-code-status"),
       learning: $("repo-learning"),
+      learningEmpty: $("repo-learning-empty"),
       learningGoal: $("repo-learning-goal"),
+      learningSource: $("repo-learning-source"),
       learningPrompt: $("repo-learning-prompt"),
       learningPromptText: $("repo-learning-prompt-text"),
       learningZpd: $("repo-learning-zpd"),
@@ -218,18 +219,27 @@
       return progressApi.defaultProgress();
     }
     return {
-      goalId: "openapi-from-scratch",
-      goalTitle: "Write an OpenAPI spec from scratch by feel, no copy-paste",
-      exerciseId: "api-design",
-      practicePath: "00-in-plain-english/api.md",
-      fileName: "api.md",
+      goalId: "",
+      goalTitle: "",
+      exerciseId: "from-essays",
+      practicePath: "",
+      fileName: "",
       level: 0,
-      status: "active",
-      currentPrompt:
-        "In plain English, describe what a caller can ask for, send, get back, and what can go wrong for a PaymentIntent. Pseudocode is fine.",
+      status: "awaiting_essay",
+      currentPrompt: "",
       zpd: { unaided: "", justBeyond: "" },
+      sourceEssayId: null,
+      sourceEssayTitle: null,
       updatedAt: null,
     };
+  }
+
+  function isAwaitingEssay(progress) {
+    var p = progress || {};
+    if (progressApi && typeof progressApi.hasExercise === "function") {
+      return !progressApi.hasExercise(p);
+    }
+    return p.status === "awaiting_essay" || (!p.goalTitle && !p.currentPrompt);
   }
 
   function normalizeLearningProgress(raw) {
@@ -298,25 +308,44 @@
   function renderLearningChrome() {
     var progress = normalizeLearningProgress(state.learningProgress);
     state.learningProgress = progress;
-    if (els.learningGoal) text(els.learningGoal, progress.goalTitle || "");
+    var awaiting = isAwaitingEssay(progress);
+    var emptyCopy =
+      (progressApi && progressApi.EMPTY_COPY) ||
+      "Write in Development to get your first coding exercise";
+    if (els.learningEmpty) {
+      els.learningEmpty.hidden = !awaiting;
+      text(els.learningEmpty, emptyCopy);
+    }
+    if (els.learningGoal) {
+      els.learningGoal.hidden = awaiting;
+      text(els.learningGoal, progress.goalTitle || "");
+    }
+    if (els.learningSource) {
+      var srcTitle = progress.sourceEssayTitle || "";
+      var showSrc = !awaiting && !!String(srcTitle).trim();
+      els.learningSource.hidden = !showSrc;
+      text(els.learningSource, showSrc ? "From “" + srcTitle + "”" : "");
+    }
     if (els.learningPromptText) {
       text(els.learningPromptText, progress.currentPrompt || "");
     }
     if (els.learningPrompt) {
-      els.learningPrompt.hidden = progress.status === "done";
+      els.learningPrompt.hidden = awaiting || progress.status === "done";
     }
     var hasZpd = !!(
       (progress.zpd && progress.zpd.unaided) ||
       (progress.zpd && progress.zpd.justBeyond)
     );
-    if (els.learningZpd) els.learningZpd.hidden = !hasZpd;
+    if (els.learningZpd) els.learningZpd.hidden = awaiting || !hasZpd;
     if (els.learningZpdUnaided) {
       text(els.learningZpdUnaided, (progress.zpd && progress.zpd.unaided) || "");
     }
     if (els.learningZpdBeyond) {
       text(els.learningZpdBeyond, (progress.zpd && progress.zpd.justBeyond) || "");
     }
-    if (els.learningDone) els.learningDone.hidden = progress.status !== "done";
+    if (els.learningDone) {
+      els.learningDone.hidden = awaiting || progress.status !== "done";
+    }
     if (els.learningDoneCopy && progress.status === "done") {
       text(els.learningDoneCopy, "You can write this by feel.");
     }
@@ -395,7 +424,14 @@
     var progress = normalizeLearningProgress(state.learningProgress);
     state.learningProgress = progress;
     state.learningSurfaceOpen = true;
-    var exerciseId = progress.exerciseId || "api-design";
+    if (isAwaitingEssay(progress)) {
+      // No seeded curriculum: wait for a technical essay reconstruct.
+      renderLearningChrome();
+      showWritingChrome(false);
+      if (els.code) els.code.hidden = false;
+      return false;
+    }
+    var exerciseId = progress.exerciseId || "from-essays";
     if (!state.workspace.exercises[exerciseId]) {
       var order = state.workspace.exerciseOrder || [];
       exerciseId = order[0] || exerciseId;
@@ -404,6 +440,7 @@
     if (!ex || !revision || typeof revision.findNodeByPath !== "function") {
       renderLearningChrome();
       showWritingChrome(false);
+      if (els.code) els.code.hidden = false;
       return false;
     }
     var practicePath = String(progress.practicePath || "")
@@ -412,15 +449,16 @@
     var node = practicePath
       ? revision.findNodeByPath(ex.nodes, practicePath)
       : null;
-    if (!node) {
+    if (!node && practicePath) {
       var answer = answerNodeForStep(exerciseId, {
-        folder: practicePath.split("/")[0] || "00-in-plain-english",
+        folder: practicePath.split("/")[0] || "",
       });
       node = answer || firstFileNode(exerciseId);
     }
     if (!node || node.type !== "file") {
       renderLearningChrome();
       showWritingChrome(false);
+      if (els.code) els.code.hidden = false;
       return false;
     }
     openFile(exerciseId, node.id, { keepContent: true, focus: true });
@@ -430,18 +468,24 @@
 
   function startNextLearningGoal() {
     var prev = normalizeLearningProgress(state.learningProgress);
+    // Next goal comes from another technical essay reconstruct, not a fixed seed.
     var next =
       progressApi && typeof progressApi.startNextGoal === "function"
-        ? progressApi.startNextGoal(prev)
+        ? progressApi.startNextGoal(prev, {
+            goalId: "",
+            goalTitle: "",
+            currentPrompt: "",
+          })
         : normalizeLearningProgress(
             Object.assign(defaultLearningProgress(), {
-              goalId: "next-goal",
-              goalTitle: "Set your next coding goal",
-              currentPrompt:
-                "Name the next skill you want to write by feel, then attempt the smallest first slice here.",
+              goalId: "",
+              goalTitle: "",
+              currentPrompt: "",
               level: 0,
-              status: "active",
+              status: "awaiting_essay",
               zpd: { unaided: "", justBeyond: "" },
+              sourceEssayId: null,
+              sourceEssayTitle: null,
             })
           );
     setUndoSnapshot(null);
@@ -451,7 +495,11 @@
       openPracticeFromProgress();
       if (els.codeStatus) {
         els.codeStatus.hidden = false;
-        text(els.codeStatus, "Next goal ready.");
+        text(
+          els.codeStatus,
+          (progressApi && progressApi.EMPTY_COPY) ||
+            "Write in Development to get your first coding exercise"
+        );
       }
       return next;
     });
@@ -609,16 +657,20 @@
   }
 
   function applyWorkspace(ws) {
-    var keepIds = null;
-    if (manifest && Array.isArray(manifest.modules)) {
-      keepIds = manifest.modules.map(function (m) { return m && m.id; }).filter(Boolean);
-    }
-    var pruned = core.pruneRetiredCurriculum(ws, keepIds ? { keepIds: keepIds } : {});
-    var nextWs = pruned.workspace;
-    // Belt-and-suspenders with the API store: scrub rides trees using the
-    // payments seed bundled into this desktop/web build.
-    if (seedWorkspaceCache && typeof core.refreshStaleCurriculum === "function") {
-      nextWs = core.refreshStaleCurriculum(nextWs, seedWorkspaceCache).workspace;
+    var nextWs = ws || core.emptyWorkspace();
+    // Learning loop is essay-derived only: never scrub/merge Blob seed curriculum.
+    if (!isLearningLoop()) {
+      var keepIds = null;
+      if (manifest && Array.isArray(manifest.modules)) {
+        keepIds = manifest.modules.map(function (m) { return m && m.id; }).filter(Boolean);
+      }
+      var pruned = core.pruneRetiredCurriculum(nextWs, keepIds ? { keepIds: keepIds } : {});
+      nextWs = pruned.workspace;
+      if (seedWorkspaceCache && typeof core.refreshStaleCurriculum === "function") {
+        nextWs = core.refreshStaleCurriculum(nextWs, seedWorkspaceCache).workspace;
+      }
+    } else {
+      nextWs = core.normalizeWorkspace(nextWs);
     }
     state.workspace = nextWs;
     if (
@@ -643,24 +695,32 @@
   function loadWorkspace() {
     var version = ++state.loadVersion;
     var ownerToken = token();
+    var learning = isLearningLoop();
     state.readerSession = Math.random().toString(36);
     state.loading = true;
     state.loadError = "";
     render();
-    // Signed-in: hit the API first. Server refreshStaleCurriculum already
-    // rewrites rides trees. After the list returns on desktop, load the
-    // bundled seed and re-apply so a stale blob can be scrubbed client-side.
-    var request = ownerToken
-      ? api("GET", isWideDesktop() ? "list" : "read")
-      : ensureSeedWorkspace().then(function (seedWs) {
-        return { workspace: seedWs };
-      });
+    // Learning loop: owner workspace only (essay-reconstructed practice files).
+    // No Blob/seed catalog. Signed-out or missing progress → empty workspace.
+    var request;
+    if (learning) {
+      request = ownerToken
+        ? api("GET", isWideDesktop() ? "list" : "read")
+        : Promise.resolve({ workspace: core.emptyWorkspace() });
+    } else {
+      request = ownerToken
+        ? api("GET", isWideDesktop() ? "list" : "read")
+        : ensureSeedWorkspace().then(function (seedWs) {
+          return { workspace: seedWs };
+        });
+    }
     return request.then(function (json) {
       // A late response must never restore a previous owner's learning modules.
       if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;
       applyWorkspace(json.workspace || json);
       state.localOnly = !ownerToken;
-      if (!ownerToken || !isWideDesktop() || seedWorkspaceCache) return;
+      // Non-learning desktop may still scrub stale Blob curriculum via seed.
+      if (learning || !ownerToken || !isWideDesktop() || seedWorkspaceCache) return;
       return ensureSeedWorkspace().then(function () {
         if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;
         applyWorkspace(state.workspace);
@@ -668,7 +728,16 @@
       }).catch(function () { /* seed scrub is optional; API already refreshed */ });
     }).catch(function (err) {
       if (version !== state.loadVersion || token() !== ownerToken) return;
-      // Preserve desktop's existing offline template fallback.
+      if (learning) {
+        state.workspace = core.emptyWorkspace();
+        state.mobileFile = null;
+        state.localOnly = !ownerToken;
+        state.loadError = err.status === 401 || err.status === 403
+          ? "Session expired. Sign in again to open your practice file."
+          : "";
+        return;
+      }
+      // Non-learning desktop offline template fallback.
       if (isWideDesktop()) {
         return ensureSeedWorkspace().then(function (seedWs) {
           if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;

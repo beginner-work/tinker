@@ -774,8 +774,16 @@ function bootRepoPage(options) {
         if (!node) return null;
         const classes = String(node.className || "").split(/\s+/).filter(Boolean);
         // Exact token match so repo-tree__piece-row does not steal the hit.
-        if (classes.includes("repo-tree__piece") && node.textContent === label) {
-          return node;
+        if (classes.includes("repo-tree__piece")) {
+          const titleEl = (node.children || []).find((c) =>
+            String(c.className || "").split(/\s+/).includes("repo-tree__piece-title")
+          );
+          const titleText = titleEl
+            ? String(titleEl.textContent || "")
+            : String(node.textContent || "");
+          if (titleText === label || String(node.textContent || "") === label) {
+            return node;
+          }
         }
         for (const child of node.children || []) {
           const found = walk(child);
@@ -822,7 +830,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /id="repo-tech-tree"/);
   assert.match(html, /data-technical-essays-nav/);
-  assert.doesNotMatch(html, /id="repo-learning-prompt"/);
+  assert.match(html, /id="repo-learning-prompt"/);
   assert.match(html, /id="repo-keep-crafting"/);
   assert.match(html, /id="repo-this-is-everything"/);
   assert.match(html, /Keep crafting/);
@@ -864,8 +872,8 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /id="repo-move-sheet"/);
   assert.match(html, /class="repo-right[^"]*repo-essays-sidebar|class="[^"]*repo-essays-sidebar[^"]*repo-right/);
   assert.doesNotMatch(html, /id="repo-saved-in-list"/);
-  assert.match(html, /src="\/lib\/stories-md\.js\?v=40"/);
-  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=41"/);
+  assert.match(html, /src="\/lib\/stories-md\.js\?v=41"/);
+  assert.match(html, /src="\/lib\/repo-folders-core\.js\?v=42"/);
   assert.match(html, /src="\/lib\/repo-pad-reveal\.js\?v=40"/);
   assert.match(html, /src="\/lib\/repo-write-scroll\.js\?v=49"/);
   assert.match(html, /src="\/lib\/storage-path-core\.js\?v=40"/);
@@ -876,29 +884,32 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/lib\/lock-in\.js\?v=1"/);
   assert.match(html, /src="\/lib\/lock-in-ui\.js\?v=1"/);
   assert.doesNotMatch(html, /src="\/exercises\/exercises-open\.js/);
-  assert.doesNotMatch(html, /src="\/exercises\/manifest\.js/);
-  assert.doesNotMatch(html, /exercise-workspace-ui\.js/);
-  assert.doesNotMatch(html, /learning-auth\.js/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=54"/);
-  assert.match(html, /src="\/lib\/claude-models\.js\?v=2"/);
+  assert.match(html, /src="\/exercises\/manifest\.js/);
+  assert.match(html, /exercise-workspace-ui\.js/);
+  assert.match(html, /learning-auth\.js/);
+  assert.match(html, /src="\/lib\/exercise-reconstruct\.js\?v=2"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=58"/);
+  assert.match(html, /src="\/lib\/essay-classify\.js\?v=2"/);
+  assert.match(html, /src="\/lib\/mcp-context\.js\?v=1"/);
+  assert.match(html, /id="repo-new-essay"/);
+  assert.match(html, /src="\/lib\/claude-models\.js\?v=3"/);
   assert.match(html, /src="\/lib\/claude-structured\.js\?v=2"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=64"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=68"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
-  assert.doesNotMatch(html, />New essay</);
   assert.doesNotMatch(html, /Close essays/);
   assert.match(css, /data-repo-essays-list="1"/);
   assert.match(css, /data-repo-tech-essays-list="1"/);
-  assert.doesNotMatch(html, /id="repo-explorer"/);
-  assert.doesNotMatch(html, /id="repo-code"/);
+  assert.match(html, /id="repo-explorer"[^>]*hidden/);
+  assert.match(html, /id="repo-code"/);
   assert.match(html, /id="repo-left"/);
   assert.match(html, /id="repo-tech-tree"/);
   assert.match(html, /id="repo-panel"/);
   assert.match(html, /id="repo-panel-write"/);
   assert.match(html, /id="repo-past-essays"/);
-  assert.match(html, /aria-label="Past essays"/);
+  assert.match(html, /aria-label="Founder Source"/);
   assert.match(html, /id="repo-ide-center"/);
   assert.doesNotMatch(html, /\u2014/);
   assert.doesNotMatch(html, /Inbox|← Inbox/);
@@ -1219,7 +1230,7 @@ test("repo loads reflections into stories/ file names with verbatim markdown", a
     md.storyMarkdown("Merchant portal reliability", "While managing 10 incidents might sound like a failure")
   );
   assert.equal(env.byId["repo-body"].value, merchant.markdown);
-  assert.equal(env.byId["repo-file-path"].textContent, "Merchant portal reliability");
+  assert.equal(env.byId["repo-file-path"].textContent, "Merchant Portal Reliability");
   assert.doesNotMatch(env.byId["repo-file-path"].textContent, /\.md|stories\//);
 });
 
@@ -1266,7 +1277,7 @@ test("Files page opens a file by navigating to /repo?file=", async () => {
   const stories = env.window.tinkerRepo.getStories();
   const merchant = stories.find((s) => s.title === "Merchant portal reliability");
   assert.ok(merchant);
-  const btn = env.findStoryButton("Merchant portal reliability");
+  const btn = env.findStoryButton("Merchant Portal Reliability");
   assert.ok(btn, "expected essay title button on Files page");
   assert.doesNotMatch(btn.textContent, /\.md$/);
   assert.doesNotMatch(btn.textContent, /stories\//);
@@ -1336,12 +1347,12 @@ test("write page has no top-right account / Sign out / Download chrome", () => {
 test("write page shared top bar: tinker mark + past-essays hamburger", () => {
   assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /data-technical-essays-nav/);
-  assert.match(html, /aria-label="Technical essays"/);
+  assert.match(html, /aria-label="Development"/);
   assert.match(html, /repo-top__labs/);
   assert.match(html, /repo-top--labs/);
-  assert.doesNotMatch(html, /repo-layout--learning/);
+  assert.match(html, /repo-layout--learning/);
   assert.match(html, /id="repo-past-essays"/);
-  assert.match(html, /aria-label="Past essays"/);
+  assert.match(html, /aria-label="Founder Source"/);
   // Hamburger (lucide Menu) + tinker mark (Technical essays).
   assert.match(html, /M4 5h16M4 12h16M4 19h16/);
   assert.doesNotMatch(html, /M7 3\.5h7\.5/);
@@ -1390,7 +1401,7 @@ test("blank pad is the new essay without download chrome", async () => {
     type: "input",
     target: env.byId["repo-body"],
   });
-  assert.equal(env.byId["repo-file-path"].textContent, "Quiet morning");
+  assert.equal(env.byId["repo-file-path"].textContent, "Quiet Morning");
   assert.doesNotMatch(env.byId["repo-file-path"].textContent, /\.md|stories\//);
 });
 
@@ -2452,11 +2463,11 @@ test("sidebar and Files show essay titles without .md or path", async () => {
     search: "?file=self_1",
   });
   await env.flush();
-  const btn = env.findStoryButton("Merchant portal reliability");
+  const btn = env.findStoryButton("Merchant Portal Reliability");
   assert.ok(btn, "sidebar should show the essay title");
   assert.doesNotMatch(btn.textContent, /\.md$/);
   assert.doesNotMatch(btn.textContent, /stories\//);
-  assert.equal(env.byId["repo-file-path"].textContent, "Merchant portal reliability");
+  assert.equal(env.byId["repo-file-path"].textContent, "Merchant Portal Reliability");
   assert.doesNotMatch(env.byId["repo-file-path"].textContent, /\.md|stories\//);
 });
 

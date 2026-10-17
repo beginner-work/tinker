@@ -19,8 +19,8 @@ const core = require("../src/renderer/lib/exercise-workspace-core.js");
 const revision = require("../src/renderer/lib/exercise-revision.js");
 
 test("exercise workspace UI still gates practice files behind sign-in", () => {
-  // Write page no longer mounts the explorer; the module keeps the gate.
-  assert.doesNotMatch(html, /id="repo-explorer-signin"/);
+  // Explorer markup is present (hidden); the module still gates file listing.
+  assert.match(html, /id="repo-explorer-signin"/);
   assert.match(ui, /function applyAuthGate/);
   assert.match(ui, /isLearningSignedIn/);
   assert.match(ui, /els\.gated\) els\.gated\.hidden = !signedIn/);
@@ -87,7 +87,7 @@ test("signed-out gate clears explorer file names from the DOM", () => {
   // so no exercise file names remain visible.
   assert.match(ui, /if \(els\.body\) clear\(els\.body\)/);
   assert.match(ui, /els\.gated\) els\.gated\.hidden = !signedIn/);
-  assert.doesNotMatch(html, /id="repo-explorer-body"/);
+  assert.match(html, /id="repo-explorer-body"/);
 });
 
 test("hamburger opens the right essays sidebar on desktop and mobile", () => {
@@ -137,19 +137,20 @@ test("mobile essays and exercises drawers clear the sticky top bar", () => {
 
 test("past-essays hamburger and tinker mark are 44px", () => {
   assert.match(html, /id="repo-labs-link"/);
-  assert.match(html, /aria-label="Technical essays"/);
+  assert.match(html, /aria-label="Development"/);
   assert.match(html, /id="repo-past-essays"/);
-  assert.match(html, /aria-label="Past essays"/);
+  assert.match(html, /aria-label="Founder Source"/);
   assert.match(css, /\.repo-top__past-essays\s*\{[^}]*width:\s*44px/s);
   assert.match(css, /\.repo-top__labs\s*\{[^}]*width:\s*44px|\.repo-top--labs \.repo-top__labs\s*\{[^}]*width:\s*44px/s);
-  assert.doesNotMatch(html, /repo-layout--learning/);
+  assert.match(html, /repo-layout--learning/);
 });
 
-test("write page uses Technical essays instead of learning loop", () => {
+test("write page uses Technical essays and keeps learning loop chrome", () => {
   assert.match(html, /data-technical-essays-nav/);
   assert.match(html, /id="repo-tech-tree"/);
-  assert.doesNotMatch(html, /id="repo-code-thats-everything"/);
-  assert.doesNotMatch(html, /repo-layout--learning/);
+  assert.match(html, /id="repo-code-thats-everything"/);
+  assert.match(html, /repo-layout--learning/);
+  assert.doesNotMatch(html, /data-exercises-nav/);
   assert.match(css, /\.repo-tech-essays-sidebar/);
 });
 

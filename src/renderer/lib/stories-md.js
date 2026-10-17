@@ -78,18 +78,63 @@
     return "";
   }
 
+  /** Small words kept lowercase mid-title (display-only Title Case). */
+  var TITLE_CASE_SMALL = {
+    a: 1, an: 1, the: 1, and: 1, or: 1, but: 1, for: 1, nor: 1,
+    on: 1, at: 1, to: 1, from: 1, by: 1, of: 1, in: 1, is: 1, as: 1,
+    if: 1, vs: 1, via: 1, per: 1, into: 1, onto: 1, with: 1,
+  };
+
+  /**
+   * Display-only Title Case. Does not mutate stored titles.
+   * Keeps small words lowercase mid-title; preserves acronyms (VC, B2B, API).
+   */
+  function titleCaseDisplay(raw) {
+    var s = String(raw == null ? "" : raw).trim();
+    if (!s) return s;
+    var parts = s.split(/(\s+)/);
+    var wordIndex = 0;
+    var wordCount = 0;
+    for (var c = 0; c < parts.length; c += 1) {
+      if (!/^\s+$/.test(parts[c])) wordCount += 1;
+    }
+    for (var i = 0; i < parts.length; i += 1) {
+      var token = parts[i];
+      if (/^\s+$/.test(token)) continue;
+      var isFirst = wordIndex === 0;
+      var isLast = wordIndex === wordCount - 1;
+      wordIndex += 1;
+      if (/^[A-Z0-9]{2,}(?:\/[A-Z0-9]+)?$/.test(token)) continue; // VC, B2B, API
+      if (/^[A-Z0-9]+(?:-[A-Z0-9]+)+$/.test(token)) continue; // B2B-SaaS
+      var lower = token.toLowerCase();
+      var bare = lower.replace(/[^a-z0-9']/g, "");
+      if (!isFirst && !isLast && TITLE_CASE_SMALL[bare]) {
+        parts[i] = token.replace(/[A-Za-z][A-Za-z']*/, function (w) {
+          return w.toLowerCase();
+        });
+        continue;
+      }
+      parts[i] = token.replace(/[A-Za-z][A-Za-z']*/, function (w) {
+        if (/^[A-Z0-9]{2,}$/.test(w) && w === w.toUpperCase()) return w;
+        return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+      });
+    }
+    return parts.join("");
+  }
+
   /**
    * Human title for UI: first Markdown heading, else story.title, else
    * de-slugged filename. Never includes .md or a folder path.
+   * Display uses Title Case; stored title is unchanged.
    */
   function displayTitle(story) {
     if (!story) return "Untitled";
     var fromHeading = headingTitle(story.markdown || story.body || "");
-    if (fromHeading) return fromHeading;
+    if (fromHeading) return titleCaseDisplay(fromHeading);
     var titled = story.title != null ? String(story.title).trim() : "";
-    if (titled) return titled.slice(0, 120);
+    if (titled) return titleCaseDisplay(titled.slice(0, 120));
     var fromFile = deslugTitle(story.fileName || story.relPath || "");
-    return fromFile || "Untitled";
+    return titleCaseDisplay(fromFile || "Untitled") || "Untitled";
   }
 
   /**
@@ -272,6 +317,7 @@
     deslugTitle: deslugTitle,
     headingTitle: headingTitle,
     displayTitle: displayTitle,
+    titleCaseDisplay: titleCaseDisplay,
     storyMarkdown: storyMarkdown,
     storyFileName: storyFileName,
     storyRelPath: storyRelPath,

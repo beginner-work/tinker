@@ -25,6 +25,7 @@
   var padReveal = window.tinkerRepoPadReveal || null;
   var essayRead = window.tinkerEssayRead || null;
   var writeScroll = window.tinkerRepoWriteScroll || null;
+  var essayClassify = window.tinkerEssayClassify || null;
   if (!md || !core) return;
 
   var pageMode = (document.body && document.body.getAttribute("data-repo-mode")) || "write";
@@ -78,8 +79,11 @@
     mobileEssayList: false,
     // Left Technical essays sidebar (tinker mark) on desktop + mobile.
     mobileTechEssayList: false,
-    // Which list last owned the blank pad: essays | technical.
+    // Which list was last opened (UI only). Classification is Haiku, not this.
     activeListKind: "essays",
+    // Debounced technical/business classifier handle.
+    essayKindClassifier: null,
+    essayClassifySeq: 0,
     // Read-view mount for saved essays (toggle always starts off per essay).
     essayReadMount: null,
     essayReadStoryId: null,
@@ -100,6 +104,7 @@
     techEmpty: document.getElementById("repo-tech-empty"),
     techFilePath: document.getElementById("repo-tech-file-path"),
     labsLink: document.getElementById("repo-labs-link"),
+    newEssay: document.getElementById("repo-new-essay"),
     newPiece: document.getElementById("repo-new-piece"),
     sidebarNewPiece: document.getElementById("repo-sidebar-new-piece"),
     pastEssays: document.getElementById("repo-past-essays"),
@@ -127,6 +132,7 @@
     locationCustom: document.getElementById("repo-location-custom"),
     locationError: document.getElementById("repo-location-error"),
     writeEmpty: document.getElementById("repo-write-empty"),
+    mcpContext: document.getElementById("repo-mcp-context"),
     filePath: document.getElementById("repo-file-path"),
     fileType: document.getElementById("repo-file-type"),
     filePlace: document.getElementById("repo-file-place"),
@@ -638,11 +644,179 @@
   }
 
   function isTechnicalType(value) {
+    if (essayClassify && typeof essayClassify.isTechnicalKind === "function") {
+      return essayClassify.isTechnicalKind(value);
+    }
     return core.normalizeContentType(value) === "technical";
   }
 
+  /** New drafts default to business until Haiku classifies. User never picks a side. */
   function draftContentType() {
-    return state.activeListKind === "technical" ? "technical" : core.DEFAULT_CONTENT_TYPE;
+    if (essayClassify && essayClassify.KIND_BUSINESS) return essayClassify.KIND_BUSINESS;
+    return "business";
+  }
+
+  function essayKindFor(value) {
+    if (essayClassify && typeof essayClassify.normalizeKind === "function") {
+      return essayClassify.normalizeKind(value, draftContentType());
+    }
+    return isTechnicalType(value) ? "technical" : draftContentType();
+  }
+
+  function persistEssayKind(story) {
+    if (!story || !story.id || story.isNew) return Promise.resolve(null);
+    return fetchEssays().then(function (list) {
+      var essays = Array.isArray(list) ? list.slice() : [];
+      var found = false;
+      for (var i = 0; i < essays.length; i += 1) {
+        if (essays[i] && essays[i].id === story.id) {
+          essays[i] = Object.assign({}, essays[i], {
+            contentType: story.contentType,
+            contentTypeClassifiedAt: story.contentTypeClassifiedAt || null,
+          });
+          found = true;
+          break;
+        }
+      }
+      if (!found) return null;
+      return putEssays(essays);
+    });
+  }
+
+  function applyEssayKind(target, kind, opts) {
+    if (!target) return false;
+    var next = essayKindFor(kind);
+    var prev = essayKindFor(target.contentType);
+    target.contentType = next;
+    target.contentTypeClassifiedAt =
+      (opts && opts.at) || new Date().toISOString();
+    if (opts && opts.persist && !target.isNew) {
+      persistEssayKind(target);
+    }
+    if (els.fileType && selectedStory() && selectedStory().id === target.id) {
+      els.fileType.hidden = false;
+      text(els.fileType, "Type: " + core.contentTypeLabel(next));
+    }
+    if (prev !== next || (opts && opts.forceRender)) {
+      renderTree();
+    }
+    return prev !== next;
+  }
+
+  function mergeEssayMeta(list) {
+    var byId = {};
+    (Array.isArray(list) ? list : []).forEach(function (row) {
+      if (row && row.id) byId[row.id] = row;
+    });
+    state.stories = state.stories.map(function (story) {
+      var e = byId[story.id];
+      if (!e) return story;
+      var next = Object.assign({}, story);
+      if (e.contentType) {
+        next.contentType = core.normalizeContentType(e.contentType, next.contentType);
+      }
+      if (e.contentTypeClassifiedAt) {
+        next.contentTypeClassifiedAt = e.contentTypeClassifiedAt;
+      }
+      return next;
+    });
+  }
+
+  function runEssayClassify(payload) {
+    if (!payload || !essayClassify || typeof essayClassify.classifyEssay !== "function") {
+      return Promise.resolve(null);
+    }
+    if (!hasSessionToken() || !ensureClaudeClient()) return Promise.resolve(null);
+    var api = resolveTinkerApi();
+    if (!api || typeof api.callClaude !== "function") return Promise.resolve(null);
+    state.essayClassifySeq += 1;
+    var my = state.essayClassifySeq;
+    var storyId = payload.storyId;
+    var classifyOpts = {
+      text: payload.text,
+      callFn: function (args) { return api.callClaude(args); },
+    };
+    try {
+      var ctxApi = window.tinkerMcpContext;
+      if (ctxApi) {
+        if (typeof ctxApi.getBusinessContext === "function") {
+          classifyOpts.businessContext = ctxApi.getBusinessContext();
+        }
+        if (typeof ctxApi.getTechnicalGoalsContext === "function") {
+          classifyOpts.technicalGoalsContext = ctxApi.getTechnicalGoalsContext();
+        }
+      }
+    } catch (e) { /* ignore */ }
+    return essayClassify
+      .classifyEssay(classifyOpts)
+      .then(function (result) {
+        if (my !== state.essayClassifySeq) return null;
+        var current = selectedStory() || state.draft;
+        if (!current) return null;
+        if (storyId && current.id !== storyId) return null;
+        if (!result || result.skipped) return null;
+        applyEssayKind(current, result.kind, {
+          persist: !current.isNew,
+          forceRender: true,
+        });
+        return result;
+      })
+      .catch(function () { return null; });
+  }
+
+  function scheduleEssayClassify() {
+    if (!isWritePage || !essayClassify) return;
+    var textValue = padBody();
+    if (typeof essayClassify.enoughText === "function" && !essayClassify.enoughText(textValue)) {
+      return;
+    }
+    var story = selectedStory() || state.draft;
+    if (!story) return;
+    if (!state.essayKindClassifier &&
+        typeof essayClassify.createDebouncedClassifier === "function") {
+      state.essayKindClassifier = essayClassify.createDebouncedClassifier(function (arg) {
+        runEssayClassify(arg);
+      });
+    }
+    if (!state.essayKindClassifier) return;
+    state.essayKindClassifier.schedule({
+      storyId: story.id,
+      text: textValue,
+    });
+  }
+
+  function backfillEssayKinds() {
+    if (!isWritePage || !essayClassify || typeof essayClassify.needsBackfill !== "function") {
+      return;
+    }
+    if (!hasSessionToken() || !ensureClaudeClient()) return;
+    var api = resolveTinkerApi();
+    if (!api || typeof api.callClaude !== "function") return;
+    var pending = state.stories.filter(function (story) {
+      return essayClassify.needsBackfill(story);
+    }).slice(0, 25);
+    pending.forEach(function (story) {
+      essayClassify
+        .classifyEssay({
+          text: story.body || story.markdown || "",
+          callFn: function (args) { return api.callClaude(args); },
+        })
+        .then(function (result) {
+          if (!result) return;
+          if (result.skipped) {
+            applyEssayKind(story, draftContentType(), {
+              persist: true,
+              forceRender: true,
+            });
+            return;
+          }
+          applyEssayKind(story, result.kind, {
+            persist: true,
+            forceRender: true,
+          });
+        })
+        .catch(function () { /* ignore */ });
+    });
   }
 
   function filesForList(kind) {
@@ -671,7 +845,12 @@
       }
       return;
     }
+    // One drawer at a time; New essay returns to the fresh writing surface.
     setMobileEssayList(false);
+    setTechnicalEssayList(false, true);
+    hideEssayReadView();
+    state.followupQuestion = "";
+    state.followupAsked = [];
     state.keepFinishedWriting = false;
     state.pieceCounter += 1;
     var now = new Date();
@@ -701,11 +880,14 @@
     state.draft = draft;
     state.selectedId = draft.id;
     state.selectedFolderId = folderId;
+    if (els.code) els.code.hidden = true;
+    if (els.pad) els.pad.hidden = false;
     openEssayTab(draft.id);
     // Carry the session place onto the new file so it shows and survives first save.
     if (state.currentPlace) {
       state.places[draft.id] = state.currentPlace.slice(0, 120);
     }
+    setPadMarkdown("");
     render();
     if (els.body) {
       try { els.body.focus(); } catch (e) { /* ignore */ }
@@ -1548,6 +1730,7 @@
       if (!story.isNew) story.dirty = true;
       if (els.filePath) text(els.filePath, md.displayTitle(story));
     }
+    scheduleEssayClassify();
     bumpPadTypingIdle();
   }
 
@@ -1593,7 +1776,7 @@
 
   /**
    * After a successful This is everything:
-   * open the matching essays list (Essays or Technical essays).
+   * open the matching list (Business or Technical) from classified type.
    */
   function finishWritingAfterSave() {
     var finishedType = state.draft && state.draft.contentType
@@ -1641,6 +1824,7 @@
       fileName: fileName,
       folderId: folderId || null,
       contentType: type,
+      contentTypeClassifiedAt: essay.contentTypeClassifiedAt || null,
       markdown: md.storyMarkdown(title, essay.body || ""),
       isNew: false,
       relPath: core.fileRelPath(state.folders, folderId || null, fileName),
@@ -1685,7 +1869,11 @@
             title: title,
             body: body,
             updatedAt: Date.now(),
-            contentType: draft.contentType || essay.contentType || draftContentType(),
+            contentType: draft.contentType || essays[idx].contentType || draftContentType(),
+            contentTypeClassifiedAt:
+              draft.contentTypeClassifiedAt ||
+              essays[idx].contentTypeClassifiedAt ||
+              null,
           });
           essays[idx] = essay;
         }
@@ -1704,6 +1892,7 @@
           seed: place || null,
           pendingPitch: true,
           contentType: draft.contentType || draftContentType(),
+          contentTypeClassifiedAt: draft.contentTypeClassifiedAt || null,
         };
         essays = [essay].concat(essays);
       }
@@ -1736,6 +1925,7 @@
             }).catch(function () { /* ignore */ })
           : Promise.resolve();
         return placePromise.then(function () { return syncStoriesToDisk(); }).then(function () {
+          scheduleLearningReconstruct(essay, saved);
           return saved;
         });
       });
@@ -1750,6 +1940,85 @@
       if (state.keepFinishedWriting) return;
       if (padBody().trim()) bumpPadTypingIdle();
     });
+  }
+
+  /** All technical essays currently in memory (for ZPD reconstruct). */
+  function technicalEssaysPayload() {
+    var out = [];
+    var stories = Array.isArray(state.stories) ? state.stories : [];
+    for (var i = 0; i < stories.length; i += 1) {
+      var s = stories[i];
+      if (!s || !s.id) continue;
+      if (!isTechnicalType(s.contentType)) continue;
+      var body = String(s.body || "").trim();
+      if (!body) continue;
+      out.push({
+        id: s.id,
+        title: s.title || "",
+        body: body,
+        updatedAt: s.updatedAt || s.createdAt || null,
+      });
+    }
+    return out;
+  }
+
+  /** Fire-and-forget: technical essays reconstruct the desktop ZPD exercise. */
+  function scheduleLearningReconstruct(essay, savedStory) {
+    if (!essay || !essay.id) return;
+    var kind = essayKindFor(
+      (savedStory && savedStory.contentType) || essay.contentType
+    );
+    if (kind !== "technical") return;
+    if (!hasSessionToken()) return;
+    var body = String(essay.body || "").trim();
+    if (!body) return;
+    var essays = technicalEssaysPayload();
+    // Ensure the finishing essay is present even if stories lag.
+    var found = false;
+    for (var i = 0; i < essays.length; i += 1) {
+      if (essays[i].id === essay.id) {
+        found = true;
+        essays[i] = {
+          id: essay.id,
+          title: essay.title || (savedStory && savedStory.title) || "",
+          body: body,
+          updatedAt: essay.updatedAt || essay.createdAt || null,
+        };
+        break;
+      }
+    }
+    if (!found) {
+      essays.unshift({
+        id: essay.id,
+        title: essay.title || (savedStory && savedStory.title) || "",
+        body: body,
+        updatedAt: essay.updatedAt || essay.createdAt || null,
+      });
+    }
+    var headers = authHeaders();
+    var payload = {
+      essayId: essay.id,
+      essayBody: body,
+      essayTitle: essay.title || (savedStory && savedStory.title) || "",
+      essayUpdatedAt: essay.updatedAt || essay.createdAt || null,
+      essays: essays,
+    };
+    try {
+      var ctxApi = window.tinkerMcpContext;
+      if (ctxApi && typeof ctxApi.getTechnicalGoalsContext === "function") {
+        var techCtx = ctxApi.getTechnicalGoalsContext();
+        if (techCtx) payload.technicalGoalsContext = techCtx;
+      }
+    } catch (e) { /* ignore */ }
+    // Non-blocking: do not await; save UX already finished.
+    try {
+      fetch("/api/learning-reconstruct", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(payload),
+        keepalive: true,
+      }).catch(function () { /* ignore */ });
+    } catch (e) { /* ignore */ }
   }
 
   function keepCraftingPad() {
@@ -1797,10 +2066,29 @@
     state.status = "Thinking through what to ask next…";
     renderSyncHint();
 
+    var userContent = built.user;
+    try {
+      var mcpCtx = window.tinkerMcpContext;
+      if (mcpCtx) {
+        var biz = typeof mcpCtx.getBusinessContext === "function"
+          ? mcpCtx.getBusinessContext()
+          : "";
+        var tech = typeof mcpCtx.getTechnicalGoalsContext === "function"
+          ? mcpCtx.getTechnicalGoalsContext()
+          : "";
+        var extras = [];
+        if (biz) extras.push("Business context pages (read-only):\n" + biz);
+        if (tech) extras.push("Technical goals pages (read-only):\n" + tech);
+        if (extras.length) {
+          userContent = String(userContent || "") + "\n\n" + extras.join("\n\n");
+        }
+      }
+    } catch (e) { /* ignore */ }
+
     var api = resolveTinkerApi();
     return api.callClaude({
       system: built.system,
-      messages: [{ role: "user", content: built.user }],
+      messages: [{ role: "user", content: userContent }],
       model:
         interview.KEEP_CRAFTING_MODEL ||
         (window.tinkerClaudeModels && window.tinkerClaudeModels.WRITING) ||
@@ -2922,6 +3210,28 @@
     });
   }
 
+  function essayPreviewLine(story) {
+    var body = String((story && (story.body || story.markdown)) || "")
+      .replace(/^#\s+[^\n]*\n+/, "")
+      .replace(/^>\s?/gm, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (body) return body.slice(0, 90);
+    var updated = story && (story.updatedAt || story.createdAt);
+    if (!updated) return "";
+    try {
+      var d = new Date(updated);
+      if (Number.isNaN(d.getTime())) return "";
+      return d.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch (e) {
+      return "";
+    }
+  }
+
   function renderFileRow(list, story) {
     var li = document.createElement("li");
     var row = document.createElement("div");
@@ -2935,7 +3245,17 @@
     btn.setAttribute("draggable", "true");
     if (state.selectedId === story.id) btn.className += " is-selected";
     var label = md.displayTitle(story);
-    btn.textContent = label;
+    var titleEl = document.createElement("span");
+    titleEl.className = "repo-tree__piece-title";
+    titleEl.textContent = label;
+    btn.appendChild(titleEl);
+    var preview = essayPreviewLine(story);
+    if (preview) {
+      var sub = document.createElement("span");
+      sub.className = "repo-tree__piece-sub";
+      sub.textContent = preview;
+      btn.appendChild(sub);
+    }
     btn.title = label;
     btn.addEventListener("click", function () {
       selectStory(story.id);
@@ -3264,6 +3584,49 @@
     if (story.id) openEssayTab(story.id);
   }
 
+  function renderMcpContextIndicator() {
+    if (!els.mcpContext || !isWritePage) return;
+    var label = "";
+    try {
+      var api = window.tinkerMcpContext;
+      if (api && typeof api.indicatorLabel === "function") {
+        label = api.indicatorLabel() || "";
+      }
+    } catch (e) { /* ignore */ }
+    if (label) {
+      els.mcpContext.hidden = false;
+      text(els.mcpContext, label);
+    } else {
+      els.mcpContext.hidden = true;
+      text(els.mcpContext, "");
+    }
+  }
+
+  /** Pull Notion context pages from the server into localStorage + indicator. */
+  function syncMcpContextFromServer() {
+    if (!isWritePage || !hasSessionToken()) return Promise.resolve(null);
+    var headers = authHeaders();
+    return fetch("/api/mcp-context?action=list", { headers: headers })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok) return null;
+          return json;
+        });
+      })
+      .then(function (json) {
+        if (!json || !json.context) return null;
+        var api = window.tinkerMcpContext;
+        if (api && typeof api.writeLocal === "function") {
+          api.writeLocal(json.context);
+        }
+        renderMcpContextIndicator();
+        return json.context;
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
   function renderSyncHint() {
     if (!els.syncHint) return;
     if (state.status) {
@@ -3290,6 +3653,7 @@
       if (!els.code || els.code.hidden) renderTabs();
       renderPlace();
       renderFollowup();
+      renderMcpContextIndicator();
       renderSyncHint();
       if (isEssayReadMode() || (els.code && !els.code.hidden)) setPadActionsVisible(false);
       else setPadActionsVisible(state.padActionsVisible && !!padBody().trim());
@@ -3422,8 +3786,10 @@
           relPath: core.fileRelPath(state.folders, folderId, fileName),
         });
       });
-      return fetchEssays().then(function () {
+      return fetchEssays().then(function (list) {
+        mergeEssayMeta(list);
         render();
+        backfillEssayKinds();
         return syncStoriesToDisk();
       });
     }).catch(function () {
@@ -3433,14 +3799,19 @@
   }
 
   if (els.newPiece) els.newPiece.addEventListener("click", addNewFile);
-  // Essays sidebar: New folder stays on Files page only. Write-page Essays
-  // list is title-only (hamburger toggles; no New essay / close chrome).
+  if (els.newEssay) els.newEssay.addEventListener("click", function (event) {
+    event.preventDefault();
+    if (!isWritePage) return;
+    addNewFile();
+  });
+  // Founder Source sidebar: New folder stays on Files page only. Write-page
+  // lists are title-only; New essay lives in the top nav.
   if (els.newFolder && isFilesPage) els.newFolder.addEventListener("click", startCreateFolder);
   if (els.pastEssays) {
     els.pastEssays.addEventListener("click", function (event) {
       event.preventDefault();
       if (!isWritePage) return;
-      // Desktop + mobile: hamburger toggles the right essays sidebar.
+      // Desktop + mobile: hamburger toggles Founder Source (closes Development).
       setMobileEssayList(!state.mobileEssayList);
     });
   }
@@ -3646,7 +4017,7 @@
   state.currentPlace = readStoredPlace();
   if (state.currentPlace) pushRecentPlace(state.currentPlace);
 
-  /* Sidebars start closed; mark opens Technical essays, hamburger opens Essays. */
+  /* Sidebars start closed; mark opens Technical, hamburger opens Business. */
   (function initEssaySidebars() {
     if (!isWritePage) return;
     setMobileEssayList(false);
@@ -3704,6 +4075,11 @@
     setTechnicalEssayList: function (open) { setTechnicalEssayList(!!open); },
     toggleTechnicalEssays: toggleTechnicalEssays,
     getActiveListKind: function () { return state.activeListKind; },
+    scheduleEssayClassify: scheduleEssayClassify,
+    backfillEssayKinds: backfillEssayKinds,
+    applyEssayKind: applyEssayKind,
+    essayKindFor: essayKindFor,
+    scheduleLearningReconstruct: scheduleLearningReconstruct,
     startExerciseEssay: startExerciseEssay,
     clearExerciseAttachment: clearExerciseAttachment,
     retryExerciseTransform: retryExerciseTransform,
@@ -3728,9 +4104,23 @@
 
   render();
 
-  window.tinkerRepo.ready = loadStories().then(function () {
+  var exUi = window.tinkerExerciseWorkspaceUi;
+  var exReady = (exUi && typeof exUi.init === "function")
+    ? exUi.init({
+      onReleaseEditor: function () {
+        /* essay rails own tabs when present */
+      },
+    })
+    : Promise.resolve();
+
+  window.tinkerRepo.ready = Promise.all([
+    loadStories(),
+    exReady,
+    syncMcpContextFromServer(),
+  ]).then(function () {
     applyWriteQuery();
     restorePadDraftAfterAuth();
     syncWriteEmptyHint();
+    renderMcpContextIndicator();
   });
 })();

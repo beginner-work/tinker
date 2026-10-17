@@ -12,6 +12,7 @@ const CONTENT_TYPES = Object.freeze([
   "readings",
   "drafts",
   "technical",
+  "business",
 ]);
 
 const DEFAULT_CONTENT_TYPE = "stories";

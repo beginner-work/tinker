@@ -106,10 +106,11 @@ function setup(t, options = {}) {
   };
 }
 
-test("write page no longer mounts learning loop; Technical essays chrome remains", () => {
-  assert.doesNotMatch(html, /repo-layout--learning/);
-  assert.doesNotMatch(html, /id="repo-explorer"/);
-  assert.doesNotMatch(html, /id="repo-learning-prompt"/);
+test("write page keeps learning loop; Technical essays chrome, no Exercises nav", () => {
+  assert.match(html, /repo-layout--learning/);
+  assert.match(html, /id="repo-explorer"/);
+  assert.match(html, /id="repo-learning-prompt"/);
+  assert.doesNotMatch(html, /data-exercises-nav/);
   assert.match(html, /data-technical-essays-nav/);
   assert.match(html, /id="repo-tech-tree"/);
   assert.match(html, /id="repo-labs-link"/);
@@ -122,7 +123,7 @@ test("write page no longer mounts learning loop; Technical essays chrome remains
     path.join(root, "src/renderer/repo/harness/technical-essays-sidebar.html"),
     "utf8"
   );
-  assert.match(harness, /Technical essays/);
+  assert.match(harness, /Development/);
   assert.match(harness, /id="repo-tech-tree"/);
   assert.doesNotMatch(harness, /repo-learning__prompt/);
   assert.doesNotMatch(html, /New learning module/);

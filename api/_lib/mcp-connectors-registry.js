@@ -28,6 +28,14 @@ const CONNECTORS = [
     defaultReadTools: ["notion-search", "notion-fetch"],
     description: "Search and fetch pages from your Notion workspace.",
   },
+  {
+    id: "github",
+    name: "GitHub",
+    url: "https://api.githubcopilot.com/mcp",
+    authType: "oauth",
+    defaultReadTools: ["get_me", "search_repositories", "get_file_contents"],
+    description: "Read repos and files from your GitHub account.",
+  },
 ];
 
 function listConnectors() {

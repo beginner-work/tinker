@@ -1,7 +1,7 @@
 /* Desktop / mobile parity for /repo write layout.
  *
- * Shared structure: top bar (Technical essays mark + Essays hamburger),
- * writing surface, left Technical essays list, right Essays list.
+ * Shared structure: top bar (Technical essays mark + Business hamburger),
+ * writing surface, left Technical essays list, right Business list.
  * Mobile first screen stays essay writing.
  */
 "use strict";
@@ -25,22 +25,23 @@ test("shared shell markup: mark, writing, dual essay lists", () => {
   assert.match(html, /class="repo-right[^"]*repo-essays-sidebar|repo-essays-sidebar[^"]*repo-right/);
   assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /data-technical-essays-nav/);
-  assert.match(html, /aria-label="Technical essays"/);
+  assert.match(html, /aria-label="Development"/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /id="repo-panel"/);
   assert.match(html, /id="repo-panel-write"/);
   assert.doesNotMatch(html, /id="repo-panel-close"/);
   assert.doesNotMatch(html, /\u2014|\u2013/);
-  assert.doesNotMatch(html, /id="repo-explorer"/);
-  assert.doesNotMatch(html, /id="repo-learning-prompt"/);
-  assert.doesNotMatch(html, /exercise-workspace-ui\.js/);
-  assert.doesNotMatch(html, /learning-auth\.js/);
-  assert.doesNotMatch(html, /repo-layout--learning/);
+  assert.match(html, /id="repo-explorer"[^>]*hidden/);
+  assert.match(html, /id="repo-learning-prompt"/);
+  assert.match(html, /exercise-workspace-ui\.js/);
+  assert.match(html, /learning-auth\.js/);
+  assert.match(html, /repo-layout--learning/);
   assert.doesNotMatch(html, />\s*Learning Lab\s*</);
-  assert.doesNotMatch(html, /src="\/exercises\/manifest\.js/);
+  assert.doesNotMatch(html, /data-exercises-nav/);
+  assert.match(html, /src="\/exercises\/manifest\.js/);
 });
 
-test("layout CSS: technical essays | center | essays rail", () => {
+test("layout CSS: technical essays | center | business rail", () => {
   assert.match(css, /--repo-tech-essays-rail/);
   assert.match(css, /--repo-essays-rail/);
   assert.match(
@@ -68,12 +69,14 @@ test("layout CSS: technical essays | center | essays rail", () => {
   );
 });
 
-test("write page loads Technical essays chrome without learning loop", () => {
-  assert.match(html, /repo\.css\?v=64/);
-  assert.match(html, /Technical essays/);
-  assert.doesNotMatch(html, /repo-layout--learning/);
-  assert.doesNotMatch(html, /id="repo-code"/);
-  assert.doesNotMatch(html, /id="repo-learning-zpd"/);
+test("write page loads Technical essays + desktop learning loop without Exercises nav", () => {
+  assert.match(html, /repo\.css\?v=68/);
+  assert.match(html, /Development/);
+  assert.match(html, /repo-layout--learning/);
+  assert.match(html, /id="repo-code"/);
+  assert.match(html, /id="repo-learning-prompt"/);
+  assert.match(html, /id="repo-learning-zpd"/);
+  assert.doesNotMatch(html, /data-exercises-nav/);
 });
 
 test("desktop write JS boots dual essay sidebars", () => {

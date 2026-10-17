@@ -34,6 +34,8 @@ const indexHtml = fs.readFileSync(
 
 test("claude-models pins writing Haiku 4.5 and exercise refactor Opus 5.5", () => {
   assert.equal(models.WRITING, "claude-haiku-4-5-20251001");
+  assert.equal(models.ESSAY_CLASSIFY, models.FAST);
+  assert.equal(models.ESSAY_CLASSIFY, "claude-haiku-4-5-20251001");
   assert.equal(models.KEEP_CRAFTING, models.WRITING);
   assert.equal(models.EXERCISE_REFACTOR, "claude-opus-5-5");
   assert.equal(interview.KEEP_CRAFTING_MODEL, models.WRITING);
@@ -44,15 +46,17 @@ test("claude-models pins writing Haiku 4.5 and exercise refactor Opus 5.5", () =
 test("writing UI and interview load the shared models config", () => {
   assert.match(indexHtml, /claude-models\.js/);
   assert.match(html, /claude-models\.js/);
-  // Write page no longer mounts exercise refactor/evaluate scripts.
-  assert.doesNotMatch(html, /exercise-refactor\.js/);
-  assert.doesNotMatch(html, /exercise-evaluate\.js/);
+  assert.match(html, /essay-classify\.js/);
+  // Write page mounts learning-loop evaluate/refactor helpers again.
+  assert.match(html, /exercise-refactor\.js/);
+  assert.match(html, /exercise-evaluate\.js/);
+  assert.match(html, /exercise-reconstruct\.js/);
   assert.match(writing, /tinkerClaudeModels|KEEP_CRAFTING_MODEL/);
   assert.doesNotMatch(writing, /model:\s*["']claude-opus-4-8["']/);
 });
 
 test("exercise editor exposes refactor chrome and selection helpers", () => {
-  assert.doesNotMatch(html, /id="repo-code-refactor"/);
+  assert.match(html, /id="repo-code-refactor"/);
   assert.match(ui, /askRefactor|acceptRefactor|rejectRefactor/);
   assert.match(ui, /EXERCISE_REFACTOR|refactorApi\.MODEL/);
   assert.match(ui, /selectionForRefactor|replaceEditorRange/);

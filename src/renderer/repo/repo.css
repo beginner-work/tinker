@@ -107,6 +107,41 @@ body.repo-page--files {
   overflow: visible;
 }
 
+.repo-top__new-essay {
+  display: inline-flex;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.repo-top__new-essay:hover,
+.repo-top__new-essay:focus-visible {
+  color: var(--color-foreground);
+  background: color-mix(in srgb, var(--color-accent, #a5b4fc) 14%, transparent);
+}
+
+.repo-top__new-essay:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.repo-top__new-essay-icon {
+  display: block;
+}
+
 .repo-top__past-essays {
   display: inline-flex;
   pointer-events: auto;
@@ -115,7 +150,7 @@ body.repo-page--files {
   flex: 0 0 auto;
   width: 44px;
   height: 44px;
-  margin: 0 0 0 auto;
+  margin: 0;
   padding: 0;
   border: 0;
   border-radius: 10px;
@@ -2908,14 +2943,56 @@ body.repo-page--write .repo-center {
   cursor: pointer;
 }
 
-/* Essay rows are title-only (tap to open); full width in the row. */
+/* Essay rows: title + muted preview; generous padding and soft separation. */
+.repo-tree__piece-row {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 2px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+}
+
+.repo-tree__piece-row:last-child {
+  border-bottom: 0;
+}
+
 .repo-tree__piece-row .repo-tree__piece {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   flex: 1 1 auto;
   width: auto;
   min-width: 0;
+  padding: 14px 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  white-space: normal;
+}
+
+.repo-tree__piece-title {
+  display: block;
+  width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 15px;
+  font-weight: 560;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
+}
+
+.repo-tree__piece-sub {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--color-muted);
 }
 
 .repo-reflections__item:hover,
@@ -4325,14 +4402,12 @@ body.repo-page--write .repo-center {
     z-index: auto;
     flex: 0 0 auto;
     height: auto;
-    gap: 12px;
+    gap: 8px;
     margin: 0 -16px;
-    padding: 14px 16px 14px;
+    padding: 8px 16px 10px;
     overflow: visible;
-    background:
-      radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
-      var(--color-background);
-    border-bottom: 1px solid var(--color-border);
+    background: transparent;
+    border-bottom: 0;
   }
 
   body.repo-page--write[data-repo-tech-essays-list="1"] .repo-left .repo-tree,
@@ -4375,7 +4450,7 @@ body.repo-page--write .repo-center {
     display: none !important;
   }
 
-  /* Drawer's own header row: in-flow under the top bar (not fixed under it). */
+  /* Drawer's own header: same surface as top nav (no hard rule / gray band). */
   body.repo-page--write[data-repo-essays-list="1"] .repo-essays-sidebar .repo-panel__head,
   .repo-layout--write.is-essays-open .repo-essays-sidebar .repo-panel__head {
     display: flex;
@@ -4388,14 +4463,12 @@ body.repo-page--write .repo-center {
     z-index: auto;
     flex: 0 0 auto;
     height: auto;
-    gap: 12px;
+    gap: 8px;
     margin: 0 -16px;
-    padding: 14px 16px 14px;
+    padding: 8px 16px 10px;
     overflow: visible;
-    background:
-      radial-gradient(circle at 18% 8%, rgba(123, 196, 122, 0.08), transparent 38%),
-      var(--color-background);
-    border-bottom: 1px solid var(--color-border);
+    background: transparent;
+    border-bottom: 0;
   }
 
   body.repo-page--write[data-repo-essays-list="1"] .repo-panel__head-row--title,
@@ -4971,12 +5044,13 @@ html.labs-drawer-open body {
 }
 
 /* ===== Learning loop (ZPD): one prompt + one file =====
- * Desktop: first screen. Mobile: opened via Exercises nav; essay writing
- * remains the default first paint until is-code-open / repo-code-open. */
+ * Desktop: practice surface opens when signed in. Mobile: essay writing first;
+ * no Exercises nav — reconstruct from technical essays updates progress. */
 .repo-layout--learning {
+  /* Keep Technical (left) + Business (right) rails; no Exercises explorer rail. */
   --repo-explorer-rail: 0px;
   grid-template-columns:
-    0
+    var(--repo-tech-essays-rail, 0px)
     minmax(0, 1fr)
     var(--repo-essays-rail, 0px);
 }
@@ -5003,6 +5077,31 @@ html.labs-drawer-open body {
   background: color-mix(in srgb, var(--color-background) 94%, var(--color-accent-dim, #dfe8e2) 6%);
 }
 
+.repo-mcp-context {
+  margin: 0 0 8px;
+  padding: 0 2px;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--color-muted) 90%, transparent);
+}
+
+.repo-mcp-context[hidden] {
+  display: none !important;
+}
+
+.repo-learning__empty {
+  margin: 0;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  color: var(--color-muted);
+}
+
 .repo-learning__goal {
   margin: 0;
   font-family: "Fraunces", Georgia, serif;
@@ -5010,6 +5109,16 @@ html.labs-drawer-open body {
   font-weight: 560;
   letter-spacing: -0.01em;
   color: var(--color-muted);
+  line-height: 1.35;
+}
+
+.repo-learning__source {
+  margin: -4px 0 0;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--color-muted) 85%, transparent);
   line-height: 1.35;
 }
 
@@ -5022,6 +5131,9 @@ html.labs-drawer-open body {
   box-shadow: 0 1px 0 color-mix(in srgb, var(--color-foreground) 4%, transparent);
 }
 
+.repo-learning__empty[hidden],
+.repo-learning__goal[hidden],
+.repo-learning__source[hidden],
 .repo-learning__prompt[hidden],
 .repo-learning__zpd[hidden],
 .repo-learning__done[hidden] {

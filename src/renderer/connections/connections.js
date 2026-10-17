@@ -135,10 +135,184 @@
       .then(function (json) {
         setStatus("");
         renderList(json.connectors || []);
+        renderContextSection(json.connectors || []);
       })
       .catch(function (err) {
         setStatus((err && err.message) || "Could not load connections.", true);
         renderList([]);
+        renderContextSection([]);
+      });
+  }
+
+  function paintContextActive(serverCtx) {
+    var active = document.querySelector("[data-context-active]");
+    if (!active) return;
+    var api = window.tinkerMcpContext;
+    var label = "";
+    if (serverCtx && api && typeof api.indicatorLabel === "function") {
+      label = api.indicatorLabel(serverCtx) || "";
+    } else if (api && typeof api.indicatorLabel === "function") {
+      label = api.indicatorLabel() || "";
+    }
+    if (label) {
+      active.hidden = false;
+      active.textContent = label;
+    } else {
+      active.hidden = true;
+      active.textContent = "";
+    }
+  }
+
+  function loadServerContext() {
+    if (!token()) return Promise.resolve(null);
+    return fetch("/api/mcp-context?action=list", { headers: authHeaders() })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok) return null;
+          return json;
+        });
+      })
+      .then(function (json) {
+        if (!json || !json.context) return null;
+        var api = window.tinkerMcpContext;
+        if (api && typeof api.writeLocal === "function") {
+          api.writeLocal(json.context);
+        }
+        paintContextActive(json.context);
+        return json.context;
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
+  function renderContextSection(connectors) {
+    var section = document.querySelector("[data-connections-context]");
+    if (!section) return;
+    var notion = (connectors || []).find(function (c) {
+      return c && c.id === "notion" && c.connected;
+    });
+    section.hidden = !notion;
+    if (!notion) {
+      paintContextActive(null);
+      return;
+    }
+    loadServerContext().then(function () {
+      paintContextActive();
+    });
+  }
+
+  function renderSearchResults(results, role) {
+    var list = document.querySelector("[data-context-results]");
+    if (!list) return;
+    list.innerHTML = "";
+    if (!results || !results.length) {
+      list.hidden = true;
+      return;
+    }
+    list.hidden = false;
+    results.forEach(function (hit) {
+      var li = document.createElement("li");
+      li.className = "connections__context-hit";
+      var title = document.createElement("span");
+      title.className = "connections__context-hit-title";
+      title.textContent = hit.title || hit.id;
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "connections__btn";
+      btn.textContent = "Use";
+      btn.setAttribute("data-action", "pick-context");
+      btn.setAttribute("data-page-id", hit.id || "");
+      btn.setAttribute("data-page-title", hit.title || "");
+      btn.setAttribute("data-page-url", hit.url || "");
+      btn.setAttribute("data-role", role || "business");
+      li.appendChild(title);
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+  }
+
+  function onContextSubmit(e) {
+    e.preventDefault();
+    if (!token()) { setStatus("Sign in to search Notion.", true); return; }
+    var roleEl = document.querySelector("[data-context-role]");
+    var queryEl = document.querySelector("[data-context-query]");
+    var role = roleEl ? roleEl.value : "business";
+    var query = queryEl ? queryEl.value : "";
+    if (!String(query || "").trim()) {
+      setStatus("Enter a search query.", true);
+      return;
+    }
+    setStatus("Searching Notion…");
+    var searchBtn = document.querySelector("[data-context-search]");
+    if (searchBtn) searchBtn.disabled = true;
+    fetch("/api/mcp-context", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
+      body: JSON.stringify({ action: "search", query: query }),
+    })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok) throw new Error((json && json.error) || "Search failed.");
+          return json;
+        });
+      })
+      .then(function (json) {
+        setStatus(
+          json.results && json.results.length
+            ? "Pick a page below."
+            : "No Notion pages matched."
+        );
+        renderSearchResults(json.results || [], role);
+      })
+      .catch(function (err) {
+        setStatus((err && err.message) || "Search failed.", true);
+        renderSearchResults([], role);
+      })
+      .finally(function () {
+        if (searchBtn) searchBtn.disabled = false;
+      });
+  }
+
+  function pickContextPage(btn) {
+    if (!token() || !btn) return;
+    var pageId = btn.getAttribute("data-page-id") || "";
+    var title = btn.getAttribute("data-page-title") || "";
+    var url = btn.getAttribute("data-page-url") || "";
+    var role = btn.getAttribute("data-role") || "business";
+    btn.disabled = true;
+    setStatus("Fetching page…");
+    fetch("/api/mcp-context", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
+      body: JSON.stringify({
+        action: "select",
+        role: role,
+        pageId: pageId,
+        title: title,
+        url: url || undefined,
+      }),
+    })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok) throw new Error((json && json.error) || "Could not save page.");
+          return json;
+        });
+      })
+      .then(function (json) {
+        var api = window.tinkerMcpContext;
+        if (api && typeof api.writeLocal === "function" && json.context) {
+          api.writeLocal(json.context);
+        }
+        setStatus("Context page saved.");
+        paintContextActive(json.context);
+        renderSearchResults([], role);
+      })
+      .catch(function (err) {
+        setStatus((err && err.message) || "Could not save page.", true);
+      })
+      .finally(function () {
+        btn.disabled = false;
       });
   }
 
@@ -220,6 +394,10 @@
     var btn = e.target && e.target.closest ? e.target.closest("[data-action]") : null;
     if (!btn) return;
     var action = btn.getAttribute("data-action");
+    if (action === "pick-context") {
+      pickContextPage(btn);
+      return;
+    }
     var id = btn.getAttribute("data-id");
     if (!id) return;
     if (action === "connect") connect(id, btn);
@@ -271,6 +449,10 @@
   document.addEventListener("DOMContentLoaded", function () {
     var list = document.querySelector("[data-connections-list]");
     if (list) list.addEventListener("click", onListClick);
+    var contextSection = document.querySelector("[data-connections-context]");
+    if (contextSection) contextSection.addEventListener("click", onListClick);
+    var form = document.querySelector("[data-context-form]");
+    if (form) form.addEventListener("submit", onContextSubmit);
     bindDialog();
     readQueryFlash();
     load();

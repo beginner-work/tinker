@@ -29,12 +29,12 @@ const SCREENS = [
     path: "/repo/harness/mobile-essay-list.html",
   },
   {
-    // Simplified Essays sidebar: titles only, no New/close/Move chrome.
+    // Simplified Business essays sidebar (right): titles only, no New/close/Move.
     name: "repo-essays-sidebar-simple",
     path: "/repo/harness/essays-sidebar-simple.html",
   },
   {
-    // Technical essays sidebar (left): same plain title list as Essays.
+    // Technical essays sidebar (left): same plain title list as Business.
     name: "repo-technical-essays-sidebar",
     path: "/repo/harness/technical-essays-sidebar.html",
   },

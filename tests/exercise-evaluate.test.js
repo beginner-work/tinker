@@ -36,18 +36,18 @@ test("That's everything uses the exercise Opus model id", () => {
   assert.equal(evaluate.MODEL, models.EXERCISE_REFACTOR);
   assert.match(evaluateSrc, /EXERCISE_REFACTOR/);
   assert.doesNotMatch(evaluateSrc, /openai|codex|gpt-/i);
-  // Write page no longer loads exercise-evaluate; module still does.
-  assert.doesNotMatch(html, /exercise-evaluate\.js/);
+  // Write page loads exercise-evaluate for the desktop learning loop.
+  assert.match(html, /exercise-evaluate\.js/);
   assert.match(ui, /tinkerExerciseEvaluate|evaluateApi/);
   assert.match(ui, /runThatsEverything/);
   assert.match(ui, /applyRevisedContent|applyNextStepReadme/);
   assert.match(ui, /persistLearningProgress|learning-progress/);
 });
 
-test("exercise editor That's everything chrome lives in UI module, not write page", () => {
-  assert.doesNotMatch(html, /id="repo-code-thats-everything"/);
-  assert.doesNotMatch(html, /id="repo-learning-prompt"/);
-  assert.doesNotMatch(html, /learning-progress\.js/);
+test("exercise editor That's everything chrome lives on write page learning loop", () => {
+  assert.match(html, /id="repo-code-thats-everything"/);
+  assert.match(html, /id="repo-learning-prompt"/);
+  assert.match(html, /learning-progress\.js/);
   assert.match(css, /repo-code__thats-everything/);
   assert.match(css, /repo-learning__prompt/);
   assert.match(css, /repo-surface__action--primary/);

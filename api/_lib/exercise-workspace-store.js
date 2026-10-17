@@ -19,6 +19,7 @@
 const fs = require("fs");
 const path = require("path");
 const core = require("../../src/renderer/lib/exercise-workspace-core.js");
+const revision = require("../../src/renderer/lib/exercise-revision.js");
 const revise = require("./exercise-revise.js");
 const exerciseBlob = require("./exercise-blob.js");
 
@@ -304,6 +305,56 @@ async function reviseFromEssay(args) {
   }
 }
 
+/** Write (or create) a practice file by relative path; persists workspace. */
+async function writePracticePath(args) {
+  try {
+    const exerciseId = String((args && args.exerciseId) || "").trim();
+    const practicePath = String((args && args.practicePath) || "")
+      .replace(/^\/+|\/+$/g, "")
+      .replace(/\\/g, "/");
+    if (!exerciseId || !practicePath) {
+      throw Object.assign(new Error("exerciseId and practicePath are required."), {
+        status: 400,
+      });
+    }
+    return await mutate(args.userId, (state) => {
+      // Essay-derived exercises may not exist in the old Blob seed catalog.
+      if (!state.exercises[exerciseId]) {
+        const name =
+          String((args && args.exerciseName) || "").trim() || exerciseId;
+        state.exercises[exerciseId] = {
+          id: exerciseId,
+          name: name,
+          nodes: [],
+        };
+        if (!Array.isArray(state.exerciseOrder)) state.exerciseOrder = [];
+        if (state.exerciseOrder.indexOf(exerciseId) === -1) {
+          state.exerciseOrder.push(exerciseId);
+        }
+      }
+      const written = revision.writePathContent(
+        state,
+        core,
+        exerciseId,
+        practicePath,
+        args.content
+      );
+      const next = core.normalizeWorkspace(written.workspace);
+      state.exercises = next.exercises;
+      state.exerciseOrder = next.exerciseOrder;
+      return {
+        nodeId: written.nodeId,
+        created: !!written.created,
+        exerciseId: exerciseId,
+        practicePath: practicePath,
+      };
+    });
+  } catch (err) {
+    if (err && err.status) throw err;
+    throw storeDown(err);
+  }
+}
+
 module.exports = {
   KIND,
   seedWorkspace,
@@ -314,6 +365,7 @@ module.exports = {
   moveNode,
   deleteNode,
   writeFile,
+  writePracticePath,
   reorderExercises,
   reviseFromEssay,
   // test hooks

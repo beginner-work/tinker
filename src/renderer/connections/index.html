@@ -19,11 +19,32 @@
     <main class="connections">
       <a class="connections__back" href="/settings">← Settings</a>
       <h1 class="connections__title">Connections</h1>
-      <p class="connections__lede">Link outside tools so Claude can use them while you write. Your tokens stay on the server, encrypted.</p>
+      <p class="connections__lede">A small plugin marketplace: connect Notion or GitHub with OAuth so Claude can read context while you write. Your tokens stay on the server, encrypted. Writes stay gated by Allow writes.</p>
       <p class="connections__hint">This is separate from <a href="/mcp/access">MCP access</a>, which lets bots call Tinker.</p>
 
       <p class="connections__status" data-connections-status hidden></p>
       <ul class="connections__list" data-connections-list aria-live="polite"></ul>
+
+      <section class="connections__context" data-connections-context hidden>
+        <h2 class="connections__context-title">Context pages</h2>
+        <p class="connections__context-lede">Search Notion (read-only) and pick pages as business context or technical goals. They feed essay questions, classification, and coding exercises.</p>
+        <p class="connections__context-active" data-context-active hidden></p>
+        <form class="connections__context-form" data-context-form>
+          <label class="connections__context-label">
+            Role
+            <select name="role" data-context-role>
+              <option value="business">Business context</option>
+              <option value="technical">Technical goals</option>
+            </select>
+          </label>
+          <label class="connections__context-label">
+            Search Notion
+            <input type="search" name="query" data-context-query maxlength="200" required placeholder="e.g. ICP notes" autocomplete="off" />
+          </label>
+          <button type="submit" class="connections__btn" data-context-search>Search</button>
+        </form>
+        <ul class="connections__context-results" data-context-results hidden aria-live="polite"></ul>
+      </section>
 
       <dialog class="connections__dialog" data-write-dialog>
         <form method="dialog" class="connections__dialog-form" data-write-form>
@@ -39,6 +60,7 @@
       </dialog>
     </main>
     <script src="/auth.js" defer></script>
+    <script src="/lib/mcp-context.js?v=1"></script>
     <script src="/connections/connections.js" defer></script>
   </body>
 </html>

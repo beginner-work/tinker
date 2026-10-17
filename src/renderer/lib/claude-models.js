@@ -28,8 +28,10 @@
   // LinkedIn draft + career extract helpers.
   const DRAFTING = "claude-opus-4-8";
 
-  // Fast classify / search.
+  // Fast classify / search (essay technical vs business, etc.).
   const FAST = "claude-haiku-4-5-20251001";
+  // Alias for essay side classification (same Haiku 4.5 pin).
+  const ESSAY_CLASSIFY = FAST;
 
   // Server fallback when a caller omits model.
   const DEFAULT = "claude-opus-4-7";
@@ -40,6 +42,7 @@
     EXERCISE_REVISE: EXERCISE_REVISE,
     DRAFTING: DRAFTING,
     FAST: FAST,
+    ESSAY_CLASSIFY: ESSAY_CLASSIFY,
     DEFAULT: DEFAULT,
     // Alias used by interview-prompt Keep crafting.
     KEEP_CRAFTING: WRITING,

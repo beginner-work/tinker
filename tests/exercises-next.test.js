@@ -101,11 +101,12 @@ test("/next route, auth return, and SW bypass are wired", () => {
   assert.match(nextJs, /tinker_mcp_return/);
 });
 
-test("repo write page keeps lock-in helpers; exercise deep link removed", () => {
-  assert.doesNotMatch(repoHtml, /exercises-next\.js/);
+test("repo write page keeps lock-in helpers; no exercise deep-link wiring", () => {
+  // Desktop ZPD loop may still load shared pick/next helpers; deep-link apply is gone.
   assert.match(repoHtml, /lock-in\.js/);
   assert.match(repoHtml, /lock-in-ui\.js/);
   assert.doesNotMatch(repoJs, /applyExerciseDeepLink/);
+  assert.doesNotMatch(repoHtml, /data-exercises-nav/);
   assert.match(uiJs, /rememberResume/);
   assert.match(uiJs, /openExercise:\s*openExercise/);
 });

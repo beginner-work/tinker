@@ -17,6 +17,7 @@
     "readings",
     "drafts",
     "technical",
+    "business",
   ];
   var DEFAULT_CONTENT_TYPE = "stories";
 
