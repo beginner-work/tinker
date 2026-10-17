@@ -93,12 +93,26 @@ test("write page applies the safe-area class and fade overlay", () => {
   assert.match(css, /position:\s*fixed/);
   assert.match(css, /--repo-write-safe-top/);
   assert.match(css, /--repo-write-fade/);
-  assert.match(css, /linear-gradient\(\s*to bottom/);
+  // Fade matches the shared page wash (no flat cream seam under the nav).
+  assert.match(css, /background-attachment:\s*fixed/);
+  assert.match(css, /mask-image:\s*linear-gradient\(\s*to bottom/);
+  assert.match(css, /radial-gradient\(circle at 18% 8%/);
   assert.match(css, /scroll-margin-top:\s*var\(--repo-write-safe-top/);
   assert.match(
     css,
     /html\[data-tinker-desktop\][\s\S]*--repo-write-safe-top:\s*calc\(\s*64px/,
   );
+});
+
+test("compose FAB morphs into the writing-status island", () => {
+  assert.match(css, /\.repo-fab-new/);
+  assert.match(css, /--repo-compose-dock-right/);
+  assert.match(css, /--repo-compose-morph-ms:\s*300ms/);
+  assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.match(css, /\.repo-surface__foot\.is-visible\.is-morphing-to-fab/);
+  assert.match(page, /enterComposeIsland/);
+  assert.match(page, /leaveComposeIsland/);
+  assert.match(page, /prefersComposeReduceMotion/);
 });
 
 test("focusLastPadTurn uses safe-area scroll math instead of crude caret scroll", () => {

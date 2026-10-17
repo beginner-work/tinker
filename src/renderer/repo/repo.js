@@ -1682,13 +1682,186 @@
     }
   }
 
+  var composeMorphTimer = null;
+  var composeMorphToken = 0;
+  /** 'fab' | 'island' — morph only on dock changes, not idle hide/show while typing. */
+  var composeDock = "fab";
+
+  function prefersComposeReduceMotion() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function clearComposeMorphTimer() {
+    if (composeMorphTimer) {
+      clearTimeout(composeMorphTimer);
+      composeMorphTimer = null;
+    }
+  }
+
+  function composeMorphMs() {
+    if (prefersComposeReduceMotion()) return 0;
+    return 300;
+  }
+
+  function setFabDockAway(away) {
+    if (!els.newEssay) return;
+    if (away) {
+      els.newEssay.classList.add("is-docked-away");
+      els.newEssay.setAttribute("aria-hidden", "true");
+      els.newEssay.tabIndex = -1;
+    } else {
+      els.newEssay.classList.remove("is-docked-away");
+      els.newEssay.removeAttribute("aria-hidden");
+      els.newEssay.tabIndex = 0;
+    }
+  }
+
+  function clearComposeFootWidth(foot) {
+    if (!foot || !foot.style) return;
+    foot.style.width = "";
+    foot.style.minWidth = "";
+  }
+
+  /** Morph FAB circle → writing-status island (once per enter). */
+  function enterComposeIsland() {
+    var foot = els.padActions;
+    if (!foot || composeDock === "island") return;
+    composeDock = "island";
+    clearComposeMorphTimer();
+    var token = (composeMorphToken += 1);
+    var ms = composeMorphMs();
+    foot.classList.remove("is-morphing-to-fab");
+    foot.classList.remove("is-content-ready");
+    foot.setAttribute("aria-hidden", "false");
+    setFabDockAway(true);
+
+    if (ms === 0) {
+      clearComposeFootWidth(foot);
+      foot.classList.add("is-visible");
+      foot.classList.add("is-content-ready");
+      return;
+    }
+
+    // Measure expanded pill width, then animate 56px → that width.
+    foot.style.width = "auto";
+    foot.style.minWidth = "max-content";
+    foot.classList.add("is-visible");
+    foot.classList.add("is-content-ready");
+    var measured = 0;
+    try {
+      if (typeof foot.getBoundingClientRect === "function") {
+        measured = Math.ceil(foot.getBoundingClientRect().width) || 0;
+      }
+    } catch (e) { measured = 0; }
+    var target = measured || 280;
+    foot.classList.remove("is-content-ready");
+    foot.style.width = "56px";
+    foot.style.minWidth = "56px";
+    // Force layout, then stretch (rAF may be unavailable in unit harnesses).
+    try { void foot.offsetWidth; } catch (e2) { /* ignore */ }
+    var runStretch = function () {
+      if (token !== composeMorphToken) return;
+      foot.style.width = target + "px";
+      foot.style.minWidth = target + "px";
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(runStretch);
+    else runStretch();
+    composeMorphTimer = setTimeout(function () {
+      if (token !== composeMorphToken) return;
+      clearComposeFootWidth(foot);
+      foot.classList.add("is-content-ready");
+      composeMorphTimer = null;
+    }, ms);
+  }
+
+  /** Morph island → FAB circle when leaving the writing view. */
+  function leaveComposeIsland() {
+    var foot = els.padActions;
+    if (!foot || composeDock === "fab") {
+      if (foot) {
+        clearComposeFootWidth(foot);
+        foot.classList.remove("is-visible");
+        foot.classList.remove("is-content-ready");
+        foot.classList.remove("is-morphing-to-fab");
+        foot.setAttribute("aria-hidden", "true");
+      }
+      setFabDockAway(false);
+      composeDock = "fab";
+      return;
+    }
+    composeDock = "fab";
+    clearComposeMorphTimer();
+    var token = (composeMorphToken += 1);
+    var ms = composeMorphMs();
+    foot.classList.add("is-morphing-to-fab");
+    foot.classList.remove("is-content-ready");
+    if (ms === 0) {
+      clearComposeFootWidth(foot);
+      foot.classList.remove("is-visible");
+      foot.classList.remove("is-morphing-to-fab");
+      foot.setAttribute("aria-hidden", "true");
+      setFabDockAway(false);
+      return;
+    }
+    var current = 56;
+    try {
+      if (typeof foot.getBoundingClientRect === "function") {
+        current = Math.ceil(foot.getBoundingClientRect().width) || 56;
+      }
+    } catch (e) { current = 56; }
+    foot.style.width = current + "px";
+    foot.style.minWidth = current + "px";
+    try { void foot.offsetWidth; } catch (e2) { /* ignore */ }
+    var runShrink = function () {
+      if (token !== composeMorphToken) return;
+      foot.style.width = "56px";
+      foot.style.minWidth = "56px";
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(runShrink);
+    else runShrink();
+    // Shrink pill toward the circle, then hand the dock back to the FAB.
+    composeMorphTimer = setTimeout(function () {
+      if (token !== composeMorphToken) return;
+      clearComposeFootWidth(foot);
+      foot.classList.remove("is-visible");
+      foot.classList.remove("is-morphing-to-fab");
+      foot.setAttribute("aria-hidden", "true");
+      setFabDockAway(false);
+      composeMorphTimer = null;
+    }, ms);
+  }
+
   function setPadActionsVisible(visible) {
     var show = !!visible && !!padBody().trim() && !state.padSaving && !state.padAsking;
     state.padActionsVisible = show;
     if (!els.padActions) return;
-    if (show) els.padActions.classList.add("is-visible");
-    else els.padActions.classList.remove("is-visible");
-    els.padActions.setAttribute("aria-hidden", show ? "false" : "true");
+
+    if (show) {
+      // First reveal (or FAB-started session): morph into the island.
+      if (composeDock !== "island") enterComposeIsland();
+      else {
+        els.padActions.classList.add("is-visible");
+        els.padActions.classList.add("is-content-ready");
+        els.padActions.setAttribute("aria-hidden", "false");
+        setFabDockAway(true);
+      }
+    } else if (composeDock === "island") {
+      // Idle hide while still composing: tuck the island without restoring the FAB.
+      // Reverse morph only once the pad is empty and focus has left writing.
+      els.padActions.classList.remove("is-visible");
+      els.padActions.classList.remove("is-content-ready");
+      els.padActions.setAttribute("aria-hidden", "true");
+      if (!padBody().trim() && !padHasFocus()) leaveComposeIsland();
+    } else {
+      els.padActions.classList.remove("is-visible");
+      els.padActions.classList.remove("is-content-ready");
+      els.padActions.setAttribute("aria-hidden", "true");
+    }
+
     var tab = show ? 0 : -1;
     if (els.keepCrafting) {
       els.keepCrafting.tabIndex = tab;
@@ -4023,9 +4196,16 @@
     event.preventDefault();
     if (!isWritePage) return;
     addNewFile();
+    // Tap morphs the circle into the writing-status island; actions enable once
+    // there is text (existing Keep crafting / This is everything rules).
+    enterComposeIsland();
+    if (padBody().trim()) setPadActionsVisible(true);
+    else if (els.body) {
+      try { els.body.focus(); } catch (e) { /* ignore */ }
+    }
   });
   // Founder Source sidebar: New folder stays on Files page only. Write-page
-  // lists are title-only; New essay lives in the top nav.
+  // lists are title-only; New essay is the bottom-right FAB (#repo-new-essay).
   if (els.newFolder && isFilesPage) els.newFolder.addEventListener("click", startCreateFolder);
   if (els.pastEssays) {
     els.pastEssays.addEventListener("click", function (event) {

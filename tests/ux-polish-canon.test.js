@@ -45,14 +45,18 @@ test("secondary chrome buttons use --radius-button, not ad-hoc 6/8px pills-as-li
   assert.match(css, /\.repo-surface__action\s*\{[^}]*border-radius:\s*999px/s);
 });
 
-test("panels stay flat; focus uses --focus-ring; foot has no product motion", () => {
+test("panels stay flat; focus uses --focus-ring; foot morph is gated compose motion", () => {
   assert.match(css, /\.repo-pad-error\s*\{[\s\S]*?box-shadow:\s*none/s);
   assert.match(css, /\.repo-surface__action:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
   assert.match(css, /\.repo-top__labs:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
-  assert.doesNotMatch(
+  // Shared-element FAB ↔ island morph only (width/radius/opacity via --repo-compose-morph-ms).
+  assert.match(css, /--repo-compose-morph-ms:\s*300ms/);
+  assert.match(css, /\.repo-surface__foot\s*\{[^}]*transition:[\s\S]*?width/s);
+  assert.match(
     css,
-    /\.repo-surface__foot\s*\{[^}]*transition:\s*opacity/s
+    /prefers-reduced-motion:\s*reduce[\s\S]*?\.repo-surface__foot\s*\{[^}]*transition:\s*opacity/s
   );
+  // No decorative product-layer keyframes.
   assert.doesNotMatch(css, /@keyframes\s+labs-drawer-slide-in/);
 });
 
