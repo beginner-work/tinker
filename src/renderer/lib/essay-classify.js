@@ -91,9 +91,27 @@
     return enoughText(body);
   }
 
-  function buildClassifyUserMessage(text) {
+  function buildClassifyUserMessage(text, opts) {
+    var options = opts || {};
     var body = String(text || "").replace(/\s+/g, " ").trim().slice(0, 4000);
-    return "Classify this essay:\n\n<<<ESSAY\n" + body + "\nESSAY";
+    var parts = ["Classify this essay:\n\n<<<ESSAY\n" + body + "\nESSAY"];
+    var biz = String(options.businessContext || "").trim().slice(0, 2000);
+    var tech = String(options.technicalGoalsContext || "").trim().slice(0, 2000);
+    if (biz) {
+      parts.push(
+        "\n\nBusiness context pages (read-only, optional hint):\n<<<BUSINESS_CONTEXT\n" +
+          biz +
+          "\nBUSINESS_CONTEXT"
+      );
+    }
+    if (tech) {
+      parts.push(
+        "\n\nTechnical goals pages (read-only, optional hint):\n<<<TECH_CONTEXT\n" +
+          tech +
+          "\nTECH_CONTEXT"
+      );
+    }
+    return parts.join("");
   }
 
   function validateClassifyPayload(payload) {
@@ -112,6 +130,8 @@
    * @param {string} opts.text
    * @param {function} opts.callFn  async (payload) => Claude result
    * @param {object} [opts.structuredApi]  override structured helper (tests)
+   * @param {string} [opts.businessContext]
+   * @param {string} [opts.technicalGoalsContext]
    * @param {string} [opts.model]
    */
   function classifyEssay(opts) {
@@ -129,6 +149,10 @@
       return Promise.reject(new Error("structured helper unavailable"));
     }
     var model = options.model || MODEL;
+    var userMsg = buildClassifyUserMessage(text, {
+      businessContext: options.businessContext,
+      technicalGoalsContext: options.technicalGoalsContext,
+    });
     return structuredApi
       .runStructuredJsonCall({
         callFn: callFn,
@@ -137,7 +161,7 @@
         toolName: "submit_essay_kind",
         toolDescription: "Return whether the essay is technical or business.",
         system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: buildClassifyUserMessage(text) }],
+        messages: [{ role: "user", content: userMsg }],
         maxTokens: 256,
         validate: validateClassifyPayload,
         attempts: 2,

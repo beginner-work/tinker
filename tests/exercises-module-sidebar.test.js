@@ -123,7 +123,7 @@ test("write page keeps learning loop; Technical essays chrome, no Exercises nav"
     path.join(root, "src/renderer/repo/harness/technical-essays-sidebar.html"),
     "utf8"
   );
-  assert.match(harness, /Technical essays/);
+  assert.match(harness, /Development/);
   assert.match(harness, /id="repo-tech-tree"/);
   assert.doesNotMatch(harness, /repo-learning__prompt/);
   assert.doesNotMatch(html, /New learning module/);

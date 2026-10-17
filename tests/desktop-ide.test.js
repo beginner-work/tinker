@@ -25,7 +25,7 @@ test("shared shell markup: mark, writing, dual essay lists", () => {
   assert.match(html, /class="repo-right[^"]*repo-essays-sidebar|repo-essays-sidebar[^"]*repo-right/);
   assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /data-technical-essays-nav/);
-  assert.match(html, /aria-label="Technical essays"/);
+  assert.match(html, /aria-label="Development"/);
   assert.match(html, /id="repo-past-essays"/);
   assert.match(html, /id="repo-panel"/);
   assert.match(html, /id="repo-panel-write"/);
@@ -70,8 +70,8 @@ test("layout CSS: technical essays | center | business rail", () => {
 });
 
 test("write page loads Technical essays + desktop learning loop without Exercises nav", () => {
-  assert.match(html, /repo\.css\?v=65/);
-  assert.match(html, /Technical essays/);
+  assert.match(html, /repo\.css\?v=68/);
+  assert.match(html, /Development/);
   assert.match(html, /repo-layout--learning/);
   assert.match(html, /id="repo-code"/);
   assert.match(html, /id="repo-learning-prompt"/);

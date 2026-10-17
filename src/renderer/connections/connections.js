@@ -135,11 +135,59 @@
       .then(function (json) {
         setStatus("");
         renderList(json.connectors || []);
+        renderContextSection(json.connectors || []);
       })
       .catch(function (err) {
         setStatus((err && err.message) || "Could not load connections.", true);
         renderList([]);
+        renderContextSection([]);
       });
+  }
+
+  function renderContextSection(connectors) {
+    var section = document.querySelector("[data-connections-context]");
+    if (!section) return;
+    var notion = (connectors || []).find(function (c) {
+      return c && c.id === "notion" && c.connected;
+    });
+    section.hidden = !notion;
+    var active = document.querySelector("[data-context-active]");
+    var api = window.tinkerMcpContext;
+    if (!active || !api || typeof api.indicatorLabel !== "function") return;
+    var label = api.indicatorLabel();
+    if (label) {
+      active.hidden = false;
+      active.textContent = label;
+    } else {
+      active.hidden = true;
+      active.textContent = "";
+    }
+  }
+
+  function onContextSubmit(e) {
+    e.preventDefault();
+    var api = window.tinkerMcpContext;
+    if (!api || typeof api.setPage !== "function") {
+      setStatus("Context helper did not load.", true);
+      return;
+    }
+    var roleEl = document.querySelector("[data-context-role]");
+    var titleEl = document.querySelector("[data-context-title]");
+    var snippetEl = document.querySelector("[data-context-snippet]");
+    var role = roleEl ? roleEl.value : "business";
+    var title = titleEl ? titleEl.value : "";
+    var snippet = snippetEl ? snippetEl.value : "";
+    api.setPage(role, {
+      id: "manual-" + Date.now().toString(36),
+      title: title,
+      snippet: snippet,
+      connectorId: "notion",
+      role: role,
+    });
+    if (titleEl) titleEl.value = "";
+    if (snippetEl) snippetEl.value = "";
+    setStatus("Context page saved.");
+    renderContextSection([{ id: "notion", connected: true }]);
   }
 
   function connect(id, btn) {
@@ -271,6 +319,8 @@
   document.addEventListener("DOMContentLoaded", function () {
     var list = document.querySelector("[data-connections-list]");
     if (list) list.addEventListener("click", onListClick);
+    var form = document.querySelector("[data-context-form]");
+    if (form) form.addEventListener("submit", onContextSubmit);
     bindDialog();
     readQueryFlash();
     load();

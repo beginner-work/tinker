@@ -171,7 +171,7 @@ test("write page restores learning loop chrome without Exercises nav", () => {
   assert.match(html, /id="repo-learning-prompt"/);
   assert.match(html, /id="repo-learning-empty"/);
   assert.match(html, /id="repo-learning-source"/);
-  assert.match(html, /Write a technical essay to get your first coding exercise/);
+  assert.match(html, /Write in Development to get your first coding exercise/);
   assert.match(html, /id="repo-code"/);
   assert.match(html, /id="repo-code-thats-everything"/);
   assert.match(html, /That's everything/);
@@ -179,8 +179,8 @@ test("write page restores learning loop chrome without Exercises nav", () => {
   assert.match(html, /learning-progress\.js/);
   assert.match(html, /exercise-reconstruct\.js/);
   assert.match(html, /repo-layout--learning/);
-  assert.match(html, /aria-label="Technical essays"/);
-  assert.match(html, /aria-label="Business essays"/);
+  assert.match(html, /aria-label="Development"/);
+  assert.match(html, /aria-label="Founder Source"/);
   assert.match(html, /id="repo-explorer"[^>]*hidden/);
   assert.doesNotMatch(html, /data-exercises-nav/);
   assert.match(page, /scheduleLearningReconstruct/);

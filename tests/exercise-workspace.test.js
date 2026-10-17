@@ -448,7 +448,7 @@ test("Technical essays harness replaces learning-loop screens", () => {
     path.join(root, "src/renderer/repo/harness/technical-essays-sidebar.html"),
     "utf8"
   );
-  assert.match(harness, /Technical essays/);
+  assert.match(harness, /Development/);
   assert.match(harness, /id="repo-tech-tree"/);
   assert.match(harness, /data-technical-essays-nav/);
   assert.doesNotMatch(harness, /repo-learning__prompt/);

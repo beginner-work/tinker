@@ -154,13 +154,18 @@ after(() => {
   rows.length = 0;
 });
 
-test("registry lists Notion first with read-only defaults", () => {
+test("registry lists Notion then GitHub with read-only defaults", () => {
   const list = registry.listConnectors();
-  assert.ok(list.length >= 1);
+  assert.ok(list.length >= 2);
   assert.equal(list[0].id, "notion");
   assert.equal(list[0].url, "https://mcp.notion.com/mcp");
   assert.equal(list[0].authType, "oauth");
   assert.deepEqual(list[0].defaultReadTools, ["notion-search", "notion-fetch"]);
+  assert.equal(list[1].id, "github");
+  assert.equal(list[1].url, "https://api.githubcopilot.com/mcp");
+  assert.equal(list[1].authType, "oauth");
+  assert.ok(Array.isArray(list[1].defaultReadTools));
+  assert.equal(registry.getConnector("linear"), null);
   assert.equal(registry.getConnector("nope"), null);
 });
 

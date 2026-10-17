@@ -31,7 +31,7 @@ test("default progress is awaiting a technical essay (no seeded curriculum)", ()
   assert.equal(d.level, 0);
   assert.equal(d.exerciseId, "from-essays");
   assert.equal(progress.hasExercise(d), false);
-  assert.match(progress.EMPTY_COPY, /Write a technical essay/);
+  assert.match(progress.EMPTY_COPY, /Write in Development/);
   assert.doesNotMatch(JSON.stringify(d), /formation|openapi-from-scratch|PaymentIntent/i);
 });
 

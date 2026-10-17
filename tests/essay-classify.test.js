@@ -132,10 +132,10 @@ test("createDebouncedClassifier fires once after wait", async () => {
 
 test("write page loads classifier and Business / Technical chrome", () => {
   assert.match(html, /essay-classify\.js/);
-  assert.match(html, /aria-label="Technical essays"/);
-  assert.match(html, /aria-label="Business essays"/);
-  assert.match(html, />Business</);
-  assert.match(html, /No business essays yet/);
+  assert.match(html, /aria-label="Development"/);
+  assert.match(html, /aria-label="Founder Source"/);
+  assert.match(html, />Founder Source</);
+  assert.match(html, /No Founder Source essays yet/);
   assert.doesNotMatch(html, /aria-label="Past essays"/);
   assert.match(page, /scheduleEssayClassify|backfillEssayKinds/);
   assert.match(page, /contentTypeClassifiedAt/);
@@ -144,10 +144,10 @@ test("write page loads classifier and Business / Technical chrome", () => {
 });
 
 test("visual harnesses show plain Technical and Business lists", () => {
-  assert.match(harnessTech, /Technical essays/);
+  assert.match(harnessTech, /Development/);
   assert.match(harnessTech, /How the retry queue settles/);
   assert.doesNotMatch(harnessTech, /id="repo-new-folder"|id="repo-sidebar-new-piece"|id="repo-panel-close"/);
-  assert.match(harnessBiz, /Business/);
-  assert.match(harnessBiz, /aria-label="Business essays"/);
+  assert.match(harnessBiz, /Founder Source/);
+  assert.match(harnessBiz, /aria-label="Founder Source"/);
   assert.doesNotMatch(harnessBiz, /id="repo-new-folder"|id="repo-sidebar-new-piece"|id="repo-panel-close"/);
 });

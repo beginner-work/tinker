@@ -42,7 +42,7 @@ test("displayTitle prefers heading, then title, then deslug — never .md or pat
       fileName: "2026-10-03-s.md",
       relPath: "stories/2026-10-03-s.md",
     }),
-    "Merchant portal reliability"
+    "Merchant Portal Reliability"
   );
   assert.equal(
     md.displayTitle({
@@ -50,15 +50,17 @@ test("displayTitle prefers heading, then title, then deslug — never .md or pat
       body: "no heading here",
       fileName: "2026-10-02-affirm-com.md",
     }),
-    "affirm.com"
+    "Affirm.com"
   );
   assert.equal(
     md.displayTitle({
       fileName: "2026-10-03-quiet-morning.md",
       relPath: "stories/2026-10-03-quiet-morning.md",
     }),
-    "quiet morning"
+    "Quiet Morning"
   );
+  assert.equal(md.titleCaseDisplay("everyone is a founder"), "Everyone is a Founder");
+  assert.equal(md.titleCaseDisplay("VC and B2B pricing"), "VC and B2B Pricing");
   assert.equal(md.deslugTitle("stories/2026-10-03-s.md"), "s");
   assert.equal(md.headingTitle("# Hello\n\nworld"), "Hello");
   assert.equal(md.headingTitle("no heading"), "");

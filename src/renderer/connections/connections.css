@@ -175,6 +175,56 @@ html, body.connections-page {
   gap: 8px;
 }
 
+.connections__context {
+  margin-top: 36px;
+  padding-top: 24px;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+.connections__context[hidden] { display: none !important; }
+.connections__context-title {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.connections__context-lede {
+  margin: 0 0 12px;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.connections__context-active {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+.connections__context-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.connections__context-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+.connections__context-label input,
+.connections__context-label select,
+.connections__context-label textarea {
+  font: inherit;
+  font-weight: 400;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
 @media (max-width: 540px) {
   .connections { padding: 32px 16px 64px; }
   .connections__title { font-size: 28px; }

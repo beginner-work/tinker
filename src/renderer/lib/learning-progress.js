@@ -21,7 +21,7 @@
 
   const KIND = "learning_progress";
   const EMPTY_COPY =
-    "Write a technical essay to get your first coding exercise";
+    "Write in Development to get your first coding exercise";
   const DEFAULT_EXERCISE_ID = "from-essays";
 
   const MAX_PROMPT = 600;

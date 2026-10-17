@@ -137,9 +137,9 @@ test("mobile essays and exercises drawers clear the sticky top bar", () => {
 
 test("past-essays hamburger and tinker mark are 44px", () => {
   assert.match(html, /id="repo-labs-link"/);
-  assert.match(html, /aria-label="Technical essays"/);
+  assert.match(html, /aria-label="Development"/);
   assert.match(html, /id="repo-past-essays"/);
-  assert.match(html, /aria-label="Business essays"/);
+  assert.match(html, /aria-label="Founder Source"/);
   assert.match(css, /\.repo-top__past-essays\s*\{[^}]*width:\s*44px/s);
   assert.match(css, /\.repo-top__labs\s*\{[^}]*width:\s*44px|\.repo-top--labs \.repo-top__labs\s*\{[^}]*width:\s*44px/s);
   assert.match(html, /repo-layout--learning/);

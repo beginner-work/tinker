@@ -78,12 +78,12 @@ test("write page keeps tinker mark + past-essays hamburger", () => {
   const css = fs.readFileSync(path.join(RENDERER, "repo", "repo.css"), "utf8");
   assert.match(html, /id="repo-labs-link"/);
   assert.match(html, /data-technical-essays-nav/);
-  assert.match(html, /aria-label="Technical essays"/);
+  assert.match(html, /aria-label="Development"/);
   assert.match(html, /tinker-mark\.svg/);
   assert.doesNotMatch(html, /M14\.4 14\.4 9\.6 9\.6/);
   assert.match(html, /made-by-lindow-labs\.js/);
   assert.match(html, /id="repo-past-essays"/);
-  assert.match(html, /aria-label="Business essays"/);
+  assert.match(html, /aria-label="Founder Source"/);
   assert.match(html, /repo-layout--learning/);
   assert.match(src, /data-technical-essays-nav/);
   assert.match(src, /toggleTechnicalEssaysNav|toggleExercisesNav/);

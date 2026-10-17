@@ -104,6 +104,7 @@
     techEmpty: document.getElementById("repo-tech-empty"),
     techFilePath: document.getElementById("repo-tech-file-path"),
     labsLink: document.getElementById("repo-labs-link"),
+    newEssay: document.getElementById("repo-new-essay"),
     newPiece: document.getElementById("repo-new-piece"),
     sidebarNewPiece: document.getElementById("repo-sidebar-new-piece"),
     pastEssays: document.getElementById("repo-past-essays"),
@@ -131,6 +132,7 @@
     locationCustom: document.getElementById("repo-location-custom"),
     locationError: document.getElementById("repo-location-error"),
     writeEmpty: document.getElementById("repo-write-empty"),
+    mcpContext: document.getElementById("repo-mcp-context"),
     filePath: document.getElementById("repo-file-path"),
     fileType: document.getElementById("repo-file-type"),
     filePlace: document.getElementById("repo-file-place"),
@@ -730,11 +732,23 @@
     state.essayClassifySeq += 1;
     var my = state.essayClassifySeq;
     var storyId = payload.storyId;
+    var classifyOpts = {
+      text: payload.text,
+      callFn: function (args) { return api.callClaude(args); },
+    };
+    try {
+      var ctxApi = window.tinkerMcpContext;
+      if (ctxApi) {
+        if (typeof ctxApi.getBusinessContext === "function") {
+          classifyOpts.businessContext = ctxApi.getBusinessContext();
+        }
+        if (typeof ctxApi.getTechnicalGoalsContext === "function") {
+          classifyOpts.technicalGoalsContext = ctxApi.getTechnicalGoalsContext();
+        }
+      }
+    } catch (e) { /* ignore */ }
     return essayClassify
-      .classifyEssay({
-        text: payload.text,
-        callFn: function (args) { return api.callClaude(args); },
-      })
+      .classifyEssay(classifyOpts)
       .then(function (result) {
         if (my !== state.essayClassifySeq) return null;
         var current = selectedStory() || state.draft;
@@ -831,7 +845,12 @@
       }
       return;
     }
+    // One drawer at a time; New essay returns to the fresh writing surface.
     setMobileEssayList(false);
+    setTechnicalEssayList(false, true);
+    hideEssayReadView();
+    state.followupQuestion = "";
+    state.followupAsked = [];
     state.keepFinishedWriting = false;
     state.pieceCounter += 1;
     var now = new Date();
@@ -861,11 +880,14 @@
     state.draft = draft;
     state.selectedId = draft.id;
     state.selectedFolderId = folderId;
+    if (els.code) els.code.hidden = true;
+    if (els.pad) els.pad.hidden = false;
     openEssayTab(draft.id);
     // Carry the session place onto the new file so it shows and survives first save.
     if (state.currentPlace) {
       state.places[draft.id] = state.currentPlace.slice(0, 120);
     }
+    setPadMarkdown("");
     render();
     if (els.body) {
       try { els.body.focus(); } catch (e) { /* ignore */ }
@@ -2044,10 +2066,29 @@
     state.status = "Thinking through what to ask next…";
     renderSyncHint();
 
+    var userContent = built.user;
+    try {
+      var mcpCtx = window.tinkerMcpContext;
+      if (mcpCtx) {
+        var biz = typeof mcpCtx.getBusinessContext === "function"
+          ? mcpCtx.getBusinessContext()
+          : "";
+        var tech = typeof mcpCtx.getTechnicalGoalsContext === "function"
+          ? mcpCtx.getTechnicalGoalsContext()
+          : "";
+        var extras = [];
+        if (biz) extras.push("Business context pages (read-only):\n" + biz);
+        if (tech) extras.push("Technical goals pages (read-only):\n" + tech);
+        if (extras.length) {
+          userContent = String(userContent || "") + "\n\n" + extras.join("\n\n");
+        }
+      }
+    } catch (e) { /* ignore */ }
+
     var api = resolveTinkerApi();
     return api.callClaude({
       system: built.system,
-      messages: [{ role: "user", content: built.user }],
+      messages: [{ role: "user", content: userContent }],
       model:
         interview.KEEP_CRAFTING_MODEL ||
         (window.tinkerClaudeModels && window.tinkerClaudeModels.WRITING) ||
@@ -3169,6 +3210,28 @@
     });
   }
 
+  function essayPreviewLine(story) {
+    var body = String((story && (story.body || story.markdown)) || "")
+      .replace(/^#\s+[^\n]*\n+/, "")
+      .replace(/^>\s?/gm, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (body) return body.slice(0, 90);
+    var updated = story && (story.updatedAt || story.createdAt);
+    if (!updated) return "";
+    try {
+      var d = new Date(updated);
+      if (Number.isNaN(d.getTime())) return "";
+      return d.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch (e) {
+      return "";
+    }
+  }
+
   function renderFileRow(list, story) {
     var li = document.createElement("li");
     var row = document.createElement("div");
@@ -3182,7 +3245,17 @@
     btn.setAttribute("draggable", "true");
     if (state.selectedId === story.id) btn.className += " is-selected";
     var label = md.displayTitle(story);
-    btn.textContent = label;
+    var titleEl = document.createElement("span");
+    titleEl.className = "repo-tree__piece-title";
+    titleEl.textContent = label;
+    btn.appendChild(titleEl);
+    var preview = essayPreviewLine(story);
+    if (preview) {
+      var sub = document.createElement("span");
+      sub.className = "repo-tree__piece-sub";
+      sub.textContent = preview;
+      btn.appendChild(sub);
+    }
     btn.title = label;
     btn.addEventListener("click", function () {
       selectStory(story.id);
@@ -3511,6 +3584,24 @@
     if (story.id) openEssayTab(story.id);
   }
 
+  function renderMcpContextIndicator() {
+    if (!els.mcpContext || !isWritePage) return;
+    var label = "";
+    try {
+      var api = window.tinkerMcpContext;
+      if (api && typeof api.indicatorLabel === "function") {
+        label = api.indicatorLabel() || "";
+      }
+    } catch (e) { /* ignore */ }
+    if (label) {
+      els.mcpContext.hidden = false;
+      text(els.mcpContext, label);
+    } else {
+      els.mcpContext.hidden = true;
+      text(els.mcpContext, "");
+    }
+  }
+
   function renderSyncHint() {
     if (!els.syncHint) return;
     if (state.status) {
@@ -3537,6 +3628,7 @@
       if (!els.code || els.code.hidden) renderTabs();
       renderPlace();
       renderFollowup();
+      renderMcpContextIndicator();
       renderSyncHint();
       if (isEssayReadMode() || (els.code && !els.code.hidden)) setPadActionsVisible(false);
       else setPadActionsVisible(state.padActionsVisible && !!padBody().trim());
@@ -3682,14 +3774,19 @@
   }
 
   if (els.newPiece) els.newPiece.addEventListener("click", addNewFile);
-  // Business sidebar: New folder stays on Files page only. Write-page lists
-  // are title-only (hamburger toggles Business; no New essay / close chrome).
+  if (els.newEssay) els.newEssay.addEventListener("click", function (event) {
+    event.preventDefault();
+    if (!isWritePage) return;
+    addNewFile();
+  });
+  // Founder Source sidebar: New folder stays on Files page only. Write-page
+  // lists are title-only; New essay lives in the top nav.
   if (els.newFolder && isFilesPage) els.newFolder.addEventListener("click", startCreateFolder);
   if (els.pastEssays) {
     els.pastEssays.addEventListener("click", function (event) {
       event.preventDefault();
       if (!isWritePage) return;
-      // Desktop + mobile: hamburger toggles the right Business essays sidebar.
+      // Desktop + mobile: hamburger toggles Founder Source (closes Development).
       setMobileEssayList(!state.mobileEssayList);
     });
   }
