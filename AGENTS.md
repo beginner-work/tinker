@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## Before every push
+
+Before any `git push`, run the full suites exactly as CI does:
+
+1. Unit + UI-contract: `npm test`
+2. Visual regression: `npm run test:visual`
+
+Both must pass. Update visual baselines (`npm run test:visual:update`) only for intended UI changes, and commit those PNGs in the same PR. Never push red.
+
 ## Session behavior
 
 ### Always close with a question
