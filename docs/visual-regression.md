@@ -17,6 +17,8 @@ Screens covered (static harnesses, no live Claude/API):
 - Mobile essay / That's everything foot (`mobile-essay-list.html`)
 - Simplified Essays sidebar (`essays-sidebar-simple.html`)
 
+Geometry (no pixel snapshot): `compose-dock-geometry.spec.js` asserts FAB + island bounding boxes are right-anchored inside safe-area insets on an iPhone 15 PWA harness (393×852, injected `--repo-safe-*`) and on desktop 1440×900.
+
 Fixtures freeze time to `2026-10-15T12:00:00.000Z`, disable animations/transitions, and stub `/api/**`.
 
 ## Run locally

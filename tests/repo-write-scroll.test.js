@@ -209,9 +209,14 @@ test("bottom-panel CSS keeps question in flow and reserves foot clearance", () =
     css,
     /\.repo-panel__write\s+\.repo-surface\.writing\s*\{[^}]*padding:\s*12px\s+20px\s+var\(--repo-panel-foot-clearance\)/s,
   );
+  // Shared fixed compose dock with the FAB (not absolute left/bottom:0).
   assert.match(
     css,
-    /\.repo-panel__write\s*>\s*\.repo-surface__foot\s*\{[^}]*position:\s*absolute/s,
+    /\.repo-panel__write\s*>\s*\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s,
+  );
+  assert.match(
+    css,
+    /\.repo-panel__write\s*>\s*\.repo-surface__foot\s*\{[^}]*left:\s*auto/s,
   );
   assert.match(
     css,

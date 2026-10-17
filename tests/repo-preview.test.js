@@ -888,7 +888,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /exercise-workspace-ui\.js/);
   assert.match(html, /learning-auth\.js/);
   assert.match(html, /src="\/lib\/exercise-reconstruct\.js\?v=2"/);
-  assert.match(html, /src="\/repo\/repo\.js\?v=61"/);
+  assert.match(html, /src="\/repo\/repo\.js\?v=62"/);
   assert.match(html, /src="\/lib\/essay-classify\.js\?v=2"/);
   assert.match(html, /src="\/lib\/essay-growth-edge\.js\?v=1"/);
   assert.match(html, /src="\/lib\/mcp-context\.js\?v=1"/);
@@ -917,7 +917,7 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);
-  assert.match(html, /href="\/repo\/repo\.css\?v=71"/);
+  assert.match(html, /href="\/repo\/repo\.css\?v=72"/);
   assert.match(html, /href="\/styles\.css\?v=40"/);
   assert.doesNotMatch(html, /Close essays/);
   assert.match(css, /data-repo-essays-list="1"/);
@@ -982,7 +982,20 @@ test("repo write page is writing surface + Location place + structure sidebar", 
   assert.match(css, /\.repo-surface\.writing\s+\.repo-pad\s*\{[^}]*--repo-foot-floor/s);
   assert.match(
     css,
-    /@media\s*\(max-width:\s*767px\)[\s\S]*--repo-foot-floor:\s*12px[\s\S]*\.repo-surface__foot\s*\{[^}]*12px \+ env\(safe-area-inset-bottom/s,
+    /@media\s*\(max-width:\s*767px\)[\s\S]*--repo-foot-floor:\s*12px[\s\S]*--repo-compose-dock-bottom:\s*calc\(\s*12px/s,
+  );
+  // Panel foot must stay on the shared fixed dock (never absolute left/bottom:0).
+  assert.match(
+    css,
+    /\.repo-panel__write\s*>\s*\.repo-surface__foot\s*\{[^}]*position:\s*fixed/s,
+  );
+  assert.match(
+    css,
+    /\.repo-panel__write\s*>\s*\.repo-surface__foot\s*\{[^}]*left:\s*auto/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.repo-panel__write\s*>\s*\.repo-surface__foot\s*\{[^}]*left:\s*0\s*;[^}]*right:\s*0\s*;[^}]*bottom:\s*0/s,
   );
   assert.match(css, /\.repo-surface__foot/);
   assert.match(css, /\.repo-surface__foot\.is-visible/);

@@ -112,9 +112,14 @@ body.repo-page--files {
 body.repo-page--write {
   /* Legacy bottom essays panel is gone on write; do not inherit :root 35vh. */
   --repo-panel-height: 0px;
-  --repo-compose-dock-right: calc(16px + env(safe-area-inset-right, 0px));
+  /* Overridable in visual harnesses (Chromium has no real env(safe-area-*)). */
+  --repo-safe-right: env(safe-area-inset-right, 0px);
+  --repo-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --repo-compose-dock-right: calc(16px + var(--repo-safe-right));
   --repo-compose-dock-bottom: calc(
-    var(--repo-foot-floor, max(48px, 8vh)) + env(safe-area-inset-bottom, 0px)
+    var(--repo-foot-floor, max(48px, 8vh))
+      + var(--repo-safe-bottom)
+      + var(--repo-keyboard-inset, 0px)
   );
   --repo-compose-morph-ms: 300ms;
   --repo-compose-morph-ease: ease-out;
@@ -122,7 +127,7 @@ body.repo-page--write {
 
 @media (min-width: 801px) {
   body.repo-page--write:has(.repo-layout--write.is-essays-open) {
-    --repo-compose-dock-right: calc(16px + 280px + env(safe-area-inset-right, 0px));
+    --repo-compose-dock-right: calc(16px + 280px + var(--repo-safe-right, env(safe-area-inset-right, 0px)));
   }
 }
 
@@ -131,8 +136,10 @@ body.repo-page--write {
 .repo-fab-new {
   position: fixed;
   z-index: 40;
-  right: var(--repo-compose-dock-right, calc(16px + env(safe-area-inset-right, 0px)));
-  bottom: var(--repo-compose-dock-bottom, calc(20px + env(safe-area-inset-bottom, 0px)));
+  right: var(--repo-compose-dock-right, calc(16px + var(--repo-safe-right, env(safe-area-inset-right, 0px))));
+  bottom: var(--repo-compose-dock-bottom, calc(20px + var(--repo-safe-bottom, env(safe-area-inset-bottom, 0px))));
+  left: auto;
+  top: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2231,11 +2238,19 @@ html.tinker-desktop body.repo-page--write:has(.repo-tabs:not([hidden])) .repo-ce
   scroll-margin-bottom: var(--repo-panel-foot-clearance);
 }
 
+/* Keep the island on the shared fixed dock with the FAB on every viewport
+ * (desktop Electron + iPhone PWA). Absolute left/right/bottom:0 pinned the
+ * pill to the panel's bottom-LEFT and sat on the home indicator (#545 regression). */
 .repo-panel__write > .repo-surface__foot {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: fixed;
+  left: auto;
+  right: var(--repo-compose-dock-right, calc(16px + var(--repo-safe-right, env(safe-area-inset-right, 0px))));
+  bottom: var(--repo-compose-dock-bottom, calc(20px + var(--repo-safe-bottom, env(safe-area-inset-bottom, 0px))));
+  top: auto;
+  margin: 0;
+  align-self: auto;
+  z-index: 41;
+  transform: none;
 }
 
 /* Right essays sidebar (hamburger). Closed by default. */
@@ -3952,22 +3967,6 @@ body.repo-page--write .repo-center {
     box-shadow var(--repo-compose-morph-ms, 300ms) var(--repo-compose-morph-ease, ease-out);
 }
 
-/* Desktop panel: keep the island on the shared fixed dock (with the FAB) so
- * morphing does not jump between absolute panel coords and the viewport FAB. */
-@media (min-width: 801px) {
-  .repo-panel__write > .repo-surface__foot {
-    position: fixed;
-    bottom: var(--repo-compose-dock-bottom, 12px);
-    right: var(--repo-compose-dock-right, 12px);
-    left: auto;
-    top: auto;
-    align-self: auto;
-    margin: 0;
-    z-index: 41;
-    transform: none;
-  }
-}
-
 /* Expanded island: stretch to pill; contents fade in after width settles. */
 .repo-surface__foot.is-visible {
   opacity: 1;
@@ -4817,20 +4816,16 @@ body.repo-page--write .repo-center {
   /* Fixed to the visual viewport so the island is on screen on load,
      while scrolling, and above the iOS home indicator / keyboard.
      Phone (<768px) keeps the tight #453 floor; wider viewports keep the
-     desktop max(48px, 8vh) floor from the base rule. */
+     desktop max(48px, 8vh) floor from the base rule.
+     right/bottom come from --repo-compose-dock-* (shared with the FAB). */
   .repo-surface__foot {
     position: fixed;
-    right: 12px;
+    right: var(--repo-compose-dock-right, calc(16px + var(--repo-safe-right, env(safe-area-inset-right, 0px))));
     left: auto;
     margin: 0;
     align-self: auto;
     z-index: 30;
     top: auto;
-    transform: translateY(8px);
-  }
-
-  .repo-surface__foot.is-visible {
-    transform: translateY(0);
   }
 
   /* Phone foot sits lower; keep pad notices just above it. */
@@ -4867,11 +4862,19 @@ body.repo-page--write .repo-center {
     --repo-foot-floor: 12px;
   }
 
-  .repo-surface__foot {
-    right: 12px;
-    bottom: calc(
-      12px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
+  body.repo-page--write {
+    --repo-compose-dock-right: calc(16px + var(--repo-safe-right, env(safe-area-inset-right, 0px)));
+    --repo-compose-dock-bottom: calc(
+      12px
+        + var(--repo-safe-bottom, env(safe-area-inset-bottom, 0px))
+        + var(--repo-keyboard-inset, 0px)
     );
+  }
+
+  .repo-surface__foot {
+    right: var(--repo-compose-dock-right, calc(16px + var(--repo-safe-right, env(safe-area-inset-right, 0px))));
+    left: auto;
+    bottom: var(--repo-compose-dock-bottom, calc(12px + var(--repo-safe-bottom, env(safe-area-inset-bottom, 0px))));
   }
 
   .repo-surface.writing {
@@ -4931,12 +4934,13 @@ body.repo-page--write .repo-center {
   }
 
   .repo-surface__foot {
-    right: 10px;
+    right: var(--repo-compose-dock-right, calc(16px + var(--repo-safe-right, env(safe-area-inset-right, 0px))));
     left: auto;
-    bottom: calc(
-      12px + env(safe-area-inset-bottom, 0px) + var(--repo-keyboard-inset, 0px)
-    );
+    bottom: var(--repo-compose-dock-bottom, calc(12px + var(--repo-safe-bottom, env(safe-area-inset-bottom, 0px))));
     gap: 4px;
+  }
+
+  .repo-surface__foot.is-visible {
     padding: 5px;
   }
 
