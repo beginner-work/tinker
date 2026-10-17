@@ -311,7 +311,7 @@
     var awaiting = isAwaitingEssay(progress);
     var emptyCopy =
       (progressApi && progressApi.EMPTY_COPY) ||
-      "Write a technical essay to get your first coding exercise";
+      "Write in Development to get your first coding exercise";
     if (els.learningEmpty) {
       els.learningEmpty.hidden = !awaiting;
       text(els.learningEmpty, emptyCopy);
@@ -498,7 +498,7 @@
         text(
           els.codeStatus,
           (progressApi && progressApi.EMPTY_COPY) ||
-            "Write a technical essay to get your first coding exercise"
+            "Write in Development to get your first coding exercise"
         );
       }
       return next;
@@ -657,16 +657,20 @@
   }
 
   function applyWorkspace(ws) {
-    var keepIds = null;
-    if (manifest && Array.isArray(manifest.modules)) {
-      keepIds = manifest.modules.map(function (m) { return m && m.id; }).filter(Boolean);
-    }
-    var pruned = core.pruneRetiredCurriculum(ws, keepIds ? { keepIds: keepIds } : {});
-    var nextWs = pruned.workspace;
-    // Belt-and-suspenders with the API store: scrub rides trees using the
-    // payments seed bundled into this desktop/web build.
-    if (seedWorkspaceCache && typeof core.refreshStaleCurriculum === "function") {
-      nextWs = core.refreshStaleCurriculum(nextWs, seedWorkspaceCache).workspace;
+    var nextWs = ws || core.emptyWorkspace();
+    // Learning loop is essay-derived only: never scrub/merge Blob seed curriculum.
+    if (!isLearningLoop()) {
+      var keepIds = null;
+      if (manifest && Array.isArray(manifest.modules)) {
+        keepIds = manifest.modules.map(function (m) { return m && m.id; }).filter(Boolean);
+      }
+      var pruned = core.pruneRetiredCurriculum(nextWs, keepIds ? { keepIds: keepIds } : {});
+      nextWs = pruned.workspace;
+      if (seedWorkspaceCache && typeof core.refreshStaleCurriculum === "function") {
+        nextWs = core.refreshStaleCurriculum(nextWs, seedWorkspaceCache).workspace;
+      }
+    } else {
+      nextWs = core.normalizeWorkspace(nextWs);
     }
     state.workspace = nextWs;
     if (
@@ -691,24 +695,32 @@
   function loadWorkspace() {
     var version = ++state.loadVersion;
     var ownerToken = token();
+    var learning = isLearningLoop();
     state.readerSession = Math.random().toString(36);
     state.loading = true;
     state.loadError = "";
     render();
-    // Signed-in: hit the API first. Server refreshStaleCurriculum already
-    // rewrites rides trees. After the list returns on desktop, load the
-    // bundled seed and re-apply so a stale blob can be scrubbed client-side.
-    var request = ownerToken
-      ? api("GET", isWideDesktop() ? "list" : "read")
-      : ensureSeedWorkspace().then(function (seedWs) {
-        return { workspace: seedWs };
-      });
+    // Learning loop: owner workspace only (essay-reconstructed practice files).
+    // No Blob/seed catalog. Signed-out or missing progress → empty workspace.
+    var request;
+    if (learning) {
+      request = ownerToken
+        ? api("GET", isWideDesktop() ? "list" : "read")
+        : Promise.resolve({ workspace: core.emptyWorkspace() });
+    } else {
+      request = ownerToken
+        ? api("GET", isWideDesktop() ? "list" : "read")
+        : ensureSeedWorkspace().then(function (seedWs) {
+          return { workspace: seedWs };
+        });
+    }
     return request.then(function (json) {
       // A late response must never restore a previous owner's learning modules.
       if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;
       applyWorkspace(json.workspace || json);
       state.localOnly = !ownerToken;
-      if (!ownerToken || !isWideDesktop() || seedWorkspaceCache) return;
+      // Non-learning desktop may still scrub stale Blob curriculum via seed.
+      if (learning || !ownerToken || !isWideDesktop() || seedWorkspaceCache) return;
       return ensureSeedWorkspace().then(function () {
         if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;
         applyWorkspace(state.workspace);
@@ -716,7 +728,16 @@
       }).catch(function () { /* seed scrub is optional; API already refreshed */ });
     }).catch(function (err) {
       if (version !== state.loadVersion || token() !== ownerToken) return;
-      // Preserve desktop's existing offline template fallback.
+      if (learning) {
+        state.workspace = core.emptyWorkspace();
+        state.mobileFile = null;
+        state.localOnly = !ownerToken;
+        state.loadError = err.status === 401 || err.status === 403
+          ? "Session expired. Sign in again to open your practice file."
+          : "";
+        return;
+      }
+      // Non-learning desktop offline template fallback.
       if (isWideDesktop()) {
         return ensureSeedWorkspace().then(function (seedWs) {
           if (version !== state.loadVersion || token() !== ownerToken || !isLearningSignedIn()) return;

@@ -172,6 +172,15 @@ test("write page restores learning loop chrome without Exercises nav", () => {
   assert.match(html, /id="repo-learning-empty"/);
   assert.match(html, /id="repo-learning-source"/);
   assert.match(html, /Write in Development to get your first coding exercise/);
+  assert.match(page, /technicalEssaysPayload/);
+  const uiSrc = fs.readFileSync(
+    path.join(root, "src/renderer/repo/exercise-workspace-ui.js"),
+    "utf8"
+  );
+  // Learning loop never falls back to Blob seed; empty workspace instead.
+  assert.match(uiSrc, /Learning loop: owner workspace only/);
+  assert.match(uiSrc, /essay-derived only: never scrub\/merge Blob seed/);
+  assert.match(uiSrc, /Promise\.resolve\(\{ workspace: core\.emptyWorkspace\(\) \}\)/);
   assert.match(html, /id="repo-code"/);
   assert.match(html, /id="repo-code-thats-everything"/);
   assert.match(html, /That's everything/);
