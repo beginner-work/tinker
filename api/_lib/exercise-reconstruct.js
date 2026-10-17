@@ -1,7 +1,10 @@
-/* Server: reconstruct learning_progress + practice file from a technical essay.
+/* Server: reconstruct learning_progress + practice file from technical essays.
  *
- * Idempotent per essay revision key. Persists learning_progress and writes
- * the starting practice file into the exercise workspace (Postgres).
+ * On each technical essay finish: Opus looks across all of the user's
+ * technical essays, picks the ZPD-best match, and builds goal + prompt +
+ * polished starting file. Idempotent per finishing-essay revision key.
+ * Persists learning_progress and writes the practice file (Postgres).
+ * No fixed curriculum / Blob seed drives the exercise.
  */
 
 "use strict";
@@ -31,7 +34,7 @@ async function writeProgress(userId, data) {
 }
 
 async function writePracticeFile(userId, progress, content) {
-  const exerciseId = progress.exerciseId || "api-design";
+  const exerciseId = progress.exerciseId || progressApi.DEFAULT_EXERCISE_ID || "from-essays";
   const path = String(progress.practicePath || "").replace(/^\/+|\/+$/g, "");
   if (!path) {
     throw Object.assign(new Error("Practice path missing."), { status: 400 });
@@ -44,12 +47,34 @@ async function writePracticeFile(userId, progress, content) {
   });
 }
 
+function normalizeIncomingEssays(args) {
+  const fromList = reconstructApi.normalizeEssayList(
+    (args && (args.essays || args.technicalEssays)) || []
+  );
+  if (fromList.length) return fromList;
+  const essayId = String((args && args.essayId) || "").trim();
+  const essayBody = String((args && args.essayBody) || "");
+  if (essayId && essayBody.trim()) {
+    return reconstructApi.normalizeEssayList([
+      {
+        id: essayId,
+        title: (args && args.essayTitle) || "",
+        body: essayBody,
+        updatedAt: args && args.essayUpdatedAt,
+      },
+    ]);
+  }
+  return [];
+}
+
 /**
  * @param {object} args
  * @param {string} args.userId
- * @param {string} args.essayId
- * @param {string} args.essayBody
+ * @param {string} args.essayId finishing essay id (idempotency key base)
+ * @param {string} [args.essayBody]
  * @param {string|number} [args.essayUpdatedAt]
+ * @param {Array} [args.essays] all technical essays
+ * @param {string} [args.technicalGoalsContext]
  * @param {function} [args.callAnthropic]
  * @param {boolean} [args.force]
  */
@@ -59,15 +84,25 @@ async function reconstructLearningFromEssay(args) {
     throw Object.assign(new Error("userId required"), { status: 401 });
   }
   const essayId = String((args && args.essayId) || "").trim();
-  const essayBody = String((args && args.essayBody) || "");
-  if (!essayId || !essayBody.trim()) {
-    throw Object.assign(new Error("essayId and essayBody are required."), {
-      status: 400,
-    });
+  if (!essayId) {
+    throw Object.assign(new Error("essayId is required."), { status: 400 });
   }
+  const essays = normalizeIncomingEssays(args);
+  if (!essays.length) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: "no_technical_essays",
+      progress: await readProgress(userId),
+      emptyCopy: progressApi.EMPTY_COPY,
+    };
+  }
+  const finishing =
+    essays.find((e) => e.id === essayId) ||
+    essays[0];
   const key = reconstructApi.revisionKey(
     essayId,
-    essayBody,
+    finishing.body || (args && args.essayBody) || "",
     args && args.essayUpdatedAt
   );
   const current = await readProgress(userId);
@@ -83,9 +118,10 @@ async function reconstructLearningFromEssay(args) {
 
   const call =
     typeof args.callAnthropic === "function" ? args.callAnthropic : callAnthropic;
-  const out = await reconstructApi.reconstructFromEssay({
-    essayBody,
+  const out = await reconstructApi.reconstructFromTechnicalEssays({
+    essays: essays,
     progress: current,
+    technicalGoalsContext: args && args.technicalGoalsContext,
     callFn: call,
   });
   const calibration = out.calibration;
@@ -93,9 +129,7 @@ async function reconstructLearningFromEssay(args) {
   next.essayReconstructKey = key;
   next.essayReconstructEssayId = essayId;
   next.essayReconstructAt = new Date().toISOString();
-  // Preserve goal explicitly.
-  next.goalId = current.goalId;
-  next.goalTitle = current.goalTitle;
+  next.exerciseId = next.exerciseId || progressApi.DEFAULT_EXERCISE_ID;
 
   await writeProgress(userId, next);
   let fileWrite = null;
@@ -106,8 +140,6 @@ async function reconstructLearningFromEssay(args) {
       calibration.startingPracticeFile || calibration.revisedContent || ""
     );
   } catch (err) {
-    // Progress is the source of truth for next open; file write is best-effort
-    // when the practice path is new and writePathContent already created it.
     if (err && err.status && err.status < 500) {
       fileWrite = { error: err.message || "file_write_failed" };
     } else {

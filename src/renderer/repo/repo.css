@@ -5004,6 +5004,16 @@ html.labs-drawer-open body {
   background: color-mix(in srgb, var(--color-background) 94%, var(--color-accent-dim, #dfe8e2) 6%);
 }
 
+.repo-learning__empty {
+  margin: 0;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  color: var(--color-muted);
+}
+
 .repo-learning__goal {
   margin: 0;
   font-family: "Fraunces", Georgia, serif;
@@ -5011,6 +5021,16 @@ html.labs-drawer-open body {
   font-weight: 560;
   letter-spacing: -0.01em;
   color: var(--color-muted);
+  line-height: 1.35;
+}
+
+.repo-learning__source {
+  margin: -4px 0 0;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--color-muted) 85%, transparent);
   line-height: 1.35;
 }
 
@@ -5023,6 +5043,9 @@ html.labs-drawer-open body {
   box-shadow: 0 1px 0 color-mix(in srgb, var(--color-foreground) 4%, transparent);
 }
 
+.repo-learning__empty[hidden],
+.repo-learning__goal[hidden],
+.repo-learning__source[hidden],
 .repo-learning__prompt[hidden],
 .repo-learning__zpd[hidden],
 .repo-learning__done[hidden] {

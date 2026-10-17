@@ -21,34 +21,43 @@ const ui = fs.readFileSync(
   "utf8"
 );
 
-test("default progress seeds OpenAPI-from-scratch goal and plain-English prompt", () => {
+test("default progress is awaiting a technical essay (no seeded curriculum)", () => {
   const d = progress.defaultProgress();
-  assert.equal(d.goalId, "openapi-from-scratch");
-  assert.match(d.goalTitle, /OpenAPI/);
-  assert.match(d.currentPrompt, /plain English|PaymentIntent/i);
+  assert.equal(d.status, "awaiting_essay");
+  assert.equal(d.goalId, "");
+  assert.equal(d.goalTitle, "");
+  assert.equal(d.currentPrompt, "");
+  assert.equal(d.practicePath, "");
   assert.equal(d.level, 0);
-  assert.equal(d.status, "active");
-  assert.equal(d.practicePath, "00-in-plain-english/api.md");
-  assert.doesNotMatch(d.currentPrompt, /where do you start/i);
-  assert.doesNotMatch(JSON.stringify(d), /formation/i);
-  assert.doesNotMatch(d.currentPrompt, /\u2014/);
+  assert.equal(d.exerciseId, "from-essays");
+  assert.equal(progress.hasExercise(d), false);
+  assert.match(progress.EMPTY_COPY, /Write a technical essay/);
+  assert.doesNotMatch(JSON.stringify(d), /formation|openapi-from-scratch|PaymentIntent/i);
 });
 
-test("applyCalibration updates prompt, ZPD, level, and goal done", () => {
+test("applyCalibration activates goal from essay-derived reconstruct", () => {
   const next = progress.applyCalibration(progress.defaultProgress(), {
+    sourceEssayId: "e1",
+    sourceEssayTitle: "Payment intents",
+    goalId: "openapi-errors",
+    goalTitle: "Name error responses",
     nextPrompt: "Add GET /payment_intents/{id} with a 200 response.",
     level: 22,
+    practicePath: "payment-intent/api.md",
+    fileName: "api.md",
     zpd: {
       unaided: "Named ask and return.",
       justBeyond: "First OpenAPI path.",
     },
     goalAchieved: false,
   });
+  assert.equal(next.status, "active");
+  assert.equal(next.sourceEssayId, "e1");
+  assert.equal(next.sourceEssayTitle, "Payment intents");
+  assert.match(next.goalTitle, /error responses/i);
   assert.match(next.currentPrompt, /GET \/payment_intents/);
   assert.equal(next.level, 22);
-  assert.match(next.zpd.unaided, /ask/);
-  assert.match(next.zpd.justBeyond, /OpenAPI/);
-  assert.equal(next.status, "active");
+  assert.equal(progress.hasExercise(next), true);
 
   const done = progress.applyCalibration(next, {
     nextPrompt: "Goal complete.",
@@ -60,27 +69,33 @@ test("applyCalibration updates prompt, ZPD, level, and goal done", () => {
   assert.equal(done.level, 100);
 });
 
-test("startNextGoal resets level and keeps exercise home", () => {
+test("startNextGoal can reset to awaiting essay", () => {
   const done = progress.applyCalibration(progress.defaultProgress(), {
+    sourceEssayId: "e1",
+    sourceEssayTitle: "Hooks",
+    goalId: "hooks",
+    goalTitle: "Webhook receiver",
     goalAchieved: true,
     level: 100,
     nextPrompt: "Done.",
+    practicePath: "hooks/handler.ts",
   });
   const next = progress.startNextGoal(done, {
-    goalTitle: "Write a webhook receiver by feel",
-    currentPrompt: "Sketch the event names you will accept.",
+    goalTitle: "",
+    currentPrompt: "",
   });
-  assert.equal(next.status, "active");
+  assert.equal(next.status, "awaiting_essay");
   assert.equal(next.level, 0);
-  assert.match(next.goalTitle, /webhook/);
-  assert.equal(next.exerciseId, "api-design");
+  assert.equal(next.exerciseId, "from-essays");
 });
 
 test("API and UI wire learning_progress through existing Prisma store", () => {
   assert.match(apiSrc, /makeHandler\("learning_progress"\)/);
   assert.equal(progress.KIND, "learning_progress");
   assert.match(html, /learning-progress\.js/);
+  assert.match(html, /repo-learning-empty/);
   assert.match(ui, /\/api\/user-data\/learning-progress/);
   assert.match(ui, /persistLearningProgress|loadLearningProgress/);
+  assert.match(ui, /isAwaitingEssay|EMPTY_COPY/);
   assert.doesNotMatch(ui, /openai|codex|gpt-/i);
 });

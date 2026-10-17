@@ -318,8 +318,19 @@ async function writePracticePath(args) {
       });
     }
     return await mutate(args.userId, (state) => {
+      // Essay-derived exercises may not exist in the old Blob seed catalog.
       if (!state.exercises[exerciseId]) {
-        throw Object.assign(new Error("Exercise not found."), { status: 404 });
+        const name =
+          String((args && args.exerciseName) || "").trim() || exerciseId;
+        state.exercises[exerciseId] = {
+          id: exerciseId,
+          name: name,
+          nodes: [],
+        };
+        if (!Array.isArray(state.exerciseOrder)) state.exerciseOrder = [];
+        if (state.exerciseOrder.indexOf(exerciseId) === -1) {
+          state.exerciseOrder.push(exerciseId);
+        }
       }
       const written = revision.writePathContent(
         state,

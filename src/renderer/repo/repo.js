@@ -1920,6 +1920,26 @@
     });
   }
 
+  /** All technical essays currently in memory (for ZPD reconstruct). */
+  function technicalEssaysPayload() {
+    var out = [];
+    var stories = Array.isArray(state.stories) ? state.stories : [];
+    for (var i = 0; i < stories.length; i += 1) {
+      var s = stories[i];
+      if (!s || !s.id) continue;
+      if (!isTechnicalType(s.contentType)) continue;
+      var body = String(s.body || "").trim();
+      if (!body) continue;
+      out.push({
+        id: s.id,
+        title: s.title || "",
+        body: body,
+        updatedAt: s.updatedAt || s.createdAt || null,
+      });
+    }
+    return out;
+  }
+
   /** Fire-and-forget: technical essays reconstruct the desktop ZPD exercise. */
   function scheduleLearningReconstruct(essay, savedStory) {
     if (!essay || !essay.id) return;
@@ -1930,17 +1950,50 @@
     if (!hasSessionToken()) return;
     var body = String(essay.body || "").trim();
     if (!body) return;
+    var essays = technicalEssaysPayload();
+    // Ensure the finishing essay is present even if stories lag.
+    var found = false;
+    for (var i = 0; i < essays.length; i += 1) {
+      if (essays[i].id === essay.id) {
+        found = true;
+        essays[i] = {
+          id: essay.id,
+          title: essay.title || (savedStory && savedStory.title) || "",
+          body: body,
+          updatedAt: essay.updatedAt || essay.createdAt || null,
+        };
+        break;
+      }
+    }
+    if (!found) {
+      essays.unshift({
+        id: essay.id,
+        title: essay.title || (savedStory && savedStory.title) || "",
+        body: body,
+        updatedAt: essay.updatedAt || essay.createdAt || null,
+      });
+    }
     var headers = authHeaders();
+    var payload = {
+      essayId: essay.id,
+      essayBody: body,
+      essayTitle: essay.title || (savedStory && savedStory.title) || "",
+      essayUpdatedAt: essay.updatedAt || essay.createdAt || null,
+      essays: essays,
+    };
+    try {
+      var ctxApi = window.tinkerMcpContext;
+      if (ctxApi && typeof ctxApi.getTechnicalGoalsContext === "function") {
+        var techCtx = ctxApi.getTechnicalGoalsContext();
+        if (techCtx) payload.technicalGoalsContext = techCtx;
+      }
+    } catch (e) { /* ignore */ }
     // Non-blocking: do not await; save UX already finished.
     try {
       fetch("/api/learning-reconstruct", {
         method: "POST",
         headers: headers,
-        body: JSON.stringify({
-          essayId: essay.id,
-          essayBody: body,
-          essayUpdatedAt: essay.updatedAt || essay.createdAt || null,
-        }),
+        body: JSON.stringify(payload),
         keepalive: true,
       }).catch(function () { /* ignore */ });
     } catch (e) { /* ignore */ }

@@ -1,10 +1,10 @@
-/* Per-user learning level/progress toward a single coding goal.
+/* Per-user learning level/progress toward a coding goal derived from
+ * technical essays (not a fixed curriculum).
  *
  * Persists via TinkerUserData kind "learning_progress" (Postgres / Prisma).
- * The agent calibrates level + nextPrompt against ZPD after each
- * "That's everything"; never asks "where do you start?" — starting
- * prompt is seeded from the OpenAPI-from-scratch goal (plain English
- * first). Formation curriculum is never referenced.
+ * Opus reconstructs goal + nextPrompt + polished practice file after each
+ * technical "That's everything", picking the essay that best matches ZPD.
+ * Empty / awaiting_essay until the user finishes a technical essay.
  */
 (function (root, factory) {
   const api = factory();
@@ -20,14 +20,9 @@
   "use strict";
 
   const KIND = "learning_progress";
-  const DEFAULT_GOAL_ID = "openapi-from-scratch";
-  const DEFAULT_GOAL_TITLE =
-    "Write an OpenAPI spec from scratch by feel, no copy-paste";
-  const DEFAULT_EXERCISE_ID = "api-design";
-  const DEFAULT_PRACTICE_PATH = "00-in-plain-english/api.md";
-  const DEFAULT_FILE_NAME = "api.md";
-  const DEFAULT_PROMPT =
-    "In plain English, describe what a caller can ask for, send, get back, and what can go wrong for a PaymentIntent. Pseudocode is fine.";
+  const EMPTY_COPY =
+    "Write a technical essay to get your first coding exercise";
+  const DEFAULT_EXERCISE_ID = "from-essays";
 
   const MAX_PROMPT = 600;
   const MAX_ZPD = 400;
@@ -45,51 +40,97 @@
     return Math.max(0, Math.min(100, Math.round(x)));
   }
 
+  function normalizeStatus(raw) {
+    const s = String(raw || "").toLowerCase();
+    if (s === "done") return "done";
+    if (s === "active") return "active";
+    return "awaiting_essay";
+  }
+
   function defaultProgress() {
     return {
-      goalId: DEFAULT_GOAL_ID,
-      goalTitle: DEFAULT_GOAL_TITLE,
+      goalId: "",
+      goalTitle: "",
       exerciseId: DEFAULT_EXERCISE_ID,
-      practicePath: DEFAULT_PRACTICE_PATH,
-      fileName: DEFAULT_FILE_NAME,
+      practicePath: "",
+      fileName: "",
       level: 0,
-      status: "active",
-      currentPrompt: DEFAULT_PROMPT,
+      status: "awaiting_essay",
+      currentPrompt: "",
       zpd: { unaided: "", justBeyond: "" },
+      sourceEssayId: null,
+      sourceEssayTitle: null,
       updatedAt: null,
     };
+  }
+
+  function hasExercise(progress) {
+    const p = progress || {};
+    return !!(
+      p.status === "active" ||
+      p.status === "done" ||
+      (p.goalTitle && String(p.goalTitle).trim()) ||
+      (p.currentPrompt && String(p.currentPrompt).trim()) ||
+      (p.practicePath && String(p.practicePath).trim())
+    );
   }
 
   function normalizeProgress(raw) {
     const base = defaultProgress();
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return base;
-    const status =
-      String(raw.status || "").toLowerCase() === "done" ? "done" : "active";
+    const status = normalizeStatus(raw.status);
     const zpdIn = raw.zpd && typeof raw.zpd === "object" ? raw.zpd : {};
+    const goalTitle = clamp(raw.goalTitle || "", MAX_TITLE);
+    const currentPrompt = clamp(raw.currentPrompt || "", MAX_PROMPT);
+    const practicePath = String(raw.practicePath || "")
+      .replace(/^\/+|\/+$/g, "")
+      .replace(/\\/g, "/");
+    // Legacy OpenAPI seed rows become awaiting_essay when they look empty of essay source.
+    let nextStatus = status;
+    if (
+      nextStatus === "active" &&
+      !goalTitle &&
+      !currentPrompt &&
+      !practicePath
+    ) {
+      nextStatus = "awaiting_essay";
+    }
+    // If we have a goal/prompt but status was missing, treat as active.
+    if (
+      nextStatus === "awaiting_essay" &&
+      (goalTitle || currentPrompt || practicePath) &&
+      String(raw.status || "").toLowerCase() !== "awaiting_essay"
+    ) {
+      nextStatus =
+        String(raw.status || "").toLowerCase() === "done" ? "done" : "active";
+    }
     const out = {
-      goalId: clamp(raw.goalId || base.goalId, 80) || base.goalId,
-      goalTitle: clamp(raw.goalTitle || base.goalTitle, MAX_TITLE) || base.goalTitle,
+      goalId: clamp(raw.goalId || "", 80),
+      goalTitle: goalTitle,
       exerciseId:
         clamp(raw.exerciseId || base.exerciseId, 80) || base.exerciseId,
-      practicePath: String(raw.practicePath || base.practicePath)
-        .replace(/^\/+|\/+$/g, "")
-        .replace(/\\/g, "/") || base.practicePath,
-      fileName: clamp(raw.fileName || base.fileName, 120) || base.fileName,
+      practicePath: practicePath,
+      fileName: clamp(raw.fileName || "", 120),
       level: clampLevel(raw.level != null ? raw.level : base.level),
-      status: status,
-      currentPrompt:
-        clamp(raw.currentPrompt || base.currentPrompt, MAX_PROMPT) ||
-        base.currentPrompt,
+      status: nextStatus,
+      currentPrompt: currentPrompt,
       zpd: {
         unaided: clamp(zpdIn.unaided || "", MAX_ZPD),
         justBeyond: clamp(zpdIn.justBeyond || "", MAX_ZPD),
       },
+      sourceEssayId:
+        typeof raw.sourceEssayId === "string" && raw.sourceEssayId.trim()
+          ? clamp(raw.sourceEssayId, 80)
+          : null,
+      sourceEssayTitle:
+        typeof raw.sourceEssayTitle === "string" && raw.sourceEssayTitle.trim()
+          ? clamp(raw.sourceEssayTitle, MAX_TITLE)
+          : null,
       updatedAt:
         typeof raw.updatedAt === "string" && raw.updatedAt
           ? raw.updatedAt
           : null,
     };
-    // Idempotency marker for technical-essay → exercise reconstruct jobs.
     if (typeof raw.essayReconstructKey === "string" && raw.essayReconstructKey) {
       out.essayReconstructKey = clamp(raw.essayReconstructKey, 120);
     }
@@ -107,12 +148,20 @@
     const cal = calibration && typeof calibration === "object" ? calibration : {};
     const next = normalizeProgress({
       ...prev,
+      goalId:
+        typeof cal.goalId === "string" && cal.goalId.trim()
+          ? cal.goalId
+          : prev.goalId,
+      goalTitle:
+        typeof cal.goalTitle === "string" && cal.goalTitle.trim()
+          ? cal.goalTitle
+          : prev.goalTitle,
       currentPrompt:
         typeof cal.nextPrompt === "string" && cal.nextPrompt.trim()
           ? cal.nextPrompt
           : prev.currentPrompt,
       level: cal.level != null ? cal.level : prev.level,
-      status: cal.goalAchieved ? "done" : prev.status,
+      status: cal.goalAchieved ? "done" : "active",
       practicePath:
         typeof cal.practicePath === "string" && cal.practicePath.trim()
           ? cal.practicePath
@@ -131,6 +180,14 @@
             ? cal.zpd.justBeyond
             : prev.zpd.justBeyond,
       },
+      sourceEssayId:
+        typeof cal.sourceEssayId === "string" && cal.sourceEssayId.trim()
+          ? cal.sourceEssayId
+          : prev.sourceEssayId,
+      sourceEssayTitle:
+        typeof cal.sourceEssayTitle === "string"
+          ? cal.sourceEssayTitle
+          : prev.sourceEssayTitle,
       essayReconstructKey: prev.essayReconstructKey,
       essayReconstructEssayId: prev.essayReconstructEssayId,
       essayReconstructAt: prev.essayReconstructAt,
@@ -145,36 +202,30 @@
     const prev = normalizeProgress(progress);
     return normalizeProgress({
       ...defaultProgress(),
-      goalId: clamp(options.goalId || "next-goal", 80),
-      goalTitle:
-        clamp(options.goalTitle || "Set your next coding goal", MAX_TITLE) ||
-        "Set your next coding goal",
-      currentPrompt:
-        clamp(
-          options.currentPrompt ||
-            "Name the next skill you want to write by feel, then attempt the smallest first slice here.",
-          MAX_PROMPT
-        ),
-      exerciseId: prev.exerciseId,
-      practicePath: options.practicePath || prev.practicePath,
-      fileName: options.fileName || prev.fileName,
+      goalId: clamp(options.goalId || "", 80),
+      goalTitle: clamp(options.goalTitle || "", MAX_TITLE),
+      currentPrompt: clamp(options.currentPrompt || "", MAX_PROMPT),
+      exerciseId: prev.exerciseId || DEFAULT_EXERCISE_ID,
+      practicePath: options.practicePath || "",
+      fileName: options.fileName || "",
       level: 0,
-      status: "active",
+      status:
+        options.goalTitle || options.currentPrompt ? "active" : "awaiting_essay",
+      sourceEssayId: null,
+      sourceEssayTitle: null,
       updatedAt: new Date().toISOString(),
     });
   }
 
   return {
     KIND: KIND,
-    DEFAULT_GOAL_ID: DEFAULT_GOAL_ID,
-    DEFAULT_GOAL_TITLE: DEFAULT_GOAL_TITLE,
+    EMPTY_COPY: EMPTY_COPY,
     DEFAULT_EXERCISE_ID: DEFAULT_EXERCISE_ID,
-    DEFAULT_PRACTICE_PATH: DEFAULT_PRACTICE_PATH,
-    DEFAULT_PROMPT: DEFAULT_PROMPT,
     defaultProgress: defaultProgress,
     normalizeProgress: normalizeProgress,
     applyCalibration: applyCalibration,
     startNextGoal: startNextGoal,
+    hasExercise: hasExercise,
     clampLevel: clampLevel,
   };
 });

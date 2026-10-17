@@ -1,9 +1,10 @@
 /* POST /api/learning-reconstruct
  *
- * After a technical essay This is everything: reconstruct the desktop ZPD
- * exercise (goal stays; next prompt + starting practice file + level) via
- * Claude Opus 5.5. Idempotent per essay revision key. Persists
- * learning_progress (+ practice file) in Postgres.
+ * After a technical essay This is everything: Opus 5.5 reads all technical
+ * essays, picks the ZPD-best match, and builds the desktop coding exercise
+ * (goal, prompt, polished starting file, level). Idempotent per finishing
+ * essay revision key. Persists learning_progress (+ practice file) in
+ * Postgres. No fixed curriculum.
  *
  * Non-blocking for the client: fire-and-forget from /repo after save.
  * The handler runs the job to completion so serverless does not drop work.
@@ -96,7 +97,10 @@ module.exports = withResponseLogging(async function handler(req, res) {
       userId: auth.userId,
       essayId: body.essayId || body.id,
       essayBody: body.essayBody != null ? body.essayBody : body.body,
+      essayTitle: body.essayTitle || body.title,
       essayUpdatedAt: body.essayUpdatedAt || body.updatedAt,
+      essays: body.essays || body.technicalEssays,
+      technicalGoalsContext: body.technicalGoalsContext || body.techContext,
       force: !!body.force,
     });
     send(res, 200, result);

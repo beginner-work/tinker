@@ -141,8 +141,6 @@ test("write pad no longer shows Grok Bot or Try in Cursor handoffs", () => {
   assert.doesNotMatch(repoHtml, /Try in Cursor/);
   assert.doesNotMatch(repoHtml, /id="repo-grok-handoff"/);
   assert.doesNotMatch(repoHtml, />Grok Bot</);
-  assert.doesNotMatch(repoHtml, /exercises-pick\.js/);
-  assert.doesNotMatch(repoHtml, /exercises-next\.js/);
   assert.doesNotMatch(repoHtml, /exercises-open\.js/);
   assert.doesNotMatch(repoJs, /attachExerciseRecommendation/);
   assert.doesNotMatch(repoJs, /showExerciseRecommendationCard/);
@@ -153,7 +151,7 @@ test("write pad no longer shows Grok Bot or Try in Cursor handoffs", () => {
   assert.doesNotMatch(repoCss, /\.repo-grok-handoff\b/);
   assert.doesNotMatch(repoCss, /\.repo-pad--with-handoff\b/);
   assert.match(repoJs, /finishWritingAfterSave/);
-  // Shared helpers remain for /exercises Open in Cursor.
+  // Shared helpers remain for /exercises Open in Cursor and /next.
   assert.equal(
     fs.existsSync(path.join(root, "src/renderer/exercises/exercises-open.js")),
     true
