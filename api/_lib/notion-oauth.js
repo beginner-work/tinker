@@ -61,6 +61,75 @@ function b64url(buf) {
     .replace(/=+$/g, "");
 }
 
+function fromB64url(str) {
+  const s = String(str || "").replace(/-/g, "+").replace(/_/g, "/");
+  const pad = s.length % 4 === 0 ? "" : "=".repeat(4 - (s.length % 4));
+  return Buffer.from(s + pad, "base64");
+}
+
+function stateSigningKey() {
+  const raw =
+    process.env.TINKER_SECRETS_KEY ||
+    process.env.STYTCH_SECRET ||
+    process.env.NOTION_OAUTH_CLIENT_SECRET ||
+    "tinker-dev-secrets";
+  return crypto.createHash("sha256").update(String(raw)).digest();
+}
+
+function hmacState(payload) {
+  return b64url(crypto.createHmac("sha256", stateSigningKey()).update(payload).digest());
+}
+
+/**
+ * Signed, short-lived OAuth state that embeds userId.
+ * Callback can identify the user without a Bearer cookie/header
+ * (Notion top-level redirect and iOS PWA/Safari cookie-jar splits).
+ */
+function createSignedState({ userId, now = Date.now() } = {}) {
+  const uid = typeof userId === "string" ? userId.trim() : "";
+  if (!uid) throw fail(401, "Sign in to tinker first.", "notion_oauth_no_user");
+  const exp = now + OAUTH_STATE_TTL_MS;
+  const nonce = b64url(crypto.randomBytes(16));
+  const payload = b64url(
+    Buffer.from(JSON.stringify({ u: uid, e: exp, n: nonce }), "utf8"),
+  );
+  return payload + "." + hmacState(payload);
+}
+
+function verifySignedState(state, { now = Date.now() } = {}) {
+  if (typeof state !== "string" || !state.trim()) {
+    throw fail(400, "Missing OAuth state.", "notion_oauth_missing_state");
+  }
+  const parts = state.trim().split(".");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    throw fail(400, "Invalid OAuth state.", "notion_oauth_bad_state");
+  }
+  const [payload, sig] = parts;
+  const expected = hmacState(payload);
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    throw fail(400, "Invalid OAuth state.", "notion_oauth_bad_state");
+  }
+  let data;
+  try {
+    data = JSON.parse(fromB64url(payload).toString("utf8"));
+  } catch {
+    throw fail(400, "Invalid OAuth state.", "notion_oauth_bad_state");
+  }
+  const userId = data && typeof data.u === "string" ? data.u.trim() : "";
+  const exp = data && typeof data.e === "number" ? data.e : 0;
+  const nonce = data && typeof data.n === "string" ? data.n : "";
+  if (!userId || !nonce) {
+    throw fail(400, "Invalid OAuth state.", "notion_oauth_bad_state");
+  }
+  if (!exp || exp <= now) {
+    throw fail(400, "OAuth state expired. Start Connect Notion again.", "notion_oauth_state_expired");
+  }
+  return { userId, exp, nonce };
+}
+
+/** @deprecated Prefer createSignedState — kept for hash helpers / tests. */
 function generateState() {
   return b64url(crypto.randomBytes(24));
 }
@@ -138,6 +207,8 @@ module.exports = {
   isConfigured,
   requireConfig,
   generateState,
+  createSignedState,
+  verifySignedState,
   hashState,
   stateExpiresAt,
   buildAuthorizeUrl,

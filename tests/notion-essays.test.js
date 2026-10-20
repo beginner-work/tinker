@@ -361,10 +361,25 @@ test("Writing app has Connect Notion corner control", () => {
   assert.match(repoCss, /\.repo-notion-connect\s*\{/);
   assert.match(repoCss, /repo-notion-connect__dot/);
   assert.match(repoJs, /startNotionOAuth/);
+  assert.match(repoJs, /bindNotionConnectFocusRefresh/);
+  assert.match(repoJs, /visibilitychange/);
   assert.match(repoJs, /\/api\/notion-oauth\?action=connect/);
   assert.match(repoJs, /scheduleNotionEssayWrite/);
   assert.match(repoJs, /\/api\/notion-essays/);
-  assert.match(oauth, /\/repo\?notion=connected/);
+  assert.match(oauth, /Close this sheet and return to Tinker/);
+  assert.match(oauth, /isOAuthCallback/);
+  const oauthLib = fs.readFileSync(
+    path.join(__dirname, "..", "api/_lib/notion-oauth.js"),
+    "utf8",
+  );
+  assert.match(oauthLib, /createSignedState/);
+  assert.match(oauthLib, /verifySignedState/);
+  const tokenStore = fs.readFileSync(
+    path.join(__dirname, "..", "api/_lib/notion-token-store.js"),
+    "utf8",
+  );
+  assert.match(tokenStore, /createSignedState/);
+  assert.match(tokenStore, /verifySignedState/);
 });
 
 test("hashState is stable", () => {
@@ -374,4 +389,149 @@ test("hashState is stable", () => {
   assert.equal(a, b);
   assert.equal(a.length, 64);
   assert.notEqual(a, crypto.createHash("sha256").update("xyz").digest("hex"));
+});
+
+test("signed OAuth state embeds userId and rejects tampering", () => {
+  const oauth = require("../api/_lib/notion-oauth.js");
+  const state = oauth.createSignedState({ userId: "user-a", now: 1_000_000 });
+  const verified = oauth.verifySignedState(state, { now: 1_000_000 });
+  assert.equal(verified.userId, "user-a");
+  assert.ok(verified.nonce);
+  assert.ok(verified.exp > 1_000_000);
+
+  const tampered = state.slice(0, -2) + (state.endsWith("aa") ? "bb" : "aa");
+  assert.throws(
+    () => oauth.verifySignedState(tampered, { now: 1_000_000 }),
+    /Invalid OAuth state/,
+  );
+  assert.throws(
+    () => oauth.verifySignedState(state, { now: 1_000_000 + oauth.OAUTH_STATE_TTL_MS + 1 }),
+    /expired/i,
+  );
+});
+
+test("callback completes without Authorization (signed state)", async () => {
+  const started = await store.beginConnect({ userId: "user-a" });
+  const state = new URL(started.authorizeUrl).searchParams.get("state");
+  assert.ok(state);
+  assert.match(state, /\./);
+
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      access_token: "secret_notion_token",
+      token_type: "bearer",
+      bot_id: "bot-1",
+      workspace_id: "ws-1",
+      workspace_name: "Tyler HQ",
+    }),
+  });
+  const res = fakeRes();
+  try {
+    await oauthHandler(
+      {
+        method: "GET",
+        url:
+          "/api/notion-oauth?action=callback&code=auth-code-sheet&state=" +
+          encodeURIComponent(state),
+        headers: {},
+        query: {
+          action: "callback",
+          code: "auth-code-sheet",
+          state,
+        },
+      },
+      res,
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+
+  assert.equal(res.captured.body, null);
+  assert.ok(res.captured.html);
+  assert.match(res.captured.html, /Notion connected/);
+  assert.match(res.captured.html, /Close this sheet and return to Tinker/);
+  assert.doesNotMatch(res.captured.html || "", /\{"error"/);
+
+  const live = await store.getAccessToken({ userId: "user-a" });
+  assert.equal(live.accessToken, "secret_notion_token");
+});
+
+test("callback without action=callback still completes (Notion strip)", async () => {
+  const started = await store.beginConnect({ userId: "user-a" });
+  const state = new URL(started.authorizeUrl).searchParams.get("state");
+
+  let exchanged = false;
+  const res = fakeRes();
+  // completeConnect uses fetchImpl via store; stub global fetch for exchange.
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    exchanged = true;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        access_token: "secret_from_stripped_action",
+        token_type: "bearer",
+        bot_id: "bot-2",
+        workspace_id: "ws-2",
+        workspace_name: "Sheet HQ",
+      }),
+    };
+  };
+  try {
+    await oauthHandler(
+      {
+        method: "GET",
+        url: "/api/notion-oauth?code=auth-code-2&state=" + encodeURIComponent(state),
+        headers: {},
+        query: { code: "auth-code-2", state },
+      },
+      res,
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+
+  assert.equal(exchanged, true);
+  assert.ok(res.captured.html);
+  assert.match(res.captured.html, /Notion connected/);
+  assert.equal(res.captured.body, null);
+
+  const live = await store.getAccessToken({ userId: "user-a" });
+  assert.equal(live.accessToken, "secret_from_stripped_action");
+});
+
+test("callback errors return HTML redirect, never raw JSON", async () => {
+  const res = fakeRes();
+  await oauthHandler(
+    {
+      method: "GET",
+      url: "/api/notion-oauth?action=callback&error=access_denied",
+      headers: {},
+      query: { action: "callback", error: "access_denied" },
+    },
+    res,
+  );
+  assert.ok(res.captured.html);
+  assert.match(res.captured.html, /Connection failed|access_denied/);
+  assert.match(res.captured.html, /\/repo\?notion_error=/);
+  assert.equal(res.captured.body, null);
+
+  const res2 = fakeRes();
+  await oauthHandler(
+    {
+      method: "GET",
+      url: "/api/notion-oauth?action=callback&code=x&state=not-a-valid-state",
+      headers: {},
+      query: { action: "callback", code: "x", state: "not-a-valid-state" },
+    },
+    res2,
+  );
+  assert.ok(res2.captured.html);
+  assert.doesNotMatch(JSON.stringify(res2.captured.body || {}), /Sign in to tinker/);
+  assert.equal(res2.captured.body, null);
+  assert.match(res2.captured.html, /\/repo\?notion_error=/);
 });

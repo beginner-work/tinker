@@ -3,12 +3,17 @@
  * GET    /api/notion-oauth                 — status { connected, configured, parentPageId, … }
  * POST   /api/notion-oauth?action=connect  — start OAuth → { authorizeUrl }
  * GET    /api/notion-oauth?action=callback — OAuth redirect target
+ *        (also accepts GET with code/state/error when Notion strips action=)
  * POST   /api/notion-oauth?action=set-parent — { parentPageId | url }
  * DELETE /api/notion-oauth?action=disconnect
  * POST   /api/notion-oauth?action=disconnect
  *
  * Tokens live in Postgres (TinkerUserData), encrypted. Not Upstash.
  * Distinct from /api/connections Notion MCP connector.
+ *
+ * Callback identity comes from a signed OAuth state (userId embedded), not
+ * from cookies or Authorization. iOS PWA opens Notion in an in-app browser
+ * sheet with a separate cookie jar; the sheet never has the Tinker session.
  */
 
 "use strict";
@@ -78,11 +83,62 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * Notion may redirect to the registered URI with only code/state/error,
+ * dropping ?action=callback. Treat those GETs as the OAuth callback.
+ */
+function isOAuthCallback(q) {
+  const action = String(q.action || "").trim().toLowerCase();
+  if (action === "callback") return true;
+  if (q.code || q.error) return true;
+  return false;
+}
+
+/**
+ * Success stays in the in-app browser sheet (close and return to Tinker).
+ * Errors bounce to /repo with a friendly query message (never raw JSON).
+ */
 function callbackPage({ ok, message }) {
-  const title = ok ? "Connected" : "Connection failed";
-  const dest = ok
-    ? "/repo?notion=connected"
-    : "/repo?notion_error=" + encodeURIComponent(message || "failed");
+  if (ok) {
+    const title = "Notion connected";
+    const body =
+      message ||
+      "Notion connected. Close this sheet and return to Tinker.";
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>${escapeHtml(title)}</title>
+  <link rel="stylesheet" href="/design-tokens.css" />
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body.notion-cb {
+      margin: 0; min-height: 100dvh; display: flex; align-items: center;
+      justify-content: center; background: var(--color-background, #fffdf7);
+      color: var(--color-foreground, #2d2a26);
+      font-family: var(--font-sans, system-ui, sans-serif); padding: 24px;
+    }
+    .notion-cb__card { max-width: 28rem; text-align: center; }
+    .notion-cb__title {
+      margin: 0 0 12px; font-family: var(--font-display, inherit);
+      font-size: 28px; letter-spacing: -0.02em;
+    }
+    .notion-cb__msg { color: var(--color-muted, #6f6a65); font-size: 15px; line-height: 1.45; }
+  </style>
+</head>
+<body class="notion-cb">
+  <main class="notion-cb__card">
+    <h1 class="notion-cb__title">${escapeHtml(title)}</h1>
+    <p class="notion-cb__msg">${escapeHtml(body)}</p>
+  </main>
+</body>
+</html>`;
+  }
+
+  const title = "Connection failed";
+  const dest = "/repo?notion_error=" + encodeURIComponent(message || "failed");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -111,8 +167,8 @@ function callbackPage({ ok, message }) {
 <body class="notion-cb">
   <main class="notion-cb__card">
     <h1 class="notion-cb__title">${escapeHtml(title)}</h1>
-    <p class="notion-cb__msg">${escapeHtml(message || (ok ? "Returning to the writing app…" : "Try again from the Notion mark in the writing app."))}</p>
-    <p class="notion-cb__msg"><a href="${escapeHtml(dest)}">Continue</a></p>
+    <p class="notion-cb__msg">${escapeHtml(message || "Try again from the Notion mark in Tinker.")}</p>
+    <p class="notion-cb__msg"><a href="${escapeHtml(dest)}">Back to Tinker</a></p>
   </main>
   <script>location.replace(${JSON.stringify(dest)});</script>
 </body>
@@ -146,6 +202,40 @@ async function requireSessionUser(req) {
   return userId;
 }
 
+async function handleOAuthCallback(q, res) {
+  try {
+    if (q.error) {
+      sendHtml(
+        res,
+        200,
+        callbackPage({
+          ok: false,
+          message: String(q.error_description || q.error || "Notion denied access."),
+        }),
+      );
+      return;
+    }
+    await store.completeConnect({ code: q.code, state: q.state });
+    sendHtml(
+      res,
+      200,
+      callbackPage({
+        ok: true,
+        message: "Notion connected. Close this sheet and return to Tinker.",
+      }),
+    );
+  } catch (err) {
+    sendHtml(
+      res,
+      err.status && err.status < 500 ? 200 : 502,
+      callbackPage({
+        ok: false,
+        message: (err && err.message) || "Connection failed.",
+      }),
+    );
+  }
+}
+
 module.exports = withResponseLogging(async function handler(req, res) {
   const q = queryParams(req);
   const action = String(q.action || "").trim().toLowerCase();
@@ -159,38 +249,8 @@ module.exports = withResponseLogging(async function handler(req, res) {
       return;
     }
 
-    if (req.method === "GET" && action === "callback") {
-      try {
-        if (q.error) {
-          sendHtml(
-            res,
-            200,
-            callbackPage({
-              ok: false,
-              message: String(q.error_description || q.error || "Notion denied access."),
-            }),
-          );
-          return;
-        }
-        await store.completeConnect({ code: q.code, state: q.state });
-        sendHtml(
-          res,
-          200,
-          callbackPage({
-            ok: true,
-            message: "Connected. Returning to Connections…",
-          }),
-        );
-      } catch (err) {
-        sendHtml(
-          res,
-          err.status && err.status < 500 ? 200 : 502,
-          callbackPage({
-            ok: false,
-            message: (err && err.message) || "Connection failed.",
-          }),
-        );
-      }
+    if (req.method === "GET" && isOAuthCallback(q)) {
+      await handleOAuthCallback(q, res);
       return;
     }
 
@@ -236,6 +296,18 @@ module.exports = withResponseLogging(async function handler(req, res) {
 
     sendJson(res, 405, { error: "Method not allowed" });
   } catch (err) {
+    // Browser navigations to this route must never see raw JSON.
+    if (req.method === "GET" && isOAuthCallback(q)) {
+      sendHtml(
+        res,
+        200,
+        callbackPage({
+          ok: false,
+          message: (err && err.message) || "Connection failed.",
+        }),
+      );
+      return;
+    }
     const status = err && err.status ? err.status : 500;
     sendJson(res, status, { error: (err && err.message) || "Error" });
   }
