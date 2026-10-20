@@ -429,21 +429,25 @@ an Essays database.
 3. Set the redirect URI to:
    `https://tinker.beginner.work/api/notion-oauth?action=callback`
    (use your preview host instead of production when testing a preview).
+   The callback also accepts `code` / `state` without `action=callback`.
 4. Copy the OAuth client id and client secret.
 5. In Vercel (Production + Preview), set:
    - `NOTION_OAUTH_CLIENT_ID`
    - `NOTION_OAUTH_CLIENT_SECRET`
    - `NOTION_OAUTH_REDIRECT_URI` (same URL as the redirect URI above)
 6. In Tinker: tap the **Notion mark** (bottom left of the writing app),
-   approve in Notion, then open **Connections** and paste a **parent page**
-   URL. Share that page with the integration in Notion. On the first
-   finished essay (This is everything), Tinker creates an **Essays**
-   database under that page if it is missing, then writes the essay
-   (title, body, date, learning goal / exercise when known).
+   approve in Notion (iOS PWA opens an in-app sheet), close the sheet when
+   it says Notion connected, then open **Connections** and paste a
+   **parent page** URL. Share that page with the integration in Notion.
+   On the first finished essay (This is everything), Tinker creates an
+   **Essays** database under that page if it is missing, then writes the
+   essay (title, body, date, learning goal / exercise when known).
 
-Tokens are stored per user in Postgres (`TinkerUserData`), encrypted
-with `TINKER_SECRETS_KEY` (falls back to `STYTCH_SECRET`). Not Upstash.
-Optional MCP tool: `notion_write_essay`.
+OAuth state is a short-lived signed token that embeds the Tinker user id,
+so the callback can finish without the PWA session (in-app sheets and
+Safari use a separate cookie jar). Tokens are stored per user in Postgres
+(`TinkerUserData`), encrypted with `TINKER_SECRETS_KEY` (falls back to
+`STYTCH_SECRET`). Not Upstash. Optional MCP tool: `notion_write_essay`.
 
 ## MCP
 

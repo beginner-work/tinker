@@ -2403,7 +2403,12 @@
       })
       .then(function (json) {
         if (!json.authorizeUrl) throw new Error("No authorize URL returned.");
+        // iOS PWA often opens Notion in an in-app browser sheet; the PWA stays
+        // underneath. Re-enable on focus and refresh connected state there.
         window.location.assign(json.authorizeUrl);
+        if (btn) {
+          setTimeout(function () { btn.disabled = false; }, 800);
+        }
       })
       .catch(function () {
         if (btn) btn.disabled = false;
@@ -2418,6 +2423,23 @@
         history.replaceState({}, "", clean);
       }
     } catch (e) { /* ignore */ }
+  }
+
+  /** After OAuth in an in-app sheet, refresh connected state when Tinker is focused. */
+  function bindNotionConnectFocusRefresh() {
+    if (!els.notionConnect || !isWritePage) return;
+    var refresh = function () {
+      if (document.visibilityState && document.visibilityState !== "visible") return;
+      if (els.notionConnect) els.notionConnect.disabled = false;
+      loadNotionConnectStatus();
+    };
+    if (typeof window.addEventListener === "function") {
+      window.addEventListener("focus", refresh);
+      window.addEventListener("pageshow", refresh);
+    }
+    if (typeof document.addEventListener === "function") {
+      document.addEventListener("visibilitychange", refresh);
+    }
   }
 
   /** Fire-and-forget: finished essay → Notion Essays database when connected. */
@@ -4317,6 +4339,7 @@
   if (els.notionConnect && isWritePage) {
     readNotionQueryFlash();
     loadNotionConnectStatus();
+    bindNotionConnectFocusRefresh();
     els.notionConnect.addEventListener("click", function (event) {
       event.preventDefault();
       var connected = els.notionConnect.getAttribute("data-notion-connected") === "true";

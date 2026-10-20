@@ -94,18 +94,23 @@ async function beginConnect({ userId } = {}) {
   try {
     const uid = requireUserId(userId);
     const config = oauth.requireConfig();
-    const state = oauth.generateState();
+    // Signed state embeds userId so the OAuth callback (in-app browser sheet
+    // or Safari) can finish without a Tinker session cookie/Bearer header.
+    const state = oauth.createSignedState({ userId: uid });
     const stateHash = oauth.hashState(state);
-    const expiresAt = oauth.stateExpiresAt();
+    const verified = oauth.verifySignedState(state);
+    const expiresAt = new Date(verified.exp).toISOString();
 
     await writeRaw(uid, stateKind(stateHash), {
       redirectUri: config.redirectUri,
       expiresAt,
+      nonce: verified.nonce,
     });
-    // Browser callback has no session; SYSTEM lookup maps state → userId.
+    // One-time SYSTEM row blocks replay even if the signed blob is stolen.
     await writeRaw(SYSTEM_USER, stateKind(stateHash), {
       userId: uid,
       expiresAt,
+      nonce: verified.nonce,
     });
 
     const authorizeUrl = oauth.buildAuthorizeUrl({
@@ -125,17 +130,17 @@ async function completeConnect({ code, state, fetchImpl } = {}) {
     if (typeof code !== "string" || !code.trim()) {
       throw fail(400, "Missing OAuth code.", "notion_oauth_missing_code");
     }
-    if (typeof state !== "string" || !state.trim()) {
-      throw fail(400, "Missing OAuth state.", "notion_oauth_missing_state");
-    }
-    const stateHash = oauth.hashState(state.trim());
+    // Identity comes from the signed state, not from cookies / Authorization.
+    const verified = oauth.verifySignedState(state);
+    const userId = verified.userId;
+    const stateHash = oauth.hashState(String(state).trim());
     const kind = stateKind(stateHash);
 
     const lookup = await readRaw(SYSTEM_USER, kind);
-    const userId = lookup && lookup.userId ? String(lookup.userId) : "";
-    const pending = userId ? await readRaw(userId, kind) : null;
+    const pending = await readRaw(userId, kind);
+    const lookupUser = lookup && lookup.userId ? String(lookup.userId) : "";
 
-    if (!pending) {
+    if (!pending || !lookup || lookupUser !== userId) {
       throw fail(
         400,
         "OAuth state expired or unknown. Start Connect Notion again.",
