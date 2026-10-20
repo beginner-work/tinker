@@ -21,6 +21,169 @@
     el.classList.toggle("connections__status--error", !!isError);
   }
 
+  function setNotionStatus(msg, isError) {
+    var el = document.querySelector("[data-notion-essays-status]");
+    if (!el) return;
+    if (!msg) { el.hidden = true; el.textContent = ""; el.classList.remove("connections__status--error"); return; }
+    el.hidden = false;
+    el.textContent = msg;
+    el.classList.toggle("connections__status--error", !!isError);
+  }
+
+  function renderNotionEssays(status) {
+    var actions = document.querySelector("[data-notion-essays-actions]");
+    var form = document.querySelector("[data-notion-parent-form]");
+    var input = document.querySelector("[data-notion-parent-input]");
+    if (!actions) return;
+    actions.innerHTML = "";
+    var configured = !!(status && status.configured);
+    var connected = !!(status && status.connected);
+
+    if (!configured) {
+      setNotionStatus("Notion OAuth env vars are not set on this deploy.", true);
+      if (form) form.hidden = true;
+      return;
+    }
+
+    if (!connected) {
+      var connectBtn = document.createElement("button");
+      connectBtn.type = "button";
+      connectBtn.className = "connections__btn";
+      connectBtn.textContent = "Connect Notion";
+      connectBtn.setAttribute("data-action", "notion-connect");
+      actions.appendChild(connectBtn);
+      if (form) form.hidden = true;
+      setNotionStatus("");
+      return;
+    }
+
+    var disconnectBtn = document.createElement("button");
+    disconnectBtn.type = "button";
+    disconnectBtn.className = "connections__btn connections__btn--ghost";
+    disconnectBtn.textContent = "Disconnect Notion";
+    disconnectBtn.setAttribute("data-action", "notion-disconnect");
+    actions.appendChild(disconnectBtn);
+
+    if (form) form.hidden = false;
+    if (input && status.parentPageId && !input.value) {
+      input.value = status.parentPageId;
+    }
+    if (status.parentPageId) {
+      setNotionStatus(
+        status.essaysDatabaseId
+          ? "Connected. Essays database ready."
+          : "Connected. Parent page saved; Essays database is created on first finished essay."
+      );
+    } else {
+      setNotionStatus("Connected. Paste a parent page URL so Tinker can create the Essays database.");
+    }
+  }
+
+  function loadNotionEssays() {
+    if (!token()) {
+      renderNotionEssays({ configured: true, connected: false });
+      return Promise.resolve();
+    }
+    return fetch("/api/notion-oauth", { headers: authHeaders() })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok) throw new Error((json && json.error) || "Could not load Notion status.");
+          return json;
+        });
+      })
+      .then(function (json) {
+        renderNotionEssays(json);
+      })
+      .catch(function (err) {
+        setNotionStatus((err && err.message) || "Could not load Notion status.", true);
+        renderNotionEssays({ configured: false, connected: false });
+      });
+  }
+
+  function connectNotion(btn) {
+    if (!token()) { setNotionStatus("Sign in to connect Notion.", true); return; }
+    if (btn) btn.disabled = true;
+    setNotionStatus("Starting Notion…");
+    fetch("/api/notion-oauth?action=connect", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
+      body: "{}",
+    })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok) throw new Error((json && json.error) || "Could not start Connect Notion.");
+          return json;
+        });
+      })
+      .then(function (json) {
+        if (!json.authorizeUrl) throw new Error("No authorize URL returned.");
+        window.location.assign(json.authorizeUrl);
+      })
+      .catch(function (err) {
+        setNotionStatus((err && err.message) || "Could not start Connect Notion.", true);
+        if (btn) btn.disabled = false;
+      });
+  }
+
+  function disconnectNotion(btn) {
+    if (!token()) { setNotionStatus("Sign in to disconnect.", true); return; }
+    if (btn) btn.disabled = true;
+    setNotionStatus("Disconnecting Notion…");
+    fetch("/api/notion-oauth?action=disconnect", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
+      body: "{}",
+    })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok) throw new Error((json && json.error) || "Could not disconnect.");
+          return json;
+        });
+      })
+      .then(function () {
+        var input = document.querySelector("[data-notion-parent-input]");
+        if (input) input.value = "";
+        setNotionStatus("Disconnected.");
+        return loadNotionEssays();
+      })
+      .catch(function (err) {
+        setNotionStatus((err && err.message) || "Could not disconnect.", true);
+        if (btn) btn.disabled = false;
+      });
+  }
+
+  function saveNotionParent(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!token()) { setNotionStatus("Sign in to save a parent page.", true); return; }
+    var input = document.querySelector("[data-notion-parent-input]");
+    var btn = document.querySelector("[data-notion-parent-save]");
+    var value = input ? String(input.value || "").trim() : "";
+    if (!value) { setNotionStatus("Paste a Notion page URL or id.", true); return; }
+    if (btn) btn.disabled = true;
+    setNotionStatus("Saving parent page…");
+    fetch("/api/notion-oauth?action=set-parent", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
+      body: JSON.stringify({ parentPageId: value }),
+    })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok) throw new Error((json && json.error) || "Could not save parent page.");
+          return json;
+        });
+      })
+      .then(function (json) {
+        renderNotionEssays(json);
+        setNotionStatus("Parent page saved.");
+      })
+      .catch(function (err) {
+        setNotionStatus((err && err.message) || "Could not save parent page.", true);
+      })
+      .finally(function () {
+        if (btn) btn.disabled = false;
+      });
+  }
+
   function formatConnectedAt(iso) {
     if (!iso) return "";
     try {
@@ -434,6 +597,14 @@
     var btn = e.target && e.target.closest ? e.target.closest("[data-action]") : null;
     if (!btn) return;
     var action = btn.getAttribute("data-action");
+    if (action === "notion-connect") {
+      connectNotion(btn);
+      return;
+    }
+    if (action === "notion-disconnect") {
+      disconnectNotion(btn);
+      return;
+    }
     if (action === "pick-context") {
       pickContextPage(btn);
       return;
@@ -477,7 +648,13 @@
   function readQueryFlash() {
     try {
       var params = new URLSearchParams(window.location.search || "");
-      if (params.get("connected")) {
+      if (params.get("notion") === "connected") {
+        setNotionStatus("Connected to Notion.");
+        history.replaceState({}, "", "/connections");
+      } else if (params.get("notion_error")) {
+        setNotionStatus(params.get("notion_error"), true);
+        history.replaceState({}, "", "/connections");
+      } else if (params.get("connected")) {
         setStatus("Connected to " + params.get("connected") + ".");
         history.replaceState({}, "", "/connections");
       } else if (params.get("error")) {
@@ -492,10 +669,15 @@
     if (list) list.addEventListener("click", onListClick);
     var contextSection = document.querySelector("[data-connections-context]");
     if (contextSection) contextSection.addEventListener("click", onListClick);
+    var notionSection = document.querySelector("[data-notion-essays]");
+    if (notionSection) notionSection.addEventListener("click", onListClick);
     var form = document.querySelector("[data-context-form]");
     if (form) form.addEventListener("submit", onContextSubmit);
+    var parentForm = document.querySelector("[data-notion-parent-form]");
+    if (parentForm) parentForm.addEventListener("submit", saveNotionParent);
     bindDialog();
     readQueryFlash();
     load();
+    loadNotionEssays();
   });
 })();

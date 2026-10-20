@@ -2309,6 +2309,7 @@
           : Promise.resolve();
         return placePromise.then(function () { return syncStoriesToDisk(); }).then(function () {
           scheduleLearningReconstruct(essay, saved);
+          scheduleNotionEssayWrite(essay, saved);
           // Tag concepts in the background for the next launch's starting screen.
           backfillGrowthEdgeConcepts();
           return saved;
@@ -2345,6 +2346,43 @@
       });
     }
     return out;
+  }
+
+  /** Fire-and-forget: finished essay → Notion Essays database when connected. */
+  function scheduleNotionEssayWrite(essay, savedStory) {
+    if (!essay || !essay.id) return;
+    if (!hasSessionToken()) return;
+    var body = String(essay.body || "").trim();
+    if (!body) return;
+    var title = essay.title || (savedStory && savedStory.title) || "";
+    var learningGoal = "";
+    var exercise = "";
+    try {
+      var exUi = window.tinkerExerciseWorkspaceUi;
+      if (exUi && typeof exUi.getLearningProgress === "function") {
+        var prog = exUi.getLearningProgress();
+        if (prog) {
+          learningGoal = String(prog.goalTitle || prog.currentPrompt || "").trim();
+          exercise = String(
+            prog.goalId || prog.exerciseId || prog.fileName || ""
+          ).trim();
+        }
+      }
+    } catch (e) { /* ignore */ }
+    try {
+      fetch("/api/notion-essays", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          title: title,
+          body: body,
+          date: essay.updatedAt || essay.createdAt || Date.now(),
+          learningGoal: learningGoal,
+          exercise: exercise,
+        }),
+        keepalive: true,
+      }).catch(function () { /* ignore: Notion optional */ });
+    } catch (e) { /* ignore */ }
   }
 
   /** Fire-and-forget: technical essays reconstruct the desktop ZPD exercise. */
