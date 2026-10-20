@@ -416,6 +416,35 @@ This is separate from **MCP access** below (bots calling Tinker’s own
 MCP server). Add more servers later in
 `api/_lib/mcp-connectors-registry.js`.
 
+### Connect Notion (essay sync)
+
+Separate from the Notion MCP connector above. This is Notion’s
+**public integration** OAuth so Tinker can write finished essays into
+an Essays database.
+
+1. In Notion: **Settings → Connections → Develop or manage integrations →
+   New integration**. Choose **Public** integration.
+2. Capabilities: **Read content**, **Insert content**, **Update content**.
+   Comments are not required.
+3. Set the redirect URI to:
+   `https://tinker.beginner.work/api/notion-oauth?action=callback`
+   (use your preview host instead of production when testing a preview).
+4. Copy the OAuth client id and client secret.
+5. In Vercel (Production + Preview), set:
+   - `NOTION_OAUTH_CLIENT_ID`
+   - `NOTION_OAUTH_CLIENT_SECRET`
+   - `NOTION_OAUTH_REDIRECT_URI` (same URL as the redirect URI above)
+6. In Tinker: **Connections → Connect Notion**, approve in Notion, then
+   paste a **parent page** URL. Share that page with the integration in
+   Notion. On the first finished essay (This is everything), Tinker
+   creates an **Essays** database under that page if it is missing, then
+   writes the essay (title, body, date, learning goal / exercise when
+   known).
+
+Tokens are stored per user in Postgres (`TinkerUserData`), encrypted
+with `TINKER_SECRETS_KEY` (falls back to `STYTCH_SECRET`). Not Upstash.
+Optional MCP tool: `notion_write_essay`.
+
 ## MCP
 
 Add this URL in the connector:

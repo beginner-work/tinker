@@ -58,6 +58,7 @@ const personPrep = require("./_lib/person-prep.js");
 const inboxRank = require("./_lib/inbox-rank.js");
 const prisma = require("./_lib/db.js");
 const analytics = require("./_lib/analytics.js");
+const notionApi = require("./_lib/notion-api.js");
 const pkg = require("../package.json");
 const MCP_BOT_ACTOR = { kind: "bot", label: "bot:mcp" };
 const OWNER_PROFILE_UNAVAILABLE = "Owner profile is unavailable right now.";
@@ -147,6 +148,9 @@ const INSTRUCTIONS = [
   "Keep crafting rounds, flow stretches (start/end/what ended them), surface and prompt-variant rankings",
   "(starts flow vs breaks flow), hour-of-day and day-of-week flow, and stats by context tag. Never returns draft text.",
   "Call list_writing_sessions for a compact session list (day, tag, numbers). Call tag_writing_session to set a short context tag.",
+  "Call notion_write_essay with title and body to write a finished essay into the owner's Notion Essays database.",
+  "Optional date, learningGoal, and exercise. Creates the Essays database under the chosen parent page when missing.",
+  "Requires Connect Notion plus a parent page in Connections. Does not read Notion pages or post comments.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
@@ -1542,6 +1546,39 @@ const TAG_WRITING_SESSION_TOOL = {
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 };
 
+const NOTION_WRITE_ESSAY_TOOL = {
+  name: "notion_write_essay",
+  title: "Write essay to Notion",
+  description: [
+    "Write a finished essay into this connector user's Notion Essays database.",
+    "Pass title and body. Optional date (ISO or epoch), learningGoal, and exercise.",
+    "Creates the Essays database under the parent page chosen in Connections when missing.",
+    "Requires Connect Notion. Does not read pages or post comments.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    properties: {
+      title: { type: "string", description: "Essay title." },
+      body: { type: "string", description: "Essay body (plain text / markdown)." },
+      date: {
+        type: "string",
+        description: "Optional date (YYYY-MM-DD or ISO). Defaults to today.",
+      },
+      learningGoal: {
+        type: "string",
+        description: "Optional learning goal linked to this essay.",
+      },
+      exercise: {
+        type: "string",
+        description: "Optional exercise id or name linked to this essay.",
+      },
+    },
+    required: ["title", "body"],
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+};
+
 const TOOLS = [
   ASK_FOLLOWUPS_TOOL,
   DRAFT_LINKEDIN_TOOL,
@@ -1590,6 +1627,7 @@ const TOOLS = [
   GET_WRITING_METRICS_TOOL,
   LIST_WRITING_SESSIONS_TOOL,
   TAG_WRITING_SESSION_TOOL,
+  NOTION_WRITE_ESSAY_TOOL,
 ];
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -2878,6 +2916,32 @@ async function tagWritingSessionCall(msg, user, args) {
   }
 }
 
+async function notionWriteEssayCall(msg, user, args) {
+  try {
+    const userId = contentUserId(user);
+    const title = typeof args.title === "string" ? args.title : "";
+    const body = typeof args.body === "string" ? args.body : "";
+    if (!String(body || "").trim()) {
+      return {
+        status: 200,
+        headers: NO_STORE,
+        body: rpcOk(msg.id, toolError("body is required.")),
+      };
+    }
+    const page = await notionApi.writeEssay({
+      userId,
+      title,
+      body,
+      date: args.date,
+      learningGoal: typeof args.learningGoal === "string" ? args.learningGoal : "",
+      exercise: typeof args.exercise === "string" ? args.exercise : "",
+    });
+    return contentToolOk(msg, { page });
+  } catch (err) {
+    return planFailure(msg, err, notionApi.UNAVAILABLE);
+  }
+}
+
 async function handleRpc(msg, user) {
   if (!msg || typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
     return { status: 400, body: rpcErr(msg && msg.id, -32600, "Invalid Request") };
@@ -2969,6 +3033,7 @@ async function handleRpc(msg, user) {
       && name !== "get_writing_metrics"
       && name !== "list_writing_sessions"
       && name !== "tag_writing_session"
+      && name !== "notion_write_essay"
     ) {
       return {
         status: 200,
@@ -3109,6 +3174,9 @@ async function handleRpc(msg, user) {
     }
     if (name === "tag_writing_session") {
       return tagWritingSessionCall(msg, user, args);
+    }
+    if (name === "notion_write_essay") {
+      return notionWriteEssayCall(msg, user, args);
     }
     try {
       if (name === "draft_linkedin_post") {

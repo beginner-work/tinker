@@ -637,6 +637,7 @@ test("get_career_record reads only this user and check_text does not write", asy
     "get_writing_metrics",
     "list_writing_sessions",
     "tag_writing_session",
+    "notion_write_essay",
   ]);
   for (const name of ["get_career_record", "check_text"]) {
     const tool = tools.find((item) => item.name === name);

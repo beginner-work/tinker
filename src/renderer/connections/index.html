@@ -23,6 +23,21 @@
       <p class="connections__hint">This is separate from <a href="/mcp/access">MCP access</a>, which lets bots call Tinker.</p>
 
       <p class="connections__status" data-connections-status hidden></p>
+
+      <section class="connections__notion-essays" data-notion-essays>
+        <h2 class="connections__context-title">Notion essays</h2>
+        <p class="connections__context-lede">Connect Notion so a finished essay lands in an Essays database (title, body, date, learning goal). Pick a parent page; Tinker creates the database under it when needed.</p>
+        <p class="connections__status" data-notion-essays-status hidden></p>
+        <div class="connections__actions" data-notion-essays-actions></div>
+        <form class="connections__context-form" data-notion-parent-form hidden>
+          <label class="connections__context-label">
+            Parent page URL or id
+            <input type="text" name="parent" data-notion-parent-input maxlength="500" placeholder="https://www.notion.so/..." autocomplete="off" />
+          </label>
+          <button type="submit" class="connections__btn" data-notion-parent-save>Save parent page</button>
+        </form>
+      </section>
+
       <ul class="connections__list" data-connections-list aria-live="polite"></ul>
 
       <section class="connections__context" data-connections-context hidden>
