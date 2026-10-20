@@ -6,6 +6,12 @@
  * Body: { title, body, date?, learningGoal?, exercise? }
  * Auth: Stytch session bearer (not mcp_).
  *
+ * Optional one-time export:
+ *   POST /api/notion-essays?action=export-founder-source
+ *   Body: { dryRun?: boolean }
+ *   Copies every Founder Source essay into the Essays database,
+ *   skipping rows already present (by Tinker id or title).
+ *
  * Fire-and-forget from /repo after This is everything. Missing Notion
  * connection returns 400 with code notion_not_connected (client ignores —
  * Notion is optional). Missing parent page returns notion_parent_required;
@@ -19,10 +25,27 @@ const { authenticateSession } = require("./_lib/stytch.js");
 const { userIdFromSession } = require("./_lib/mcp-keys.js");
 const { withResponseLogging } = require("./_lib/log.js");
 const notionApi = require("./_lib/notion-api.js");
+const notionExport = require("./_lib/notion-essays-export.js");
 
 function bearer(header) {
   const m = header && String(header).match(/^Bearer\s+(\S+)$/i);
   return m ? m[1] : "";
+}
+
+function queryParams(req) {
+  const out = {};
+  try {
+    const url = new URL(req.url || "/", "https://tinker.local");
+    for (const [key, value] of url.searchParams) out[key] = value;
+  } catch {
+    /* ignore */
+  }
+  if (req.query && typeof req.query === "object") {
+    for (const [key, value] of Object.entries(req.query)) {
+      if (typeof value === "string") out[key] = value;
+    }
+  }
+  return out;
 }
 
 function readBody(req) {
@@ -91,7 +114,20 @@ module.exports = withResponseLogging(async function handler(req, res) {
 
   try {
     const userId = await resolveUser(req);
+    const q = queryParams(req);
+    const action = String(q.action || "").trim().toLowerCase();
     const body = readBody(req);
+
+    if (action === "export-founder-source") {
+      const dryRun = !!(body.dryRun || body.dry_run || q.dryRun === "1");
+      const result = await notionExport.exportFounderSourceEssays({
+        userId,
+        dryRun,
+      });
+      send(res, 200, { ok: true, export: result });
+      return;
+    }
+
     const result = await notionApi.writeEssay({
       userId,
       title: body.title,
