@@ -167,6 +167,25 @@ async function loadOwnerEssays(userId) {
   return attachEssayTypes(withBody, folderBlob);
 }
 
+/** All Founder Source essays with body (no MCP list limit). Newest first. */
+async function listFounderSourceEssaysFull({ userId } = {}) {
+  try {
+    const essays = await loadOwnerEssays(userId);
+    const filtered = essays.filter(
+      (e) => sideKeyFromContentType(e.contentType) === SIDE_BUSINESS,
+    );
+    filtered.sort((a, b) => {
+      const tb = Date.parse(toIso(b.updatedAt) || toIso(b.createdAt)) || 0;
+      const ta = Date.parse(toIso(a.updatedAt) || toIso(a.createdAt)) || 0;
+      if (tb !== ta) return tb - ta;
+      return String(b.id).localeCompare(String(a.id));
+    });
+    return filtered.map(presentFull);
+  } catch (err) {
+    throw storeDown(err);
+  }
+}
+
 async function listEssays({ userId, side, limit } = {}) {
   try {
     const sideKey = normalizeSideFilter(side);
@@ -212,7 +231,9 @@ module.exports = {
   LABEL_FOUNDER_SOURCE,
   LABEL_DEVELOPMENT,
   listEssays,
+  listFounderSourceEssaysFull,
   readEssay,
+  loadOwnerEssays,
   titleCaseDisplay: storiesMd.titleCaseDisplay,
   wordCount,
   sideLabel,
