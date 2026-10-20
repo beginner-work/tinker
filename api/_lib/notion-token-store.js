@@ -166,8 +166,26 @@ async function completeConnect({ code, state, fetchImpl } = {}) {
       fetchImpl,
     });
 
+    // Reconnect must not wipe parent page / Essays DB when the workspace
+    // stays the same — otherwise finished essays silently fail until the
+    // user re-pastes a parent URL on Connections.
+    const existing = await readRaw(userId, KIND);
+    const sameWorkspace =
+      !!(
+        existing &&
+        existing.workspaceId &&
+        token.workspaceId &&
+        String(existing.workspaceId) === String(token.workspaceId)
+      );
+    const keepParent =
+      sameWorkspace && existing.parentPageId ? String(existing.parentPageId) : "";
+    const keepDb =
+      sameWorkspace && existing.essaysDatabaseId
+        ? String(existing.essaysDatabaseId)
+        : "";
+
     const connectedAt = new Date().toISOString();
-    await writeRaw(userId, KIND, {
+    const next = {
       accessTokenEnc: encrypt(token.accessToken),
       tokenType: token.tokenType,
       botId: token.botId,
@@ -176,18 +194,16 @@ async function completeConnect({ code, state, fetchImpl } = {}) {
       workspaceIcon: token.workspaceIcon,
       connectedAt,
       updatedAt: connectedAt,
-    });
+    };
+    if (keepParent) next.parentPageId = keepParent;
+    if (keepDb) next.essaysDatabaseId = keepDb;
+    await writeRaw(userId, KIND, next);
     await deleteRaw(userId, kind);
     await deleteRaw(SYSTEM_USER, kind);
 
     return {
       userId,
-      status: presentPublic({
-        accessTokenEnc: "x",
-        connectedAt,
-        workspaceName: token.workspaceName,
-        workspaceId: token.workspaceId,
-      }),
+      status: presentPublic(next),
     };
   } catch (err) {
     throw storeDown(err);

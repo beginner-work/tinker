@@ -206,6 +206,11 @@ body.repo-page--write {
   transform: scale(1);
 }
 
+/* Connected but no parent page yet — Essays write will fail until set. */
+.repo-notion-connect[data-notion-connected="true"][data-notion-parent="false"] .repo-notion-connect__dot {
+  background: var(--color-warning, #b07a2a);
+}
+
 .repo-notion-connect[hidden] {
   display: none !important;
 }

@@ -184,6 +184,97 @@ test("setParentPage normalizes Notion URL and clears essays db id", async () => 
   assert.equal(status.essaysDatabaseId, null);
 });
 
+test("writeEssay without parent page returns notion_parent_required", async () => {
+  rows.push({
+    id: "r1",
+    userId: "user-a",
+    kind: store.KIND,
+    data: {
+      accessTokenEnc: encrypt("tok"),
+      connectedAt: "2026-10-20T00:00:00.000Z",
+    },
+  });
+  await assert.rejects(
+    () =>
+      notionApi.writeEssay({
+        userId: "user-a",
+        title: "Hi",
+        body: "Body text.",
+        fetchImpl: async () => {
+          throw new Error("Notion API should not be called");
+        },
+      }),
+    (err) => err && err.code === "notion_parent_required" && err.status === 400,
+  );
+});
+
+test("POST /api/notion-essays returns notion_parent_required when parent missing", async () => {
+  rows.push({
+    id: "r1",
+    userId: "user-a",
+    kind: store.KIND,
+    data: {
+      accessTokenEnc: encrypt("tok"),
+      connectedAt: "2026-10-20T00:00:00.000Z",
+    },
+  });
+  const res = fakeRes();
+  await essaysHandler(
+    {
+      method: "POST",
+      url: "/api/notion-essays",
+      headers: { authorization: "Bearer user-a" },
+      body: { title: "Hi", body: "Body text here." },
+    },
+    res,
+  );
+  assert.equal(res.captured.status, 400);
+  assert.equal(res.captured.body.code, "notion_parent_required");
+  assert.match(res.captured.body.error, /parent page/i);
+});
+
+test("reconnect preserves parent page and essays db for same workspace", async () => {
+  const parentId = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+  const dbId = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee";
+  rows.push({
+    id: "r1",
+    userId: "user-a",
+    kind: store.KIND,
+    data: {
+      accessTokenEnc: encrypt("old-tok"),
+      connectedAt: "2026-10-19T00:00:00.000Z",
+      workspaceId: "ws-keep",
+      workspaceName: "Keep HQ",
+      parentPageId: parentId,
+      essaysDatabaseId: dbId,
+    },
+  });
+  const started = await store.beginConnect({ userId: "user-a" });
+  const state = new URL(started.authorizeUrl).searchParams.get("state");
+  const result = await store.completeConnect({
+    code: "reconnect-code",
+    state,
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        access_token: "new-tok",
+        token_type: "bearer",
+        bot_id: "bot-r",
+        workspace_id: "ws-keep",
+        workspace_name: "Keep HQ",
+      }),
+    }),
+  });
+  assert.equal(result.status.parentPageId, parentId);
+  assert.equal(result.status.essaysDatabaseId, dbId);
+  const live = await store.getAccessToken({ userId: "user-a" });
+  assert.equal(live.accessToken, "new-tok");
+  const settings = await store.getSettings({ userId: "user-a" });
+  assert.equal(settings.parentPageId, parentId);
+  assert.equal(settings.essaysDatabaseId, dbId);
+});
+
 test("writeEssay creates Essays database then page", async () => {
   const parentId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
   rows.push({
@@ -366,8 +457,12 @@ test("Writing app has Connect Notion corner control", () => {
   assert.match(repoJs, /\/api\/notion-oauth\?action=connect/);
   assert.match(repoJs, /scheduleNotionEssayWrite/);
   assert.match(repoJs, /\/api\/notion-essays/);
-  assert.match(oauth, /Close this sheet and return to Tinker/);
+  assert.match(oauth, /parent page URL/);
   assert.match(oauth, /isOAuthCallback/);
+  assert.match(repoJs, /notion_parent_required/);
+  assert.match(repoJs, /Saved to Notion/);
+  assert.match(repoJs, /data-notion-parent/);
+  assert.match(repoCss, /data-notion-parent="false"/);
   const oauthLib = fs.readFileSync(
     path.join(__dirname, "..", "api/_lib/notion-oauth.js"),
     "utf8",
@@ -380,6 +475,7 @@ test("Writing app has Connect Notion corner control", () => {
   );
   assert.match(tokenStore, /createSignedState/);
   assert.match(tokenStore, /verifySignedState/);
+  assert.match(tokenStore, /sameWorkspace/);
 });
 
 test("hashState is stable", () => {
@@ -452,7 +548,8 @@ test("callback completes without Authorization (signed state)", async () => {
   assert.equal(res.captured.body, null);
   assert.ok(res.captured.html);
   assert.match(res.captured.html, /Notion connected/);
-  assert.match(res.captured.html, /Close this sheet and return to Tinker/);
+  assert.match(res.captured.html, /parent page/i);
+  assert.match(res.captured.html, /Connections/);
   assert.doesNotMatch(res.captured.html || "", /\{"error"/);
 
   const live = await store.getAccessToken({ userId: "user-a" });

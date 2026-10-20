@@ -253,6 +253,8 @@ function bootRepoPage(options) {
     "repo-confirm-delete",
     "repo-confirm-cancel",
     "repo-confirm-backdrop",
+    "repo-notion-connect",
+    "repo-new-essay",
   ];
   // Write page no longer has top-right account / download chrome; Files still does.
   if (opts.mode === "files") {
@@ -264,6 +266,9 @@ function bootRepoPage(options) {
     );
   }
   for (const id of ids) makeEl("div", id, byId);
+  byId["repo-notion-connect"].tagName = "BUTTON";
+  byId["repo-notion-connect"].setAttribute("data-notion-connected", "false");
+  byId["repo-notion-connect"].setAttribute("data-notion-parent", "false");
   byId["repo-body"].tagName = "TEXTAREA";
   byId["repo-surface"].tagName = "DIV";
   byId["repo-surface"].className = "repo-surface writing";
@@ -534,6 +539,48 @@ function bootRepoPage(options) {
           ok: true,
           json() {
             return Promise.resolve({ data: opts._essays || opts.essays || [] });
+          },
+        });
+      }
+      if (href.includes("/api/notion-oauth")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json() {
+            return Promise.resolve(
+              opts.notionStatus || {
+                configured: true,
+                connected: false,
+                parentPageId: null,
+                essaysDatabaseId: null,
+              },
+            );
+          },
+        });
+      }
+      if (href.includes("/api/notion-essays")) {
+        if (typeof opts.onNotionEssayWrite === "function") {
+          opts.onNotionEssayWrite(init);
+        }
+        if (opts.notionEssayWrite) {
+          const result = opts.notionEssayWrite;
+          return Promise.resolve({
+            status: result.status || (result.ok === false ? 400 : 200),
+            ok: result.ok !== false,
+            json() {
+              return Promise.resolve(result.body || result);
+            },
+          });
+        }
+        // Default: Notion not connected — writing app stays quiet.
+        return Promise.resolve({
+          status: 400,
+          ok: false,
+          json() {
+            return Promise.resolve({
+              error: "Connect Notion from the writing app first.",
+              code: "notion_not_connected",
+            });
           },
         });
       }
@@ -2086,6 +2133,57 @@ test("This is everything button click saves, keeps writing visible, and lists th
   assert.match(treeText, /Finished thought about the work/i);
   assert.equal(env.byId["repo-exercise-rec"], undefined);
   assert.equal(env.byId["repo-grok-handoff"], undefined);
+});
+
+test("This is everything surfaces Notion parent-page requirement", async () => {
+  const writes = [];
+  const env = bootRepoPage({
+    token: "jwt-test",
+    desktop: true,
+    mode: "write",
+    notionStatus: {
+      configured: true,
+      connected: true,
+      parentPageId: null,
+      essaysDatabaseId: null,
+    },
+    notionEssayWrite: {
+      ok: false,
+      status: 400,
+      body: {
+        error: "Pick a Notion parent page in Connections before writing essays.",
+        code: "notion_parent_required",
+      },
+    },
+    onNotionEssayWrite(init) { writes.push(init); },
+  });
+  await env.flush();
+  env.window.tinkerRepo.setPadIdleMs(15);
+  env.byId["repo-body"].value = "I think this works?";
+  env.byId["repo-body"].dispatch("input", {
+    type: "input",
+    target: env.byId["repo-body"],
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  env.byId["repo-this-is-everything"].dispatch("click", {
+    type: "click",
+    target: env.byId["repo-this-is-everything"],
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await env.flush();
+  // Notion write is async after local save; give the fetch chain a tick.
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(writes.length, 1);
+  assert.equal(env.byId["repo-pad-error"].hidden, false);
+  assert.match(
+    String(env.byId["repo-pad-error-text"].textContent || ""),
+    /parent page/i,
+  );
+  assert.equal(
+    env.byId["repo-notion-connect"].getAttribute("data-notion-parent"),
+    "false",
+  );
 });
 
 test("finished writing stays until the founder types again", async () => {
