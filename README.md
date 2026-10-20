@@ -434,12 +434,12 @@ an Essays database.
    - `NOTION_OAUTH_CLIENT_ID`
    - `NOTION_OAUTH_CLIENT_SECRET`
    - `NOTION_OAUTH_REDIRECT_URI` (same URL as the redirect URI above)
-6. In Tinker: **Connections → Connect Notion**, approve in Notion, then
-   paste a **parent page** URL. Share that page with the integration in
-   Notion. On the first finished essay (This is everything), Tinker
-   creates an **Essays** database under that page if it is missing, then
-   writes the essay (title, body, date, learning goal / exercise when
-   known).
+6. In Tinker: tap the **Notion mark** (bottom left of the writing app),
+   approve in Notion, then open **Connections** and paste a **parent page**
+   URL. Share that page with the integration in Notion. On the first
+   finished essay (This is everything), Tinker creates an **Essays**
+   database under that page if it is missing, then writes the essay
+   (title, body, date, learning goal / exercise when known).
 
 Tokens are stored per user in Postgres (`TinkerUserData`), encrypted
 with `TINKER_SECRETS_KEY` (falls back to `STYTCH_SECRET`). Not Upstash.

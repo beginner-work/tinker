@@ -81,8 +81,8 @@ function escapeHtml(value) {
 function callbackPage({ ok, message }) {
   const title = ok ? "Connected" : "Connection failed";
   const dest = ok
-    ? "/connections?notion=connected"
-    : "/connections?notion_error=" + encodeURIComponent(message || "failed");
+    ? "/repo?notion=connected"
+    : "/repo?notion_error=" + encodeURIComponent(message || "failed");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -111,7 +111,7 @@ function callbackPage({ ok, message }) {
 <body class="notion-cb">
   <main class="notion-cb__card">
     <h1 class="notion-cb__title">${escapeHtml(title)}</h1>
-    <p class="notion-cb__msg">${escapeHtml(message || (ok ? "Returning to Connections…" : "Try again from Connections."))}</p>
+    <p class="notion-cb__msg">${escapeHtml(message || (ok ? "Returning to the writing app…" : "Try again from the Notion mark in the writing app."))}</p>
     <p class="notion-cb__msg"><a href="${escapeHtml(dest)}">Continue</a></p>
   </main>
   <script>location.replace(${JSON.stringify(dest)});</script>

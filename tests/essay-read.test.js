@@ -204,8 +204,8 @@ test("repo / feed / shell wire essay-read + vendor scripts", () => {
   assert.match(repoHtml, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(repoHtml, /src="\/vendor\/purify\.min\.js"/);
   assert.match(repoHtml, /src="\/lib\/essay-read\.js\?v=1"/);
-  assert.match(repoHtml, /src="\/repo\/repo\.js\?v=62"/);
-  assert.match(repoHtml, /href="\/repo\/repo\.css\?v=72"/);
+  assert.match(repoHtml, /src="\/repo\/repo\.js\?v=63"/);
+  assert.match(repoHtml, /href="\/repo\/repo\.css\?v=73"/);
 
   assert.match(feedHtml, /src="\/vendor\/markdown-it\.min\.js"/);
   assert.match(feedHtml, /src="\/lib\/essay-read\.js\?v=1"/);

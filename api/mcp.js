@@ -150,7 +150,7 @@ const INSTRUCTIONS = [
   "Call list_writing_sessions for a compact session list (day, tag, numbers). Call tag_writing_session to set a short context tag.",
   "Call notion_write_essay with title and body to write a finished essay into the owner's Notion Essays database.",
   "Optional date, learningGoal, and exercise. Creates the Essays database under the chosen parent page when missing.",
-  "Requires Connect Notion plus a parent page in Connections. Does not read Notion pages or post comments.",
+  "Requires Connect Notion (writing-app Notion mark) plus a parent page in Connections. Does not read Notion pages or post comments.",
   "This server does not accept a custom system prompt.",
   "Add this server by its URL. The client sends you to tinker to approve access.",
   "After you approve, the client stores a credential that starts with mcp_. It works until you revoke it from MCP access.",
