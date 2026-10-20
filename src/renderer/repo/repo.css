@@ -131,6 +131,103 @@ body.repo-page--write {
   }
 }
 
+/* Connect Notion: small fixed mark, bottom-left (compose dock stays bottom-right). */
+.repo-notion-connect {
+  --repo-notion-left: calc(14px + env(safe-area-inset-left, 0px));
+  --repo-notion-bottom: calc(
+    var(--repo-foot-floor, max(48px, 8vh))
+      + var(--repo-safe-bottom, env(safe-area-inset-bottom, 0px))
+      + var(--repo-keyboard-inset, 0px)
+  );
+  position: fixed;
+  z-index: 39;
+  left: var(--repo-notion-left);
+  bottom: var(--repo-notion-bottom);
+  right: auto;
+  top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface, #fff);
+  color: var(--color-foreground);
+  cursor: pointer;
+  box-shadow:
+    0 4px 14px rgba(28, 25, 23, 0.08),
+    0 1px 2px rgba(28, 25, 23, 0.04);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  pointer-events: auto;
+}
+
+.repo-notion-connect:hover,
+.repo-notion-connect:focus-visible {
+  background: color-mix(in srgb, var(--color-surface, #fff) 88%, var(--color-accent, #a5b4fc) 12%);
+}
+
+.repo-notion-connect:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-background, #fffdf7),
+    0 0 0 4px var(--color-accent-strong, #6366f1);
+}
+
+.repo-notion-connect__logo {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.repo-notion-connect__dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-success, #3f7d4e);
+  border: 1.5px solid var(--color-surface, #fff);
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none;
+}
+
+.repo-notion-connect[data-notion-connected="true"] .repo-notion-connect__dot {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.repo-notion-connect[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 767px) {
+  body.repo-page--write .repo-notion-connect {
+    --repo-notion-bottom: calc(
+      12px
+        + var(--repo-safe-bottom, env(safe-area-inset-bottom, 0px))
+        + var(--repo-keyboard-inset, 0px)
+    );
+  }
+}
+
+/* When left Development sidebar is open on desktop, nudge off the panel edge. */
+@media (min-width: 801px) {
+  body.repo-page--write:has(.repo-layout--write.is-tech-essays-open) .repo-notion-connect,
+  body.repo-page--write[data-repo-tech-essays-list="1"] .repo-notion-connect {
+    left: calc(14px + 280px + env(safe-area-inset-left, 0px));
+  }
+}
+
 /* New essay FAB: circular, bottom-right, desktop + mobile/PWA.
  * Same action as the old centered top-nav pencil. Morphs into .repo-surface__foot. */
 .repo-fab-new {

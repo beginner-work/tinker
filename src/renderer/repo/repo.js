@@ -111,6 +111,7 @@
     techFilePath: document.getElementById("repo-tech-file-path"),
     labsLink: document.getElementById("repo-labs-link"),
     newEssay: document.getElementById("repo-new-essay"),
+    notionConnect: document.getElementById("repo-notion-connect"),
     newPiece: document.getElementById("repo-new-piece"),
     sidebarNewPiece: document.getElementById("repo-sidebar-new-piece"),
     pastEssays: document.getElementById("repo-past-essays"),
@@ -2348,6 +2349,77 @@
     return out;
   }
 
+  /** Paint Connect Notion corner control from /api/notion-oauth status. */
+  function paintNotionConnect(status) {
+    var btn = els.notionConnect;
+    if (!btn) return;
+    var configured = !status || status.configured !== false;
+    var connected = !!(status && status.connected);
+    btn.hidden = !configured;
+    btn.setAttribute("data-notion-connected", connected ? "true" : "false");
+    var label = connected ? "Notion connected" : "Connect Notion";
+    btn.setAttribute("aria-label", label);
+    btn.setAttribute("title", label);
+  }
+
+  function loadNotionConnectStatus() {
+    if (!els.notionConnect) return Promise.resolve();
+    if (!hasSessionToken()) {
+      paintNotionConnect({ configured: true, connected: false });
+      return Promise.resolve();
+    }
+    return fetch("/api/notion-oauth", { headers: authHeaders() })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok) throw new Error((json && json.error) || "status");
+          return json;
+        });
+      })
+      .then(function (json) {
+        paintNotionConnect(json);
+      })
+      .catch(function () {
+        // Keep the control available when status fails (e.g. offline).
+        paintNotionConnect({ configured: true, connected: false });
+      });
+  }
+
+  function startNotionOAuth(btn) {
+    if (!hasSessionToken()) {
+      sendHomeForAuth();
+      return;
+    }
+    if (btn) btn.disabled = true;
+    fetch("/api/notion-oauth?action=connect", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
+      body: "{}",
+    })
+      .then(function (res) {
+        return res.json().then(function (json) {
+          if (!res.ok) throw new Error((json && json.error) || "Could not start Connect Notion.");
+          return json;
+        });
+      })
+      .then(function (json) {
+        if (!json.authorizeUrl) throw new Error("No authorize URL returned.");
+        window.location.assign(json.authorizeUrl);
+      })
+      .catch(function () {
+        if (btn) btn.disabled = false;
+      });
+  }
+
+  function readNotionQueryFlash() {
+    try {
+      var params = new URLSearchParams(window.location.search || "");
+      if (params.get("notion") === "connected" || params.get("notion_error")) {
+        var clean = window.location.pathname || "/repo";
+        history.replaceState({}, "", clean);
+      }
+    } catch (e) { /* ignore */ }
+  }
+
   /** Fire-and-forget: finished essay → Notion Essays database when connected. */
   function scheduleNotionEssayWrite(essay, savedStory) {
     if (!essay || !essay.id) return;
@@ -4242,6 +4314,20 @@
       try { els.body.focus(); } catch (e) { /* ignore */ }
     }
   });
+  if (els.notionConnect && isWritePage) {
+    readNotionQueryFlash();
+    loadNotionConnectStatus();
+    els.notionConnect.addEventListener("click", function (event) {
+      event.preventDefault();
+      var connected = els.notionConnect.getAttribute("data-notion-connected") === "true";
+      if (connected) {
+        // Parent page + disconnect still live on Connections.
+        window.location.assign("/connections");
+        return;
+      }
+      startNotionOAuth(els.notionConnect);
+    });
+  }
   // Founder Source sidebar: New folder stays on Files page only. Write-page
   // lists are title-only; New essay is the bottom-right FAB (#repo-new-essay).
   if (els.newFolder && isFilesPage) els.newFolder.addEventListener("click", startCreateFolder);

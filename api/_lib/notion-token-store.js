@@ -204,7 +204,7 @@ async function getAccessToken({ userId } = {}) {
     const uid = requireUserId(userId);
     const row = await readRaw(uid, KIND);
     if (!row || !row.accessTokenEnc) {
-      throw fail(400, "Connect Notion in Settings > Connections first.", "notion_not_connected");
+      throw fail(400, "Connect Notion from the writing app first.", "notion_not_connected");
     }
     return {
       accessToken: decrypt(row.accessTokenEnc),
@@ -221,7 +221,7 @@ async function getSettings({ userId } = {}) {
     const uid = requireUserId(userId);
     const row = await readRaw(uid, KIND);
     if (!row || !row.accessTokenEnc) {
-      throw fail(400, "Connect Notion in Settings > Connections first.", "notion_not_connected");
+      throw fail(400, "Connect Notion from the writing app first.", "notion_not_connected");
     }
     return {
       parentPageId: row.parentPageId ? String(row.parentPageId) : "",
@@ -253,7 +253,7 @@ async function setParentPage({ userId, parentPageId } = {}) {
     const uid = requireUserId(userId);
     const row = await readRaw(uid, KIND);
     if (!row || !row.accessTokenEnc) {
-      throw fail(400, "Connect Notion in Settings > Connections first.", "notion_not_connected");
+      throw fail(400, "Connect Notion from the writing app first.", "notion_not_connected");
     }
     const id = normalizeParentPageId(parentPageId);
     const next = Object.assign({}, row, {
@@ -274,7 +274,7 @@ async function setEssaysDatabaseId({ userId, essaysDatabaseId } = {}) {
     const uid = requireUserId(userId);
     const row = await readRaw(uid, KIND);
     if (!row || !row.accessTokenEnc) {
-      throw fail(400, "Connect Notion in Settings > Connections first.", "notion_not_connected");
+      throw fail(400, "Connect Notion from the writing app first.", "notion_not_connected");
     }
     const next = Object.assign({}, row, {
       essaysDatabaseId: String(essaysDatabaseId || "").trim(),

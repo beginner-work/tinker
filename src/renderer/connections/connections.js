@@ -46,14 +46,8 @@
     }
 
     if (!connected) {
-      var connectBtn = document.createElement("button");
-      connectBtn.type = "button";
-      connectBtn.className = "connections__btn";
-      connectBtn.textContent = "Connect Notion";
-      connectBtn.setAttribute("data-action", "notion-connect");
-      actions.appendChild(connectBtn);
       if (form) form.hidden = true;
-      setNotionStatus("");
+      setNotionStatus("Not connected. Open the writing app and tap the Notion mark (bottom left).");
       return;
     }
 
@@ -97,31 +91,6 @@
       .catch(function (err) {
         setNotionStatus((err && err.message) || "Could not load Notion status.", true);
         renderNotionEssays({ configured: false, connected: false });
-      });
-  }
-
-  function connectNotion(btn) {
-    if (!token()) { setNotionStatus("Sign in to connect Notion.", true); return; }
-    if (btn) btn.disabled = true;
-    setNotionStatus("Starting Notion…");
-    fetch("/api/notion-oauth?action=connect", {
-      method: "POST",
-      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
-      body: "{}",
-    })
-      .then(function (res) {
-        return res.json().then(function (json) {
-          if (!res.ok) throw new Error((json && json.error) || "Could not start Connect Notion.");
-          return json;
-        });
-      })
-      .then(function (json) {
-        if (!json.authorizeUrl) throw new Error("No authorize URL returned.");
-        window.location.assign(json.authorizeUrl);
-      })
-      .catch(function (err) {
-        setNotionStatus((err && err.message) || "Could not start Connect Notion.", true);
-        if (btn) btn.disabled = false;
       });
   }
 
@@ -597,10 +566,6 @@
     var btn = e.target && e.target.closest ? e.target.closest("[data-action]") : null;
     if (!btn) return;
     var action = btn.getAttribute("data-action");
-    if (action === "notion-connect") {
-      connectNotion(btn);
-      return;
-    }
     if (action === "notion-disconnect") {
       disconnectNotion(btn);
       return;

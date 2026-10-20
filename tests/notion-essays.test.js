@@ -316,29 +316,55 @@ test("tools/list includes notion_write_essay", async () => {
   assert.ok(names.includes("notion_write_essay"));
 });
 
-test("Connections UI has Connect Notion for essays", () => {
+test("Writing app has Connect Notion corner control", () => {
   const fs = require("fs");
   const html = fs.readFileSync(
     path.join(__dirname, "..", "src/renderer/connections/index.html"),
     "utf8",
   );
-  const js = fs.readFileSync(
+  const connectionsJs = fs.readFileSync(
     path.join(__dirname, "..", "src/renderer/connections/connections.js"),
     "utf8",
   );
-  const repo = fs.readFileSync(
+  const repoHtml = fs.readFileSync(
+    path.join(__dirname, "..", "src/renderer/repo/index.html"),
+    "utf8",
+  );
+  const repoJs = fs.readFileSync(
     path.join(__dirname, "..", "src/renderer/repo/repo.js"),
     "utf8",
   );
+  const repoCss = fs.readFileSync(
+    path.join(__dirname, "..", "src/renderer/repo/repo.css"),
+    "utf8",
+  );
+  const oauth = fs.readFileSync(
+    path.join(__dirname, "..", "api/notion-oauth.js"),
+    "utf8",
+  );
   assert.match(html, /data-notion-essays/);
-  assert.match(html, /Connect Notion|Notion essays/);
+  assert.match(html, /Notion essays/);
   assert.doesNotMatch(html, /\u2014/);
   assert.doesNotMatch(html, /\bfree\b/i);
   assert.doesNotMatch(html, /\bquietly\b/i);
-  assert.match(js, /Connect Notion/);
-  assert.match(js, /\/api\/notion-oauth\?action=connect/);
-  assert.match(repo, /scheduleNotionEssayWrite/);
-  assert.match(repo, /\/api\/notion-essays/);
+  assert.doesNotMatch(html, /\breal\b/i);
+  // Connect starts from the writing-app corner, not Connections.
+  assert.doesNotMatch(connectionsJs, /data-action="notion-connect"/);
+  assert.doesNotMatch(connectionsJs, /\/api\/notion-oauth\?action=connect/);
+  assert.match(repoHtml, /id="repo-notion-connect"/);
+  assert.match(repoHtml, /Connect Notion/);
+  assert.match(repoHtml, /repo-notion-connect__dot/);
+  assert.doesNotMatch(repoHtml, /\u2014/);
+  assert.doesNotMatch(repoHtml, /\bfree\b/i);
+  assert.doesNotMatch(repoHtml, /\bquietly\b/i);
+  assert.doesNotMatch(repoHtml, /\breal\b/i);
+  assert.match(repoCss, /\.repo-notion-connect\s*\{/);
+  assert.match(repoCss, /repo-notion-connect__dot/);
+  assert.match(repoJs, /startNotionOAuth/);
+  assert.match(repoJs, /\/api\/notion-oauth\?action=connect/);
+  assert.match(repoJs, /scheduleNotionEssayWrite/);
+  assert.match(repoJs, /\/api\/notion-essays/);
+  assert.match(oauth, /\/repo\?notion=connected/);
 });
 
 test("hashState is stable", () => {
