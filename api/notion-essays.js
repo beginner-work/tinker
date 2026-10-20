@@ -7,8 +7,10 @@
  * Auth: Stytch session bearer (not mcp_).
  *
  * Fire-and-forget from /repo after This is everything. Missing Notion
- * connection or parent page returns 400 with a stable code; the client
- * ignores those so save UX never blocks.
+ * connection returns 400 with code notion_not_connected (client ignores —
+ * Notion is optional). Missing parent page returns notion_parent_required;
+ * the writing app surfaces that so silent failures are not mistaken for
+ * a successful Notion save.
  */
 
 "use strict";

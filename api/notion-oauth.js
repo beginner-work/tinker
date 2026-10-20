@@ -103,7 +103,7 @@ function callbackPage({ ok, message }) {
     const title = "Notion connected";
     const body =
       message ||
-      "Notion connected. Close this sheet and return to Tinker.";
+      "Notion connected. Close this sheet, open Connections, and paste a parent page URL so finished essays can save.";
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -221,7 +221,8 @@ async function handleOAuthCallback(q, res) {
       200,
       callbackPage({
         ok: true,
-        message: "Notion connected. Close this sheet and return to Tinker.",
+        message:
+          "Notion connected. Close this sheet, open Connections, and paste a parent page URL so finished essays can save.",
       }),
     );
   } catch (err) {

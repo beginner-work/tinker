@@ -2355,9 +2355,15 @@
     if (!btn) return;
     var configured = !status || status.configured !== false;
     var connected = !!(status && status.connected);
+    var hasParent = !!(status && status.parentPageId);
     btn.hidden = !configured;
     btn.setAttribute("data-notion-connected", connected ? "true" : "false");
-    var label = connected ? "Notion connected" : "Connect Notion";
+    btn.setAttribute("data-notion-parent", connected && hasParent ? "true" : "false");
+    var label = !connected
+      ? "Connect Notion"
+      : hasParent
+        ? "Notion connected"
+        : "Notion connected — pick a parent page in Connections";
     btn.setAttribute("aria-label", label);
     btn.setAttribute("title", label);
   }
@@ -2475,7 +2481,38 @@
           exercise: exercise,
         }),
         keepalive: true,
-      }).catch(function () { /* ignore: Notion optional */ });
+      })
+        .then(function (res) {
+          return res.json().then(function (json) {
+            return { ok: res.ok, status: res.status, json: json || {} };
+          }).catch(function () {
+            return { ok: res.ok, status: res.status, json: {} };
+          });
+        })
+        .then(function (result) {
+          if (!result) return;
+          if (result.ok) {
+            showPadNotice("Saved to Notion.", { autoHideMs: 3200 });
+            // Refresh corner tooltip (Essays DB may now exist).
+            loadNotionConnectStatus();
+            return;
+          }
+          var code = result.json && result.json.code;
+          // Not connected → Notion is optional; stay quiet.
+          if (code === "notion_not_connected") return;
+          if (code === "notion_parent_required") {
+            showPadError(
+              "Notion needs a parent page. Open Connections and paste a page URL (share that page with Tinker during Notion authorize).",
+              { retry: false }
+            );
+            return;
+          }
+          var msg =
+            (result.json && result.json.error) ||
+            "Could not save this essay to Notion.";
+          showPadError(msg, { retry: false });
+        })
+        .catch(function () { /* network: Notion optional */ });
     } catch (e) { /* ignore */ }
   }
 
