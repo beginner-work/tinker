@@ -70,7 +70,7 @@ test("layout CSS: technical essays | center | business rail", () => {
 });
 
 test("write page loads Development + desktop learning loop without Exercises nav", () => {
-  assert.match(html, /repo\.css\?v=72/);
+  assert.match(html, /repo\.css\?v=73/);
   assert.match(html, /Development/);
   assert.match(html, /repo-layout--learning/);
   assert.match(html, /id="repo-code"/);
