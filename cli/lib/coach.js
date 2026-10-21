@@ -2,6 +2,7 @@
 
 const interview = require("./interview.js");
 const { finalizeEssay } = require("./stitch.js");
+const { getTheme } = require("./theme.js");
 
 /**
  * Core writing coach loop — one short question at a time.
@@ -16,6 +17,7 @@ const { finalizeEssay } = require("./stitch.js");
  * @param {() => Promise<{kind:'answer'|'finish'|'quit', text:string}>} deps.readAnswer
  * @param {(line: string) => void} deps.write  print a line (no trailing extra blanks)
  * @param {(essay: {title:string, body:string}) => Promise<{ok:boolean, message?:string}>} deps.saveEssay
+ * @param {ReturnType<typeof getTheme>} [deps.theme]  ANSI theme (defaults to stdout)
  */
 
 async function askNextQuestion(askModel, transcript) {
@@ -69,14 +71,15 @@ async function runCoach(deps) {
   if (typeof write !== "function") throw new Error("write required");
   if (typeof saveEssay !== "function") throw new Error("saveEssay required");
 
+  const theme = deps.theme || getTheme();
   const transcript = [];
   let pending = await askNextQuestion(askModel, transcript);
 
   for (;;) {
-    write(pending);
+    write(theme.question(pending));
     const turn = await readAnswer();
     if (turn.kind === "quit") {
-      write("Left without saving.");
+      write(theme.muted("Left without saving."));
       return { status: "quit", transcript, essay: null };
     }
 
@@ -86,26 +89,30 @@ async function runCoach(deps) {
         transcript.push({ q: pending, a: partial });
       }
       if (!transcript.length) {
-        write("Nothing to save yet.");
+        write(theme.muted("Nothing to save yet."));
         continue;
       }
       const essay = await stitchEssay(askModel, transcript);
       if (!essay.body) {
-        write("Nothing to save yet.");
+        write(theme.muted("Nothing to save yet."));
         continue;
       }
       const saved = await saveEssay(essay);
       if (saved && saved.ok) {
-        write("Saved to Notion.");
+        write(theme.success("Saved to Notion."));
         return { status: "saved", transcript, essay };
       }
-      write((saved && saved.message) || "Could not save this essay to Notion.");
+      write(
+        theme.error(
+          (saved && saved.message) || "Could not save this essay to Notion."
+        )
+      );
       return { status: "error", transcript, essay, error: saved };
     }
 
     const answer = String(turn.text || "").trim();
     if (!answer) {
-      write("Type an answer, or: this is everything");
+      write(theme.muted("Type an answer, or: this is everything"));
       continue;
     }
     transcript.push({ q: pending, a: answer });

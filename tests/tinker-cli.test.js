@@ -16,6 +16,9 @@ const { isFinishPhrase, isQuitPhrase } = require("../cli/lib/input.js");
 const { HELP } = require("../cli/lib/help.js");
 const interview = require("../cli/lib/interview.js");
 const config = require("../cli/lib/config.js");
+const { createTheme, colorLevel, TOKENS } = require("../cli/lib/theme.js");
+
+const plainTheme = createTheme({ level: 0 });
 
 test("cli package exposes a tinker bin and is self-contained", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(cliRoot, "package.json"), "utf8"));
@@ -144,6 +147,7 @@ test("coach loop asks one question at a time and saves on finish (LLM mocked)", 
       saved = essay;
       return { ok: true };
     },
+    theme: plainTheme,
   });
 
   assert.equal(result.status, "saved");
@@ -189,6 +193,7 @@ test("coach loop surfaces Notion parent-page errors explicitly", async () => {
       message:
         "Notion needs a parent page. Run: tinker login --notion  (then paste a page URL in Connections, or share the page with Tinker during authorize).",
     }),
+    theme: plainTheme,
   });
   assert.equal(result.status, "error");
   assert.ok(lines.some((l) => /Notion needs a parent page/.test(l)));
@@ -267,4 +272,135 @@ test("sample session transcript exists for the PR", () => {
 test("root package.json wires tinker bin to the CLI", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   assert.equal(pkg.bin.tinker, "cli/bin/tinker.js");
+});
+
+test("theme tokens match web writing UI CSS variables", () => {
+  assert.equal(TOKENS.ink.hex, "#1a1a1a");
+  assert.equal(TOKENS.foreground.hex, "#2d2a26");
+  assert.equal(TOKENS.muted.hex, "#6f6a65");
+  assert.equal(TOKENS.accent.hex, "#6366f1");
+  assert.equal(TOKENS.danger.hex, "#b42318");
+});
+
+test("colorLevel respects NO_COLOR, FORCE_COLOR, and non-TTY", () => {
+  const tty = { isTTY: true };
+  const pipe = { isTTY: false };
+  assert.equal(colorLevel(pipe, {}), 0);
+  assert.equal(colorLevel(tty, { NO_COLOR: "1" }), 0);
+  assert.equal(colorLevel(tty, { NO_COLOR: "1", FORCE_COLOR: "3" }), 3);
+  assert.equal(colorLevel(tty, { FORCE_COLOR: "0" }), 0);
+  assert.equal(colorLevel(tty, { FORCE_COLOR: "3" }), 3);
+  assert.equal(colorLevel(tty, { COLORTERM: "truecolor", TERM: "xterm" }), 3);
+  assert.equal(colorLevel(tty, { TERM: "xterm-256color" }), 2);
+  assert.equal(colorLevel(tty, { TERM: "dumb" }), 0);
+});
+
+test("theme paints question/body/success/error with truecolor and falls back", () => {
+  const truecolor = createTheme({ level: 3 });
+  const q = truecolor.question("What are you learning?");
+  assert.match(q, /\x1b\[38;2;26;26;26m/);
+  assert.match(q, /\x1b\[1m/);
+  assert.match(q, /What are you learning\?/);
+  assert.match(q, /\x1b\[0m/);
+
+  const body = truecolor.body("typed answer");
+  assert.match(body, /\x1b\[38;2;45;42;38m/);
+
+  const ok = truecolor.success("Saved to Notion.");
+  assert.match(ok, /\x1b\[38;2;99;102;241m/);
+  assert.match(ok, /Saved to Notion\./);
+
+  const err = truecolor.error("Notion needs a parent page.");
+  assert.match(err, /\x1b\[38;2;180;35;24m/);
+
+  const c256 = createTheme({ level: 2 });
+  assert.match(c256.accent("ok"), /\x1b\[38;5;99m/);
+
+  const basic = createTheme({ level: 1 });
+  assert.match(basic.error("no"), /\x1b\[31m/);
+
+  const plain = createTheme({ level: 0 });
+  assert.equal(plain.question("Q"), "Q");
+  assert.equal(plain.success("Saved to Notion."), "Saved to Notion.");
+  assert.equal(plain.prompt("> "), "> ");
+});
+
+test("readline prompt wraps ANSI so cursor width stays correct", () => {
+  const theme = createTheme({ level: 3 });
+  const p = theme.prompt("> ");
+  assert.match(p, /^\x01/);
+  assert.match(p, /\x02> /);
+  // Ends with body-color open (no reset after typed region starts).
+  assert.match(p, /\x01\x1b\[0m\x1b\[38;2;45;42;38m\x02$/);
+});
+
+test("coach loop styles question and Saved to Notion with accent when color on", async () => {
+  const theme = createTheme({ level: 3 });
+  const lines = [];
+  const queue = [
+    { kind: "answer", text: "Ship the smallest cut." },
+    { kind: "finish", text: "" },
+  ];
+  await runCoach({
+    askModel: async ({ forceStitch }) => {
+      if (forceStitch) {
+        return {
+          next_question: null,
+          stitched_title: "Cut",
+          stitched_body: "Ship the smallest cut.",
+          done: true,
+        };
+      }
+      return {
+        next_question: "What are you learning?",
+        stitched_title: null,
+        stitched_body: null,
+        done: false,
+      };
+    },
+    readAnswer: async () => queue.shift(),
+    write: (line) => lines.push(String(line)),
+    saveEssay: async () => ({ ok: true }),
+    theme,
+  });
+  assert.match(lines[0], /\x1b\[38;2;26;26;26m/);
+  assert.match(lines[0], /What are you learning\?/);
+  const saved = lines.find((l) => /Saved to Notion/.test(l));
+  assert.ok(saved);
+  assert.match(saved, /\x1b\[38;2;99;102;241m/);
+});
+
+test("coach loop styles Notion errors in danger red when color on", async () => {
+  const theme = createTheme({ level: 3 });
+  const lines = [];
+  const queue = [
+    { kind: "answer", text: "Cut scope." },
+    { kind: "finish", text: "" },
+  ];
+  await runCoach({
+    askModel: async ({ forceStitch }) => {
+      if (forceStitch) {
+        return {
+          next_question: null,
+          stitched_title: "Cut",
+          stitched_body: "Cut scope.",
+          done: true,
+        };
+      }
+      return {
+        next_question: "What are you learning?",
+        done: false,
+      };
+    },
+    readAnswer: async () => queue.shift(),
+    write: (line) => lines.push(String(line)),
+    saveEssay: async () => ({
+      ok: false,
+      message: "Notion needs a parent page.",
+    }),
+    theme,
+  });
+  const errLine = lines.find((l) => /Notion needs a parent page/.test(l));
+  assert.ok(errLine);
+  assert.match(errLine, /\x1b\[38;2;180;35;24m/);
 });

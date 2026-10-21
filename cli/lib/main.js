@@ -6,6 +6,7 @@ const api = require("./api.js");
 const { createInterface, readAnswer } = require("./input.js");
 const { runCoach, createApiAskModel } = require("./coach.js");
 const { runLogin } = require("./login.js");
+const { getTheme } = require("./theme.js");
 
 function parseArgs(argv) {
   const args = {
@@ -40,8 +41,13 @@ function parseArgs(argv) {
   return args;
 }
 
+function stdoutWrite(line) {
+  process.stdout.write(String(line == null ? "" : line) + "\n");
+}
+
 async function runWritingSession() {
   const config = loadConfig();
+  const theme = getTheme();
   if (!config.token) {
     throw Object.assign(
       new Error("Not signed in. Run: tinker login"),
@@ -50,18 +56,15 @@ async function runWritingSession() {
   }
 
   const rl = createInterface();
-  const write = (line) => {
-    process.stdout.write(String(line == null ? "" : line) + "\n");
-  };
-
   const askModel = createApiAskModel(api.converse, config);
 
   try {
     const result = await runCoach({
       askModel,
-      readAnswer: () => readAnswer(rl, { prompt: "> " }),
-      write,
+      readAnswer: () => readAnswer(rl, { prompt: "> ", theme }),
+      write: stdoutWrite,
       saveEssay: async (essay) => api.saveNotionEssay(config, essay),
+      theme,
     });
     return result;
   } finally {
@@ -70,6 +73,7 @@ async function runWritingSession() {
 }
 
 async function main(argv) {
+  const theme = getTheme();
   const args = parseArgs(argv || []);
   if (args.help) {
     printHelp();
@@ -78,7 +82,7 @@ async function main(argv) {
 
   if (args.command === "logout") {
     clearConfig();
-    process.stdout.write("Cleared ~/.tinker credentials.\n");
+    stdoutWrite(theme.muted("Cleared ~/.tinker credentials."));
     return 0;
   }
 
@@ -87,7 +91,8 @@ async function main(argv) {
     try {
       await runLogin(rl, {
         notion: args.notion,
-        write: (line) => process.stdout.write(String(line) + "\n"),
+        write: stdoutWrite,
+        theme,
       });
     } finally {
       rl.close();
