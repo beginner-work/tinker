@@ -1,0 +1,31 @@
+{
+  "name": "tinker",
+  "version": "0.1.0",
+  "description": "tinker — founder writing coach in your terminal",
+  "bin": {
+    "tinker": "bin/tinker.js"
+  },
+  "main": "lib/main.js",
+  "files": [
+    "bin",
+    "lib",
+    "vendor",
+    "examples"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "tinker",
+    "writing",
+    "cli"
+  ],
+  "author": "tinker",
+  "license": "UNLICENSED",
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beginner-work/tinker.git",
+    "directory": "cli"
+  }
+}

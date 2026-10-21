@@ -3,6 +3,9 @@
   "version": "0.1.29",
   "description": "tinker — a quiet writing surface on the desktop",
   "main": "src/main/main.js",
+  "bin": {
+    "tinker": "cli/bin/tinker.js"
+  },
   "desktopName": "tinker.desktop",
   "scripts": {
     "start": "electron .",
@@ -24,7 +27,8 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "build:editor": "node scripts/build-repo-cm-editor.mjs",
-    "seed:exercises-blob": "node scripts/seed-exercises-to-blob.js"
+    "seed:exercises-blob": "node scripts/seed-exercises-to-blob.js",
+    "cli:sync-vendor": "node cli/scripts/sync-vendor.js"
   },
   "keywords": [
     "electron",

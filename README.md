@@ -15,6 +15,8 @@ The core surfaces live here together:
 
 - **Front ends** — web (Vercel) and native mobile (Expo), plus the
   Electron desktop shell. All three share `src/renderer/`.
+- **CLI** — `cli/` is a globally installable `tinker` binary: the same
+  writing coach in a compact terminal session (any cwd; saves to Notion).
 - **Product back ends** — the non-payments / non-identity systems under
   `api/` (Claude, search, pitches, publish, feed, user-data, voice,
   email, and the rest of the product surface).
@@ -27,6 +29,70 @@ The core surfaces live here together:
 Payments (Stripe) and identity (Stytch) stay as external services wired
 in where the product needs them. They are not carved out into their own
 repos either — just not what this tree *is*.
+
+## CLI (`tinker`)
+
+The writing coach also runs as a command-line tool named `tinker`. It is
+meant for a short integrated terminal (for example under browser tabs in
+Cursor): one question line, a `>` prompt, no full-screen TUI. It installs
+globally and runs from any directory — including repos that are not this
+one — on macOS zsh and other Unix shells.
+
+### Install
+
+From this repo (global, any cwd afterward):
+
+```bash
+npm i -g ./cli
+# or, from the repo root:
+npm i -g .
+```
+
+Or without a permanent install:
+
+```bash
+npx --prefix ./cli tinker --help
+```
+
+The `cli/` package is self-contained (vendored interview prompt). After
+changing `src/renderer/interview-prompt.js`, run `npm run cli:sync-vendor`
+so the CLI copy stays in sync (CI asserts they match).
+
+### Usage
+
+```bash
+tinker login                 # phone OTP → saves ~/.tinker (never prints the token)
+tinker login --notion        # also open Notion OAuth in the browser
+tinker                       # coach loop: one question, your answer, next question
+tinker --help
+tinker logout
+```
+
+Config (env wins over file):
+
+| Source | Keys |
+|--------|------|
+| `~/.tinker` | `{ "apiBaseUrl", "token" }` (mode `0600`) |
+| Env | `TINKER_API_BASE_URL`, `TINKER_TOKEN` |
+
+During a session, type an answer and press Enter. Finish with
+`this is everything` — the CLI stitches founder-only prose (same rules as
+the app) and `POST`s `/api/notion-essays`. Success prints `Saved to Notion.`
+Missing parent page prints an explicit error (not a silent skip).
+
+Sample session:
+
+```text
+$ tinker
+What are you learning about how this work moves?
+> It only moves when I ship the smallest cut and leave the rest alone.
+What are you noticing that you did not expect?
+> Silence after a ship is useful. I kept filling it with more scope.
+> this is everything
+Saved to Notion.
+```
+
+See also [`cli/examples/sample-session.txt`](cli/examples/sample-session.txt).
 
 ## Run it (desktop)
 
