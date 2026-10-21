@@ -50,9 +50,10 @@ test("writing UI and interview load the shared models config", () => {
   assert.match(html, /claude-models\.js/);
   assert.match(html, /essay-classify\.js/);
   assert.match(html, /essay-growth-edge\.js/);
-  // Write page mounts learning-loop evaluate/refactor helpers again.
+  // Write page mounts learning-loop evaluate/refactor/swipe helpers again.
   assert.match(html, /exercise-refactor\.js/);
   assert.match(html, /exercise-evaluate\.js/);
+  assert.match(html, /exercise-swipe\.js/);
   assert.match(html, /exercise-reconstruct\.js/);
   assert.match(writing, /tinkerClaudeModels|KEEP_CRAFTING_MODEL/);
   assert.doesNotMatch(writing, /model:\s*["']claude-opus-4-8["']/);

@@ -171,6 +171,21 @@
                   </div>
                 </div>
               </div>
+              <!-- Mobile-only swipe drill: better/worse alternatives of a small baseline snippet. -->
+              <div class="repo-swipe" id="repo-swipe" hidden>
+                <p class="repo-swipe__hint" id="repo-swipe-hint">Swipe right if better, left if worse</p>
+                <div class="repo-swipe__stage" id="repo-swipe-stage">
+                  <div class="repo-swipe__card" id="repo-swipe-card" aria-live="polite">
+                    <p class="repo-swipe__status" id="repo-swipe-status" hidden role="status"></p>
+                    <div class="repo-swipe__diff" id="repo-swipe-diff" aria-label="Proposed change"></div>
+                    <p class="repo-swipe__why" id="repo-swipe-why" hidden></p>
+                  </div>
+                </div>
+                <div class="repo-swipe__actions" id="repo-swipe-actions">
+                  <button type="button" class="repo-swipe__btn repo-swipe__btn--worse" id="repo-swipe-worse" aria-label="Worse">Worse</button>
+                  <button type="button" class="repo-swipe__btn repo-swipe__btn--better" id="repo-swipe-better" aria-label="Better">Better</button>
+                </div>
+              </div>
               <div class="repo-code__preview" id="repo-code-preview" hidden tabindex="0"
                    aria-label="Learning module step, read only"></div>
               <div class="repo-code__surface" id="repo-code-surface" role="textbox" aria-label="File contents"></div>
@@ -315,7 +330,7 @@
 
     <script src="/platform-mobile.js?v=42"></script>
     <script src="/lib/claude-models.js?v=3"></script>
-    <script src="/lib/claude-structured.js?v=2"></script>
+    <script src="/lib/claude-structured.js?v=3"></script>
     <script src="/lib/essay-classify.js?v=2"></script>
     <script src="/lib/essay-growth-edge.js?v=1"></script>
     <script src="/lib/mcp-context.js?v=1"></script>
@@ -335,6 +350,7 @@
     <script src="/lib/learning-auth.js?v=49"></script>
     <script src="/lib/exercise-revision.js?v=51"></script>
     <script src="/lib/exercise-refactor.js?v=2"></script>
+    <script src="/lib/exercise-swipe.js?v=1"></script>
     <script src="/lib/learning-progress.js?v=3"></script>
     <script src="/lib/exercise-evaluate.js?v=4"></script>
     <script src="/exercises/manifest.js?v=40"></script>
@@ -343,7 +359,7 @@
     <script src="/lib/lock-in.js?v=1"></script>
     <script src="/lib/lock-in-ui.js?v=1"></script>
     <script src="/lib/exercise-workspace-core.js?v=41"></script>
-    <script src="/repo/exercise-workspace-ui.js?v=61"></script>
+    <script src="/repo/exercise-workspace-ui.js?v=62"></script>
     <script src="/made-by-lindow-labs.js?v=52"></script>
     <script src="/repo/repo.js?v=64"></script>
     <script src="/repo/storage-section.js?v=40"></script>

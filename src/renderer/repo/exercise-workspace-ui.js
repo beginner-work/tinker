@@ -9,7 +9,9 @@
  * applies revisedContent, updates ZPD/prompt, persists learning_progress.
  * Empty state until a technical essay has been reconstructed.
  *
- * Desktop: practice surface opens when signed in. Mobile: essay writing first.
+ * Desktop: practice surface opens when signed in. Mobile: essay writing first;
+ * when the learning loop opens on a narrow viewport, swipe cards compare
+ * better/worse alternatives of a small baseline snippet (Claude only).
  * No Exercises nav. Claude only (no Formation). Explorer chrome stays in the
  * DOM for id stability but is never shown (repo-layout--learning).
  */
@@ -23,6 +25,7 @@
   var revision = window.tinkerExerciseRevision || null;
   var refactorApi = window.tinkerExerciseRefactor || null;
   var evaluateApi = window.tinkerExerciseEvaluate || null;
+  var swipeApi = window.tinkerExerciseSwipe || null;
   var progressApi = window.tinkerLearningProgress || null;
   var models = window.tinkerClaudeModels || null;
   var structuredApi = window.tinkerClaudeStructured || null;
@@ -35,6 +38,12 @@
   var selectionSyncTimer = null;
   var undoSnapshot = null;
   var appliedHighlightTimer = null;
+  var swipeBusy = false;
+  var swipeCard = null;
+  var swipeRecentKinds = [];
+  var swipeTouch = null;
+  var swipeWhyTimer = null;
+  var swipeCardSeq = 0;
 
   var TOKEN_KEY = "tinker_jwt";
   var seedWorkspaceCache = null;
@@ -198,6 +207,16 @@
       learningDone: $("repo-learning-done"),
       learningDoneCopy: $("repo-learning-done-copy"),
       learningNextGoal: $("repo-learning-next-goal"),
+      swipe: $("repo-swipe"),
+      swipeHint: $("repo-swipe-hint"),
+      swipeStage: $("repo-swipe-stage"),
+      swipeCard: $("repo-swipe-card"),
+      swipeStatus: $("repo-swipe-status"),
+      swipeDiff: $("repo-swipe-diff"),
+      swipeWhy: $("repo-swipe-why"),
+      swipeActions: $("repo-swipe-actions"),
+      swipeWorse: $("repo-swipe-worse"),
+      swipeBetter: $("repo-swipe-better"),
       pad: $("repo-pad"),
       essayView: $("repo-essay-view"),
       location: $("repo-location"),
@@ -208,6 +227,424 @@
       confirmCancel: $("repo-ex-confirm-cancel"),
       confirmBackdrop: $("repo-ex-confirm-backdrop"),
     };
+  }
+
+  function isMobileSwipeMode() {
+    return (
+      !isWideDesktop() &&
+      isLearningLoop() &&
+      !!state.learningSurfaceOpen &&
+      !!swipeApi
+    );
+  }
+
+  function setSwipeModeClass(on) {
+    if (els.layout) els.layout.classList.toggle("is-swipe-mode", !!on);
+  }
+
+  function setSwipeStatus(message) {
+    if (!els.swipeStatus) return;
+    if (!message) {
+      els.swipeStatus.hidden = true;
+      text(els.swipeStatus, "");
+      return;
+    }
+    els.swipeStatus.hidden = false;
+    text(els.swipeStatus, message);
+  }
+
+  function setSwipeButtonsDisabled(disabled) {
+    if (els.swipeWorse) els.swipeWorse.disabled = !!disabled;
+    if (els.swipeBetter) els.swipeBetter.disabled = !!disabled;
+  }
+
+  function clearSwipeWhyTimer() {
+    if (swipeWhyTimer) {
+      clearTimeout(swipeWhyTimer);
+      swipeWhyTimer = null;
+    }
+  }
+
+  function resetSwipeCardTransform() {
+    if (!els.swipeCard) return;
+    els.swipeCard.classList.remove("is-dragging", "is-exit-left", "is-exit-right");
+    els.swipeCard.style.transform = "";
+    els.swipeCard.style.opacity = "";
+  }
+
+  function renderSwipeDiff(before, after) {
+    if (!els.swipeDiff) return;
+    clear(els.swipeDiff);
+    var lines =
+      swipeApi && typeof swipeApi.compactDiff === "function"
+        ? swipeApi.compactDiff(before, after)
+        : [];
+    if (!lines.length) {
+      var empty = document.createElement("pre");
+      empty.className = "repo-swipe__line repo-swipe__line--ctx";
+      text(empty, before || "");
+      els.swipeDiff.appendChild(empty);
+      return;
+    }
+    lines.forEach(function (line) {
+      var row = document.createElement("pre");
+      var kind = line && line.type === "del"
+        ? "del"
+        : line && line.type === "add"
+          ? "add"
+          : "ctx";
+      row.className = "repo-swipe__line repo-swipe__line--" + kind;
+      text(row, line && line.text != null ? line.text : "");
+      els.swipeDiff.appendChild(row);
+    });
+  }
+
+  function hideSwipeUi() {
+    clearSwipeWhyTimer();
+    swipeBusy = false;
+    swipeCard = null;
+    swipeTouch = null;
+    resetSwipeCardTransform();
+    setSwipeModeClass(false);
+    if (els.swipe) els.swipe.hidden = true;
+    if (els.swipeWhy) {
+      els.swipeWhy.hidden = true;
+      text(els.swipeWhy, "");
+    }
+    if (els.swipeDiff) clear(els.swipeDiff);
+    setSwipeStatus("");
+    setSwipeButtonsDisabled(false);
+  }
+
+  function showSwipeShell() {
+    setSwipeModeClass(true);
+    if (els.swipe) els.swipe.hidden = false;
+    if (els.swipeHint) els.swipeHint.hidden = false;
+    if (els.swipeActions) els.swipeActions.hidden = false;
+  }
+
+  function baselineTextForSwipe() {
+    var tab = activeTab();
+    if (!tab) return "";
+    var node = findNode(tab.exerciseId, tab.nodeId);
+    if (!node || node.type !== "file") return "";
+    var content = node.content || "";
+    if (
+      content &&
+      revision &&
+      typeof revision.stripInstructionalScaffold === "function"
+    ) {
+      content = revision.stripInstructionalScaffold(content);
+    }
+    if (cmEditor && typeof cmEditor.getValue === "function") {
+      try {
+        var live = cmEditor.getValue();
+        if (live != null) content = live;
+      } catch (e) { /* keep node content */ }
+    }
+    return content == null ? "" : String(content);
+  }
+
+  function writeBaselineForSwipe(nextContent) {
+    var tab = activeTab();
+    if (!tab) return Promise.resolve();
+    var content = nextContent == null ? "" : String(nextContent);
+    if (cmEditor && typeof cmEditor.setValue === "function") {
+      try { cmEditor.setValue(content, true); } catch (e) { /* ignore */ }
+    } else if (els.codeEditor) {
+      els.codeEditor.value = content;
+    }
+    state.dirty = true;
+    return persistMutation(
+      "write_file",
+      { exerciseId: tab.exerciseId, nodeId: tab.nodeId, content: content },
+      function (ws) {
+        return core.writeFile(ws, {
+          exerciseId: tab.exerciseId,
+          nodeId: tab.nodeId,
+          content: content,
+        });
+      }
+    ).then(function () {
+      state.dirty = false;
+    }).catch(function () {
+      /* keep in-memory baseline even if save fails */
+    });
+  }
+
+  function loadSwipeCard() {
+    if (!isMobileSwipeMode()) {
+      hideSwipeUi();
+      return Promise.resolve(null);
+    }
+    if (!swipeApi || typeof swipeApi.pickSnippet !== "function") {
+      hideSwipeUi();
+      return Promise.resolve(null);
+    }
+    var progress = normalizeLearningProgress(state.learningProgress);
+    if (isAwaitingEssay(progress) || progress.status === "done") {
+      hideSwipeUi();
+      return Promise.resolve(null);
+    }
+    var baseline = baselineTextForSwipe();
+    if (!String(baseline).trim()) {
+      showSwipeShell();
+      setSwipeStatus("Write a little first, then swipe.");
+      if (els.swipeDiff) clear(els.swipeDiff);
+      if (els.swipeWhy) {
+        els.swipeWhy.hidden = true;
+        text(els.swipeWhy, "");
+      }
+      setSwipeButtonsDisabled(true);
+      return Promise.resolve(null);
+    }
+    var api = resolveClaudeApi();
+    if (!api) {
+      showSwipeShell();
+      setSwipeStatus("Sign in to swipe with Claude.");
+      setSwipeButtonsDisabled(true);
+      return Promise.resolve(null);
+    }
+
+    var tab = activeTab();
+    var node = tab ? findNode(tab.exerciseId, tab.nodeId) : null;
+    var fileName =
+      (progress && progress.fileName) ||
+      (node && node.name) ||
+      "Practice";
+    var seed = swipeCardSeq;
+    swipeCardSeq += 1;
+    var snippet = swipeApi.pickSnippet(baseline, { seed: seed });
+    if (!snippet.before || !String(snippet.before).trim()) {
+      showSwipeShell();
+      setSwipeStatus("Nothing to compare yet.");
+      setSwipeButtonsDisabled(true);
+      return Promise.resolve(null);
+    }
+
+    var userMessage;
+    try {
+      userMessage = swipeApi.buildSwipeUserMessage({
+        fileName: fileName,
+        learningGoal: progress.goalTitle || progress.currentPrompt || "",
+        snippet: snippet.before,
+        recentKinds: swipeRecentKinds,
+      });
+    } catch (err) {
+      showSwipeShell();
+      setSwipeStatus((err && err.message) || "Could not build swipe card.");
+      setSwipeButtonsDisabled(true);
+      return Promise.resolve(null);
+    }
+
+    var model =
+      (swipeApi && swipeApi.MODEL) ||
+      (models && models.EXERCISE_REFACTOR) ||
+      "claude-opus-5-5";
+    var schema =
+      (swipeApi && swipeApi.REPLY_SCHEMA) ||
+      (structuredApi && structuredApi.SWIPE_SCHEMA);
+
+    swipeBusy = true;
+    swipeCard = null;
+    showSwipeShell();
+    resetSwipeCardTransform();
+    if (els.swipeWhy) {
+      els.swipeWhy.hidden = true;
+      text(els.swipeWhy, "");
+    }
+    setSwipeStatus("Asking Claude…");
+    setSwipeButtonsDisabled(true);
+    renderSwipeDiff(snippet.before, snippet.before);
+
+    var runCall =
+      structuredApi &&
+      typeof structuredApi.runStructuredJsonCall === "function" &&
+      schema
+        ? structuredApi.runStructuredJsonCall({
+            callFn: function (payload) {
+              return api.callClaude(payload);
+            },
+            system: swipeApi.SYSTEM_PROMPT,
+            messages: [{ role: "user", content: userMessage }],
+            model: model,
+            maxTokens: 4000,
+            effort: "low",
+            schema: schema,
+            toolName: (swipeApi && swipeApi.TOOL_NAME) || "submit_exercise_swipe",
+            validate: function (payload) {
+              return swipeApi.parseSwipeReply(payload);
+            },
+            friendlyError:
+              (structuredApi && structuredApi.FRIENDLY_ERROR) ||
+              "Claude's reply came back in a shape we couldn't use. Try again.",
+          })
+        : api
+            .callClaude({
+              system: swipeApi.SYSTEM_PROMPT,
+              messages: [{ role: "user", content: userMessage }],
+              model: model,
+              maxTokens: 4000,
+            })
+            .then(function (result) {
+              return {
+                value: swipeApi.parseSwipeReply(result && result.text),
+              };
+            });
+
+    return runCall
+      .then(function (out) {
+        var parsed = out && out.value ? out.value : out;
+        swipeCard = {
+          before: snippet.before,
+          after: parsed.alternative,
+          kind: parsed.kind,
+          why: parsed.why,
+          startOffset: snippet.startOffset,
+          endOffset: snippet.endOffset,
+          baseline: baseline,
+        };
+        renderSwipeDiff(snippet.before, parsed.alternative);
+        setSwipeStatus("");
+        setSwipeButtonsDisabled(false);
+        return swipeCard;
+      })
+      .catch(function (err) {
+        setSwipeStatus((err && err.message) || "Could not load a card.");
+        setSwipeButtonsDisabled(false);
+        return null;
+      })
+      .then(function (card) {
+        swipeBusy = false;
+        return card;
+      });
+  }
+
+  function revealSwipeWhyThenNext() {
+    clearSwipeWhyTimer();
+    swipeWhyTimer = setTimeout(function () {
+      swipeWhyTimer = null;
+      if (!isMobileSwipeMode()) return;
+      loadSwipeCard();
+    }, 1400);
+  }
+
+  function finishSwipe(direction) {
+    if (swipeBusy || !swipeCard) return;
+    if (!isMobileSwipeMode()) return;
+    var card = swipeCard;
+    var dir = String(direction || "").toLowerCase();
+    var swipeLabel = dir === "right" || dir === "better" ? "right" : "left";
+    swipeBusy = true;
+    setSwipeButtonsDisabled(true);
+    if (els.swipeCard) {
+      els.swipeCard.classList.add(
+        swipeLabel === "right" ? "is-exit-right" : "is-exit-left"
+      );
+    }
+    swipeRecentKinds.push(card.kind);
+    if (swipeRecentKinds.length > 4) swipeRecentKinds = swipeRecentKinds.slice(-4);
+
+    var update =
+      swipeApi && typeof swipeApi.shouldUpdateBaseline === "function"
+        ? swipeApi.shouldUpdateBaseline(card.kind, swipeLabel)
+        : card.kind === "better" && swipeLabel === "right";
+
+    var afterReveal = function () {
+      if (els.swipeWhy) {
+        els.swipeWhy.hidden = false;
+        text(els.swipeWhy, card.why || "");
+      }
+      setSwipeStatus("");
+      swipeCard = null;
+      revealSwipeWhyThenNext();
+    };
+
+    var applyPromise = Promise.resolve();
+    if (update) {
+      var next = swipeApi.applySnippetReplacement(
+        card.baseline,
+        card.startOffset,
+        card.endOffset,
+        card.after
+      );
+      applyPromise = writeBaselineForSwipe(next);
+    }
+
+    applyPromise
+      .then(function () {
+        afterReveal();
+      })
+      .catch(function () {
+        afterReveal();
+      })
+      .then(function () {
+        swipeBusy = false;
+      });
+  }
+
+  function onSwipePointerDown(event) {
+    if (!isMobileSwipeMode() || swipeBusy || !swipeCard || !els.swipeCard) return;
+    if (els.swipeWhy && !els.swipeWhy.hidden) return;
+    var point = event.touches && event.touches[0] ? event.touches[0] : event;
+    if (!point) return;
+    swipeTouch = {
+      id: point.identifier,
+      x: point.clientX,
+      y: point.clientY,
+    };
+    els.swipeCard.classList.add("is-dragging");
+  }
+
+  function onSwipePointerMove(event) {
+    if (!swipeTouch || !els.swipeCard) return;
+    var point = null;
+    if (event.touches && event.touches.length) {
+      for (var i = 0; i < event.touches.length; i += 1) {
+        if (event.touches[i].identifier === swipeTouch.id) {
+          point = event.touches[i];
+          break;
+        }
+      }
+      if (!point) point = event.touches[0];
+    } else {
+      point = event;
+    }
+    if (!point) return;
+    var dx = point.clientX - swipeTouch.x;
+    var dy = point.clientY - swipeTouch.y;
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    if (event.cancelable) event.preventDefault();
+    var rot = Math.max(-10, Math.min(10, dx / 18));
+    els.swipeCard.style.transform =
+      "translateX(" + dx + "px) rotate(" + rot + "deg)";
+    els.swipeCard.style.opacity = String(
+      Math.max(0.55, 1 - Math.abs(dx) / 420)
+    );
+  }
+
+  function onSwipePointerUp(event) {
+    if (!swipeTouch || !els.swipeCard) return;
+    var point = null;
+    if (event.changedTouches && event.changedTouches.length) {
+      for (var i = 0; i < event.changedTouches.length; i += 1) {
+        if (event.changedTouches[i].identifier === swipeTouch.id) {
+          point = event.changedTouches[i];
+          break;
+        }
+      }
+      if (!point) point = event.changedTouches[0];
+    } else {
+      point = event;
+    }
+    var dx = point ? point.clientX - swipeTouch.x : 0;
+    swipeTouch = null;
+    els.swipeCard.classList.remove("is-dragging");
+    if (Math.abs(dx) >= 90) {
+      finishSwipe(dx > 0 ? "right" : "left");
+      return;
+    }
+    resetSwipeCardTransform();
   }
 
   function isLearningLoop() {
@@ -479,6 +916,7 @@
     state.selected = { exerciseId: null, nodeId: null };
     setUndoSnapshot(null);
     clearAppliedHighlight();
+    hideSwipeUi();
     showWritingChrome(true);
     renderLearningChrome();
     render();
@@ -1024,6 +1462,7 @@
       if (els.codeRefactorPanel) els.codeRefactorPanel.hidden = true;
       if (els.layout) els.layout.classList.remove("is-code-open");
       if (document.body) document.body.classList.remove("repo-code-open");
+      hideSwipeUi();
       clearEvaluateUi();
       clearRefactorUi();
       clearDesktopStepPreview();
@@ -2332,6 +2771,21 @@
       return;
     }
     clearDesktopStepPreview();
+    // Mobile learning: swipe cards instead of the desktop editor chrome.
+    if (isMobileSwipeMode()) {
+      destroyCm();
+      if (els.codeSave) els.codeSave.hidden = true;
+      if (els.codeRefactor) els.codeRefactor.hidden = true;
+      if (els.codeThatsEverything) els.codeThatsEverything.hidden = true;
+      if (els.codeUndo) els.codeUndo.hidden = true;
+      if (els.codeSurface) els.codeSurface.hidden = true;
+      renderLearningChrome();
+      if (!swipeCard && !swipeBusy) loadSwipeCard();
+      else showSwipeShell();
+      return;
+    }
+    hideSwipeUi();
+    if (els.codeSurface) els.codeSurface.hidden = false;
     ensureCm(node.name, content);
     if (els.codeSave) els.codeSave.hidden = true;
     if (els.codeRefactor) els.codeRefactor.hidden = true;
@@ -3036,6 +3490,41 @@
         }
       });
     }
+    if (els.swipeWorse) {
+      els.swipeWorse.addEventListener("click", function () {
+        finishSwipe("left");
+      });
+    }
+    if (els.swipeBetter) {
+      els.swipeBetter.addEventListener("click", function () {
+        finishSwipe("right");
+      });
+    }
+    if (els.swipeCard) {
+      els.swipeCard.addEventListener("touchstart", onSwipePointerDown, { passive: true });
+      els.swipeCard.addEventListener("touchmove", onSwipePointerMove, { passive: false });
+      els.swipeCard.addEventListener("touchend", onSwipePointerUp);
+      els.swipeCard.addEventListener("touchcancel", onSwipePointerUp);
+      els.swipeCard.addEventListener("pointerdown", function (event) {
+        if (event.pointerType === "touch") return;
+        onSwipePointerDown(event);
+      });
+      window.addEventListener("pointermove", function (event) {
+        if (!swipeTouch || event.pointerType === "touch") return;
+        onSwipePointerMove(event);
+      });
+      window.addEventListener("pointerup", function (event) {
+        if (!swipeTouch || event.pointerType === "touch") return;
+        onSwipePointerUp(event);
+      });
+    }
+    var swipeMedia = window.matchMedia && window.matchMedia("(min-width: 801px)");
+    if (swipeMedia && swipeMedia.addEventListener) {
+      swipeMedia.addEventListener("change", function () {
+        if (isWideDesktop()) hideSwipeUi();
+        else if (isMobileSwipeMode() && !swipeCard && !swipeBusy) loadSwipeCard();
+      });
+    }
     if (els.confirmDelete) els.confirmDelete.addEventListener("click", confirmDelete);
     if (els.confirmCancel) els.confirmCancel.addEventListener("click", closeConfirm);
     if (els.confirmBackdrop) els.confirmBackdrop.addEventListener("click", closeConfirm);
@@ -3142,11 +3631,34 @@
     },
     renderLearningChrome: renderLearningChrome,
     isLearningSurfaceOpen: function () { return !!state.learningSurfaceOpen; },
+    loadSwipeCard: loadSwipeCard,
+    finishSwipe: finishSwipe,
+    isMobileSwipeMode: isMobileSwipeMode,
     // test helpers
     _setWorkspace: function (ws) {
       applyWorkspace(ws);
       state.localOnly = true;
       render();
+    },
+    _setSwipeCard: function (card) {
+      clearSwipeWhyTimer();
+      swipeBusy = false;
+      swipeTouch = null;
+      swipeCard = card || null;
+      resetSwipeCardTransform();
+      if (card) {
+        showSwipeShell();
+        renderSwipeDiff(card.before, card.after);
+        if (els.swipeWhy) {
+          els.swipeWhy.hidden = true;
+          text(els.swipeWhy, "");
+        }
+        setSwipeStatus("");
+        setSwipeButtonsDisabled(false);
+      }
+    },
+    _getSwipeCard: function () {
+      return swipeCard;
     },
     _state: state,
   };
