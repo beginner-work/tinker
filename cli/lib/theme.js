@@ -9,13 +9,13 @@
  */
 
 const TOKENS = {
-  /** .writing-question in You notepad — --color-ink */
+  /** Reserved (web --color-ink). Bold UI copy uses accent, not ink. */
   ink: { hex: "#1a1a1a", r: 26, g: 26, b: 26, ansi16: 30, ansi256: 234 },
   /** .writing-input body — --color-foreground */
   foreground: { hex: "#2d2a26", r: 45, g: 42, b: 38, ansi16: 30, ansi256: 235 },
   /** hints / secondary — --color-muted */
   muted: { hex: "#6f6a65", r: 111, g: 106, b: 101, ansi16: 90, ansi256: 243 },
-  /** success / primary accent — --color-accent-strong */
+  /** Bold questions / success / brand — --color-accent-strong */
   accent: { hex: "#6366f1", r: 99, g: 102, b: 241, ansi16: 35, ansi256: 99 },
   /** errors — --color-danger */
   danger: { hex: "#b42318", r: 180, g: 35, b: 24, ansi16: 31, ansi256: 160 },
@@ -99,7 +99,9 @@ function createTheme(opts = {}) {
   function paint(token, text, { bold = false, dim = false } = {}) {
     const s = String(text == null ? "" : text);
     if (!enabled || !s) return s;
-    let open = fgSeq(token, level);
+    // Bold copy is always Tinker accent purple (questions, success, headings).
+    const fg = bold ? TOKENS.accent : token;
+    let open = fgSeq(fg, level);
     if (bold) open += BOLD;
     if (dim) open += DIM;
     return open + s + RESET;
@@ -107,7 +109,8 @@ function createTheme(opts = {}) {
 
   function open(token, { bold = false, dim = false } = {}) {
     if (!enabled) return "";
-    let seq = fgSeq(token, level);
+    const fg = bold ? TOKENS.accent : token;
+    let seq = fgSeq(fg, level);
     if (bold) seq += BOLD;
     if (dim) seq += DIM;
     return seq;
@@ -118,9 +121,9 @@ function createTheme(opts = {}) {
     enabled,
     tokens: TOKENS,
     reset: enabled ? RESET : "",
-    /** Question line — ink + bold (web writing-question). */
+    /** Question line — accent purple + bold. */
     question(text) {
-      return paint(TOKENS.ink, text, { bold: true });
+      return paint(TOKENS.accent, text, { bold: true });
     },
     /** Typed / body copy — foreground. */
     body(text) {

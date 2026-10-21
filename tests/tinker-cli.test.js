@@ -298,25 +298,36 @@ test("colorLevel respects NO_COLOR, FORCE_COLOR, and non-TTY", () => {
 test("theme paints question/body/success/error with truecolor and falls back", () => {
   const truecolor = createTheme({ level: 3 });
   const q = truecolor.question("What are you learning?");
-  assert.match(q, /\x1b\[38;2;26;26;26m/);
+  // Bold questions use accent purple, not ink.
+  assert.match(q, /\x1b\[38;2;99;102;241m/);
   assert.match(q, /\x1b\[1m/);
   assert.match(q, /What are you learning\?/);
   assert.match(q, /\x1b\[0m/);
+  assert.equal(/\x1b\[38;2;26;26;26m/.test(q), false);
 
   const body = truecolor.body("typed answer");
   assert.match(body, /\x1b\[38;2;45;42;38m/);
+  assert.equal(/\x1b\[1m/.test(body), false);
 
   const ok = truecolor.success("Saved to Notion.");
   assert.match(ok, /\x1b\[38;2;99;102;241m/);
+  assert.match(ok, /\x1b\[1m/);
   assert.match(ok, /Saved to Notion\./);
+
+  // Any bold paint uses accent, even if another token was requested.
+  const boldInk = truecolor.paint(TOKENS.ink, "Bold label", { bold: true });
+  assert.match(boldInk, /\x1b\[38;2;99;102;241m/);
+  assert.match(boldInk, /\x1b\[1m/);
 
   const err = truecolor.error("Notion needs a parent page.");
   assert.match(err, /\x1b\[38;2;180;35;24m/);
 
   const c256 = createTheme({ level: 2 });
+  assert.match(c256.question("Q"), /\x1b\[38;5;99m/);
   assert.match(c256.accent("ok"), /\x1b\[38;5;99m/);
 
   const basic = createTheme({ level: 1 });
+  assert.match(basic.question("Q"), /\x1b\[35m/);
   assert.match(basic.error("no"), /\x1b\[31m/);
 
   const plain = createTheme({ level: 0 });
@@ -363,11 +374,13 @@ test("coach loop styles question and Saved to Notion with accent when color on",
     saveEssay: async () => ({ ok: true }),
     theme,
   });
-  assert.match(lines[0], /\x1b\[38;2;26;26;26m/);
+  assert.match(lines[0], /\x1b\[38;2;99;102;241m/);
+  assert.match(lines[0], /\x1b\[1m/);
   assert.match(lines[0], /What are you learning\?/);
   const saved = lines.find((l) => /Saved to Notion/.test(l));
   assert.ok(saved);
   assert.match(saved, /\x1b\[38;2;99;102;241m/);
+  assert.match(saved, /\x1b\[1m/);
 });
 
 test("coach loop styles Notion errors in danger red when color on", async () => {

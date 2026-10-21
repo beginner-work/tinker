@@ -216,7 +216,7 @@ const beforeAnsi = renderSession(0);
 const afterAnsi = renderSession(3);
 
 fs.writeFileSync(path.join(outDir, "before.html"), pageHtml("before", beforeAnsi, "Before — plain (NO_COLOR / non-TTY)"));
-fs.writeFileSync(path.join(outDir, "after.html"), pageHtml("after", afterAnsi, "After — truecolor (web writing tokens)"));
+fs.writeFileSync(path.join(outDir, "after.html"), pageHtml("after", afterAnsi, "After — bold questions in accent purple"));
 fs.writeFileSync(path.join(outDir, "before.txt"), beforeAnsi + "\n");
 fs.writeFileSync(path.join(outDir, "after.txt"), afterAnsi + "\n");
 
