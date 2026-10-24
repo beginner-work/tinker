@@ -80,6 +80,11 @@ During a session, type an answer and press Enter. Finish with
 the app) and `POST`s `/api/notion-essays`. Success prints `Saved to Notion.`
 Missing parent page prints an explicit error (not a silent skip).
 
+Terminal colors match the web writing UI (bold questions in accent purple,
+body text, muted hints, accent purple for `Saved to Notion.`, red for
+errors) via ANSI truecolor with 256/16-color fallback. `NO_COLOR` and
+non-TTY output disable color.
+
 Sample session:
 
 ```text

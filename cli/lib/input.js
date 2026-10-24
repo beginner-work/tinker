@@ -5,6 +5,7 @@ const { spawnSync } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { getTheme, rlHide } = require("./theme.js");
 
 /**
  * Compact inline input for a short terminal panel.
@@ -40,12 +41,26 @@ function isQuitPhrase(line) {
   return s === ".quit" || s === ".exit" || s === "quit";
 }
 
+function resetOutput(rl, theme) {
+  if (theme && theme.enabled && theme.reset && rl && rl.output) {
+    rl.output.write(theme.reset);
+  }
+}
+
 /**
  * Read an answer. Multi-line: keep reading until a lone "." line.
  * First line alone + Enter is enough for short answers.
+ * Prompt is muted; typed text uses the web body color when color is on.
  */
-async function readAnswer(rl, { prompt = "> " } = {}) {
-  const first = await question(rl, prompt);
+async function readAnswer(rl, { prompt = "> ", theme = getTheme() } = {}) {
+  const styledPrompt = theme.prompt(prompt);
+  // Continuation: no "> ", but keep body color for typed lines.
+  const cont = theme.enabled
+    ? rlHide(theme.reset + theme.bodyOpen())
+    : "";
+
+  const first = await question(rl, styledPrompt);
+  resetOutput(rl, theme);
   if (isFinishPhrase(first) || isQuitPhrase(first)) {
     return { kind: isFinishPhrase(first) ? "finish" : "quit", text: "" };
   }
@@ -78,7 +93,8 @@ async function readAnswer(rl, { prompt = "> " } = {}) {
   }
 
   for (;;) {
-    const line = await question(rl, "");
+    const line = await question(rl, cont);
+    resetOutput(rl, theme);
     if (isFinishPhrase(line)) {
       return {
         kind: "finish",
