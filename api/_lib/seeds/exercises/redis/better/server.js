@@ -11,11 +11,11 @@ const PORT = Number(process.env.PORT || 5202);
 const DATABASE_URL =
   process.env.DATABASE_URL ||
   "postgres://exercise:exercise@127.0.0.1:5435/catalog";
-const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+const CACHE_ADDR = process.env.CACHE_ADDR || "redis://127.0.0.1:6379";
 const QUERY_DELAY_MS = Number(process.env.QUERY_DELAY_MS || 50);
 
 const pool = new pg.Pool({ connectionString: DATABASE_URL, max: 20 });
-const redis = new Redis(REDIS_URL, { maxRetriesPerRequest: 1 });
+const redis = new Redis(CACHE_ADDR, { maxRetriesPerRequest: 1 });
 const cache = createCache(redis, { ttlSeconds: 30, lockTtlMs: 2000 });
 let dbQueries = 0;
 
