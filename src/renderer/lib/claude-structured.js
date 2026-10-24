@@ -93,6 +93,17 @@
     additionalProperties: false,
   };
 
+  const SWIPE_SCHEMA = {
+    type: "object",
+    properties: {
+      alternative: { type: "string" },
+      kind: { type: "string", enum: ["better", "worse"] },
+      why: { type: "string" },
+    },
+    required: ["alternative", "kind", "why"],
+    additionalProperties: false,
+  };
+
   const REVISE_SCHEMA = {
     type: "object",
     properties: {
@@ -341,6 +352,7 @@
     FRIENDLY_ERROR: FRIENDLY_ERROR,
     EVALUATE_SCHEMA: EVALUATE_SCHEMA,
     REFACTOR_SCHEMA: REFACTOR_SCHEMA,
+    SWIPE_SCHEMA: SWIPE_SCHEMA,
     REVISE_SCHEMA: REVISE_SCHEMA,
     JSON_SCHEMA_MODEL_PREFIXES: JSON_SCHEMA_MODEL_PREFIXES,
     supportsJsonSchemaOutput: supportsJsonSchemaOutput,
