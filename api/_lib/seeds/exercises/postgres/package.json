@@ -1,0 +1,15 @@
+{
+  "name": "postgres-scaling",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "node scripts/seed.js",
+    "baseline": "node baseline/server.js",
+    "better": "node better/api/server.js",
+    "compare": "node scripts/compare.js",
+    "partition-check": "node scripts/partition-check.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

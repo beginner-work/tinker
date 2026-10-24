@@ -1,0 +1,11 @@
+{
+  "name": "prometheus-grafana-scale",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "baseline": "node baseline/app/server.js",
+    "better": "node better/app/server.js",
+    "incident": "node scripts/mock-incident.js",
+    "compare": "node scripts/compare.mjs"
+  }
+}

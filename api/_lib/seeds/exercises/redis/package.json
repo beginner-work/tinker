@@ -1,0 +1,16 @@
+{
+  "name": "redis-cache-scale",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "node scripts/seed.js",
+    "baseline": "node baseline/server.js",
+    "better": "node better/server.js",
+    "stampede": "node scripts/stampede.js",
+    "compare": "node scripts/compare.mjs"
+  },
+  "dependencies": {
+    "ioredis": "^5.4.2",
+    "pg": "^8.13.1"
+  }
+}

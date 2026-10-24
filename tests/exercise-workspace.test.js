@@ -39,10 +39,20 @@ function seeded() {
 
 test("seed builds api-design tree from lindowlabs snapshot", () => {
   const ws = seeded();
-  assert.deepEqual(Object.keys(ws.exercises).sort(), ["api-design"]);
+  assert.deepEqual(Object.keys(ws.exercises).sort(), [
+    "api-design",
+    "optimizely",
+    "postgres",
+    "prometheus-grafana",
+    "redis",
+    "stripe",
+    "vercel-ai-mcp",
+  ]);
   assert.ok(ws.exercises["api-design"]);
   assert.ok(ws.exercises["api-design"].nodes.length > 0);
   assert.ok(ws.exerciseOrder.includes("api-design"));
+  assert.ok(ws.exercises.postgres);
+  assert.ok(ws.exercises.redis);
   assert.equal(ws.exercises["stripe-payment-intent"], undefined);
   assert.equal(ws.exercises["formation-persistent-storage"], undefined);
   const names = ws.exercises["api-design"].nodes.map((n) => n.name);
@@ -163,6 +173,11 @@ test("reorder_exercises changes order without touching trees", () => {
 
 test("pruneRetiredCurriculum drops Formation, stripe, deleted labs, and api-design extras", () => {
   const ws = seeded();
+  // Isolate api-design so keepIds pruning assertions stay focused.
+  Object.keys(ws.exercises).forEach((id) => {
+    if (id !== "api-design") delete ws.exercises[id];
+  });
+  ws.exerciseOrder = ["api-design"];
   const ownerReadme = ws.exercises["api-design"].nodes.find((n) => n.name === "README.md");
   assert.ok(ownerReadme);
   core.renameNode(ws, {
@@ -389,7 +404,17 @@ test("merge then prune matches list/sync cleanup for legacy sidebars", () => {
     keepIds: seedWs.exerciseOrder.slice(),
   });
   assert.equal(pruned.changed, true);
-  assert.deepEqual(Object.keys(pruned.workspace.exercises), ["api-design"]);
+  assert.deepEqual(Object.keys(pruned.workspace.exercises).sort(), [
+    "api-design",
+    "optimizely",
+    "postgres",
+    "prometheus-grafana",
+    "redis",
+    "stripe",
+    "vercel-ai-mcp",
+  ]);
+  assert.equal(pruned.workspace.exercises["formation-persistent-storage"], undefined);
+  assert.equal(pruned.workspace.exercises["stripe-payment-intent"], undefined);
   assert.equal(pruned.workspace.exercises["api-design"].name, seedWs.exercises["api-design"].name);
   assert.ok(
     pruned.workspace.exercises["api-design"].nodes.some(

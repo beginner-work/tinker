@@ -56,13 +56,23 @@ function loadOpen() {
   return sandbox.window.tinkerExercisesOpen || sandbox.module.exports;
 }
 
+const EXPECTED_MODULE_IDS = [
+  "api-design",
+  "postgres",
+  "optimizely",
+  "vercel-ai-mcp",
+  "prometheus-grafana",
+  "stripe",
+  "redis",
+];
+
 test("manifest lists Tinker modules and readings, easy to extend", () => {
   assert.equal(manifest.repo, "tlindow/lindowlabs");
   assert.equal(manifest.exercisesRoot, "exercises");
   assert.ok(Array.isArray(manifest.modules));
-  assert.equal(manifest.modules.length, 1);
+  assert.equal(manifest.modules.length, EXPECTED_MODULE_IDS.length);
   const ids = manifest.modules.map((m) => m.id);
-  assert.deepEqual(ids, ["api-design"]);
+  assert.deepEqual(ids, EXPECTED_MODULE_IDS);
   assert.equal(manifest.modules[0].path, "exercises/api-design");
   assert.equal(manifest.modules[0].externalUrl, undefined);
   assert.match(manifest.modules[0].topic, /API design/i);
@@ -70,6 +80,8 @@ test("manifest lists Tinker modules and readings, easy to extend", () => {
   assert.match(manifest.modules[0].description, /payments/i);
   assert.ok(manifest.modules[0].tags.includes("openapi"));
   assert.ok(manifest.modules[0].tags.includes("payments"));
+  assert.equal(manifest.modules.find((m) => m.id === "postgres").path, "exercises/postgres");
+  assert.equal(manifest.modules.find((m) => m.id === "redis").path, "exercises/redis");
   for (const mod of manifest.modules) {
     assert.match(mod.id, lab.MODULE_ID_RE);
     assert.equal(typeof mod.name, "string");
@@ -169,9 +181,9 @@ test("exercises page copy is Tinker-home, with logo and reading section", () => 
   assert.match(html, /never stores non-owners' writing/);
   assert.equal(/lindowlabs/i.test(html), false);
   assert.equal(html.includes("beginner.work"), false);
-  assert.match(html, /src="\/exercises\/manifest\.js\?v=37"/);
-  assert.match(html, /src="\/exercises\/exercises-open\.js\?v=37"/);
-  assert.match(html, /src="\/exercises\/exercises\.js\?v=37"/);
+  assert.match(html, /src="\/exercises\/manifest\.js\?v=38"/);
+  assert.match(html, /src="\/exercises\/exercises-open\.js\?v=38"/);
+  assert.match(html, /src="\/exercises\/exercises\.js\?v=38"/);
   assert.match(pageJs, /Open in IDE/);
   assert.match(pageJs, /View on GitHub/);
   assert.match(pageJs, /Open link/);
@@ -564,7 +576,7 @@ test("exercise Open in Cursor and GitHub links point at tlindow/lindowlabs", () 
   assert.equal(lab.EXERCISES_REPO, "tlindow/lindowlabs");
   assert.equal(lab.REPO_SLUG, "tlindow/lindowlabs");
 
-  for (const id of ["api-design"]) {
+  for (const id of EXPECTED_MODULE_IDS) {
     const tree =
       "https://github.com/tlindow/lindowlabs/tree/main/exercises/" + id;
     assert.equal(open.githubModuleUrl(id), tree);
@@ -606,7 +618,7 @@ test("exercise catalog never includes Formation curriculum or deleted lindowlabs
     "stripe-payment-intent",
   ];
   const ids = manifest.modules.map((m) => m.id);
-  assert.deepEqual(ids, ["api-design"]);
+  assert.deepEqual(ids, EXPECTED_MODULE_IDS);
   for (const id of deletedIds) {
     assert.equal(ids.includes(id), false, "manifest still lists " + id);
   }
@@ -634,7 +646,7 @@ test("exercise catalog never includes Formation curriculum or deleted lindowlabs
   for (const seedPath of seedPaths) {
     const seed = JSON.parse(fs.readFileSync(seedPath, "utf8"));
     const exerciseIds = Object.keys(seed.exercises || {});
-    assert.deepEqual(exerciseIds, ["api-design"]);
+    assert.deepEqual(exerciseIds, EXPECTED_MODULE_IDS);
     for (const id of deletedIds) {
       assert.equal(exerciseIds.includes(id), false, path.basename(seedPath) + " still has " + id);
     }

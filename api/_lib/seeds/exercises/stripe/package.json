@@ -1,0 +1,15 @@
+{
+  "name": "stripe-webhooks-scale",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "baseline": "node baseline/server.js",
+    "better": "node better/server.js",
+    "burst": "node scripts/burst-replay.js",
+    "test:idempotency": "node better/tests/idempotency.test.js",
+    "compare": "node scripts/compare.mjs"
+  },
+  "dependencies": {
+    "stripe": "^17.5.0"
+  }
+}

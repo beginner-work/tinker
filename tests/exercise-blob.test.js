@@ -84,6 +84,8 @@ test("isRetiredExerciseId bans Formation by name", () => {
   assert.equal(blob.isRetiredExerciseId("formation-persistent-storage"), true);
   assert.equal(blob.isRetiredExerciseId("Formation-Lab"), true);
   assert.equal(blob.isRetiredExerciseId("api-design"), false);
+  assert.equal(blob.isRetiredExerciseId("stripe"), false);
+  assert.equal(blob.isRetiredExerciseId("redis"), false);
 });
 
 test("writeSeedWorkspace skips when token missing", async () => {
@@ -199,5 +201,13 @@ test("workspaceNodesToSeedPaths rebuilds relative paths", () => {
 
 test("checked-in seed never mentions Formation", () => {
   assert.equal(/formation/i.test(JSON.stringify(seed)), false);
-  assert.deepEqual(Object.keys(seed.exercises || {}), ["api-design"]);
+  assert.deepEqual(Object.keys(seed.exercises || {}), [
+    "api-design",
+    "postgres",
+    "optimizely",
+    "vercel-ai-mcp",
+    "prometheus-grafana",
+    "stripe",
+    "redis",
+  ]);
 });

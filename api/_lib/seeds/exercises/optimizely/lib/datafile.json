@@ -1,0 +1,58 @@
+{
+  "version": "4",
+  "projectId": "tinker_local",
+  "accountId": "tinker_local",
+  "revision": "1",
+  "botFiltering": false,
+  "audiences": [],
+  "attributes": [],
+  "events": [
+    {
+      "id": "1001",
+      "key": "onboarding_completed",
+      "experimentIds": ["exp_onboarding"]
+    }
+  ],
+  "featureFlags": [
+    {
+      "id": "ff_onboarding",
+      "key": "onboarding_checklist",
+      "experimentIds": ["exp_onboarding"],
+      "rolloutId": "",
+      "variables": []
+    }
+  ],
+  "rollouts": [],
+  "experiments": [
+    {
+      "id": "exp_onboarding",
+      "key": "onboarding_checklist_experiment",
+      "status": "Running",
+      "layerId": "layer_1",
+      "audienceIds": [],
+      "variations": [
+        {
+          "id": "var_control",
+          "key": "checklist_v1",
+          "featureEnabled": true,
+          "variables": []
+        },
+        {
+          "id": "var_treatment",
+          "key": "checklist_v2",
+          "featureEnabled": true,
+          "variables": []
+        }
+      ],
+      "trafficAllocation": [
+        { "entityId": "var_control", "endOfRange": 5000 },
+        { "entityId": "var_treatment", "endOfRange": 10000 }
+      ],
+      "forcedVariations": {}
+    }
+  ],
+  "groups": [],
+  "anonymizeIP": true,
+  "sdkKey": "local_stub",
+  "environmentKey": "development"
+}
