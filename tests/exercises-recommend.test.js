@@ -168,7 +168,15 @@ test("write pad no longer shows Grok Bot or Try in Cursor handoffs", () => {
 
 test("curriculum modules exclude daylight-saving and outreach reps", () => {
   const ids = manifest.modules.map((m) => m.id);
-  assert.deepEqual(ids, ["api-design"]);
+  assert.deepEqual(ids, [
+    "api-design",
+    "vercel-ai-mcp",
+    "stripe",
+    "postgres",
+    "optimizely",
+    "prometheus-grafana",
+    "redis",
+  ]);
   assert.equal(ids.includes("pacific-wall-time"), false);
   assert.equal(ids.includes("mark-touch-sent"), false);
   assert.equal(fs.existsSync(path.join(root, "exercises/pacific-wall-time.js")), false);

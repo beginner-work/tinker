@@ -1,0 +1,6 @@
+{
+  "name": "prometheus-grafana-exercise",
+  "private": true,
+  "type": "module",
+  "scripts": { "check": "node check.mjs" }
+}

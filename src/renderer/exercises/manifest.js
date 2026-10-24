@@ -37,6 +37,106 @@
           "yaml",
         ],
       },
+      {
+        id: "vercel-ai-mcp",
+        name: "Scaling agents (AI SDK + MCP)",
+        description:
+          "45-minute Tinker drill: diff baseline vs better agent files. Move from one-at-a-time stub LLM and MCP tools to a concurrent queue. Run node check.mjs.",
+        topic: "Agents",
+        status: "Not started",
+        path: "exercises/vercel-ai-mcp",
+        tags: [
+          "vercel ai sdk",
+          "mcp",
+          "agents",
+          "queue",
+          "evals",
+          "baseline",
+          "better",
+        ],
+      },
+      {
+        id: "stripe",
+        name: "Stripe webhooks at scale",
+        description:
+          "45-minute Tinker drill: diff baseline vs better webhook handlers. Add an idempotency ledger, retries, and a dead-letter queue. Run node check.mjs.",
+        topic: "Payments",
+        status: "Not started",
+        path: "exercises/stripe",
+        tags: [
+          "stripe",
+          "webhooks",
+          "idempotency",
+          "dead letter queue",
+          "baseline",
+          "better",
+        ],
+      },
+      {
+        id: "postgres",
+        name: "Scaling Postgres",
+        description:
+          "45-minute Tinker drill: diff baseline vs better DB access. Replace connect-per-request with an in-process pool under fake load. Run node check.mjs.",
+        topic: "Databases",
+        status: "Not started",
+        path: "exercises/postgres",
+        tags: [
+          "postgres",
+          "connection pool",
+          "baseline",
+          "better",
+        ],
+      },
+      {
+        id: "optimizely",
+        name: "Optimizely at the edge",
+        description:
+          "45-minute Tinker drill: diff baseline vs better flag decide. Replace a fake network hop with local datafile evaluation. Run node check.mjs.",
+        topic: "Experimentation",
+        status: "Not started",
+        path: "exercises/optimizely",
+        tags: [
+          "optimizely",
+          "feature flags",
+          "datafile",
+          "edge",
+          "baseline",
+          "better",
+        ],
+      },
+      {
+        id: "prometheus-grafana",
+        name: "Metrics cardinality under load",
+        description:
+          "45-minute Tinker drill: diff baseline vs better metrics. Drop high-cardinality labels so series stay bounded. Run node check.mjs.",
+        topic: "Reliability",
+        status: "Not started",
+        path: "exercises/prometheus-grafana",
+        tags: [
+          "prometheus",
+          "grafana",
+          "cardinality",
+          "slo",
+          "baseline",
+          "better",
+        ],
+      },
+      {
+        id: "redis",
+        name: "Redis cache at scale",
+        description:
+          "45-minute Tinker drill: diff baseline vs better reads. Add in-process cache-aside with a TTL on a hot key. Run node check.mjs.",
+        topic: "Caching",
+        status: "Not started",
+        path: "exercises/redis",
+        tags: [
+          "redis",
+          "cache-aside",
+          "ttl",
+          "baseline",
+          "better",
+        ],
+      },
     ],
     // Reading order is fixed.
     readings: [

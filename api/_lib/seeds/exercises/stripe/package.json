@@ -1,0 +1,6 @@
+{
+  "name": "stripe-exercise",
+  "private": true,
+  "type": "module",
+  "scripts": { "check": "node check.mjs" }
+}
