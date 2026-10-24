@@ -170,11 +170,11 @@ test("curriculum modules exclude daylight-saving and outreach reps", () => {
   const ids = manifest.modules.map((m) => m.id);
   assert.deepEqual(ids, [
     "api-design",
+    "vercel-ai-mcp",
+    "stripe",
     "postgres",
     "optimizely",
-    "vercel-ai-mcp",
     "prometheus-grafana",
-    "stripe",
     "redis",
   ]);
   assert.equal(ids.includes("pacific-wall-time"), false);

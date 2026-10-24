@@ -1,14 +1,6 @@
 {
-  "name": "optimizely-edge-scale",
+  "name": "optimizely-exercise",
   "private": true,
   "type": "module",
-  "scripts": {
-    "baseline": "node baseline/server.js",
-    "better": "node better/server.js",
-    "compare": "node scripts/compare.mjs",
-    "readout": "node scripts/readout.mjs"
-  },
-  "dependencies": {
-    "@optimizely/optimizely-sdk": "^5.3.4"
-  }
+  "scripts": { "check": "node check.mjs" }
 }

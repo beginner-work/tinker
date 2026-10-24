@@ -47,7 +47,7 @@ test("seed builds api-design tree from lindowlabs snapshot", () => {
     "redis",
     "stripe",
     "vercel-ai-mcp",
-  ]);
+  ]); // sort() alphabetical; manifest order differs
   assert.ok(ws.exercises["api-design"]);
   assert.ok(ws.exercises["api-design"].nodes.length > 0);
   assert.ok(ws.exerciseOrder.includes("api-design"));
@@ -412,7 +412,7 @@ test("merge then prune matches list/sync cleanup for legacy sidebars", () => {
     "redis",
     "stripe",
     "vercel-ai-mcp",
-  ]);
+  ]); // alphabetical
   assert.equal(pruned.workspace.exercises["formation-persistent-storage"], undefined);
   assert.equal(pruned.workspace.exercises["stripe-payment-intent"], undefined);
   assert.equal(pruned.workspace.exercises["api-design"].name, seedWs.exercises["api-design"].name);

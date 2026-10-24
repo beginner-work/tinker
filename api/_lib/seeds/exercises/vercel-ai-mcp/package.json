@@ -1,18 +1,6 @@
 {
-  "name": "vercel-ai-mcp-scale",
+  "name": "vercel-ai-mcp-exercise",
   "private": true,
   "type": "module",
-  "scripts": {
-    "baseline": "node baseline/server.js",
-    "better": "node better/server.js",
-    "evals": "node better/evals/run-evals.js",
-    "compare": "node scripts/compare.mjs",
-    "mcp": "node better/mcp-server/index.js"
-  },
-  "dependencies": {
-    "@ai-sdk/anthropic": "^1.1.0",
-    "@modelcontextprotocol/sdk": "^1.6.1",
-    "ai": "^4.1.0",
-    "zod": "^3.24.1"
-  }
+  "scripts": { "check": "node check.mjs" }
 }

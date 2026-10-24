@@ -2,39 +2,28 @@
 
 ## Goal
 
-Per-request network flag decisions are slow under load. Your focused change: evaluate flags from a **local Optimizely datafile** (edge-friendly) and compare k6 latency.
+Diff `baseline.js` (fake network decide on every call) against `better.js` (local datafile evaluation). Prove local decide is faster under a concurrent batch. No Optimizely account.
 
-## Setup (pre-built)
+## Setup
 
-```bash
-npm install
-# Datafile stub: lib/datafile.json (no Optimizely account)
-# k6: https://grafana.com/docs/k6/latest/set-up/install-k6/
-```
+Nothing to install. Open this folder in the Tinker IDE.
 
-## What to change (core)
+## What to change
 
-1. Start `baseline/server.js` (HTTP hop to a stub CDN on every `/decide`).
-2. Run `k6 run k6/load.js` and note `decide_ms` p95.
-3. Start `better/server.js` (`@optimizely/optimizely-sdk` + local datafile).
-4. Re-run k6 with `TARGET=http://127.0.0.1:3072`.
-5. If stuck, diff how `better/server.js` calls `createInstance` / `decide` versus the baseline `fetch`.
+1. Read `baseline.js`. Every `decide` awaits a fake CDN delay.
+2. Read `better.js`. Flags resolve from an in-memory datafile (Optimizely-shaped).
+3. Edit toward local evaluation.
+4. Run the check.
 
 ## How to verify
 
 ```bash
-npm run baseline
-TARGET=http://127.0.0.1:3071 k6 run k6/load.js --summary-export=k6-summary-baseline.json
-npm run better
-TARGET=http://127.0.0.1:3072 k6 run k6/load.js --summary-export=k6-summary-better.json
-npm run compare
-npm run readout
+node check.mjs
 ```
 
-Done when better p95 is clearly lower and responses show `source: "local_datafile"`.
+Done when better p95 / total ms is clearly lower and assignments stay sticky for a user id.
 
 ## Stretch (optional)
 
-- Change traffic split in `lib/datafile.json` and confirm `npm run readout` moves.
-- Track `onboarding_completed` from the SDK and sketch where an edge worker would refresh the datafile.
-- Lower `CDN_DELAY_MS` on baseline and see how close network decide can get (spoiler: still a hop).
+- Change the traffic split in the datafile and re-check the readout counts.
+- Sketch where an edge worker would refresh the datafile on a timer.

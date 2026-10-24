@@ -1,18 +1,20 @@
 # Library study session exercises
 
-Each module is a **45-minute** baseline-to-better scale drill. Docker Compose, seed data, and the better solution are pre-built so you spend the block on one focused change. Extra depth lives in each README's **Stretch** section.
+Tinker IDE format: each module is **one `baseline.js`**, **one `better.js`**, a short `README.md`, and `check.mjs` that proves the better file wins. Everything runs in-process with Node. No Docker, k6, cloud accounts, or API keys.
 
-| Folder | Stack | 45-minute focus |
-| --- | --- | --- |
-| `postgres` | Postgres | Survive k6 via PgBouncer pooling |
-| `optimizely` | Optimizely | Local datafile eval instead of a network decide |
-| `vercel-ai-mcp` | Vercel AI SDK + MCP | Concurrent job queue instead of one-at-a-time |
-| `prometheus-grafana` | Prometheus + Grafana | Drop high-cardinality labels under k6 |
-| `stripe` | Stripe test mode | Idempotent webhook processing under burst replay |
-| `redis` | Redis + Postgres | Cache-aside with TTL on a hot key |
+| Folder | 45-minute focus |
+| --- | --- |
+| `vercel-ai-mcp` | Concurrent agent queue vs one-at-a-time |
+| `stripe` | Idempotent webhooks vs double-apply on replay |
+| `postgres` | Connection pool vs connect-per-request |
+| `optimizely` | Local flag decide vs fake network hop |
+| `prometheus-grafana` | Bounded metric labels vs high cardinality |
+| `redis` | Cache-aside TTL vs uncached slow reads |
 
-Conventions: `README.md`, `baseline/`, `better/`, scripts, and `k6/` where load testing applies.
+Open the module in Tinker, diff `baseline.js` against `better.js`, edit toward the better shape, then run:
 
 ```bash
-node scripts/pack-exercise-seeds.mjs
+node check.mjs
 ```
+
+Rebuild packed seeds after edits: `node scripts/pack-exercise-seeds.mjs`

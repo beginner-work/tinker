@@ -58,11 +58,11 @@ function loadOpen() {
 
 const EXPECTED_MODULE_IDS = [
   "api-design",
+  "vercel-ai-mcp",
+  "stripe",
   "postgres",
   "optimizely",
-  "vercel-ai-mcp",
   "prometheus-grafana",
-  "stripe",
   "redis",
 ];
 

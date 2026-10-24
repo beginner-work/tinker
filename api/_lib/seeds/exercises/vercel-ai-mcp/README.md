@@ -2,39 +2,29 @@
 
 ## Goal
 
-A Vercel AI SDK + MCP agent handles one request at a time. Your focused change: run agent work on a **concurrent job queue** and re-measure under k6.
+Diff `baseline.js` (one agent request at a time) against `better.js` (job queue + concurrency). Make the better shape win under a fake concurrent load. Stub LLM and MCP tools only. No API keys.
 
-## Setup (pre-built)
+## Setup
 
-```bash
-npm install
-# Optional: ANTHROPIC_API_KEY=... (otherwise a deterministic stub model is used)
-# MCP server: better/mcp-server ( @modelcontextprotocol/sdk )
-# k6: https://grafana.com/docs/k6/latest/set-up/install-k6/
-```
+Nothing to install. Open this folder in the Tinker IDE.
 
-## What to change (core)
+## What to change
 
-1. Start `baseline/server.js` (global mutex; serial `/agent`).
-2. Run `k6 run k6/load.js` and note `agent_wait_ms`.
-3. Start `better/server.js` (queue with concurrency). Confirm `/health` shows queue stats.
-4. Re-run k6 with `TARGET=http://127.0.0.1:3082`.
-5. If stuck, diff the baseline mutex against `better/queue/worker.js` `enqueue`.
+1. Read `baseline.js`. Note the mutex: each `/agent`-style call waits for the previous one.
+2. Read `better.js`. Note `enqueue` with a concurrency limit, plus response cache and parallel evals.
+3. Edit until you understand the queue. Use the better file as the target shape.
+4. Run the check.
 
 ## How to verify
 
 ```bash
-npm run baseline
-TARGET=http://127.0.0.1:3081 k6 run k6/load.js --summary-export=k6-summary-baseline.json
-npm run better
-TARGET=http://127.0.0.1:3082 k6 run k6/load.js --summary-export=k6-summary-better.json
-npm run compare
+node check.mjs
 ```
 
-Done when better wait times stay bounded while baseline climbs with concurrency.
+Done when the check prints `pass` and better finishes the concurrent batch faster than baseline, with evals asserting correct tool choice.
 
 ## Stretch (optional)
 
-- Turn on response caching in the queue (`cacheTtlMs`) and watch `cacheHits` under repeated prompts.
-- Tighten `minIntervalMs` rate limiting and observe throughput versus errors.
-- Run `npm run evals` and compare serial versus parallel eval wall time.
+- Tighten rate limiting (`minIntervalMs`) and watch throughput in the check output.
+- Raise cache TTL and confirm repeated prompts become cache hits.
+- Add another eval case that fails if `search_docs` is chosen for an `ord_` prompt.

@@ -203,11 +203,11 @@ test("checked-in seed never mentions Formation", () => {
   assert.equal(/formation/i.test(JSON.stringify(seed)), false);
   assert.deepEqual(Object.keys(seed.exercises || {}), [
     "api-design",
+    "vercel-ai-mcp",
+    "stripe",
     "postgres",
     "optimizely",
-    "vercel-ai-mcp",
     "prometheus-grafana",
-    "stripe",
     "redis",
   ]);
 });

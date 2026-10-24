@@ -2,39 +2,28 @@
 
 ## Goal
 
-A slow Postgres-backed product endpoint has no cache. Your focused change: add **Redis cache-aside with a TTL** on reads and show k6 latency before versus after.
+Diff `baseline.js` (slow fake DB on every read) against `better.js` (cache-aside with TTL). Prove the hot key gets faster. In-memory fake Redis and DB only.
 
-## Setup (pre-built)
+## Setup
 
-```bash
-docker compose up -d          # Postgres + Redis
-npm install
-npm run seed                  # 200 products; id=1 is the hot key
-# k6: https://grafana.com/docs/k6/latest/set-up/install-k6/
-```
+Nothing to install. Open this folder in the Tinker IDE.
 
-## What to change (core)
+## What to change
 
-1. Start `baseline/server.js` (every GET hits Postgres with delay).
-2. Run `k6 run k6/load.js` and note `product_ms` p95.
-3. Start `better/server.js` (Redis get/set with TTL). Confirm responses show `cache: "hit"` after warm-up.
-4. Re-run k6 with `TARGET=http://127.0.0.1:5202`.
-5. If stuck, diff baseline `loadProduct` against `better/cache.js` `get` / `set`.
+1. Read `baseline.js`. Every `getProduct` pays the DB delay.
+2. Read `better.js`. Cache-aside with TTL; hits skip the DB.
+3. Edit toward cache-aside.
+4. Run the check.
 
 ## How to verify
 
 ```bash
-npm run baseline
-TARGET=http://127.0.0.1:5201 k6 run k6/load.js --summary-export=k6-summary-baseline.json
-npm run better
-TARGET=http://127.0.0.1:5202 HOT_ID=1 k6 run k6/load.js --summary-export=k6-summary-better.json
-npm run compare
+node check.mjs
 ```
 
-Done when better p95 drops sharply and `/health` shows cache hits.
+Done when better finishes the hot-key batch faster and reports cache hits.
 
 ## Stretch (optional)
 
-- Prove **write invalidation**: `POST /products/1` then confirm the next GET refills from Postgres.
-- Run `npm run stampede` for lock / singleflight protection on the hot key.
-- Tune `ttlSeconds` and watch hit rate versus freshness after inventory updates.
+- Invalidate on write and confirm the next read refills.
+- Add singleflight / lock so concurrent misses on a hot key only fill once.

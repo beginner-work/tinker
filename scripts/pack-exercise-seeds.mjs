@@ -20,11 +20,11 @@ const libSeedPath = path.join(
 );
 
 const PACK_IDS = [
+  "vercel-ai-mcp",
+  "stripe",
   "postgres",
   "optimizely",
-  "vercel-ai-mcp",
   "prometheus-grafana",
-  "stripe",
   "redis",
 ];
 

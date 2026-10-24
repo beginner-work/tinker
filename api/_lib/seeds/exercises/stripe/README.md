@@ -2,39 +2,29 @@
 
 ## Goal
 
-Inline webhook handling double-applies when Stripe retries. Your focused change: process events through an **idempotency ledger** so each Stripe `event.id` applies once under burst replay.
+Diff `baseline.js` (inline webhook apply) against `better.js` (idempotency ledger, retries, dead-letter queue). Prove burst replay does not double-apply. Fake Stripe events only. No Stripe account, CLI, or stripe-mock.
 
-## Setup (pre-built)
+## Setup
 
-```bash
-docker compose up -d          # stripe-mock
-npm install
-export STRIPE_API_KEY=sk_test_123
-# k6 optional: https://grafana.com/docs/k6/latest/set-up/install-k6/
-```
+Nothing to install. Open this folder in the Tinker IDE.
 
-## What to change (core)
+## What to change
 
-1. Start `baseline/server.js` (inline apply on the request thread).
-2. Run `npm run burst` and note `duplicates_applied > 0`.
-3. Start `better/server.js` (accept + ledger). Re-run `BETTER=1 npm run burst`.
-4. Confirm `duplicates_applied=0` and side effects equal unique events.
-5. If stuck, diff baseline `applyEvent` against `better/queue/worker.js` ledger checks.
+1. Read `baseline.js`. Replays call `apply` again for the same `event.id`.
+2. Read `better.js`. Note the ledger, retry count, and DLQ for poison messages.
+3. Edit toward the better shape so each event id applies once.
+4. Run the check.
 
 ## How to verify
 
 ```bash
-npm run baseline
-npm run burst
-npm run better
-BETTER=1 npm run burst
-npm run test:idempotency
+node check.mjs
 ```
 
-Done when better burst replay prints `duplicates_applied=0`.
+Done when the check prints `pass`, `duplicates_applied=0` for better, and a poison event lands in the DLQ.
 
 ## Stretch (optional)
 
-- Inspect retries and the **dead-letter queue** for `poison.test` events (`npm run test:idempotency`).
-- Call `POST /v1/payment_intents` with `Idempotency-Key` (agent-safe create) against stripe-mock.
-- Flood with `k6 run k6/load.js` and compare accept latency baseline versus better.
+- Add an agent-safe `createPaymentIntent({ idempotencyKey })` helper that rejects missing keys.
+- Tune `maxAttempts` and confirm poison messages reach the DLQ only after retries.
+- Emit a short timeline log of accept / apply / duplicate / dlq for one burst.

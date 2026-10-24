@@ -2,39 +2,28 @@
 
 ## Goal
 
-A naive Postgres-backed endpoint falls over under k6. Your focused change: send traffic through **PgBouncer** (transaction pooling) and re-measure.
+Diff `baseline.js` (new fake DB connection per request) against `better.js` (shared pool). Under a concurrent fake load, the pool wins. No Docker Postgres.
 
-## Setup (pre-built)
+## Setup
 
-```bash
-docker compose up -d          # primary, replica, PgBouncer
-npm install
-npm run seed                  # flat + partitioned tables already scripted
-# k6: https://grafana.com/docs/k6/latest/set-up/install-k6/
-```
+Nothing to install. Open this folder in the Tinker IDE.
 
-## What to change (core)
+## What to change
 
-1. Start `baseline/server.js` (new connection per request, direct to primary).
-2. Run `k6 run k6/load.js` and note failure rate / p95.
-3. Start `better/api/server.js` (writes through PgBouncer). Confirm `/health` reports `write: "pgbouncer"`.
-4. Re-run k6 with `TARGET=http://127.0.0.1:5402`.
-5. If stuck, diff `baseline/server.js` against `better/api/server.js` and focus on how connections are acquired.
+1. Read `baseline.js`. Each query opens and closes a connection; the fake server has a low `maxConnections`.
+2. Read `better.js`. A small pool reuses connections.
+3. Edit toward the pool shape.
+4. Run the check.
 
 ## How to verify
 
 ```bash
-npm run baseline
-TARGET=http://127.0.0.1:5401 k6 run k6/load.js --summary-export=k6-summary-baseline.json
-npm run better
-TARGET=http://127.0.0.1:5402 k6 run k6/load.js --summary-export=k6-summary-better.json
-npm run compare
+node check.mjs
 ```
 
-Done when better completes the same k6 script with fewer connection errors than baseline.
+Done when better completes the concurrent batch with zero connection errors and lower wall time.
 
 ## Stretch (optional)
 
-- Point reads at the **replica** (`REPLICA_URL`) and confirm `/health` shows `read: "replica"`.
-- Query `events_part` and run `npm run partition-check` to see partition pruning.
-- Tune PgBouncer `DEFAULT_POOL_SIZE` and re-run k6.
+- Add a fake read-replica pool and route `SELECT`s there.
+- Partition a fake `events` table by month and show that a ranged query only scans one partition list.
