@@ -2,7 +2,9 @@
  *
  * A model may list the claims in a draft. This file decides every
  * verdict. Numbers, dates, titles, and employer names are normalized
- * and compared exactly here. A verdict field on a claim is ignored.
+ * here. Resume excerpts on a fact count as evidence alongside value,
+ * so paraphrases of verified wording pass (L7 / Level 7, 99.7% → 99.9%,
+ * 1 to 9 across US/Canada/Poland). A verdict field on a claim is ignored.
  *
  * ready is true only when every claim is a pass. An empty draft, or a
  * draft that yields no claims, is not ready.
@@ -115,11 +117,56 @@ const KIND_ALIASES = {
 function norm(value) {
   return String(value || "")
     .toLowerCase()
+    // Arrows become range words so "99.7% → 99.9%" matches "from 99.7% to 99.9%",
+    // and "1->9" matches "1 to 9".
+    .replace(/[\u2190-\u2193\u21d0-\u21d3]/g, " to ")
+    .replace(/->|<-/g, " to ")
     .replace(/[\u2013\u2014]/g, "-")
-    .replace(/[$]/g, "")
+    .replace(/[$']/g, "")
     .replace(/[^a-z0-9%.\s-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeLevelTokens(value) {
+  return normalizeTitle(value)
+    .replace(/\blevel\s+(\d+)\b/g, "l$1")
+    .replace(/\bl\s+(\d+)\b/g, "l$1");
+}
+
+/** Stored value plus optional baseline/mechanism (not the resume excerpt). */
+function valueBlob(fact) {
+  if (!fact) return "";
+  const parts = [fact.value];
+  if (typeof fact.baseline === "string") parts.push(fact.baseline);
+  if (typeof fact.mechanism === "string") parts.push(fact.mechanism);
+  return parts.filter((part) => typeof part === "string" && part.trim()).join(" ");
+}
+
+/** Value fields plus resume excerpt. Excerpt is paraphrase evidence only. */
+function evidenceBlob(fact) {
+  if (!fact) return "";
+  const parts = [valueBlob(fact)];
+  if (fact.source && typeof fact.source.excerpt === "string") parts.push(fact.source.excerpt);
+  return parts.filter((part) => typeof part === "string" && part.trim()).join(" ");
+}
+
+function claimTokens(value) {
+  const text = normalizeLevelTokens(value);
+  const words = contentWords(text);
+  const levels = text.match(/\bl\d+\b/g) || [];
+  return [...new Set(words.concat(levels))];
+}
+
+/** Paraphrase hit: every distinctive claim token appears in the fact evidence. */
+function paraphraseCovered(claimText, evidenceText) {
+  const claim = normalizeLevelTokens(claimText);
+  const evidence = normalizeLevelTokens(evidenceText);
+  if (!claim || !evidence) return false;
+  if (claim.includes(evidence) || evidence.includes(claim)) return true;
+  const tokens = claimTokens(claim);
+  if (tokens.length < 2) return false;
+  return tokens.every((token) => evidence.includes(token));
 }
 
 function normPlace(value) {
@@ -536,7 +583,9 @@ function mentionsBaseline(text) {
 
 function isBaselineFact(fact) {
   if (!fact || fact.kind !== "metric") return false;
-  if (mentionsBaseline(fact.value)) return true;
+  // Only treat as baseline/mechanism when those fields are filled in.
+  // A meta value like "Mechanism and baseline behind..." with null fields
+  // must still match resume-excerpt paraphrases as a normal metric.
   if (typeof fact.baseline === "string" && fact.baseline.trim()) return true;
   if (typeof fact.mechanism === "string" && fact.mechanism.trim()) return true;
   return false;
@@ -565,10 +614,7 @@ function canonicalAmounts(text) {
 }
 
 function factAmounts(fact) {
-  const parts = [fact.value, fact.baseline, fact.mechanism].filter((part) => {
-    return typeof part === "string" && part.trim();
-  });
-  return canonicalAmounts(parts.join(" "));
+  return canonicalAmounts(evidenceBlob(fact));
 }
 
 function sameAmountSet(left, right) {
@@ -592,8 +638,7 @@ function amountSubject(text) {
 
 function subjectsCompatible(claimText, fact) {
   const claim = amountSubject(claimText);
-  const factBlob = [fact.value, fact.baseline, fact.mechanism].filter((part) => part != null).join(" ");
-  const factSubject = amountSubject(factBlob);
+  const factSubject = amountSubject(evidenceBlob(fact));
   if (!claim || !factSubject || claim === "mixed" || factSubject === "mixed") return true;
   return claim === factSubject;
 }
@@ -725,22 +770,40 @@ function judgeWorkCity(text, rule) {
   return mismatch(text, rule.id, "a listed West Coast office, or the closest tech hub");
 }
 
+function teamFactRange(fact) {
+  return extractTeamRange(evidenceBlob(fact)) || extractTeamRange(fact && fact.value);
+}
+
+function teamFactIsSameSpan(fact) {
+  return isSameTeamSpan(evidenceBlob(fact)) || isSameTeamSpan(fact && fact.value);
+}
+
 function judgeTeam(text, facts) {
   if (isSameTeamSpan(text)) {
-    const combo = facts.find((fact) => fact.kind === "team_size" && isSameTeamSpan(fact.value));
+    const combo = facts.find((fact) => fact.kind === "team_size" && teamFactIsSameSpan(fact));
     if (!combo) return unsupported(text);
     return pass(text, combo.id);
   }
   const range = extractTeamRange(text);
   if (range) {
-    const ranges = facts.filter((fact) => fact.kind === "team_size" && extractTeamRange(fact.value) && !isSameTeamSpan(fact.value));
-    if (!ranges.length) return unsupported(text);
+    const ranges = facts.filter((fact) => fact.kind === "team_size" && teamFactRange(fact) && !teamFactIsSameSpan(fact));
+    // A verified same-team span still supports the plain "1 to 9" figure.
+    const spanMatch = facts.find((fact) => {
+      if (fact.kind !== "team_size" || !teamFactIsSameSpan(fact)) return false;
+      const got = teamFactRange(fact);
+      return got && got.from === range.from && got.to === range.to;
+    });
+    if (!ranges.length) {
+      if (spanMatch) return pass(text, spanMatch.id);
+      return unsupported(text);
+    }
     const exact = ranges.find((fact) => {
-      const got = extractTeamRange(fact.value);
+      const got = teamFactRange(fact);
       return got.from === range.from && got.to === range.to;
     });
     if (exact) return pass(text, exact.id);
-    const sameStart = ranges.find((fact) => extractTeamRange(fact.value).from === range.from) || ranges[0];
+    if (spanMatch) return pass(text, spanMatch.id);
+    const sameStart = ranges.find((fact) => teamFactRange(fact).from === range.from) || ranges[0];
     return mismatch(text, sameStart.id, sameStart.value);
   }
   const count = extractEngineerCount(text);
@@ -814,24 +877,44 @@ function employerToken(text) {
 }
 
 function judgeTitle(text, facts) {
-  const claimTitle = titleOf(text);
+  const claimTitle = normalizeLevelTokens(titleOf(text));
   const claimEmployer = employerOf(text);
   const hits = facts.filter((fact) => {
     if (fact.kind !== "title" || !fact.value) return false;
-    const title = titleOf(fact.value);
+    const title = normalizeLevelTokens(titleOf(fact.value));
     return title && claimTitle.includes(title);
   });
-  if (!hits.length) return unsupported(text);
-  hits.sort((a, b) => titleOf(b.value).length - titleOf(a.value).length);
-  const aligned = hits.find((fact) => {
-    const employer = employerOf(fact.value);
-    return employer && claimEmployer === employer;
+  if (hits.length) {
+    hits.sort((a, b) => titleOf(b.value).length - titleOf(a.value).length);
+    const aligned = hits.find((fact) => {
+      const employer = employerOf(fact.value);
+      return employer && claimEmployer === employer;
+    });
+    if (aligned) return pass(text, aligned.id);
+    const best = hits[0];
+    const employer = employerOf(best.value);
+    if (!employer && !claimEmployer) return pass(text, best.id);
+    return mismatch(text, best.id, best.value);
+  }
+  // Story seeds often store a short meta value with the resume title in the
+  // excerpt (e.g. L7 / Merchant Advocacy). Accept paraphrases of that evidence.
+  // Compare the title side only so a trailing "at Affirm" does not require
+  // Affirm to appear in the story excerpt.
+  const storyClaim = claimTitle || normalizeLevelTokens(text);
+  const story = facts.find((fact) => {
+    return fact.kind === "story" && paraphraseCovered(storyClaim, evidenceBlob(fact));
   });
-  if (aligned) return pass(text, aligned.id);
-  const best = hits[0];
-  const employer = employerOf(best.value);
-  if (!employer && !claimEmployer) return pass(text, best.id);
-  return mismatch(text, best.id, best.value);
+  if (story) return pass(text, story.id);
+  return unsupported(text);
+}
+
+function judgeStory(text, facts) {
+  const stories = facts.filter((fact) => fact.kind === "story" && evidenceBlob(fact));
+  const hit = stories.find((fact) => paraphraseCovered(text, evidenceBlob(fact)));
+  if (hit) return pass(text, hit.id);
+  const asTitle = judgeTitle(text, facts);
+  if (asTitle && asTitle.verdict === "pass") return asTitle;
+  return unsupported(text);
 }
 
 function judgeEmployer(text, facts) {
@@ -926,14 +1009,38 @@ function judgeMetric(text, facts) {
   for (const fact of facts) {
     if (fact.kind !== "metric") continue;
     if (isBaselineFact(fact)) continue;
-    const factMeasures = measuresOf(fact.value).filter((token) => !/^\d$/.test(token));
-    const distinctive = factMeasures.filter((token) => !/^\d$/.test(token));
-    const needed = distinctive.length ? distinctive : factMeasures;
-    if (!needed.length) continue;
-    const words = contentWords(fact.value).filter((word) => !needed.some((token) => token.includes(word)));
+    const valueText = valueBlob(fact) || String(fact.value || "");
+    const evidence = evidenceBlob(fact);
+    // Numbers required of the claim come from the stored value. Excerpt
+    // numbers (extra resume context) must not make a true claim fail.
+    const valueMeasures = measuresOf(valueText).filter((token) => !/^\d$/.test(token));
+    const evidenceMeasures = measuresOf(evidence).filter((token) => !/^\d$/.test(token));
+    const distinctive = valueMeasures.filter((token) => !/^\d$/.test(token));
+    const needed = distinctive.length ? distinctive : valueMeasures;
+    if (!needed.length) {
+      if (paraphraseCovered(text, evidence)) return pass(text, fact.id);
+      continue;
+    }
+    const words = contentWords(valueText).filter((word) => !needed.some((token) => token.includes(word)));
     const wordsHit = words.length === 0 || words.every((word) => claimNorm.includes(word));
     const measuresHit = needed.every((token) => claimMeasures.includes(token) || claimNorm.includes(token));
     if (wordsHit && measuresHit) return pass(text, fact.id);
+    // Claim may be a short paraphrase of the resume excerpt (e.g. the raise
+    // from 99.7% to 99.9%) while the stored value is a longer meta label.
+    if (paraphraseCovered(text, evidence)) {
+      const claimNeeded = claimMeasures.filter((token) => !/^\d$/.test(token));
+      if (claimNeeded.length && claimNeeded.every((token) => evidenceMeasures.includes(token) || norm(evidence).includes(token))) {
+        return pass(text, fact.id);
+      }
+      if (measuresHit) return pass(text, fact.id);
+    }
+    const claimNeeded = claimMeasures.filter((token) => !/^\d$/.test(token));
+    if (claimNeeded.length && claimNeeded.every((token) => evidenceMeasures.includes(token) || norm(evidence).includes(token))) {
+      const claimWords = contentWords(text).filter((word) => !claimNeeded.some((token) => token.includes(word)));
+      if (claimWords.length && claimWords.every((word) => norm(evidence).includes(word))) {
+        return pass(text, fact.id);
+      }
+    }
     const overlap = words.filter((word) => claimNorm.includes(word));
     const family = sameMeasureFamily(needed, claimMeasures);
     if (!partial && overlap.length && words.length && overlap.length === words.length && family && claimMeasures.length && !measuresHit) {
@@ -1050,6 +1157,7 @@ function judgeClaim(claim, record, context) {
     if (judged) return judged;
   }
   if (kind === "title") return judgeTitle(text, facts);
+  if (kind === "story") return judgeStory(text, facts);
   if (kind === "employer") {
     const dateRule = ruleById(rules, "rule_employer_dates");
     if (dateRule && extractDateRange(text)) {
@@ -1070,14 +1178,50 @@ function judgeClaim(claim, record, context) {
     if (metric) return metric;
     const team = judgeTeam(text, facts);
     if (team) return team;
+    const story = judgeStory(text, facts);
+    if (story && story.verdict === "pass") return story;
   }
 
   if (formFieldUntyped(claim, context)) return needsClaire(text, claire && claire.id);
   return unsupported(text);
 }
 
+function spansTeamGeo(value) {
+  const text = norm(value);
+  const us = /\bunited states\b|\bus\b|\bu s\b/.test(text);
+  return us && /\bcanada\b/.test(text) && /\bpoland\b/.test(text);
+}
+
+/**
+ * Claim finders sometimes split "1 to 9 ... US, Canada and Poland" into two
+ * claims. Merge adjacent fragments so the same-team span can match.
+ */
+function coalesceClaims(claims) {
+  const list = Array.isArray(claims) ? claims.slice() : [];
+  const out = [];
+  for (let i = 0; i < list.length; i += 1) {
+    const cur = list[i];
+    const next = list[i + 1];
+    if (
+      cur && next
+      && extractTeamRange(cur.text) && !spansTeamGeo(cur.text)
+      && spansTeamGeo(next.text) && !extractTeamRange(next.text)
+    ) {
+      out.push({
+        text: String(cur.text || "").trim() + " " + String(next.text || "").trim(),
+        kind: cur.kind || next.kind || "team_size",
+        field: cur.field || next.field || "",
+      });
+      i += 1;
+      continue;
+    }
+    out.push(cur);
+  }
+  return out;
+}
+
 function judgeClaims(record, claims, context) {
-  const list = Array.isArray(claims) ? claims : [];
+  const list = coalesceClaims(claims);
   return list.map((claim) => judgeClaim({
     text: claim && claim.text,
     kind: claim && claim.kind,
@@ -1177,6 +1321,8 @@ module.exports = {
   normalizeMonthYear,
   normalizeTitle,
   normalizeEmployer,
+  normalizeLevelTokens,
+  evidenceBlob,
   extractDateRange,
   extractTeamRange,
   measuresOf,
