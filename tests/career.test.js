@@ -78,6 +78,99 @@ test("the combined same-team claim passes only after it is verified", () => {
   assert.equal(after[0].id, "seed_same_team_span");
 });
 
+/** Live verified seeds still carry pre-v81 resume excerpts and meta values. */
+function liveVerifiedSeedsRecord() {
+  return {
+    rules: record.rules,
+    facts: [
+      {
+        id: "seed_l7_people_leadership",
+        kind: "story",
+        value: "L7 people-leadership outcome",
+        status: "verified",
+        source: {
+          document: "lindowlabs.dev/resume",
+          excerpt: "Software Engineering Manager (L7), Merchant Advocacy",
+        },
+      },
+      {
+        id: "seed_999_baseline_mechanism",
+        kind: "metric",
+        value: "Mechanism and baseline behind the 99.9% availability figure",
+        status: "verified",
+        baseline: null,
+        mechanism: null,
+        source: {
+          document: "lindowlabs.dev/resume",
+          excerpt: "Raised availability 99.7% \u2192 99.9% in one quarter",
+        },
+      },
+      {
+        id: "seed_same_team_span",
+        kind: "team_size",
+        value: "The team that grew from 1 to 9 is the same team that spanned the US, Canada and Poland",
+        status: "verified",
+        source: {
+          document: "application answers, 2026-09-25",
+          excerpt: "The biggest challenge was that my team spanned the US, Canada and Poland, so we couldn't count on being online at the same time.",
+        },
+      },
+      {
+        id: "fact_emp_affirm",
+        kind: "employment",
+        employer: "Affirm",
+        title: null,
+        start_month: "2019-09",
+        end_month: "2026-02",
+        current: false,
+        experience_kinds: ["software_development"],
+        value: "Affirm, Sep 2019 - Feb 2026",
+        status: "verified",
+        source: {
+          document: "Owner statement",
+          excerpt: "Affirm, Sep 2019 to Feb 2026",
+        },
+      },
+    ],
+  };
+}
+
+test("verified resume paraphrases pass; unverified figures stay unsupported", () => {
+  const live = liveVerifiedSeedsRecord();
+  const judged = judgeClaims(live, [
+    { text: "Software Engineering Manager (L7) on Merchant Advocacy", kind: "title" },
+    { text: "Software Engineering Manager (Level 7) on Merchant Advocacy at Affirm", kind: "title" },
+    { text: "grew my team from 1 to 9 engineers across the US, Canada and Poland", kind: "team_size" },
+    { text: "raised availability from 99.7% to 99.9% in one quarter", kind: "metric" },
+    { text: "Raised availability 99.7% \u2192 99.9% in one quarter", kind: "metric" },
+    { text: "generated an additional $500K GMV", kind: "metric" },
+    { text: "hit 99.99% availability", kind: "metric" },
+  ]);
+  assert.equal(judged[0].verdict, "pass");
+  assert.equal(judged[0].id, "seed_l7_people_leadership");
+  assert.equal(judged[1].verdict, "pass");
+  assert.equal(judged[1].id, "seed_l7_people_leadership");
+  assert.equal(judged[2].verdict, "pass");
+  assert.equal(judged[2].id, "seed_same_team_span");
+  assert.equal(judged[3].verdict, "pass");
+  assert.equal(judged[3].id, "seed_999_baseline_mechanism");
+  assert.equal(judged[4].verdict, "pass");
+  assert.equal(judged[4].id, "seed_999_baseline_mechanism");
+  assert.equal(judged[5].verdict, "unsupported");
+  assert.equal(judged[6].verdict, "unsupported");
+});
+
+test("split 1-to-9 and US/Canada/Poland claims coalesce to the verified span", () => {
+  const live = liveVerifiedSeedsRecord();
+  const judged = judgeClaims(live, [
+    { text: "I grew my team from 1 to 9 engineers", kind: "team_size" },
+    { text: "across the US, Canada and Poland", kind: "other" },
+  ]);
+  assert.equal(judged.length, 1);
+  assert.equal(judged[0].verdict, "pass");
+  assert.equal(judged[0].id, "seed_same_team_span");
+});
+
 function recordFor(item) {
   if (!item.verify) return record;
   return {
