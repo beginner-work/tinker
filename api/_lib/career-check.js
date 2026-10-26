@@ -4,7 +4,8 @@
  * verdict. Numbers, dates, titles, and employer names are normalized
  * here. Resume excerpts on a fact count as evidence alongside value,
  * so paraphrases of verified wording pass (L7 / Level 7, 99.7% → 99.9%,
- * 1 to 9 across US/Canada/Poland). A verdict field on a claim is ignored.
+ * 1 to 9 across US/Canada/Poland, team/org names, role-scope phrases).
+ * A verdict field on a claim is ignored.
  *
  * ready is true only when every claim is a pass. An empty draft, or a
  * draft that yields no claims, is not ready.
@@ -19,6 +20,7 @@ const {
   SENSITIVE_PATTERNS,
   UNVERIFIED_NOTE,
   SEED_RULES,
+  SEED_FACTS,
 } = require("../../src/renderer/career/catalog.js");
 
 const FIND_MODEL = "claude-opus-4-8";
@@ -143,11 +145,22 @@ function valueBlob(fact) {
   return parts.filter((part) => typeof part === "string" && part.trim()).join(" ");
 }
 
-/** Value fields plus resume excerpt. Excerpt is paraphrase evidence only. */
+function catalogEvidence(fact) {
+  if (!fact || !fact.id || !Array.isArray(SEED_FACTS)) return "";
+  const seed = SEED_FACTS.find((item) => item && item.id === fact.id);
+  if (!seed) return "";
+  const parts = [seed.value];
+  if (seed.source && typeof seed.source.excerpt === "string") parts.push(seed.source.excerpt);
+  return parts.filter((part) => typeof part === "string" && part.trim()).join(" ");
+}
+
+/** Value fields plus resume excerpt (and catalog seed wording for the same id). */
 function evidenceBlob(fact) {
   if (!fact) return "";
   const parts = [valueBlob(fact)];
   if (fact.source && typeof fact.source.excerpt === "string") parts.push(fact.source.excerpt);
+  const catalog = catalogEvidence(fact);
+  if (catalog) parts.push(catalog);
   return parts.filter((part) => typeof part === "string" && part.trim()).join(" ");
 }
 
@@ -158,15 +171,71 @@ function claimTokens(value) {
   return [...new Set(words.concat(levels))];
 }
 
+/** Strip leading prepositions so "on Merchant Advocacy" matches the team name. */
+function phraseCore(value) {
+  return normalizeLevelTokens(value)
+    .replace(/^(on|in|at|for|with|as|the|a|an)\s+/g, "")
+    .replace(/^(on|in|at|for|with|as|the|a|an)\s+/g, "")
+    .trim();
+}
+
+function stemToken(token) {
+  const text = String(token || "");
+  if (/^(lead|leading|led|leads)$/.test(text)) return "lead";
+  if (/^(engineer|engineers|engineering)$/.test(text)) return "engineer";
+  if (/^(develop|developer|developers|development)$/.test(text)) return "develop";
+  if (/^(merchant|merchants)$/.test(text)) return "merchant";
+  if (/^(partner|partners|partnership)$/.test(text)) return "partner";
+  if (/^(integrat(?:e|es|ed|ing|ion|ions))$/.test(text)) return "integrate";
+  if (/^(experience|experiences)$/.test(text)) return "experience";
+  if (/^(advoca(?:cy|te|tes))$/.test(text)) return "advocacy";
+  if (text.endsWith("ing") && text.length > 6) return text.slice(0, -3);
+  if (text.endsWith("s") && text.length > 4 && !text.endsWith("ss")) return text.slice(0, -1);
+  return text;
+}
+
+function stemmedTokens(value) {
+  return claimTokens(value).map(stemToken).filter(Boolean);
+}
+
 /** Paraphrase hit: every distinctive claim token appears in the fact evidence. */
 function paraphraseCovered(claimText, evidenceText) {
   const claim = normalizeLevelTokens(claimText);
   const evidence = normalizeLevelTokens(evidenceText);
   if (!claim || !evidence) return false;
   if (claim.includes(evidence) || evidence.includes(claim)) return true;
+  const core = phraseCore(claim);
+  if (core.length >= 6 && evidence.includes(core)) return true;
   const tokens = claimTokens(claim);
   if (tokens.length < 2) return false;
-  return tokens.every((token) => evidence.includes(token));
+  if (tokens.every((token) => evidence.includes(token))) return true;
+  // Near-verbatim role-scope lines: stemmed claim tokens covered by evidence.
+  const claimStem = stemmedTokens(claim);
+  if (claimStem.length < 3) return false;
+  const evidenceStem = new Set(stemmedTokens(evidence));
+  return claimStem.every((token) => evidenceStem.has(token));
+}
+
+/**
+ * Team/org names and role-scope phrases often land as mislabeled kinds
+ * (location, employer, other). Match them against verified excerpts anyway.
+ * Money and percent claims stay on the metric path so invented figures fail.
+ */
+function judgeExcerptPhrase(text, facts) {
+  const claim = String(text || "").trim();
+  if (!claim) return null;
+  const core = phraseCore(claim);
+  if (core.length < 6 && claimTokens(claim).length < 2) return null;
+  const subject = amountSubject(claim);
+  if (subject === "money" || subject === "percent" || subject === "mixed") return null;
+  for (const fact of facts || []) {
+    const evidence = evidenceBlob(fact);
+    if (!evidence) continue;
+    if (paraphraseCovered(claim, evidence) || (core && paraphraseCovered(core, evidence))) {
+      return pass(claim, fact.id);
+    }
+  }
+  return null;
 }
 
 function normPlace(value) {
@@ -1156,20 +1225,33 @@ function judgeClaim(claim, record, context) {
     const judged = judgeMetric(text, facts);
     if (judged) return judged;
   }
-  if (kind === "title") return judgeTitle(text, facts);
-  if (kind === "story") return judgeStory(text, facts);
+  if (kind === "title") {
+    const judged = judgeTitle(text, facts);
+    if (judged && judged.verdict !== "unsupported") return judged;
+  }
+  if (kind === "story") {
+    const judged = judgeStory(text, facts);
+    if (judged && judged.verdict !== "unsupported") return judged;
+  }
   if (kind === "employer") {
     const dateRule = ruleById(rules, "rule_employer_dates");
     if (dateRule && extractDateRange(text)) {
       const byEmployment = judgeEmploymentDates(text, facts, dateRule);
       if (byEmployment) return byEmployment;
     }
-    return judgeEmployer(text, facts);
+    const judged = judgeEmployer(text, facts);
+    if (judged && judged.verdict !== "unsupported") return judged;
   }
-  if (kind === "degree") return judgeDegree(text, facts);
-  if (kind === "location") return judgeLocationFact(text, facts);
+  if (kind === "degree") {
+    const judged = judgeDegree(text, facts);
+    if (judged && judged.verdict !== "unsupported") return judged;
+  }
+  if (kind === "location") {
+    const judged = judgeLocationFact(text, facts);
+    if (judged && judged.verdict !== "unsupported") return judged;
+  }
 
-  if (!kind || kind === "other" || kind === "story") {
+  if (!kind || kind === "other" || kind === "story" || kind === "contact") {
     if (extractDateRange(text)) {
       const judged = judgeDates(text, facts);
       if (judged) return judged;
@@ -1181,6 +1263,11 @@ function judgeClaim(claim, record, context) {
     const story = judgeStory(text, facts);
     if (story && story.verdict === "pass") return story;
   }
+
+  // Claim finders often label "on Merchant Advocacy" as location (or similar).
+  // Still accept team/org and role-scope phrases found in verified excerpts.
+  const excerptHit = judgeExcerptPhrase(text, facts);
+  if (excerptHit) return excerptHit;
 
   if (formFieldUntyped(claim, context)) return needsClaire(text, claire && claire.id);
   return unsupported(text);
@@ -1322,12 +1409,14 @@ module.exports = {
   normalizeTitle,
   normalizeEmployer,
   normalizeLevelTokens,
+  phraseCore,
   evidenceBlob,
   extractDateRange,
   extractTeamRange,
   measuresOf,
   judgeClaim,
   judgeClaims,
+  judgeExcerptPhrase,
   parseClaims,
   checkText,
 };

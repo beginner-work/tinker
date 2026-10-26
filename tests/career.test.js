@@ -171,6 +171,29 @@ test("split 1-to-9 and US/Canada/Poland claims coalesce to the verified span", (
   assert.equal(judged[0].id, "seed_same_team_span");
 });
 
+test("team/org and role-scope excerpt phrases pass even when mislabeled; invented figures fail", () => {
+  const live = liveVerifiedSeedsRecord();
+  // Claim finders often label "on Merchant Advocacy" as location.
+  const judged = judgeClaims(live, [
+    { text: "on Merchant Advocacy", kind: "location" },
+    { text: "Merchant Advocacy", kind: "employer" },
+    { text: "Leading merchant and developer experience engineering", kind: "story" },
+    { text: "Leading merchant and developer experience engineering", kind: "other" },
+    { text: "generated an additional $500K GMV", kind: "metric" },
+    { text: "hit 99.99% availability", kind: "other" },
+  ]);
+  assert.equal(judged[0].verdict, "pass");
+  assert.equal(judged[0].id, "seed_l7_people_leadership");
+  assert.equal(judged[1].verdict, "pass");
+  assert.equal(judged[1].id, "seed_l7_people_leadership");
+  assert.equal(judged[2].verdict, "pass");
+  assert.equal(judged[2].id, "seed_l7_people_leadership");
+  assert.equal(judged[3].verdict, "pass");
+  assert.equal(judged[3].id, "seed_l7_people_leadership");
+  assert.equal(judged[4].verdict, "unsupported");
+  assert.equal(judged[5].verdict, "unsupported");
+});
+
 function recordFor(item) {
   if (!item.verify) return record;
   return {
