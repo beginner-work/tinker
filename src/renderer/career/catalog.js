@@ -145,7 +145,8 @@
       value: "Software Engineering Manager, Merchant Advocacy at Affirm",
       source: {
         document: RESUME,
-        excerpt: "Software Engineering Manager, Merchant Advocacy",
+        excerpt:
+          "Software Engineering Manager (L7), Merchant Advocacy. Leading merchant and developer experience engineering",
       },
       status: "proposed",
     },
