@@ -416,8 +416,8 @@ describe("TinkerVoice widget", () => {
   test("README documents endpoint, env vars, and embed API", () => {
     const readme = fs.readFileSync(path.join(__dirname, "../README.md"), "utf8");
     const start = readme.indexOf("## Voice transcription");
-    const end = readme.indexOf("## Debugging preview deploys");
-    const section = readme.slice(start, end);
+    const end = readme.indexOf("## Grounded ask");
+    const section = readme.slice(start, end > start ? end : readme.indexOf("## Debugging preview deploys"));
     assert.match(section, /POST \/api\/transcribe/);
     assert.match(section, /TINKER_SERVICE_TOKEN/);
     assert.match(section, /ELEVENLABS_API_KEY/);

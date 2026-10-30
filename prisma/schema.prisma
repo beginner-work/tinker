@@ -388,3 +388,32 @@ model TranscriptionRequest {
   @@index([status, createdAt])
 }
 
+// Grounded ask + TTS usage / eval log. One row per POST /api/ask.
+// Stores the question (edited), raw transcript (voice), position in the
+// talk, answer text, model, and whether audio was produced — never the
+// audio bytes themselves.
+model AskRequest {
+  id                String   @id
+  createdAt         DateTime @default(now())
+  caller            String
+  status            String
+  latencyMs         Int      @default(0)
+  sourceId          String   @default("")
+  inputType         String   @default("")
+  question          String   @default("")
+  rawTranscript     String   @default("")
+  editedTranscript  String   @default("")
+  position          Json?
+  context           String   @default("")
+  answerText        String   @default("")
+  model             String   @default("")
+  voiceId           String   @default("")
+  hasAudio          Boolean  @default(false)
+  error             String   @default("")
+
+  @@index([createdAt])
+  @@index([caller, createdAt])
+  @@index([sourceId, createdAt])
+  @@index([status, createdAt])
+}
+

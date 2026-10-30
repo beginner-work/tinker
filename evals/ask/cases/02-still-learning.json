@@ -1,0 +1,12 @@
+{
+  "id": "02-still-learning",
+  "sourceId": "lindowlabs-minds-and-models",
+  "input": "typed",
+  "question": "If AI can think for us, are we still learning?",
+  "expect": {
+    "mustIncludeAny": ["learning", "under-invest", "underinvest", "making", "open question", "hypothesis"],
+    "mustNotIncludeAny": ["PhD from Stanford", "OpenAI employee"],
+    "maxSentences": 4,
+    "minSentences": 2
+  }
+}

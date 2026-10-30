@@ -1,0 +1,14 @@
+{
+  "id": "10-position-mid-talk",
+  "sourceId": "lindowlabs-minds-and-models",
+  "input": "voice",
+  "rawTranscript": "wait what was that about working memory",
+  "question": "What was that about working memory?",
+  "position": { "wordIndex": 280, "paragraph": 7 },
+  "expect": {
+    "mustIncludeAny": ["RAM", "memory", "working", "disk", "database", "schema"],
+    "mustNotIncludeAny": ["I don't have that"],
+    "maxSentences": 4,
+    "minSentences": 2
+  }
+}

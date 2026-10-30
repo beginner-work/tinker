@@ -1,0 +1,13 @@
+{
+  "id": "06-make-to-learn",
+  "sourceId": "lindowlabs-minds-and-models",
+  "input": "typed",
+  "question": "What's your answer about how humans learn versus AI?",
+  "position": { "paragraph": 13 },
+  "expect": {
+    "mustIncludeAny": ["mak", "learn", "hands", "doing"],
+    "mustNotIncludeAny": ["I don't have that"],
+    "maxSentences": 4,
+    "minSentences": 2
+  }
+}

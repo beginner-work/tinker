@@ -1,0 +1,37 @@
+My name is Tyler Lindow. Minds and Models is a talk about how the human mind, and maybe the AI mind, if you will, connect. And why that's important for us as developers, as software engineers, and in general as builders and makers of things. I think we all associate with that in some way.
+
+My first question for us is: if AI can think for us, are we still learning? This is actually an open question. When I've asked developers this, some say it assumes we're already learning without AI. Others say we're learning how to use AI.
+
+That's interesting. I think a lot of us are learning right now. A friend told me that for the last couple of months he's been figuring things out by playing with AI a lot. There's a lot of stuff with AI that you can learn. So yes, absolutely. I think there's something going on there.
+
+Another answer I hear is that AI accelerates learning by summarizing books or breaking them into chunkable segments, so you can actually gain something rather than trying to consume a whole book at once. And another: maybe we are still learning, but at a different level.
+
+My answer to this question is that I think we're actually under-investing in human learning today. And by extension, in human making. I'll explain why there's that extension. The reason I'm asking this question is that technology models have diverged from human learning since the advent of AI. That's my hypothesis, and I'll get into it.
+
+Why do I think that? My claim is that we've seen a divergence between human learning and machine learning. And if they're diverging now, I also have to claim that at some point they were much closer together.
+
+If you've looked at the history, or at researchers in the learning sciences, you'll see that each generation borrows its mental model of the mind from the latest technology. The steam engine, the web, the internet, and now AI. We're always trying to map how we think about our brains to the newest technology.
+
+You can see a very clear pattern right now. Working memory? That's RAM. Long-term memory? That's writing to disk or to a database. The patterns we see in the world become schemas, and we organize data in databases in very particular ways. It's like a menu: when we look at one, we know the drinks are down at the bottom. These human mental models apply pretty directly to the way we build software, which has been the most current technology.
+
+To drive this point home: the mental models of software and human learning match extremely well. Probably better than ever before. With the steam engine, people thought the brain worked like a steam engine, which was kind of a stretch. With software, there's a lot of parallel.
+
+Here's another question. If models of human learning and software match, how did machines begin to organize information differently, in a way that made human minds and AI diverge? Let that sit for a second.
+
+A related question: why can't we, as humans, become experts overnight? One answer I hear is that part of it is physiological. Consolidating memory and making processes automatic, like habits, requires a physical process in your nervous system that takes time. So it's physiological for humans, and that's why.
+
+But what is an expert? This is a term in the learning sciences, a field I studied for a while. There's a research study about chess masters: what makes a chess expert an expert, or what makes them a grandmaster. I think it's tied to Elo score, if anybody plays chess. There's a lot of research around chunking and schematization. Grandmasters aren't looking at individual pieces on the board. They're looking at much larger patterns, and they even have names for them. That lets them manage their working memory, their intelligence if you will, and be really good at chess.
+
+Someone once pointed out to me that if expertise means recalling facts and knowledge, that's one thing. If it means synthesizing novel discoveries in a field, that's something AI can't do. That's a good point. When we talk about expertise, we're often talking about humans. It's hard for us to imagine AI being an expert, but some people even say AI is an expert at everything, that it knows the world's knowledge and you can ask it anything. We run benchmarks where models beat tests or think at a PhD level. But this is a nice point: what is expertise?
+
+Here's my answer. We can't learn the way AI does, because humans learn by making. We make to learn. We're out in the world, doing things with our hands, and that tells us something about how we're learning.
+
+Gartner forecasts that in 2026, $2.5 trillion will be spent on AI. Compare that to the maker economy, at $0.25 trillion. So there's 10x more being spent on the AI economy.
+
+I just want to let that sink in. These are numbers I pulled off the web this morning, and I thought, "Huh, interesting." That's the state of these economies: AI as one mechanism for thinking and learning, and then learning by doing as another. I think a lot of people understand that by doing, we engage in a lot of thinking and learning.
+
+We always talk about the 10x developer. We've been chasing that. But if you look at where the money is, AI is 10xing us.
+
+So this is my thesis: there's an opportunity for human learners and makers to get paid, because there is this gap. You can say we should invest more of our money in AI. But what about us? What about the things we want to create, the things we enjoy out in this world? And what happens if we're not making those things?
+
+I'd love for you to connect if you're interested in any of this, and in these questions: What are you going to make today? How will you get paid for your craft? I think that's something we're probably all thinking about as we network and think about what's next for us.
