@@ -366,3 +366,25 @@ model AnalyticsSurfaceEvent {
   @@index([surfaceId])
 }
 
+// Speech-to-text usage / eval log. One row per POST /api/transcribe.
+// Stores the transcript text and word timestamps for later eval.
+// caller is "service:<name>" (X-Tinker-Caller) or "user:<stytchId>".
+model TranscriptionRequest {
+  id                    String   @id
+  createdAt             DateTime @default(now())
+  caller                String
+  status                String
+  latencyMs             Int      @default(0)
+  durationMs            Int?
+  mimeType              String   @default("")
+  byteLength            Int      @default(0)
+  text                  String   @default("")
+  words                 Json     @default("[]")
+  error                 String   @default("")
+  elevenLabsRequestId   String   @default("")
+
+  @@index([createdAt])
+  @@index([caller, createdAt])
+  @@index([status, createdAt])
+}
+

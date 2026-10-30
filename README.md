@@ -322,6 +322,92 @@ won't round-trip in preview; verify on production after merge.
 Sign out by clearing `tinker_jwt` (`window.tinkerAuth.signOut()` from the
 inspector, or `localStorage.removeItem("tinker_jwt")`).
 
+## Voice transcription (`POST /api/transcribe`)
+
+Tinker exposes speech-to-text as its own service so other Lindow Labs
+origins (starting with lindowlabs.dev) can call it server-to-server.
+The browser never sees `ELEVENLABS_API_KEY` or `TINKER_SERVICE_TOKEN`.
+
+### Endpoint
+
+`POST /api/transcribe`
+
+**Auth (one of):**
+
+- `Authorization: Bearer <TINKER_SERVICE_TOKEN>` (preferred for S2S)
+- `X-Tinker-Service-Token: <TINKER_SERVICE_TOKEN>`
+- `Authorization: Bearer <Stytch session JWT>` (Tinker UI only)
+
+Optional: `X-Tinker-Caller: lindowlabs.dev` labels usage rows for
+service callers.
+
+**Body:** `multipart/form-data` with an `audio` (or `file`) field, or a
+raw body with `Content-Type` one of `audio/webm`, `audio/ogg`,
+`audio/mp4`, `audio/wav`, `audio/mpeg` (max 10 MB).
+
+**Response (200):**
+
+```json
+{
+  "text": "what the visitor said",
+  "words": [
+    { "text": "what", "start": 0.0, "end": 0.18, "type": "word" }
+  ],
+  "durationMs": 1200,
+  "requestId": "uuid"
+}
+```
+
+Errors return `{ "error": "…", "requestId": "uuid" }` with 401 / 413 /
+415 / 503 / 502 as appropriate. Every attempt is written to the
+`TranscriptionRequest` table (caller, timestamp, duration, latency,
+status, error, and the transcript text/words).
+
+**Vercel env vars (Production + Preview):**
+
+- `TINKER_SERVICE_TOKEN`: shared secret; set the same value on
+  lindowlabs.dev's server so its proxy can call Tinker
+- `ELEVENLABS_API_KEY`: already used for `/feed` TTS; also powers STT
+- `ELEVENLABS_STT_MODEL`: optional; defaults to `scribe_v2`
+- `DATABASE_URL`: already required; stores usage/eval rows
+
+### Embed the recorder on lindowlabs.dev
+
+`src/renderer/voice/tinker-voice.js` is a self-contained widget. Hosts
+proxy audio to Tinker; the widget only talks to the host endpoint.
+
+1. On lindowlabs.dev, add a server route (e.g. `POST /api/voice`) that
+   forwards the multipart body to
+   `https://tinker.beginner.work/api/transcribe` with
+   `Authorization: Bearer $TINKER_SERVICE_TOKEN` and
+   `X-Tinker-Caller: lindowlabs.dev`. Do not put those secrets in
+   client JS.
+2. Load the widget and mount it:
+
+```html
+<div id="ask-voice"></div>
+<script src="https://tinker.beginner.work/voice/tinker-voice.js"></script>
+<script>
+  const rec = TinkerVoice.create({
+    mount: "#ask-voice",
+    endpoint: "/api/voice",
+    onTranscript({ text, words, durationMs, requestId }) {
+      // Interrupt the homepage talk with `text`
+    },
+    onError(err) {
+      console.warn(err.message);
+    },
+  });
+  // Or drive it yourself: rec.start(); rec.stop();
+</script>
+```
+
+Public API: `create({ mount?, endpoint, headers?, onTranscript,
+onError?, onStateChange?, fieldName?, labelIdle?, labelStop?,
+labelUploading? })` returns `{ start, stop, toggle, destroy, getState }`.
+`headers` may be an object or a function (Tinker's Settings page passes
+the signed-in Stytch JWT that way).
+
 ## Debugging preview deploys
 
 When a Vercel preview misbehaves in a way you can't reproduce locally —
@@ -692,11 +778,13 @@ that wants the mark as an SVG string.
 │   ├── mcp-oauth.js     # MCP authorize, token, and revoke
 │   ├── _lib/linkedin-draft.js  # Shared LinkedIn prompt + draft call
 │   ├── search.js        # Search essays
+│   ├── transcribe.js    # Speech-to-text (ElevenLabs Scribe, S2S)
 │   ├── pitches/ …       # Pitch / publish / feed / user-data / …
 │   └── membership/ …    # Stripe membership wire-up
 ├── src/
 │   ├── main/            # Electron desktop shell (loads production)
 │   ├── renderer/        # Shared web / Expo UI (also what desktop loads remotely)
+│   │   └── voice/       # Embeddable TinkerVoice recorder widget
 │   └── web/             # Static local host (`npm run web`)
 ├── prisma/              # Shared Postgres schema
 └── package.json

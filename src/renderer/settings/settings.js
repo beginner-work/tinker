@@ -291,6 +291,30 @@
     });
   }
 
+  function mountVoice() {
+    var mount = document.querySelector("[data-tinker-voice-mount]");
+    if (!mount || !window.TinkerVoice || typeof window.TinkerVoice.create !== "function") return;
+    window.TinkerVoice.create({
+      mount: mount,
+      endpoint: "/api/transcribe",
+      headers: function () { return authHeaders(); },
+      labelIdle: "Record",
+      labelStop: "Stop",
+      labelUploading: "Transcribing…",
+      onTranscript: function (result) {
+        var text = result && result.text ? result.text : "(no speech detected)";
+        setStatus("[data-tinker-voice-status]", text);
+      },
+      onError: function (err) {
+        setStatus(
+          "[data-tinker-voice-status]",
+          (err && err.message) || "Transcription failed.",
+          true
+        );
+      },
+    });
+  }
+
   function boot() {
     var saveBtn = document.querySelector("[data-owner-profile-save]");
     if (saveBtn) saveBtn.addEventListener("click", save);
@@ -310,6 +334,7 @@
     loadWebhook();
     loadExercisesLab();
     loadHotspot();
+    mountVoice();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
