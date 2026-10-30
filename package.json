@@ -26,12 +26,18 @@
     "debug:preview": "node scripts/browserbase-debug.js",
     "preview:url": "node scripts/preview-bootstrap-url.js",
     "eval:product-spec": "node .claude/skills/product-spec/evals/run-evals.mjs",
-    "eval:ask": "node scripts/eval-ask.js",
+    "eval:ask": "npx braintrust eval evals/ask/ask.eval.ts",
+    "eval:ask:linkedin": "node scripts/load-linkedin-messages.js",
+    "eval:ask:linkedin:fixture": "node scripts/load-linkedin-messages.js --csv evals/ask/fixtures/linkedin-messages.synthetic.csv --dry-run --json",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "build:editor": "node scripts/build-repo-cm-editor.mjs",
     "seed:exercises-blob": "node scripts/seed-exercises-to-blob.js",
-    "cli:sync-vendor": "node cli/scripts/sync-vendor.js"
+    "cli:sync-vendor": "node cli/scripts/sync-vendor.js",
+    "eval:ask:legacy": "node scripts/eval-ask.js",
+    "eval:ask:build": "node scripts/build-ask-dataset.js",
+    "eval:ask:promote": "node scripts/promote-ask-logs.js",
+    "eval:ask:snapshot-essays": "node scripts/snapshot-ask-essays.js"
   },
   "keywords": [
     "electron",
@@ -52,10 +58,14 @@
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.65.0",
     "@playwright/test": "^1.49.1",
+    "@types/node": "^26.6.6",
+    "braintrust": "^3.42.0",
     "electron": "^33.0.0",
     "electron-builder": "^26.15.2",
     "eslint": "^9.0.0",
     "playwright": "^1.49.1",
-    "prisma": "^5.22.0"
+    "prisma": "^5.22.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   }
 }

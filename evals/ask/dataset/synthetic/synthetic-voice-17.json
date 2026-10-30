@@ -1,0 +1,23 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "voice",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-voice-17",
+  "question": "How do chunking and schemas relate to expertise?",
+  "rawTranscript": "chunking schemas chess expertise overnight",
+  "category": "voice_messy",
+  "expect": {
+    "mustIncludeAny": [
+      "chunk",
+      "schema",
+      "expert",
+      "chess"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}

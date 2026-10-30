@@ -1,0 +1,25 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "typed",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-grounded-14-g-affirm-arch",
+  "question": "What decision did you make about dropping a dashboard vs migrating a database?",
+  "category": "grounded",
+  "expect": {
+    "mustIncludeAny": [
+      "dashboard",
+      "database",
+      "migrate",
+      "Drop",
+      "schema"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that",
+      "pepperoni"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  },
+  "notes": "Grounded in Minds & Models talk / Lindow Labs writing corpus."
+}

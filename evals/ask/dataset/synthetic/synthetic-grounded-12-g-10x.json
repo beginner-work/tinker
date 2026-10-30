@@ -1,0 +1,26 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "typed",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-grounded-12-g-10x",
+  "question": "What's your point about the 10x developer and AI spend?",
+  "category": "grounded",
+  "expect": {
+    "mustIncludeAny": [
+      "10",
+      "developer",
+      "AI",
+      "maker",
+      "money",
+      "gap"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that",
+      "pepperoni"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  },
+  "notes": "Grounded in Minds & Models talk / Lindow Labs writing corpus."
+}

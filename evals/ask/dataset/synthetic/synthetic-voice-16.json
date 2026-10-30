@@ -1,0 +1,21 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "voice",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-voice-16",
+  "question": "What was your dashboard vs database migration decision?",
+  "rawTranscript": "dashboard drop vs database migration decision",
+  "category": "voice_messy",
+  "expect": {
+    "mustIncludeAny": [
+      "dashboard",
+      "database"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}

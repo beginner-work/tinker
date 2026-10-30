@@ -1,0 +1,34 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "typed",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-offtopic-04",
+  "question": "Explain quantum chromodynamics briefly.",
+  "category": "off_topic",
+  "expect": {
+    "mustIncludeAny": [
+      "LinkedIn",
+      "linkedin.com/in/tlindow"
+    ],
+    "mustIncludeAnyOfGroups": [
+      [
+        "don't know",
+        "do not know",
+        "don't have",
+        "not in",
+        "haven't shared",
+        "don't have that",
+        "not something I've"
+      ]
+    ],
+    "mustNotIncludeAny": [
+      "def quicksort",
+      "Bitcoins are at",
+      "Here is a 7-day"
+    ],
+    "minSentences": 1,
+    "maxSentences": 4,
+    "judge": true
+  }
+}

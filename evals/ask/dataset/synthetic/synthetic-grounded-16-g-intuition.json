@@ -1,0 +1,25 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "typed",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-grounded-16-g-intuition",
+  "question": "Why do you say we should over-index on intuition in the age of AI?",
+  "category": "grounded",
+  "expect": {
+    "mustIncludeAny": [
+      "intuition",
+      "product",
+      "human",
+      "creative",
+      "opinion"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that",
+      "pepperoni"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  },
+  "notes": "Grounded in Minds & Models talk / Lindow Labs writing corpus."
+}

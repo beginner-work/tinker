@@ -1,0 +1,23 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "voice",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-voice-08",
+  "question": "What was the steam engine brain metaphor?",
+  "rawTranscript": "uhhh steam engine brain metaphor?",
+  "category": "voice_messy",
+  "expect": {
+    "mustIncludeAny": [
+      "steam",
+      "brain",
+      "technology",
+      "mental"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}

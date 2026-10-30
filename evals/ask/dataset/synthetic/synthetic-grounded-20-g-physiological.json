@@ -1,0 +1,25 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "typed",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-grounded-20-g-physiological",
+  "question": "Why is consolidating memory physiological for humans?",
+  "category": "grounded",
+  "expect": {
+    "mustIncludeAny": [
+      "physio",
+      "nervous",
+      "habit",
+      "time",
+      "automatic"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that",
+      "pepperoni"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  },
+  "notes": "Grounded in Minds & Models talk / Lindow Labs writing corpus."
+}

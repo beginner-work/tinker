@@ -1,0 +1,25 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "typed",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-grounded-11-g-steam",
+  "question": "How did people once map the mind to the steam engine?",
+  "category": "grounded",
+  "expect": {
+    "mustIncludeAny": [
+      "steam",
+      "technology",
+      "mental",
+      "brain",
+      "stretch"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that",
+      "pepperoni"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  },
+  "notes": "Grounded in Minds & Models talk / Lindow Labs writing corpus."
+}

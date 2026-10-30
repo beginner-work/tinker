@@ -1,0 +1,23 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "voice",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-voice-06",
+  "question": "What did you say about divergence of human and machine learning?",
+  "rawTranscript": "er divergence of human and machine learning say that again",
+  "category": "voice_messy",
+  "expect": {
+    "mustIncludeAny": [
+      "diverg",
+      "human",
+      "machine",
+      "learning"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "voice",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-voice-03",
+  "question": "What was the AI versus makers spend gap?",
+  "rawTranscript": "uh the spend gap like AI versus makers that trillion thing",
+  "category": "voice_messy",
+  "expect": {
+    "mustIncludeAny": [
+      "trillion",
+      "maker",
+      "AI",
+      "10",
+      "Gartner"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}

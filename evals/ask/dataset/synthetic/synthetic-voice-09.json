@@ -1,0 +1,23 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "voice",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-voice-09",
+  "question": "Remind me about chess chunking and expertise.",
+  "rawTranscript": "can you um remind me the chess chunking bit",
+  "category": "voice_messy",
+  "expect": {
+    "mustIncludeAny": [
+      "chess",
+      "chunk",
+      "expert",
+      "pattern"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}

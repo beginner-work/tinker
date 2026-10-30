@@ -1,0 +1,21 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "voice",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-voice-14",
+  "question": "What was the revealing \"what would you build\" question?",
+  "rawTranscript": "what would you build revealing question again",
+  "category": "voice_messy",
+  "expect": {
+    "mustIncludeAny": [
+      "build",
+      "product"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}

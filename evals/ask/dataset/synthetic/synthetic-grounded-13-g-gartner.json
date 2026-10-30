@@ -1,0 +1,24 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "typed",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-grounded-13-g-gartner",
+  "question": "Where did the $2.5 trillion AI spend number come from?",
+  "category": "grounded",
+  "expect": {
+    "mustIncludeAny": [
+      "Gartner",
+      "trillion",
+      "2026",
+      "AI"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that",
+      "pepperoni"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  },
+  "notes": "Grounded in Minds & Models talk / Lindow Labs writing corpus."
+}

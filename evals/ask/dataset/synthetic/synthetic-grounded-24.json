@@ -1,0 +1,22 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "typed",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-grounded-24",
+  "question": "What happens if we are not making things?",
+  "category": "grounded",
+  "expect": {
+    "mustIncludeAny": [
+      "mak",
+      "create",
+      "invest",
+      "gap"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}

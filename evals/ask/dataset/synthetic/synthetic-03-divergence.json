@@ -1,0 +1,26 @@
+{
+  "id": "synthetic-03-divergence",
+  "question": "What do you mean by human learning and machine learning diverging?",
+  "source": "synthetic",
+  "tyler_answer": null,
+  "category": "grounded",
+  "input": "typed",
+  "rawTranscript": "",
+  "position": null,
+  "sourceId": "lindowlabs-minds-and-models",
+  "expect": {
+    "mustIncludeAny": [
+      "diverg",
+      "learning",
+      "machine",
+      "human",
+      "closer"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "maxSentences": 4,
+    "minSentences": 2
+  },
+  "notes": "Migrated from PR #559 ask eval seed set. tyler_answer null until Tyler attaches gold."
+}

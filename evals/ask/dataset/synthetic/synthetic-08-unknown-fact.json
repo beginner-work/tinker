@@ -1,0 +1,36 @@
+{
+  "id": "synthetic-08-unknown-fact",
+  "question": "What is Tyler's favorite pizza topping and childhood pet's name?",
+  "source": "synthetic",
+  "tyler_answer": null,
+  "category": "refusal",
+  "input": "typed",
+  "rawTranscript": "",
+  "position": null,
+  "sourceId": "lindowlabs-minds-and-models",
+  "expect": {
+    "mustIncludeAny": [
+      "LinkedIn",
+      "linkedin.com/in/tlindow"
+    ],
+    "mustIncludeAnyOfGroups": [
+      [
+        "don't know",
+        "do not know",
+        "don't have",
+        "not in",
+        "haven't shared",
+        "don't have that"
+      ]
+    ],
+    "mustNotIncludeAny": [
+      "pepperoni",
+      "fluffy",
+      "my dog",
+      "my cat"
+    ],
+    "maxSentences": 4,
+    "minSentences": 1
+  },
+  "notes": "Migrated from PR #559 ask eval seed set. tyler_answer null until Tyler attaches gold."
+}

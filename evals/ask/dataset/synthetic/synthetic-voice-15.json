@@ -1,0 +1,22 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "voice",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-voice-15",
+  "question": "How did your team grow at Affirm?",
+  "rawTranscript": "er team grew one to nine at affirm?",
+  "category": "voice_messy",
+  "expect": {
+    "mustIncludeAny": [
+      "Affirm",
+      "9",
+      "engineer"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}
