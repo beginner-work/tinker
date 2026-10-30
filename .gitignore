@@ -14,3 +14,13 @@ out/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# LinkedIn official data export — never commit real messages
+**/Basic_LinkedInDataExport*/**
+**/LinkedInDataExport*/**
+**/messages.csv
+linkedin-export/
+evals/ask/dataset/linkedin/
+# Synthetic fixture used in unit tests only (allowed):
+!evals/ask/fixtures/linkedin-messages.synthetic.csv
+
