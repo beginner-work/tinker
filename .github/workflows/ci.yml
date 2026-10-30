@@ -27,6 +27,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # packages/tinker-sdk is a nested package (not an npm workspace yet).
+      - name: Install @tinker/sdk dependencies
+        run: npm install --prefix packages/tinker-sdk
+
       - name: Run tests
         run: npm test
 
