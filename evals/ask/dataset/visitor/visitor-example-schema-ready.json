@@ -1,0 +1,11 @@
+{
+  "id": "visitor-schema-example-001",
+  "question": "What part of the talk should I share with my eng team?",
+  "source": "visitor",
+  "tyler_answer": null,
+  "category": "agreement",
+  "input": "typed",
+  "sourceId": "lindowlabs-minds-and-models",
+  "notes": "Schema example only — not a real visitor log. Promote real AskRequest rows via npm run eval:ask:promote.",
+  "expect": { "minSentences": 1, "maxSentences": 6 }
+}

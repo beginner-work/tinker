@@ -1,0 +1,23 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "typed",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-grounded-25",
+  "question": "How do grandmasters manage working memory in chess?",
+  "category": "grounded",
+  "expect": {
+    "mustIncludeAny": [
+      "chess",
+      "chunk",
+      "pattern",
+      "working",
+      "grandmaster"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}

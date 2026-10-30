@@ -24,3 +24,6 @@ evals/ask/dataset/linkedin/
 # Synthetic fixture used in unit tests only (allowed):
 !evals/ask/fixtures/linkedin-messages.synthetic.csv
 
+# Local Braintrust gate report (CI / local eval artifact)
+evals/ask/last-gate-report.json
+

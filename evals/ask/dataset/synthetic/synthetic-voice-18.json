@@ -1,0 +1,22 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "voice",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-voice-18",
+  "question": "Compare the AI and maker economy spend numbers.",
+  "rawTranscript": "ai 2.5 trillion vs maker point two five",
+  "category": "voice_messy",
+  "expect": {
+    "mustIncludeAny": [
+      "trillion",
+      "maker",
+      "AI"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}

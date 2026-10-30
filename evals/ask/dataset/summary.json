@@ -1,0 +1,21 @@
+{
+  "builtAt": "2026-10-30T21:21:38.928Z",
+  "essayFixtureCount": 19,
+  "cases": 207,
+  "essays": 19,
+  "bySource": {
+    "essay": 79,
+    "synthetic": 127,
+    "visitor": 1
+  },
+  "byCategory": {
+    "agreement": 80,
+    "grounded": 43,
+    "voice_messy": 20,
+    "refusal": 24,
+    "prompt_injection": 20,
+    "off_topic": 20
+  },
+  "withTylerAnswer": 79,
+  "needsTylerAnswer": 128
+}

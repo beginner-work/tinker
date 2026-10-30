@@ -1,0 +1,22 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "voice",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-voice-13",
+  "question": "What do you mean by over-indexing on intuition?",
+  "rawTranscript": "um intuition over index age of AI?",
+  "category": "voice_messy",
+  "expect": {
+    "mustIncludeAny": [
+      "intuition",
+      "product",
+      "human"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}

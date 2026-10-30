@@ -1,0 +1,26 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "typed",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-grounded-04-g-mental-models",
+  "question": "How do mental models of the mind follow technology?",
+  "category": "grounded",
+  "expect": {
+    "mustIncludeAny": [
+      "steam",
+      "software",
+      "RAM",
+      "memory",
+      "technology",
+      "schema"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that",
+      "pepperoni"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  },
+  "notes": "Grounded in Minds & Models talk / Lindow Labs writing corpus."
+}

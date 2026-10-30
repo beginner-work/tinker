@@ -1,0 +1,25 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "typed",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-grounded-15-g-affirm-teams",
+  "question": "How did your Affirm team grow while you were managing?",
+  "category": "grounded",
+  "expect": {
+    "mustIncludeAny": [
+      "Affirm",
+      "1 to 9",
+      "promot",
+      "engineer",
+      "reorg"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that",
+      "pepperoni"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  },
+  "notes": "Grounded in Minds & Models talk / Lindow Labs writing corpus."
+}

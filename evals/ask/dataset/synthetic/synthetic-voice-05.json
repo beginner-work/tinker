@@ -1,0 +1,22 @@
+{
+  "source": "synthetic",
+  "tyler_answer": null,
+  "input": "voice",
+  "sourceId": "lindowlabs-minds-and-models",
+  "id": "synthetic-voice-05",
+  "question": "What was the \"what would you build\" product sense question?",
+  "rawTranscript": "mm what would you build that product sense question",
+  "category": "voice_messy",
+  "expect": {
+    "mustIncludeAny": [
+      "build",
+      "product",
+      "opinion"
+    ],
+    "mustNotIncludeAny": [
+      "I don't have that"
+    ],
+    "minSentences": 2,
+    "maxSentences": 4
+  }
+}
