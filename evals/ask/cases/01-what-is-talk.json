@@ -1,0 +1,12 @@
+{
+  "id": "01-what-is-talk",
+  "sourceId": "lindowlabs-minds-and-models",
+  "input": "typed",
+  "question": "What is Minds and Models about?",
+  "expect": {
+    "mustIncludeAny": ["mind", "learning", "connect", "builders", "makers", "developers"],
+    "mustNotIncludeAny": ["I don't know", "LinkedIn"],
+    "maxSentences": 4,
+    "minSentences": 2
+  }
+}

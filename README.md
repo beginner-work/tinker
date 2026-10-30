@@ -408,6 +408,87 @@ labelUploading? })` returns `{ start, stop, toggle, destroy, getState }`.
 `headers` may be an object or a function (Tinker's Settings page passes
 the signed-in Stytch JWT that way).
 
+## Grounded ask (`POST /api/ask`)
+
+After transcription, hosts can ask Tyler's agent a question grounded in
+a per-source corpus Tinker stores. First source:
+`lindowlabs-minds-and-models` (homepage "Minds & Models" talk + Tyler's
+Lindow Labs writing). Same auth as `/api/transcribe`.
+
+### Endpoint
+
+`POST https://tinker.beginner.work/api/ask`
+
+**Auth (one of):** same as transcription:
+`Authorization: Bearer <TINKER_SERVICE_TOKEN>`,
+`X-Tinker-Service-Token`, or a Stytch session JWT. Optional
+`X-Tinker-Caller: lindowlabs.dev` labels usage rows.
+
+**Body (JSON):**
+
+```json
+{
+  "question": "Are we still learning if AI can think for us?",
+  "input": "voice",
+  "rawTranscript": "are we still learning if AI can think for us",
+  "position": { "wordIndex": 70, "timestampMs": 12000, "paragraph": 1 },
+  "sourceId": "lindowlabs-minds-and-models",
+  "context": "optional host note"
+}
+```
+
+`input` is `"voice"` or `"typed"`. `rawTranscript` is the unedited STT
+text when the visitor spoke. `position` is where they interrupted the
+talk (optional).
+
+**Response (200):**
+
+```json
+{
+  "answerText": "Two to four first-person spoken sentences...",
+  "audio": "<base64 mp3>",
+  "requestId": "uuid",
+  "latencyMs": 842,
+  "label": "Tyler's agent"
+}
+```
+
+Answers are grounded only in the source corpus; the agent does not
+invent facts. When it does not know, it says so and points to
+[LinkedIn](https://www.linkedin.com/in/tlindow). Default ElevenLabs
+voice is `JlYdFGRHWwlz51Zh5K2n` (configurable per source in
+`api/_lib/ask-sources/<id>/source.json`). Every attempt is logged to
+`AskRequest` (question, raw + edited transcript, input type, caller,
+source, position, answer, model, latency, errors, `hasAudio`; never
+the audio bytes).
+
+**Vercel env vars (Production):**
+
+- `TINKER_SERVICE_TOKEN`: already required for `/api/transcribe`
+- `ANTHROPIC_API_KEY`: Claude for the answer step
+- `ELEVENLABS_API_KEY`: already used for `/feed` TTS and STT
+- `ASK_MODEL`: optional; defaults to Claude Haiku 4.5
+- `DATABASE_URL`: already required; stores `AskRequest` rows
+
+### Embed the answer step on lindowlabs.dev
+
+1. Proxy from your origin (e.g. `POST /api/ask`) to
+   `https://tinker.beginner.work/api/ask` with the service token and
+   `X-Tinker-Caller`. Keep secrets off the browser.
+2. After `/api/voice` returns a transcript, POST the (edited) question
+   with `sourceId: "lindowlabs-minds-and-models"` and the talk
+   `position`, then play the returned base64 MP3.
+
+### Eval set
+
+Ten grounded cases live in `evals/ask/cases/`. Run them (Claude only,
+no TTS):
+
+```bash
+ANTHROPIC_API_KEY=... npm run eval:ask
+# or: node scripts/eval-ask.js --dry-run
+```
+
 ## Debugging preview deploys
 
 When a Vercel preview misbehaves in a way you can't reproduce locally —
