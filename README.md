@@ -489,6 +489,17 @@ ANTHROPIC_API_KEY=... npm run eval:ask
 # or: node scripts/eval-ask.js --dry-run
 ```
 
+### Embed SDK (`@tinker/sdk`)
+
+For any host site, use the TypeScript package in `packages/tinker-sdk`
+(private; not published to npm):
+
+- Server: `TinkerClient.transcribe()` / `.ask()` with the service token
+- Browser: `TinkerAsk.create({ proxyUrl, sourceId, audioElement, … })`
+  floating Ask pill (voice or typed, editable transcript, pause/resume)
+
+See `packages/tinker-sdk/README.md` and `packages/tinker-sdk/examples/basic-host/`.
+
 ## Debugging preview deploys
 
 When a Vercel preview misbehaves in a way you can't reproduce locally —
