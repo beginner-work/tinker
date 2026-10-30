@@ -145,6 +145,32 @@
         color: var(--color-foreground);
         text-decoration: underline;
       }
+      .tinker-voice { margin-top: 8px; }
+      .tinker-voice__btn {
+        height: 40px;
+        padding: 0 14px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--color-foreground);
+        color: var(--color-background);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .tinker-voice__btn:disabled { opacity: 0.45; cursor: default; }
+      .tinker-voice__btn[aria-pressed="true"] {
+        background: transparent;
+        color: var(--color-foreground);
+        border: 1px solid var(--color-border);
+      }
+      .tinker-voice__status {
+        margin: 10px 0 0;
+        font-size: 13px;
+        color: var(--color-muted);
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
     </style>
   </head>
   <body class="settings-page">
@@ -172,6 +198,13 @@
           <p class="settings__hint">Optional. Used only on your owner thread header.</p>
           <p class="settings__status" data-owner-profile-status hidden></p>
         </label>
+      </section>
+
+      <section class="settings__section" aria-labelledby="settings-voice-heading">
+        <h2 class="settings__section-title" id="settings-voice-heading">Voice</h2>
+        <p class="settings__hint">Record a short clip. Tinker sends the audio to its own transcribe endpoint; the ElevenLabs key never reaches the browser.</p>
+        <div data-tinker-voice-mount></div>
+        <p class="settings__status" data-tinker-voice-status hidden></p>
       </section>
 
       <section class="settings__section" aria-labelledby="settings-webhook-heading">
@@ -301,6 +334,7 @@
       </p>
     </main>
     <script src="/auth.js" defer></script>
+    <script src="/voice/tinker-voice.js" defer></script>
     <script src="/lib/notes-folder-core.js" defer></script>
     <script src="/notes-folder.js" defer></script>
     <script src="/lead-drafts.js" defer></script>
