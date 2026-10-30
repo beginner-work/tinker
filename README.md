@@ -456,8 +456,10 @@ talk (optional).
 Answers are grounded only in the source corpus; the agent does not
 invent facts. When it does not know, it says so and points to
 [LinkedIn](https://www.linkedin.com/in/tlindow). Default ElevenLabs
-voice is `JlYdFGRHWwlz51Zh5K2n` (configurable per source in
-`api/_lib/ask-sources/<id>/source.json`). Every attempt is logged to
+voice is ElevenLabs stock premade Savvy (`ogwqBH5bbF03DSbNiRNN`):
+clear, warm, and neutral; configurable per source in
+`api/_lib/ask-sources/<id>/source.json`. Do not use personal or cloned
+voices. Every attempt is logged to
 `AskRequest` (question, raw + edited transcript, input type, caller,
 source, position, answer, model, latency, errors, `hasAudio`; never
 the audio bytes).

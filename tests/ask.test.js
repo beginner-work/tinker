@@ -40,7 +40,9 @@ describe("ask source corpus", () => {
     const source = sources.loadSource("lindowlabs-minds-and-models");
     assert.ok(source);
     assert.equal(source.id, "lindowlabs-minds-and-models");
-    assert.equal(source.voiceId, "JlYdFGRHWwlz51Zh5K2n");
+    assert.equal(source.voiceId, "ogwqBH5bbF03DSbNiRNN");
+    assert.equal(sources.DEFAULT_VOICE_ID, "ogwqBH5bbF03DSbNiRNN");
+    assert.notEqual(source.voiceId, "JlYdFGRHWwlz51Zh5K2n");
     assert.match(source.label, /Tyler/i);
     assert.ok(source.docs.length >= 4);
     assert.ok(source.corpusText.includes("Minds and Models"));
@@ -141,7 +143,7 @@ describe("POST /api/ask route", () => {
       speakAnswer: async () => ({
         audioBase64: Buffer.from("fake-mp3").toString("base64"),
         contentType: "audio/mpeg",
-        voiceId: "JlYdFGRHWwlz51Zh5K2n",
+        voiceId: "ogwqBH5bbF03DSbNiRNN",
       }),
     });
 
@@ -243,7 +245,9 @@ describe("ask docs + eval contracts", () => {
     assert.match(readme, /POST \/api\/ask/);
     assert.match(readme, /lindowlabs-minds-and-models/);
     assert.match(readme, /ANTHROPIC_API_KEY/);
-    assert.match(readme, /JlYdFGRHWwlz51Zh5K2n/);
+    assert.match(readme, /ogwqBH5bbF03DSbNiRNN/);
+    assert.match(readme, /Savvy/);
+    assert.doesNotMatch(readme, /JlYdFGRHWwlz51Zh5K2n/);
   });
 
   test(".env.example lists ASK_MODEL", () => {

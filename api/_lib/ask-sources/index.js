@@ -15,7 +15,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = __dirname;
-const DEFAULT_VOICE_ID = "JlYdFGRHWwlz51Zh5K2n";
+// Stock ElevenLabs premade (Savvy - Warm, Grounded & Natural). Never use a
+// personal/cloned voice id here — especially not Tyler's.
+const DEFAULT_VOICE_ID = "ogwqBH5bbF03DSbNiRNN";
 
 function listSourceDirs() {
   let entries = [];
