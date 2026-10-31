@@ -54,6 +54,8 @@
     { "source": "/api/reading/:action", "destination": "/api/reading?action=:action" },
     { "source": "/reading-widget", "destination": "/reading-widget/index.html" },
     { "source": "/reading-widget/", "destination": "/reading-widget/index.html" },
+    { "source": "/reading-widget/lindowlabs-preview", "destination": "/reading-widget/lindowlabs-preview.html" },
+    { "source": "/reading-widget/lindowlabs-preview/", "destination": "/reading-widget/lindowlabs-preview.html" },
     { "source": "/gmail", "destination": "/api/gmail" },
     { "source": "/gmail/", "destination": "/api/gmail" }
   ],

@@ -7,8 +7,13 @@ or typed interrupt questions, answers with Claude grounded in the page
 Served from the Tinker Vercel deploy (`tinker.beginner.work`). Designed for
 one essay on [lindowlabs.dev](https://lindowlabs.dev) (repo `tlindow/lindowlabs`).
 
-This doc is the embed change for lindowlabs. **Do not open the lindowlabs
-PR from this repo**; copy the snippet below into that site when ready.
+This doc is the embed change for lindowlabs. Visual follow-up details and
+a Tinker-hosted preview live in
+[`docs/lindowlabs-reading-embed-patch.md`](lindowlabs-reading-embed-patch.md)
+(`/reading-widget/lindowlabs-preview`). **Do not open the lindowlabs
+PR from this repo** until that private site repo is accessible to the
+agent; when it is, open the visual PR there and **do not merge** until
+Tyler reviews screenshots.
 
 ## What hosts must not do
 
