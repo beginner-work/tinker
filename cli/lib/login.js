@@ -9,6 +9,7 @@ const {
 } = require("./api.js");
 const { saveToken, loadConfig } = require("./config.js");
 const { question } = require("./input.js");
+const { getTheme, rlHide } = require("./theme.js");
 
 function openBrowser(url) {
   const target = String(url || "").trim();
@@ -38,35 +39,50 @@ function openBrowser(url) {
   }
 }
 
-async function connectNotion(config, { write, rl }) {
+function fieldPrompt(label, theme) {
+  if (!theme || !theme.enabled) return label;
+  return (
+    rlHide(theme.reset) +
+    theme.muted(label) +
+    rlHide(theme.reset + theme.bodyOpen())
+  );
+}
+
+async function connectNotion(config, { write, rl, theme = getTheme() }) {
   const status = await notionStatus(config);
   if (status && status.connected && status.parentPageId) {
-    write("Notion already connected.");
+    write(theme.success("Notion already connected."));
     return;
   }
   const started = await notionConnect(config);
   const url = started && (started.authorizeUrl || started.url);
   if (!url) {
-    write("Could not get a Notion authorize URL.");
+    write(theme.error("Could not get a Notion authorize URL."));
     return;
   }
-  write("Opening Notion authorize in your browser…");
+  write(theme.muted("Opening Notion authorize in your browser…"));
   if (!openBrowser(url)) {
-    write("Open this URL:");
-    write(url);
+    write(theme.muted("Open this URL:"));
+    write(theme.body(url));
   }
-  write("After authorizing, set a parent page in Tinker → Connections.");
+  write(theme.muted("After authorizing, set a parent page in Tinker → Connections."));
   if (status && status.connected && !status.parentPageId) {
-    write("Notion needs a parent page before essays can save.");
+    write(theme.error("Notion needs a parent page before essays can save."));
   }
   // Keep rl referenced so callers can pass it; no extra prompt noise.
   void rl;
 }
 
-async function runLogin(rl, { notion = false, write = console.log } = {}) {
+async function runLogin(
+  rl,
+  { notion = false, write = console.log, theme = getTheme() } = {}
+) {
   const config = loadConfig();
-  write(`API: ${config.apiBaseUrl}`);
-  const phone = (await question(rl, "Phone (E.164 or 10-digit US): ")).trim();
+  write(theme.muted(`API: ${config.apiBaseUrl}`));
+  const phone = (
+    await question(rl, fieldPrompt("Phone (E.164 or 10-digit US): ", theme))
+  ).trim();
+  if (theme.enabled && theme.reset && rl.output) rl.output.write(theme.reset);
   if (!phone) {
     throw Object.assign(new Error("Phone is required."), { exitCode: 1 });
   }
@@ -77,7 +93,8 @@ async function runLogin(rl, { notion = false, write = console.log } = {}) {
       exitCode: 1,
     });
   }
-  const pin = (await question(rl, "SMS code: ")).trim();
+  const pin = (await question(rl, fieldPrompt("SMS code: ", theme))).trim();
+  if (theme.enabled && theme.reset && rl.output) rl.output.write(theme.reset);
   if (!pin) {
     throw Object.assign(new Error("Code is required."), { exitCode: 1 });
   }
@@ -92,17 +109,21 @@ async function runLogin(rl, { notion = false, write = console.log } = {}) {
     });
   }
   saveToken(token, { apiBaseUrl: config.apiBaseUrl });
-  write(`Signed in. Saved credentials to ${config.configPath}`);
+  write(theme.success(`Signed in. Saved credentials to ${config.configPath}`));
   // Never print the token.
   const next = { ...config, token };
   if (notion) {
-    await connectNotion(next, { write, rl });
+    await connectNotion(next, { write, rl, theme });
   } else {
     const status = await notionStatus(next).catch(() => null);
     if (!status || !status.connected) {
-      write("Tip: tinker login --notion  to connect Notion for essay saves.");
+      write(
+        theme.muted(
+          "Tip: tinker login --notion  to connect Notion for essay saves."
+        )
+      );
     } else if (!status.parentPageId) {
-      write("Notion needs a parent page (Connections in the app).");
+      write(theme.error("Notion needs a parent page (Connections in the app)."));
     }
   }
 }

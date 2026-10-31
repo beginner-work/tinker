@@ -1,5 +1,7 @@
 "use strict";
 
+const { createTheme } = require("./theme.js");
+
 const HELP = [
   "tinker — write with the tinker coach in your terminal",
   "",
@@ -22,8 +24,29 @@ const HELP = [
   "  TINKER_TOKEN                   Stytch session token",
 ].join("\n");
 
-function printHelp(stream = process.stdout) {
-  stream.write(HELP + "\n");
+function formatHelp(theme) {
+  const t = theme || createTheme({ level: 0 });
+  if (!t.enabled) return HELP;
+  const lines = HELP.split("\n");
+  return lines
+    .map((line, i) => {
+      if (i === 0) return t.question(line);
+      if (
+        line.startsWith("Usage:") ||
+        line.startsWith("During a session:") ||
+        line.startsWith("Config")
+      ) {
+        return t.accent(line);
+      }
+      if (!line.trim()) return line;
+      return t.muted(line);
+    })
+    .join("\n");
 }
 
-module.exports = { HELP, printHelp };
+function printHelp(stream = process.stdout) {
+  const theme = createTheme({ stream });
+  stream.write(formatHelp(theme) + "\n");
+}
+
+module.exports = { HELP, printHelp, formatHelp };
