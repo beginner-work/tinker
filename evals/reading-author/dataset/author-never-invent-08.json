@@ -1,0 +1,10 @@
+{
+  "id": "author-never-invent-08",
+  "notes": "Body text naming a person must NOT become the author",
+  "html": "<!doctype html><html><head><title>Interview</title></head><body><article><p>In this interview, celebrated engineer Grace Hopper discusses compilers.</p></article></body></html>",
+  "expect": {
+    "author": "",
+    "authorSource": "none",
+    "authorUnknown": true
+  }
+}

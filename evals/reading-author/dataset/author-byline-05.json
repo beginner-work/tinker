@@ -1,0 +1,10 @@
+{
+  "id": "author-byline-05",
+  "notes": "class=byline text",
+  "html": "<!doctype html><html><body><div class=\"article-byline\">Casey Byline</div><article><p>Body.</p></article></body></html>",
+  "expect": {
+    "author": "Casey Byline",
+    "authorSource": "byline",
+    "authorUnknown": false
+  }
+}

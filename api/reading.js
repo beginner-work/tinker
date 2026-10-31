@@ -1,11 +1,15 @@
 /* /api/reading
  *
  * Milestone 1 reading agent. Actions via ?action=:
- *   POST session  → start a session from any public article URL
+ *   POST session  → start a session from any public URL (optional verbatimText)
+ *   POST extract  → SSRF-safe fetch + Readability-style plain text (verbatim)
  *   POST speak    → TTS chunk from resume cursor
  *   POST ask      → interrupt with voice/typed question (Claude + tool use)
  *   POST event    → log LinkedIn / email / resume clicks
  *   GET  metrics  → read-only counts (service token or owner session)
+ *
+ * Reading text is always verbatim page text (DOM extract or fetch-page).
+ * Claude never rewrites or summarizes the text being read aloud.
  *
  * Auth for session/speak/ask/event (one of):
  *   Authorization: Bearer <TINKER_SERVICE_TOKEN>
@@ -182,6 +186,9 @@ function createHandler(deps) {
     }
     const meta = clientMeta(body);
     const started = Date.now();
+    const verbatimText = String(
+      (body && (body.verbatimText || body.text || body.pageText)) || "",
+    ).trim();
     const created = await createSession(prisma, {
       url,
       caller: auth.caller,
@@ -189,6 +196,12 @@ function createHandler(deps) {
       isOwner: meta.isOwner,
       embedHost: meta.embedHost,
       platform: meta.platform,
+      verbatimText,
+      title: body && body.title,
+      author: body && body.author,
+      siteName: body && body.siteName,
+      authorSource: body && body.authorSource,
+      authorUnknown: body && body.authorUnknown,
     });
     if (meta.embedHost) {
       await recordEmbedHost(prisma, meta.embedHost);
@@ -214,6 +227,35 @@ function createHandler(deps) {
     );
     res.status(200).json({
       ...created,
+      latencyMs: Date.now() - started,
+    });
+  }
+
+  async function handleExtract(req, res) {
+    const auth = await resolveSessionCreateAuth(req);
+    const body = await readBody(req);
+    const url = String(body.url || body.sourceUrl || "").trim();
+    if (!url) {
+      res.status(400).json({ error: "url is required" });
+      return;
+    }
+    const started = Date.now();
+    const page = await reading.fetchPage(url);
+    res.status(200).json({
+      sourceUrl: page.sourceUrl,
+      requestedUrl: page.requestedUrl,
+      title: page.title,
+      author: page.author,
+      authorSource: page.authorSource || "",
+      authorUnknown: Boolean(page.authorUnknown),
+      siteName: page.siteName || "",
+      companyHost: reading.companyHostFromUrl(page.sourceUrl),
+      text: page.text,
+      wordCount: page.wordCount,
+      linkCount: (page.links || []).length,
+      attribution: page.attribution,
+      verbatim: true,
+      caller: auth.caller,
       latencyMs: Date.now() - started,
     });
   }
@@ -257,9 +299,11 @@ function createHandler(deps) {
         done: true,
         wordCount: chunk.wordCount,
         sourceUrl: session.sourceUrl,
-        attribution: session.author
-          ? `${session.title} by ${session.author}`
-          : session.title,
+        attribution: reading.formatByline({
+          author: session.author,
+          siteName: "",
+          title: session.title,
+        }),
       });
       return;
     }
@@ -283,9 +327,12 @@ function createHandler(deps) {
       sourceUrl: session.sourceUrl,
       title: session.title,
       author: session.author,
-      attribution: session.author
-        ? `${session.title} by ${session.author}`
-        : session.title,
+      authorUnknown: !String(session.author || "").trim(),
+      attribution: reading.formatByline({
+        author: session.author,
+        siteName: "",
+        title: session.title,
+      }),
     });
   }
 
@@ -431,9 +478,12 @@ function createHandler(deps) {
         companyHost: siteDomain,
         title: session.title,
         author: session.author,
-        attribution: session.author
-          ? `${session.title} by ${session.author}`
-          : session.title,
+        authorUnknown: !String(session.author || "").trim(),
+        attribution: reading.formatByline({
+          author: session.author,
+          siteName: "",
+          title: session.title,
+        }),
         linkedInUrl: reading.LINKEDIN_URL,
         emailUrl: reading.EMAIL_URL,
       });
@@ -554,6 +604,10 @@ function createHandler(deps) {
         await handleSession(req, res);
         return;
       }
+      if (action === "extract" && req.method === "POST") {
+        await handleExtract(req, res);
+        return;
+      }
       if (action === "speak" && req.method === "POST") {
         await handleSpeak(req, res);
         return;
@@ -572,7 +626,7 @@ function createHandler(deps) {
       }
       res.status(404).json({
         error:
-          'Unknown action. Use ?action=session|speak|ask|event|metrics',
+          'Unknown action. Use ?action=session|extract|speak|ask|event|metrics',
       });
     } catch (err) {
       const status = (err && err.status) || 500;

@@ -101,6 +101,141 @@ describe("fetch-page helpers", () => {
 </head><body><article><p>Evergreen engineering between milestones.</p></article></body></html>`;
     assert.equal(fetchPage.extractAuthor(html), "Mihai Parparita");
     assert.equal(fetchPage.extractSiteName(html), "Sierra");
+    const attr = fetchPage.resolveAuthorAttribution(html);
+    assert.equal(attr.authorSource, "jsonld");
+    assert.equal(attr.authorUnknown, false);
+  });
+
+  test("resolveAuthorAttribution prefers JSON-LD over meta author", () => {
+    const html = `<!doctype html><html><head>
+<meta name="author" content="Meta Author" />
+<script type="application/ld+json">${JSON.stringify({
+      "@type": "NewsArticle",
+      author: { "@type": "Person", name: "Json Ld Author" },
+    })}</script>
+</head><body><article><p>Body text long enough for extraction later.</p></article></body></html>`;
+    const attr = fetchPage.resolveAuthorAttribution(html);
+    assert.equal(attr.author, "Json Ld Author");
+    assert.equal(attr.authorSource, "jsonld");
+  });
+
+  test("resolveAuthorAttribution falls through meta → article:author → byline → org", () => {
+    const metaOnly = `<html><head><meta name="author" content="Ada Meta" /></head><body></body></html>`;
+    assert.equal(fetchPage.resolveAuthorAttribution(metaOnly).authorSource, "meta_author");
+    assert.equal(fetchPage.resolveAuthorAttribution(metaOnly).author, "Ada Meta");
+
+    const articleOnly = `<html><head><meta property="article:author" content="Art Icle" /></head><body></body></html>`;
+    assert.equal(
+      fetchPage.resolveAuthorAttribution(articleOnly).authorSource,
+      "article_author",
+    );
+
+    const relOnly = `<html><body><a rel="author" href="/u/pat">Pat Byline</a></body></html>`;
+    assert.equal(fetchPage.resolveAuthorAttribution(relOnly).authorSource, "rel_author");
+    assert.equal(fetchPage.resolveAuthorAttribution(relOnly).author, "Pat Byline");
+
+    const bylineOnly = `<html><body><span class="byline">Casey Byline</span></body></html>`;
+    assert.equal(fetchPage.resolveAuthorAttribution(bylineOnly).authorSource, "byline");
+
+    const orgOnly = `<html><head>
+<script type="application/ld+json">${JSON.stringify({
+      "@type": "Organization",
+      name: "Acme Engineering",
+    })}</script>
+</head><body></body></html>`;
+    const org = fetchPage.resolveAuthorAttribution(orgOnly);
+    assert.equal(org.author, "Acme Engineering");
+    assert.equal(org.authorSource, "organization");
+    assert.equal(org.authorUnknown, false);
+
+    const none = `<html><head><title>No author</title></head><body><p>x</p></body></html>`;
+    const unk = fetchPage.resolveAuthorAttribution(none);
+    assert.equal(unk.author, "");
+    assert.equal(unk.authorSource, "none");
+    assert.equal(unk.authorUnknown, true);
+  });
+
+  test("formatByline shows By Author or Author unknown — never invents", () => {
+    assert.match(
+      fetchPage.formatByline({ author: "Jordan Lee", title: "On-Call" }),
+      /^On-Call By Jordan Lee/,
+    );
+    assert.equal(
+      fetchPage.formatByline({ author: "", title: "Shared" }),
+      "Shared Author unknown",
+    );
+  });
+
+  test("fetchPage logs author unknown and returns authorUnknown", async () => {
+    const html = `<!doctype html><html><head><title>Orphan Page</title></head>
+<body><article><p>${"Readable paragraph. ".repeat(20)}</p></article></body></html>`;
+    const warns = [];
+    const prev = console.warn;
+    console.warn = (msg) => warns.push(String(msg));
+    try {
+      const page = await fetchPage.fetchPage(
+        "https://engineering.acme-example.test/orphan",
+        {
+          fetchFn: mockFetchHtml(html, "https://engineering.acme-example.test/orphan"),
+          lookupFn: async () => {},
+        },
+      );
+      assert.equal(page.authorUnknown, true);
+      assert.equal(page.author, "");
+      assert.match(page.attribution, /Author unknown/);
+      assert.ok(warns.some((w) => /reading_author_unknown/.test(w)));
+    } finally {
+      console.warn = prev;
+    }
+  });
+
+  test("createSession stores author and marks unknown for share-in without author", async () => {
+    const warns = [];
+    const prev = console.warn;
+    console.warn = (msg) => warns.push(String(msg));
+    try {
+      const created = await reading.createSession(null, {
+        url: "https://docs.example.test/guide",
+        caller: "test",
+        verbatimText:
+          "This is a long enough verbatim extract of shared page text for the reading agent session path to accept without fetching. ".repeat(
+            2,
+          ),
+        title: "Shared Guide",
+        author: "",
+      });
+      assert.equal(created.author, "");
+      assert.equal(created.authorUnknown, true);
+      assert.match(created.attribution, /Author unknown/);
+      assert.ok(warns.some((w) => /reading_author_unknown/.test(w)));
+    } finally {
+      console.warn = prev;
+    }
+  });
+
+  test("createSession stores attributed author from fetch", async () => {
+    const created = await reading.createSession(null, {
+      url: "https://engineering.acme-example.test/blog/oncall",
+      caller: "test",
+      fetchPageFn: async () => ({
+        sourceUrl: "https://engineering.acme-example.test/blog/oncall",
+        requestedUrl: "https://engineering.acme-example.test/blog/oncall",
+        title: "On-Call",
+        author: "Jordan Lee",
+        authorSource: "meta_author",
+        authorUnknown: false,
+        siteName: "Acme Eng",
+        text: "Acme rebuilt on-call around three rules with runbooks and handoff notes for every shift.",
+        paragraphs: ["Acme rebuilt on-call around three rules."],
+        wordCount: 14,
+        links: [],
+        attribution: "On-Call By Jordan Lee (Acme Eng)",
+      }),
+    });
+    assert.equal(created.author, "Jordan Lee");
+    assert.equal(created.authorUnknown, false);
+    assert.equal(created.siteName, "Acme Eng");
+    assert.match(created.attribution, /By Jordan Lee/);
   });
 
   test("isPrivateIp covers RFC1918 and link-local", () => {

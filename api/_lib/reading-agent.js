@@ -14,7 +14,12 @@
 const crypto = require("node:crypto");
 const { callAnthropic } = require("./anthropic.js");
 const { callElevenLabsTts, elevenLabsApiKey } = require("./essay-feed.js");
-const { fetchPage, wordsFromText } = require("./fetch-page.js");
+const {
+  fetchPage,
+  wordsFromText,
+  formatByline,
+  logAuthorUnknown,
+} = require("./fetch-page.js");
 const {
   serviceToken,
   timingSafeEqual,
@@ -428,14 +433,98 @@ function normalizePlatform(raw) {
   return "";
 }
 
+/**
+ * Prefer client-supplied verbatim page text (DOM extract). Never rewrite via
+ * Claude. Falls back to SSRF-safe fetchPage when verbatim text is absent.
+ */
 async function createSession(
   prismaClient,
-  { url, caller, fetchPageFn, anonymousId, isOwner, embedHost, platform },
+  {
+    url,
+    caller,
+    fetchPageFn,
+    anonymousId,
+    isOwner,
+    embedHost,
+    platform,
+    verbatimText,
+    title: titleOverride,
+    author: authorOverride,
+    siteName: siteNameOverride,
+    authorSource: authorSourceOverride,
+    authorUnknown: authorUnknownOverride,
+  },
 ) {
-  const page = await (fetchPageFn || fetchPage)(url);
+  const rawVerbatim = String(verbatimText || "").trim();
+  let page;
+  if (rawVerbatim.length >= 40) {
+    const parsedUrl = (() => {
+      try {
+        return new URL(String(url || "").trim());
+      } catch {
+        return null;
+      }
+    })();
+    if (!parsedUrl || !/^https?:$/i.test(parsedUrl.protocol)) {
+      throw Object.assign(new Error("url must be a valid http(s) URL"), {
+        status: 400,
+      });
+    }
+    const text = rawVerbatim.slice(0, 60_000);
+    const words = wordsFromText(text);
+    const author = String(authorOverride || "").trim().slice(0, 200);
+    const siteName = String(siteNameOverride || "").trim().slice(0, 200);
+    const title =
+      String(titleOverride || "").trim().slice(0, 300) || parsedUrl.hostname;
+    const authorUnknown =
+      authorUnknownOverride === true ||
+      authorUnknownOverride === "1" ||
+      !author;
+    if (authorUnknown) {
+      logAuthorUnknown({
+        sourceUrl: parsedUrl.href,
+        title,
+        siteName,
+      });
+    }
+    page = {
+      sourceUrl: parsedUrl.href,
+      requestedUrl: parsedUrl.href,
+      title,
+      author: authorUnknown ? "" : author,
+      authorSource: String(authorSourceOverride || (author ? "client" : "none")).slice(
+        0,
+        40,
+      ),
+      authorUnknown,
+      siteName,
+      text,
+      paragraphs: text.split(/\n\s*\n/).filter(Boolean),
+      wordCount: words.length,
+      links: [],
+      attribution: formatByline({
+        author: authorUnknown ? "" : author,
+        authorUnknown,
+        siteName,
+        title,
+      }),
+      verbatim: true,
+    };
+  } else {
+    page = await (fetchPageFn || fetchPage)(url);
+    page.verbatim = false;
+    if (page.authorUnknown == null) {
+      page.authorUnknown = !String(page.author || "").trim();
+    }
+    // fetchPage already logs reading_author_unknown when applicable.
+  }
+
   const id = newSessionId();
   const voiceId = readingVoiceId();
   cacheSessionText(id, { text: page.text, links: page.links });
+
+  // Persist attributed author with the session (empty when unknown).
+  const storedAuthor = String(page.author || "").trim().slice(0, 200);
 
   const data = {
     id,
@@ -445,7 +534,7 @@ async function createSession(
     requestedUrl: page.requestedUrl || page.sourceUrl,
     companyHost: companyHostFromUrl(page.sourceUrl),
     title: page.title || "",
-    author: page.author || "",
+    author: storedAuthor,
     wordCount: page.wordCount || 0,
     links: page.links || [],
     resumeWordIndex: 0,
@@ -467,10 +556,12 @@ async function createSession(
 
   const attribution =
     page.attribution ||
-    [page.title, page.author ? `by ${page.author}` : "", page.siteName ? `(${page.siteName})` : ""]
-      .filter(Boolean)
-      .join(" ")
-      .trim() ||
+    formatByline({
+      author: storedAuthor,
+      authorUnknown: Boolean(page.authorUnknown),
+      siteName: page.siteName || "",
+      title: page.title || "",
+    }) ||
     page.sourceUrl;
 
   return {
@@ -478,15 +569,19 @@ async function createSession(
     sourceUrl: page.sourceUrl,
     requestedUrl: page.requestedUrl,
     title: page.title,
-    author: page.author,
+    author: storedAuthor,
+    authorSource: page.authorSource || (storedAuthor ? "fetch" : "none"),
+    authorUnknown: Boolean(page.authorUnknown) || !storedAuthor,
     siteName: page.siteName || "",
     wordCount: page.wordCount,
     companyHost: data.companyHost,
     linkCount: (page.links || []).length,
     voiceId,
     platform: data.platform,
+    verbatim: Boolean(page.verbatim),
     // Short preview only; full text stays server-side / ephemeral cache.
-    preview: page.paragraphs.slice(0, 2).join("\n\n").slice(0, 480),
+    preview: (page.paragraphs || []).slice(0, 2).join("\n\n").slice(0, 480) ||
+      String(page.text || "").slice(0, 480),
     attribution,
   };
 }
@@ -692,4 +787,5 @@ module.exports = {
   logClick,
   collectMetrics,
   fetchPage,
+  formatByline,
 };

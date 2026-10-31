@@ -1,0 +1,10 @@
+{
+  "id": "author-rel-04",
+  "notes": "rel=author anchor text",
+  "html": "<!doctype html><html><body><a rel=\"author\" href=\"/writers/pat\">Pat Rel</a><article><p>Body.</p></article></body></html>",
+  "expect": {
+    "author": "Pat Rel",
+    "authorSource": "rel_author",
+    "authorUnknown": false
+  }
+}

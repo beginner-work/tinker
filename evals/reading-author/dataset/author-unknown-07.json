@@ -1,0 +1,10 @@
+{
+  "id": "author-unknown-07",
+  "notes": "Shared URL with no extractable author → Author unknown (never invent)",
+  "html": "<!doctype html><html><head><title>Orphan</title></head><body><article><p>Body with no author metadata at all.</p></article></body></html>",
+  "expect": {
+    "author": "",
+    "authorSource": "none",
+    "authorUnknown": true
+  }
+}

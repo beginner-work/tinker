@@ -1,0 +1,10 @@
+{
+  "id": "author-org-06",
+  "notes": "Organization / publisher fallback when no person author",
+  "html": "<!doctype html><html><head><script type=\"application/ld+json\">{\"@type\":\"WebPage\",\"publisher\":{\"@type\":\"Organization\",\"name\":\"Acme Docs\"}}</script></head><body><article><p>Body.</p></article></body></html>",
+  "expect": {
+    "author": "Acme Docs",
+    "authorSource": "organization",
+    "authorUnknown": false
+  }
+}
