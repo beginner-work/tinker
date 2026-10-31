@@ -1,4 +1,4 @@
-# Lindowlabs.dev reading embed (follow-up — do not merge until visual review)
+# Lindowlabs.dev reading embed (follow-up - do not merge until visual review)
 
 **Blocked on repo access:** this agent cannot clone `tlindow/lindowlabs`
 (private / not visible to the GitHub integration). Until that access is
@@ -12,7 +12,7 @@ repo**. Do not merge until Tyler reviews screenshots.
 
 ## 1. "Listen to this post" control
 
-Near the post title (same first content band as the headline — not a
+Near the post title (same first content band as the headline - not a
 card stack of extras), add a single CTA that scrolls to / focuses the
 embed, plus a secondary any-URL path to Tinker Reading:
 
