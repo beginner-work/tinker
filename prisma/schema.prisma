@@ -441,6 +441,8 @@ model ReadingSession {
   isOwner          Boolean  @default(false)
   embedHost        String   @default("")
   questionCount    Int      @default(0)
+  /// Client surface: web | ios | android | embed (empty = legacy / unknown).
+  platform         String   @default("")
 
   @@index([createdAt])
   @@index([caller, createdAt])
@@ -448,6 +450,7 @@ model ReadingSession {
   @@index([sourceUrl, createdAt])
   @@index([anonymousId, createdAt])
   @@index([isOwner, createdAt])
+  @@index([platform, createdAt])
 }
 
 // One interrupt question per reading session (voice or typed).
@@ -474,6 +477,8 @@ model ReadingQuestion {
   error             String   @default("")
   anonymousId       String   @default("")
   isOwner           Boolean  @default(false)
+  /// Client surface: web | ios | android | embed (empty = legacy / unknown).
+  platform          String   @default("")
 
   @@index([createdAt])
   @@index([sessionId, createdAt])
@@ -482,6 +487,7 @@ model ReadingQuestion {
   @@index([status, createdAt])
   @@index([anonymousId, createdAt])
   @@index([isOwner, createdAt])
+  @@index([platform, createdAt])
 }
 
 // Clicks out of the reading widget (LinkedIn, email, original source).

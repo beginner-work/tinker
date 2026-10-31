@@ -412,7 +412,26 @@ async function ensureSessionText(sessionRow, { fetchPageFn } = {}) {
   return { text: page.text, links };
 }
 
-async function createSession(prismaClient, { url, caller, fetchPageFn, anonymousId, isOwner, embedHost }) {
+function normalizePlatform(raw) {
+  try {
+    const events = require("../../src/renderer/lib/metrics/events.js");
+    if (typeof events.normalizePlatform === "function") {
+      return events.normalizePlatform(raw);
+    }
+  } catch {
+    /* fall through */
+  }
+  const v = String(raw || "")
+    .trim()
+    .toLowerCase();
+  if (v === "web" || v === "ios" || v === "android" || v === "embed") return v;
+  return "";
+}
+
+async function createSession(
+  prismaClient,
+  { url, caller, fetchPageFn, anonymousId, isOwner, embedHost, platform },
+) {
   const page = await (fetchPageFn || fetchPage)(url);
   const id = newSessionId();
   const voiceId = readingVoiceId();
@@ -435,6 +454,7 @@ async function createSession(prismaClient, { url, caller, fetchPageFn, anonymous
     isOwner: Boolean(isOwner),
     embedHost: String(embedHost || "").slice(0, 200),
     questionCount: 0,
+    platform: normalizePlatform(platform),
   };
 
   if (prismaClient && typeof prismaClient.readingSession?.create === "function") {
@@ -464,6 +484,7 @@ async function createSession(prismaClient, { url, caller, fetchPageFn, anonymous
     companyHost: data.companyHost,
     linkCount: (page.links || []).length,
     voiceId,
+    platform: data.platform,
     // Short preview only; full text stays server-side / ephemeral cache.
     preview: page.paragraphs.slice(0, 2).join("\n\n").slice(0, 480),
     attribution,
@@ -528,6 +549,7 @@ async function logQuestion(prismaClient, row) {
         error: row.error || "",
         anonymousId: row.anonymousId || "",
         isOwner: Boolean(row.isOwner),
+        platform: normalizePlatform(row.platform),
       },
     });
   } catch (err) {
@@ -652,6 +674,7 @@ module.exports = {
   normalizeInputType,
   normalizePosition,
   companyHostFromUrl,
+  normalizePlatform,
   chunkTextFromWord,
   positionSnippet,
   buildReadingSystem,

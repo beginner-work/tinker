@@ -95,6 +95,8 @@ async function collectResumeMetrics(prismaClient, { now } = {}) {
     questionsPerSession: 0,
     repeatUsers: 0,
     embedHosts: [],
+    distinctSites: [],
+    byPlatform: {},
     latestEvalPassRate: null,
     usersPerMonth: [],
     usersLast30Days: 0,
@@ -108,11 +110,24 @@ async function collectResumeMetrics(prismaClient, { now } = {}) {
   try {
     const sessions = await prismaClient.readingSession.findMany({
       where: { isOwner: false, anonymousId: { not: "" } },
-      select: { id: true, anonymousId: true, createdAt: true, questionCount: true },
+      select: {
+        id: true,
+        anonymousId: true,
+        createdAt: true,
+        questionCount: true,
+        companyHost: true,
+        platform: true,
+      },
     });
     const questions = await prismaClient.readingQuestion.findMany({
       where: { isOwner: false, status: "ok" },
-      select: { sessionId: true, anonymousId: true, createdAt: true },
+      select: {
+        sessionId: true,
+        anonymousId: true,
+        createdAt: true,
+        companyHost: true,
+        platform: true,
+      },
     });
 
     const sessionIdsWithQuestion = new Set();
@@ -209,12 +224,60 @@ async function collectResumeMetrics(prismaClient, { now } = {}) {
       }
     }
 
+    // distinctSites: hostname-only article hosts from non-owner ok questions
+    // (falls back to session companyHost). Never full URLs.
+    const siteSet = new Set();
+    for (const q of questions) {
+      const host = normalizeHost(q.companyHost);
+      if (host) siteSet.add(host);
+    }
+    if (siteSet.size === 0) {
+      for (const s of sessions) {
+        if (!sessionIdsWithQuestion.has(s.id)) continue;
+        const host = normalizeHost(s.companyHost);
+        if (host) siteSet.add(host);
+      }
+    }
+    const distinctSites = [...siteSet].sort();
+
+    // Platform breakdown (ios / web / android / embed / unknown).
+    const byPlatform = {};
+    function ensurePlat(p) {
+      const key = events.normalizePlatform(p) || "unknown";
+      if (!byPlatform[key]) {
+        byPlatform[key] = { users: 0, questions: 0, sessions: 0 };
+      }
+      return key;
+    }
+    const platUsers = new Map(); // platform -> Set(anonymousId)
+    for (const s of sessions) {
+      const key = ensurePlat(s.platform);
+      byPlatform[key].sessions += 1;
+      if (s.anonymousId && userSet.has(s.anonymousId)) {
+        if (!platUsers.has(key)) platUsers.set(key, new Set());
+        platUsers.get(key).add(s.anonymousId);
+      }
+    }
+    for (const q of questions) {
+      const key = ensurePlat(q.platform);
+      byPlatform[key].questions += 1;
+      if (q.anonymousId && userSet.has(q.anonymousId)) {
+        if (!platUsers.has(key)) platUsers.set(key, new Set());
+        platUsers.get(key).add(q.anonymousId);
+      }
+    }
+    for (const [key, set] of platUsers) {
+      if (byPlatform[key]) byPlatform[key].users = set.size;
+    }
+
     return {
       users: userSet.size,
       questions: questionsTotal,
       questionsPerSession,
       repeatUsers,
       embedHosts,
+      distinctSites,
+      byPlatform,
       latestEvalPassRate,
       usersPerMonth,
       usersLast30Days: users30.size,

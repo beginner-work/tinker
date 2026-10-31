@@ -87,7 +87,8 @@ function createHandler(deps) {
     const embedHost = resumeMetrics.normalizeHost(
       (body && (body.embedHost || body.host)) || "",
     );
-    return { anonymousId, isOwner, embedHost };
+    const platform = reading.normalizePlatform(body && body.platform);
+    return { anonymousId, isOwner, embedHost, platform };
   }
 
   async function resolveStrongAuth(req) {
@@ -187,11 +188,16 @@ function createHandler(deps) {
       anonymousId: meta.anonymousId,
       isOwner: meta.isOwner,
       embedHost: meta.embedHost,
+      platform: meta.platform,
     });
     if (meta.embedHost) {
       await recordEmbedHost(prisma, meta.embedHost);
       await emitSdkLoaded(
-        { host: meta.embedHost, anonymousId: meta.anonymousId || "" },
+        {
+          host: meta.embedHost,
+          anonymousId: meta.anonymousId || "",
+          platform: meta.platform || "",
+        },
         { isOwner: meta.isOwner, headers: req.headers },
       );
     }
@@ -200,7 +206,9 @@ function createHandler(deps) {
         sessionId: created.sessionId,
         anonymousId: meta.anonymousId || "",
         sourceHost: created.companyHost || "",
+        site_domain: created.companyHost || "",
         host: meta.embedHost || "",
+        platform: meta.platform || created.platform || "",
       },
       { isOwner: meta.isOwner, headers: req.headers },
     );
@@ -335,6 +343,7 @@ function createHandler(deps) {
     const meta = clientMeta(body);
     const anonymousId = meta.anonymousId || session.anonymousId || "";
     const isOwner = meta.isOwner || Boolean(session.isOwner);
+    const platform = meta.platform || reading.normalizePlatform(session.platform);
 
     let answerText = "";
     let model = "";
@@ -372,6 +381,7 @@ function createHandler(deps) {
       await updateResume(prisma, sessionId, resumeWordIndex);
 
       const latencyMs = Date.now() - started;
+      const siteDomain = session.companyHost || "";
       await logQuestion(prisma, {
         id: requestId,
         sessionId,
@@ -390,9 +400,10 @@ function createHandler(deps) {
         resumeWordIndex,
         position,
         sourceUrl: session.sourceUrl,
-        companyHost: session.companyHost || "",
+        companyHost: siteDomain,
         anonymousId,
         isOwner,
+        platform,
       });
       await bumpSessionQuestionCount(prisma, sessionId);
       await emitQuestionAsked(
@@ -400,7 +411,9 @@ function createHandler(deps) {
           sessionId,
           anonymousId: anonymousId || "",
           input,
-          sourceHost: session.companyHost || "",
+          sourceHost: siteDomain,
+          site_domain: siteDomain,
+          platform: platform || "",
         },
         { isOwner, headers: req.headers },
       );
@@ -415,6 +428,7 @@ function createHandler(deps) {
         fetchedSource,
         fetchedSourceUrl,
         sourceUrl: session.sourceUrl,
+        companyHost: siteDomain,
         title: session.title,
         author: session.author,
         attribution: session.author
@@ -448,6 +462,7 @@ function createHandler(deps) {
         companyHost: session.companyHost || "",
         anonymousId,
         isOwner,
+        platform,
         error: String(message).slice(0, 500),
       });
       res.status(status).json({ error: message, requestId });
