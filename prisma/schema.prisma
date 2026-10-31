@@ -417,3 +417,75 @@ model AskRequest {
   @@index([status, createdAt])
 }
 
+// Reading-agent session. sourceUrl is the public article being read;
+// companyHost is derived for per-target-company metrics. Article body
+// text is NOT stored here (ephemeral cache + re-fetch from sourceUrl).
+model ReadingSession {
+  id               String   @id
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  caller           String
+  status           String   @default("active")
+  sourceUrl        String
+  requestedUrl     String   @default("")
+  companyHost      String   @default("")
+  title            String   @default("")
+  author           String   @default("")
+  wordCount        Int      @default(0)
+  links            Json     @default("[]")
+  resumeWordIndex  Int      @default(0)
+  voiceId          String   @default("")
+
+  @@index([createdAt])
+  @@index([caller, createdAt])
+  @@index([companyHost, createdAt])
+  @@index([sourceUrl, createdAt])
+}
+
+// One interrupt question per reading session (voice or typed).
+model ReadingQuestion {
+  id                String   @id
+  createdAt         DateTime @default(now())
+  sessionId         String
+  caller            String   @default("")
+  status            String
+  latencyMs         Int      @default(0)
+  inputType         String   @default("")
+  question          String   @default("")
+  rawTranscript     String   @default("")
+  answerText        String   @default("")
+  model             String   @default("")
+  voiceId           String   @default("")
+  hasAudio          Boolean  @default(false)
+  fetchedSource     Boolean  @default(false)
+  fetchedSourceUrl  String   @default("")
+  resumeWordIndex   Int      @default(0)
+  position          Json?
+  sourceUrl         String   @default("")
+  companyHost       String   @default("")
+  error             String   @default("")
+
+  @@index([createdAt])
+  @@index([sessionId, createdAt])
+  @@index([companyHost, createdAt])
+  @@index([fetchedSource, createdAt])
+  @@index([status, createdAt])
+}
+
+// Clicks out of the reading widget (LinkedIn, email, original source).
+model ReadingClick {
+  id           String   @id
+  createdAt    DateTime @default(now())
+  sessionId    String   @default("")
+  caller       String   @default("")
+  target       String
+  href         String   @default("")
+  sourceUrl    String   @default("")
+  companyHost  String   @default("")
+
+  @@index([createdAt])
+  @@index([target, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([companyHost, createdAt])
+}
+

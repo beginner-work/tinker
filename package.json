@@ -37,7 +37,8 @@
     "eval:ask:legacy": "node scripts/eval-ask.js",
     "eval:ask:build": "node scripts/build-ask-dataset.js",
     "eval:ask:promote": "node scripts/promote-ask-logs.js",
-    "eval:ask:snapshot-essays": "node scripts/snapshot-ask-essays.js"
+    "eval:ask:snapshot-essays": "node scripts/snapshot-ask-essays.js",
+    "reading:metrics": "node scripts/reading-metrics.js"
   },
   "keywords": [
     "electron",
