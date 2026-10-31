@@ -351,9 +351,11 @@ async function callElevenLabsTts({ text, voiceId, apiKey, fetchFn }) {
   if (!res.ok) {
     let detail = "";
     try { detail = await res.text(); } catch { /* ignore */ }
+    // Use 503 (not 502): Cloudflare on tinker.beginner.work replaces origin
+    // 502 bodies with a generic "error code: 502" plain-text page.
     throw Object.assign(
       new Error(`ElevenLabs error ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`),
-      { status: 502 },
+      { status: 503 },
     );
   }
 
