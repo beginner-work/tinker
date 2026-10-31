@@ -14,9 +14,11 @@
 "use strict";
 
 const ask = require("../../../api/_lib/ask.js");
+const reading = require("../../../api/_lib/reading-agent.js");
 const { callAnthropic } = require("../../../api/_lib/anthropic.js");
 const models = require("../../../src/renderer/lib/claude-models.js");
 const { proseOnly } = require("./extract-pairs.js");
+const load = require("./load-dataset.js");
 
 const VOICE_SYSTEM = [
   "You answer as Tyler's agent, in Tyler's first-person writing voice.",
@@ -82,8 +84,77 @@ async function answerGroundedAsk(caseRow) {
   };
 }
 
-async function runTask(caseRow, { essays } = {}) {
+async function answerReadingCase(caseRow, { pages } = {}) {
+  const list = Array.isArray(pages) ? pages : load.loadReadingPagesFixture();
+  const page = list.find((p) => p && p.id === caseRow.pageId) || list[0];
+  if (!page) {
+    throw new Error(`missing reading page fixture for ${caseRow.pageId}`);
+  }
+  const linked = page.linkedPages || {};
+  const fetchPageFn = async (url) => {
+    const hit = linked[url];
+    if (!hit) {
+      throw Object.assign(new Error("linked page not in fixture"), { status: 404 });
+    }
+    return {
+      sourceUrl: url,
+      requestedUrl: url,
+      title: hit.title || "",
+      author: hit.author || "",
+      text: hit.text || "",
+      paragraphs: String(hit.text || "").split(/\n\s*\n/),
+      wordCount: String(hit.text || "").split(/\s+/).filter(Boolean).length,
+      links: [],
+      fetchedAt: new Date().toISOString(),
+    };
+  };
+
+  const decision = reading.decideFetchLink({
+    question: caseRow.question,
+    links: page.links || [],
+  });
+
+  const started = Date.now();
+  const answered = await reading.answerReadingQuestion({
+    title: page.title,
+    author: page.author,
+    sourceUrl: page.sourceUrl,
+    text: page.text,
+    links: page.links || [],
+    question: caseRow.question,
+    input: caseRow.input || "typed",
+    rawTranscript: caseRow.rawTranscript || "",
+    position: caseRow.position || null,
+    fetchPageFn,
+  });
+
+  const resumeWordIndex =
+    caseRow.position && typeof caseRow.position.wordIndex === "number"
+      ? caseRow.position.wordIndex
+      : 0;
+
+  return {
+    answerText: answered.answerText,
+    latencyMs: Date.now() - started,
+    model: answered.model,
+    path: "reading-agent",
+    toolUsed: Boolean(answered.toolUsed),
+    fetchedSourceUrl: answered.fetchedSourceUrl || "",
+    shouldFetchDecision: decision,
+    resumeWordIndex,
+    pageId: page.id,
+    sourceUrl: page.sourceUrl,
+  };
+}
+
+async function runTask(caseRow, { essays, pages } = {}) {
   const category = caseRow.category || "agreement";
+  if (
+    caseRow.source === "reading" ||
+    String(category).startsWith("reading_")
+  ) {
+    return answerReadingCase(caseRow, { pages });
+  }
   if (category === "agreement" || caseRow.source === "essay") {
     return answerInTylerVoice({
       question: caseRow.question,
@@ -98,6 +169,7 @@ module.exports = {
   buildStyleCorpus,
   answerInTylerVoice,
   answerGroundedAsk,
+  answerReadingCase,
   runTask,
   VOICE_SYSTEM,
 };

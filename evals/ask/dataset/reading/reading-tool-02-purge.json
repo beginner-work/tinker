@@ -1,0 +1,17 @@
+{
+  "id": "reading-tool-02-purge",
+  "source": "reading",
+  "category": "reading_tool_use",
+  "question": "According to the purge API design note, what is the default purge mode in production?",
+  "input": "typed",
+  "pageId": "northstar-cache",
+  "position": { "wordIndex": 30 },
+  "expect": {
+    "minSentences": 1,
+    "maxSentences": 4,
+    "mustIncludeAny": ["soft-purge", "soft purge"],
+    "shouldFetchLink": true,
+    "fetchUrlIncludes": "purge-api"
+  },
+  "notes": "Must fetch purge API linked source."
+}

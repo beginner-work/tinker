@@ -71,12 +71,13 @@ describe("ask dataset load (~200 tagged cases)", () => {
       if (c.tyler_answer != null) withTyler += 1;
       assert.ok(c.id && c.question);
       assert.ok(
-        ["essay", "synthetic", "visitor", "linkedin"].includes(c.source),
+        ["essay", "synthetic", "visitor", "linkedin", "reading"].includes(c.source),
         c.source,
       );
     }
     assert.ok(bySource.essay >= 50, `essay pairs ${bySource.essay}`);
     assert.ok(bySource.synthetic >= 100, `synthetic ${bySource.synthetic}`);
+    assert.ok(bySource.reading >= 9, `reading cases ${bySource.reading}`);
     assert.ok(withTyler >= 50, `with tyler_answer ${withTyler}`);
     assert.ok(byCategory.agreement >= 50);
     assert.ok(byCategory.grounded >= 20);
@@ -84,6 +85,9 @@ describe("ask dataset load (~200 tagged cases)", () => {
     assert.ok(byCategory.prompt_injection >= 10);
     assert.ok(byCategory.off_topic >= 10);
     assert.ok(byCategory.voice_messy >= 10);
+    assert.ok(byCategory.reading_grounded >= 3);
+    assert.ok(byCategory.reading_tool_use >= 3);
+    assert.ok(byCategory.reading_resume >= 3);
 
     const rows = load.toEvalRows(cases);
     assert.equal(rows.length, cases.length);
@@ -199,5 +203,47 @@ describe("task helpers", () => {
     const corpus = task.buildStyleCorpus(essays, "a");
     assert.match(corpus, /Bravo/);
     assert.equal(corpus.includes("Alpha"), false);
+  });
+});
+
+describe("reading-agent eval fixtures", () => {
+  test("synthetic reading pages never ship third-party article dumps", () => {
+    const pages = load.loadReadingPagesFixture();
+    assert.equal(pages.length, 3);
+    for (const p of pages) {
+      assert.match(p.sourceUrl, /example\.test/);
+      assert.ok(p.text.length > 80);
+      assert.ok(Array.isArray(p.links) && p.links.length >= 1);
+    }
+  });
+
+  test("ToolUseDecision and ResumeAfterInterrupt scorers", () => {
+    const toolPass = scorers.ToolUseDecision({
+      output: { toolUsed: true, fetchedSourceUrl: "https://x.test/paging-policy" },
+      expected: { expect: { shouldFetchLink: true, fetchUrlIncludes: "paging-policy" } },
+    });
+    assert.equal(toolPass.score, 1);
+    const toolFail = scorers.ToolUseDecision({
+      output: { toolUsed: false, fetchedSourceUrl: "" },
+      expected: { expect: { shouldFetchLink: true, fetchUrlIncludes: "paging-policy" } },
+    });
+    assert.equal(toolFail.score, 0);
+    const resume = scorers.ResumeAfterInterrupt({
+      output: { resumeWordIndex: 55 },
+      expected: { expect: { resumeWordIndex: 55 } },
+    });
+    assert.equal(resume.score, 1);
+  });
+
+  test("decideFetchLink wants linked source for paging-policy questions", () => {
+    const reading = require("../api/_lib/reading-agent.js");
+    const pages = load.loadReadingPagesFixture();
+    const page = pages.find((p) => p.id === "acme-sre-oncall");
+    const decision = reading.decideFetchLink({
+      question: "What does the linked paging policy say about weekend pages?",
+      links: page.links,
+    });
+    assert.equal(decision.shouldFetch, true);
+    assert.match(decision.url, /paging-policy/);
   });
 });

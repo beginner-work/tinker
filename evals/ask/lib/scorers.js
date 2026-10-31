@@ -233,6 +233,52 @@ async function GroundingJudge({ input, output, expected }) {
   };
 }
 
+/** Reading-agent: did we fetch a linked source when the case expected it? */
+function ToolUseDecision({ output, expected }) {
+  const expect = (expected && expected.expect) || {};
+  if (typeof expect.shouldFetchLink !== "boolean") return null;
+  const toolUsed = Boolean(output && output.toolUsed);
+  const failures = [];
+  if (toolUsed !== expect.shouldFetchLink) {
+    failures.push(
+      `toolUsed=${toolUsed} expected shouldFetchLink=${expect.shouldFetchLink}`,
+    );
+  }
+  if (expect.shouldFetchLink && expect.fetchUrlIncludes) {
+    const url = String((output && output.fetchedSourceUrl) || "");
+    if (!url.toLowerCase().includes(String(expect.fetchUrlIncludes).toLowerCase())) {
+      failures.push(`fetchedSourceUrl missing ${expect.fetchUrlIncludes}: ${url}`);
+    }
+  }
+  return {
+    name: "ToolUseDecision",
+    score: failures.length === 0 ? 1 : 0,
+    metadata: {
+      failures,
+      toolUsed,
+      fetchedSourceUrl: (output && output.fetchedSourceUrl) || "",
+    },
+  };
+}
+
+/** Reading-agent: resume cursor preserved after interrupt. */
+function ResumeAfterInterrupt({ output, expected, input }) {
+  const expect = (expected && expected.expect) || {};
+  if (expect.resumeWordIndex == null) return null;
+  const got =
+    output && typeof output.resumeWordIndex === "number"
+      ? output.resumeWordIndex
+      : input && input.position && typeof input.position.wordIndex === "number"
+        ? input.position.wordIndex
+        : null;
+  const ok = got === expect.resumeWordIndex;
+  return {
+    name: "ResumeAfterInterrupt",
+    score: ok ? 1 : 0,
+    metadata: { expected: expect.resumeWordIndex, got },
+  };
+}
+
 module.exports = {
   countSentences,
   KeywordExpect,
@@ -240,5 +286,7 @@ module.exports = {
   CasePass,
   TylerAgreement,
   GroundingJudge,
+  ToolUseDecision,
+  ResumeAfterInterrupt,
   parseJudgeJson,
 };

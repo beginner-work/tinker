@@ -8,8 +8,10 @@ const path = require("node:path");
 const ROOT = path.join(__dirname, "..");
 const CASES_JSONL = path.join(ROOT, "dataset", "cases.jsonl");
 const CASES_DIR = path.join(ROOT, "dataset", "cases");
+const READING_CASES_DIR = path.join(ROOT, "dataset", "reading");
 const LEGACY_CASES_DIR = path.join(ROOT, "cases");
 const ESSAYS_FIXTURE = path.join(ROOT, "fixtures", "essays.json");
+const READING_PAGES_FIXTURE = path.join(ROOT, "fixtures", "reading-pages.json");
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -23,6 +25,12 @@ function loadEssaysFixture() {
   return [];
 }
 
+function loadReadingPagesFixture() {
+  if (!fs.existsSync(READING_PAGES_FIXTURE)) return [];
+  const raw = readJson(READING_PAGES_FIXTURE);
+  return Array.isArray(raw) ? raw : [];
+}
+
 function normalizeCase(raw) {
   if (!raw || typeof raw !== "object") return null;
   const question = String(raw.question || "").trim();
@@ -32,16 +40,18 @@ function normalizeCase(raw) {
     raw.tyler_answer == null || raw.tyler_answer === ""
       ? null
       : String(raw.tyler_answer);
+  const allowed =
+    source === "essay" ||
+    source === "visitor" ||
+    source === "synthetic" ||
+    source === "linkedin" ||
+    source === "reading"
+      ? source
+      : "synthetic";
   return {
     id: String(raw.id),
     question,
-    source:
-      source === "essay" ||
-      source === "visitor" ||
-      source === "synthetic" ||
-      source === "linkedin"
-        ? source
-        : "synthetic",
+    source: allowed,
     tyler_answer: tyler,
     essayId: raw.essayId || null,
     essayTitle: raw.essayTitle || null,
@@ -52,6 +62,7 @@ function normalizeCase(raw) {
     position: raw.position || null,
     context: raw.context || "",
     sourceId: raw.sourceId || "lindowlabs-minds-and-models",
+    pageId: raw.pageId || null,
     expect: raw.expect || {},
     notes: raw.notes || "",
   };
@@ -86,13 +97,14 @@ function loadDirCases(dir) {
 function loadCases() {
   const fromJsonl = loadJsonl(CASES_JSONL);
   const fromDir = loadDirCases(CASES_DIR);
+  const readingDir = loadDirCases(READING_CASES_DIR);
   const legacy = loadDirCases(LEGACY_CASES_DIR).map((c) => ({
     ...c,
     source: c.source || "synthetic",
     tyler_answer: c.tyler_answer != null ? c.tyler_answer : null,
     category: c.category || inferLegacyCategory(c),
   }));
-  const merged = [...fromJsonl, ...fromDir, ...legacy];
+  const merged = [...fromJsonl, ...fromDir, ...readingDir, ...legacy];
   const byId = new Map();
   for (const raw of merged) {
     const c = normalizeCase(raw);
@@ -125,6 +137,7 @@ function toEvalRows(cases) {
       position: c.position,
       context: c.context,
       sourceId: c.sourceId,
+      pageId: c.pageId,
     },
     expected: {
       tyler_answer: c.tyler_answer,
@@ -140,6 +153,7 @@ function toEvalRows(cases) {
       essayId: c.essayId,
       essayTitle: c.essayTitle,
       promptIndex: c.promptIndex,
+      pageId: c.pageId,
       hasTylerAnswer: c.tyler_answer != null,
       notes: c.notes,
     },
@@ -149,8 +163,10 @@ function toEvalRows(cases) {
 
 module.exports = {
   ESSAYS_FIXTURE,
+  READING_PAGES_FIXTURE,
   CASES_JSONL,
   loadEssaysFixture,
+  loadReadingPagesFixture,
   loadCases,
   normalizeCase,
   toEvalRows,
