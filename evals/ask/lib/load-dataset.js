@@ -1,23 +1,57 @@
-/* Load eval cases + essay fixtures for Braintrust Eval(). */
+/* Load eval cases + essay fixtures for Braintrust Eval().
+ *
+ * Private question bank / essay snapshot live under TINKER_PRIVATE_DIR
+ * (or TINKER_EVAL_ASK_DIR). The public repo keeps the harness only.
+ */
 
 "use strict";
 
 const fs = require("node:fs");
 const path = require("node:path");
 
-const ROOT = path.join(__dirname, "..");
-const CASES_JSONL = path.join(ROOT, "dataset", "cases.jsonl");
-const CASES_DIR = path.join(ROOT, "dataset", "cases");
-const READING_CASES_DIR = path.join(ROOT, "dataset", "reading");
-const LEGACY_CASES_DIR = path.join(ROOT, "cases");
-const ESSAYS_FIXTURE = path.join(ROOT, "fixtures", "essays.json");
-const READING_PAGES_FIXTURE = path.join(ROOT, "fixtures", "reading-pages.json");
+const PUBLIC_ROOT = path.join(__dirname, "..");
+
+function askRoot() {
+  const envDir = String(process.env.TINKER_EVAL_ASK_DIR || "").trim();
+  if (envDir) {
+    try {
+      const abs = path.resolve(envDir);
+      if (fs.existsSync(abs) && fs.statSync(abs).isDirectory()) return abs;
+    } catch {
+      /* ignore */
+    }
+  }
+  const priv = String(process.env.TINKER_PRIVATE_DIR || "").trim();
+  if (priv) {
+    const candidate = path.join(path.resolve(priv), "evals", "ask");
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+      return candidate;
+    }
+  }
+  return PUBLIC_ROOT;
+}
+
+function paths() {
+  const ROOT = askRoot();
+  return {
+    ROOT,
+    CASES_JSONL: path.join(ROOT, "dataset", "cases.jsonl"),
+    CASES_DIR: path.join(ROOT, "dataset", "cases"),
+    READING_CASES_DIR: path.join(ROOT, "dataset", "reading"),
+    LEGACY_CASES_DIR: path.join(ROOT, "cases"),
+    ESSAYS_FIXTURE: path.join(ROOT, "fixtures", "essays.json"),
+    READING_PAGES_FIXTURE: path.join(ROOT, "fixtures", "reading-pages.json"),
+    // Reading pages may stay public (synthetic); fall back to public tree.
+    PUBLIC_READING_PAGES: path.join(PUBLIC_ROOT, "fixtures", "reading-pages.json"),
+  };
+}
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
 function loadEssaysFixture() {
+  const { ESSAYS_FIXTURE } = paths();
   if (!fs.existsSync(ESSAYS_FIXTURE)) return [];
   const raw = readJson(ESSAYS_FIXTURE);
   if (Array.isArray(raw)) return raw;
@@ -26,8 +60,12 @@ function loadEssaysFixture() {
 }
 
 function loadReadingPagesFixture() {
-  if (!fs.existsSync(READING_PAGES_FIXTURE)) return [];
-  const raw = readJson(READING_PAGES_FIXTURE);
+  const { READING_PAGES_FIXTURE, PUBLIC_READING_PAGES } = paths();
+  const file = fs.existsSync(READING_PAGES_FIXTURE)
+    ? READING_PAGES_FIXTURE
+    : PUBLIC_READING_PAGES;
+  if (!fs.existsSync(file)) return [];
+  const raw = readJson(file);
   return Array.isArray(raw) ? raw : [];
 }
 
@@ -95,10 +133,11 @@ function loadDirCases(dir) {
 }
 
 function loadCases() {
-  const fromJsonl = loadJsonl(CASES_JSONL);
-  const fromDir = loadDirCases(CASES_DIR);
-  const readingDir = loadDirCases(READING_CASES_DIR);
-  const legacy = loadDirCases(LEGACY_CASES_DIR).map((c) => ({
+  const p = paths();
+  const fromJsonl = loadJsonl(p.CASES_JSONL);
+  const fromDir = loadDirCases(p.CASES_DIR);
+  const readingDir = loadDirCases(p.READING_CASES_DIR);
+  const legacy = loadDirCases(p.LEGACY_CASES_DIR).map((c) => ({
     ...c,
     source: c.source || "synthetic",
     tyler_answer: c.tyler_answer != null ? c.tyler_answer : null,
@@ -161,14 +200,27 @@ function toEvalRows(cases) {
   }));
 }
 
+const initial = paths();
+
 module.exports = {
-  ESSAYS_FIXTURE,
-  READING_PAGES_FIXTURE,
-  CASES_JSONL,
+  get ESSAYS_FIXTURE() {
+    return paths().ESSAYS_FIXTURE;
+  },
+  get READING_PAGES_FIXTURE() {
+    return paths().READING_PAGES_FIXTURE;
+  },
+  get CASES_JSONL() {
+    return paths().CASES_JSONL;
+  },
+  askRoot,
+  paths,
   loadEssaysFixture,
   loadReadingPagesFixture,
   loadCases,
   normalizeCase,
   toEvalRows,
   inferLegacyCategory,
+  // Back-compat constants (resolved at require time; prefer getters above).
+  PUBLIC_ROOT,
+  ...initial,
 };

@@ -7,8 +7,9 @@ resume line item (users, questions, questions per session, repeat users,
 SDK embed hosts, eval pass rate, users per month vs 30-day total). Keep
 it in place. Event names in `src/renderer/lib/metrics/events.js` must
 stay in sync with that file — CI fails on drift. Do not move definitions
-to `evals/METRICS.md`. Do not commit goal numbers except in files named
-`DO_NOT_PUBLISH`. Owner traffic (`?owner=1`) is always excluded.
+to `evals/METRICS.md`. Do not commit goal numbers on the public default
+branch; keep them in `DO_NOT_PUBLISH*` inside the private pack
+(`TINKER_PRIVATE_DIR`). Owner traffic (`?owner=1`) is always excluded.
 
 ## Before every push
 

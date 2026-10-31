@@ -478,7 +478,7 @@ test("an empty transcript starts the interview without a client system prompt", 
   assert.equal(res.captured.body.result.structuredContent.mode, "interview");
   const sent = anthropicCalls()[0].anthropicBody;
   assert.match(sent.messages[0].content, /Begin the interview/);
-  assert.ok(sent.system[0].text.includes("RULE 10"));
+  assert.ok(sent.system[0].text.includes("RULE 8"));
 });
 
 test("ask_followups keepCrafting never returns done when the model stitches early", async () => {
@@ -892,7 +892,7 @@ test("the browser interview loads the shared prompt and does not inline a second
   assert.equal(writing.includes("You are an interviewer for tinker, a writing tool for founders."), false);
   assert.ok(interview.SYSTEM_PROMPT.startsWith("You are an interviewer for tinker, a writing tool for founders."));
   assert.ok(interview.SYSTEM_PROMPT.includes("RULE 1 — INTERVIEW, DO NOT WRITE."));
-  assert.ok(interview.SYSTEM_PROMPT.includes("RULE 10 — ASK IN THE FOUNDER'S OWN WRITING VOICE."));
+  assert.ok(interview.SYSTEM_PROMPT.includes("RULE 8 — ASK IN THE FOUNDER'S OWN WRITING VOICE."));
 
   const promptAt = html.indexOf("./interview-prompt.js");
   const writingAt = html.indexOf("./writing.js");

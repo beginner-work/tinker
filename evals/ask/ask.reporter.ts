@@ -1,7 +1,8 @@
 /**
  * CI gate for Braintrust project `tinker-ask`.
  * Exit non-zero when TylerAgreement (core) or CasePass floors are missed.
- * Thresholds documented in evals/ask/THRESHOLDS.md.
+ * Thresholds documented in private pack evals/ask/THRESHOLDS.md
+ * ($TINKER_PRIVATE_DIR). Public defaults below match the last published floors.
  */
 import { Reporter } from "braintrust";
 import * as fs from "node:fs";

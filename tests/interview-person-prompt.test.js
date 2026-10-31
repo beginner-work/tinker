@@ -10,12 +10,12 @@ const followups = require("../api/_lib/followups.js");
 test("PERSON_SYSTEM_PROMPT is relationship-first and bans resume/career framing", () => {
   assert.match(interview.PERSON_SYSTEM_PROMPT, /connect as a person/i);
   assert.match(interview.PERSON_SYSTEM_PROMPT, /curious about/i);
-  assert.match(interview.PERSON_SYSTEM_PROMPT, /Never ask about or reference Tyler's resume/i);
+  assert.match(interview.PERSON_SYSTEM_PROMPT, /Never ask about or reference the owner's resume/i);
   assert.match(interview.PERSON_SYSTEM_PROMPT, /career record/i);
   assert.match(interview.PERSON_SYSTEM_PROMPT, /story parts/i);
   assert.match(interview.PERSON_SYSTEM_PROMPT, /transactions/i);
   assert.match(interview.PERSON_SYSTEM_PROMPT, /light background only/i);
-  assert.match(interview.PERSON_SYSTEM_PROMPT, /Do not ask what he wants them to understand/i);
+  assert.match(interview.PERSON_SYSTEM_PROMPT, /Do not ask what they want the other person to understand/i);
   assert.equal(interview.PERSON_SYSTEM_PROMPT.includes("Recent transactions"), false);
   assert.equal(interview.PERSON_SYSTEM_PROMPT.includes("claiming an area as their business"), false);
   assert.equal(interview.PERSON_SYSTEM_PROMPT.includes("RULE 8 — TRANSACTIONS"), false);

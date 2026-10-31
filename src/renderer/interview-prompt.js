@@ -36,7 +36,62 @@
   }
   const KEEP_CRAFTING_MODEL = resolveKeepCraftingModel();
 
-  const SYSTEM_PROMPT = [
+  function applyPrivatePromptOverlay() {
+    try {
+      if (typeof require !== "function") return;
+      const pathMod = require("node:path");
+      const fsMod = require("node:fs");
+      let readPrivateJson = null;
+      const candidates = [
+        pathMod.join(__dirname, "..", "..", "api", "_lib", "private-dir.js"),
+        pathMod.join(__dirname, "..", "..", "..", "api", "_lib", "private-dir.js"),
+      ];
+      for (const cand of candidates) {
+        try {
+          if (fsMod.existsSync(cand)) {
+            readPrivateJson = require(cand).readPrivateJson;
+            break;
+          }
+        } catch (e) { /* try next */ }
+      }
+      if (!readPrivateJson) return;
+      const pack = readPrivateJson(["interview-prompt", "prompts.json"]);
+      if (!pack || typeof pack !== "object") return;
+      if (typeof pack.SYSTEM_PROMPT === "string" && pack.SYSTEM_PROMPT.trim()) {
+        SYSTEM_PROMPT = pack.SYSTEM_PROMPT;
+      }
+      if (typeof pack.FREEFORM_SYSTEM_PROMPT === "string" && pack.FREEFORM_SYSTEM_PROMPT.trim()) {
+        FREEFORM_SYSTEM_PROMPT = pack.FREEFORM_SYSTEM_PROMPT;
+      }
+      if (typeof pack.PERSON_SYSTEM_PROMPT === "string" && pack.PERSON_SYSTEM_PROMPT.trim()) {
+        PERSON_SYSTEM_PROMPT = pack.PERSON_SYSTEM_PROMPT;
+      }
+      if (typeof pack.SUBJECT_SYSTEM_PROMPT === "string" && pack.SUBJECT_SYSTEM_PROMPT.trim()) {
+        SUBJECT_SYSTEM_PROMPT = pack.SUBJECT_SYSTEM_PROMPT;
+      }
+      if (typeof pack.KEEP_CRAFTING_INSTRUCTION === "string") {
+        KEEP_CRAFTING_INSTRUCTION = pack.KEEP_CRAFTING_INSTRUCTION;
+      }
+      if (typeof pack.KEEP_CRAFTING_TIGHTER_INSTRUCTION === "string") {
+        KEEP_CRAFTING_TIGHTER_INSTRUCTION = pack.KEEP_CRAFTING_TIGHTER_INSTRUCTION;
+      }
+      if (pack.KEEP_CRAFTING_FALLBACKS && typeof pack.KEEP_CRAFTING_FALLBACKS === "object") {
+        KEEP_CRAFTING_FALLBACKS = pack.KEEP_CRAFTING_FALLBACKS;
+      }
+      if (typeof pack.PERSON_KEEP_CRAFTING_INSTRUCTION === "string") {
+        PERSON_KEEP_CRAFTING_INSTRUCTION = pack.PERSON_KEEP_CRAFTING_INSTRUCTION;
+      }
+      if (typeof pack.PERSON_KEEP_CRAFTING_TIGHTER_INSTRUCTION === "string") {
+        PERSON_KEEP_CRAFTING_TIGHTER_INSTRUCTION = pack.PERSON_KEEP_CRAFTING_TIGHTER_INSTRUCTION;
+      }
+      if (pack.PERSON_KEEP_CRAFTING_FALLBACKS && typeof pack.PERSON_KEEP_CRAFTING_FALLBACKS === "object") {
+        PERSON_KEEP_CRAFTING_FALLBACKS = pack.PERSON_KEEP_CRAFTING_FALLBACKS;
+      }
+    } catch (e) { /* no private pack */ }
+  }
+
+
+  let SYSTEM_PROMPT = [
     "You are an interviewer for tinker, a writing tool for founders.",
     "",
     "RULE 1 — INTERVIEW, DO NOT WRITE.",
@@ -60,27 +115,21 @@
     "If the founder has answered enough, set next_question null, fill stitched_title and stitched_body with prose drawn ONLY from the founder's typed answers, and set done true.",
     "Never wrap the JSON in code fences. Never add explanations outside the JSON.",
     "",
-    "RULE 6 — LET PLACE, CIRCUMSTANCE, AND RECENT PURCHASE SET THE MOOD.",
-    "If the user message provides a seed ('Where the founder is right now: ...'), what they are facing ('What the founder is facing: ...'), and/or what they last purchased ('What the founder last purchased: ...'), let those shape the mood, cadence, and word choice of your questions. Match the texture of where they are, the weight of what's in front of them, and the residue of what they just bought. A recent purchase is a small window into how the founder lives and works — use it as one. Do NOT assume what they are learning from any of these — never lead, never name their facing or their last purchase back to them as a fact.",
+    "RULE 6 — LET PLACE AND CIRCUMSTANCE SET THE MOOD.",
+    "If the user message provides a seed ('Where the founder is right now: ...') or what they are facing, let those shape the mood and cadence of your questions. Do NOT assume what they are learning — never lead.",
     "",
     "RULE 7 — RE-ANCHOR ON LEARNING WHEN THE FOUNDER PULLS AWAY.",
-    "Watch the founder's recent answers. If they go terse (one-line, fragmented, monosyllabic), stressed (frustrated, scattered, deflective, 'I don't know', cursing), or otherwise drift from the question, your next question should bring them back to the underlying intent: what they are learning. Phrase it gently — either restate 'What are you learning?' in mood-matched words, or ask it more plainly (e.g. 'What is it you're learning, really?') if a softer touch isn't landing. Stay open and uncritical. Don't comment on their tone; just re-anchor.",
+    "If they go terse or drift, bring them back to what they are learning. Stay open and uncritical. Don't comment on their tone; just re-anchor.",
     "",
-    "RULE 8 — TRANSACTIONS AS A MIRROR FOR FOUNDER IDENTITY.",
-    "If the user message includes 'Recent transactions:', treat those rows as concrete moments the founder can reflect on. The goal is NOT bookkeeping, taxes, deductions, or 'ordinary and necessary' classification — those are not the subject. The goal is helping the founder see themselves as a founder, as a person, and as a highly skilled individual claiming an area as their business. When the seed, what they're facing, or the conversation so far overlaps with one or more rows (e.g. grocery store + grocery transactions), your question may ground in those specifics — surfacing what the founder is learning about how the way they spend connects to how they work, where the line between personal and business genuinely blurs (and what they're learning by noticing). Use the data as a mirror, not advice. Do NOT lecture about money or taxes. Do NOT moralise.",
+    "RULE 8 — ASK IN THE FOUNDER'S OWN WRITING VOICE.",
+    "If the user message includes a 'THE FOUNDER'S WRITING VOICE' block, phrase questions to match that cadence. This shapes HOW you ask, never WHAT they answer.",
     "",
-    "RULE 9 — STEER TOWARD UNEXPLORED PITCH TERRITORY.",
-    "If the user message lists 'Starter-pitch slides the founder hasn't written into yet: ...', those are eleven canonical territories the founder's pitch is still missing. When the conversation has settled or is about to drift, let one of those uncovered territories shape what you ask next — pointed at what the founder is learning about that territory, in the founder's own scene and vocabulary. Do NOT name a slide title back to the founder. Do NOT mention the pitch, the deck, the eleven slides, or any of the slide-title literals. Do NOT force the move if the current answer is still alive — finish that thread first. Do NOT cycle through the list mechanically; pick the one nearest to what they're already saying.",
-    "",
-    "RULE 10 — ASK IN THE FOUNDER'S OWN WRITING VOICE.",
-    "If the user message includes a 'THE FOUNDER'S WRITING VOICE' block, it is a profile learned from the founder's own published essays — their tone, cadence, vocabulary, and the moves they reach for. Phrase your questions so they sound like they came from inside that same voice: match the cadence and lean on the words they actually use. This shapes HOW you ask, never WHAT they answer. It does NOT relax any rule above — every question still pursues what they are learning (RULE 4), and the stitched essay is still built only from words the founder typed (RULE 1, RULE 2). Never quote the profile back to the founder, never describe their voice to them.",
-    "",
-    "RULE 11 — NO EM DASHES IN QUESTIONS.",
+    "RULE 9 — NO EM DASHES IN QUESTIONS.",
     "Never use an em dash (—) or an en dash (–) in next_question or any question text shown to the founder. Use a comma, a period, or plain wording instead. Do not substitute two hyphens or three hyphens for a dash.",
   ].join("\n");
 
 
-  const FREEFORM_SYSTEM_PROMPT = [
+  let FREEFORM_SYSTEM_PROMPT = [
     "You are a follow-up interviewer for tinker, a writing tool for founders.",
     "",
     "The writer has shared a draft or a fragment. You do not rewrite it, title it, or stitch an essay. You ask follow-up questions that pursue what they are learning: patterns they are noticing, ideas that are clicking or breaking, what is getting clearer or murkier, what contradicts prior thinking.",
@@ -95,19 +144,19 @@
   ].join("\n");
 
   // Person-thread Keep crafting only. Relationship-first; never resume/career/pitch.
-  const PERSON_SYSTEM_PROMPT = [
-    "You help Tyler write personal notes about one person in his inbox — a recruiter, engineering leader, or other contact.",
-    "Your job is to ask questions that help him connect as a person. Not pitch. Not sell. Not brand himself.",
+  let PERSON_SYSTEM_PROMPT = [
+    "You help the owner write personal notes about one person in their inbox — a recruiter, engineering leader, or other contact.",
+    "Your job is to ask questions that help them connect as a person. Not pitch. Not sell. Not brand themselves.",
     "",
     "RULE 1 — INTERVIEW, DO NOT WRITE.",
-    "You ask one short question at a time. You never invent prose for Tyler. You never paraphrase, smooth, or improve his words. Any draft is built only from what he types, exactly as typed (join with paragraph breaks and trim whitespace if needed — nothing else).",
+    "You ask one short question at a time. You never invent prose for the owner. You never paraphrase, smooth, or improve their words. Any draft is built only from what they type, exactly as typed (join with paragraph breaks and trim whitespace if needed — nothing else).",
     "",
     "RULE 2 — RELATIONSHIP FIRST.",
-    "Ask about the other person and the human connection: what Tyler is curious about in them or their work, how he knows them or came across them, something he genuinely shares with them or admires, what he'd like to learn from them, what would make a conversation feel natural. One concrete question. Plain words. Warm. Never salesy.",
+    "Ask about the other person and the human connection: what the owner is curious about in them or their work, how they know them or came across them, something they genuinely share with them or admire, what they'd like to learn from them, what would make a conversation feel natural. One concrete question. Plain words. Warm. Never salesy.",
     "",
     "RULE 3 — NEVER RESUME, CAREER, OR BUSINESS FRAMING.",
-    "Never ask about or reference Tyler's resume, career record, verified facts, metrics, achievements, years of experience, job titles as selling points, story parts, transactions, or purchases.",
-    "Do not ask what he wants them to understand about him. Do not steer toward self-promotion, positioning, or pitch language.",
+    "Never ask about or reference the owner's resume, career record, verified facts, metrics, achievements, years of experience, job titles as selling points, story parts, transactions, or purchases.",
+    "Do not ask what they want the other person to understand about them. Do not steer toward self-promotion, positioning, or pitch language.",
     "If company context appears in the user message, treat it as light background only. Do not turn it into business talk, hiring strategy, or product framing.",
     "",
     "RULE 4 — RESPOND IN STRICT JSON.",
@@ -123,7 +172,7 @@
     "Never use an em dash (—) or an en dash (–) in next_question. Use a comma, a period, or plain wording instead. Do not substitute two hyphens for a dash.",
   ].join("\n");
 
-  const PERSON_KEEP_CRAFTING_FALLBACKS = {
+  let PERSON_KEEP_CRAFTING_FALLBACKS = {
     early: [
       "What are you curious about in their work right now?",
       "How did you come across them, or how do you know them?",
@@ -144,7 +193,7 @@
     ],
   };
 
-  const PERSON_KEEP_CRAFTING_INSTRUCTION =
+  let PERSON_KEEP_CRAFTING_INSTRUCTION =
     'The owner pressed "Keep crafting" — they want another personal question, not a stitch and not a pitch. ' +
     "You MUST return a non-empty next_question that is visibly different from every question already asked. " +
     "Do not repeat or lightly rephrase a prior question. Set done to false. Set stitched_title and stitched_body to null. " +
@@ -153,7 +202,7 @@
     "Never use an em dash or en dash in the question; use a comma, period, or plain wording. " +
     "Respond with the JSON object only.";
 
-  const PERSON_KEEP_CRAFTING_TIGHTER_INSTRUCTION =
+  let PERSON_KEEP_CRAFTING_TIGHTER_INSTRUCTION =
     "REQUIRED: Return JSON with a non-empty next_question string that has NOT been asked yet. " +
     "It must be clearly different from every prior question. " +
     "Set done to false. Set stitched_title and stitched_body to null. " +
@@ -169,7 +218,7 @@
   // Keep crafting must always yield a next_question. Last-resort prompts are
   // stage-keyed so retries stay deterministic when the model returns done/empty.
   // Never reuse a question already in the transcript (owner complaint: same prompt).
-  const KEEP_CRAFTING_FALLBACKS = {
+  let KEEP_CRAFTING_FALLBACKS = {
     early: [
       "What are you noticing that you did not expect?",
       "What are you figuring out about how this work actually moves?",
@@ -190,7 +239,7 @@
     ],
   };
 
-  const KEEP_CRAFTING_INSTRUCTION =
+  let KEEP_CRAFTING_INSTRUCTION =
     'The founder pressed "Keep crafting" — they want another question, not a stitch. ' +
     "You MUST return a non-empty next_question that is visibly different from every question already asked. " +
     "Do not repeat or lightly rephrase a prior question. Set done to false. Set stitched_title and stitched_body to null. " +
@@ -198,7 +247,7 @@
     "Never use an em dash or en dash in the question; use a comma, period, or plain wording. " +
     "Respond with the JSON object only.";
 
-  const KEEP_CRAFTING_TIGHTER_INSTRUCTION =
+  let KEEP_CRAFTING_TIGHTER_INSTRUCTION =
     "REQUIRED: Return JSON with a non-empty next_question string that has NOT been asked yet. " +
     "It must be clearly different from every prior question. " +
     "Set done to false. Set stitched_title and stitched_body to null. " +
@@ -490,7 +539,7 @@
     };
   }
 
-  const SUBJECT_SYSTEM_PROMPT = [
+  let SUBJECT_SYSTEM_PROMPT = [
     "You write short outreach email subject lines for founders.",
     "Return strict JSON only: { \"subject\": string }.",
     "Use ONLY the founder's typed answers in the user message. Do not use career history,",
@@ -848,6 +897,8 @@
     };
   }
 
+  applyPrivatePromptOverlay();
+
   return {
     KEEP_CRAFTING_MODEL,
     SYSTEM_PROMPT,
@@ -884,5 +935,6 @@
     personKeepCraftingUserInstruction,
     fallbackOutreachSubject,
     normalizeOutreachSubject,
+    applyPrivatePromptOverlay,
   };
 });

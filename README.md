@@ -37,16 +37,19 @@ stays private:
 
 - **Open:** the Tinker app (web, Electron, mobile shared renderer), the
   CLI, the product API surface under `api/`, the embed SDK under
-  `packages/tinker-sdk`, and the benchmark harness under `evals/`
-  (fixtures, scorers, reporters, and published results).
-- **Private:** teaching config: tuned agent instructions and eval
-  question instructions/criteria. That material is not part of the
-  open-source product surface; production loads it at runtime from a
-  private source rather than treating it as redistributable repo
-  content.
+  `packages/tinker-sdk`, and the benchmark **harness** under `evals/`
+  (loaders, scorers, reporters, public baseline config).
+- **Private:** Lindow Labs teaching config and context-model tuned
+  packs — interview prompt overlays, ask-agent prompt + corpus,
+  ask eval question bank / rubrics / thresholds / essay snapshot,
+  pitch materials, personal outreach-from identity maps, and
+  `DO_NOT_PUBLISH*` goal numbers. Production loads those at runtime
+  from `TINKER_PRIVATE_DIR` (see `.env.example`). The public tree
+  ships safe defaults so builds and tests work without the private
+  pack.
 
-Goal numbers stay in `DO_NOT_PUBLISH*` files and are not for public
-surfaces. Secrets belong in environment / Actions, never in git.
+Goal numbers and personal identity maps are not for public surfaces.
+Secrets belong in environment / Actions, never in git.
 
 ## CLI (`tinker`)
 
@@ -532,8 +535,8 @@ session, repeat users, SDK embed hosts, eval pass rate, users per month
 vs a 30-day total) maps to one definition, the Vercel Web Analytics
 event name actually emitted, and the matching `GET /api/metrics` field.
 Event names are locked to `src/renderer/lib/metrics/events.js`; CI fails
-on drift. Goal numbers belong only in files named `DO_NOT_PUBLISH`.
-Owner traffic (`?owner=1`) is always excluded.
+on drift. Goal numbers belong only in private `DO_NOT_PUBLISH*` files
+under `TINKER_PRIVATE_DIR`. Owner traffic (`?owner=1`) is always excluded.
 
 `GET /api/metrics` returns the aggregate payload (service token or
 owner session). Custom events (`session_start`, `question_asked`,
@@ -789,9 +792,11 @@ Tools:
   The owner publishes from a Tinker session.
 
 There is no raw `converse` tool. Clients cannot supply a system prompt.
-The interview prompt lives in `src/renderer/interview-prompt.js` and is
-what both the browser and `ask_followups` use. The LinkedIn prompt lives
-in `api/_lib/linkedin-draft.js` and is what both the in-app composer and
+The interview prompt contract lives in `src/renderer/interview-prompt.js`
+(public-safe defaults; Node may overlay
+`$TINKER_PRIVATE_DIR/interview-prompt/prompts.json`). That is what both
+the browser and `ask_followups` use. The LinkedIn prompt lives in
+`api/_lib/linkedin-draft.js` and is what both the in-app composer and
 `draft_linkedin_post` use. The writing UI still checks that a stitched
 essay uses only the founder's words before it publishes. MCP returns the
 model's JSON; it does not publish.

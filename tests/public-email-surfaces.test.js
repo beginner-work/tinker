@@ -16,7 +16,6 @@ const PUBLIC = "tyler@lindowlabs.dev";
 const PUBLIC_ROOTS = [
   "src/renderer",
   "README.md",
-  "pitch-deck.html",
   "vercel.json",
   "api/gmail.js",
   "api/_lib/gmail-deep-link.js",

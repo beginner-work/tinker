@@ -74,8 +74,22 @@ jobs:
               body,
             });
 
-      - name: Run Braintrust ask eval
+      - name: Require private ask pack
         if: steps.secrets.outputs.skip != 'true'
+        id: private
+        env:
+          TINKER_PRIVATE_DIR: ${{ secrets.TINKER_PRIVATE_DIR }}
+        run: |
+          if [ -z "$TINKER_PRIVATE_DIR" ] || [ ! -d "$TINKER_PRIVATE_DIR/evals/ask" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Ask eval skipped — set Actions secret/var TINKER_PRIVATE_DIR to the private pack checkout (question bank + rubrics)."
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "TINKER_PRIVATE_DIR=$TINKER_PRIVATE_DIR" >> "$GITHUB_ENV"
+
+      - name: Run Braintrust ask eval
+        if: steps.secrets.outputs.skip != 'true' && steps.private.outputs.skip != 'true'
         uses: braintrustdata/eval-action@v2
         with:
           api_key: ${{ secrets.BRAINTRUST_API_KEY }}
@@ -94,3 +108,4 @@ jobs:
           ASK_MODEL: claude-haiku-4-5-20251001
           ASK_JUDGE_MODEL: claude-haiku-4-5-20251001
           READING_MODEL: claude-haiku-4-5-20251001
+          TINKER_PRIVATE_DIR: ${{ env.TINKER_PRIVATE_DIR }}

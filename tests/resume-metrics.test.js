@@ -106,7 +106,7 @@ describe("RESUME_METRICS.md ↔ events.js contract", () => {
   test("three rules are stated", () => {
     const md = fs.readFileSync(CONTRACT, "utf8");
     assert.match(md, /Event names are a contract/i);
-    assert.match(md, /DO_NOT_PUBLISH/);
+    assert.match(md, /DO_NOT_PUBLISH|private pack|goal numbers/i);
     assert.match(md, /Owner traffic is always excluded/i);
   });
 
