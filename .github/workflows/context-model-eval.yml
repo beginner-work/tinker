@@ -2,7 +2,8 @@ name: Context model evals (EdNet ZPD + source ZPD)
 
 # Runs next to the ask eval gate. Offline graph/BKT/label logic always runs.
 # Keyed baselines (Claude / Jev / Braintrust logging) skip cleanly when secrets
-# are missing — never fabricates scores.
+# are missing; never fabricates scores.
+# Full `npm test` (incl. SDK) stays in the main CI workflow.
 
 on:
   pull_request:
@@ -31,8 +32,8 @@ jobs:
       - name: Context-model package tests
         run: npm test --prefix packages/context-model
 
-      - name: Repo unit tests (includes context-model API + eval offline)
-        run: npm test
+      - name: Context-model API + eval offline tests
+        run: node --test tests/context-model.test.js
 
   context-model-eval:
     name: EdNet + source ZPD evals
