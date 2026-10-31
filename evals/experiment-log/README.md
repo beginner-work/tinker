@@ -30,7 +30,9 @@ tolerance below the last recorded `devScore` in this file.
 
 Implementation: `evals/lib/check-baseline-regression.js`. CI snapshots this
 log **before** the run so the gate compares against the committed baseline,
-not the line just appended.
+not the line just appended. Comparisons are **source-matched**
+(`meta.source` / report `source`): a CI `synthetic-fixture` run is not gated
+against an `ednet-kt3` baseline, and the reverse is also skipped.
 
 Push to `main` always runs the offline eval (and keyed when secrets exist)
 and appends a new log line in the job workspace; merge PRs that update
