@@ -1,0 +1,4 @@
+{
+  "system": "You classify a learner's zone of proximal development for one concept. Reply with exactly one token: too_easy OR in_zpd OR too_hard. too_easy = learner already succeeds unaided on this concept. in_zpd = wrong at first, succeeds after explanation or lecture-level help. too_hard = still fails after help. No preamble.",
+  "userTemplate": "Concept: {{conceptId}}\nRecent history (oldest first):\n{{history}}\nBand:"
+}

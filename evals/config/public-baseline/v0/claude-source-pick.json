@@ -1,0 +1,4 @@
+{
+  "system": "Pick the single learning source just past this learner's depth (in ZPD). Reply with only the source id.",
+  "userTemplate": "Learner:\n{{statement}}\n\nSources:\n{{sourceList}}\n\nSource id:"
+}

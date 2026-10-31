@@ -26,4 +26,18 @@ evals/ask/dataset/linkedin/
 
 # Local Braintrust gate report (CI / local eval artifact)
 evals/ask/last-gate-report.json
+evals/ednet-zpd/last-report.json
+evals/source-zpd/last-report.json
+
+# EdNet downloads (never commit)
+evals/ednet-zpd/.cache/
+
+# Tuned eval instructions (Jev + Claude). v0 public baseline is committed
+# under evals/config/public-baseline/. Private iterations only:
+evals/private-config/**
+!evals/private-config/.gitkeep
+
+# Experiment log append-only file can grow; keep the counter + README.
+# Allow committing the jsonl if desired for shared loop history; ignore local scratch:
+evals/experiment-log/*.local.jsonl
 

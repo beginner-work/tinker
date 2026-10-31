@@ -1,0 +1,11 @@
+{
+  "type": "score",
+  "instructions": "How deep is the learner's understanding of: {{conceptTitle}}?",
+  "criteria": [
+    "Unfamiliar: has not meaningfully encountered the concept",
+    "Novice: recognizes terms but cannot apply unaided",
+    "Working: can apply with support or scaffolding",
+    "Fluent: correct unaided application in typical settings",
+    "Transfer: can extend, teach, or transfer the concept"
+  ]
+}

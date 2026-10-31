@@ -1,0 +1,9 @@
+{
+  "type": "noul",
+  "instructions": "This source ({{sourceTitle}}) is just past the learner's current depth (in their zone of proximal development: challenging but reachable with light support), not too easy and not too hard.",
+  "criteria": {
+    "true": "Source difficulty sits slightly above what the learner already demonstrates; they would stretch productively.",
+    "false": "Source is clearly below (busywork) or clearly above (overwhelming) the learner's demonstrated depth."
+  },
+  "threshold": 0.55
+}
