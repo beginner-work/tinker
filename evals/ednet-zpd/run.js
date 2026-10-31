@@ -19,24 +19,40 @@ async function maybeLogBraintrust(report) {
     return null;
   }
   try {
-    const { initLogger } = require("braintrust");
+    const { initLogger, flush } = require("braintrust");
+    const projectName = "tinker-ednet-zpd";
+    const experimentName = `ednet-zpd-${report.split}-${report.version}-${Date.now()}`;
     const logger = initLogger({
-      projectName: "tinker-ednet-zpd",
+      projectName,
       apiKey: key,
+      experiment: experimentName,
     });
+    let spanId = null;
     await logger.traced(async (span) => {
+      spanId = span.id;
       span.log({
         input: {
           source: report.source,
           probeCount: report.probeCount,
           config: report.config,
+          split: report.split,
+          version: report.version,
         },
         output: report.baselines,
-        metadata: { goalsNote: report.goalsNote },
+        metadata: {
+          goalsNote: report.goalsNote,
+          agentModeling: report.agentModeling,
+          splitSizes: report.splitSizes,
+        },
       });
     }, { name: "ednet-zpd-report" });
-    console.error("[ednet-zpd] logged to Braintrust project tinker-ednet-zpd");
-    return true;
+    if (typeof flush === "function") await flush();
+    const urlHint = `https://www.braintrust.dev/app/projects/${encodeURIComponent(projectName)}`;
+    console.error(
+      `[ednet-zpd] logged to Braintrust project ${projectName} experiment=${experimentName}`,
+    );
+    console.error(`[ednet-zpd] Braintrust project URL (open experiments): ${urlHint}`);
+    return { ok: true, projectName, experimentName, spanId, urlHint };
   } catch (err) {
     console.error(
       "[ednet-zpd] Braintrust log failed:",

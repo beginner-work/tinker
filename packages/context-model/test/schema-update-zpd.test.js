@@ -128,23 +128,40 @@ describe("ZPD classifier", () => {
 });
 
 describe("Jev config resolution (no network)", () => {
-  test("unavailable without keys", () => {
+  test("unavailable without gateway auth", () => {
     const cfg = cm.resolveJevConfig({});
     assert.equal(cfg.available, false);
   });
 
-  test("prefers TypeSafe over OpenRouter", () => {
+  test("ignores legacy TypeSafe / OpenRouter keys (gateway only)", () => {
     const cfg = cm.resolveJevConfig({
       TYPESAFE_API_KEY: "ts_key",
       OPENROUTER_API_KEY: "or_key",
     });
-    assert.equal(cfg.provider, "typesafe");
-    assert.equal(cfg.apiKey, "ts_key");
+    assert.equal(cfg.available, false);
+    assert.equal(cfg.provider, null);
   });
 
-  test("falls back to OpenRouter", () => {
-    const cfg = cm.resolveJevConfig({ OPENROUTER_API_KEY: "or_key" });
-    assert.equal(cfg.provider, "openrouter");
-    assert.match(cfg.model, /jev/);
+  test("uses AI Gateway API key with floating model", () => {
+    const cfg = cm.resolveJevConfig({ AI_GATEWAY_API_KEY: "gw_key" });
+    assert.equal(cfg.available, true);
+    assert.equal(cfg.provider, "ai-gateway");
+    assert.equal(cfg.apiKey, "gw_key");
+    assert.equal(cfg.model, "typesafe-ai/jev");
+    assert.match(cfg.baseUrl, /ai-gateway\.vercel\.sh/);
+  });
+
+  test("pins jev-1.14.0 when JEV_EVAL_PIN=1", () => {
+    const cfg = cm.resolveJevConfig({
+      AI_GATEWAY_API_KEY: "gw_key",
+      JEV_EVAL_PIN: "1",
+    });
+    assert.equal(cfg.model, "typesafe-ai/jev-1.14.0");
+  });
+
+  test("accepts Vercel OIDC token", () => {
+    const cfg = cm.resolveJevConfig({ VERCEL_OIDC_TOKEN: "oidc_tok" });
+    assert.equal(cfg.available, true);
+    assert.equal(cfg.authSource, "oidc");
   });
 });

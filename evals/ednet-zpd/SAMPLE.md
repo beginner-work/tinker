@@ -6,7 +6,9 @@ This benchmark does **not** commit EdNet data. Download it with:
 node evals/ednet-zpd/download.js
 ```
 
-Default cache directory: `evals/ednet-zpd/.cache/` (gitignored).
+Default cache directory: `evals/ednet-zpd/.cache/` (gitignored). KT3 prefers
+a valid ~763MB zip (Google Drive fallback when the USTC mirror is truncated).
+Contents (`questions.csv`) are required so responds get `correct` + skill tags.
 
 ## Reproducible sample + splits
 
@@ -39,7 +41,8 @@ instruction packs go in `evals/private-config/` (gitignored).
 
 ## Baselines
 
-1. **Tinker** context model (local depth updates + ZPD classifier)
-2. **Claude** band classifier (versioned templates; needs `ANTHROPIC_API_KEY`)
+1. **Claude-only** band classifier (versioned templates; AI Gateway or `ANTHROPIC_API_KEY`)
+2. **Jev+Claude** v0 (no agent modeling): Jev Score via AI Gateway
+   (`typesafe-ai/jev-1.14.0` when pinned) + Claude band with Jev features
 3. **BKT** (classic; always runnable)
-4. Stretch: **softmax on Jev probs** (train fit → score active split)
+4. Offline: local **Tinker** heuristic + stretch **softmax on Jev probs**

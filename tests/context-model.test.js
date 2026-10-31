@@ -182,6 +182,7 @@ describe("EdNet label + BKT (no keys, no data download)", () => {
     assert.equal(report.baselines.tinker.skipped, false);
     assert.equal(report.baselines.bkt.skipped, false);
     assert.equal(report.baselines.claude.skipped, true);
+    assert.equal(report.baselines.jevClaude.skipped, true);
     assert.ok(report.baselines.classicalOnJev);
   });
 });
@@ -361,13 +362,59 @@ describe("docs + CI wiring", () => {
     assert.doesNotMatch(md, /\u2014/);
   });
 
-  test("workflow skips when secrets missing", () => {
+  test("workflow uses AI Gateway secrets and gates keyed on unit + paths", () => {
     const yml = fs.readFileSync(
       path.join(__dirname, "../.github/workflows/context-model-eval.yml"),
       "utf8",
     );
     assert.match(yml, /ANTHROPIC_API_KEY/);
     assert.match(yml, /BRAINTRUST_API_KEY/);
+    assert.match(yml, /AI_GATEWAY_API_KEY/);
+    assert.match(yml, /typesafe-ai\/jev-1\.14\.0/);
     assert.match(yml, /skip_keyed/);
+    assert.match(yml, /needs:\s*\[context-model-unit,\s*keyed-paths\]/);
+    assert.match(yml, /check-baseline-regression/);
+    assert.match(yml, /EVAL_BASELINE_TOLERANCE/);
+    assert.match(yml, /packages\/context-model\//);
+    assert.doesNotMatch(yml, /OPENROUTER_API_KEY/);
+    assert.doesNotMatch(yml, /TYPESAFE_API_KEY/);
+  });
+
+  test("docs describe AI Gateway Jev, not OpenRouter defaults", () => {
+    const md = fs.readFileSync(
+      path.join(__dirname, "../docs/CONTEXT_MODEL.md"),
+      "utf8",
+    );
+    assert.match(md, /AI Gateway|ai-gateway/i);
+    assert.match(md, /typesafe-ai\/jev/);
+    assert.doesNotMatch(md, /typesafe\/jev-latest/);
+  });
+
+  test("baseline regression gate allows small tolerance", () => {
+    const {
+      DEFAULT_TOLERANCE,
+      scoreFromDevScore,
+      lastBaselineRow,
+    } = require("../evals/lib/check-baseline-regression.js");
+    assert.equal(DEFAULT_TOLERANCE, 0.02);
+    const rows = [
+      {
+        benchmark: "ednet-zpd",
+        split: "dev",
+        at: "2026-01-01T00:00:00.000Z",
+        version: "v0",
+        devScore: { tinkerAccuracy: 0.9, tinkerMacroF1: 0.8, bktAccuracy: 0.85 },
+      },
+    ];
+    const last = lastBaselineRow(rows, "ednet-zpd", "dev");
+    assert.equal(last.devScore.tinkerAccuracy, 0.9);
+    const scored = scoreFromDevScore(last.devScore, {
+      key: "tinker",
+      accuracy: "accuracy",
+      macroF1: "macroF1",
+      label: "tinker",
+    });
+    assert.equal(scored.accuracy, 0.9);
+    assert.equal(scored.macroF1, 0.8);
   });
 });

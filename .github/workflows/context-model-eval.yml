@@ -1,9 +1,10 @@
 name: Context model evals (EdNet ZPD + source ZPD)
 
-# Runs next to the ask eval gate. Offline graph/BKT/label logic always runs.
-# Keyed baselines (Claude / Jev / Braintrust logging) skip cleanly when secrets
-# are missing; never fabricates scores.
-# Full `npm test` (incl. SDK) stays in the main CI workflow.
+# Offline graph/BKT/label logic always runs (after unit).
+# Keyed baselines (Claude / Jev via AI Gateway / Braintrust) need unit green,
+# and on pull_request only when context-model paths change. Push to main always
+# runs keyed (when secrets exist) and records a new experiment-log baseline.
+# Never fabricates scores when secrets are missing.
 
 on:
   pull_request:
@@ -35,8 +36,46 @@ jobs:
       - name: Context-model API + eval offline tests
         run: node --test tests/context-model.test.js
 
-  context-model-eval:
-    name: EdNet + source ZPD evals
+  # Path filter for keyed evals on PRs. Push to main always runs keyed.
+  keyed-paths:
+    name: Decide whether keyed evals run
+    runs-on: ubuntu-latest
+    outputs:
+      run_keyed: ${{ steps.decide.outputs.run_keyed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: decide
+        name: Path filter (PR) / always on main push
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "run_keyed=true" >> "$GITHUB_OUTPUT"
+            echo "Keyed evals: push/main (always when secrets present)"
+            exit 0
+          fi
+          # Keyed paths: packages/context-model, evals/, api/context-model*,
+          # prisma schema, this workflow.
+          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA" || true)
+          echo "Changed files:"
+          echo "$changed"
+          if echo "$changed" | grep -Eq \
+            '^(packages/context-model/|evals/|api/context-model|prisma/schema\.prisma|\.github/workflows/context-model-eval\.yml)'; then
+            echo "run_keyed=true" >> "$GITHUB_OUTPUT"
+            echo "Keyed evals: PR touches context-model paths"
+          else
+            echo "run_keyed=false" >> "$GITHUB_OUTPUT"
+            echo "Keyed evals: skipped (PR outside context-model paths)"
+          fi
+
+  context-model-eval-offline:
+    name: Offline EdNet + source ZPD (always)
+    needs: context-model-unit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,6 +90,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Snapshot committed experiment log (regression baseline)
+        run: |
+          cp evals/experiment-log/experiments.jsonl /tmp/experiments-baseline.jsonl
+          wc -l /tmp/experiments-baseline.jsonl
+
       - name: Offline EdNet ZPD (dev split, v0 baseline)
         run: node evals/ednet-zpd/run.js
         env:
@@ -60,6 +104,7 @@ jobs:
           EVAL_SPLIT: dev
           EVAL_SPLIT_SEED: "42"
           TINKER_EVAL_CONFIG_VERSION: v0
+          JEV_EVAL_PIN: "1"
 
       - name: Offline source ZPD (dev split, internal)
         run: node evals/source-zpd/run.js
@@ -67,43 +112,100 @@ jobs:
           EVAL_SPLIT: dev
           EVAL_SPLIT_SEED: "42"
           TINKER_EVAL_CONFIG_VERSION: v0
+          JEV_EVAL_PIN: "1"
+
+      - name: Gate on last recorded EdNet ZPD baseline
+        env:
+          # Absolute tolerance on [0,1] accuracy / macro-F1 (2pp). Documented in
+          # evals/experiment-log/README.md and evals/lib/check-baseline-regression.js.
+          EVAL_BASELINE_TOLERANCE: "0.02"
+        run: |
+          node evals/lib/check-baseline-regression.js \
+            --report evals/ednet-zpd/last-report.json \
+            --baseline /tmp/experiments-baseline.jsonl \
+            --benchmark ednet-zpd \
+            --split dev
+
+  context-model-eval-keyed:
+    name: Keyed EdNet + source ZPD (AI Gateway / Claude / Braintrust)
+    needs: [context-model-unit, keyed-paths]
+    if: needs.context-model-unit.result == 'success' && needs.keyed-paths.outputs.run_keyed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Snapshot committed experiment log (regression baseline)
+        run: cp evals/experiment-log/experiments.jsonl /tmp/experiments-baseline.jsonl
 
       - name: Check optional secrets
         id: secrets
         env:
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
         run: |
           missing=()
-          if [ -z "$BRAINTRUST_API_KEY" ]; then missing+=("BRAINTRUST_API_KEY"); fi
-          if [ -z "$ANTHROPIC_API_KEY" ]; then missing+=("ANTHROPIC_API_KEY"); fi
-          if [ -z "$OPENROUTER_API_KEY" ] && [ -z "$TYPESAFE_API_KEY" ]; then
-            missing+=("OPENROUTER_API_KEY|TYPESAFE_API_KEY");
+          # Jev requires AI Gateway (no OpenRouter / TypeSafe direct).
+          if [ -z "$AI_GATEWAY_API_KEY" ]; then
+            missing+=("AI_GATEWAY_API_KEY");
           fi
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "skip_keyed=true" >> "$GITHUB_OUTPUT"
-            echo "missing=${missing[*]}" >> "$GITHUB_OUTPUT"
-            {
-              echo "## Context-model keyed evals skipped — missing secrets"
-              echo ""
-              echo "Offline Tinker/BKT/label/source-local runs completed. No scores were fabricated for keyed baselines."
-              echo ""
-              echo "Add these GitHub Actions secrets for full Claude / Jev / Braintrust logging:"
-              for s in "${missing[@]}"; do echo "- \`$s\`"; done
-            } | tee /tmp/context-model-eval-skip.md
-            exit 0
+          # Claude routes via gateway when AI_GATEWAY_API_KEY is set; else needs Anthropic.
+          if [ -z "$AI_GATEWAY_API_KEY" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+            missing+=("ANTHROPIC_API_KEY");
           fi
-          echo "skip_keyed=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$BRAINTRUST_API_KEY" ]; then
+            missing+=("BRAINTRUST_API_KEY");
+          fi
 
-      - name: Post skip comment on PR
-        if: steps.secrets.outputs.skip_keyed == 'true' && github.event_name == 'pull_request'
+          # Keyed model calls can run with gateway alone; Braintrust is optional logging.
+          if [ -z "$AI_GATEWAY_API_KEY" ]; then
+            echo "skip_keyed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_keyed=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -z "$BRAINTRUST_API_KEY" ]; then
+            echo "skip_braintrust=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_braintrust=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "missing=${missing[*]}" >> "$GITHUB_OUTPUT"
+          if [ ${#missing[@]} -gt 0 ]; then
+            {
+              echo "## Context-model keyed evals — secret status"
+              echo ""
+              if [ -z "$AI_GATEWAY_API_KEY" ]; then
+                echo "Keyed Jev/Claude **skipped**: \`AI_GATEWAY_API_KEY\` is not set in GitHub Actions secrets."
+              else
+                echo "Keyed Jev/Claude will run via AI Gateway."
+              fi
+              echo ""
+              echo "Still missing (mirror from Vercel tinker **Production** only - never Preview):"
+              for s in "${missing[@]}"; do echo "- \`$s\`"; done
+              echo ""
+              echo "Jev model: \`typesafe-ai/jev\` (evals pin \`typesafe-ai/jev-1.14.0\`)."
+            } | tee /tmp/context-model-eval-secrets.md
+          else
+            echo "All keyed secrets present." | tee /tmp/context-model-eval-secrets.md
+          fi
+
+      - name: Post secret status on PR
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const body = fs.readFileSync('/tmp/context-model-eval-skip.md', 'utf8');
+            const body = fs.readFileSync('/tmp/context-model-eval-secrets.md', 'utf8');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -111,20 +213,35 @@ jobs:
               body,
             });
 
-      - name: Keyed EdNet + source runs + Braintrust
+      - name: Keyed EdNet + source runs
         if: steps.secrets.outputs.skip_keyed != 'true'
         env:
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
-          ASK_MODEL: claude-haiku-4-5-20251001
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          ASK_MODEL: anthropic/claude-haiku-4-5-20251001
+          JEV_EVAL_PIN: "1"
+          JEV_MODEL: typesafe-ai/jev-1.14.0
+          EVAL_SPLIT: dev
+          EVAL_SPLIT_SEED: "42"
+          TINKER_EVAL_CONFIG_VERSION: v0
         run: |
           node evals/ednet-zpd/run.js
           node evals/source-zpd/run.js
 
-      - name: Braintrust eval-action (ednet + source)
+      - name: Gate keyed EdNet report vs last recorded baseline
         if: steps.secrets.outputs.skip_keyed != 'true'
+        env:
+          EVAL_BASELINE_TOLERANCE: "0.02"
+        run: |
+          node evals/lib/check-baseline-regression.js \
+            --report evals/ednet-zpd/last-report.json \
+            --baseline /tmp/experiments-baseline.jsonl \
+            --benchmark ednet-zpd \
+            --split dev
+
+      - name: Braintrust eval-action (ednet + source)
+        if: steps.secrets.outputs.skip_keyed != 'true' && steps.secrets.outputs.skip_braintrust != 'true'
         uses: braintrustdata/eval-action@v2
         with:
           api_key: ${{ secrets.BRAINTRUST_API_KEY }}
@@ -139,6 +256,17 @@ jobs:
           report_scores: TinkerBandMatch,BktBandMatch,TinkerHit,ClaudeHit
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
-          ASK_MODEL: claude-haiku-4-5-20251001
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          ASK_MODEL: anthropic/claude-haiku-4-5-20251001
+          JEV_EVAL_PIN: "1"
+          JEV_MODEL: typesafe-ai/jev-1.14.0
+
+      - name: Record baseline artifact (main push)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: context-model-experiment-log
+          path: |
+            evals/experiment-log/experiments.jsonl
+            evals/ednet-zpd/last-report.json
+          if-no-files-found: warn

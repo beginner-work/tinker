@@ -159,17 +159,13 @@ async function runTinkerCase(caseRow, opts) {
 
 /**
  * Claude-only source pick using versioned templates (no agent modeling).
+ * Uses AI Gateway when available, else Anthropic direct.
  */
 async function runClaudeCase(caseRow, opts) {
   const env = (opts && opts.env) || process.env;
-  const key = String(env.ANTHROPIC_API_KEY || "").trim();
-  if (!key) {
-    return { skipped: true, reason: "ANTHROPIC_API_KEY missing" };
-  }
+  const { callClaudeMessages } = require("../../lib/claude-client.js");
   const pack =
     (opts && opts.config) || loadEvalConfig({ env });
-  const fetchFn = (opts && opts.fetchFn) || globalThis.fetch;
-  const model = env.ASK_MODEL || "claude-haiku-4-5-20251001";
   const sourceList = (caseRow.sources || [])
     .map(
       (s) =>
@@ -187,34 +183,18 @@ async function runClaudeCase(caseRow, opts) {
     sourceList,
   });
 
-  const res = await fetchFn("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 40,
-      temperature: 0,
-      system: pack.claudeSourcePick.system,
-      messages: [{ role: "user", content: user }],
-    }),
+  const result = await callClaudeMessages({
+    system: pack.claudeSourcePick.system,
+    user,
+    maxTokens: 40,
+    temperature: 0,
+    env,
+    fetchFn: opts && opts.fetchFn,
   });
-  const json = await res.json();
-  if (!res.ok) {
-    throw new Error(
-      (json && json.error && json.error.message) || `Anthropic HTTP ${res.status}`,
-    );
+  if (result.skipped) {
+    return result;
   }
-  const text = Array.isArray(json.content)
-    ? json.content
-        .filter((b) => b.type === "text")
-        .map((b) => b.text)
-        .join("")
-        .trim()
-    : "";
+  const text = String(result.text || "").trim();
   const ids = (caseRow.sources || []).map((s) => s.id);
   const predicted = ids.find((id) => text.includes(id)) || text.split(/\s+/)[0];
   return {
@@ -224,6 +204,8 @@ async function runClaudeCase(caseRow, opts) {
     predicted,
     hit: (caseRow.inBandSourceIds || []).includes(predicted),
     raw: text,
+    provider: result.provider,
+    model: result.model,
   };
 }
 
